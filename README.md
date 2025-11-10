@@ -6,8 +6,8 @@ The FASTR Analytics Platform for processing, visualizing, and analyzing health d
 
 ```bash
 # Clone the repository
-git clone <repo-url> wb-fastr
-cd wb-fastr
+git clone https://github.com/FASTR-Analytics/platform.git
+cd platform
 
 # Sync the Panther library (required)
 # This project uses the Panther visualization library which is synced separately.
@@ -118,7 +118,7 @@ The script performs the following steps:
 ## Project Structure
 
 ```plaintext
-wb-fastr/
+platform/
 ├── _example_instance_dir/  Instance data (git-ignored)
 │   ├── assets/              Uploaded assets and data files
 │   ├── databases/           PostgreSQL data files
