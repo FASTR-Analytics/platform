@@ -1,0 +1,23 @@
+Copyright (c) 2025 The World Bank, Global Financing Facility for Women, Children and Adolescents (GFF), Frequent Assessments and System Tools for Resilience (FASTR) Initiative
+
+All rights reserved.
+
+This software and associated documentation files (the "Software") are proprietary and made publicly available for transparency and reference purposes only.
+
+Viewing and reviewing the source code is permitted. However, copying, modification, distribution, or use of this Software for any purpose, via any medium, is strictly prohibited without the express written permission of the copyright holders.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+THIRD-PARTY CODE
+
+This software includes the following third-party components with separate licensing:
+
+1. timroberton-panther Library (panther/)
+   - Copyright (c) 2023-2025 Tim Roberton
+   - Licensed under a proprietary license
+   - See panther/LICENSE.txt for full license terms
+   - Contains open-source dependencies - see panther/THIRD_PARTY_LICENSES.md for details
+
+The panther library and its dependencies are subject to their own license terms as detailed in the files referenced above.

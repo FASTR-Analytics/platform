@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Build modules only if dist folder doesn't exist or is empty
+if [ ! -d "module_defs_dist" ] || [ -z "$(ls -A module_defs_dist)" ]; then
+  echo "Building modules..."
+  deno task build:modules
+else
+  echo "Skipping module build (module_defs_dist exists)"
+fi
+
+# Always build translations
+echo "Building translations..."
+deno task build:translations
+
+# Start Deno server in background with colored prefix
+deno run --allow-all --env-file --unstable-broadcast-channel main.ts 2>&1 | while IFS= read -r line; do printf "\033[0;32mS:\033[0m %s\n" "$line"; done &
+SERVER_PID=$!
+
+# Start client in background with colored prefix
+(cd client && npm run dev) 2>&1 | while IFS= read -r line; do printf "\033[0;34mC:\033[0m %s\n" "$line"; done &
+CLIENT_PID=$!
+
+# Function to cleanup on exit
+cleanup() {
+  echo "Shutting down..."
+  kill $SERVER_PID 2>/dev/null
+  kill $CLIENT_PID 2>/dev/null
+  exit
+}
+
+# Trap Ctrl+C and call cleanup
+trap cleanup INT TERM
+
+# Wait for both processes
+wait

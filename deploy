@@ -1,0 +1,223 @@
+#!/bin/sh
+
+set -e
+
+# Store original working directory and start time
+START_TIME=$(date +%s)
+ORIGINAL_DIR=$(pwd)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CLIENT_DIR="$SCRIPT_DIR/client"
+SERVER_DIR="$SCRIPT_DIR"
+
+# Read version from VERSION file
+if [ ! -f VERSION ]; then
+    echo "ERROR: VERSION file not found!"
+    exit 1
+fi
+
+ORIGINAL_VERSION=$(cat VERSION)
+echo "Current version: $ORIGINAL_VERSION"
+
+# Cleanup function to restore VERSION on failure
+cleanup() {
+    echo "ERROR: Deployment failed! Restoring original version..."
+    echo "$ORIGINAL_VERSION" > VERSION
+    
+    # Restore client_dist backup if it exists
+    if [ -d "$SERVER_DIR/client_dist.backup" ]; then
+        echo "Restoring client_dist backup..."
+        rm -rf "$SERVER_DIR/client_dist"
+        mv "$SERVER_DIR/client_dist.backup" "$SERVER_DIR/client_dist"
+    fi
+    
+    cd "$ORIGINAL_DIR"
+    exit 1
+}
+
+# Set trap for cleanup on failure
+trap cleanup ERR
+
+# Prerequisites check
+echo "Checking prerequisites..."
+command -v npm >/dev/null 2>&1 || { echo "ERROR: npm not found!"; exit 1; }
+command -v docker >/dev/null 2>&1 || { echo "ERROR: docker not found!"; exit 1; }
+command -v git >/dev/null 2>&1 || { echo "ERROR: git not found!"; exit 1; }
+
+# Check if docker is running and logged in
+if ! docker info >/dev/null 2>&1; then
+    echo "ERROR: Docker is not running!"
+    exit 1
+fi
+
+if ! docker info 2>/dev/null | grep -q "Username:"; then
+    echo "WARNING: You may not be logged into Docker Hub. This could cause push to fail."
+    echo "Run 'docker login' if needed."
+fi
+
+# Parse current version
+MAJOR=$(echo $ORIGINAL_VERSION | cut -d. -f1)
+MINOR=$(echo $ORIGINAL_VERSION | cut -d. -f2)
+PATCH=$(echo $ORIGINAL_VERSION | cut -d. -f3)
+
+# Ask if user wants to bump minor version first
+echo "Do you want to bump the minor version $ORIGINAL_VERSION → $MAJOR.$((MINOR + 1)).0? (y/n)"
+read -r BUMP_MINOR
+
+if [ "$BUMP_MINOR" = "y" ] || [ "$BUMP_MINOR" = "Y" ]; then
+    MINOR=$((MINOR + 1))
+    PATCH=0
+else
+    # Only ask about patch if minor wasn't bumped
+    echo "Do you want to bump the patch version $ORIGINAL_VERSION → $MAJOR.$MINOR.$((PATCH + 1))? (y/n)"
+    read -r BUMP_PATCH
+
+    if [ "$BUMP_PATCH" = "y" ] || [ "$BUMP_PATCH" = "Y" ]; then
+        PATCH=$((PATCH + 1))
+    else
+        echo "Keeping current version: $ORIGINAL_VERSION"
+    fi
+fi
+
+NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+
+# Update VERSION file
+echo "$NEW_VERSION" > VERSION
+echo "Version bumped to: $NEW_VERSION"
+VERSION=$NEW_VERSION
+
+# Ask if user wants to build client
+echo "Do you want to build the client? (y/n)"
+read -r BUILD_CLIENT
+
+if [ "$BUILD_CLIENT" = "y" ] || [ "$BUILD_CLIENT" = "Y" ]; then
+    # Check if client directory exists
+    if [ ! -d "$CLIENT_DIR" ]; then
+        echo "ERROR: Client directory not found: $CLIENT_DIR"
+        exit 1
+    fi
+    
+    echo "Building client HTML..."
+    cd "$CLIENT_DIR"
+    
+    if ! npm run build; then
+        echo "ERROR: Client build failed!"
+        exit 1
+    fi
+    
+    # Validate client build output
+    if [ ! -d "$CLIENT_DIR/dist" ]; then
+        echo "ERROR: Client build output not found at $CLIENT_DIR/dist"
+        exit 1
+    fi
+    
+    if [ ! "$(ls -A "$CLIENT_DIR/dist")" ]; then
+        echo "ERROR: Client build output directory is empty!"
+        exit 1
+    fi
+    
+    cd "$SERVER_DIR"
+    
+    # Backup existing client_dist directory
+    if [ -d "$SERVER_DIR/client_dist" ]; then
+        echo "Backing up existing client_dist directory..."
+        rm -rf "$SERVER_DIR/client_dist.backup"
+        cp -r "$SERVER_DIR/client_dist" "$SERVER_DIR/client_dist.backup"
+    fi
+
+    # Copy new client build
+    echo "Copying client build to server..."
+    rm -rf "$SERVER_DIR/client_dist"
+    cp -r "$CLIENT_DIR/dist" "$SERVER_DIR/client_dist"
+    
+    echo "Client build completed successfully"
+else
+    echo "Skipping client build"
+fi
+
+# Build modules and translations
+echo "Building modules"
+deno run --allow-read --allow-write --allow-env --allow-net --unstable-raw-imports build_module_definitions.ts
+
+echo "Building translations"
+deno run --allow-read --allow-write --allow-env --allow-ffi build_translations.ts
+
+echo "Building Docker image with version: $VERSION"
+
+# Build with single versioned tag
+if ! docker build --platform linux/amd64 \
+    -t timroberton/comb:wb-fastr-server-v$VERSION \
+    .; then
+    echo "ERROR: Docker build failed!"
+    exit 1
+fi
+
+echo "Docker build completed successfully"
+echo "Pushing versioned tag to Docker Hub..."
+
+# Push single versioned tag
+echo "Pushing timroberton/comb:wb-fastr-server-v$VERSION..."
+if ! docker push "timroberton/comb:wb-fastr-server-v$VERSION"; then
+    echo "ERROR: Failed to push timroberton/comb:wb-fastr-server-v$VERSION"
+    exit 1
+fi
+
+echo "Docker image pushed successfully"
+
+# Commit to git
+echo "Committing changes to git..."
+today=`date +%Y_%m_%d_%H_%M_%S`
+
+if ! git add .; then
+    echo "ERROR: Git add failed!"
+    exit 1
+fi
+
+if ! git commit -m "Deploy version $VERSION at $today" --allow-empty; then
+    echo "ERROR: Git commit failed!"
+    exit 1
+fi
+
+if ! git push; then
+    echo "ERROR: Git push failed!"
+    exit 1
+fi
+
+# Clear trap and cleanup backup on successful completion
+trap - ERR
+if [ -d "$SERVER_DIR/client_dist.backup" ]; then
+    echo "Removing client_dist backup (deployment successful)..."
+    rm -rf "$SERVER_DIR/client_dist.backup"
+fi
+
+# Calculate duration
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+MINUTES=$((DURATION / 60))
+SECONDS=$((DURATION % 60))
+
+# Success banner
+echo ""
+echo -e "\033[92m"
+echo "╔══════════════════════════════════════════════════════════════════════╗"
+echo "║                                                                      ║"
+echo "║                      DEPLOYMENT SUCCESSFUL!                          ║"
+echo "║                                                                      ║"
+echo "╠══════════════════════════════════════════════════════════════════════╣"
+printf "║  Version:        %-51s ║\n" "$VERSION"
+printf "║  Docker Image:   %-51s ║\n" "timroberton/comb:wb-fastr-server-v$VERSION"
+echo "║                                                                      ║"
+echo "║  Operations Completed:                                               ║"
+printf "║    - Version bumped from %-43s ║\n" "$ORIGINAL_VERSION to $VERSION"
+if [ "$BUILD_CLIENT" = "y" ] || [ "$BUILD_CLIENT" = "Y" ]; then
+    echo "║    - Client built successfully                                       ║"
+fi
+echo "║    - Docker image built successfully                                 ║"
+echo "║    - Docker image pushed to Docker Hub                               ║"
+echo "║    - Changes committed to Git                                        ║"
+echo "║    - Changes pushed to remote repository                             ║"
+echo "║                                                                      ║"
+printf "║  Duration: %-57s ║\n" "$MINUTES minutes $SECONDS seconds"
+echo "╚══════════════════════════════════════════════════════════════════════╝"
+echo -e "\033[0m"
+echo ""
+cd "$ORIGINAL_DIR"

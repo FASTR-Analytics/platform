@@ -1,0 +1,2287 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@denosaurs/plug@1": "1.0.5",
+    "jsr:@denosaurs/plug@1.0.5": "1.0.5",
+    "jsr:@gfx/canvas@0.5.6": "0.5.6",
+    "jsr:@hono/hono@^4.5.3": "4.6.12",
+    "jsr:@std/assert@0.214": "0.214.0",
+    "jsr:@std/assert@0.217": "0.217.0",
+    "jsr:@std/async@^1.0.9": "1.0.11",
+    "jsr:@std/bytes@^1.0.0-rc.3": "1.0.4",
+    "jsr:@std/bytes@^1.0.3": "1.0.4",
+    "jsr:@std/csv@1.0.3": "1.0.3",
+    "jsr:@std/encoding@0.214": "0.214.0",
+    "jsr:@std/encoding@0.217.0": "0.217.0",
+    "jsr:@std/fmt@0.214": "0.214.0",
+    "jsr:@std/fs@0.214": "0.214.0",
+    "jsr:@std/fs@0.217.0": "0.217.0",
+    "jsr:@std/fs@1": "1.0.19",
+    "jsr:@std/internal@^1.0.10": "1.0.10",
+    "jsr:@std/internal@^1.0.9": "1.0.10",
+    "jsr:@std/path@0.214": "0.214.0",
+    "jsr:@std/path@0.217": "0.217.0",
+    "jsr:@std/path@0.217.0": "0.217.0",
+    "jsr:@std/path@1": "1.1.2",
+    "jsr:@std/path@^1.1.1": "1.1.2",
+    "jsr:@std/streams@^1.0.4": "1.0.8",
+    "jsr:@std/streams@^1.0.8": "1.0.8",
+    "npm:@anthropic-ai/sdk@0.67": "0.67.0",
+    "npm:@clerk/backend@^1.25.2": "1.34.0",
+    "npm:@hono/clerk-auth@2": "2.0.1_@clerk+backend@1.34.0_hono@4.8.10",
+    "npm:@solidjs/router@0.13": "0.13.6_solid-js@1.9.10__seroval@1.3.2",
+    "npm:@stdlib/random-base-normal@0.2.1": "0.2.1",
+    "npm:@types/node@*": "22.5.4",
+    "npm:@types/papaparse@^5.3.15": "5.3.15",
+    "npm:docx@^9.5.1": "9.5.1",
+    "npm:jspdf@^3.0.1": "3.0.3",
+    "npm:markdown-it@^14.1.0": "14.1.0",
+    "npm:papaparse@5.4.1": "5.4.1",
+    "npm:papaparse@^5.5.2": "5.5.2",
+    "npm:parse-multipart@^1.0.4": "1.0.4",
+    "npm:postgres@^3.4.5": "3.4.5",
+    "npm:solid-js@^1.9.0": "1.9.10_seroval@1.3.2",
+    "npm:sortablejs@^1.15.0": "1.15.6",
+    "npm:xlsx@0.18.5": "0.18.5"
+  },
+  "jsr": {
+    "@denosaurs/plug@1.0.5": {
+      "integrity": "04cd988da558adc226202d88c3a434d5fcc08146eaf4baf0cea0c2284b16d2bf",
+      "dependencies": [
+        "jsr:@std/encoding@0.214",
+        "jsr:@std/fmt",
+        "jsr:@std/fs@0.214",
+        "jsr:@std/path@0.214"
+      ]
+    },
+    "@gfx/canvas@0.5.6": {
+      "integrity": "4f34b91daca182fb422e308692a5fa54c2f638d2e46c587a3974c1f9233407d1",
+      "dependencies": [
+        "jsr:@denosaurs/plug@1",
+        "jsr:@denosaurs/plug@1.0.5",
+        "jsr:@std/encoding@0.217.0",
+        "jsr:@std/fs@0.217.0",
+        "jsr:@std/path@0.217.0"
+      ]
+    },
+    "@hono/hono@4.6.12": {
+      "integrity": "fa0b97fa7c3292f0d9957109ac07a475fe485868795b71b8e3114c284152cdb5"
+    },
+    "@std/assert@0.214.0": {
+      "integrity": "55d398de76a9828fd3b1aa653f4dba3eee4c6985d90c514865d2be9bd082b140"
+    },
+    "@std/assert@0.217.0": {
+      "integrity": "c98e279362ca6982d5285c3b89517b757c1e3477ee9f14eb2fdf80a45aaa9642"
+    },
+    "@std/async@1.0.11": {
+      "integrity": "eee0d3405275506638a9c8efaa849cf0d35873120c69b7caa1309c9a9e5b6f85"
+    },
+    "@std/bytes@1.0.4": {
+      "integrity": "11a0debe522707c95c7b7ef89b478c13fb1583a7cfb9a85674cd2cc2e3a28abc"
+    },
+    "@std/csv@1.0.3": {
+      "integrity": "623acf0dcb88d62ba727c3611ad005df7f109ede8cac833e3986f540744562e5",
+      "dependencies": [
+        "jsr:@std/streams@^1.0.4"
+      ]
+    },
+    "@std/encoding@0.214.0": {
+      "integrity": "30a8713e1db22986c7e780555ffd2fefd1d4f9374d734bb41f5970f6c3352af5"
+    },
+    "@std/encoding@0.217.0": {
+      "integrity": "b03e8ff94c98d6b6a02c02c5cf8e5d203400155516248964fc4559abc04669dc"
+    },
+    "@std/fmt@0.214.0": {
+      "integrity": "40382cff88a0783b347b4d69b94cf931ab8e549a733916718cb866c08efac4d4"
+    },
+    "@std/fs@0.214.0": {
+      "integrity": "bc880fea0be120cb1550b1ed7faf92fe071003d83f2456a1e129b39193d85bea",
+      "dependencies": [
+        "jsr:@std/assert@0.214",
+        "jsr:@std/path@0.214"
+      ]
+    },
+    "@std/fs@0.217.0": {
+      "integrity": "0bfff5f3618d68c385b28b4ffbf3a15c98293a0f1186444458b62e0111ce77b2",
+      "dependencies": [
+        "jsr:@std/assert@0.217",
+        "jsr:@std/path@0.217"
+      ]
+    },
+    "@std/fs@1.0.19": {
+      "integrity": "051968c2b1eae4d2ea9f79a08a3845740ef6af10356aff43d3e2ef11ed09fb06",
+      "dependencies": [
+        "jsr:@std/internal@^1.0.9",
+        "jsr:@std/path@^1.1.1"
+      ]
+    },
+    "@std/internal@1.0.10": {
+      "integrity": "e3be62ce42cab0e177c27698e5d9800122f67b766a0bea6ca4867886cbde8cf7"
+    },
+    "@std/path@0.214.0": {
+      "integrity": "d5577c0b8d66f7e8e3586d864ebdf178bb326145a3611da5a51c961740300285",
+      "dependencies": [
+        "jsr:@std/assert@0.214"
+      ]
+    },
+    "@std/path@0.217.0": {
+      "integrity": "1217cc25534bca9a2f672d7fe7c6f356e4027df400c0e85c0ef3e4343bc67d11",
+      "dependencies": [
+        "jsr:@std/assert@0.217"
+      ]
+    },
+    "@std/path@1.1.2": {
+      "integrity": "c0b13b97dfe06546d5e16bf3966b1cadf92e1cc83e56ba5476ad8b498d9e3038",
+      "dependencies": [
+        "jsr:@std/internal@^1.0.10"
+      ]
+    },
+    "@std/streams@1.0.8": {
+      "integrity": "b41332d93d2cf6a82fe4ac2153b930adf1a859392931e2a19d9fabfb6f154fb3",
+      "dependencies": [
+        "jsr:@std/bytes@^1.0.3"
+      ]
+    }
+  },
+  "npm": {
+    "@anthropic-ai/sdk@0.67.0": {
+      "integrity": "sha512-Buxbf6jYJ+pPtfCgXe1pcFtZmdXPrbdqhBjiscFt9irS1G0hCsmR/fPA+DwKTk4GPjqeNnnCYNecXH6uVZ4G/A==",
+      "dependencies": [
+        "json-schema-to-ts"
+      ],
+      "bin": true
+    },
+    "@babel/runtime@7.28.4": {
+      "integrity": "sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ=="
+    },
+    "@clerk/backend@1.34.0": {
+      "integrity": "sha512-9rZ8hQJVpX5KX2bEpiuVXfpjhojQCiqCWADJDdCI0PCeKxn58Ep0JPYiIcczg4VKUc3a7jve9vXylykG2XajLQ==",
+      "dependencies": [
+        "@clerk/shared",
+        "@clerk/types",
+        "cookie",
+        "snakecase-keys",
+        "tslib"
+      ]
+    },
+    "@clerk/shared@3.16.0": {
+      "integrity": "sha512-jzaa7mnFszxWn0xPBu9tBmHQl3iTLMuHbTjOPWkEdz6/1rdPYWaUfCudMhv2p7Zv9YPesn3Nyui6BZ1nygxMig==",
+      "dependencies": [
+        "@clerk/types",
+        "dequal",
+        "glob-to-regexp",
+        "js-cookie",
+        "std-env",
+        "swr"
+      ],
+      "scripts": true
+    },
+    "@clerk/types@4.71.0": {
+      "integrity": "sha512-QsZEIzx9AFTXAjcGc+aQ+k0TjzXTqi2EpScl36w187xhO3+CWXuk/tZai8IdVclp091+KmQKd8ayxuKnhg3QYQ==",
+      "dependencies": [
+        "csstype"
+      ]
+    },
+    "@hono/clerk-auth@2.0.1_@clerk+backend@1.34.0_hono@4.8.10": {
+      "integrity": "sha512-tc59vpU022NgM4AHHI+r0FIext6slHEXsZaRcMNfllTnN2gkcNmSNCrAH04lLmGr9Lfb/RmpATefgW+6/cnuNA==",
+      "dependencies": [
+        "@clerk/backend",
+        "hono"
+      ]
+    },
+    "@img/sharp-darwin-arm64@0.33.2": {
+      "integrity": "sha512-itHBs1rPmsmGF9p4qRe++CzCgd+kFYktnsoR1sbIAfsRMrJZau0Tt1AH9KVnufc2/tU02Gf6Ibujx+15qRE03w==",
+      "optionalDependencies": [
+        "@img/sharp-libvips-darwin-arm64"
+      ],
+      "os": ["darwin"],
+      "cpu": ["arm64"]
+    },
+    "@img/sharp-darwin-x64@0.33.2": {
+      "integrity": "sha512-/rK/69Rrp9x5kaWBjVN07KixZanRr+W1OiyKdXcbjQD6KbW+obaTeBBtLUAtbBsnlTTmWthw99xqoOS7SsySDg==",
+      "optionalDependencies": [
+        "@img/sharp-libvips-darwin-x64"
+      ],
+      "os": ["darwin"],
+      "cpu": ["x64"]
+    },
+    "@img/sharp-libvips-darwin-arm64@1.0.1": {
+      "integrity": "sha512-kQyrSNd6lmBV7O0BUiyu/OEw9yeNGFbQhbxswS1i6rMDwBBSX+e+rPzu3S+MwAiGU3HdLze3PanQ4Xkfemgzcw==",
+      "os": ["darwin"],
+      "cpu": ["arm64"]
+    },
+    "@img/sharp-libvips-darwin-x64@1.0.1": {
+      "integrity": "sha512-eVU/JYLPVjhhrd8Tk6gosl5pVlvsqiFlt50wotCvdkFGf+mDNBJxMh+bvav+Wt3EBnNZWq8Sp2I7XfSjm8siog==",
+      "os": ["darwin"],
+      "cpu": ["x64"]
+    },
+    "@img/sharp-libvips-linux-arm64@1.0.1": {
+      "integrity": "sha512-bnGG+MJjdX70mAQcSLxgeJco11G+MxTz+ebxlz8Y3dxyeb3Nkl7LgLI0mXupoO+u1wRNx/iRj5yHtzA4sde1yA==",
+      "os": ["linux"],
+      "cpu": ["arm64"]
+    },
+    "@img/sharp-libvips-linux-arm@1.0.1": {
+      "integrity": "sha512-FtdMvR4R99FTsD53IA3LxYGghQ82t3yt0ZQ93WMZ2xV3dqrb0E8zq4VHaTOuLEAuA83oDawHV3fd+BsAPadHIQ==",
+      "os": ["linux"],
+      "cpu": ["arm"]
+    },
+    "@img/sharp-libvips-linux-s390x@1.0.1": {
+      "integrity": "sha512-3+rzfAR1YpMOeA2zZNp+aYEzGNWK4zF3+sdMxuCS3ey9HhDbJ66w6hDSHDMoap32DueFwhhs3vwooAB2MaK4XQ==",
+      "os": ["linux"],
+      "cpu": ["s390x"]
+    },
+    "@img/sharp-libvips-linux-x64@1.0.1": {
+      "integrity": "sha512-3NR1mxFsaSgMMzz1bAnnKbSAI+lHXVTqAHgc1bgzjHuXjo4hlscpUxc0vFSAPKI3yuzdzcZOkq7nDPrP2F8Jgw==",
+      "os": ["linux"],
+      "cpu": ["x64"]
+    },
+    "@img/sharp-libvips-linuxmusl-arm64@1.0.1": {
+      "integrity": "sha512-5aBRcjHDG/T6jwC3Edl3lP8nl9U2Yo8+oTl5drd1dh9Z1EBfzUKAJFUDTDisDjUwc7N4AjnPGfCA3jl3hY8uDg==",
+      "os": ["linux"],
+      "cpu": ["arm64"]
+    },
+    "@img/sharp-libvips-linuxmusl-x64@1.0.1": {
+      "integrity": "sha512-dcT7inI9DBFK6ovfeWRe3hG30h51cBAP5JXlZfx6pzc/Mnf9HFCQDLtYf4MCBjxaaTfjCCjkBxcy3XzOAo5txw==",
+      "os": ["linux"],
+      "cpu": ["x64"]
+    },
+    "@img/sharp-linux-arm64@0.33.2": {
+      "integrity": "sha512-pz0NNo882vVfqJ0yNInuG9YH71smP4gRSdeL09ukC2YLE6ZyZePAlWKEHgAzJGTiOh8Qkaov6mMIMlEhmLdKew==",
+      "optionalDependencies": [
+        "@img/sharp-libvips-linux-arm64"
+      ],
+      "os": ["linux"],
+      "cpu": ["arm64"]
+    },
+    "@img/sharp-linux-arm@0.33.2": {
+      "integrity": "sha512-Fndk/4Zq3vAc4G/qyfXASbS3HBZbKrlnKZLEJzPLrXoJuipFNNwTes71+Ki1hwYW5lch26niRYoZFAtZVf3EGA==",
+      "optionalDependencies": [
+        "@img/sharp-libvips-linux-arm"
+      ],
+      "os": ["linux"],
+      "cpu": ["arm"]
+    },
+    "@img/sharp-linux-s390x@0.33.2": {
+      "integrity": "sha512-MBoInDXDppMfhSzbMmOQtGfloVAflS2rP1qPcUIiITMi36Mm5YR7r0ASND99razjQUpHTzjrU1flO76hKvP5RA==",
+      "optionalDependencies": [
+        "@img/sharp-libvips-linux-s390x"
+      ],
+      "os": ["linux"],
+      "cpu": ["s390x"]
+    },
+    "@img/sharp-linux-x64@0.33.2": {
+      "integrity": "sha512-xUT82H5IbXewKkeF5aiooajoO1tQV4PnKfS/OZtb5DDdxS/FCI/uXTVZ35GQ97RZXsycojz/AJ0asoz6p2/H/A==",
+      "optionalDependencies": [
+        "@img/sharp-libvips-linux-x64"
+      ],
+      "os": ["linux"],
+      "cpu": ["x64"]
+    },
+    "@img/sharp-linuxmusl-arm64@0.33.2": {
+      "integrity": "sha512-F+0z8JCu/UnMzg8IYW1TMeiViIWBVg7IWP6nE0p5S5EPQxlLd76c8jYemG21X99UzFwgkRo5yz2DS+zbrnxZeA==",
+      "optionalDependencies": [
+        "@img/sharp-libvips-linuxmusl-arm64"
+      ],
+      "os": ["linux"],
+      "cpu": ["arm64"]
+    },
+    "@img/sharp-linuxmusl-x64@0.33.2": {
+      "integrity": "sha512-+ZLE3SQmSL+Fn1gmSaM8uFusW5Y3J9VOf+wMGNnTtJUMUxFhv+P4UPaYEYT8tqnyYVaOVGgMN/zsOxn9pSsO2A==",
+      "optionalDependencies": [
+        "@img/sharp-libvips-linuxmusl-x64"
+      ],
+      "os": ["linux"],
+      "cpu": ["x64"]
+    },
+    "@img/sharp-win32-ia32@0.33.2": {
+      "integrity": "sha512-okBpql96hIGuZ4lN3+nsAjGeggxKm7hIRu9zyec0lnfB8E7Z6p95BuRZzDDXZOl2e8UmR4RhYt631i7mfmKU8g==",
+      "os": ["win32"],
+      "cpu": ["ia32"]
+    },
+    "@img/sharp-win32-x64@0.33.2": {
+      "integrity": "sha512-E4magOks77DK47FwHUIGH0RYWSgRBfGdK56kIHSVeB9uIS4pPFr4N2kIVsXdQQo4LzOsENKV5KAhRlRL7eMAdg==",
+      "os": ["win32"],
+      "cpu": ["x64"]
+    },
+    "@solidjs/router@0.13.6_solid-js@1.9.10__seroval@1.3.2": {
+      "integrity": "sha512-CdpFsBYoiJ/FQ4wZIamj3KEFRkmrYu5sVXM6PouNkmSENta1YJamsm9wa/VjaPmkw2RsnDnO0UvZ705v6EgOXQ==",
+      "dependencies": [
+        "solid-js"
+      ]
+    },
+    "@stdlib/array-base-accessor-getter@0.2.1": {
+      "integrity": "sha512-RqiEJmXg8CdQd2plfsJ6DCy7czTOZzU4GxK/Y9kmk3ZB6DcfZQIDk0Vwawky1MMHfFGSg5stU8s3Ui0LyOobmw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-base-accessor-setter@0.2.1": {
+      "integrity": "sha512-p1jjURuA+1j/bVAdXBCVgBbzX5h8WO0K8JeyBPH+ewr7JzEXXXbNJnB9fd2DOkzNFXoQY0LZq93Bu31TOSGgdw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-base-arraylike2object@0.2.1": {
+      "integrity": "sha512-WHlzAZQXwz2zR0UnkGXznjvykuvhlhFqb0s8Dhv5InhRvhYkcfT7BY23In74kBBzW3gkonxJUxbd0OG6nEHcCA==",
+      "dependencies": [
+        "@stdlib/array-base-accessor-getter",
+        "@stdlib/array-base-accessor-setter",
+        "@stdlib/array-base-assert-is-accessor-array",
+        "@stdlib/array-base-getter",
+        "@stdlib/array-base-setter",
+        "@stdlib/array-dtype"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-base-assert-is-accessor-array@0.2.1": {
+      "integrity": "sha512-f9FBl42yM7hBhY2k75WpnVTDdV4amBUr4yFOaSW17QVJYYkDm4rKpeNvuQxadJ2NO3nLo/nyBys40knWecwSDw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-base-assert-is-complex128array@0.2.1": {
+      "integrity": "sha512-iXsqhzcIuUZ4H4hAvO71Q6triuz3vt8wIfsoE1ujL5Lz8zrS23OLFctB2Pieszkx0yxFDxg1OoW0/3zJ1KtS+Q==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-base-assert-is-complex64array@0.2.1": {
+      "integrity": "sha512-uBo7HQD2dTEPpanPz3mjkfAuP8iU3da+vzAFn//22EvttT2SGmFnC7mU1BHrUoOaxZhjZQnso77rUJBuCbzUyA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-base-getter@0.2.1": {
+      "integrity": "sha512-nGfohfcl5qxbGAIl9QmVAZ3owhJsUmivxovnAWa2M5UZVHudYj18/fk4g8HKqhJnBY1794LXSZKVDDGA+IHVcQ==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-base-setter@0.2.1": {
+      "integrity": "sha512-NtRCXCuFe6U2kM/9kznPi0KYfGG6iC1oZzsNIAkOPg3tfq7MCMkX4fXAIfmhYIpCAE+fm1Uq1/Atpwhr7acPqQ==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-complex128@0.2.1": {
+      "integrity": "sha512-AinzxxCWP0E47eCPmGWTRbUKoYtY+lJQmAi1t+yvv07K0Qgph8OTDAbk2xR8dF2JmBFIZXypUTRG2cG+aoZvNw==",
+      "dependencies": [
+        "@stdlib/array-base-accessor-getter",
+        "@stdlib/array-base-assert-is-complex128array",
+        "@stdlib/array-base-assert-is-complex64array",
+        "@stdlib/array-base-getter",
+        "@stdlib/array-float64",
+        "@stdlib/assert-has-iterator-symbol-support",
+        "@stdlib/assert-is-array",
+        "@stdlib/assert-is-array-like-object",
+        "@stdlib/assert-is-arraybuffer",
+        "@stdlib/assert-is-collection",
+        "@stdlib/assert-is-complex-like",
+        "@stdlib/assert-is-function",
+        "@stdlib/assert-is-nonnegative-integer",
+        "@stdlib/assert-is-object",
+        "@stdlib/assert-is-string",
+        "@stdlib/complex-float64",
+        "@stdlib/complex-imag",
+        "@stdlib/complex-real",
+        "@stdlib/error-tools-fmtprodmsg",
+        "@stdlib/math-base-assert-is-even",
+        "@stdlib/math-base-assert-is-integer",
+        "@stdlib/math-base-special-floor",
+        "@stdlib/strided-base-reinterpret-complex128",
+        "@stdlib/strided-base-reinterpret-complex64",
+        "@stdlib/string-format",
+        "@stdlib/symbol-iterator",
+        "@stdlib/utils-define-nonenumerable-read-only-accessor",
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-complex64@0.2.1": {
+      "integrity": "sha512-1CdCZtov9hS/RZO5RQ1DCxVIA8uMfaBpjCqA+JiEpSVHK1lnYcl86PljMs+ls38IH+B/h/cpOCWC68iuu14vwg==",
+      "dependencies": [
+        "@stdlib/array-base-accessor-getter",
+        "@stdlib/array-base-assert-is-complex128array",
+        "@stdlib/array-base-assert-is-complex64array",
+        "@stdlib/array-base-getter",
+        "@stdlib/array-float32",
+        "@stdlib/assert-has-iterator-symbol-support",
+        "@stdlib/assert-is-array",
+        "@stdlib/assert-is-array-like-object",
+        "@stdlib/assert-is-arraybuffer",
+        "@stdlib/assert-is-collection",
+        "@stdlib/assert-is-complex-like",
+        "@stdlib/assert-is-function",
+        "@stdlib/assert-is-nonnegative-integer",
+        "@stdlib/assert-is-object",
+        "@stdlib/assert-is-string",
+        "@stdlib/complex-float32",
+        "@stdlib/complex-imagf",
+        "@stdlib/complex-realf",
+        "@stdlib/error-tools-fmtprodmsg",
+        "@stdlib/math-base-assert-is-even",
+        "@stdlib/math-base-assert-is-integer",
+        "@stdlib/math-base-special-floor",
+        "@stdlib/strided-base-reinterpret-complex128",
+        "@stdlib/strided-base-reinterpret-complex64",
+        "@stdlib/string-format",
+        "@stdlib/symbol-iterator",
+        "@stdlib/utils-define-nonenumerable-read-only-accessor",
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-dtype@0.2.1": {
+      "integrity": "sha512-ZE1BycHa405hpg2nApMDS9Lq4zOCIYdklCBmSFdwB3bUPC40/GUR4RxqVETLZKxHx+rbPyXSvzpqDm7wgQjpZA==",
+      "dependencies": [
+        "@stdlib/array-complex128",
+        "@stdlib/array-complex64",
+        "@stdlib/array-float32",
+        "@stdlib/array-float64",
+        "@stdlib/array-int16",
+        "@stdlib/array-int32",
+        "@stdlib/array-int8",
+        "@stdlib/array-uint16",
+        "@stdlib/array-uint32",
+        "@stdlib/array-uint8",
+        "@stdlib/array-uint8c",
+        "@stdlib/assert-is-array",
+        "@stdlib/assert-is-buffer",
+        "@stdlib/utils-constructor-name"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-float32@0.2.1": {
+      "integrity": "sha512-Q5iME19GlfiF9TrZZbhKWvAYKzWGfe9sZQgsUeO9pvbF7N2tCbeUI9ZzQCClSfGr4uD3G+ExyvU1gUFNEayycQ==",
+      "dependencies": [
+        "@stdlib/assert-has-float32array-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-float64@0.2.1": {
+      "integrity": "sha512-FM6eNRA/TyPyIekTcCapfmsZcXAggeVzKM8XrsSXPjCdSYOcUrwtlOwqWfTs8gfx1t67roMPblsL+xEq4JUm5g==",
+      "dependencies": [
+        "@stdlib/assert-has-float64array-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-int16@0.2.1": {
+      "integrity": "sha512-0CAZ/7O2uPEkwA9zbhGhwnk1MXv1YjtH3cwZp8JSZs+hzd0Ac8NSIXcy2T2l9zyXdN//qVTesZyGhkIxcXJQOg==",
+      "dependencies": [
+        "@stdlib/assert-has-int16array-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-int32@0.2.1": {
+      "integrity": "sha512-MhZdQMligR3gQ0beDiSOdUxHCxwl3EaXKxnagcCjkfi33cSTP9oqDuUZnrNTCm/pVMcY0MOpMnDyisGpyn8o9Q==",
+      "dependencies": [
+        "@stdlib/assert-has-int32array-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-int8@0.2.1": {
+      "integrity": "sha512-eJUpnS+XV7Edo4o7EBwRQAoec4LcA5yL0AYM39HKy68JfPqfGS9ZfVEqfDXq9kjS3qs2OvJO/uzjntNAFqbSKA==",
+      "dependencies": [
+        "@stdlib/assert-has-int8array-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-to-json@0.2.1": {
+      "integrity": "sha512-cTLBiXSbs2/g4U5xf9nz9TY54LW67nrbLCGsnqHMp4KSKixb/wH/F7BSNCN3WLJVW+5qFInVJ7Tav+lBeSPDQQ==",
+      "dependencies": [
+        "@stdlib/array-complex128",
+        "@stdlib/array-complex64",
+        "@stdlib/array-float32",
+        "@stdlib/array-float64",
+        "@stdlib/array-int16",
+        "@stdlib/array-int32",
+        "@stdlib/array-int8",
+        "@stdlib/array-uint16",
+        "@stdlib/array-uint32",
+        "@stdlib/array-uint8",
+        "@stdlib/array-uint8c",
+        "@stdlib/assert-instance-of",
+        "@stdlib/assert-is-complex-typed-array",
+        "@stdlib/assert-is-typed-array",
+        "@stdlib/error-tools-fmtprodmsg",
+        "@stdlib/strided-base-reinterpret-complex128",
+        "@stdlib/strided-base-reinterpret-complex64",
+        "@stdlib/string-format",
+        "@stdlib/utils-constructor-name",
+        "@stdlib/utils-get-prototype-of"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-uint16@0.2.1": {
+      "integrity": "sha512-TEX88VMABKpGPNSwx/xpNj9ixhaVPpGKWZNHCJuYoWG5AYv2CKyd3rIgZsMXR5A+yr0T83AayUc2YsDzrobhEw==",
+      "dependencies": [
+        "@stdlib/assert-has-uint16array-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-uint32@0.2.1": {
+      "integrity": "sha512-nRkvGvMEMd7OUfDWbHhUstqkoWaln08ufUkgDXVDbKyF03HpbCHMM4xGfiKDfaW7h3T2AYLE8YzyKylmAj5jLA==",
+      "dependencies": [
+        "@stdlib/assert-has-uint32array-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-uint8@0.2.1": {
+      "integrity": "sha512-EkRR9xeBUVMLSWSWDSy3t5I8GGKbKqCPbPdZTH0oPrARRrXVUETSB9itT64/LbhP3Oc2ny4eh+dn/7PuOOREUw==",
+      "dependencies": [
+        "@stdlib/assert-has-uint8array-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/array-uint8c@0.2.1": {
+      "integrity": "sha512-47bitR7ZlE7puoG0imVuOgOhwCGIr5W45caLL2IafNQNskYAoeL4ciAEKker2HH+Wgb/og6k41F/E/dnC95FVg==",
+      "dependencies": [
+        "@stdlib/assert-has-uint8clampedarray-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-float32array-support@0.2.1": {
+      "integrity": "sha512-m5UW0dJ1XfEpcDEvT/THKNrxvib7uvSu1bAkezuLlakI4vkfWvTUwRja0L2PtoKXCn6rxycGu0NXKFQXU4O5CQ==",
+      "dependencies": [
+        "@stdlib/assert-is-float32array",
+        "@stdlib/constants-float64-pinf"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-float64array-support@0.2.1": {
+      "integrity": "sha512-P++t7tMba8fNXabOVkZ+KgEkSEyJEuk7BzJuNtCbPttcPZmYR+e4xFXZe9wPO5VbLYVCaCKeP59h8HZpy8jHfg==",
+      "dependencies": [
+        "@stdlib/assert-is-float64array"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-function-name-support@0.2.1": {
+      "integrity": "sha512-z1RE0QkbhjkBFAoP522CqIxmRMqOnx4V7tp2/Yzp0VLTZFL6gxncybAWW/gVrkDR7fu9Tacsq3N68SBsMehLvw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-int16array-support@0.2.1": {
+      "integrity": "sha512-l4Xp1JDuvuBdrtCaaIR67oEvL3glZdTKblu29L5H8Yv8ha02XXbY+VwWnof2CraFMGgJbx875ASSgnOlvG+TIg==",
+      "dependencies": [
+        "@stdlib/assert-is-int16array",
+        "@stdlib/constants-int16-max",
+        "@stdlib/constants-int16-min"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-int32array-support@0.2.1": {
+      "integrity": "sha512-b6QV1oJLVx/KwyGbsmq1EIrIkfLc9/UYzFUo/7S+NM5QUUyR1WlWm9p/QK1YCMW1bdzoXEG3w8rTu7mXGL+VDw==",
+      "dependencies": [
+        "@stdlib/assert-is-int32array",
+        "@stdlib/constants-int32-max",
+        "@stdlib/constants-int32-min"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-int8array-support@0.2.1": {
+      "integrity": "sha512-IoaIK338rQTC2DY+Hg/PI126Z9+ycRbFSJ/J8c0vXqRQ9tMMAV3n9izuBVNn+k6WGUqMsVfSuLGg1sYKQdyaug==",
+      "dependencies": [
+        "@stdlib/assert-is-int8array",
+        "@stdlib/constants-int8-max",
+        "@stdlib/constants-int8-min"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-iterator-symbol-support@0.2.1": {
+      "integrity": "sha512-qTDstpKlqd9D1d9Hm1S5WhRZpOzr5OrlUX07Ns5WmUfWqhsGqrbc+Y4K8vnxp86hP1+JpLqhk8mOa3MTVUSV+w==",
+      "dependencies": [
+        "@stdlib/assert-has-own-property",
+        "@stdlib/symbol-ctor"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-own-property@0.2.1": {
+      "integrity": "sha512-TNx+PlR1kGG6Ypg9aiHpHzaIYI8iaKAj7Ad1r/A6BlbkA/czzJMMidJE91uDlpgrMAIILAT68MRXt3kD6X2tAw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-symbol-support@0.2.1": {
+      "integrity": "sha512-a0N1kI/csNiPZ/0lad7ATOIMSXgpm0mCBjV95TgA4+Dmmruol0DK3PrP4n+NuoziTLzRSM/CRgEtLQI5X9g6mQ==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-tostringtag-support@0.2.1": {
+      "integrity": "sha512-cWhgirurOsVJzHSSU0GdX5HqHGF2DRWXPk7xbQ4OPhu0x4yeOa2WAupPf7PHQ0pMD++IoWW3I16Gr310WjLDeg==",
+      "dependencies": [
+        "@stdlib/assert-has-symbol-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-uint16array-support@0.2.1": {
+      "integrity": "sha512-9wryIrv16SZ4IZDa4AKCS0xgmRyBT7KHzpPcpkH1rFWGFe8kev8AKRH0MJ5ukl4C1wVnnqomctZyR1f3WFlNVg==",
+      "dependencies": [
+        "@stdlib/assert-is-uint16array",
+        "@stdlib/constants-uint16-max"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-uint32array-support@0.2.1": {
+      "integrity": "sha512-WrEfqfmgNjD7imwFVNMqr7RRky4iPuddXyJdL/rQQ0fBZA3FcGuOeoTRn7gSJBq92WYHvmmAkr2FQ1SoD0BQyg==",
+      "dependencies": [
+        "@stdlib/assert-is-uint32array",
+        "@stdlib/constants-uint32-max"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-uint8array-support@0.2.1": {
+      "integrity": "sha512-ie9PmgRi4MfDQwDf7FBN1IkQYvSTFvUGDlEaz61rC397Sz88SfIWJDGMcDGmIRQ/0Mg7jkTCoYU4gNVsRTzW2w==",
+      "dependencies": [
+        "@stdlib/assert-is-uint8array",
+        "@stdlib/constants-uint8-max"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-has-uint8clampedarray-support@0.2.1": {
+      "integrity": "sha512-EXxRz2Uqio13c+P8N2WOCsKPwLq7QHhin6tDchmKc21oFNEP05SHz0KiWknX5wEmNDDx0p4QNX9un8L64S/r0g==",
+      "dependencies": [
+        "@stdlib/assert-is-uint8clampedarray"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-instance-of@0.2.1": {
+      "integrity": "sha512-0ugxPHLH3n71G9F6h7cnUeGqnKmgYijnZPlVGCznDfiNDXdb6Wkiv+FfWNnFwRTqWj400Po51nKxC+Wu7fFu2w==",
+      "dependencies": [
+        "@stdlib/string-format"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-array-like-object@0.2.1": {
+      "integrity": "sha512-NRS6bMzrtiQ4R/0loX8oXNa++b0iifwthKmhfIJ2ggWslInMUjxArcm3nZhh5tapZIBiEzLdwTE3yJjIkXo6iw==",
+      "dependencies": [
+        "@stdlib/constants-array-max-array-length",
+        "@stdlib/math-base-assert-is-integer"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-array@0.2.1": {
+      "integrity": "sha512-5sn5LKMn6mELsAXEDsxsm6S2+9mmGDdKGQdTNw9QnT/Kz3M+DzBPKEH719M20Pm1J7QNwMKICBZNWJzb5mvM4g==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-arraybuffer@0.2.1": {
+      "integrity": "sha512-UHtSp23K5xnq91wA94BwvaZeQPTqOXmBP8SuWhcaMiaiGlCOOJc0sZno6j1ba0ewmv3WW9whkckF5rmDQnpiOA==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-big-endian@0.2.1": {
+      "integrity": "sha512-06jb/I9h96+Q48tS2/kfuYSobFoO8NTIAJImIqGWbPD3XEL0LEQKjyL37bc5BjyyCKTdpZiCuV5c+hdo1o+V9g==",
+      "dependencies": [
+        "@stdlib/array-uint16",
+        "@stdlib/array-uint8"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-boolean@0.2.1": {
+      "integrity": "sha512-Ls9j8PAFGZsR8v9J/39QKghT9oLmkm8RI418dt+fHBemFsjd4U/VEvUUgNEfal1LsVAc31ltklR0HJEKrkGDEg==",
+      "dependencies": [
+        "@stdlib/assert-has-tostringtag-support",
+        "@stdlib/boolean-ctor",
+        "@stdlib/utils-define-nonenumerable-read-only-property",
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-buffer@0.2.1": {
+      "integrity": "sha512-kSJW8R/byBz7yk2V3g3CCCM+6Im51l2pbNfnL7JABipyBZPolsOzRby6sD046PIFVf5jwufvpUUCZ68hzyEGsw==",
+      "dependencies": [
+        "@stdlib/assert-is-object-like"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-collection@0.2.1": {
+      "integrity": "sha512-7HR5kgW2hZ2rjtgHUVTXr+Sis8YQ/ihfDgVbkYTwmSueIqhQnXd9JNxCepGmWxlg1N2k0iyDhAA+8QdPHZvAjQ==",
+      "dependencies": [
+        "@stdlib/constants-array-max-typed-array-length",
+        "@stdlib/math-base-assert-is-integer"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-complex-like@0.2.1": {
+      "integrity": "sha512-oITLmUudQVlFalftQz2N9+g6DPsJIKgTCJHGvLqnYXxwftR6EWPaset++GRLRHf9LfaGrZM2InTBWtBdatEW7g==",
+      "dependencies": [
+        "@stdlib/complex-float32",
+        "@stdlib/complex-float64"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-complex-typed-array@0.2.1": {
+      "integrity": "sha512-Y0DmvXDpJXGq4kWCSQNdSZi724jMOcssxs53ZRJzWdWkOhOTWEBTcJ0RAPmGRmzmVAuuDgmZIxZ0Fu9tvm9NAw==",
+      "dependencies": [
+        "@stdlib/array-complex128",
+        "@stdlib/array-complex64",
+        "@stdlib/utils-constructor-name",
+        "@stdlib/utils-get-prototype-of"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-float32array@0.2.1": {
+      "integrity": "sha512-xrushmHQ2S5QOkdQgGxx263aQ+nUJFQ5LJDEAOHNuVTfmGErr/1SXanY7TdZEvfERrd4GJxO21q14+osvoBe4w==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-float64array@0.2.1": {
+      "integrity": "sha512-TX/5Shjx0QrpP6EDXmOfNoQNEcYlUvX2IS4gt1OV8pvsV956/ZuZa4lD/2YwHVnCr4a4D2X8kttfyxHaPX6zvg==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-function@0.2.1": {
+      "integrity": "sha512-tOt8GfMRxdx4t5x1ts85ndfYrnBUDE0wBiC5O1AR95xMdlA+yivkqyC1PjE3cA8XaxRT6E20DUruwJcbRamKIA==",
+      "dependencies": [
+        "@stdlib/utils-type-of"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-int16array@0.2.1": {
+      "integrity": "sha512-kpf358tXoo9qQPsZ8rk81WPaO1Nm9uc2gXzK4wLkeGqxkZcHNgWsamDaEmWIUu/xjN0Mu5DBiMdd1AAKUwxMLg==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-int32array@0.2.1": {
+      "integrity": "sha512-CccsNFEDJLJRDpp2YaTzllxJvTyB/9MljPZ6IVYbh+lJJuj46mtpHKT0s8Aywy2ZSHaiv7rzAEmdkM2wQHdIpw==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-int8array@0.2.1": {
+      "integrity": "sha512-O8APBQ1Yo3UEj/dcuX07d+c0iJxheKvu55KAp2YQ5G/o5pPJffZBIll19GU8W5469/fDn7yiy6oqI4/UYi6yMg==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-integer@0.2.1": {
+      "integrity": "sha512-rfXNlpokNHiwkUScAtInQT4aGAmRIYSxdLMatWp6bD4dhmIZIQU6ckNGxEfU/jckPcUMECdwsNg1x+Gxn3VTrQ==",
+      "dependencies": [
+        "@stdlib/assert-is-number",
+        "@stdlib/constants-float64-ninf",
+        "@stdlib/constants-float64-pinf",
+        "@stdlib/math-base-assert-is-integer",
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-little-endian@0.2.1": {
+      "integrity": "sha512-IIMbYPtI2dNmV46qLDZsXO95Bgx+17aiIMMrN2y46WDo1vAkBuzf+I04sabzL6qiucCJYE75z4dURKa9dc3ROA==",
+      "dependencies": [
+        "@stdlib/array-uint16",
+        "@stdlib/array-uint8"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-nan@0.2.1": {
+      "integrity": "sha512-J47fRIdqFL5zf5dzciQNzOZR5PaFGmqWRHqT1nkthoj2Y12I5s+XmalKoU77vk3diGr4Nb0Qu1lys54np5Ca9A==",
+      "dependencies": [
+        "@stdlib/assert-is-number",
+        "@stdlib/math-base-assert-is-nan",
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-nonnegative-integer@0.2.1": {
+      "integrity": "sha512-YGsEfQnX1iNiKAputASGNEUpu6BFoDQ/Qfd2wXAvnZadofGOqo3B5vv3VyY78y+yesaxxrDPgiZX+IO7hnI6VQ==",
+      "dependencies": [
+        "@stdlib/assert-is-integer",
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-number@0.2.1": {
+      "integrity": "sha512-JrRo3C+DaLHix8gTk8mlZ+SQQ862NyQn06cg3ox5nuzBEIxpSQ9+n4CAT/PhC73TH/NkPD76HAcqfI+8eLYYQA==",
+      "dependencies": [
+        "@stdlib/assert-has-tostringtag-support",
+        "@stdlib/number-ctor",
+        "@stdlib/utils-define-nonenumerable-read-only-property",
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-object-like@0.2.1": {
+      "integrity": "sha512-vlnwFfJR0UmOO7R/Ny4nTZqZ3PCANIww3sz2Klliti3L85Yb3scUvTCmCGvRQ+QvbnFpqQsgIkCwqzGlKiQkcg==",
+      "dependencies": [
+        "@stdlib/assert-tools-array-function",
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-object@0.2.1": {
+      "integrity": "sha512-Gl7fE1C61sTaFTcR9GxFGTtVH4v4+SwSceUCPP660eJQmfs1zt8ypyXGqvrc0Pr2qJ/PBms5y+Cpz1uPcIKS3Q==",
+      "dependencies": [
+        "@stdlib/assert-is-array"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-plain-object@0.2.1": {
+      "integrity": "sha512-prTOBRi5CeKR5mVP9q8Z+PKxE5YiIAwdArkxjiFMvugtXwDK9jT1QgRF5nE0oUOhuRQ0l1dVx58vzBggOCWkCQ==",
+      "dependencies": [
+        "@stdlib/assert-has-own-property",
+        "@stdlib/assert-is-function",
+        "@stdlib/assert-is-object",
+        "@stdlib/utils-get-prototype-of",
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-positive-integer@0.2.1": {
+      "integrity": "sha512-Ouu4sr8GZzEuuZeombG14wDV6cRTBRetT8IM1+u5lIit2y1s8UWNqASqQ1rZW0XpmWtCYn7jhYWARShdQHzXvQ==",
+      "dependencies": [
+        "@stdlib/assert-is-integer",
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-positive-number@0.2.1": {
+      "integrity": "sha512-1FEQHUqOJvsmGw0JeX8oH0oj9n89tM1WSOziG72pC8Z6hMDuXlE0i1EAPTS+SYXxnGsD2q6mQSoW8/sK4c23pQ==",
+      "dependencies": [
+        "@stdlib/assert-is-number",
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-regexp@0.2.1": {
+      "integrity": "sha512-XdPKcrW8Sh5TvuMdU4+DxuxuaBTX/K9pv7sIuOSMWHRZcblOUiEMf5wk8OHoG9I1PmRhDlaR0AC/MC6R5bFq3Q==",
+      "dependencies": [
+        "@stdlib/assert-has-tostringtag-support",
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-string@0.2.1": {
+      "integrity": "sha512-xphxm9i61By/M7cmyCqgPiDof4DP3Rms3lVdcCpkr7T9PkBFMhOlm6zyhxo/2+dhukjf4Sak/WqntF/CWgJFJw==",
+      "dependencies": [
+        "@stdlib/assert-has-tostringtag-support",
+        "@stdlib/utils-define-nonenumerable-read-only-property",
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-typed-array@0.2.1": {
+      "integrity": "sha512-DHKj8YreaZjMj9tMev9jY8yNlNYOXMInpZa/OX71uRlLkOrcTGVl4HmkaDgoAip/OLhqdw9NNu7XXpXUqhzysg==",
+      "dependencies": [
+        "@stdlib/array-float32",
+        "@stdlib/array-float64",
+        "@stdlib/array-int16",
+        "@stdlib/array-int32",
+        "@stdlib/array-int8",
+        "@stdlib/array-uint16",
+        "@stdlib/array-uint32",
+        "@stdlib/array-uint8",
+        "@stdlib/array-uint8c",
+        "@stdlib/assert-has-float64array-support",
+        "@stdlib/utils-constructor-name",
+        "@stdlib/utils-function-name",
+        "@stdlib/utils-get-prototype-of"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-uint16array@0.2.1": {
+      "integrity": "sha512-6HcIp+3xfI6sItm3Qe6UjbUAjhvqDF0aD9EtvPfYm9g8wR+fhoEGPE3LxBEsQS1nX52Q9bavzrKj8tQFVAJ1zQ==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-uint32array@0.2.1": {
+      "integrity": "sha512-PYPdPqBzoX6cdfvNLb0DSWPqYHpi03X5RSI40FrLpKf226H6hQv7w7xVxFsxl7+uTueFoGyAsq5xa/aHrP4XsQ==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-uint8array@0.2.1": {
+      "integrity": "sha512-CHrY1QWnXnVPSyaH01yJ3t1QJ+X5Lqs0KjTYSOQtEt3rTH8hPK5e0iPZJFMy0JNSz5VwwV249oa2+RK1HQ2C8w==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-is-uint8clampedarray@0.2.1": {
+      "integrity": "sha512-Qryym3poKTNtVwHY9Dj/dP+A8CBWlY3ymjJJxQAgxFrcIItlYzE//+vbic4LNzGYikifQOCglv7U/JJgl0uONg==",
+      "dependencies": [
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/assert-tools-array-function@0.2.1": {
+      "integrity": "sha512-Igezf184udgzGjif5nS1VWJCSsYq1DgX9Lt2smE4YW29W0SjWW9ahps4t0QfEm3UrfTdiOY5DLLAO1MjzAVkVQ==",
+      "dependencies": [
+        "@stdlib/assert-is-array",
+        "@stdlib/string-format"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/blas-base-gcopy@0.2.1": {
+      "integrity": "sha512-59sZsv2kzV+zHGhINJDL53o+6wFpcBPfV2BNxOZ7FRsrASR7ah9BFDPU3bo4LtxVouZFYaBcXlXcG0av4K9aQQ==",
+      "dependencies": [
+        "@stdlib/array-base-arraylike2object",
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/boolean-ctor@0.2.1": {
+      "integrity": "sha512-CJx4lCU2eYoIcthpdzIoEmhE1Fgd1PFvQeFHhOvbm4TidP/uRP5xQGU+eimgxQ4G0lMxTJ8RNXpLPiK5OdeSUQ==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/complex-float32@0.2.1": {
+      "integrity": "sha512-tp83HfJzcZLK7/6P6gZPcAa/8F/aHS7gBHgB6ft45d/n6oE+/VbnyOvsJKanRv8S96kBRj8xkvlWHz4IiBrT0Q==",
+      "dependencies": [
+        "@stdlib/assert-is-number",
+        "@stdlib/number-float64-base-to-float32",
+        "@stdlib/string-format",
+        "@stdlib/utils-define-nonenumerable-read-only-property",
+        "@stdlib/utils-define-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/complex-float64@0.2.1": {
+      "integrity": "sha512-vN9GqlSaonoREf8/RIN9tfNLnkfN4s7AI0DPsGnvc1491oOqq9UqMw8rYTrnxuum9/OaNAAUqDkb5GLu5uTveQ==",
+      "dependencies": [
+        "@stdlib/assert-is-number",
+        "@stdlib/complex-float32",
+        "@stdlib/string-format",
+        "@stdlib/utils-define-nonenumerable-read-only-property",
+        "@stdlib/utils-define-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/complex-imag@0.2.1": {
+      "integrity": "sha512-HHTDnEFTeC2FJfP0jXccsam4hgnPF0PjQJDzKin6F/SFocxOeT2YoqA6Pii09XnDH6RrUaXIZp+VzTr7w/Vs5A==",
+      "dependencies": [
+        "@stdlib/complex-float64"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/complex-imagf@0.2.1": {
+      "integrity": "sha512-lrYYEZfPZ9j/7jRUWVNDUunj1f/9lCxtuzHINqQg2VJ3WNJvyQ9RdWEM1ahZftZImZMIWElCNBTCrRJUOA/bww==",
+      "dependencies": [
+        "@stdlib/complex-float32"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/complex-real@0.2.1": {
+      "integrity": "sha512-WT7Z77jQLm8VrfvOPJ0C6d8q0Of105owANn72+3YnBwIuGk4TG9DVkB+g/9vo4ptIxPdQRiZQkIGVY0bq7h9YA==",
+      "dependencies": [
+        "@stdlib/complex-float64"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/complex-realf@0.2.1": {
+      "integrity": "sha512-bjLLhSaQWhXEkSx4CJNp81mmUCBwWkhsl62gsp8Cdd56zWkf6c2tWCph9jmXNKMzqueYswzykZt9itHjHmTT8g==",
+      "dependencies": [
+        "@stdlib/complex-float32"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/complex-reim@0.2.1": {
+      "integrity": "sha512-67nakj+HwBRx/ha3j/sLbrMr2hwFVgEZtaczOgn1Jy/cU03lKvNbMkR7QI9s+sA+b+A3yJB3ob8ZQSqh3D1+dA==",
+      "dependencies": [
+        "@stdlib/array-float64",
+        "@stdlib/complex-float64"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/complex-reimf@0.2.1": {
+      "integrity": "sha512-6HyPPmo0CEHoBjOg2w70mMFLcFEunM78ljnW6kf1OxjM/mqMaBM1NRpDrQoFwCIdh1RF1ojl3JR0YLllEf0qyQ==",
+      "dependencies": [
+        "@stdlib/array-float32",
+        "@stdlib/complex-float32"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-array-max-array-length@0.2.1": {
+      "integrity": "sha512-eqPcbpxYN0ppxALSVUBYZVT1/QJDk4bYKmHoNDDQJicL1iJ7+3WCikOjpbVtjFD45ThYTu19sUB0O3V1hdmuOA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-array-max-typed-array-length@0.2.1": {
+      "integrity": "sha512-JAhOrL1NFp2NxBl5Fn1HVJandtm0QgB+gRdRHd1zZ9Bn4lQxIkh285CIyneDlqHSKSQGEnk5gUtTvpfIAzc1AA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-exponent-bias@0.2.1": {
+      "integrity": "sha512-95dbNiEFj3zlqTVXKCMh8xvXUtkwg2euO40Za9+V+vlhCZ+wjoujYsf9Bu5nRk8nQDf0UDVAzGiKLZ4GSAn2DA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-high-word-abs-mask@0.2.1": {
+      "integrity": "sha512-F08nd38tFftL0rDI8Aa//Pt1l2QYbGecq6yMZx3ADCAXDXFEOOoq2A7K4+YgNGpINElq1Z/BWCk1/AhushXH+w==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-high-word-exponent-mask@0.2.1": {
+      "integrity": "sha512-iQ8lB7oX7gc5Grkcw/CFOJLRyW7sev+BAZ3HQHd8+CZLFKELS6QCR6WY/SiEsRD99YTIKozM0cd6PHWvwDaxYA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-high-word-sign-mask@0.2.0": {
+      "integrity": "sha512-JZZS/4WfyMFHBNwEGN8Vo5aMmUqsrRp6p+0Y0ZKHW4cwIJy2qpX+p7IMWEL756HtZas5FeAt78tXbv/c+4zB+Q==",
+      "dependencies": [
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-max-base2-exponent-subnormal@0.2.0": {
+      "integrity": "sha512-I6BD0t71YRdsS/Ql8BMffgL2WpMv5BpS3kEBp/CIfjsnvhPxotuVltDWz8+rNYo8lp/ztOlkE5R3E46EikUs/w==",
+      "dependencies": [
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-max-base2-exponent@0.2.1": {
+      "integrity": "sha512-aLqnk2/FGHqlr6T6yhssSGBGtIlJl6Dtb+8PU3xHv1hrGEpucSN/8ly4svfZU/dHHuyD/ozsymJl77ygFaRz5A==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-max-safe-integer@0.2.1": {
+      "integrity": "sha512-IcVEnGF64l1TV4/d+tS/2yUj43epbmRQYo3Hhem0RTZkcH4vDqIs2Y1AS2O7lqblS+jvr0QgYXt0p5aM2/d4QA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-min-base2-exponent-subnormal@0.2.0": {
+      "integrity": "sha512-AzENWSVhhG436Q98P6EmU7VPz6BlF6jkprKxrwmNLZS8wvr/gDQV1nbawBWKZj4TSLfeZ+YEaKGKrj3Smj/oxg==",
+      "dependencies": [
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-ninf@0.2.1": {
+      "integrity": "sha512-6z1MihX3rLwRsXfiXrfK3OoNTsfalOfIfu6BtTxQ+j4Ekc6GuLsbOhs8PtFCFjgC0qegkkNXM6e4GVGYwP/bXA==",
+      "dependencies": [
+        "@stdlib/number-ctor"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-pinf@0.2.1": {
+      "integrity": "sha512-sphEj5GvJbWSFAYSc3Kc5qmFW0mcSbvDTtbBg5Cc1sB5jGfc9PzofZPuKBTJpjJRI5KjgjnST4grg8FFchjfVw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-float64-smallest-normal@0.2.1": {
+      "integrity": "sha512-EDgpj0X0zVqdeaxNl5/yuJ3lhZWUypz6fQEz8oSItrXNpMXlcBbEDZti3uKvneb1g+YztHvUN+w3V7YU2E1+Dw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-int16-max@0.2.1": {
+      "integrity": "sha512-wsL7uSrA6FE00B94XxPM46CAZcOyuPId/Q+4lLPtPAezIZjRHmEzomCEzkIZ0pogX/3QUCWb2oZizemj2BmN7g==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-int16-min@0.2.1": {
+      "integrity": "sha512-WdBl0tDryiBGkLce/5GTlV64g/z34dcRe15KZbSMQ886L32RZKlizLV/s0b2PTp8dtAa1V97Mo+sTJHJa+pWMA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-int32-max@0.2.1": {
+      "integrity": "sha512-vKtp3q/HdAeGG8BJBZdNzFrYpVQeleODgvOxh9Pn/TX1Ktjc50I9TVl7nTVWsT2QnacruOorILk2zNsdgBHPUQ==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-int32-min@0.2.1": {
+      "integrity": "sha512-nfbx8l1f7lKdRheH5FKRKD2AvlK3rbq0peDNEknHjzBLi+e/OUCBp3FvQVYHad3rACHW8N6BoCFbbs5Kv7bfgQ==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-int8-max@0.2.1": {
+      "integrity": "sha512-ylFhNAvZq37by2TOtMz06VwbA6fxnl8XsS7+rcvbW86K8nGwjJKZw7TV5Gp+Y3jRKfRFIK+DMBm7lY+juCXLcA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-int8-min@0.2.1": {
+      "integrity": "sha512-D0CqBZcZ44QewC9BE5WtQd9ALZTqmWRtIGBbXrzpu7GA0+12EPao8nyeMyg63q9+0o8XmeYIMc751w8go316eg==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-uint16-max@0.2.1": {
+      "integrity": "sha512-X8n01bbYzYf8BLm43jYtwik28YD3OJ9U8GkEwgqD1znL3MJ+Qpd/EUw7asOTIcEKrWzKGdoft1IPRgkGr1eGtw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-uint32-max@0.2.1": {
+      "integrity": "sha512-Bcr6I9VE2EPy5rTWKB5EhbqxAHoILP6M7IVcVyFqPZRw+efbvm0Z0/X5wvVxCcHOA15XaOyD4eS5/O40/CEP8A==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/constants-uint8-max@0.2.1": {
+      "integrity": "sha512-LaP+G7rwFmRwgFB887uKFsaiFMX5jLtN8BzbVs5mLtX6ItaYdM/GEu4kV8sePizlHODSfOW3EUsJYqq1021Obg==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/error-tools-fmtprodmsg@0.2.1": {
+      "integrity": "sha512-SaxvGeGfWfda/O3rTNGRGBzAL9gsY/yd8n1hXwzOl/2aUHf8nxcf6Fz6/BQ5PguT0GiBkca19XEhHZZHxX3X/g==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/fs-exists@0.2.1": {
+      "integrity": "sha512-LeynjpWVjizojjshscyAMZCWeaWziIIENBA9/99Zv/x60waoBPphibIYjCEhY0agUqIdgTx+9COJU6zvwASGCw==",
+      "dependencies": [
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/fs-resolve-parent-path@0.2.1": {
+      "integrity": "sha512-BxkdEYgAJkcZpoctFeU/x7AeGuAJWuIzkwa39pi5qu3feWkSTMimD8Y+BnnJy8GPlGnClMlfp3hc13ojmJ79mQ==",
+      "dependencies": [
+        "@stdlib/assert-has-own-property",
+        "@stdlib/assert-is-function",
+        "@stdlib/assert-is-plain-object",
+        "@stdlib/assert-is-string",
+        "@stdlib/fs-exists",
+        "@stdlib/process-cwd",
+        "@stdlib/string-format",
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-assert-is-even@0.2.2": {
+      "integrity": "sha512-CY2EphtieB9K1WfVtBSj/3z/es9E0FV5ejYgggghdozmjFukgg4GtXYYCAl1Zj8hlbGiPa2Jat8zPXf348EibA==",
+      "dependencies": [
+        "@stdlib/math-base-assert-is-integer",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-assert-is-infinite@0.2.1": {
+      "integrity": "sha512-xXlbchET8Y508q9dZI2CVNU7bUsDmvkXb/38huA5YAv+L+iU5+szHG3OV2+yK0w9s+yQuICpHzLw9HCV8GJdQQ==",
+      "dependencies": [
+        "@stdlib/constants-float64-ninf",
+        "@stdlib/constants-float64-pinf",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-assert-is-integer@0.2.4": {
+      "integrity": "sha512-aCmocusl/qXSLk/0x7HFkKdOIV8t2I534ROCOFP61ICl752CrpJd+0TpU1GwpBoaRkF2dYER5tLGOoRf91Bz1A==",
+      "dependencies": [
+        "@stdlib/math-base-special-floor",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-assert-is-nan@0.2.1": {
+      "integrity": "sha512-+WAc5YYLkqjOS/95QaFjrMq+ciNPdKN6M8ptNbfvxdPg2Oyrm7QeRih7tQ9gx99BifrD9UQ0wu5ndMiMG+dQcw==",
+      "dependencies": [
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-assert-is-positive-zero@0.2.1": {
+      "integrity": "sha512-QOSVW30dsmr/V9PvpW/X/bkyJGOF+/llGYNDXy3pNi5mrSdwbMigrxsVWpG7siZ2ub5xbCpWjSg8iUIW5F0bkA==",
+      "dependencies": [
+        "@stdlib/constants-float64-pinf",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-napi-binary@0.2.1": {
+      "integrity": "sha512-ewGarSRaz5gaLsE17yJ4me03e56ICgPAA0ru0SYFCeMK2E5Z4Z2Lbu7HAQTTg+8XhpoaZSw0h2GJopTV7PCKmw==",
+      "dependencies": [
+        "@stdlib/complex-float32",
+        "@stdlib/complex-float64",
+        "@stdlib/complex-reim",
+        "@stdlib/complex-reimf",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-napi-unary@0.2.1": {
+      "integrity": "sha512-M0a0IpCrkOZaS07j3x3xZXyq/X00FFeFPX6kUZOgk9mPfPHCQgGimgGJWBYgNKPcdWdRvpb4Nv2YI9G+nZu+gA==",
+      "dependencies": [
+        "@stdlib/complex-float32",
+        "@stdlib/complex-float64",
+        "@stdlib/complex-reim",
+        "@stdlib/complex-reimf",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-ops-umul@0.2.1": {
+      "integrity": "sha512-eG0YFhuyG5qqD7ttOl5C+8jG7YhAGKxoE1pnp92gtABalJt4c1KPmfHQzWoUj+re/E7ubCEblGNp7fumgWEOAg==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-special-abs@0.2.1": {
+      "integrity": "sha512-VKbQ4Dp8eNbVLejBbqVfii975LRM3HBTOLBNQYDCAi5ed2rPgBuzkxbnSKRlJe0B1o6aA6AVAF5VeUIXyiKyIg==",
+      "dependencies": [
+        "@stdlib/constants-float64-high-word-abs-mask",
+        "@stdlib/math-base-napi-unary",
+        "@stdlib/number-float64-base-to-words",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-special-ceil@0.2.1": {
+      "integrity": "sha512-z65R2UEEvY+VxvL0rYWTCSi5jLuL1GR1gJZGQjd82nQ9Zd9TdFEkgDTOxjOdTigbtRzbT9dZft9uEDPX3oTcAg==",
+      "dependencies": [
+        "@stdlib/math-base-napi-unary",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-special-copysign@0.2.1": {
+      "integrity": "sha512-ZscBdTPFLQNYrFmXAI06sPxzvOqIzansu3cTfxNGGdtRhUb1sEVflNPpJ8PRX1uwfMZTBE2+qefR3oe2OqPh+A==",
+      "dependencies": [
+        "@stdlib/constants-float64-high-word-abs-mask",
+        "@stdlib/constants-float64-high-word-sign-mask",
+        "@stdlib/math-base-napi-binary",
+        "@stdlib/number-float64-base-from-words",
+        "@stdlib/number-float64-base-get-high-word",
+        "@stdlib/number-float64-base-to-words",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-special-exp@0.2.3": {
+      "integrity": "sha512-HLEK0TYMMetAMU3sN90Ax30isPGfyB9HWHL4w7q874q8+mOMcATZ55TEu0jq8mmZv8Qz1OT3eFMGQDDuoZDFKg==",
+      "dependencies": [
+        "@stdlib/constants-float64-ninf",
+        "@stdlib/constants-float64-pinf",
+        "@stdlib/math-base-assert-is-nan",
+        "@stdlib/math-base-napi-unary",
+        "@stdlib/math-base-special-ldexp",
+        "@stdlib/math-base-special-trunc",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-special-floor@0.2.2": {
+      "integrity": "sha512-BJ5WA0kLX0b2/NV2HkOg4XgYcZOy3//HOjSc4oro642J6Ai3mjxk30sbnad7Miry0cUZEyQ6YsnwF42T1gOObw==",
+      "dependencies": [
+        "@stdlib/math-base-napi-unary",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-special-ldexp@0.2.2": {
+      "integrity": "sha512-0U/Zftn/Ycq8JKHukGbA148/PVbbPDb+MGAXicfJ3Jcof9mHlbcnDOuSb4dOCrz4eqv/1RPR2ssOcWQMehi0hg==",
+      "dependencies": [
+        "@stdlib/constants-float64-exponent-bias",
+        "@stdlib/constants-float64-max-base2-exponent",
+        "@stdlib/constants-float64-max-base2-exponent-subnormal",
+        "@stdlib/constants-float64-min-base2-exponent-subnormal",
+        "@stdlib/constants-float64-ninf",
+        "@stdlib/constants-float64-pinf",
+        "@stdlib/math-base-assert-is-infinite",
+        "@stdlib/math-base-assert-is-nan",
+        "@stdlib/math-base-special-abs",
+        "@stdlib/math-base-special-copysign",
+        "@stdlib/number-float32-base-to-word",
+        "@stdlib/number-float64-base-exponent",
+        "@stdlib/number-float64-base-from-words",
+        "@stdlib/number-float64-base-normalize",
+        "@stdlib/number-float64-base-to-words",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-special-ln@0.2.3": {
+      "integrity": "sha512-DAwMb9TnvMc3PpfRmY2HHlTtlRl8xVWP5vPnVmC3ELdHeJ8nUboU8X/jdos9LqZ/TwRJxgQMJxk4dX8j7Eff7Q==",
+      "dependencies": [
+        "@stdlib/constants-float64-exponent-bias",
+        "@stdlib/constants-float64-ninf",
+        "@stdlib/math-base-assert-is-nan",
+        "@stdlib/math-base-napi-unary",
+        "@stdlib/number-float64-base-get-high-word",
+        "@stdlib/number-float64-base-set-high-word",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-special-max@0.2.1": {
+      "integrity": "sha512-jsA3x5azfclbULDFwvHjNlB2nciUDHwrw7qHP/QlSdJi47E1iBDNYdzhlOa3JKzblbrITpzgZEsGBcpCinEInQ==",
+      "dependencies": [
+        "@stdlib/constants-float64-pinf",
+        "@stdlib/math-base-assert-is-nan",
+        "@stdlib/math-base-assert-is-positive-zero"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-special-sqrt@0.2.1": {
+      "integrity": "sha512-X0PywU+izTJwq0PVDuaohg0rbVRmOn4Hej7t4D3xNig70KFibOYdo5w2pEhIwdvNvWNa7h0dQ4qbyE3sAv4v1A==",
+      "dependencies": [
+        "@stdlib/math-base-napi-unary",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/math-base-special-trunc@0.2.1": {
+      "integrity": "sha512-N6b0jKSelGrOYU3dKHFGhKmzcBxPChsjsXYNzcQ4ApPPZkPwu/3VWwNaPq6JMC4z2ThaeMkgPoQ/e7jutkyG9w==",
+      "dependencies": [
+        "@stdlib/math-base-napi-unary",
+        "@stdlib/math-base-special-ceil",
+        "@stdlib/math-base-special-floor",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/number-ctor@0.2.1": {
+      "integrity": "sha512-Y77276+aKfpd5VSQLK5rGNo6ULW35I95zd+5V6hSF63UmpNppiuNe2z+6ltJmp1zI/pNuEscevmF4KVREhH47g==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/number-float32-base-to-word@0.2.1": {
+      "integrity": "sha512-cxA423tsaV4tsUZUdOR+ROvLpwMFV9nLUrwNRqSSF9rBr0OT4oZ0EDqmQ5mBeMpFwz5k+EKELuJzOEirjCVg9Q==",
+      "dependencies": [
+        "@stdlib/array-float32",
+        "@stdlib/array-uint32",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/number-float64-base-exponent@0.2.1": {
+      "integrity": "sha512-0gTks2TvT+zFkg2pOIvwA8et5JoVJRQhWT71e3TtmVgt1VcZJ9t+87X9+UcHmi+ea9zwa4ob1p61VDFch9kjtg==",
+      "dependencies": [
+        "@stdlib/constants-float64-exponent-bias",
+        "@stdlib/constants-float64-high-word-exponent-mask",
+        "@stdlib/number-float64-base-get-high-word",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/number-float64-base-from-words@0.2.1": {
+      "integrity": "sha512-J2HIDUkETc/+oeOWPVyCxtkUWf2vJm2lReu2K2koeq9+IcmQdaaPI+CDMdvL0o+fiIWGnlfw+GNobSmC+MhMUQ==",
+      "dependencies": [
+        "@stdlib/array-float64",
+        "@stdlib/array-uint32",
+        "@stdlib/assert-is-little-endian",
+        "@stdlib/number-float64-base-to-words",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/number-float64-base-get-high-word@0.2.1": {
+      "integrity": "sha512-SHc1ODPZAMwgCJ99xaO6AZAJDy57LOT+3/tu3e4MZzwD1XP1FgubHRA+XTVjmoTm2fIeXSJOn6yh3jzOe3EBvw==",
+      "dependencies": [
+        "@stdlib/array-float64",
+        "@stdlib/array-uint32",
+        "@stdlib/assert-is-little-endian",
+        "@stdlib/number-float64-base-to-words",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/number-float64-base-normalize@0.2.2": {
+      "integrity": "sha512-YEJy99uNYpamuFh/SfD+WcuHWvRO1xcnF3L8S0zoP7NQ7+RUmzLGvR1v0IAbjhJ5nqZUlM4MKyYM1vgxyHn1tw==",
+      "dependencies": [
+        "@stdlib/constants-float64-smallest-normal",
+        "@stdlib/math-base-assert-is-infinite",
+        "@stdlib/math-base-assert-is-nan",
+        "@stdlib/math-base-special-abs",
+        "@stdlib/utils-define-nonenumerable-read-only-property",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/number-float64-base-set-high-word@0.2.1": {
+      "integrity": "sha512-W3fntm8XVVqlSRjHYWngBm02Wj0c2DZMFZ7cv43gb3P3/K8ML7cttJuCQkP5IvkKu//MylzoWiPJWOY9q4drXQ==",
+      "dependencies": [
+        "@stdlib/array-float64",
+        "@stdlib/array-uint32",
+        "@stdlib/assert-is-little-endian",
+        "@stdlib/number-float64-base-to-words",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/number-float64-base-to-float32@0.2.1": {
+      "integrity": "sha512-cAHWxJMrQ94XIrSIAobvmu8VAseM39zP4SYr/PinhtpGS1xTP/sx4Fr0oVQgxe4D7oLWsRaj1ORl99cSSzPcmQ==",
+      "dependencies": [
+        "@stdlib/array-float32"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/number-float64-base-to-words@0.2.1": {
+      "integrity": "sha512-3DRMzeb3RN5pjkh3NEC4KgmzT3jvwbX46KLprG1Vai/lPuG26rvhE2l4W4dZbc7nd6SAKG2uMMWVzKrvgxGqpg==",
+      "dependencies": [
+        "@stdlib/array-float64",
+        "@stdlib/array-uint32",
+        "@stdlib/assert-is-little-endian",
+        "@stdlib/os-byte-order",
+        "@stdlib/os-float-word-order",
+        "@stdlib/utils-define-nonenumerable-read-only-property",
+        "@stdlib/utils-library-manifest"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/object-ctor@0.2.1": {
+      "integrity": "sha512-HEIBBpfdQS9Nh5mmIqMk9fzedx6E0tayJrVa2FD7No86rVuq/Ikxq1QP7qNXm+i6z9iNUUS/lZq7BmJESWO/Zg==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/os-byte-order@0.2.1": {
+      "integrity": "sha512-nNZVafgeAb8TdDFUXRVXIoeRX5ulg2BnhAJLu7wEO7OfZJLLBET7FHG0G/HWNettCrSjdfs6W6BCrDMdsDJESA==",
+      "dependencies": [
+        "@stdlib/assert-is-big-endian",
+        "@stdlib/assert-is-little-endian"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/os-float-word-order@0.2.1": {
+      "integrity": "sha512-nur3EwuXt6Etek70UZBRcT1hG1HbS+/liWfbY1vk/wlaebRb4LWmaIwdbjQvQSHPLmQVdmIUdvqgSbDTpL52Kw==",
+      "dependencies": [
+        "@stdlib/os-byte-order"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/process-cwd@0.2.1": {
+      "integrity": "sha512-VnUglHWLeotm/zqhEmPaRtVBcivbr7mRbMn3MP0z9u8uS4aYRgQy32tHhYfZdYb+RANJIDylTMJnczN+sDKbYA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/random-base-improved-ziggurat@0.2.1": {
+      "integrity": "sha512-BZpx/MxKKKS3qqpUn4uI9dsVL/hpBqJRvZycA4+wxLlbo2nsr0pknWs9KzWvk3VbYXdxcb7dpjrCaZMNKEN1Ew==",
+      "dependencies": [
+        "@stdlib/array-to-json",
+        "@stdlib/assert-has-own-property",
+        "@stdlib/assert-is-boolean",
+        "@stdlib/assert-is-function",
+        "@stdlib/assert-is-plain-object",
+        "@stdlib/assert-is-uint32array",
+        "@stdlib/constants-uint32-max",
+        "@stdlib/error-tools-fmtprodmsg",
+        "@stdlib/math-base-special-abs",
+        "@stdlib/math-base-special-exp",
+        "@stdlib/math-base-special-floor",
+        "@stdlib/math-base-special-ln",
+        "@stdlib/math-base-special-sqrt",
+        "@stdlib/random-base-mt19937",
+        "@stdlib/string-format",
+        "@stdlib/utils-constant-function",
+        "@stdlib/utils-define-nonenumerable-read-only-accessor",
+        "@stdlib/utils-define-nonenumerable-read-only-property",
+        "@stdlib/utils-define-nonenumerable-read-write-accessor",
+        "@stdlib/utils-noop"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/random-base-mt19937@0.2.1": {
+      "integrity": "sha512-k6EelL+OfM/ygS7L1m9Fx+AuFBlPtFgyRikVcixCuyEB8xfyYkzn1+LtoqlQLcLb6IwmkKgYX4/dSL9XBL1Gew==",
+      "dependencies": [
+        "@stdlib/array-to-json",
+        "@stdlib/array-uint32",
+        "@stdlib/assert-has-own-property",
+        "@stdlib/assert-is-boolean",
+        "@stdlib/assert-is-collection",
+        "@stdlib/assert-is-plain-object",
+        "@stdlib/assert-is-positive-integer",
+        "@stdlib/assert-is-uint32array",
+        "@stdlib/blas-base-gcopy",
+        "@stdlib/constants-float64-max-safe-integer",
+        "@stdlib/constants-uint32-max",
+        "@stdlib/error-tools-fmtprodmsg",
+        "@stdlib/math-base-ops-umul",
+        "@stdlib/math-base-special-floor",
+        "@stdlib/math-base-special-max",
+        "@stdlib/random-base-shared",
+        "@stdlib/string-format",
+        "@stdlib/utils-define-nonenumerable-read-only-accessor",
+        "@stdlib/utils-define-nonenumerable-read-only-property",
+        "@stdlib/utils-define-nonenumerable-read-write-accessor"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/random-base-normal@0.2.1": {
+      "integrity": "sha512-k9tua7+S2hP0natk446LaizPh6n9gWY3PycUVqi7RY6ipiHbexOXJVW89l9Oh+teGDeMrfBclPyEZeWaZwN01g==",
+      "dependencies": [
+        "@stdlib/array-to-json",
+        "@stdlib/assert-has-own-property",
+        "@stdlib/assert-is-function",
+        "@stdlib/assert-is-nan",
+        "@stdlib/assert-is-number",
+        "@stdlib/assert-is-plain-object",
+        "@stdlib/assert-is-positive-number",
+        "@stdlib/error-tools-fmtprodmsg",
+        "@stdlib/math-base-assert-is-nan",
+        "@stdlib/random-base-improved-ziggurat",
+        "@stdlib/string-format",
+        "@stdlib/utils-constant-function",
+        "@stdlib/utils-define-nonenumerable-read-only-accessor",
+        "@stdlib/utils-define-nonenumerable-read-only-property",
+        "@stdlib/utils-define-nonenumerable-read-write-accessor",
+        "@stdlib/utils-noop"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/random-base-shared@0.1.0": {
+      "integrity": "sha512-vmI4v/RaEX+P7bydQPm+8b6BOA85RVlKu2cialTXibru7zvzVfuZdahHD0X6cj15C1C00u2DMa/Uk9+KdGeTow==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/regexp-extended-length-path@0.2.1": {
+      "integrity": "sha512-sQFAjW0JieAsvVyrIBJyAS5eObp+W0J/h6omsrxecRQc8HkTTc8HnseSMtWRxIw4/Z2dm4+0VLxosHugAy2F3w==",
+      "dependencies": [
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/regexp-function-name@0.2.1": {
+      "integrity": "sha512-Ba/EpQ6Lt9CybnFGd5IWvwk8iKCWVv9zVsssuY5ABHhKc+nK0b7CK5qorISMYOMhVHH8PwofhY/iQtWfeb8RWA==",
+      "dependencies": [
+        "@stdlib/utils-define-nonenumerable-read-only-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/strided-base-reinterpret-complex128@0.2.1": {
+      "integrity": "sha512-pc8YMkmg5qAvPakjVMDE5ZyIY92dE1B1wWfdtglIRXJ8uWclxc5du7PLV6dMaIpJs40uFUUAzC379K5Tjg9XXA==",
+      "dependencies": [
+        "@stdlib/array-float64"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/strided-base-reinterpret-complex64@0.2.0": {
+      "integrity": "sha512-UxRBlSW2chDZFUFBXWwAEW2kVn1JwFCZ2SzjArAlkRMraWQC1K3IbNuMk3xZPQXzPZLTDwudp8nDaMq6TaKgHA==",
+      "dependencies": [
+        "@stdlib/array-float32",
+        "@stdlib/types"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/string-base-format-interpolate@0.2.1": {
+      "integrity": "sha512-Uxz89eUi4m9yao4VjsqXIxLIF7qDmqEAH0e+XBRWRGC2zx6DhmK2kLnaU0xW69+VJPn3dq4itxq0oryw2E+qIQ==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/string-base-format-tokenize@0.2.1": {
+      "integrity": "sha512-3Ut96pmCgEFArrdwXKm1q0j1FOqTnG/uOsh24uYNU/ABRsMOOajRlAjCCdQv9f8P916qPrSnF1V3Pd18LAaksg==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/string-base-lowercase@0.3.1": {
+      "integrity": "sha512-4VnyWsIkmzHP5mVU1UJVZBSlAt4oxaRBj4fSQhG3kcKnS+5ZtfncWQDsskM0WveSkBRi37DXdyhbPm0/KYQUwA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/string-base-replace@0.2.1": {
+      "integrity": "sha512-n7FRXJDCFTr7BfW/HOhyaOFKYrzsUHS3MULrykCld5MEJrVbTL61eXRWBPhMWeTVwJHCHU6zxtiwGt4+cU5vdg==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/string-format@0.2.1": {
+      "integrity": "sha512-+HpXkEJ0Z4gthH5KicXvRRJiCiCTSrKzM+mS8N6vwaAD+OG+Oq8Cn43XBD1ic/UHROI9un42MruF1ZLlkSmdOw==",
+      "dependencies": [
+        "@stdlib/string-base-format-interpolate",
+        "@stdlib/string-base-format-tokenize"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/string-replace@0.2.1": {
+      "integrity": "sha512-rle3pW4KowxxITbrad0+/cjRg+zWUMITvWqK2MKNDRfI8x9Jf1wOA34N7w0YBCMcT6UVQDJKX3cwe4rhz3ZDKw==",
+      "dependencies": [
+        "@stdlib/assert-is-function",
+        "@stdlib/assert-is-regexp",
+        "@stdlib/assert-is-string",
+        "@stdlib/string-base-replace",
+        "@stdlib/string-format",
+        "@stdlib/utils-escape-regexp-string"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/symbol-ctor@0.2.1": {
+      "integrity": "sha512-ZZAuKPJZ9PVrbRCp4iPKdlyh7uyrCi39dqrU/j/w38mOzYZJV6utK33eeAIsQH5yMDO7Tr0Zu69TKGf2XqmaPw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/symbol-iterator@0.2.1": {
+      "integrity": "sha512-K4vqgV08A3ck1JLc7DQ+wqidfVJ/ox8HmY26YtEFtPo0vBPrheRbj7CCpn8oal9yX0Uak8Ut/FhFlx0CYa4V9w==",
+      "dependencies": [
+        "@stdlib/assert-has-iterator-symbol-support"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/types@0.3.2": {
+      "integrity": "sha512-4hBkuU8QNsvpoyPR3WmCP0Jq6hTuVpVnfJQKu+HRKVHKYXzsIQIt9wdW8FUm9/0GfFkVZDCc46TEkTI0bkq8vw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-constant-function@0.2.1": {
+      "integrity": "sha512-9ZkxLhmz45a6Yi0meIkgWxod5rwSaUz5yc2tBWmOBrwpXFcwwpm9/bOI8+QJklJl/pcFxN6CoGCRvl0ggfLtkw==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-constructor-name@0.2.1": {
+      "integrity": "sha512-liLBKiHjR5pPrvq+H2UtDA05LMRHGZgyxOAGiR/rW5Lb1OmBHOQcxzR9k4TK3Ck0pHPzS8Oe6Yxy/d7lO9sqFg==",
+      "dependencies": [
+        "@stdlib/assert-is-buffer",
+        "@stdlib/regexp-function-name",
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-convert-path@0.2.1": {
+      "integrity": "sha512-8RN52B1tXN8LFP5nQJWK8zYJxLRcYymEs+glSYAWHXR8A4O+RKLFaJRvVCiND20N/jddagOyanOWJcrebhlkzg==",
+      "dependencies": [
+        "@stdlib/assert-is-string",
+        "@stdlib/regexp-extended-length-path",
+        "@stdlib/string-base-lowercase",
+        "@stdlib/string-format",
+        "@stdlib/string-replace"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-define-nonenumerable-read-only-accessor@0.2.2": {
+      "integrity": "sha512-AaaH7qHbGT/16RFmgznhVQI2yLu/9QZ2dEFd7n201VciodEfl6TaUGnuX7cSyFvFXjJiFnQviCmEQ/udAQVnTw==",
+      "dependencies": [
+        "@stdlib/utils-define-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-define-nonenumerable-read-only-property@0.2.1": {
+      "integrity": "sha512-L8fs1kI79T2RQIg8rHR9aQnnSDELqiDGWbK3jA1NP8iW+ydxlxXyO8Dw17fBCXVua3Y19a1NVyGtIN5WGe2UCw==",
+      "dependencies": [
+        "@stdlib/utils-define-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-define-nonenumerable-read-write-accessor@0.2.1": {
+      "integrity": "sha512-wO70dQkZvaTypB83LuLTK1NJPITIDfgMrTV98atGKon1xab8oqG3MxAj4fIS8jxa/JeMWmGvoAPytZcZR3l7rg==",
+      "dependencies": [
+        "@stdlib/utils-define-property"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-define-property@0.2.3": {
+      "integrity": "sha512-+EzWImaQR/6XNFbXIITFi3PLQGTbKVIWSYxJfHXAuTtibAMnhHOWvEzKOumVe/Q4Cdsrc3/PIkpjJzliqAX9AA==",
+      "dependencies": [
+        "@stdlib/error-tools-fmtprodmsg",
+        "@stdlib/string-format"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-escape-regexp-string@0.2.1": {
+      "integrity": "sha512-JwxkU1JGuHu9WJfEAgAvGElizGfainZ25JqIxLOn1pzpmHRW0RVa2cq+scgTjlAvHebcDjjkRQN66ROzIDgUNw==",
+      "dependencies": [
+        "@stdlib/assert-is-string",
+        "@stdlib/string-format"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-function-name@0.2.1": {
+      "integrity": "sha512-bvmMc/qvi63OU/W7ivCd/j4tG+NDA2UulTXU0vzr3Th9/z72VK60I0ltOu7ONpaXvtskt8Xyczb7ExKIW9BGTQ==",
+      "dependencies": [
+        "@stdlib/assert-has-function-name-support",
+        "@stdlib/assert-is-function",
+        "@stdlib/regexp-function-name",
+        "@stdlib/string-format"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-get-prototype-of@0.2.1": {
+      "integrity": "sha512-qb8IQd93m47VisTGi6Awu2i2sk+ptzmnIkUt9lYYrNDK5EIpH/nveAuWTfi/X/QdJpFfIXtTuC/sv43KAgYe1Q==",
+      "dependencies": [
+        "@stdlib/assert-is-function",
+        "@stdlib/object-ctor",
+        "@stdlib/utils-native-class"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-global@0.2.1": {
+      "integrity": "sha512-xf/cwHUN/BFSTYwiokQmMLxuXlYZYzNch/HgyDGx78bCx4MAVinK86EzP0dPn8HOLcZ/roxtQ5rXsyD49lEp/w==",
+      "dependencies": [
+        "@stdlib/assert-is-boolean",
+        "@stdlib/string-format"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-library-manifest@0.2.1": {
+      "integrity": "sha512-5qhCqcJ2DD1ZylPOX7JGzzIGpgXJ5UsiG2oOmS/P8XEnoQA9DVMXt7aCD60AN+pE5QUfK+r20144XH7JMBQzMw==",
+      "dependencies": [
+        "@stdlib/fs-resolve-parent-path",
+        "@stdlib/utils-convert-path",
+        "debug",
+        "resolve"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-native-class@0.2.1": {
+      "integrity": "sha512-tM3am6amt50I4mFRlClExUmORqPzMExgDyZc4Lur+LXn5wb0uEoeBbJ27ftMDg8PNLSi5RUuBCwZBEXvYpG0yw==",
+      "dependencies": [
+        "@stdlib/assert-has-own-property",
+        "@stdlib/assert-has-tostringtag-support",
+        "@stdlib/symbol-ctor"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-noop@0.2.1": {
+      "integrity": "sha512-fTWVJlPwil6J/4M1wOCFfsh7PGkugS3UPeCh7Ygpd4m4GH/oHwdE5sRtUetAUXfFnLeNMAQF41jeK1FHylj/IA==",
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@stdlib/utils-type-of@0.2.1": {
+      "integrity": "sha512-FE7rbPMkHwFsciA8ntfAcMvJ71DCerNO7m/pnpq+cFPR7bJSb8h2gaIqoHTkg9+vTMnJaOo3tDIWz4vN/CEQ8w==",
+      "dependencies": [
+        "@stdlib/utils-constructor-name",
+        "@stdlib/utils-global"
+      ],
+      "os": ["aix", "darwin", "freebsd", "linux", "macos", "openbsd", "sunos", "win32", "windows"]
+    },
+    "@types/node@22.12.0": {
+      "integrity": "sha512-Fll2FZ1riMjNmlmJOdAyY5pUbkftXslB5DgEzlIuNaiWhXd00FhWxVC/r4yV/4wBb9JfImTu+jiSvXTkJ7F/gA==",
+      "dependencies": [
+        "undici-types@6.20.0"
+      ]
+    },
+    "@types/node@22.5.4": {
+      "integrity": "sha512-FDuKUJQm/ju9fT/SeX/6+gBzoPzlVCzfzmGkwKvRHQVxi4BntVbyIwf6a4Xn62mrvndLiml6z/UBXIdEVjQLXg==",
+      "dependencies": [
+        "undici-types@6.19.8"
+      ]
+    },
+    "@types/node@24.6.2": {
+      "integrity": "sha512-d2L25Y4j+W3ZlNAeMKcy7yDsK425ibcAOO2t7aPTz6gNMH0z2GThtwENCDc0d/Pw9wgyRqE5Px1wkV7naz8ang==",
+      "dependencies": [
+        "undici-types@7.13.0"
+      ]
+    },
+    "@types/pako@2.0.4": {
+      "integrity": "sha512-VWDCbrLeVXJM9fihYodcLiIv0ku+AlOa/TQ1SvYOaBuyrSKgEcro95LJyIsJ4vSo6BXIxOKxiJAat04CmST9Fw=="
+    },
+    "@types/papaparse@5.3.15": {
+      "integrity": "sha512-JHe6vF6x/8Z85nCX4yFdDslN11d+1pr12E526X8WAfhadOeaOTx5AuIkvDKIBopfvlzpzkdMx4YyvSKCM9oqtw==",
+      "dependencies": [
+        "@types/node@22.12.0"
+      ]
+    },
+    "@types/raf@3.4.3": {
+      "integrity": "sha512-c4YAvMedbPZ5tEyxzQdMoOhhJ4RD3rngZIdwC2/qDN3d7JpEhB6fiBRKVY1lg5B7Wk+uPBjn5f39j1/2MY1oOw=="
+    },
+    "@types/trusted-types@2.0.7": {
+      "integrity": "sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw=="
+    },
+    "adler-32@1.3.1": {
+      "integrity": "sha512-ynZ4w/nUUv5rrsR8UUGoe1VC9hZj6V5hU9Qw1HlMDJGEJw5S7TfTErWTjMys6M7vr0YWcPqs3qAr4ss0nDfP+A=="
+    },
+    "argparse@2.0.1": {
+      "integrity": "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="
+    },
+    "base64-arraybuffer@1.0.2": {
+      "integrity": "sha512-I3yl4r9QB5ZRY3XuJVEPfc2XhZO6YweFPI+UovAzn+8/hb3oJ6lnysaFcjVpkCPfVWFUDvoZ8kmVDP7WyRtYtQ=="
+    },
+    "canvg@3.0.11": {
+      "integrity": "sha512-5ON+q7jCTgMp9cjpu4Jo6XbvfYwSB2Ow3kzHKfIyJfaCAOHLbdKPQqGKgfED/R5B+3TFFfe8pegYA+b423SRyA==",
+      "dependencies": [
+        "@babel/runtime",
+        "@types/raf",
+        "core-js",
+        "raf",
+        "regenerator-runtime",
+        "rgbcolor",
+        "stackblur-canvas",
+        "svg-pathdata"
+      ]
+    },
+    "cfb@1.2.2": {
+      "integrity": "sha512-KfdUZsSOw19/ObEWasvBP/Ac4reZvAGauZhs6S/gqNhXhI7cKwvlH7ulj+dOEYnca4bm4SGo8C1bTAQvnTjgQA==",
+      "dependencies": [
+        "adler-32",
+        "crc-32"
+      ]
+    },
+    "codepage@1.15.0": {
+      "integrity": "sha512-3g6NUTPd/YtuuGrhMnOMRjFc+LJw/bnMp3+0r/Wcz3IXUuCosKRJvMphm5+Q+bvTVGcJJuRvVLuYba+WojaFaA=="
+    },
+    "cookie@1.0.2": {
+      "integrity": "sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA=="
+    },
+    "core-js@3.45.1": {
+      "integrity": "sha512-L4NPsJlCfZsPeXukyzHFlg/i7IIVwHSItR0wg0FLNqYClJ4MQYTYLbC7EkjKYRLZF2iof2MUgN0EGy7MdQFChg==",
+      "scripts": true
+    },
+    "core-util-is@1.0.3": {
+      "integrity": "sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ=="
+    },
+    "crc-32@1.2.2": {
+      "integrity": "sha512-ROmzCKrTnOwybPcJApAA6WBWij23HVfGVNKqqrZpuyZOHqK2CwHSvpGuyt/UNNvaIjEd8X5IFGp4Mh+Ie1IHJQ==",
+      "bin": true
+    },
+    "css-line-break@2.1.0": {
+      "integrity": "sha512-FHcKFCZcAha3LwfVBhCQbW2nCNbkZXn7KVUJcsT5/P8YmfsVja0FMPJr0B903j/E69HUphKiV9iQArX8SDYA4w==",
+      "dependencies": [
+        "utrie"
+      ]
+    },
+    "csstype@3.1.3": {
+      "integrity": "sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw=="
+    },
+    "debug@2.6.9": {
+      "integrity": "sha512-bC7ElrdJaJnPbAP+1EotYvqZsb3ecl5wi6Bfi6BJTUcNowp6cvspg0jXznRTKDjm/E7AdgFBVeAPVMNcKGsHMA==",
+      "dependencies": [
+        "ms"
+      ]
+    },
+    "dequal@2.0.3": {
+      "integrity": "sha512-0je+qPKHEMohvfRTCEo3CrPG6cAzAYgmzKyxRiYSSDkS6eGJdyVJm7WaYA5ECaAD9wLB2T4EEeymA5aFVcYXCA=="
+    },
+    "docx@9.5.1": {
+      "integrity": "sha512-ABDI7JEirFD2+bHhOBlsGZxaG1UgZb2M/QMKhLSDGgVNhxDesTCDcP+qoDnDGjZ4EOXTRfUjUgwHVuZ6VSTfWQ==",
+      "dependencies": [
+        "@types/node@24.6.2",
+        "hash.js",
+        "jszip",
+        "nanoid",
+        "xml",
+        "xml-js"
+      ]
+    },
+    "dompurify@3.2.7": {
+      "integrity": "sha512-WhL/YuveyGXJaerVlMYGWhvQswa7myDG17P7Vu65EWC05o8vfeNbvNf4d/BOvH99+ZW+LlQsc1GDKMa1vNK6dw==",
+      "optionalDependencies": [
+        "@types/trusted-types"
+      ]
+    },
+    "dot-case@3.0.4": {
+      "integrity": "sha512-Kv5nKlh6yRrdrGvxeJ2e5y2eRUpkUosIW4A2AS38zwSz27zu7ufDwQPi5Jhs3XAlGNetl3bmnGhQsMtkKJnj3w==",
+      "dependencies": [
+        "no-case",
+        "tslib"
+      ]
+    },
+    "entities@4.5.0": {
+      "integrity": "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw=="
+    },
+    "fast-png@6.4.0": {
+      "integrity": "sha512-kAqZq1TlgBjZcLr5mcN6NP5Rv4V2f22z00c3g8vRrwkcqjerx7BEhPbOnWCPqaHUl2XWQBJQvOT/FQhdMT7X/Q==",
+      "dependencies": [
+        "@types/pako",
+        "iobuffer",
+        "pako@2.1.0"
+      ]
+    },
+    "fflate@0.8.2": {
+      "integrity": "sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A=="
+    },
+    "frac@1.1.2": {
+      "integrity": "sha512-w/XBfkibaTl3YDqASwfDUqkna4Z2p9cFSr1aHDt0WoMTECnRfBOv2WArlZILlqgWlmdIlALXGpM2AOhEk5W3IA=="
+    },
+    "function-bind@1.1.2": {
+      "integrity": "sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA=="
+    },
+    "glob-to-regexp@0.4.1": {
+      "integrity": "sha512-lkX1HJXwyMcprw/5YUZc2s7DrpAiHB21/V+E1rHUrVNokkvB6bqMzT0VfV6/86ZNabt1k14YOIaT7nDvOX3Iiw=="
+    },
+    "hash.js@1.1.7": {
+      "integrity": "sha512-taOaskGt4z4SOANNseOviYDvjEJinIkRgmp7LbKP2YTTmVxWBl87s/uzK9r+44BclBSp2X7K1hqeNfz9JbBeXA==",
+      "dependencies": [
+        "inherits",
+        "minimalistic-assert"
+      ]
+    },
+    "hasown@2.0.2": {
+      "integrity": "sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==",
+      "dependencies": [
+        "function-bind"
+      ]
+    },
+    "hono@4.8.10": {
+      "integrity": "sha512-DRMYbR3aFk6YET1FCSAFbgF2cWYTz5j0YAFYPECx9fmrbKBDAYnWU+YCgRTpOaatxMYN6e68U/2IG39zRP4W/A=="
+    },
+    "html2canvas@1.4.1": {
+      "integrity": "sha512-fPU6BHNpsyIhr8yyMpTLLxAbkaK8ArIBcmZIRiBLiDhjeqvXolaEmDGmELFuX9I4xDcaKKcJl+TKZLqruBbmWA==",
+      "dependencies": [
+        "css-line-break",
+        "text-segmentation"
+      ]
+    },
+    "immediate@3.0.6": {
+      "integrity": "sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ=="
+    },
+    "inherits@2.0.4": {
+      "integrity": "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ=="
+    },
+    "iobuffer@5.4.0": {
+      "integrity": "sha512-DRebOWuqDvxunfkNJAlc3IzWIPD5xVxwUNbHr7xKB8E6aLJxIPfNX3CoMJghcFjpv6RWQsrcJbghtEwSPoJqMA=="
+    },
+    "is-core-module@2.15.1": {
+      "integrity": "sha512-z0vtXSwucUJtANQWldhbtbt7BnL0vxiFjIdDLAatwhDYty2bad6s+rijD6Ri4YuYJubLzIJLUidCh09e1djEVQ==",
+      "dependencies": [
+        "hasown"
+      ]
+    },
+    "isarray@1.0.0": {
+      "integrity": "sha512-VLghIWNM6ELQzo7zwmcg0NmTVyWKYjvIeM83yjp0wRDTmUnrM678fQbcKBo6n2CJEF0szoG//ytg+TKla89ALQ=="
+    },
+    "js-cookie@3.0.5": {
+      "integrity": "sha512-cEiJEAEoIbWfCZYKWhVwFuvPX1gETRYPw6LlaTKoxD3s2AkXzkCjnp6h0V77ozyqj0jakteJ4YqDJT830+lVGw=="
+    },
+    "json-schema-to-ts@3.1.1": {
+      "integrity": "sha512-+DWg8jCJG2TEnpy7kOm/7/AxaYoaRbjVB4LFZLySZlWn8exGs3A4OLJR966cVvU26N7X9TWxl+Jsw7dzAqKT6g==",
+      "dependencies": [
+        "@babel/runtime",
+        "ts-algebra"
+      ]
+    },
+    "jspdf@3.0.3": {
+      "integrity": "sha512-eURjAyz5iX1H8BOYAfzvdPfIKK53V7mCpBTe7Kb16PaM8JSXEcUQNBQaiWMI8wY5RvNOPj4GccMjTlfwRBd+oQ==",
+      "dependencies": [
+        "@babel/runtime",
+        "fast-png",
+        "fflate"
+      ],
+      "optionalDependencies": [
+        "canvg",
+        "core-js",
+        "dompurify",
+        "html2canvas"
+      ]
+    },
+    "jszip@3.10.1": {
+      "integrity": "sha512-xXDvecyTpGLrqFrvkrUSoxxfJI5AH7U8zxxtVclpsUtMCq4JQ290LY8AW5c7Ggnr/Y/oK+bQMbqK2qmtk3pN4g==",
+      "dependencies": [
+        "lie",
+        "pako@1.0.11",
+        "readable-stream",
+        "setimmediate"
+      ]
+    },
+    "lie@3.3.0": {
+      "integrity": "sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==",
+      "dependencies": [
+        "immediate"
+      ]
+    },
+    "linkify-it@5.0.0": {
+      "integrity": "sha512-5aHCbzQRADcdP+ATqnDuhhJ/MRIqDkZX5pyjFHRRysS8vZ5AbqGEoFIb6pYHPZ+L/OC2Lc+xT8uHVVR5CAK/wQ==",
+      "dependencies": [
+        "uc.micro"
+      ]
+    },
+    "lower-case@2.0.2": {
+      "integrity": "sha512-7fm3l3NAF9WfN6W3JOmf5drwpVqX78JtoGJ3A6W0a6ZnldM41w2fV5D490psKFTpMds8TJse/eHLFFsNHHjHgg==",
+      "dependencies": [
+        "tslib"
+      ]
+    },
+    "map-obj@4.3.0": {
+      "integrity": "sha512-hdN1wVrZbb29eBGiGjJbeP8JbKjq1urkHJ/LIP/NY48MZ1QVXUsQBV1G1zvYFHn1XE06cwjBsOI2K3Ulnj1YXQ=="
+    },
+    "markdown-it@14.1.0": {
+      "integrity": "sha512-a54IwgWPaeBCAAsv13YgmALOF1elABB08FxO9i+r4VFk5Vl4pKokRPeX8u5TCgSsPi6ec1otfLjdOpVcgbpshg==",
+      "dependencies": [
+        "argparse",
+        "entities",
+        "linkify-it",
+        "mdurl",
+        "punycode.js",
+        "uc.micro"
+      ],
+      "bin": true
+    },
+    "mdurl@2.0.0": {
+      "integrity": "sha512-Lf+9+2r+Tdp5wXDXC4PcIBjTDtq4UKjCPMQhKIuzpJNW0b96kVqSwW0bT7FhRSfmAiFYgP+SCRvdrDozfh0U5w=="
+    },
+    "minimalistic-assert@1.0.1": {
+      "integrity": "sha512-UtJcAD4yEaGtjPezWuO9wC4nwUnVH/8/Im3yEHQP4b67cXlD/Qr9hdITCU1xDbSEXg2XKNaP8jsReV7vQd00/A=="
+    },
+    "ms@2.0.0": {
+      "integrity": "sha512-Tpp60P6IUJDTuOq/5Z8cdskzJujfwqfOTkrwIwj7IRISpnkJnT6SyJ4PCPnGMoFjC9ddhal5KVIYtAt97ix05A=="
+    },
+    "nanoid@5.1.6": {
+      "integrity": "sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg==",
+      "bin": true
+    },
+    "no-case@3.0.4": {
+      "integrity": "sha512-fgAN3jGAh+RoxUGZHTSOLJIqUc2wmoBwGR4tbpNAKmmovFoWq0OdRkb0VkldReO2a2iBT/OEulG9XSUc10r3zg==",
+      "dependencies": [
+        "lower-case",
+        "tslib"
+      ]
+    },
+    "pako@1.0.11": {
+      "integrity": "sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw=="
+    },
+    "pako@2.1.0": {
+      "integrity": "sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug=="
+    },
+    "papaparse@5.4.1": {
+      "integrity": "sha512-HipMsgJkZu8br23pW15uvo6sib6wne/4woLZPlFf3rpDyMe9ywEXUsuD7+6K9PRkJlVT51j/sCOYDKGGS3ZJrw=="
+    },
+    "papaparse@5.5.2": {
+      "integrity": "sha512-PZXg8UuAc4PcVwLosEEDYjPyfWnTEhOrUfdv+3Bx+NuAb+5NhDmXzg5fHWmdCh1mP5p7JAZfFr3IMQfcntNAdA=="
+    },
+    "parse-multipart@1.0.4": {
+      "integrity": "sha512-BQBmA/1qJzNnrPnRUzJhqGwbybsXa6Ot8vII5w+JT8gp2p7h9oWHwgAc29ohp669ZPzIy9izLi8ali9ngGmuAQ=="
+    },
+    "path-parse@1.0.7": {
+      "integrity": "sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw=="
+    },
+    "performance-now@2.1.0": {
+      "integrity": "sha512-7EAHlyLHI56VEIdK57uwHdHKIaAGbnXPiw0yWbarQZOKaKpvUIgW0jWRVLiatnM+XXlSwsanIBH/hzGMJulMow=="
+    },
+    "postgres@3.4.5": {
+      "integrity": "sha512-cDWgoah1Gez9rN3H4165peY9qfpEo+SA61oQv65O3cRUE1pOEoJWwddwcqKE8XZYjbblOJlYDlLV4h67HrEVDg=="
+    },
+    "process-nextick-args@2.0.1": {
+      "integrity": "sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag=="
+    },
+    "punycode.js@2.3.1": {
+      "integrity": "sha512-uxFIHU0YlHYhDQtV4R9J6a52SLx28BCjT+4ieh7IGbgwVJWO+km431c4yRlREUAsAmt/uMjQUyQHNEPf0M39CA=="
+    },
+    "raf@3.4.1": {
+      "integrity": "sha512-Sq4CW4QhwOHE8ucn6J34MqtZCeWFP2aQSmrlroYgqAV1PjStIhJXxYuTgUIfkEk7zTLjmIjLmU5q+fbD1NnOJA==",
+      "dependencies": [
+        "performance-now"
+      ]
+    },
+    "react@19.1.1": {
+      "integrity": "sha512-w8nqGImo45dmMIfljjMwOGtbmC/mk4CMYhWIicdSflH91J9TyCyczcPFXJzrZ/ZXcgGRFeP6BU0BEJTw6tZdfQ=="
+    },
+    "readable-stream@2.3.8": {
+      "integrity": "sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA==",
+      "dependencies": [
+        "core-util-is",
+        "inherits",
+        "isarray",
+        "process-nextick-args",
+        "safe-buffer",
+        "string_decoder",
+        "util-deprecate"
+      ]
+    },
+    "regenerator-runtime@0.13.11": {
+      "integrity": "sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg=="
+    },
+    "resolve@1.22.8": {
+      "integrity": "sha512-oKWePCxqpd6FlLvGV1VU0x7bkPmmCNolxzjMf4NczoDnQcIWrAF+cPtZn5i6n+RfD2d9i0tzpKnG6Yk168yIyw==",
+      "dependencies": [
+        "is-core-module",
+        "path-parse",
+        "supports-preserve-symlinks-flag"
+      ],
+      "bin": true
+    },
+    "rgbcolor@1.0.1": {
+      "integrity": "sha512-9aZLIrhRaD97sgVhtJOW6ckOEh6/GnvQtdVNfdZ6s67+3/XwLS9lBcQYzEEhYVeUowN7pRzMLsyGhK2i/xvWbw=="
+    },
+    "safe-buffer@5.1.2": {
+      "integrity": "sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g=="
+    },
+    "sax@1.4.1": {
+      "integrity": "sha512-+aWOz7yVScEGoKNd4PA10LZ8sk0A/z5+nXQG5giUO5rprX9jgYsTdov9qCchZiPIZezbZH+jRut8nPodFAX4Jg=="
+    },
+    "seroval-plugins@1.3.3_seroval@1.3.2": {
+      "integrity": "sha512-16OL3NnUBw8JG1jBLUoZJsLnQq0n5Ua6aHalhJK4fMQkz1lqR7Osz1sA30trBtd9VUDc2NgkuRCn8+/pBwqZ+w==",
+      "dependencies": [
+        "seroval"
+      ]
+    },
+    "seroval@1.3.2": {
+      "integrity": "sha512-RbcPH1n5cfwKrru7v7+zrZvjLurgHhGyso3HTyGtRivGWgYjbOmGuivCQaORNELjNONoK35nj28EoWul9sb1zQ=="
+    },
+    "setimmediate@1.0.5": {
+      "integrity": "sha512-MATJdZp8sLqDl/68LfQmbP8zKPLQNV6BIZoIgrscFDQ+RsvK/BxeDQOgyxKKoh0y/8h3BqVFnCqQ/gd+reiIXA=="
+    },
+    "snake-case@3.0.4": {
+      "integrity": "sha512-LAOh4z89bGQvl9pFfNF8V146i7o7/CqFPbqzYgP+yYzDIDeS9HaNFtXABamRW+AQzEVODcvE79ljJ+8a9YSdMg==",
+      "dependencies": [
+        "dot-case",
+        "tslib"
+      ]
+    },
+    "snakecase-keys@8.0.1": {
+      "integrity": "sha512-Sj51kE1zC7zh6TDlNNz0/Jn1n5HiHdoQErxO8jLtnyrkJW/M5PrI7x05uDgY3BO7OUQYKCvmeMurW6BPUdwEOw==",
+      "dependencies": [
+        "map-obj",
+        "snake-case",
+        "type-fest"
+      ]
+    },
+    "solid-js@1.9.10_seroval@1.3.2": {
+      "integrity": "sha512-Coz956cos/EPDlhs6+jsdTxKuJDPT7B5SVIWgABwROyxjY7Xbr8wkzD68Et+NxnV7DLJ3nJdAC2r9InuV/4Jew==",
+      "dependencies": [
+        "csstype",
+        "seroval",
+        "seroval-plugins"
+      ]
+    },
+    "sortablejs@1.15.6": {
+      "integrity": "sha512-aNfiuwMEpfBM/CN6LY0ibyhxPfPbyFeBTYJKCvzkJ2GkUpazIt3H+QIPAMHwqQ7tMKaHz1Qj+rJJCqljnf4p3A=="
+    },
+    "ssf@0.11.2": {
+      "integrity": "sha512-+idbmIXoYET47hH+d7dfm2epdOMUDjqcB4648sTZ+t2JwoyBFL/insLfB/racrDmsKB3diwsDA696pZMieAC5g==",
+      "dependencies": [
+        "frac"
+      ]
+    },
+    "stackblur-canvas@2.7.0": {
+      "integrity": "sha512-yf7OENo23AGJhBriGx0QivY5JP6Y1HbrrDI6WLt6C5auYZXlQrheoY8hD4ibekFKz1HOfE48Ww8kMWMnJD/zcQ=="
+    },
+    "std-env@3.9.0": {
+      "integrity": "sha512-UGvjygr6F6tpH7o2qyqR6QYpwraIjKSdtzyBdyytFOHmPZY917kwdwLG0RbOjWOnKmnm3PeHjaoLLMie7kPLQw=="
+    },
+    "string_decoder@1.1.1": {
+      "integrity": "sha512-n/ShnvDi6FHbbVfviro+WojiFzv+s8MPMHBczVePfUpDJLwoLT0ht1l4YwBCbi8pJAveEEdnkHyPyTP/mzRfwg==",
+      "dependencies": [
+        "safe-buffer"
+      ]
+    },
+    "supports-preserve-symlinks-flag@1.0.0": {
+      "integrity": "sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w=="
+    },
+    "svg-pathdata@6.0.3": {
+      "integrity": "sha512-qsjeeq5YjBZ5eMdFuUa4ZosMLxgr5RZ+F+Y1OrDhuOCEInRMA3x74XdBtggJcj9kOeInz0WE+LgCPDkZFlBYJw=="
+    },
+    "swr@2.3.4_react@19.1.1": {
+      "integrity": "sha512-bYd2lrhc+VarcpkgWclcUi92wYCpOgMws9Sd1hG1ntAu0NEy+14CbotuFjshBU2kt9rYj9TSmDcybpxpeTU1fg==",
+      "dependencies": [
+        "dequal",
+        "react",
+        "use-sync-external-store"
+      ]
+    },
+    "text-segmentation@1.0.3": {
+      "integrity": "sha512-iOiPUo/BGnZ6+54OsWxZidGCsdU8YbE4PSpdPinp7DeMtUJNJBoJ/ouUSTJjHkh1KntHaltHl/gDs2FC4i5+Nw==",
+      "dependencies": [
+        "utrie"
+      ]
+    },
+    "ts-algebra@2.0.0": {
+      "integrity": "sha512-FPAhNPFMrkwz76P7cdjdmiShwMynZYN6SgOujD1urY4oNm80Ou9oMdmbR45LotcKOXoy7wSmHkRFE6Mxbrhefw=="
+    },
+    "tslib@2.8.1": {
+      "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
+    },
+    "type-fest@4.41.0": {
+      "integrity": "sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA=="
+    },
+    "uc.micro@2.1.0": {
+      "integrity": "sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A=="
+    },
+    "undici-types@6.19.8": {
+      "integrity": "sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw=="
+    },
+    "undici-types@6.20.0": {
+      "integrity": "sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg=="
+    },
+    "undici-types@7.13.0": {
+      "integrity": "sha512-Ov2Rr9Sx+fRgagJ5AX0qvItZG/JKKoBRAVITs1zk7IqZGTJUwgUr7qoYBpWwakpWilTZFM98rG/AFRocu10iIQ=="
+    },
+    "use-sync-external-store@1.5.0_react@19.1.1": {
+      "integrity": "sha512-Rb46I4cGGVBmjamjphe8L/UnvJD+uPPtTkNvX5mZgqdbavhI4EbgIWJiIHXJ8bc/i9EQGPRh4DwEURJ552Do0A==",
+      "dependencies": [
+        "react"
+      ]
+    },
+    "util-deprecate@1.0.2": {
+      "integrity": "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw=="
+    },
+    "utrie@1.0.2": {
+      "integrity": "sha512-1MLa5ouZiOmQzUbjbu9VmjLzn1QLXBhwpUa7kdLUQK+KQ5KA9I1vk5U4YHe/X2Ch7PYnJfWuWT+VbuxbGwljhw==",
+      "dependencies": [
+        "base64-arraybuffer"
+      ]
+    },
+    "wmf@1.0.2": {
+      "integrity": "sha512-/p9K7bEh0Dj6WbXg4JG0xvLQmIadrner1bi45VMJTfnbVHsc7yIajZyoSoK60/dtVBs12Fm6WkUI5/3WAVsNMw=="
+    },
+    "word@0.3.0": {
+      "integrity": "sha512-OELeY0Q61OXpdUfTp+oweA/vtLVg5VDOXh+3he3PNzLGG/y0oylSOC1xRVj0+l4vQ3tj/bB1HVHv1ocXkQceFA=="
+    },
+    "xlsx@0.18.5": {
+      "integrity": "sha512-dmg3LCjBPHZnQp5/F/+nnTa+miPJxUXB6vtk42YjBBKayDNagxGEeIdWApkYPOf3Z3pm3k62Knjzp7lMeTEtFQ==",
+      "dependencies": [
+        "adler-32",
+        "cfb",
+        "codepage",
+        "crc-32",
+        "ssf",
+        "wmf",
+        "word"
+      ],
+      "bin": true
+    },
+    "xml-js@1.6.11": {
+      "integrity": "sha512-7rVi2KMfwfWFl+GpPg6m80IVMWXLRjO+PxTq7V2CDhoGak0wzYzFgUY2m4XJ47OGdXd8eLE8EmwfAmdjw7lC1g==",
+      "dependencies": [
+        "sax"
+      ],
+      "bin": true
+    },
+    "xml@1.0.1": {
+      "integrity": "sha512-huCv9IH9Tcf95zuYCsQraZtWnJvBtLVE0QHMOs8bWyZAFZNDcYjsPq1nEx8jKA9y+Beo9v+7OBPRisQTjinQMw=="
+    }
+  },
+  "remote": {
+    "https://deno.land/std@0.210.0/assert/assert.ts": "e265ad50a9341f3b40e51dd4cb41ab253d976943ba78a977106950e52e0302ab",
+    "https://deno.land/std@0.210.0/assert/assertion_error.ts": "26ed1863d905005f00785c89750c001c3522c5417e4f58f95044b8143cfc1593",
+    "https://deno.land/std@0.210.0/fs/_create_walk_entry.ts": "7462542d30c53e925b07c4243929434e78a190d31987a3388c8e0bd52ef8e440",
+    "https://deno.land/std@0.210.0/fs/_to_path_string.ts": "d963898a0d277b155eefb5c64202de71ca2f5e1348897a2f56d3bce6347fc3cc",
+    "https://deno.land/std@0.210.0/fs/walk.ts": "78131d81952231f173e01aa1c1d69485e627bf4bb3af020a1c1b2ad490892c12",
+    "https://deno.land/std@0.210.0/path/_common/assert_path.ts": "061e4d093d4ba5aebceb2c4da3318bfe3289e868570e9d3a8e327d91c2958946",
+    "https://deno.land/std@0.210.0/path/_common/basename.ts": "0d978ff818f339cd3b1d09dc914881f4d15617432ae519c1b8fdc09ff8d3789a",
+    "https://deno.land/std@0.210.0/path/_common/common.ts": "9e4233b2eeb50f8b2ae10ecc2108f58583aea6fd3e8907827020282dc2b76143",
+    "https://deno.land/std@0.210.0/path/_common/constants.ts": "e49961f6f4f48039c0dfed3c3f93e963ca3d92791c9d478ac5b43183413136e0",
+    "https://deno.land/std@0.210.0/path/_common/dirname.ts": "2ba7fb4cc9fafb0f38028f434179579ce61d4d9e51296fad22b701c3d3cd7397",
+    "https://deno.land/std@0.210.0/path/_common/format.ts": "11aa62e316dfbf22c126917f5e03ea5fe2ee707386555a8f513d27ad5756cf96",
+    "https://deno.land/std@0.210.0/path/_common/from_file_url.ts": "ef1bf3197d2efbf0297a2bdbf3a61d804b18f2bcce45548ae112313ec5be3c22",
+    "https://deno.land/std@0.210.0/path/_common/glob_to_reg_exp.ts": "50386887d6041f15741d0013a703ee63ef673983d465d3a0c9c190e95f8da4fe",
+    "https://deno.land/std@0.210.0/path/_common/normalize.ts": "2ba7fb4cc9fafb0f38028f434179579ce61d4d9e51296fad22b701c3d3cd7397",
+    "https://deno.land/std@0.210.0/path/_common/normalize_string.ts": "88c472f28ae49525f9fe82de8c8816d93442d46a30d6bb5063b07ff8a89ff589",
+    "https://deno.land/std@0.210.0/path/_common/relative.ts": "1af19d787a2a84b8c534cc487424fe101f614982ae4851382c978ab2216186b4",
+    "https://deno.land/std@0.210.0/path/_common/strip_trailing_separators.ts": "7ffc7c287e97bdeeee31b155828686967f222cd73f9e5780bfe7dfb1b58c6c65",
+    "https://deno.land/std@0.210.0/path/_common/to_file_url.ts": "a8cdd1633bc9175b7eebd3613266d7c0b6ae0fb0cff24120b6092ac31662f9ae",
+    "https://deno.land/std@0.210.0/path/_interface.ts": "6471159dfbbc357e03882c2266d21ef9afdb1e4aa771b0545e90db58a0ba314b",
+    "https://deno.land/std@0.210.0/path/_os.ts": "30b0c2875f360c9296dbe6b7f2d528f0f9c741cecad2e97f803f5219e91b40a2",
+    "https://deno.land/std@0.210.0/path/basename.ts": "04bb5ef3e86bba8a35603b8f3b69537112cdd19ce64b77f2522006da2977a5f3",
+    "https://deno.land/std@0.210.0/path/common.ts": "f4d061c7d0b95a65c2a1a52439edec393e906b40f1caf4604c389fae7caa80f5",
+    "https://deno.land/std@0.210.0/path/dirname.ts": "88a0a71c21debafc4da7a4cd44fd32e899462df458fbca152390887d41c40361",
+    "https://deno.land/std@0.210.0/path/extname.ts": "8c6d6112bce335b4d3d5a07cb0451816d0c2094c147049874fca2db5f707044b",
+    "https://deno.land/std@0.210.0/path/format.ts": "3457530cc85d1b4bab175f9ae73998b34fd456c830d01883169af0681b8894fb",
+    "https://deno.land/std@0.210.0/path/from_file_url.ts": "e7fa233ea1dff9641e8d566153a24d95010110185a6f418dd2e32320926043f8",
+    "https://deno.land/std@0.210.0/path/glob_to_regexp.ts": "74d7448c471e293d03f05ccb968df4365fed6aaa508506b6325a8efdc01d8271",
+    "https://deno.land/std@0.210.0/path/is_absolute.ts": "67232b41b860571c5b7537f4954c88d86ae2ba45e883ee37d3dec27b74909d13",
+    "https://deno.land/std@0.210.0/path/is_glob.ts": "567dce5c6656bdedfc6b3ee6c0833e1e4db2b8dff6e62148e94a917f289c06ad",
+    "https://deno.land/std@0.210.0/path/join.ts": "3ee91038e3eaa966897eddda43d5207d7cae5c2de8a658bdbd722e8f8f29206a",
+    "https://deno.land/std@0.210.0/path/join_globs.ts": "9b84d5103b63d3dbed4b2cf8b12477b2ad415c7d343f1488505162dc0e5f4db8",
+    "https://deno.land/std@0.210.0/path/mod.ts": "eff1d7b0617293bd90254d379a7266887dc6fbf5a00e0f450eeb854959379294",
+    "https://deno.land/std@0.210.0/path/normalize.ts": "aa95be9a92c7bd4f9dc0ba51e942a1973e2b93d266cd74f5ca751c136d520b66",
+    "https://deno.land/std@0.210.0/path/normalize_glob.ts": "674baa82e1c00b6cb153bbca36e06f8e0337cb8062db6d905ab5de16076ca46b",
+    "https://deno.land/std@0.210.0/path/parse.ts": "d87ff0deef3fb495bc0d862278ff96da5a06acf0625ca27769fc52ac0d3d6ece",
+    "https://deno.land/std@0.210.0/path/posix/_util.ts": "ecf49560fedd7dd376c6156cc5565cad97c1abe9824f4417adebc7acc36c93e5",
+    "https://deno.land/std@0.210.0/path/posix/basename.ts": "a630aeb8fd8e27356b1823b9dedd505e30085015407caa3396332752f6b8406a",
+    "https://deno.land/std@0.210.0/path/posix/common.ts": "e781d395dc76f6282e3f7dd8de13194abb8b04a82d109593141abc6e95755c8b",
+    "https://deno.land/std@0.210.0/path/posix/dirname.ts": "f48c9c42cc670803b505478b7ef162c7cfa9d8e751b59d278b2ec59470531472",
+    "https://deno.land/std@0.210.0/path/posix/extname.ts": "ee7f6571a9c0a37f9218fbf510c440d1685a7c13082c348d701396cc795e0be0",
+    "https://deno.land/std@0.210.0/path/posix/format.ts": "b94876f77e61bfe1f147d5ccb46a920636cd3cef8be43df330f0052b03875968",
+    "https://deno.land/std@0.210.0/path/posix/from_file_url.ts": "b97287a83e6407ac27bdf3ab621db3fccbf1c27df0a1b1f20e1e1b5acf38a379",
+    "https://deno.land/std@0.210.0/path/posix/glob_to_regexp.ts": "6ed00c71fbfe0ccc35977c35444f94e82200b721905a60bd1278b1b768d68b1a",
+    "https://deno.land/std@0.210.0/path/posix/is_absolute.ts": "159900a3422d11069d48395568217eb7fc105ceda2683d03d9b7c0f0769e01b8",
+    "https://deno.land/std@0.210.0/path/posix/is_glob.ts": "ec4fbc604b9db8487f7b56ab0e759b24a971ab6a45f7b0b698bc39b8b9f9680f",
+    "https://deno.land/std@0.210.0/path/posix/join.ts": "0c0d84bdc344876930126640011ec1b888e6facf74153ffad9ef26813aa2a076",
+    "https://deno.land/std@0.210.0/path/posix/join_globs.ts": "f4838d54b1f60a34a40625a3293f6e583135348be1b2974341ac04743cb26121",
+    "https://deno.land/std@0.210.0/path/posix/mod.ts": "f1b08a7f64294b7de87fc37190d63b6ce5b02889af9290c9703afe01951360ae",
+    "https://deno.land/std@0.210.0/path/posix/normalize.ts": "11de90a94ab7148cc46e5a288f7d732aade1d616bc8c862f5560fa18ff987b4b",
+    "https://deno.land/std@0.210.0/path/posix/normalize_glob.ts": "10a1840c628ebbab679254d5fa1c20e59106102354fb648a1765aed72eb9f3f9",
+    "https://deno.land/std@0.210.0/path/posix/parse.ts": "199208f373dd93a792e9c585352bfc73a6293411bed6da6d3bc4f4ef90b04c8e",
+    "https://deno.land/std@0.210.0/path/posix/relative.ts": "e2f230608b0f083e6deaa06e063943e5accb3320c28aef8d87528fbb7fe6504c",
+    "https://deno.land/std@0.210.0/path/posix/resolve.ts": "51579d83159d5c719518c9ae50812a63959bbcb7561d79acbdb2c3682236e285",
+    "https://deno.land/std@0.210.0/path/posix/separator.ts": "0b6573b5f3269a3164d8edc9cefc33a02dd51003731c561008c8bb60220ebac1",
+    "https://deno.land/std@0.210.0/path/posix/to_file_url.ts": "ac5499aa0c6e2c266019cba7d1f7e5a92b8e04983cd72be97f81adad185619a6",
+    "https://deno.land/std@0.210.0/path/posix/to_namespaced_path.ts": "c9228a0e74fd37e76622cd7b142b8416663a9b87db643302fa0926b5a5c83bdc",
+    "https://deno.land/std@0.210.0/path/relative.ts": "23d45ede8b7ac464a8299663a43488aad6b561414e7cbbe4790775590db6349c",
+    "https://deno.land/std@0.210.0/path/resolve.ts": "5b184efc87155a0af9fa305ff68a109e28de9aee81fc3e77cd01380f19daf867",
+    "https://deno.land/std@0.210.0/path/separator.ts": "1a21ffd408bfaa317bffff604e5a799f78a7a5571590bde6b9cdce7685953d74",
+    "https://deno.land/std@0.210.0/path/to_file_url.ts": "edaafa089e0bce386e1b2d47afe7c72e379ff93b28a5829a5885e4b6c626d864",
+    "https://deno.land/std@0.210.0/path/to_namespaced_path.ts": "cf8734848aac3c7527d1689d2adf82132b1618eff3cc523a775068847416b22a",
+    "https://deno.land/std@0.210.0/path/windows/_util.ts": "f32b9444554c8863b9b4814025c700492a2b57ff2369d015360970a1b1099d54",
+    "https://deno.land/std@0.210.0/path/windows/basename.ts": "8a9dbf7353d50afbc5b221af36c02a72c2d1b2b5b9f7c65bf6a5a2a0baf88ad3",
+    "https://deno.land/std@0.210.0/path/windows/common.ts": "e781d395dc76f6282e3f7dd8de13194abb8b04a82d109593141abc6e95755c8b",
+    "https://deno.land/std@0.210.0/path/windows/dirname.ts": "5c2aa541384bf0bd9aca821275d2a8690e8238fa846198ef5c7515ce31a01a94",
+    "https://deno.land/std@0.210.0/path/windows/extname.ts": "07f4fa1b40d06a827446b3e3bcc8d619c5546b079b8ed0c77040bbef716c7614",
+    "https://deno.land/std@0.210.0/path/windows/format.ts": "343019130d78f172a5c49fdc7e64686a7faf41553268961e7b6c92a6d6548edf",
+    "https://deno.land/std@0.210.0/path/windows/from_file_url.ts": "d53335c12b0725893d768be3ac6bf0112cc5b639d2deb0171b35988493b46199",
+    "https://deno.land/std@0.210.0/path/windows/glob_to_regexp.ts": "290755e18ec6c1a4f4d711c3390537358e8e3179581e66261a0cf348b1a13395",
+    "https://deno.land/std@0.210.0/path/windows/is_absolute.ts": "245b56b5f355ede8664bd7f080c910a97e2169972d23075554ae14d73722c53c",
+    "https://deno.land/std@0.210.0/path/windows/is_glob.ts": "ec4fbc604b9db8487f7b56ab0e759b24a971ab6a45f7b0b698bc39b8b9f9680f",
+    "https://deno.land/std@0.210.0/path/windows/join.ts": "e6600bf88edeeef4e2276e155b8de1d5dec0435fd526ba2dc4d37986b2882f16",
+    "https://deno.land/std@0.210.0/path/windows/join_globs.ts": "f4838d54b1f60a34a40625a3293f6e583135348be1b2974341ac04743cb26121",
+    "https://deno.land/std@0.210.0/path/windows/mod.ts": "d7040f461465c2c21c1c68fc988ef0bdddd499912138cde3abf6ad60c7fb3814",
+    "https://deno.land/std@0.210.0/path/windows/normalize.ts": "9deebbf40c81ef540b7b945d4ccd7a6a2c5a5992f791e6d3377043031e164e69",
+    "https://deno.land/std@0.210.0/path/windows/normalize_glob.ts": "344ff5ed45430495b9a3d695567291e50e00b1b3b04ea56712a2acf07ab5c128",
+    "https://deno.land/std@0.210.0/path/windows/parse.ts": "120faf778fe1f22056f33ded069b68e12447668fcfa19540c0129561428d3ae5",
+    "https://deno.land/std@0.210.0/path/windows/relative.ts": "026855cd2c36c8f28f1df3c6fbd8f2449a2aa21f48797a74700c5d872b86d649",
+    "https://deno.land/std@0.210.0/path/windows/resolve.ts": "5ff441ab18a2346abadf778121128ee71bda4d0898513d4639a6ca04edca366b",
+    "https://deno.land/std@0.210.0/path/windows/separator.ts": "ae21f27015f10510ed1ac4a0ba9c4c9c967cbdd9d9e776a3e4967553c397bd5d",
+    "https://deno.land/std@0.210.0/path/windows/to_file_url.ts": "8e9ea9e1ff364aa06fa72999204229952d0a279dbb876b7b838b2b2fea55cce3",
+    "https://deno.land/std@0.210.0/path/windows/to_namespaced_path.ts": "e0f4d4a5e77f28a5708c1a33ff24360f35637ba6d8f103d19661255ef7bfd50d"
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@hono/hono@^4.5.3",
+      "jsr:@std/async@^1.0.9",
+      "jsr:@std/csv@1.0.3",
+      "jsr:@std/fs@1",
+      "jsr:@std/path@1",
+      "jsr:@std/streams@^1.0.8",
+      "npm:@anthropic-ai/sdk@0.67",
+      "npm:@clerk/backend@^1.25.2",
+      "npm:@hono/clerk-auth@2",
+      "npm:@stdlib/random-base-normal@0.2.1",
+      "npm:@types/papaparse@^5.3.15",
+      "npm:papaparse@^5.5.2",
+      "npm:parse-multipart@^1.0.4",
+      "npm:postgres@^3.4.5"
+    ],
+    "members": {
+      "panther": {
+        "dependencies": [
+          "jsr:@gfx/canvas@0.5.6",
+          "jsr:@std/encoding@0.217.0",
+          "jsr:@std/fs@0.217.0",
+          "jsr:@std/path@0.217.0",
+          "npm:@solidjs/router@0.13",
+          "npm:docx@^9.5.1",
+          "npm:jspdf@^3.0.1",
+          "npm:markdown-it@^14.1.0",
+          "npm:papaparse@5.4.1",
+          "npm:solid-js@^1.9.0",
+          "npm:sortablejs@^1.15.0",
+          "npm:xlsx@0.18.5"
+        ]
+      }
+    }
+  }
+}

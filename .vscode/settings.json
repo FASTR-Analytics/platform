@@ -1,0 +1,15 @@
+{
+  "deno.enable": true,
+  "deno.enablePaths": [
+    "."
+  ],
+  "deno.disablePaths": [
+    "client"
+  ],
+  "[typescript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  }
+}
