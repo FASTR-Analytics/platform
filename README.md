@@ -1,4 +1,4 @@
-# wb-fastr
+# platform
 
 The FASTR Analytics Platform for processing, visualizing, and analyzing health data. Built with Deno, SolidJS, TypeScript, and PostgreSQL with a modular architecture for executing R-based data processing pipelines.
 
@@ -11,9 +11,9 @@ cd platform
 
 # Sync the Panther library (required)
 # This project uses the Panther visualization library which is synced separately.
-# If you have access to timroberton-panther source repository:
-cd /path/to/timroberton-panther
-./sync wb-fastr
+# If you have access to panther source repository:
+cd /path/to/panther
+./sync platform
 cd -
 
 # Create instance directory structure (git-ignored)
