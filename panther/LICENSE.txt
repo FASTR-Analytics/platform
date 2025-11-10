@@ -1,0 +1,42 @@
+PROPRIETARY SOFTWARE LICENSE
+
+Copyright 2023-2025, Tim Roberton. All rights reserved.
+
+SCOPE
+
+This license applies exclusively to the timroberton-panther library code contained
+in this directory and its subdirectories. It does not apply to any other code in
+the containing application or repository.
+
+This software and associated documentation files (the "Software") are the proprietary
+and confidential property of Tim Roberton.
+
+RESTRICTIONS
+
+No person or entity may, without prior written permission from Tim Roberton:
+- Use, copy, modify, merge, publish, distribute, sublicense, or sell the Software
+- Reverse engineer, decompile, or disassemble the Software
+- Remove or alter any copyright, trademark, or other proprietary notices
+- Create derivative works based on the Software
+- Use the Software for commercial purposes
+
+AUTHORIZED USE
+
+Use of this Software is permitted only:
+- By Tim Roberton
+- By parties who have obtained explicit written permission from Tim Roberton
+- Under the terms of a separate written license agreement with Tim Roberton
+
+DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL TIM ROBERTON BE LIABLE
+FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
+OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+
+THIRD-PARTY COMPONENTS
+
+This Software includes third-party open-source dependencies with their own licenses.
+See THIRD_PARTY_LICENSES.md for complete third-party license information.

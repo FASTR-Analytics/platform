@@ -1,0 +1,33 @@
+// Copyright 2023-2025, Tim Roberton, All rights reserved.
+//
+// ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
+// ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
+
+export { getAdjustedColor, getColor } from "../_001_color/mod.ts";
+export type { ColorKeyOrString } from "../_001_color/mod.ts";
+export type { FontInfo, TextInfoUnkeyed } from "../_001_font/mod.ts";
+export {
+  Coordinates,
+  Dimensions,
+  getRectAlignmentCoords,
+  RectCoordsDims,
+} from "../_001_geometry/mod.ts";
+export type {
+  CoordinatesOptions,
+  RectCoordsDimsOptions,
+} from "../_001_geometry/mod.ts";
+export type {
+  AreaStyle,
+  LineStyle,
+  MeasuredRichText,
+  MeasuredRichTextLine,
+  MeasuredRichTextSegment,
+  MeasuredText,
+  MeasuredTextLine,
+  PointStyle,
+  PointType,
+  RectStyle,
+  RenderContext,
+  RichText,
+  RichTextSegment,
+} from "../_001_render_system/mod.ts";

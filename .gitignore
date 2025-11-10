@@ -19,10 +19,6 @@ client/node_modules/
 # Server
 server/initial_users.txt
 
-# Panther library (synced externally from timroberton-panther)
-panther/*
-!panther/.panther-manifest.json
-
 # macOS
 .DS_Store
 
