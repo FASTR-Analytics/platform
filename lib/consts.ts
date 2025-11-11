@@ -5,4 +5,4 @@ export const _IMAGE_DIMENSIONS = {
   md: { w: 720, h: 405 },
 };
 
-export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4.5-20250929";
+export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
