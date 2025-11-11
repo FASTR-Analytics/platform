@@ -7,7 +7,7 @@ import {
   useAIChat,
   type OpenEditorProps,
 } from "panther";
-import { isFrench, type ProjectDetail } from "lib";
+import { isFrench, DEFAULT_ANTHROPIC_MODEL, type ProjectDetail } from "lib";
 import { createMemo } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { createProjectTools } from "./tools.tsx";
@@ -52,7 +52,7 @@ export function ProjectChatbotV2(p: Props) {
           },
         },
         modelConfig: {
-          model: "claude-sonnet-4.5-20250929",
+          model: DEFAULT_ANTHROPIC_MODEL,
           max_tokens: 4096,
         },
         tools: tools(),

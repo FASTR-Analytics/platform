@@ -1,4 +1,5 @@
 import { _ANTHROPIC_API_URL } from "../exposed_env_vars.ts";
+import { DEFAULT_ANTHROPIC_MODEL } from "../../lib/consts.ts";
 import type {
   AnthropicAPIRequest,
   AnthropicAPIResponse,
@@ -78,7 +79,7 @@ ${formattedData}
 Please provide your interpretation of this data.`;
 
   const anthropicRequest: AnthropicAPIRequest = {
-    model: "claude-3-5-sonnet-20241022",
+    model: DEFAULT_ANTHROPIC_MODEL,
     messages: [
       {
         role: "user",
