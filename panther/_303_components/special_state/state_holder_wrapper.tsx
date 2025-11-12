@@ -47,6 +47,15 @@ type StateHolderWrapperProps<T> = {
       label: string;
       link: string;
     };
+  onErrorSecondaryButton?:
+    | {
+      label: string;
+      onClick: () => void;
+    }
+    | {
+      label: string;
+      link: string;
+    };
   noPad?: boolean;
   spinner?: boolean;
 };
@@ -70,44 +79,77 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
           <div class="text-danger">
             Error: {(p.state as { err: string }).err}
           </div>
-          <Switch>
-            <Match
-              when={(p.onErrorButton as { label: string; onClick: () => void })
-                  ?.onClick
-                ? (p.onErrorButton as { label: string; onClick: () => void })
-                : false}
-              keyed
-            >
-              {(keyedOnErr) => {
-                return (
-                  <div class="">
+          <div class="ui-gap-sm flex">
+            <Switch>
+              <Match
+                when={(p.onErrorButton as { label: string; onClick: () => void })
+                    ?.onClick
+                  ? (p.onErrorButton as { label: string; onClick: () => void })
+                  : false}
+                keyed
+              >
+                {(keyedOnErr) => {
+                  return (
                     <Button onClick={keyedOnErr.onClick}>
                       {keyedOnErr.label}
                     </Button>
-                  </div>
-                );
-              }}
-            </Match>
-            <Match
-              when={(p.onErrorButton as { label: string; link: string })?.link
-                ? (p.onErrorButton as { label: string; link: string })
-                : false}
-              keyed
-            >
-              {(keyedOnErr) => {
-                return (
-                  <div class="">
+                  );
+                }}
+              </Match>
+              <Match
+                when={(p.onErrorButton as { label: string; link: string })?.link
+                  ? (p.onErrorButton as { label: string; link: string })
+                  : false}
+                keyed
+              >
+                {(keyedOnErr) => {
+                  return (
                     <Button
                       href={(keyedOnErr as { label: string; link: string })
                         .link}
                     >
                       {(keyedOnErr as { label: string; link: string }).label}
                     </Button>
-                  </div>
-                );
-              }}
-            </Match>
-          </Switch>
+                  );
+                }}
+              </Match>
+            </Switch>
+            <Switch>
+              <Match
+                when={(p.onErrorSecondaryButton as { label: string; onClick: () => void })
+                    ?.onClick
+                  ? (p.onErrorSecondaryButton as { label: string; onClick: () => void })
+                  : false}
+                keyed
+              >
+                {(keyedOnErr) => {
+                  return (
+                    <Button onClick={keyedOnErr.onClick} intent="danger">
+                      {keyedOnErr.label}
+                    </Button>
+                  );
+                }}
+              </Match>
+              <Match
+                when={(p.onErrorSecondaryButton as { label: string; link: string })?.link
+                  ? (p.onErrorSecondaryButton as { label: string; link: string })
+                  : false}
+                keyed
+              >
+                {(keyedOnErr) => {
+                  return (
+                    <Button
+                      href={(keyedOnErr as { label: string; link: string })
+                        .link}
+                      intent="danger"
+                    >
+                      {(keyedOnErr as { label: string; link: string }).label}
+                    </Button>
+                  );
+                }}
+              </Match>
+            </Switch>
+          </div>
         </div>
       </Match>
       <Match

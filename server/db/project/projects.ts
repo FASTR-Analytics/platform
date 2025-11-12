@@ -175,6 +175,11 @@ export async function addProject(
     );
     await projectDb.file("./server/db/project/_project_database.sql");
     await runProjectMigrations(projectDb);
+    await mainDb`
+      INSERT INTO users (email, is_admin)
+      VALUES (${globalUser.email}, ${globalUser.isGlobalAdmin})
+      ON CONFLICT (email) DO NOTHING
+    `;
     await mainDb.begin((sql) => [
       sql`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${projectLabel}, '')`,
       sql`INSERT INTO project_user_roles (email, project_id, role)
@@ -324,6 +329,12 @@ export async function updateProjectUserRole(
       await Promise.all(deleteQueries);
 
       if (role !== "none") {
+        const userInserts = emails.map(
+          (email) =>
+            sql`INSERT INTO users (email, is_admin) VALUES (${email}, false) ON CONFLICT (email) DO NOTHING`
+        );
+        await Promise.all(userInserts);
+
         const insertQueries = emails.map(
           (email) =>
             sql`INSERT INTO project_user_roles (email, project_id, role)
@@ -437,7 +448,11 @@ export async function copyProject(
       }
     }
 
-    // Insert project record and user role
+    await mainDb`
+      INSERT INTO users (email, is_admin)
+      VALUES (${globalUser.email}, ${globalUser.isGlobalAdmin})
+      ON CONFLICT (email) DO NOTHING
+    `;
     await mainDb.begin((sql) => [
       sql`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${newProjectLabel}, '')`,
       sql`INSERT INTO project_user_roles (email, project_id, role)

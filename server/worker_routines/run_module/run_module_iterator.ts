@@ -98,10 +98,19 @@ export async function* runModuleIterator(
     //         //
     /////////////
 
+    let knownDatasetVariables: Set<string> | undefined;
+    if (moduleDetail.moduleDefinition.configRequirements.configType === "hfa") {
+      const hfaVarRows = await projectDb<{ var_name: string }[]>`
+        SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
+      `;
+      knownDatasetVariables = new Set(hfaVarRows.map((r) => r.var_name));
+    }
+
     const scriptWithParameters = getScriptWithParameters(
       moduleDetail.moduleDefinition,
       moduleDetail.configSelections,
-      countryIso3
+      countryIso3,
+      knownDatasetVariables
     );
     const scriptFilePath = join(moduleDirPath, _MODULE_SCRIPT_FILE_NAME);
     await Deno.writeTextFile(scriptFilePath, scriptWithParameters);

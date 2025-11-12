@@ -204,10 +204,22 @@ defineRoute(
     }
     const resCountryIso3 = await getCountryIso3Config(c.var.mainDb);
     throwIfErrWithData(resCountryIso3);
+
+    let knownDatasetVariables: Set<string> | undefined;
+    if (res.data.moduleDefinition.configRequirements.configType === "hfa") {
+      const hfaVarRows = await c.var.ppk.projectDb<{ var_name: string }[]>`
+        SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
+      `;
+      knownDatasetVariables = new Set(
+        hfaVarRows.map((r: { var_name: string }) => r.var_name)
+      );
+    }
+
     const script = getScriptWithParameters(
       res.data.moduleDefinition,
       res.data.configSelections,
-      resCountryIso3.data.countryIso3
+      resCountryIso3.data.countryIso3,
+      knownDatasetVariables
     );
     return c.json({ success: true, data: { script } });
   }

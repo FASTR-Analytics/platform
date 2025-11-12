@@ -10,9 +10,13 @@ import {
   APIResponseWithData,
   getEnabledOptionalFacilityColumns,
   throwIfErrNoData,
+  throwIfErrWithData,
 } from "lib";
 import { getCurrentDatasetHfaVersion } from "../instance/dataset_hfa.ts";
-import { getFacilityColumnsConfig } from "../instance/config.ts";
+import {
+  getFacilityColumnsConfig,
+  getMaxAdminAreaConfig,
+} from "../instance/config.ts";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { removeDatasetFromProject } from "./datasets_in_project_hmis.ts";
 
@@ -38,6 +42,10 @@ export async function addDatasetHfaToProject(
     }
     const facilityConfig = facilityColumnsRes.data;
 
+    // Get max admin area configuration
+    const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
+    throwIfErrWithData(resMaxAdminArea);
+
     const datasetDirPath = getDatasetDirPath(projectId);
     await ensureDir(datasetDirPath);
     await Deno.chmod(datasetDirPath, 0o777);
@@ -49,6 +57,12 @@ export async function addDatasetHfaToProject(
 
     if (onProgress) await onProgress(0.5, "Exporting HFA data to CSV...");
 
+    // Build admin area columns list based on config
+    const adminAreaColumns = [];
+    for (let i = 1; i <= Math.min(resMaxAdminArea.data.maxAdminArea, 4); i++) {
+      adminAreaColumns.push(`admin_area_${i}`);
+    }
+
     // Build optional facility columns array
     const optionalColumns = getEnabledOptionalFacilityColumns(facilityConfig);
 
@@ -56,10 +70,7 @@ export async function addDatasetHfaToProject(
     const exportStatement = `
 SELECT
   h.facility_id,
-  f.admin_area_1,
-  f.admin_area_2,
-  f.admin_area_3,
-  f.admin_area_4${
+  ${adminAreaColumns.map((col) => `f.${col}`).join(",\n  ")}${
       optionalColumns.length > 0
         ? `,\n  ${optionalColumns.map((col) => `f.${col}`).join(",\n  ")}`
         : ""

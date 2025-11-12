@@ -16,18 +16,15 @@ export function renderTimeseries(
 ) {
   const s = mTimeseries.mergedStyle;
 
-  // Build config
+  // Build base config (without pane-specific measured info)
   const config = {
     styles: s,
     data: mTimeseries.transformedData,
-    xAxisInfo: mTimeseries.mPanes[0].xAxisMeasuredInfo,
     xAxisStyle: s.xPeriodAxis,
 
     xAxisType: "period" as const,
-    xAxisRenderData: {
+    xAxisRenderDataBase: {
       type: "period" as const,
-      mx: mTimeseries.mPanes[0]
-        .xAxisMeasuredInfo as import("../deps.ts").XPeriodAxisMeasuredInfo,
       nTimePoints: mTimeseries.transformedData.nTimePoints,
       timeMin: mTimeseries.transformedData.timeMin,
       periodType: mTimeseries.transformedData.periodType,

@@ -78,7 +78,7 @@ export type ModuleConfigRequirements =
 export type HfaIndicator = {
   category: string;
   definition: string;
-  validQIDs: string[];
+  rFilterCode?: string;
   varName: string;
   rCode: string;
   type: "binary" | "numeric";

@@ -22,7 +22,44 @@ export interface XAxisMeasuredInfoBase {
 // Union of all X-axis measured info types
 export type XAxisMeasuredInfo = XTextAxisMeasuredInfo | XPeriodAxisMeasuredInfo;
 
-// Configuration for rendering a single pane
+// Base configuration shared across all panes (without pane-specific data)
+export interface ChartRenderConfigBase<
+  TStyle = MergedChartOVStyle | MergedTimeseriesStyle,
+> {
+  styles: TStyle;
+  data: {
+    laneHeaders: string[];
+    yScaleAxisData: YScaleAxisData;
+    values: (number | undefined)[][][][][]; // [pane][tier][lane][series][time]
+  };
+  xAxisStyle: {
+    lanePaddingLeft: number;
+    lanePaddingRight: number;
+    laneGapX: number;
+  };
+
+  // X-axis configuration (without pane-specific measured info)
+  xAxisType: "text" | "period" | "scale";
+  xAxisRenderDataBase:
+    | {
+      type: "text";
+      indicatorHeaders: string[];
+      mergedStyle: TStyle;
+    }
+    | {
+      type: "period";
+      nTimePoints: number;
+      timeMin: number;
+      periodType: "year-month" | "year-quarter" | "year";
+      mergedStyle: TStyle;
+    }
+    | {
+      type: "scale";
+      // Future: scale-specific data
+    };
+}
+
+// Configuration for rendering a single pane (includes pane-specific measured info)
 export interface PaneRenderConfig<
   TStyle = MergedChartOVStyle | MergedTimeseriesStyle,
 > {

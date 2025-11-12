@@ -649,6 +649,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
     );
 
     let updatedConfigSelections: ModuleConfigSelections;
+    let updatedModuleDefinition: ModuleDefinition | undefined;
 
     // Handle different config types
     if (currentConfigSelections.configType === "parameters") {
@@ -671,19 +672,42 @@ SELECT * FROM modules WHERE id = ${moduleId}
           hfaParams.useSampleWeights ??
           currentConfigSelections.useSampleWeights,
       };
+
+      // Also update module_definition to keep indicators in sync
+      const currentModuleDefinition = parseJsonOrThrow<ModuleDefinition>(
+        rawModule.module_definition
+      );
+      updatedModuleDefinition = {
+        ...currentModuleDefinition,
+        configRequirements: {
+          ...currentModuleDefinition.configRequirements,
+          indicators: updatedConfigSelections.indicators,
+        },
+      };
     } else {
       throw new Error(
         "Module configuration type does not support parameter updates"
       );
     }
 
-    await projectDb`
+    if (updatedModuleDefinition) {
+      await projectDb`
+UPDATE modules
+SET
+  config_selections = ${JSON.stringify(updatedConfigSelections)},
+  module_definition = ${JSON.stringify(updatedModuleDefinition)},
+  last_updated = ${lastUpdated}
+WHERE id = ${moduleId}
+`;
+    } else {
+      await projectDb`
 UPDATE modules
 SET
   config_selections = ${JSON.stringify(updatedConfigSelections)},
   last_updated = ${lastUpdated}
 WHERE id = ${moduleId}
 `;
+    }
     return { success: true, data: { lastUpdated } };
   });
 }

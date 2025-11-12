@@ -73,7 +73,6 @@ export function Visualization(p: {
   presentationObjectId: string;
   backToProject: (withUpdate: boolean) => void;
 }) {
-  const pds = useProjectDirtyStates();
 
   const poDetail = timQuery<PresentationObjectDetail>(() => {
     return getPODetailFromCacheorFetch(
@@ -82,12 +81,29 @@ export function Visualization(p: {
     );
   }, t2(T.FRENCH_UI_STRINGS.loading_visualization));
 
+  async function attemptDeleteFromError() {
+    const deleteAction = timActionDelete(
+      t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1),
+      () =>
+        serverActions.deletePresentationObject({
+          projectId: p.projectDetail.id,
+          po_id: p.presentationObjectId,
+        }),
+      () => p.backToProject(true),
+    );
+    await deleteAction.click();
+  }
+
   return (
     <StateHolderWrapper
       state={poDetail.state()}
       onErrorButton={{
         label: t2(T.Platform.go_back),
         onClick: () => p.backToProject(false),
+      }}
+      onErrorSecondaryButton={{
+        label: t2(T.FRENCH_UI_STRINGS.delete),
+        onClick: attemptDeleteFromError,
       }}
     >
       {(keyedPoDetail: PresentationObjectDetail) => {

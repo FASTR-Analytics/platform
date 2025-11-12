@@ -13,18 +13,15 @@ import type { MeasuredChartOV } from "../types.ts";
 export function renderChartOV(rc: RenderContext, mChartOV: MeasuredChartOV) {
   const s = mChartOV.mergedStyle;
 
-  // Build config
+  // Build base config (without pane-specific measured info)
   const config = {
     styles: s,
     data: mChartOV.transformedData,
-    xAxisInfo: mChartOV.mPanes[0].xAxisMeasuredInfo,
     xAxisStyle: s.xTextAxis,
 
     xAxisType: "text" as const,
-    xAxisRenderData: {
+    xAxisRenderDataBase: {
       type: "text" as const,
-      mx: mChartOV.mPanes[0]
-        .xAxisMeasuredInfo as import("../deps.ts").XTextAxisMeasuredInfo,
       indicatorHeaders: mChartOV.transformedData.indicatorHeaders,
       mergedStyle: s,
     },

@@ -1141,7 +1141,7 @@ export function convertToHfaIndicators(indicators: IndicatorDefinition[]) {
     .map<HfaIndicator>((indicator) => ({
       category: indicator.category,
       definition: indicator.definition,
-      validQIDs: indicator.QIDs.sort(),
+      rFilterCode: "",
       varName: indicator.varName,
       rCode: indicator.rCode,
       type: indicator.notBinary ? "numeric" : "binary",

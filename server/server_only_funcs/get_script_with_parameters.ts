@@ -4,13 +4,22 @@ import { getScriptWithParametersHfa } from "./get_script_with_parameters_hfa.ts"
 export function getScriptWithParameters(
   moduleDefinition: ModuleDefinition,
   configSelections: ModuleConfigSelections,
-  countryIso3: string | undefined
+  countryIso3: string | undefined,
+  knownDatasetVariables?: Set<string>
 ): string {
   if (
     moduleDefinition.configRequirements.configType === "hfa" &&
     configSelections.configType === "hfa"
   ) {
-    return getScriptWithParametersHfa(configSelections.indicators);
+    if (!knownDatasetVariables) {
+      throw new Error(
+        "knownDatasetVariables is required for HFA module script generation"
+      );
+    }
+    return getScriptWithParametersHfa(
+      configSelections.indicators,
+      knownDatasetVariables
+    );
   }
 
   let str = moduleDefinition.script;
