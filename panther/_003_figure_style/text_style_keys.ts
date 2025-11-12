@@ -33,6 +33,9 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   "laneHeaders",
   "tierHeaders",
   "paneHeaders",
+  // SimpleViz
+  "simplevizBoxTextPrimary",
+  "simplevizBoxTextSecondary",
 ] as const;
 
 // Extract the type from the const array

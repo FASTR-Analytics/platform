@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Csv } from "./deps.ts";
+import { Csv, type jsPDF } from "./deps.ts";
 import { saveAs } from "./file_saver_vendored.ts";
 
 export function downloadCsv<T>(csv: Csv<T> | string, filename?: string) {
@@ -38,4 +38,9 @@ export function downloadJson(
     type: "application/json;charset=utf-8",
   });
   saveAs(blob, filename ?? "data.json");
+}
+
+export function downloadPdf(pdf: jsPDF, filename?: string) {
+  const blob = pdf.output("blob");
+  saveAs(blob, filename ?? "document.pdf");
 }

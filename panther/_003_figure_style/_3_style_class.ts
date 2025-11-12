@@ -18,6 +18,7 @@ import type {
   MergedGridStyle,
   MergedLegendStyle,
   MergedPaneStyle,
+  MergedSimpleVizStyle,
   MergedTableStyle,
   MergedTimeseriesStyle,
   MergedXPeriodAxisStyle,
@@ -897,6 +898,138 @@ export class CustomFigureStyle {
     const g = this._g;
     const d = this._d;
     return m(c.idealAspectRatio, g.idealAspectRatio, d.idealAspectRatio);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  //   ______   __                            __           __   __           //
+  //  /      \ /  |                          /  |         /  | /  |          //
+  // /$$$$$$  |$$/  _____  ____    ______   $$ |  ______  $$ |$$/  ________ //
+  // $$ \__$$/ /  |/     \/    \  /      \  $$ | /      \ $$ |/  |/        |//
+  // $$      \ $$ |$$$$$$ $$$$  |/$$$$$$  | $$ |/$$$$$$  |$$ |$$ |$$$$$$$$/ //
+  //  $$$$$$  |$$ |$$ | $$ | $$ |$$ |  $$ | $$ |$$    $$ |$$ |$$ |    /  $/ //
+  // /  \__$$ |$$ |$$ | $$ | $$ |$$ |__$$ | $$ |$$$$$$$$/ $$ |$$ |   /$$$/__//
+  // $$    $$/ $$ |$$ | $$ | $$ |$$    $$/  $$ |$$       |$$ |$$ |  /$$    |//
+  //  $$$$$$/  $$/ $$/  $$/  $$/ $$$$$$$/   $$/  $$$$$$$/ $$/ $$/   $$$$$$/ //
+  //                             $$ |                                        //
+  //                             $$ |                                        //
+  //                             $$/                                         //
+  /////////////////////////////////////////////////////////////////////////////
+
+  simpleviz(): MergedSimpleVizStyle {
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const sf = this._sf;
+    const baseText = this.baseText();
+    return {
+      alreadyScaledValue: sf,
+      layerGap: ms(
+        sf,
+        c.simpleviz?.layerGap,
+        g.simpleviz?.layerGap,
+        d.simpleviz.layerGap,
+      ),
+      orderGap: ms(
+        sf,
+        c.simpleviz?.orderGap,
+        g.simpleviz?.orderGap,
+        d.simpleviz.orderGap,
+      ),
+      layerAlign: m(
+        c.simpleviz?.layerAlign,
+        g.simpleviz?.layerAlign,
+        d.simpleviz.layerAlign,
+      ),
+      text: {
+        primary: getTextInfo(
+          c.text?.simplevizBoxTextPrimary,
+          g.text?.simplevizBoxTextPrimary,
+          baseText,
+        ),
+        secondary: getTextInfo(
+          c.text?.simplevizBoxTextSecondary,
+          { ...g.text?.simplevizBoxTextSecondary, relFontSize: 0.8 },
+          baseText,
+        ),
+      },
+      boxes: {
+        fillColor: getColor(
+          m(
+            c.simpleviz?.boxes?.fillColor,
+            g.simpleviz?.boxes?.fillColor,
+            d.simpleviz.boxes.fillColor,
+          ),
+        ),
+        strokeColor: getColor(
+          m(
+            c.simpleviz?.boxes?.strokeColor,
+            g.simpleviz?.boxes?.strokeColor,
+            d.simpleviz.boxes.strokeColor,
+          ),
+        ),
+        strokeWidth: ms(
+          sf,
+          c.simpleviz?.boxes?.strokeWidth,
+          g.simpleviz?.boxes?.strokeWidth,
+          d.simpleviz.boxes.strokeWidth,
+        ),
+        textHorizontalAlign: m(
+          c.simpleviz?.boxes?.textHorizontalAlign,
+          g.simpleviz?.boxes?.textHorizontalAlign,
+          d.simpleviz.boxes.textHorizontalAlign,
+        ),
+        textVerticalAlign: m(
+          c.simpleviz?.boxes?.textVerticalAlign,
+          g.simpleviz?.boxes?.textVerticalAlign,
+          d.simpleviz.boxes.textVerticalAlign,
+        ),
+        textGap: ms(
+          sf,
+          c.simpleviz?.boxes?.textGap,
+          g.simpleviz?.boxes?.textGap,
+          d.simpleviz.boxes.textGap,
+        ),
+        padding: new Padding(
+          m(
+            c.simpleviz?.boxes?.padding,
+            g.simpleviz?.boxes?.padding,
+            d.simpleviz.boxes.padding,
+          ),
+        ).toScaled(sf),
+      },
+      arrows: {
+        strokeColor: getColor(
+          m(
+            c.simpleviz?.arrows?.strokeColor,
+            g.simpleviz?.arrows?.strokeColor,
+            d.simpleviz.arrows.strokeColor,
+          ),
+        ),
+        strokeWidth: ms(
+          sf,
+          c.simpleviz?.arrows?.strokeWidth,
+          g.simpleviz?.arrows?.strokeWidth,
+          d.simpleviz.arrows.strokeWidth,
+        ),
+        lineDash: m(
+          c.simpleviz?.arrows?.lineDash,
+          g.simpleviz?.arrows?.lineDash,
+          d.simpleviz.arrows.lineDash,
+        ),
+        truncateStart: ms(
+          sf,
+          c.simpleviz?.arrows?.truncateStart,
+          g.simpleviz?.arrows?.truncateStart,
+          d.simpleviz.arrows.truncateStart,
+        ),
+        truncateEnd: ms(
+          sf,
+          c.simpleviz?.arrows?.truncateEnd,
+          g.simpleviz?.arrows?.truncateEnd,
+          d.simpleviz.arrows.truncateEnd,
+        ),
+      },
+    };
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

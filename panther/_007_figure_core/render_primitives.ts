@@ -4,6 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  ArrowPrimitive,
+  BoxPrimitive,
   ChartAxis,
   ChartGrid,
   ChartLegend,
@@ -125,6 +127,14 @@ function renderPrimitive(
 
     case "chart-surround":
       renderSurroundPrimitive(rc, primitive);
+      break;
+
+    case "simpleviz-box":
+      renderBoxPrimitive(rc, primitive);
+      break;
+
+    case "simpleviz-arrow":
+      renderArrowPrimitive(rc, primitive);
       break;
 
     default: {
@@ -306,4 +316,124 @@ function renderDataLabel(
   }
 
   rc.rText(dataLabel.mText, coords, hAlign, vAlign);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    SimpleViz Box Rendering                                                 //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderBoxPrimitive(
+  rc: RenderContext,
+  primitive: BoxPrimitive,
+): void {
+  rc.rRect(primitive.rcd, primitive.rectStyle);
+
+  if (primitive.text) {
+    rc.rText(
+      primitive.text.mText,
+      primitive.text.position,
+      "center",
+      "center",
+    );
+  }
+
+  if (primitive.secondaryText) {
+    rc.rText(
+      primitive.secondaryText.mText,
+      primitive.secondaryText.position,
+      "center",
+      "center",
+    );
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    SimpleViz Arrow Rendering                                               //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderArrowPrimitive(
+  rc: RenderContext,
+  primitive: ArrowPrimitive,
+): void {
+  if (primitive.pathCoords.length < 2) return;
+
+  // Strokes are centered on the path, so we need to shorten the line by half
+  // the stroke width at each end where there's an arrowhead
+  const halfStroke = (primitive.lineStyle.strokeWidth ?? 1) / 2;
+  let pathCoords = [...primitive.pathCoords];
+
+  // Shorten the path at the start if there's a start arrowhead
+  if (primitive.arrowheads?.start) {
+    const angle = primitive.arrowheads.start.angle;
+    pathCoords[0] = pathCoords[0].getOffsetted({
+      right: Math.cos(angle) * halfStroke,
+      bottom: Math.sin(angle) * halfStroke,
+    });
+  }
+
+  // Shorten the path at the end if there's an end arrowhead
+  if (primitive.arrowheads?.end) {
+    const angle = primitive.arrowheads.end.angle;
+    const lastIdx = pathCoords.length - 1;
+    pathCoords[lastIdx] = pathCoords[lastIdx].getOffsetted({
+      right: -Math.cos(angle) * halfStroke,
+      bottom: -Math.sin(angle) * halfStroke,
+    });
+  }
+
+  // Render the adjusted line
+  rc.rLine(pathCoords, primitive.lineStyle);
+
+  // Render arrowheads at original endpoints
+  if (primitive.arrowheads?.start) {
+    renderArrowhead(
+      rc,
+      primitive.arrowheads.start,
+      primitive.lineStyle,
+      primitive.arrowheadSize,
+    );
+  }
+
+  if (primitive.arrowheads?.end) {
+    renderArrowhead(
+      rc,
+      primitive.arrowheads.end,
+      primitive.lineStyle,
+      primitive.arrowheadSize,
+    );
+  }
+}
+
+function renderArrowhead(
+  rc: RenderContext,
+  arrowhead: { position: Coordinates; angle: number },
+  lineStyle: LineStyle,
+  arrowheadSize: number,
+): void {
+  // Skip rendering if arrowhead size is 0
+  if (arrowheadSize === 0) return;
+
+  // Wings extend backward from tip at ±150° from forward direction
+  // This is equivalent to ±30° from the backward direction
+  const backwardAngle = arrowhead.angle + Math.PI;
+  const wingAngle = Math.PI / 6; // 30 degrees
+
+  const angle1 = backwardAngle + wingAngle;
+  const angle2 = backwardAngle - wingAngle;
+
+  const tip = arrowhead.position;
+  const p1 = tip.getOffsetted({
+    right: Math.cos(angle1) * arrowheadSize,
+    bottom: Math.sin(angle1) * arrowheadSize,
+  });
+  const p2 = tip.getOffsetted({
+    right: Math.cos(angle2) * arrowheadSize,
+    bottom: Math.sin(angle2) * arrowheadSize,
+  });
+
+  rc.rLine([p1, tip, p2], lineStyle);
 }

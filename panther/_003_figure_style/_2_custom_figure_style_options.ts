@@ -278,6 +278,42 @@ export type CustomFigureStyleOptions = {
     gapY?: number;
     nCols?: number | "auto";
   };
+  /////////////////////////////////////////////////////////////////////////////
+  //   ______   __                            __           __   __           //
+  //  /      \ /  |                          /  |         /  | /  |          //
+  // /$$$$$$  |$$/  _____  ____    ______   $$ |  ______  $$ |$$/  ________ //
+  // $$ \__$$/ /  |/     \/    \  /      \  $$ | /      \ $$ |/  |/        |//
+  // $$      \ $$ |$$$$$$ $$$$  |/$$$$$$  | $$ |/$$$$$$  |$$ |$$ |$$$$$$$$/ //
+  //  $$$$$$  |$$ |$$ | $$ | $$ |$$ |  $$ | $$ |$$    $$ |$$ |$$ |    /  $/ //
+  // /  \__$$ |$$ |$$ | $$ | $$ |$$ |__$$ | $$ |$$$$$$$$/ $$ |$$ |   /$$$/__//
+  // $$    $$/ $$ |$$ | $$ | $$ |$$    $$/  $$ |$$       |$$ |$$ |  /$$    |//
+  //  $$$$$$/  $$/ $$/  $$/  $$/ $$$$$$$/   $$/  $$$$$$$/ $$/ $$/   $$$$$$/ //
+  //                             $$ |                                        //
+  //                             $$ |                                        //
+  //                             $$/                                         //
+  /////////////////////////////////////////////////////////////////////////////
+
+  simpleviz?: {
+    layerGap?: number;
+    orderGap?: number;
+    layerAlign?: "left" | "center" | "right" | Array<"left" | "center" | "right">;
+    boxes?: {
+      fillColor?: ColorKeyOrString;
+      strokeColor?: ColorKeyOrString;
+      strokeWidth?: number;
+      textHorizontalAlign?: "left" | "center" | "right";
+      textVerticalAlign?: "top" | "center" | "bottom";
+      textGap?: number;
+      padding?: PaddingOptions;
+    };
+    arrows?: {
+      strokeColor?: ColorKeyOrString;
+      strokeWidth?: number;
+      lineDash?: "solid" | "dashed";
+      truncateStart?: number;
+      truncateEnd?: number;
+    };
+  };
 };
 
 let _GS: CustomFigureStyleOptions | undefined = undefined;

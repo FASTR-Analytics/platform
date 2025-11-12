@@ -8,28 +8,30 @@ import { Intent } from "../types.ts";
 import { useAutoFocus } from "./utils.ts";
 
 // TextArea classes composed from utility classes and component classes
-const textAreaClasses = [
-  // Component classes (defined in CSS)
-  "ui-focusable",
+function getTextAreaClasses(mono?: boolean, resizable?: boolean): string {
+  return [
+    // Component classes (defined in CSS)
+    "ui-focusable",
 
-  // Form utilities
-  "px-3",
-  "py-2",
-  "text-sm",
-  "leading-tight",
-  "font-400",
-  "text-base-content",
+    // Form utilities
+    "px-3",
+    "py-2",
+    "text-sm",
+    "leading-tight",
+    mono ? "font-mono" : "font-400",
+    "text-base-content",
 
-  // Appearance
-  "border-base-300",
-  "bg-base-100",
-  "rounded",
-  "border",
+    // Appearance
+    "border-base-300",
+    "bg-base-100",
+    "rounded",
+    "border",
 
-  // TextArea specific
-  "w-full",
-  "resize-none",
-].join(" ");
+    // TextArea specific
+    "w-full",
+    resizable ? "" : "resize-none",
+  ].filter(Boolean).join(" ");
+}
 
 type TextAreaProps = {
   value: string;
@@ -43,6 +45,9 @@ type TextAreaProps = {
   height?: string;
   placeholder?: string;
   onKeyDown?: (e: KeyboardEvent) => void;
+  mono?: boolean;
+  resizable?: boolean;
+  disabled?: boolean;
 };
 
 export function TextArea(p: TextAreaProps) {
@@ -59,14 +64,18 @@ export function TextArea(p: TextAreaProps) {
       </Show>
       <textarea
         ref={(el) => useAutoFocus(el, p.autoFocus)}
-        class={textAreaClasses}
+        class={getTextAreaClasses(p.mono, p.resizable)}
         data-intent={p.intent}
         autofocus={p.autoFocus}
         onInput={(v) => p.onChange?.(v.currentTarget.value)}
         onKeyDown={p.onKeyDown}
         value={p.value}
-        style={{ height: p.fullHeight ? "100%" : p.height }}
+        style={{
+          height: p.fullHeight ? "100%" : p.height,
+          resize: p.resizable ? "vertical" : undefined,
+        }}
         placeholder={p.placeholder}
+        disabled={p.disabled}
       />
       <Show when={p.invalidMsg}>
         <div class="ui-text-small text-danger inline-block pt-1">

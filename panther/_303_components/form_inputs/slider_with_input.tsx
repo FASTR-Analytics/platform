@@ -20,6 +20,7 @@ type SliderWithInputProps = {
   inputMultiplier?: number;
   inputDisplayFormatter?: (v: number) => string;
   comparisonValue?: number;
+  colorComparisonInput?: boolean;
   ticks?: {
     major?: number | number[];
     minor?: number | number[];
@@ -118,6 +119,19 @@ export function SliderWithInput(p: SliderWithInputProps) {
     }
   };
 
+  const comparisonColorClass = () => {
+    if (!p.colorComparisonInput || p.comparisonValue === undefined) {
+      return "";
+    }
+    if (p.value > p.comparisonValue) {
+      return "text-success border-success bg-success/20";
+    }
+    if (p.value < p.comparisonValue) {
+      return "text-danger border-danger bg-danger/20";
+    }
+    return "";
+  };
+
   return (
     <div>
       <Show when={p.label}>
@@ -158,9 +172,9 @@ export function SliderWithInput(p: SliderWithInputProps) {
         <input
           type="text"
           inputmode="numeric"
-          class="ui-focusable font-700 border-base-300 rounded border px-2 py-1 text-center text-lg"
+          class={`ui-focusable font-700 border-base-300 rounded border px-2 py-1 text-center text-lg ${comparisonColorClass()}`}
           classList={{
-            "!border-danger focus:!border-danger focus:!ring-danger":
+            "!border-danger !text-base-content focus:!border-danger focus:!ring-danger":
               isInvalid(),
           }}
           style={{ width: p.inputWidth ?? "96px" }}

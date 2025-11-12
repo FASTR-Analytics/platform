@@ -39,7 +39,7 @@ type Props = {
 export function ChartHolder(p: Props) {
   let div!: HTMLDivElement;
   let canvas!: HTMLCanvasElement;
-  let resizeTimer: number | undefined;
+  let resizeTimer: ReturnType<typeof setTimeout> | undefined;
   let animationFrameId: number | undefined;
   let cachedContext: CanvasRenderingContext2D | undefined;
   let canvasTrackingId: string | undefined;

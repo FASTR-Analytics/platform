@@ -53,7 +53,7 @@ export function TabsNavigation(p: TabsNavigationProps) {
 
   const isVertical = p.vertical === true;
   const containerClasses = !isVertical
-    ? "border-base-300 bg-base-100 flex w-full border-b"
+    ? "bg-base-100 flex w-full"
     : "ui-spy-sm border-base-300 bg-base-100 flex w-full flex-col border-r";
 
   return (
@@ -63,6 +63,7 @@ export function TabsNavigation(p: TabsNavigationProps) {
           const badge = p.showBadge?.(option.value);
           return (
             <button
+              type="button"
               class={getTabClasses(option.value)}
               onClick={() => handleTabClick(option.value)}
               aria-current={p.tabs.isTabActive(option.value)

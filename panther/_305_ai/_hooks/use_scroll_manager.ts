@@ -38,7 +38,9 @@ export function useScrollManager(
   createEffect(() => {
     dependencies();
     if (enabled) {
-      requestAnimationFrame(scrollToBottom);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(scrollToBottom);
+      });
     }
   });
 

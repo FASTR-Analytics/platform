@@ -27,6 +27,11 @@ export type {
 } from "../_006_layouter/mod.ts";
 export { ChartOVRenderer } from "../_010_chartov/mod.ts";
 export type { ChartOVInputs, MeasuredChartOV } from "../_010_chartov/mod.ts";
+export { SimpleVizRenderer } from "../_010_simpleviz/mod.ts";
+export type {
+  MeasuredSimpleViz,
+  SimpleVizInputs,
+} from "../_010_simpleviz/mod.ts";
 export { TableRenderer } from "../_010_table/mod.ts";
 export type { MeasuredTable, TableInputs } from "../_010_table/mod.ts";
 export { TimeseriesRenderer } from "../_010_timeseries/mod.ts";

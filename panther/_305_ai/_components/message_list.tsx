@@ -20,6 +20,8 @@ type Props = {
   customRenderers?: DisplayRegistry;
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
+  userMessageClass?: string;
+  assistantMessageClass?: string;
 };
 
 export const MessageList: Component<Props> = (props) => {
@@ -29,7 +31,13 @@ export const MessageList: Component<Props> = (props) => {
     switch (item.type) {
       case "text": {
         const Renderer = registry.text ?? TextRenderer;
-        return <Renderer item={item} />;
+        return (
+          <Renderer
+            item={item}
+            userMessageClass={props.userMessageClass}
+            assistantMessageClass={props.assistantMessageClass}
+          />
+        );
       }
       case "tool_in_progress": {
         const Renderer = registry.toolLoading ?? ToolLoadingRenderer;
@@ -60,11 +68,17 @@ export const MessageList: Component<Props> = (props) => {
         fallback={props.fallbackContent ? props.fallbackContent({}) : null}
       >
         <For each={props.displayItems}>{(item) => renderItem(item)}</For>
-        <Show when={props.isStreaming && props.currentStreamingText}>
-          <StreamingTextRenderer
-            text={props.currentStreamingText!}
-            isComplete={false}
-          />
+        <Show when={props.isStreaming}>
+          <Show
+            when={props.currentStreamingText}
+            fallback={<div class="text-neutral italic">Thinking...</div>}
+          >
+            <StreamingTextRenderer
+              text={props.currentStreamingText!}
+              isComplete={false}
+              assistantMessageClass={props.assistantMessageClass}
+            />
+          </Show>
         </Show>
       </Show>
       <Show

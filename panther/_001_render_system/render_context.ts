@@ -36,6 +36,8 @@ export type LineStyle = {
 export type RectStyle = {
   show?: boolean;
   fillColor: ColorKeyOrString;
+  strokeColor?: ColorKeyOrString;
+  strokeWidth?: number;
 };
 
 export type AreaStyle = {

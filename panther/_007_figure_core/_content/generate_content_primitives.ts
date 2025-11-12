@@ -17,6 +17,39 @@ import {
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 
+// Helper function for line intersection (from old render_chart_content.ts)
+function getLineIntersection(
+  p1: Coordinates,
+  p2: Coordinates,
+  p3: Coordinates,
+  p4: Coordinates,
+): { x: number; y: number } | false {
+  const x1 = p1.x();
+  const y1 = p1.y();
+  const x2 = p2.x();
+  const y2 = p2.y();
+  const x3 = p3.x();
+  const y3 = p3.y();
+  const x4 = p4.x();
+  const y4 = p4.y();
+
+  const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (denom === 0) {
+    return false; // Lines are parallel
+  }
+
+  const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+  const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+
+  if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+    const x = x1 + t * (x2 - x1);
+    const y = y1 + t * (y2 - y1);
+    return { x, y };
+  }
+
+  return false;
+}
+
 export type ContentPrimitiveGenerationParams = {
   rc: RenderContext; // For measuring data label text
   mappedSeriesCoordinates: MappedValueCoordinate[][];
@@ -109,21 +142,24 @@ export function generateContentPrimitives(
       ////////////////////////////////////////////////////////
       //  Determine which content type gets the data label
       //  Priority: Points > Bars > Lines
+      //  Only if withDataLabels is enabled
       ////////////////////////////////////////////////////////
 
       let dataLabelOwner: "points" | "bars" | "lines" | "none" = "none";
 
-      const pointStyle = s.points.getStyle(valueInfo);
-      if (pointStyle.show) {
-        dataLabelOwner = "points";
-      } else {
-        const barStyle = s.bars.getStyle(valueInfo);
-        if (barStyle.show) {
-          dataLabelOwner = "bars";
+      if (s.withDataLabels) {
+        const pointStyle = s.points.getStyle(valueInfo);
+        if (pointStyle.show) {
+          dataLabelOwner = "points";
         } else {
-          const lineStyle = s.lines.getStyle(seriesInfo);
-          if (lineStyle.show) {
-            dataLabelOwner = "lines";
+          const barStyle = s.bars.getStyle(valueInfo);
+          if (barStyle.show) {
+            dataLabelOwner = "bars";
+          } else {
+            const lineStyle = s.lines.getStyle(seriesInfo);
+            if (lineStyle.show) {
+              dataLabelOwner = "lines";
+            }
           }
         }
       }
@@ -132,6 +168,7 @@ export function generateContentPrimitives(
       //  Render Points
       ////////////////////////////////////////////////////////
 
+      const pointStyle = s.points.getStyle(valueInfo);
       if (pointStyle.show) {
         let dataLabel: DataLabel | undefined;
 
@@ -410,73 +447,266 @@ export function generateContentPrimitives(
   }
 
   // Generate area primitives
-  for (const [i_series, areaData] of areaSeriesData.entries()) {
-    const seriesInfo: GenericSeriesInfo = {
-      ...subChartInfo,
-      i_series,
-      seriesHeader: d.seriesHeaders[i_series],
-      nVals: areaData.coords.length,
-    };
+  if (s.areas && !s.areas.diff.enabled) {
+    //////////////////////////
+    //                      //
+    //    NOT DIFF AREAS    //
+    //                      //
+    //////////////////////////
+    for (const [i_series, areaData] of areaSeriesData.entries()) {
+      const seriesInfo: GenericSeriesInfo = {
+        ...subChartInfo,
+        i_series,
+        seriesHeader: d.seriesHeaders[i_series],
+        nVals: areaData.coords.length,
+      };
 
-    const areaStyle = s.areas?.getStyle(seriesInfo);
-    if (!areaStyle) continue;
-
-    // Build complete area coords with mirrors
-    const completeCoords: Coordinates[] = [...areaData.coords];
-
-    // Add mirror coords in reverse
-    for (let i = areaData.coords.length - 1; i >= 0; i--) {
-      let mirrorCoords: Coordinates | undefined;
-
-      if (areaStyle.to === "zero-line") {
-        mirrorCoords = new Coordinates({
-          x: areaData.coords[i].x(),
-          y: subChartRcd.bottomY() + gridStrokeWidth / 2,
-        });
-      } else if (areaStyle.to === "previous-series-or-zero" && i_series > 0) {
-        const prevMappedVal =
-          mappedSeriesCoordinates[i_series - 1][areaData.valueIndices[i]];
-        if (prevMappedVal) {
-          mirrorCoords = prevMappedVal.coords;
-        } else {
-          mirrorCoords = new Coordinates({
-            x: areaData.coords[i].x(),
-            y: subChartRcd.bottomY() + gridStrokeWidth / 2,
-          });
-        }
-      } else if (areaStyle.to === "previous-series-or-skip" && i_series > 0) {
-        const prevMappedVal =
-          mappedSeriesCoordinates[i_series - 1][areaData.valueIndices[i]];
-        if (prevMappedVal) {
-          mirrorCoords = prevMappedVal.coords;
-        }
-        // If no previous value, mirrorCoords stays undefined and coord is not added
-      } else {
-        mirrorCoords = new Coordinates({
-          x: areaData.coords[i].x(),
-          y: subChartRcd.bottomY() + gridStrokeWidth / 2,
-        });
+      const areaStyle = s.areas.getStyle(seriesInfo);
+      if (!areaStyle.show) {
+        continue;
       }
 
-      if (mirrorCoords) {
-        completeCoords.push(mirrorCoords);
+      const areas: {
+        coords: Coordinates[];
+      }[] = [];
+      let currentCoords: Coordinates[] = [];
+
+      for (let i_val = 0; i_val < areaData.coords.length; i_val++) {
+        const mappedValThisSeries = mappedSeriesCoordinates[i_series][
+          areaData.valueIndices[i_val]
+        ];
+        if (mappedValThisSeries === undefined) {
+          if (!s.lines.joinAcrossGaps && currentCoords.length > 0) {
+            areas.push({ coords: currentCoords });
+            currentCoords = [];
+          }
+          continue;
+        }
+
+        let mirrorCoords: Coordinates | undefined;
+        if (areaStyle.to === "zero-line") {
+          mirrorCoords = new Coordinates([
+            mappedValThisSeries.coords.x(),
+            subChartRcd.bottomY() + gridStrokeWidth / 2,
+          ]);
+        } else if (areaStyle.to === "previous-series-or-zero") {
+          const otherSeries = mappedSeriesCoordinates[i_series - 1];
+          if (!otherSeries) {
+            mirrorCoords = new Coordinates([
+              mappedValThisSeries.coords.x(),
+              subChartRcd.bottomY() + gridStrokeWidth / 2,
+            ]);
+          } else if (otherSeries[areaData.valueIndices[i_val]]) {
+            mirrorCoords = otherSeries[areaData.valueIndices[i_val]]!.coords;
+          }
+        } else if (areaStyle.to === "previous-series-or-skip") {
+          const otherSeries = mappedSeriesCoordinates[i_series - 1];
+          if (otherSeries?.[areaData.valueIndices[i_val]]) {
+            mirrorCoords = otherSeries[areaData.valueIndices[i_val]]!.coords;
+          }
+        } else {
+          throw new Error("Should not be possible");
+        }
+
+        if (mirrorCoords === undefined) {
+          if (currentCoords.length > 0) {
+            areas.push({ coords: currentCoords });
+            currentCoords = [];
+          }
+          continue;
+        }
+
+        currentCoords.unshift(mappedValThisSeries.coords);
+        currentCoords.push(mirrorCoords);
+      }
+
+      if (currentCoords.length > 0) {
+        areas.push({ coords: currentCoords });
+        currentCoords = [];
+      }
+
+      for (let i_area = 0; i_area < areas.length; i_area++) {
+        if (areas[i_area].coords.length === 0) {
+          continue;
+        }
+
+        const lineCoordArray: Coordinates[] = [];
+        lineCoordArray.push(areas[i_area].coords[0]);
+        for (
+          // Start at 1
+          let i_coord = 1;
+          i_coord < areas[i_area].coords.length;
+          i_coord++
+        ) {
+          lineCoordArray.push(areas[i_area].coords[i_coord]);
+        }
+        lineCoordArray.push(areas[i_area].coords[0]);
+
+        allPrimitives.push({
+          type: "chart-area-series",
+          key:
+            `area-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}-${i_area}`,
+          layer: "content-area",
+          seriesIndex: i_series,
+          valueIndices: areaData.valueIndices,
+          values: areaData.values,
+          coords: lineCoordArray,
+          style: areaStyle,
+          paneIndex: subChartInfo.i_pane,
+          tierIndex: subChartInfo.i_tier,
+          laneIndex: subChartInfo.i_lane,
+        });
       }
     }
+  } else if (s.areas && s.areas.diff.enabled) {
+    /////////////////////////
+    //                     //
+    //    IS DIFF AREAS    //
+    //                     //
+    /////////////////////////
+    const areas: {
+      order: "over" | "under";
+      coords: Coordinates[];
+    }[] = [];
+    let currentCoords: Coordinates[] = [];
 
-    allPrimitives.push({
-      type: "chart-area-series",
-      key:
-        `area-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}`,
-      layer: "content-area",
-      seriesIndex: i_series,
-      valueIndices: areaData.valueIndices,
-      values: areaData.values,
-      coords: completeCoords,
-      style: areaStyle,
-      paneIndex: subChartInfo.i_pane,
-      tierIndex: subChartInfo.i_tier,
-      laneIndex: subChartInfo.i_lane,
-    });
+    let prevOrderOfSeries_1: undefined | "over" | "under" | "equal" = undefined;
+    let prevMappedVal_1:
+      | {
+        coords: Coordinates;
+        val: number;
+        barHeight: number;
+      }
+      | undefined = undefined;
+    let prevMappedVal_2:
+      | {
+        coords: Coordinates;
+        val: number;
+        barHeight: number;
+      }
+      | undefined = undefined;
+
+    for (let i_val = 0; i_val < mappedSeriesCoordinates[0].length; i_val++) {
+      const mappedValThisSeries_1 = mappedSeriesCoordinates[0][i_val];
+      const mappedValThisSeries_2 = mappedSeriesCoordinates[1][i_val];
+      if (
+        mappedValThisSeries_1 === undefined ||
+        mappedValThisSeries_2 === undefined
+      ) {
+        if (
+          currentCoords.length > 0 &&
+          (prevOrderOfSeries_1 === "over" || prevOrderOfSeries_1 === "under")
+        ) {
+          areas.push({
+            coords: currentCoords,
+            order: prevOrderOfSeries_1,
+          });
+          currentCoords = [];
+        }
+        prevOrderOfSeries_1 = undefined;
+        prevMappedVal_1 = undefined;
+        prevMappedVal_2 = undefined;
+        continue;
+      }
+      const thisOrder = mappedValThisSeries_1.val === mappedValThisSeries_2.val
+        ? "equal"
+        : mappedValThisSeries_1.val > mappedValThisSeries_2.val
+        ? "over"
+        : "under";
+
+      if (prevOrderOfSeries_1 === undefined) {
+        if (thisOrder === "equal") {
+          // Do nothing
+        } else {
+          currentCoords.unshift(mappedValThisSeries_1.coords);
+          currentCoords.push(mappedValThisSeries_2.coords);
+        }
+      } else if (thisOrder === "equal") {
+        if (prevOrderOfSeries_1 === "equal") {
+          // Do nothing
+        } else {
+          currentCoords.push(mappedValThisSeries_1.coords);
+          if (currentCoords.length > 0) {
+            areas.push({ coords: currentCoords, order: prevOrderOfSeries_1 });
+            currentCoords = [];
+          }
+        }
+      } else if (prevOrderOfSeries_1 === "equal") {
+        currentCoords.push(new Coordinates(prevMappedVal_1!.coords));
+        currentCoords.unshift(mappedValThisSeries_1.coords);
+        currentCoords.push(mappedValThisSeries_2.coords);
+      } else if (thisOrder === prevOrderOfSeries_1) {
+        currentCoords.unshift(mappedValThisSeries_1.coords);
+        currentCoords.push(mappedValThisSeries_2.coords);
+      } else {
+        const interception = getLineIntersection(
+          prevMappedVal_1!.coords,
+          mappedValThisSeries_1.coords,
+          prevMappedVal_2!.coords,
+          mappedValThisSeries_2.coords,
+        );
+        if (interception === false) {
+          throw new Error("Bad interception when diffing areas");
+        }
+        currentCoords.push(new Coordinates(interception));
+        areas.push({ coords: currentCoords, order: prevOrderOfSeries_1 });
+        currentCoords = [];
+        currentCoords.push(new Coordinates(interception));
+        currentCoords.unshift(mappedValThisSeries_1.coords);
+        currentCoords.push(mappedValThisSeries_2.coords);
+      }
+      prevOrderOfSeries_1 = thisOrder;
+      prevMappedVal_1 = mappedValThisSeries_1;
+      prevMappedVal_2 = mappedValThisSeries_2;
+    }
+
+    if (
+      currentCoords.length > 0 &&
+      (prevOrderOfSeries_1 === "over" || prevOrderOfSeries_1 === "under")
+    ) {
+      areas.push({ coords: currentCoords, order: prevOrderOfSeries_1 });
+      currentCoords = [];
+    }
+
+    for (let i_area = 0; i_area < areas.length; i_area++) {
+      if (areas[i_area].coords.length === 0) {
+        continue;
+      }
+      const areaStyle = s.areas.getStyle({
+        ...subChartInfo,
+        i_series: areas[i_area].order === "over" ? 0 : 1,
+        seriesHeader: d.seriesHeaders[0],
+        nVals: 0,
+      });
+      const lineCoordArray: Coordinates[] = [];
+      lineCoordArray.push(areas[i_area].coords[0]);
+      for (
+        // Start at 1
+        let i_coord = 1;
+        i_coord < areas[i_area].coords.length;
+        i_coord++
+      ) {
+        lineCoordArray.push(areas[i_area].coords[i_coord]);
+      }
+      lineCoordArray.push(areas[i_area].coords[0]);
+
+      allPrimitives.push({
+        type: "chart-area-series",
+        key:
+          `area-diff-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${
+            areas[i_area].order
+          }-${i_area}`,
+        layer: "content-area",
+        seriesIndex: areas[i_area].order === "over" ? 0 : 1,
+        valueIndices: [], // Not applicable for diff areas
+        values: [], // Not applicable for diff areas
+        coords: lineCoordArray,
+        style: areaStyle,
+        paneIndex: subChartInfo.i_pane,
+        tierIndex: subChartInfo.i_tier,
+        laneIndex: subChartInfo.i_lane,
+      });
+    }
   }
 
   return allPrimitives;

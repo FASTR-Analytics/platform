@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { Component } from "solid-js";
+import { Button, TextArea } from "../deps.ts";
 
 type Props = {
   value: string;
@@ -26,25 +27,26 @@ export const MessageInput: Component<Props> = (props) => {
   return (
     <div class="ui-pad ui-gap bg-primary/10 flex w-full flex-none">
       <div class="w-0 flex-1">
-        <textarea
-          class="border-base-300 bg-base-100 w-full rounded border px-3 py-2 font-mono text-sm outline-none transition-colors focus:border-primary disabled:opacity-50"
-          style={{ height: props.height ?? "100px", resize: "vertical" }}
+        <TextArea
           value={props.value}
-          onInput={(e) => props.onChange(e.currentTarget.value)}
+          onChange={props.onChange}
           onKeyDown={handleKeyDown}
           disabled={props.disabled}
           placeholder={props.placeholder ??
             "Type your message... (Shift+Enter for new line)"}
+          height={props.height ?? "100px"}
+          mono
+          fullWidth
         />
       </div>
       <div class="flex-none">
-        <button
-          class="bg-primary text-primary-content hover:bg-primary/90 disabled:bg-base-300 disabled:text-base-content rounded px-4 py-2 font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+        <Button
           onClick={props.onSubmit}
           disabled={props.disabled}
+          intent="primary"
         >
           {props.submitLabel ?? "Submit"}
-        </button>
+        </Button>
       </div>
     </div>
   );

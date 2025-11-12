@@ -23,6 +23,8 @@ export {
   RectCoordsDims,
 } from "../_001_geometry/mod.ts";
 export type {
+  ArrowPrimitive,
+  BoxPrimitive,
   ChartAxis,
   ChartGrid,
   ChartLegend,

@@ -355,3 +355,45 @@ export type MergedXPeriodAxisStyle = {
   periodLabelLargeTopPadding: number;
   calendar: CalendarType;
 };
+
+/////////////////////////////////////////////////////////////////////////////
+//   ______   __                            __           __   __           //
+//  /      \ /  |                          /  |         /  | /  |          //
+// /$$$$$$  |$$/  _____  ____    ______   $$ |  ______  $$ |$$/  ________ //
+// $$ \__$$/ /  |/     \/    \  /      \  $$ | /      \ $$ |/  |/        |//
+// $$      \ $$ |$$$$$$ $$$$  |/$$$$$$  | $$ |/$$$$$$  |$$ |$$ |$$$$$$$$/ //
+//  $$$$$$  |$$ |$$ | $$ | $$ |$$ |  $$ | $$ |$$    $$ |$$ |$$ |    /  $/ //
+// /  \__$$ |$$ |$$ | $$ | $$ |$$ |__$$ | $$ |$$$$$$$$/ $$ |$$ |   /$$$/__//
+// $$    $$/ $$ |$$ | $$ | $$ |$$    $$/  $$ |$$       |$$ |$$ |  /$$    |//
+//  $$$$$$/  $$/ $$/  $$/  $$/ $$$$$$$/   $$/  $$$$$$$/ $$/ $$/   $$$$$$/ //
+//                             $$ |                                        //
+//                             $$ |                                        //
+//                             $$/                                         //
+/////////////////////////////////////////////////////////////////////////////
+
+export type MergedSimpleVizStyle = {
+  alreadyScaledValue: number;
+  layerGap: number; // Vertical spacing between layers (default: 150)
+  orderGap: number; // Horizontal spacing between boxes in same layer (default: 100)
+  layerAlign: "left" | "center" | "right" | Array<"left" | "center" | "right">; // Alignment of boxes within each layer
+  text: {
+    primary: TextInfoUnkeyed;
+    secondary: TextInfoUnkeyed;
+  };
+  boxes: {
+    fillColor: string;
+    strokeColor: string;
+    strokeWidth: number;
+    textHorizontalAlign: "left" | "center" | "right";
+    textVerticalAlign: "top" | "center" | "bottom";
+    textGap: number;
+    padding: Padding;
+  };
+  arrows: {
+    strokeColor: string;
+    strokeWidth: number;
+    lineDash: "solid" | "dashed";
+    truncateStart: number;
+    truncateEnd: number;
+  };
+};

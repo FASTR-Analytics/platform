@@ -7,11 +7,14 @@ import {
   type ChartOVInputs,
   ChartOVRenderer,
   type MeasuredChartOV,
+  type MeasuredSimpleViz,
   type MeasuredTable,
   type MeasuredTimeseries,
   type RectCoordsDims,
   type RenderContext,
   type Renderer,
+  type SimpleVizInputs,
+  SimpleVizRenderer,
   type TableInputs,
   TableRenderer,
   type TimeseriesInputs,
@@ -22,12 +25,17 @@ import {
 // TYPES
 // ================================================================================
 
-export type ADTFigure = TableInputs | ChartOVInputs | TimeseriesInputs;
+export type ADTFigure =
+  | TableInputs
+  | ChartOVInputs
+  | TimeseriesInputs
+  | SimpleVizInputs;
 
 export type MeasuredFigure =
   | MeasuredTable
   | MeasuredChartOV
-  | MeasuredTimeseries;
+  | MeasuredTimeseries
+  | MeasuredSimpleViz;
 
 // ================================================================================
 // RENDERER
@@ -38,7 +46,10 @@ export const FigureRenderer: Renderer<ADTFigure, MeasuredFigure> = {
     return (
       typeof item === "object" &&
       item !== null &&
-      ("tableData" in item || "chartData" in item || "timeseriesData" in item)
+      ("tableData" in item ||
+        "chartData" in item ||
+        "timeseriesData" in item ||
+        "simpleVizData" in item)
     );
   },
 
@@ -101,7 +112,11 @@ function renderFigure(rc: RenderContext, measured: MeasuredFigure): void {
 
 function getRendererForFigureItem(
   item: ADTFigure,
-): typeof TableRenderer | typeof ChartOVRenderer | typeof TimeseriesRenderer {
+):
+  | typeof TableRenderer
+  | typeof ChartOVRenderer
+  | typeof TimeseriesRenderer
+  | typeof SimpleVizRenderer {
   if (TableRenderer.isType(item)) {
     return TableRenderer;
   }
@@ -110,6 +125,9 @@ function getRendererForFigureItem(
   }
   if (TimeseriesRenderer.isType(item)) {
     return TimeseriesRenderer;
+  }
+  if (SimpleVizRenderer.isType(item)) {
+    return SimpleVizRenderer;
   }
   throw new Error("Unknown figure type");
 }

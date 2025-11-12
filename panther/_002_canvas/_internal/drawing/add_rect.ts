@@ -15,4 +15,10 @@ export function addRect(
   }
   ctx.fillStyle = getColor(s.fillColor);
   ctx.fillRect(rcd.x(), rcd.y(), rcd.w(), rcd.h());
+
+  if (s.strokeColor && s.strokeWidth) {
+    ctx.strokeStyle = getColor(s.strokeColor);
+    ctx.lineWidth = s.strokeWidth;
+    ctx.strokeRect(rcd.x(), rcd.y(), rcd.w(), rcd.h());
+  }
 }

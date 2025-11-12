@@ -171,6 +171,20 @@ async function processStreamEvents(
             if (block && block.type === "text") {
               block.text = (block.text ?? "") + value.delta.text;
             }
+          } else if (value.delta.type === "input_json_delta") {
+            const block = contentBlocks[value.index];
+            if (block && block.type === "tool_use") {
+              // Accumulate the partial JSON
+              const currentJson = (block as any)._partialJson || "";
+              (block as any)._partialJson = currentJson + value.delta.partial_json;
+
+              // Try to parse the accumulated JSON
+              try {
+                block.input = JSON.parse((block as any)._partialJson);
+              } catch (e) {
+                // JSON not complete yet, keep accumulating
+              }
+            }
           }
           break;
 
@@ -186,6 +200,13 @@ async function processStreamEvents(
           return;
       }
     }
+
+    // Clean up temporary properties before completing
+    contentBlocks.forEach((block) => {
+      if (block && block.type === "tool_use") {
+        delete (block as any)._partialJson;
+      }
+    });
 
     onComplete({
       content: contentBlocks,

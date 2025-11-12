@@ -119,9 +119,9 @@ const _DS = {
     cellBackgroundColorFormatter: "none" as
       | "none"
       | TableCellFormatterFunc<
-        string | number | null | undefined,
-        ColorKeyOrString
-      >,
+          string | number | null | undefined,
+          ColorKeyOrString
+        >,
     cellValueFormatter: ((v) => toPct1(v)) as TableCellFormatterFunc<
       string | number | null | undefined,
       string
@@ -298,6 +298,42 @@ const _DS = {
     gapX: 15,
     gapY: 15,
     nCols: "auto" as number | "auto",
+  },
+  ///////////////////////////////////////////////////////////////////////////////////
+  //   ______   __                          __                       __            //
+  //  /      \ /  |                        /  |                     /  |           //
+  // /$$$$$$  |$$/  _____  ____    ______  $$ |  ______   __     __ $$/  ________  //
+  // $$ \__$$/ /  |/     \/    \  /      \ $$ | /      \ /  \   /  |/  |/        | //
+  // $$      \ $$ |$$$$$$ $$$$  |/$$$$$$  |$$ |/$$$$$$  |$$  \ /$$/ $$ |$$$$$$$$/  //
+  //  $$$$$$  |$$ |$$ | $$ | $$ |$$ |  $$ |$$ |$$    $$ | $$  /$$/  $$ |  /  $$/   //
+  // /  \__$$ |$$ |$$ | $$ | $$ |$$ |__$$ |$$ |$$$$$$$$/   $$ $$/   $$ | /$$$$/__  //
+  // $$    $$/ $$ |$$ | $$ | $$ |$$    $$/ $$ |$$       |   $$$/    $$ |/$$      | //
+  //  $$$$$$/  $$/ $$/  $$/  $$/ $$$$$$$/  $$/  $$$$$$$/     $/     $$/ $$$$$$$$/  //
+  //                             $$ |                                              //
+  //                             $$ |                                              //
+  //                             $$/                                               //
+  //                                                                               //
+  ///////////////////////////////////////////////////////////////////////////////////
+  simpleviz: {
+    layerGap: 150,
+    orderGap: 100,
+    layerAlign: "left" as "left" | "center" | "right" | Array<"left" | "center" | "right">,
+    boxes: {
+      fillColor: { key: "base200" } as ColorKeyOrString,
+      strokeColor: { key: "baseContent" } as ColorKeyOrString,
+      strokeWidth: 1,
+      textHorizontalAlign: "center" as "left" | "center" | "right",
+      textVerticalAlign: "center" as "top" | "center" | "bottom",
+      textGap: 10,
+      padding: 10 as PaddingOptions,
+    },
+    arrows: {
+      strokeColor: { key: "baseContent" } as ColorKeyOrString,
+      strokeWidth: 2,
+      lineDash: "solid" as "solid" | "dashed",
+      truncateStart: 10,
+      truncateEnd: 10,
+    },
   },
 };
 

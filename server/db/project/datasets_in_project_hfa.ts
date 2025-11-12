@@ -20,7 +20,7 @@ export async function addDatasetHfaToProject(
   mainDb: Sql,
   projectDb: Sql,
   projectId: string,
-  onProgress?: (progress: number, message: string) => Promise<void>
+  onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     if (onProgress) await onProgress(0.1, "Removing existing dataset...");
@@ -44,7 +44,7 @@ export async function addDatasetHfaToProject(
 
     const datasetFilePathForPostgres = getDatasetFilePathForPostgres(
       projectId,
-      "hfa"
+      "hfa",
     );
 
     if (onProgress) await onProgress(0.5, "Exporting HFA data to CSV...");
@@ -60,10 +60,10 @@ SELECT
   f.admin_area_2,
   f.admin_area_3,
   f.admin_area_4${
-    optionalColumns.length > 0
-      ? `,\n  ${optionalColumns.map((col) => `f.${col}`).join(",\n  ")}`
-      : ""
-  },
+      optionalColumns.length > 0
+        ? `,\n  ${optionalColumns.map((col) => `f.${col}`).join(",\n  ")}`
+        : ""
+    },
   h.time_point,
   h.var_name,
   h.value
@@ -80,7 +80,7 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
 
     // Fetch facilities from main database to populate project database
     const facilities = (await mainDb.unsafe(
-      `SELECT * FROM facilities`
+      `SELECT * FROM facilities`,
     )) as Array<{
       facility_id: string;
       admin_area_4: string;
@@ -133,42 +133,58 @@ VALUES (
       sql`DELETE FROM indicators_hfa`,
       ...(facilities.length > 0
         ? [
-            sql.unsafe(`
+          sql.unsafe(`
         INSERT INTO facilities (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
-        VALUES ${facilities
-          .map(
-            (fac) =>
-              `('${fac.facility_id}', '${fac.admin_area_4}', '${
-                fac.admin_area_3
-              }', '${fac.admin_area_2}', '${fac.admin_area_1}', ${
-                fac.facility_name ? `'${fac.facility_name}'` : "NULL"
-              }, ${fac.facility_type ? `'${fac.facility_type}'` : "NULL"}, ${
-                fac.facility_ownership ? `'${fac.facility_ownership}'` : "NULL"
-              }, ${
-                fac.facility_custom_1 ? `'${fac.facility_custom_1}'` : "NULL"
-              }, ${
-                fac.facility_custom_2 ? `'${fac.facility_custom_2}'` : "NULL"
-              }, ${
-                fac.facility_custom_3 ? `'${fac.facility_custom_3}'` : "NULL"
-              }, ${
-                fac.facility_custom_4 ? `'${fac.facility_custom_4}'` : "NULL"
-              }, ${
-                fac.facility_custom_5 ? `'${fac.facility_custom_5}'` : "NULL"
-              })`
-          )
-          .join(",\n")}
+        VALUES ${
+            facilities
+              .map(
+                (fac) =>
+                  `('${fac.facility_id}', '${fac.admin_area_4}', '${fac.admin_area_3}', '${fac.admin_area_2}', '${fac.admin_area_1}', ${
+                    fac.facility_name ? `'${fac.facility_name}'` : "NULL"
+                  }, ${
+                    fac.facility_type ? `'${fac.facility_type}'` : "NULL"
+                  }, ${
+                    fac.facility_ownership
+                      ? `'${fac.facility_ownership}'`
+                      : "NULL"
+                  }, ${
+                    fac.facility_custom_1
+                      ? `'${fac.facility_custom_1}'`
+                      : "NULL"
+                  }, ${
+                    fac.facility_custom_2
+                      ? `'${fac.facility_custom_2}'`
+                      : "NULL"
+                  }, ${
+                    fac.facility_custom_3
+                      ? `'${fac.facility_custom_3}'`
+                      : "NULL"
+                  }, ${
+                    fac.facility_custom_4
+                      ? `'${fac.facility_custom_4}'`
+                      : "NULL"
+                  }, ${
+                    fac.facility_custom_5
+                      ? `'${fac.facility_custom_5}'`
+                      : "NULL"
+                  })`,
+              )
+              .join(",\n")
+          }
       `),
-          ]
+        ]
         : []),
       ...(hfaIndicators.length > 0
         ? [
-            sql.unsafe(`
+          sql.unsafe(`
         INSERT INTO indicators_hfa (var_name, example_values)
-        VALUES ${hfaIndicators
-          .map((ind) => `('${ind.var_name}', '${ind.sample_values || ""}')`)
-          .join(",\n")}
+        VALUES ${
+            hfaIndicators
+              .map((ind) => `('${ind.var_name}', '${ind.sample_values || ""}')`)
+              .join(",\n")
+          }
       `),
-          ]
+        ]
         : []),
     ]);
 
@@ -182,12 +198,12 @@ function getDatasetDirPath(projectId: string): string {
 
 function getDatasetFilePathForPostgres(
   projectId: string,
-  datasetType: string
+  datasetType: string,
 ): string {
   return join(
     _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
     projectId,
     "datasets",
-    `${datasetType}.csv`
+    `${datasetType}.csv`,
   );
 }

@@ -195,6 +195,7 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
           };
 
           setMessages([...messages(), assistantMsg]);
+          processMessageForDisplay(assistantMsg);
 
           if (response.stop_reason === "tool_use") {
             await handleToolUse(response, payload);

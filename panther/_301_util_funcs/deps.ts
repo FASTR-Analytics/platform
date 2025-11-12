@@ -4,3 +4,4 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { Csv } from "../_002_csv/mod.ts";
+export type { jsPDF } from "jspdf";

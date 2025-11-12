@@ -81,6 +81,38 @@ function App() {
 }
 ```
 
+### Customizing Message Styling
+
+Customize the appearance of user and assistant messages with Tailwind classes:
+
+```tsx
+<AIChatProvider
+  config={{
+    apiConfig: { endpoint: "/api/ai/chat" },
+    modelConfig: {
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 4096,
+    },
+    // Custom message styling
+    userMessageClass: "bg-green-100 text-green-900",
+    assistantMessageClass: "bg-purple-100 text-purple-900",
+  }}
+>
+  <AIChat />
+</AIChatProvider>;
+```
+
+**Default classes:**
+
+- User messages: `bg-blue-100 text-blue-900`
+- Assistant messages: `bg-primary/10 text-primary`
+
+You can use any Tailwind classes including:
+
+- Semantic colors: `bg-primary/10 text-primary`
+- Standard colors: `bg-blue-100 text-blue-900`
+- Arbitrary values: `bg-[#f0f0f0] text-[#333]`
+
 ### Low-Level Usage (Custom UI)
 
 ```tsx
@@ -355,6 +387,79 @@ const apiConfig = {
   },
 };
 ```
+
+### Netlify Functions Setup
+
+For Netlify deployments, use the provided serverless function template:
+
+#### Quick Setup
+
+1. **Install dependencies:**
+   ```bash
+   npm install --save-dev @netlify/functions netlify-cli
+   ```
+
+2. **Create `netlify.toml`:**
+   ```toml
+   [build]
+     command = "npm run build"
+     publish = "dist"
+
+   [[redirects]]
+     from = "/*"
+     to = "/index.html"
+     status = 200
+   ```
+
+3. **Update `package.json`:**
+   ```json
+   {
+     "scripts": {
+       "dev": "netlify dev",
+       "dev-vite": "vite",
+       "build": "vite build"
+     }
+   }
+   ```
+
+4. **Create `.env` with your API key:**
+   ```bash
+   ANTHROPIC_API_KEY=your_api_key_here
+   ```
+
+5. **Copy the template function:**
+
+   See
+   [`_examples/netlify_function_template.ts`](./_examples/netlify_function_template.ts)
+   for a complete, production-ready Netlify function with:
+   - Streaming and non-streaming support
+   - Prompt caching headers
+   - Error handling
+   - Customization points for auth, logging, rate limiting, etc.
+
+   Copy to `netlify/functions/ai.ts` in your project and customize as needed.
+
+6. **Configure your app:**
+   ```tsx
+   <AIChatProvider
+     config={{
+       apiConfig: {
+         endpoint: "/api/ai", // Netlify function automatically available here
+       },
+       // ... rest of config
+     }}
+   />;
+   ```
+
+#### Local Development
+
+Run `npm run dev` to start Netlify Dev, which:
+
+- Runs your frontend dev server (Vite)
+- Runs serverless functions locally at `/api/*`
+- Loads environment variables from `.env`
+
+The AI chat will work exactly the same in development and production.
 
 ## Tool System
 

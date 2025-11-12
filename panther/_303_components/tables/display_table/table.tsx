@@ -317,7 +317,7 @@ const TableRow: Component<TableRowProps<any>> = (p) => {
     const classes = ["group", "border-t", "border-base-300"];
 
     if (p.onRowClick) {
-      classes.push("hover:bg-base-200", "cursor-pointer");
+      classes.push("hover:bg-base-200/50", "cursor-pointer");
     }
 
     return classes.join(" ");

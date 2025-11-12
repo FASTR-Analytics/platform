@@ -227,6 +227,53 @@ export type ChartSurround = {
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+//    SimpleViz Primitives                                                    //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type BoxPrimitive = {
+  type: "simpleviz-box";
+  key: string;
+  layer: PrimitiveLayer;
+  // Visual
+  rcd: RectCoordsDims;
+  rectStyle: RectStyle;
+  // Text (if present)
+  text?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+  secondaryText?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+  // Metadata
+  boxId: string;
+  zIndex?: number;
+};
+
+export type ArrowPrimitive = {
+  type: "simpleviz-arrow";
+  key: string;
+  layer: PrimitiveLayer;
+  // Visual - simple array of points defining the arrow path
+  pathCoords: Coordinates[];
+  lineStyle: LineStyle;
+  arrowheadSize: number; // Size of arrowhead wings
+  // Arrowheads (if any)
+  arrowheads?: {
+    start?: { position: Coordinates; angle: number };
+    end?: { position: Coordinates; angle: number };
+  };
+  // Metadata
+  arrowId: string;
+  fromBoxId?: string;
+  toBoxId?: string;
+  zIndex?: number;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
 //    Primitive Union Type                                                    //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -241,7 +288,10 @@ export type Primitive =
   | ChartAxis
   | ChartGrid
   | ChartLegend
-  | ChartSurround;
+  | ChartSurround
+  // SimpleViz primitives
+  | BoxPrimitive
+  | ArrowPrimitive;
 
 // Convenience alias for backwards compatibility during migration
 export type ChartPrimitive = Primitive;

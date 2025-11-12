@@ -3,9 +3,15 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type Component, createSignal, type JSX, Show } from "solid-js";
+import {
+  type Component,
+  createSignal,
+  type JSX,
+  Show,
+  useContext,
+} from "solid-js";
 import { useScrollManager } from "../_hooks/use_scroll_manager.ts";
-import { useAIChat } from "../_hooks/use_ai_chat.ts";
+import { AIChatConfigContext, useAIChat } from "../_hooks/use_ai_chat.ts";
 import type { AnthropicModel, DisplayRegistry } from "../_core/types.ts";
 import { MessageInput } from "./message_input.tsx";
 import { MessageList } from "./message_list.tsx";
@@ -29,6 +35,7 @@ type Props = {
 };
 
 export const AIChat: Component<Props> = (props) => {
+  const config = useContext(AIChatConfigContext);
   const {
     displayItems,
     isLoading,
@@ -73,6 +80,8 @@ export const AIChat: Component<Props> = (props) => {
           customRenderers={props.customRenderers}
           fallbackContent={props.fallbackContent}
           toolRegistry={toolRegistry}
+          userMessageClass={config?.userMessageClass}
+          assistantMessageClass={config?.assistantMessageClass}
         />
       </div>
       <Show when={props.showUsage && usage() && props.model}>
