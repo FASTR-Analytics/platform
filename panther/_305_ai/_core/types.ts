@@ -116,6 +116,30 @@ export type APIConfig = {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+// MESSAGE STYLE TYPES
+////////////////////////////////////////////////////////////////////////////////
+
+export type MessageBackgroundColor =
+  | "bg-primary/10"
+  | "bg-base-200"
+  | "bg-success/20";
+
+export type MessageTextColor =
+  | "text-primary"
+  | "text-base-content"
+  | "text-success";
+
+export type MessageStyle = {
+  background?: MessageBackgroundColor;
+  text?: MessageTextColor;
+};
+
+export type MessageStyles = {
+  user?: MessageStyle;
+  assistant?: MessageStyle;
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // CHAT CONFIGURATION TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -129,8 +153,7 @@ export type AIChatConfig = {
     | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
   enableStreaming?: boolean;
   renderMarkdown?: boolean;
-  userMessageClass?: string;
-  assistantMessageClass?: string;
+  messageStyles?: MessageStyles;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

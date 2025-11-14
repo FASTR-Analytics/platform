@@ -12,6 +12,7 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   "subCaption",
   "footnote",
   "xTextAxisTickLabels",
+  "xPeriodAxisTickLabels",
   "xScaleAxisTickLabels",
   "xTextAxisLabel",
   "xScaleAxisLabel",

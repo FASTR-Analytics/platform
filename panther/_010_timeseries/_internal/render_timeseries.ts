@@ -3,35 +3,20 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { renderChart, type RenderContext, renderPrimitives } from "../deps.ts";
+import { type RenderContext, renderFigurePrimitives } from "../deps.ts";
 import type { MeasuredTimeseries } from "../types.ts";
 
 export function renderTimeseries(
   rc: RenderContext,
   mTimeseries: MeasuredTimeseries,
 ) {
-  const s = mTimeseries.mergedStyle;
-
-  // Build base config (without pane-specific measured info)
-  const config = {
-    styles: s,
-    data: mTimeseries.transformedData,
-    xAxisStyle: s.xPeriodAxis,
-
-    xAxisType: "period" as const,
-    xAxisRenderDataBase: {
-      type: "period" as const,
-      nTimePoints: mTimeseries.transformedData.nTimePoints,
-      timeMin: mTimeseries.transformedData.timeMin,
-      periodType: mTimeseries.transformedData.periodType,
-      mergedStyle: s,
-    },
-  };
-
-  renderChart(rc, mTimeseries, config);
-
-  // Render primitives if they exist
-  if (mTimeseries.primitives) {
-    renderPrimitives(rc, mTimeseries.primitives);
+  // Render background (simple, non-interactive, doesn't need to be a primitive)
+  if (mTimeseries.measuredSurrounds.s.backgroundColor !== "none") {
+    rc.rRect(mTimeseries.measuredSurrounds.outerRcd, {
+      fillColor: mTimeseries.measuredSurrounds.s.backgroundColor,
+    });
   }
+
+  // Render all chart elements via primitives
+  renderFigurePrimitives(rc, mTimeseries.primitives);
 }

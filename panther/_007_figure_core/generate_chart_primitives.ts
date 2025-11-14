@@ -16,6 +16,13 @@ import {
   type YAxisGridLineConfig,
 } from "./_axes/grid_lines.ts";
 import type { MeasuredPaneBase } from "./measure_types.ts";
+import {
+  generateXPeriodAxisPrimitive,
+  generateXTextAxisPrimitive,
+  generateYScaleAxisPrimitive,
+} from "./_axes/generate_axis_primitives.ts";
+import type { XTextAxisMeasuredInfo } from "./_axes/x_text/types.ts";
+import type { XPeriodAxisMeasuredInfo } from "./_axes/x_period/types.ts";
 
 ///////////////////////////////////////////
 //                                       //
@@ -103,6 +110,10 @@ export function generateChartPrimitives<
     config.mergedStyle,
   );
 
+  // Track which axes we've already generated (one per tier, one per lane)
+  const generatedYAxes = new Set<string>();
+  const generatedXAxes = new Set<string>();
+
   // Loop over panes → plotAreas (pane × tier × lane)
   for (const mPane of measured.mPanes) {
     for (const plotAreaInfo of mPane.plotAreaInfos) {
@@ -140,6 +151,58 @@ export function generateChartPrimitives<
         tierIndex: plotAreaInfo.i_tier,
         laneIndex: plotAreaInfo.i_lane,
       });
+
+      // Generate Y-axis primitive (only once per tier in this pane)
+      const yAxisKey = `${mPane.i_pane}-${plotAreaInfo.i_tier}`;
+      if (!generatedYAxes.has(yAxisKey) && config.yAxisType === "scale") {
+        const yAxisPrimitive = generateYScaleAxisPrimitive(
+          rc,
+          mPane.i_pane,
+          plotAreaInfo.i_tier,
+          mPane.yScaleAxisWidthInfo,
+          mPane.yAxisRcd,
+          plotAreaInfo.rcd.y(),
+          mPane.subChartAreaHeight,
+          config.transformedData
+            .yScaleAxisData as import("./types.ts").YScaleAxisData,
+          (config.mergedStyle as any).yScaleAxis,
+          (config.mergedStyle as any).grid,
+        );
+        allPrimitives.push(yAxisPrimitive);
+        generatedYAxes.add(yAxisKey);
+      }
+
+      // Generate X-axis primitive (only once per lane in this pane, only for first tier)
+      const xAxisKey = `${mPane.i_pane}-${plotAreaInfo.i_lane}`;
+      if (!generatedXAxes.has(xAxisKey) && plotAreaInfo.i_tier === 0) {
+        if (config.xAxisType === "text") {
+          const xAxisPrimitive = generateXTextAxisPrimitive(
+            rc,
+            mPane.i_pane,
+            plotAreaInfo.i_lane,
+            plotAreaInfo.rcd.x(),
+            mPane.xAxisMeasuredInfo as XTextAxisMeasuredInfo,
+            (config.transformedData as any).indicatorHeaders,
+            config.mergedStyle as any,
+          );
+          allPrimitives.push(xAxisPrimitive);
+          generatedXAxes.add(xAxisKey);
+        } else if (config.xAxisType === "period") {
+          const xAxisPrimitive = generateXPeriodAxisPrimitive(
+            rc,
+            mPane.i_pane,
+            plotAreaInfo.i_lane,
+            plotAreaInfo.rcd.x(),
+            mPane.xAxisMeasuredInfo as XPeriodAxisMeasuredInfo,
+            (config.transformedData as any).nTimePoints,
+            (config.transformedData as any).timeMin,
+            (config.transformedData as any).periodType,
+            config.mergedStyle as any,
+          );
+          allPrimitives.push(xAxisPrimitive);
+          generatedXAxes.add(xAxisKey);
+        }
+      }
 
       // Calculate mapped coordinates for content rendering
       const mappedSeriesCoordinates = calculateMappedCoordinates(

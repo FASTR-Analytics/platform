@@ -25,10 +25,10 @@ export {
   collectHeaders,
   createSortFunction,
   generateChartPrimitives,
+  generateSurroundsPrimitives,
   getHeaderIndex,
   measureChart,
-  renderChart,
-  renderPrimitives,
+  renderFigurePrimitives,
   validateDataInput,
   withAnyLabelReplacement,
 } from "../_007_figure_core/mod.ts";

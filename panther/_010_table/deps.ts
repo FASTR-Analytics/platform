@@ -19,8 +19,8 @@ export type {
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedTableStyle } from "../_003_figure_style/mod.ts";
+export { addSurrounds } from "../_007_figure_core/_surrounds/add_surrounds.ts";
 export {
-  addSurrounds,
   measureSurrounds,
   withAnyLabelReplacement,
 } from "../_007_figure_core/mod.ts";

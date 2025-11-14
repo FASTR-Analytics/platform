@@ -21,10 +21,10 @@ export {
   createSortFunction,
   fillValuesWithDuplicateCheck,
   generateChartPrimitives,
+  generateSurroundsPrimitives,
   getHeaderIndex,
   measureChart,
-  renderChart,
-  renderPrimitives,
+  renderFigurePrimitives,
   validateDataInput,
   withAnyLabelReplacement,
 } from "../_007_figure_core/mod.ts";

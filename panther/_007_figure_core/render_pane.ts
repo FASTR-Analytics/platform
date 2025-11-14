@@ -13,8 +13,6 @@ import {
 import { renderAllLaneHeadersForPane } from "./lane_headers.ts";
 import { renderSubChart } from "./render_sub_chart.ts";
 import { renderAllTierHeadersForPane } from "./tier_headers.ts";
-import { renderYScaleAxisForTier } from "./_axes/y_scale/render.ts";
-import { renderXAxisForLane } from "./_axes/render_x_axis.ts";
 import type { LaneHeadersData, YScaleAxisWidthInfo } from "./types.ts";
 import type { PaneRenderConfig } from "./render_types.ts";
 
@@ -90,33 +88,7 @@ export function renderPane<TMeasured>(
 
   // Render tiers and lanes using pre-calculated PlotAreaInfos
   for (const plotAreaInfo of mPane.plotAreaInfos) {
-    // Render Y axis for this tier (only once per tier - when on first lane)
-    const isFirstLane = plotAreaInfo.i_lane === 0;
-
-    if (isFirstLane) {
-      renderYScaleAxisForTier(
-        rc,
-        plotAreaInfo.i_tier,
-        mPane.yScaleAxisWidthInfo,
-        mPane.yAxisRcd,
-        plotAreaInfo.rcd.y(),
-        mPane.subChartAreaHeight,
-        d.yScaleAxisData,
-        s.yScaleAxis,
-        s.grid,
-      );
-    }
-
-    // Render X axis for this lane (only on first tier)
-    // Type narrowing: config.xAxisRenderData comes from PaneRenderConfig with union type
-    renderXAxisForLane(
-      rc,
-      plotAreaInfo.i_lane,
-      plotAreaInfo.rcd.x(),
-      config
-        .xAxisRenderData as import("./_axes/render_x_axis.ts").XAxisRenderData,
-      plotAreaInfo.i_tier === 0, // Only render axis elements on first tier
-    );
+    // Axes are now rendered via primitives (no legacy rendering)
 
     renderSubChart({
       rc,

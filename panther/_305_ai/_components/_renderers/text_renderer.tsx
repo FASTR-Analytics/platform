@@ -4,20 +4,23 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { Component } from "solid-js";
-import type { DisplayItem } from "../../_core/types.ts";
+import type { DisplayItem, MessageStyle } from "../../_core/types.ts";
 import { MARKDOWN_STYLES, md } from "./_markdown_utils.ts";
 
 export const TextRenderer: Component<{
   item: Extract<DisplayItem, { type: "text" }>;
   renderMarkdown?: boolean;
-  userMessageClass?: string;
-  assistantMessageClass?: string;
+  userMessageStyle?: MessageStyle;
+  assistantMessageStyle?: MessageStyle;
 }> = (props) => {
-  const defaultUserClass = "bg-base-200 text-base-content";
-  const defaultAssistantClass = "bg-primary/10 text-primary";
+  const userBg = props.userMessageStyle?.background ?? "bg-base-200";
+  const userText = props.userMessageStyle?.text ?? "text-base-content";
+  const userClass = `${userBg} ${userText}`;
 
-  const userClass = props.userMessageClass ?? defaultUserClass;
-  const assistantClass = props.assistantMessageClass ?? defaultAssistantClass;
+  const assistantBg = props.assistantMessageStyle?.background ??
+    "bg-primary/10";
+  const assistantText = props.assistantMessageStyle?.text ?? "text-primary";
+  const assistantClass = `${assistantBg} ${assistantText}`;
 
   if (props.item.role === "user") {
     return (

@@ -5,7 +5,11 @@
 
 import { type Component, For, Show } from "solid-js";
 import type { ToolRegistry } from "../_core/tool_engine.ts";
-import type { DisplayItem, DisplayRegistry } from "../_core/types.ts";
+import type {
+  DisplayItem,
+  DisplayRegistry,
+  MessageStyle,
+} from "../_core/types.ts";
 import { DefaultRenderer } from "./_renderers/default_renderer.tsx";
 import { StreamingTextRenderer } from "./_renderers/streaming_text_renderer.tsx";
 import { TextRenderer } from "./_renderers/text_renderer.tsx";
@@ -21,8 +25,8 @@ type Props = {
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
   renderMarkdown?: boolean;
-  userMessageClass?: string;
-  assistantMessageClass?: string;
+  userMessageStyle?: MessageStyle;
+  assistantMessageStyle?: MessageStyle;
 };
 
 export const MessageList: Component<Props> = (props) => {
@@ -36,8 +40,8 @@ export const MessageList: Component<Props> = (props) => {
           <Renderer
             item={item}
             renderMarkdown={props.renderMarkdown}
-            userMessageClass={props.userMessageClass}
-            assistantMessageClass={props.assistantMessageClass}
+            userMessageStyle={props.userMessageStyle}
+            assistantMessageStyle={props.assistantMessageStyle}
           />
         );
       }
@@ -79,7 +83,7 @@ export const MessageList: Component<Props> = (props) => {
               text={props.currentStreamingText!}
               isComplete={false}
               renderMarkdown={props.renderMarkdown}
-              assistantMessageClass={props.assistantMessageClass}
+              assistantMessageStyle={props.assistantMessageStyle}
             />
           </Show>
         </Show>

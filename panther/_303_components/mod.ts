@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./charts/mod.ts";
+export * from "./content/mod.ts";
 export * from "./form_inputs/mod.ts";
 export * from "./icons/mod.ts";
 export * from "./layout/mod.ts";

@@ -157,6 +157,8 @@ export type CustomFigureStyleOptions = {
     laneGapX?: number;
     forceSideTicksWhenYear?: boolean;
     showEveryNthTick?: number;
+    periodLabelSmallTopPadding?: number;
+    periodLabelLargeTopPadding?: number;
     calendar?: CalendarType;
   };
   //////////////////////////////////////////////////////////

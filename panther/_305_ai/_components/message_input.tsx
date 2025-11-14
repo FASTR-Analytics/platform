@@ -31,7 +31,6 @@ export const MessageInput: Component<Props> = (props) => {
           value={props.value}
           onChange={props.onChange}
           onKeyDown={handleKeyDown}
-          disabled={props.disabled}
           placeholder={props.placeholder ??
             "Type your message... (Shift+Enter for new line)"}
           height={props.height ?? "100px"}

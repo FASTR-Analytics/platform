@@ -6,6 +6,7 @@
 import {
   CustomFigureStyle,
   generateChartPrimitives,
+  generateSurroundsPrimitives,
   measureChart,
   type MergedTimeseriesStyle,
   type RectCoordsDims,
@@ -84,7 +85,7 @@ export function measureTimeseries(
   >(rc, rcdWithSurrounds, inputs, config, responsiveScale);
 
   // Generate all primitives using centralized loop
-  const primitives = generateChartPrimitives(rc, measured, {
+  const chartPrimitives = generateChartPrimitives(rc, measured, {
     xAxisType: "period",
     yAxisType: "scale",
     xAxisGridLineConfig: {
@@ -110,6 +111,17 @@ export function measureTimeseries(
     dataLabelsTextStyle: mergedStyle.text.dataLabels,
     mergedStyle,
   });
+
+  // Generate surrounds primitives (captions and legend)
+  const surroundsPrimitives = generateSurroundsPrimitives(
+    measured.measuredSurrounds,
+  );
+
+  // Combine all primitives
+  const primitives = [
+    ...chartPrimitives,
+    ...surroundsPrimitives,
+  ];
 
   return {
     ...measured,

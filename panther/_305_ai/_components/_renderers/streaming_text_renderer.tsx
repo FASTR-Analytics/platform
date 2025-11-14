@@ -4,18 +4,21 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { Component } from "solid-js";
+import type { MessageStyle } from "../../_core/types.ts";
 import { MARKDOWN_STYLES, md } from "./_markdown_utils.ts";
 
 type Props = {
   text: string;
   isComplete: boolean;
   renderMarkdown?: boolean;
-  assistantMessageClass?: string;
+  assistantMessageStyle?: MessageStyle;
 };
 
 export const StreamingTextRenderer: Component<Props> = (props) => {
-  const defaultClass = "bg-primary/10 text-primary";
-  const messageClass = props.assistantMessageClass ?? defaultClass;
+  const assistantBg = props.assistantMessageStyle?.background ??
+    "bg-primary/10";
+  const assistantText = props.assistantMessageStyle?.text ?? "text-primary";
+  const messageClass = `${assistantBg} ${assistantText}`;
 
   return (
     <div class="w-fit max-w-full">

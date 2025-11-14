@@ -41,5 +41,5 @@ export function renderSubChart(config: SubChartConfig) {
   }
 
   // Note: Grid lines and content are now rendered via primitives
-  // See renderPrimitives() call in render functions
+  // See renderFigurePrimitives() call in render functions
 }

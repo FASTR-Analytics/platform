@@ -22,5 +22,4 @@ export type {
   ISectionPropertiesOptions,
   IStylesOptions,
 } from "docx";
-// @ts-ignore - markdown-it types installed in consumer project
 export { default as MarkdownIt } from "markdown-it";

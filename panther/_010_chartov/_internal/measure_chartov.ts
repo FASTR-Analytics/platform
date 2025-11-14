@@ -6,6 +6,7 @@
 import {
   CustomFigureStyle,
   generateChartPrimitives,
+  generateSurroundsPrimitives,
   measureChart,
   type MergedChartOVStyle,
   type RectCoordsDims,
@@ -89,7 +90,7 @@ export function measureChartOV(
   );
 
   // Generate all primitives using centralized loop
-  const primitives = generateChartPrimitives(rc, measured, {
+  const chartPrimitives = generateChartPrimitives(rc, measured, {
     xAxisType: "text",
     yAxisType: "scale",
     xAxisGridLineConfig: {
@@ -113,6 +114,17 @@ export function measureChartOV(
     dataLabelsTextStyle: mergedStyle.text.dataLabels,
     mergedStyle,
   });
+
+  // Generate surrounds primitives (captions and legend)
+  const surroundsPrimitives = generateSurroundsPrimitives(
+    measured.measuredSurrounds,
+  );
+
+  // Combine all primitives
+  const primitives = [
+    ...chartPrimitives,
+    ...surroundsPrimitives,
+  ];
 
   return {
     ...measured,

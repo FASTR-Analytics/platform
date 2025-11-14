@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { RenderContext } from "../deps.ts";
-import { addLegend } from "../mod.ts";
+import { addLegend } from "../_legend/add_legend.ts";
 import type { MeasuredSurrounds } from "./measure_surrounds.ts";
 
 export function addSurrounds(

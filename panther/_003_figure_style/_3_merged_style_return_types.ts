@@ -348,6 +348,9 @@ export type MergedXTextAxisStyle = {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export type MergedXPeriodAxisStyle = {
+  text: {
+    xPeriodAxisTickLabels: TextInfoUnkeyed;
+  };
   lanePaddingLeft: number;
   lanePaddingRight: number;
   laneGapX: number;

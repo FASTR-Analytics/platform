@@ -644,7 +644,15 @@ export class CustomFigureStyle {
     const c = this._c ?? {};
     const g = this._g ?? {};
     const d = this._d;
+    const baseText = this.baseText();
     return {
+      text: {
+        xPeriodAxisTickLabels: getTextInfo(
+          c.text?.xPeriodAxisTickLabels,
+          g.text?.xPeriodAxisTickLabels,
+          baseText,
+        ),
+      },
       lanePaddingLeft: ms(
         sf,
         c.xPeriodAxis?.lanePaddingLeft,
@@ -674,13 +682,23 @@ export class CustomFigureStyle {
         g.xPeriodAxis?.showEveryNthTick,
         d.xPeriodAxis.showEveryNthTick,
       ),
+      periodLabelSmallTopPadding: ms(
+        sf,
+        c.xPeriodAxis?.periodLabelSmallTopPadding,
+        g.xPeriodAxis?.periodLabelSmallTopPadding,
+        5,
+      ),
+      periodLabelLargeTopPadding: ms(
+        sf,
+        c.xPeriodAxis?.periodLabelLargeTopPadding,
+        g.xPeriodAxis?.periodLabelLargeTopPadding,
+        5,
+      ),
       calendar: m(
         c.xPeriodAxis?.calendar,
         g.xPeriodAxis?.calendar,
         d.xPeriodAxis.calendar,
       ),
-      periodLabelSmallTopPadding: 5 * sf,
-      periodLabelLargeTopPadding: 5 * sf,
     };
   }
 

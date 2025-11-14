@@ -36,9 +36,9 @@ export type {
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedSimpleVizStyle } from "../_003_figure_style/mod.ts";
 export {
-  addSurrounds,
+  generateSurroundsPrimitives,
   measureSurrounds,
-  renderPrimitives,
+  renderFigurePrimitives,
 } from "../_007_figure_core/mod.ts";
 export type {
   FigureInputsBase,

@@ -5,6 +5,7 @@
 
 import {
   type Component,
+  createEffect,
   createSignal,
   type JSX,
   Show,
@@ -12,7 +13,11 @@ import {
 } from "solid-js";
 import { useScrollManager } from "../_hooks/use_scroll_manager.ts";
 import { AIChatConfigContext, useAIChat } from "../_hooks/use_ai_chat.ts";
-import type { AnthropicModel, DisplayRegistry } from "../_core/types.ts";
+import type {
+  AnthropicModel,
+  DisplayRegistry,
+  MessageParam,
+} from "../_core/types.ts";
 import { MessageInput } from "./message_input.tsx";
 import { MessageList } from "./message_list.tsx";
 import { UsageDisplay } from "./usage_display.tsx";
@@ -37,30 +42,85 @@ type Props = {
 export const AIChat: Component<Props> = (props) => {
   const config = useContext(AIChatConfigContext);
   const {
+    messages,
     displayItems,
     isLoading,
     isStreaming,
+    isProcessingTools,
     currentStreamingText,
     usage,
     sendMessage,
+    sendMessages,
     toolRegistry,
+    processMessageForDisplay,
   } = useAIChat();
   const [inputValue, setInputValue] = createSignal("");
+  const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
 
   let scrollContainer: HTMLDivElement | undefined;
 
-  const { checkScrollPosition } = useScrollManager(
+  const { checkScrollPosition, scrollToBottom } = useScrollManager(
     () => scrollContainer,
     () => [displayItems(), isLoading(), currentStreamingText()],
     { enabled: props.autoScroll ?? true },
   );
 
+  // Auto-send queued messages when loading completes (but not during tool processing)
+  createEffect(() => {
+    const loading = isLoading();
+    const processingTools = isProcessingTools();
+    const queue = queuedMessages();
+    const msgs = messages();
+
+    // Check if last message has unresolved tool_use
+    const lastMsg = msgs[msgs.length - 1];
+    const hasUnresolvedTools = msgs.length > 0 &&
+      lastMsg?.role === "assistant" &&
+      Array.isArray(lastMsg.content) &&
+      lastMsg.content.some((block: any) => block.type === "tool_use");
+
+    if (!loading && !processingTools && queue.length > 0) {
+      if (hasUnresolvedTools) {
+        // Don't send yet, keep in queue until tools are resolved
+        return;
+      }
+      setQueuedMessages([]);
+      sendMessages(queue);
+    }
+  });
+
   const handleSubmit = async () => {
     const message = inputValue().trim();
-    if (!message || isLoading()) return;
+    if (!message) return;
 
     setInputValue("");
-    await sendMessage(message);
+
+    // Check if we should queue (loading, processing tools, or unresolved tools)
+    const msgs = messages();
+    const lastMsg = msgs[msgs.length - 1];
+    const hasUnresolvedTools = msgs.length > 0 &&
+      lastMsg?.role === "assistant" &&
+      Array.isArray(lastMsg.content) &&
+      lastMsg.content.some((block: any) => block.type === "tool_use");
+
+    if (isLoading() || isProcessingTools() || hasUnresolvedTools) {
+      // Queue the message and display it immediately
+      setQueuedMessages([...queuedMessages(), message]);
+
+      // Display as user message immediately
+      const userMsg: MessageParam = { role: "user", content: message };
+      processMessageForDisplay(userMsg);
+    } else {
+      await sendMessage(message);
+    }
+
+    // Force scroll to bottom - immediate and after DOM updates
+    scrollToBottom(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToBottom(true);
+      });
+    });
   };
 
   return (
@@ -81,8 +141,8 @@ export const AIChat: Component<Props> = (props) => {
           fallbackContent={props.fallbackContent}
           toolRegistry={toolRegistry}
           renderMarkdown={config?.renderMarkdown}
-          userMessageClass={config?.userMessageClass}
-          assistantMessageClass={config?.assistantMessageClass}
+          userMessageStyle={config?.messageStyles?.user}
+          assistantMessageStyle={config?.messageStyles?.assistant}
         />
       </div>
       <Show when={props.showUsage && usage() && props.model}>
@@ -100,7 +160,6 @@ export const AIChat: Component<Props> = (props) => {
         value={inputValue()}
         onChange={setInputValue}
         onSubmit={handleSubmit}
-        disabled={isLoading()}
         placeholder={props.placeholder}
         submitLabel={props.submitLabel}
         height={props.inputHeight}

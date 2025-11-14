@@ -6,19 +6,16 @@
 import type {
   ArrowPrimitive,
   BoxPrimitive,
-  ChartAxis,
-  ChartGrid,
-  ChartLegend,
-  ChartSurround,
+  ChartAxisPrimitive,
+  ChartCaptionPrimitive,
+  ChartGridPrimitive,
+  ChartLegendPrimitive,
   Coordinates,
   DataLabel,
   LineStyle,
-  PointStyle,
   Primitive,
-  RectStyle,
   RenderContext,
 } from "./deps.ts";
-import { RectCoordsDims } from "./deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -26,7 +23,7 @@ import { RectCoordsDims } from "./deps.ts";
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export function renderPrimitives(
+export function renderFigurePrimitives(
   rc: RenderContext,
   primitives: Primitive[],
 ): void {
@@ -41,10 +38,7 @@ export function renderPrimitives(
   }
 }
 
-function renderPrimitive(
-  rc: RenderContext,
-  primitive: Primitive,
-): void {
+function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
   switch (primitive.type) {
     case "chart-data-point":
       rc.rPoint(primitive.coords, primitive.style);
@@ -103,8 +97,8 @@ function renderPrimitive(
       renderLegendPrimitive(rc, primitive);
       break;
 
-    case "chart-surround":
-      renderSurroundPrimitive(rc, primitive);
+    case "chart-caption":
+      renderCaptionPrimitive(rc, primitive);
       break;
 
     case "simpleviz-box":
@@ -130,7 +124,7 @@ function renderPrimitive(
 
 function renderGridPrimitive(
   rc: RenderContext,
-  primitive: ChartGrid,
+  primitive: ChartGridPrimitive,
 ): void {
   if (!primitive.style.show) return;
 
@@ -171,7 +165,7 @@ function renderGridPrimitive(
 
 function renderAxisPrimitive(
   rc: RenderContext,
-  primitive: ChartAxis,
+  primitive: ChartAxisPrimitive,
 ): void {
   // Draw axis line
   if (primitive.axisLine) {
@@ -181,10 +175,11 @@ function renderAxisPrimitive(
   // Draw ticks and labels
   for (const tick of primitive.ticks) {
     // Draw tick line
-    rc.rLine(
-      [tick.tickLine.start, tick.tickLine.end],
-      { strokeColor: "black", strokeWidth: 1, lineDash: "solid" },
-    );
+    rc.rLine([tick.tickLine.start, tick.tickLine.end], {
+      strokeColor: "black",
+      strokeWidth: 1,
+      lineDash: "solid",
+    });
 
     // Draw tick label
     if (tick.label) {
@@ -201,46 +196,39 @@ function renderAxisPrimitive(
 
 function renderLegendPrimitive(
   rc: RenderContext,
-  primitive: ChartLegend,
+  primitive: ChartLegendPrimitive,
 ): void {
   for (const item of primitive.items) {
+    // Draw label text
+    rc.rText(item.mText, item.labelPosition, "left");
+
     // Draw symbol
     switch (item.symbol.type) {
       case "point":
-        rc.rPoint(item.position, item.symbol.style as PointStyle);
+        rc.rPoint(item.symbol.position, item.symbol.style);
         break;
       case "line": {
-        const lineStart = item.position.getOffsetted({ left: 10 });
-        const lineEnd = item.position.getOffsetted({ right: 10 });
-        rc.rLine([lineStart, lineEnd], item.symbol.style as LineStyle);
+        const lineStart = item.symbol.position.getOffsetted({ left: -10 });
+        const lineEnd = item.symbol.position.getOffsetted({ right: 10 });
+        rc.rLine([lineStart, lineEnd], item.symbol.style);
         break;
       }
-      case "rect": {
-        const rcd = new RectCoordsDims([
-          item.position.x() - 10,
-          item.position.y() - 5,
-          20,
-          10,
-        ]);
-        rc.rRect(rcd, item.symbol.style as RectStyle);
+      case "rect":
+        rc.rRect(item.symbol.position, item.symbol.style);
         break;
-      }
     }
-
-    // Draw label text next to symbol
-    // TODO: Implement label rendering (need label position/style in primitive)
   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
-//    Surround Rendering (Pure Data - No .render() method)                   //
+//    Caption Rendering (Pure Data - No .render() method)                    //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-function renderSurroundPrimitive(
+function renderCaptionPrimitive(
   rc: RenderContext,
-  primitive: ChartSurround,
+  primitive: ChartCaptionPrimitive,
 ): void {
   rc.rText(
     primitive.mText,
@@ -302,19 +290,11 @@ function renderDataLabel(
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-function renderBoxPrimitive(
-  rc: RenderContext,
-  primitive: BoxPrimitive,
-): void {
+function renderBoxPrimitive(rc: RenderContext, primitive: BoxPrimitive): void {
   rc.rRect(primitive.rcd, primitive.rectStyle);
 
   if (primitive.text) {
-    rc.rText(
-      primitive.text.mText,
-      primitive.text.position,
-      "center",
-      "center",
-    );
+    rc.rText(primitive.text.mText, primitive.text.position, "center", "center");
   }
 
   if (primitive.secondaryText) {

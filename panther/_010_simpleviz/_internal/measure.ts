@@ -5,11 +5,13 @@
 
 import {
   CustomFigureStyle,
+  generateSurroundsPrimitives,
   measureSurrounds,
   type RectCoordsDims,
   type RenderContext,
 } from "../deps.ts";
 import type { MeasuredSimpleViz, SimpleVizInputs } from "../types.ts";
+import { buildArrowPrimitives } from "./build_arrow_primitives.ts";
 import { buildBoxPrimitives } from "./build_box_primitives.ts";
 
 export function measureSimpleViz(
@@ -42,13 +44,32 @@ export function measureSimpleViz(
   const contentRcd = measuredSurrounds.contentRcd;
 
   // Build box primitives from raw data
-  const primitives = buildBoxPrimitives(
+  const boxPrimitives = buildBoxPrimitives(
     rc,
     contentRcd,
     item.simpleVizData,
     customFigureStyle,
-    responsiveScale,
   );
+
+  // Build arrow primitives using box positions
+  const arrowPrimitives = buildArrowPrimitives(
+    item.simpleVizData.arrows,
+    item.simpleVizData.boxes,
+    boxPrimitives.filter((p) => p.type === "simpleviz-box"),
+    customFigureStyle.simpleviz(),
+  );
+
+  // Generate surrounds primitives (captions and legend)
+  const surroundsPrimitives = generateSurroundsPrimitives(
+    measuredSurrounds,
+  );
+
+  // Combine all primitives
+  const primitives = [
+    ...boxPrimitives,
+    ...arrowPrimitives,
+    ...surroundsPrimitives,
+  ];
 
   return {
     item,

@@ -163,6 +163,6 @@ export type MeasuredChartOV = Measured<ChartOVInputs> & {
   subCaption?: string;
   footnote?: string | string[];
   legendItemsOrLabels?: LegendItem[] | string[];
-  // Primitives (optional - for animation/interaction)
-  primitives?: Primitive[];
+  // Primitives
+  primitives: Primitive[];
 };

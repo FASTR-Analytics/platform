@@ -170,10 +170,18 @@ export function getPeriodAxisInfo(
   showEveryNthTick: number,
 ): PeriodAxisInfo {
   const smallLabelH = rc
-    .mText("Jan", s.text.base, Number.POSITIVE_INFINITY)
+    .mText(
+      "Jan",
+      s.xPeriodAxis.text.xPeriodAxisTickLabels,
+      Number.POSITIVE_INFINITY,
+    )
     .dims.h();
   const largeLabelH = rc
-    .mText("2022", s.text.base, Number.POSITIVE_INFINITY)
+    .mText(
+      "2022",
+      s.xPeriodAxis.text.xPeriodAxisTickLabels,
+      Number.POSITIVE_INFINITY,
+    )
     .dims.h();
 
   ////////////////
@@ -330,7 +338,11 @@ function getMaxWidthWord(
 ): number {
   let maxWidth = 0;
   for (const word of words) {
-    const mText = rc.mText(word, s.text.base, Number.POSITIVE_INFINITY);
+    const mText = rc.mText(
+      word,
+      s.xPeriodAxis.text.xPeriodAxisTickLabels,
+      Number.POSITIVE_INFINITY,
+    );
     if (mText.dims.w() > maxWidth) {
       maxWidth = mText.dims.w();
     }

@@ -3,8 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { addSurrounds } from "./add_surrounds.ts";
-export { getSurroundsHeight } from "./get_surrounds_height.ts";
 export {
   type MeasuredSurrounds,
   measureSurrounds,

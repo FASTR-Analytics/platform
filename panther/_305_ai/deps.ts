@@ -17,6 +17,7 @@ export type {
   Usage,
 } from "../_004_ai_types/mod.ts";
 export { Button, TextArea } from "../_303_components/mod.ts";
+export { default as MarkdownIt } from "markdown-it";
 export {
   createContext,
   createEffect,
@@ -29,5 +30,3 @@ export {
   useContext,
 } from "solid-js";
 export type { Component, JSX } from "solid-js";
-// @ts-ignore - markdown-it types installed in consumer project
-export { default as MarkdownIt } from "markdown-it";

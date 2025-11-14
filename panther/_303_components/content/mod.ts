@@ -3,5 +3,4 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export * from "./types.ts";
-export * from "./simpleviz_renderer.ts";
+export { MarkdownPresentation } from "./markdown_presentation.tsx";

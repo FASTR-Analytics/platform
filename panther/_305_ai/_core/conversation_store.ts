@@ -11,6 +11,7 @@ export type ConversationStore = {
   displayItems: ReturnType<typeof createSignal<DisplayItem[]>>;
   isLoading: ReturnType<typeof createSignal<boolean>>;
   isStreaming: ReturnType<typeof createSignal<boolean>>;
+  isProcessingTools: ReturnType<typeof createSignal<boolean>>;
   error: ReturnType<typeof createSignal<string | null>>;
   usage: ReturnType<typeof createSignal<Usage | null>>;
   currentStreamingText: ReturnType<typeof createSignal<string | null>>;
@@ -28,6 +29,7 @@ export function getOrCreateConversationStore(
       displayItems: createSignal<DisplayItem[]>([]),
       isLoading: createSignal(false),
       isStreaming: createSignal(false),
+      isProcessingTools: createSignal(false),
       error: createSignal<string | null>(null),
       usage: createSignal<Usage | null>(null),
       currentStreamingText: createSignal<string | null>(null),
@@ -44,6 +46,7 @@ export function clearConversationStore(conversationId: string): void {
     const [, setDisplayItems] = store.displayItems;
     const [, setIsLoading] = store.isLoading;
     const [, setIsStreaming] = store.isStreaming;
+    const [, setIsProcessingTools] = store.isProcessingTools;
     const [, setError] = store.error;
     const [, setUsage] = store.usage;
     const [, setCurrentStreamingText] = store.currentStreamingText;
@@ -53,6 +56,7 @@ export function clearConversationStore(conversationId: string): void {
     setDisplayItems([]);
     setIsLoading(false);
     setIsStreaming(false);
+    setIsProcessingTools(false);
     setError(null);
     setUsage(null);
     setCurrentStreamingText(null);

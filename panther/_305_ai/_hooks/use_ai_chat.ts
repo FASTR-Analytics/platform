@@ -52,6 +52,7 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
   const [displayItems, setDisplayItems] = store.displayItems;
   const [isLoading, setIsLoading] = store.isLoading;
   const [isStreaming, setIsStreaming] = store.isStreaming;
+  const [isProcessingTools, setIsProcessingTools] = store.isProcessingTools;
   const [error, setError] = store.error;
   const [usage, setUsage] = store.usage;
   const [currentStreamingText, setCurrentStreamingText] = store
@@ -131,6 +132,7 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
       processMessageForDisplay(assistantMsg);
 
       if (response.stop_reason === "tool_use") {
+        setIsProcessingTools(true);
         await handleToolUse(response, payload);
       }
     } catch (err) {
@@ -145,6 +147,7 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
       ]);
     } finally {
       setIsLoading(false);
+      setIsProcessingTools(false);
     }
   }
 
@@ -202,6 +205,7 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
           processMessageForDisplay(assistantMsg);
 
           if (response.stop_reason === "tool_use") {
+            setIsProcessingTools(true);
             await handleToolUse(response, payload);
           }
         },
@@ -223,6 +227,7 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
       setIsLoading(false);
       setIsStreaming(false);
       setCurrentStreamingText(null);
+      setIsProcessingTools(false);
     }
   }
 
@@ -264,7 +269,7 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
 
     if (results.length > 0) {
       setMessages([...messages(), { role: "user", content: results }]);
-      return sendMessage("", payload);
+      await sendMessage("", payload);
     }
   }
 
@@ -279,6 +284,32 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
     }
   }
 
+  async function sendMessages(
+    userMessages: string[],
+    additionalPayload?: Record<string, unknown>,
+  ): Promise<void> {
+    if (userMessages.length === 0) return;
+
+    // Add all user messages to conversation
+    const messagesToAdd: MessageParam[] = userMessages.map((text) => ({
+      role: "user",
+      content: text,
+    }));
+
+    const newMessages = [...messages(), ...messagesToAdd];
+    setMessages(newMessages);
+    setError(null);
+
+    // Note: Display happens via processMessageForDisplay in component
+    // when messages are queued, so we don't call it here
+
+    if (config.enableStreaming) {
+      return sendMessageStreaming("", additionalPayload);
+    } else {
+      return sendMessageBlocking("", additionalPayload);
+    }
+  }
+
   function clearConversation() {
     clearConversationStore(conversationId);
   }
@@ -288,12 +319,15 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
     displayItems,
     isLoading,
     isStreaming,
+    isProcessingTools,
     error,
     usage,
     currentStreamingText,
     usageHistory,
     sendMessage,
+    sendMessages,
     clearConversation,
     toolRegistry,
+    processMessageForDisplay,
   };
 }

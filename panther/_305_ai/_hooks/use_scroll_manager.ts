@@ -29,9 +29,15 @@ export function useScrollManager(
     shouldAutoScroll = distanceFromBottom < threshold;
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (force = false) => {
     const container = containerRef();
-    if (!container || !shouldAutoScroll || !enabled) return;
+    if (!container || !enabled) return;
+
+    if (force) {
+      shouldAutoScroll = true;
+    }
+
+    if (!shouldAutoScroll) return;
     container.scrollTop = container.scrollHeight;
   };
 
@@ -39,7 +45,7 @@ export function useScrollManager(
     dependencies();
     if (enabled) {
       requestAnimationFrame(() => {
-        requestAnimationFrame(scrollToBottom);
+        requestAnimationFrame(() => scrollToBottom());
       });
     }
   });

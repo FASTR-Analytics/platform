@@ -32,7 +32,7 @@ export const Z_INDEX = {
   CONTENT_POINT: 600,
   LABEL: 700,
   LEGEND: 800,
-  SURROUND: 900,
+  CAPTION: 900,
   // SimpleViz defaults
   SIMPLEVIZ_ARROW: 490, // Behind boxes by default
   SIMPLEVIZ_BOX: 500,
@@ -64,7 +64,7 @@ export type BarStackingMode = "stacked" | "imposed" | "grouped";
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export type ChartDataPoint = {
+export type ChartDataPointPrimitive = {
   type: "chart-data-point";
   key: string;
   // Chart semantics
@@ -83,7 +83,7 @@ export type ChartDataPoint = {
   tierIndex?: number;
 };
 
-export type ChartLineSeries = {
+export type ChartLineSeriesPrimitive = {
   type: "chart-line-series";
   key: string;
   // Chart semantics
@@ -109,7 +109,7 @@ export type ChartLineSeries = {
   tierIndex?: number;
 };
 
-export type ChartAreaSeries = {
+export type ChartAreaSeriesPrimitive = {
   type: "chart-area-series";
   key: string;
   // Chart semantics
@@ -127,7 +127,7 @@ export type ChartAreaSeries = {
   tierIndex?: number;
 };
 
-export type ChartBar = {
+export type ChartBarPrimitive = {
   type: "chart-bar";
   key: string;
   // Chart semantics
@@ -159,7 +159,7 @@ export type ChartBar = {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export type ChartAxis = {
+export type ChartAxisPrimitive = {
   type: "chart-axis";
   key: string;
   axisType: "x-text" | "x-period" | "y-scale";
@@ -179,7 +179,7 @@ export type ChartAxis = {
   tierIndex?: number;
 };
 
-export type ChartGrid = {
+export type ChartGridPrimitive = {
   type: "chart-grid";
   key: string;
   plotAreaRcd: RectCoordsDims;
@@ -197,18 +197,30 @@ export type ChartGrid = {
   tierIndex?: number;
 };
 
-export type ChartLegend = {
+export type ChartLegendPrimitive = {
   type: "chart-legend";
   key: string;
   bounds: RectCoordsDims;
   // Pure data - fully serializable
   items: Array<{
-    label: string;
-    symbol: {
-      type: "point" | "line" | "rect";
-      style: PointStyle | LineStyle | RectStyle;
-    };
-    position: Coordinates;
+    mText: MeasuredText;
+    labelPosition: Coordinates;
+    symbol:
+      | {
+        type: "point";
+        style: PointStyle;
+        position: Coordinates; // Center of point
+      }
+      | {
+        type: "line";
+        style: LineStyle;
+        position: Coordinates; // Center of line
+      }
+      | {
+        type: "rect";
+        style: RectStyle;
+        position: RectCoordsDims; // Rectangle bounds
+      };
   }>;
   // Optional metadata
   zIndex?: number;
@@ -217,10 +229,10 @@ export type ChartLegend = {
   tierIndex?: number;
 };
 
-export type ChartSurround = {
-  type: "chart-surround";
+export type ChartCaptionPrimitive = {
+  type: "chart-caption";
   key: string;
-  surroundType: "title" | "subtitle" | "footnote" | "caption";
+  captionType: "title" | "subtitle" | "footnote" | "caption";
   bounds: RectCoordsDims;
   mText: MeasuredText;
   // Pure data - fully serializable
@@ -289,15 +301,15 @@ export type ArrowPrimitive = {
 
 export type Primitive =
   // Chart content (fine-grained, animatable)
-  | ChartDataPoint
-  | ChartLineSeries
-  | ChartAreaSeries
-  | ChartBar
+  | ChartDataPointPrimitive
+  | ChartLineSeriesPrimitive
+  | ChartAreaSeriesPrimitive
+  | ChartBarPrimitive
   // Chart structure (coarse-grained)
-  | ChartAxis
-  | ChartGrid
-  | ChartLegend
-  | ChartSurround
+  | ChartAxisPrimitive
+  | ChartGridPrimitive
+  | ChartLegendPrimitive
+  | ChartCaptionPrimitive
   // SimpleViz primitives
   | BoxPrimitive
   | ArrowPrimitive;

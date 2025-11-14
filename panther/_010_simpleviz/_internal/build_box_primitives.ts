@@ -22,14 +22,12 @@ import {
 } from "./box_dimensions.ts";
 import { calculateXCoordinatesFromLayers } from "./box_layout.ts";
 import { getTextInfoWithBoxOverride, mergeBoxStyle } from "./style.ts";
-import { buildArrowPrimitives } from "./build_arrow_primitives.ts";
 
 export function buildBoxPrimitives(
   rc: RenderContext,
   contentArea: RectCoordsDims,
   data: SimpleVizData,
   customFigureStyle: CustomFigureStyle,
-  responsiveScale: number | undefined,
 ): Primitive[] {
   const primitives: Primitive[] = [];
   const mergedSimpleVizStyle = customFigureStyle.simpleviz();
@@ -396,29 +394,6 @@ export function buildBoxPrimitives(
 
     primitives.push(boxPrimitive);
   }
-
-  ////////////////////////////////////////////////////////////////////////////////
-  //                                                                            //
-  //  STEP 7: Transform arrows to primitives                                   //
-  //                                                                            //
-  //  Input: Box primitives + raw arrows                                       //
-  //  Output: Arrow primitives using exact box positions                       //
-  //                                                                            //
-  ////////////////////////////////////////////////////////////////////////////////
-
-  const boxPrimitives = primitives.filter(
-    (p): p is Extract<Primitive, { type: "simpleviz-box" }> =>
-      p.type === "simpleviz-box",
-  );
-
-  const arrowPrimitives = buildArrowPrimitives(
-    data.arrows,
-    data.boxes,
-    boxPrimitives,
-    mergedSimpleVizStyle,
-  );
-
-  primitives.push(...arrowPrimitives);
 
   return primitives;
 }
