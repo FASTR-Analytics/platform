@@ -62,7 +62,9 @@ export function transformDataToPrimitives(
     ...box,
     width: box.width !== undefined ? box.width * styleScale : undefined,
     height: box.height !== undefined ? box.height * styleScale : undefined,
-    leftOffset: box.leftOffset !== undefined ? box.leftOffset * styleScale : undefined,
+    leftOffset: box.leftOffset !== undefined
+      ? box.leftOffset * styleScale
+      : undefined,
     x: box.x !== undefined ? box.x * coordinateScale : undefined,
     y: box.y !== undefined ? box.y * coordinateScale : undefined,
   }));
@@ -136,7 +138,9 @@ export function transformDataToPrimitives(
   // Scale leftOffset by fit scale for Pass 2
   const finalScaledBoxes = styleScaledBoxes.map((box) => ({
     ...box,
-    leftOffset: box.leftOffset !== undefined ? box.leftOffset * scale : undefined,
+    leftOffset: box.leftOffset !== undefined
+      ? box.leftOffset * scale
+      : undefined,
   }));
 
   const finalResult = calculateCoordinatesFromLayers(

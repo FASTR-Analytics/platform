@@ -35,6 +35,7 @@ type SearchResult = {
 export function Dhis2IndicatorSelectForm(p: Props) {
   // Form state
   const [tempSearchQuery, setTempSearchQuery] = createSignal<string>("");
+  const [searchBy, setSearchBy] = createSignal<"name" | "code">("name");
   const [searchResults, setSearchResults] = createSignal<SearchResult[]>([]);
   const [hasSearched, setHasSearched] = createSignal<boolean>(false);
   const [tempSelectedElements, setTempSelectedElements] = createSignal<
@@ -51,6 +52,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     const response = await serverActions.searchDhis2All({
       dhis2Credentials: p.credentials,
       query,
+      searchBy: searchBy(),
       includeDataElements: true,
       includeIndicators: true,
     });
@@ -226,10 +228,31 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                 <Input
                   value={tempSearchQuery()}
                   onChange={setTempSearchQuery}
-                  placeholder={t("Enter search term...")}
+                  placeholder={searchBy() === "code" ? t("Enter code...") : t("Enter name...")}
                   label={t("Search Query")}
                   fullWidth
                 />
+              </div>
+              <div class="ui-gap-sm flex items-center">
+                <span class="text-base-content/70 text-sm">{t("Search by")}:</span>
+                <div class="ui-gap-sm flex">
+                  <Button
+                    type="button"
+                    onClick={() => setSearchBy("name")}
+                    intent={searchBy() === "name" ? "primary" : "base-100"}
+                    outline={searchBy() !== "name"}
+                  >
+                    {t("Name")}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setSearchBy("code")}
+                    intent={searchBy() === "code" ? "primary" : "base-100"}
+                    outline={searchBy() !== "code"}
+                  >
+                    {t("Code")}
+                  </Button>
+                </div>
               </div>
               <Button
                 type="submit"

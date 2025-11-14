@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type AnchorPoint,
   assert,
   type ColorAdjustmentStrategy,
   type ColorKeyOrString,
@@ -296,7 +297,11 @@ export type CustomFigureStyleOptions = {
   simpleviz?: {
     layerGap?: number;
     orderGap?: number;
-    layerAlign?: "left" | "center" | "right" | Array<"left" | "center" | "right">;
+    layerAlign?:
+      | "left"
+      | "center"
+      | "right"
+      | Array<"left" | "center" | "right">;
     boxes?: {
       fillColor?: ColorKeyOrString;
       strokeColor?: ColorKeyOrString;
@@ -305,6 +310,8 @@ export type CustomFigureStyleOptions = {
       textVerticalAlign?: "top" | "center" | "bottom";
       textGap?: number;
       padding?: PaddingOptions;
+      arrowStartPoint?: AnchorPoint;
+      arrowEndPoint?: AnchorPoint;
     };
     arrows?: {
       strokeColor?: ColorKeyOrString;

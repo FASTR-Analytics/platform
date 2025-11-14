@@ -32,7 +32,7 @@ export function calculateBoxDimensions(
   if (box.width !== undefined && box.height !== undefined) {
     return {
       width: box.width + padding.pl() + padding.pr(),
-      height: box.height + padding.pt() + padding.pb()
+      height: box.height + padding.pt() + padding.pb(),
     };
   }
 

@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { Primitive, RenderContext } from "./deps.ts";
+import { Z_INDEX } from "./deps.ts";
 import type { MergedContentStyle, TextInfoUnkeyed } from "./deps.ts";
 import { calculateMappedCoordinates } from "./_content/calculate_mapped_coordinates.ts";
 import { generateContentPrimitives } from "./_content/generate_content_primitives.ts";
@@ -126,7 +127,7 @@ export function generateChartPrimitives<
         type: "chart-grid",
         key:
           `grid-${mPane.i_pane}-${plotAreaInfo.i_tier}-${plotAreaInfo.i_lane}`,
-        layer: "grid",
+        zIndex: Z_INDEX.GRID,
         plotAreaRcd: plotAreaInfo.rcd,
         horizontalLines: plotAreaInfo.horizontalGridLines,
         verticalLines: plotAreaInfo.verticalGridLines,

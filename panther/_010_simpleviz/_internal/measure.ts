@@ -10,7 +10,7 @@ import {
   type RenderContext,
 } from "../deps.ts";
 import type { MeasuredSimpleViz, SimpleVizInputs } from "../types.ts";
-import { transformDataToPrimitives } from "./transform_new.ts";
+import { buildBoxPrimitives } from "./build_box_primitives.ts";
 
 export function measureSimpleViz(
   rc: RenderContext,
@@ -41,8 +41,8 @@ export function measureSimpleViz(
   const extraHeightDueToSurrounds = measuredSurrounds.extraHeightDueToSurrounds;
   const contentRcd = measuredSurrounds.contentRcd;
 
-  // Transform raw data to primitives
-  const primitives = transformDataToPrimitives(
+  // Build box primitives from raw data
+  const primitives = buildBoxPrimitives(
     rc,
     contentRcd,
     item.simpleVizData,

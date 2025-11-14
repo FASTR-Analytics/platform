@@ -12,6 +12,7 @@ import {
   getOrCreateConversationStore,
   sendMessageToServer,
 } from "./chat_engine";
+// @ts-expect-error - markdown-it package.json exports issue
 import MarkdownIt from "markdown-it";
 import { SlidePreview } from "./SlidePreview";
 import { VisualizationPreview } from "./VisualizationPreview";

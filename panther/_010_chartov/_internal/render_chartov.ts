@@ -3,11 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  renderChart,
-  renderChartPrimitives,
-  type RenderContext,
-} from "../deps.ts";
+import { renderChart, type RenderContext, renderPrimitives } from "../deps.ts";
 import type { MeasuredChartOV } from "../types.ts";
 
 export function renderChartOV(rc: RenderContext, mChartOV: MeasuredChartOV) {
@@ -31,6 +27,6 @@ export function renderChartOV(rc: RenderContext, mChartOV: MeasuredChartOV) {
 
   // Render primitives if they exist
   if (mChartOV.primitives) {
-    renderChartPrimitives(rc, mChartOV.primitives);
+    renderPrimitives(rc, mChartOV.primitives);
   }
 }

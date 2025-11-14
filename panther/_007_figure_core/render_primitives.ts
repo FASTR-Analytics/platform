@@ -15,7 +15,6 @@ import type {
   LineStyle,
   PointStyle,
   Primitive,
-  PrimitiveLayer,
   RectStyle,
   RenderContext,
 } from "./deps.ts";
@@ -23,37 +22,16 @@ import { RectCoordsDims } from "./deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
-//    Layer Ordering                                                          //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-const LAYER_ORDER: Record<PrimitiveLayer, number> = {
-  "background": 0,
-  "grid": 1,
-  "axis": 2,
-  "content-area": 3,
-  "content-line": 4,
-  "content-bar": 5,
-  "content-point": 6,
-  "label": 7,
-  "legend": 8,
-  "surround": 9,
-};
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
 //    Main Rendering Functions                                                //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export function renderChartPrimitives(
+export function renderPrimitives(
   rc: RenderContext,
   primitives: Primitive[],
 ): void {
-  // Sort by layer and zIndex
+  // Sort by zIndex only
   const sorted = primitives.slice().sort((a, b) => {
-    const layerOrder = LAYER_ORDER[a.layer] - LAYER_ORDER[b.layer];
-    if (layerOrder !== 0) return layerOrder;
     return (a.zIndex ?? 0) - (b.zIndex ?? 0);
   });
 

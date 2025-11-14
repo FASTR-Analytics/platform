@@ -680,7 +680,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
       updatedModuleDefinition = {
         ...currentModuleDefinition,
         configRequirements: {
-          ...currentModuleDefinition.configRequirements,
+          configType: "hfa",
           indicators: updatedConfigSelections.indicators,
         },
       };

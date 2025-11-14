@@ -3,11 +3,6 @@
  * Provides common functionality for all DHIS2 API interactions
  */
 
-// import {
-//   _DHIS2_PASSWORD,
-//   _DHIS2_URL,
-//   _DHIS2_USERNAME,
-// } from "../../exposed_env_vars.ts";
 import { RetryOptions, withRetry } from "./retry_utils.ts";
 import { type Dhis2Credentials } from "lib";
 
@@ -39,13 +34,6 @@ export function createAuthHeader(credentials: {
 }
 
 /**
- * Get the base URL for DHIS2
- */
-export function getBaseUrl(customUrl: string): string {
-  return customUrl.replace(/\/$/, "");
-}
-
-/**
  * Build a full DHIS2 API URL
  */
 export function buildUrl(
@@ -53,7 +41,7 @@ export function buildUrl(
   customUrl: string,
   params?: URLSearchParams | Record<string, string>
 ): string {
-  const baseUrl = getBaseUrl(customUrl);
+  const baseUrl = customUrl.replace(/\/$/, "");
   const url = new URL(`${baseUrl}${endpoint}`);
 
   if (params) {
@@ -143,12 +131,7 @@ export async function fetchFromDHIS2<T = any>(
     }
   };
 
-  // Use retry wrapper if retry options provided (or use defaults)
-  if (retryOptions !== null) {
-    return withRetry(fetchFn, retryOptions);
-  }
-
-  return fetchFn();
+  return withRetry(fetchFn, retryOptions);
 }
 
 /**
@@ -203,33 +186,3 @@ export async function getDHIS2<T = any>(
   });
 }
 
-/**
- * Convenience method for POST requests
- */
-export async function postDHIS2<T = any>(
-  endpoint: string,
-  body: any,
-  options: FetchOptions
-): Promise<T> {
-  return fetchFromDHIS2<T>(endpoint, {
-    ...options,
-    method: "POST",
-    body: JSON.stringify(body),
-    headers: {
-      ...options.headers,
-      "Content-Type": "application/json",
-    },
-  });
-}
-
-/**
- * Check URL length and warn if too long
- */
-export function checkUrlLength(url: string, maxLength = 2048): void {
-  if (url.length > maxLength) {
-    console.warn(
-      `URL is ${url.length} characters long, which exceeds recommended maximum of ${maxLength}. ` +
-        `Some servers may reject this request. Consider using POST with body parameters instead.`
-    );
-  }
-}

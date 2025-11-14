@@ -1,23 +1,43 @@
 # _007_figure_core
 
-Core visualization framework providing axes, scales, legends, titles, and the
-foundational chart rendering system.
+Core visualization framework providing the foundational rendering system for all
+Figures (Charts, SimpleViz, Tables).
 
 ## Purpose
 
-The heart of the Panther visualization system:
+The heart of the Panther visualization system, providing shared infrastructure
+for all Figure types:
 
-- Chart measurement and rendering pipeline
+- **Primitive system**: Low-level rendering instructions (points, lines, bars,
+  areas, boxes, arrows, axes, grids)
+- **Renderer pattern**: Common `measure()` and `render()` interface
+- **Styling infrastructure**: Consistent style merging across all figures
+- **Surrounds**: Titles, subtitles, footnotes, captions (shared by all figures)
+
+**Chart-specific features** (used by Timeseries and ChartOV):
+
+- Multi-pane/tier/lane layouts
 - Axis systems (X/Y, categorical/continuous/period)
 - Scale calculations and transformations
 - Legend generation and layout
-- Chart surrounds (titles, subtitles, footnotes, sources)
 - Grid lines and tick marks
-- Multi-pane/tier/lane chart layouts
+
+## Figure vs Chart
+
+**Figure** is the abstract concept for any renderable visualization component.
+All Figures share common infrastructure from this module.
+
+**Chart** is a specific type of Figure that uses a grid-based coordinate system
+with panes, tiers, and lanes:
+
+- **Chart types**: Timeseries (`_010_timeseries/`), ChartOV (`_010_chartov/`)
+- **Non-Chart Figures**: SimpleViz (`_010_simpleviz/`), Table (`_010_table/`)
+
+See `FIGURE_ARCHITECTURE.md` for detailed taxonomy.
 
 ## Key Concepts
 
-### Chart Structure
+### Chart Structure (Charts Only)
 
 Charts are composed of:
 
@@ -26,20 +46,22 @@ Charts are composed of:
 - **Legend**: Color/shape keys for data series
 - **Surrounds**: Titles, subtitles, footnotes, sources
 
-### Coordinate Mapping
+### Coordinate Mapping (Charts Only)
 
-The module handles transformation between:
+Charts handle transformation between:
 
 - Data values → pixel coordinates
 - Screen coordinates → data values
 
-### Multi-dimensional Layouts
+### Multi-dimensional Layouts (Charts Only)
 
-Supports complex chart layouts:
+Charts support complex layouts with:
 
-- **Panes**: Multiple independent charts
-- **Tiers**: Horizontal subdivisions
-- **Lanes**: Vertical subdivisions
+- **Panes**: Multiple independent charts side-by-side or stacked
+- **Tiers**: Vertical subdivisions within a pane
+- **Lanes**: Horizontal subdivisions within a pane
+
+This pane/tier/lane system is what distinguishes Charts from other Figures.
 
 ## Key Exports
 
@@ -125,10 +147,17 @@ addSurrounds(
 generateChartPrimitives(
   measured: MeasuredChart,
   ...
-): ChartPrimitive[]
+): Primitive[]
+
+renderPrimitives(
+  rc: RenderContext,
+  primitives: Primitive[],
+): void
 ```
 
-Converts measured chart to renderable primitives.
+Converts measured charts to renderable primitives, then renders them. The
+`Primitive` type includes both chart-specific primitives (data points, bars,
+axes) and general primitives (boxes, arrows) used by all Figures.
 
 ## Usage Example
 

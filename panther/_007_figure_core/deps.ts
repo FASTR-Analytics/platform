@@ -22,6 +22,7 @@ export {
   Padding,
   RectCoordsDims,
 } from "../_001_geometry/mod.ts";
+export { Z_INDEX } from "../_001_render_system/mod.ts";
 export type {
   ArrowPrimitive,
   BoxPrimitive,
@@ -35,7 +36,6 @@ export type {
   PointStyle,
   PointType,
   Primitive,
-  PrimitiveLayer,
   RectStyle,
   RenderContext,
 } from "../_001_render_system/mod.ts";

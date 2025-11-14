@@ -1,19 +1,6 @@
 import { getDHIS2, FetchOptions } from "../common/base_fetcher.ts";
-import { DHIS2PagedResponse, DHIS2OrgUnit, DHIS2OrgUnitLevel } from "./types.ts";
-
-export async function getOrgUnitLevelsFromDHIS2(
-  options: FetchOptions
-): Promise<DHIS2OrgUnitLevel[]> {
-  const params = new URLSearchParams();
-  params.set("fields", "id,name,displayName,level");
-  params.set("paging", "false");
-
-  const response = await getDHIS2<{
-    organisationUnitLevels: DHIS2OrgUnitLevel[];
-  }>("/api/organisationUnitLevels.json", options, params);
-
-  return response.organisationUnitLevels || [];
-}
+import { DHIS2PagedResponse, DHIS2OrgUnit } from "./types.ts";
+import { getOrgUnitLevels } from "./get_metadata.ts";
 
 export async function testDHIS2Connection(
   options: FetchOptions
@@ -45,7 +32,7 @@ export async function testDHIS2Connection(
       testParams
     );
 
-    const levels = await getOrgUnitLevelsFromDHIS2(options);
+    const levels = await getOrgUnitLevels(options);
 
     return {
       success: true,

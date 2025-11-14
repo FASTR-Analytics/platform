@@ -101,7 +101,7 @@ export async function getOrgUnitMetadata(
   }));
 
   const totalOrgUnits = Array.from(levelCounts.values()).reduce((sum, count) => sum + count, 0);
-  const maxLevel = Math.max(...levelCounts.keys());
+  const maxLevel = levelCounts.size > 0 ? Math.max(...levelCounts.keys()) : 0;
 
   return {
     levels: levelsWithCounts,

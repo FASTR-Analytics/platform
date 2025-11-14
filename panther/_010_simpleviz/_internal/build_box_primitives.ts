@@ -5,25 +5,26 @@
 
 import {
   Coordinates,
-  getColor,
-  Padding,
-  RectCoordsDims,
   type CustomFigureStyle,
+  getColor,
   type MeasuredText,
+  Padding,
   type Primitive,
+  RectCoordsDims,
   type RenderContext,
+  Z_INDEX,
 } from "../deps.ts";
 import type { SimpleVizData } from "../types.ts";
 import {
   anchorToTopLeft,
-  calculateBoxDimensions,
   type BoxDimensions,
+  calculateBoxDimensions,
 } from "./box_dimensions.ts";
-import { calculateXCoordinatesFromLayers } from "./layout_new.ts";
-import { mergeBoxStyle } from "./style.ts";
-import { transformArrows } from "./transform_arrows.ts";
+import { calculateXCoordinatesFromLayers } from "./box_layout.ts";
+import { getTextInfoWithBoxOverride, mergeBoxStyle } from "./style.ts";
+import { buildArrowPrimitives } from "./build_arrow_primitives.ts";
 
-export function transformDataToPrimitives(
+export function buildBoxPrimitives(
   rc: RenderContext,
   contentArea: RectCoordsDims,
   data: SimpleVizData,
@@ -49,15 +50,16 @@ export function transformDataToPrimitives(
     ...box,
     width: box.width !== undefined ? box.width * styleScale : undefined,
     height: box.height !== undefined ? box.height * styleScale : undefined,
-    leftOffset:
-      box.leftOffset !== undefined ? box.leftOffset * styleScale : undefined,
-    strokeWidth:
-      box.strokeWidth !== undefined ? box.strokeWidth * styleScale : undefined,
+    leftOffset: box.leftOffset !== undefined
+      ? box.leftOffset * styleScale
+      : undefined,
+    strokeWidth: box.strokeWidth !== undefined
+      ? box.strokeWidth * styleScale
+      : undefined,
     textGap: box.textGap !== undefined ? box.textGap * styleScale : undefined,
-    padding:
-      box.padding !== undefined
-        ? new Padding(box.padding).toScaled(styleScale)
-        : undefined,
+    padding: box.padding !== undefined
+      ? new Padding(box.padding).toScaled(styleScale)
+      : undefined,
   }));
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -84,14 +86,22 @@ export function transformDataToPrimitives(
       let maxTextWidth = 0;
 
       if (box.text) {
-        const textInfo = mergedSimpleVizStyle.text.primary;
+        const textInfo = getTextInfoWithBoxOverride(
+          box.primaryTextStyle,
+          mergedSimpleVizStyle.text.primary,
+          mergedSimpleVizStyle.text.base,
+        );
         const text = Array.isArray(box.text) ? box.text.join("\n") : box.text;
         const mText = rc.mText(text, textInfo, Infinity);
         maxTextWidth = Math.max(maxTextWidth, mText.dims.w());
       }
 
       if (box.secondaryText) {
-        const textInfo = mergedSimpleVizStyle.text.secondary;
+        const textInfo = getTextInfoWithBoxOverride(
+          box.secondaryTextStyle,
+          mergedSimpleVizStyle.text.secondary,
+          mergedSimpleVizStyle.text.base,
+        );
         const text = Array.isArray(box.secondaryText)
           ? box.secondaryText.join("\n")
           : box.secondaryText;
@@ -168,31 +178,42 @@ export function transformDataToPrimitives(
       let secondaryHeight = 0;
 
       if (box.text) {
+        const textInfo = getTextInfoWithBoxOverride(
+          box.primaryTextStyle,
+          mergedSimpleVizStyle.text.primary,
+          mergedSimpleVizStyle.text.base,
+        );
         const textStr = Array.isArray(box.text)
           ? box.text.join("\n")
           : box.text;
         mTextPrimary = rc.mText(
           textStr,
-          mergedSimpleVizStyle.text.primary,
+          textInfo,
           textMaxWidth,
         );
         primaryHeight = mTextPrimary.dims.h();
       }
 
       if (box.secondaryText) {
+        const textInfo = getTextInfoWithBoxOverride(
+          box.secondaryTextStyle,
+          mergedSimpleVizStyle.text.secondary,
+          mergedSimpleVizStyle.text.base,
+        );
         const textStr = Array.isArray(box.secondaryText)
           ? box.secondaryText.join("\n")
           : box.secondaryText;
         mTextSecondary = rc.mText(
           textStr,
-          mergedSimpleVizStyle.text.secondary,
+          textInfo,
           textMaxWidth,
         );
         secondaryHeight = mTextSecondary.dims.h();
       }
 
-      const gapHeight =
-        box.text && box.secondaryText ? mergedBoxStyle.textGap : 0;
+      const gapHeight = box.text && box.secondaryText
+        ? mergedBoxStyle.textGap
+        : 0;
       const totalTextHeight = primaryHeight + gapHeight + secondaryHeight;
 
       height = totalTextHeight + mergedBoxStyle.padding.totalPy();
@@ -297,8 +318,9 @@ export function transformDataToPrimitives(
     if (mTextPrimary || mTextSecondary) {
       const primaryHeight = mTextPrimary ? mTextPrimary.dims.h() : 0;
       const secondaryHeight = mTextSecondary ? mTextSecondary.dims.h() : 0;
-      const gapHeight =
-        mTextPrimary && mTextSecondary ? mergedBoxStyle.textGap : 0;
+      const gapHeight = mTextPrimary && mTextSecondary
+        ? mergedBoxStyle.textGap
+        : 0;
       const totalTextHeight = primaryHeight + gapHeight + secondaryHeight;
 
       // Calculate horizontal position
@@ -315,8 +337,8 @@ export function transformDataToPrimitives(
           const primaryW = mTextPrimary ? mTextPrimary.dims.w() : 0;
           const secondaryW = mTextSecondary ? mTextSecondary.dims.w() : 0;
           const maxW = Math.max(primaryW, secondaryW);
-          unitCenterX =
-            topLeft.x + box.fittedWidth - box.fittedWidth * 0.05 - maxW / 2;
+          unitCenterX = topLeft.x + box.fittedWidth - box.fittedWidth * 0.05 -
+            maxW / 2;
           break;
         }
         case "center":
@@ -333,8 +355,8 @@ export function transformDataToPrimitives(
           break;
         }
         case "bottom": {
-          unitCenterY =
-            topLeft.y + height - height * 0.05 - totalTextHeight / 2;
+          unitCenterY = topLeft.y + height - height * 0.05 -
+            totalTextHeight / 2;
           break;
         }
         case "center":
@@ -352,8 +374,8 @@ export function transformDataToPrimitives(
       }
 
       if (mTextSecondary) {
-        const secondaryY =
-          unitCenterY + totalTextHeight / 2 - secondaryHeight / 2;
+        const secondaryY = unitCenterY + totalTextHeight / 2 -
+          secondaryHeight / 2;
         secondaryText = {
           mText: mTextSecondary,
           position: new Coordinates([unitCenterX, secondaryY]),
@@ -364,7 +386,7 @@ export function transformDataToPrimitives(
     const boxPrimitive: Primitive = {
       type: "simpleviz-box",
       key: `box-${box.id}`,
-      layer: "content-bar",
+      zIndex: box.zIndex ?? Z_INDEX.SIMPLEVIZ_BOX,
       rcd,
       rectStyle,
       text,
@@ -385,11 +407,13 @@ export function transformDataToPrimitives(
   ////////////////////////////////////////////////////////////////////////////////
 
   const boxPrimitives = primitives.filter(
-    (p): p is Extract<Primitive, { type: "simpleviz-box" }> => p.type === "simpleviz-box"
+    (p): p is Extract<Primitive, { type: "simpleviz-box" }> =>
+      p.type === "simpleviz-box",
   );
 
-  const arrowPrimitives = transformArrows(
+  const arrowPrimitives = buildArrowPrimitives(
     data.arrows,
+    data.boxes,
     boxPrimitives,
     mergedSimpleVizStyle,
   );

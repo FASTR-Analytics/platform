@@ -1,9 +1,13 @@
 # SimpleViz
 
-SimpleViz is a module for rendering simple flow diagrams, architecture diagrams,
-and box-and-arrow visualizations. It provides a straightforward way to create
-diagrams from explicit coordinate-based data with **automatic box sizing** and
-**intelligent scaling**.
+SimpleViz is a **Figure** (but not a Chart) for rendering flow diagrams,
+architecture diagrams, and box-and-arrow visualizations.
+
+Unlike Charts (Timeseries, ChartOV), SimpleViz does NOT use the pane/tier/lane
+grid system. It provides a straightforward way to create diagrams from explicit
+coordinate-based data with **automatic box sizing** and **intelligent scaling**.
+
+See `FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
 
 ## Core Concept
 
@@ -80,19 +84,27 @@ type RawBox = {
 
 Use `layer` and `order` properties for simple grid-based layout:
 
-- `layer`: Vertical layer (0, 1, 2...) - determines y coordinate as `layer * layerGap`
-- `order`: Horizontal position within layer (0, 1, 2...) - boxes positioned left-to-right
-- `leftOffset`: Optional extra left margin for manual grouping (added before alignment)
+- `layer`: Vertical layer (0, 1, 2...) - determines y coordinate as
+  `layer * layerGap`
+- `order`: Horizontal position within layer (0, 1, 2...) - boxes positioned
+  left-to-right
+- `leftOffset`: Optional extra left margin for manual grouping (added before
+  alignment)
 
 Spacing and alignment controlled by style properties:
+
 - `style.simpleviz.layerGap`: Vertical spacing between layers (default: 150)
 - `style.simpleviz.orderGap`: Horizontal spacing between boxes (default: 100)
-- `style.simpleviz.layerAlign`: Layer alignment - `"left" | "center" | "right"` or array (default: "left")
+- `style.simpleviz.layerAlign`: Layer alignment - `"left" | "center" | "right"`
+  or array (default: "left")
 
-**Grid behavior**: Boxes are positioned left-to-right within each layer, with optional `leftOffset` for grouping. The `layerAlign` property controls how each layer is aligned relative to the widest layer:
+**Grid behavior**: Boxes are positioned left-to-right within each layer, with
+optional `leftOffset` for grouping. The `layerAlign` property controls how each
+layer is aligned relative to the widest layer:
 
 - String value: applies same alignment to all layers (e.g., `"center"`)
-- Array value: per-layer alignment (e.g., `["center", "left", "center"]` for layers 0, 1, 2)
+- Array value: per-layer alignment (e.g., `["center", "left", "center"]` for
+  layers 0, 1, 2)
 
 ### Method 2: Explicit Coordinates (Fallback)
 
@@ -119,7 +131,9 @@ Use `x` and `y` properties for precise positioning:
 
 **Important**: Specifying `height` without `width` is not supported.
 
-**Anchor Points** (for explicit coordinates only): The `x, y` coordinates specify where the anchor point is located. The box is then positioned relative to that anchor:
+**Anchor Points** (for explicit coordinates only): The `x, y` coordinates
+specify where the anchor point is located. The box is then positioned relative
+to that anchor:
 
 - `"center"` (default): `x, y` is the center of the box
 - `"top-left"`: `x, y` is the top-left corner
@@ -223,8 +237,8 @@ const data: SimpleVizInputs = {
   },
   style: {
     simpleviz: {
-      layerGap: 200,  // Custom vertical spacing
-      orderGap: 120,  // Custom horizontal spacing
+      layerGap: 200, // Custom vertical spacing
+      orderGap: 120, // Custom horizontal spacing
     },
   },
 };
@@ -314,7 +328,8 @@ const data: SimpleVizInputs = {
         x: 300,
         y: 100,
         width: 200, // Fixed width
-        text: "This text will wrap to fit the 200px width and height will auto-size",
+        text:
+          "This text will wrap to fit the 200px width and height will auto-size",
         padding: 20,
       },
       // Mode 3: Fixed dimensions

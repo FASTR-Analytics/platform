@@ -83,7 +83,7 @@ export function createProjectTools(projectId: string): AITool[] {
       handler: async () => {
         return "User has seen these visualizations";
       },
-      displayComponent: (props: { input: { ids: string[] } }) => {
+      displayComponent: ((props: { input: { ids: string[] } }) => {
         const ids = props.input.ids;
         return (
           <div class="ui-gap grid w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]">
@@ -97,7 +97,7 @@ export function createProjectTools(projectId: string): AITool[] {
             </For>
           </div>
         );
-      },
+      }) as AITool["displayComponent"],
       inProgressLabel: TOOL_DEFINITIONS.SHOW_VISUALIZATION_TO_USER.actionLabel,
     },
     {

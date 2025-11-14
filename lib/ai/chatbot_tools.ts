@@ -1,5 +1,3 @@
-import type Anthropic from "@anthropic-ai/sdk";
-
 export const TOOL_DEFINITIONS = {
   GET_MODULE_INFORMATION: {
     name: "get_module_information",
@@ -36,7 +34,15 @@ export function getToolActionLabel(toolName: string): string | undefined {
   return tool?.actionLabel;
 }
 
-export const hmisTools: Anthropic.Messages.Tool[] = [
+export const hmisTools: Array<{
+  name: string;
+  description: string;
+  input_schema: {
+    type: "object";
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+}> = [
   {
     name: TOOL_DEFINITIONS.GET_MODULE_INFORMATION.name,
     description: "Get a list of analysis modules and their status",

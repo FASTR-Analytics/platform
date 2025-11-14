@@ -194,7 +194,7 @@ export function calculateYScaleLimits(
           ) {
             const valuesToSum = values[i_pane][i_tier][i_lane]
               .map((s) => s[i_lastDim])
-              .filter((v) => v !== undefined);
+              .filter((v): v is number => v !== undefined);
 
             if (valuesToSum.length === 0) continue;
 

@@ -24,7 +24,7 @@ export {
   getHeaderIndex,
   measureChart,
   renderChart,
-  renderChartPrimitives,
+  renderPrimitives,
   validateDataInput,
   withAnyLabelReplacement,
 } from "../_007_figure_core/mod.ts";

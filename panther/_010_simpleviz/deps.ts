@@ -6,20 +6,30 @@
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { getFont } from "../_001_font/mod.ts";
-export type { FontKeyOrFontInfo, TextInfoUnkeyed } from "../_001_font/mod.ts";
-export { Coordinates, Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type {
+  CustomStyleTextOptions,
+  FontVariants,
+  TextInfo,
+  TextInfoUnkeyed,
+} from "../_001_font/mod.ts";
+export {
+  Coordinates,
+  getAnchorCoords,
+  Padding,
+  RectCoordsDims,
+} from "../_001_geometry/mod.ts";
+export type {
+  AnchorPoint,
   CoordinatesOptions,
   PaddingOptions,
 } from "../_001_geometry/mod.ts";
+export { Z_INDEX } from "../_001_render_system/mod.ts";
 export type {
-  ArrowPrimitive,
   BoxPrimitive,
   LineStyle,
   Measured,
   MeasuredText,
   Primitive,
-  RectStyle,
   RenderContext,
   Renderer,
 } from "../_001_render_system/mod.ts";
@@ -28,7 +38,7 @@ export type { MergedSimpleVizStyle } from "../_003_figure_style/mod.ts";
 export {
   addSurrounds,
   measureSurrounds,
-  renderChartPrimitives,
+  renderPrimitives,
 } from "../_007_figure_core/mod.ts";
 export type {
   FigureInputsBase,

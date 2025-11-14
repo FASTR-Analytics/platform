@@ -82,7 +82,10 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
           <div class="ui-gap-sm flex">
             <Switch>
               <Match
-                when={(p.onErrorButton as { label: string; onClick: () => void })
+                when={(p.onErrorButton as {
+                    label: string;
+                    onClick: () => void;
+                  })
                     ?.onClick
                   ? (p.onErrorButton as { label: string; onClick: () => void })
                   : false}
@@ -116,9 +119,15 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
             </Switch>
             <Switch>
               <Match
-                when={(p.onErrorSecondaryButton as { label: string; onClick: () => void })
+                when={(p.onErrorSecondaryButton as {
+                    label: string;
+                    onClick: () => void;
+                  })
                     ?.onClick
-                  ? (p.onErrorSecondaryButton as { label: string; onClick: () => void })
+                  ? (p.onErrorSecondaryButton as {
+                    label: string;
+                    onClick: () => void;
+                  })
                   : false}
                 keyed
               >
@@ -131,8 +140,14 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
                 }}
               </Match>
               <Match
-                when={(p.onErrorSecondaryButton as { label: string; link: string })?.link
-                  ? (p.onErrorSecondaryButton as { label: string; link: string })
+                when={(p.onErrorSecondaryButton as {
+                    label: string;
+                    link: string;
+                  })?.link
+                  ? (p.onErrorSecondaryButton as {
+                    label: string;
+                    link: string;
+                  })
                   : false}
                 keyed
               >

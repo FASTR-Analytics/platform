@@ -4,20 +4,23 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type BoxPrimitive,
   Coordinates,
+  getAnchorCoords,
   getColor,
   type LineStyle,
+  type MergedSimpleVizStyle,
   type Primitive,
   type RectCoordsDims,
+  Z_INDEX,
 } from "../deps.ts";
-import type { RawArrow } from "../types.ts";
+import type { RawArrow, RawBox } from "../types.ts";
 
-type BoxPrimitive = Extract<Primitive, { type: "simpleviz-box" }>;
-
-export function transformArrows(
+export function buildArrowPrimitives(
   arrows: RawArrow[],
+  boxes: RawBox[],
   boxPrimitives: BoxPrimitive[],
-  mergedSimpleVizStyle: any,
+  mergedSimpleVizStyle: MergedSimpleVizStyle,
 ): Primitive[] {
   const primitives: Primitive[] = [];
 
@@ -28,25 +31,33 @@ export function transformArrows(
     }
 
     // Handle box-ids arrows
-    const fromBoxPrim = boxPrimitives.find(b => b.boxId === arrow.fromBoxID);
-    const toBoxPrim = boxPrimitives.find(b => b.boxId === arrow.toBoxID);
+    const fromBoxPrim = boxPrimitives.find((b) => b.boxId === arrow.fromBoxID);
+    const toBoxPrim = boxPrimitives.find((b) => b.boxId === arrow.toBoxID);
+    const fromBox = boxes.find((b) => b.id === arrow.fromBoxID);
+    const toBox = boxes.find((b) => b.id === arrow.toBoxID);
 
-    if (!fromBoxPrim || !toBoxPrim) {
-      console.warn(`Arrow ${arrow.id}: could not find boxes ${arrow.fromBoxID} or ${arrow.toBoxID}`);
+    if (!fromBoxPrim || !toBoxPrim || !fromBox || !toBox) {
+      console.warn(
+        `Arrow ${arrow.id}: could not find boxes ${arrow.fromBoxID} or ${arrow.toBoxID}`,
+      );
       continue;
     }
 
-    // Get box centers and dimensions from primitives
-    const fromCenter = fromBoxPrim.rcd.centerCoords();
-    const toCenter = toBoxPrim.rcd.centerCoords();
+    // Get anchor points for arrow connection
+    const fromAnchor = fromBox.arrowStartPoint ??
+      mergedSimpleVizStyle.boxes.arrowStartPoint;
+    const toAnchor = toBox.arrowEndPoint ??
+      mergedSimpleVizStyle.boxes.arrowEndPoint;
+    const fromCenter = getAnchorCoords(fromBoxPrim.rcd, fromAnchor);
+    const toCenter = getAnchorCoords(toBoxPrim.rcd, toAnchor);
 
     // Calculate edge intersection points with truncation
     const arrowDefaults = mergedSimpleVizStyle.arrows;
     const strokeWidth = arrow.style?.strokeWidth ?? arrowDefaults.strokeWidth;
     const arrowHalfStroke = strokeWidth / 2;
 
-    const fromBoxStrokeWidth = fromBoxPrim.rectStyle.strokeWidth;
-    const toBoxStrokeWidth = toBoxPrim.rectStyle.strokeWidth;
+    const fromBoxStrokeWidth = fromBoxPrim.rectStyle.strokeWidth ?? 0;
+    const toBoxStrokeWidth = toBoxPrim.rectStyle.strokeWidth ?? 0;
     const fromBoxHalfStroke = fromBoxStrokeWidth / 2;
     const toBoxHalfStroke = toBoxStrokeWidth / 2;
 
@@ -72,7 +83,9 @@ export function transformArrows(
 
     // Line style
     const lineStyle: LineStyle = {
-      strokeColor: getColor(arrow.style?.strokeColor ?? arrowDefaults.strokeColor),
+      strokeColor: getColor(
+        arrow.style?.strokeColor ?? arrowDefaults.strokeColor,
+      ),
       strokeWidth,
       lineDash: arrow.style?.lineDash ?? arrowDefaults.lineDash,
     };
@@ -83,12 +96,15 @@ export function transformArrows(
       : strokeWidth * 5;
 
     // Calculate arrowhead angle
-    const angle = Math.atan2(toPoint.y() - fromPoint.y(), toPoint.x() - fromPoint.x());
+    const angle = Math.atan2(
+      toPoint.y() - fromPoint.y(),
+      toPoint.x() - fromPoint.x(),
+    );
 
     primitives.push({
       type: "simpleviz-arrow",
       key: `arrow-${arrow.id}`,
-      layer: "content-line",
+      zIndex: arrow.zIndex ?? Z_INDEX.SIMPLEVIZ_ARROW,
       pathCoords,
       lineStyle,
       arrowheadSize,

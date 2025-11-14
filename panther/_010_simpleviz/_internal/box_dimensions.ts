@@ -5,11 +5,12 @@
 
 import { Padding } from "../deps.ts";
 import type {
+  AnchorPoint,
   MergedSimpleVizStyle,
   RenderContext,
   TextInfoUnkeyed,
 } from "../deps.ts";
-import type { AnchorPoint, RawBox } from "../types.ts";
+import type { RawBox } from "../types.ts";
 import type { MergedBoxStyle } from "./style.ts";
 
 export type BoxDimensions = {
@@ -31,7 +32,7 @@ export function calculateBoxDimensions(
   if (box.width !== undefined && box.height !== undefined) {
     return {
       width: box.width + padding.pl() + padding.pr(),
-      height: box.height + padding.pt() + padding.pb()
+      height: box.height + padding.pt() + padding.pb(),
     };
   }
 

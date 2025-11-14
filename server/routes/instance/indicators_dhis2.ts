@@ -4,7 +4,7 @@ import {
   searchDataElementsFromDHIS2,
   searchAllIndicatorsAndDataElements,
   testIndicatorsConnection,
-} from "../../dhis2/goal2_indicators/get_indicators_from_dhis2.ts";
+} from "../../dhis2/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { getGlobalAdmin } from "../../project_auth.ts";
 
@@ -32,7 +32,7 @@ defineRoute(
       const indicators = await searchIndicatorsFromDHIS2(
         options,
         body.query,
-        body.searchBy || "all"
+        body.searchBy || "name"
       );
 
       return c.json({
@@ -71,6 +71,7 @@ defineRoute(
       const dataElements = await searchDataElementsFromDHIS2(
         options,
         body.query,
+        "name",
         {
           filter: body.additionalFilters,
         }
@@ -112,8 +113,9 @@ defineRoute(
       const results = await searchAllIndicatorsAndDataElements(
         options,
         body.query,
-        body.includeDataElements !== false,
-        body.includeIndicators !== false
+        body.searchBy || "name",
+        body.includeDataElements ?? true,
+        body.includeIndicators ?? true
       );
 
       return c.json({

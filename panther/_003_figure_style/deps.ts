@@ -23,7 +23,7 @@ export type {
   TextInfoUnkeyed,
 } from "../_001_font/mod.ts";
 export { Padding } from "../_001_geometry/mod.ts";
-export type { PaddingOptions } from "../_001_geometry/mod.ts";
+export type { AnchorPoint, PaddingOptions } from "../_001_geometry/mod.ts";
 export type {
   AreaStyle,
   LineStyle,

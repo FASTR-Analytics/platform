@@ -12,7 +12,6 @@ import { createMemo } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { createProjectTools } from "./tools.tsx";
 import { WelcomeMessage } from "./WelcomeMessage";
-import { MarkdownTextRenderer } from "./MarkdownTextRenderer";
 import type { MessagePayload, AnthropicResponse } from "panther";
 
 type Props = {
@@ -58,6 +57,7 @@ export function ProjectChatbotV2(p: Props) {
         tools: tools(),
         conversationId: projectId,
         enableStreaming: false,
+        renderMarkdown: true,
       }}
     >
       <FrameTop
@@ -68,9 +68,6 @@ export function ProjectChatbotV2(p: Props) {
         }
       >
         <AIChat
-          customRenderers={{
-            text: MarkdownTextRenderer,
-          }}
           fallbackContent={WelcomeMessage}
         />
       </FrameTop>

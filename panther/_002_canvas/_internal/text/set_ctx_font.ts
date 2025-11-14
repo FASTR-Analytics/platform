@@ -20,6 +20,7 @@ export function setCtxFont(
     ctx.fillStyle = ti.color;
   }
   try {
+    // @ts-ignore - letterSpacing not in all CanvasRenderingContext2D type versions
     ctx.letterSpacing = ti.letterSpacing;
   } catch {
     if (ti.letterSpacing !== "0px") {

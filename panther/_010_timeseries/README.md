@@ -1,10 +1,13 @@
 # _010_timeseries
 
-Time-based charts with period handling (monthly, quarterly, yearly, etc.).
+Time-based **Chart** with period handling (monthly, quarterly, yearly, etc.).
+
+Timeseries is a **Chart** (Figure with panes/tiers/lanes support), not just a
+simple Figure. See `FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
 
 ## Purpose
 
-Specialized chart renderer for time-series data with:
+Specialized Chart renderer for time-series data with:
 
 - Period-based X-axis (monthly, quarterly, yearly, custom)
 - Automatic period label formatting

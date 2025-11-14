@@ -80,6 +80,7 @@ export const AIChat: Component<Props> = (props) => {
           customRenderers={props.customRenderers}
           fallbackContent={props.fallbackContent}
           toolRegistry={toolRegistry}
+          renderMarkdown={config?.renderMarkdown}
           userMessageClass={config?.userMessageClass}
           assistantMessageClass={config?.assistantMessageClass}
         />

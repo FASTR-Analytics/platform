@@ -48,20 +48,16 @@ export class ToolRegistry {
   }
 }
 
-export async function processToolUses(
+export function getInProgressItems(
   content: ContentBlock[],
   toolRegistry: ToolRegistry,
-): Promise<{
-  results: ToolResult[];
-  inProgressItems: DisplayItem[];
-  errorItems: DisplayItem[];
-}> {
+): DisplayItem[] {
   const toolUseBlocks = content.filter(
     (block): block is ContentBlock & { type: "tool_use" } =>
       block.type === "tool_use",
   );
 
-  const inProgressItems: DisplayItem[] = toolUseBlocks.map((block) => {
+  return toolUseBlocks.map((block) => {
     const tool = toolRegistry.get(block.name);
     let label: string | undefined;
 
@@ -78,6 +74,22 @@ export async function processToolUses(
       label,
     };
   });
+}
+
+export async function processToolUses(
+  content: ContentBlock[],
+  toolRegistry: ToolRegistry,
+): Promise<{
+  results: ToolResult[];
+  inProgressItems: DisplayItem[];
+  errorItems: DisplayItem[];
+}> {
+  const toolUseBlocks = content.filter(
+    (block): block is ContentBlock & { type: "tool_use" } =>
+      block.type === "tool_use",
+  );
+
+  const inProgressItems = getInProgressItems(content, toolRegistry);
 
   const toolPromises = toolUseBlocks.map(async (block) => {
     const tool = toolRegistry.get(block.name);
@@ -133,6 +145,6 @@ export async function processToolUses(
   };
 }
 
-export function getInProgressLabel(toolName: string, input: unknown): string {
+export function getInProgressLabel(toolName: string, _input: unknown): string {
   return `Processing ${toolName}...`;
 }

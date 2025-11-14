@@ -11,7 +11,11 @@ import {
   getOrCreateConversationStore,
 } from "../_core/conversation_store.ts";
 import { getDisplayItemsFromMessage } from "../_core/display_items.ts";
-import { processToolUses, ToolRegistry } from "../_core/tool_engine.ts";
+import {
+  getInProgressItems,
+  processToolUses,
+  ToolRegistry,
+} from "../_core/tool_engine.ts";
 import type {
   AIChatConfig,
   AnthropicResponse,
@@ -236,17 +240,22 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
     response: AnthropicResponse,
     payload: Record<string, unknown>,
   ): Promise<void> {
-    const { results, inProgressItems, errorItems } = await processToolUses(
+    const inProgressItems = getInProgressItems(
       response.content,
       toolRegistry,
     );
 
     addDisplayItems(inProgressItems);
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    const { results, errorItems } = await processToolUses(
+      response.content,
+      toolRegistry,
+    );
 
     setDisplayItems(
-      displayItems().filter((item) => item.type !== "tool_in_progress"),
+      displayItems().filter((item: DisplayItem) =>
+        item.type !== "tool_in_progress"
+      ),
     );
 
     if (errorItems.length > 0) {

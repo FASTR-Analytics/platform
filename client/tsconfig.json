@@ -18,6 +18,7 @@
     "paths": {
       "~/*": ["./src/*"],
       "panther": ["../panther/mod.ui.ts"],
+      "@timroberton/panther": ["../panther/mod.ui.ts"],
       "lib": ["../lib/mod.ts"],
       "solid-js": ["./node_modules/solid-js"],
       "solid-js/*": ["./node_modules/solid-js/*"],

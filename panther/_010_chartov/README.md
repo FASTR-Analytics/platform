@@ -1,11 +1,14 @@
 # _010_chartov
 
-Chart overlay visualizations - bars, lines, areas, and points for data
-visualization.
+**Chart** overlay visualizations - bars, lines, areas, and points for category-
+based data.
+
+ChartOV is a **Chart** (Figure with panes/tiers/lanes support), not just a
+simple Figure. See `FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
 
 ## Purpose
 
-Provides renderers for common chart types that overlay on axes:
+Provides renderers for common Chart types that overlay on axes:
 
 - Bar charts (vertical and horizontal)
 - Line charts

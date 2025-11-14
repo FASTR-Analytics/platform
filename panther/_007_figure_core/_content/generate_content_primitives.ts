@@ -14,6 +14,7 @@ import {
   RectCoordsDims,
   type RenderContext,
   type TextInfoUnkeyed,
+  Z_INDEX,
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 
@@ -189,7 +190,7 @@ export function generateContentPrimitives(
           type: "chart-data-point",
           key:
             `point-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}-${i_val}`,
-          layer: "content-point",
+          zIndex: Z_INDEX.CONTENT_POINT,
           seriesIndex: i_series,
           valueIndex: i_val,
           value: mappedVal.val,
@@ -317,7 +318,7 @@ export function generateContentPrimitives(
           type: "chart-bar",
           key:
             `bar-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}-${i_val}`,
-          layer: "content-bar",
+          zIndex: Z_INDEX.CONTENT_BAR,
           seriesIndex: i_series,
           valueIndex: i_val,
           value: mappedVal.val,
@@ -433,7 +434,7 @@ export function generateContentPrimitives(
       type: "chart-line-series",
       key:
         `line-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}`,
-      layer: "content-line",
+      zIndex: Z_INDEX.CONTENT_LINE,
       seriesIndex: i_series,
       valueIndices: lineData.valueIndices,
       values: lineData.values,
@@ -546,7 +547,7 @@ export function generateContentPrimitives(
           type: "chart-area-series",
           key:
             `area-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}-${i_area}`,
-          layer: "content-area",
+          zIndex: Z_INDEX.CONTENT_AREA,
           seriesIndex: i_series,
           valueIndices: areaData.valueIndices,
           values: areaData.values,
@@ -696,7 +697,7 @@ export function generateContentPrimitives(
           `area-diff-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${
             areas[i_area].order
           }-${i_area}`,
-        layer: "content-area",
+        zIndex: Z_INDEX.CONTENT_AREA,
         seriesIndex: areas[i_area].order === "over" ? 0 : 1,
         valueIndices: [], // Not applicable for diff areas
         values: [], // Not applicable for diff areas

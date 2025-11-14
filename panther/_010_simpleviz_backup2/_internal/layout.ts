@@ -14,7 +14,9 @@ export function calculateCoordinatesFromLayers(
   layerAlign: "left" | "center" | "right" | Array<"left" | "center" | "right">,
 ): { boxes: RawBox[]; maxLayerWidth: number; maxLayerHeight: number } {
   // Separate boxes by layout method
-  const coordBoxes = boxes.filter((b) => b.layer === undefined && b.x !== undefined && b.y !== undefined);
+  const coordBoxes = boxes.filter((b) =>
+    b.layer === undefined && b.x !== undefined && b.y !== undefined
+  );
   const layerBoxes = boxes.filter((b) => b.layer !== undefined);
 
   if (layerBoxes.length === 0) {
@@ -67,7 +69,6 @@ export function calculateCoordinatesFromLayers(
       // Store center point of box (before alignment adjustment)
       boxPositions.set(box.id, { x: centerX, y });
 
-
       currentX += dims.width + orderGap;
     }
 
@@ -93,7 +94,6 @@ export function calculateCoordinatesFromLayers(
     }
   }
   const maxLayerHeight = maxY > -Infinity && minY < Infinity ? maxY - minY : 0;
-
 
   // Second pass: apply alignment adjustments
   for (const layer of sortedLayers) {
@@ -125,7 +125,7 @@ export function calculateCoordinatesFromLayers(
       if (pos) {
         boxPositions.set(box.id, {
           x: pos.x + alignmentOffset,
-          y: pos.y
+          y: pos.y,
         });
       }
     }
@@ -146,6 +146,6 @@ export function calculateCoordinatesFromLayers(
   return {
     boxes: [...coordBoxes, ...processedBoxes],
     maxLayerWidth,
-    maxLayerHeight
+    maxLayerHeight,
   };
 }

@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AnchorPoint,
   AreaStyle,
   ColorAdjustmentStrategy,
   ColorKeyOrString,
@@ -11,6 +12,7 @@ import type {
   Padding,
   PointStyle,
   RectStyle,
+  TextInfo,
   TextInfoUnkeyed,
 } from "./deps.ts";
 import type {
@@ -379,6 +381,7 @@ export type MergedSimpleVizStyle = {
   text: {
     primary: TextInfoUnkeyed;
     secondary: TextInfoUnkeyed;
+    base: TextInfo; // Unscaled base for per-box text style overrides
   };
   boxes: {
     fillColor: string;
@@ -388,6 +391,8 @@ export type MergedSimpleVizStyle = {
     textVerticalAlign: "top" | "center" | "bottom";
     textGap: number;
     padding: Padding;
+    arrowStartPoint: AnchorPoint;
+    arrowEndPoint: AnchorPoint;
   };
   arrows: {
     strokeColor: string;

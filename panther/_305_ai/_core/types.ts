@@ -27,6 +27,7 @@ import type {
   AnthropicResponse,
   CacheControl,
   Component,
+  ContentBlock,
   JSX,
   MessageParam,
   MessagePayload,
@@ -127,6 +128,7 @@ export type AIChatConfig = {
     | string
     | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
   enableStreaming?: boolean;
+  renderMarkdown?: boolean;
   userMessageClass?: string;
   assistantMessageClass?: string;
 };

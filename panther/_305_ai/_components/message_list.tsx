@@ -20,6 +20,7 @@ type Props = {
   customRenderers?: DisplayRegistry;
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
+  renderMarkdown?: boolean;
   userMessageClass?: string;
   assistantMessageClass?: string;
 };
@@ -34,6 +35,7 @@ export const MessageList: Component<Props> = (props) => {
         return (
           <Renderer
             item={item}
+            renderMarkdown={props.renderMarkdown}
             userMessageClass={props.userMessageClass}
             assistantMessageClass={props.assistantMessageClass}
           />
@@ -76,6 +78,7 @@ export const MessageList: Component<Props> = (props) => {
             <StreamingTextRenderer
               text={props.currentStreamingText!}
               isComplete={false}
+              renderMarkdown={props.renderMarkdown}
               assistantMessageClass={props.assistantMessageClass}
             />
           </Show>

@@ -74,69 +74,20 @@ export async function getDataElementsFromDHIS2(
   return response.dataElements || [];
 }
 
-export async function getDataElementsFromDHIS2Paginated(
-  options: FetchOptions,
-  queryParams?: {
-    fields?: string[];
-    filter?: string[];
-    pageSize?: number;
-  },
-  onProgress?: (current: number, total: number) => void
-): Promise<DHIS2DataElement[]> {
-  const pageSize = queryParams?.pageSize || 1000;
-  const allDataElements: DHIS2DataElement[] = [];
-  let currentPage = 1;
-  let totalPages = 1;
-
-  do {
-    const params = new URLSearchParams();
-
-    // Add fields
-    const fields = queryParams?.fields || DEFAULT_DATA_ELEMENT_FIELDS;
-    params.set("fields", fields.join(","));
-
-    // Add filters
-    if (queryParams?.filter) {
-      queryParams.filter.forEach((f) => params.append("filter", f));
-    }
-
-    // Add paging params
-    params.set("paging", "true");
-    params.set("page", String(currentPage));
-    params.set("pageSize", String(pageSize));
-
-    const response = await getDHIS2<
-      DHIS2PagedResponse<DHIS2DataElement> & {
-        dataElements: DHIS2DataElement[];
-      }
-    >("/api/dataElements.json", options, params);
-
-    if (response.dataElements) {
-      allDataElements.push(...response.dataElements);
-    }
-
-    if (response.pager) {
-      totalPages = response.pager.pageCount;
-      if (onProgress) {
-        onProgress(allDataElements.length, response.pager.total);
-      }
-    }
-
-    currentPage++;
-  } while (currentPage <= totalPages);
-
-  return allDataElements;
-}
-
 export async function searchDataElementsFromDHIS2(
   options: FetchOptions,
   query: string,
+  searchBy: "name" | "code",
   queryParams?: {
     fields?: string[];
     filter?: string[];
   }
 ): Promise<DHIS2DataElement[]> {
-  const filter = [...(queryParams?.filter || []), `name:ilike:${query}`];
+  const searchFilter = searchBy === "code"
+    ? `code:ilike:${query}`
+    : `name:ilike:${query}`;
+
+  const filter = [...(queryParams?.filter || []), searchFilter];
 
   return getDataElementsFromDHIS2(options, {
     ...queryParams,
@@ -220,80 +171,14 @@ export async function getIndicatorsFromDHIS2(
   return response.indicators || [];
 }
 
-export async function getIndicatorsFromDHIS2Paginated(
-  options: FetchOptions,
-  queryParams?: {
-    fields?: string[];
-    filter?: string[];
-    pageSize?: number;
-  },
-  onProgress?: (current: number, total: number) => void
-): Promise<DHIS2Indicator[]> {
-  const pageSize = queryParams?.pageSize || 1000;
-  const allIndicators: DHIS2Indicator[] = [];
-  let currentPage = 1;
-  let totalPages = 1;
-
-  do {
-    const params = new URLSearchParams();
-
-    // Add fields
-    const fields = queryParams?.fields || DEFAULT_INDICATOR_FIELDS;
-    params.set("fields", fields.join(","));
-
-    // Add filters
-    if (queryParams?.filter) {
-      queryParams.filter.forEach((f) => params.append("filter", f));
-    }
-
-    // Add paging params
-    params.set("paging", "true");
-    params.set("page", String(currentPage));
-    params.set("pageSize", String(pageSize));
-
-    const response = await getDHIS2<
-      DHIS2PagedResponse<DHIS2Indicator> & { indicators: DHIS2Indicator[] }
-    >("/api/indicators.json", options, params);
-
-    if (response.indicators) {
-      allIndicators.push(...response.indicators);
-    }
-
-    if (response.pager) {
-      totalPages = response.pager.pageCount;
-      if (onProgress) {
-        onProgress(allIndicators.length, response.pager.total);
-      }
-    }
-
-    currentPage++;
-  } while (currentPage <= totalPages);
-
-  return allIndicators;
-}
-
 export async function searchIndicatorsFromDHIS2(
   options: FetchOptions,
   query: string,
-  searchBy: "name" | "code" | "all" = "all"
+  searchBy: "name" | "code"
 ): Promise<DHIS2Indicator[]> {
-  let filter: string[];
-
-  switch (searchBy) {
-    case "name":
-      filter = [`name:ilike:${query}`];
-      break;
-    case "code":
-      filter = [`code:ilike:${query}`];
-      break;
-    case "all":
-    default:
-      // Search in both name and code
-      filter = [`name:ilike:${query}`];
-      // Note: DHIS2 doesn't support OR in filters directly,
-      // so we'd need to make two requests and merge
-      break;
-  }
+  const filter = searchBy === "code"
+    ? [`code:ilike:${query}`]
+    : [`name:ilike:${query}`];
 
   return getIndicatorsFromDHIS2(options, { filter });
 }
@@ -320,40 +205,15 @@ export async function getIndicatorGroupsFromDHIS2(
 }
 
 // ============================================================================
-// Category Combos Functions (useful for data elements)
-// ============================================================================
-
-export async function getCategoryCombosFromDHIS2(
-  options: FetchOptions,
-  includeDetails = false
-): Promise<DHIS2CategoryCombo[]> {
-  const fields = ["id", "name", "displayName", "code"];
-
-  if (includeDetails) {
-    fields.push("categories[id,name]");
-    fields.push("categoryOptionCombos[id,name]");
-  }
-
-  const params = new URLSearchParams();
-  params.set("fields", fields.join(","));
-  params.set("paging", "false");
-
-  const response = await getDHIS2<{
-    categoryCombos: DHIS2CategoryCombo[];
-  }>("/api/categoryCombos.json", options, params);
-
-  return response.categoryCombos || [];
-}
-
-// ============================================================================
 // Combined Search Function
 // ============================================================================
 
 export async function searchAllIndicatorsAndDataElements(
   options: FetchOptions,
   query: string,
-  includeDataElements = true,
-  includeIndicators = true
+  searchBy: "name" | "code",
+  includeDataElements: boolean,
+  includeIndicators: boolean
 ): Promise<{
   dataElements: DHIS2DataElement[];
   indicators: DHIS2Indicator[];
@@ -371,7 +231,7 @@ export async function searchAllIndicatorsAndDataElements(
 
   if (includeDataElements) {
     promises.push(
-      searchDataElementsFromDHIS2(options, query).then(
+      searchDataElementsFromDHIS2(options, query, searchBy).then(
         (de) => (results.dataElements = de)
       )
     );
@@ -379,7 +239,7 @@ export async function searchAllIndicatorsAndDataElements(
 
   if (includeIndicators) {
     promises.push(
-      searchIndicatorsFromDHIS2(options, query).then(
+      searchIndicatorsFromDHIS2(options, query, searchBy).then(
         (ind) => (results.indicators = ind)
       )
     );

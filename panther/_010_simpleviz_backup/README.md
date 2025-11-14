@@ -236,7 +236,8 @@ const data: SimpleVizInputs = {
         x: 300,
         y: 100,
         width: 200, // Fixed width
-        text: "This text will wrap to fit the 200px width and height will auto-size",
+        text:
+          "This text will wrap to fit the 200px width and height will auto-size",
         padding: 20,
       },
       // Mode 3: Fixed dimensions

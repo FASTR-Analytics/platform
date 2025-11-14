@@ -951,6 +951,7 @@ export class CustomFigureStyle {
           { ...g.text?.simplevizBoxTextSecondary, relFontSize: 0.8 },
           baseText,
         ),
+        base: baseText,
       },
       boxes: {
         fillColor: getColor(
@@ -996,6 +997,16 @@ export class CustomFigureStyle {
             d.simpleviz.boxes.padding,
           ),
         ).toScaled(sf),
+        arrowStartPoint: m(
+          c.simpleviz?.boxes?.arrowStartPoint,
+          g.simpleviz?.boxes?.arrowStartPoint,
+          d.simpleviz.boxes.arrowStartPoint,
+        ),
+        arrowEndPoint: m(
+          c.simpleviz?.boxes?.arrowEndPoint,
+          g.simpleviz?.boxes?.arrowEndPoint,
+          d.simpleviz.boxes.arrowEndPoint,
+        ),
       },
       arrows: {
         strokeColor: getColor(

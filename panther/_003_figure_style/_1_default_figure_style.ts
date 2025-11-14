@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type AnchorPoint,
   type ColorAdjustmentStrategy,
   type ColorKeyOrString,
   type PaddingOptions,
@@ -119,9 +120,9 @@ const _DS = {
     cellBackgroundColorFormatter: "none" as
       | "none"
       | TableCellFormatterFunc<
-          string | number | null | undefined,
-          ColorKeyOrString
-        >,
+        string | number | null | undefined,
+        ColorKeyOrString
+      >,
     cellValueFormatter: ((v) => toPct1(v)) as TableCellFormatterFunc<
       string | number | null | undefined,
       string
@@ -317,7 +318,11 @@ const _DS = {
   simpleviz: {
     layerGap: 150,
     orderGap: 100,
-    layerAlign: "left" as "left" | "center" | "right" | Array<"left" | "center" | "right">,
+    layerAlign: "left" as
+      | "left"
+      | "center"
+      | "right"
+      | Array<"left" | "center" | "right">,
     boxes: {
       fillColor: { key: "base200" } as ColorKeyOrString,
       strokeColor: { key: "baseContent" } as ColorKeyOrString,
@@ -326,6 +331,8 @@ const _DS = {
       textVerticalAlign: "center" as "top" | "center" | "bottom",
       textGap: 10,
       padding: 10 as PaddingOptions,
+      arrowStartPoint: "center" as AnchorPoint,
+      arrowEndPoint: "center" as AnchorPoint,
     },
     arrows: {
       strokeColor: { key: "baseContent" } as ColorKeyOrString,

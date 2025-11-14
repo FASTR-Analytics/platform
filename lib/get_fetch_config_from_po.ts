@@ -180,12 +180,12 @@ export function getPeriodFilterExactBounds(
 
 export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
   return [
-    getSortedAlphabeticalByFunc(fc.values, (v) => v.prop)
-      .map((v) => [v.func, v.prop].join("&"))
+    getSortedAlphabeticalByFunc(fc.values, (v: { prop: string; func: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity" }) => v.prop)
+      .map((v: { prop: string; func: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity" }) => [v.func, v.prop].join("&"))
       .join("$"),
     getSortedAlphabetical(fc.groupBys).join("$"),
-    getSortedAlphabeticalByFunc(fc.filters, (v) => v.col)
-      .map((f) =>
+    getSortedAlphabeticalByFunc(fc.filters, (v: { col: DisaggregationOption; vals: string[] }) => v.col)
+      .map((f: { col: DisaggregationOption; vals: string[] }) =>
         [f.col, getSortedAlphabetical(f.vals.map(String)).join(",")].join("&")
       )
       .join("$"),

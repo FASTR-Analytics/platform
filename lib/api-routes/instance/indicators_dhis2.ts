@@ -13,7 +13,7 @@ export const indicatorsDhis2RouteRegistry = {
     body: {} as {
       dhis2Credentials: Dhis2Credentials;
       query: string;
-      searchBy?: "name" | "code" | "all";
+      searchBy?: "name" | "code";
     },
     response: {} as DHIS2Indicator[],
   }),
@@ -37,6 +37,7 @@ export const indicatorsDhis2RouteRegistry = {
     body: {} as {
       dhis2Credentials: Dhis2Credentials;
       query: string;
+      searchBy?: "name" | "code";
       includeDataElements?: boolean;
       includeIndicators?: boolean;
     },

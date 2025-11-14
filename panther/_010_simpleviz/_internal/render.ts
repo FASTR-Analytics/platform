@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { addSurrounds, renderChartPrimitives } from "../deps.ts";
+import { addSurrounds, renderPrimitives } from "../deps.ts";
 import type { RenderContext } from "../deps.ts";
 import type { MeasuredSimpleViz } from "../types.ts";
 
@@ -12,5 +12,5 @@ export function renderSimpleViz(
   measured: MeasuredSimpleViz,
 ): void {
   addSurrounds(rc, measured.measuredSurrounds);
-  renderChartPrimitives(rc, measured.primitives);
+  renderPrimitives(rc, measured.primitives);
 }

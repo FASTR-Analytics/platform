@@ -51,7 +51,11 @@ export {
   getOrCreateConversationStore,
 } from "./_core/conversation_store.ts";
 export { getDisplayItemsFromMessage } from "./_core/display_items.ts";
-export { processToolUses, ToolRegistry } from "./_core/tool_engine.ts";
+export {
+  getInProgressItems,
+  processToolUses,
+  ToolRegistry,
+} from "./_core/tool_engine.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES

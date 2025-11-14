@@ -116,7 +116,6 @@ export function calculateXCoordinatesFromLayers(
         alignmentOffset = 0;
     }
 
-
     // Position boxes left-to-right
     let currentLeft = alignmentOffset;
 
@@ -136,7 +135,6 @@ export function calculateXCoordinatesFromLayers(
       // Move to next box position
       currentLeft += fittedWidth + scaledOrderGap;
     }
-
   }
 
   ////////////////////////////////////////////////////////////////////////////////

@@ -491,69 +491,71 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   };
 
   return (
-    <div ref={containerRef} class="flex h-full w-full">
+    <div ref={containerRef} class="flex flex-col h-full w-full">
+      <div class="flex h-0 flex-1 w-full">
+        <Show when={hasLeft()}>
+          <div
+            class={isLastVisible("left")
+              ? "relative h-full w-0 flex-1"
+              : "relative h-full flex-none"}
+            style={!isLastVisible("left") ? { width: `${leftWidth()}px` } : {}}
+          >
+            <div class="h-full overflow-auto">{p.leftChild}</div>
+            <Show when={hasCenter() || hasRight()}>
+              <div
+                class="absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize hover:bg-[lightblue] active:bg-[lightblue]"
+                onMouseDown={handleMouseDown("left")}
+              />
+            </Show>
+          </div>
+        </Show>
+
+        <Show when={hasCenter()}>
+          <div
+            class={isLastVisible("center")
+              ? "relative h-full w-0 flex-1"
+              : "relative h-full flex-none"}
+            style={!isLastVisible("center")
+              ? { width: `${centerWidth()}px` }
+              : {}}
+          >
+            <div class="h-full overflow-auto">{p.centerChild}</div>
+            <Show when={hasRight()}>
+              <div
+                class="absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize hover:bg-[lightblue] active:bg-[lightblue]"
+                onMouseDown={handleMouseDown("right")}
+              />
+            </Show>
+          </div>
+        </Show>
+
+        <Show when={hasRight()}>
+          <div class="relative h-full w-0 flex-1">
+            <div class="h-full overflow-auto">{p.rightChild}</div>
+          </div>
+        </Show>
+
+        <Show
+          when={!hasLeft() && !hasCenter() && !hasRight() &&
+            collapsedPanes().length === 0}
+        >
+          <div class="h-full w-full overflow-auto" />
+        </Show>
+      </div>
+
       <Show when={collapsedPanes().length > 0}>
-        <div class="flex flex-col h-full border-r border-primary">
+        <div class="flex w-full border-t border-primary">
           {collapsedPanes().map((pane) => (
             <div
-              class="flex items-center justify-center w-8 flex-1 bg-base-200 border-b-2 border-primary cursor-pointer hover:bg-base-300 last:border-b-0"
+              class="flex items-center justify-center h-10 flex-1 bg-[lightblue] border-r border-primary cursor-pointer hover:bg-[skyblue] last:border-r-0 px-3"
               onClick={pane.onClick}
             >
-              <div class="transform -rotate-90 whitespace-nowrap text-sm font-700">
+              <div class="whitespace-nowrap text-sm font-700">
                 {pane.label}
               </div>
             </div>
           ))}
         </div>
-      </Show>
-
-      <Show when={hasLeft()}>
-        <div
-          class={isLastVisible("left")
-            ? "relative h-full w-0 flex-1"
-            : "relative h-full flex-none"}
-          style={!isLastVisible("left") ? { width: `${leftWidth()}px` } : {}}
-        >
-          <div class="h-full overflow-auto">{p.leftChild}</div>
-          <Show when={hasCenter() || hasRight()}>
-            <div
-              class="absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize hover:bg-[lightblue] active:bg-[lightblue]"
-              onMouseDown={handleMouseDown("left")}
-            />
-          </Show>
-        </div>
-      </Show>
-
-      <Show when={hasCenter()}>
-        <div
-          class={isLastVisible("center")
-            ? "relative h-full w-0 flex-1"
-            : "relative h-full flex-none"}
-          style={!isLastVisible("center")
-            ? { width: `${centerWidth()}px` }
-            : {}}
-        >
-          <div class="h-full overflow-auto">{p.centerChild}</div>
-          <Show when={hasRight()}>
-            <div
-              class="absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize hover:bg-[lightblue] active:bg-[lightblue]"
-              onMouseDown={handleMouseDown("right")}
-            />
-          </Show>
-        </div>
-      </Show>
-
-      <Show when={hasRight()}>
-        <div class="relative h-full w-0 flex-1">
-          <div class="h-full overflow-auto">{p.rightChild}</div>
-        </div>
-      </Show>
-
-      <Show
-        when={!hasLeft() && !hasCenter() && !hasRight() &&
-          collapsedPanes().length === 0}
-      >
-        <div class="h-full w-full overflow-auto" />
       </Show>
     </div>
   );

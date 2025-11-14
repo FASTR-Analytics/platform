@@ -4,9 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AnchorPoint,
   ColorKeyOrString,
   CoordinatesOptions,
   CustomFigureStyle,
+  CustomStyleTextOptions,
   FigureInputsBase,
   LineStyle,
   Measured,
@@ -36,17 +38,6 @@ export type SimpleVizData = {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export type AnchorPoint =
-  | "center"
-  | "top-left"
-  | "top-center"
-  | "top-right"
-  | "center-left"
-  | "center-right"
-  | "bottom-left"
-  | "bottom-center"
-  | "bottom-right";
-
 export type RawBox = {
   id: string;
   // Layout method 1: Layer/order system (automatic grid)
@@ -62,12 +53,21 @@ export type RawBox = {
   padding?: PaddingOptions;
   text?: string | string[];
   secondaryText?: string | string[];
+  // Visual style overrides
   fillColor?: ColorKeyOrString;
   strokeColor?: ColorKeyOrString;
   strokeWidth?: number;
   textHorizontalAlign?: "left" | "center" | "right";
   textVerticalAlign?: "top" | "center" | "bottom";
   textGap?: number;
+  // Text style overrides
+  primaryTextStyle?: CustomStyleTextOptions;
+  secondaryTextStyle?: CustomStyleTextOptions;
+  // Arrow connection points
+  arrowStartPoint?: AnchorPoint;
+  arrowEndPoint?: AnchorPoint;
+  // Rendering order control
+  zIndex?: number; // Controls rendering order (higher renders on top). Defaults to Z_INDEX.SIMPLEVIZ_BOX (500)
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -85,6 +85,7 @@ export type RawArrowWithPoints = {
   endArrow?: boolean;
   arrowheadSize?: number;
   style?: LineStyle;
+  zIndex?: number; // Controls rendering order (higher renders on top). Defaults to Z_INDEX.SIMPLEVIZ_ARROW (490)
 };
 
 // Arrow connecting two boxes (always has end arrow, no start arrow)
@@ -97,6 +98,7 @@ export type RawArrowWithBoxIDs = {
   truncateStart?: number; // Gap in pixels from fromBox edge (default: 0)
   truncateEnd?: number; // Gap in pixels from toBox edge (default: 0)
   style?: LineStyle;
+  zIndex?: number; // Controls rendering order (higher renders on top). Defaults to Z_INDEX.SIMPLEVIZ_ARROW (490)
 };
 
 export type RawArrow = RawArrowWithPoints | RawArrowWithBoxIDs;

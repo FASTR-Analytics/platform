@@ -176,7 +176,8 @@ async function processStreamEvents(
             if (block && block.type === "tool_use") {
               // Accumulate the partial JSON
               const currentJson = (block as any)._partialJson || "";
-              (block as any)._partialJson = currentJson + value.delta.partial_json;
+              (block as any)._partialJson = currentJson +
+                value.delta.partial_json;
 
               // Try to parse the accumulated JSON
               try {

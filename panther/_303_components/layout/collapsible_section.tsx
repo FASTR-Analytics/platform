@@ -45,7 +45,10 @@ export function CollapsibleSection(props: CollapsibleSectionProps) {
   };
 
   return (
-    <div class={`border-base-300 rounded border overflow-x-hidden ${local.class}`} {...others}>
+    <div
+      class={`border-base-300 rounded border overflow-x-hidden ${local.class}`}
+      {...others}
+    >
       <div
         class="ui-pad ui-hoverable data-[shaded=true]:bg-base-200 flex items-center"
         onClick={handleToggle}

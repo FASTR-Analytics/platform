@@ -18,17 +18,36 @@ import type {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export type PrimitiveLayer =
-  | "background"
-  | "grid"
-  | "axis"
-  | "content-area"
-  | "content-line"
-  | "content-bar"
-  | "content-point"
-  | "label"
-  | "legend"
-  | "surround";
+export const Z_INDEX = {
+  // General-purpose layer constants
+  BACK: 0,
+  FRONT: 999,
+  // Chart semantic layers
+  BACKGROUND: 0,
+  GRID: 100,
+  AXIS: 200,
+  CONTENT_AREA: 300,
+  CONTENT_LINE: 400,
+  CONTENT_BAR: 500,
+  CONTENT_POINT: 600,
+  LABEL: 700,
+  LEGEND: 800,
+  SURROUND: 900,
+  // SimpleViz defaults
+  SIMPLEVIZ_ARROW: 490, // Behind boxes by default
+  SIMPLEVIZ_BOX: 500,
+} as const;
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Chart-Specific Metadata Types                                          //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+// NOTE: These are chart domain concepts but must live in _001_render_system
+// because chart primitives (ChartDataPoint, ChartBar, etc.) reference them.
+// Since _007_figure_core imports from _001_render_system, the dependency
+// hierarchy prevents these types from living in _007_figure_core.
 
 export type DataLabel = {
   text: string;
@@ -48,7 +67,6 @@ export type BarStackingMode = "stacked" | "imposed" | "grouped";
 export type ChartDataPoint = {
   type: "chart-data-point";
   key: string;
-  layer: PrimitiveLayer;
   // Chart semantics
   seriesIndex: number;
   valueIndex: number;
@@ -68,7 +86,6 @@ export type ChartDataPoint = {
 export type ChartLineSeries = {
   type: "chart-line-series";
   key: string;
-  layer: PrimitiveLayer;
   // Chart semantics
   seriesIndex: number;
   valueIndices: number[]; // Parallel to coords/values
@@ -95,7 +112,6 @@ export type ChartLineSeries = {
 export type ChartAreaSeries = {
   type: "chart-area-series";
   key: string;
-  layer: PrimitiveLayer;
   // Chart semantics
   seriesIndex: number;
   valueIndices: number[];
@@ -114,7 +130,6 @@ export type ChartAreaSeries = {
 export type ChartBar = {
   type: "chart-bar";
   key: string;
-  layer: PrimitiveLayer;
   // Chart semantics
   seriesIndex: number;
   valueIndex: number;
@@ -147,7 +162,6 @@ export type ChartBar = {
 export type ChartAxis = {
   type: "chart-axis";
   key: string;
-  layer: PrimitiveLayer;
   axisType: "x-text" | "x-period" | "y-scale";
   bounds: RectCoordsDims;
   // Pure data - fully serializable
@@ -168,7 +182,6 @@ export type ChartAxis = {
 export type ChartGrid = {
   type: "chart-grid";
   key: string;
-  layer: PrimitiveLayer;
   plotAreaRcd: RectCoordsDims;
   horizontalLines: { y: number; tickValue: number }[];
   verticalLines: { x: number; tickValue?: number }[];
@@ -187,7 +200,6 @@ export type ChartGrid = {
 export type ChartLegend = {
   type: "chart-legend";
   key: string;
-  layer: PrimitiveLayer;
   bounds: RectCoordsDims;
   // Pure data - fully serializable
   items: Array<{
@@ -208,7 +220,6 @@ export type ChartLegend = {
 export type ChartSurround = {
   type: "chart-surround";
   key: string;
-  layer: PrimitiveLayer;
   surroundType: "title" | "subtitle" | "footnote" | "caption";
   bounds: RectCoordsDims;
   mText: MeasuredText;
@@ -234,7 +245,6 @@ export type ChartSurround = {
 export type BoxPrimitive = {
   type: "simpleviz-box";
   key: string;
-  layer: PrimitiveLayer;
   // Visual
   rcd: RectCoordsDims;
   rectStyle: RectStyle;
@@ -255,7 +265,6 @@ export type BoxPrimitive = {
 export type ArrowPrimitive = {
   type: "simpleviz-arrow";
   key: string;
-  layer: PrimitiveLayer;
   // Visual - simple array of points defining the arrow path
   pathCoords: Coordinates[];
   lineStyle: LineStyle;
@@ -292,6 +301,3 @@ export type Primitive =
   // SimpleViz primitives
   | BoxPrimitive
   | ArrowPrimitive;
-
-// Convenience alias for backwards compatibility during migration
-export type ChartPrimitive = Primitive;

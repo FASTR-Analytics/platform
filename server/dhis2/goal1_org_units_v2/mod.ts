@@ -20,12 +20,5 @@ export {
   getOrgUnitMetadata
 } from "./get_metadata.ts";
 
-// Export streaming functions  
-export {
-  streamOrgUnitsByLevel,
-  buildPathFilters,
-  getOrgUnitsByLevel
-} from "./stream_org_units.ts";
-
 // Export connection functions
 export { testDHIS2Connection } from "./connection.ts";
