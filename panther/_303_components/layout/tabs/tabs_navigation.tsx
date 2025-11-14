@@ -71,7 +71,7 @@ export function TabsNavigation(p: TabsNavigationProps) {
                 : undefined}
               role="tab"
             >
-              <span class={isVertical ? "truncate" : ""}>
+              <span class="whitespace-nowrap">
                 {formatter(option)}
               </span>
               {badge && (

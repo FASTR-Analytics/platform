@@ -174,16 +174,23 @@ function renderAxisPrimitive(
 
   // Draw ticks and labels
   for (const tick of primitive.ticks) {
-    // Draw tick line
-    rc.rLine([tick.tickLine.start, tick.tickLine.end], {
-      strokeColor: "black",
-      strokeWidth: 1,
-      lineDash: "solid",
-    });
+    // Draw tick line (if present)
+    if (tick.tickLine) {
+      rc.rLine([tick.tickLine.start, tick.tickLine.end], {
+        strokeColor: "black",
+        strokeWidth: 1,
+        lineDash: "solid",
+      });
+    }
 
     // Draw tick label
     if (tick.label) {
-      rc.rText(tick.label.mText, tick.label.position, "center", "top");
+      rc.rText(
+        tick.label.mText,
+        tick.label.position,
+        tick.label.alignment.h,
+        tick.label.alignment.v,
+      );
     }
   }
 }

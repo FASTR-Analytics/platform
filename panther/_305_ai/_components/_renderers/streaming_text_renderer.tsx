@@ -3,9 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { Component } from "solid-js";
+import { type Component, Match, Show, Switch } from "solid-js";
 import type { MessageStyle } from "../../_core/types.ts";
 import { MARKDOWN_STYLES, md } from "./_markdown_utils.ts";
+import { SpinningCursor } from "./spinning_cursor.tsx";
 
 type Props = {
   text: string;
@@ -27,23 +28,20 @@ export const StreamingTextRenderer: Component<Props> = (props) => {
           props.renderMarkdown ? MARKDOWN_STYLES : ""
         }`}
       >
-        {props.renderMarkdown
-          ? (
-            <>
-              <span innerHTML={md.render(props.text)} />
-              {!props.isComplete && (
-                <span class="animate-pulse ml-0.5 inline-block">▊</span>
-              )}
-            </>
-          )
-          : (
-            <>
-              <div class="whitespace-pre-wrap break-words">{props.text}</div>
-              {!props.isComplete && (
-                <span class="animate-pulse ml-0.5 inline-block">▊</span>
-              )}
-            </>
-          )}
+        <Switch>
+          <Match when={props.renderMarkdown}>
+            <div innerHTML={md.render(props.text)} />
+            <Show when={!props.isComplete}>
+              <SpinningCursor />
+            </Show>
+          </Match>
+          <Match when={!props.renderMarkdown}>
+            <div class="whitespace-pre-wrap break-words">{props.text}</div>
+            <Show when={!props.isComplete}>
+              <SpinningCursor />
+            </Show>
+          </Match>
+        </Switch>
       </div>
     </div>
   );

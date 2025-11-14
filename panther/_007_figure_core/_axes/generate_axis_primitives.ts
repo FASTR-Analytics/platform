@@ -95,6 +95,7 @@ export function generateXTextAxisPrimitive(
       label: {
         mText,
         position: labelPosition,
+        alignment: { h: "center", v: "top" },
       },
       value: indicatorHeaders[i_indicator],
     });
@@ -248,7 +249,11 @@ export function generateXPeriodAxisPrimitive(
           ]);
           // Add label to most recent tick
           if (ticks.length > 0) {
-            ticks[ticks.length - 1].label = { mText, position: labelPos };
+            ticks[ticks.length - 1].label = {
+              mText,
+              position: labelPos,
+              alignment: { h: "center", v: "top" },
+            };
           }
         } else {
           // Year-centered: label every Nth
@@ -268,7 +273,11 @@ export function generateXPeriodAxisPrimitive(
               tickY + mx.periodAxisSmallTickH + sx.periodLabelSmallTopPadding,
             ]);
             if (ticks.length > 0) {
-              ticks[ticks.length - 1].label = { mText, position: labelPos };
+              ticks[ticks.length - 1].label = {
+                mText,
+                position: labelPos,
+                alignment: { h: "center", v: "top" },
+              };
             }
           }
         }
@@ -316,22 +325,19 @@ export function generateXPeriodAxisPrimitive(
       const spaceForLabel = largeTick.rightX - largeTick.leftX -
         sg.gridStrokeWidth;
       if (mText.dims.w() <= spaceForLabel) {
-        // Add a pseudo-tick for the large label
+        // Add a pseudo-tick for the large label (no tick line, just label)
         ticks.push({
           position: new Coordinates([
             largeTick.leftX + (largeTick.rightX - largeTick.leftX) / 2,
             mx.xAxisRcd.bottomY() - mText.dims.h(),
           ]),
-          tickLine: {
-            start: new Coordinates([largeTick.leftX, mx.xAxisRcd.bottomY()]),
-            end: new Coordinates([largeTick.rightX, mx.xAxisRcd.bottomY()]),
-          },
           label: {
             mText,
             position: new Coordinates([
               largeTick.leftX + (largeTick.rightX - largeTick.leftX) / 2,
               mx.xAxisRcd.bottomY() - mText.dims.h(),
             ]),
+            alignment: { h: "center", v: "top" },
           },
           value: largeTick.periodId,
         });
@@ -419,8 +425,9 @@ export function generateYScaleAxisPrimitive(
         position: new Coordinates([
           yAxisRcd.rightX() -
           (sg.axisStrokeWidth + sy.tickWidth + sy.tickLabelGap),
-          currentY - my.halfYAxisTickLabelH,
+          currentY,
         ]),
+        alignment: { h: "right", v: "center" },
       },
       value: tickVal,
     });

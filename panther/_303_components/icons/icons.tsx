@@ -127,6 +127,25 @@ export function MaximizeIcon() {
   );
 }
 
+export function MinimizeIcon() {
+  return (
+    <IconWrapper>
+      <path d="M15 19v-2a2 2 0 0 1 2 -2h2" />
+      <path d="M15 5v2a2 2 0 0 0 2 2h2" />
+      <path d="M5 15h2a2 2 0 0 1 2 2v2" />
+      <path d="M5 9h2a2 2 0 0 0 2 -2v-2" />
+    </IconWrapper>
+  );
+}
+
+export function MinusIcon() {
+  return (
+    <IconWrapper>
+      <path d="M5 12l14 0" />
+    </IconWrapper>
+  );
+}
+
 export function ChevronDownIcon() {
   return (
     <IconWrapper>
@@ -520,6 +539,8 @@ export const _ICON_MAP = {
   lock: LockIcon,
   login: LoginIcon,
   maximize: MaximizeIcon,
+  minimize: MinimizeIcon,
+  minus: MinusIcon,
   moreVertical: MoreVerticalIcon,
   move: MoveIcon,
   package: PackageIcon,

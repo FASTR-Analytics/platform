@@ -167,8 +167,15 @@ export type ChartAxisPrimitive = {
   // Pure data - fully serializable
   ticks: Array<{
     position: Coordinates;
-    tickLine: { start: Coordinates; end: Coordinates };
-    label?: { mText: MeasuredText; position: Coordinates };
+    tickLine?: { start: Coordinates; end: Coordinates };
+    label?: {
+      mText: MeasuredText;
+      position: Coordinates;
+      alignment: {
+        h: "left" | "center" | "right";
+        v: "top" | "center" | "bottom";
+      };
+    };
     value: number | string;
   }>;
   axisLine?: { coords: Coordinates[]; style: LineStyle };

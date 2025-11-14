@@ -11,6 +11,7 @@ import type {
   MessageStyle,
 } from "../_core/types.ts";
 import { DefaultRenderer } from "./_renderers/default_renderer.tsx";
+import { SpinningCursor } from "./_renderers/spinning_cursor.tsx";
 import { StreamingTextRenderer } from "./_renderers/streaming_text_renderer.tsx";
 import { TextRenderer } from "./_renderers/text_renderer.tsx";
 import { ToolErrorRenderer } from "./_renderers/tool_error_renderer.tsx";
@@ -77,7 +78,12 @@ export const MessageList: Component<Props> = (props) => {
         <Show when={props.isStreaming}>
           <Show
             when={props.currentStreamingText}
-            fallback={<div class="text-neutral italic">Thinking...</div>}
+            fallback={
+              <div class="text-neutral italic">
+                <SpinningCursor class="mr-1 inline-block" />
+                Thinking...
+              </div>
+            }
           >
             <StreamingTextRenderer
               text={props.currentStreamingText!}
@@ -93,7 +99,10 @@ export const MessageList: Component<Props> = (props) => {
           !props.isStreaming &&
           props.displayItems.every((item) => item.type !== "tool_in_progress")}
       >
-        <div class="text-neutral italic">Thinking...</div>
+        <div class="text-neutral italic">
+          <SpinningCursor class="mr-1 inline-block" />
+          Thinking...
+        </div>
       </Show>
     </div>
   );
