@@ -177,29 +177,43 @@ export function generateContentPrimitives(
           const labelStr = s.dataLabelFormatter(valueInfo);
           if (labelStr?.trim()) {
             const mText = rc.mText(labelStr, params.dataLabelsTextStyle, 9999);
+            const offset = mText.ti.fontSize * 0.3;
+            const relPos = pointStyle.dataLabelPosition === "top"
+              ? { rx: 0.5, dy: -(pointStyle.radius + offset) }
+              : pointStyle.dataLabelPosition === "bottom"
+              ? { rx: 0.5, dy: pointStyle.radius + offset }
+              : pointStyle.dataLabelPosition === "left"
+              ? { dx: -(pointStyle.radius + offset), ry: 0.5 }
+              : pointStyle.dataLabelPosition === "right"
+              ? { dx: pointStyle.radius + offset, ry: 0.5 }
+              : { rx: 0.5, ry: 0.5 };
             dataLabel = {
               text: labelStr,
               mText,
-              position: pointStyle.dataLabelPosition,
-              offsetFromElement: mText.ti.fontSize * 0.3,
+              relativePosition: relPos,
             };
           }
         }
+
+        const pointBounds = new RectCoordsDims({
+          x: mappedVal.coords.x() - pointStyle.radius,
+          y: mappedVal.coords.y() - pointStyle.radius,
+          w: pointStyle.radius * 2,
+          h: pointStyle.radius * 2,
+        });
 
         allPrimitives.push({
           type: "chart-data-point",
           key:
             `point-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}-${i_val}`,
+          bounds: pointBounds,
           zIndex: Z_INDEX.CONTENT_POINT,
-          seriesIndex: i_series,
-          valueIndex: i_val,
-          value: mappedVal.val,
+          meta: {
+            value: valueInfo,
+          },
           coords: mappedVal.coords,
           style: pointStyle,
           dataLabel,
-          paneIndex: subChartInfo.i_pane,
-          tierIndex: subChartInfo.i_tier,
-          laneIndex: subChartInfo.i_lane,
         });
       }
 
@@ -305,11 +319,11 @@ export function generateContentPrimitives(
               params.dataLabelsTextStyle,
               barRcd.w(),
             );
+            const offset = mText.ti.fontSize * 0.3;
             dataLabel = {
               text: labelStr,
               mText,
-              position: "top",
-              offsetFromElement: mText.ti.fontSize * 0.3,
+              relativePosition: { rx: 0.5, dy: -offset },
             };
           }
         }
@@ -318,10 +332,11 @@ export function generateContentPrimitives(
           type: "chart-bar",
           key:
             `bar-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}-${i_val}`,
+          bounds: barRcd,
           zIndex: Z_INDEX.CONTENT_BAR,
-          seriesIndex: i_series,
-          valueIndex: i_val,
-          value: mappedVal.val,
+          meta: {
+            value: valueInfo,
+          },
           stackingMode: s.bars.stacking === "stacked"
             ? "stacked"
             : s.bars.stacking === "imposed"
@@ -335,14 +350,10 @@ export function generateContentPrimitives(
             }
             : undefined,
           orientation: "vertical",
-          rcd: barRcd,
           style: {
             fillColor: getColor(barStyle.fillColor),
           },
           dataLabel,
-          paneIndex: subChartInfo.i_pane,
-          tierIndex: subChartInfo.i_tier,
-          laneIndex: subChartInfo.i_lane,
         });
       }
 
@@ -372,13 +383,13 @@ export function generateContentPrimitives(
           const labelStr = s.dataLabelFormatter(valueInfo);
           if (labelStr?.trim()) {
             const mText = rc.mText(labelStr, params.dataLabelsTextStyle, 9999);
+            const offset = mText.ti.fontSize * 0.3;
             lineData.pointLabels!.push({
               coordIndex: lineData.coords.length - 1,
               dataLabel: {
                 text: labelStr,
                 mText,
-                position: "top",
-                offsetFromElement: mText.ti.fontSize * 0.3,
+                relativePosition: { rx: 0.5, dy: -offset },
               },
             });
           }
@@ -434,16 +445,15 @@ export function generateContentPrimitives(
       type: "chart-line-series",
       key:
         `line-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}`,
+      bounds: new RectCoordsDims({ x: 0, y: 0, w: 0, h: 0 }), // TODO: Compute proper bounds
       zIndex: Z_INDEX.CONTENT_LINE,
-      seriesIndex: i_series,
-      valueIndices: lineData.valueIndices,
-      values: lineData.values,
+      meta: {
+        series: seriesInfo,
+        valueIndices: lineData.valueIndices,
+      },
       coords: lineData.coords,
       style: lineStyle,
       pointLabels: lineData.pointLabels,
-      paneIndex: subChartInfo.i_pane,
-      tierIndex: subChartInfo.i_tier,
-      laneIndex: subChartInfo.i_lane,
     });
   }
 
@@ -547,15 +557,14 @@ export function generateContentPrimitives(
           type: "chart-area-series",
           key:
             `area-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}-${i_area}`,
+          bounds: new RectCoordsDims({ x: 0, y: 0, w: 0, h: 0 }), // TODO: Compute proper bounds
           zIndex: Z_INDEX.CONTENT_AREA,
-          seriesIndex: i_series,
-          valueIndices: areaData.valueIndices,
-          values: areaData.values,
+          meta: {
+            series: seriesInfo,
+            valueIndices: areaData.valueIndices,
+          },
           coords: lineCoordArray,
           style: areaStyle,
-          paneIndex: subChartInfo.i_pane,
-          tierIndex: subChartInfo.i_tier,
-          laneIndex: subChartInfo.i_lane,
         });
       }
     }
@@ -673,12 +682,13 @@ export function generateContentPrimitives(
       if (areas[i_area].coords.length === 0) {
         continue;
       }
-      const areaStyle = s.areas.getStyle({
+      const seriesInfo: GenericSeriesInfo = {
         ...subChartInfo,
         i_series: areas[i_area].order === "over" ? 0 : 1,
         seriesHeader: d.seriesHeaders[0],
         nVals: 0,
-      });
+      };
+      const areaStyle = s.areas.getStyle(seriesInfo);
       const lineCoordArray: Coordinates[] = [];
       lineCoordArray.push(areas[i_area].coords[0]);
       for (
@@ -697,15 +707,14 @@ export function generateContentPrimitives(
           `area-diff-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${
             areas[i_area].order
           }-${i_area}`,
+        bounds: new RectCoordsDims({ x: 0, y: 0, w: 0, h: 0 }), // TODO: Compute proper bounds
         zIndex: Z_INDEX.CONTENT_AREA,
-        seriesIndex: areas[i_area].order === "over" ? 0 : 1,
-        valueIndices: [], // Not applicable for diff areas
-        values: [], // Not applicable for diff areas
+        meta: {
+          series: seriesInfo,
+          valueIndices: [], // Not applicable for diff areas
+        },
         coords: lineCoordArray,
         style: areaStyle,
-        paneIndex: subChartInfo.i_pane,
-        tierIndex: subChartInfo.i_tier,
-        laneIndex: subChartInfo.i_lane,
       });
     }
   }

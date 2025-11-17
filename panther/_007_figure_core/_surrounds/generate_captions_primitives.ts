@@ -23,8 +23,11 @@ export function generateCaptionsPrimitives(
     primitives.push({
       type: "chart-caption",
       key: "caption",
-      captionType: "caption",
       bounds: mSurrounds.caption.rcd,
+      meta: {
+        captionType: "caption",
+        // Figure-level caption - no paneIndex
+      },
       mText: mSurrounds.caption.mCaption,
       position: mSurrounds.caption.rcd.topLeftCoords(),
       alignment: {
@@ -40,8 +43,11 @@ export function generateCaptionsPrimitives(
     primitives.push({
       type: "chart-caption",
       key: "sub-caption",
-      captionType: "subtitle",
       bounds: mSurrounds.subCaption.rcd,
+      meta: {
+        captionType: "subtitle",
+        // Figure-level caption - no paneIndex
+      },
       mText: mSurrounds.subCaption.mSubCaption,
       position: mSurrounds.subCaption.rcd.topLeftCoords(),
       alignment: {
@@ -60,8 +66,11 @@ export function generateCaptionsPrimitives(
       primitives.push({
         type: "chart-caption",
         key: `footnote-${i}`,
-        captionType: "footnote",
         bounds: mSurrounds.footnote.rcd,
+        meta: {
+          captionType: "footnote",
+          // Figure-level caption - no paneIndex
+        },
         mText,
         position: new Coordinates([mSurrounds.footnote.rcd.x(), currentY]),
         alignment: {

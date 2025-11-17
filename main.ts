@@ -12,6 +12,7 @@ import {
 // Instance routes
 import { routesAssets } from "./server/routes/instance/assets.ts";
 import { routesDatasets } from "./server/routes/instance/datasets.ts";
+import { routesHealth } from "./server/routes/instance/health.ts";
 import { routesIndicators } from "./server/routes/instance/indicators.ts";
 import { routesIndicatorsDhis2 } from "./server/routes/instance/indicators_dhis2.ts";
 import { routesInstance } from "./server/routes/instance/instance.ts";
@@ -38,15 +39,15 @@ app.use("*", async (c, next) => {
   // Intercept HEAD requests to /upload/:id
   if (c.req.method === "HEAD" && c.req.path.startsWith("/upload/")) {
     console.log("[INTERCEPTED HEAD REQUEST]");
-    const clientOrigin =
-      Deno.env.get("CLIENT_ORIGIN") || "http://localhost:3000";
+    const clientOrigin = Deno.env.get("CLIENT_ORIGIN") ||
+      "http://localhost:3000";
     c.status(404);
     c.header("Tus-Resumable", "1.0.0");
     c.header("Access-Control-Allow-Origin", clientOrigin);
     c.header("Access-Control-Allow-Credentials", "true");
     c.header(
       "Access-Control-Expose-Headers",
-      "Upload-Offset, Upload-Length, Tus-Resumable"
+      "Upload-Offset, Upload-Length, Tus-Resumable",
     );
     return c.text("");
   }
@@ -67,6 +68,7 @@ app.onError((err: unknown, c) => {
 
 app.use("*", corsMiddleware);
 
+app.route("/", routesHealth);
 app.route("/", routesInstance);
 app.route("/", routesUsers);
 app.route("/", routesProject);

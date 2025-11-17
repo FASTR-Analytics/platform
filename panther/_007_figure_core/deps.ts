@@ -22,7 +22,7 @@ export {
   Padding,
   RectCoordsDims,
 } from "../_001_geometry/mod.ts";
-export { Z_INDEX } from "../_001_render_system/mod.ts";
+export { resolvePosition, Z_INDEX } from "../_001_render_system/mod.ts";
 export type {
   ArrowPrimitive,
   BoxPrimitive,

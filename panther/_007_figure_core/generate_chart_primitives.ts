@@ -138,7 +138,13 @@ export function generateChartPrimitives<
         type: "chart-grid",
         key:
           `grid-${mPane.i_pane}-${plotAreaInfo.i_tier}-${plotAreaInfo.i_lane}`,
+        bounds: plotAreaInfo.rcd,
         zIndex: Z_INDEX.GRID,
+        meta: {
+          paneIndex: mPane.i_pane,
+          tierIndex: plotAreaInfo.i_tier,
+          laneIndex: plotAreaInfo.i_lane,
+        },
         plotAreaRcd: plotAreaInfo.rcd,
         horizontalLines: plotAreaInfo.horizontalGridLines,
         verticalLines: plotAreaInfo.verticalGridLines,
@@ -147,9 +153,6 @@ export function generateChartPrimitives<
           strokeColor: config.gridStyle.gridColor,
           strokeWidth: config.gridStyle.gridStrokeWidth,
         },
-        paneIndex: mPane.i_pane,
-        tierIndex: plotAreaInfo.i_tier,
-        laneIndex: plotAreaInfo.i_lane,
       });
 
       // Generate Y-axis primitive (only once per tier in this pane)

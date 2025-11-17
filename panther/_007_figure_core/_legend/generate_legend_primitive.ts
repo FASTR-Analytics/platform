@@ -120,6 +120,9 @@ export function generateLegendPrimitive(
     type: "chart-legend",
     key: "legend",
     bounds,
+    meta: {
+      // Figure-level legend - no paneIndex
+    },
     items,
     zIndex: Z_INDEX.LEGEND,
   };

@@ -4,4 +4,4 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./types.ts";
-export * from "./utils.ts";
+export * from "./simpleviz_renderer.ts";

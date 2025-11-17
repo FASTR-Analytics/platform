@@ -133,13 +133,15 @@ export function generateXTextAxisPrimitive(
   return {
     type: "chart-axis",
     key: `x-text-axis-${i_pane}-${i_lane}`,
-    axisType: "x-text",
     bounds: mx.xAxisRcd,
+    meta: {
+      axisType: "x-text",
+      paneIndex: i_pane,
+      laneIndex: i_lane,
+    },
     ticks,
     axisLine,
     zIndex: (Z_INDEX as any).AXIS,
-    paneIndex: i_pane,
-    laneIndex: i_lane,
   };
 }
 
@@ -361,13 +363,15 @@ export function generateXPeriodAxisPrimitive(
   return {
     type: "chart-axis",
     key: `x-period-axis-${i_pane}-${i_lane}`,
-    axisType: "x-period",
     bounds: mx.xAxisRcd,
+    meta: {
+      axisType: "x-period",
+      paneIndex: i_pane,
+      laneIndex: i_lane,
+    },
     ticks,
     axisLine,
     zIndex: (Z_INDEX as any).AXIS,
-    paneIndex: i_pane,
-    laneIndex: i_lane,
   };
 }
 
@@ -455,12 +459,15 @@ export function generateYScaleAxisPrimitive(
   return {
     type: "chart-axis",
     key: `y-scale-axis-${i_pane}-${i_tier}`,
-    axisType: "y-scale",
     bounds: yAxisRcd,
+    meta: {
+      axisType: "y-scale",
+      paneIndex: i_pane,
+      laneIndex: 0, // Y-axis spans all lanes
+      tierIndex: i_tier,
+    },
     ticks,
     axisLine,
     zIndex: (Z_INDEX as any).AXIS,
-    paneIndex: i_pane,
-    tierIndex: i_tier,
   };
 }

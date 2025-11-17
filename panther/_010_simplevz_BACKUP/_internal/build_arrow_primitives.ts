@@ -32,9 +32,7 @@ export function buildArrowPrimitives(
     }
 
     // Handle box-ids arrows
-    const fromBoxPrim = boxPrimitives.find((b) =>
-      b.meta.boxId === arrow.fromBoxID
-    );
+    const fromBoxPrim = boxPrimitives.find((b) => b.meta.boxId === arrow.fromBoxID);
     const toBoxPrim = boxPrimitives.find((b) => b.meta.boxId === arrow.toBoxID);
     const fromBox = boxes.find((b) => b.id === arrow.fromBoxID);
     const toBox = boxes.find((b) => b.id === arrow.toBoxID);
@@ -161,19 +159,14 @@ function getBoxEdgeIntersection(
   const ndy = dy / length;
 
   // Calculate intersection with each edge
-  const intersections: Array<{
-    x: number;
-    y: number;
-    t: number;
-    edge: "left" | "right" | "top" | "bottom";
-  }> = [];
+  const intersections: Array<{ x: number; y: number; t: number }> = [];
 
   // Left edge (x = left)
   if (dx !== 0) {
     const t = (left - x1) / dx;
     const y = y1 + t * dy;
     if (t >= 0 && y >= top && y <= bottom) {
-      intersections.push({ x: left, y, t, edge: "left" });
+      intersections.push({ x: left, y, t });
     }
   }
 
@@ -182,7 +175,7 @@ function getBoxEdgeIntersection(
     const t = (right - x1) / dx;
     const y = y1 + t * dy;
     if (t >= 0 && y >= top && y <= bottom) {
-      intersections.push({ x: right, y, t, edge: "right" });
+      intersections.push({ x: right, y, t });
     }
   }
 
@@ -191,7 +184,7 @@ function getBoxEdgeIntersection(
     const t = (top - y1) / dy;
     const x = x1 + t * dx;
     if (t >= 0 && x >= left && x <= right) {
-      intersections.push({ x, y: top, t, edge: "top" });
+      intersections.push({ x, y: top, t });
     }
   }
 
@@ -200,7 +193,7 @@ function getBoxEdgeIntersection(
     const t = (bottom - y1) / dy;
     const x = x1 + t * dx;
     if (t >= 0 && x >= left && x <= right) {
-      intersections.push({ x, y: bottom, t, edge: "bottom" });
+      intersections.push({ x, y: bottom, t });
     }
   }
 
@@ -212,25 +205,9 @@ function getBoxEdgeIntersection(
   intersections.sort((a, b) => a.t - b.t);
   const intersection = intersections[0];
 
-  // Calculate linear offset based on perpendicular distance to edge
-  // For left/right edges: perpendicular is horizontal (X direction)
-  // For top/bottom edges: perpendicular is vertical (Y direction)
-  let linearOffset: number;
-  if (intersection.edge === "left" || intersection.edge === "right") {
-    // Perpendicular to vertical edge = horizontal distance
-    // offset = perpendicular distance
-    // linearOffset = offset / |cos(angle)| = offset / |ndx|
-    linearOffset = Math.abs(ndx) > 0.001 ? offset / Math.abs(ndx) : offset;
-  } else {
-    // Perpendicular to horizontal edge = vertical distance
-    // offset = perpendicular distance
-    // linearOffset = offset / |sin(angle)| = offset / |ndy|
-    linearOffset = Math.abs(ndy) > 0.001 ? offset / Math.abs(ndy) : offset;
-  }
-
-  // Move the intersection point outward by the linear offset distance
+  // Move the intersection point outward by the offset distance
   return new Coordinates([
-    intersection.x + ndx * linearOffset,
-    intersection.y + ndy * linearOffset,
+    intersection.x + ndx * offset,
+    intersection.y + ndy * offset,
   ]);
 }

@@ -16,6 +16,7 @@ import type {
   Primitive,
   RenderContext,
 } from "./deps.ts";
+import { RectCoordsDims, resolvePosition } from "./deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -43,12 +44,25 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
     case "chart-data-point":
       rc.rPoint(primitive.coords, primitive.style);
       if (primitive.dataLabel) {
-        renderDataLabel(
-          rc,
-          primitive.coords,
-          primitive.dataLabel,
-          primitive.style.radius,
+        const labelPos = resolvePosition(
+          primitive.dataLabel.relativePosition,
+          primitive.bounds,
         );
+        const hAlign = "dx" in primitive.dataLabel.relativePosition &&
+            primitive.dataLabel.relativePosition.dx < 0
+          ? "right"
+          : "dx" in primitive.dataLabel.relativePosition &&
+              primitive.dataLabel.relativePosition.dx > 0
+          ? "left"
+          : "center";
+        const vAlign = "dy" in primitive.dataLabel.relativePosition &&
+            primitive.dataLabel.relativePosition.dy < 0
+          ? "bottom"
+          : "dy" in primitive.dataLabel.relativePosition &&
+              primitive.dataLabel.relativePosition.dy > 0
+          ? "top"
+          : "center";
+        rc.rText(primitive.dataLabel.mText, labelPos, hAlign, vAlign);
       }
       break;
 
@@ -58,7 +72,17 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
         for (const pointLabel of primitive.pointLabels) {
           const coords = primitive.coords[pointLabel.coordIndex];
           if (coords) {
-            renderDataLabel(rc, coords, pointLabel.dataLabel, 0);
+            const pointBounds = new RectCoordsDims({
+              x: coords.x(),
+              y: coords.y(),
+              w: 0,
+              h: 0,
+            });
+            const labelPos = resolvePosition(
+              pointLabel.dataLabel.relativePosition,
+              pointBounds,
+            );
+            rc.rText(pointLabel.dataLabel.mText, labelPos, "center", "bottom");
           }
         }
       }
@@ -69,19 +93,13 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       break;
 
     case "chart-bar":
-      rc.rRect(primitive.rcd, primitive.style);
-      // Only render data label if:
-      // - Label exists
-      // - Not stacked, OR is top of stack
-      if (
-        primitive.dataLabel &&
-        (primitive.stackingMode !== "stacked" ||
-          primitive.stackInfo?.isTopOfStack)
-      ) {
-        const labelCoords = primitive.orientation === "vertical"
-          ? primitive.rcd.topCenterCoords()
-          : primitive.rcd.rightCenterCoords();
-        renderDataLabel(rc, labelCoords, primitive.dataLabel, 0);
+      rc.rRect(primitive.bounds, primitive.style);
+      if (primitive.dataLabel) {
+        const labelPos = resolvePosition(
+          primitive.dataLabel.relativePosition,
+          primitive.bounds,
+        );
+        rc.rText(primitive.dataLabel.mText, labelPos, "center", "bottom");
       }
       break;
 
@@ -243,52 +261,6 @@ function renderCaptionPrimitive(
     primitive.alignment.h,
     primitive.alignment.v,
   );
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    Data Label Rendering                                                    //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-function renderDataLabel(
-  rc: RenderContext,
-  elementCoords: Coordinates,
-  dataLabel: DataLabel,
-  elementRadius: number,
-): void {
-  const offset = dataLabel.offsetFromElement + elementRadius;
-
-  let coords: Coordinates;
-  let hAlign: "center" | "left" | "right" = "center";
-  let vAlign: "top" | "center" | "bottom" | undefined;
-
-  switch (dataLabel.position) {
-    case "top":
-      coords = elementCoords.getOffsetted({ top: offset });
-      vAlign = "bottom";
-      break;
-    case "bottom":
-      coords = elementCoords.getOffsetted({ bottom: offset });
-      vAlign = "top";
-      break;
-    case "left":
-      coords = elementCoords.getOffsetted({ left: offset });
-      hAlign = "right";
-      vAlign = "center";
-      break;
-    case "right":
-      coords = elementCoords.getOffsetted({ right: offset });
-      hAlign = "left";
-      vAlign = "center";
-      break;
-    case "center":
-      coords = elementCoords;
-      vAlign = "center";
-      break;
-  }
-
-  rc.rText(dataLabel.mText, coords, hAlign, vAlign);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -20,7 +20,7 @@ import {
   type BoxDimensions,
   calculateBoxDimensions,
 } from "./box_dimensions.ts";
-import { calculateXCoordinatesWithAlignment } from "./box_layout_with_alignment.ts";
+import { calculateXCoordinatesFromLayers } from "./box_layout.ts";
 import { getTextInfoWithBoxOverride, mergeBoxStyle } from "./style.ts";
 
 export function buildBoxPrimitives(
@@ -128,13 +128,12 @@ export function buildBoxPrimitives(
   const contentOriginX = contentArea.x();
   const contentOriginY = contentArea.y();
 
-  const boxesWithX = calculateXCoordinatesWithAlignment(
+  const boxesWithX = calculateXCoordinatesFromLayers(
     styleScaledBoxes,
-    data.arrows,
-    data.layerPlacementOrder,
     naturalBoxWidths,
     mergedSimpleVizStyle.orderGap,
     availableWidth,
+    mergedSimpleVizStyle.layerAlign,
   );
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -171,9 +170,7 @@ export function buildBoxPrimitives(
       height = box.height;
     } else {
       // Auto height - measure text at fitted width
-      // Add small fudge factor to prevent rounding errors from causing unwanted text wrapping
-      const textMaxWidth = box.fittedWidth - mergedBoxStyle.padding.totalPx() +
-        0.1;
+      const textMaxWidth = box.fittedWidth - mergedBoxStyle.padding.totalPx();
 
       let primaryHeight = 0;
       let secondaryHeight = 0;

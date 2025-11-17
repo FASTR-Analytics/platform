@@ -144,7 +144,7 @@ export function ChartHolder(p: Props) {
             );
           }
         }
-      }, 100); // Debounce resize events
+      }, 10); // Debounce resize events
     });
     observer.observe(div);
 

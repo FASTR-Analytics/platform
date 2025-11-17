@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { Coordinates, RectCoordsDims } from "../deps.ts";
+import type {
+  Coordinates,
+  GenericSeriesInfo,
+  GenericValueInfo,
+  RectCoordsDims,
+} from "../deps.ts";
 import type {
   AreaStyle,
   LineStyle,
@@ -40,6 +45,31 @@ export const Z_INDEX = {
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+//    Base Primitive Type                                                     //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type BasePrimitive = {
+  type: string;
+  key: string;
+  bounds: RectCoordsDims;
+  zIndex?: number;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Relative Positioning                                                    //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type RelativePosition =
+  | { dx: number; dy: number } // Absolute pixel offsets from bounds origin
+  | { rx: number; ry: number } // Relative 0-1 within bounds (0.5 = center)
+  | { dx: number; ry: number } // Mixed: absolute x offset, relative y
+  | { rx: number; dy: number }; // Mixed: relative x, absolute y offset
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
 //    Chart-Specific Metadata Types                                          //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -52,8 +82,7 @@ export const Z_INDEX = {
 export type DataLabel = {
   text: string;
   mText: MeasuredText;
-  position: "top" | "left" | "bottom" | "right" | "center";
-  offsetFromElement: number;
+  relativePosition: RelativePosition;
 };
 
 export type BarStackingMode = "stacked" | "imposed" | "grouped";
@@ -64,32 +93,25 @@ export type BarStackingMode = "stacked" | "imposed" | "grouped";
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export type ChartDataPointPrimitive = {
+export type ChartDataPointPrimitive = BasePrimitive & {
   type: "chart-data-point";
-  key: string;
-  // Chart semantics
-  seriesIndex: number;
-  valueIndex: number;
-  value: number;
+  meta: {
+    value: GenericValueInfo;
+  };
   // Visual
   coords: Coordinates;
   style: PointStyle;
   dataLabel?: DataLabel;
   // Optional metadata
   sourceData?: any;
-  zIndex?: number;
-  paneIndex?: number;
-  laneIndex?: number;
-  tierIndex?: number;
 };
 
-export type ChartLineSeriesPrimitive = {
+export type ChartLineSeriesPrimitive = BasePrimitive & {
   type: "chart-line-series";
-  key: string;
-  // Chart semantics
-  seriesIndex: number;
-  valueIndices: number[]; // Parallel to coords/values
-  values: number[];
+  meta: {
+    series: GenericSeriesInfo;
+    valueIndices: number[]; // Parallel to coords/values
+  };
   // Visual
   coords: Coordinates[];
   style: LineStyle;
@@ -103,37 +125,26 @@ export type ChartLineSeriesPrimitive = {
   }>;
   // Optional metadata
   sourceData?: any;
-  zIndex?: number;
-  paneIndex?: number;
-  laneIndex?: number;
-  tierIndex?: number;
 };
 
-export type ChartAreaSeriesPrimitive = {
+export type ChartAreaSeriesPrimitive = BasePrimitive & {
   type: "chart-area-series";
-  key: string;
-  // Chart semantics
-  seriesIndex: number;
-  valueIndices: number[];
-  values: number[];
+  meta: {
+    series: GenericSeriesInfo;
+    valueIndices: number[];
+  };
   // Visual
   coords: Coordinates[];
   style: AreaStyle;
   // Optional metadata
   sourceData?: any;
-  zIndex?: number;
-  paneIndex?: number;
-  laneIndex?: number;
-  tierIndex?: number;
 };
 
-export type ChartBarPrimitive = {
+export type ChartBarPrimitive = BasePrimitive & {
   type: "chart-bar";
-  key: string;
-  // Chart semantics
-  seriesIndex: number;
-  valueIndex: number;
-  value: number;
+  meta: {
+    value: GenericValueInfo;
+  };
   stackingMode: BarStackingMode;
   stackInfo?: {
     isTopOfStack: boolean;
@@ -142,15 +153,10 @@ export type ChartBarPrimitive = {
   };
   // Visual
   orientation: "vertical" | "horizontal";
-  rcd: RectCoordsDims;
   style: RectStyle;
   dataLabel?: DataLabel;
   // Optional metadata
   sourceData?: any;
-  zIndex?: number;
-  paneIndex?: number;
-  laneIndex?: number;
-  tierIndex?: number;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -159,11 +165,14 @@ export type ChartBarPrimitive = {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export type ChartAxisPrimitive = {
+export type ChartAxisPrimitive = BasePrimitive & {
   type: "chart-axis";
-  key: string;
-  axisType: "x-text" | "x-period" | "y-scale";
-  bounds: RectCoordsDims;
+  meta: {
+    axisType: "x-text" | "x-period" | "y-scale";
+    paneIndex: number;
+    laneIndex: number;
+    tierIndex?: number; // Some axes span all tiers
+  };
   // Pure data - fully serializable
   ticks: Array<{
     position: Coordinates;
@@ -179,16 +188,15 @@ export type ChartAxisPrimitive = {
     value: number | string;
   }>;
   axisLine?: { coords: Coordinates[]; style: LineStyle };
-  // Optional metadata
-  zIndex?: number;
-  paneIndex?: number;
-  laneIndex?: number;
-  tierIndex?: number;
 };
 
-export type ChartGridPrimitive = {
+export type ChartGridPrimitive = BasePrimitive & {
   type: "chart-grid";
-  key: string;
+  meta: {
+    paneIndex: number;
+    tierIndex: number;
+    laneIndex: number;
+  };
   plotAreaRcd: RectCoordsDims;
   horizontalLines: { y: number; tickValue: number }[];
   verticalLines: { x: number; tickValue?: number }[];
@@ -197,17 +205,13 @@ export type ChartGridPrimitive = {
     strokeColor: string;
     strokeWidth: number;
   };
-  // Optional metadata
-  zIndex?: number;
-  paneIndex?: number;
-  laneIndex?: number;
-  tierIndex?: number;
 };
 
-export type ChartLegendPrimitive = {
+export type ChartLegendPrimitive = BasePrimitive & {
   type: "chart-legend";
-  key: string;
-  bounds: RectCoordsDims;
+  meta: {
+    paneIndex?: number; // Optional - can be figure-level or pane-level
+  };
   // Pure data - fully serializable
   items: Array<{
     mText: MeasuredText;
@@ -229,18 +233,14 @@ export type ChartLegendPrimitive = {
         position: RectCoordsDims; // Rectangle bounds
       };
   }>;
-  // Optional metadata
-  zIndex?: number;
-  paneIndex?: number;
-  laneIndex?: number;
-  tierIndex?: number;
 };
 
-export type ChartCaptionPrimitive = {
+export type ChartCaptionPrimitive = BasePrimitive & {
   type: "chart-caption";
-  key: string;
-  captionType: "title" | "subtitle" | "footnote" | "caption";
-  bounds: RectCoordsDims;
+  meta: {
+    captionType: "title" | "subtitle" | "footnote" | "caption";
+    paneIndex?: number; // Captions can be figure-level (no pane) or pane-level
+  };
   mText: MeasuredText;
   // Pure data - fully serializable
   position: Coordinates;
@@ -248,11 +248,6 @@ export type ChartCaptionPrimitive = {
     h: "left" | "center" | "right";
     v: "top" | "center" | "bottom";
   };
-  // Optional metadata
-  zIndex?: number;
-  paneIndex?: number;
-  laneIndex?: number;
-  tierIndex?: number;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -261,9 +256,11 @@ export type ChartCaptionPrimitive = {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export type BoxPrimitive = {
+export type BoxPrimitive = BasePrimitive & {
   type: "simpleviz-box";
-  key: string;
+  meta: {
+    boxId: string;
+  };
   // Visual
   rcd: RectCoordsDims;
   rectStyle: RectStyle;
@@ -276,14 +273,15 @@ export type BoxPrimitive = {
     mText: MeasuredText;
     position: Coordinates;
   };
-  // Metadata
-  boxId: string;
-  zIndex?: number;
 };
 
-export type ArrowPrimitive = {
+export type ArrowPrimitive = BasePrimitive & {
   type: "simpleviz-arrow";
-  key: string;
+  meta: {
+    arrowId: string;
+    fromBoxId?: string;
+    toBoxId?: string;
+  };
   // Visual - simple array of points defining the arrow path
   pathCoords: Coordinates[];
   lineStyle: LineStyle;
@@ -293,11 +291,6 @@ export type ArrowPrimitive = {
     start?: { position: Coordinates; angle: number };
     end?: { position: Coordinates; angle: number };
   };
-  // Metadata
-  arrowId: string;
-  fromBoxId?: string;
-  toBoxId?: string;
-  zIndex?: number;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

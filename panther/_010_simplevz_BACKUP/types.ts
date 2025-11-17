@@ -30,7 +30,6 @@ export type SimpleVizInputs = FigureInputsBase & {
 export type SimpleVizData = {
   boxes: RawBox[];
   arrows: RawArrow[];
-  layerPlacementOrder: number[][]; // Array of placement sequences. Within each sequence: first element is source layer (manual placement), rest align to layers in same sequence
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -41,13 +40,11 @@ export type SimpleVizData = {
 
 export type RawBox = {
   id: string;
-  // Layer/order system with alignment
+  // Layout method 1: Layer/order system (automatic grid)
   layer?: number; // Vertical layer (row) - y coordinate calculated as: startY + (layer * layerGap)
-  order?: number; // Horizontal order within layer. Boxes with same order number are grouped and centered together at target position
-  leftOffset?: number; // Additional left margin (source layer: always applied; aligned layers: only for unconnected boxes)
-  alignToRightEdge?: boolean; // If true and box is unconnected, align right edge to available width boundary (overrides leftOffset)
-  subtreeDepth?: number; // Max depth to traverse when calculating subtree center (tree-aware mode). undefined = unlimited depth
-  // Explicit coordinates (fallback if layer not specified)
+  order?: number; // Horizontal order within layer - determines left-to-right positioning
+  leftOffset?: number; // Additional left margin for manual grouping (applied before layer alignment)
+  // Layout method 2: Explicit coordinates (fallback if layer not specified)
   x?: number;
   y?: number;
   width?: number; // Fixed width (before style.scale). If specified without height, height auto-sizes from text wrapped to this width.
@@ -89,7 +86,6 @@ export type RawArrowWithPoints = {
   arrowheadSize?: number;
   style?: LineStyle;
   zIndex?: number; // Controls rendering order (higher renders on top). Defaults to Z_INDEX.SIMPLEVIZ_ARROW (490)
-  ignoreDuringPlacement?: boolean; // If true, this arrow is not considered during box placement calculations
 };
 
 // Arrow connecting two boxes (always has end arrow, no start arrow)
@@ -103,7 +99,6 @@ export type RawArrowWithBoxIDs = {
   truncateEnd?: number; // Gap in pixels from toBox edge (default: 0)
   style?: LineStyle;
   zIndex?: number; // Controls rendering order (higher renders on top). Defaults to Z_INDEX.SIMPLEVIZ_ARROW (490)
-  ignoreDuringPlacement?: boolean; // If true, this arrow is not considered during box placement calculations
 };
 
 export type RawArrow = RawArrowWithPoints | RawArrowWithBoxIDs;
