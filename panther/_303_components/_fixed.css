@@ -139,6 +139,7 @@
     @apply data-[intent=base-content]:data-[outline=true]:text-base-content;
     @apply data-[intent=base-100]:data-[outline=true]:text-base-100;
     @apply data-[outline=true]:border-[currentColor] data-[outline=true]:bg-transparent;
+    @apply data-[fill-base-100=true]:data-[outline=true]:bg-base-100;
   }
 
   /* ============================================= */

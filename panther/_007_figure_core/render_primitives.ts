@@ -9,6 +9,7 @@ import type {
   ChartAxisPrimitive,
   ChartCaptionPrimitive,
   ChartGridPrimitive,
+  ChartLabelPrimitive,
   ChartLegendPrimitive,
   Coordinates,
   DataLabel,
@@ -117,6 +118,10 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
 
     case "chart-caption":
       renderCaptionPrimitive(rc, primitive);
+      break;
+
+    case "chart-label":
+      renderLabelPrimitive(rc, primitive);
       break;
 
     case "simpleviz-box":
@@ -254,6 +259,24 @@ function renderLegendPrimitive(
 function renderCaptionPrimitive(
   rc: RenderContext,
   primitive: ChartCaptionPrimitive,
+): void {
+  rc.rText(
+    primitive.mText,
+    primitive.position,
+    primitive.alignment.h,
+    primitive.alignment.v,
+  );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Label Rendering (Pure Data - No .render() method)                      //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderLabelPrimitive(
+  rc: RenderContext,
+  primitive: ChartLabelPrimitive,
 ): void {
   rc.rText(
     primitive.mText,

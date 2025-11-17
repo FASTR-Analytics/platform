@@ -21,6 +21,7 @@ type SliderWithInputProps = {
   inputDisplayFormatter?: (v: number) => string;
   comparisonValue?: number;
   colorComparisonInput?: boolean;
+  reverseColors?: boolean;
   ticks?: {
     major?: number | number[];
     minor?: number | number[];
@@ -123,11 +124,23 @@ export function SliderWithInput(p: SliderWithInputProps) {
     if (!p.colorComparisonInput || p.comparisonValue === undefined) {
       return "";
     }
-    if (p.value > p.comparisonValue) {
-      return "text-success border-success bg-success/20";
-    }
-    if (p.value < p.comparisonValue) {
-      return "text-danger border-danger bg-danger/20";
+    const isAbove = p.value > p.comparisonValue;
+    const isBelow = p.value < p.comparisonValue;
+
+    if (p.reverseColors) {
+      if (isAbove) {
+        return "text-danger border-danger bg-danger/20";
+      }
+      if (isBelow) {
+        return "text-success border-success bg-success/20";
+      }
+    } else {
+      if (isAbove) {
+        return "text-success border-success bg-success/20";
+      }
+      if (isBelow) {
+        return "text-danger border-danger bg-danger/20";
+      }
     }
     return "";
   };
@@ -152,6 +165,7 @@ export function SliderWithInput(p: SliderWithInputProps) {
                 step={p.step}
                 fullWidth
                 disabled={p.disabled}
+                reverseColors={p.reverseColors}
                 ticks={p.ticks}
               />
             </Match>

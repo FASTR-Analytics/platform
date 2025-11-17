@@ -14,5 +14,5 @@ export { PdfRenderContext } from "../_101_pdf/mod.ts";
 export { validateFilePath } from "../_230_file_utils/mod.ts";
 export { getTtfFontAbsoluteFilePath } from "../_231_font_files/mod.ts";
 export { registerFontWithSkiaIfNeeded } from "../_232_skia_canvas/mod.ts";
-export { Canvas, createCanvas, Fonts } from "@gfx/canvas";
+export { Canvas, Fonts, createCanvas } from "@gfx/canvas";
 export type { jsPDF } from "jspdf";

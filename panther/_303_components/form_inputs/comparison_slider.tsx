@@ -23,6 +23,7 @@ type ComparisonSliderProps = {
   showValueInLabel?: boolean;
   fullWidth?: boolean;
   disabled?: boolean;
+  reverseColors?: boolean;
   valueInLabelFormatter?: (v: number) => string;
   ticks?: {
     major?: number | number[];
@@ -60,8 +61,16 @@ export function ComparisonSlider(p: ComparisonSliderProps) {
   });
 
   const fillColorClass = createMemo(() => {
-    if (p.value > p.comparisonValue) return "ui-comparisonslider-fill-above";
-    if (p.value < p.comparisonValue) return "ui-comparisonslider-fill-below";
+    const isAbove = p.value > p.comparisonValue;
+    const isBelow = p.value < p.comparisonValue;
+
+    if (p.reverseColors) {
+      if (isAbove) return "ui-comparisonslider-fill-below";
+      if (isBelow) return "ui-comparisonslider-fill-above";
+    } else {
+      if (isAbove) return "ui-comparisonslider-fill-above";
+      if (isBelow) return "ui-comparisonslider-fill-below";
+    }
     return "";
   });
 

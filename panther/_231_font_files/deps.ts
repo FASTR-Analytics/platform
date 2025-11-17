@@ -6,9 +6,5 @@
 export { assertNotUndefined } from "../_000_utils/mod.ts";
 export { getFontInfoId } from "../_001_font/mod.ts";
 export type { FontInfo } from "../_001_font/mod.ts";
-export {
-  getHomeDir,
-  toAbsolutePath,
-  validateFilePath,
-} from "../_230_file_utils/mod.ts";
+export { getHomeDir, toAbsolutePath, validateFilePath } from "../_230_file_utils/mod.ts";
 export { join } from "@std/path";

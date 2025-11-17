@@ -85,15 +85,13 @@ export function Input(p: Props) {
           </Switch>
         </Show>
         <input
-          ref={(el) =>
-            useAutoFocus(el, p.autoFocus)}
+          ref={(el) => useAutoFocus(el, p.autoFocus)}
           class={inputClasses}
           data-intent={p.intent}
           data-mono={p.mono}
           autofocus={p.autoFocus}
           type={p.type}
-          onInput={(v) =>
-            p.onChange?.(v.currentTarget.value)}
+          onInput={(v) => p.onChange?.(v.currentTarget.value)}
           value={p.value}
           placeholder={p.placeholder}
           data-left={!!p.searchIcon}

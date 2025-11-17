@@ -62,6 +62,7 @@ type ButtonPropsBase = {
   loading?: boolean;
   state?: StateHolderButtonAction | StateHolderFormAction;
   outline?: boolean;
+  fillBase100?: boolean;
   iconName?: IconName;
   ariaLabel?: string;
 };
@@ -143,6 +144,7 @@ export function Button(p: ButtonProps) {
           form={p.form}
           data-width={p.fullWidth}
           data-outline={!!p.outline}
+          data-fill-base-100={!!p.fillBase100}
           aria-label={p.ariaLabel}
         >
           {content()}
@@ -156,6 +158,7 @@ export function Button(p: ButtonProps) {
           data-intent={p.intent}
           data-width={p.fullWidth}
           data-outline={!!p.outline}
+          data-fill-base-100={!!p.fillBase100}
           target={p.download || p.newTab ? "_blank" : undefined}
           rel={p.download || p.newTab ? "noopener noreferrer" : undefined}
           download={p.download === true ? "" : p.download || undefined}

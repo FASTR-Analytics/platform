@@ -7,16 +7,6 @@ export { assert } from "../_000_utils/mod.ts";
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { getFont, getFontInfoId } from "../_001_font/mod.ts";
-export type {
-  CustomStyleTextOptions,
-  FontInfo,
-  FontKeyOrFontInfo,
-  FontVariants,
-  FontVariantsCustomStyle,
-  FontVariantsKeyed,
-  TextInfo,
-  TextInfoOptions,
-  TextInfoUnkeyed,
-} from "../_001_font/mod.ts";
+export type { CustomStyleTextOptions, FontInfo, FontKeyOrFontInfo, FontVariants, FontVariantsCustomStyle, FontVariantsKeyed, TextInfo, TextInfoOptions, TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Padding } from "../_001_geometry/mod.ts";
 export type { PaddingOptions } from "../_001_geometry/mod.ts";

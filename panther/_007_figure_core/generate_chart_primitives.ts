@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { Primitive, RenderContext } from "./deps.ts";
-import { Z_INDEX } from "./deps.ts";
+import { Padding, RectCoordsDims, Z_INDEX } from "./deps.ts";
 import type { MergedContentStyle, TextInfoUnkeyed } from "./deps.ts";
 import { calculateMappedCoordinates } from "./_content/calculate_mapped_coordinates.ts";
 import { generateContentPrimitives } from "./_content/generate_content_primitives.ts";
@@ -23,6 +23,11 @@ import {
 } from "./_axes/generate_axis_primitives.ts";
 import type { XTextAxisMeasuredInfo } from "./_axes/x_text/types.ts";
 import type { XPeriodAxisMeasuredInfo } from "./_axes/x_period/types.ts";
+import {
+  generateLaneHeaderLabelPrimitives,
+  generatePaneHeaderLabelPrimitive,
+  generateTierHeaderLabelPrimitives,
+} from "./generate_label_primitives.ts";
 
 ///////////////////////////////////////////
 //                                       //
@@ -113,9 +118,68 @@ export function generateChartPrimitives<
   // Track which axes we've already generated (one per tier, one per lane)
   const generatedYAxes = new Set<string>();
   const generatedXAxes = new Set<string>();
+  const generatedPaneLabels = new Set<number>();
+  const generatedTierLabels = new Set<string>();
+  const generatedLaneLabels = new Set<number>();
 
   // Loop over panes → plotAreas (pane × tier × lane)
   for (const mPane of measured.mPanes) {
+    // Generate pane header label (once per pane)
+    if (!generatedPaneLabels.has(mPane.i_pane) && mPane.mPaneHeader) {
+      const panePadding = new Padding((config.mergedStyle as any).panes.padding);
+      const paneHeaderPrimitive = generatePaneHeaderLabelPrimitive(
+        mPane.mPaneHeader,
+        mPane.paneOuterRcd,
+        panePadding.pt(),
+        panePadding.pl(),
+        (config.mergedStyle as any).panes.headerAlignment,
+        mPane.i_pane,
+      );
+      allPrimitives.push(paneHeaderPrimitive);
+      generatedPaneLabels.add(mPane.i_pane);
+    }
+
+    // Generate tier header labels (once per pane)
+    if (!generatedTierLabels.has(`${mPane.i_pane}`)) {
+      const tierLabelPrimitives = generateTierHeaderLabelPrimitives(
+        rc,
+        mPane.yScaleAxisWidthInfo,
+        mPane.yAxisRcd,
+        mPane.subChartAreaHeight,
+        config.transformedData
+          .yScaleAxisData as import("./types.ts").YScaleAxisData,
+        (config.mergedStyle as any).yScaleAxis,
+        mPane.i_pane,
+      );
+      allPrimitives.push(...tierLabelPrimitives);
+      generatedTierLabels.add(`${mPane.i_pane}`);
+    }
+
+    // Generate lane header labels (once per pane)
+    if (!generatedLaneLabels.has(mPane.i_pane)) {
+      const laneHeaderRcd = new RectCoordsDims({
+        x: mPane.xAxisMeasuredInfo.xAxisRcd.x(),
+        y: mPane.paneContentRcd.y(),
+        w: mPane.paneContentRcd.rightX() -
+          mPane.xAxisMeasuredInfo.xAxisRcd.x(),
+        h: mPane.topHeightForLaneHeaders,
+      });
+      const laneLabelPrimitives = generateLaneHeaderLabelPrimitives(
+        rc,
+        config.transformedData.laneHeaders,
+        laneHeaderRcd,
+        mPane.xAxisMeasuredInfo.subChartAreaWidth,
+        (config.mergedStyle as any).xPeriodAxis?.lanePaddingLeft ??
+          (config.mergedStyle as any).xTextAxis?.lanePaddingLeft ?? 0,
+        (config.mergedStyle as any).xPeriodAxis?.laneGapX ??
+          (config.mergedStyle as any).xTextAxis?.laneGapX ?? 0,
+        config.mergedStyle as any,
+        mPane.i_pane,
+      );
+      allPrimitives.push(...laneLabelPrimitives);
+      generatedLaneLabels.add(mPane.i_pane);
+    }
+
     for (const plotAreaInfo of mPane.plotAreaInfos) {
       // Calculate horizontal grid lines (Y-axis)
       plotAreaInfo.horizontalGridLines = calculateYAxisGridLines(

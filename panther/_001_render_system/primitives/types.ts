@@ -250,6 +250,23 @@ export type ChartCaptionPrimitive = BasePrimitive & {
   };
 };
 
+export type ChartLabelPrimitive = BasePrimitive & {
+  type: "chart-label";
+  meta: {
+    labelType: "pane" | "tier" | "lane";
+    paneIndex: number;
+    tierIndex?: number; // Only for tier labels
+    laneIndex?: number; // Only for lane labels
+  };
+  mText: MeasuredText;
+  // Pure data - fully serializable
+  position: Coordinates;
+  alignment: {
+    h: "left" | "center" | "right";
+    v: "top" | "center" | "bottom";
+  };
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 //    SimpleViz Primitives                                                    //
@@ -310,6 +327,7 @@ export type Primitive =
   | ChartGridPrimitive
   | ChartLegendPrimitive
   | ChartCaptionPrimitive
+  | ChartLabelPrimitive
   // SimpleViz primitives
   | BoxPrimitive
   | ArrowPrimitive;

@@ -231,56 +231,56 @@ export function generateXPeriodAxisPrimitive(
           }
         }
       }
+    }
 
-      // Small period labels (months/quarters)
-      const smallLabel = getSmallPeriodLabelIfAny(
-        period,
-        mx.periodAxisType,
-        sx.calendar,
-      );
-      if (smallLabel && mx.periodAxisSmallTickH !== "none") {
-        if (mx.periodAxisType !== "year-centered") {
+    // Small period labels (months/quarters) - render for ALL periods
+    const smallLabel = getSmallPeriodLabelIfAny(
+      period,
+      mx.periodAxisType,
+      sx.calendar,
+    );
+    if (smallLabel && mx.periodAxisSmallTickH !== "none") {
+      if (mx.periodAxisType !== "year-centered") {
+        const mText = rc.mText(
+          smallLabel,
+          sx.text.xPeriodAxisTickLabels,
+          mx.periodIncrementWidth,
+        );
+        const labelPos = new Coordinates([
+          currentX + (sg.gridStrokeWidth + mx.periodIncrementWidth) / 2,
+          tickY + sx.periodLabelSmallTopPadding,
+        ]);
+        // Add label to most recent tick
+        if (ticks.length > 0) {
+          ticks[ticks.length - 1].label = {
+            mText,
+            position: labelPos,
+            alignment: { h: "center", v: "top" },
+          };
+        }
+      } else {
+        // Year-centered: label every Nth
+        if (i_val % sx.showEveryNthTick === 0) {
+          const digits = getYearDigits(
+            mx.periodIncrementWidth * sx.showEveryNthTick,
+            mx.fourDigitYearW,
+          );
+          const yearLabel = getLargePeriodLabel(period, digits);
           const mText = rc.mText(
-            smallLabel,
+            yearLabel,
             sx.text.xPeriodAxisTickLabels,
-            mx.periodIncrementWidth,
+            mx.periodIncrementWidth * sx.showEveryNthTick,
           );
           const labelPos = new Coordinates([
-            currentX + (sg.gridStrokeWidth + mx.periodIncrementWidth) / 2,
-            tickY + sx.periodLabelSmallTopPadding,
+            currentX + mx.periodIncrementWidth / 2,
+            tickY + mx.periodAxisSmallTickH + sx.periodLabelSmallTopPadding,
           ]);
-          // Add label to most recent tick
           if (ticks.length > 0) {
             ticks[ticks.length - 1].label = {
               mText,
               position: labelPos,
               alignment: { h: "center", v: "top" },
             };
-          }
-        } else {
-          // Year-centered: label every Nth
-          if (i_val % sx.showEveryNthTick === 0) {
-            const digits = getYearDigits(
-              mx.periodIncrementWidth * sx.showEveryNthTick,
-              mx.fourDigitYearW,
-            );
-            const yearLabel = getLargePeriodLabel(period, digits);
-            const mText = rc.mText(
-              yearLabel,
-              sx.text.xPeriodAxisTickLabels,
-              mx.periodIncrementWidth * sx.showEveryNthTick,
-            );
-            const labelPos = new Coordinates([
-              currentX + mx.periodIncrementWidth / 2,
-              tickY + mx.periodAxisSmallTickH + sx.periodLabelSmallTopPadding,
-            ]);
-            if (ticks.length > 0) {
-              ticks[ticks.length - 1].label = {
-                mText,
-                position: labelPos,
-                alignment: { h: "center", v: "top" },
-              };
-            }
           }
         }
       }

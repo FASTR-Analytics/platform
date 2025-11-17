@@ -3,23 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export {
-  AlignmentType,
-  convertInchesToTwip,
-  Document,
-  ExternalHyperlink,
-  Footer,
-  HeadingLevel,
-  LevelFormat,
-  Packer,
-  PageNumber,
-  PageOrientation,
-  Paragraph,
-  TextRun,
-} from "docx";
-export type {
-  INumberingOptions,
-  ISectionPropertiesOptions,
-  IStylesOptions,
-} from "docx";
+export { AlignmentType, Document, ExternalHyperlink, Footer, HeadingLevel, LevelFormat, Packer, PageNumber, PageOrientation, Paragraph, TextRun, convertInchesToTwip } from "docx";
+export type { INumberingOptions, ISectionPropertiesOptions, IStylesOptions } from "docx";
 export { default as MarkdownIt } from "markdown-it";
