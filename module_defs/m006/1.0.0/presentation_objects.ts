@@ -164,7 +164,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   //            //
   ////////////////
   {
-    "id": "e5f8740b-a690-4a84-a0cd-05d529676f26",
+    "id": "e5f8740b-a690-4a84-a0cd-05d529676f27",
     "label": "Deafult 3. Coverage calculated from HMIS data (Admin area 3)",
     "resultsValueId": "m6-01-02",
     "config": {
@@ -324,7 +324,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   //            //
   ////////////////
   {
-    "id": "9d4977b4-0d87-44e1-b2bd-3eddcba623f4",
+    "id": "9d4977b4-0d87-44e1-b2bd-3eddcba623f5",
     "label": "Default 5. Coverage calculated from HMIS data (Admin area 3)",
     "resultsValueId": "m6-01-02",
     "config": {
