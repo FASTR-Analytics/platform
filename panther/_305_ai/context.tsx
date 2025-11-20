@@ -3,11 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type Component, createContext, type JSX } from "solid-js";
-import { ToolRegistry } from "./_core/tool_engine.ts";
+import { type Component, type JSX } from "solid-js";
 import type { AIChatConfig } from "./_core/types.ts";
-import { AIChatConfigContext } from "./_hooks/use_ai_chat.ts";
-import { ToolRegistryContext } from "./_hooks/use_ai_tools.ts";
+import { AIChatConfigContext } from "./_components/_create_ai_chat.ts";
 
 type Props = {
   config: AIChatConfig;
@@ -15,17 +13,9 @@ type Props = {
 };
 
 export const AIChatProvider: Component<Props> = (props) => {
-  const toolRegistry = new ToolRegistry();
-
-  if (props.config.tools) {
-    props.config.tools.forEach((tool) => toolRegistry.register(tool));
-  }
-
   return (
     <AIChatConfigContext.Provider value={props.config}>
-      <ToolRegistryContext.Provider value={toolRegistry}>
-        {props.children}
-      </ToolRegistryContext.Provider>
+      {props.children}
     </AIChatConfigContext.Provider>
   );
 };

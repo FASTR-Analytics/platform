@@ -9,6 +9,10 @@ export type CacheControl = {
   type: "ephemeral";
 };
 
+/**
+ * Content blocks that can appear in messages
+ * Updated to match Anthropic SDK types
+ */
 export type ContentBlock =
   | { type: "text"; text: string; cache_control?: CacheControl }
   | {
@@ -32,9 +36,13 @@ export type MessageParam = {
   cache_control?: CacheControl;
 };
 
+/**
+ * Token usage information
+ * Updated to match Anthropic SDK - uses `null` instead of `undefined` for cache fields
+ */
 export type Usage = {
   input_tokens: number;
   output_tokens: number;
-  cache_creation_input_tokens?: number;
-  cache_read_input_tokens?: number;
+  cache_creation_input_tokens?: number | null;
+  cache_read_input_tokens?: number | null;
 };

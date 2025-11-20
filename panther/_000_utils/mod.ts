@@ -16,5 +16,6 @@ export * from "./reorder_array.ts";
 export * from "./sort.ts";
 export * from "./strings.ts";
 export * from "./sum_and_avg.ts";
+export * from "./time_ago.ts";
 export * from "./try_catch.ts";
 export * from "./type_guards.ts";

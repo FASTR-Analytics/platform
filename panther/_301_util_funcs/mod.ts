@@ -7,6 +7,7 @@ export * from "./canvas_debug.ts";
 export * from "./css_variables.ts";
 export * from "./dimensions.ts";
 export * from "./downloads.ts";
+export * from "./figure_to_image.ts";
 export * from "./file_saver_vendored.ts";
 export * from "./fonts_ready.ts";
 export * from "./use_smart_navigate.ts";

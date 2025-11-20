@@ -4,11 +4,20 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  BorderStyle,
   Document,
   ExternalHyperlink,
   HeadingLevel,
+  ImageRun,
   Paragraph,
+  ShadingType,
+  Table,
+  TableCell,
+  TableRow,
   TextRun,
+  ThematicBreak,
+  VerticalAlign,
+  WidthType,
 } from "./deps.ts";
 import type {
   DocElement,
@@ -16,8 +25,8 @@ import type {
   ParsedDocument,
 } from "./document_model.ts";
 import { parseEmailsInText } from "./parser.ts";
-import type { StyleConfig } from "./style_config.ts";
-import { STYLE_CONFIG } from "./style_config.ts";
+import type { StyleConfig, StyleConfigId } from "./style_config.ts";
+import { STYLE_CONFIG, STYLE_CONFIGS } from "./style_config.ts";
 import {
   createFooter,
   createNumbering,
@@ -28,11 +37,44 @@ import {
 
 export function buildWordDocument(
   parsedDoc: ParsedDocument,
-  config: StyleConfig = STYLE_CONFIG,
+  configId?: StyleConfigId,
 ): Document {
-  const paragraphs = parsedDoc.elements.map((element) =>
-    buildParagraph(element, config)
-  );
+  const config = configId && configId !== "default" ? STYLE_CONFIGS[configId] : STYLE_CONFIG;
+
+  // Track numbering instances for each new list (both numbered and bullet)
+  let currentNumberingInstance = 0;
+  let currentBulletInstance = 0;
+  let lastWasNumberedList = false;
+  let lastWasBulletList = false;
+
+  const paragraphs: (Paragraph | Table)[] = parsedDoc.elements.map((element, index) => {
+    const isNumberedListItem = element.type === "list-item" && element.listType === "numbered";
+    const isBulletListItem = element.type === "list-item" && element.listType === "bullet";
+    const isListItem = isNumberedListItem || isBulletListItem;
+
+    // Start a new numbering instance when we encounter a numbered list after a break
+    if (isNumberedListItem && !lastWasNumberedList) {
+      currentNumberingInstance++;
+    }
+
+    // Start a new bullet instance when we encounter a bullet list after a break
+    if (isBulletListItem && !lastWasBulletList) {
+      currentBulletInstance++;
+    }
+
+    // Check if this is the last item in a list
+    const nextElement = parsedDoc.elements[index + 1];
+    const nextIsListItem = nextElement?.type === "list-item";
+    const isLastInList = isListItem && !nextIsListItem;
+
+    // Check if we need spacing after this element (images, tables, list items)
+    const needsSpacingAfter = (element.type === "image" || element.type === "table" || isLastInList) && !!nextElement;
+
+    lastWasNumberedList = isNumberedListItem;
+    lastWasBulletList = isBulletListItem;
+
+    return buildParagraph(element, config, currentNumberingInstance, currentBulletInstance, needsSpacingAfter);
+  });
 
   return new Document({
     styles: createStyles(config),
@@ -49,7 +91,13 @@ export function buildWordDocument(
   });
 }
 
-function buildParagraph(element: DocElement, config: StyleConfig): Paragraph {
+function buildParagraph(
+  element: DocElement,
+  config: StyleConfig,
+  numberingInstance: number,
+  bulletInstance: number,
+  needsSpacingAfter: boolean,
+): Paragraph | Table {
   const children = buildInlineContent(element.content, config);
 
   switch (element.type) {
@@ -62,7 +110,9 @@ function buildParagraph(element: DocElement, config: StyleConfig): Paragraph {
         ? HeadingLevel.HEADING_3
         : element.level === 4
         ? HeadingLevel.HEADING_4
-        : HeadingLevel.HEADING_5;
+        : element.level === 5
+        ? HeadingLevel.HEADING_5
+        : HeadingLevel.HEADING_6;
 
       return new Paragraph({
         heading: headingLevel,
@@ -70,14 +120,61 @@ function buildParagraph(element: DocElement, config: StyleConfig): Paragraph {
       });
     }
 
-    case "list-item":
+    case "list-item": {
+      const level = element.listLevel || 0;
+      const levelConfig = level === 0 ? config.list.level0 : level === 1 ? config.list.level1 : config.list.level2;
+
+      // Word's numbering definitions apply uniform spacing to all list items.
+      // For the last item in a list, we need additional spacing to match the gap
+      // between paragraphs. We achieve this via paragraph-level spacing override,
+      // which is the standard Word pattern for this use case.
+      // Calculation: normal between-item spacing (from numbering def) + list-to-paragraph gap
+      const extraSpacing = needsSpacingAfter ? config.document.paragraphSpaceAfter : 0;
+
       return new Paragraph({
         numbering: {
           reference: element.listType === "bullet" ? "bullets" : "numbering",
-          level: element.listLevel || 0,
+          level: level,
+          instance: element.listType === "numbered" ? numberingInstance : bulletInstance,
         },
+        spacing: needsSpacingAfter ? {
+          after: levelConfig.spaceAfter + extraSpacing,
+        } : undefined,
         children,
       });
+    }
+
+    case "horizontal-rule":
+      return new Paragraph({
+        children: [new ThematicBreak()],
+      });
+
+    case "table":
+      return buildWordTable(element, config, needsSpacingAfter);
+
+    case "image": {
+      if (!element.imageData) {
+        return new Paragraph({ children: [] });
+      }
+
+      try {
+        const imageRun = createImageRun(element.imageData, config);
+        return new Paragraph({
+          children: [imageRun],
+          spacing: needsSpacingAfter ? {
+            after: config.document.paragraphSpaceAfter,
+          } : undefined,
+        });
+      } catch (error) {
+        console.error("Failed to create image:", error);
+        return new Paragraph({
+          children: [new TextRun({ text: `[Image: ${element.imageAlt || ""}]` })],
+          spacing: needsSpacingAfter ? {
+            after: config.document.paragraphSpaceAfter,
+          } : undefined,
+        });
+      }
+    }
 
     case "paragraph":
     default:
@@ -85,6 +182,48 @@ function buildParagraph(element: DocElement, config: StyleConfig): Paragraph {
         children,
       });
   }
+}
+
+function createImageRun(dataUrl: string, config: StyleConfig): ImageRun {
+  // Parse data URL: data:image/png;base64,xxxxx
+  const matches = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+  if (!matches) {
+    throw new Error("Invalid image data URL format");
+  }
+
+  const [, imageType, base64Data] = matches;
+
+  // Convert base64 to Uint8Array (browser-compatible)
+  const binaryString = atob(base64Data);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  // Map jpeg to jpg for docx compatibility
+  let normalizedType = imageType.toLowerCase();
+  if (normalizedType === "jpeg") {
+    normalizedType = "jpg";
+  }
+
+  // SVG requires special handling, so only support raster formats
+  if (!["png", "jpg", "gif", "bmp"].includes(normalizedType)) {
+    throw new Error(`Unsupported image type: ${imageType}`);
+  }
+
+  // Calculate dimensions: full width with default aspect ratio
+  // Convert inches to pixels at 96 DPI (docx library standard)
+  const widthPixels = config.image.maxWidthInches * 96;
+  const heightPixels = widthPixels / config.image.defaultAspectRatio;
+
+  return new ImageRun({
+    type: normalizedType as "png" | "jpg" | "gif" | "bmp",
+    data: bytes,
+    transformation: {
+      width: widthPixels,
+      height: heightPixels,
+    },
+  });
 }
 
 function buildInlineContent(
@@ -170,10 +309,116 @@ function buildInlineContent(
           }),
         );
         break;
+
+      case "break":
+        result.push(
+          new TextRun({
+            text: "",
+            break: 1,
+          }),
+        );
+        break;
     }
   }
 
   return result;
+}
+
+function buildWordTable(element: DocElement, config: StyleConfig, needsSpacingAfter: boolean): Table {
+  const rows: TableRow[] = [];
+
+  // Build header rows if present
+  if (element.tableHeader && element.tableHeader.length > 0) {
+    for (const headerRow of element.tableHeader) {
+      const cells = headerRow.map((cellContent) =>
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: buildInlineContent(cellContent, config),
+              spacing: {
+                before: 0,
+                after: 0,
+              },
+            }),
+          ],
+          shading: {
+            type: config.table.headerShading.type,
+            fill: config.table.headerShading.fill,
+            color: config.table.headerShading.color,
+          },
+          margins: config.table.cellMargins,
+        })
+      );
+      rows.push(new TableRow({ children: cells }));
+    }
+  }
+
+  // Build body rows if present
+  if (element.tableRows && element.tableRows.length > 0) {
+    for (const bodyRow of element.tableRows) {
+      const cells = bodyRow.map((cellContent) =>
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: buildInlineContent(cellContent, config),
+              spacing: {
+                before: 0,
+                after: 0,
+              },
+            }),
+          ],
+          margins: config.table.cellMargins,
+        })
+      );
+      rows.push(new TableRow({ children: cells }));
+    }
+  }
+
+  const extraSpacing = needsSpacingAfter ? config.document.paragraphSpaceAfter : 0;
+
+  return new Table({
+    rows,
+    width: {
+      size: 100,
+      type: WidthType.PERCENTAGE,
+    },
+    margins: {
+      top: config.table.spaceBefore,
+      bottom: config.table.spaceAfter + extraSpacing,
+    },
+    borders: {
+      top: {
+        style: BorderStyle.SINGLE,
+        size: config.table.borders.size,
+        color: config.table.borders.color,
+      },
+      bottom: {
+        style: BorderStyle.SINGLE,
+        size: config.table.borders.size,
+        color: config.table.borders.color,
+      },
+      left: {
+        style: BorderStyle.SINGLE,
+        size: config.table.borders.size,
+        color: config.table.borders.color,
+      },
+      right: {
+        style: BorderStyle.SINGLE,
+        size: config.table.borders.size,
+        color: config.table.borders.color,
+      },
+      insideHorizontal: {
+        style: BorderStyle.SINGLE,
+        size: config.table.borders.size,
+        color: config.table.borders.color,
+      },
+      insideVertical: {
+        style: BorderStyle.SINGLE,
+        size: config.table.borders.size,
+        color: config.table.borders.color,
+      },
+    },
+  });
 }
 
 // export async function saveWordDocument(

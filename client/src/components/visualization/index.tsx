@@ -25,6 +25,7 @@ import {
   StateHolderWrapper,
   ADTFigure,
   downloadCsv,
+  downloadJson,
   getEditorWrapper,
   openAlert,
   openComponent,
@@ -413,9 +414,23 @@ function PresentationObjectEditorInner(p: Props) {
       element: DownloadPresentationObject,
       props: {
         isReplicateBy: !!replicateBy,
+        poDetail: p.poDetail,
       },
     });
     if (res === undefined) {
+      return;
+    }
+    if (res.format === "json-definition") {
+      const jsonDef = {
+        id: p.poDetail.id,
+        label: p.poDetail.label,
+        resultsValueId: p.poDetail.resultsValue.id,
+        config: p.poDetail.config,
+      };
+      downloadJson(
+        jsonDef,
+        `${p.poDetail.label.replaceAll(" ", "_").trim()}_definition.json`,
+      );
       return;
     }
     if (res.format === "data-results-file") {

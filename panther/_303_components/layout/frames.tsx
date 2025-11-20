@@ -358,12 +358,12 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
       0,
     );
 
-    const currentContainerWidth = containerWidth() ||
-      containerRef?.offsetWidth || 1;
+    const currentContainerWidth =
+      containerWidth() || containerRef?.offsetWidth || 1;
 
     if (hasLeft()) {
-      const normalizedWidth = (originalWidths[0] / totalOriginalWidth) *
-        currentContainerWidth;
+      const normalizedWidth =
+        (originalWidths[0] / totalOriginalWidth) * currentContainerWidth;
       const clampedWidth = Math.max(
         minWidths[0],
         Math.min(maxWidths[0], normalizedWidth),
@@ -373,8 +373,8 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     }
 
     if (hasCenter()) {
-      const normalizedWidth = (originalWidths[1] / totalOriginalWidth) *
-        currentContainerWidth;
+      const normalizedWidth =
+        (originalWidths[1] / totalOriginalWidth) * currentContainerWidth;
       const clampedWidth = Math.max(
         minWidths[1],
         Math.min(maxWidths[1], normalizedWidth),
@@ -384,8 +384,8 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     }
 
     if (hasRight()) {
-      const normalizedWidth = (originalWidths[2] / totalOriginalWidth) *
-        currentContainerWidth;
+      const normalizedWidth =
+        (originalWidths[2] / totalOriginalWidth) * currentContainerWidth;
       const clampedWidth = Math.max(
         minWidths[2],
         Math.min(maxWidths[2], normalizedWidth),
@@ -560,15 +560,17 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
       <div class="flex h-0 w-full flex-1">
         <Show when={hasLeft()}>
           <div
-            class={isLastVisible("left")
-              ? "relative h-full w-0 flex-1"
-              : "relative h-full flex-none"}
+            class={
+              isLastVisible("left")
+                ? "relative h-full w-0 flex-1"
+                : "relative h-full flex-none"
+            }
             style={!isLastVisible("left") ? { width: `${leftWidth()}px` } : {}}
           >
             <div class="h-full overflow-auto">{p.leftChild}</div>
             <Show when={hasCenter() || hasRight()}>
               <div
-                class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+                class="absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
                 onMouseDown={handleMouseDown("left")}
               />
             </Show>
@@ -577,17 +579,19 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
 
         <Show when={hasCenter()}>
           <div
-            class={isLastVisible("center")
-              ? "relative h-full w-0 flex-1"
-              : "relative h-full flex-none"}
-            style={!isLastVisible("center")
-              ? { width: `${centerWidth()}px` }
-              : {}}
+            class={
+              isLastVisible("center")
+                ? "relative h-full w-0 flex-1"
+                : "relative h-full flex-none"
+            }
+            style={
+              !isLastVisible("center") ? { width: `${centerWidth()}px` } : {}
+            }
           >
             <div class="h-full overflow-auto">{p.centerChild}</div>
             <Show when={hasRight()}>
               <div
-                class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+                class="absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
                 onMouseDown={handleMouseDown("right")}
               />
             </Show>
@@ -601,10 +605,12 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
         </Show>
 
         <Show
-          when={!hasLeft() &&
+          when={
+            !hasLeft() &&
             !hasCenter() &&
             !hasRight() &&
-            collapsedPanes().length === 0}
+            collapsedPanes().length === 0
+          }
         >
           <div class="h-full w-full overflow-auto" />
         </Show>

@@ -1,22 +1,23 @@
 import { Button, EditorComponentProps, RadioGroup } from "panther";
 import { Show, createSignal } from "solid-js";
-import { t, t2, T } from "lib";
+import { t, t2, T, PresentationObjectDetail } from "lib";
 
 export function DownloadPresentationObject(
   p: EditorComponentProps<
     {
       isReplicateBy: boolean;
+      poDetail: PresentationObjectDetail;
     },
     {
       transparent: boolean;
       padding: boolean;
       allReplicants: boolean;
-      format: "image" | "data-visualization" | "data-results-file";
+      format: "image" | "data-visualization" | "data-results-file" | "json-definition";
     }
   >,
 ) {
   const [format, setFormat] = createSignal<
-    "image" | "data-visualization" | "data-results-file"
+    "image" | "data-visualization" | "data-results-file" | "json-definition"
   >("image");
   const [transparent, setTransparent] = createSignal<string>("white");
   const [padding, setPadding] = createSignal<string>("padding");
@@ -45,6 +46,7 @@ export function DownloadPresentationObject(
               label: t2(T.FRENCH_UI_STRINGS.aggregated_data_for_the_visual),
             },
             { value: "data-results-file", label: t2(T.FRENCH_UI_STRINGS.results_file_data) },
+            { value: "json-definition", label: "JSON definition" },
           ]}
           value={format()}
           onChange={setFormat}

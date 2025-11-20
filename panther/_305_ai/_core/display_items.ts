@@ -29,8 +29,8 @@ export function getDisplayItemsFromMessage(
 
   for (const block of content) {
     if (block.type === "tool_use") {
-      const tool = toolRegistry.get(block.name);
-      if (tool?.displayComponent) {
+      const toolWithMetadata = toolRegistry.get(block.name);
+      if (toolWithMetadata?.metadata.displayComponent) {
         displayItems.push({
           type: "tool_display",
           toolName: block.name,

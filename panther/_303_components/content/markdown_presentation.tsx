@@ -9,8 +9,26 @@ import type Token from "markdown-it/lib/token.mjs";
 import markdownItKatex from "@vscode/markdown-it-katex";
 import "katex/dist/katex.min.css";
 
+export type MarkdownPresentationStyleId = "default" | "github";
+
 type Props = {
   markdown: string;
+  styleId?: MarkdownPresentationStyleId;
+};
+
+const STYLE_CONFIGS = {
+  github: {
+    h1: "text-[2em] font-700 mt-6 mb-4 leading-[1.25]",
+    h2: "text-[1.5em] font-700 mt-6 mb-4 leading-[1.25]",
+    h3: "text-[1.25em] font-700 mt-6 mb-4 leading-[1.25]",
+    h4: "text-[1em] font-700 mt-6 mb-4 leading-[1.25]",
+    h5: "text-[0.875em] font-700 mt-6 mb-4 leading-[1.25]",
+    h6: "text-[0.85em] font-700 mt-6 mb-4 leading-[1.25]",
+    p: "mt-0 mb-[0.625em] leading-normal",
+    ul: "list-disc mt-0 mb-[0.625em] pl-8 [&_li]:mt-[0.25em]",
+    ol: "list-decimal mt-0 mb-[0.625em] pl-8 [&_li]:mt-[0.25em]",
+    strong: "font-700",
+  },
 };
 
 const md = new MarkdownIt();
@@ -44,19 +62,22 @@ md.renderer.rules.td_open = () => {
 };
 
 export function MarkdownPresentation(p: Props) {
+  const config = () => STYLE_CONFIGS.github;
+
   const htmlContent = createMemo(() => {
+    const c = config();
     let html = md.render(p.markdown);
 
-    html = html.replace(/<h1>/g, '<h1 class="text-2xl font-700 mt-8 mb-4">');
-    html = html.replace(/<h2>/g, '<h2 class="text-xl font-700 mt-8 mb-3">');
-    html = html.replace(/<h3>/g, '<h3 class="text-lg font-700 mt-4 mb-2">');
-    html = html.replace(/<p>/g, '<p class="my-3 leading-relaxed">');
-    html = html.replace(/<ul>/g, '<ul class="list-disc my-3 ml-6 space-y-1">');
-    html = html.replace(
-      /<ol>/g,
-      '<ol class="list-decimal my-3 ml-6 space-y-1">',
-    );
-    html = html.replace(/<strong>/g, '<strong class="font-700">');
+    html = html.replace(/<h1>/g, `<h1 class="${c.h1}">`);
+    html = html.replace(/<h2>/g, `<h2 class="${c.h2}">`);
+    html = html.replace(/<h3>/g, `<h3 class="${c.h3}">`);
+    html = html.replace(/<h4>/g, `<h4 class="${c.h4}">`);
+    html = html.replace(/<h5>/g, `<h5 class="${c.h5}">`);
+    html = html.replace(/<h6>/g, `<h6 class="${c.h6}">`);
+    html = html.replace(/<p>/g, `<p class="${c.p}">`);
+    html = html.replace(/<ul>/g, `<ul class="${c.ul}">`);
+    html = html.replace(/<ol>/g, `<ol class="${c.ol}">`);
+    html = html.replace(/<strong>/g, `<strong class="${c.strong}">`);
 
     return html;
   });

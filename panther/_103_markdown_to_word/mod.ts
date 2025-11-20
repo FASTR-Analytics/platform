@@ -14,8 +14,8 @@ export {
   getPageProperties,
 } from "./styles.ts";
 export {
-  COMPACT_STYLE_CONFIG,
-  DEFAULT_STYLE_CONFIG,
+  GITHUB_APTOS_STYLE_CONFIG,
+  GITHUB_CAMBRIA_STYLE_CONFIG,
   STYLE_CONFIG,
   STYLE_CONFIGS,
 } from "./style_config.ts";

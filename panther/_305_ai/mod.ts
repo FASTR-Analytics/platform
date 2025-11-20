@@ -8,86 +8,32 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 export { AIChat } from "./_components/ai_chat.tsx";
-export { MessageInput } from "./_components/message_input.tsx";
-export { MessageList } from "./_components/message_list.tsx";
-export { UsageDisplay } from "./_components/usage_display.tsx";
-
-export { DefaultRenderer } from "./_components/_renderers/default_renderer.tsx";
-export { StreamingTextRenderer } from "./_components/_renderers/streaming_text_renderer.tsx";
-export { TextRenderer } from "./_components/_renderers/text_renderer.tsx";
-export { ToolErrorRenderer } from "./_components/_renderers/tool_error_renderer.tsx";
-export { ToolLoadingRenderer } from "./_components/_renderers/tool_loading_renderer.tsx";
-
-////////////////////////////////////////////////////////////////////////////////
-// CONTEXT & PROVIDER
-////////////////////////////////////////////////////////////////////////////////
-
 export { AIChatProvider } from "./context.tsx";
 
 ////////////////////////////////////////////////////////////////////////////////
-// HOOKS
+// SIGNALS
 ////////////////////////////////////////////////////////////////////////////////
 
-export { useAIChat } from "./_hooks/use_ai_chat.ts";
-export { createToolRegistry, useAITools } from "./_hooks/use_ai_tools.ts";
-export { useScrollManager } from "./_hooks/use_scroll_manager.ts";
+export { createAIChat } from "./_components/_create_ai_chat.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
-// UTILITIES
+// CORE FUNCTIONS
 ////////////////////////////////////////////////////////////////////////////////
 
-export { callAIAPI } from "./_core/api_client.ts";
-export { callAIAPIStreaming } from "./_core/api_client_streaming.ts";
+export { createAITool } from "./_core/tool_helpers.ts";
+export { createSDKClient } from "./_core/sdk_client.ts";
 export {
-  aggregateUsage,
-  calculateCost,
-  formatCost,
-  formatTokenCount,
-} from "./_core/cost_utils.ts";
-export {
-  clearConversationStore,
-  deleteConversationStore,
-  getConversationState,
-  getOrCreateConversationStore,
-} from "./_core/conversation_store.ts";
-export { getDisplayItemsFromMessage } from "./_core/display_items.ts";
-export {
-  getInProgressItems,
-  processToolUses,
-  ToolRegistry,
-} from "./_core/tool_engine.ts";
+  createBashTool,
+  createTextEditorTool,
+  createWebSearchTool,
+} from "./_core/builtin_tools.ts";
+export { callAI } from "./_core/one_shot.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
-export type {
-  AIChatConfig,
-  AITool,
-  AIToolHandler,
-  AnthropicModel,
-  AnthropicModelConfig,
-  AnthropicResponse,
-  APIConfig,
-  CacheControl,
-  ChatState,
-  ContentBlock,
-  CostEstimate,
-  DisplayItem,
-  DisplayItemRenderer,
-  DisplayRegistry,
-  MessageBackgroundColor,
-  MessageParam,
-  MessagePayload,
-  MessageRole,
-  MessageStyle,
-  MessageStyles,
-  MessageTextColor,
-  StreamEvent,
-  ToolDefinition,
-  Usage,
-} from "./_core/types.ts";
+export type { AIChatConfig, AnthropicModelConfig } from "./_core/types.ts";
 
-export type { ConversationStore } from "./_core/conversation_store.ts";
-export type { ScrollManagerOptions } from "./_hooks/use_scroll_manager.ts";
-export type { ToolResult } from "./_core/tool_engine.ts";
+export type { CallAIConfig, CallAIResult } from "./_core/one_shot.ts";
+export type { WebSearchToolConfig } from "./_core/builtin_tools.ts";

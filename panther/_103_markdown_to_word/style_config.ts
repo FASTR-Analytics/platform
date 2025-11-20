@@ -10,6 +10,7 @@ import { AlignmentType, PageOrientation } from "./deps.ts";
 // - Line spacing: Relative multiplier (240 = 1.0x font size, 360 = 1.5x, etc.)
 // - Before/After spacing: Use twips (1 twip = 1/20 of a point, so 20 twips = 1pt)
 // - Margins/Indents: Use inches with convertInchesToTwip() helper
+// - Image dimensions: Use pixels at 96 DPI (96 pixels = 1 inch)
 
 // Aptos font family weight options (use these exact names):
 // - "Aptos Light" - Light weight (300)
@@ -19,95 +20,128 @@ import { AlignmentType, PageOrientation } from "./deps.ts";
 // - "Aptos ExtraBold" - Extra bold weight (800)
 // - "Aptos Black" - Black weight (900)
 
-export type StyleConfig = typeof DEFAULT_STYLE_CONFIG;
-export type StyleConfigId = "default" | "compact";
+export type StyleConfig = typeof GITHUB_APTOS_STYLE_CONFIG;
+export type StyleConfigId = "default" | "github-aptos" | "github-cambria";
 
-export const DEFAULT_STYLE_CONFIG = {
+export const GITHUB_APTOS_STYLE_CONFIG = {
   document: {
     font: "Aptos",
-    fontSize: 22, // docx uses half-points, so 22 = 11pt
+    fontSize: 22, // 11pt base size
     color: "000000",
-    lineSpacing: 240, // Relative to font size: 240=1.0x, 276=1.15x, 288=1.2x, 360=1.5x, 480=2.0x
-    fontWeight: 400, // Normal weight (400=normal, 700=bold)
+    lineSpacing: 240, // 1.0x line spacing (single spacing)
+    fontWeight: 400,
+    paragraphSpaceBefore: 0, // mt-0
+    paragraphSpaceAfter: 138, // 0.625em = 6.875pt = 137.5 twips ≈ 138
+  },
+  table: {
+    borders: {
+      color: "CACACA", // base-300 color
+      size: 4, // Border width in eighths of a point (4 = 0.5pt)
+      style: "single" as const,
+    },
+    headerShading: {
+      fill: "F2F2F2", // base-200 color
+      color: "auto",
+      type: "clear" as const,
+    },
+    cellMargins: {
+      top: 40, // 2pt = 40 twips (similar to py-2 padding)
+      bottom: 40,
+      left: 80, // 4pt = 80 twips (similar to px-4 padding)
+      right: 80,
+    },
+    spaceBefore: 120, // Space before table
+    spaceAfter: 120, // Space after table
   },
   headings: {
     h1: {
       font: "Aptos ExtraBold",
       bold: false,
-      size: 40, // 20pt (size is in half-points)
-      fontWeight: 800, // Bold weight (can override with numeric values: 100-900)
+      size: 44, // 2em = 22pt (2 * 11pt)
+      fontWeight: 800,
       color: "000000",
-      spaceBefore: 240, // Twips: 240 = 12pt spacing before
-      spaceAfter: 240, // Twips: 240 = 12pt spacing after
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
     },
     h2: {
       font: "Aptos ExtraBold",
       bold: false,
-      size: 32, // 16
-      fontWeight: 700, // Bold weight
+      size: 33, // 1.5em = 16.5pt (1.5 * 11pt)
+      fontWeight: 700,
       color: "000000",
-      spaceBefore: 360,
-      spaceAfter: 180, // 9pt
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
     },
     h3: {
       font: "Aptos",
-      size: 28, // 14pt
+      size: 27, // 1.25em = 13.75pt (1.25 * 11pt)
       bold: true,
-      fontWeight: 600, // Semi-bold weight
+      fontWeight: 600,
       color: "000000",
-      spaceBefore: 240, // 9pt
-      spaceAfter: 120, // 6pt
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
     },
     h4: {
       font: "Aptos",
-      size: 22, // 11pt
+      size: 22, // 1em = 11pt (1 * 11pt)
       bold: true,
-      fontWeight: 600, // Semi-bold weight
+      fontWeight: 600,
       color: "000000",
-      spaceBefore: 180, // 6pt
-      spaceAfter: 120, // 3pt
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
     },
     h5: {
       font: "Aptos",
-      size: 22, // 11pt
+      size: 19, // 0.875em = 9.625pt (0.875 * 11pt)
       bold: true,
-      fontWeight: 500, // Medium weight
+      fontWeight: 600,
       color: "000000",
-      spaceBefore: 120, // 3pt
-      spaceAfter: 60, // 3pt
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
+    },
+    h6: {
+      font: "Aptos",
+      size: 19, // 0.875em = 9.625pt (0.875 * 11pt)
+      bold: true,
+      fontWeight: 600,
+      color: "000000",
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
     },
   },
   list: {
-    // Level 0 (top level)
     level0: {
-      indent: 0.2, // in inches - distance from left margin
-      hanging: 0.2, // in inches - distance from bullet/number to text
+      indent: 0.2,
+      hanging: 0.2,
       bulletSymbol: "•",
-      numberFormat: "%1.", // 1. 2. 3.
-      spaceBefore: 60, // Twips: vertical space before each list item (3pt)
-      spaceAfter: 120, // Twips: vertical space after each list item (3pt)
-      lineSpacing: 240, // Relative to font size: 240=1.0x (single spacing within items)
+      numberFormat: "%1.",
+      spaceBefore: 0,
+      spaceAfter: 55, // 0.25em = 2.75pt = 55 twips
+      lineSpacing: 240, // 1.0x single spacing
     },
-    // Level 1 (first nested level)
     level1: {
-      indent: 0.4, // in inches
-      hanging: 0.2, // in inches
-      bulletSymbol: "–", // En dash for level 1 (more subtle than hollow circle)
-      numberFormat: "%2.", // 1. 2. 3. (could change to a. b. c.)
-      spaceBefore: 60, // Twips: vertical space before each list item (3pt)
-      spaceAfter: 120, // Twips: vertical space after each list item (3pt)
-      lineSpacing: 240, // Relative to font size: 240=1.0x (single spacing within items)
+      indent: 0.4,
+      hanging: 0.2,
+      bulletSymbol: "–",
+      numberFormat: "%2.",
+      spaceBefore: 0,
+      spaceAfter: 55,
+      lineSpacing: 240,
     },
-    // Level 2 (second nested level)
     level2: {
-      indent: 0.6, // in inches
-      hanging: 0.2, // in inches
-      bulletSymbol: "▪", // Small square for level 2
-      numberFormat: "%3.", // 1. 2. 3. (could change to i. ii. iii.)
-      spaceBefore: 60, // Twips: vertical space before each list item (3pt)
-      spaceAfter: 120, // Twips: vertical space after each list item (3pt)
-      lineSpacing: 240, // Relative to font size: 240=1.0x (single spacing within items)
+      indent: 0.6,
+      hanging: 0.2,
+      bulletSymbol: "▪",
+      numberFormat: "%3.",
+      spaceBefore: 0,
+      spaceAfter: 55,
+      lineSpacing: 240,
     },
+  },
+  image: {
+    // Page width calculation: 8.5" (letter) - 0.8" left margin - 0.8" right margin = 6.9"
+    maxWidthInches: 6.9, // Full width between margins
+    defaultAspectRatio: 16 / 9, // Used when image dimensions unknown
   },
   link: {
     color: "0563C1",
@@ -119,70 +153,101 @@ export const DEFAULT_STYLE_CONFIG = {
       bottom: 0.8,
       left: 0.8,
       right: 0.8,
-    }, // in inches
+    },
     orientation: PageOrientation.PORTRAIT,
   },
   footer: {
-    alignment: AlignmentType.RIGHT, // CENTER, LEFT, or RIGHT
-    fontSize: 20, // 10pt (in half-points)
+    alignment: AlignmentType.RIGHT,
+    fontSize: 20, // 10pt
     showPageNumbers: true,
-    format: "current_of_total", // Options: "current_only", "current_of_total"
+    format: "current_of_total",
   },
 };
 
-export const COMPACT_STYLE_CONFIG: StyleConfig = {
+export const GITHUB_CAMBRIA_STYLE_CONFIG: StyleConfig = {
   document: {
-    font: "Aptos",
-    fontSize: 22, // 11pt
+    font: "Cambria",
+    fontSize: 22, // 11pt base size
     color: "000000",
-    lineSpacing: 240,
+    lineSpacing: 240, // 1.0x line spacing (single spacing)
     fontWeight: 400,
+    paragraphSpaceBefore: 0, // mt-0
+    paragraphSpaceAfter: 138, // 0.625em = 6.875pt = 137.5 twips ≈ 138
+  },
+  table: {
+    borders: {
+      color: "CACACA", // base-300 color
+      size: 4, // Border width in eighths of a point (4 = 0.5pt)
+      style: "single" as const,
+    },
+    headerShading: {
+      fill: "F2F2F2", // base-200 color
+      color: "auto",
+      type: "clear" as const,
+    },
+    cellMargins: {
+      top: 40, // 2pt = 40 twips (similar to py-2 padding)
+      bottom: 40,
+      left: 80, // 4pt = 80 twips (similar to px-4 padding)
+      right: 80,
+    },
+    spaceBefore: 120, // Space before table
+    spaceAfter: 120, // Space after table
   },
   headings: {
     h1: {
-      font: "Aptos ExtraBold",
-      bold: false,
-      size: 28, // 14pt
+      font: "Cambria",
+      bold: true,
+      size: 44, // 2em = 22pt (2 * 11pt)
       fontWeight: 800,
       color: "000000",
-      spaceBefore: 360,
-      spaceAfter: 180,
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
     },
     h2: {
-      font: "Aptos ExtraBold",
-      bold: false,
-      size: 26, // 13pt
+      font: "Cambria",
+      bold: true,
+      size: 33, // 1.5em = 16.5pt (1.5 * 11pt)
       fontWeight: 700,
       color: "000000",
-      spaceBefore: 360,
-      spaceAfter: 120, // 6pt
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
     },
     h3: {
-      font: "Aptos",
-      size: 24, // 12pt
+      font: "Cambria",
+      size: 27, // 1.25em = 13.75pt (1.25 * 11pt)
       bold: true,
       fontWeight: 600,
       color: "000000",
-      spaceBefore: 180, // 9pt
-      spaceAfter: 60, // 3pt
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
     },
     h4: {
-      font: "Aptos",
-      size: 22, // 11pt
+      font: "Cambria",
+      size: 22, // 1em = 11pt (1 * 11pt)
       bold: true,
       fontWeight: 600,
       color: "000000",
-      spaceBefore: 120,
-      spaceAfter: 60,
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
     },
     h5: {
-      font: "Aptos",
-      size: 22, // 11pt
+      font: "Cambria",
+      size: 19, // 0.875em = 9.625pt (0.875 * 11pt)
       bold: true,
-      fontWeight: 500,
+      fontWeight: 600,
       color: "000000",
-      spaceBefore: 60,
-      spaceAfter: 60,
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
+    },
+    h6: {
+      font: "Cambria",
+      size: 19, // 0.875em = 9.625pt (0.875 * 11pt)
+      bold: true,
+      fontWeight: 600,
+      color: "000000",
+      spaceBefore: 330, // 24px = 1.5em = 16.5pt = 330 twips
+      spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
     },
   },
   list: {
@@ -191,17 +256,17 @@ export const COMPACT_STYLE_CONFIG: StyleConfig = {
       hanging: 0.2,
       bulletSymbol: "•",
       numberFormat: "%1.",
-      spaceBefore: 40, // 2pt
-      spaceAfter: 80, // 4pt
-      lineSpacing: 240,
+      spaceBefore: 0,
+      spaceAfter: 55, // 0.25em = 2.75pt = 55 twips
+      lineSpacing: 240, // 1.0x single spacing
     },
     level1: {
       indent: 0.4,
       hanging: 0.2,
       bulletSymbol: "–",
       numberFormat: "%2.",
-      spaceBefore: 40,
-      spaceAfter: 80,
+      spaceBefore: 0,
+      spaceAfter: 55,
       lineSpacing: 240,
     },
     level2: {
@@ -209,10 +274,15 @@ export const COMPACT_STYLE_CONFIG: StyleConfig = {
       hanging: 0.2,
       bulletSymbol: "▪",
       numberFormat: "%3.",
-      spaceBefore: 40,
-      spaceAfter: 80,
+      spaceBefore: 0,
+      spaceAfter: 55,
       lineSpacing: 240,
     },
+  },
+  image: {
+    // Page width calculation: 8.5" (letter) - 0.8" left margin - 0.8" right margin = 6.9"
+    maxWidthInches: 6.9, // Full width between margins
+    defaultAspectRatio: 16 / 9, // Used when image dimensions unknown
   },
   link: {
     color: "0563C1",
@@ -220,24 +290,24 @@ export const COMPACT_STYLE_CONFIG: StyleConfig = {
   },
   page: {
     margins: {
-      top: 0.6,
-      bottom: 0.6,
-      left: 0.6,
-      right: 0.6,
+      top: 0.8,
+      bottom: 0.8,
+      left: 0.8,
+      right: 0.8,
     },
     orientation: PageOrientation.PORTRAIT,
   },
   footer: {
     alignment: AlignmentType.RIGHT,
-    fontSize: 18, // 9pt
-    showPageNumbers: false,
+    fontSize: 20, // 10pt
+    showPageNumbers: true,
     format: "current_of_total",
   },
 };
 
-export const STYLE_CONFIGS: Record<StyleConfigId, StyleConfig> = {
-  default: DEFAULT_STYLE_CONFIG,
-  compact: COMPACT_STYLE_CONFIG,
+export const STYLE_CONFIGS = {
+  "github-aptos": GITHUB_APTOS_STYLE_CONFIG,
+  "github-cambria": GITHUB_CAMBRIA_STYLE_CONFIG,
 };
 
-export const STYLE_CONFIG = DEFAULT_STYLE_CONFIG;
+export const STYLE_CONFIG = GITHUB_APTOS_STYLE_CONFIG;

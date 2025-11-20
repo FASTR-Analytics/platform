@@ -416,6 +416,16 @@ await openEditor({
 - Use descriptive keys when needed: `t("Loading data...")`
 - For form validation: `t("Field is required")`
 
+### Text Casing
+
+- **Use Sentence case for all UI text** (headings, buttons, labels, etc.)
+- **Do NOT use Title Case**
+- Examples:
+  - ✅ "Save changes" (Sentence case)
+  - ✅ "Delete user account" (Sentence case)
+  - ❌ "Save Changes" (Title Case)
+  - ❌ "Delete User Account" (Title Case)
+
 ## Type Safety
 
 ### Generic Component Patterns

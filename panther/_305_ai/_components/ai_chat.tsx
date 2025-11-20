@@ -11,8 +11,8 @@ import {
   Show,
   useContext,
 } from "solid-js";
-import { useScrollManager } from "../_hooks/use_scroll_manager.ts";
-import { AIChatConfigContext, useAIChat } from "../_hooks/use_ai_chat.ts";
+import { createScrollManager } from "./_scroll_manager.ts";
+import { AIChatConfigContext, createAIChat } from "./_create_ai_chat.ts";
 import type {
   AnthropicModel,
   DisplayRegistry,
@@ -53,13 +53,13 @@ export const AIChat: Component<Props> = (props) => {
     sendMessages,
     toolRegistry,
     processMessageForDisplay,
-  } = useAIChat();
+  } = createAIChat();
   const [inputValue, setInputValue] = createSignal("");
   const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
 
   let scrollContainer: HTMLDivElement | undefined;
 
-  const { checkScrollPosition, scrollToBottom } = useScrollManager(
+  const { checkScrollPosition, scrollToBottom } = createScrollManager(
     () => scrollContainer,
     () => [displayItems(), isLoading(), currentStreamingText()],
     { enabled: props.autoScroll ?? true },

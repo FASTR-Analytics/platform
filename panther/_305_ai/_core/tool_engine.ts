@@ -3,7 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { AITool, ContentBlock, DisplayItem } from "./types.ts";
+import type { ContentBlock, DisplayItem } from "./types.ts";
+import type { AIToolWithMetadata, ToolUIMetadata } from "./tool_helpers.ts";
 
 export type ToolResult = {
   type: "tool_result";
@@ -13,36 +14,39 @@ export type ToolResult = {
 };
 
 export class ToolRegistry {
-  private tools = new Map<string, AITool>();
+  private tools = new Map<string, AIToolWithMetadata>();
 
-  register(tool: AITool): void {
-    this.tools.set(tool.name, tool);
+  
+  register(tool: AIToolWithMetadata): void {
+    this.tools.set(tool.sdkTool.name, tool);
   }
 
+  
   unregister(toolName: string): void {
     this.tools.delete(toolName);
   }
 
-  get(toolName: string): AITool | undefined {
+  
+  get(toolName: string): AIToolWithMetadata | undefined {
     return this.tools.get(toolName);
   }
 
-  getAll(): AITool[] {
+  
+  getMetadata(toolName: string): ToolUIMetadata | undefined {
+    return this.tools.get(toolName)?.metadata;
+  }
+
+  
+  getAll(): AIToolWithMetadata[] {
     return Array.from(this.tools.values());
   }
 
-  getDefinitions(): Array<{
-    name: string;
-    description: string;
-    input_schema: AITool["input_schema"];
-  }> {
-    return this.getAll().map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      input_schema: tool.input_schema,
-    }));
+  
+  getSDKTools(): Array<ReturnType<AIToolWithMetadata["sdkTool"]>> {
+    return this.getAll().map((tool) => tool.sdkTool);
   }
 
+  
   clear(): void {
     this.tools.clear();
   }
@@ -58,13 +62,13 @@ export function getInProgressItems(
   );
 
   return toolUseBlocks.map((block) => {
-    const tool = toolRegistry.get(block.name);
+    const metadata = toolRegistry.getMetadata(block.name);
     let label: string | undefined;
 
-    if (tool?.inProgressLabel) {
-      label = typeof tool.inProgressLabel === "function"
-        ? tool.inProgressLabel(block.input)
-        : tool.inProgressLabel;
+    if (metadata?.inProgressLabel) {
+      label = typeof metadata.inProgressLabel === "function"
+        ? metadata.inProgressLabel(block.input)
+        : metadata.inProgressLabel;
     }
 
     return {
@@ -92,9 +96,9 @@ export async function processToolUses(
   const inProgressItems = getInProgressItems(content, toolRegistry);
 
   const toolPromises = toolUseBlocks.map(async (block) => {
-    const tool = toolRegistry.get(block.name);
+    const toolWithMetadata = toolRegistry.get(block.name);
 
-    if (!tool) {
+    if (!toolWithMetadata) {
       console.error(`Unknown tool: ${block.name}`);
       return {
         type: "tool_result" as const,
@@ -105,11 +109,12 @@ export async function processToolUses(
     }
 
     try {
-      const result = await tool.handler(block.input);
+      // SDK tools have a run() method that executes the handler
+      const result = await toolWithMetadata.sdkTool.run(block.input);
       return {
         type: "tool_result" as const,
         tool_use_id: block.id,
-        content: typeof result === "string" ? result : JSON.stringify(result),
+        content: result, // SDK tool already returns string
       };
     } catch (error) {
       const errorMessage = error instanceof Error

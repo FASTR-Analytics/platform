@@ -46,10 +46,10 @@ export function buildArrowPrimitives(
       continue;
     }
 
-    // Get anchor points for arrow connection
-    const fromAnchor = fromBox.arrowStartPoint ??
+    // Get anchor points for arrow connection (arrow → box → defaults)
+    const fromAnchor = arrow.arrowStartPoint ?? fromBox.arrowStartPoint ??
       mergedSimpleVizStyle.boxes.arrowStartPoint;
-    const toAnchor = toBox.arrowEndPoint ??
+    const toAnchor = arrow.arrowEndPoint ?? toBox.arrowEndPoint ??
       mergedSimpleVizStyle.boxes.arrowEndPoint;
     const fromCenter = getAnchorCoords(fromBoxPrim.rcd, fromAnchor);
     const toCenter = getAnchorCoords(toBoxPrim.rcd, toAnchor);

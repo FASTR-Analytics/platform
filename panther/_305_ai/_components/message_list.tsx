@@ -55,9 +55,10 @@ export const MessageList: Component<Props> = (props) => {
         return <Renderer item={item} />;
       }
       case "tool_display": {
-        const tool = props.toolRegistry.get(item.toolName);
-        if (tool?.displayComponent) {
-          return <>{tool.displayComponent({ input: item.input })}</>;
+        const toolWithMetadata = props.toolRegistry.get(item.toolName);
+        if (toolWithMetadata?.metadata.displayComponent) {
+          const DisplayComponent = toolWithMetadata.metadata.displayComponent;
+          return <DisplayComponent input={item.input} />;
         }
         return null;
       }

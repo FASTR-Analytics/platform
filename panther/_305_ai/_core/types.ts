@@ -22,6 +22,7 @@ export type {
 } from "../deps.ts";
 
 import type {
+  Anthropic,
   AnthropicModel,
   AnthropicModelConfig,
   AnthropicResponse,
@@ -36,6 +37,8 @@ import type {
   ToolDefinition,
   Usage,
 } from "../deps.ts";
+import type { AIToolWithMetadata } from "./tool_helpers.ts";
+import type { BuiltInTool } from "./builtin_tools.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // TOOL TYPES (UI-SPECIFIC)
@@ -144,16 +147,37 @@ export type MessageStyles = {
 ////////////////////////////////////////////////////////////////////////////////
 
 export type AIChatConfig = {
-  apiConfig: APIConfig;
+  
+  sdkClient: Anthropic;
+
+  
   conversationId?: string;
-  tools?: AITool[];
+
+  
+  tools?: AIToolWithMetadata[];
+
+  
+  builtInTools?: BuiltInTool[];
+
+  
   modelConfig: AnthropicModelConfig;
+
+  
   system?:
     | string
     | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
+
+  
   enableStreaming?: boolean;
+
+  
   renderMarkdown?: boolean;
+
+  
   messageStyles?: MessageStyles;
+
+  
+  apiConfig?: APIConfig;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

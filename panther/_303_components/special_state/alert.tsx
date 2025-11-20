@@ -125,15 +125,13 @@ function isComponentState(
   return alertState?.stateType === "component";
 }
 
-type ComponentStateType<TProps, TReturn> =
-  & OpenComponentInput<
-    TProps,
-    TReturn
-  >
-  & {
-    stateType: "component";
-    componentResolver(v: TReturn | undefined): void;
-  };
+type ComponentStateType<TProps, TReturn> = OpenComponentInput<
+  TProps,
+  TReturn
+> & {
+  stateType: "component";
+  componentResolver(v: TReturn | undefined): void;
+};
 
 const [alertState, setAlertState] = createSignal<
   | AlertStateType
@@ -215,151 +213,160 @@ export default function AlertProvider() {
         return (
           <>
             <div class="fixed inset-0 z-50 bg-black/30" />
-            <div class="fixed inset-0 z-50 flex items-center justify-center">
-              <Switch>
-                <Match
-                  when={isComponentState(keyedAlertState) && keyedAlertState}
-                  keyed
-                >
-                  {(keyedComponentState) => {
-                    return (
-                      <div class="ui-never-focusable bg-base-100 z-50 mx-12 rounded shadow-lg outline-none">
-                        <Dynamic
-                          component={keyedComponentState.element}
-                          close={(p: unknown) => {
-                            keyedComponentState.componentResolver(p);
-                            setAlertState(undefined);
-                          }}
-                          {...keyedComponentState.props}
-                        />
-                      </div>
-                    );
-                  }}
-                </Match>
-                <Match
-                  when={isACPState(keyedAlertState) && keyedAlertState}
-                  keyed
-                >
-                  {(keyedACPState) => {
-                    return (
-                      <div
-                        class="ui-pad ui-never-focusable bg-base-100 z-50 min-w-[360px] rounded shadow-lg"
-                        style={{ "max-width": keyedACPState.maxWidth || "80%" }}
-                      >
-                        <div class="ui-spy">
-                          <Show
-                            when={keyedACPState.title || keyedACPState.text}
-                          >
-                            <div class="space-y-3">
-                              <Show when={keyedACPState.title} keyed>
-                                {(keyedTitle) => {
-                                  return (
-                                    <h2
-                                      class="ui-text-heading data-primary:text-primary data-neutral:text-neutral data-success:text-success data-danger:text-danger leading-6"
-                                      data-intent={keyedACPState.intent}
-                                    >
-                                      {keyedTitle}
-                                    </h2>
-                                  );
-                                }}
-                              </Show>
-                              <Show when={keyedACPState.text} keyed>
-                                {(keyedText) => {
-                                  return (
-                                    <Switch>
-                                      <Match
-                                        when={typeof keyedText === "string"}
-                                      >
-                                        <p class="">{keyedText}</p>
-                                      </Match>
-                                      <Match when={true}>{keyedText}</Match>
-                                    </Switch>
-                                  );
-                                }}
-                              </Show>
-                            </div>
-                          </Show>
-                          <Switch>
-                            <Match
-                              when={isAlertState(keyedACPState) &&
-                                keyedACPState}
-                              keyed
-                            >
-                              {(keyedAlertState) => {
-                                return (
-                                  <div class="">
-                                    <Button
-                                      onClick={() => {
-                                        keyedAlertState.alertResolver();
-                                        setAlertState(undefined);
-                                      }}
-                                      intent={keyedAlertState.intent}
-                                    >
-                                      {keyedAlertState.closeButtonLabel ??
-                                        "Close"}
-                                    </Button>
-                                  </div>
-                                );
-                              }}
-                            </Match>
-                            <Match
-                              when={isConfirmState(keyedACPState) &&
-                                keyedACPState}
-                              keyed
-                            >
-                              {(keyedConfirmState) => {
-                                return (
-                                  <div class="flex gap-2">
-                                    <Button
-                                      onClick={() => {
-                                        keyedConfirmState.confirmResolver(true);
-                                        setAlertState(undefined);
-                                      }}
-                                      intent={keyedConfirmState.intent}
-                                    >
-                                      {keyedConfirmState.confirmButtonLabel ??
-                                        "Confirm"}
-                                    </Button>
-                                    <Button
-                                      onClick={() => {
-                                        keyedConfirmState.confirmResolver(
-                                          false,
-                                        );
-                                        setAlertState(undefined);
-                                      }}
-                                      intent="neutral"
-                                      autofocus
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </div>
-                                );
-                              }}
-                            </Match>
-                            <Match
-                              when={isPromptState(keyedACPState) &&
-                                keyedACPState}
-                              keyed
-                            >
-                              {(keyedPromptState) => {
-                                return (
-                                  <InnerForPrompt
-                                    pst={keyedPromptState}
-                                    close={(v: string | undefined) => {
-                                      keyedPromptState.promptResolver(v);
-                                      setAlertState(undefined);
-                                    }}
-                                  />
-                                );
-                              }}
-                            </Match>
-                          </Switch>
+            <div class="fixed inset-0 z-50 overflow-y-auto py-12">
+              <div class="flex min-h-full items-center justify-center">
+                <Switch>
+                  <Match
+                    when={isComponentState(keyedAlertState) && keyedAlertState}
+                    keyed
+                  >
+                    {(keyedComponentState) => {
+                      return (
+                        <div class="ui-never-focusable bg-base-100 z-50 mx-12 rounded shadow-lg outline-none">
+                          <Dynamic
+                            component={keyedComponentState.element}
+                            close={(p: unknown) => {
+                              keyedComponentState.componentResolver(p);
+                              setAlertState(undefined);
+                            }}
+                            {...keyedComponentState.props}
+                          />
                         </div>
-                      </div>
-                    );
-                  }}
-                </Match>
-              </Switch>
+                      );
+                    }}
+                  </Match>
+                  <Match
+                    when={isACPState(keyedAlertState) && keyedAlertState}
+                    keyed
+                  >
+                    {(keyedACPState) => {
+                      return (
+                        <div
+                          class="ui-pad ui-never-focusable bg-base-100 z-50 min-w-[360px] rounded shadow-lg"
+                          style={{
+                            "max-width": keyedACPState.maxWidth || "80%",
+                          }}
+                        >
+                          <div class="ui-spy">
+                            <Show
+                              when={keyedACPState.title || keyedACPState.text}
+                            >
+                              <div class="space-y-3">
+                                <Show when={keyedACPState.title} keyed>
+                                  {(keyedTitle) => {
+                                    return (
+                                      <h2
+                                        class="ui-text-heading data-primary:text-primary data-neutral:text-neutral data-success:text-success data-danger:text-danger leading-6"
+                                        data-intent={keyedACPState.intent}
+                                      >
+                                        {keyedTitle}
+                                      </h2>
+                                    );
+                                  }}
+                                </Show>
+                                <Show when={keyedACPState.text} keyed>
+                                  {(keyedText) => {
+                                    return (
+                                      <Switch>
+                                        <Match
+                                          when={typeof keyedText === "string"}
+                                        >
+                                          <p class="">{keyedText}</p>
+                                        </Match>
+                                        <Match when={true}>{keyedText}</Match>
+                                      </Switch>
+                                    );
+                                  }}
+                                </Show>
+                              </div>
+                            </Show>
+                            <Switch>
+                              <Match
+                                when={
+                                  isAlertState(keyedACPState) && keyedACPState
+                                }
+                                keyed
+                              >
+                                {(keyedAlertState) => {
+                                  return (
+                                    <div class="">
+                                      <Button
+                                        onClick={() => {
+                                          keyedAlertState.alertResolver();
+                                          setAlertState(undefined);
+                                        }}
+                                        intent={keyedAlertState.intent}
+                                      >
+                                        {keyedAlertState.closeButtonLabel ??
+                                          "Close"}
+                                      </Button>
+                                    </div>
+                                  );
+                                }}
+                              </Match>
+                              <Match
+                                when={
+                                  isConfirmState(keyedACPState) && keyedACPState
+                                }
+                                keyed
+                              >
+                                {(keyedConfirmState) => {
+                                  return (
+                                    <div class="flex gap-2">
+                                      <Button
+                                        onClick={() => {
+                                          keyedConfirmState.confirmResolver(
+                                            true,
+                                          );
+                                          setAlertState(undefined);
+                                        }}
+                                        intent={keyedConfirmState.intent}
+                                      >
+                                        {keyedConfirmState.confirmButtonLabel ??
+                                          "Confirm"}
+                                      </Button>
+                                      <Button
+                                        onClick={() => {
+                                          keyedConfirmState.confirmResolver(
+                                            false,
+                                          );
+                                          setAlertState(undefined);
+                                        }}
+                                        intent="neutral"
+                                        autofocus
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  );
+                                }}
+                              </Match>
+                              <Match
+                                when={
+                                  isPromptState(keyedACPState) && keyedACPState
+                                }
+                                keyed
+                              >
+                                {(keyedPromptState) => {
+                                  return (
+                                    <InnerForPrompt
+                                      pst={keyedPromptState}
+                                      close={(v: string | undefined) => {
+                                        keyedPromptState.promptResolver(v);
+                                        setAlertState(undefined);
+                                      }}
+                                    />
+                                  );
+                                }}
+                              </Match>
+                            </Switch>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  </Match>
+                </Switch>
+              </div>
             </div>
           </>
         );

@@ -21,8 +21,19 @@ export function parseMarkdown(markdownContent: string): ParsedDocument {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
 
-    if (token.type === "heading_open") {
-      const level = parseInt(token.tag.substring(1)) as 1 | 2 | 3 | 4 | 5;
+    if (token.type === "hr") {
+      elements.push({
+        type: "horizontal-rule",
+        content: [],
+      });
+    } else if (token.type === "table_open") {
+      const tableResult = parseTable(tokens, i);
+      if (tableResult) {
+        elements.push(tableResult.element);
+        i = tableResult.endIndex;
+      }
+    } else if (token.type === "heading_open") {
+      const level = parseInt(token.tag.substring(1)) as 1 | 2 | 3 | 4 | 5 | 6;
       const contentToken = tokens[i + 1];
 
       if (contentToken && contentToken.type === "inline") {
@@ -38,10 +49,24 @@ export function parseMarkdown(markdownContent: string): ParsedDocument {
       const contentToken = tokens[i + 1];
 
       if (contentToken && contentToken.type === "inline") {
-        elements.push({
-          type: "paragraph",
-          content: parseInlineTokens(contentToken.children || []),
-        });
+        // Check if this paragraph contains only a single image
+        const children = contentToken.children || [];
+        if (children.length === 1 && children[0].type === "image") {
+          const imageToken = children[0];
+          const src = imageToken.attrs?.find((a: [string, string]) => a[0] === "src")?.[1] || "";
+          const alt = imageToken.content || "";
+          elements.push({
+            type: "image",
+            imageData: src,
+            imageAlt: alt,
+            content: [],
+          });
+        } else {
+          elements.push({
+            type: "paragraph",
+            content: parseInlineTokens(children),
+          });
+        }
       }
       i += 2; // Skip inline and closing tokens
       inNumberedList = false;
@@ -185,4 +210,54 @@ export function parseEmailsInText(text: string): InlineContent[] {
   }
 
   return parts.length > 0 ? parts : [{ type: "text", text }];
+}
+
+function parseTable(tokens: any[], startIndex: number): { element: DocElement; endIndex: number } | null {
+  const tableHeader: InlineContent[][][] = [];
+  const tableRows: InlineContent[][][] = [];
+  let currentRow: InlineContent[][][] | null = null;
+  let i = startIndex + 1; // Skip table_open
+
+  while (i < tokens.length && tokens[i].type !== "table_close") {
+    const token = tokens[i];
+
+    if (token.type === "thead_open") {
+      currentRow = tableHeader;
+    } else if (token.type === "tbody_open") {
+      currentRow = tableRows;
+    } else if (token.type === "tr_open" && currentRow !== null) {
+      // Start a new row - this row will contain multiple cells
+      const rowCells: InlineContent[][] = [];
+
+      // Find all cells in this row
+      i++;
+      while (i < tokens.length && tokens[i].type !== "tr_close") {
+        if (tokens[i].type === "th_open" || tokens[i].type === "td_open") {
+          // Find the inline content for this cell
+          i++;
+          if (i < tokens.length && tokens[i].type === "inline") {
+            const cellContent = parseInlineTokens(tokens[i].children || []);
+            rowCells.push(cellContent);
+          }
+          i++; // Skip th_close or td_close
+        } else {
+          i++;
+        }
+      }
+
+      currentRow.push(rowCells);
+    }
+
+    i++;
+  }
+
+  return {
+    element: {
+      type: "table",
+      tableHeader: tableHeader.length > 0 ? tableHeader : undefined,
+      tableRows: tableRows.length > 0 ? tableRows : undefined,
+      content: [],
+    },
+    endIndex: i,
+  };
 }

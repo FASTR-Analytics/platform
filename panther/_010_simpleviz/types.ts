@@ -101,6 +101,8 @@ export type RawArrowWithBoxIDs = {
   arrowheadSize?: number;
   truncateStart?: number; // Gap in pixels from fromBox edge (default: 0)
   truncateEnd?: number; // Gap in pixels from toBox edge (default: 0)
+  arrowStartPoint?: AnchorPoint; // Override anchor point for arrow start (overrides box and default)
+  arrowEndPoint?: AnchorPoint; // Override anchor point for arrow end (overrides box and default)
   style?: LineStyle;
   zIndex?: number; // Controls rendering order (higher renders on top). Defaults to Z_INDEX.SIMPLEVIZ_ARROW (490)
   ignoreDuringPlacement?: boolean; // If true, this arrow is not considered during box placement calculations

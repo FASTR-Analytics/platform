@@ -39,6 +39,8 @@ export type BulkAction<T> = {
   state?: Accessor<StateHolderButtonAction | StateHolderFormAction>;
 };
 
+export type TablePadding = "compact" | "normal" | "comfortable";
+
 export type TableProps<T> = {
   data: T[];
   columns: TableColumn<T>[];
@@ -54,6 +56,8 @@ export type TableProps<T> = {
   defaultSort?: SortConfig; // initial sort configuration
   selectedKeys?: Accessor<Set<any>>; // controlled selection state
   setSelectedKeys?: (keys: Set<any>) => void; // controlled selection setter
+  paddingX?: TablePadding; // horizontal padding (default: "normal")
+  paddingY?: TablePadding; // vertical padding (default: "normal")
 };
 
 export type ProcessedData<T> = {

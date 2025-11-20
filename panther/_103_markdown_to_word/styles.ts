@@ -32,8 +32,8 @@ export const createStyles = (
       paragraph: {
         spacing: {
           line: config.document.lineSpacing,
-          before: 120,
-          after: 120,
+          before: config.document.paragraphSpaceBefore,
+          after: config.document.paragraphSpaceAfter,
         },
       },
     },
@@ -107,6 +107,20 @@ export const createStyles = (
         },
       },
     },
+    heading6: {
+      run: {
+        font: config.headings.h6.font,
+        size: config.headings.h6.size,
+        bold: config.headings.h6.bold,
+        color: config.headings.h6.color,
+      },
+      paragraph: {
+        spacing: {
+          before: config.headings.h6.spaceBefore,
+          after: config.headings.h6.spaceAfter,
+        },
+      },
+    },
   },
 });
 
@@ -118,6 +132,9 @@ export const createNumbering = (
       reference: "bullets",
       levels: [
         // Level 0
+        // Note: spacing.after is for spacing BETWEEN items within a list.
+        // Additional spacing after the entire list (to next paragraph) is handled
+        // separately in word_builder.ts via paragraph-level override on the last item.
         {
           level: 0,
           format: LevelFormat.BULLET,

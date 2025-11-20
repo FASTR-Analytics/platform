@@ -17,6 +17,10 @@ export function compareValues(a: any, b: any): number {
     return a - b;
   }
 
+  if (a instanceof Date && b instanceof Date) {
+    return a.getTime() - b.getTime();
+  }
+
   return String(a).localeCompare(String(b));
 }
 
@@ -82,4 +86,21 @@ export function getCellAlignment(align?: string): string {
     default:
       return "text-left";
   }
+}
+
+export function getPaddingClasses(
+  paddingX: "compact" | "normal" | "comfortable",
+  paddingY: "compact" | "normal" | "comfortable",
+): { px: string; py: string } {
+  const px = paddingX === "compact"
+    ? "px-2"
+    : paddingX === "comfortable"
+    ? "px-6"
+    : "px-4";
+  const py = paddingY === "compact"
+    ? "py-0.5"
+    : paddingY === "comfortable"
+    ? "py-3"
+    : "py-1";
+  return { px, py };
 }

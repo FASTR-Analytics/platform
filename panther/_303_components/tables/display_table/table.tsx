@@ -20,7 +20,12 @@ import type {
   TableColumn,
   TableProps,
 } from "./types.ts";
-import { getCellAlignment, groupData, sortData } from "./helpers.ts";
+import {
+  getCellAlignment,
+  getPaddingClasses,
+  groupData,
+  sortData,
+} from "./helpers.ts";
 import { Button, Checkbox } from "../../form_inputs/mod.ts";
 
 // ============================================================================
@@ -125,6 +130,10 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
   const enableSelection = () =>
     !!(p.bulkActions && p.bulkActions.length > 0) || isControlled;
 
+  const padding = createMemo(() =>
+    getPaddingClasses(p.paddingX || "normal", p.paddingY || "normal")
+  );
+
   return (
     <div
       class={p.fitTableToAvailableHeight
@@ -192,7 +201,9 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
             >
               <tr>
                 <Show when={enableSelection()}>
-                  <th class="text-base-content w-4 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                  <th
+                    class={`text-base-content w-4 ${padding().px} py-3 text-left text-xs font-medium uppercase tracking-wider`}
+                  >
                     <Checkbox
                       checked={allSelected()}
                       indeterminate={someSelected()}
@@ -204,7 +215,7 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
                 <For each={p.columns}>
                   {(column) => (
                     <th
-                      class={`px-4 py-3 ${
+                      class={`${padding().px} py-3 ${
                         getCellAlignment(
                           column.align,
                         )
@@ -246,6 +257,7 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
                     selectedKeys={selectedKeys()}
                     onToggleSelection={toggleSelection}
                     onRowClick={p.onRowClick}
+                    padding={padding()}
                   />
                 </Match>
                 <Match when={!processedData().isGrouped}>
@@ -259,6 +271,7 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
                         selectedKeys={selectedKeys()}
                         onToggleSelection={toggleSelection}
                         onRowClick={p.onRowClick}
+                        padding={padding()}
                       />
                     )}
                   </For>
@@ -308,6 +321,7 @@ type TableRowProps<T> = {
   selectedKeys: Set<any>;
   onToggleSelection: (key: any) => void;
   onRowClick?: (item: T) => void;
+  padding: { px: string; py: string };
 };
 
 const TableRow: Component<TableRowProps<any>> = (p) => {
@@ -337,7 +351,7 @@ const TableRow: Component<TableRowProps<any>> = (p) => {
       }}
     >
       <Show when={p.enableSelection}>
-        <td class="w-4 px-4 py-1">
+        <td class={`w-4 ${p.padding.px} ${p.padding.py}`}>
           <div onClick={(e) => e.stopPropagation()}>
             <Checkbox
               checked={p.selectedKeys.has(key())}
@@ -350,7 +364,9 @@ const TableRow: Component<TableRowProps<any>> = (p) => {
       <For each={p.columns}>
         {(column) => (
           <td
-            class={`px-4 py-1 ${getCellAlignment(column.align)} text-sm`}
+            class={`${p.padding.px} ${p.padding.py} ${
+              getCellAlignment(column.align)
+            } text-sm`}
             style={{ width: column.width }}
           >
             <Show when={column.render} fallback={String(p.item[column.key])}>
@@ -371,6 +387,7 @@ type GroupedRowsProps<T> = {
   selectedKeys: Set<any>;
   onToggleSelection: (key: any) => void;
   onRowClick?: (item: T) => void;
+  padding: { px: string; py: string };
 };
 
 const GroupedRows: Component<GroupedRowsProps<any>> = (p) => {
@@ -382,7 +399,7 @@ const GroupedRows: Component<GroupedRowsProps<any>> = (p) => {
             <tr class="bg-base-200">
               <td
                 colspan={p.columns.length + (p.enableSelection ? 1 : 0)}
-                class="border-base-300 text-base-content border-t px-4 py-2 text-sm font-semibold uppercase tracking-wider"
+                class={`border-base-300 text-base-content border-t ${p.padding.px} ${p.padding.py} text-sm font-semibold uppercase tracking-wider`}
               >
                 {group.label}
               </td>
@@ -397,6 +414,7 @@ const GroupedRows: Component<GroupedRowsProps<any>> = (p) => {
                   selectedKeys={p.selectedKeys}
                   onToggleSelection={p.onToggleSelection}
                   onRowClick={p.onRowClick}
+                  padding={p.padding}
                 />
               )}
             </For>
