@@ -5,6 +5,7 @@
 
 import {
   BorderStyle,
+  convertInchesToTwip,
   Document,
   ExternalHyperlink,
   HeadingLevel,
@@ -15,7 +16,6 @@ import {
   TableCell,
   TableRow,
   TextRun,
-  ThematicBreak,
   VerticalAlign,
   WidthType,
 } from "./deps.ts";
@@ -39,7 +39,9 @@ export function buildWordDocument(
   parsedDoc: ParsedDocument,
   configId?: StyleConfigId,
 ): Document {
-  const config = configId && configId !== "default" ? STYLE_CONFIGS[configId] : STYLE_CONFIG;
+  const config = configId && configId !== "default"
+    ? STYLE_CONFIGS[configId]
+    : STYLE_CONFIG;
 
   // Track numbering instances for each new list (both numbered and bullet)
   let currentNumberingInstance = 0;
@@ -47,34 +49,46 @@ export function buildWordDocument(
   let lastWasNumberedList = false;
   let lastWasBulletList = false;
 
-  const paragraphs: (Paragraph | Table)[] = parsedDoc.elements.map((element, index) => {
-    const isNumberedListItem = element.type === "list-item" && element.listType === "numbered";
-    const isBulletListItem = element.type === "list-item" && element.listType === "bullet";
-    const isListItem = isNumberedListItem || isBulletListItem;
+  const paragraphs: (Paragraph | Table)[] = parsedDoc.elements.map(
+    (element, index) => {
+      const isNumberedListItem = element.type === "list-item" &&
+        element.listType === "numbered";
+      const isBulletListItem = element.type === "list-item" &&
+        element.listType === "bullet";
+      const isListItem = isNumberedListItem || isBulletListItem;
 
-    // Start a new numbering instance when we encounter a numbered list after a break
-    if (isNumberedListItem && !lastWasNumberedList) {
-      currentNumberingInstance++;
-    }
+      // Start a new numbering instance when we encounter a numbered list after a break
+      if (isNumberedListItem && !lastWasNumberedList) {
+        currentNumberingInstance++;
+      }
 
-    // Start a new bullet instance when we encounter a bullet list after a break
-    if (isBulletListItem && !lastWasBulletList) {
-      currentBulletInstance++;
-    }
+      // Start a new bullet instance when we encounter a bullet list after a break
+      if (isBulletListItem && !lastWasBulletList) {
+        currentBulletInstance++;
+      }
 
-    // Check if this is the last item in a list
-    const nextElement = parsedDoc.elements[index + 1];
-    const nextIsListItem = nextElement?.type === "list-item";
-    const isLastInList = isListItem && !nextIsListItem;
+      // Check if this is the last item in a list
+      const nextElement = parsedDoc.elements[index + 1];
+      const nextIsListItem = nextElement?.type === "list-item";
+      const isLastInList = isListItem && !nextIsListItem;
 
-    // Check if we need spacing after this element (images, tables, list items)
-    const needsSpacingAfter = (element.type === "image" || element.type === "table" || isLastInList) && !!nextElement;
+      // Check if we need spacing after this element (images, tables, list items)
+      const needsSpacingAfter =
+        (element.type === "image" || element.type === "table" ||
+          isLastInList) && !!nextElement;
 
-    lastWasNumberedList = isNumberedListItem;
-    lastWasBulletList = isBulletListItem;
+      lastWasNumberedList = isNumberedListItem;
+      lastWasBulletList = isBulletListItem;
 
-    return buildParagraph(element, config, currentNumberingInstance, currentBulletInstance, needsSpacingAfter);
-  });
+      return buildParagraph(
+        element,
+        config,
+        currentNumberingInstance,
+        currentBulletInstance,
+        needsSpacingAfter,
+      );
+    },
+  );
 
   return new Document({
     styles: createStyles(config),
@@ -122,31 +136,67 @@ function buildParagraph(
 
     case "list-item": {
       const level = element.listLevel || 0;
-      const levelConfig = level === 0 ? config.list.level0 : level === 1 ? config.list.level1 : config.list.level2;
+      const levelConfig = level === 0
+        ? config.list.level0
+        : level === 1
+        ? config.list.level1
+        : config.list.level2;
 
       // Word's numbering definitions apply uniform spacing to all list items.
       // For the last item in a list, we need additional spacing to match the gap
       // between paragraphs. We achieve this via paragraph-level spacing override,
       // which is the standard Word pattern for this use case.
       // Calculation: normal between-item spacing (from numbering def) + list-to-paragraph gap
-      const extraSpacing = needsSpacingAfter ? config.document.paragraphSpaceAfter : 0;
+      const extraSpacing = needsSpacingAfter
+        ? config.document.paragraphSpaceAfter
+        : 0;
 
       return new Paragraph({
         numbering: {
           reference: element.listType === "bullet" ? "bullets" : "numbering",
           level: level,
-          instance: element.listType === "numbered" ? numberingInstance : bulletInstance,
+          instance: element.listType === "numbered"
+            ? numberingInstance
+            : bulletInstance,
         },
-        spacing: needsSpacingAfter ? {
-          after: levelConfig.spaceAfter + extraSpacing,
-        } : undefined,
+        spacing: needsSpacingAfter
+          ? {
+            after: levelConfig.spaceAfter + extraSpacing,
+          }
+          : undefined,
         children,
       });
     }
 
     case "horizontal-rule":
       return new Paragraph({
-        children: [new ThematicBreak()],
+        text: "",
+        thematicBreak: true,
+        spacing: {
+          before: config.horizontalRule.spaceBefore,
+          after: config.horizontalRule.spaceAfter +
+            (needsSpacingAfter ? config.document.paragraphSpaceAfter : 0),
+        },
+      });
+
+    case "blockquote":
+      return new Paragraph({
+        children,
+        indent: {
+          left: convertInchesToTwip(config.blockquote.leftIndent),
+        },
+        border: {
+          left: {
+            style: BorderStyle.SINGLE,
+            size: config.blockquote.leftBorderSize,
+            color: config.blockquote.leftBorderColor,
+          },
+        },
+        spacing: {
+          before: config.blockquote.spaceBefore,
+          after: config.blockquote.spaceAfter +
+            (needsSpacingAfter ? config.document.paragraphSpaceAfter : 0),
+        },
       });
 
     case "table":
@@ -161,17 +211,23 @@ function buildParagraph(
         const imageRun = createImageRun(element.imageData, config);
         return new Paragraph({
           children: [imageRun],
-          spacing: needsSpacingAfter ? {
-            after: config.document.paragraphSpaceAfter,
-          } : undefined,
+          spacing: needsSpacingAfter
+            ? {
+              after: config.document.paragraphSpaceAfter,
+            }
+            : undefined,
         });
       } catch (error) {
         console.error("Failed to create image:", error);
         return new Paragraph({
-          children: [new TextRun({ text: `[Image: ${element.imageAlt || ""}]` })],
-          spacing: needsSpacingAfter ? {
-            after: config.document.paragraphSpaceAfter,
-          } : undefined,
+          children: [
+            new TextRun({ text: `[Image: ${element.imageAlt || ""}]` }),
+          ],
+          spacing: needsSpacingAfter
+            ? {
+              after: config.document.paragraphSpaceAfter,
+            }
+            : undefined,
         });
       }
     }
@@ -324,7 +380,11 @@ function buildInlineContent(
   return result;
 }
 
-function buildWordTable(element: DocElement, config: StyleConfig, needsSpacingAfter: boolean): Table {
+function buildWordTable(
+  element: DocElement,
+  config: StyleConfig,
+  needsSpacingAfter: boolean,
+): Table {
   const rows: TableRow[] = [];
 
   // Build header rows if present
@@ -374,7 +434,9 @@ function buildWordTable(element: DocElement, config: StyleConfig, needsSpacingAf
     }
   }
 
-  const extraSpacing = needsSpacingAfter ? config.document.paragraphSpaceAfter : 0;
+  const extraSpacing = needsSpacingAfter
+    ? config.document.paragraphSpaceAfter
+    : 0;
 
   return new Table({
     rows,

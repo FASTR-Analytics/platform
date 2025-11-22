@@ -5,6 +5,7 @@
 
 export * from "./charts/mod.ts";
 export * from "./content/mod.ts";
+export * from "./docs/mod.ts";
 export * from "./form_inputs/mod.ts";
 export * from "./icons/mod.ts";
 export * from "./layout/mod.ts";

@@ -8,16 +8,18 @@ import { Intent } from "../types.ts";
 import { useAutoFocus } from "./utils.ts";
 
 // TextArea classes composed from utility classes and component classes
-function getTextAreaClasses(mono?: boolean, resizable?: boolean): string {
+function getTextAreaClasses(
+  size?: "sm",
+  mono?: boolean,
+  resizable?: boolean,
+): string {
   return [
     // Component classes (defined in CSS)
     "ui-focusable",
 
     // Form utilities
-    "px-3",
-    "py-2",
-    "text-sm",
-    "leading-tight",
+    size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
+    size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
     mono ? "font-mono" : "font-400",
     "text-base-content",
 
@@ -48,6 +50,7 @@ type TextAreaProps = {
   mono?: boolean;
   resizable?: boolean;
   disabled?: boolean;
+  size?: "sm";
 };
 
 export function TextArea(p: TextAreaProps) {
@@ -64,7 +67,7 @@ export function TextArea(p: TextAreaProps) {
       </Show>
       <textarea
         ref={(el) => useAutoFocus(el, p.autoFocus)}
-        class={getTextAreaClasses(p.mono, p.resizable)}
+        class={getTextAreaClasses(p.size, p.mono, p.resizable)}
         data-intent={p.intent}
         autofocus={p.autoFocus}
         onInput={(v) => p.onChange?.(v.currentTarget.value)}

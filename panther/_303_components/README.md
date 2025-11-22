@@ -59,8 +59,8 @@ Page layout and navigation components.
 ### Icons (`icons/`)
 
 ```typescript
-<IconChevronRight size={24} />
-<IconCheck color="green" />
+<ChevronRightIcon size={24} />
+<CheckIcon color="green" />
 ```
 
 100+ Tabler Icons as SolidJS components.
@@ -114,8 +114,8 @@ import {
   Button,
   DisplayTable,
   FrameSide,
-  IconSettings,
   Input,
+  SettingsIcon,
 } from "@timroberton/panther";
 
 function MyApp() {
@@ -131,7 +131,7 @@ function MyApp() {
             placeholder="Search..."
           />
           <Button intent="primary" onClick={handleSearch}>
-            <IconSettings size={16} />
+            <SettingsIcon size={16} />
             Search
           </Button>
           <DisplayTable columns={columns} data={results()} />

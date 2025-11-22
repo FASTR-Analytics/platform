@@ -43,6 +43,7 @@ export * from "./_230_file_utils/mod.ts";
 export * from "./_231_font_files/mod.ts";
 export * from "./_231_temp/mod.ts";
 export * from "./_232_csv/mod.ts";
+export * from "./_232_docs_manifest/mod.ts";
 export * from "./_232_json/mod.ts";
 export * from "./_232_skia_canvas/mod.ts";
 export * from "./_233_pdf/mod.ts";

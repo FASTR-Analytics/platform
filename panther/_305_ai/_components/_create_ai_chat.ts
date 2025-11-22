@@ -75,7 +75,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     addDisplayItems(items);
   };
 
-  
   async function sendMessageBlocking(
     userMessage: string,
   ): Promise<void> {
@@ -138,7 +137,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     }
   }
 
-  
   async function sendMessageStreaming(
     userMessage: string,
   ): Promise<void> {
@@ -181,7 +179,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     }
   }
 
-  
   async function streamWithToolLoop(
     currentMessages: MessageParam[],
   ): Promise<void> {

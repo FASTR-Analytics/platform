@@ -24,33 +24,24 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 export interface WebSearchUserLocation {
-  
   type: "approximate";
 
-  
   city?: string;
 
-  
   region?: string;
 
-  
   country?: string;
 
-  
   timezone?: string;
 }
 
 export interface WebSearchToolConfig {
-  
   max_uses?: number;
 
-  
   allowed_domains?: string[];
 
-  
   blocked_domains?: string[];
 
-  
   user_location?: WebSearchUserLocation;
 }
 

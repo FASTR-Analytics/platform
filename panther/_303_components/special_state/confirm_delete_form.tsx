@@ -33,7 +33,7 @@ export function ConfirmDeleteForm(
   );
 
   return (
-    <div class="ui-pad ui-spy max-h-[80vh] w-[min(500px,80vw)] overflow-auto">
+    <div class="ui-pad-lg ui-spy max-h-[80vh] w-[min(500px,80vw)] overflow-auto">
       <div class="ui-spy-sm">
         <div class="font-700 text-danger text-lg">Warning</div>
         <div class="">{p.text}</div>

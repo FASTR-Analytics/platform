@@ -7,38 +7,28 @@ import { betaZodTool, z } from "../deps.ts";
 import type { Component, zType } from "../deps.ts";
 
 export interface ToolUIMetadata<TInput = unknown> {
-  
   displayComponent?: Component<{ input: TInput }>;
 
-  
   inProgressLabel?: string | ((input: TInput) => string);
 }
 
 export interface AIToolWithMetadata<TInput = unknown> {
-  
   sdkTool: ReturnType<typeof betaZodTool<zType.ZodType<TInput>, string>>;
 
-  
   metadata: ToolUIMetadata<TInput>;
 }
 
 export interface CreateAIToolConfig<TInput, TOutput = string> {
-  
   name: string;
 
-  
   description: string;
 
-  
   inputSchema: zType.ZodType<TInput>;
 
-  
   handler: (input: TInput) => Promise<TOutput> | TOutput;
 
-  
   displayComponent?: Component<{ input: TInput }>;
 
-  
   inProgressLabel?: string | ((input: TInput) => string);
 }
 

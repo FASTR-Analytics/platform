@@ -47,6 +47,10 @@
   @apply px-2 py-2;
 }
 
+@utility ui-pad-lg {
+  @apply px-8 py-6;
+}
+
 @utility ui-gap {
   @apply gap-x-4 gap-y-4;
 }
@@ -61,6 +65,30 @@
 
 @utility ui-spy-sm {
   @apply space-y-2;
+}
+
+@utility ui-form-pad {
+  @apply px-3 py-2;
+}
+
+@utility ui-form-text-size {
+  @apply text-sm leading-tight;
+}
+
+@utility ui-icon-only-correction {
+  @apply -mx-1;
+}
+
+@utility ui-form-pad-sm {
+  @apply px-2 py-1;
+}
+
+@utility ui-form-text-size-sm {
+  @apply text-xs leading-tight;
+}
+
+@utility ui-icon-only-correction-sm {
+  @apply -mx-0.5;
 }
 
 @layer components {
@@ -370,19 +398,6 @@
   /* Form Utilities                                */
   /* ============================================= */
 
-  /* Form Padding - Controls height of all form components */
-  .ui-form-pad {
-    @apply px-3 py-2;
-  }
-
-  .ui-icon-only-correction {
-    /* This should turn ui-form-pad into a square (usually by reducing the x) */
-    @apply -mx-1;
-  }
-
-  .ui-form-pad-sm {
-    @apply px-3 py-1.5;
-  }
 
   /* Labels */
   .ui-label {

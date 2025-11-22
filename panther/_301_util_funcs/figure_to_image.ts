@@ -24,7 +24,12 @@ export function getFigureAsCanvas(
   }
 
   const rc = new CanvasRenderContext(ctx);
-  const idealHeight = FigureRenderer.getIdealHeight(rc, width, figureInputs, responsiveScale);
+  const idealHeight = FigureRenderer.getIdealHeight(
+    rc,
+    width,
+    figureInputs,
+    responsiveScale,
+  );
 
   canvas.width = width * scale;
   canvas.height = idealHeight * scale;

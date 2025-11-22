@@ -1,0 +1,183 @@
+{
+  "title": "HMIS Documentation",
+  "pages": [
+    {
+      "slug": "",
+      "filePath": "README.md",
+      "title": "HMIS Application Documentation",
+      "frontmatter": {}
+    },
+    {
+      "slug": "getting-started/basic-concepts",
+      "filePath": "getting-started/basic-concepts.md",
+      "title": "Basic Concepts",
+      "frontmatter": {}
+    },
+    {
+      "slug": "getting-started/first-steps",
+      "filePath": "getting-started/first-steps.md",
+      "title": "First Steps",
+      "frontmatter": {}
+    },
+    {
+      "slug": "getting-started/overview",
+      "filePath": "getting-started/overview.md",
+      "title": "Overview",
+      "frontmatter": {}
+    },
+    {
+      "slug": "reference/faq",
+      "filePath": "reference/faq.md",
+      "title": "Frequently Asked Questions (FAQ)",
+      "frontmatter": {}
+    },
+    {
+      "slug": "reference/glossary",
+      "filePath": "reference/glossary.md",
+      "title": "Glossary",
+      "frontmatter": {}
+    },
+    {
+      "slug": "user-guides/data/importing-hfa-data",
+      "filePath": "user-guides/data/importing-hfa-data.md",
+      "title": "Importing HFA Data",
+      "frontmatter": {}
+    },
+    {
+      "slug": "user-guides/data/importing-hmis-data",
+      "filePath": "user-guides/data/importing-hmis-data.md",
+      "title": "Importing HMIS Data",
+      "frontmatter": {}
+    },
+    {
+      "slug": "user-guides/modules/understanding-modules",
+      "filePath": "user-guides/modules/understanding-modules.md",
+      "title": "Understanding Modules",
+      "frontmatter": {}
+    },
+    {
+      "slug": "user-guides/projects/creating-projects",
+      "filePath": "user-guides/projects/creating-projects.md",
+      "title": "Creating Projects",
+      "frontmatter": {}
+    },
+    {
+      "slug": "user-guides/reports/creating-reports",
+      "filePath": "user-guides/reports/creating-reports.md",
+      "title": "Creating Reports",
+      "frontmatter": {}
+    },
+    {
+      "slug": "user-guides/visualizations/creating-visualizations",
+      "filePath": "user-guides/visualizations/creating-visualizations.md",
+      "title": "Creating Visualizations",
+      "frontmatter": {}
+    }
+  ],
+  "rootItems": [
+    {
+      "label": "HMIS Application Documentation",
+      "slug": ""
+    }
+  ],
+  "navigation": [
+    {
+      "id": "getting-started",
+      "label": "Getting Started",
+      "items": [
+        {
+          "label": "Basic Concepts",
+          "slug": "getting-started/basic-concepts"
+        },
+        {
+          "label": "First Steps",
+          "slug": "getting-started/first-steps"
+        },
+        {
+          "label": "Overview",
+          "slug": "getting-started/overview"
+        }
+      ],
+      "collapsed": false,
+      "slug": "getting-started/basic-concepts"
+    },
+    {
+      "id": "reference",
+      "label": "Reference",
+      "items": [
+        {
+          "label": "Frequently Asked Questions (FAQ)",
+          "slug": "reference/faq"
+        },
+        {
+          "label": "Glossary",
+          "slug": "reference/glossary"
+        }
+      ],
+      "collapsed": false,
+      "slug": "reference/faq"
+    },
+    {
+      "id": "user-guides",
+      "label": "User Guides",
+      "items": [
+        {
+          "label": "Data",
+          "slug": "user-guides/data",
+          "children": [
+            {
+              "label": "Importing HFA Data",
+              "slug": "user-guides/data/importing-hfa-data"
+            },
+            {
+              "label": "Importing HMIS Data",
+              "slug": "user-guides/data/importing-hmis-data"
+            }
+          ]
+        },
+        {
+          "label": "Modules",
+          "slug": "user-guides/modules",
+          "children": [
+            {
+              "label": "Understanding Modules",
+              "slug": "user-guides/modules/understanding-modules"
+            }
+          ]
+        },
+        {
+          "label": "Projects",
+          "slug": "user-guides/projects",
+          "children": [
+            {
+              "label": "Creating Projects",
+              "slug": "user-guides/projects/creating-projects"
+            }
+          ]
+        },
+        {
+          "label": "Reports",
+          "slug": "user-guides/reports",
+          "children": [
+            {
+              "label": "Creating Reports",
+              "slug": "user-guides/reports/creating-reports"
+            }
+          ]
+        },
+        {
+          "label": "Visualizations",
+          "slug": "user-guides/visualizations",
+          "children": [
+            {
+              "label": "Creating Visualizations",
+              "slug": "user-guides/visualizations/creating-visualizations"
+            }
+          ]
+        }
+      ],
+      "collapsed": false,
+      "slug": "user-guides/data/importing-hfa-data"
+    }
+  ]
+}

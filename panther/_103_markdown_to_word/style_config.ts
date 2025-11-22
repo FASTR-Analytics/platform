@@ -143,6 +143,18 @@ export const GITHUB_APTOS_STYLE_CONFIG = {
     maxWidthInches: 6.9, // Full width between margins
     defaultAspectRatio: 16 / 9, // Used when image dimensions unknown
   },
+  horizontalRule: {
+    spaceBefore: 220, // 16px = 1em = 11pt = 220 twips
+    spaceAfter: 440, // 32px = 2em = 22pt = 440 twips
+  },
+  blockquote: {
+    leftIndent: 0.5, // Indent from left (in inches)
+    leftBorderSize: 8, // 1pt border (in eighths of a point)
+    leftBorderColor: "CACACA",
+    italics: false,
+    spaceBefore: 220, // 16px = 1em = 11pt = 220 twips
+    spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
+  },
   link: {
     color: "0563C1",
     underline: true,
@@ -283,6 +295,18 @@ export const GITHUB_CAMBRIA_STYLE_CONFIG: StyleConfig = {
     // Page width calculation: 8.5" (letter) - 0.8" left margin - 0.8" right margin = 6.9"
     maxWidthInches: 6.9, // Full width between margins
     defaultAspectRatio: 16 / 9, // Used when image dimensions unknown
+  },
+  horizontalRule: {
+    spaceBefore: 220, // 16px = 1em = 11pt = 220 twips
+    spaceAfter: 440, // 32px = 2em = 22pt = 440 twips
+  },
+  blockquote: {
+    leftIndent: 0.5, // Indent from left (in inches)
+    leftBorderSize: 8, // 1pt border (in eighths of a point)
+    leftBorderColor: "CACACA",
+    italics: false,
+    spaceBefore: 220, // 16px = 1em = 11pt = 220 twips
+    spaceAfter: 220, // 16px = 1em = 11pt = 220 twips
   },
   link: {
     color: "0563C1",

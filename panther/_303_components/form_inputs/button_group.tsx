@@ -9,41 +9,41 @@ import type { Intent } from "../types.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
 
 // Button group item classes composed from utility classes and component classes
-const buttonGroupItemClasses = [
-  // Component classes (defined in CSS)
-  "ui-hoverable",
-  "ui-focusable",
-  "ui-intent-fill",
+function getButtonGroupItemClasses(size?: "sm") {
+  return [
+    // Component classes (defined in CSS)
+    "ui-hoverable",
+    "ui-focusable",
+    "ui-intent-fill",
 
-  // Form utilities
-  "px-3",
-  "py-2",
-  "text-sm",
-  "leading-tight",
-  "font-400",
+    // Form utilities
+    size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
+    size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
+    "font-400",
 
-  // Layout and appearance
-  "inline-flex",
-  "select-none",
-  "appearance-none",
-  "items-center",
-  "justify-center",
-  "gap-[0.5em]",
-  "flex-1",
-  "border-y",
-  "border-r",
+    // Layout and appearance
+    "inline-flex",
+    "select-none",
+    "appearance-none",
+    "items-center",
+    "justify-center",
+    "gap-[0.5em]",
+    "flex-1",
+    "border-y",
+    "border-r",
 
-  // Conditional styles
-  "data-[first=true]:rounded-l",
-  "data-[last=true]:rounded-r",
-  "data-[first=true]:border-l",
-  "data-[selected=true]:border",
-  "data-[selected=false]:text-neutral",
-  "data-[selected=false]:border-base-300",
-  "data-[selected=false]:bg-base-100",
-  "data-[selected=false]:focus-visible:border",
-  "data-[LeftOfSelected=true]:border-r-0",
-].join(" ");
+    // Conditional styles
+    "data-[first=true]:rounded-l",
+    "data-[last=true]:rounded-r",
+    "data-[first=true]:border-l",
+    "data-[selected=true]:border",
+    "data-[selected=false]:text-neutral",
+    "data-[selected=false]:border-base-300",
+    "data-[selected=false]:bg-base-100",
+    "data-[selected=false]:focus-visible:border",
+    "data-[LeftOfSelected=true]:border-r-0",
+  ].join(" ");
+}
 
 type ButtonGroupProps<T extends string> = {
   value: T | undefined;
@@ -52,6 +52,7 @@ type ButtonGroupProps<T extends string> = {
   label?: string | JSX.Element;
   fullWidth?: boolean;
   itemWidth?: string;
+  size?: "sm";
 };
 
 export function ButtonGroup<T extends string>(p: ButtonGroupProps<T>) {
@@ -75,7 +76,7 @@ export function ButtonGroup<T extends string>(p: ButtonGroupProps<T>) {
 
             return (
               <button
-                class={buttonGroupItemClasses}
+                class={getButtonGroupItemClasses(p.size)}
                 style={{ width: p.itemWidth }}
                 data-selected={isSelected()}
                 data-first={isFirst()}
@@ -88,7 +89,7 @@ export function ButtonGroup<T extends string>(p: ButtonGroupProps<T>) {
               >
                 {/* Icon & Text */}
                 <Show when={opt.label && opt.iconName}>
-                  <IconRenderer iconName={opt.iconName} />
+                  <IconRenderer iconName={opt.iconName} size={p.size} />
                   <span class="relative inline-flex min-h-[1.25em] items-center">
                     {opt.label}
                   </span>
@@ -101,7 +102,11 @@ export function ButtonGroup<T extends string>(p: ButtonGroupProps<T>) {
                 </Show>
                 {/* Only Icon */}
                 <Show when={!opt.label && opt.iconName}>
-                  <IconRenderer iconName={opt.iconName} iconOnly />
+                  <IconRenderer
+                    iconName={opt.iconName}
+                    iconOnly
+                    size={p.size}
+                  />
                 </Show>
               </button>
             );

@@ -1,0 +1,38 @@
+// Copyright 2023-2025, Tim Roberton, All rights reserved.
+//
+// ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
+// ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
+
+import type { DocsManifest, NavItem, NavSection } from "./deps.ts";
+
+// ================================================================================
+// COMPONENT PROPS
+// ================================================================================
+
+export type DocsViewerProps = {
+  manifestUrl: string;
+  basePath?: string;
+};
+
+export type DocsSidebarProps = {
+  rootItems: NavItem[];
+  navigation: NavSection[];
+  currentSlug: string;
+  onNavigate: (slug: string) => void;
+};
+
+export type DocsContentProps = {
+  currentSlug: string;
+  basePath?: string;
+};
+
+export type DocsBreadcrumbsProps = {
+  navigation: NavSection[];
+  currentSlug: string;
+};
+
+// ================================================================================
+// RE-EXPORTS
+// ================================================================================
+
+export type { DocsManifest, NavItem, NavSection };

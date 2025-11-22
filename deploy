@@ -141,6 +141,9 @@ deno run --allow-read --allow-write --allow-env --allow-net --unstable-raw-impor
 echo "Building translations"
 deno run --allow-read --allow-write --allow-env --allow-ffi build_translations.ts
 
+echo "Building docs"
+deno run --allow-read --allow-write --allow-env --allow-ffi build_docs.ts
+
 echo "Building Docker image with version: $VERSION"
 
 # Build with single versioned tag

@@ -10,17 +10,28 @@ type IconRendererProps = {
   iconName?: IconName;
   invisible?: boolean;
   iconOnly?: boolean;
+  size?: "sm";
 };
 
 export function IconRenderer(p: IconRendererProps) {
+  const textSizeClass = p.size === "sm"
+    ? "ui-form-text-size-sm"
+    : "ui-form-text-size";
+  const correctionClass = p.size === "sm"
+    ? "ui-icon-only-correction-sm"
+    : "ui-icon-only-correction";
+
   return (
     <Show when={p.iconName && _ICON_MAP[p.iconName]} keyed>
       {(KeyedIcon) => {
         return (
           <span
-            class="data-[icon-only=true]:ui-icon-only-correction relative h-[1.25em] w-[1.25em] flex-none overflow-clip rounded data-[invisible=true]:invisible"
-            data-invisible={p.invisible}
-            data-icon-only={p.iconOnly}
+            class={[
+              textSizeClass,
+              "relative h-[1.25em] w-[1.25em] flex-none overflow-clip rounded",
+              p.iconOnly && correctionClass,
+              p.invisible && "invisible",
+            ].filter(Boolean).join(" ")}
           >
             <KeyedIcon />
           </span>

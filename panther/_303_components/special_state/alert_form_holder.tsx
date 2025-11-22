@@ -29,7 +29,7 @@ export function AlertFormHolder(p: AlertFormHolderProps) {
   return (
     <form
       id={p.formId}
-      class="ui-spy ui-pad max-h-[80vh] w-[min(500px,80vw)] overflow-auto data-[wider=true]:w-[min(800px,80vw)]"
+      class="ui-spy ui-pad-lg max-h-[80vh] w-[min(500px,80vw)] overflow-auto data-[wider=true]:w-[min(800px,80vw)]"
       data-wider={p.wider}
     >
       <div class="space-y-3">

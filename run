@@ -12,6 +12,10 @@ fi
 echo "Building translations..."
 deno task build:translations
 
+# Always build docs
+echo "Building docs..."
+deno run --allow-read --allow-write --allow-env --allow-ffi build_docs.ts
+
 # Start Deno server in background with colored prefix
 deno run --allow-all --env-file --unstable-broadcast-channel main.ts 2>&1 | while IFS= read -r line; do printf "\033[0;32mS:\033[0m %s\n" "$line"; done &
 SERVER_PID=$!

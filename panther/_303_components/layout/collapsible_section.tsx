@@ -11,61 +11,130 @@ export interface CollapsibleSectionProps {
   isOpen?: boolean;
   defaultOpen?: boolean;
   onToggle?: (isOpen: boolean) => void;
+  onHeaderClick?: () => void;
   rightContent?: JSX.Element;
-  children: JSX.Element;
+  children?: JSX.Element;
   class?: string;
   shadedHeader?: boolean;
+  borderStyle?: "full" | "bottom" | "top" | "none";
+  rounded?: boolean;
+  boldHeader?: boolean;
+  activeHeader?: boolean;
+  padding?: "sm" | "md";
+  contentBorder?: boolean;
+  hideChevron?: boolean;
+  noClickToCollapse?: boolean;
 }
 
 export function CollapsibleSection(props: CollapsibleSectionProps) {
-  const merged = mergeProps({ defaultOpen: false, class: "" }, props);
+  const merged = mergeProps(
+    {
+      defaultOpen: false,
+      class: "",
+      borderStyle: "full" as const,
+      rounded: true,
+      boldHeader: false,
+      padding: "md" as const,
+      contentBorder: true,
+    },
+    props,
+  );
   const [local, others] = splitProps(merged, [
     "title",
     "isOpen",
     "defaultOpen",
     "onToggle",
+    "onHeaderClick",
     "rightContent",
     "children",
     "class",
+    "shadedHeader",
+    "borderStyle",
+    "rounded",
+    "boldHeader",
+    "activeHeader",
+    "padding",
+    "contentBorder",
+    "hideChevron",
+    "noClickToCollapse",
   ]);
 
-  // Use internal state if uncontrolled, otherwise use prop
   const [internalOpen, setInternalOpen] = createSignal(local.defaultOpen);
   const isOpen = () => local.isOpen ?? internalOpen();
 
-  const handleToggle = () => {
-    if (local.isOpen === undefined) {
-      // Uncontrolled mode
-      setInternalOpen(!internalOpen());
-      local.onToggle?.(!internalOpen());
-    } else {
-      // Controlled mode
-      local.onToggle?.(!local.isOpen);
+  const handleToggle = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    local.onHeaderClick?.();
+
+    if (!local.noClickToCollapse) {
+      if (local.isOpen === undefined) {
+        setInternalOpen(!internalOpen());
+        local.onToggle?.(!internalOpen());
+      } else {
+        local.onToggle?.(!local.isOpen);
+      }
     }
   };
 
+  const containerClasses = () => {
+    const classes = ["border-base-300", "overflow-x-hidden"];
+
+    if (local.borderStyle === "full") {
+      classes.push("border");
+    } else if (local.borderStyle === "bottom") {
+      classes.push("border-b");
+    } else if (local.borderStyle === "top") {
+      classes.push("border-t");
+    }
+
+    if (local.rounded) {
+      classes.push("rounded");
+    }
+
+    if (local.class) {
+      classes.push(local.class);
+    }
+
+    return classes.join(" ");
+  };
+
+  const headerPadding = () => (local.padding === "sm" ? "ui-pad-sm" : "ui-pad");
+
   return (
-    <div
-      class={`border-base-300 rounded border overflow-x-hidden ${local.class}`}
-      {...others}
-    >
+    <div class={containerClasses()} {...others}>
       <div
-        class="ui-pad ui-hoverable data-[shaded=true]:bg-base-200 flex items-center"
+        class={`${headerPadding()} ui-hoverable flex items-center`}
+        classList={{
+          "bg-base-200": !!local.shadedHeader,
+          "font-700": local.boldHeader,
+          "text-primary": local.activeHeader,
+          "bg-primary/10": local.activeHeader,
+        }}
         onClick={handleToggle}
-        data-shaded={!!props.shadedHeader}
       >
         <div class="flex-1">{local.title}</div>
-        <Show when={local.rightContent}>
-          <div class="mr-2">{local.rightContent}</div>
+        <Show when={local.rightContent} keyed>
+          {(content) => <div class="mr-2">{content}</div>}
         </Show>
-        <div class="h-[1.25em] w-[1.25em]">
-          <Show when={isOpen()} fallback={<ChevronRightIcon />}>
-            <ChevronDownIcon />
-          </Show>
-        </div>
+        <Show when={!local.hideChevron} keyed>
+          <div class="h-[1.25em] w-[1.25em]">
+            <Show when={isOpen()} fallback={<ChevronRightIcon />} keyed>
+              <ChevronDownIcon />
+            </Show>
+          </div>
+        </Show>
       </div>
-      <Show when={isOpen()}>
-        <div class="border-base-300 border-t">{local.children}</div>
+      <Show when={isOpen() && local.children} keyed>
+        <div
+          classList={{
+            "border-base-300": local.contentBorder,
+            "border-t": local.contentBorder,
+          }}
+        >
+          {local.children}
+        </div>
       </Show>
     </div>
   );

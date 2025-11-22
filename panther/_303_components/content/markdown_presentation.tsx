@@ -24,14 +24,15 @@ const STYLE_CONFIGS = {
     h4: "text-[1em] font-700 mt-6 mb-4 leading-[1.25]",
     h5: "text-[0.875em] font-700 mt-6 mb-4 leading-[1.25]",
     h6: "text-[0.85em] font-700 mt-6 mb-4 leading-[1.25]",
-    p: "mt-0 mb-[0.625em] leading-normal",
-    ul: "list-disc mt-0 mb-[0.625em] pl-8 [&_li]:mt-[0.25em]",
-    ol: "list-decimal mt-0 mb-[0.625em] pl-8 [&_li]:mt-[0.25em]",
+    p: "mt-0 mb-[0.8em] leading-normal",
+    ul: "list-disc mt-0 mb-[1em] pl-8 [&_li]:mt-[0.5em] [&_li]:leading-[1.375]",
+    ol:
+      "list-decimal mt-0 mb-[1em] pl-8 [&_li]:mt-[0.5em] [&_li]:leading-[1.375]",
     strong: "font-700",
   },
 };
 
-const md = new MarkdownIt();
+const md = new MarkdownIt({ breaks: true });
 md.use(markdownItKatex);
 
 md.renderer.rules.image = (tokens: Token[], idx: number) => {
@@ -59,6 +60,18 @@ md.renderer.rules.th_open = () => {
 
 md.renderer.rules.td_open = () => {
   return '<td class="border border-base-300 px-4 py-2">';
+};
+
+md.renderer.rules.hr = () => {
+  return '<hr class="my-8 border-t border-base-300" />';
+};
+
+md.renderer.rules.blockquote_open = () => {
+  return '<blockquote class="border-l-4 border-base-300 pl-4 my-6 italic text-neutral">';
+};
+
+md.renderer.rules.blockquote_close = () => {
+  return "</blockquote>";
 };
 
 export function MarkdownPresentation(p: Props) {

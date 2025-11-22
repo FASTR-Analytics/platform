@@ -12,6 +12,7 @@ export type ScrollManagerOptions = {
 
 export function useScrollManager(
   containerRef: () => HTMLElement | undefined,
+  sentinelRef: () => HTMLElement | undefined,
   dependencies: () => unknown[],
   options: ScrollManagerOptions = {},
 ) {
@@ -30,15 +31,15 @@ export function useScrollManager(
   };
 
   const scrollToBottom = (force = false) => {
-    const container = containerRef();
-    if (!container || !enabled) return;
+    const sentinel = sentinelRef();
+    if (!sentinel || !enabled) return;
 
     if (force) {
       shouldAutoScroll = true;
     }
 
     if (!shouldAutoScroll) return;
-    container.scrollTop = container.scrollHeight;
+    sentinel.scrollIntoView({ behavior: "instant", block: "end" });
   };
 
   createEffect(() => {

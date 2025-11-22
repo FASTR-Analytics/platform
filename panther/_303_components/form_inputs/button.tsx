@@ -14,45 +14,45 @@ import type { IconName } from "../icons/mod.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
 
 // Button classes composed from utility classes and component classes
-const buttonClasses = [
-  // Component classes (defined in CSS)
-  "ui-hoverable",
-  "ui-focusable",
-  "ui-intent-fill",
-  "ui-intent-outline",
+function getButtonClasses(size?: "sm") {
+  return [
+    // Component classes (defined in CSS)
+    "ui-hoverable",
+    "ui-focusable",
+    "ui-intent-fill",
+    "ui-intent-outline",
 
-  // Form utilities
-  "px-3",
-  "py-2",
-  "text-sm",
-  "leading-tight",
-  "font-400",
+    // Form utilities
+    size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
+    size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
+    "font-400",
 
-  // Disabled state
-  "disabled:pointer-events-none",
-  "disabled:opacity-40",
+    // Disabled state
+    "disabled:pointer-events-none",
+    "disabled:opacity-40",
 
-  // Layout and appearance
-  "inline-flex",
-  "flex-none",
-  "select-none",
-  "appearance-none",
-  "items-center",
-  "justify-center",
-  "gap-[0.5em]",
-  "whitespace-nowrap",
-  "rounded",
-  "border",
-  "overflow-clip",
-  "align-middle",
-  "leading-none",
+    // Layout and appearance
+    "inline-flex",
+    "flex-none",
+    "select-none",
+    "appearance-none",
+    "items-center",
+    "justify-center",
+    "gap-[0.5em]",
+    "whitespace-nowrap",
+    "rounded",
+    "border",
+    "overflow-clip",
+    "align-middle",
+    "leading-none",
 
-  // Width variant
-  "data-[width=true]:w-full",
+    // Width variant
+    "data-[width=true]:w-full",
 
-  // Link-specific
-  "no-underline",
-].join(" ");
+    // Link-specific
+    "no-underline",
+  ].join(" ");
+}
 
 type ButtonPropsBase = {
   children?: JSX.Element;
@@ -65,6 +65,7 @@ type ButtonPropsBase = {
   fillBase100?: boolean;
   iconName?: IconName;
   ariaLabel?: string;
+  size?: "sm";
 };
 
 type ButtonPropsButton = ButtonPropsBase & {
@@ -105,7 +106,11 @@ export function Button(p: ButtonProps) {
       </Show>
       {/* Icon & Text */}
       <Show when={p.children && p.iconName}>
-        <IconRenderer iconName={p.iconName} invisible={isLoading()} />
+        <IconRenderer
+          iconName={p.iconName}
+          invisible={isLoading()}
+          size={p.size}
+        />
         <span
           class="relative inline-flex min-h-[1.25em] items-center data-[loading=true]:invisible"
           data-loading={isLoading()}
@@ -124,7 +129,12 @@ export function Button(p: ButtonProps) {
       </Show>
       {/* Only Icon */}
       <Show when={!p.children && p.iconName}>
-        <IconRenderer iconName={p.iconName} invisible={isLoading()} iconOnly />
+        <IconRenderer
+          iconName={p.iconName}
+          invisible={isLoading()}
+          iconOnly
+          size={p.size}
+        />
       </Show>
     </>
   );
@@ -133,7 +143,7 @@ export function Button(p: ButtonProps) {
     <Switch>
       <Match when={!p.href}>
         <button
-          class={buttonClasses}
+          class={getButtonClasses(p.size)}
           onClick={p.onClick}
           onPointerDown={p.onPointerDown}
           id={p.id}
@@ -152,7 +162,7 @@ export function Button(p: ButtonProps) {
       </Match>
       <Match when={p.href}>
         <a
-          class={buttonClasses}
+          class={getButtonClasses(p.size)}
           href={p.href}
           id={p.id}
           data-intent={p.intent}

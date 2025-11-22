@@ -126,7 +126,9 @@ export function generateChartPrimitives<
   for (const mPane of measured.mPanes) {
     // Generate pane header label (once per pane)
     if (!generatedPaneLabels.has(mPane.i_pane) && mPane.mPaneHeader) {
-      const panePadding = new Padding((config.mergedStyle as any).panes.padding);
+      const panePadding = new Padding(
+        (config.mergedStyle as any).panes.padding,
+      );
       const paneHeaderPrimitive = generatePaneHeaderLabelPrimitive(
         mPane.mPaneHeader,
         mPane.paneOuterRcd,

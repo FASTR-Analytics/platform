@@ -16,37 +16,30 @@ export type ToolResult = {
 export class ToolRegistry {
   private tools = new Map<string, AIToolWithMetadata>();
 
-  
   register(tool: AIToolWithMetadata): void {
     this.tools.set(tool.sdkTool.name, tool);
   }
 
-  
   unregister(toolName: string): void {
     this.tools.delete(toolName);
   }
 
-  
   get(toolName: string): AIToolWithMetadata | undefined {
     return this.tools.get(toolName);
   }
 
-  
   getMetadata(toolName: string): ToolUIMetadata | undefined {
     return this.tools.get(toolName)?.metadata;
   }
 
-  
   getAll(): AIToolWithMetadata[] {
     return Array.from(this.tools.values());
   }
 
-  
   getSDKTools(): Array<ReturnType<AIToolWithMetadata["sdkTool"]>> {
     return this.getAll().map((tool) => tool.sdkTool);
   }
 
-  
   clear(): void {
     this.tools.clear();
   }

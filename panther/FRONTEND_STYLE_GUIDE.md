@@ -118,11 +118,18 @@ over strict ordering.
 
 ### Data Fetching Pattern
 
+**CRITICAL: Never use `createResource` from SolidJS**
+
+- `createResource` triggers Suspense boundaries which can cause full page
+  re-renders
+- Always use `timQuery` (from panther) instead for all data fetching
+
 **Use `timQuery` (from panther) for automatic data fetching:**
 
 - `timQuery` automatically fetches data when the component mounts
 - It handles loading states, errors, and provides refetch capabilities
 - Eliminates the need for manual `onMount` + `stateHolderQuery` patterns
+- Does NOT trigger Suspense boundaries (prevents flash reloads)
 
 ```tsx
 const dataQuery = timQuery(
@@ -216,8 +223,14 @@ defines a complete Tailwind v4 theme with:
 
 - **Semantic color system**: `base-*`, `primary`, `neutral`, `success`, `danger`
   (with `-content` variants)
-- **Public spacing utilities**: `ui-pad`, `ui-pad-sm`, `ui-gap`, `ui-gap-sm`,
-  `ui-spy`, `ui-spy-sm`
+- **Public spacing utilities**:
+  - Layout: `ui-pad`, `ui-pad-sm`, `ui-pad-lg` for padding
+  - Gaps: `ui-gap`, `ui-gap-sm` for flex/grid spacing
+  - Vertical spacing: `ui-spy`, `ui-spy-sm` for stacked elements
+- **Form input sizing utilities**:
+  - Default: `ui-form-pad`, `ui-form-text-size`, `ui-icon-only-correction`
+  - Small variant: `ui-form-pad-sm`, `ui-form-text-size-sm`,
+    `ui-icon-only-correction-sm`
 - **Interaction utilities**: `ui-hoverable` for consistent hover/active states
 - **Standard Tailwind**: Full access to Tailwind's utility classes (flex, grid,
   text, etc.)
@@ -229,6 +242,29 @@ variables to ensure:
 - Easy theme customization through Tailwind configuration
 - Proper light/dark mode support (if implemented)
 - Maintainability as your application grows
+
+#### Global Sizing Customization
+
+You can globally resize all form inputs or modals in your app's CSS:
+
+```css
+/* Resize all form inputs globally */
+@utility ui-form-pad {
+  @apply px-4 py-3; /* Larger forms */
+}
+
+@utility ui-form-text-size {
+  @apply text-base leading-normal; /* Larger text */
+}
+
+/* Resize all modals globally */
+@utility ui-pad-lg {
+  @apply px-10 py-8; /* Even larger modal padding */
+}
+```
+
+For per-component sizing, use the `size="sm"` prop on form inputs (Button,
+Input, Select, TextArea, ButtonGroup).
 
 ### Container Patterns
 
@@ -253,6 +289,7 @@ variables to ensure:
 ### Spacing Consistency
 
 - Use `ui-pad` for standard container padding
+- Use `ui-pad-lg` for modal/dialog padding (larger, more spacious)
 - Use `ui-spy` for vertical spacing between sections
 - Use `ui-gap` for flex/grid gaps
 - Add `-sm` suffix for smaller spacing variants
@@ -270,9 +307,81 @@ variables to ensure:
 <div class="ui-pad border-base-300 rounded border">
 ```
 
-## SolidJS Control Flow
+## SolidJS Reactivity Rules
 
-### Always use SolidJS control flow components
+### CRITICAL: Never Use Conditional Returns in Components
+
+**NEVER EVER have conditional returns within a component function.** This breaks
+SolidJS reactivity and causes bugs that are hard to track down.
+
+```tsx
+// ❌ BAD - Conditional return breaks reactivity
+export function MyComponent(p: Props) {
+  if (!p.data) {
+    return <div>No data</div>;
+  }
+  return <div>{p.data.value}</div>;
+}
+
+// ✅ GOOD - Use Show component instead
+export function MyComponent(p: Props) {
+  return (
+    <Show when={p.data} fallback={<div>No data</div>}>
+      {(data) => <div>{data().value}</div>}
+    </Show>
+  );
+}
+```
+
+**Why this matters:** In SolidJS, the component function runs ONCE. Early
+returns prevent the rest of the component from ever being set up, breaking
+reactive tracking.
+
+### CRITICAL: Access All Reactive Dependencies Before Conditionals
+
+**In reactive functions (createEffect, createMemo, etc.), you MUST access all
+reactive dependencies BEFORE any conditional logic or early returns.** Otherwise
+those dependencies won't be tracked when the condition is false.
+
+```tsx
+// ❌ BAD - Early return prevents tracking data()
+createEffect(() => {
+  if (!isReady()) return; // When false, we never reach data() below
+  const value = data(); // NOT tracked when isReady() is false!
+  doSomething(value);
+});
+
+// ❌ BAD - Conditional prevents tracking in else branch
+createEffect(() => {
+  if (isReady()) {
+    const value = data(); // Only tracked when isReady() is true
+    doSomething(value);
+  }
+});
+
+// ✅ GOOD - Access ALL reactive deps first, THEN conditional logic
+createEffect(() => {
+  const ready = isReady(); // Access first
+  const value = data(); // Access first - ALWAYS tracked
+
+  if (ready) {
+    doSomething(value);
+  }
+});
+
+// ✅ GOOD - For createMemo, handle all cases
+const computedValue = createMemo(() => {
+  const d = data(); // Always access the signal
+  const ready = isReady(); // Always access the signal
+
+  return ready && d ? processData(d) : null;
+});
+```
+
+**The Rule:** Read all signals/props you need to track at the TOP of reactive
+functions, before any conditional logic that might skip them.
+
+### Always Use SolidJS Control Flow Components
 
 ```tsx
 // Use Show for conditional rendering
@@ -472,7 +581,10 @@ batch(() => {
 
 2. **Use only Panther-defined Tailwind classes**
    - Semantic colors: `base-*`, `primary`, `neutral`, `success`, `danger`
-   - Public spacing utilities: `ui-pad`, `ui-gap`, `ui-spy` (and `-sm` variants)
+   - Public spacing utilities: `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-gap`,
+     `ui-gap-sm`, `ui-spy`, `ui-spy-sm`
+   - Form sizing utilities: `ui-form-pad`, `ui-form-text-size`,
+     `ui-icon-only-correction` (and `-sm` variants)
    - Standard Tailwind utilities for layout (flex, grid, etc.)
    - Never use arbitrary values like `bg-[#ff0000]` or `p-[23px]`
 

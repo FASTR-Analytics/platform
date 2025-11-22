@@ -6,13 +6,10 @@
 import { Anthropic } from "../deps.ts";
 
 export interface SDKClientConfig {
-  
   baseURL: string;
 
-  
   apiKey?: string;
 
-  
   defaultHeaders?: Record<string, string>;
 }
 

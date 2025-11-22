@@ -26,6 +26,29 @@ export function parseMarkdown(markdownContent: string): ParsedDocument {
         type: "horizontal-rule",
         content: [],
       });
+    } else if (token.type === "blockquote_open") {
+      const blockquoteContent: InlineContent[] = [];
+      let j = i + 1;
+      while (j < tokens.length && tokens[j].type !== "blockquote_close") {
+        if (tokens[j].type === "inline") {
+          blockquoteContent.push(
+            ...parseInlineTokens(tokens[j].children || []),
+          );
+          if (
+            j + 1 < tokens.length &&
+            tokens[j + 1].type !== "blockquote_close" &&
+            tokens[j + 1].type !== "paragraph_close"
+          ) {
+            blockquoteContent.push({ type: "break", text: "" });
+          }
+        }
+        j++;
+      }
+      elements.push({
+        type: "blockquote",
+        content: blockquoteContent,
+      });
+      i = j;
     } else if (token.type === "table_open") {
       const tableResult = parseTable(tokens, i);
       if (tableResult) {
@@ -53,7 +76,9 @@ export function parseMarkdown(markdownContent: string): ParsedDocument {
         const children = contentToken.children || [];
         if (children.length === 1 && children[0].type === "image") {
           const imageToken = children[0];
-          const src = imageToken.attrs?.find((a: [string, string]) => a[0] === "src")?.[1] || "";
+          const src = imageToken.attrs?.find((a: [string, string]) =>
+            a[0] === "src"
+          )?.[1] || "";
           const alt = imageToken.content || "";
           elements.push({
             type: "image",
@@ -212,7 +237,10 @@ export function parseEmailsInText(text: string): InlineContent[] {
   return parts.length > 0 ? parts : [{ type: "text", text }];
 }
 
-function parseTable(tokens: any[], startIndex: number): { element: DocElement; endIndex: number } | null {
+function parseTable(
+  tokens: any[],
+  startIndex: number,
+): { element: DocElement; endIndex: number } | null {
   const tableHeader: InlineContent[][][] = [];
   const tableRows: InlineContent[][][] = [];
   let currentRow: InlineContent[][][] | null = null;

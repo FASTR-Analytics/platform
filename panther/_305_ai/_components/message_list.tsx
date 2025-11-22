@@ -28,6 +28,7 @@ type Props = {
   renderMarkdown?: boolean;
   userMessageStyle?: MessageStyle;
   assistantMessageStyle?: MessageStyle;
+  scrollSentinelRef?: (el: HTMLDivElement) => void;
 };
 
 export const MessageList: Component<Props> = (props) => {
@@ -105,6 +106,7 @@ export const MessageList: Component<Props> = (props) => {
           Thinking...
         </div>
       </Show>
+      <div ref={props.scrollSentinelRef} />
     </div>
   );
 };

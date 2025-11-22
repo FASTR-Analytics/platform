@@ -9,36 +9,36 @@ import { SearchIcon } from "../icons/mod.ts";
 import { useAutoFocus } from "./utils.ts";
 
 // Input classes composed from utility classes and component classes
-const inputClasses = [
-  // Component classes (defined in CSS)
-  "ui-focusable",
+function getInputClasses(size?: "sm") {
+  return [
+    // Component classes (defined in CSS)
+    "ui-focusable",
 
-  // Form utilities
-  "px-3",
-  "py-2",
-  "text-sm",
-  "leading-tight",
-  "font-400",
-  "text-base-content",
+    // Form utilities
+    size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
+    size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
+    "font-400",
+    "text-base-content",
 
-  // Appearance
-  "border-base-300",
-  "bg-base-100",
-  "rounded",
-  "border",
+    // Appearance
+    "border-base-300",
+    "bg-base-100",
+    "rounded",
+    "border",
 
-  // Width
-  "w-full",
+    // Width
+    "w-full",
 
-  // Left variant for search icon
-  "data-[left=true]:rounded-l-[0px]",
+    // Left variant for search icon
+    "data-[left=true]:rounded-l-[0px]",
 
-  // Mono variant
-  "data-[mono=true]:font-mono",
+    // Mono variant
+    "data-[mono=true]:font-mono",
 
-  // Disabled state
-  "disabled:opacity-50",
-].join(" ");
+    // Disabled state
+    "disabled:opacity-50",
+  ].join(" ");
+}
 
 type Props = {
   value: string;
@@ -53,6 +53,7 @@ type Props = {
   placeholder?: string;
   mono?: boolean;
   disabled?: boolean;
+  size?: "sm";
 };
 
 export function Input(p: Props) {
@@ -85,13 +86,15 @@ export function Input(p: Props) {
           </Switch>
         </Show>
         <input
-          ref={(el) => useAutoFocus(el, p.autoFocus)}
-          class={inputClasses}
+          ref={(el) =>
+            useAutoFocus(el, p.autoFocus)}
+          class={getInputClasses(p.size)}
           data-intent={p.intent}
           data-mono={p.mono}
           autofocus={p.autoFocus}
           type={p.type}
-          onInput={(v) => p.onChange?.(v.currentTarget.value)}
+          onInput={(v) =>
+            p.onChange?.(v.currentTarget.value)}
           value={p.value}
           placeholder={p.placeholder}
           data-left={!!p.searchIcon}

@@ -358,12 +358,12 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
       0,
     );
 
-    const currentContainerWidth =
-      containerWidth() || containerRef?.offsetWidth || 1;
+    const currentContainerWidth = containerWidth() ||
+      containerRef?.offsetWidth || 1;
 
     if (hasLeft()) {
-      const normalizedWidth =
-        (originalWidths[0] / totalOriginalWidth) * currentContainerWidth;
+      const normalizedWidth = (originalWidths[0] / totalOriginalWidth) *
+        currentContainerWidth;
       const clampedWidth = Math.max(
         minWidths[0],
         Math.min(maxWidths[0], normalizedWidth),
@@ -373,8 +373,8 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     }
 
     if (hasCenter()) {
-      const normalizedWidth =
-        (originalWidths[1] / totalOriginalWidth) * currentContainerWidth;
+      const normalizedWidth = (originalWidths[1] / totalOriginalWidth) *
+        currentContainerWidth;
       const clampedWidth = Math.max(
         minWidths[1],
         Math.min(maxWidths[1], normalizedWidth),
@@ -384,8 +384,8 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     }
 
     if (hasRight()) {
-      const normalizedWidth =
-        (originalWidths[2] / totalOriginalWidth) * currentContainerWidth;
+      const normalizedWidth = (originalWidths[2] / totalOriginalWidth) *
+        currentContainerWidth;
       const clampedWidth = Math.max(
         minWidths[2],
         Math.min(maxWidths[2], normalizedWidth),
@@ -560,11 +560,9 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
       <div class="flex h-0 w-full flex-1">
         <Show when={hasLeft()}>
           <div
-            class={
-              isLastVisible("left")
-                ? "relative h-full w-0 flex-1"
-                : "relative h-full flex-none"
-            }
+            class={isLastVisible("left")
+              ? "relative h-full w-0 flex-1"
+              : "relative h-full flex-none"}
             style={!isLastVisible("left") ? { width: `${leftWidth()}px` } : {}}
           >
             <div class="h-full overflow-auto">{p.leftChild}</div>
@@ -579,14 +577,12 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
 
         <Show when={hasCenter()}>
           <div
-            class={
-              isLastVisible("center")
-                ? "relative h-full w-0 flex-1"
-                : "relative h-full flex-none"
-            }
-            style={
-              !isLastVisible("center") ? { width: `${centerWidth()}px` } : {}
-            }
+            class={isLastVisible("center")
+              ? "relative h-full w-0 flex-1"
+              : "relative h-full flex-none"}
+            style={!isLastVisible("center")
+              ? { width: `${centerWidth()}px` }
+              : {}}
           >
             <div class="h-full overflow-auto">{p.centerChild}</div>
             <Show when={hasRight()}>
@@ -605,12 +601,10 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
         </Show>
 
         <Show
-          when={
-            !hasLeft() &&
+          when={!hasLeft() &&
             !hasCenter() &&
             !hasRight() &&
-            collapsedPanes().length === 0
-          }
+            collapsedPanes().length === 0}
         >
           <div class="h-full w-full overflow-auto" />
         </Show>

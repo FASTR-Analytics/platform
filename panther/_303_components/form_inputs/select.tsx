@@ -10,35 +10,35 @@ import { SelectOption } from "./types.ts";
 import { useAutoFocus } from "./utils.ts";
 
 // Select classes composed from utility classes and component classes
-const selectClasses = [
-  // Component classes (defined in CSS)
-  "ui-focusable",
-  "ui-never-focusable", // Override focusable
+function getSelectClasses(size?: "sm") {
+  return [
+    // Component classes (defined in CSS)
+    "ui-focusable",
+    "ui-never-focusable", // Override focusable
 
-  // Form utilities
-  "px-3",
-  "py-2",
-  "text-sm",
-  "leading-tight",
-  "font-400",
-  "text-base-content",
+    // Form utilities
+    size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
+    size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
+    "font-400",
+    "text-base-content",
 
-  // Appearance
-  "border-base-300",
-  "bg-base-100",
-  "rounded",
-  "border",
+    // Appearance
+    "border-base-300",
+    "bg-base-100",
+    "rounded",
+    "border",
 
-  // Select specific
-  "w-full",
-  "cursor-pointer",
-  "appearance-none",
-  "truncate",
-  "!pr-[2.5em]",
+    // Select specific
+    "w-full",
+    "cursor-pointer",
+    "appearance-none",
+    "truncate",
+    "!pr-[2.5em]",
 
-  // Mono variant
-  "data-[mono=true]:font-mono",
-].join(" ");
+    // Mono variant
+    "data-[mono=true]:font-mono",
+  ].join(" ");
+}
 
 type Props<T extends string> = {
   value: T | undefined;
@@ -50,6 +50,7 @@ type Props<T extends string> = {
   autoFocus?: boolean;
   invalidMsg?: string;
   mono?: boolean;
+  size?: "sm";
 };
 
 export function Select<T extends string>(p: Props<T>) {
@@ -67,7 +68,7 @@ export function Select<T extends string>(p: Props<T>) {
           value={p.value}
           onChange={(e) =>
             p.onChange(e.currentTarget.value)}
-          class={selectClasses}
+          class={getSelectClasses(p.size)}
           data-mono={p.mono}
           autofocus={p.autoFocus}
         >

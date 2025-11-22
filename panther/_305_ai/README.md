@@ -71,7 +71,7 @@ const result = await callAI({ ..., tools: [weatherTool] }, messages);
 ## Built-in Tools
 
 ```typescript
-import { createWebSearchTool, createBashTool } from "@timroberton/panther";
+import { createBashTool, createWebSearchTool } from "@timroberton/panther";
 
 // Web search
 createWebSearchTool({ max_uses: 3 });
@@ -86,10 +86,12 @@ createTextEditorTool();
 ## API
 
 **Components:**
+
 - `AIChat` - Complete chat UI
 - `AIChatProvider` - Config provider
 
 **Functions:**
+
 - `createSDKClient()` - Configure SDK
 - `createAITool()` - Define tools
 - `createWebSearchTool()` - Web search
@@ -98,6 +100,7 @@ createTextEditorTool();
 - `callAI()` - One-shot requests
 
 **Types:**
+
 - `AIChatConfig`
 - `AnthropicModelConfig`
 - `CallAIConfig`

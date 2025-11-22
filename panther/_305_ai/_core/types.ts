@@ -147,36 +147,26 @@ export type MessageStyles = {
 ////////////////////////////////////////////////////////////////////////////////
 
 export type AIChatConfig = {
-  
   sdkClient: Anthropic;
 
-  
   conversationId?: string;
 
-  
   tools?: AIToolWithMetadata[];
 
-  
   builtInTools?: BuiltInTool[];
 
-  
   modelConfig: AnthropicModelConfig;
 
-  
   system?:
     | string
     | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
 
-  
   enableStreaming?: boolean;
 
-  
   renderMarkdown?: boolean;
 
-  
   messageStyles?: MessageStyles;
 
-  
   apiConfig?: APIConfig;
 };
 

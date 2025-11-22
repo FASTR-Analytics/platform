@@ -125,13 +125,15 @@ function isComponentState(
   return alertState?.stateType === "component";
 }
 
-type ComponentStateType<TProps, TReturn> = OpenComponentInput<
-  TProps,
-  TReturn
-> & {
-  stateType: "component";
-  componentResolver(v: TReturn | undefined): void;
-};
+type ComponentStateType<TProps, TReturn> =
+  & OpenComponentInput<
+    TProps,
+    TReturn
+  >
+  & {
+    stateType: "component";
+    componentResolver(v: TReturn | undefined): void;
+  };
 
 const [alertState, setAlertState] = createSignal<
   | AlertStateType
@@ -242,7 +244,7 @@ export default function AlertProvider() {
                     {(keyedACPState) => {
                       return (
                         <div
-                          class="ui-pad ui-never-focusable bg-base-100 z-50 min-w-[360px] rounded shadow-lg"
+                          class="ui-pad-lg ui-never-focusable bg-base-100 z-50 min-w-[360px] rounded shadow-lg"
                           style={{
                             "max-width": keyedACPState.maxWidth || "80%",
                           }}
@@ -282,9 +284,8 @@ export default function AlertProvider() {
                             </Show>
                             <Switch>
                               <Match
-                                when={
-                                  isAlertState(keyedACPState) && keyedACPState
-                                }
+                                when={isAlertState(keyedACPState) &&
+                                  keyedACPState}
                                 keyed
                               >
                                 {(keyedAlertState) => {
@@ -305,9 +306,8 @@ export default function AlertProvider() {
                                 }}
                               </Match>
                               <Match
-                                when={
-                                  isConfirmState(keyedACPState) && keyedACPState
-                                }
+                                when={isConfirmState(keyedACPState) &&
+                                  keyedACPState}
                                 keyed
                               >
                                 {(keyedConfirmState) => {
@@ -342,9 +342,8 @@ export default function AlertProvider() {
                                 }}
                               </Match>
                               <Match
-                                when={
-                                  isPromptState(keyedACPState) && keyedACPState
-                                }
+                                when={isPromptState(keyedACPState) &&
+                                  keyedACPState}
                                 keyed
                               >
                                 {(keyedPromptState) => {

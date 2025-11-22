@@ -32,7 +32,9 @@ export function buildArrowPrimitives(
     }
 
     // Handle box-ids arrows
-    const fromBoxPrim = boxPrimitives.find((b) => b.meta.boxId === arrow.fromBoxID);
+    const fromBoxPrim = boxPrimitives.find((b) =>
+      b.meta.boxId === arrow.fromBoxID
+    );
     const toBoxPrim = boxPrimitives.find((b) => b.meta.boxId === arrow.toBoxID);
     const fromBox = boxes.find((b) => b.id === arrow.fromBoxID);
     const toBox = boxes.find((b) => b.id === arrow.toBoxID);

@@ -58,9 +58,11 @@ export const AIChat: Component<Props> = (props) => {
   const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
 
   let scrollContainer: HTMLDivElement | undefined;
+  let scrollSentinel: HTMLDivElement | undefined;
 
   const { checkScrollPosition, scrollToBottom } = createScrollManager(
     () => scrollContainer,
+    () => scrollSentinel,
     () => [displayItems(), isLoading(), currentStreamingText()],
     { enabled: props.autoScroll ?? true },
   );
@@ -143,6 +145,7 @@ export const AIChat: Component<Props> = (props) => {
           renderMarkdown={config?.renderMarkdown}
           userMessageStyle={config?.messageStyles?.user}
           assistantMessageStyle={config?.messageStyles?.assistant}
+          scrollSentinelRef={(el) => scrollSentinel = el}
         />
       </div>
       <Show when={props.showUsage && usage() && props.model}>
