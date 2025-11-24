@@ -254,7 +254,7 @@ export type MergedContentStyle = {
   };
   bars: {
     getStyle: GenericValueInfoFunc<RectStyle>;
-    stacking: "none" | "stacked" | "imposed";
+    stacking: "none" | "stacked" | "imposed" | "uncertainty";
     maxBarWidth: number;
   };
   lines: {

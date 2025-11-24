@@ -17,3 +17,5 @@ export type { ADTFigure } from "../_020_abstract_doc_types/mod.ts";
 export { PageRenderer } from "../_021_page/mod.ts";
 export type { PageInputs } from "../_021_page/mod.ts";
 export { fontsReady, loadFont, releaseCanvasGPUMemory, trackCanvas, untrackCanvas } from "../_301_util_funcs/mod.ts";
+export { timQuery } from "../_302_query/mod.ts";
+export type { APIResponseWithData } from "../_302_query/mod.ts";

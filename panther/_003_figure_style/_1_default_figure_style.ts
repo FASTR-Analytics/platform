@@ -229,7 +229,7 @@ const _DS = {
         fillColor: 666,
       } as GenericBarStyle,
       func: "none" as GenericValueInfoFunc<GenericBarStyleOptions> | "none",
-      stacking: "none" as "none" | "stacked" | "imposed",
+      stacking: "none" as "none" | "stacked" | "imposed" | "uncertainty",
       maxBarWidth: 200,
     },
     lines: {

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createEffect, onCleanup } from "solid-js";
+import { createEffect } from "solid-js";
 
 export type ScrollManagerOptions = {
   threshold?: number;
@@ -12,34 +12,38 @@ export type ScrollManagerOptions = {
 
 export function useScrollManager(
   containerRef: () => HTMLElement | undefined,
-  sentinelRef: () => HTMLElement | undefined,
   dependencies: () => unknown[],
   options: ScrollManagerOptions = {},
 ) {
   const { threshold = 50, enabled = true } = options;
   let shouldAutoScroll = true;
+  let ignoreScrollEvents = false;
 
   const checkScrollPosition = () => {
+    if (ignoreScrollEvents) return;
+
     const container = containerRef();
     if (!container) return;
 
-    const distanceFromBottom = container.scrollHeight -
-      container.scrollTop -
+    const distanceFromBottom = container.scrollHeight - container.scrollTop -
       container.clientHeight;
 
     shouldAutoScroll = distanceFromBottom < threshold;
   };
 
   const scrollToBottom = (force = false) => {
-    const sentinel = sentinelRef();
-    if (!sentinel || !enabled) return;
+    const container = containerRef();
+    if (!container || !enabled) return;
 
     if (force) {
       shouldAutoScroll = true;
+      ignoreScrollEvents = true;
+      setTimeout(() => (ignoreScrollEvents = false), 100);
     }
 
     if (!shouldAutoScroll) return;
-    sentinel.scrollIntoView({ behavior: "instant", block: "end" });
+    // Standard approach from SolidJS chat examples
+    container.scrollTo(0, container.scrollHeight);
   };
 
   createEffect(() => {

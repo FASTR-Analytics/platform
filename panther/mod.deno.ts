@@ -32,6 +32,7 @@ export * from "./_021_page/mod.ts";
 export * from "./_022_markdown/mod.ts";
 export * from "./_101_pdf/mod.ts";
 export * from "./_103_markdown_to_word/mod.ts";
+export * from "./_104_parse_csv/mod.ts";
 
 /////////////////////////////
 //                         //

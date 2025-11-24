@@ -64,6 +64,7 @@ type ButtonPropsBase = {
   outline?: boolean;
   fillBase100?: boolean;
   iconName?: IconName;
+  iconPosition?: "left" | "right";
   ariaLabel?: string;
   size?: "sm";
 };
@@ -96,6 +97,7 @@ type ButtonProps = ButtonPropsButton | ButtonPropsLink;
 
 export function Button(p: ButtonProps) {
   const isLoading = () => p.loading || p.state?.status === "loading";
+  const iconPos = () => p.iconPosition ?? "left";
 
   const content = () => (
     <>
@@ -106,17 +108,36 @@ export function Button(p: ButtonProps) {
       </Show>
       {/* Icon & Text */}
       <Show when={p.children && p.iconName}>
-        <IconRenderer
-          iconName={p.iconName}
-          invisible={isLoading()}
-          size={p.size}
-        />
-        <span
-          class="relative inline-flex min-h-[1.25em] items-center data-[loading=true]:invisible"
-          data-loading={isLoading()}
+        <Show
+          when={iconPos() === "left"}
+          fallback={
+            <>
+              <span
+                class="relative inline-flex min-h-[1.25em] items-center data-[loading=true]:invisible"
+                data-loading={isLoading()}
+              >
+                {p.children}
+              </span>
+              <IconRenderer
+                iconName={p.iconName}
+                invisible={isLoading()}
+                size={p.size}
+              />
+            </>
+          }
         >
-          {p.children}
-        </span>
+          <IconRenderer
+            iconName={p.iconName}
+            invisible={isLoading()}
+            size={p.size}
+          />
+          <span
+            class="relative inline-flex min-h-[1.25em] items-center data-[loading=true]:invisible"
+            data-loading={isLoading()}
+          >
+            {p.children}
+          </span>
+        </Show>
       </Show>
       {/* Only Text */}
       <Show when={p.children && !p.iconName}>

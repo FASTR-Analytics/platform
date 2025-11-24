@@ -31,6 +31,7 @@ export * from "./_021_page/mod.ts";
 export * from "./_022_markdown/mod.ts";
 export * from "./_101_pdf/mod.ts";
 export * from "./_103_markdown_to_word/mod.ts";
+export * from "./_104_parse_csv/mod.ts";
 
 //////////////////////
 //                  //
@@ -39,6 +40,7 @@ export * from "./_103_markdown_to_word/mod.ts";
 //////////////////////
 
 export * from "./_301_util_funcs/mod.ts";
+export * from "./_302_query/mod.ts";
 export * from "./_303_components/mod.ts";
 export * from "./_304_query/mod.ts";
 export * from "./_305_ai_BACKUP/mod.ts";

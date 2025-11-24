@@ -6,15 +6,15 @@
 import { type JSX, Match, Show, Switch } from "solid-js";
 import { Button } from "../form_inputs/button.tsx";
 import { Loading, Spinner } from "../form_inputs/mod.ts";
+import type {
+  ButtonActionState,
+  FormActionState,
+  QueryState,
+} from "../../_302_query/mod.ts";
 
-export type StateHolderButtonAction =
-  | { status: "loading" }
-  | { status: "ready" };
-
-export type StateHolderFormAction =
-  | { status: "loading" }
-  | { status: "error"; err: string }
-  | { status: "ready" };
+export type StateHolderButtonAction = ButtonActionState;
+export type StateHolderFormAction = FormActionState;
+export type StateHolder<T> = QueryState<T>;
 
 type StateHolderErrorProps = {
   state: StateHolderFormAction;
@@ -29,11 +29,6 @@ export function StateHolderFormError(p: StateHolderErrorProps) {
     </Show>
   );
 }
-
-export type StateHolder<T> =
-  | { status: "loading"; msg?: string }
-  | { status: "error"; err: string }
-  | { status: "ready"; data: T };
 
 type StateHolderWrapperProps<T> = {
   state: StateHolder<T>;

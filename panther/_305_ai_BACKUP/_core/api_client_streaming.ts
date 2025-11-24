@@ -25,7 +25,7 @@ export async function callAIAPIStreaming(
   conversationId: string | undefined,
   additionalPayload: Record<string, unknown>,
   onEvent: (event: StreamEvent) => void,
-  onComplete: (response: AnthropicResponse) => void,
+  onComplete: (response: AnthropicResponse) => Promise<void>,
   onError: (error: Error) => void,
 ): Promise<void> {
   const endpoint = typeof config.endpoint === "function"
@@ -209,7 +209,7 @@ async function processStreamEvents(
       }
     });
 
-    onComplete({
+    await onComplete({
       content: contentBlocks,
       stop_reason: stopReason,
       id: messageId,

@@ -23,6 +23,7 @@ export type DocsSidebarProps = {
 
 export type DocsContentProps = {
   currentSlug: string;
+  pages: DocsManifest["pages"];
   basePath?: string;
 };
 

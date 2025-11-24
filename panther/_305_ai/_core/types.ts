@@ -181,7 +181,7 @@ export type ChatState = {
   isStreaming: boolean;
   error: string | null;
   usage: Usage | null;
-  currentStreamingText: string | null;
+  currentStreamingText: string | undefined;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

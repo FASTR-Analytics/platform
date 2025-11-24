@@ -11,13 +11,12 @@ import type {
   ChartGridPrimitive,
   ChartLabelPrimitive,
   ChartLegendPrimitive,
-  Coordinates,
   DataLabel,
   LineStyle,
   Primitive,
   RenderContext,
 } from "./deps.ts";
-import { RectCoordsDims, resolvePosition } from "./deps.ts";
+import { Coordinates, RectCoordsDims, resolvePosition } from "./deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -49,20 +48,22 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
           primitive.dataLabel.relativePosition,
           primitive.bounds,
         );
-        const hAlign = "dx" in primitive.dataLabel.relativePosition &&
-            primitive.dataLabel.relativePosition.dx < 0
-          ? "right"
-          : "dx" in primitive.dataLabel.relativePosition &&
-              primitive.dataLabel.relativePosition.dx > 0
-          ? "left"
-          : "center";
-        const vAlign = "dy" in primitive.dataLabel.relativePosition &&
-            primitive.dataLabel.relativePosition.dy < 0
-          ? "bottom"
-          : "dy" in primitive.dataLabel.relativePosition &&
-              primitive.dataLabel.relativePosition.dy > 0
-          ? "top"
-          : "center";
+        const hAlign =
+          "dx" in primitive.dataLabel.relativePosition &&
+          primitive.dataLabel.relativePosition.dx < 0
+            ? "right"
+            : "dx" in primitive.dataLabel.relativePosition &&
+                primitive.dataLabel.relativePosition.dx > 0
+              ? "left"
+              : "center";
+        const vAlign =
+          "dy" in primitive.dataLabel.relativePosition &&
+          primitive.dataLabel.relativePosition.dy < 0
+            ? "bottom"
+            : "dy" in primitive.dataLabel.relativePosition &&
+                primitive.dataLabel.relativePosition.dy > 0
+              ? "top"
+              : "center";
         rc.rText(primitive.dataLabel.mText, labelPos, hAlign, vAlign);
       }
       break;
@@ -100,9 +101,57 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
           primitive.dataLabel.relativePosition,
           primitive.bounds,
         );
-        rc.rText(primitive.dataLabel.mText, labelPos, "center", "bottom");
+        rc.rText(
+          primitive.dataLabel.mText,
+          labelPos,
+          "center",
+          "bottom",
+        );
       }
       break;
+
+    case "chart-error-bar": {
+      // Draw vertical line from lower bound to upper bound
+      rc.rLine(
+        [
+          new Coordinates([primitive.centerX, primitive.ubY]),
+          new Coordinates([primitive.centerX, primitive.lbY]),
+        ],
+        {
+          strokeColor: primitive.strokeColor,
+          strokeWidth: primitive.strokeWidth,
+          lineDash: "solid",
+        },
+      );
+
+      // Draw top cap
+      const halfCapWidth = primitive.capWidth / 2;
+      rc.rLine(
+        [
+          new Coordinates([primitive.centerX - halfCapWidth, primitive.ubY]),
+          new Coordinates([primitive.centerX + halfCapWidth, primitive.ubY]),
+        ],
+        {
+          strokeColor: primitive.strokeColor,
+          strokeWidth: primitive.strokeWidth,
+          lineDash: "solid",
+        },
+      );
+
+      // Draw bottom cap
+      rc.rLine(
+        [
+          new Coordinates([primitive.centerX - halfCapWidth, primitive.lbY]),
+          new Coordinates([primitive.centerX + halfCapWidth, primitive.lbY]),
+        ],
+        {
+          strokeColor: primitive.strokeColor,
+          strokeWidth: primitive.strokeWidth,
+          lineDash: "solid",
+        },
+      );
+      break;
+    }
 
     case "chart-grid":
       renderGridPrimitive(rc, primitive);

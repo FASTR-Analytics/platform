@@ -54,7 +54,11 @@ export function DocsViewer(p: DocsViewerProps) {
             />
           }
         >
-          <DocsContent currentSlug={currentSlug()} basePath={p.basePath} />
+          <DocsContent
+            currentSlug={currentSlug()}
+            pages={data.pages}
+            basePath={p.basePath}
+          />
         </FrameLeftResizable>
       )}
     </StateHolderWrapper>

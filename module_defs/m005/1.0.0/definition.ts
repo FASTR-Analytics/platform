@@ -307,6 +307,22 @@ export const definition = {
         },
       ],
     },
+    /////////////////////////
+    //                     //
+    //    Documentation    //
+    //                     //
+    /////////////////////////
+    {
+      id: "M4_selected_denominator_per_indicator.csv",
+      description: "Selected denominators",
+      createTableStatementPossibleColumns: {
+        indicator_common_id: "TEXT NOT NULL",
+        denominator_national: "TEXT NOT NULL",
+        denominator_admin2: "TEXT NOT NULL",
+        denominator_admin3: "TEXT NOT NULL",
+      },
+      resultsValues: [],
+    },
   ],
   ////////////////////////////////////////////////////////////////////
   //  _______                                                       //

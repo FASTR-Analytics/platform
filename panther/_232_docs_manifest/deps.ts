@@ -5,4 +5,5 @@
 
 export { walk } from "@std/fs/walk";
 export { basename, dirname, join, relative } from "@std/path";
+export { globToRegExp } from "@std/path/glob_to_regexp";
 export { parse as parseYaml } from "@std/yaml";

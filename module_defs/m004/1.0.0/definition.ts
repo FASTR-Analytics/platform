@@ -144,7 +144,9 @@ export const definition = {
       description: "Selected denominators",
       createTableStatementPossibleColumns: {
         indicator_common_id: "TEXT NOT NULL",
-        denominator: "TEXT NOT NULL",
+        denominator_national: "TEXT NOT NULL",
+        denominator_admin2: "TEXT NOT NULL",
+        denominator_admin3: "TEXT NOT NULL",
       },
       resultsValues: [],
     },

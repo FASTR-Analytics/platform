@@ -14,7 +14,7 @@ export type ConversationStore = {
   isProcessingTools: ReturnType<typeof createSignal<boolean>>;
   error: ReturnType<typeof createSignal<string | null>>;
   usage: ReturnType<typeof createSignal<Usage | null>>;
-  currentStreamingText: ReturnType<typeof createSignal<string | null>>;
+  currentStreamingText: ReturnType<typeof createSignal<string | undefined>>;
   usageHistory: ReturnType<typeof createSignal<Usage[]>>;
 };
 
@@ -32,7 +32,7 @@ export function getOrCreateConversationStore(
       isProcessingTools: createSignal(false),
       error: createSignal<string | null>(null),
       usage: createSignal<Usage | null>(null),
-      currentStreamingText: createSignal<string | null>(null),
+      currentStreamingText: createSignal<string | undefined>(undefined),
       usageHistory: createSignal<Usage[]>([]),
     });
   }
@@ -59,7 +59,7 @@ export function clearConversationStore(conversationId: string): void {
     setIsProcessingTools(false);
     setError(null);
     setUsage(null);
-    setCurrentStreamingText(null);
+    setCurrentStreamingText(undefined);
     setUsageHistory([]);
   }
 }

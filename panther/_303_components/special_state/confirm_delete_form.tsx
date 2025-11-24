@@ -4,11 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, JSX, Show } from "solid-js";
-import { timActionForm } from "../../_304_query/mod.ts";
+import { timActionForm } from "../../_302_query/mod.ts";
 import type {
   APIResponseNoData,
   APIResponseWithData,
-} from "../../_304_query/mod.ts";
+} from "../../_302_query/mod.ts";
 import { Button } from "../form_inputs/button.tsx";
 import { AlertComponentProps } from "./alert.tsx";
 import { StateHolderFormError } from "./state_holder_wrapper.tsx";

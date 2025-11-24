@@ -23,6 +23,7 @@
     "idb-keyval": "^6.2.2",
     "jspdf": "^2.5.2",
     "markdown-it": "^14.1.0",
+    "papaparse": "^5.5.3",
     "pptxgenjs": "^4.0.1",
     "prettier": "^3.3.3",
     "prettier-plugin-tailwindcss": "^0.6.5",

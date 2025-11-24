@@ -4,7 +4,7 @@
     {
       "slug": "",
       "filePath": "README.md",
-      "title": "HMIS Application Documentation",
+      "title": "Overview",
       "frontmatter": {}
     },
     {
@@ -76,7 +76,7 @@
   ],
   "rootItems": [
     {
-      "label": "HMIS Application Documentation",
+      "label": "Overview",
       "slug": ""
     }
   ],

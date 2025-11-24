@@ -26,7 +26,8 @@
       "sortablejs/*": ["./node_modules/sortablejs/*"],
       "markdown-it": ["./node_modules/markdown-it"],
       "jspdf": ["./node_modules/jspdf"],
-      "docx": ["./node_modules/docx"]
+      "docx": ["./node_modules/docx"],
+      "papaparse": ["./node_modules/papaparse"]
     }
   },
   "include": [

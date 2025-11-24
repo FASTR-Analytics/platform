@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { basename, join, relative } from "./deps.ts";
+import { basename, globToRegExp, relative } from "./deps.ts";
 import { walk } from "./deps.ts";
 import type { DocsPage } from "./types.ts";
 import { extractTitle, parseFrontmatter } from "./parse_frontmatter.ts";
@@ -12,11 +12,20 @@ import { extractTitle, parseFrontmatter } from "./parse_frontmatter.ts";
 // EXPORTED FUNCTIONS
 // ================================================================================
 
-export async function scanDirectory(inputDir: string): Promise<DocsPage[]> {
+export async function scanDirectory(
+  inputDir: string,
+  excludePatterns: string[] = [],
+): Promise<DocsPage[]> {
   const pages: DocsPage[] = [];
 
   for await (const entry of walk(inputDir, { exts: [".md"] })) {
     if (!entry.isFile) {
+      continue;
+    }
+
+    const relativePath = relative(inputDir, entry.path);
+
+    if (shouldExclude(relativePath, excludePatterns)) {
       continue;
     }
 
@@ -77,6 +86,19 @@ function extractOrder(
     }
   }
   return undefined;
+}
+
+function shouldExclude(relativePath: string, patterns: string[]): boolean {
+  const normalizedPath = relativePath.replace(/\\/g, "/");
+
+  for (const pattern of patterns) {
+    const regex = globToRegExp(pattern);
+    if (regex.test(normalizedPath)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function sortPages(pages: DocsPage[]): DocsPage[] {

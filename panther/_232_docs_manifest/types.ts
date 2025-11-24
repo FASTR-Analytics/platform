@@ -44,4 +44,12 @@ export type NavItem = {
 export type GenerateDocsManifestOptions = {
   inputDir: string;
   title?: string;
+  excludeFromManifest?: string[];
+  preferSentenceCase?: boolean;
+};
+
+export type CopyDocsOptions = {
+  sourceDir: string;
+  outputDir: string;
+  urlPrefix: string;
 };

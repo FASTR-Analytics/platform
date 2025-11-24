@@ -4,11 +4,20 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { capitalizeFirstLetter } from "../deps.ts";
-import { SelectOption } from "./types.ts";
+import type { SelectOption } from "./types.ts";
 
 export function getSelectOptions(arr: string[]): SelectOption<string>[] {
   return arr.map((v) => {
     return { value: v, label: v };
+  });
+}
+
+export function getSelectOptionsWithLabelReplacement<T extends string>(
+  arr: T[],
+  labelReplacements: { [key: string]: string },
+): SelectOption<T>[] {
+  return arr.map((v) => {
+    return { value: v, label: labelReplacements[v] ?? v };
   });
 }
 

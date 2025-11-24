@@ -2197,6 +2197,7 @@
       "panther": {
         "dependencies": [
           "jsr:@gfx/canvas@0.5.6",
+          "jsr:@std/assert@1.0.0",
           "jsr:@std/encoding@0.217.0",
           "jsr:@std/fs@0.217.0",
           "jsr:@std/path@0.217.0",

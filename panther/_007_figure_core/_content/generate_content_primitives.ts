@@ -283,6 +283,65 @@ export function generateContentPrimitives(
               gridStrokeWidth / 2 -
               mappedVal.coords.y(),
           });
+        } else if (s.bars.stacking === "uncertainty") {
+          // Only render bar for series 0 (point estimate)
+          if (i_series !== 0) {
+            continue;
+          }
+
+          const seriesColWidth = Math.min(
+            indicatorColWidth * _PROP_SERIES,
+            s.bars.maxBarWidth,
+          );
+          const seriesColX = indicatorColAreaX +
+            (indicatorColWidth - seriesColWidth) / 2;
+
+          barRcd = new RectCoordsDims({
+            x: seriesColX,
+            y: mappedVal.coords.y(),
+            w: seriesColWidth,
+            h: subChartRcd.bottomY() +
+              gridStrokeWidth / 2 -
+              mappedVal.coords.y(),
+          });
+
+          // Add error bar if both bounds are available
+          const bound1 = mappedSeriesCoordinates[1]?.[i_val];
+          const bound2 = mappedSeriesCoordinates[2]?.[i_val];
+
+          if (bound1 && bound2) {
+            // Auto-detect which is upper/lower by comparing values
+            const ubY = bound1.val > bound2.val
+              ? bound1.coords.y()
+              : bound2.coords.y();
+            const lbY = bound1.val < bound2.val
+              ? bound1.coords.y()
+              : bound2.coords.y();
+
+            const errorBarBounds = new RectCoordsDims({
+              x: mappedVal.coords.x() - seriesColWidth * 0.2,
+              y: Math.min(ubY, lbY),
+              w: seriesColWidth * 0.4,
+              h: Math.abs(ubY - lbY),
+            });
+
+            allPrimitives.push({
+              type: "chart-error-bar",
+              key:
+                `errorbar-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_val}`,
+              bounds: errorBarBounds,
+              zIndex: Z_INDEX.CONTENT_BAR + 1,
+              meta: {
+                value: valueInfo,
+              },
+              centerX: mappedVal.coords.x(),
+              ubY,
+              lbY,
+              strokeColor: getColor({ key: "baseContent" }),
+              strokeWidth: 3,
+              capWidth: seriesColWidth * 0.4,
+            });
+          }
         } else {
           // Grouped bars
           const seriesOuterAreaWidth = indicatorColWidth / nSeries;
@@ -320,11 +379,32 @@ export function generateContentPrimitives(
               barRcd.w(),
             );
             const offset = mText.ti.fontSize * 0.3;
-            dataLabel = {
-              text: labelStr,
-              mText,
-              relativePosition: { rx: 0.5, dy: -offset },
-            };
+
+            // For uncertainty bars, position label to right of error bar cap
+            if (s.bars.stacking === "uncertainty") {
+              // Recalculate seriesColWidth (same logic as above)
+              const seriesColWidth = Math.min(
+                indicatorColWidth * _PROP_SERIES,
+                s.bars.maxBarWidth,
+              );
+              const errorBarCapHalfWidth = seriesColWidth * 0.2;
+              // Position left edge of label at: right edge of error bar cap + 8px gap
+              // Since rendering uses "center" alignment, shift position right by half label width
+              const horizontalOffset = barRcd.w() / 2 + errorBarCapHalfWidth + 8 +
+                mText.dims.w() / 2;
+
+              dataLabel = {
+                text: labelStr,
+                mText,
+                relativePosition: { dx: horizontalOffset, dy: -offset },
+              };
+            } else {
+              dataLabel = {
+                text: labelStr,
+                mText,
+                relativePosition: { rx: 0.5, dy: -offset },
+              };
+            }
           }
         }
 
@@ -483,9 +563,8 @@ export function generateContentPrimitives(
       let currentCoords: Coordinates[] = [];
 
       for (let i_val = 0; i_val < areaData.coords.length; i_val++) {
-        const mappedValThisSeries = mappedSeriesCoordinates[i_series][
-          areaData.valueIndices[i_val]
-        ];
+        const mappedValThisSeries =
+          mappedSeriesCoordinates[i_series][areaData.valueIndices[i_val]];
         if (mappedValThisSeries === undefined) {
           if (!s.lines.joinAcrossGaps && currentCoords.length > 0) {
             areas.push({ coords: currentCoords });

@@ -90,8 +90,6 @@ export function measureTimeseries(
     yAxisType: "scale",
     xAxisGridLineConfig: {
       type: "period",
-      mx: measured.mPanes[0]
-        .xAxisMeasuredInfo as import("../deps.ts").XPeriodAxisMeasuredInfo,
       periodType: transformedData.periodType,
       timeMin: transformedData.timeMin,
       nTimePoints: transformedData.nTimePoints,
@@ -99,7 +97,6 @@ export function measureTimeseries(
     },
     yAxisGridLineConfig: {
       type: "scale",
-      my: measured.mPanes[0].yScaleAxisWidthInfo,
     },
     transformedData,
     gridStyle: {

@@ -102,19 +102,6 @@ export function generateChartPrimitives<
 ): Primitive[] {
   const allPrimitives: Primitive[] = [];
 
-  // Extract axis rendering configuration
-  // (Same for all panes, so we just use the first one)
-  // Cast TData to include optional axis-specific properties
-  const xAxisConfig = getXAxisRenderConfig(
-    config.xAxisType,
-    measured.mPanes[0].xAxisMeasuredInfo,
-    config.transformedData as TData & {
-      indicatorHeaders?: string[];
-      nTimePoints?: number;
-    },
-    config.mergedStyle,
-  );
-
   // Track which axes we've already generated (one per tier, one per lane)
   const generatedYAxes = new Set<string>();
   const generatedXAxes = new Set<string>();
@@ -124,6 +111,17 @@ export function generateChartPrimitives<
 
   // Loop over panes → plotAreas (pane × tier × lane)
   for (const mPane of measured.mPanes) {
+    // Extract axis rendering configuration for THIS pane
+    // (Each pane may have different content width due to Y-axis label widths)
+    const xAxisConfig = getXAxisRenderConfig(
+      config.xAxisType,
+      mPane.xAxisMeasuredInfo,
+      config.transformedData as TData & {
+        indicatorHeaders?: string[];
+        nTimePoints?: number;
+      },
+      config.mergedStyle,
+    );
     // Generate pane header label (once per pane)
     if (!generatedPaneLabels.has(mPane.i_pane) && mPane.mPaneHeader) {
       const panePadding = new Padding(
@@ -189,6 +187,7 @@ export function generateChartPrimitives<
         plotAreaInfo.rcd.y(),
         mPane.subChartAreaHeight,
         config.yAxisGridLineConfig,
+        mPane.yScaleAxisWidthInfo,
       );
 
       // Calculate vertical grid lines (X-axis)
@@ -196,6 +195,7 @@ export function generateChartPrimitives<
         plotAreaInfo.i_lane,
         plotAreaInfo.rcd,
         config.xAxisGridLineConfig,
+        mPane.xAxisMeasuredInfo,
         config.gridStyle.gridStrokeWidth,
       );
 

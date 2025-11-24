@@ -58,11 +58,9 @@ export const AIChat: Component<Props> = (props) => {
   const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
 
   let scrollContainer: HTMLDivElement | undefined;
-  let scrollSentinel: HTMLDivElement | undefined;
 
   const { checkScrollPosition, scrollToBottom } = useScrollManager(
     () => scrollContainer,
-    () => scrollSentinel,
     () => [displayItems(), isLoading(), currentStreamingText()],
     { enabled: props.autoScroll ?? true },
   );
@@ -113,7 +111,7 @@ export const AIChat: Component<Props> = (props) => {
       const userMsg: MessageParam = { role: "user", content: message };
       processMessageForDisplay(userMsg);
     } else {
-      await sendMessage(message);
+      sendMessage(message); // Don't await - scroll should happen after user message displays, not after assistant responds
     }
 
     // Force scroll to bottom - immediate and after DOM updates
@@ -145,7 +143,6 @@ export const AIChat: Component<Props> = (props) => {
           renderMarkdown={config?.renderMarkdown}
           userMessageStyle={config?.messageStyles?.user}
           assistantMessageStyle={config?.messageStyles?.assistant}
-          scrollSentinelRef={(el) => scrollSentinel = el}
         />
       </div>
       <Show when={props.showUsage && usage() && props.model}>

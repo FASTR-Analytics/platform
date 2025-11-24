@@ -20,13 +20,11 @@ import { calculateHorizontalGridLinesForTier as calculateHorizontalGridLinesForT
 export type XAxisGridLineConfig =
   | {
     type: "text";
-    mx: XTextAxisMeasuredInfo;
     nIndicators: number;
     centeredTicks: boolean;
   }
   | {
     type: "period";
-    mx: XPeriodAxisMeasuredInfo;
     periodType: PeriodType;
     timeMin: number;
     nTimePoints: number;
@@ -41,6 +39,7 @@ export function calculateXAxisGridLines(
   i_lane: number,
   plotAreaRcd: RectCoordsDims,
   config: XAxisGridLineConfig,
+  xAxisMeasuredInfo: XTextAxisMeasuredInfo | XPeriodAxisMeasuredInfo,
   gridStrokeWidth: number,
 ): { x: number; tickValue?: number }[] {
   switch (config.type) {
@@ -48,7 +47,7 @@ export function calculateXAxisGridLines(
       return calculateVerticalGridLinesForLaneXText(
         i_lane,
         plotAreaRcd,
-        config.mx,
+        xAxisMeasuredInfo as XTextAxisMeasuredInfo,
         config.nIndicators,
         gridStrokeWidth,
         config.centeredTicks,
@@ -57,7 +56,7 @@ export function calculateXAxisGridLines(
       return calculateVerticalGridLinesForLaneXPeriod(
         i_lane,
         plotAreaRcd,
-        config.mx,
+        xAxisMeasuredInfo as XPeriodAxisMeasuredInfo,
         config.periodType,
         config.timeMin,
         config.nTimePoints,
@@ -78,7 +77,6 @@ export function calculateXAxisGridLines(
 export type YAxisGridLineConfig =
   | {
     type: "scale";
-    my: YScaleAxisWidthInfo;
   }
   | {
     type: "text";
@@ -90,12 +88,13 @@ export function calculateYAxisGridLines(
   plotAreaY: number,
   plotAreaHeight: number,
   config: YAxisGridLineConfig,
+  yScaleAxisWidthInfo: YScaleAxisWidthInfo,
 ): { y: number; tickValue: number }[] {
   switch (config.type) {
     case "scale":
       return calculateHorizontalGridLinesForTierYScale(
         i_tier,
-        config.my,
+        yScaleAxisWidthInfo,
         plotAreaY,
         plotAreaHeight,
       );

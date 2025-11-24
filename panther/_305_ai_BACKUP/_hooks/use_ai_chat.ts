@@ -22,7 +22,6 @@ import type {
   DisplayItem,
   MessageParam,
   StreamEvent,
-  Usage,
 } from "../_core/types.ts";
 
 export const AIChatConfigContext = createContext<AIChatConfig>();
@@ -55,9 +54,11 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
   const [isProcessingTools, setIsProcessingTools] = store.isProcessingTools;
   const [error, setError] = store.error;
   const [usage, setUsage] = store.usage;
-  const [currentStreamingText, setCurrentStreamingText] = store
-    .currentStreamingText;
+  const [currentStreamingText, setCurrentStreamingText] =
+    store.currentStreamingText;
   const [usageHistory, setUsageHistory] = store.usageHistory;
+
+  let activeStreamId = 0;
 
   const toolRegistry = new ToolRegistry();
   if (config.tools) {
@@ -86,20 +87,23 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
   };
 
   async function sendMessageBlocking(
-    userMessage: string,
+    userMessage: string | undefined,
     additionalPayload?: Record<string, unknown>,
   ): Promise<void> {
-    const userMsg: MessageParam = {
-      role: "user",
-      content: userMessage,
-    };
-
-    const newMessages = [...messages(), userMsg];
-    setMessages(newMessages);
     setError(null);
 
-    if (userMessage.trim()) {
-      processMessageForDisplay(userMsg);
+    // Only add user message if provided (undefined means messages already in state)
+    if (userMessage !== undefined) {
+      const userMsg: MessageParam = {
+        role: "user",
+        content: userMessage,
+      };
+
+      setMessages([...messages(), userMsg]);
+
+      if (userMessage.trim()) {
+        processMessageForDisplay(userMsg);
+      }
     }
 
     setIsLoading(true);
@@ -112,7 +116,7 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
 
       const response = await callAIAPI(
         config.apiConfig,
-        newMessages,
+        messages(),
         toolRegistry.getDefinitions(),
         conversationId,
         payload,
@@ -152,25 +156,29 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
   }
 
   async function sendMessageStreaming(
-    userMessage: string,
+    userMessage: string | undefined,
     additionalPayload?: Record<string, unknown>,
   ): Promise<void> {
-    const userMsg: MessageParam = {
-      role: "user",
-      content: userMessage,
-    };
-
-    const newMessages = [...messages(), userMsg];
-    setMessages(newMessages);
+    const streamId = ++activeStreamId;
     setError(null);
 
-    if (userMessage.trim()) {
-      processMessageForDisplay(userMsg);
+    // Only add user message if provided (undefined means messages already in state)
+    if (userMessage !== undefined) {
+      const userMsg: MessageParam = {
+        role: "user",
+        content: userMessage,
+      };
+
+      setMessages([...messages(), userMsg]);
+
+      if (userMessage.trim()) {
+        processMessageForDisplay(userMsg);
+      }
     }
 
     setIsLoading(true);
     setIsStreaming(true);
-    setCurrentStreamingText("");
+    setCurrentStreamingText(undefined);
 
     try {
       const payload = {
@@ -180,7 +188,7 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
 
       await callAIAPIStreaming(
         config.apiConfig,
-        newMessages,
+        messages(),
         toolRegistry.getDefinitions(),
         conversationId,
         payload,
@@ -188,9 +196,6 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
           handleStreamEvent(event);
         },
         async (response: AnthropicResponse) => {
-          setIsStreaming(false);
-          setCurrentStreamingText(null);
-
           if (response.usage) {
             setUsage(response.usage);
             setUsageHistory([...usageHistory(), response.usage]);
@@ -204,14 +209,21 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
           setMessages([...messages(), assistantMsg]);
           processMessageForDisplay(assistantMsg);
 
+          // Clear streaming state immediately after message is processed
+          setIsStreaming(false);
+          setCurrentStreamingText(undefined);
+
           if (response.stop_reason === "tool_use") {
             setIsProcessingTools(true);
             await handleToolUse(response, payload);
           }
         },
         (err: Error) => {
+          if (streamId !== activeStreamId) {
+            return;
+          }
           setIsStreaming(false);
-          setCurrentStreamingText(null);
+          setCurrentStreamingText(undefined);
           const errorMessage = err.message;
           setError(errorMessage);
           addDisplayItems([
@@ -224,19 +236,28 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
         },
       );
     } finally {
-      setIsLoading(false);
-      setIsStreaming(false);
-      setCurrentStreamingText(null);
-      setIsProcessingTools(false);
+      // Check activeStreamId before each state update to prevent race conditions
+      if (streamId === activeStreamId) {
+        setIsLoading(false);
+      }
+      if (streamId === activeStreamId) {
+        setIsStreaming(false);
+      }
+      if (streamId === activeStreamId) {
+        setCurrentStreamingText(undefined);
+      }
+      if (streamId === activeStreamId) {
+        setIsProcessingTools(false);
+      }
     }
   }
 
   function handleStreamEvent(event: StreamEvent) {
     if (event.type === "content_block_delta") {
       if (event.delta.type === "text_delta") {
-        setCurrentStreamingText(
-          (currentStreamingText() ?? "") + event.delta.text,
-        );
+        const current = currentStreamingText() ?? "";
+        const newText = current + event.delta.text;
+        setCurrentStreamingText(newText);
       }
     }
   }
@@ -245,10 +266,7 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
     response: AnthropicResponse,
     payload: Record<string, unknown>,
   ): Promise<void> {
-    const inProgressItems = getInProgressItems(
-      response.content,
-      toolRegistry,
-    );
+    const inProgressItems = getInProgressItems(response.content, toolRegistry);
 
     addDisplayItems(inProgressItems);
 
@@ -258,8 +276,8 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
     );
 
     setDisplayItems(
-      displayItems().filter((item: DisplayItem) =>
-        item.type !== "tool_in_progress"
+      displayItems().filter(
+        (item: DisplayItem) => item.type !== "tool_in_progress",
       ),
     );
 
@@ -269,12 +287,12 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
 
     if (results.length > 0) {
       setMessages([...messages(), { role: "user", content: results }]);
-      await sendMessage("", payload);
+      await sendMessage(undefined, payload);
     }
   }
 
   async function sendMessage(
-    userMessage: string,
+    userMessage: string | undefined,
     additionalPayload?: Record<string, unknown>,
   ): Promise<void> {
     if (config.enableStreaming) {
@@ -304,9 +322,9 @@ export function useAIChat(configOverride?: Partial<AIChatConfig>) {
     // when messages are queued, so we don't call it here
 
     if (config.enableStreaming) {
-      return sendMessageStreaming("", additionalPayload);
+      return sendMessageStreaming(undefined, additionalPayload);
     } else {
-      return sendMessageBlocking("", additionalPayload);
+      return sendMessageBlocking(undefined, additionalPayload);
     }
   }
 

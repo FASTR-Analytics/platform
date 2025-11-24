@@ -22,7 +22,7 @@ import type { DocsSidebarProps } from "./types.ts";
 export function DocsSidebar(p: DocsSidebarProps) {
   const findActiveSection = (): string | null => {
     const section = p.navigation.find((section) =>
-      section.items.some((item) => isItemActive(item, p.currentSlug)),
+      section.items.some((item) => isItemActive(item, p.currentSlug))
     );
     return section ? section.id : null;
   };
@@ -69,9 +69,9 @@ export function DocsSidebar(p: DocsSidebarProps) {
             boldHeader
             padding="md"
             contentBorder={false}
-            onHeaderClick={
-              section.slug ? () => p.onNavigate(section.slug!) : undefined
-            }
+            onHeaderClick={section.slug
+              ? () => p.onNavigate(section.slug!)
+              : undefined}
             noClickToCollapse={!!section.slug}
           >
             <NavItemsGroup

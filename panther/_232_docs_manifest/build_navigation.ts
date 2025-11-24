@@ -11,6 +11,7 @@ import type { DocsPage, NavItem, NavSection } from "./types.ts";
 
 export function buildNavigation(
   pages: DocsPage[],
+  preferSentenceCase: boolean = false,
 ): { rootItems: NavItem[]; sections: NavSection[] } {
   const grouped = groupPagesByDirectory(pages);
   const rootItems: NavItem[] = [];
@@ -25,7 +26,7 @@ export function buildNavigation(
         });
       }
     } else {
-      const section = buildSection(dirName, dirPages);
+      const section = buildSection(dirName, dirPages, preferSentenceCase);
       if (section.items.length > 0) {
         sections.push(section);
       }
@@ -60,9 +61,13 @@ function groupPagesByDirectory(
   return grouped;
 }
 
-function buildSection(dirName: string, pages: DocsPage[]): NavSection {
-  const label = formatDirName(dirName);
-  const items = buildNavItems(pages);
+function buildSection(
+  dirName: string,
+  pages: DocsPage[],
+  preferSentenceCase: boolean,
+): NavSection {
+  const label = formatDirName(dirName, preferSentenceCase);
+  const items = buildNavItems(pages, preferSentenceCase);
   const sectionSlug = findSectionSlug(dirName, pages);
 
   return {
@@ -74,7 +79,10 @@ function buildSection(dirName: string, pages: DocsPage[]): NavSection {
   };
 }
 
-function buildNavItems(pages: DocsPage[]): NavItem[] {
+function buildNavItems(
+  pages: DocsPage[],
+  preferSentenceCase: boolean,
+): NavItem[] {
   const items: NavItem[] = [];
   const grouped = new Map<string, DocsPage[]>();
 
@@ -99,7 +107,7 @@ function buildNavItems(pages: DocsPage[]): NavItem[] {
     const lastPart = parts[parts.length - 1];
 
     items.push({
-      label: formatDirName(lastPart),
+      label: formatDirName(lastPart, preferSentenceCase),
       slug: parentDir,
       children: childPages.map((p) => ({
         label: p.title,
@@ -111,9 +119,14 @@ function buildNavItems(pages: DocsPage[]): NavItem[] {
   return items;
 }
 
-function formatDirName(dirName: string): string {
+function formatDirName(
+  dirName: string,
+  preferSentenceCase: boolean,
+): string {
   const withSpaces = dirName.replace(/[-_]/g, " ");
-  return capitalizeWords(withSpaces);
+  return preferSentenceCase
+    ? sentenceCase(withSpaces)
+    : capitalizeWords(withSpaces);
 }
 
 function capitalizeWords(str: string): string {
@@ -126,6 +139,13 @@ function capitalizeWords(str: string): string {
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     })
     .join(" ");
+}
+
+function sentenceCase(str: string): string {
+  if (str.length === 0) {
+    return str;
+  }
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
 function sortSections(sections: NavSection[]): NavSection[] {

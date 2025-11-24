@@ -14,8 +14,14 @@ import type { DocsManifest, GenerateDocsManifestOptions } from "./types.ts";
 export async function generateDocsManifest(
   options: GenerateDocsManifestOptions,
 ): Promise<DocsManifest> {
-  const pages = await scanDirectory(options.inputDir);
-  const { rootItems, sections } = buildNavigation(pages);
+  const pages = await scanDirectory(
+    options.inputDir,
+    options.excludeFromManifest ?? [],
+  );
+  const { rootItems, sections } = buildNavigation(
+    pages,
+    options.preferSentenceCase ?? false,
+  );
 
   return {
     title: options.title ?? "Documentation",

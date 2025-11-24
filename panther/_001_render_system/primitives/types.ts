@@ -159,6 +159,22 @@ export type ChartBarPrimitive = BasePrimitive & {
   sourceData?: any;
 };
 
+export type ChartErrorBarPrimitive = BasePrimitive & {
+  type: "chart-error-bar";
+  meta: {
+    value: GenericValueInfo;
+  };
+  // Visual
+  centerX: number;
+  ubY: number;
+  lbY: number;
+  strokeColor: string;
+  strokeWidth: number;
+  capWidth: number;
+  // Optional metadata
+  sourceData?: any;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 //    Chart Structural Primitives (Coarse-Grained)                            //
@@ -322,6 +338,7 @@ export type Primitive =
   | ChartLineSeriesPrimitive
   | ChartAreaSeriesPrimitive
   | ChartBarPrimitive
+  | ChartErrorBarPrimitive
   // Chart structure (coarse-grained)
   | ChartAxisPrimitive
   | ChartGridPrimitive

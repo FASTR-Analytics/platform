@@ -15,7 +15,7 @@ export function DocsContent(p: DocsContentProps) {
   const [currentFetchSlug, setCurrentFetchSlug] = createSignal(p.currentSlug);
 
   const contentQuery = timQuery(() =>
-    fetchMarkdown(currentFetchSlug(), p.basePath),
+    fetchMarkdown(currentFetchSlug(), p.pages, p.basePath),
   );
 
   createEffect(() => {
@@ -43,15 +43,24 @@ export function DocsContent(p: DocsContentProps) {
 // HELPER FUNCTIONS
 // ================================================================================
 
-async function fetchMarkdown(slug: string, basePath?: string) {
+async function fetchMarkdown(
+  slug: string,
+  pages: DocsContentProps["pages"],
+  basePath?: string,
+) {
   try {
     const base = basePath ?? "/docs";
-    const path = !slug
-      ? "README.md"
-      : slug.endsWith(".md")
-        ? slug
-        : `${slug}.md`;
-    const url = `${base}/${path}`;
+
+    // Find the page by slug and use its filePath
+    const page = pages.find((p) => p.slug === slug);
+    if (!page) {
+      return {
+        success: false as const,
+        err: `Page not found for slug: ${slug}`,
+      };
+    }
+
+    const url = `${base}/${page.filePath}`;
 
     const response = await fetch(url);
     if (!response.ok) {

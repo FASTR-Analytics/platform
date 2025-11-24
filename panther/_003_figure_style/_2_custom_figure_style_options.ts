@@ -114,9 +114,9 @@ export type CustomFigureStyleOptions = {
     cellBackgroundColorFormatter?:
       | "none"
       | TableCellFormatterFunc<
-        string | number | null | undefined,
-        ColorKeyOrString
-      >;
+          string | number | null | undefined,
+          ColorKeyOrString
+        >;
     cellValueFormatter?: TableCellFormatterFunc<
       string | number | null | undefined,
       string
@@ -222,7 +222,7 @@ export type CustomFigureStyleOptions = {
     bars?: {
       defaults?: GenericBarStyleOptions;
       func?: GenericValueInfoFunc<GenericBarStyleOptions> | "none";
-      stacking?: "none" | "stacked" | "imposed";
+      stacking?: "none" | "stacked" | "imposed" | "uncertainty";
       maxBarWidth?: number;
     };
     lines?: {

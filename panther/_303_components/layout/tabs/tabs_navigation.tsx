@@ -38,7 +38,7 @@ export function TabsNavigation(p: TabsNavigationProps) {
       return `${baseClasses} border-transparent text-base-content hover:text-primary hover:border-base-300`;
     } else {
       const baseClasses =
-        "ui-hoverable ui-focusable relative flex items-center justify-between w-full ui-pad font-400 cursor-pointer border-r-4";
+        "ui-hoverable ui-focusable relative flex items-center justify-between w-full ui-pad font-400 cursor-pointer border-l-4";
 
       if (isActive) {
         return `${baseClasses} border-primary text-primary bg-base-200`;
@@ -47,14 +47,15 @@ export function TabsNavigation(p: TabsNavigationProps) {
     }
   };
 
-  const formatter = p.tabLabelFormatter ??
+  const formatter =
+    p.tabLabelFormatter ??
     ((option: SelectOption<string>) =>
       typeof option.label === "string" ? option.label : String(option.value));
 
   const isVertical = p.vertical === true;
   const containerClasses = !isVertical
     ? "bg-base-100 flex w-full"
-    : "ui-spy-sm border-base-300 bg-base-100 flex w-full flex-col border-r";
+    : "bg-base-100 flex w-full flex-col";
 
   return (
     <div class={containerClasses}>
@@ -66,14 +67,12 @@ export function TabsNavigation(p: TabsNavigationProps) {
               type="button"
               class={getTabClasses(option.value)}
               onClick={() => handleTabClick(option.value)}
-              aria-current={p.tabs.isTabActive(option.value)
-                ? "page"
-                : undefined}
+              aria-current={
+                p.tabs.isTabActive(option.value) ? "page" : undefined
+              }
               role="tab"
             >
-              <span class="whitespace-nowrap">
-                {formatter(option)}
-              </span>
+              <span class="whitespace-nowrap">{formatter(option)}</span>
               {badge && (
                 <span
                   class={`bg-base-300 text-base-content rounded-full px-2 py-0.5 text-xs ${

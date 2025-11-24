@@ -94,13 +94,16 @@ export function measureYScaleAxisWidthInfo(
 
   let maxYTickWidth = 0;
   for (const rowYTickVals of yAxisTickValues) {
-    const lastTickLabel = sy.tickLabelFormatter(rowYTickVals.at(-1) ?? 1);
-    const mLastTickLabel = rc.mText(
-      lastTickLabel,
-      sy.text.yScaleAxisTickLabels,
-      9999,
-    );
-    maxYTickWidth = Math.max(maxYTickWidth, mLastTickLabel.dims.w());
+    // Measure all tick labels to find the widest one
+    for (const tickVal of rowYTickVals) {
+      const tickLabel = sy.tickLabelFormatter(tickVal);
+      const mTickLabel = rc.mText(
+        tickLabel,
+        sy.text.yScaleAxisTickLabels,
+        9999,
+      );
+      maxYTickWidth = Math.max(maxYTickWidth, mTickLabel.dims.w());
+    }
   }
 
   const widthIncludingYAxisStrokeWidth = sy.exactAxisX !== "none"

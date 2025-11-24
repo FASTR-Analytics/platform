@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type Component, For, Show } from "solid-js";
+import { type Component, For, Match, Show, Switch } from "solid-js";
 import type { ToolRegistry } from "../_core/tool_engine.ts";
 import type {
   DisplayItem,
@@ -21,7 +21,7 @@ type Props = {
   displayItems: DisplayItem[];
   isLoading: boolean;
   isStreaming?: boolean;
-  currentStreamingText?: string | null;
+  currentStreamingText?: string | undefined;
   customRenderers?: DisplayRegistry;
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
@@ -69,22 +69,22 @@ export const MessageList: Component<Props> = (props) => {
     }
   };
 
+  const regularItems = () =>
+    props.displayItems.filter((item) => item.type !== "tool_in_progress");
+  const toolInProgressItems = () =>
+    props.displayItems.filter((item) => item.type === "tool_in_progress");
+
   return (
     <div class="ui-gap flex flex-col">
       <Show
         when={props.displayItems.length > 0 || props.isStreaming}
         fallback={props.fallbackContent ? props.fallbackContent({}) : null}
       >
-        <For each={props.displayItems}>{(item) => renderItem(item)}</For>
-        <Show when={props.isStreaming}>
-          <Show
-            when={props.currentStreamingText}
-            fallback={
-              <div class="text-neutral italic">
-                <SpinningCursor class="mr-1 inline-block" />
-                Thinking...
-              </div>
-            }
+        <For each={regularItems()}>{(item) => renderItem(item)}</For>
+
+        <Switch>
+          <Match
+            when={props.isStreaming && props.currentStreamingText !== undefined}
           >
             <StreamingTextRenderer
               text={props.currentStreamingText!}
@@ -92,20 +92,20 @@ export const MessageList: Component<Props> = (props) => {
               renderMarkdown={props.renderMarkdown}
               assistantMessageStyle={props.assistantMessageStyle}
             />
-          </Show>
-        </Show>
+          </Match>
+          <Match
+            when={(props.isStreaming || props.isLoading) &&
+              toolInProgressItems().length === 0}
+          >
+            <div class="text-neutral italic">
+              <SpinningCursor class="mr-1 inline-block" />
+              Thinking...
+            </div>
+          </Match>
+        </Switch>
+
+        <For each={toolInProgressItems()}>{(item) => renderItem(item)}</For>
       </Show>
-      <Show
-        when={props.isLoading &&
-          !props.isStreaming &&
-          props.displayItems.every((item) => item.type !== "tool_in_progress")}
-      >
-        <div class="text-neutral italic">
-          <SpinningCursor class="mr-1 inline-block" />
-          Thinking...
-        </div>
-      </Show>
-      <div ref={props.scrollSentinelRef} />
     </div>
   );
 };

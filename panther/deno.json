@@ -7,7 +7,9 @@
     "lib": ["esnext", "dom", "dom.iterable", "deno.ns"]
   },
   "imports": {
+    "@std/assert": "jsr:@std/assert@1.0.0",
     "@std/path": "jsr:@std/path@0.217.0",
+    "@std/path/glob_to_regexp": "jsr:@std/path@0.217.0/glob_to_regexp",
     "@std/fs/empty_dir": "jsr:@std/fs@0.217.0/empty_dir",
     "@std/fs/ensure_dir": "jsr:@std/fs@0.217.0/ensure_dir",
     "@std/fs/ensure_file": "jsr:@std/fs@0.217.0/ensure_file",

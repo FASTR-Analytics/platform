@@ -95,14 +95,11 @@ export function measureChartOV(
     yAxisType: "scale",
     xAxisGridLineConfig: {
       type: "text",
-      mx: measured.mPanes[0]
-        .xAxisMeasuredInfo as import("../deps.ts").XTextAxisMeasuredInfo,
       nIndicators: transformedData.indicatorHeaders.length,
       centeredTicks: mergedStyle.xTextAxis.tickPosition === "center",
     },
     yAxisGridLineConfig: {
       type: "scale",
-      my: measured.mPanes[0].yScaleAxisWidthInfo,
     },
     transformedData,
     gridStyle: {
