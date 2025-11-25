@@ -17,8 +17,8 @@ export const TextRenderer: Component<{
   const userText = props.userMessageStyle?.text ?? "text-base-content";
   const userClass = `${userBg} ${userText}`;
 
-  const assistantBg = props.assistantMessageStyle?.background ??
-    "bg-primary/10";
+  const assistantBg =
+    props.assistantMessageStyle?.background ?? "bg-primary/10";
   const assistantText = props.assistantMessageStyle?.text ?? "text-primary";
   const assistantClass = `${assistantBg} ${assistantText}`;
 

@@ -28,9 +28,9 @@ export function DocsContent(p: DocsContentProps) {
 
   return (
     <div class="h-full overflow-auto">
-      <StateHolderWrapper state={contentQuery.state()} noPad>
+      <StateHolderWrapper state={contentQuery.state()}>
         {(data) => (
-          <div class="ui-pad-lg mx-auto max-w-4xl">
+          <div class="mx-auto max-w-4xl px-12 py-16">
             <MarkdownPresentation markdown={data} />
           </div>
         )}

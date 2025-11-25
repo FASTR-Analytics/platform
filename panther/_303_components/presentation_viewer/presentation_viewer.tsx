@@ -25,7 +25,7 @@ export function PresentationViewer(p: Props) {
   const contentQuery = timQuery(() => fetchMarkdown(p.url));
 
   return (
-    <StateHolderWrapper state={contentQuery.state()} noPad>
+    <StateHolderWrapper state={contentQuery.state()}>
       {(keyedMarkdownContent) => (
         <PresentationViewerContent
           markdownContent={keyedMarkdownContent}
