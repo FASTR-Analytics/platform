@@ -105,10 +105,10 @@ export function ReportItemEditor(p: ReportItemEditorProps) {
   return (
     <StateHolderWrapper
       state={reportItem()}
-      // onErrorButton={{
-      //   label: "Go back",
-      //   // onClick: () => p.close(undefined),
-      // }}
+    // onErrorButton={{
+    //   label: "Go back",
+    //   // onClick: () => p.close(undefined),
+    // }}
     >
       {(keyedReportItem) => {
         return (
