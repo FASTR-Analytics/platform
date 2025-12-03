@@ -27,14 +27,15 @@ const STYLE_CONFIGS = {
     h5: "text-[0.875em] font-700 mt-[1.71em] mb-[1.14em] leading-[1.25]",
     h6: "text-[0.85em] font-700 mt-[2.33em] mb-[1.18em] leading-[1.25]",
     p: "mt-0 mb-[0.8em] leading-normal",
-    ul: "list-disc mt-0 mb-[1em] pl-[2em] [&_li]:mt-[0.5em] [&_li]:leading-[1.375]",
+    ul:
+      "list-disc mt-0 mb-[1em] pl-[2em] [&_li]:mt-[0.5em] [&_li]:leading-[1.375]",
     ol:
       "list-decimal mt-0 mb-[1em] pl-[2em] [&_li]:mt-[0.5em] [&_li]:leading-[1.375]",
     strong: "font-700",
   },
 };
 
-const md = new MarkdownIt({ breaks: true });
+const md = new MarkdownIt({ breaks: true, html: true });
 md.use(markdownItKatex);
 
 md.renderer.rules.image = (tokens: Token[], idx: number) => {

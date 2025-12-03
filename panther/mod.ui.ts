@@ -19,6 +19,8 @@ export * from "./_002_canvas/mod.ts";
 export * from "./_002_csv/mod.ts";
 export * from "./_003_figure_style/mod.ts";
 export * from "./_003_page_style/mod.ts";
+export * from "./_004_markdown_style/mod.ts";
+// _005_page_style not exported (will replace _003_page_style when _121_page is ready)
 export * from "./_006_layouter/mod.ts";
 export * from "./_007_figure_core/mod.ts";
 export * from "./_010_chartov/mod.ts";
@@ -29,9 +31,11 @@ export * from "./_011_uncertainty_client/mod.ts";
 export * from "./_020_abstract_doc_types/mod.ts";
 export * from "./_021_page/mod.ts";
 export * from "./_022_markdown/mod.ts";
+export * from "./_024_docs_core/mod.ts";
 export * from "./_101_pdf/mod.ts";
-export * from "./_103_markdown_to_word/mod.ts";
 export * from "./_104_parse_csv/mod.ts";
+export * from "./_105_markdown/mod.ts";
+export * from "./_106_markdown_to_word/mod.ts";
 
 //////////////////////
 //                  //

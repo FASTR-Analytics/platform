@@ -20,6 +20,29 @@ export function measureText(
   maxWidth: number,
   textRenderingOptions?: TextRenderingOptions,
 ): MeasuredText {
+  if (text === "") {
+    return {
+      lines: [],
+      dims: new Dimensions({ w: 0, h: 0 }),
+      ti,
+      rotation: "horizontal",
+    };
+  }
+
+  // Special case: single space character (used by formatted text systems)
+  if (text === " ") {
+    setCtxFont(ctx, ti, undefined);
+    const metrics = ctx.measureText(" ");
+    const ascent = metrics.fontBoundingBoxAscent ?? 0;
+    const descent = metrics.fontBoundingBoxDescent ?? 0;
+    return {
+      lines: [{ text: " ", w: metrics.width, y: ascent }],
+      dims: new Dimensions({ w: metrics.width, h: ascent + descent }),
+      ti,
+      rotation: "horizontal",
+    };
+  }
+
   if (!text.trim()) {
     return {
       lines: [],

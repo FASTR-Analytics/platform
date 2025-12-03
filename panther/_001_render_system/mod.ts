@@ -5,6 +5,5 @@
 
 export * from "./render_context.ts";
 export * from "./types.ts";
-export * from "./rich_text_types.ts";
 export * from "./primitives/mod.ts";
 // export * from "./universal_renderer.ts";

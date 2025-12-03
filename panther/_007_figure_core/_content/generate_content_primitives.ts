@@ -390,7 +390,8 @@ export function generateContentPrimitives(
               const errorBarCapHalfWidth = seriesColWidth * 0.2;
               // Position left edge of label at: right edge of error bar cap + 8px gap
               // Since rendering uses "center" alignment, shift position right by half label width
-              const horizontalOffset = barRcd.w() / 2 + errorBarCapHalfWidth + 8 +
+              const horizontalOffset = barRcd.w() / 2 + errorBarCapHalfWidth +
+                8 +
                 mText.dims.w() / 2;
 
               dataLabel = {

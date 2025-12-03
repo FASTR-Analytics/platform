@@ -26,9 +26,7 @@ export const TextRenderer: Component<{
     <Switch>
       <Match when={props.item.role === "user"}>
         <div class="ml-auto max-w-[80%]">
-          <div
-            class={`ui-pad rounded text-right font-mono text-sm ${userClass}`}
-          >
+          <div class={`ui-pad rounded text-right text-sm ${userClass}`}>
             <div class="whitespace-pre-wrap break-words">{props.item.text}</div>
           </div>
         </div>
@@ -36,7 +34,7 @@ export const TextRenderer: Component<{
       <Match when={props.item.role === "assistant" && props.renderMarkdown}>
         <div class="w-fit max-w-full">
           <div
-            class={`ui-pad w-fit max-w-full rounded font-mono text-sm ${assistantClass} ${MARKDOWN_STYLES}`}
+            class={`ui-pad w-fit max-w-full rounded text-sm ${assistantClass} ${MARKDOWN_STYLES}`}
             innerHTML={md.render(props.item.text)}
           />
         </div>
@@ -44,7 +42,7 @@ export const TextRenderer: Component<{
       <Match when={props.item.role === "assistant" && !props.renderMarkdown}>
         <div class="w-fit max-w-full">
           <div
-            class={`ui-pad w-fit max-w-full rounded font-mono text-sm ${assistantClass}`}
+            class={`ui-pad w-fit max-w-full rounded text-sm ${assistantClass}`}
           >
             <div class="whitespace-pre-wrap break-words">{props.item.text}</div>
           </div>

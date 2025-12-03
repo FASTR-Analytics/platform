@@ -20,6 +20,7 @@ export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   diffAreasOrder: "actual-expected",
   diffInverted: false,
   specialBarChart: false,
+  specialBarChartInverted: false,
   specialBarChartDiffThreshold: 0.1,
   specialBarChartDataLabels: "threshold-values",
   specialScorecardTable: false,

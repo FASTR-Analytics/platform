@@ -4,8 +4,14 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createEffect, createSignal } from "./deps.ts";
-import { FrameLeftResizable, StateHolderWrapper, timQuery } from "./deps.ts";
-import type { DocsManifest } from "./deps.ts";
+import {
+  fetchGitHubManifest,
+  FrameLeftResizable,
+  parseGitHubUrl,
+  StateHolderWrapper,
+  timQuery,
+} from "./deps.ts";
+import type { DocsManifest, ParsedGitHubUrl } from "./deps.ts";
 import type { DocsViewerProps } from "./types.ts";
 import { DocsSidebar } from "./docs_sidebar.tsx";
 import { DocsContent } from "./docs_content.tsx";
@@ -17,8 +23,13 @@ import { DocsContent } from "./docs_content.tsx";
 export function DocsViewer(p: DocsViewerProps) {
   const [currentSlug, setCurrentSlug] = createSignal("");
 
+  const parsedGitHubUrl = p.isGithub ? parseGitHubUrl(p.manifestUrl) : undefined;
+
   const manifestQuery = timQuery(
-    () => fetchManifest(p.manifestUrl),
+    () =>
+      p.isGithub && parsedGitHubUrl
+        ? fetchGitHubManifestWrapped(parsedGitHubUrl, p.title)
+        : fetchManifest(p.manifestUrl),
     "Loading documentation...",
   );
 
@@ -58,6 +69,8 @@ export function DocsViewer(p: DocsViewerProps) {
             currentSlug={currentSlug()}
             pages={data.pages}
             basePath={p.basePath}
+            isGithub={p.isGithub}
+            parsedGitHubUrl={parsedGitHubUrl}
           />
         </FrameLeftResizable>
       )}
@@ -79,6 +92,21 @@ async function fetchManifest(url: string) {
       };
     }
     const data: DocsManifest = await response.json();
+    return { success: true as const, data };
+  } catch (err) {
+    return {
+      success: false as const,
+      err: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+async function fetchGitHubManifestWrapped(
+  parsed: ParsedGitHubUrl,
+  title?: string,
+) {
+  try {
+    const data = await fetchGitHubManifest(parsed, title);
     return { success: true as const, data };
   } catch (err) {
     return {

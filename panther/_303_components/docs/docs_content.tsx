@@ -4,7 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createEffect, createSignal } from "./deps.ts";
-import { MarkdownPresentation, StateHolderWrapper, timQuery } from "./deps.ts";
+import {
+  fetchGitHubMarkdown,
+  MarkdownPresentation,
+  StateHolderWrapper,
+  timQuery,
+} from "./deps.ts";
+import type { ParsedGitHubUrl } from "./deps.ts";
 import type { DocsContentProps } from "./types.ts";
 
 // ================================================================================
@@ -15,7 +21,13 @@ export function DocsContent(p: DocsContentProps) {
   const [currentFetchSlug, setCurrentFetchSlug] = createSignal(p.currentSlug);
 
   const contentQuery = timQuery(() =>
-    fetchMarkdown(currentFetchSlug(), p.pages, p.basePath),
+    p.isGithub && p.parsedGitHubUrl
+      ? fetchGitHubMarkdownWrapped(
+          currentFetchSlug(),
+          p.pages,
+          p.parsedGitHubUrl,
+        )
+      : fetchMarkdown(currentFetchSlug(), p.pages, p.basePath)
   );
 
   createEffect(() => {
@@ -51,7 +63,6 @@ async function fetchMarkdown(
   try {
     const base = basePath ?? "/docs";
 
-    // Find the page by slug and use its filePath
     const page = pages.find((p) => p.slug === slug);
     if (!page) {
       return {
@@ -71,6 +82,30 @@ async function fetchMarkdown(
     }
 
     const data = await response.text();
+    return { success: true as const, data };
+  } catch (err) {
+    return {
+      success: false as const,
+      err: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+async function fetchGitHubMarkdownWrapped(
+  slug: string,
+  pages: DocsContentProps["pages"],
+  parsed: ParsedGitHubUrl,
+) {
+  try {
+    const page = pages.find((p) => p.slug === slug);
+    if (!page) {
+      return {
+        success: false as const,
+        err: `Page not found for slug: ${slug}`,
+      };
+    }
+
+    const data = await fetchGitHubMarkdown(parsed, page.filePath);
     return { success: true as const, data };
   } catch (err) {
     return {

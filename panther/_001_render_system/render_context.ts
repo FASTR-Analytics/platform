@@ -11,7 +11,6 @@ import type {
   RectCoordsDimsOptions,
   TextInfoUnkeyed,
 } from "./deps.ts";
-import type { MeasuredRichText, RichText } from "./rich_text_types.ts";
 
 export type MeasuredText = {
   lines: MeasuredTextLine[];
@@ -125,30 +124,6 @@ export type RenderContext = {
       dy: number,
       dw: number,
       dh: number,
-    ): void;
-  };
-
-  mRichText: (
-    text: string | RichText,
-    ti: TextInfoUnkeyed,
-    maxWidth: number,
-    opts?: {
-      rotation?: "horizontal" | "anticlockwise" | "clockwise";
-    },
-  ) => MeasuredRichText;
-
-  rRichText: {
-    (
-      mRichText: MeasuredRichText,
-      bounds: RectCoordsDimsOptions,
-      hAlign: "center" | "left" | "right",
-      vAlign?: "top" | "center" | "bottom",
-    ): void;
-    (
-      mRichText: MeasuredRichText,
-      coords: CoordinatesOptions,
-      hAlign: "center" | "left" | "right",
-      vAlign?: "top" | "center" | "bottom",
     ): void;
   };
 };

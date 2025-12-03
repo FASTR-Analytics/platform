@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { DocsManifest, NavItem, NavSection } from "./deps.ts";
+import type { DocsManifest, NavItem, NavSection, ParsedGitHubUrl } from "./deps.ts";
 
 // ================================================================================
 // COMPONENT PROPS
@@ -12,6 +12,8 @@ import type { DocsManifest, NavItem, NavSection } from "./deps.ts";
 export type DocsViewerProps = {
   manifestUrl: string;
   basePath?: string;
+  isGithub?: boolean;
+  title?: string;
 };
 
 export type DocsSidebarProps = {
@@ -25,6 +27,8 @@ export type DocsContentProps = {
   currentSlug: string;
   pages: DocsManifest["pages"];
   basePath?: string;
+  isGithub?: boolean;
+  parsedGitHubUrl?: ParsedGitHubUrl;
 };
 
 export type DocsBreadcrumbsProps = {
@@ -36,4 +40,4 @@ export type DocsBreadcrumbsProps = {
 // RE-EXPORTS
 // ================================================================================
 
-export type { DocsManifest, NavItem, NavSection };
+export type { DocsManifest, NavItem, NavSection, ParsedGitHubUrl };

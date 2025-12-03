@@ -3,9 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { buildNavigation } from "./build_navigation.ts";
+import { buildNavigation } from "./deps.ts";
+import type { DocsManifest } from "./deps.ts";
 import { scanDirectory } from "./scan_directory.ts";
-import type { DocsManifest, GenerateDocsManifestOptions } from "./types.ts";
+import type { GenerateDocsManifestOptions } from "./types.ts";
 
 // ================================================================================
 // EXPORTED FUNCTIONS

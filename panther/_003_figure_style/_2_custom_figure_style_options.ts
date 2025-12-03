@@ -114,9 +114,9 @@ export type CustomFigureStyleOptions = {
     cellBackgroundColorFormatter?:
       | "none"
       | TableCellFormatterFunc<
-          string | number | null | undefined,
-          ColorKeyOrString
-        >;
+        string | number | null | undefined,
+        ColorKeyOrString
+      >;
     cellValueFormatter?: TableCellFormatterFunc<
       string | number | null | undefined,
       string

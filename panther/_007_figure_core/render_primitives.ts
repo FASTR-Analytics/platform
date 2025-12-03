@@ -48,22 +48,20 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
           primitive.dataLabel.relativePosition,
           primitive.bounds,
         );
-        const hAlign =
-          "dx" in primitive.dataLabel.relativePosition &&
-          primitive.dataLabel.relativePosition.dx < 0
-            ? "right"
-            : "dx" in primitive.dataLabel.relativePosition &&
-                primitive.dataLabel.relativePosition.dx > 0
-              ? "left"
-              : "center";
-        const vAlign =
-          "dy" in primitive.dataLabel.relativePosition &&
-          primitive.dataLabel.relativePosition.dy < 0
-            ? "bottom"
-            : "dy" in primitive.dataLabel.relativePosition &&
-                primitive.dataLabel.relativePosition.dy > 0
-              ? "top"
-              : "center";
+        const hAlign = "dx" in primitive.dataLabel.relativePosition &&
+            primitive.dataLabel.relativePosition.dx < 0
+          ? "right"
+          : "dx" in primitive.dataLabel.relativePosition &&
+              primitive.dataLabel.relativePosition.dx > 0
+          ? "left"
+          : "center";
+        const vAlign = "dy" in primitive.dataLabel.relativePosition &&
+            primitive.dataLabel.relativePosition.dy < 0
+          ? "bottom"
+          : "dy" in primitive.dataLabel.relativePosition &&
+              primitive.dataLabel.relativePosition.dy > 0
+          ? "top"
+          : "center";
         rc.rText(primitive.dataLabel.mText, labelPos, hAlign, vAlign);
       }
       break;
@@ -286,12 +284,9 @@ function renderLegendPrimitive(
       case "point":
         rc.rPoint(item.symbol.position, item.symbol.style);
         break;
-      case "line": {
-        const lineStart = item.symbol.position.getOffsetted({ left: -10 });
-        const lineEnd = item.symbol.position.getOffsetted({ right: 10 });
-        rc.rLine([lineStart, lineEnd], item.symbol.style);
+      case "line":
+        rc.rLine(item.symbol.coords, item.symbol.style);
         break;
-      }
       case "rect":
         rc.rRect(item.symbol.position, item.symbol.style);
         break;

@@ -3,9 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { basename, globToRegExp, relative } from "./deps.ts";
-import { walk } from "./deps.ts";
-import type { DocsPage } from "./types.ts";
+import { basename, globToRegExp, relative, walk } from "./deps.ts";
+import type { DocsPage } from "./deps.ts";
 import { extractTitle, parseFrontmatter } from "./parse_frontmatter.ts";
 
 // ================================================================================

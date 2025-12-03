@@ -90,6 +90,10 @@ app.use("*", cacheMiddleware);
 // Static file serving
 setupStaticServing(app);
 
+const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
+app.get("/docs", (c) => c.html(indexHtml));
+app.get("/claire", (c) => c.html(indexHtml));
+
 app.get("*", (c) => {
   return c.redirect("/", 302);
 });

@@ -122,8 +122,8 @@ function PresentationViewerContent(p: ContentProps) {
 
       const label = headerText
         ? `${idx + 1}. ${headerText.slice(0, 50)}${
-            headerText.length > 50 ? "..." : ""
-          }`
+          headerText.length > 50 ? "..." : ""
+        }`
         : `Slide ${idx + 1}`;
 
       return { value: idx.toString(), label };
@@ -217,7 +217,8 @@ function PresentationViewerContent(p: ContentProps) {
                       onClick={handlePrint}
                       intent="base-100"
                       iconName="print"
-                    ></Button>
+                    >
+                    </Button>
                     <Button
                       onClick={goToPrevious}
                       disabled={!hasPrevious()}

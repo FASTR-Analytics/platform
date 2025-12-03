@@ -98,6 +98,18 @@ export function getLegendItemsFromConfig(
   config: PresentationObjectConfig,
 ): LegendItem[] | undefined {
   if (config.s.content === "bars" && config.s.specialBarChart) {
+    if (config.s.specialBarChartInverted) {
+    return [
+      {
+        label: t2(T.FRENCH_UI_STRINGS.greater_than_10_quartertoquart_1),
+        color: _CF_RED,
+      },
+      {
+        label: t2(T.FRENCH_UI_STRINGS.greater_than_10_quartertoquart),
+        color: _CF_GREEN,
+      },
+    ];
+  } 
     return [
       {
         label: t2(T.FRENCH_UI_STRINGS.greater_than_10_quartertoquart_1),
@@ -108,6 +120,7 @@ export function getLegendItemsFromConfig(
         color: _CF_RED,
       },
     ];
+  
   }
   if (config.s.content === "areas" && config.s.diffAreas) {
     if (config.s.diffInverted) {

@@ -63,6 +63,7 @@ export function generateLegendPrimitive(
           };
         } else if (pointStyle === "as-line") {
           // Line symbol
+          const lineY = currentY + mText.dims.h() / 2;
           symbol = {
             type: "line",
             style: {
@@ -72,11 +73,10 @@ export function generateLegendPrimitive(
               strokeColor: color,
               lineDash,
             },
-            // Center position for line (will be offset in render function)
-            position: new Coordinates([
-              currentX + colorBoxWidthOrPointWidth / 2,
-              currentY + mText.dims.h() / 2,
-            ]),
+            coords: [
+              new Coordinates([currentX, lineY]),
+              new Coordinates([currentX + colorBoxWidthOrPointWidth, lineY]),
+            ],
           };
         } else {
           // Point symbol

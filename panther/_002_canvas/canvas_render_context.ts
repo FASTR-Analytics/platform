@@ -13,34 +13,23 @@ import {
   type CoordinatesOptions,
   getRectAlignmentCoords,
   type LineStyle,
-  type MeasuredRichText,
   type MeasuredText,
   type PointStyle,
   RectCoordsDims,
   type RectCoordsDimsOptions,
   type RectStyle,
   type RenderContext,
-  type RichText,
   type TextInfoUnkeyed,
 } from "./deps.ts";
 import {
   measureText,
   measureVerticalText,
 } from "./_internal/text/measure_text.ts";
-import {
-  measureRichText,
-  measureVerticalRichText,
-} from "./_internal/text/measure_rich_text.ts";
 import { writeText, writeVerticalText } from "./_internal/text/write_text.ts";
-import {
-  writeRichText,
-  writeVerticalRichText,
-} from "./_internal/text/write_rich_text.ts";
 import {
   DEFAULT_TEXT_RENDERING_OPTIONS,
   type TextRenderingOptions,
 } from "./text_rendering_options.ts";
-import { parseRichText } from "./rich_text_parser.ts";
 
 export class CanvasRenderContext implements RenderContext {
   _ctx: CanvasRenderingContext2D;
@@ -127,95 +116,6 @@ export class CanvasRenderContext implements RenderContext {
       return;
     }
     writeText(this._ctx, mText, c.x(), c.y(), hAlign);
-  }
-
-  mRichText(
-    text: string | RichText,
-    ti: TextInfoUnkeyed,
-    maxWidth: number,
-    opts?: {
-      rotation?: "horizontal" | "anticlockwise" | "clockwise";
-    },
-  ): MeasuredRichText {
-    const richText = typeof text === "string" ? parseRichText(text, ti) : text;
-
-    if (opts?.rotation === "anticlockwise" || opts?.rotation === "clockwise") {
-      return measureVerticalRichText(
-        this._ctx,
-        richText,
-        maxWidth,
-        opts.rotation,
-        this._textRenderingOptions,
-      );
-    }
-    return measureRichText(
-      this._ctx,
-      richText,
-      maxWidth,
-      this._textRenderingOptions,
-    );
-  }
-
-  rRichText(
-    mRichText: MeasuredRichText,
-    coordsOrBounds: CoordinatesOptions | RectCoordsDimsOptions,
-    hAlign: "center" | "left" | "right",
-    vAlign?: "top" | "center" | "bottom",
-  ) {
-    // Check if it's a RectCoordsDims
-    let coords: CoordinatesOptions;
-    if (
-      coordsOrBounds instanceof RectCoordsDims ||
-      (typeof coordsOrBounds === "object" &&
-        !Array.isArray(coordsOrBounds) &&
-        "w" in coordsOrBounds &&
-        "h" in coordsOrBounds)
-    ) {
-      coords = getRectAlignmentCoords(
-        coordsOrBounds as RectCoordsDimsOptions,
-        hAlign,
-        vAlign ?? "top",
-      );
-    } else {
-      coords = coordsOrBounds as CoordinatesOptions;
-    }
-
-    const c = new Coordinates(coords);
-    if (
-      mRichText.rotation === "anticlockwise" ||
-      mRichText.rotation === "clockwise"
-    ) {
-      writeVerticalRichText(
-        this._ctx,
-        mRichText,
-        c.x(),
-        c.y(),
-        vAlign ?? "top",
-        hAlign,
-      );
-      return;
-    }
-    if (vAlign === "center") {
-      writeRichText(
-        this._ctx,
-        mRichText,
-        c.x(),
-        c.y() - mRichText.dims.h() / 2,
-        hAlign,
-      );
-      return;
-    }
-    if (vAlign === "bottom") {
-      writeRichText(
-        this._ctx,
-        mRichText,
-        c.x(),
-        c.y() - mRichText.dims.h(),
-        hAlign,
-      );
-      return;
-    }
-    writeRichText(this._ctx, mRichText, c.x(), c.y(), hAlign);
   }
 
   rLine(coordArray: CoordinatesOptions[], s: LineStyle) {

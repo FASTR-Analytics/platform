@@ -209,10 +209,10 @@ export function getStyleFromPresentationObject(
                     return { show: true, fillColor: _CF_COMPARISON };
                   }
                   if (diff > threshold) {
-                    return { show: true, fillColor: _CF_GREEN };
+                    return { show: true, fillColor: config.s.specialBarChartInverted ? _CF_RED :_CF_GREEN };
                   }
                   if (diff < -1 * threshold) {
-                    return { show: true, fillColor: _CF_RED };
+                    return { show: true, fillColor: config.s.specialBarChartInverted ? _CF_GREEN : _CF_RED };
                   }
                   return { show: true, fillColor: _CF_COMPARISON };
                 }

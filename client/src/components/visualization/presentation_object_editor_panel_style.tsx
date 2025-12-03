@@ -257,6 +257,11 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
                 step={0.01}
                 valueInLabelFormatter={toPct0}
               />
+              <Checkbox
+                label={t("Invert red/green for higher/lower")}
+                checked={p.tempConfig.s.specialBarChartInverted}
+                onChange={(v) => p.setTempConfig("s", "specialBarChartInverted", v)}
+              />
               <Show when={p.tempConfig.s.showDataLabels}>
                 <Checkbox
                   label={t2(T.FRENCH_UI_STRINGS.only_show_data_labels_on_bars)}
@@ -278,20 +283,22 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           </Show>
         </div>
       </Show>
-      <Show when={p.tempConfig.s.content === "areas"}>
-        <Checkbox
-          label={t2(T.FRENCH_UI_STRINGS.diff_areas)}
-          checked={p.tempConfig.s.diffAreas}
-          onChange={(v) => p.setTempConfig("s", "diffAreas", v)}
-        />
-        <Show when={p.tempConfig.s.diffAreas}>
+      <div class="ui-spy-sm">
+        <Show when={p.tempConfig.s.content === "areas"}>
           <Checkbox
-            label={t("Invert red/green for surplus/disruptions")}
-            checked={p.tempConfig.s.diffInverted}
-            onChange={(v) => p.setTempConfig("s", "diffInverted", v)}
+            label={t2(T.FRENCH_UI_STRINGS.diff_areas)}
+            checked={p.tempConfig.s.diffAreas}
+            onChange={(v) => p.setTempConfig("s", "diffAreas", v)}
           />
-        </Show>
-        {/* <Show when={p.tempConfig.s.diffAreas}>
+          <Show when={p.tempConfig.s.diffAreas}>
+            <div class="ui-spy-sm border-base-300 rounded border p-4">
+              <Checkbox
+                label={t("Invert red/green for surplus/disruptions")}
+                checked={p.tempConfig.s.diffInverted}
+                onChange={(v) => p.setTempConfig("s", "diffInverted", v)}
+              /></div>
+          </Show>
+          {/* <Show when={p.tempConfig.s.diffAreas}>
           <RadioGroup
             label={t("Diff areas order")}
             options={getSelectOptions(["actual-expected", "expected-actual"])}
@@ -305,7 +312,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             }
           />
         </Show> */}
-      </Show>
+        </Show></div>
       <Show when={p.tempConfig.d.type === "chart"}>
         <Checkbox
           label={t2(T.FRENCH_UI_STRINGS.vertical_tick_labels)}

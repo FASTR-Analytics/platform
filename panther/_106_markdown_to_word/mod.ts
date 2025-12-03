@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { convertMarkdownToWordDocument } from "./converter.ts";
-export { parseMarkdown } from "./parser.ts";
 export { buildWordDocument } from "./word_builder.ts";
 export {
   createFooter,

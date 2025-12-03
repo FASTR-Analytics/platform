@@ -205,6 +205,7 @@ export type PresentationObjectConfig = {
     diffAreasOrder: "actual-expected" | "expected-actual";
     diffInverted: boolean;
     specialBarChart: boolean;
+    specialBarChartInverted: boolean;
     specialBarChartDiffThreshold: number;
     specialBarChartDataLabels: "all-values" | "threshold-values";
     specialCoverageChart: boolean;

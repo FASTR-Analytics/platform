@@ -159,7 +159,10 @@ export function PrintSlides(p: Props) {
 
   onCleanup(() => {
     if (afterPrintHandler && iframeRef?.contentWindow) {
-      iframeRef.contentWindow.removeEventListener("afterprint", afterPrintHandler);
+      iframeRef.contentWindow.removeEventListener(
+        "afterprint",
+        afterPrintHandler,
+      );
     }
     if (timeoutId) {
       clearTimeout(timeoutId);

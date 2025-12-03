@@ -141,8 +141,7 @@ export function timActionDelete<U extends any[]>(
   ...onSuccessCallbacks: Array<() => void | Promise<void>>
 ): TimActionDelete<U> {
   async function click(...args: U) {
-    const isObjectWithItemList =
-      typeof confirmText === "object" &&
+    const isObjectWithItemList = typeof confirmText === "object" &&
       confirmText !== null &&
       "text" in confirmText &&
       "itemList" in confirmText;
@@ -157,8 +156,9 @@ export function timActionDelete<U extends any[]>(
           ? (confirmText as { text: string; itemList: string[] }).itemList
           : undefined,
         actionFunc: () => actionFunc(...args),
-        onSuccessCallbacks:
-          onSuccessCallbacks.length > 0 ? onSuccessCallbacks : undefined,
+        onSuccessCallbacks: onSuccessCallbacks.length > 0
+          ? onSuccessCallbacks
+          : undefined,
       },
     });
   }

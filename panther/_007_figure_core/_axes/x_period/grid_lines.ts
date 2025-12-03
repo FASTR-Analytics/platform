@@ -48,7 +48,9 @@ export function calculateVerticalGridLinesForLaneXPeriod(
       }
     }
 
-    currentX += mx.periodIncrementWidth;
+    currentX += mx.periodAxisType === "year-centered"
+      ? mx.periodIncrementWidth
+      : gridStrokeWidth + mx.periodIncrementWidth;
   }
 
   // Add final grid line at right edge (only for non-centered period axis)

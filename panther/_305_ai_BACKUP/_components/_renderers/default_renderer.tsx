@@ -9,7 +9,7 @@ import type { DisplayItem } from "../../_core/types.ts";
 export const DefaultRenderer: Component<{ item: DisplayItem }> = (props) => {
   return (
     <div class="ui-pad bg-base-200 w-fit max-w-full rounded">
-      <div class="font-mono text-sm">
+      <div class="text-sm">
         <div class="text-neutral mb-1 text-xs font-bold">
           Unknown display item: {props.item.type}
         </div>

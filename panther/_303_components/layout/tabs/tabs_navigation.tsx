@@ -47,8 +47,7 @@ export function TabsNavigation(p: TabsNavigationProps) {
     }
   };
 
-  const formatter =
-    p.tabLabelFormatter ??
+  const formatter = p.tabLabelFormatter ??
     ((option: SelectOption<string>) =>
       typeof option.label === "string" ? option.label : String(option.value));
 
@@ -67,9 +66,9 @@ export function TabsNavigation(p: TabsNavigationProps) {
               type="button"
               class={getTabClasses(option.value)}
               onClick={() => handleTabClick(option.value)}
-              aria-current={
-                p.tabs.isTabActive(option.value) ? "page" : undefined
-              }
+              aria-current={p.tabs.isTabActive(option.value)
+                ? "page"
+                : undefined}
               role="tab"
             >
               <span class="whitespace-nowrap">{formatter(option)}</span>

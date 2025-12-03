@@ -8,4 +8,4 @@ export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export type { FontInfo, TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, Dimensions, RectCoordsDims, getRectAlignmentCoords } from "../_001_geometry/mod.ts";
 export type { CoordinatesOptions, RectCoordsDimsOptions } from "../_001_geometry/mod.ts";
-export type { AreaStyle, LineStyle, MeasuredRichText, MeasuredRichTextLine, MeasuredRichTextSegment, MeasuredText, MeasuredTextLine, PointStyle, PointType, RectStyle, RenderContext, RichText, RichTextSegment } from "../_001_render_system/mod.ts";
+export type { AreaStyle, LineStyle, MeasuredText, MeasuredTextLine, PointStyle, PointType, RectStyle, RenderContext } from "../_001_render_system/mod.ts";

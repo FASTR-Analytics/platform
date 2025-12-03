@@ -6,4 +6,3 @@
 export { CanvasRenderContext } from "./canvas_render_context.ts";
 export { addPoint } from "./_internal/drawing/add_point.ts";
 export type { TextRenderingOptions } from "./text_rendering_options.ts";
-export { applyStyleToTextInfo, parseRichText } from "./rich_text_parser.ts";

@@ -14,6 +14,12 @@ export type {
   DocsPage,
   NavItem,
   NavSection,
-} from "../../_232_docs_manifest/mod.ts";
+  ParsedGitHubUrl,
+} from "../../_024_docs_core/mod.ts";
+export {
+  fetchGitHubManifest,
+  fetchGitHubMarkdown,
+  parseGitHubUrl,
+} from "../../_024_docs_core/mod.ts";
 export { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 export type { JSX } from "solid-js";

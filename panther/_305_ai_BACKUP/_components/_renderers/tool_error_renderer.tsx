@@ -11,7 +11,7 @@ export const ToolErrorRenderer: Component<{
 }> = (props) => {
   return (
     <div class="ui-pad w-fit max-w-full rounded bg-red-100">
-      <div class="font-mono text-sm text-red-900">
+      <div class="text-sm text-red-900">
         <div class="font-bold">Error: {props.item.toolName}</div>
         <div class="whitespace-pre-wrap">{props.item.errorMessage}</div>
       </div>

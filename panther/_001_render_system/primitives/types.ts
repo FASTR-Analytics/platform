@@ -241,7 +241,7 @@ export type ChartLegendPrimitive = BasePrimitive & {
       | {
         type: "line";
         style: LineStyle;
-        position: Coordinates; // Center of line
+        coords: Coordinates[]; // Line endpoints
       }
       | {
         type: "rect";

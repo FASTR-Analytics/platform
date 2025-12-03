@@ -2,7 +2,7 @@
 
 This guide walks you through the initial setup and creation of your first project.
 
-## Prerequisites
+Prerequisites
 
 - You have been given login credentials
 - You have access to health facility structure data (administrative areas and facilities)
@@ -27,6 +27,8 @@ If you're a global administrator setting up the system for the first time:
    - **Facility Columns**: Configure which facility attributes to include (ownership, types)
 
 3. Click **Save**
+
+<iframe src="https://scribehow.com/embed/11_Creating_a_FASTR_Analytics_platform_account__9Av54dcqRTK1XkP1mYAc_g" width="100%" height="500" allow="fullscreen" style="aspect-ratio: 1 / 1; border: 0; min-height: 480px"></iframe>
 
 ## Step 3: Import Structure Data
 
@@ -178,6 +180,7 @@ You now have a complete workflow from data import to report generation. Explore 
 ## Getting Help
 
 If you encounter issues:
+
 - Check the module logs for errors
 - Verify data import was successful
 - Ensure all module prerequisites are enabled

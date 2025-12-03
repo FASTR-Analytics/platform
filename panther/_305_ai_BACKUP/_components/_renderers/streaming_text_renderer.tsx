@@ -16,15 +16,15 @@ type Props = {
 };
 
 export const StreamingTextRenderer: Component<Props> = (props) => {
-  const assistantBg = props.assistantMessageStyle?.background ??
-    "bg-primary/10";
+  const assistantBg =
+    props.assistantMessageStyle?.background ?? "bg-primary/10";
   const assistantText = props.assistantMessageStyle?.text ?? "text-primary";
   const messageClass = `${assistantBg} ${assistantText}`;
 
   return (
     <div class="w-fit max-w-full">
       <div
-        class={`ui-pad relative w-fit max-w-full rounded font-mono text-sm ${messageClass} ${
+        class={`ui-pad relative w-fit max-w-full rounded text-sm ${messageClass} ${
           props.renderMarkdown ? MARKDOWN_STYLES : ""
         }`}
       >
