@@ -162,6 +162,7 @@ export function ProjectSettings(p: Props) {
         >
           <div class="">{p.projectDetail.aiContext || "No context set"}</div>
         </SettingsSection>
+
         <Switch>
           <Match when={p.projectDetail.isLocked}>
             <SettingsSection
@@ -201,6 +202,13 @@ export function ProjectSettings(p: Props) {
             </SettingsSection>
           </Match>
         </Switch>
+
+
+        <SettingsSection
+          header={t2("Backups")}
+        >
+          Backups go here
+        </SettingsSection>
 
         <div class="ui-gap flex">
           <Show when={!p.projectDetail.isLocked}>

@@ -128,15 +128,15 @@ export default function Instance(p: Props) {
                         },
                         ...(p.globalUser.isGlobalAdmin
                           ? [
-                              {
-                                value: "users",
-                                iconName: "users",
-                              },
-                              {
-                                value: "settings",
-                                iconName: "settings",
-                              },
-                            ]
+                            {
+                              value: "users",
+                              iconName: "users",
+                            },
+                            {
+                              value: "settings",
+                              iconName: "settings",
+                            },
+                          ]
                           : ([] as any)),
                       ]}
                       itemWidth="50px"
@@ -164,17 +164,17 @@ export default function Instance(p: Props) {
                         },
                         ...(p.globalUser.isGlobalAdmin
                           ? [
-                              {
-                                value: "users",
-                                label: t2(T.FRENCH_UI_STRINGS.users),
-                                iconName: "users",
-                              },
-                              {
-                                value: "settings",
-                                label: t2(T.FRENCH_UI_STRINGS.settings),
-                                iconName: "settings",
-                              },
-                            ]
+                            {
+                              value: "users",
+                              label: t2(T.FRENCH_UI_STRINGS.users),
+                              iconName: "users",
+                            },
+                            {
+                              value: "settings",
+                              label: t2(T.FRENCH_UI_STRINGS.settings),
+                              iconName: "settings",
+                            },
+                          ]
                           : ([] as any)),
                       ]}
                       itemWidth={isFrench() ? "140px" : "115px"}
@@ -188,14 +188,14 @@ export default function Instance(p: Props) {
                       iconName="versions"
                       intent="base-100"
                     >
-                      {t2(T.Platform.platforme)}
+                      {/* {t2(T.Platform.platforme)} */}
                     </Button>
                     <Button
                       onClick={handleDhis2Credentials}
                       iconName="database"
                       intent="base-100"
                     >
-                      {t("DHIS2")}
+                      {/* {t("DHIS2")} */}
                     </Button>
                   </Show>
                   <div

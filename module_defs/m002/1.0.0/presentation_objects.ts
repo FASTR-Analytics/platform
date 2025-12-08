@@ -35,7 +35,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         idealAspectRatio: "ideal",
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Deviance Due to Outliers",
@@ -80,7 +80,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         idealAspectRatio: "ideal",
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Deviance Due to Incompleteness",
@@ -126,7 +126,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         idealAspectRatio: "ideal",
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Deviance Due to Incompleteness and Outliers",

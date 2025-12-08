@@ -35,7 +35,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         idealAspectRatio: "ideal",
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Outliers",
@@ -80,7 +80,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         idealAspectRatio: "ideal",
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Indicator Completeness",
@@ -114,7 +114,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         idealAspectRatio: "video",
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Indicator completeness over time",
@@ -160,7 +160,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         idealAspectRatio: "ideal",
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Internal consistency",
@@ -199,7 +199,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         idealAspectRatio: "ideal",
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Overall DQA score",
@@ -238,7 +238,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         idealAspectRatio: "ideal",
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Mean DQA score",

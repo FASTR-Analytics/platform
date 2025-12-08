@@ -24,7 +24,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         decimalPlaces: 1,
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Service utilization over time",
@@ -62,7 +62,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         customSeriesStyles: [],
         specialBarChart: true,
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Service volume by quarter & quarter-on-quarter change",
@@ -94,7 +94,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         customSeriesStyles: [],
         specialBarChart: true,
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Service volume by year & year-on-year change",
@@ -131,7 +131,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         customSeriesStyles: [],
         specialBarChart: true,
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Service volume by year & year-on-year change",
@@ -164,7 +164,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         diffAreas: true,
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Disruptions and surpluses in service volume, nationally",
@@ -207,7 +207,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         diffAreas: true,
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Disruptions and surpluses in service volume, sub-nationally",
@@ -251,7 +251,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         decimalPlaces: 1,
         showDataLabels: false,
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
         customSeriesStyles: [
           {
             color: "#00897b",

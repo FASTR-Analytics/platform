@@ -24,7 +24,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         customSeriesStyles: [],
         specialCoverageChart: true,
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Coverage estimates for REPLICANT",
@@ -62,7 +62,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         decimalPlaces: 1,
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Coverage estimates",
@@ -105,7 +105,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         customSeriesStyles: [],
         sortIndicatorValues: "descending",
         specialBarChartDataLabels: "all-values",
-        specialBarChartDiffThreshold: 10,
+        specialBarChartDiffThreshold: 0.1,
       },
       t: {
         caption: "Sub-national level coverage estimates, REPLICANT",
