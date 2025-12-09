@@ -31,7 +31,7 @@ import { ProjectModules } from "./project_modules";
 import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
-import { ProjectChatbotV2 as ProjectChatbot } from "../project_chatbot_v2";
+import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
 
 type TabOption =
   | "chatbot"
