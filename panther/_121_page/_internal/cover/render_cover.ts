@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { RenderContext } from "../../deps.ts";
-import { getColor, sum } from "../../deps.ts";
+import { sum } from "../../deps.ts";
 import type { MeasuredCoverPage } from "../../types.ts";
 
 export function renderCover(
@@ -17,7 +17,7 @@ export function renderCover(
 
   if (s.cover.backgroundColor !== "none") {
     rc.rRect(bounds, {
-      fillColor: getColor(s.cover.backgroundColor),
+      fillColor: s.cover.backgroundColor,
     });
   }
 

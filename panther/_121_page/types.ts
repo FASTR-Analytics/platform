@@ -148,25 +148,11 @@ export type MeasuredPage =
 
 export type PageContentItemType = "markdown" | "figure" | "image" | "spacer";
 
-export function isMarkdownItem(
-  item: PageContentItem,
-): item is MarkdownRendererInput {
-  return "markdown" in item;
-}
-
-export function isFigureItem(item: PageContentItem): item is FigureInputs {
-  return (
-    "tableData" in item ||
-    "chartData" in item ||
-    "timeseriesData" in item ||
-    "simpleVizData" in item
-  );
-}
-
-export function isImageItem(item: PageContentItem): item is PageImageInputs {
-  return "image" in item;
-}
-
 export function isSpacerItem(item: PageContentItem): item is PageSpacerInputs {
-  return "spacerHeight" in item;
+  return (
+    typeof item === "object" &&
+    item !== null &&
+    "spacerHeight" in item &&
+    typeof (item as PageSpacerInputs).spacerHeight === "number"
+  );
 }

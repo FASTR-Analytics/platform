@@ -81,8 +81,8 @@ export function PageHolder(p: Props) {
     // Preload fonts used by this page
     if (p.pageInputs) {
       const style = new CustomPageStyle(p.pageInputs.style);
-      const fonts = style.getMergedPageFontsToRegister();
-      fonts.forEach((fontInfo) => {
+      const fonts = style.getFontsToRegister();
+      fonts.forEach((fontInfo: { fontFamily: string }) => {
         loadFont(fontInfo.fontFamily);
       });
     }

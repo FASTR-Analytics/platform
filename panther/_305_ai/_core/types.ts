@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 ////////////////////////////////////////////////////////////////////////////////
-// RE-EXPORT CORE AI TYPES (from _004_ai_types via deps)
+// RE-EXPORT CORE AI TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
 export type {
@@ -16,29 +16,28 @@ export type {
   MessageParam,
   MessagePayload,
   MessageRole,
+  RedactedThinkingBlock,
+  StreamDelta,
   StreamEvent,
+  ThinkingBlock,
+  ThinkingConfig,
   ToolDefinition,
   Usage,
-} from "../deps.ts";
+} from "./ai_types.ts";
 
+import type { Anthropic, Component } from "../deps.ts";
 import type {
-  Anthropic,
-  AnthropicModel,
   AnthropicModelConfig,
   AnthropicResponse,
   CacheControl,
-  Component,
-  ContentBlock,
-  JSX,
   MessageParam,
   MessagePayload,
   MessageRole,
   StreamEvent,
-  ToolDefinition,
   Usage,
-} from "../deps.ts";
-import type { AIToolWithMetadata } from "./tool_helpers.ts";
+} from "./ai_types.ts";
 import type { BuiltInTool } from "./builtin_tools.ts";
+import type { AIToolWithMetadata } from "./tool_helpers.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // TOOL TYPES (UI-SPECIFIC)
@@ -55,6 +54,7 @@ export type AITool<TInput = unknown, TOutput = string> = {
     type: "object";
     properties?: Record<string, unknown>;
     required?: string[];
+    additionalProperties: false;
     [key: string]: unknown;
   };
   handler: AIToolHandler<TInput, TOutput>;
@@ -71,6 +71,10 @@ export type DisplayItem =
     type: "text";
     role: MessageRole;
     text: string;
+  }
+  | {
+    type: "thinking";
+    thinking: string;
   }
   | {
     type: "tool_in_progress";
@@ -98,12 +102,11 @@ export type DisplayItemRenderer<T = unknown> = Component<{ item: T }>;
 
 export type DisplayRegistry = {
   text?: DisplayItemRenderer<Extract<DisplayItem, { type: "text" }>>;
+  thinking?: DisplayItemRenderer<Extract<DisplayItem, { type: "thinking" }>>;
   toolLoading?: DisplayItemRenderer<
     Extract<DisplayItem, { type: "tool_in_progress" }>
   >;
-  toolError?: DisplayItemRenderer<
-    Extract<DisplayItem, { type: "tool_error" }>
-  >;
+  toolError?: DisplayItemRenderer<Extract<DisplayItem, { type: "tool_error" }>>;
   default?: DisplayItemRenderer<DisplayItem>;
 };
 
@@ -163,11 +166,9 @@ export type AIChatConfig = {
 
   enableStreaming?: boolean;
 
-  renderMarkdown?: boolean;
+  apiConfig?: APIConfig;
 
   messageStyles?: MessageStyles;
-
-  apiConfig?: APIConfig;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

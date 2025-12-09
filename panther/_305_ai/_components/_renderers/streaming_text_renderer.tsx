@@ -3,16 +3,20 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type Component, Match, Show, Switch } from "solid-js";
+import type { Component } from "solid-js";
+import type { CustomMarkdownStyleOptions } from "../../deps.ts";
 import type { MessageStyle } from "../../_core/types.ts";
-import { MARKDOWN_STYLES, md } from "./_markdown_utils.ts";
-import { SpinningCursor } from "./spinning_cursor.tsx";
+import {
+  deriveMarkdownCssVars,
+  MARKDOWN_BASE_STYLES,
+  md,
+} from "./_markdown_utils.ts";
 
 type Props = {
   text: string;
   isComplete: boolean;
-  renderMarkdown?: boolean;
   assistantMessageStyle?: MessageStyle;
+  markdownStyle?: CustomMarkdownStyleOptions;
 };
 
 export const StreamingTextRenderer: Component<Props> = (props) => {
@@ -24,25 +28,10 @@ export const StreamingTextRenderer: Component<Props> = (props) => {
   return (
     <div class="w-fit max-w-full">
       <div
-        class={`ui-pad relative w-fit max-w-full rounded font-mono text-sm ${messageClass} ${
-          props.renderMarkdown ? MARKDOWN_STYLES : ""
-        }`}
-      >
-        <Switch>
-          <Match when={props.renderMarkdown}>
-            <div innerHTML={md.render(props.text)} />
-            <Show when={!props.isComplete}>
-              <SpinningCursor />
-            </Show>
-          </Match>
-          <Match when={!props.renderMarkdown}>
-            <div class="whitespace-pre-wrap break-words">{props.text}</div>
-            <Show when={!props.isComplete}>
-              <SpinningCursor />
-            </Show>
-          </Match>
-        </Switch>
-      </div>
+        class={`ui-pad w-fit max-w-full rounded font-mono text-sm ${messageClass} ${MARKDOWN_BASE_STYLES}`}
+        style={deriveMarkdownCssVars(props.markdownStyle)}
+        innerHTML={md.render(props.text)}
+      />
     </div>
   );
 };

@@ -3,7 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { writePdf } from "./write_pdf.ts";
+export { markdownToPdfDeno } from "./markdown_to_pdf_deno.ts";
+export type { MarkdownToPdfDenoConfig } from "./markdown_to_pdf_deno.ts";
+export { pagesToPdfDeno } from "./pages_to_pdf_deno.ts";
+export { savePdf } from "./save_pdf.ts";
 export { registerFontWithJsPdfIfNeeded } from "./register_font.ts";
-export { cleanFontFamilyForJsPdf } from "./font_utils.ts";
-export { createPdfRenderContext } from "./utils.ts";
+export { createPdfRenderContextWithFontsDeno } from "./utils.ts";

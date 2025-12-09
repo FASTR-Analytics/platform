@@ -4,10 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type ChartSeriesInfo,
+  type ChartValueInfo,
   Coordinates,
   type DataLabel,
-  type GenericSeriesInfo,
-  type GenericValueInfo,
   getColor,
   type MergedContentStyle,
   type Primitive,
@@ -127,14 +127,14 @@ export function generateContentPrimitives(
         continue;
       }
 
-      const seriesInfo: GenericSeriesInfo = {
+      const seriesInfo: ChartSeriesInfo = {
         ...subChartInfo,
         i_series,
         seriesHeader: d.seriesHeaders[i_series],
         nVals: mappedSeriesCoordinates[i_series].length,
       };
 
-      const valueInfo: GenericValueInfo = {
+      const valueInfo: ChartValueInfo = {
         ...seriesInfo,
         val: mappedVal.val,
         i_val: i_val,
@@ -513,7 +513,7 @@ export function generateContentPrimitives(
 
   // Generate line primitives
   for (const [i_series, lineData] of lineSeriesData.entries()) {
-    const seriesInfo: GenericSeriesInfo = {
+    const seriesInfo: ChartSeriesInfo = {
       ...subChartInfo,
       i_series,
       seriesHeader: d.seriesHeaders[i_series],
@@ -546,7 +546,7 @@ export function generateContentPrimitives(
     //                      //
     //////////////////////////
     for (const [i_series, areaData] of areaSeriesData.entries()) {
-      const seriesInfo: GenericSeriesInfo = {
+      const seriesInfo: ChartSeriesInfo = {
         ...subChartInfo,
         i_series,
         seriesHeader: d.seriesHeaders[i_series],
@@ -762,7 +762,7 @@ export function generateContentPrimitives(
       if (areas[i_area].coords.length === 0) {
         continue;
       }
-      const seriesInfo: GenericSeriesInfo = {
+      const seriesInfo: ChartSeriesInfo = {
         ...subChartInfo,
         i_series: areas[i_area].order === "over" ? 0 : 1,
         seriesHeader: d.seriesHeaders[0],

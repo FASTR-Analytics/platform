@@ -3,69 +3,111 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  assert,
-  type ColorKeyOrString,
-  type FontKeyOrFontInfo,
-} from "./deps.ts";
-import type { FontVariantsKeyed } from "./deps.ts";
+import { assert, type ColorKeyOrString } from "./deps.ts";
+import type { MarkdownTextStyleOptions } from "./text_style_keys.ts";
 
-export type CustomMarkdownTextStyleOptions = {
-  font?: FontKeyOrFontInfo;
-  fontSize?: number;
-  color?: ColorKeyOrString;
-  lineHeight?: number;
-  fontVariants?: FontVariantsKeyed;
-  align?: "left" | "center" | "right";
-  marginTop?: number;
-  marginBottom?: number;
+export type MarginOptionsEm = {
+  top?: number; // em multiplier (relative to element's font size)
+  bottom?: number; // em multiplier
 };
 
-export type CustomMarkdownListStyleOptions = {
-  text?: CustomMarkdownTextStyleOptions;
-  level0?: { marker?: string; markerIndent?: number; textIndent?: number };
-  level1?: { marker?: string; markerIndent?: number; textIndent?: number };
-  level2?: { marker?: string; markerIndent?: number; textIndent?: number };
+export type ListMarginOptionsEm = MarginOptionsEm & {
+  gap?: number; // em multiplier for spacing between list items
 };
 
-export type CustomMarkdownBlockquoteStyleOptions = {
-  text?: CustomMarkdownTextStyleOptions;
-  leftBorderWidth?: number;
-  leftBorderColor?: ColorKeyOrString;
-  leftIndent?: number;
-  backgroundColor?: ColorKeyOrString;
-};
-
-export type CustomMarkdownHorizontalRuleStyleOptions = {
-  strokeWidth?: number;
-  strokeColor?: ColorKeyOrString;
-  marginTop?: number;
-  marginBottom?: number;
-};
-
-export type CustomMarkdownLinkStyleOptions = {
-  color?: ColorKeyOrString;
-  underline?: boolean;
+export type ListLevelOptionsEm = {
+  marker?: string;
+  markerIndentEm?: number; // em multiplier (relative to list text font size)
+  textIndentEm?: number; // em multiplier (relative to list text font size)
 };
 
 export type CustomMarkdownStyleOptions = {
   scale?: number;
-  paragraph?: CustomMarkdownTextStyleOptions;
-  h1?: CustomMarkdownTextStyleOptions;
-  h2?: CustomMarkdownTextStyleOptions;
-  h3?: CustomMarkdownTextStyleOptions;
-  h4?: CustomMarkdownTextStyleOptions;
-  h5?: CustomMarkdownTextStyleOptions;
-  h6?: CustomMarkdownTextStyleOptions;
-  bulletList?: CustomMarkdownListStyleOptions;
-  numberedList?: CustomMarkdownListStyleOptions;
-  blockquote?: CustomMarkdownBlockquoteStyleOptions;
-  horizontalRule?: CustomMarkdownHorizontalRuleStyleOptions;
-  link?: CustomMarkdownLinkStyleOptions;
-  spacing?: {
-    paragraphGap?: number;
-    listItemGap?: number;
-    nestedListIndent?: number;
+
+  text?: MarkdownTextStyleOptions;
+
+  marginsEm?: {
+    paragraph?: MarginOptionsEm;
+    h1?: MarginOptionsEm;
+    h2?: MarginOptionsEm;
+    h3?: MarginOptionsEm;
+    h4?: MarginOptionsEm;
+    h5?: MarginOptionsEm;
+    h6?: MarginOptionsEm;
+    list?: ListMarginOptionsEm;
+    image?: MarginOptionsEm;
+    table?: MarginOptionsEm;
+    blockquote?: MarginOptionsEm;
+    horizontalRule?: MarginOptionsEm;
+    code?: MarginOptionsEm;
+  };
+
+  bulletList?: {
+    level0?: ListLevelOptionsEm;
+    level1?: ListLevelOptionsEm;
+    level2?: ListLevelOptionsEm;
+  };
+
+  numberedList?: {
+    level0?: ListLevelOptionsEm;
+    level1?: ListLevelOptionsEm;
+    level2?: ListLevelOptionsEm;
+  };
+
+  blockquote?: {
+    leftBorderWidth?: number; // Absolute pixels
+    leftBorderColor?: ColorKeyOrString;
+    paddingEm?: {
+      top?: number; // em multiplier
+      bottom?: number; // em multiplier
+      left?: number; // em multiplier (space between border and text)
+      right?: number; // em multiplier
+    };
+    paragraphGapEm?: number; // em multiplier for gap between paragraphs within blockquote
+    align?: "left" | "center" | "right";
+    backgroundColor?: ColorKeyOrString | "none";
+  };
+
+  code?: {
+    backgroundColor?: ColorKeyOrString;
+    paddingEm?: {
+      horizontal?: number;
+      vertical?: number;
+    };
+  };
+
+  horizontalRule?: {
+    strokeWidth?: number; // Absolute pixels
+    strokeColor?: ColorKeyOrString;
+  };
+
+  link?: {
+    color?: ColorKeyOrString;
+    underline?: boolean;
+  };
+
+  image?: {
+    defaultAspectRatio?: number;
+  };
+
+  table?: {
+    border?: {
+      width?: number; // Absolute pixels
+      color?: ColorKeyOrString;
+      style?: "single" | "double" | "dotted";
+    };
+    cellPaddingEm?: {
+      horizontal?: number; // em multiplier
+      vertical?: number; // em multiplier
+    };
+    headerShading?: {
+      color?: ColorKeyOrString;
+      opacity?: number; // 0-1
+    };
+  };
+
+  math?: {
+    displayAlign?: "left" | "center" | "right";
   };
 };
 

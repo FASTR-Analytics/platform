@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  getColor,
   type MeasuredText,
   type MergedPageStyle,
   Padding,
@@ -150,7 +149,7 @@ export function renderHeader(
 
   if (s.header.backgroundColor !== "none") {
     rc.rRect(measured.rcdHeaderOuter, {
-      fillColor: getColor(s.header.backgroundColor),
+      fillColor: s.header.backgroundColor,
     });
   }
 

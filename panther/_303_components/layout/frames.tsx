@@ -7,14 +7,18 @@ import {
   createEffect,
   createSignal,
   type JSX,
+  Match,
   onCleanup,
   onMount,
   Show,
+  Switch,
 } from "solid-js";
+import { Button } from "../form_inputs/button.tsx";
 
 type FrameProps = {
   panelChildren?: JSX.Element;
   children: JSX.Element;
+  allowShowHide?: boolean;
 };
 
 type ResizableFrameProps = FrameProps & {
@@ -70,16 +74,41 @@ export function FrameRight(p: FrameProps) {
 }
 
 export function FrameTop(p: FrameProps) {
+  const [isPanelShown, setIsPanelShown] = createSignal(true);
+
   return (
-    <Show
-      when={p.panelChildren}
-      fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
-    >
-      <div class="flex h-full w-full flex-col">
+    <div class="relative flex h-full w-full flex-col">
+      <Show
+        when={p.panelChildren && (!p.allowShowHide || isPanelShown())}
+        // fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
+      >
         <div class="w-full flex-none overflow-auto">{p.panelChildren}</div>
-        <div class="h-0 w-full flex-1 overflow-auto">{p.children}</div>
-      </div>
-    </Show>
+      </Show>
+      <div class="h-0 w-full flex-1 overflow-auto">{p.children}</div>
+
+      <Switch>
+        <Match when={p.allowShowHide && isPanelShown()}>
+          <div class="absolute right-4 top-4 z-50">
+            <Button
+              iconName="chevronUp"
+              onClick={() => setIsPanelShown(false)}
+              ariaLabel="Show panel"
+              outline
+            />
+          </div>
+        </Match>
+        <Match when={p.allowShowHide}>
+          <div class="absolute right-4 top-4 z-50">
+            <Button
+              iconName="chevronDown"
+              onClick={() => setIsPanelShown(true)}
+              ariaLabel="Show panel"
+              outline
+            />
+          </div>
+        </Match>
+      </Switch>
+    </div>
   );
 }
 

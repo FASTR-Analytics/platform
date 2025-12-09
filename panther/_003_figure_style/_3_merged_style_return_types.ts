@@ -6,6 +6,9 @@
 import type {
   AnchorPoint,
   AreaStyle,
+  CalendarType,
+  ChartSeriesInfoFunc,
+  ChartValueInfoFunc,
   ColorAdjustmentStrategy,
   ColorKeyOrString,
   LineStyle,
@@ -15,13 +18,8 @@ import type {
   TextInfo,
   TextInfoUnkeyed,
 } from "./deps.ts";
-import type {
-  GenericSeriesInfoFunc,
-  GenericValueInfoFunc,
-  TableCellFormatterFunc,
-} from "./style_func_types.ts";
+import type { TableCellFormatterFunc } from "./style_func_types.ts";
 import type { LegendPosition } from "./types.ts";
-import type { CalendarType } from "./deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 //   ______                                                                     __            //
@@ -72,7 +70,7 @@ export type MergedSurroundsStyle = {
 
 export type MergedLegendStyle = {
   text: TextInfoUnkeyed;
-  seriesColorFunc: GenericSeriesInfoFunc<ColorKeyOrString>;
+  seriesColorFunc: ChartSeriesInfoFunc<ColorKeyOrString>;
   maxLegendItemsInOneColumn: number | number[];
   legendColorBoxWidth: number;
   legendItemVerticalGap: number;
@@ -186,9 +184,14 @@ export type MergedTableStyle = {
   colHeaderPadding: Padding;
   rowHeaderPadding: Padding;
   cellPadding: Padding;
-
-  // Nested style objects
-  grid: MergedGridStyle;
+  cellVerticalAlign: "top" | "middle" | "bottom";
+  colHeaderBackgroundColor: string | "none";
+  colGroupHeaderBackgroundColor: string | "none";
+  showGridLines: boolean;
+  headerBorderWidth: number;
+  gridLineWidth: number;
+  headerBorderColor: string;
+  gridLineColor: string;
 };
 
 ////////////////////////////////////////
@@ -250,26 +253,26 @@ export type MergedPaneStyle = {
 
 export type MergedContentStyle = {
   points: {
-    getStyle: GenericValueInfoFunc<PointStyle>;
+    getStyle: ChartValueInfoFunc<PointStyle>;
   };
   bars: {
-    getStyle: GenericValueInfoFunc<RectStyle>;
+    getStyle: ChartValueInfoFunc<RectStyle>;
     stacking: "none" | "stacked" | "imposed" | "uncertainty";
     maxBarWidth: number;
   };
   lines: {
-    getStyle: GenericSeriesInfoFunc<LineStyle>;
+    getStyle: ChartSeriesInfoFunc<LineStyle>;
     joinAcrossGaps: boolean;
   };
   areas: {
-    getStyle: GenericSeriesInfoFunc<AreaStyle>;
+    getStyle: ChartSeriesInfoFunc<AreaStyle>;
     diff: {
       enabled: boolean;
       // order: "actual-expected" | "expected-actual";
     };
   };
   withDataLabels: boolean;
-  dataLabelFormatter: GenericValueInfoFunc<string | undefined>;
+  dataLabelFormatter: ChartValueInfoFunc<string | undefined>;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////

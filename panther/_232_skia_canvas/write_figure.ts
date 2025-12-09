@@ -4,9 +4,9 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  type ADTFigure,
   type Canvas,
   CustomFigureStyle,
+  type FigureInputs,
   FigureRenderer,
 } from "./deps.ts";
 import { registerFontWithSkiaIfNeeded } from "./register_font.ts";
@@ -14,7 +14,7 @@ import { createCanvasRenderContext, writeCanvas } from "./utils.ts";
 
 export async function writeFigure(
   filePath: string,
-  inputs: ADTFigure,
+  inputs: FigureInputs,
   w: number,
   h: number | undefined,
 ): Promise<void> {
@@ -29,7 +29,7 @@ export async function writeFigure(
 
 export async function writeFigures(
   dirPath: string,
-  inputs: ADTFigure[],
+  inputs: FigureInputs[],
   w: number,
   h: number | undefined,
 ): Promise<void> {
@@ -50,28 +50,41 @@ export async function writeFigures(
   }
 }
 
-async function getFigureAsCanvas(
-  inputs: ADTFigure,
+export async function getFigureAsCanvas(
+  inputs: FigureInputs,
   w: number,
   h: number | undefined,
 ): Promise<Canvas> {
   // Register fonts if needed
-  const fonts = new CustomFigureStyle(
-    inputs.style,
-  ).getMergedChartFontsToRegister();
+  const fonts = new CustomFigureStyle(inputs.style).getFontsToRegister();
   for (const font of fonts) {
     await registerFontWithSkiaIfNeeded(font);
   }
 
-  let finalH: number | undefined = h;
+  let finalH: number;
 
-  if (finalH === undefined) {
-    const { rc } = createCanvasRenderContext(w, 100);
+  if (h === undefined) {
+    const { rc } = await createCanvasRenderContext(w, 100);
     finalH = FigureRenderer.getIdealHeight(rc, w, inputs);
+  } else {
+    finalH = h;
   }
 
-  const { canvas, rc, rcd } = createCanvasRenderContext(w, finalH);
+  const { canvas, rc, rcd } = await createCanvasRenderContext(w, finalH);
   const mFigure = FigureRenderer.measure(rc, rcd, inputs);
   FigureRenderer.render(rc, mFigure);
   return canvas;
+}
+
+export async function getFigureAsDataUrl(
+  inputs: FigureInputs,
+  w: number,
+  h: number | undefined,
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  const canvas = await getFigureAsCanvas(inputs, w, h);
+  return {
+    dataUrl: canvas.toDataURL("png"),
+    width: canvas.width,
+    height: canvas.height,
+  };
 }

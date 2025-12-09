@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { type Component, For, Match, Show, Switch } from "solid-js";
+import type { CustomMarkdownStyleOptions } from "../deps.ts";
 import type { ToolRegistry } from "../_core/tool_engine.ts";
 import type {
   DisplayItem,
@@ -25,9 +26,9 @@ type Props = {
   customRenderers?: DisplayRegistry;
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
-  renderMarkdown?: boolean;
   userMessageStyle?: MessageStyle;
   assistantMessageStyle?: MessageStyle;
+  markdownStyle?: CustomMarkdownStyleOptions;
 };
 
 export const MessageList: Component<Props> = (props) => {
@@ -40,9 +41,9 @@ export const MessageList: Component<Props> = (props) => {
         return (
           <Renderer
             item={item}
-            renderMarkdown={props.renderMarkdown}
             userMessageStyle={props.userMessageStyle}
             assistantMessageStyle={props.assistantMessageStyle}
+            markdownStyle={props.markdownStyle}
           />
         );
       }
@@ -89,8 +90,8 @@ export const MessageList: Component<Props> = (props) => {
             <StreamingTextRenderer
               text={props.currentStreamingText!}
               isComplete={false}
-              renderMarkdown={props.renderMarkdown}
               assistantMessageStyle={props.assistantMessageStyle}
+              markdownStyle={props.markdownStyle}
             />
           </Match>
           <Match

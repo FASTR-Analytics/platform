@@ -23,10 +23,10 @@ export function DocsContent(p: DocsContentProps) {
   const contentQuery = timQuery(() =>
     p.isGithub && p.parsedGitHubUrl
       ? fetchGitHubMarkdownWrapped(
-          currentFetchSlug(),
-          p.pages,
-          p.parsedGitHubUrl,
-        )
+        currentFetchSlug(),
+        p.pages,
+        p.parsedGitHubUrl,
+      )
       : fetchMarkdown(currentFetchSlug(), p.pages, p.basePath)
   );
 
@@ -42,8 +42,12 @@ export function DocsContent(p: DocsContentProps) {
     <div class="h-full overflow-auto">
       <StateHolderWrapper state={contentQuery.state()}>
         {(data) => (
-          <div class="mx-auto max-w-4xl px-12 py-16">
-            <MarkdownPresentation markdown={data} />
+          <div class="py-16">
+            <MarkdownPresentation
+              markdown={data}
+              style={p.style}
+              contentWidth="56rem"
+            />
           </div>
         )}
       </StateHolderWrapper>

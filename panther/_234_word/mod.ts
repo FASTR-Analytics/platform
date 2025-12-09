@@ -3,4 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { saveWordDocument } from "./save_word.ts";
+export { markdownToWordDeno } from "./markdown_to_word_deno.ts";
+export type { MarkdownToWordDenoConfig } from "./markdown_to_word_deno.ts";
+export { saveWord } from "./save_word.ts";

@@ -27,19 +27,17 @@ import type {
 } from "./_3_merged_style_return_types.ts";
 import {
   type FontInfo,
+  getBaseText,
+  getBaseTextInfo,
   getColor,
-  getFont,
-  Padding,
-  type TextInfo,
-} from "./deps.ts";
-import {
-  deduplicateFonts,
-  getMergedFont,
-  getScaledNumberOrNone,
+  getFontsToRegister,
   getTextInfo,
   m,
   ms,
-} from "./helpers.ts";
+  msOrNone,
+  Padding,
+  type TextInfo,
+} from "./deps.ts";
 import {
   getAreaStyleFunc,
   getBarStyleFunc,
@@ -54,6 +52,7 @@ export class CustomFigureStyle {
   private _g: CustomFigureStyleOptions;
   private _c: CustomFigureStyleOptions;
   private _sf: number;
+  private _baseText: TextInfo;
 
   constructor(
     customStyle: CustomFigureStyleOptions | undefined,
@@ -64,38 +63,12 @@ export class CustomFigureStyle {
     this._c = customStyle ?? {};
     this._sf = (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
       (responsiveScale ?? 1);
-  }
-
-  baseText(): TextInfo {
-    const c = this._c;
-    const g = this._g;
-    const d = this._d;
-    const sf = this._sf;
-    return {
-      font: m(c.text?.base?.font, g.text?.base?.font, d.baseText.font),
-      fontSize: ms(
-        sf,
-        c.text?.base?.fontSize,
-        g.text?.base?.fontSize,
-        d.baseText.fontSize,
-      ),
-      color: m(c.text?.base?.color, g.text?.base?.color, d.baseText.color),
-      lineHeight: m(
-        c.text?.base?.lineHeight,
-        g.text?.base?.lineHeight,
-        d.baseText.lineHeight,
-      ),
-      lineBreakGap: m(
-        c.text?.base?.lineBreakGap,
-        g.text?.base?.lineBreakGap,
-        d.baseText.lineBreakGap,
-      ),
-      letterSpacing: m(
-        c.text?.base?.letterSpacing,
-        g.text?.base?.letterSpacing,
-        d.baseText.letterSpacing,
-      ),
-    };
+    this._baseText = getBaseTextInfo(
+      this._c.text?.base,
+      this._g.text?.base,
+      getBaseText(),
+      this._sf,
+    );
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +88,7 @@ export class CustomFigureStyle {
     const c = this._c ?? {};
     const g = this._g ?? {};
     const d = this._d;
-    const baseText = this.baseText();
+    const baseText = this._baseText;
     return {
       text: {
         caption: getTextInfo(c.text?.caption, g.text?.caption, baseText),
@@ -191,7 +164,7 @@ export class CustomFigureStyle {
     const c = this._c ?? {};
     const g = this._g ?? {};
     const d = this._d;
-    const baseText = this.baseText();
+    const baseText = this._baseText;
     return {
       text: getTextInfo(c.text?.legend, g.text?.legend, baseText),
       seriesColorFunc: m(
@@ -276,7 +249,7 @@ export class CustomFigureStyle {
     const g = this._g;
     const d = this._d;
     const sf = this._sf;
-    const baseText = this.baseText();
+    const baseText = this._baseText;
 
     return {
       alreadyScaledValue: sf,
@@ -333,7 +306,7 @@ export class CustomFigureStyle {
     const g = this._g;
     const d = this._d;
     const sf = this._sf;
-    const baseText = this.baseText();
+    const baseText = this._baseText;
     return {
       alreadyScaledValue: sf,
       text: {
@@ -391,7 +364,7 @@ export class CustomFigureStyle {
     const g = this._g;
     const d = this._d;
     const sf = this._sf;
-    const baseText = this.baseText();
+    const baseText = this._baseText;
 
     return {
       alreadyScaledValue: sf,
@@ -457,14 +430,61 @@ export class CustomFigureStyle {
       cellPadding: new Padding(
         m(c.table?.cellPadding, g.table?.cellPadding, d.table.cellPadding),
       ).toScaled(sf),
+      cellVerticalAlign: m(
+        c.table?.cellVerticalAlign,
+        g.table?.cellVerticalAlign,
+        d.table.cellVerticalAlign,
+      ),
       cellBackgroundColorFormatter: m(
         c.table?.cellBackgroundColorFormatter,
         g.table?.cellBackgroundColorFormatter,
         d.table.cellBackgroundColorFormatter,
       ),
-
-      // Nested style objects
-      grid: this.getMergedGridStyle(),
+      colHeaderBackgroundColor: getColor(
+        m(
+          c.table?.colHeaderBackgroundColor,
+          g.table?.colHeaderBackgroundColor,
+          d.table.colHeaderBackgroundColor,
+        ),
+      ),
+      colGroupHeaderBackgroundColor: getColor(
+        m(
+          c.table?.colGroupHeaderBackgroundColor,
+          g.table?.colGroupHeaderBackgroundColor,
+          d.table.colGroupHeaderBackgroundColor,
+        ),
+      ),
+      showGridLines: m(
+        c.table?.showGridLines,
+        g.table?.showGridLines,
+        d.table.showGridLines,
+      ),
+      headerBorderWidth: ms(
+        sf,
+        c.table?.headerBorderWidth,
+        g.table?.headerBorderWidth,
+        d.table.headerBorderWidth,
+      ),
+      gridLineWidth: ms(
+        sf,
+        c.table?.gridLineWidth,
+        g.table?.gridLineWidth,
+        d.table.gridLineWidth,
+      ),
+      headerBorderColor: getColor(
+        m(
+          c.table?.headerBorderColor,
+          g.table?.headerBorderColor,
+          d.table.headerBorderColor,
+        ),
+      ),
+      gridLineColor: getColor(
+        m(
+          c.table?.gridLineColor,
+          g.table?.gridLineColor,
+          d.table.gridLineColor,
+        ),
+      ),
     };
   }
 
@@ -486,7 +506,7 @@ export class CustomFigureStyle {
     const g = this._g;
     const d = this._d;
     const sf = this._sf;
-    const baseText = this.baseText();
+    const baseText = this._baseText;
     return {
       text: {
         tierHeaders: getTextInfo(
@@ -530,7 +550,7 @@ export class CustomFigureStyle {
         g.yScaleAxis?.tickLabelFormatter,
         d.yScaleAxis.tickLabelFormatter,
       ),
-      forceTopOverhangHeight: getScaledNumberOrNone(
+      forceTopOverhangHeight: msOrNone(
         sf,
         c.yScaleAxis?.forceTopOverhangHeight,
         g.yScaleAxis?.forceTopOverhangHeight,
@@ -541,7 +561,7 @@ export class CustomFigureStyle {
         g.yScaleAxis?.allowIndividualTierLimits,
         d.yScaleAxis.allowIndividualTierLimits,
       ),
-      exactAxisX: getScaledNumberOrNone(
+      exactAxisX: msOrNone(
         sf,
         c.yScaleAxis?.exactAxisX,
         g.yScaleAxis?.exactAxisX,
@@ -571,7 +591,7 @@ export class CustomFigureStyle {
     const c = this._c ?? {};
     const g = this._g ?? {};
     const d = this._d;
-    const baseText = this.baseText();
+    const baseText = this._baseText;
     return {
       text: {
         xTextAxisTickLabels: getTextInfo(
@@ -644,7 +664,7 @@ export class CustomFigureStyle {
     const c = this._c ?? {};
     const g = this._g ?? {};
     const d = this._d;
-    const baseText = this.baseText();
+    const baseText = this._baseText;
     return {
       text: {
         xPeriodAxisTickLabels: getTextInfo(
@@ -938,7 +958,7 @@ export class CustomFigureStyle {
     const g = this._g;
     const d = this._d;
     const sf = this._sf;
-    const baseText = this.baseText();
+    const baseText = this._baseText;
     return {
       alreadyScaledValue: sf,
       layerGap: ms(
@@ -1076,21 +1096,12 @@ export class CustomFigureStyle {
   //                                                                                                    $$$$$$/                                               //
   //                                                                                                                                                          //
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  getMergedChartFontsToRegister(): FontInfo[] {
-    const d = this._d;
-    const gText = this._g.text ?? {};
-    const cText = this._c?.text ?? {};
-
-    const baseFont = cText?.base?.font ?? gText?.base?.font ?? d.baseText.font;
-
-    // Dynamically build the font list from FIGURE_TEXT_STYLE_KEYS
-    const allFonts = FIGURE_TEXT_STYLE_KEYS.map((key) => {
-      if (key === "base") {
-        return getFont(baseFont);
-      }
-      return getMergedFont(cText?.[key], gText?.[key], baseFont);
-    });
-
-    return deduplicateFonts(allFonts);
+  getFontsToRegister(): FontInfo[] {
+    return getFontsToRegister(
+      FIGURE_TEXT_STYLE_KEYS,
+      this._c.text,
+      this._g.text,
+      getBaseText().font,
+    );
   }
 }

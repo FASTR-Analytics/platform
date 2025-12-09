@@ -7,6 +7,7 @@ import type {
   Coordinates,
   CustomMarkdownStyleOptions,
   Dimensions,
+  FigureInputs,
   LineStyle,
   Measured,
   MeasuredText,
@@ -15,12 +16,29 @@ import type {
 } from "./deps.ts";
 
 // =============================================================================
+// Image Map
+// =============================================================================
+
+export type ImageMap = Map<string, {
+  dataUrl: string;
+  width: number;
+  height: number;
+}>;
+
+// =============================================================================
+// Figure Map (for dynamic rendering)
+// =============================================================================
+
+export type FigureMap = Map<string, FigureInputs>;
+
+// =============================================================================
 // Renderer Input
 // =============================================================================
 
 export type MarkdownRendererInput = {
   markdown: string;
   style?: CustomMarkdownStyleOptions;
+  images?: ImageMap;
 };
 
 // =============================================================================
@@ -33,7 +51,9 @@ export type MarkdownInline =
   | { type: "italic"; text: string }
   | { type: "bold-italic"; text: string }
   | { type: "link"; text: string; url: string }
-  | { type: "break" };
+  | { type: "break" }
+  | { type: "code"; text: string }
+  | { type: "math-inline"; latex: string };
 
 export type ParsedMarkdownItem =
   | { type: "paragraph"; content: MarkdownInline[] }
@@ -43,10 +63,14 @@ export type ParsedMarkdownItem =
     listType: "bullet" | "numbered";
     level: 0 | 1 | 2;
     listIndex?: number;
+    isFirstInList: boolean;
+    isLastInList: boolean;
     content: MarkdownInline[];
   }
   | { type: "blockquote"; content: MarkdownInline[] }
-  | { type: "horizontal-rule" };
+  | { type: "horizontal-rule" }
+  | { type: "code-block"; code: string }
+  | { type: "math-block"; latex: string };
 
 export type ParsedMarkdown = {
   items: ParsedMarkdownItem[];
@@ -62,6 +86,7 @@ export type FormattedRun = {
   text: string;
   style: FormattedRunStyle;
   link?: { url: string };
+  isCode?: boolean;
 };
 
 export type FormattedText = {
@@ -82,6 +107,7 @@ export type MeasuredFormattedLine = {
   runs: MeasuredFormattedRun[];
   y: number;
   totalWidth: number;
+  maxBaseline: number;
 };
 
 export type MeasuredFormattedText = {
@@ -102,7 +128,8 @@ export type MeasuredMarkdownItem =
   | MeasuredMarkdownHeading
   | MeasuredMarkdownListItem
   | MeasuredMarkdownBlockquote
-  | MeasuredMarkdownHorizontalRule;
+  | MeasuredMarkdownHorizontalRule
+  | MeasuredMarkdownCodeBlock;
 
 export type MeasuredMarkdownParagraph = {
   type: "paragraph";
@@ -146,8 +173,10 @@ export type MeasuredMarkdownBlockquote = {
     rcd: RectCoordsDims;
     color: string;
   };
-  mFormattedText: MeasuredFormattedText;
-  position: Coordinates;
+  paragraphs: {
+    mFormattedText: MeasuredFormattedText;
+    position: Coordinates;
+  }[];
 };
 
 export type MeasuredMarkdownHorizontalRule = {
@@ -155,6 +184,20 @@ export type MeasuredMarkdownHorizontalRule = {
   bounds: RectCoordsDims;
   line: { start: Coordinates; end: Coordinates };
   style: LineStyle;
+};
+
+export type MeasuredMarkdownCodeBlock = {
+  type: "code-block";
+  bounds: RectCoordsDims;
+  background: {
+    rcd: RectCoordsDims;
+    color: string;
+  };
+  lines: {
+    mText: MeasuredText;
+    y: number;
+  }[];
+  contentPosition: Coordinates;
 };
 
 // =============================================================================

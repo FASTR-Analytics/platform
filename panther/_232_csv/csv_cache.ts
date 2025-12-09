@@ -274,8 +274,8 @@ export class CsvCache {
 
   private estimateSize(data: Csv<string>): number {
     // Efficient size estimation without full stringification
-    const numRows = data.nRows();
-    const numCols = data.nCols();
+    const numRows = data.nRows;
+    const numCols = data.nCols;
 
     // Sample-based estimation for large CSVs
     if (numRows > 100) {
@@ -300,9 +300,9 @@ export class CsvCache {
     // This is more accurate than trying to sample individual cells
     const sampleRows = Math.min(numRows, 100);
 
-    // Create a smaller CSV with sampled rows (1-indexed)
-    const sampledCsv = data.getSelectedRows(
-      Array.from({ length: sampleRows }, (_, i) => i + 1),
+    // Create a smaller CSV with sampled rows (0-indexed now)
+    const sampledCsv = data.selectRows(
+      Array.from({ length: sampleRows }, (_, i) => i),
     );
     const sampleString = sampledCsv.stringify();
     const avgBytesPerRow = (sampleString.length * 2) / sampleRows;

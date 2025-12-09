@@ -5,10 +5,12 @@
 
 import {
   type AnchorPoint,
+  type CalendarType,
+  type ChartSeriesInfoFunc,
+  type ChartValueInfoFunc,
   type ColorAdjustmentStrategy,
   type ColorKeyOrString,
   type PaddingOptions,
-  type TextInfo,
   toPct1,
 } from "./deps.ts";
 import type {
@@ -19,47 +21,22 @@ import type {
   GenericLineStyle,
   GenericLineStyleOptions,
   GenericPointStyle,
-  GenericSeriesInfoFunc,
-  GenericValueInfoFunc,
   TableCellFormatterFunc,
 } from "./style_func_types.ts";
 import type { AspectRatio, LegendPosition } from "./types.ts";
-import type { CalendarType } from "./deps.ts";
 
 const _DS = {
-  scale: 4,
+  scale: 1,
+
   idealAspectRatio: "video" as "none" | AspectRatio,
   seriesColorFunc: (() => ({
     key: "baseContent",
-  })) as GenericSeriesInfoFunc<ColorKeyOrString>,
-
-  baseText: {
-    font: { key: "main400" },
-    fontSize: 20,
-    color: { key: "baseContent" },
-    lineHeight: 1.2,
-    lineBreakGap: 0.5,
-    letterSpacing: "0px",
-    fontVariants: {
-      bold: { key: "main700" },
-    },
-  } as TextInfo,
+  })) as ChartSeriesInfoFunc<ColorKeyOrString>,
 
   hideColHeaders: false,
   chartAreaBackgroundColor: "none" as ColorKeyOrString | "none",
 
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  //   ______                                                                     __            //
-  //  /      \                                                                   /  |           //
-  // /$$$$$$  | __    __   ______    ______    ______   __    __  _______    ____$$ |  _______  //
-  // $$ \__$$/ /  |  /  | /      \  /      \  /      \ /  |  /  |/       \  /    $$ | /       | //
-  // $$      \ $$ |  $$ |/$$$$$$  |/$$$$$$  |/$$$$$$  |$$ |  $$ |$$$$$$$  |/$$$$$$$ |/$$$$$$$/  //
-  //  $$$$$$  |$$ |  $$ |$$ |  $$/ $$ |  $$/ $$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$      \  //
-  // /  \__$$ |$$ \__$$ |$$ |      $$ |      $$ \__$$ |$$ \__$$ |$$ |  $$ |$$ \__$$ | $$$$$$  | //
-  // $$    $$/ $$    $$/ $$ |      $$ |      $$    $$/ $$    $$/ $$ |  $$ |$$    $$ |/     $$/  //
-  //  $$$$$$/   $$$$$$/  $$/       $$/        $$$$$$/   $$$$$$/  $$/   $$/  $$$$$$$/ $$$$$$$/   //
-  //                                                                                            //
-  ////////////////////////////////////////////////////////////////////////////////////////////////
+  // Surrounds
   surrounds: {
     padding: 0 as PaddingOptions,
     backgroundColor: "none" as ColorKeyOrString | "none",
@@ -69,21 +46,7 @@ const _DS = {
     subCaptionTopPadding: 7,
     footnoteGap: 15,
   },
-  //////////////////////////////////////////////////////////////////
-  //  __                                                      __  //
-  // /  |                                                    /  | //
-  // $$ |        ______    ______    ______   _______    ____$$ | //
-  // $$ |       /      \  /      \  /      \ /       \  /    $$ | //
-  // $$ |      /$$$$$$  |/$$$$$$  |/$$$$$$  |$$$$$$$  |/$$$$$$$ | //
-  // $$ |      $$    $$ |$$ |  $$ |$$    $$ |$$ |  $$ |$$ |  $$ | //
-  // $$ |_____ $$$$$$$$/ $$ \__$$ |$$$$$$$$/ $$ |  $$ |$$ \__$$ | //
-  // $$       |$$       |$$    $$ |$$       |$$ |  $$ |$$    $$ | //
-  // $$$$$$$$/  $$$$$$$/  $$$$$$$ | $$$$$$$/ $$/   $$/  $$$$$$$/  //
-  //                     /  \__$$ |                               //
-  //                     $$    $$/                                //
-  //                      $$$$$$/                                 //
-  //                                                              //
-  //////////////////////////////////////////////////////////////////
+  // Legend
   legend: {
     legendNoRender: false,
     maxLegendItemsInOneColumn: 3 as number | number[],
@@ -98,18 +61,7 @@ const _DS = {
     } as ColorAdjustmentStrategy,
     reverseOrder: false,
   },
-  ///////////////////////////////////////////////
-  //  ________         __        __            //
-  // /        |       /  |      /  |           //
-  // $$$$$$$$/______  $$ |____  $$ |  ______   //
-  //    $$ | /      \ $$      \ $$ | /      \  //
-  //    $$ | $$$$$$  |$$$$$$$  |$$ |/$$$$$$  | //
-  //    $$ | /    $$ |$$ |  $$ |$$ |$$    $$ | //
-  //    $$ |/$$$$$$$ |$$ |__$$ |$$ |$$$$$$$$/  //
-  //    $$ |$$    $$ |$$    $$/ $$ |$$       | //
-  //    $$/  $$$$$$$/ $$$$$$$/  $$/  $$$$$$$/  //
-  //                                           //
-  ///////////////////////////////////////////////
+  // Table
   table: {
     rowHeaderIndentIfRowGroups: 20,
     verticalColHeaders: "auto" as "never" | "always" | "auto",
@@ -117,6 +69,11 @@ const _DS = {
     colHeaderPadding: 5 as PaddingOptions,
     rowHeaderPadding: 5 as PaddingOptions,
     cellPadding: 5 as PaddingOptions,
+    cellVerticalAlign: "top" as "top" | "middle" | "bottom",
+    colHeaderBackgroundColor: { key: "base200" } as ColorKeyOrString | "none",
+    colGroupHeaderBackgroundColor: { key: "base200" } as
+      | ColorKeyOrString
+      | "none",
     cellBackgroundColorFormatter: "none" as
       | "none"
       | TableCellFormatterFunc<
@@ -127,19 +84,13 @@ const _DS = {
       string | number | null | undefined,
       string
     >,
+    showGridLines: true,
+    headerBorderWidth: 1,
+    gridLineWidth: 1,
+    headerBorderColor: { key: "baseContent" } as ColorKeyOrString,
+    gridLineColor: { key: "base300" } as ColorKeyOrString,
   },
-  ////////////////////////////////////////////////////////
-  //  __    __          ______             __            //
-  // /  |  /  |        /      \           /  |           //
-  // $$ |  $$ |       /$$$$$$  | __    __ $$/   _______  //
-  // $$  \/$$/        $$ |__$$ |/  \  /  |/  | /       | //
-  //  $$  $$<         $$    $$ |$$  \/$$/ $$ |/$$$$$$$/  //
-  //   $$$$  \        $$$$$$$$ | $$  $$<  $$ |$$      \  //
-  //  $$ /$$  |       $$ |  $$ | /$$$$  \ $$ | $$$$$$  | //
-  // $$ |  $$ |       $$ |  $$ |/$$/ $$  |$$ |/     $$/  //
-  // $$/   $$/        $$/   $$/ $$/   $$/ $$/ $$$$$$$/   //
-  //                                                     //
-  ////////////////////////////////////////////////////////
+  // X Axis
   xTextAxis: {
     verticalTickLabels: false,
     tickPosition: "sides" as "sides" | "center",
@@ -157,18 +108,7 @@ const _DS = {
     showEveryNthTick: 1,
     calendar: "gregorian" as CalendarType,
   },
-  //////////////////////////////////////////////////////////
-  //  __      __          ______             __            //
-  // /  \    /  |        /      \           /  |           //
-  // $$  \  /$$/        /$$$$$$  | __    __ $$/   _______  //
-  //  $$  \/$$/         $$ |__$$ |/  \  /  |/  | /       | //
-  //   $$  $$/          $$    $$ |$$  \/$$/ $$ |/$$$$$$$/  //
-  //    $$$$/           $$$$$$$$ | $$  $$<  $$ |$$      \  //
-  //     $$ |           $$ |  $$ | /$$$$  \ $$ | $$$$$$  | //
-  //     $$ |           $$ |  $$ |/$$/ $$  |$$ |/     $$/  //
-  //     $$/            $$/   $$/ $$/   $$/ $$/ $$$$$$$/   //
-  //                                                       //
-  //////////////////////////////////////////////////////////
+  // Y Axis
   yTextAxis: {
     colHeight: 30,
     paddingTop: 0,
@@ -198,18 +138,7 @@ const _DS = {
     exactAxisX: "none" as "none" | number,
     allowIndividualTierLimits: false,
   },
-  ////////////////////////////////////////////////////////////////////////////
-  //   ______                         __                            __      //
-  //  /      \                       /  |                          /  |     //
-  // /$$$$$$  |  ______   _______   _$$ |_     ______   _______   _$$ |_    //
-  // $$ |  $$/  /      \ /       \ / $$   |   /      \ /       \ / $$   |   //
-  // $$ |      /$$$$$$  |$$$$$$$  |$$$$$$/   /$$$$$$  |$$$$$$$  |$$$$$$/    //
-  // $$ |   __ $$ |  $$ |$$ |  $$ |  $$ | __ $$    $$ |$$ |  $$ |  $$ | __  //
-  // $$ \__/  |$$ \__$$ |$$ |  $$ |  $$ |/  |$$$$$$$$/ $$ |  $$ |  $$ |/  | //
-  // $$    $$/ $$    $$/ $$ |  $$ |  $$  $$/ $$       |$$ |  $$ |  $$  $$/  //
-  //  $$$$$$/   $$$$$$/  $$/   $$/    $$$$/   $$$$$$$/ $$/   $$/    $$$$/   //
-  //                                                                        //
-  ////////////////////////////////////////////////////////////////////////////
+  // Content
   content: {
     points: {
       defaults: {
@@ -221,14 +150,14 @@ const _DS = {
         innerColorStrategy: { opacity: 0.5 },
         dataLabelPosition: "top",
       } as GenericPointStyle,
-      func: "none" as GenericValueInfoFunc<GenericPointStyle> | "none",
+      func: "none" as ChartValueInfoFunc<GenericPointStyle> | "none",
     },
     bars: {
       defaults: {
         show: false,
         fillColor: 666,
       } as GenericBarStyle,
-      func: "none" as GenericValueInfoFunc<GenericBarStyleOptions> | "none",
+      func: "none" as ChartValueInfoFunc<GenericBarStyleOptions> | "none",
       stacking: "none" as "none" | "stacked" | "imposed" | "uncertainty",
       maxBarWidth: 200,
     },
@@ -239,7 +168,7 @@ const _DS = {
         color: 666,
         lineDash: "solid",
       } as GenericLineStyle,
-      func: "none" as GenericSeriesInfoFunc<GenericLineStyleOptions> | "none",
+      func: "none" as ChartSeriesInfoFunc<GenericLineStyleOptions> | "none",
       joinAcrossGaps: true,
     },
     areas: {
@@ -249,29 +178,18 @@ const _DS = {
         fillColor: 666,
         fillColorAdjustmentStrategy: { opacity: 0.5 },
       } as GenericAreaStyle,
-      func: "none" as GenericSeriesInfoFunc<GenericAreaStyleOptions> | "none",
+      func: "none" as ChartSeriesInfoFunc<GenericAreaStyleOptions> | "none",
       diff: {
         enabled: false,
         // order: "actual-expected" as "actual-expected" | "expected-actual",
       },
     },
     withDataLabels: true,
-    dataLabelFormatter: ((v) => toPct1(v.val)) as GenericValueInfoFunc<
+    dataLabelFormatter: ((v) => toPct1(v.val)) as ChartValueInfoFunc<
       string | undefined
     >,
   },
-  ////////////////////////////////////////
-  //   ______             __        __  //
-  //  /      \           /  |      /  | //
-  // /$$$$$$  |  ______  $$/   ____$$ | //
-  // $$ | _$$/  /      \ /  | /    $$ | //
-  // $$ |/    |/$$$$$$  |$$ |/$$$$$$$ | //
-  // $$ |$$$$ |$$ |  $$/ $$ |$$ |  $$ | //
-  // $$ \__$$ |$$ |      $$ |$$ \__$$ | //
-  // $$    $$/ $$ |      $$ |$$    $$ | //
-  //  $$$$$$/  $$/       $$/  $$$$$$$/  //
-  //                                    //
-  ////////////////////////////////////////
+  // Grid
   grid: {
     showGrid: true,
     axisStrokeWidth: 3,
@@ -279,18 +197,7 @@ const _DS = {
     axisColor: { key: "baseContent" } as ColorKeyOrString,
     gridColor: { key: "base300" } as ColorKeyOrString,
   },
-  ///////////////////////////////////////////////////////
-  //  _______                                          //
-  // /       \                                         //
-  // $$$$$$$  | ______   _______    ______    _______  //
-  // $$ |__$$ |/      \ /       \  /      \  /       | //
-  // $$    $$/ $$$$$$  |$$$$$$$  |/$$$$$$  |/$$$$$$$/  //
-  // $$$$$$$/  /    $$ |$$ |  $$ |$$    $$ |$$      \  //
-  // $$ |     /$$$$$$$ |$$ |  $$ |$$$$$$$$/  $$$$$$  | //
-  // $$ |     $$    $$ |$$ |  $$ |$$       |/     $$/  //
-  // $$/       $$$$$$$/ $$/   $$/  $$$$$$$/ $$$$$$$/   //
-  //                                                   //
-  ///////////////////////////////////////////////////////
+  // Panes
   panes: {
     padding: 0,
     backgroundColor: "none" as ColorKeyOrString | "none",
@@ -300,21 +207,7 @@ const _DS = {
     gapY: 15,
     nCols: "auto" as number | "auto",
   },
-  ///////////////////////////////////////////////////////////////////////////////////
-  //   ______   __                          __                       __            //
-  //  /      \ /  |                        /  |                     /  |           //
-  // /$$$$$$  |$$/  _____  ____    ______  $$ |  ______   __     __ $$/  ________  //
-  // $$ \__$$/ /  |/     \/    \  /      \ $$ | /      \ /  \   /  |/  |/        | //
-  // $$      \ $$ |$$$$$$ $$$$  |/$$$$$$  |$$ |/$$$$$$  |$$  \ /$$/ $$ |$$$$$$$$/  //
-  //  $$$$$$  |$$ |$$ | $$ | $$ |$$ |  $$ |$$ |$$    $$ | $$  /$$/  $$ |  /  $$/   //
-  // /  \__$$ |$$ |$$ | $$ | $$ |$$ |__$$ |$$ |$$$$$$$$/   $$ $$/   $$ | /$$$$/__  //
-  // $$    $$/ $$ |$$ | $$ | $$ |$$    $$/ $$ |$$       |   $$$/    $$ |/$$      | //
-  //  $$$$$$/  $$/ $$/  $$/  $$/ $$$$$$$/  $$/  $$$$$$$/     $/     $$/ $$$$$$$$/  //
-  //                             $$ |                                              //
-  //                             $$ |                                              //
-  //                             $$/                                               //
-  //                                                                               //
-  ///////////////////////////////////////////////////////////////////////////////////
+  // SimpleViz
   simpleviz: {
     layerGap: 150,
     orderGap: 100,

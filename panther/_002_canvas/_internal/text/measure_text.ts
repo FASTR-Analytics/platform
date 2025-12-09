@@ -33,11 +33,12 @@ export function measureText(
   if (text === " ") {
     setCtxFont(ctx, ti, undefined);
     const metrics = ctx.measureText(" ");
+    const spaceWidth = metrics.width; // Single char, no kerning issue
     const ascent = metrics.fontBoundingBoxAscent ?? 0;
     const descent = metrics.fontBoundingBoxDescent ?? 0;
     return {
-      lines: [{ text: " ", w: metrics.width, y: ascent }],
-      dims: new Dimensions({ w: metrics.width, h: ascent + descent }),
+      lines: [{ text: " ", w: spaceWidth, y: ascent }],
+      dims: new Dimensions({ w: spaceWidth, h: ascent + descent }),
       ti,
       rotation: "horizontal",
     };
@@ -97,8 +98,9 @@ export function measureText(
 
     for (let i = 0; i < words.length; i++) {
       testLine += `${words[i]} `;
-      const metrics = ctx.measureText(testLine.trim());
-      const testWidth = metrics.width;
+      const trimmedTestLine = testLine.trim();
+      const metrics = ctx.measureText(trimmedTestLine);
+      const testWidth = ctx.measureText(trimmedTestLine).width;
       const fontBoundingBoxAscent = metrics.fontBoundingBoxAscent;
       const fontBoundingBoxDescent = metrics.fontBoundingBoxDescent;
       if (

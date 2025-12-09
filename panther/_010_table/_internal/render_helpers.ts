@@ -33,6 +33,27 @@ export function renderColAndColGroupHeaders(
   ////////////////////////////////////
 
   if (m.hasColGroupHeaders) {
+    // Render backgrounds first
+    if (s.colGroupHeaderBackgroundColor !== "none") {
+      let bgX = m.firstCellX;
+      m.colGroupHeaderInfos.forEach((cghi) => {
+        rc.rRect(
+          [
+            bgX,
+            m.colGroupHeadersInnerY,
+            cghi.colGroupInnerWidth,
+            m.colGroupHeaderMaxHeight +
+            s.colHeaderPadding.pt() +
+            s.colHeaderPadding.pb() +
+            m.extraTopPaddingForRowsAndAllHeaders,
+          ],
+          { fillColor: s.colGroupHeaderBackgroundColor },
+        );
+        bgX += cghi.colGroupInnerWidth + s.gridLineWidth;
+      });
+    }
+
+    // Render text
     let currentX = m.firstCellX;
     m.colGroupHeaderInfos.forEach((cghi) => {
       if (cghi.mText) {
@@ -49,7 +70,7 @@ export function renderColAndColGroupHeaders(
           "center",
         );
       }
-      currentX += cghi.colGroupInnerWidth + s.grid.gridStrokeWidth;
+      currentX += cghi.colGroupInnerWidth + s.gridLineWidth;
     });
   }
 
@@ -60,6 +81,27 @@ export function renderColAndColGroupHeaders(
   //////////////////////////////
 
   if (m.hasColHeaders) {
+    // Render backgrounds first
+    if (s.colHeaderBackgroundColor !== "none") {
+      let bgX = m.firstCellX;
+      m.colHeaderInfos.forEach(() => {
+        rc.rRect(
+          [
+            bgX,
+            m.colHeadersInnerY,
+            m.colInnerWidth,
+            m.colHeaderMaxHeight +
+            s.colHeaderPadding.pt() +
+            s.colHeaderPadding.pb() +
+            m.extraTopPaddingForRowsAndAllHeaders,
+          ],
+          { fillColor: s.colHeaderBackgroundColor },
+        );
+        bgX += m.colInnerWidth + s.gridLineWidth;
+      });
+    }
+
+    // Render text
     let currentX = m.firstCellX;
     m.colHeaderInfos.forEach((chi) => {
       if (chi.mText) {
@@ -79,7 +121,7 @@ export function renderColAndColGroupHeaders(
           chi.mText.rotation !== "horizontal" ? "bottom" : "top",
         );
       }
-      currentX += m.colInnerWidth + s.grid.gridStrokeWidth;
+      currentX += m.colInnerWidth + s.gridLineWidth;
     });
   }
 }
@@ -109,7 +151,8 @@ export function renderRows(rc: RenderContext, mTable: MeasuredTable) {
   ///////////////////////
 
   let currentY = m.firstCellY;
-  m.rowHeaderInfos.forEach((rhi) => {
+  m.measuredRows.forEach((mr) => {
+    const rhi = mr.rowHeaderInfo;
     if (rhi.mText) {
       const indent = m.hasRowGroupHeaders && rhi.index !== "group-header"
         ? s.rowHeaderIndentIfRowGroups
@@ -126,6 +169,7 @@ export function renderRows(rc: RenderContext, mTable: MeasuredTable) {
     const rowIndex = rhi.index;
     if (rowIndex !== "group-header") {
       let currentX = m.firstCellX;
+      let cellIdx = 0;
       d.colGroups.forEach((colGroup) => {
         colGroup.cols.forEach((col) => {
           const val = d.aoa[rowIndex][col.index];
@@ -145,7 +189,7 @@ export function renderRows(rc: RenderContext, mTable: MeasuredTable) {
                 m.colInnerWidth,
                 m.rowCellPaddingT +
                 m.extraTopPaddingForRowsAndAllHeaders +
-                (rhi.mText?.dims.h() ?? m.cellTextHeight) +
+                mr.rowContentHeight +
                 m.extraBottomPaddingForRowsAndAllHeaders +
                 m.rowCellPaddingB,
               ],
@@ -154,38 +198,42 @@ export function renderRows(rc: RenderContext, mTable: MeasuredTable) {
               },
             );
           }
-          const valAsNum = Number(val);
-          const cellStr = isNaN(valAsNum)
-            ? (val as string)
-            : s.cellValueFormatter(valAsNum, {
-              colHeader: col.label ?? "",
-              colIndex: col.index,
-              rowHeader: rhi.label ?? "",
-              rowIndex: rowIndex,
-            });
-          const mText = rc.mText(cellStr, s.text.cells, m.colInnerWidth);
+          const mText = mr.cellTexts[cellIdx];
+          const cellTextHeight = mText.dims.h();
+          const availableHeight = mr.rowContentHeight;
+          const yOffset = s.cellVerticalAlign === "middle"
+            ? (availableHeight - cellTextHeight) / 2
+            : s.cellVerticalAlign === "bottom"
+            ? availableHeight - cellTextHeight
+            : 0;
+          const cellContentWidth = m.colInnerWidth - s.cellPadding.pl() -
+            s.cellPadding.pr();
+          const cellContentCenterX = currentX + s.cellPadding.pl() +
+            cellContentWidth / 2;
           rc.rText(
             mText,
             [
-              currentX + m.colInnerWidth / 2,
+              cellContentCenterX,
               currentY +
               m.rowCellPaddingT +
-              m.extraTopPaddingForRowsAndAllHeaders,
+              m.extraTopPaddingForRowsAndAllHeaders +
+              yOffset,
             ],
             "center",
           );
 
           currentX += m.colInnerWidth;
-          currentX += s.grid.gridStrokeWidth;
+          currentX += s.gridLineWidth;
+          cellIdx++;
         });
       });
     }
     currentY += m.rowCellPaddingT +
       m.extraTopPaddingForRowsAndAllHeaders +
-      (rhi.mText?.dims.h() ?? m.cellTextHeight) +
+      mr.rowContentHeight +
       m.extraBottomPaddingForRowsAndAllHeaders +
       m.rowCellPaddingB +
-      s.grid.gridStrokeWidth;
+      s.gridLineWidth;
   });
 }
 
@@ -213,15 +261,15 @@ export function renderLines(rc: RenderContext, mTable: MeasuredTable) {
   //                           //
   ///////////////////////////////
 
-  if (s.grid.showGrid) {
+  if (s.showGridLines) {
     rc.rLine(
       [
-        [m.contentRcd.x() + s.grid.gridStrokeWidth / 2, m.contentRcd.y()],
-        [m.contentRcd.x() + s.grid.gridStrokeWidth / 2, m.contentRcd.bottomY()],
+        [m.contentRcd.x() + s.gridLineWidth / 2, m.contentRcd.y()],
+        [m.contentRcd.x() + s.gridLineWidth / 2, m.contentRcd.bottomY()],
       ],
       {
-        strokeColor: s.grid.gridColor,
-        strokeWidth: s.grid.gridStrokeWidth,
+        strokeColor: s.gridLineColor,
+        strokeWidth: s.gridLineWidth,
         lineDash: "solid",
       },
     );
@@ -237,16 +285,16 @@ export function renderLines(rc: RenderContext, mTable: MeasuredTable) {
           : m.colGroupHeaderAxisY;
         rc.rLine(
           [
-            [currentX + s.grid.gridStrokeWidth / 2, topY],
-            [currentX + s.grid.gridStrokeWidth / 2, m.contentRcd.bottomY()],
+            [currentX + s.gridLineWidth / 2, topY],
+            [currentX + s.gridLineWidth / 2, m.contentRcd.bottomY()],
           ],
           {
-            strokeColor: s.grid.gridColor,
-            strokeWidth: s.grid.gridStrokeWidth,
+            strokeColor: s.gridLineColor,
+            strokeWidth: s.gridLineWidth,
             lineDash: "solid",
           },
         );
-        currentX += s.grid.gridStrokeWidth;
+        currentX += s.gridLineWidth;
       });
     });
 
@@ -258,12 +306,12 @@ export function renderLines(rc: RenderContext, mTable: MeasuredTable) {
 
     rc.rLine(
       [
-        [m.contentRcd.x(), m.contentRcd.y() + s.grid.gridStrokeWidth / 2],
-        [m.contentRcd.rightX(), m.contentRcd.y() + s.grid.gridStrokeWidth / 2],
+        [m.contentRcd.x(), m.contentRcd.y() + s.gridLineWidth / 2],
+        [m.contentRcd.rightX(), m.contentRcd.y() + s.gridLineWidth / 2],
       ],
       {
-        strokeColor: s.grid.gridColor,
-        strokeWidth: s.grid.gridStrokeWidth,
+        strokeColor: s.gridLineColor,
+        strokeWidth: s.gridLineWidth,
         lineDash: "solid",
       },
     );
@@ -273,40 +321,40 @@ export function renderLines(rc: RenderContext, mTable: MeasuredTable) {
         [
           [
             m.contentRcd.x(),
-            m.colGroupHeaderAxisY + s.grid.gridStrokeWidth / 2,
+            m.colGroupHeaderAxisY + s.gridLineWidth / 2,
           ],
           [
             m.contentRcd.rightX(),
-            m.colGroupHeaderAxisY + s.grid.gridStrokeWidth / 2,
+            m.colGroupHeaderAxisY + s.gridLineWidth / 2,
           ],
         ],
         {
-          strokeColor: s.grid.gridColor,
-          strokeWidth: s.grid.gridStrokeWidth,
+          strokeColor: s.gridLineColor,
+          strokeWidth: s.gridLineWidth,
           lineDash: "solid",
         },
       );
     }
 
     let currentY = m.firstCellY;
-    m.rowHeaderInfos.forEach((rhi) => {
+    m.measuredRows.forEach((mr) => {
       currentY += m.rowCellPaddingT +
         m.extraTopPaddingForRowsAndAllHeaders +
-        (rhi.mText?.dims.h() ?? m.cellTextHeight) +
+        mr.rowContentHeight +
         m.extraBottomPaddingForRowsAndAllHeaders +
         m.rowCellPaddingB;
       rc.rLine(
         [
-          [m.contentRcd.x(), currentY + s.grid.gridStrokeWidth / 2],
-          [m.contentRcd.rightX(), currentY + s.grid.gridStrokeWidth / 2],
+          [m.contentRcd.x(), currentY + s.gridLineWidth / 2],
+          [m.contentRcd.rightX(), currentY + s.gridLineWidth / 2],
         ],
         {
-          strokeColor: s.grid.gridColor,
-          strokeWidth: s.grid.gridStrokeWidth,
+          strokeColor: s.gridLineColor,
+          strokeWidth: s.gridLineWidth,
           lineDash: "solid",
         },
       );
-      currentY += s.grid.gridStrokeWidth;
+      currentY += s.gridLineWidth;
     });
   }
 
@@ -319,12 +367,12 @@ export function renderLines(rc: RenderContext, mTable: MeasuredTable) {
   if (m.hasRowHeaders) {
     rc.rLine(
       [
-        [m.firstCellX - s.grid.axisStrokeWidth / 2, m.contentRcd.y()],
-        [m.firstCellX - s.grid.axisStrokeWidth / 2, m.contentRcd.bottomY()],
+        [m.firstCellX - s.headerBorderWidth / 2, m.contentRcd.y()],
+        [m.firstCellX - s.headerBorderWidth / 2, m.contentRcd.bottomY()],
       ],
       {
-        strokeColor: s.grid.axisColor,
-        strokeWidth: s.grid.axisStrokeWidth,
+        strokeColor: s.headerBorderColor,
+        strokeWidth: s.headerBorderWidth,
         lineDash: "solid",
       },
     );
@@ -339,12 +387,12 @@ export function renderLines(rc: RenderContext, mTable: MeasuredTable) {
   if (m.hasColHeaders) {
     rc.rLine(
       [
-        [m.contentRcd.x(), m.firstCellY - s.grid.axisStrokeWidth / 2],
-        [m.contentRcd.rightX(), m.firstCellY - s.grid.axisStrokeWidth / 2],
+        [m.contentRcd.x(), m.firstCellY - s.headerBorderWidth / 2],
+        [m.contentRcd.rightX(), m.firstCellY - s.headerBorderWidth / 2],
       ],
       {
-        strokeColor: s.grid.axisColor,
-        strokeWidth: s.grid.axisStrokeWidth,
+        strokeColor: s.headerBorderColor,
+        strokeWidth: s.headerBorderWidth,
         lineDash: "solid",
       },
     );

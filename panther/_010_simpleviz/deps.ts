@@ -5,8 +5,8 @@
 
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
-export { getFont } from "../_001_font/mod.ts";
-export type { CustomStyleTextOptions, FontVariants, TextInfo, TextInfoUnkeyed } from "../_001_font/mod.ts";
+export { getAdjustedFont } from "../_001_font/mod.ts";
+export type { CustomStyleTextOptions, TextInfo, TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, Padding, RectCoordsDims, getAnchorCoords } from "../_001_geometry/mod.ts";
 export type { AnchorPoint, CoordinatesOptions, PaddingOptions } from "../_001_geometry/mod.ts";
 export { Z_INDEX, computeBoundsForPath } from "../_001_render_system/mod.ts";

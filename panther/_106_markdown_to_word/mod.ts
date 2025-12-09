@@ -3,25 +3,18 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { convertMarkdownToWordDocument } from "./converter.ts";
+export { coreMarkdownToWord } from "./converter.ts";
+export type { ConvertMarkdownToWordOptions } from "./converter.ts";
 export { buildWordDocument } from "./word_builder.ts";
+export type { WordSpecificConfig } from "./word_specific_config.ts";
+export { DEFAULT_WORD_SPECIFIC_CONFIG } from "./word_specific_config.ts";
+export { UnsupportedLatexError } from "./latex_to_math.ts";
+
 export {
-  createFooter,
-  createNumbering,
-  createStyles,
-  getLinkColor,
-  getPageProperties,
-} from "./styles.ts";
-export {
-  GITHUB_APTOS_STYLE_CONFIG,
-  GITHUB_CAMBRIA_STYLE_CONFIG,
-  STYLE_CONFIG,
-  STYLE_CONFIGS,
-} from "./style_config.ts";
+  lineHeightToWordSpacing,
+  pixelsToHalfPoints,
+  pixelsToTwips,
+  rgbToHex,
+} from "./word_units.ts";
+
 export { wordDocumentToBlob } from "./utils.ts";
-export type {
-  DocElement,
-  InlineContent,
-  ParsedDocument,
-} from "./document_model.ts";
-export type { StyleConfig, StyleConfigId } from "./style_config.ts";

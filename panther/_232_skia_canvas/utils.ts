@@ -16,15 +16,10 @@ import {
   InvalidDimensionsError,
 } from "./errors.ts";
 
-// ================================================================================
-// HELPER FUNCTIONS
-// ================================================================================
-
 export function createCanvasRenderContext(
   width: number,
   height: number,
 ): { canvas: Canvas; rc: CanvasRenderContext; rcd: RectCoordsDims } {
-  // Validate dimensions
   if (width <= 0 || height <= 0) {
     throw new InvalidDimensionsError(
       `Canvas dimensions must be positive numbers. Got width: ${width}, height: ${height}`,
@@ -40,9 +35,9 @@ export function createCanvasRenderContext(
   try {
     const roundedW = Math.floor(width);
     const roundedH = Math.floor(height);
+
     const canvas = createCanvas(roundedW, roundedH);
     const ctx = canvas.getContext("2d");
-
     if (!ctx) {
       throw new CanvasCreationError("Failed to get 2D context from canvas");
     }

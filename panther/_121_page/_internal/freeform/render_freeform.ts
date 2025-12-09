@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getColor, type RenderContext } from "../../deps.ts";
+import type { RenderContext } from "../../deps.ts";
 import { renderContent } from "./content.ts";
 import { renderFooter } from "./footer.ts";
 import { renderHeader } from "./header.ts";
@@ -19,7 +19,7 @@ export function renderFreeform(
   // Render background if needed
   if (s.content.backgroundColor !== "none") {
     rc.rRect(measured.bounds, {
-      fillColor: getColor(s.content.backgroundColor),
+      fillColor: s.content.backgroundColor,
     });
   }
 

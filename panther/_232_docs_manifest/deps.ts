@@ -3,13 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { buildNavigation } from "../_024_docs_core/mod.ts";
-export type {
-  DocsManifest,
-  DocsPage,
-  NavItem,
-  NavSection,
-} from "../_024_docs_core/mod.ts";
+export { buildNavigation } from "../_013_docs_core/mod.ts";
+export type { DocsManifest, DocsPage } from "../_013_docs_core/mod.ts";
+export { copy } from "@std/fs/copy";
+export { emptyDir } from "@std/fs/empty_dir";
+export { ensureDir } from "@std/fs/ensure_dir";
 export { walk } from "@std/fs/walk";
 export { basename, dirname, join, relative } from "@std/path";
 export { globToRegExp } from "@std/path/glob_to_regexp";

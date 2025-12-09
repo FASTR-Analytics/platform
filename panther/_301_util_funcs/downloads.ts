@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Csv, type jsPDF } from "./deps.ts";
+import { Csv, type Document, type jsPDF, wordDocumentToBlob } from "./deps.ts";
 import { saveAs } from "./file_saver_vendored.ts";
 
 export function downloadCsv<T>(csv: Csv<T> | string, filename?: string) {
@@ -43,6 +43,11 @@ export function downloadJson(
 export function downloadPdf(pdf: jsPDF, filename?: string) {
   const blob = pdf.output("blob");
   saveAs(blob, filename ?? "document.pdf");
+}
+
+export async function downloadWord(doc: Document, filename?: string) {
+  const blob = await wordDocumentToBlob(doc);
+  saveAs(blob, filename ?? "document.docx");
 }
 
 export function base64ToBlob(base64: string): Blob {

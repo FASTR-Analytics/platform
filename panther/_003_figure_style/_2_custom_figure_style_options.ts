@@ -6,6 +6,9 @@
 import {
   type AnchorPoint,
   assert,
+  type CalendarType,
+  type ChartSeriesInfoFunc,
+  type ChartValueInfoFunc,
   type ColorAdjustmentStrategy,
   type ColorKeyOrString,
   type PaddingOptions,
@@ -15,18 +18,15 @@ import type {
   GenericBarStyleOptions,
   GenericLineStyleOptions,
   GenericPointStyleOptions,
-  GenericSeriesInfoFunc,
-  GenericValueInfoFunc,
   TableCellFormatterFunc,
 } from "./style_func_types.ts";
 import type { FigureTextStyleOptions } from "./text_style_keys.ts";
 import type { AspectRatio, LegendPosition } from "./types.ts";
-import type { CalendarType } from "./deps.ts";
 
 export type CustomFigureStyleOptions = {
   scale?: number;
   idealAspectRatio?: "none" | AspectRatio;
-  seriesColorFunc?: GenericSeriesInfoFunc<ColorKeyOrString>;
+  seriesColorFunc?: ChartSeriesInfoFunc<ColorKeyOrString>;
 
   hideColHeaders?: boolean;
   chartAreaBackgroundColor?: ColorKeyOrString | "none";
@@ -111,6 +111,9 @@ export type CustomFigureStyleOptions = {
     colHeaderPadding?: PaddingOptions;
     rowHeaderPadding?: PaddingOptions;
     cellPadding?: PaddingOptions;
+    cellVerticalAlign?: "top" | "middle" | "bottom";
+    colHeaderBackgroundColor?: ColorKeyOrString | "none";
+    colGroupHeaderBackgroundColor?: ColorKeyOrString | "none";
     cellBackgroundColorFormatter?:
       | "none"
       | TableCellFormatterFunc<
@@ -121,6 +124,11 @@ export type CustomFigureStyleOptions = {
       string | number | null | undefined,
       string
     >;
+    showGridLines?: boolean;
+    headerBorderWidth?: number;
+    gridLineWidth?: number;
+    headerBorderColor?: ColorKeyOrString;
+    gridLineColor?: ColorKeyOrString;
   };
   ////////////////////////////////////////////////////////
   //  __    __          ______             __            //
@@ -217,29 +225,29 @@ export type CustomFigureStyleOptions = {
   content?: {
     points?: {
       defaults?: GenericPointStyleOptions;
-      func?: GenericValueInfoFunc<GenericPointStyleOptions> | "none";
+      func?: ChartValueInfoFunc<GenericPointStyleOptions> | "none";
     };
     bars?: {
       defaults?: GenericBarStyleOptions;
-      func?: GenericValueInfoFunc<GenericBarStyleOptions> | "none";
+      func?: ChartValueInfoFunc<GenericBarStyleOptions> | "none";
       stacking?: "none" | "stacked" | "imposed" | "uncertainty";
       maxBarWidth?: number;
     };
     lines?: {
       defaults?: GenericLineStyleOptions;
-      func?: GenericSeriesInfoFunc<GenericLineStyleOptions> | "none";
+      func?: ChartSeriesInfoFunc<GenericLineStyleOptions> | "none";
       joinAcrossGaps?: boolean;
     };
     areas?: {
       defaults?: GenericAreaStyleOptions;
-      func?: GenericSeriesInfoFunc<GenericAreaStyleOptions> | "none";
+      func?: ChartSeriesInfoFunc<GenericAreaStyleOptions> | "none";
       diff?: {
         enabled?: boolean;
         // order?: "actual-expected" | "expected-actual";
       };
     };
     withDataLabels?: boolean;
-    dataLabelFormatter?: GenericValueInfoFunc<string | undefined>;
+    dataLabelFormatter?: ChartValueInfoFunc<string | undefined>;
   };
   ////////////////////////////////////////
   //   ______             __        __  //

@@ -3,18 +3,35 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { getFont, setKeyFonts } from "./key_fonts.ts";
-export { TIM_FONT_SETS, TIM_FONTS } from "./tim_fonts.ts";
+export { collectFontsFromStyles } from "./collect_fonts.ts";
+export {
+  cleanFontFamilyForJsPdf,
+  quotedFontFamilyForCanvas,
+} from "./font_family_helpers.ts";
+export { TIM_FONTS } from "./generated/fonts.ts";
+export { FONT_KERNING } from "./generated/kerning.ts";
+export { FONT_MAP } from "./generated/map.ts";
+export type { FontId } from "./generated/map.ts";
+export {
+  deduplicateFonts,
+  deriveAllVariants,
+  getBaseTextInfo,
+  getFontsToRegister,
+  getMergedFonts,
+  getTextInfo,
+  getTextInfoForSpecialHeadings,
+} from "./style_helpers.ts";
 export {
   type CustomStyleTextOptions,
   type FontInfo,
-  type FontKeyOrFontInfo,
-  type FontVariants,
-  type FontVariantsCustomStyle,
-  type FontVariantsKeyed,
+  type FontInfoOptions,
+  type FontWeight,
+  getAdjustedFont,
   getAdjustedText,
+  getBaseText,
   getFontInfoId,
-  type KeyFonts,
+  setBaseText,
+  type StyleWithFontRegistration,
   type TextAdjustmentOptions,
   type TextInfo,
   type TextInfoOptions,

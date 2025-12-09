@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { Color, getAdjustedColor, getColor } from "../_001_color/mod.ts";
+export { FONT_KERNING, cleanFontFamilyForJsPdf } from "../_001_font/mod.ts";
 export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, RectCoordsDims, getRectAlignmentCoords } from "../_001_geometry/mod.ts";
 export type { CoordinatesOptions, RectCoordsDimsOptions } from "../_001_geometry/mod.ts";

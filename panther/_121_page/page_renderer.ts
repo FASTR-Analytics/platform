@@ -105,7 +105,7 @@ export const PageRenderer: PageRendererType = {
     responsiveScale?: number,
   ): void {
     const mPage = measurePage(rc, bounds, item, responsiveScale);
-    PageRenderer.render(rc, mPage);
+    renderPage(rc, mPage);
   },
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////

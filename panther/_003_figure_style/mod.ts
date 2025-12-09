@@ -9,7 +9,5 @@ export {
 } from "./_2_custom_figure_style_options.ts";
 export * from "./_3_merged_style_return_types.ts";
 export { CustomFigureStyle } from "./_3_style_class.ts";
-export type { CalendarType } from "./deps.ts";
-export { getTextInfo } from "./helpers.ts";
 export * from "./style_func_types.ts";
 export * from "./types.ts";

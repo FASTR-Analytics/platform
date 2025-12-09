@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { assertNotUndefined } from "../_000_utils/mod.ts";
-export { Csv } from "../_002_csv/mod.ts";
+export { Csv } from "../_100_csv/mod.ts";
 export { InvalidFileContentError, handleFileError, validateFilePath } from "../_230_file_utils/mod.ts";
 export { join } from "@std/path";
 export { default as Papa } from "papaparse";

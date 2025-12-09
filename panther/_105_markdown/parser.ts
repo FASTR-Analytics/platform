@@ -3,19 +3,25 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { MarkdownIt } from "./deps.ts";
+import { MarkdownIt, markdownItKatex } from "./deps.ts";
 import type {
   MarkdownInline,
   ParsedMarkdown,
   ParsedMarkdownItem,
 } from "./types.ts";
 
-export function parseMarkdown(markdownContent: string): ParsedMarkdown {
+export function createMarkdownIt(): MarkdownIt {
   const md = new MarkdownIt({
     breaks: true,
-    html: false,
+    html: true,
     linkify: false,
   });
+  md.use(markdownItKatex);
+  return md;
+}
+
+export function parseMarkdown(markdownContent: string): ParsedMarkdown {
+  const md = createMarkdownIt();
 
   const tokens = md.parse(markdownContent, {});
   const items: ParsedMarkdownItem[] = [];
@@ -28,19 +34,24 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
 
     if (token.type === "hr") {
       items.push({ type: "horizontal-rule" });
+    } else if (token.type === "fence") {
+      items.push({ type: "code-block", code: token.content ?? "" });
+    } else if (token.type === "math_block") {
+      items.push({ type: "math-block", latex: token.content ?? "" });
     } else if (token.type === "blockquote_open") {
       const content: MarkdownInline[] = [];
       let j = i + 1;
+      let paragraphCount = 0;
       while (j < tokens.length && tokens[j].type !== "blockquote_close") {
-        if (tokens[j].type === "inline") {
-          content.push(...parseInlineTokens(tokens[j].children || []));
-          if (
-            j + 1 < tokens.length &&
-            tokens[j + 1].type !== "blockquote_close" &&
-            tokens[j + 1].type !== "paragraph_close"
-          ) {
+        if (tokens[j].type === "paragraph_open") {
+          if (paragraphCount > 0) {
+            // Add double break between paragraphs
+            content.push({ type: "break" });
             content.push({ type: "break" });
           }
+          paragraphCount++;
+        } else if (tokens[j].type === "inline") {
+          content.push(...parseInlineTokens(tokens[j].children || []));
         }
         j++;
       }
@@ -86,6 +97,8 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
             type: "list-item",
             listType: inNumberedList ? "numbered" : "bullet",
             level: listLevel,
+            isFirstInList: false,
+            isLastInList: false,
             content: parseInlineTokens(tokens[j].children || []),
           };
 
@@ -102,7 +115,27 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
     }
   }
 
+  markFirstAndLastListItems(items);
+
   return { items };
+}
+
+function markFirstAndLastListItems(items: ParsedMarkdownItem[]): void {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.type !== "list-item") continue;
+
+    const prevItem = items[i - 1];
+    const nextItem = items[i + 1];
+
+    const prevIsListItem = prevItem?.type === "list-item" &&
+      prevItem.listType === item.listType;
+    const nextIsListItem = nextItem?.type === "list-item" &&
+      nextItem.listType === item.listType;
+
+    item.isFirstInList = !prevIsListItem;
+    item.isLastInList = !nextIsListItem;
+  }
 }
 
 function parseInlineTokens(tokens: MarkdownItToken[]): MarkdownInline[] {
@@ -116,6 +149,12 @@ function parseInlineTokens(tokens: MarkdownItToken[]): MarkdownInline[] {
       content.push({ type: "text", text: token.content });
       i++;
     } else if (token.type === "softbreak" || token.type === "hardbreak") {
+      content.push({ type: "break" });
+      i++;
+    } else if (
+      token.type === "html_inline" &&
+      (token.content === "<br>" || token.content === "<br/>")
+    ) {
       content.push({ type: "break" });
       i++;
     } else if (token.type === "strong_open") {
@@ -152,7 +191,10 @@ function parseInlineTokens(tokens: MarkdownItToken[]): MarkdownInline[] {
       }
       i = result.endIndex + 1;
     } else if (token.type === "code_inline" && token.content) {
-      content.push({ type: "text", text: token.content });
+      content.push({ type: "code", text: token.content });
+      i++;
+    } else if (token.type === "math_inline" && token.content) {
+      content.push({ type: "math-inline", latex: token.content });
       i++;
     } else {
       i++;

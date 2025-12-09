@@ -20,7 +20,8 @@ export default defineConfig({
       katex: path.resolve(__dirname, "node_modules/katex"),
       docx: path.resolve(__dirname, "node_modules/docx"),
       jspdf: path.resolve(__dirname, "node_modules/jspdf"),
-      papaparse:  path.resolve(__dirname, "node_modules/papaparse"),
+      papaparse: path.resolve(__dirname, "node_modules/papaparse"),
+      zod: path.resolve(__dirname, "node_modules/zod"),
     },
   },
   server: {

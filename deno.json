@@ -12,7 +12,7 @@
   "imports": {
     "@timroberton/panther": "./panther/mod.deno.ts",
     "lib": "./lib/mod.ts",
-    "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.67.0",
+    "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.71.0",
     "@clerk/backend": "npm:@clerk/backend@^1.25.2",
     "@hono/clerk-auth": "npm:@hono/clerk-auth@^2.0.0",
     "@std/async": "jsr:@std/async@^1.0.9",

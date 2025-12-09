@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  getColor,
   type LayoutWarning,
   type MeasuredLayoutNode,
   measureLayout,
@@ -15,6 +14,7 @@ import {
   type RenderContext,
   walkLayout,
 } from "../../deps.ts";
+import { applyContainerDefaults } from "../../apply_container_defaults.ts";
 import { itemMeasurer } from "./item_measurer.ts";
 import { renderItem } from "./item_renderer.ts";
 import type { FreeformPageInputs, PageContentItem } from "../../types.ts";
@@ -45,13 +45,20 @@ export function measureContent(
 
   const rcdContentInner = rcdContentOuter.getPadded(padContent);
 
+  // Apply container defaults before measuring
+  const contentWithContainerDefaults = applyContainerDefaults(
+    inputs.content,
+    s.layoutContainers,
+  );
+
   const { measured, warnings } = measureLayout(
     { rc, s },
-    inputs.content,
+    contentWithContainerDefaults,
     rcdContentInner,
     s.content.gapX,
     s.content.gapY,
     itemMeasurer,
+    s.content.nColumns,
   );
 
   return {
@@ -72,7 +79,7 @@ export function renderContent(
 
   if (s.content.backgroundColor !== "none") {
     rc.rRect(measured.rcdContentOuter, {
-      fillColor: getColor(s.content.backgroundColor),
+      fillColor: s.content.backgroundColor,
     });
   }
 

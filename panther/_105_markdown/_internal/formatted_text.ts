@@ -97,15 +97,19 @@ export function renderFormattedText(
     const lineY = position.y() + line.y;
 
     for (const run of line.runs) {
-      rc.rText(run.mText, { x: lineX + run.x, y: lineY }, "left", "top");
+      const runBaseline = run.mText.lines[0]?.y ?? 0;
+      const baselineOffset = line.maxBaseline - runBaseline;
+      const runY = lineY + baselineOffset;
+
+      rc.rText(run.mText, { x: lineX + run.x, y: runY }, "left", "top");
 
       if (run.underline) {
         rc.rLine(
           [
-            { x: lineX + run.x, y: lineY + run.underline.yOffset },
+            { x: lineX + run.x, y: runY + run.underline.yOffset },
             {
               x: lineX + run.x + run.mText.dims.w(),
-              y: lineY + run.underline.yOffset,
+              y: runY + run.underline.yOffset,
             },
           ],
           {
@@ -135,47 +139,14 @@ export function resolveRunStyle(
   const isBold = runStyle === "bold" || runStyle === "bold-italic";
   const isItalic = runStyle === "italic" || runStyle === "bold-italic";
 
-  if (isBold && isItalic && baseStyle.fontVariants?.boldAndItalic) {
-    return {
-      ...baseStyle,
-      font: baseStyle.fontVariants.boldAndItalic,
-    };
-  }
-
-  if (isBold && !isItalic && baseStyle.fontVariants?.bold) {
-    return {
-      ...baseStyle,
-      font: baseStyle.fontVariants.bold,
-    };
-  }
-
-  if (isItalic && !isBold && baseStyle.fontVariants?.italic) {
-    return {
-      ...baseStyle,
-      font: baseStyle.fontVariants.italic,
-    };
-  }
-
-  const result = { ...baseStyle, font: { ...baseStyle.font } };
-
-  if (isBold) {
-    result.font = {
-      ...result.font,
-      weight: result.font.weight <= 400 ? 700 : (Math.min(
-        900,
-        result.font.weight + 200,
-      ) as typeof result.font.weight),
-    };
-  }
-
-  if (isItalic) {
-    result.font = {
-      ...result.font,
-      italic: true,
-    };
-  }
-
-  return result;
+  return {
+    ...baseStyle,
+    font: {
+      ...baseStyle.font,
+      weight: isBold ? 700 : baseStyle.font.weight,
+      italic: isItalic ? true : baseStyle.font.italic,
+    },
+  };
 }
 
 // =============================================================================
@@ -281,7 +252,7 @@ function wrapIntoLines(
   }
 
   if (lines.length === 0) {
-    lines.push({ runs: [], y: 0, totalWidth: 0 });
+    lines.push({ runs: [], y: 0, totalWidth: 0, maxBaseline: 0 });
   }
 
   return lines;
@@ -300,7 +271,13 @@ function finalizeLine(
       break;
     }
   }
-  return { runs, y: 0, totalWidth: trimmedWidth };
+
+  const maxBaseline = runs.reduce((max, run) => {
+    const baseline = run.mText.lines[0]?.y ?? 0;
+    return Math.max(max, baseline);
+  }, 0);
+
+  return { runs, y: 0, totalWidth: trimmedWidth, maxBaseline };
 }
 
 function assignYPositions(

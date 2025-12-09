@@ -139,6 +139,12 @@ export type RowHeaderInfo = {
   index: number | "group-header";
 };
 
+export type MeasuredRowInfo = {
+  rowHeaderInfo: RowHeaderInfo;
+  cellTexts: MeasuredText[]; // One per column, empty for group-header rows
+  rowContentHeight: number; // Max height of row header and all cells
+};
+
 export type ColGroupHeaderInfo = {
   mText: MeasuredText | undefined;
   colGroupInnerWidth: number;
@@ -166,11 +172,10 @@ export type TableMeasuredInfo = {
   colInnerWidth: number;
   colHeadersInnerY: number;
   firstCellY: number;
-  rowHeaderInfos: RowHeaderInfo[];
+  measuredRows: MeasuredRowInfo[];
   hasRowHeaders: boolean;
   hasRowGroupHeaders: boolean;
   rowHeadersInnerX: number;
-  cellTextHeight: number;
   colGroupHeaderAxisY: number;
   extraTopPaddingForRowsAndAllHeaders: number;
   extraBottomPaddingForRowsAndAllHeaders: number;

@@ -12,7 +12,6 @@ import {
 import { FontRegistrationError } from "./errors.ts";
 
 const registeredFonts: Set<string> = new Set();
-const DEBUG_FONTS = false; // Set to true to enable font registration logging
 
 export async function registerFontWithSkiaIfNeeded(
   fontInfo: FontInfo,
@@ -21,10 +20,6 @@ export async function registerFontWithSkiaIfNeeded(
 
   if (registeredFonts.has(fontInfoId)) {
     return;
-  }
-
-  if (DEBUG_FONTS) {
-    console.log("Registering font", fontInfoId);
   }
 
   registeredFonts.add(fontInfoId);
@@ -37,7 +32,7 @@ export async function registerFontWithSkiaIfNeeded(
     }
     Fonts.register(dataArray);
   } catch (error) {
-    registeredFonts.delete(fontInfoId); // Remove from cache if registration failed
+    registeredFonts.delete(fontInfoId);
     if (error instanceof FontRegistrationError) {
       throw error;
     }

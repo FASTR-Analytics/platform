@@ -16,19 +16,19 @@ type Props = {
 
 export function TableFromCsv(p: Props) {
   const sortedCsv = p.csv
-    .getSelectedRows((_, i_row) => i_row < 100)
-    .getSelectedCols(
-      p.csv.nCols() < 50 ? undefined : createArray(50, (i) => i + 1),
+    .selectRows((_, i_row) => i_row < 100)
+    .selectCols(
+      p.csv.nCols < 50
+        ? p.csv.colHeaders
+        : createArray(50, (i) => p.csv.colHeaders[i]),
     )
-    .getSelectedCols(
-      p.unsorted
-        ? undefined
-        : getSortedAlphabetical(p.csv.colHeadersOrThrowIfNone()),
+    .selectCols(
+      p.unsorted ? p.csv.colHeaders : getSortedAlphabetical(p.csv.colHeaders),
     );
 
-  const colHeaders = sortedCsv.colHeadersOrThrowIfNone();
-  const rowHeaders = sortedCsv.rowHeaders();
-  const lastRowIndex = sortedCsv.nRows() - 1;
+  const colHeaders = sortedCsv.colHeaders;
+  const rowHeaders = sortedCsv.rowHeaders;
+  const lastRowIndex = sortedCsv.nRows - 1;
 
   return (
     <div
@@ -38,7 +38,7 @@ export function TableFromCsv(p: Props) {
       <table class="ui-text-small border-separate border-spacing-0 font-mono">
         <thead class="bg-base-100 sticky top-0 z-50">
           <tr class="">
-            <Show when={rowHeaders !== "none"}>
+            <Show when={rowHeaders}>
               <th class="border-base-300 bg-base-100 sticky left-0 top-0 z-10 border-b border-r px-3 py-2">
               </th>
             </Show>
@@ -51,25 +51,25 @@ export function TableFromCsv(p: Props) {
                 );
               }}
             </For>
-            <Show when={p.csv.nCols() > 50}>
+            <Show when={p.csv.nCols > 50}>
               <th class="font-400 whitespace-pre px-3 py-2 text-center">
-                And {toNum0(p.csv.nCols() - 50)} more columns...
+                And {toNum0(p.csv.nCols - 50)} more columns...
               </th>
             </Show>
           </tr>
         </thead>
         <tbody>
-          <For each={sortedCsv.aoa()}>
+          <For each={sortedCsv.aoa}>
             {(row, i_row) => {
               return (
                 <tr class="">
-                  <Show when={rowHeaders !== "none"}>
+                  <Show when={rowHeaders}>
                     <th
                       class="border-base-300 bg-base-100 sticky left-0 whitespace-nowrap border-r px-3 py-0.5 text-left data-[lastrow=true]:border-b data-[firstrow=true]:pt-2 data-[lastrow=true]:pb-2"
                       data-firstrow={i_row() === 0}
                       data-lastrow={i_row() === lastRowIndex}
                     >
-                      {rowHeaders[i_row()]}
+                      {rowHeaders![i_row()]}
                     </th>
                   </Show>
                   <For each={row}>

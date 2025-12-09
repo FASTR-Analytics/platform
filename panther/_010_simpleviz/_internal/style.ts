@@ -6,9 +6,8 @@
 import {
   type ColorKeyOrString,
   type CustomStyleTextOptions,
-  type FontVariants,
+  getAdjustedFont,
   getColor,
-  getFont,
   type MergedSimpleVizStyle,
   Padding,
   type TextInfo,
@@ -54,10 +53,7 @@ export function getTextInfoWithBoxOverride(
   // Font
   let font = mergedTextInfo.font;
   if (boxTextStyle.font !== undefined) {
-    const rawFont = boxTextStyle.font === "same-as-base"
-      ? baseText.font
-      : boxTextStyle.font;
-    font = getFont(rawFont);
+    font = getAdjustedFont(mergedTextInfo.font, boxTextStyle.font);
   }
 
   // Font size - relFontSize is ALWAYS relative to base
@@ -98,73 +94,6 @@ export function getTextInfoWithBoxOverride(
       : boxTextStyle.letterSpacing;
   }
 
-  // Font variants
-  let fontVariants = mergedTextInfo.fontVariants;
-  if (boxTextStyle.fontVariants !== undefined) {
-    if (boxTextStyle.fontVariants === "same-as-base") {
-      // Convert FontVariantsKeyed to FontVariants
-      if (baseText.fontVariants) {
-        fontVariants = {
-          bold: baseText.fontVariants.bold
-            ? getFont(baseText.fontVariants.bold)
-            : undefined,
-          italic: baseText.fontVariants.italic
-            ? getFont(baseText.fontVariants.italic)
-            : undefined,
-          boldAndItalic: baseText.fontVariants.boldAndItalic
-            ? getFont(baseText.fontVariants.boldAndItalic)
-            : undefined,
-        };
-      } else {
-        fontVariants = undefined;
-      }
-    } else {
-      // Handle FontVariantsCustomStyle
-      const variants = boxTextStyle.fontVariants;
-      const result: Partial<FontVariants> = {};
-
-      if (variants.bold) {
-        if (variants.bold === "same-as-base" && baseText.fontVariants?.bold) {
-          result.bold = getFont(baseText.fontVariants.bold);
-        } else if (
-          variants.bold !== "same-as-regular" &&
-          variants.bold !== "same-as-base"
-        ) {
-          result.bold = getFont(variants.bold);
-        }
-      }
-
-      if (variants.italic) {
-        if (
-          variants.italic === "same-as-base" && baseText.fontVariants?.italic
-        ) {
-          result.italic = getFont(baseText.fontVariants.italic);
-        } else if (
-          variants.italic !== "same-as-regular" &&
-          variants.italic !== "same-as-base"
-        ) {
-          result.italic = getFont(variants.italic);
-        }
-      }
-
-      if (variants.boldAndItalic) {
-        if (
-          variants.boldAndItalic === "same-as-base" &&
-          baseText.fontVariants?.boldAndItalic
-        ) {
-          result.boldAndItalic = getFont(baseText.fontVariants.boldAndItalic);
-        } else if (
-          variants.boldAndItalic !== "same-as-regular" &&
-          variants.boldAndItalic !== "same-as-base"
-        ) {
-          result.boldAndItalic = getFont(variants.boldAndItalic);
-        }
-      }
-
-      fontVariants = Object.keys(result).length > 0 ? result : undefined;
-    }
-  }
-
   return {
     font,
     fontSize,
@@ -172,6 +101,5 @@ export function getTextInfoWithBoxOverride(
     lineHeight,
     lineBreakGap,
     letterSpacing,
-    fontVariants,
   };
 }

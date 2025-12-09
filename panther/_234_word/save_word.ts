@@ -6,9 +6,9 @@
 import type { Document } from "./deps.ts";
 import { Packer } from "./deps.ts";
 
-export async function saveWordDocument(
-  doc: Document,
+export async function saveWord(
   outputPath: string,
+  doc: Document,
 ): Promise<void> {
   const buffer = await Packer.toBuffer(doc);
   await Deno.writeFile(outputPath, buffer);

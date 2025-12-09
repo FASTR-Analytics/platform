@@ -57,21 +57,21 @@ async function getSlideAsCanvas(
   slideNumber?: number,
 ): Promise<Canvas> {
   // Register fonts
-  const fonts = new CustomPageStyle(
-    inputs.style,
-  ).getMergedPageFontsToRegister();
+  const fonts = new CustomPageStyle(inputs.style).getFontsToRegister();
   for (const font of fonts) {
     await registerFontWithSkiaIfNeeded(font);
   }
 
-  let finalH: number | undefined = h;
+  let finalH: number;
 
-  if (finalH === undefined) {
-    const { rc } = createCanvasRenderContext(w, 100);
+  if (h === undefined) {
+    const { rc } = await createCanvasRenderContext(w, 100);
     finalH = await PageRenderer.getIdealHeight(rc, w, inputs);
+  } else {
+    finalH = h;
   }
 
-  const { canvas, rc, rcd } = createCanvasRenderContext(w, finalH);
+  const { canvas, rc, rcd } = await createCanvasRenderContext(w, finalH);
   const mSlide = await PageRenderer.measure(rc, rcd, inputs);
 
   // Check for warnings from layout measurement

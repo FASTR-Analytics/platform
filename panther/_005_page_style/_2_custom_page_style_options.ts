@@ -5,7 +5,6 @@
 
 import { assert, type ColorKeyOrString, type PaddingOptions } from "./deps.ts";
 import type { PageTextStyleOptions } from "./text_style_keys.ts";
-import type { BulletLevelStyleOptions } from "./bullet_types.ts";
 
 export type CustomPageStyleOptions = {
   scale?: number;
@@ -41,29 +40,16 @@ export type CustomPageStyleOptions = {
   content?: {
     padding?: PaddingOptions;
     backgroundColor?: ColorKeyOrString;
-    tabWidth?: number;
     gapX?: number;
     gapY?: number;
-    bullets?: {
-      bullet1?: BulletLevelStyleOptions;
-      bullet2?: BulletLevelStyleOptions;
-      bullet3?: BulletLevelStyleOptions;
-    };
-    itemLayoutDefaults?: {
-      [
-        K in
-          | "spacer"
-          | "paragraph"
-          | "heading"
-          | "bullets"
-          | "quote"
-          | "figure"
-          | "htmlImage"
-      ]?: {
-        stretch?: boolean;
-        fillArea?: boolean;
-      };
-    };
+    nColumns?: number;
+  };
+  layoutContainers?: {
+    padding?: PaddingOptions;
+    backgroundColor?: ColorKeyOrString;
+    borderColor?: ColorKeyOrString;
+    borderWidth?: number;
+    borderRadius?: number;
   };
 };
 

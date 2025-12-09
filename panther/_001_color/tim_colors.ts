@@ -62,6 +62,15 @@ const PALETTE_BLACK_TO_WHITE_20 = [
   "#ffffff",
 ];
 export const TIM_COLOR_SETS = {
+  BlackAndWhite: {
+    base100: PALETTE_DARKBLUE_TO_WHITE_20[19],
+    base200: PALETTE_DARKBLUE_TO_WHITE_20[18],
+    base300: PALETTE_DARKBLUE_TO_WHITE_20[17],
+    baseContent: TIM_COLORS.Black,
+    baseContentLessVisible: PALETTE_DARKBLUE_TO_WHITE_20[5],
+    primary: TIM_COLORS.Black,
+    primaryContent: TIM_COLORS.White,
+  },
   DarkBlue: {
     base100: PALETTE_DARKBLUE_TO_WHITE_20[19],
     base200: PALETTE_DARKBLUE_TO_WHITE_20[18],

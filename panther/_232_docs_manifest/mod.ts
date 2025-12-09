@@ -7,5 +7,3 @@ export { copyDocs } from "./copy_docs.ts";
 export { generateDocsManifest } from "./generate_manifest.ts";
 
 export type { CopyDocsOptions, GenerateDocsManifestOptions } from "./types.ts";
-
-export type { DocsManifest, DocsPage, NavItem, NavSection } from "./deps.ts";

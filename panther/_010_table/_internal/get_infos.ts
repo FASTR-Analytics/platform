@@ -56,7 +56,7 @@ export function getColGroupHeaderInfos(
   return d.colGroups.map<ColGroupHeaderInfo>((colGroup) => {
     const nCols = colGroup.cols.length;
     const colGroupInnerWidth = nCols * colInnerWidth +
-      (nCols - 1) * s.grid.gridStrokeWidth;
+      (nCols - 1) * s.gridLineWidth;
     const mText = colGroup.label === undefined
       ? undefined
       : rc.mText(colGroup.label, s.text.colHeaders, colGroupInnerWidth);

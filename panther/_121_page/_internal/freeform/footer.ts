@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  getColor,
   type MeasuredText,
   type MergedPageStyle,
   Padding,
@@ -75,7 +74,7 @@ export function renderFooter(
 
   if (s.footer.backgroundColor !== "none") {
     rc.rRect(measured.rcdFooterOuter, {
-      fillColor: getColor(s.footer.backgroundColor),
+      fillColor: s.footer.backgroundColor,
     });
   }
 

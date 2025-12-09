@@ -4,14 +4,19 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { type Component, Match, Switch } from "solid-js";
+import type { CustomMarkdownStyleOptions } from "../../deps.ts";
 import type { DisplayItem, MessageStyle } from "../../_core/types.ts";
-import { MARKDOWN_STYLES, md } from "./_markdown_utils.ts";
+import {
+  deriveMarkdownCssVars,
+  MARKDOWN_BASE_STYLES,
+  md,
+} from "./_markdown_utils.ts";
 
 export const TextRenderer: Component<{
   item: Extract<DisplayItem, { type: "text" }>;
-  renderMarkdown?: boolean;
   userMessageStyle?: MessageStyle;
   assistantMessageStyle?: MessageStyle;
+  markdownStyle?: CustomMarkdownStyleOptions;
 }> = (props) => {
   const userBg = props.userMessageStyle?.background ?? "bg-base-200";
   const userText = props.userMessageStyle?.text ?? "text-base-content";
@@ -33,21 +38,13 @@ export const TextRenderer: Component<{
           </div>
         </div>
       </Match>
-      <Match when={props.item.role === "assistant" && props.renderMarkdown}>
+      <Match when={props.item.role === "assistant"}>
         <div class="w-fit max-w-full">
           <div
-            class={`ui-pad w-fit max-w-full rounded font-mono text-sm ${assistantClass} ${MARKDOWN_STYLES}`}
+            class={`ui-pad w-fit max-w-full rounded font-mono text-sm ${assistantClass} ${MARKDOWN_BASE_STYLES}`}
+            style={deriveMarkdownCssVars(props.markdownStyle)}
             innerHTML={md.render(props.item.text)}
           />
-        </div>
-      </Match>
-      <Match when={props.item.role === "assistant" && !props.renderMarkdown}>
-        <div class="w-fit max-w-full">
-          <div
-            class={`ui-pad w-fit max-w-full rounded font-mono text-sm ${assistantClass}`}
-          >
-            <div class="whitespace-pre-wrap break-words">{props.item.text}</div>
-          </div>
         </div>
       </Match>
     </Switch>

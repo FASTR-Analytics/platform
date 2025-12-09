@@ -5,8 +5,7 @@
 
 import {
   Coordinates,
-  getColor,
-  type MarkdownStyleConfig,
+  type MergedMarkdownStyle,
   RectCoordsDims,
   type RenderContext,
 } from "../deps.ts";
@@ -15,6 +14,7 @@ import type {
   FormattedText,
   MarkdownInline,
   MeasuredMarkdownBlockquote,
+  MeasuredMarkdownCodeBlock,
   MeasuredMarkdownHeading,
   MeasuredMarkdownHorizontalRule,
   MeasuredMarkdownItem,
@@ -24,7 +24,6 @@ import type {
   ParsedMarkdownItem,
 } from "../types.ts";
 import { measureFormattedText } from "./formatted_text.ts";
-import { markdownTextStyleToTextInfo } from "./style_to_canvas.ts";
 
 export type MeasuredMarkdownItemsResult = {
   bounds: RectCoordsDims;
@@ -35,7 +34,7 @@ export function measureMarkdownItems(
   rc: RenderContext,
   bounds: RectCoordsDims,
   parsed: ParsedMarkdown,
-  style: MarkdownStyleConfig,
+  style: MergedMarkdownStyle,
 ): MeasuredMarkdownItemsResult {
   const items: MeasuredMarkdownItem[] = [];
   let currentY = bounds.y();
@@ -47,7 +46,6 @@ export function measureMarkdownItems(
     const margins = getItemMargins(parsedItem, style);
     const isFirst = i === 0;
 
-    // Calculate gap: first item has no top gap, others use max(prev bottom, curr top)
     const gap = isFirst ? 0 : Math.max(prevMarginBottom, margins.marginTop);
     currentY += gap;
 
@@ -65,8 +63,7 @@ export function measureMarkdownItems(
     prevMarginBottom = margins.marginBottom;
   }
 
-  // Add last item's bottom margin to total height
-  const totalHeight = currentY - bounds.y() + prevMarginBottom;
+  const totalHeight = currentY - bounds.y();
 
   return {
     bounds: new RectCoordsDims({
@@ -83,31 +80,44 @@ type ItemMargins = { marginTop: number; marginBottom: number };
 
 function getItemMargins(
   item: ParsedMarkdownItem,
-  style: MarkdownStyleConfig,
+  style: MergedMarkdownStyle,
 ): ItemMargins {
   switch (item.type) {
     case "paragraph": {
-      const s = style.paragraph;
-      return { marginTop: s.marginTop ?? 0, marginBottom: s.marginBottom ?? 0 };
+      const m = style.margins.paragraph;
+      return { marginTop: m.top, marginBottom: m.bottom };
     }
     case "heading": {
       const key = `h${item.level}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
-      const s = style[key];
-      return { marginTop: s.marginTop ?? 0, marginBottom: s.marginBottom ?? 0 };
+      const m = style.margins[key];
+      return { marginTop: m.top, marginBottom: m.bottom };
     }
     case "list-item": {
+      const listConfig = item.listType === "bullet"
+        ? style.bulletList
+        : style.numberedList;
+      const listMargins = style.margins.list;
+
       return {
-        marginTop: style.spacing.listItemGap,
-        marginBottom: style.spacing.listItemGap,
+        marginTop: item.isFirstInList ? listMargins.top : listMargins.gap,
+        marginBottom: item.isLastInList ? listMargins.bottom : listMargins.gap,
       };
     }
     case "blockquote": {
-      const s = style.blockquote.text;
-      return { marginTop: s.marginTop ?? 0, marginBottom: s.marginBottom ?? 0 };
+      const m = style.margins.blockquote;
+      return { marginTop: m.top, marginBottom: m.bottom };
     }
     case "horizontal-rule": {
-      const s = style.horizontalRule;
-      return { marginTop: s.marginTop, marginBottom: s.marginBottom };
+      const m = style.margins.horizontalRule;
+      return { marginTop: m.top, marginBottom: m.bottom };
+    }
+    case "code-block": {
+      const m = style.margins.code;
+      return { marginTop: m.top, marginBottom: m.bottom };
+    }
+    case "math-block": {
+      const m = style.margins.paragraph;
+      return { marginTop: m.top, marginBottom: m.bottom };
     }
   }
 }
@@ -118,7 +128,7 @@ function measureItem(
   x: number,
   y: number,
   maxWidth: number,
-  style: MarkdownStyleConfig,
+  style: MergedMarkdownStyle,
 ): MeasuredMarkdownItem {
   switch (item.type) {
     case "paragraph":
@@ -131,6 +141,10 @@ function measureItem(
       return measureBlockquote(rc, item, x, y, maxWidth, style);
     case "horizontal-rule":
       return measureHorizontalRule(x, y, maxWidth, style);
+    case "code-block":
+      return measureCodeBlock(rc, item, x, y, maxWidth, style);
+    case "math-block":
+      return measureMathBlock(rc, item, x, y, maxWidth, style);
   }
 }
 
@@ -140,19 +154,16 @@ function measureParagraph(
   x: number,
   y: number,
   maxWidth: number,
-  style: MarkdownStyleConfig,
+  style: MergedMarkdownStyle,
 ): MeasuredMarkdownParagraph {
-  const textStyle = style.paragraph;
-  const align = textStyle.align ?? "left";
-
-  const textInfo = markdownTextStyleToTextInfo(textStyle);
+  const textInfo = style.text.paragraph;
   const formattedText = inlinesToFormattedText(item.content, textInfo);
   const mFormattedText = measureFormattedText(
     rc,
     formattedText,
     maxWidth,
-    align,
-    getColor(style.link.color),
+    "left",
+    style.link.color,
     style.link.underline,
   );
 
@@ -176,20 +187,17 @@ function measureHeading(
   x: number,
   y: number,
   maxWidth: number,
-  style: MarkdownStyleConfig,
+  style: MergedMarkdownStyle,
 ): MeasuredMarkdownHeading {
   const levelKey = `h${item.level}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
-  const textStyle = style[levelKey];
-  const align = textStyle.align ?? "left";
-
-  const textInfo = markdownTextStyleToTextInfo(textStyle);
+  const textInfo = style.text[levelKey];
   const formattedText = inlinesToFormattedText(item.content, textInfo);
   const mFormattedText = measureFormattedText(
     rc,
     formattedText,
     maxWidth,
-    align,
-    getColor(style.link.color),
+    "left",
+    style.link.color,
     style.link.underline,
   );
 
@@ -216,24 +224,23 @@ function measureListItem(
   x: number,
   y: number,
   maxWidth: number,
-  style: MarkdownStyleConfig,
+  style: MergedMarkdownStyle,
 ): MeasuredMarkdownListItem {
-  const listStyle = item.listType === "bullet"
+  const listConfig = item.listType === "bullet"
     ? style.bulletList
     : style.numberedList;
-  const textStyle = listStyle.text;
+  const textInfo = style.text.list;
 
   const levelConfig = item.level === 0
-    ? listStyle.level0
+    ? listConfig.level0
     : item.level === 1
-    ? listStyle.level1
-    : listStyle.level2;
+    ? listConfig.level1
+    : listConfig.level2;
 
   const markerText = item.listType === "numbered"
     ? `${item.listIndex ?? 1}${levelConfig.marker}`
     : levelConfig.marker;
 
-  const textInfo = markdownTextStyleToTextInfo(textStyle);
   const mMarkerText = rc.mText(markerText, textInfo, 99999);
 
   const contentX = x + levelConfig.textIndent;
@@ -244,7 +251,7 @@ function measureListItem(
     formattedText,
     contentWidth,
     "left",
-    getColor(style.link.color),
+    style.link.color,
     style.link.underline,
   );
 
@@ -273,54 +280,103 @@ function measureBlockquote(
   x: number,
   y: number,
   maxWidth: number,
-  style: MarkdownStyleConfig,
+  style: MergedMarkdownStyle,
 ): MeasuredMarkdownBlockquote {
   const bqStyle = style.blockquote;
-  const textStyle = bqStyle.text;
+  const textInfo = style.text.blockquote;
 
-  const contentX = x + bqStyle.leftBorderWidth + bqStyle.leftIndent;
-  const contentWidth = maxWidth - bqStyle.leftBorderWidth - bqStyle.leftIndent;
+  const contentX = x + bqStyle.leftBorderWidth + bqStyle.paddingLeft;
+  const contentStartY = y + bqStyle.paddingTop;
+  const contentWidth = maxWidth - bqStyle.leftBorderWidth -
+    bqStyle.paddingLeft -
+    bqStyle.paddingRight;
 
-  const textInfo = markdownTextStyleToTextInfo(textStyle);
-  const formattedText = inlinesToFormattedText(item.content, textInfo);
-  const mFormattedText = measureFormattedText(
-    rc,
-    formattedText,
-    contentWidth,
-    "left",
-    getColor(style.link.color),
-    style.link.underline,
-  );
+  // Split content into paragraphs at double-break boundaries
+  const contentGroups: MarkdownInline[][] = [];
+  let currentGroup: MarkdownInline[] = [];
+  let consecutiveBreaks = 0;
 
-  const contentHeight = mFormattedText.dims.h();
+  for (const inline of item.content) {
+    if (inline.type === "break") {
+      consecutiveBreaks++;
+      if (consecutiveBreaks >= 2) {
+        if (currentGroup.length > 0) {
+          contentGroups.push(currentGroup);
+          currentGroup = [];
+        }
+        consecutiveBreaks = 0;
+      }
+    } else {
+      while (consecutiveBreaks > 0) {
+        currentGroup.push({ type: "break" });
+        consecutiveBreaks--;
+      }
+      currentGroup.push(inline);
+    }
+  }
+  if (currentGroup.length > 0) {
+    contentGroups.push(currentGroup);
+  }
+
+  // Measure each paragraph
+  const measuredParagraphs: {
+    mFormattedText: ReturnType<typeof measureFormattedText>;
+    position: Coordinates;
+  }[] = [];
+  let currentY = contentStartY;
+
+  for (let i = 0; i < contentGroups.length; i++) {
+    if (i > 0) {
+      currentY += bqStyle.paragraphGap;
+    }
+
+    const formattedText = inlinesToFormattedText(contentGroups[i], textInfo);
+    const mFormattedText = measureFormattedText(
+      rc,
+      formattedText,
+      contentWidth,
+      bqStyle.align,
+      style.link.color,
+      style.link.underline,
+    );
+
+    measuredParagraphs.push({
+      mFormattedText,
+      position: new Coordinates({ x: contentX, y: currentY }),
+    });
+
+    currentY += mFormattedText.dims.h();
+  }
+
+  const textHeight = currentY - contentStartY;
+  const totalHeight = bqStyle.paddingTop + textHeight + bqStyle.paddingBottom;
   const borderX = x + bqStyle.leftBorderWidth / 2;
 
   return {
     type: "blockquote",
-    bounds: new RectCoordsDims({ x, y, w: maxWidth, h: contentHeight }),
+    bounds: new RectCoordsDims({ x, y, w: maxWidth, h: totalHeight }),
     border: {
       line: {
         start: new Coordinates({ x: borderX, y }),
-        end: new Coordinates({ x: borderX, y: y + contentHeight }),
+        end: new Coordinates({ x: borderX, y: y + totalHeight }),
       },
       style: {
-        strokeColor: getColor(bqStyle.leftBorderColor),
+        strokeColor: bqStyle.leftBorderColor,
         strokeWidth: bqStyle.leftBorderWidth,
       },
     },
-    background: bqStyle.backgroundColor
+    background: bqStyle.backgroundColor !== "none"
       ? {
         rcd: new RectCoordsDims({
           x,
           y,
           w: maxWidth,
-          h: contentHeight,
+          h: totalHeight,
         }),
-        color: getColor(bqStyle.backgroundColor),
+        color: bqStyle.backgroundColor,
       }
       : undefined,
-    mFormattedText,
-    position: new Coordinates({ x: contentX, y }),
+    paragraphs: measuredParagraphs,
   };
 }
 
@@ -328,7 +384,7 @@ function measureHorizontalRule(
   x: number,
   y: number,
   maxWidth: number,
-  style: MarkdownStyleConfig,
+  style: MergedMarkdownStyle,
 ): MeasuredMarkdownHorizontalRule {
   const hrStyle = style.horizontalRule;
   const contentHeight = hrStyle.strokeWidth;
@@ -343,10 +399,95 @@ function measureHorizontalRule(
     },
     style: {
       strokeWidth: hrStyle.strokeWidth,
-      strokeColor: getColor(hrStyle.strokeColor),
+      strokeColor: hrStyle.strokeColor,
       lineDash: "solid",
       show: true,
     },
+  };
+}
+
+function measureCodeBlock(
+  rc: RenderContext,
+  item: { type: "code-block"; code: string },
+  x: number,
+  y: number,
+  maxWidth: number,
+  style: MergedMarkdownStyle,
+): MeasuredMarkdownCodeBlock {
+  const codeStyle = style.code;
+  const textInfo = style.text.code;
+  const paddingH = codeStyle.paddingHorizontal;
+  const paddingV = codeStyle.paddingVertical;
+
+  const codeLines = item.code.split("\n");
+  if (codeLines.length > 0 && codeLines[codeLines.length - 1] === "") {
+    codeLines.pop();
+  }
+
+  const contentX = x + paddingH;
+  const contentY = y + paddingV;
+  const contentWidth = maxWidth - paddingH * 2;
+  const lineHeight = textInfo.fontSize * textInfo.lineHeight;
+
+  const measuredLines: {
+    mText: import("../deps.ts").MeasuredText;
+    y: number;
+  }[] = [];
+
+  for (let i = 0; i < codeLines.length; i++) {
+    const displayLine = codeLines[i] || " ";
+    const mText = rc.mText(displayLine, textInfo, contentWidth);
+    measuredLines.push({ mText, y: i * lineHeight });
+  }
+
+  const lastLine = measuredLines[measuredLines.length - 1];
+  const textHeight = lastLine ? lastLine.y + lastLine.mText.dims.h() : 0;
+  const totalHeight = textHeight + paddingV * 2;
+
+  return {
+    type: "code-block",
+    bounds: new RectCoordsDims({ x, y, w: maxWidth, h: totalHeight }),
+    background: {
+      rcd: new RectCoordsDims({ x, y, w: maxWidth, h: totalHeight }),
+      color: codeStyle.backgroundColor,
+    },
+    lines: measuredLines,
+    contentPosition: new Coordinates({ x: contentX, y: contentY }),
+  };
+}
+
+function measureMathBlock(
+  rc: RenderContext,
+  item: { type: "math-block"; latex: string },
+  x: number,
+  y: number,
+  maxWidth: number,
+  style: MergedMarkdownStyle,
+): MeasuredMarkdownParagraph {
+  const textInfo = style.text.paragraph;
+  const formattedText: FormattedText = {
+    runs: [{ text: `[Math: ${item.latex}]`, style: "italic" }],
+    baseStyle: textInfo,
+  };
+  const mFormattedText = measureFormattedText(
+    rc,
+    formattedText,
+    maxWidth,
+    "center",
+    style.link.color,
+    style.link.underline,
+  );
+
+  return {
+    type: "paragraph",
+    bounds: new RectCoordsDims({
+      x,
+      y,
+      w: maxWidth,
+      h: mFormattedText.dims.h(),
+    }),
+    mFormattedText,
+    position: new Coordinates({ x, y }),
   };
 }
 
@@ -379,6 +520,12 @@ function inlinesToFormattedText(
         break;
       case "break":
         runs.push({ text: "\n", style: "normal" });
+        break;
+      case "code":
+        runs.push({ text: inline.text, style: "normal", isCode: true });
+        break;
+      case "math-inline":
+        runs.push({ text: `[${inline.latex}]`, style: "italic" });
         break;
     }
   }

@@ -35,8 +35,13 @@ export async function writeCsvAsXlsx(
 
   try {
     const wb = XLSX_utils.book_new();
-    const completeAoA = csv.getCompleteAoA(colHeaderForNewFirstCol);
-    const ws = XLSX_utils.aoa_to_sheet(completeAoA);
+    const arrayWithHeaders = csv.toArrayWithHeaders();
+
+    if (colHeaderForNewFirstCol && arrayWithHeaders.length > 0) {
+      arrayWithHeaders[0][0] = colHeaderForNewFirstCol;
+    }
+
+    const ws = XLSX_utils.aoa_to_sheet(arrayWithHeaders);
     XLSX_utils.book_append_sheet(wb, ws, sheetLabel);
 
     // Note: xlsx library doesn't have async write, so we generate buffer and write async
@@ -63,8 +68,13 @@ export async function writeMultipleCsvsAsSingleXlsx(
   try {
     const wb = XLSX_utils.book_new();
     csvs.forEach(({ csv, sheetLabel, colHeaderForNewFirstCol }) => {
-      const completeAoA = csv.getCompleteAoA(colHeaderForNewFirstCol);
-      const ws = XLSX_utils.aoa_to_sheet(completeAoA);
+      const arrayWithHeaders = csv.toArrayWithHeaders();
+
+      if (colHeaderForNewFirstCol && arrayWithHeaders.length > 0) {
+        arrayWithHeaders[0][0] = colHeaderForNewFirstCol;
+      }
+
+      const ws = XLSX_utils.aoa_to_sheet(arrayWithHeaders);
       XLSX_utils.book_append_sheet(wb, ws, sheetLabel);
     });
 

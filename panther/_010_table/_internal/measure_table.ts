@@ -12,6 +12,7 @@ import {
 } from "../deps.ts";
 import { getTableDataTransformed } from "../get_table_data.ts";
 import type {
+  MeasuredRowInfo,
   MeasuredTable,
   TableInputs,
   TableMeasuredInfo,
@@ -76,16 +77,16 @@ export function measureTable(
         return (rhi.mText?.dims.w() ?? 0) + extraIfIndent;
       }),
     );
-  const rowHeadersInnerX = contentRcd.x() + s.grid.gridStrokeWidth;
+  const rowHeadersInnerX = contentRcd.x() + s.gridLineWidth;
   const firstCellX = rowHeadersInnerX +
     (hasRowHeaders
       ? s.rowHeaderPadding.totalPx() +
         rowHeaderMaxWidth +
-        s.grid.axisStrokeWidth
+        s.headerBorderWidth
       : 0);
   const colSpace = contentRcd.rightX() - firstCellX;
   const colSpaceBetweenGridLines = colSpace -
-    (s.grid.showGrid ? nCols : nCols - 1) * s.grid.gridStrokeWidth;
+    (s.showGridLines ? nCols : nCols - 1) * s.gridLineWidth;
   const colInnerWidth = colSpaceBetweenGridLines / nCols;
 
   const colGroupHeaderInfos = getColGroupHeaderInfos(rc, d, s, colInnerWidth);
@@ -100,35 +101,67 @@ export function measureTable(
     ...colHeaderInfos.map((rhi) => rhi.mText?.dims.h() ?? 0),
   );
 
-  const colGroupHeadersInnerY = contentRcd.y() + s.grid.gridStrokeWidth;
+  const colGroupHeadersInnerY = contentRcd.y() + s.gridLineWidth;
   const colGroupHeaderAxisY = colGroupHeadersInnerY +
     (hasColGroupHeaders
       ? s.colHeaderPadding.totalPy() + colGroupHeaderMaxHeight
       : 0);
   const colHeadersInnerY = colGroupHeaderAxisY +
-    (hasColGroupHeaders ? s.grid.gridStrokeWidth : 0);
+    (hasColGroupHeaders ? s.gridLineWidth : 0);
   const firstCellY = colHeadersInnerY +
     (hasColHeaders
       ? s.colHeaderPadding.totalPy() +
         colHeaderMaxHeight +
-        s.grid.axisStrokeWidth
+        s.headerBorderWidth
       : 0);
-
-  const mCell = rc.mText("100", s.text.cells, 9999);
-  const cellTextHeight = mCell.dims.h();
 
   const rowCellPaddingT = Math.max(s.rowHeaderPadding.pt(), s.cellPadding.pt());
   const rowCellPaddingB = Math.max(s.rowHeaderPadding.pb(), s.cellPadding.pb());
 
+  // Measure all cell content for each row and compute row heights
+  const measuredRows: MeasuredRowInfo[] = rowHeaderInfos.map((rhi) => {
+    const cellTexts: ReturnType<typeof rc.mText>[] = [];
+    let maxCellHeight = rhi.mText?.dims.h() ?? 0;
+
+    if (rhi.index !== "group-header") {
+      const rowIndex = rhi.index;
+      d.colGroups.forEach((colGroup) => {
+        colGroup.cols.forEach((col) => {
+          const val = d.aoa[rowIndex][col.index];
+          const valAsNum = Number(val);
+          const cellStr = isNaN(valAsNum)
+            ? (val as string)
+            : s.cellValueFormatter(valAsNum, {
+              colHeader: col.label ?? "",
+              colIndex: col.index,
+              rowHeader: rhi.label ?? "",
+              rowIndex: rowIndex,
+            });
+          const cellContentWidth = colInnerWidth - s.cellPadding.pl() -
+            s.cellPadding.pr();
+          const mText = rc.mText(cellStr, s.text.cells, cellContentWidth);
+          cellTexts.push(mText);
+          maxCellHeight = Math.max(maxCellHeight, mText.dims.h());
+        });
+      });
+    }
+
+    return {
+      rowHeaderInfo: rhi,
+      cellTexts,
+      rowContentHeight: maxCellHeight,
+    };
+  });
+
   const maxY = firstCellY +
     sum(
-      rowHeaderInfos.map((rhi, index) => {
+      measuredRows.map((mr, index) => {
         return (
           rowCellPaddingT +
-          (rhi.mText?.dims.h() ?? cellTextHeight) +
+          mr.rowContentHeight +
           rowCellPaddingB +
-          (s.grid.showGrid || index < rowHeaderInfos.length - 1
-            ? s.grid.gridStrokeWidth
+          (s.showGridLines || index < measuredRows.length - 1
+            ? s.gridLineWidth
             : 0)
         );
       }),
@@ -138,7 +171,7 @@ export function measureTable(
   const extraSpaceForFlexPositiveOrNegative = contentRcd.h() - finalContentH;
   const totalRowsAndAllHeaders = (hasColGroupHeaders ? 1 : 0) +
     (hasColHeaders ? 1 : 0) +
-    rowHeaderInfos.length;
+    measuredRows.length;
   const extraPaddingForRowsAndAllHeaders = extraSpaceForFlexPositiveOrNegative /
     totalRowsAndAllHeaders;
   const extraTopPaddingForRowsAndAllHeaders = extraPaddingForRowsAndAllHeaders /
@@ -167,10 +200,9 @@ export function measureTable(
       (hasColGroupHeaders ? extraPaddingForRowsAndAllHeaders : 0) +
       (hasColHeaders ? extraPaddingForRowsAndAllHeaders : 0),
     hasRowHeaders,
-    rowHeaderInfos,
+    measuredRows,
     hasRowGroupHeaders,
     rowHeadersInnerX,
-    cellTextHeight,
     colGroupHeaderAxisY: colGroupHeaderAxisY +
       (hasColGroupHeaders ? extraPaddingForRowsAndAllHeaders : 0),
     finalContentH,

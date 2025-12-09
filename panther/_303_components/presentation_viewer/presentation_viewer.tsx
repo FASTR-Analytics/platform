@@ -3,22 +3,35 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import MarkdownIt from "markdown-it";
 import { createSignal, Show } from "solid-js";
 import { MarkdownPresentation } from "../content/markdown_presentation.tsx";
-import { type APIResponseWithData, timQuery } from "../deps.ts";
+import {
+  type APIResponseWithData,
+  createMarkdownIt,
+  type CustomFigureStyleOptions,
+  type CustomMarkdownStyleOptions,
+  type CustomPageStyleOptions,
+  downloadPdf,
+  markdownToPdfBrowser,
+  timQuery,
+} from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
 import { FrameBottom } from "../layout/frames.tsx";
 import { Select, Slider } from "../mod.ts";
 import { StateHolderWrapper } from "../special_state/state_holder_wrapper.tsx";
-import { PrintSlides } from "./print_slides.tsx";
 
-const md = new MarkdownIt();
+const md = createMarkdownIt();
 
 type Props = {
   url: string;
   scale?: number;
-  leftAlignMath?: boolean;
+  styleMarkdown?: CustomMarkdownStyleOptions;
+  stylePage?: CustomPageStyleOptions;
+  styleFigure?: CustomFigureStyleOptions;
+  fontPaths: {
+    basePath: string;
+    fontMap: Record<string, string>;
+  };
 };
 
 export function PresentationViewer(p: Props) {
@@ -30,7 +43,10 @@ export function PresentationViewer(p: Props) {
         <PresentationViewerContent
           markdownContent={keyedMarkdownContent}
           scale={p.scale}
-          leftAlignMath={p.leftAlignMath}
+          styleMarkdown={p.styleMarkdown}
+          stylePage={p.stylePage}
+          styleFigure={p.styleFigure}
+          fontPaths={p.fontPaths}
         />
       )}
     </StateHolderWrapper>
@@ -62,7 +78,13 @@ async function fetchMarkdown(
 type ContentProps = {
   markdownContent: string;
   scale?: number;
-  leftAlignMath?: boolean;
+  styleMarkdown?: CustomMarkdownStyleOptions;
+  stylePage?: CustomPageStyleOptions;
+  styleFigure?: CustomFigureStyleOptions;
+  fontPaths: {
+    basePath: string;
+    fontMap: Record<string, string>;
+  };
 };
 
 function PresentationViewerContent(p: ContentProps) {
@@ -132,19 +154,35 @@ function PresentationViewerContent(p: ContentProps) {
 
   const [currentSlideIndex, setCurrentSlideIndex] = createSignal(0);
   const [scale, setScale] = createSignal(p.scale ?? 1.5);
-  const [isPrinting, setIsPrinting] = createSignal(false);
 
   const currentSlide = () => slides()[currentSlideIndex()];
   const totalSlides = () => slides().length;
   const hasNext = () => currentSlideIndex() < totalSlides() - 1;
   const hasPrevious = () => currentSlideIndex() > 0;
 
-  const handlePrint = () => {
-    setIsPrinting(true);
-  };
+  const handlePrint = async () => {
+    try {
+      const markdown = slides().join("\n\n---\n\n");
 
-  const handlePrintComplete = () => {
-    setIsPrinting(false);
+      const pdf = await markdownToPdfBrowser(markdown, {
+        asSlides: true,
+        styleMarkdown: p.styleMarkdown,
+        stylePage: p.stylePage,
+        styleFigure: p.styleFigure,
+        pageWidth: 1280,
+        pageHeight: 720,
+        pagePadding: 60,
+        fontPaths: p.fontPaths,
+      });
+      downloadPdf(pdf, "presentation.pdf");
+    } catch (err) {
+      console.error("Failed to generate PDF:", err);
+      alert(
+        `Failed to generate PDF: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   };
 
   const goToNext = () => {
@@ -245,20 +283,12 @@ function PresentationViewerContent(p: ContentProps) {
               <MarkdownPresentation
                 markdown={currentSlide()!}
                 scale={scale()}
-                leftAlignMath={p.leftAlignMath}
+                style={p.styleMarkdown}
               />
             </div>
           </FrameBottom>
         </Show>
       </div>
-      <Show when={isPrinting()}>
-        <PrintSlides
-          slides={slides()}
-          scale={scale() * 0.75}
-          leftAlignMath={p.leftAlignMath}
-          onComplete={handlePrintComplete}
-        />
-      </Show>
     </>
   );
 }

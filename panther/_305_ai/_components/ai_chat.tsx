@@ -11,6 +11,7 @@ import {
   Show,
   useContext,
 } from "solid-js";
+import type { CustomMarkdownStyleOptions } from "../deps.ts";
 import { createScrollManager } from "./_scroll_manager.ts";
 import { AIChatConfigContext, createAIChat } from "./_create_ai_chat.ts";
 import type {
@@ -37,6 +38,7 @@ type Props = {
   showUsage?: boolean;
   showCost?: boolean;
   model?: AnthropicModel;
+  markdownStyle?: CustomMarkdownStyleOptions;
 };
 
 export const AIChat: Component<Props> = (props) => {
@@ -140,9 +142,9 @@ export const AIChat: Component<Props> = (props) => {
           customRenderers={props.customRenderers}
           fallbackContent={props.fallbackContent}
           toolRegistry={toolRegistry}
-          renderMarkdown={config?.renderMarkdown}
           userMessageStyle={config?.messageStyles?.user}
           assistantMessageStyle={config?.messageStyles?.assistant}
+          markdownStyle={props.markdownStyle}
         />
       </div>
       <Show when={props.showUsage && usage() && props.model}>

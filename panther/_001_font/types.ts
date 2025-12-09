@@ -4,7 +4,34 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { type ColorKeyOrString, getColor } from "./deps.ts";
-import { getFont } from "./key_fonts.ts";
+
+const OFFICIAL_BASE_TEXT: TextInfo = {
+  font: { fontFamily: "Inter", weight: 400, italic: false },
+  fontSize: 14,
+  color: { key: "baseContent" },
+  lineHeight: 1.2,
+  lineBreakGap: 0.5,
+  letterSpacing: "0px",
+};
+
+let _baseText: TextInfo = { ...OFFICIAL_BASE_TEXT };
+
+export function getBaseText(): TextInfo {
+  return _baseText;
+}
+
+export function setBaseText(options: TextInfoOptions): void {
+  _baseText = {
+    font: options.font
+      ? { ..._baseText.font, ...options.font }
+      : _baseText.font,
+    fontSize: options.fontSize ?? _baseText.fontSize,
+    color: options.color ?? _baseText.color,
+    lineHeight: options.lineHeight ?? _baseText.lineHeight,
+    lineBreakGap: options.lineBreakGap ?? _baseText.lineBreakGap,
+    letterSpacing: options.letterSpacing ?? _baseText.letterSpacing,
+  };
+}
 
 export type TextInfoUnkeyed = {
   font: FontInfo;
@@ -13,124 +40,89 @@ export type TextInfoUnkeyed = {
   lineHeight: number;
   lineBreakGap: number | "none";
   letterSpacing: "0px" | "-0.02em";
-  fontVariants?: FontVariants;
 };
 
 export type TextInfo = {
-  font: FontKeyOrFontInfo;
+  font: FontInfo;
   fontSize: number;
   color: ColorKeyOrString;
   lineHeight: number;
   lineBreakGap: number | "none";
   letterSpacing: "0px" | "-0.02em";
-  fontVariants?: FontVariantsKeyed;
 };
 
 export type TextInfoOptions = {
-  font?: FontKeyOrFontInfo;
+  font?: FontInfoOptions;
   fontSize?: number;
   color?: ColorKeyOrString;
   lineHeight?: number;
   lineBreakGap?: number | "none";
   letterSpacing?: "0px" | "-0.02em";
-  fontVariants?: FontVariantsKeyed;
 };
 
 export type CustomStyleTextOptions = {
-  font?: FontKeyOrFontInfo | "same-as-base";
+  font?: FontInfoOptions | "same-as-base";
   relFontSize?: number;
   color?: ColorKeyOrString | "same-as-base";
   lineHeight?: number | "same-as-base";
   lineBreakGap?: number | "none" | "same-as-base";
   letterSpacing?: "0px" | "-0.02em" | "same-as-base";
-  fontVariants?: FontVariantsCustomStyle | "same-as-base";
 };
 
 export type TextAdjustmentOptions = {
   fontSizeMultiplier?: number;
   color?: ColorKeyOrString;
-  font?: FontKeyOrFontInfo;
+  font?: FontInfoOptions;
   lineHeight?: number;
   lineBreakGap?: number | "none";
   letterSpacing?: "0px" | "-0.02em";
-  fontVariants?: FontVariantsKeyed;
 };
 
 export function getAdjustedText(
   textStyle: TextInfoUnkeyed,
   adjustments?: TextAdjustmentOptions,
 ): TextInfoUnkeyed {
-  // Clone to ensure we don't mutate the input
-  const textInfo: TextInfo = structuredClone(textStyle);
-
-  // Process fontVariants if provided in adjustments
-  let fontVariants: FontVariants | undefined = textStyle.fontVariants;
-  if (adjustments?.fontVariants) {
-    fontVariants = {
-      bold: adjustments.fontVariants.bold
-        ? getFont(adjustments.fontVariants.bold)
-        : fontVariants?.bold,
-      italic: adjustments.fontVariants.italic
-        ? getFont(adjustments.fontVariants.italic)
-        : fontVariants?.italic,
-      boldAndItalic: adjustments.fontVariants.boldAndItalic
-        ? getFont(adjustments.fontVariants.boldAndItalic)
-        : fontVariants?.boldAndItalic,
-    };
-  }
-
   return {
-    font: getFont(adjustments?.font ?? textInfo.font),
-    fontSize: textInfo.fontSize * (adjustments?.fontSizeMultiplier ?? 1),
-    color: getColor(adjustments?.color ?? textInfo.color),
-    lineHeight: adjustments?.lineHeight ?? textInfo.lineHeight,
-    lineBreakGap: adjustments?.lineBreakGap ?? textInfo.lineBreakGap,
-    letterSpacing: adjustments?.letterSpacing ?? textInfo.letterSpacing,
-    fontVariants,
+    font: getAdjustedFont(textStyle.font, adjustments?.font),
+    fontSize: textStyle.fontSize * (adjustments?.fontSizeMultiplier ?? 1),
+    color: getColor(adjustments?.color ?? textStyle.color),
+    lineHeight: adjustments?.lineHeight ?? textStyle.lineHeight,
+    lineBreakGap: adjustments?.lineBreakGap ?? textStyle.lineBreakGap,
+    letterSpacing: adjustments?.letterSpacing ?? textStyle.letterSpacing,
   };
 }
 
+export type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+
 export type FontInfo = {
   fontFamily: string;
-  weight: 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+  weight: FontWeight;
   italic: boolean;
 };
 
+export type FontInfoOptions = Partial<FontInfo>;
+
+export function getAdjustedFont(
+  base: FontInfo,
+  override?: FontInfoOptions | "same-as-base",
+): FontInfo {
+  if (!override || override === "same-as-base") return base;
+
+  return {
+    fontFamily: override.fontFamily ?? base.fontFamily,
+    weight: override.weight ?? base.weight,
+    italic: override.italic ?? base.italic,
+  };
+}
+
 export function getFontInfoId(font: FontInfo): string {
   return `${
-    font.fontFamily.replaceAll(" ", "").replaceAll("'", "")
+    font.fontFamily
+      .replaceAll(" ", "")
+      .replaceAll("'", "")
   }-${font.weight}-${font.italic ? "italic" : "normal"}`;
 }
 
-export type KeyFonts = {
-  main400: FontInfo;
-  main700: FontInfo;
+export type StyleWithFontRegistration = {
+  getFontsToRegister(): FontInfo[];
 };
-
-export type KeyFontsKey = keyof KeyFonts;
-
-export type FontKeyOrFontInfo = { key: KeyFontsKey } | FontInfo;
-
-export type FontVariants = {
-  bold?: FontInfo;
-  italic?: FontInfo;
-  boldAndItalic?: FontInfo;
-};
-
-export type FontVariantsKeyed = {
-  bold?: FontKeyOrFontInfo;
-  italic?: FontKeyOrFontInfo;
-  boldAndItalic?: FontKeyOrFontInfo;
-};
-
-export type FontVariantsCustomStyle = {
-  bold?: FontKeyOrFontInfo | "same-as-base" | "same-as-regular";
-  italic?: FontKeyOrFontInfo | "same-as-base" | "same-as-regular";
-  boldAndItalic?: FontKeyOrFontInfo | "same-as-base" | "same-as-regular";
-};
-
-export function isFontKeyAsKey(
-  fk: FontKeyOrFontInfo,
-): fk is { key: KeyFontsKey } {
-  return (fk as { key: KeyFontsKey }).key !== undefined;
-}

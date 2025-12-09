@@ -3,7 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { DocsManifest, NavItem, NavSection, ParsedGitHubUrl } from "./deps.ts";
+import type {
+  CustomMarkdownStyleOptions,
+  DocsManifest,
+  NavItem,
+  NavSection,
+  ParsedGitHubUrl,
+} from "./deps.ts";
 
 // ================================================================================
 // COMPONENT PROPS
@@ -14,6 +20,7 @@ export type DocsViewerProps = {
   basePath?: string;
   isGithub?: boolean;
   title?: string;
+  style?: CustomMarkdownStyleOptions;
 };
 
 export type DocsSidebarProps = {
@@ -29,6 +36,7 @@ export type DocsContentProps = {
   basePath?: string;
   isGithub?: boolean;
   parsedGitHubUrl?: ParsedGitHubUrl;
+  style?: CustomMarkdownStyleOptions;
 };
 
 export type DocsBreadcrumbsProps = {

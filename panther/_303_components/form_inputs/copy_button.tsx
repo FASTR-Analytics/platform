@@ -127,10 +127,10 @@ export function CopyToClipboardButton(p: CopyToClipboardButtonProps) {
     const source: CopySource = "text" in p
       ? { text: p.text }
       : "getText" in p
-        ? { getText: p.getText }
-        : "selector" in p
-          ? { selector: p.selector }
-          : { element: p.element };
+      ? { getText: p.getText }
+      : "selector" in p
+      ? { selector: p.selector }
+      : { element: p.element };
 
     const text = await getTextFromSource(source);
     const success = await copyToClipboard(text);

@@ -3,13 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ChartOVInputs } from "../_010_chartov/mod.ts";
-import type { SimpleVizInputs } from "../_010_simpleviz/mod.ts";
-import { CanvasRenderContext } from "../_002_canvas/mod.ts";
-import { RectCoordsDims } from "../_001_geometry/mod.ts";
-import { FigureRenderer } from "../_020_abstract_doc_types/mod.ts";
-
-export type FigureInputs = ChartOVInputs | SimpleVizInputs;
+import {
+  CanvasRenderContext,
+  type FigureInputs,
+  FigureRenderer,
+  RectCoordsDims,
+} from "./deps.ts";
 
 export function getFigureAsCanvas(
   figureInputs: FigureInputs,
@@ -52,4 +51,16 @@ export function getFigureAsBase64(
 ): string {
   const canvas = getFigureAsCanvas(figureInputs, width, scale, responsiveScale);
   return canvas.toDataURL("image/png");
+}
+
+export async function getFigureAsDataUrlBrowser(
+  figureInputs: FigureInputs,
+  width: number,
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  const canvas = getFigureAsCanvas(figureInputs, width, 1);
+  return {
+    dataUrl: canvas.toDataURL("image/png"),
+    width: canvas.width,
+    height: canvas.height,
+  };
 }

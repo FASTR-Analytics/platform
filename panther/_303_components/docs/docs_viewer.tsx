@@ -23,7 +23,9 @@ import { DocsContent } from "./docs_content.tsx";
 export function DocsViewer(p: DocsViewerProps) {
   const [currentSlug, setCurrentSlug] = createSignal("");
 
-  const parsedGitHubUrl = p.isGithub ? parseGitHubUrl(p.manifestUrl) : undefined;
+  const parsedGitHubUrl = p.isGithub
+    ? parseGitHubUrl(p.manifestUrl)
+    : undefined;
 
   const manifestQuery = timQuery(
     () =>
@@ -71,6 +73,7 @@ export function DocsViewer(p: DocsViewerProps) {
             basePath={p.basePath}
             isGithub={p.isGithub}
             parsedGitHubUrl={parsedGitHubUrl}
+            style={p.style}
           />
         </FrameLeftResizable>
       )}

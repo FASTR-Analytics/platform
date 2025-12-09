@@ -18,7 +18,7 @@ import {
   trackCanvas,
   untrackCanvas,
 } from "../deps.ts";
-import type { ADTFigure, TextRenderingOptions } from "../deps.ts";
+import type { FigureInputs, TextRenderingOptions } from "../deps.ts";
 import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   CanvasRenderContext,
@@ -28,7 +28,7 @@ import {
 } from "../deps.ts";
 
 type Props = {
-  chartInputs: ADTFigure;
+  chartInputs: FigureInputs;
   height: "flex" | "ideal" | number;
   noRescaleWithWidthChange?: boolean;
   canvasElementId?: string;
@@ -92,7 +92,7 @@ export function ChartHolder(p: Props) {
     // Preload fonts used by this figure
     if (p.chartInputs) {
       const style = new CustomFigureStyle(p.chartInputs.style);
-      const fonts = style.getMergedChartFontsToRegister();
+      const fonts = style.getFontsToRegister();
       fonts.forEach((fontInfo) => {
         loadFont(fontInfo.fontFamily);
       });
@@ -212,7 +212,7 @@ export function ChartHolder(p: Props) {
 
 function updateChart(
   canvas: HTMLCanvasElement,
-  chartInputs: ADTFigure,
+  chartInputs: FigureInputs,
   height: "flex" | "ideal" | number,
   fixedCanvasW: number,
   unscaledW: number,

@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { quotedFontFamilyForCanvas } from "../../deps.ts";
 import type { TextInfoUnkeyed } from "../../deps.ts";
 
 export function setCtxFont(
@@ -10,12 +11,16 @@ export function setCtxFont(
   ti: TextInfoUnkeyed,
   align: "center" | "left" | "right" | undefined,
 ) {
+  const quotedFamily = quotedFontFamilyForCanvas(ti.font.fontFamily);
+
+  let fontString: string;
   if (ti.font.italic) {
-    ctx.font =
-      `italic ${ti.font.weight} ${ti.fontSize}px ${ti.font.fontFamily}`;
+    fontString = `italic ${ti.font.weight} ${ti.fontSize}px ${quotedFamily}`;
   } else {
-    ctx.font = `${ti.font.weight} ${ti.fontSize}px ${ti.font.fontFamily}`;
+    fontString = `${ti.font.weight} ${ti.fontSize}px ${quotedFamily}`;
   }
+
+  ctx.font = fontString;
   if (ti.color !== "none") {
     ctx.fillStyle = ti.color;
   }

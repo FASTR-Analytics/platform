@@ -3,171 +3,107 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type {
-  ColorKeyOrString,
-  FontKeyOrFontInfo,
-  FontVariantsKeyed,
-} from "./deps.ts";
-
-export type MarkdownTextStyle = {
-  font: FontKeyOrFontInfo;
-  fontSize: number;
-  color: ColorKeyOrString;
-  lineHeight: number;
-  fontVariants?: FontVariantsKeyed;
-  align?: "left" | "center" | "right";
-  marginTop?: number;
-  marginBottom?: number;
-};
-
-export type MarkdownListStyle = {
-  text: MarkdownTextStyle;
-  level0: { marker: string; markerIndent: number; textIndent: number };
-  level1: { marker: string; markerIndent: number; textIndent: number };
-  level2: { marker: string; markerIndent: number; textIndent: number };
-};
-
-export type MarkdownBlockquoteStyle = {
-  text: MarkdownTextStyle;
-  leftBorderWidth: number;
-  leftBorderColor: ColorKeyOrString;
-  leftIndent: number;
-  backgroundColor?: ColorKeyOrString;
-};
-
-export type MarkdownHorizontalRuleStyle = {
-  strokeWidth: number;
-  strokeColor: ColorKeyOrString;
-  marginTop: number;
-  marginBottom: number;
-};
-
-export type MarkdownLinkStyle = {
-  color: ColorKeyOrString;
-  underline: boolean;
-};
-
-const DEFAULT_BODY_TEXT: MarkdownTextStyle = {
-  font: { key: "main400" },
-  fontSize: 14,
-  color: "#333333",
-  lineHeight: 1.4,
-  align: "left",
-  marginTop: 12,
-  marginBottom: 12,
-  fontVariants: {
-    bold: { key: "main700" },
-  },
-};
+import type { ColorKeyOrString } from "./deps.ts";
 
 const _DS = {
   scale: 1,
 
-  paragraph: DEFAULT_BODY_TEXT as MarkdownTextStyle,
+  headingRelFontSizes: {
+    h1: 2.0,
+    h2: 1.5,
+    h3: 1.25,
+  },
 
-  h1: {
-    font: { key: "main700" },
-    fontSize: 28,
-    color: "#111111",
-    lineHeight: 1.2,
-    align: "left",
-    marginTop: 24,
-    marginBottom: 12,
-  } as MarkdownTextStyle,
+  marginsEm: {
+    paragraph: { top: 1, bottom: 0 },
+    h1: { top: 0.9, bottom: 0 },
+    h2: { top: 0.95, bottom: 0 },
+    h3: { top: 1, bottom: 0 },
+    h4: { top: 1, bottom: 0 },
+    h5: { top: 1, bottom: 0 },
+    h6: { top: 1, bottom: 0 },
+    list: { top: 0.5, bottom: 1, gap: 0.5 },
+    image: { top: 1, bottom: 1.5 },
+    table: { top: 1, bottom: 1.5 },
+    blockquote: { top: 1.5, bottom: 1.5 },
+    horizontalRule: { top: 1.5, bottom: 1.5 },
+    code: { top: 1.5, bottom: 1.5 },
+  },
 
-  h2: {
-    font: { key: "main700" },
-    fontSize: 24,
-    color: "#111111",
-    lineHeight: 1.2,
-    align: "left",
-    marginTop: 20,
-    marginBottom: 10,
-  } as MarkdownTextStyle,
-
-  h3: {
-    font: { key: "main700" },
-    fontSize: 20,
-    color: "#111111",
-    lineHeight: 1.3,
-    align: "left",
-    marginTop: 16,
-    marginBottom: 8,
-  } as MarkdownTextStyle,
-
-  h4: {
-    font: { key: "main700" },
-    fontSize: 16,
-    color: "#111111",
-    lineHeight: 1.3,
-    align: "left",
-    marginTop: 12,
-    marginBottom: 6,
-  } as MarkdownTextStyle,
-
-  h5: {
-    font: { key: "main700" },
-    fontSize: 14,
-    color: "#111111",
-    lineHeight: 1.4,
-    align: "left",
-    marginTop: 10,
-    marginBottom: 4,
-  } as MarkdownTextStyle,
-
-  h6: {
-    font: { key: "main700" },
-    fontSize: 12,
-    color: "#333333",
-    lineHeight: 1.4,
-    align: "left",
-    marginTop: 8,
-    marginBottom: 4,
-  } as MarkdownTextStyle,
-
+  // List-specific structure
   bulletList: {
-    text: DEFAULT_BODY_TEXT,
-    level0: { marker: "•", markerIndent: 0, textIndent: 20 },
-    level1: { marker: "◦", markerIndent: 20, textIndent: 40 },
-    level2: { marker: "▪", markerIndent: 40, textIndent: 60 },
-  } as MarkdownListStyle,
+    level0: { marker: "•", markerIndentEm: 0, textIndentEm: 1.714 },
+    level1: { marker: "◦", markerIndentEm: 1.714, textIndentEm: 3.429 },
+    level2: { marker: "▪", markerIndentEm: 3.429, textIndentEm: 5.143 },
+  },
 
   numberedList: {
-    text: DEFAULT_BODY_TEXT,
-    level0: { marker: ".", markerIndent: 0, textIndent: 24 },
-    level1: { marker: ".", markerIndent: 24, textIndent: 48 },
-    level2: { marker: ".", markerIndent: 48, textIndent: 72 },
-  } as MarkdownListStyle,
+    level0: { marker: ".", markerIndentEm: 0, textIndentEm: 1.714 },
+    level1: { marker: ".", markerIndentEm: 1.714, textIndentEm: 3.429 },
+    level2: { marker: ".", markerIndentEm: 3.429, textIndentEm: 5.143 },
+  },
 
+  // Blockquote
   blockquote: {
-    text: {
-      ...DEFAULT_BODY_TEXT,
-      color: "#555555",
-      marginTop: 16,
-      marginBottom: 16,
-    },
     leftBorderWidth: 3,
-    leftBorderColor: "#cccccc",
-    leftIndent: 16,
-    backgroundColor: undefined,
-  } as MarkdownBlockquoteStyle,
+    leftBorderColor: { key: "baseContent" } as ColorKeyOrString,
+    paddingEm: {
+      top: 0.25,
+      bottom: 0.25,
+      left: 0.75,
+      right: 0,
+    },
+    paragraphGapEm: 0.5,
+    align: "left" as "left" | "center" | "right",
+    backgroundColor: "none" as ColorKeyOrString | "none",
+  },
 
+  // Code styling
+  code: {
+    backgroundColor: { key: "base200" } as ColorKeyOrString,
+    paddingEm: {
+      horizontal: 1,
+      vertical: 1,
+    },
+  },
+
+  // Horizontal rule
   horizontalRule: {
     strokeWidth: 1,
-    strokeColor: "#dddddd",
-    marginTop: 16,
-    marginBottom: 16,
-  } as MarkdownHorizontalRuleStyle,
+    strokeColor: { key: "base300" } as ColorKeyOrString,
+  },
 
+  // Link styling
   link: {
-    color: "#0066cc",
+    color: "#0066cc" as ColorKeyOrString,
     underline: true,
-  } as MarkdownLinkStyle,
+  },
 
-  spacing: {
-    paragraphGap: 12,
-    listItemGap: 4,
-    nestedListIndent: 20,
+  // Image styling
+  image: {
+    defaultAspectRatio: 16 / 9,
+  },
+
+  // Table styling
+  table: {
+    border: {
+      width: 1,
+      color: { key: "base300" } as ColorKeyOrString,
+      style: "single" as "single" | "double" | "dotted",
+    },
+    cellPaddingEm: {
+      horizontal: 1,
+      vertical: 0.5,
+    },
+    headerShading: {
+      color: { key: "base200" } as ColorKeyOrString,
+      opacity: 1,
+    },
+  },
+
+  // Math display alignment
+  math: {
+    displayAlign: "center" as "left" | "center" | "right",
   },
 };
 

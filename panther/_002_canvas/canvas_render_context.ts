@@ -136,7 +136,14 @@ export class CanvasRenderContext implements RenderContext {
     addPoint(this._ctx, c, s);
   }
 
-  rImage(image: HTMLImageElement | HTMLCanvasElement, ...args: number[]): void {
+  rImage(
+    image: HTMLImageElement | HTMLCanvasElement | string,
+    ...args: number[]
+  ): void {
+    if (typeof image === "string") {
+      throw new Error("Data URL strings not supported in CanvasRenderContext");
+    }
+
     // Check if this is our custom @gfx/canvas wrapper
     let actualImage = image;
     if (

@@ -8,6 +8,7 @@ export * from "./async_utils.ts";
 export * from "./boolean_reducers.ts";
 export * from "./create_array.ts";
 export * from "./duplicates.ts";
+export * from "./merge.ts";
 export * from "./normalize.ts";
 export * from "./number_formatters.ts";
 export * from "./numbers.ts";

@@ -9,8 +9,3 @@ export {
 } from "./_2_custom_page_style_options.ts";
 export * from "./_3_merged_style_return_types.ts";
 export { CustomPageStyle } from "./_3_style_class.ts";
-export {
-  type BulletLevelStyle,
-  type BulletLevelStyleOptions,
-  DEFAULT_BULLET_MARKERS,
-} from "./bullet_types.ts";

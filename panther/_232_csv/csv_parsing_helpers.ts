@@ -40,34 +40,41 @@ export function processCsvData(
   aoa: string[][],
   opts?: CsvReadOptions,
 ): Csv<string> {
-  // Determine headers based on options
-  const colHeaders = opts?.colHeaders ?? "use-first-row";
-  const rowHeaders = opts?.rowHeaders ?? "use-first-col";
-
-  let finalAoa: string[][] = aoa;
-  let finalColHeaders: "none" | string[] = "none";
-  let finalRowHeaders: "none" | string[] = "none";
-
-  if (colHeaders === "use-first-row" && aoa.length > 0) {
-    finalColHeaders = aoa[0].map((h: string) => h.trim());
-    finalAoa = aoa.slice(1);
+  if (aoa.length === 0) {
+    throw new InvalidFileContentError(
+      "unknown",
+      "Cannot process empty CSV data",
+    );
   }
 
-  if (
-    rowHeaders === "use-first-col" &&
-    finalAoa.length > 0 &&
-    finalAoa[0].length > 0
-  ) {
-    finalRowHeaders = finalAoa.map((row: string[]) => row[0].trim());
-    finalAoa = finalAoa.map((row: string[]) => row.slice(1));
+  const useColHeaders = opts?.colHeaders ?? "use-first-row";
+  const useRowHeaders = opts?.rowHeaders ?? "none";
 
-    if (colHeaders === "use-first-row" && finalColHeaders !== "none") {
+  let finalData: string[][] = aoa;
+  let finalColHeaders: string[];
+  let finalRowHeaders: string[] | undefined;
+
+  if (useColHeaders === "use-first-row") {
+    finalColHeaders = aoa[0].map((h: string) => h.trim());
+    finalData = aoa.slice(1);
+  } else {
+    finalColHeaders = Array.from(
+      { length: aoa[0].length },
+      (_, i) => `col_${i}`,
+    );
+  }
+
+  if (useRowHeaders === "use-first-col" && finalData.length > 0) {
+    finalRowHeaders = finalData.map((row: string[]) => row[0].trim());
+    finalData = finalData.map((row: string[]) => row.slice(1));
+
+    if (useColHeaders === "use-first-row") {
       finalColHeaders = finalColHeaders.slice(1);
     }
   }
 
   return new Csv({
-    aoa: finalAoa,
+    aoa: finalData,
     colHeaders: finalColHeaders,
     rowHeaders: finalRowHeaders,
   });

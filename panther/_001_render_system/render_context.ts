@@ -108,14 +108,14 @@ export type RenderContext = {
 
   rImage: {
     (
-      image: HTMLImageElement | HTMLCanvasElement,
+      image: HTMLImageElement | HTMLCanvasElement | string,
       dx: number,
       dy: number,
       dw: number,
       dh: number,
     ): void;
     (
-      image: HTMLImageElement | HTMLCanvasElement,
+      image: HTMLImageElement | HTMLCanvasElement | string,
       sx: number,
       sy: number,
       sw: number,

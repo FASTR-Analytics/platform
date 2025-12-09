@@ -7,6 +7,7 @@ import type { RenderContext } from "../deps.ts";
 import type {
   MeasuredMarkdown,
   MeasuredMarkdownBlockquote,
+  MeasuredMarkdownCodeBlock,
   MeasuredMarkdownHeading,
   MeasuredMarkdownHorizontalRule,
   MeasuredMarkdownItem,
@@ -40,6 +41,9 @@ function renderItem(rc: RenderContext, item: MeasuredMarkdownItem): void {
       break;
     case "horizontal-rule":
       renderHorizontalRule(rc, item);
+      break;
+    case "code-block":
+      renderCodeBlock(rc, item);
       break;
   }
 }
@@ -81,7 +85,9 @@ function renderBlockquote(
     show: true,
   });
 
-  renderFormattedText(rc, item.mFormattedText, item.position);
+  for (const para of item.paragraphs) {
+    renderFormattedText(rc, para.mFormattedText, para.position);
+  }
 }
 
 function renderHorizontalRule(
@@ -89,4 +95,22 @@ function renderHorizontalRule(
   item: MeasuredMarkdownHorizontalRule,
 ): void {
   rc.rLine([item.line.start, item.line.end], item.style);
+}
+
+function renderCodeBlock(
+  rc: RenderContext,
+  item: MeasuredMarkdownCodeBlock,
+): void {
+  rc.rRect(item.background.rcd, {
+    fillColor: item.background.color,
+    show: true,
+  });
+
+  for (const line of item.lines) {
+    const linePosition = {
+      x: item.contentPosition.x(),
+      y: item.contentPosition.y() + line.y,
+    };
+    rc.rText(line.mText, linePosition, "left", "top");
+  }
 }

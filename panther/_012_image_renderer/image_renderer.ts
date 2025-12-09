@@ -15,7 +15,9 @@ import {
 // =============================================================================
 
 export type ImageInputs = {
-  image: HTMLImageElement;
+  image: HTMLImageElement | string;
+  width?: number;
+  height?: number;
   fit?: "contain" | "cover" | "fill";
   align?: "center" | "top" | "bottom" | "left" | "right";
 };
@@ -33,12 +35,11 @@ export type MeasuredImage = Measured<ImageInputs> & {
 
 export const ImageRenderer: Renderer<ImageInputs, MeasuredImage> = {
   isType(item: unknown): item is ImageInputs {
-    return (
-      typeof item === "object" &&
-      item !== null &&
-      "image" in item &&
-      (item as ImageInputs).image instanceof HTMLImageElement
-    );
+    if (typeof item !== "object" || item === null || !("image" in item)) {
+      return false;
+    }
+    const img = (item as ImageInputs).image;
+    return typeof img === "string" || img instanceof HTMLImageElement;
   },
 
   measure: measureImage,
@@ -58,7 +59,13 @@ export const ImageRenderer: Renderer<ImageInputs, MeasuredImage> = {
     width: number,
     item: ImageInputs,
   ): number {
-    const aspectRatio = item.image.height / item.image.width;
+    const imgW = typeof item.image === "string"
+      ? item.width!
+      : item.image.width;
+    const imgH = typeof item.image === "string"
+      ? item.height!
+      : item.image.height;
+    const aspectRatio = imgH / imgW;
     return width * aspectRatio;
   },
 };
@@ -75,8 +82,10 @@ function measureImage(
   const fit = item.fit ?? "contain";
   const align = item.align ?? "center";
 
-  const imgW = item.image.width;
-  const imgH = item.image.height;
+  const imgW = typeof item.image === "string" ? item.width! : item.image.width;
+  const imgH = typeof item.image === "string"
+    ? item.height!
+    : item.image.height;
   const imgAspect = imgW / imgH;
   const boundsAspect = bounds.w() / bounds.h();
 

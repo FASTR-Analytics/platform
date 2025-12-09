@@ -16,26 +16,25 @@ export * from "./_001_font/mod.ts";
 export * from "./_001_geometry/mod.ts";
 export * from "./_001_render_system/mod.ts";
 export * from "./_002_canvas/mod.ts";
-export * from "./_002_csv/mod.ts";
 export * from "./_003_figure_style/mod.ts";
-export * from "./_003_page_style/mod.ts";
 export * from "./_004_markdown_style/mod.ts";
-// _005_page_style not exported (will replace _003_page_style when _121_page is ready)
-export * from "./_006_layouter/mod.ts";
+export * from "./_005_page_style/mod.ts";
 export * from "./_007_figure_core/mod.ts";
+export * from "./_008_layouter/mod.ts";
 export * from "./_010_chartov/mod.ts";
 export * from "./_010_simpleviz/mod.ts";
 export * from "./_010_table/mod.ts";
 export * from "./_010_timeseries/mod.ts";
+export * from "./_011_figure_renderer/mod.ts";
 export * from "./_011_uncertainty_client/mod.ts";
-export * from "./_020_abstract_doc_types/mod.ts";
-export * from "./_021_page/mod.ts";
-export * from "./_022_markdown/mod.ts";
-export * from "./_024_docs_core/mod.ts";
+export * from "./_012_image_renderer/mod.ts";
+export * from "./_013_docs_core/mod.ts";
+export * from "./_100_csv/mod.ts";
+export * from "./_101_csv_query/mod.ts";
 export * from "./_101_pdf/mod.ts";
-export * from "./_104_parse_csv/mod.ts";
 export * from "./_105_markdown/mod.ts";
 export * from "./_106_markdown_to_word/mod.ts";
+export * from "./_121_page/mod.ts";
 
 //////////////////////
 //                  //
@@ -47,4 +46,4 @@ export * from "./_301_util_funcs/mod.ts";
 export * from "./_302_query/mod.ts";
 export * from "./_303_components/mod.ts";
 export * from "./_304_query/mod.ts";
-export * from "./_305_ai_BACKUP/mod.ts";
+export * from "./_305_ai/mod.ts";

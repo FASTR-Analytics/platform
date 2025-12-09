@@ -12,6 +12,7 @@ import type {
 } from "./deps.ts";
 import {
   CanvasRenderContext,
+  cleanFontFamilyForJsPdf,
   Color,
   Coordinates,
   type CoordinatesOptions,
@@ -24,10 +25,6 @@ import {
   type RenderContext,
   type TextInfoUnkeyed,
 } from "./deps.ts";
-
-function cleanFontFamilyForJsPdf(fontFamily: string): string {
-  return fontFamily.replaceAll("'", "");
-}
 
 export class PdfRenderContext implements RenderContext {
   _jsPdf: jsPDF;
@@ -49,7 +46,6 @@ export class PdfRenderContext implements RenderContext {
     ti: TextInfoUnkeyed,
     maxWidth: number,
     opts?: {
-      keepLineBreaks?: boolean;
       rotation?: "horizontal" | "anticlockwise" | "clockwise";
     },
   ): MeasuredText {
@@ -245,9 +241,6 @@ export class PdfRenderContext implements RenderContext {
     // after the Canvas-style transform
 
     for (const line of mText.lines) {
-      // In Canvas, after rotation, text is drawn at (0, y2 + line.y)
-      // But jsPDF might handle the rotation differently
-
       // For vertical text, line.y represents the vertical offset between lines
       // After rotation, this becomes a horizontal offset
       let finalX, finalY;
@@ -569,11 +562,20 @@ export class PdfRenderContext implements RenderContext {
     }
   }
 
-  rImage(image: HTMLImageElement | HTMLCanvasElement, ...args: number[]): void {
+  rImage(
+    image: HTMLImageElement | HTMLCanvasElement | string,
+    ...args: number[]
+  ): void {
     try {
       if (args.length === 4) {
         // 5-parameter version: drawImage(image, dx, dy, dw, dh)
         const [dx, dy, dw, dh] = args;
+
+        // Handle data URL strings
+        if (typeof image === "string") {
+          this._jsPdf.addImage(image, "PNG", dx, dy, dw, dh);
+          return;
+        }
 
         // Handle our custom image wrapper from @gfx/canvas
         if (
@@ -604,6 +606,11 @@ export class PdfRenderContext implements RenderContext {
       } else if (args.length === 8) {
         // 9-parameter version: drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh)
         const [sx, sy, sw, sh, dx, dy, dw, dh] = args;
+
+        // Data URL strings not supported for cropped images
+        if (typeof image === "string") {
+          throw new Error("Data URL strings not supported for cropped rImage");
+        }
 
         // Create a temporary canvas to hold the cropped image
         const tempCanvas = this._createCanvas(Math.ceil(dw), Math.ceil(dh));

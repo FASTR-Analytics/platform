@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { RenderContext } from "../../deps.ts";
-import { getColor } from "../../deps.ts";
 import type { MeasuredSectionPage } from "../../types.ts";
 
 export function renderSection(
@@ -17,7 +16,7 @@ export function renderSection(
 
   if (s.section.backgroundColor !== "none") {
     rc.rRect(bounds, {
-      fillColor: getColor(s.section.backgroundColor),
+      fillColor: s.section.backgroundColor,
     });
   }
 

@@ -3,51 +3,60 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import type {
+  ConvertMarkdownToWordOptions,
+  PageBreakRules,
+} from "./converter.ts";
+import type {
+  DocElement,
+  DocxMath,
+  InlineContent,
+  MergedMarkdownStyle,
+  ParsedDocument,
+} from "./deps.ts";
 import {
   BorderStyle,
-  convertInchesToTwip,
+  CustomMarkdownStyle,
   Document,
   ExternalHyperlink,
   HeadingLevel,
   ImageRun,
   Paragraph,
+  parseEmailsInText,
   ShadingType,
   Table,
   TableCell,
   TableRow,
   TextRun,
-  VerticalAlign,
   WidthType,
 } from "./deps.ts";
-import type {
-  DocElement,
-  InlineContent,
-  ParsedDocument,
-} from "./document_model.ts";
-import { parseEmailsInText } from "./parser.ts";
-import type { StyleConfig, StyleConfigId } from "./style_config.ts";
-import { STYLE_CONFIG, STYLE_CONFIGS } from "./style_config.ts";
+import { latexToDocxMath } from "./latex_to_math.ts";
 import {
-  createFooter,
-  createNumbering,
-  createStyles,
-  getLinkColor,
-  getPageProperties,
+  createFooterFromWordConfig,
+  createNumberingFromMerged,
+  createStylesFromMerged,
+  getLinkColorFromMerged,
+  getPagePropertiesFromWordConfig,
+  mergeWordConfig,
 } from "./styles.ts";
+import {
+  DEFAULT_WORD_SPECIFIC_CONFIG,
+  type WordSpecificConfig,
+} from "./word_specific_config.ts";
+import { pixelsToTwips } from "./word_units.ts";
 
 export function buildWordDocument(
   parsedDoc: ParsedDocument,
-  configId?: StyleConfigId,
+  options?: ConvertMarkdownToWordOptions,
 ): Document {
-  const config = configId && configId !== "default"
-    ? STYLE_CONFIGS[configId]
-    : STYLE_CONFIG;
+  const styleClass = new CustomMarkdownStyle(options?.markdownStyle);
+  const merged = styleClass.getMergedMarkdownStyle();
 
-  // Track numbering instances for each new list (both numbered and bullet)
+  const wordConfig = mergeWordConfig(options?.wordConfig);
+
   let currentNumberingInstance = 0;
   let currentBulletInstance = 0;
-  let lastWasNumberedList = false;
-  let lastWasBulletList = false;
+  let prevMarginBottom = 0;
 
   const paragraphs: (Paragraph | Table)[] = parsedDoc.elements.map(
     (element, index) => {
@@ -55,64 +64,145 @@ export function buildWordDocument(
         element.listType === "numbered";
       const isBulletListItem = element.type === "list-item" &&
         element.listType === "bullet";
-      const isListItem = isNumberedListItem || isBulletListItem;
 
-      // Start a new numbering instance when we encounter a numbered list after a break
-      if (isNumberedListItem && !lastWasNumberedList) {
+      if (
+        isNumberedListItem &&
+        (index === 0 ||
+          parsedDoc.elements[index - 1]?.type !== "list-item" ||
+          (parsedDoc.elements[index - 1] as any).listType !== "numbered")
+      ) {
         currentNumberingInstance++;
       }
 
-      // Start a new bullet instance when we encounter a bullet list after a break
-      if (isBulletListItem && !lastWasBulletList) {
+      if (
+        isBulletListItem &&
+        (index === 0 ||
+          parsedDoc.elements[index - 1]?.type !== "list-item" ||
+          (parsedDoc.elements[index - 1] as any).listType !== "bullet")
+      ) {
         currentBulletInstance++;
       }
 
-      // Check if this is the last item in a list
+      const margins = getElementMargins(element, merged);
+      const isFirst = index === 0;
+      const isLast = index === parsedDoc.elements.length - 1;
+
+      const collapsedSpacingBefore = isFirst
+        ? 0
+        : Math.max(prevMarginBottom, margins.top);
+
       const nextElement = parsedDoc.elements[index + 1];
-      const nextIsListItem = nextElement?.type === "list-item";
-      const isLastInList = isListItem && !nextIsListItem;
+      const spacingAfter = isLast ? 0 : nextElement?.type === "table" ||
+          nextElement?.type === "code-block" ||
+          nextElement?.type === "blockquote"
+        ? getElementMargins(nextElement, merged).top
+        : 0;
 
-      // Check if we need spacing after this element (images, tables, list items)
-      const needsSpacingAfter =
-        (element.type === "image" || element.type === "table" ||
-          isLastInList) && !!nextElement;
-
-      lastWasNumberedList = isNumberedListItem;
-      lastWasBulletList = isBulletListItem;
+      prevMarginBottom = margins.bottom;
 
       return buildParagraph(
         element,
-        config,
+        merged,
+        wordConfig,
         currentNumberingInstance,
         currentBulletInstance,
-        needsSpacingAfter,
+        collapsedSpacingBefore,
+        spacingAfter,
+        options?.pageBreakRules,
+        index === 0,
       );
     },
   );
 
   return new Document({
-    styles: createStyles(config),
-    numbering: createNumbering(config),
+    styles: createStylesFromMerged(merged, wordConfig),
+    numbering: createNumberingFromMerged(merged, wordConfig),
     sections: [
       {
-        properties: getPageProperties(config),
+        properties: getPagePropertiesFromWordConfig(wordConfig),
         children: paragraphs,
         footers: {
-          default: createFooter(config),
+          default: createFooterFromWordConfig(wordConfig),
         },
       },
     ],
   });
 }
 
+type ElementMargins = { top: number; bottom: number };
+
+function getElementMargins(
+  element: DocElement,
+  merged: MergedMarkdownStyle,
+): ElementMargins {
+  switch (element.type) {
+    case "paragraph":
+      return merged.margins.paragraph;
+    case "heading": {
+      const key = `h${element.level}` as
+        | "h1"
+        | "h2"
+        | "h3"
+        | "h4"
+        | "h5"
+        | "h6";
+      return merged.margins[key];
+    }
+    case "list-item": {
+      return {
+        top: element.isFirstInList
+          ? merged.margins.list.top
+          : merged.margins.list.gap,
+        bottom: element.isLastInList
+          ? merged.margins.list.bottom
+          : merged.margins.list.gap,
+      };
+    }
+    case "blockquote":
+      return merged.margins.blockquote;
+    case "horizontal-rule":
+      return merged.margins.horizontalRule;
+    case "image":
+      return merged.margins.image;
+    case "table":
+      return merged.margins.table;
+    case "code-block":
+      return merged.margins.code;
+    case "math-block":
+      return merged.margins.paragraph;
+  }
+}
+
+function shouldPageBreakBefore(
+  element: DocElement,
+  pageBreakRules: PageBreakRules | undefined,
+  isFirst: boolean,
+): boolean {
+  if (isFirst || !pageBreakRules) return false;
+  if (element.type !== "heading") return false;
+  if (element.level === 1 && pageBreakRules.h1AlwaysNewPage) return true;
+  if (element.level === 2 && pageBreakRules.h2AlwaysNewPage) return true;
+  if (element.level === 3 && pageBreakRules.h3AlwaysNewPage) return true;
+  return false;
+}
+
 function buildParagraph(
   element: DocElement,
-  config: StyleConfig,
+  merged: MergedMarkdownStyle,
+  wordConfig: WordSpecificConfig,
   numberingInstance: number,
   bulletInstance: number,
-  needsSpacingAfter: boolean,
+  spacingBefore: number,
+  spacingAfter: number,
+  pageBreakRules: PageBreakRules | undefined,
+  isFirst: boolean,
 ): Paragraph | Table {
-  const children = buildInlineContent(element.content, config);
+  const children = buildInlineContent(element.content, merged);
+  const pageBreakBefore = shouldPageBreakBefore(
+    element,
+    pageBreakRules,
+    isFirst,
+  );
 
   switch (element.type) {
     case "heading": {
@@ -131,25 +221,16 @@ function buildParagraph(
       return new Paragraph({
         heading: headingLevel,
         children,
+        spacing: {
+          before: pixelsToTwips(spacingBefore),
+          after: pixelsToTwips(spacingAfter),
+        },
+        pageBreakBefore,
       });
     }
 
     case "list-item": {
       const level = element.listLevel || 0;
-      const levelConfig = level === 0
-        ? config.list.level0
-        : level === 1
-        ? config.list.level1
-        : config.list.level2;
-
-      // Word's numbering definitions apply uniform spacing to all list items.
-      // For the last item in a list, we need additional spacing to match the gap
-      // between paragraphs. We achieve this via paragraph-level spacing override,
-      // which is the standard Word pattern for this use case.
-      // Calculation: normal between-item spacing (from numbering def) + list-to-paragraph gap
-      const extraSpacing = needsSpacingAfter
-        ? config.document.paragraphSpaceAfter
-        : 0;
 
       return new Paragraph({
         numbering: {
@@ -159,48 +240,141 @@ function buildParagraph(
             ? numberingInstance
             : bulletInstance,
         },
-        spacing: needsSpacingAfter
-          ? {
-            after: levelConfig.spaceAfter + extraSpacing,
-          }
-          : undefined,
+        spacing: {
+          before: pixelsToTwips(spacingBefore),
+          after: pixelsToTwips(spacingAfter),
+        },
         children,
       });
     }
 
-    case "horizontal-rule":
+    case "horizontal-rule": {
+      const hrColor = merged.horizontalRule.strokeColor.replace("#", "");
+      const hrWidth = merged.horizontalRule.strokeWidth * 8;
       return new Paragraph({
         text: "",
-        thematicBreak: true,
-        spacing: {
-          before: config.horizontalRule.spaceBefore,
-          after: config.horizontalRule.spaceAfter +
-            (needsSpacingAfter ? config.document.paragraphSpaceAfter : 0),
-        },
-      });
-
-    case "blockquote":
-      return new Paragraph({
-        children,
-        indent: {
-          left: convertInchesToTwip(config.blockquote.leftIndent),
-        },
         border: {
-          left: {
+          bottom: {
             style: BorderStyle.SINGLE,
-            size: config.blockquote.leftBorderSize,
-            color: config.blockquote.leftBorderColor,
+            size: hrWidth,
+            color: hrColor,
           },
         },
         spacing: {
-          before: config.blockquote.spaceBefore,
-          after: config.blockquote.spaceAfter +
-            (needsSpacingAfter ? config.document.paragraphSpaceAfter : 0),
+          before: pixelsToTwips(spacingBefore),
+          after: pixelsToTwips(spacingAfter),
+          line: 0,
         },
       });
+    }
+
+    case "blockquote": {
+      const borderColor = merged.blockquote.leftBorderColor.replace("#", "");
+      const borderWidth = pixelsToTwips(merged.blockquote.leftBorderWidth);
+      const paddingTop = pixelsToTwips(merged.blockquote.paddingTop);
+      const paddingBottom = pixelsToTwips(merged.blockquote.paddingBottom);
+      const paddingLeft = pixelsToTwips(merged.blockquote.paddingLeft);
+      const paddingRight = pixelsToTwips(merged.blockquote.paddingRight);
+      const paragraphGap = pixelsToTwips(merged.blockquote.paragraphGap);
+
+      // Blockquote text style - italic by default
+      const bqBaseStyle: BaseTextStyle = {
+        italics: true,
+      };
+
+      // Split content into paragraphs at double-break boundaries
+      // In the parsed content, double breaks represent paragraph separators
+      const contentGroups: InlineContent[][] = [];
+      let currentGroup: InlineContent[] = [];
+      let consecutiveBreaks = 0;
+
+      for (const item of element.content) {
+        if (item.type === "break") {
+          consecutiveBreaks++;
+          if (consecutiveBreaks >= 2) {
+            // Double break = paragraph separator
+            if (currentGroup.length > 0) {
+              contentGroups.push(currentGroup);
+              currentGroup = [];
+            }
+            consecutiveBreaks = 0;
+          }
+        } else {
+          // Not a break - add any pending single breaks and the item
+          while (consecutiveBreaks > 0) {
+            currentGroup.push({ type: "break", text: "" });
+            consecutiveBreaks--;
+          }
+          currentGroup.push(item);
+        }
+      }
+      if (currentGroup.length > 0) {
+        contentGroups.push(currentGroup);
+      }
+
+      // Create paragraphs with proper spacing
+      const paragraphs: Paragraph[] = contentGroups.map((group, idx) =>
+        new Paragraph({
+          children: buildInlineContent(group, merged, bqBaseStyle),
+          spacing: {
+            before: idx > 0 ? paragraphGap : 0,
+            after: 0,
+          },
+        })
+      );
+
+      return new Table({
+        rows: [
+          new TableRow({
+            children: [
+              // Left border cell (narrow colored bar)
+              new TableCell({
+                children: [new Paragraph({ children: [] })],
+                width: { size: borderWidth, type: WidthType.DXA },
+                shading: {
+                  type: ShadingType.CLEAR,
+                  fill: borderColor,
+                  color: "auto",
+                },
+                margins: { top: 0, bottom: 0, left: 0, right: 0 },
+              }),
+              // Content cell
+              new TableCell({
+                children: paragraphs,
+                margins: {
+                  top: paddingTop,
+                  bottom: paddingBottom,
+                  left: paddingLeft,
+                  right: paddingRight,
+                },
+              }),
+            ],
+          }),
+        ],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          insideHorizontal: {
+            style: BorderStyle.NONE,
+            size: 0,
+            color: "FFFFFF",
+          },
+          insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        },
+      });
+    }
 
     case "table":
-      return buildWordTable(element, config, needsSpacingAfter);
+      return buildWordTable(
+        element,
+        merged,
+        wordConfig,
+        spacingBefore,
+        spacingAfter,
+      );
 
     case "image": {
       if (!element.imageData) {
@@ -208,14 +382,13 @@ function buildParagraph(
       }
 
       try {
-        const imageRun = createImageRun(element.imageData, config);
+        const imageRun = createImageRun(element, merged, wordConfig);
         return new Paragraph({
           children: [imageRun],
-          spacing: needsSpacingAfter
-            ? {
-              after: config.document.paragraphSpaceAfter,
-            }
-            : undefined,
+          spacing: {
+            before: pixelsToTwips(spacingBefore),
+            after: pixelsToTwips(spacingAfter),
+          },
         });
       } catch (error) {
         console.error("Failed to create image:", error);
@@ -223,54 +396,146 @@ function buildParagraph(
           children: [
             new TextRun({ text: `[Image: ${element.imageAlt || ""}]` }),
           ],
-          spacing: needsSpacingAfter
-            ? {
-              after: config.document.paragraphSpaceAfter,
-            }
-            : undefined,
+          spacing: {
+            before: pixelsToTwips(spacingBefore),
+            after: pixelsToTwips(spacingAfter),
+          },
         });
       }
+    }
+
+    case "code-block": {
+      const codeLines = (element.codeContent ?? "").split("\n");
+      if (codeLines.length > 0 && codeLines[codeLines.length - 1] === "") {
+        codeLines.pop();
+      }
+      const codeChildren: TextRun[] = [];
+      for (let i = 0; i < codeLines.length; i++) {
+        if (i > 0) {
+          codeChildren.push(new TextRun({ text: "", break: 1 }));
+        }
+        codeChildren.push(
+          new TextRun({
+            text: codeLines[i],
+            font: "Consolas",
+          }),
+        );
+      }
+      const bgColor = merged.code.backgroundColor.replace("#", "");
+      const codePaddingH = pixelsToTwips(merged.code.paddingHorizontal);
+      const codePaddingV = pixelsToTwips(merged.code.paddingVertical);
+
+      // Use a single-cell table to get proper internal padding with shading
+      return new Table({
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: codeChildren,
+                    spacing: { before: 0, after: 0 },
+                  }),
+                ],
+                shading: {
+                  type: ShadingType.CLEAR,
+                  fill: bgColor,
+                  color: "auto",
+                },
+                margins: {
+                  top: codePaddingV,
+                  bottom: codePaddingV,
+                  left: codePaddingH,
+                  right: codePaddingH,
+                },
+              }),
+            ],
+          }),
+        ],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          insideHorizontal: {
+            style: BorderStyle.NONE,
+            size: 0,
+            color: "FFFFFF",
+          },
+          insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        },
+      });
+    }
+
+    case "math-block": {
+      const mathContent = element.mathLatex ?? "";
+      const mathObj = latexToDocxMath(mathContent);
+      return new Paragraph({
+        children: [mathObj],
+        spacing: {
+          before: pixelsToTwips(spacingBefore),
+          after: pixelsToTwips(spacingAfter),
+        },
+      });
     }
 
     case "paragraph":
     default:
       return new Paragraph({
         children,
+        spacing: {
+          before: pixelsToTwips(spacingBefore),
+          after: pixelsToTwips(spacingAfter),
+        },
       });
   }
 }
 
-function createImageRun(dataUrl: string, config: StyleConfig): ImageRun {
-  // Parse data URL: data:image/png;base64,xxxxx
-  const matches = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+function createImageRun(
+  element: DocElement,
+  merged: MergedMarkdownStyle,
+  wordConfig: WordSpecificConfig,
+): ImageRun {
+  const matches = element.imageData!.match(/^data:image\/(\w+);base64,(.+)$/);
   if (!matches) {
     throw new Error("Invalid image data URL format");
   }
 
   const [, imageType, base64Data] = matches;
 
-  // Convert base64 to Uint8Array (browser-compatible)
   const binaryString = atob(base64Data);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
 
-  // Map jpeg to jpg for docx compatibility
   let normalizedType = imageType.toLowerCase();
   if (normalizedType === "jpeg") {
     normalizedType = "jpg";
   }
 
-  // SVG requires special handling, so only support raster formats
   if (!["png", "jpg", "gif", "bmp"].includes(normalizedType)) {
     throw new Error(`Unsupported image type: ${imageType}`);
   }
 
-  // Calculate dimensions: full width with default aspect ratio
-  // Convert inches to pixels at 96 DPI (docx library standard)
-  const widthPixels = config.image.maxWidthInches * 96;
-  const heightPixels = widthPixels / config.image.defaultAspectRatio;
+  let widthPixels: number;
+  let heightPixels: number;
+
+  if (element.imageWidth && element.imageHeight) {
+    const maxWidthInches = wordConfig.image?.maxWidthInches ??
+      DEFAULT_WORD_SPECIFIC_CONFIG.image!.maxWidthInches!;
+    const maxWidthPixels = maxWidthInches * 96;
+
+    const scale = Math.min(1, maxWidthPixels / element.imageWidth);
+    widthPixels = element.imageWidth * scale;
+    heightPixels = element.imageHeight * scale;
+  } else {
+    const maxWidthInches = wordConfig.image?.maxWidthInches ??
+      DEFAULT_WORD_SPECIFIC_CONFIG.image!.maxWidthInches!;
+    widthPixels = maxWidthInches * 96;
+    heightPixels = widthPixels / merged.image.defaultAspectRatio;
+  }
 
   return new ImageRun({
     type: normalizedType as "png" | "jpg" | "gif" | "bmp",
@@ -282,16 +547,21 @@ function createImageRun(dataUrl: string, config: StyleConfig): ImageRun {
   });
 }
 
+type BaseTextStyle = {
+  italics?: boolean;
+};
+
 function buildInlineContent(
   content: InlineContent[],
-  config: StyleConfig,
-): (TextRun | ExternalHyperlink)[] {
-  const result: (TextRun | ExternalHyperlink)[] = [];
+  merged: MergedMarkdownStyle,
+  baseStyle?: BaseTextStyle,
+): (TextRun | ExternalHyperlink | DocxMath)[] {
+  const result: (TextRun | ExternalHyperlink | DocxMath)[] = [];
+  const linkColor = getLinkColorFromMerged(merged);
 
   for (const item of content) {
     switch (item.type) {
       case "text": {
-        // Check for emails in plain text
         const emailParts = parseEmailsInText(item.text);
         for (const part of emailParts) {
           if (part.type === "email" && part.url) {
@@ -300,8 +570,9 @@ function buildInlineContent(
                 children: [
                   new TextRun({
                     text: part.text,
-                    color: getLinkColor(config),
+                    color: linkColor,
                     underline: {},
+                    italics: baseStyle?.italics,
                   }),
                 ],
                 link: part.url,
@@ -311,6 +582,7 @@ function buildInlineContent(
             result.push(
               new TextRun({
                 text: part.text,
+                italics: baseStyle?.italics,
               }),
             );
           }
@@ -323,6 +595,7 @@ function buildInlineContent(
           new TextRun({
             text: item.text,
             bold: true,
+            italics: baseStyle?.italics,
           }),
         );
         break;
@@ -342,8 +615,9 @@ function buildInlineContent(
             children: [
               new TextRun({
                 text: item.text,
-                color: getLinkColor(config),
+                color: linkColor,
                 underline: {},
+                italics: baseStyle?.italics,
               }),
             ],
             link: item.url || "",
@@ -357,8 +631,9 @@ function buildInlineContent(
             children: [
               new TextRun({
                 text: item.text,
-                color: getLinkColor(config),
+                color: linkColor,
                 underline: {},
+                italics: baseStyle?.italics,
               }),
             ],
             link: item.url || `mailto:${item.text}`,
@@ -374,6 +649,10 @@ function buildInlineContent(
           }),
         );
         break;
+
+      case "math-inline":
+        result.push(latexToDocxMath(item.text));
+        break;
     }
   }
 
@@ -382,61 +661,69 @@ function buildInlineContent(
 
 function buildWordTable(
   element: DocElement,
-  config: StyleConfig,
-  needsSpacingAfter: boolean,
+  merged: MergedMarkdownStyle,
+  wordConfig: WordSpecificConfig,
+  spacingBefore: number,
+  spacingAfter: number,
 ): Table {
   const rows: TableRow[] = [];
 
-  // Build header rows if present
+  const cellMargins = {
+    top: pixelsToTwips(merged.table.cellPaddingVertical),
+    bottom: pixelsToTwips(merged.table.cellPaddingVertical),
+    left: pixelsToTwips(merged.table.cellPaddingHorizontal),
+    right: pixelsToTwips(merged.table.cellPaddingHorizontal),
+  };
+
+  const borderSize = merged.table.borderWidth * 8;
+  const borderColor = merged.table.borderColor;
+
   if (element.tableHeader && element.tableHeader.length > 0) {
     for (const headerRow of element.tableHeader) {
-      const cells = headerRow.map((cellContent) =>
-        new TableCell({
-          children: [
-            new Paragraph({
-              children: buildInlineContent(cellContent, config),
-              spacing: {
-                before: 0,
-                after: 0,
-              },
-            }),
-          ],
-          shading: {
-            type: config.table.headerShading.type,
-            fill: config.table.headerShading.fill,
-            color: config.table.headerShading.color,
-          },
-          margins: config.table.cellMargins,
-        })
+      const cells = headerRow.map(
+        (cellContent) =>
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: buildInlineContent(cellContent, merged),
+                spacing: {
+                  before: 0,
+                  after: 0,
+                },
+              }),
+            ],
+            shading: {
+              type: ShadingType.CLEAR,
+              fill: merged.table.headerShadingColor.replace("#", ""),
+              color: "auto",
+            },
+            margins: cellMargins,
+          }),
       );
       rows.push(new TableRow({ children: cells }));
     }
   }
 
-  // Build body rows if present
   if (element.tableRows && element.tableRows.length > 0) {
     for (const bodyRow of element.tableRows) {
-      const cells = bodyRow.map((cellContent) =>
-        new TableCell({
-          children: [
-            new Paragraph({
-              children: buildInlineContent(cellContent, config),
-              spacing: {
-                before: 0,
-                after: 0,
-              },
-            }),
-          ],
-          margins: config.table.cellMargins,
-        })
+      const cells = bodyRow.map(
+        (cellContent) =>
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: buildInlineContent(cellContent, merged),
+                spacing: {
+                  before: 0,
+                  after: 0,
+                },
+              }),
+            ],
+            margins: cellMargins,
+          }),
       );
       rows.push(new TableRow({ children: cells }));
     }
   }
-
-  const extraSpacing = needsSpacingAfter
-    ? config.document.paragraphSpaceAfter
-    : 0;
 
   return new Table({
     rows,
@@ -444,40 +731,37 @@ function buildWordTable(
       size: 100,
       type: WidthType.PERCENTAGE,
     },
-    margins: {
-      top: config.table.spaceBefore,
-      bottom: config.table.spaceAfter + extraSpacing,
-    },
+    margins: cellMargins,
     borders: {
       top: {
         style: BorderStyle.SINGLE,
-        size: config.table.borders.size,
-        color: config.table.borders.color,
+        size: borderSize,
+        color: borderColor,
       },
       bottom: {
         style: BorderStyle.SINGLE,
-        size: config.table.borders.size,
-        color: config.table.borders.color,
+        size: borderSize,
+        color: borderColor,
       },
       left: {
         style: BorderStyle.SINGLE,
-        size: config.table.borders.size,
-        color: config.table.borders.color,
+        size: borderSize,
+        color: borderColor,
       },
       right: {
         style: BorderStyle.SINGLE,
-        size: config.table.borders.size,
-        color: config.table.borders.color,
+        size: borderSize,
+        color: borderColor,
       },
       insideHorizontal: {
         style: BorderStyle.SINGLE,
-        size: config.table.borders.size,
-        color: config.table.borders.color,
+        size: borderSize,
+        color: borderColor,
       },
       insideVertical: {
         style: BorderStyle.SINGLE,
-        size: config.table.borders.size,
-        color: config.table.borders.color,
+        size: borderSize,
+        color: borderColor,
       },
     },
   });

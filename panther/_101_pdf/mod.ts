@@ -4,3 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { PdfRenderContext } from "./pdf_render_context.ts";
+export {
+  injectKerningIntoJsPdf,
+  patchJsPdfForKerning,
+  patchJsPdfForKerningCharByChar,
+} from "./inject_kerning.ts";

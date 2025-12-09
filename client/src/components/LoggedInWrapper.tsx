@@ -1,4 +1,4 @@
-import { Clerk } from "@clerk/clerk-js";
+import { Clerk } from "@clerk/clerk-js/headless";
 import { clear } from "idb-keyval";
 import { GlobalUser, t, t2, T, createDevGlobalUser } from "lib";
 import { Button, StateHolderWrapper, timQuery } from "panther";

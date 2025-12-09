@@ -18,7 +18,6 @@ import type {
   AIChatConfig,
   DisplayItem,
   MessageParam,
-  Usage,
 } from "../_core/types.ts";
 
 export const AIChatConfigContext = createContext<AIChatConfig>();
@@ -51,8 +50,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   const [isProcessingTools, setIsProcessingTools] = store.isProcessingTools;
   const [error, setError] = store.error;
   const [usage, setUsage] = store.usage;
-  const [currentStreamingText, setCurrentStreamingText] = store
-    .currentStreamingText;
+  const [currentStreamingText, setCurrentStreamingText] =
+    store.currentStreamingText;
   const [usageHistory, setUsageHistory] = store.usageHistory;
 
   const toolRegistry = new ToolRegistry();
@@ -61,7 +60,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   }
 
   // Merge custom tools (SDK betaZodTools) with built-in tools (web_search, bash, etc.)
-  const allTools = [
+  // Type assertion needed because SDK types don't properly handle server-side tool union
+  // deno-lint-ignore no-explicit-any
+  const allTools: any[] = [
     ...toolRegistry.getSDKTools(),
     ...(config.builtInTools || []),
   ];

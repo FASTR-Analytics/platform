@@ -4,7 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 // Main exports - simplified API surface
-export { writeFigure, writeFigures } from "./write_figure.ts";
+export {
+  getFigureAsCanvas,
+  getFigureAsDataUrl,
+  writeFigure,
+  writeFigures,
+} from "./write_figure.ts";
 export { writeSlide, writeSlides } from "./write_slide.ts";
 
 // Utility exports for advanced usage

@@ -5,6 +5,7 @@
 
 export { getAdjustedColor, getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
+export { quotedFontFamilyForCanvas } from "../_001_font/mod.ts";
 export type { FontInfo, TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, Dimensions, RectCoordsDims, getRectAlignmentCoords } from "../_001_geometry/mod.ts";
 export type { CoordinatesOptions, RectCoordsDimsOptions } from "../_001_geometry/mod.ts";

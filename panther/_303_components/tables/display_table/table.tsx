@@ -142,7 +142,7 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
     >
       <Show when={enableSelection() && selectedItems().length > 0}>
         <div class="ui-pad ui-gap bg-base-100 border-base-300 mb-4 flex items-center rounded border">
-          <span class="font-800 flex-none text-sm">
+          <span class="font-700 flex-none text-sm">
             {selectedItems().length} {p.selectionLabel || "item"}
             {selectedItems().length !== 1 ? "s" : ""} selected
           </span>
@@ -219,7 +219,7 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
                         getCellAlignment(
                           column.align,
                         )
-                      } font-800 text-base-content text-xs uppercase tracking-wider ${
+                      } font-700 text-base-content text-xs uppercase tracking-wider ${
                         column.sortable
                           ? "hover:bg-base-300/30 cursor-pointer select-none"
                           : ""
@@ -365,7 +365,9 @@ const TableRow: Component<TableRowProps<any>> = (p) => {
         {(column) => (
           <td
             class={`${p.padding.px} ${p.padding.py} ${
-              getCellAlignment(column.align)
+              getCellAlignment(
+                column.align,
+              )
             } text-sm`}
             style={{ width: column.width }}
           >

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { walk } from "./deps.ts";
+import { copy, emptyDir, ensureDir, walk } from "./deps.ts";
 import type { CopyDocsOptions } from "./types.ts";
 
 // ================================================================================
@@ -11,10 +11,6 @@ import type { CopyDocsOptions } from "./types.ts";
 // ================================================================================
 
 export async function copyDocs(options: CopyDocsOptions): Promise<void> {
-  const { copy } = await import("@std/fs/copy");
-  const { emptyDir } = await import("@std/fs/empty-dir");
-  const { ensureDir } = await import("@std/fs/ensure-dir");
-
   await ensureDir(options.outputDir);
   await emptyDir(options.outputDir);
   await copy(options.sourceDir, options.outputDir, { overwrite: true });

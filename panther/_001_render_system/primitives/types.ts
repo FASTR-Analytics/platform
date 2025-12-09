@@ -4,9 +4,9 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  ChartSeriesInfo,
+  ChartValueInfo,
   Coordinates,
-  GenericSeriesInfo,
-  GenericValueInfo,
   RectCoordsDims,
 } from "../deps.ts";
 import type {
@@ -96,7 +96,7 @@ export type BarStackingMode = "stacked" | "imposed" | "grouped";
 export type ChartDataPointPrimitive = BasePrimitive & {
   type: "chart-data-point";
   meta: {
-    value: GenericValueInfo;
+    value: ChartValueInfo;
   };
   // Visual
   coords: Coordinates;
@@ -109,7 +109,7 @@ export type ChartDataPointPrimitive = BasePrimitive & {
 export type ChartLineSeriesPrimitive = BasePrimitive & {
   type: "chart-line-series";
   meta: {
-    series: GenericSeriesInfo;
+    series: ChartSeriesInfo;
     valueIndices: number[]; // Parallel to coords/values
   };
   // Visual
@@ -130,7 +130,7 @@ export type ChartLineSeriesPrimitive = BasePrimitive & {
 export type ChartAreaSeriesPrimitive = BasePrimitive & {
   type: "chart-area-series";
   meta: {
-    series: GenericSeriesInfo;
+    series: ChartSeriesInfo;
     valueIndices: number[];
   };
   // Visual
@@ -143,7 +143,7 @@ export type ChartAreaSeriesPrimitive = BasePrimitive & {
 export type ChartBarPrimitive = BasePrimitive & {
   type: "chart-bar";
   meta: {
-    value: GenericValueInfo;
+    value: ChartValueInfo;
   };
   stackingMode: BarStackingMode;
   stackInfo?: {
@@ -162,7 +162,7 @@ export type ChartBarPrimitive = BasePrimitive & {
 export type ChartErrorBarPrimitive = BasePrimitive & {
   type: "chart-error-bar";
   meta: {
-    value: GenericValueInfo;
+    value: ChartValueInfo;
   };
   // Visual
   centerX: number;

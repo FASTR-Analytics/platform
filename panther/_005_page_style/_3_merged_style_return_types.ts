@@ -3,12 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type {
-  ColorKeyOrString,
-  PaddingOptions,
-  TextInfoUnkeyed,
-} from "./deps.ts";
-import type { BulletLevelStyle } from "./bullet_types.ts";
+import type { ColorKeyOrString, Padding, TextInfoUnkeyed } from "./deps.ts";
 
 export type MergedPageStyle = {
   alreadyScaledValue: number;
@@ -25,67 +20,49 @@ export type MergedPageStyle = {
     subHeader: TextInfoUnkeyed;
     date: TextInfoUnkeyed;
     footer: TextInfoUnkeyed;
-    paragraph: TextInfoUnkeyed;
     pageNumber: TextInfoUnkeyed;
     watermark: TextInfoUnkeyed;
-    //
-    bullet1: TextInfoUnkeyed;
-    bullet2: TextInfoUnkeyed;
-    bullet3: TextInfoUnkeyed;
   };
   cover: {
-    backgroundColor: ColorKeyOrString;
+    backgroundColor: string;
     logoHeight: number;
     logoGapX: number;
     gapY: number;
   };
   section: {
-    backgroundColor: ColorKeyOrString;
+    backgroundColor: string;
     gapY: number;
   };
   header: {
-    padding: PaddingOptions;
+    padding: Padding;
     logoHeight: number;
     logoGapX: number;
     logoPlacement: "left" | "right";
-    backgroundColor: ColorKeyOrString;
+    backgroundColor: string;
     logoBottomPadding: number;
     headerBottomPadding: number;
     subHeaderBottomPadding: number;
     bottomBorderStrokeWidth: number;
-    bottomBorderColor: ColorKeyOrString;
+    bottomBorderColor: string;
   };
   footer: {
-    padding: PaddingOptions;
+    padding: Padding;
     logoHeight: number;
     logoGapX: number;
-    backgroundColor: ColorKeyOrString;
+    backgroundColor: string;
   };
   content: {
-    padding: PaddingOptions;
-    backgroundColor: ColorKeyOrString;
-    tabWidth: number;
+    padding: Padding;
+    backgroundColor: string;
     gapX: number;
     gapY: number;
-    bullets: {
-      bullet1: BulletLevelStyle;
-      bullet2: BulletLevelStyle;
-      bullet3: BulletLevelStyle;
-    };
-    itemLayoutDefaults: {
-      [
-        K in
-          | "spacer"
-          | "paragraph"
-          | "heading"
-          | "bullets"
-          | "quote"
-          | "figure"
-          | "htmlImage"
-      ]: {
-        stretch: boolean;
-        fillArea: boolean;
-      };
-    };
+    nColumns: number;
+  };
+  layoutContainers: {
+    padding: Padding;
+    backgroundColor: string;
+    borderColor: string;
+    borderWidth: number;
+    borderRadius: number;
   };
 };

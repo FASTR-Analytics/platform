@@ -85,14 +85,46 @@ export function createBashTool(): BashTool {
 ////////////////////////////////////////////////////////////////////////////////
 
 export interface TextEditorTool {
-  type: "text_editor_20250124";
-  name: "str_replace_editor";
+  type: "text_editor_20250728";
+  name: "str_replace_based_edit_tool";
 }
 
 export function createTextEditorTool(): TextEditorTool {
   return {
-    type: "text_editor_20250124",
-    name: "str_replace_editor",
+    type: "text_editor_20250728",
+    name: "str_replace_based_edit_tool",
+  };
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// WEB FETCH TOOL
+////////////////////////////////////////////////////////////////////////////////
+
+export interface WebFetchToolConfig {
+  max_uses?: number;
+  allowed_domains?: string[];
+  blocked_domains?: string[];
+  citations?: { enabled: boolean };
+  max_content_tokens?: number;
+}
+
+export interface WebFetchTool {
+  type: "web_fetch_20250910";
+  name: "web_fetch";
+  max_uses?: number;
+  allowed_domains?: string[];
+  blocked_domains?: string[];
+  citations?: { enabled: boolean };
+  max_content_tokens?: number;
+}
+
+export function createWebFetchTool(
+  config: WebFetchToolConfig = {},
+): WebFetchTool {
+  return {
+    type: "web_fetch_20250910",
+    name: "web_fetch",
+    ...config,
   };
 }
 
@@ -100,4 +132,8 @@ export function createTextEditorTool(): TextEditorTool {
 // UNION TYPE
 ////////////////////////////////////////////////////////////////////////////////
 
-export type BuiltInTool = WebSearchTool | BashTool | TextEditorTool;
+export type BuiltInTool =
+  | WebSearchTool
+  | BashTool
+  | TextEditorTool
+  | WebFetchTool;

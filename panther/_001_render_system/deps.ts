@@ -7,4 +7,4 @@ export type { ColorAdjustmentStrategy, ColorKeyOrString } from "../_001_color/mo
 export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, Dimensions, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { CoordinatesOptions, RectCoordsDimsOptions } from "../_001_geometry/mod.ts";
-export type { GenericSeriesInfo, GenericValueInfo } from "../_003_figure_style/mod.ts";
+export type { ChartSeriesInfo, ChartSeriesInfoFunc, ChartValueInfo, ChartValueInfoFunc } from "./chart_info_types.ts";

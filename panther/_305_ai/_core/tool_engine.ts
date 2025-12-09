@@ -36,7 +36,7 @@ export class ToolRegistry {
     return Array.from(this.tools.values());
   }
 
-  getSDKTools(): Array<ReturnType<AIToolWithMetadata["sdkTool"]>> {
+  getSDKTools(): Array<AIToolWithMetadata["sdkTool"]> {
     return this.getAll().map((tool) => tool.sdkTool);
   }
 

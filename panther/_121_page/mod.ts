@@ -3,6 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { applyContainerDefaults } from "./apply_container_defaults.ts";
+export { buildPageLayout } from "./build_page_layout.ts";
+export type { LayoutInput } from "./build_page_layout.ts";
 export { PageRenderer } from "./page_renderer.ts";
 export type {
   CoverPageInputs,
@@ -19,9 +22,7 @@ export type {
   PageSpacerInputs,
   SectionPageInputs,
 } from "./types.ts";
-export {
-  isFigureItem,
-  isImageItem,
-  isMarkdownItem,
-  isSpacerItem,
-} from "./types.ts";
+export { isSpacerItem } from "./types.ts";
+
+export { buildFreeformPages } from "./build_freeform_pages.ts";
+export type { FreeformPagesConfig } from "./build_freeform_pages.ts";
