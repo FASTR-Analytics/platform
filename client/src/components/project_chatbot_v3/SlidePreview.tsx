@@ -1,15 +1,12 @@
 import {
   ReportType,
   getStartingConfigForReport,
-  getStartingConfigForReportItem,
-  type ProjectDirtyStates,
+  getStartingConfigForReportItem
 } from "lib";
 import type { PageInputs } from "panther";
 import { Button, StateHolder } from "panther";
 import { Show, createSignal, onMount } from "solid-js";
-import { unwrap } from "solid-js/store";
 import { ReportItemMiniDisplayStateHolderWrapper } from "~/components/ReportItemMiniDisplay";
-import { useProjectDirtyStates } from "~/components/project_runner/mod";
 import { getPageInputs_SlideDeck_Freeform } from "~/generate_report/slide_deck/get_page_inputs_slide_deck_freeform";
 
 type Props = {
@@ -29,10 +26,10 @@ export function SlidePreview(p: Props) {
     const format = (
       p.slideDataFromAI as {
         format:
-          | "only_figure"
-          | "figure_on_left"
-          | "figure_on_right"
-          | "only_text";
+        | "only_figure"
+        | "figure_on_left"
+        | "figure_on_right"
+        | "only_text";
       }
     ).format;
     const ric = getStartingConfigForReportItem();
@@ -44,6 +41,24 @@ export function SlidePreview(p: Props) {
         //@ts-ignore
         format === "figure_on_left"
           ? [
+            {
+              type: "figure",
+              span: 8,
+              //@ts-ignore
+              presentationObjectInReportInfo: {
+                id: (p.slideDataFromAI as { visualizationId: string })
+                  .visualizationId,
+              },
+            },
+            //@ts-ignore
+            {
+              type: "text",
+              markdown: (p.slideDataFromAI as { commentaryText: string })
+                .commentaryText,
+            },
+          ]
+          : format === "figure_on_right"
+            ? [
               {
                 type: "figure",
                 span: 8,
@@ -60,43 +75,25 @@ export function SlidePreview(p: Props) {
                   .commentaryText,
               },
             ]
-          : format === "figure_on_right"
-            ? [
+            : format === "only_figure"
+              ? [
                 {
                   type: "figure",
-                  span: 8,
                   //@ts-ignore
                   presentationObjectInReportInfo: {
                     id: (p.slideDataFromAI as { visualizationId: string })
                       .visualizationId,
                   },
                 },
+              ]
+              : [
                 //@ts-ignore
                 {
                   type: "text",
                   markdown: (p.slideDataFromAI as { commentaryText: string })
                     .commentaryText,
                 },
-              ]
-            : format === "only_figure"
-              ? [
-                  {
-                    type: "figure",
-                    //@ts-ignore
-                    presentationObjectInReportInfo: {
-                      id: (p.slideDataFromAI as { visualizationId: string })
-                        .visualizationId,
-                    },
-                  },
-                ]
-              : [
-                  //@ts-ignore
-                  {
-                    type: "text",
-                    markdown: (p.slideDataFromAI as { commentaryText: string })
-                      .commentaryText,
-                  },
-                ],
+              ],
       ],
     };
     const res = await getPageInputs_SlideDeck_Freeform(

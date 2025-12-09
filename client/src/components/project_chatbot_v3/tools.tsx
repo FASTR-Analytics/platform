@@ -2,8 +2,8 @@ import { TOOL_DEFINITIONS, hmisTools } from "lib";
 import { serverActions } from "~/server_actions";
 import type { AITool } from "panther";
 import { For } from "solid-js";
-import { VisualizationPreview } from "../project_chatbot/VisualizationPreview";
-import { SlidePreview } from "../project_chatbot/SlidePreview";
+import { VisualizationPreview } from "./VisualizationPreview";
+import { SlidePreview } from "./SlidePreview";
 
 export function createProjectTools(projectId: string): AITool[] {
   return [

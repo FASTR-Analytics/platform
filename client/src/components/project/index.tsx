@@ -1,11 +1,10 @@
 import { useNavigate, useSearchParams } from "@solidjs/router";
-import { InstanceDetail, t2, T } from "lib";
+import { InstanceDetail, T, t, t2 } from "lib";
 import {
   Button,
   ChartIcon,
   CodeIcon,
   DatabaseIcon,
-  FolderIcon,
   FrameLeft,
   FrameTop,
   ReportIcon,
@@ -14,16 +13,14 @@ import {
   StateHolderWrapper,
   TimQuery,
   getEditorWrapper,
-  timQuery,
+  timQuery
 } from "panther";
 import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
-import { ProjectRunnerProvider } from "~/components/project_runner/mod";
-// import { PresentationObjectEditor } from "~/components/forms_editors/presentation_object_editor";
-// import { Module } from "~/components/module";
-import { t } from "lib";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
-import { useProjectDirtyStates } from "~/components/project_runner/mod";
+import { ProjectRunnerProvider, useProjectDirtyStates } from "~/components/project_runner/mod";
 import { serverActions } from "~/server_actions";
+import { ProjectAiReport } from "../project_ai_report";
+import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
 import { Report } from "../report";
 import { Visualization } from "../visualization";
 import { ProjectData } from "./project_data";
@@ -31,9 +28,9 @@ import { ProjectModules } from "./project_modules";
 import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
-import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
 
 type TabOption =
+  | "ai_report"
   | "chatbot"
   | "reports"
   | "visualizations"
@@ -54,7 +51,7 @@ export default function Project(p: Props) {
 
   const navigate = useNavigate();
 
-  const [tab, setTab] = createSignal<TabOption>("visualizations");
+  const [tab, setTab] = createSignal<TabOption>("ai_report");
 
   function changeTab(tab: TabOption) {
     setSearchParams({ b: undefined, d: undefined });
@@ -154,6 +151,16 @@ export default function Project(p: Props) {
                               <div class="font-700 h-full border-r text-sm">
                                 <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                  onClick={() => changeTab("ai_report")}
+                                  data-selected={tab() === "ai_report"}
+                                >
+                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                    <ReportIcon />
+                                  </span>
+                                  {t2("AI Report")}
+                                </div>
+                                <div
+                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                   onClick={() => changeTab("chatbot")}
                                   data-selected={tab() === "chatbot"}
                                 >
@@ -218,6 +225,11 @@ export default function Project(p: Props) {
                             }
                           >
                             <Switch>
+                              <Match when={tab() === "ai_report"}>
+                                <ProjectAiReport
+                                  projectDetail={keyedProjectDetail}
+                                />
+                              </Match>
                               <Match when={tab() === "chatbot"}>
                                 <ProjectChatbot
                                   projectDetail={keyedProjectDetail}
