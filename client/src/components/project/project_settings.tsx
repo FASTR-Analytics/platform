@@ -10,12 +10,30 @@ import {
   timActionDelete,
   timActionButton,
 } from "panther";
-import { Match, Show, Switch } from "solid-js";
+import { Match, Show, Switch, onMount, createSignal, For } from "solid-js";
 import { Table, TableColumn, type BulkAction } from "panther";
 import { EditLabelForm } from "~/components/forms_editors/edit_label";
 import { SelectProjectUserRole } from "~/components/forms_editors/select_project_user_role";
 import { serverActions } from "~/server_actions";
 import { CopyProjectForm } from "./copy_project";
+
+// Backup types
+interface BackupFileInfo {
+  name: string;
+  size: number;
+  type: "main" | "project" | "metadata" | "log" | "other";
+}
+
+interface ProjectBackupInfo {
+  project_id: string;
+  project_label: string;
+  folder: string;
+  timestamp: string;
+  backup_date: string;
+  size: number;
+  file_count: number;
+  files: BackupFileInfo[];
+}
 
 type Props = {
   isGlobalAdmin: boolean;
@@ -207,7 +225,7 @@ export function ProjectSettings(p: Props) {
         <SettingsSection
           header={t2("Backups")}
         >
-          Backups go here
+          <ProjectBackups projectId={p.projectDetail.id} />
         </SettingsSection>
 
         <div class="ui-gap flex">
@@ -304,5 +322,119 @@ function ProjectUserTable(p: {
       bulkActions={bulkActions}
       tableContentMaxHeight="500px"
     />
+  );
+}
+
+function ProjectBackups(props: { projectId: string }) {
+  const [backupsList, setBackupsList] = createSignal<ProjectBackupInfo[]>([]);
+  const [loading, setLoading] = createSignal(true);
+  const [expandedBackup, setExpandedBackup] = createSignal<string | null>(null);
+
+  // Fetch backups for the current project only
+  onMount(async () => {
+    try {
+      const response = await fetch(`/api/project-backups/${props.projectId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setBackupsList(data.backups || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch backups:", error);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  const toggleBackupExpand = (folder: string) => {
+    setExpandedBackup(expandedBackup() === folder ? null : folder);
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  };
+
+  const downloadFile = async (projectId: string, folder: string, fileName: string) => {
+    try {
+      const response = await fetch(`/api/backups/${projectId}/${folder}/${fileName}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error("Download failed:", error);
+    }
+  };
+
+  return (
+    <Show when={!loading()} fallback={<div>Loading backups...</div>}>
+      <Show
+        when={backupsList().length > 0}
+        fallback={<div class="text-neutral">No backups available</div>}
+      >
+        <div class="flex flex-col gap-2">
+          <For each={backupsList()}>
+            {(backup) => (
+              <div class="rounded border border-neutral-200">
+                <div
+                  class="flex cursor-pointer items-center justify-between p-3 hover:bg-base-200"
+                  onClick={() => toggleBackupExpand(backup.folder)}
+                >
+                  <div class="flex flex-col gap-1">
+                    <span class="font-medium">{backup.timestamp}</span>
+                    <span class="text-sm text-neutral">
+                      {formatBytes(backup.size)} • {backup.file_count} files
+                    </span>
+                  </div>
+                  <span class="text-lg">
+                    {expandedBackup() === backup.folder ? "▼" : "▶"}
+                  </span>
+                </div>
+
+                <Show when={expandedBackup() === backup.folder}>
+                  <div class="border-t border-neutral-200 bg-base-50 p-3">
+                    <div class="mb-3 text-sm font-semibold text-neutral">Files:</div>
+                    <div class="flex flex-col gap-1">
+                      <For each={backup.files}>
+                        {(file) => (
+                          <div class="flex items-center justify-between rounded bg-base-100 p-2 hover:bg-base-200">
+                            <div class="flex items-center gap-2">
+                              <span class="text-sm">{file.name}</span>
+                              <span class="text-xs text-neutral">
+                                ({formatBytes(file.size)})
+                              </span>
+                            </div>
+                            <Button
+                              onClick={() =>
+                                downloadFile(backup.project_id, backup.folder, file.name)
+                              }
+                              iconName="download"
+                              intent="base-100"
+                              size="sm"
+                            >
+                              Download
+                            </Button>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </div>
+                </Show>
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+    </Show>
   );
 }
