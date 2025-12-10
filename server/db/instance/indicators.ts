@@ -3,8 +3,8 @@ import { join } from "@std/path";
 import {
   APIResponseNoData,
   APIResponseWithData,
-  type InstanceIndicatorDetails,
   type BatchIndicator,
+  type InstanceIndicatorDetails,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
@@ -16,7 +16,7 @@ import { readCsvFile } from "@timroberton/panther";
 
 // Get all indicators with their mappings
 export async function getIndicatorsWithMappings(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseWithData<InstanceIndicatorDetails>> {
   return await tryCatchDatabaseAsync(async () => {
     // Get all common indicators with their raw ID mappings aggregated
@@ -95,7 +95,7 @@ export async function createIndicatorsCommon(
     indicator_common_id: string;
     indicator_common_label: string;
     mapped_raw_ids: string[];
-  }>
+  }>,
 ): Promise<
   APIResponseWithData<{ created: number; failed: number; errors: string[] }>
 > {
@@ -150,7 +150,7 @@ export async function createIndicatorsCommon(
           results.errors.push(
             `${indicator.indicator_common_id}: ${
               error instanceof Error ? error.message : "Unknown error"
-            }`
+            }`,
           );
         }
       }
@@ -192,7 +192,7 @@ export async function updateIndicatorCommon(
   oldIndicatorCommonId: string,
   newIndicatorCommonId: string,
   indicatorCommonLabel: string,
-  mappedRawIds: string[]
+  mappedRawIds: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
@@ -228,7 +228,7 @@ export async function updateIndicatorCommon(
 // Delete common indicators (automatically cascades to mappings)
 export async function deleteIndicatorCommon(
   mainDb: Sql,
-  indicatorCommonIds: string[]
+  indicatorCommonIds: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     if (indicatorCommonIds.length === 0) {
@@ -260,7 +260,7 @@ export async function deleteIndicatorCommon(
     }
 
     const indicatorsToDelete = nonDefaultIndicators.map(
-      (row) => row.indicator_common_id
+      (row) => row.indicator_common_id,
     );
 
     if (indicatorsToDelete.length === 0) {
@@ -288,7 +288,7 @@ export async function createIndicatorsRaw(
     indicator_raw_id: string;
     indicator_raw_label: string;
     mapped_common_ids: string[];
-  }>
+  }>,
 ): Promise<
   APIResponseWithData<{ created: number; failed: number; errors: string[] }>
 > {
@@ -324,7 +324,7 @@ export async function createIndicatorsRaw(
           results.errors.push(
             `${indicator.indicator_raw_id}: ${
               error instanceof Error ? error.message : "Unknown error"
-            }`
+            }`,
           );
         }
       }
@@ -364,7 +364,7 @@ export async function updateIndicatorRaw(
   oldIndicatorRawId: string,
   newIndicatorRawId: string,
   indicatorRawLabel: string,
-  mappedCommonIds: string[]
+  mappedCommonIds: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
@@ -378,7 +378,10 @@ export async function updateIndicatorRaw(
         if ((usageCheck[0]?.count ?? 0) > 0) {
           return {
             success: false,
-            err: `Cannot change indicator_raw_id for ${oldIndicatorRawId}: It has ${usageCheck[0].count} records in dataset_hmis`,
+            err:
+              `Cannot change indicator_raw_id for ${oldIndicatorRawId}: It has ${
+                usageCheck[0].count
+              } records in dataset_hmis`,
           };
         }
       }
@@ -415,7 +418,7 @@ export async function updateIndicatorRaw(
 // Delete raw indicators (checks for usage in dataset_hmis first)
 export async function deleteIndicatorRaw(
   mainDb: Sql,
-  indicatorRawIds: string[]
+  indicatorRawIds: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     if (indicatorRawIds.length === 0) {
@@ -439,7 +442,8 @@ export async function deleteIndicatorRaw(
         .join(", ");
       return {
         success: false,
-        err: `Cannot delete raw indicators with data in dataset_hmis: ${usageDetails}`,
+        err:
+          `Cannot delete raw indicators with data in dataset_hmis: ${usageDetails}`,
       };
     }
 
@@ -452,7 +456,7 @@ export async function deleteIndicatorRaw(
 
     const existingIds = existingIndicators.map((row) => row.indicator_raw_id);
     const notFoundIds = indicatorRawIds.filter(
-      (id) => !existingIds.includes(id)
+      (id) => !existingIds.includes(id),
     );
     if (notFoundIds.length > 0) {
       return {
@@ -477,7 +481,7 @@ export async function deleteIndicatorRaw(
 
 // Delete all non-default indicators and raw indicators (automatically cascades to mappings)
 export async function deleteAllIndicators(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
@@ -501,7 +505,7 @@ export async function deleteAllIndicators(
 export async function batchUploadIndicators(
   mainDb: Sql,
   assetFileName: string,
-  replaceAllExisting = false
+  replaceAllExisting = false,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // Read and parse the CSV file
@@ -512,7 +516,7 @@ export async function batchUploadIndicators(
         await readCsvFile(filePath, {
           rowHeaders: "none",
         })
-      ).getAsObjectArray();
+      ).toObjects();
     } catch (error) {
       return {
         success: false,
@@ -528,7 +532,7 @@ export async function batchUploadIndicators(
         indicator_common_id: row.indicator_common_id || "",
         indicator_common_label: row.indicator_common_label || "",
         mapped_raw_indicator_ids: row.mapped_raw_indicator_ids || "",
-      })
+      }),
     );
 
     // Validate required fields
@@ -536,7 +540,8 @@ export async function batchUploadIndicators(
       if (!batch.indicator_common_id || !batch.indicator_common_label) {
         return {
           success: false,
-          err: "Each row must have indicator_common_id and indicator_common_label",
+          err:
+            "Each row must have indicator_common_id and indicator_common_label",
         };
       }
     }

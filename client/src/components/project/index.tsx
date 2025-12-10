@@ -13,13 +13,13 @@ import {
   StateHolderWrapper,
   TimQuery,
   getEditorWrapper,
+  getFirstString,
   timQuery
 } from "panther";
 import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
 import { ProjectRunnerProvider, useProjectDirtyStates } from "~/components/project_runner/mod";
 import { serverActions } from "~/server_actions";
-import { ProjectAiReport } from "../project_ai_report";
 import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
 import { Report } from "../report";
 import { Visualization } from "../visualization";
@@ -30,7 +30,6 @@ import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
 
 type TabOption =
-  | "ai_report"
   | "chatbot"
   | "reports"
   | "visualizations"
@@ -51,7 +50,7 @@ export default function Project(p: Props) {
 
   const navigate = useNavigate();
 
-  const [tab, setTab] = createSignal<TabOption>("ai_report");
+  const [tab, setTab] = createSignal<TabOption>("reports");
 
   function changeTab(tab: TabOption) {
     setSearchParams({ b: undefined, d: undefined });
@@ -103,25 +102,25 @@ export default function Project(p: Props) {
 
                 return (
                   <Switch>
-                    <Match when={searchParams.r}>
+                    <Match when={getFirstString(searchParams.r)}>
                       <Report
                         isGlobalAdmin={p.isGlobalAdmin}
                         projectDetail={keyedProjectDetail}
-                        reportId={searchParams.r!}
+                        reportId={getFirstString(searchParams.r)!}
                         backToProject={backToProject}
                         instanceDetail={keyedInstanceDetail}
                       />
                     </Match>
-                    <Match when={searchParams.v}>
+                    <Match when={getFirstString(searchParams.v)}>
                       <Show
-                        when={searchParams.m}
+                        when={getFirstString(searchParams.m)}
                         fallback="No module ID in url"
                       >
                         <Visualization
                           isGlobalAdmin={p.isGlobalAdmin}
                           projectDetail={keyedProjectDetail}
-                          moduleId={searchParams.m!}
-                          presentationObjectId={searchParams.v!}
+                          moduleId={getFirstString(searchParams.m)!}
+                          presentationObjectId={getFirstString(searchParams.v)!}
                           backToProject={backToProject}
                         />
                       </Show>
@@ -149,16 +148,6 @@ export default function Project(p: Props) {
                           <FrameLeft
                             panelChildren={
                               <div class="font-700 h-full border-r text-sm">
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("ai_report")}
-                                  data-selected={tab() === "ai_report"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <ReportIcon />
-                                  </span>
-                                  {t2("AI Report")}
-                                </div>
                                 <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                   onClick={() => changeTab("chatbot")}
@@ -225,11 +214,6 @@ export default function Project(p: Props) {
                             }
                           >
                             <Switch>
-                              <Match when={tab() === "ai_report"}>
-                                <ProjectAiReport
-                                  projectDetail={keyedProjectDetail}
-                                />
-                              </Match>
                               <Match when={tab() === "chatbot"}>
                                 <ProjectChatbot
                                   projectDetail={keyedProjectDetail}

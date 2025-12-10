@@ -10,7 +10,7 @@ import {
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
 } from "lib";
-import { toNum0, toNum1, to100Pct0, type ADTFigure } from "panther";
+import { toNum0, toNum1, to100Pct0, type FigureInputs } from "panther";
 import {
   getCutoffColorFunc,
   getCutoffColorFuncReverse,
@@ -233,7 +233,7 @@ export function getSpecialScorecardTableFigureInputs(
   resultsValue: ResultsValue,
   ih: ItemsHolderPresentationObject,
   config: PresentationObjectConfig,
-): ADTFigure {
+): FigureInputs {
   // Type guard - this function should only be called with status: "ok"
   if (ih.status !== "ok") {
     throw new Error("getSpecialScorecardTableFigureInputs called with non-ok status");

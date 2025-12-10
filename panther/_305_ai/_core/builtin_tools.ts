@@ -8,96 +8,42 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Anthropic provides several built-in tools that can be used directly in API calls:
-// - web_search_20250305: Real-time internet access with citations
-// - bash_20250124: Execute shell commands in persistent session
-// - text_editor_20250124: File viewing and editing capabilities
+// - web_search: Real-time internet access with citations
+// - web_fetch: Fetch specific URLs
+// - bash: Execute shell commands in persistent session
+// - text_editor: File viewing and editing capabilities
 //
-// These tools are different from custom tools created with createAITool():
-// - They don't have custom handlers
-// - They're configured via API parameters
-// - The API executes them and returns results
+// Usage in AIChatConfig:
+//   builtInTools: {
+//     webSearch: true,  // or { max_uses: 5, allowed_domains: ["example.com"] }
+//     webFetch: true,
+//     bash: true,
+//     textEditor: true,
+//   }
 //
 // See: https://docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool
 
 ////////////////////////////////////////////////////////////////////////////////
-// WEB SEARCH TOOL
+// WEB SEARCH CONFIG
 ////////////////////////////////////////////////////////////////////////////////
 
 export interface WebSearchUserLocation {
   type: "approximate";
-
   city?: string;
-
   region?: string;
-
   country?: string;
-
   timezone?: string;
 }
 
 export interface WebSearchToolConfig {
   max_uses?: number;
-
-  allowed_domains?: string[];
-
-  blocked_domains?: string[];
-
-  user_location?: WebSearchUserLocation;
-}
-
-export interface WebSearchTool {
-  type: "web_search_20250305";
-  name: "web_search";
-  max_uses?: number;
   allowed_domains?: string[];
   blocked_domains?: string[];
   user_location?: WebSearchUserLocation;
 }
 
-export function createWebSearchTool(
-  config: WebSearchToolConfig = {},
-): WebSearchTool {
-  return {
-    type: "web_search_20250305",
-    name: "web_search",
-    ...config,
-  };
-}
-
 ////////////////////////////////////////////////////////////////////////////////
-// BASH TOOL
-////////////////////////////////////////////////////////////////////////////////
-
-export interface BashTool {
-  type: "bash_20250124";
-  name: "bash";
-}
-
-export function createBashTool(): BashTool {
-  return {
-    type: "bash_20250124",
-    name: "bash",
-  };
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// TEXT EDITOR TOOL
-////////////////////////////////////////////////////////////////////////////////
-
-export interface TextEditorTool {
-  type: "text_editor_20250728";
-  name: "str_replace_based_edit_tool";
-}
-
-export function createTextEditorTool(): TextEditorTool {
-  return {
-    type: "text_editor_20250728",
-    name: "str_replace_based_edit_tool",
-  };
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// WEB FETCH TOOL
+// WEB FETCH CONFIG
 ////////////////////////////////////////////////////////////////////////////////
 
 export interface WebFetchToolConfig {
@@ -108,7 +54,31 @@ export interface WebFetchToolConfig {
   max_content_tokens?: number;
 }
 
-export interface WebFetchTool {
+////////////////////////////////////////////////////////////////////////////////
+// BUILT-IN TOOLS CONFIG (USER-FACING)
+////////////////////////////////////////////////////////////////////////////////
+
+export interface BuiltInToolsConfig {
+  webSearch?: boolean | WebSearchToolConfig;
+  webFetch?: boolean | WebFetchToolConfig;
+  bash?: boolean;
+  textEditor?: boolean;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// SDK TOOL TYPES (INTERNAL)
+////////////////////////////////////////////////////////////////////////////////
+
+interface WebSearchToolSDK {
+  type: "web_search_20250305";
+  name: "web_search";
+  max_uses?: number;
+  allowed_domains?: string[];
+  blocked_domains?: string[];
+  user_location?: WebSearchUserLocation;
+}
+
+interface WebFetchToolSDK {
   type: "web_fetch_20250910";
   name: "web_fetch";
   max_uses?: number;
@@ -118,22 +88,66 @@ export interface WebFetchTool {
   max_content_tokens?: number;
 }
 
-export function createWebFetchTool(
-  config: WebFetchToolConfig = {},
-): WebFetchTool {
-  return {
-    type: "web_fetch_20250910",
-    name: "web_fetch",
-    ...config,
-  };
+interface BashToolSDK {
+  type: "bash_20250124";
+  name: "bash";
 }
 
+interface TextEditorToolSDK {
+  type: "text_editor_20250728";
+  name: "str_replace_based_edit_tool";
+}
+
+type BuiltInToolSDK =
+  | WebSearchToolSDK
+  | WebFetchToolSDK
+  | BashToolSDK
+  | TextEditorToolSDK;
+
 ////////////////////////////////////////////////////////////////////////////////
-// UNION TYPE
+// CONVERT CONFIG TO SDK TOOLS
 ////////////////////////////////////////////////////////////////////////////////
 
-export type BuiltInTool =
-  | WebSearchTool
-  | BashTool
-  | TextEditorTool
-  | WebFetchTool;
+export function resolveBuiltInTools(
+  config: BuiltInToolsConfig | undefined,
+): BuiltInToolSDK[] {
+  if (!config) return [];
+
+  const tools: BuiltInToolSDK[] = [];
+
+  if (config.webSearch) {
+    const webSearchConfig =
+      typeof config.webSearch === "object" ? config.webSearch : {};
+    tools.push({
+      type: "web_search_20250305",
+      name: "web_search",
+      ...webSearchConfig,
+    });
+  }
+
+  if (config.webFetch) {
+    const webFetchConfig =
+      typeof config.webFetch === "object" ? config.webFetch : {};
+    tools.push({
+      type: "web_fetch_20250910",
+      name: "web_fetch",
+      ...webFetchConfig,
+    });
+  }
+
+  if (config.bash) {
+    tools.push({
+      type: "bash_20250124",
+      name: "bash",
+    });
+  }
+
+  if (config.textEditor) {
+    tools.push({
+      type: "text_editor_20250728",
+      name: "str_replace_based_edit_tool",
+    });
+  }
+
+  return tools;
+}

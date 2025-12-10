@@ -4,6 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createContext, useContext } from "solid-js";
+import type { Anthropic } from "../deps.ts";
+import { resolveBuiltInTools } from "../_core/builtin_tools.ts";
 import {
   clearConversationStore,
   getOrCreateConversationStore,
@@ -12,13 +14,36 @@ import { getDisplayItemsFromMessage } from "../_core/display_items.ts";
 import {
   getInProgressItems,
   processToolUses,
+  SERVER_TOOL_LABELS,
   ToolRegistry,
+  type ToolResult,
 } from "../_core/tool_engine.ts";
 import type {
   AIChatConfig,
+  ContentBlock,
   DisplayItem,
   MessageParam,
 } from "../_core/types.ts";
+
+// SDK tool union type for API calls
+type SDKToolUnion = Anthropic.Messages.ToolUnion;
+
+// Type for tool_use blocks from SDK responses
+type ToolUseBlock = {
+  type: "tool_use";
+  id: string;
+  name: string;
+  input: unknown;
+};
+
+// Type for stream events with server_tool_use
+type ServerToolUseEvent = {
+  type: "content_block_start";
+  content_block: {
+    type: "server_tool_use";
+    name: string;
+  };
+};
 
 export const AIChatConfigContext = createContext<AIChatConfig>();
 
@@ -53,6 +78,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   const [currentStreamingText, setCurrentStreamingText] =
     store.currentStreamingText;
   const [usageHistory, setUsageHistory] = store.usageHistory;
+  const [serverToolLabel, setServerToolLabel] = store.serverToolLabel;
 
   const toolRegistry = new ToolRegistry();
   if (config.tools) {
@@ -60,15 +86,21 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   }
 
   // Merge custom tools (SDK betaZodTools) with built-in tools (web_search, bash, etc.)
-  // Type assertion needed because SDK types don't properly handle server-side tool union
-  // deno-lint-ignore no-explicit-any
-  const allTools: any[] = [
+  // Cast to SDK's ToolUnion type - built-in tools like web_search have different shapes
+  // but are valid for the API
+  const allTools = [
     ...toolRegistry.getSDKTools(),
-    ...(config.builtInTools || []),
-  ];
+    ...resolveBuiltInTools(config.builtInTools),
+  ] as SDKToolUnion[];
 
   const addDisplayItems = (items: DisplayItem[]) => {
     setDisplayItems([...displayItems(), ...items]);
+  };
+
+  const clearInProgressItems = () => {
+    setDisplayItems(
+      displayItems().filter((item) => item.type !== "tool_in_progress"),
+    );
   };
 
   const processMessageForDisplay = (message: MessageParam) => {
@@ -99,32 +131,36 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     setIsProcessingTools(true);
 
     try {
-      // Use SDK's toolRunner - it handles the entire tool loop automatically
-      const result = await config.sdkClient.beta.messages.toolRunner({
-        model: config.modelConfig.model,
-        max_tokens: config.modelConfig.max_tokens,
-        temperature: config.modelConfig.temperature,
-        messages: messages(),
-        tools: allTools,
-        system: config.system,
-      });
+      // If textEditorHandler is provided, use manual loop (same as streaming)
+      // so we can intercept and execute text editor tool calls locally
+      if (config.textEditorHandler) {
+        await blockingWithToolLoop(messages());
+      } else {
+        // Use SDK's toolRunner - it handles the entire tool loop automatically
+        const result = await config.sdkClient.beta.messages.toolRunner({
+          model: config.modelConfig.model,
+          max_tokens: config.modelConfig.max_tokens,
+          temperature: config.modelConfig.temperature,
+          messages: messages(),
+          tools: allTools,
+          system: config.system,
+        });
 
-      // Update usage
-      if (result.usage) {
-        setUsage(result.usage);
-        setUsageHistory([...usageHistory(), result.usage]);
+        // Update usage
+        if (result.usage) {
+          setUsage(result.usage);
+          setUsageHistory([...usageHistory(), result.usage]);
+        }
+
+        // Add assistant message to conversation
+        const assistantMsg: MessageParam = {
+          role: "assistant",
+          content: result.content as ContentBlock[],
+        };
+
+        setMessages([...messages(), assistantMsg]);
+        processMessageForDisplay(assistantMsg);
       }
-
-      // Add assistant message to conversation
-      const assistantMsg: MessageParam = {
-        role: "assistant",
-        // Cast SDK content blocks to our ContentBlock type
-        // SDK may include additional block types (thinking, image) we don't handle
-        content: result.content as any,
-      };
-
-      setMessages([...messages(), assistantMsg]);
-      processMessageForDisplay(assistantMsg);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
@@ -138,6 +174,110 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     } finally {
       setIsLoading(false);
       setIsProcessingTools(false);
+    }
+  }
+
+  async function blockingWithToolLoop(
+    currentMessages: MessageParam[],
+  ): Promise<void> {
+    // Use SDK's messages.create (non-streaming)
+    const response = await config.sdkClient.messages.create({
+      model: config.modelConfig.model,
+      max_tokens: config.modelConfig.max_tokens,
+      temperature: config.modelConfig.temperature,
+      messages: currentMessages,
+      tools: allTools,
+      system: config.system,
+    });
+
+    // Update usage
+    if (response.usage) {
+      setUsage(response.usage);
+      setUsageHistory([...usageHistory(), response.usage]);
+    }
+
+    // Add assistant message
+    const assistantMsg: MessageParam = {
+      role: "assistant",
+      content: response.content as ContentBlock[],
+    };
+
+    const updatedMessages = [...currentMessages, assistantMsg];
+    setMessages(updatedMessages);
+    processMessageForDisplay(assistantMsg);
+
+    // Handle tool execution
+    if (response.stop_reason === "tool_use") {
+      // Show in-progress items
+      const inProgressItems = getInProgressItems(
+        response.content as ContentBlock[],
+        toolRegistry,
+      );
+      addDisplayItems(inProgressItems);
+
+      // Filter tool_use blocks
+      const toolUseBlocks = (response.content as ContentBlock[]).filter(
+        (block): block is ToolUseBlock => block.type === "tool_use",
+      );
+
+      // Process tools - handle text editor tool specially
+      const allResults: ToolResult[] = [];
+      const allErrorItems: DisplayItem[] = [];
+
+      for (const block of toolUseBlocks) {
+        // Handle built-in text editor tool locally
+        if (
+          block.name === "str_replace_based_edit_tool" &&
+          config.textEditorHandler
+        ) {
+          setServerToolLabel(SERVER_TOOL_LABELS[block.name]);
+          const result = config.textEditorHandler(block.input);
+          setServerToolLabel(undefined);
+          const isError = result.startsWith("Error:");
+          allResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: result,
+            is_error: isError,
+          });
+          if (isError) {
+            allErrorItems.push({
+              type: "tool_error",
+              toolName: block.name,
+              errorMessage: result,
+              toolInput: block.input,
+            });
+          }
+        } else {
+          // Use existing tool processing for custom tools
+          const { results, errorItems } = await processToolUses(
+            [block],
+            toolRegistry,
+          );
+          allResults.push(...results);
+          allErrorItems.push(...errorItems);
+        }
+      }
+
+      // Clear in-progress items now that tools are done
+      clearInProgressItems();
+
+      // Add error items to display
+      if (allErrorItems.length > 0) {
+        addDisplayItems(allErrorItems);
+      }
+
+      // Add tool results to messages
+      const toolResultMsg: MessageParam = {
+        role: "user",
+        content: allResults,
+      };
+
+      const messagesWithToolResults = [...updatedMessages, toolResultMsg];
+      setMessages(messagesWithToolResults);
+
+      // Continue with tool results (recursive call)
+      await blockingWithToolLoop(messagesWithToolResults);
     }
   }
 
@@ -171,6 +311,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       setError(errorMessage);
       setIsStreaming(false);
       setCurrentStreamingText(undefined);
+      setServerToolLabel(undefined);
       addDisplayItems([
         {
           type: "tool_error",
@@ -182,6 +323,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       setIsLoading(false);
       setIsStreaming(false);
       setCurrentStreamingText(undefined);
+      setServerToolLabel(undefined);
       setIsProcessingTools(false);
     }
   }
@@ -201,7 +343,34 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     // Subscribe to text events
     stream.on("text", (text) => {
+      // Clear server tool label when text starts streaming
+      setServerToolLabel(undefined);
       setCurrentStreamingText((prev) => (prev ?? "") + text);
+    });
+
+    // Subscribe to stream events to detect server tool usage and text block boundaries
+    stream.on("streamEvent", (event) => {
+      const streamEvent = event as unknown as {
+        type: string;
+        content_block?: { type: string; name?: string };
+      };
+      if (streamEvent.type === "content_block_start") {
+        // Handle server tool usage (e.g., web_search)
+        if (streamEvent.content_block?.type === "server_tool_use") {
+          const toolName = streamEvent.content_block.name;
+          const label = toolName ? SERVER_TOOL_LABELS[toolName] : undefined;
+          if (label) {
+            setServerToolLabel(label);
+          }
+        }
+        // Handle new text block - add paragraph break if we already have text
+        if (streamEvent.content_block?.type === "text") {
+          const current = currentStreamingText();
+          if (current && current.length > 0) {
+            setCurrentStreamingText(current + "\n\n");
+          }
+        }
+      }
     });
 
     // Wait for completion
@@ -216,7 +385,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // Add assistant message
     const assistantMsg: MessageParam = {
       role: "assistant",
-      content: finalMessage.content as any,
+      content: finalMessage.content as ContentBlock[],
     };
 
     const updatedMessages = [...currentMessages, assistantMsg];
@@ -226,6 +395,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // Clear streaming state immediately after message is processed
     setIsStreaming(false);
     setCurrentStreamingText(undefined);
+    setServerToolLabel(undefined);
 
     // Handle tool execution manually since streaming doesn't support toolRunner
     if (finalMessage.stop_reason === "tool_use") {
@@ -233,26 +403,67 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
       // Show in-progress items
       const inProgressItems = getInProgressItems(
-        finalMessage.content as any,
+        finalMessage.content as ContentBlock[],
         toolRegistry,
       );
       addDisplayItems(inProgressItems);
 
-      // Execute tools
-      const { results, errorItems } = await processToolUses(
-        finalMessage.content as any,
-        toolRegistry,
+      // Filter tool_use blocks
+      const toolUseBlocks = (finalMessage.content as ContentBlock[]).filter(
+        (block): block is ToolUseBlock => block.type === "tool_use",
       );
 
+      // Process tools - handle text editor tool specially
+      const allResults: ToolResult[] = [];
+      const allErrorItems: DisplayItem[] = [];
+
+      for (const block of toolUseBlocks) {
+        // Handle built-in text editor tool locally
+        if (
+          block.name === "str_replace_based_edit_tool" &&
+          config.textEditorHandler
+        ) {
+          setServerToolLabel(SERVER_TOOL_LABELS[block.name]);
+          const result = config.textEditorHandler(block.input);
+          setServerToolLabel(undefined);
+          const isError = result.startsWith("Error:");
+          allResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: result,
+            is_error: isError,
+          });
+          if (isError) {
+            allErrorItems.push({
+              type: "tool_error",
+              toolName: block.name,
+              errorMessage: result,
+              toolInput: block.input,
+            });
+          }
+        } else {
+          // Use existing tool processing for custom tools
+          const { results, errorItems } = await processToolUses(
+            [block],
+            toolRegistry,
+          );
+          allResults.push(...results);
+          allErrorItems.push(...errorItems);
+        }
+      }
+
+      // Clear in-progress items now that tools are done
+      clearInProgressItems();
+
       // Add error items to display
-      if (errorItems.length > 0) {
-        addDisplayItems(errorItems);
+      if (allErrorItems.length > 0) {
+        addDisplayItems(allErrorItems);
       }
 
       // Add tool results to messages
       const toolResultMsg: MessageParam = {
         role: "user",
-        content: results,
+        content: allResults,
       };
 
       const messagesWithToolResults = [...updatedMessages, toolResultMsg];
@@ -265,7 +476,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     }
   }
 
-  async function sendMessage(userMessage: string | undefined): Promise<void> {
+  function sendMessage(userMessage: string | undefined): Promise<void> {
     if (config.enableStreaming) {
       return sendMessageStreaming(userMessage);
     } else {
@@ -273,8 +484,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     }
   }
 
-  async function sendMessages(userMessages: string[]): Promise<void> {
-    if (userMessages.length === 0) return;
+  function sendMessages(userMessages: string[]): Promise<void> {
+    if (userMessages.length === 0) return Promise.resolve();
 
     // Add all user messages to conversation
     const messagesToAdd: MessageParam[] = userMessages.map((text) => ({
@@ -307,6 +518,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     usage,
     currentStreamingText,
     usageHistory,
+    serverToolLabel,
     sendMessage,
     sendMessages,
     clearConversation,

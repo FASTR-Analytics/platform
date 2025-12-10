@@ -4,7 +4,7 @@ import {
   _SLIDE_BACKGROUND_COLOR,
   getColorDetailsForColorTheme,
 } from "lib";
-import { CustomPageStyleOptions, FontKeyOrFontInfo, getColor } from "panther";
+import { CustomPageStyleOptions, FontInfo, getColor } from "panther";
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  _______   _______             __             ______          ______    __                __            //
@@ -22,13 +22,13 @@ import { CustomPageStyleOptions, FontKeyOrFontInfo, getColor } from "panther";
 //                                                                                                         //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const _Inter_400: FontKeyOrFontInfo = {
+const _Inter_400: FontInfo = {
   fontFamily: "Inter",
   weight: 400,
   italic: false,
 };
 
-const _Inter_800: FontKeyOrFontInfo = {
+const _Inter_800: FontInfo = {
   fontFamily: "Inter",
   weight: 800,
   italic: false,
@@ -74,13 +74,13 @@ export function getStyle_PolicyBrief(
         letterSpacing: "-0.02em",
       },
       //
-      paragraph: {
-        font: _Inter_400,
-        color: cDetails.baseTextColor,
-        relFontSize: 2.2,
-        lineHeight: 1.4,
-        lineBreakGap: 0.7,
-      },
+      // paragraph: {
+      //   font: _Inter_400,
+      //   color: cDetails.baseTextColor,
+      //   relFontSize: 2.2,
+      //   lineHeight: 1.4,
+      //   lineBreakGap: 0.7,
+      // },
       pageNumber: {
         font: _Inter_400,
         color: hasFooter ? cDetails.primaryTextColor : cDetails.baseTextColor,
@@ -104,7 +104,7 @@ export function getStyle_PolicyBrief(
     content: {
       padding: [100, 120],
       backgroundColor: cDetails.baseBackgroundColor,
-      tabWidth: 10,
+      // tabWidth: 10,
       gapX: 100,
       gapY: 80,
     },

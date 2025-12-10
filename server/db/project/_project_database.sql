@@ -110,7 +110,8 @@ CREATE TABLE presentation_objects (
   is_default_visualization boolean NOT NULL,
   label text NOT NULL,
   config text NOT NULL,
-  last_updated text NOT NULL
+  last_updated text NOT NULL,
+  created_by_ai boolean DEFAULT FALSE
 );
 
 CREATE INDEX idx_presentation_objects_module_id ON presentation_objects(module_id);

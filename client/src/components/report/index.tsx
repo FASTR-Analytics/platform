@@ -1,4 +1,4 @@
-import { InstanceDetail, ProjectDetail, ReportDetail, t, t2, T } from "lib";
+import { InstanceDetail, LongFormReportConfig, ProjectDetail, ReportDetail, t, t2, T } from "lib";
 import {
   Button,
   FrameLeft,
@@ -11,7 +11,7 @@ import {
   timActionButton,
   useSmartNavigate,
 } from "panther";
-import { For, Show, createEffect, createSignal } from "solid-js";
+import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { unwrap } from "solid-js/store";
 import { ReportItemMiniDisplay } from "~/components/ReportItemMiniDisplay";
 import { DownloadReport } from "./download_report";
@@ -20,6 +20,7 @@ import {
   useOptimisticSetProjectLastUpdated,
   useProjectDirtyStates,
 } from "~/components/project_runner/mod";
+import { ProjectAiReport } from "~/components/project_ai_report";
 import { serverActions } from "~/server_actions";
 import { getReportDetailFromCacheOrFetch } from "~/state/ri_cache";
 import { fitWithin, setFitWithin } from "~/state/ui";
@@ -63,6 +64,11 @@ export function Report(p: Props) {
     StateHolder<ReportDetail>
   >({ status: "loading", msg: t2(T.FRENCH_UI_STRINGS.loading_report) });
 
+  // For long_form reports: track lastUpdated to detect external changes
+  // This mirrors the pattern used in visualization/index.tsx
+  let initialLastUpdated = pds.lastUpdated.reports[p.reportId] ?? "unknown";
+  let isLongFormReport = false;
+
   async function silentGetReportDetail() {
     const res = await getReportDetailFromCacheOrFetch(
       p.projectDetail.id,
@@ -72,6 +78,9 @@ export function Report(p: Props) {
       setReportDetail({ status: "error", err: res.err });
       return;
     }
+    isLongFormReport = res.data.reportType === "long_form";
+    // Update our reference after successful fetch
+    initialLastUpdated = pds.lastUpdated.reports[p.reportId] ?? "unknown";
     setSelectedReportItemId((prev) => {
       if (prev && res.data.itemIdsInOrder.includes(prev)) {
         return prev;
@@ -83,8 +92,17 @@ export function Report(p: Props) {
 
   createEffect(() => {
     // Track pds.lastUpdated.reports[p.reportId] for reactivity
-    // Cache reads PDS internally, so we don't pass it
-    pds.lastUpdated.reports[p.reportId];
+    const currentLastUpdated = pds.lastUpdated.reports[p.reportId] ?? "unknown";
+
+    // For long_form reports that are already loaded, skip refetch on PDS changes
+    // since ProjectAiReport manages its own content state
+    if (isLongFormReport && currentLastUpdated !== initialLastUpdated) {
+      // PDS changed but we're a long_form - just update our reference, don't refetch
+      initialLastUpdated = currentLastUpdated;
+      return;
+    }
+
+    // Initial load, or non-long_form report, or no PDS change - fetch as normal
     silentGetReportDetail();
   });
 
@@ -193,173 +211,196 @@ export function Report(p: Props) {
     return undefined;
   };
 
+  // Reactive check for long_form report type
+  const longFormData = () => {
+    const rd = reportDetail();
+    if (rd.status === "ready" && rd.data.reportType === "long_form") {
+      const config = rd.data.config as unknown as LongFormReportConfig;
+      return { markdown: config.markdown, label: config.label };
+    }
+    return undefined;
+  };
+
   return (
-    <EditorWrapperForSettings>
-      <FrameTop
-        panelChildren={
-          <div class="ui-pad ui-gap border-base-200 bg-base-100 flex h-full w-full items-center border-b">
-            <Button
-              iconName="chevronLeft"
-              onClick={() => p.backToProject(needToUpdateProject)}
-            />
-            <div class="font-700 flex-1 truncate text-xl">
-              <span class="font-400">{reportLabel()}</span>
-            </div>
-            <div class="ui-gap-sm flex items-center">
-              <Show when={reportType() === "policy_brief"}>
-                {/* <div class="pr-4"> */}
-                <RadioGroup
-                  options={[
-                    { value: "fit-within", label: t2(T.FRENCH_UI_STRINGS.fitwithin) },
-                    { value: "fit-width", label: t2(T.FRENCH_UI_STRINGS.maxwidth) },
-                  ]}
-                  value={fitWithin()}
-                  onChange={setFitWithin}
-                  horizontal
-                />
-                {/* </div> */}
-              </Show>
-              <Show when={!p.projectDetail.isLocked}>
-                <Button onClick={duplicate} iconName="copy" outline>
-                  {t2(T.FRENCH_UI_STRINGS.duplicate_report)}
-                </Button>
+    <Switch>
+      <Match when={longFormData()} keyed>
+        {(data) => (
+          <ProjectAiReport
+            projectDetail={p.projectDetail}
+            reportId={p.reportId}
+            initialMarkdown={data.markdown}
+            reportLabel={data.label}
+            backToProject={p.backToProject}
+          />
+        )}
+      </Match>
+      <Match when={true}>
+        <EditorWrapperForSettings>
+          <FrameTop
+            panelChildren={
+              <div class="ui-pad ui-gap border-base-200 bg-base-100 flex h-full w-full items-center border-b">
                 <Button
-                  onClick={openReportSettings}
-                  iconName="settings"
-                  outline
-                >
-                  {t2(T.FRENCH_UI_STRINGS.report_settings)}
-                </Button>
-              </Show>
-              <Button onClick={download} iconName="download">
-                {t2(T.FRENCH_UI_STRINGS.download)}
-              </Button>
-            </div>
-          </div>
-        }
-      >
-        <StateHolderWrapper
-          state={reportDetail()}
-          onErrorButton={{
-            label: "Go back",
-            onClick: () => p.backToProject(needToUpdateProject),
-          }}
-        >
-          {(keyedReportDetail) => {
-            async function attemptMoveReportItem() {
-              await openEditorForSettings({
-                element: ReorderPages,
-                props: {
-                  projectId: p.projectDetail.id,
-                  reportId: p.reportId,
-                  itemIdsInOrder: keyedReportDetail.itemIdsInOrder,
-                  reportType: keyedReportDetail.reportType,
-                  silentGetReportDetail: silentGetReportDetail,
-                },
-              });
+                  iconName="chevronLeft"
+                  onClick={() => p.backToProject(needToUpdateProject)}
+                />
+                <div class="font-700 flex-1 truncate text-xl">
+                  <span class="font-400">{reportLabel()}</span>
+                </div>
+                <div class="ui-gap-sm flex items-center">
+                  <Show when={reportType() === "policy_brief"}>
+                    <RadioGroup
+                      options={[
+                        { value: "fit-within", label: t2(T.FRENCH_UI_STRINGS.fitwithin) },
+                        { value: "fit-width", label: t2(T.FRENCH_UI_STRINGS.maxwidth) },
+                      ]}
+                      value={fitWithin()}
+                      onChange={setFitWithin}
+                      horizontal
+                    />
+                  </Show>
+                  <Show when={!p.projectDetail.isLocked}>
+                    <Button onClick={duplicate} iconName="copy" outline>
+                      {t2(T.FRENCH_UI_STRINGS.duplicate_report)}
+                    </Button>
+                    <Button
+                      onClick={openReportSettings}
+                      iconName="settings"
+                      outline
+                    >
+                      {t2(T.FRENCH_UI_STRINGS.report_settings)}
+                    </Button>
+                  </Show>
+                  <Button onClick={download} iconName="download">
+                    {t2(T.FRENCH_UI_STRINGS.download)}
+                  </Button>
+                </div>
+              </div>
             }
-            return (
-              <FrameLeft
-                panelChildren={
-                  <div class="flex h-full w-48 flex-none flex-col">
-                    <Show when={!p.projectDetail.isLocked}>
-                      <div class="ui-pad ui-gap-sm border-base-200 flex flex-none flex-col border-b">
-                        <Button
-                          onClick={addSlide.click}
-                          state={addSlide.state()}
-                          iconName="plus"
-                          fullWidth
-                        >
-                          {t2(T.FRENCH_UI_STRINGS.add_1)}{" "}
-                          {keyedReportDetail.reportType === "slide_deck"
-                            ? t2(T.FRENCH_UI_STRINGS.slide)
-                            : t2(T.FRENCH_UI_STRINGS.page)}
-                        </Button>
-                        <Show
-                          when={keyedReportDetail.itemIdsInOrder.length > 1}
-                        >
-                          <Button
-                            onClick={attemptMoveReportItem}
-                            iconName="move"
-                            fullWidth
-                          >
-                            {keyedReportDetail.reportType === "slide_deck"
-                              ? t2(T.Reports.organize_slides)
-                              : t("Organize pages")}
-                          </Button>
-                        </Show>
-                      </div>
-                    </Show>
-                    <div class="ui-pad h-0 flex-1 overflow-auto">
-                      <For
-                        each={keyedReportDetail.itemIdsInOrder}
-                        fallback={
-                          <div class="text-neutral text-sm">
-                            {keyedReportDetail.reportType === "slide_deck"
-                              ? t2(T.FRENCH_UI_STRINGS.no_slides)
-                              : t("No pages")}
-                          </div>
-                        }
-                      >
-                        {(reportItemId, i_reportItemId) => {
-                          return (
-                            <div class="ui-gap-sm mb-2 flex">
-                              <div class="w-[2ch] flex-none text-right text-xs">
-                                {i_reportItemId() + 1}
-                              </div>
-                              <div
-                                class="border-base-300 hover:border-primary data-[selected=true]:border-primary flex-1 cursor-pointer border-2"
-                                data-selected={
-                                  selectedReportItemId() === reportItemId
-                                }
-                                onClick={() =>
-                                  setSelectedReportItemId(reportItemId)
-                                }
+          >
+            <StateHolderWrapper
+              state={reportDetail()}
+              onErrorButton={{
+                label: "Go back",
+                onClick: () => p.backToProject(needToUpdateProject),
+              }}
+            >
+              {(keyedReportDetail) => {
+                async function attemptMoveReportItem() {
+                  await openEditorForSettings({
+                    element: ReorderPages,
+                    props: {
+                      projectId: p.projectDetail.id,
+                      reportId: p.reportId,
+                      itemIdsInOrder: keyedReportDetail.itemIdsInOrder,
+                      reportType: keyedReportDetail.reportType,
+                      silentGetReportDetail: silentGetReportDetail,
+                    },
+                  });
+                }
+                return (
+                  <FrameLeft
+                    panelChildren={
+                      <div class="flex h-full w-48 flex-none flex-col">
+                        <Show when={!p.projectDetail.isLocked}>
+                          <div class="ui-pad ui-gap-sm border-base-200 flex flex-none flex-col border-b">
+                            <Button
+                              onClick={addSlide.click}
+                              state={addSlide.state()}
+                              iconName="plus"
+                              fullWidth
+                            >
+                              {t2(T.FRENCH_UI_STRINGS.add_1)}{" "}
+                              {keyedReportDetail.reportType === "slide_deck"
+                                ? t2(T.FRENCH_UI_STRINGS.slide)
+                                : t2(T.FRENCH_UI_STRINGS.page)}
+                            </Button>
+                            <Show
+                              when={keyedReportDetail.itemIdsInOrder.length > 1}
+                            >
+                              <Button
+                                onClick={attemptMoveReportItem}
+                                iconName="move"
+                                fullWidth
                               >
-                                <ReportItemMiniDisplay
-                                  projectId={p.projectDetail.id}
-                                  reportId={p.reportId}
-                                  reportItemId={reportItemId}
-                                  reportType={keyedReportDetail.reportType}
-                                  scalePixelResolution={0.1}
-                                />
+                                {keyedReportDetail.reportType === "slide_deck"
+                                  ? t2(T.Reports.organize_slides)
+                                  : t("Organize pages")}
+                              </Button>
+                            </Show>
+                          </div>
+                        </Show>
+                        <div class="ui-pad h-0 flex-1 overflow-auto">
+                          <For
+                            each={keyedReportDetail.itemIdsInOrder}
+                            fallback={
+                              <div class="text-neutral text-sm">
+                                {keyedReportDetail.reportType === "slide_deck"
+                                  ? t2(T.FRENCH_UI_STRINGS.no_slides)
+                                  : t("No pages")}
                               </div>
-                            </div>
+                            }
+                          >
+                            {(reportItemId, i_reportItemId) => {
+                              return (
+                                <div class="ui-gap-sm mb-2 flex">
+                                  <div class="w-[2ch] flex-none text-right text-xs">
+                                    {i_reportItemId() + 1}
+                                  </div>
+                                  <div
+                                    class="border-base-300 hover:border-primary data-[selected=true]:border-primary flex-1 cursor-pointer border-2"
+                                    data-selected={
+                                      selectedReportItemId() === reportItemId
+                                    }
+                                    onClick={() =>
+                                      setSelectedReportItemId(reportItemId)
+                                    }
+                                  >
+                                    <ReportItemMiniDisplay
+                                      projectId={p.projectDetail.id}
+                                      reportId={p.reportId}
+                                      reportItemId={reportItemId}
+                                      reportType={keyedReportDetail.reportType}
+                                      scalePixelResolution={0.1}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            }}
+                          </For>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <div class="bg-base-300 h-full w-full">
+                      <Show
+                        when={keyedReportDetail.itemIdsInOrder.find(
+                          (item) => item === selectedReportItemId(),
+                        )}
+                        keyed
+                      >
+                        {(keyedReportItemId) => {
+                          return (
+                            <ReportItemEditor
+                              projectDetail={p.projectDetail}
+                              reportId={p.reportId}
+                              reportItemId={keyedReportItemId}
+                              reportItemIndex={keyedReportDetail.itemIdsInOrder.indexOf(
+                                keyedReportItemId,
+                              )}
+                              reportDetail={keyedReportDetail}
+                              setSelectedItemId={setSelectedReportItemId}
+                            />
                           );
                         }}
-                      </For>
+                      </Show>
                     </div>
-                  </div>
-                }
-              >
-                <div class="bg-base-300 h-full w-full">
-                  <Show
-                    when={keyedReportDetail.itemIdsInOrder.find(
-                      (item) => item === selectedReportItemId(),
-                    )}
-                    keyed
-                  >
-                    {(keyedReportItemId) => {
-                      return (
-                        <ReportItemEditor
-                          projectDetail={p.projectDetail}
-                          reportId={p.reportId}
-                          reportItemId={keyedReportItemId}
-                          reportItemIndex={keyedReportDetail.itemIdsInOrder.indexOf(
-                            keyedReportItemId,
-                          )}
-                          reportDetail={keyedReportDetail}
-                          setSelectedItemId={setSelectedReportItemId}
-                        />
-                      );
-                    }}
-                  </Show>
-                </div>
-              </FrameLeft>
-            );
-          }}
-        </StateHolderWrapper>
-      </FrameTop>
-    </EditorWrapperForSettings>
+                  </FrameLeft>
+                );
+              }}
+            </StateHolderWrapper>
+          </FrameTop>
+        </EditorWrapperForSettings>
+      </Match>
+    </Switch>
   );
 }

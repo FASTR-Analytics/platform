@@ -7,7 +7,7 @@ import {
 const rootDir = new URL(".", import.meta.url).pathname;
 const inputPath = join(
   rootDir,
-  "translation_files/FRENCH_UI_STRINGS_FINAL.xlsx"
+  "translation_files/FRENCH_UI_STRINGS_FINAL.xlsx",
 );
 
 const sheetNames = getXlsxSheetNames(inputPath);
@@ -32,7 +32,7 @@ for (const sheetName of sheetNames) {
     rowHeaders: "none",
   });
 
-  const json = csv.getAsObjectArray();
+  const json = csv.toObjects();
 
   for (const entry of json) {
     const uniqueCombo = sheetName + entry.id;
@@ -48,11 +48,13 @@ for (const sheetName of sheetNames) {
   }
 }
 
-const str = `export const T = ${JSON.stringify(
-  translationMap,
-  null,
-  2
-)} as const;
+const str = `export const T = ${
+  JSON.stringify(
+    translationMap,
+    null,
+    2,
+  )
+} as const;
 
 `;
 

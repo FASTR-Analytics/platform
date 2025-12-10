@@ -2,13 +2,17 @@ import { Hono } from "hono";
 import { validateFetchConfig } from "lib";
 import {
   addPresentationObject,
+  deleteAIPresentationObject,
   deletePresentationObject,
   duplicatePresentationObject,
   getAllPresentationObjectsForProject,
   getPresentationObjectDetail,
+  updateAIPresentationObject,
   updatePresentationObjectConfig,
   updatePresentationObjectLabel,
 } from "../../db/mod.ts";
+import { resolveResultsValueFromInstalledModule } from "../../db/project/results_value_resolver.ts";
+import { getFacilityColumnsConfig } from "../../db/instance/config.ts";
 import {
   getGlobalNonAdmin,
   getProjectEditor,
@@ -47,15 +51,15 @@ defineRoute(
   "createPresentationObject",
   getProjectEditor,
   async (c, { body }) => {
-    const res = await addPresentationObject(
-      c.var.ppk.projectDb,
-      c.var.projectUser,
-      body.label,
-      body.resultsValue,
-      body.presentationOption,
-      body.disaggregations,
-      body.makeDefault,
-    );
+    const res = await addPresentationObject({
+      projectDb: c.var.ppk.projectDb,
+      projectUser: c.var.projectUser,
+      label: body.label,
+      resultsValue: body.resultsValue,
+      presentationOption: body.presentationOption,
+      disaggregations: body.disaggregations,
+      makeDefault: body.makeDefault,
+    });
     if (res.success === false) {
       return c.json(res);
     }
@@ -599,5 +603,104 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
     });
 
     return c.json(result);
+  },
+);
+
+defineRoute(
+  routesPresentationObjects,
+  "createVisualizationFromResultsValue",
+  getGlobalNonAdmin,
+  getProjectEditor,
+  async (c, { body }) => {
+    // Get facility config for enrichment
+    const resFacilityConfig = await getFacilityColumnsConfig(c.var.mainDb);
+    if (!resFacilityConfig.success) {
+      return c.json(resFacilityConfig);
+    }
+
+    // Resolve the results value from the installed module
+    const resResultsValue = await resolveResultsValueFromInstalledModule(
+      c.var.ppk.projectDb,
+      body.moduleId,
+      body.resultsValueId,
+      resFacilityConfig.data,
+    );
+    if (!resResultsValue.success) {
+      return c.json(resResultsValue);
+    }
+
+    const res = await addPresentationObject({
+      projectDb: c.var.ppk.projectDb,
+      projectUser: c.var.projectUser,
+      label: body.label,
+      resultsValue: resResultsValue.data,
+      presentationOption: body.presentationType,
+      disaggregations: body.disaggregations,
+      makeDefault: false,
+      createdByAI: true,
+      filters: body.filters,
+      periodFilter: body.periodFilter,
+      valuesFilter: body.valuesFilter,
+      valuesDisDisplayOpt: body.valuesDisDisplayOpt,
+    });
+
+    if (!res.success) {
+      return c.json(res);
+    }
+
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "presentation_objects",
+      [res.data.newPresentationObjectId],
+      res.data.lastUpdated,
+    );
+    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesPresentationObjects,
+  "deleteAIVisualization",
+  getProjectEditor,
+  async (c, { params }) => {
+    const res = await deleteAIPresentationObject(
+      c.var.ppk.projectDb,
+      params.po_id,
+    );
+    if (!res.success) {
+      return c.json(res);
+    }
+    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesPresentationObjects,
+  "updateAIVisualization",
+  getProjectEditor,
+  async (c, { params, body }) => {
+    const res = await updateAIPresentationObject(
+      c.var.ppk.projectDb,
+      params.po_id,
+      body,
+    );
+    if (!res.success) {
+      return c.json(res);
+    }
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "presentation_objects",
+      [params.po_id],
+      res.data.lastUpdated,
+    );
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "report_items",
+      res.data.reportItemsThatDependOnPresentationObjects,
+      res.data.lastUpdated,
+    );
+    return c.json(res);
   },
 );

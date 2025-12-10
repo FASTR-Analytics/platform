@@ -9,15 +9,7 @@ import type {
   InlineContent,
   ParsedDocument,
 } from "./doc_element_types.ts";
-
-type MarkdownItToken = {
-  type: string;
-  tag?: string;
-  level?: number;
-  content?: string;
-  children?: MarkdownItToken[];
-  attrs?: [string, string][];
-};
+import type { MarkdownItToken } from "./types.ts";
 
 export function parseMarkdown(markdownContent: string): ParsedDocument {
   const md = createMarkdownIt();
@@ -243,7 +235,7 @@ function parseInlineTokens(tokens: MarkdownItToken[]): InlineContent[] {
       }
     } else if (token.type === "code_inline") {
       content.push({
-        type: "code",
+        type: "code-inline",
         text: token.content ?? "",
       });
     } else if (token.type === "math_inline") {

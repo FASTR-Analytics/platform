@@ -13,10 +13,12 @@ export const corsMiddleware = cors({
     "Content-Type",
     "Project-Id",
     "Upload-Length",
-    "Upload-Offset", 
+    "Upload-Offset",
     "Upload-Metadata",
     "Tus-Resumable",
-    "X-Requested-With"
+    "X-Requested-With",
+    // Allow all Anthropic SDK headers (x-stainless-*, anthropic-*, x-api-key)
+    "*",
   ],
   exposeHeaders: [
     "Location",

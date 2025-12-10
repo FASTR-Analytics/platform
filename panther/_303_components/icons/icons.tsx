@@ -525,6 +525,24 @@ export function PrintIcon(p: { class?: string }) {
   );
 }
 
+export function UndoIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M9 14l-4 -4l4 -4" />
+      <path d="M5 10h11a4 4 0 1 1 0 8h-1" />
+    </IconWrapper>
+  );
+}
+
+export function RedoIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M15 14l4 -4l-4 -4" />
+      <path d="M19 10h-11a4 4 0 1 0 0 8h1" />
+    </IconWrapper>
+  );
+}
+
 export const _ICON_MAP = {
   arrowLeft: ArrowLeftIcon,
   badge: BadgeIcon,
@@ -559,6 +577,7 @@ export const _ICON_MAP = {
   pencil: PencilIcon,
   plus: PlusIcon,
   print: PrintIcon,
+  redo: RedoIcon,
   refresh: RefreshIcon,
   report: ReportIcon,
   save: SaveIcon,
@@ -568,6 +587,7 @@ export const _ICON_MAP = {
   settingsCog: SettingsCogIcon,
   sparkles: SparklesIcon,
   trash: TrashIcon,
+  undo: UndoIcon,
   unlock: UnlockIcon,
   upload: UploadIcon,
   user: UserIcon,

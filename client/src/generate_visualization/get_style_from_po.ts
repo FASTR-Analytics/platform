@@ -1,14 +1,14 @@
 import {
   AspectRatio,
+  ChartSeriesInfo,
+  ChartValueInfo,
   Color,
   ColorKeyOrString,
   CustomFigureStyleOptions,
-  FontKeyOrFontInfo,
-  GenericSeriesInfo,
+  FontInfo,
   getAdjustedColor,
   getFormatterFunc,
   toPct0,
-  type GenericValueInfo,
 } from "panther";
 import {
   _CF_COMPARISON,
@@ -22,13 +22,13 @@ import { getCalendar } from "lib";
 import { PresentationObjectConfig, ResultsValue } from "lib";
 import { getColorFuncGivenConditionalFormatting } from "./conditional_formatting";
 
-const _Inter_800: FontKeyOrFontInfo = {
+const _Inter_800: FontInfo = {
   fontFamily: "Inter",
   weight: 800,
   italic: false,
 };
 
-function getSpecialBarChartDiff(info: GenericValueInfo) {
+function getSpecialBarChartDiff(info: ChartValueInfo) {
   const currentV = info.val;
   if (currentV === undefined) {
     return undefined;
@@ -316,6 +316,8 @@ export function getStyleFromPresentationObject(
     //             //
     /////////////////
     table: {
+      colHeaderBackgroundColor: {key: "base100"},
+      gridLineColor: {key: "base300"},
       cellBackgroundColorFormatter: colorFuncGivenCF,
       cellValueFormatter: getFormatterFunc(
         dataFormat,
@@ -330,7 +332,7 @@ export function getStyleFromPresentationObject(
 
 function getSeriesColorFunc(
   config: PresentationObjectConfig,
-): (info: GenericSeriesInfo) => ColorKeyOrString {
+): (info: ChartSeriesInfo) => ColorKeyOrString {
   if (config.s.specialCoverageChart) {
     return (info) => {
       if (info.seriesHeader.startsWith("default")) {
@@ -373,15 +375,15 @@ function getSeriesColorFunc(
     return () => _CF_COMPARISON;
   }
   if (config.s.colorScale === "pastel-discrete") {
-    return (info: GenericSeriesInfo) =>
+    return (info: ChartSeriesInfo) =>
       getAbcQualScale(getIndex(info, config.s.seriesColorFuncPropToUse));
   }
   if (config.s.colorScale === "alt-discrete") {
-    return (info: GenericSeriesInfo) =>
+    return (info: ChartSeriesInfo) =>
       getAbcQualScale2(getIndex(info, config.s.seriesColorFuncPropToUse));
   }
   if (config.s.colorScale === "blue-green") {
-    return (info: GenericSeriesInfo) =>
+    return (info: ChartSeriesInfo) =>
       Color.scale(
         _RANDOM_BLUE,
         _CF_GREEN,
@@ -389,7 +391,7 @@ function getSeriesColorFunc(
       )[getIndex(info, config.s.seriesColorFuncPropToUse)];
   }
   if (config.s.colorScale === "red-green") {
-    return (info: GenericSeriesInfo) =>
+    return (info: ChartSeriesInfo) =>
       Color.scale(
         _CF_RED,
         _CF_GREEN,
@@ -397,7 +399,7 @@ function getSeriesColorFunc(
       )[getIndex(info, config.s.seriesColorFuncPropToUse)];
   }
   const customSeriesStyles = structuredClone(config.s.customSeriesStyles);
-  return (info: GenericSeriesInfo) => {
+  return (info: ChartSeriesInfo) => {
     const nStyles = customSeriesStyles.length;
     const _i = getIndex(info, config.s.seriesColorFuncPropToUse) % nStyles;
     const styles = customSeriesStyles.at(_i) ?? {
@@ -410,13 +412,13 @@ function getSeriesColorFunc(
 }
 
 function getIndex(
-  info: GenericSeriesInfo,
+  info: ChartSeriesInfo,
   seriesColorFuncPropToUse: "series" | "cell" | "row" | "col" | undefined,
 ): number {
   if (seriesColorFuncPropToUse === undefined) {
     return info.i_series;
   }
-  const indexProp: keyof GenericSeriesInfo =
+  const indexProp: keyof ChartSeriesInfo =
     seriesColorFuncPropToUse === "series"
       ? "i_series"
       : seriesColorFuncPropToUse === "cell"
@@ -428,13 +430,13 @@ function getIndex(
 }
 
 function getN(
-  info: GenericSeriesInfo,
+  info: ChartSeriesInfo,
   seriesColorFuncPropToUse: "series" | "cell" | "row" | "col" | undefined,
 ): number {
   if (seriesColorFuncPropToUse === undefined) {
     return info.nSerieses;
   }
-  const nProp: keyof GenericSeriesInfo =
+  const nProp: keyof ChartSeriesInfo =
     seriesColorFuncPropToUse === "series"
       ? "nSerieses"
       : seriesColorFuncPropToUse === "cell"

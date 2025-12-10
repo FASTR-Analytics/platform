@@ -21,7 +21,7 @@ export { MarkdownRenderer, buildMarkdownPageContents } from "../_105_markdown/mo
 export type { FigureMap, ImageMap, MarkdownRendererInput } from "../_105_markdown/mod.ts";
 export { DEFAULT_WORD_SPECIFIC_CONFIG, coreMarkdownToWord, wordDocumentToBlob } from "../_106_markdown_to_word/mod.ts";
 export type { WordSpecificConfig } from "../_106_markdown_to_word/mod.ts";
-export { PageRenderer, buildFreeformPages } from "../_121_page/mod.ts";
+export { PageRenderer, buildFreeformPages, measureHeaderFooterHeights } from "../_121_page/mod.ts";
 export type { PageInputs } from "../_121_page/mod.ts";
 export type { Document } from "docx";
 export type { jsPDF } from "jspdf";

@@ -21,5 +21,7 @@ export function createSDKClient(config: SDKClientConfig): Anthropic {
     baseURL: config.baseURL,
     // Optional custom headers
     defaultHeaders: config.defaultHeaders,
+    // Safe when using a proxy - no real API key exposed to browser
+    dangerouslyAllowBrowser: true,
   });
 }

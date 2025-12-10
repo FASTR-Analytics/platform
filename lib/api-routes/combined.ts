@@ -5,7 +5,7 @@ import { indicatorsDhis2RouteRegistry } from "./instance/indicators_dhis2.ts";
 import { instanceRouteRegistry } from "./instance/instance.ts";
 import { structureRouteRegistry } from "./instance/structure.ts";
 import { userRouteRegistry } from "./instance/users.ts";
-import { aiInterpretationRouteRegistry } from "./project/ai-interpretation.ts";
+import { aiToolsRouteRegistry } from "./project/ai-tools.ts";
 import { moduleRouteRegistry } from "./project/modules.ts";
 import { presentationObjectRouteRegistry } from "./project/presentation-objects.ts";
 import { projectRouteRegistry } from "./project/projects.ts";
@@ -22,7 +22,7 @@ export const routeRegistry = {
   ...structureRouteRegistry,
   ...userRouteRegistry,
   ...projectRouteRegistry,
-  ...aiInterpretationRouteRegistry,
+  ...aiToolsRouteRegistry,
   ...presentationObjectRouteRegistry,
   ...reportRouteRegistry,
 } as const;

@@ -5,7 +5,10 @@
 
 import type { Anthropic } from "../deps.ts";
 import type { AIToolWithMetadata } from "./tool_helpers.ts";
-import type { BuiltInTool } from "./builtin_tools.ts";
+import {
+  resolveBuiltInTools,
+  type BuiltInToolsConfig,
+} from "./builtin_tools.ts";
 import type {
   AnthropicModelConfig,
   CacheControl,
@@ -27,7 +30,7 @@ export interface CallAIConfig {
     | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
   // deno-lint-ignore no-explicit-any
   tools?: AIToolWithMetadata<any>[];
-  builtInTools?: BuiltInTool[];
+  builtInTools?: BuiltInToolsConfig;
 }
 
 export interface CallAIResult {
@@ -45,7 +48,8 @@ export async function callAI(
   config: CallAIConfig,
   messages: MessageParam[],
 ): Promise<CallAIResult> {
-  const hasTools = config.tools?.length || config.builtInTools?.length;
+  const resolvedBuiltInTools = resolveBuiltInTools(config.builtInTools);
+  const hasTools = config.tools?.length || resolvedBuiltInTools.length;
 
   // Build beta headers based on features used
   const betaHeaders = getBetaHeaders({
@@ -59,7 +63,7 @@ export async function callAI(
         ...t.sdkTool,
         strict: true, // Always enable strict mode
       })) || []),
-      ...(config.builtInTools || []),
+      ...resolvedBuiltInTools,
     ];
 
     const res = await config.sdkClient.beta.messages.toolRunner({

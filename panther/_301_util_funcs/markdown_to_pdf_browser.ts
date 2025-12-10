@@ -16,6 +16,7 @@ import {
   type FigureMap,
   type ImageMap,
   type jsPDF,
+  measureHeaderFooterHeights,
   PageRenderer,
   RectCoordsDims,
 } from "./deps.ts";
@@ -41,6 +42,7 @@ export type MarkdownToPdfBrowserConfig = {
     h1AlwaysNewPage?: boolean;
     h2AlwaysNewPage?: boolean;
     h3AlwaysNewPage?: boolean;
+    preventOrphanHeadings?: boolean;
   };
 
   styleMarkdown?: CustomMarkdownStyleOptions;
@@ -62,7 +64,6 @@ export async function markdownToPdfBrowser(
 ): Promise<jsPDF> {
   const width = config.pageWidth ?? 1280;
   const height = config.pageHeight ?? 720;
-  const padding = config.pagePadding ?? 60;
 
   const markdownStyle = new CustomMarkdownStyle(config.styleMarkdown);
   const pageStyle = new CustomPageStyle(config.stylePage);
@@ -78,10 +79,20 @@ export async function markdownToPdfBrowser(
     config.fontPaths,
   );
 
-  const estimatedHeaderHeight = config.header || config.subHeader || config.date
-    ? 100
-    : 0;
-  const estimatedFooterHeight = config.footer || config.pageNumbers ? 50 : 0;
+  const { headerHeight, footerHeight } = measureHeaderFooterHeights(
+    rc,
+    width,
+    {
+      header: config.header,
+      subHeader: config.subHeader,
+      date: config.date,
+      footer: config.footer,
+    },
+    mergedPageStyle,
+  );
+
+  // Use page style's content padding for actual layout width
+  const contentPadding = mergedPageStyle.content.padding;
 
   const pageContents = buildMarkdownPageContents(
     markdown,
@@ -89,9 +100,9 @@ export async function markdownToPdfBrowser(
       asSlides: config.asSlides,
       pageWidth: width,
       pageHeight: height,
-      pagePadding: padding,
-      headerHeight: estimatedHeaderHeight,
-      footerHeight: estimatedFooterHeight,
+      pagePadding: contentPadding.totalPx() / 2,
+      headerHeight,
+      footerHeight,
       gapY: mergedPageStyle.content.gapY,
       pageBreakRules: config.pageBreakRules,
       styleMarkdown: config.styleMarkdown,

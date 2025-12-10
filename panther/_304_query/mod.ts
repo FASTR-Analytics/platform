@@ -4,4 +4,3 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./query.ts";
-export * from "./types.ts";

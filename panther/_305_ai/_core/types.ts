@@ -36,7 +36,7 @@ import type {
   StreamEvent,
   Usage,
 } from "./ai_types.ts";
-import type { BuiltInTool } from "./builtin_tools.ts";
+import type { BuiltInToolsConfig } from "./builtin_tools.ts";
 import type { AIToolWithMetadata } from "./tool_helpers.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -154,9 +154,10 @@ export type AIChatConfig = {
 
   conversationId?: string;
 
-  tools?: AIToolWithMetadata[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tools?: AIToolWithMetadata<any>[];
 
-  builtInTools?: BuiltInTool[];
+  builtInTools?: BuiltInToolsConfig;
 
   modelConfig: AnthropicModelConfig;
 
@@ -169,6 +170,10 @@ export type AIChatConfig = {
   apiConfig?: APIConfig;
 
   messageStyles?: MessageStyles;
+
+  // Handler for built-in text editor tool (str_replace_based_edit_tool)
+  // Consumer creates this using createTextEditorHandler from _306_text_editor
+  textEditorHandler?: (input: unknown) => string;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -183,6 +188,7 @@ export type ChatState = {
   error: string | null;
   usage: Usage | null;
   currentStreamingText: string | undefined;
+  serverToolLabel: string | undefined;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -1,6 +1,8 @@
 import { Sql } from "postgres";
 import {
+  DisaggregationDisplayOption,
   DisaggregationOption,
+  PeriodFilter,
   PresentationOption,
   ProjectUser,
   ReportItemConfig,
@@ -23,17 +25,41 @@ import { getFacilityColumnsConfig } from "../instance/config.ts";
 import { resolveResultsValueFromInstalledModule } from "./results_value_resolver.ts";
 import { assertNotUndefined } from "@timroberton/panther";
 
+export type AddPresentationObjectParams = {
+  projectDb: Sql;
+  projectUser: ProjectUser;
+  label: string;
+  resultsValue: ResultsValue;
+  presentationOption: PresentationOption;
+  disaggregations: DisaggregationOption[];
+  makeDefault: boolean;
+  createdByAI?: boolean;
+  filters?: { dimension: DisaggregationOption; values: string[] }[];
+  periodFilter?: { startPeriod?: number; endPeriod?: number };
+  valuesFilter?: string[];
+  valuesDisDisplayOpt?: DisaggregationDisplayOption;
+};
+
 export async function addPresentationObject(
-  projectDb: Sql,
-  projectUser: ProjectUser,
-  label: string,
-  resultsValue: ResultsValue,
-  presentationOption: PresentationOption,
-  disaggregations: DisaggregationOption[],
-  makeDefault: boolean
+  params: AddPresentationObjectParams
 ): Promise<
   APIResponseWithData<{ newPresentationObjectId: string; lastUpdated: string }>
 > {
+  const {
+    projectDb,
+    projectUser,
+    label,
+    resultsValue,
+    presentationOption,
+    disaggregations,
+    makeDefault,
+    createdByAI = false,
+    filters,
+    periodFilter,
+    valuesFilter,
+    valuesDisDisplayOpt,
+  } = params;
+
   return await tryCatchDatabaseAsync(async () => {
     const newPresentationObjectId = crypto.randomUUID();
 
@@ -42,6 +68,32 @@ export async function addPresentationObject(
       presentationOption,
       disaggregations
     );
+
+    if (filters && filters.length > 0) {
+      startingConfig.d.filterBy = filters.map((f) => ({
+        disOpt: f.dimension,
+        values: f.values,
+      }));
+    }
+
+    if (periodFilter) {
+      const periodOpt = resultsValue.periodOptions.at(0) ?? "period_id";
+      startingConfig.d.periodFilter = {
+        filterType: "custom",
+        periodOption: periodOpt,
+        min: periodFilter.startPeriod ?? 0,
+        max: periodFilter.endPeriod ?? 999999,
+      };
+    }
+
+    if (valuesFilter && valuesFilter.length > 0) {
+      startingConfig.d.valuesFilter = valuesFilter;
+    }
+
+    if (valuesDisDisplayOpt) {
+      startingConfig.d.valuesDisDisplayOpt = valuesDisDisplayOpt;
+    }
+
     const lastUpdated = new Date().toISOString();
     await projectDb`
 INSERT INTO presentation_objects
@@ -51,6 +103,7 @@ INSERT INTO presentation_objects
     results_object_id,
     results_value,
     is_default_visualization,
+    created_by_ai,
     label,
     config,
     last_updated
@@ -62,6 +115,7 @@ VALUES
     ${resultsValue.resultsObjectId},
     ${JSON.stringify({ id: resultsValue.id })},
     ${projectUser.isGlobalAdmin && makeDefault},
+    ${createdByAI},
     ${label.trim()},
     ${JSON.stringify(startingConfig)},
     ${lastUpdated}
@@ -137,6 +191,7 @@ SELECT * FROM presentation_objects WHERE module_id = ${moduleId} ORDER BY LOWER(
         isDefault: rawPresObj.is_default_visualization,
         replicateBy: getReplicateByProp(config),
         isFiltered: config.d.filterBy.length > 0 || !!config.d.periodFilter,
+        createdByAI: rawPresObj.created_by_ai,
       };
     });
     return { success: true, data: presentationObjects };
@@ -162,6 +217,7 @@ SELECT * FROM presentation_objects ORDER BY is_default_visualization DESC, LOWER
         isDefault: rawPresObj.is_default_visualization,
         replicateBy: getReplicateByProp(config),
         isFiltered: config.d.filterBy.length > 0 || !!config.d.periodFilter,
+        createdByAI: rawPresObj.created_by_ai,
       };
     });
     return { success: true, data: presentationObjects };
@@ -378,6 +434,202 @@ DELETE FROM presentation_objects WHERE id = ${presentationObjectId}
   });
 }
 
+export async function deleteAIPresentationObject(
+  projectDb: Sql,
+  presentationObjectId: string
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const rawPresObj = (
+      await projectDb<{ created_by_ai: boolean; is_default_visualization: boolean }[]>`
+SELECT created_by_ai, is_default_visualization FROM presentation_objects WHERE id = ${presentationObjectId}
+`
+    ).at(0);
+    if (rawPresObj === undefined) {
+      return {
+        success: false,
+        err: "No visualization with this ID",
+      };
+    }
+    if (!rawPresObj.created_by_ai) {
+      return {
+        success: false,
+        err: "This visualization was not created by AI and cannot be deleted with this function",
+      };
+    }
+    if (rawPresObj.is_default_visualization) {
+      return {
+        success: false,
+        err: "You cannot delete a default visualization",
+      };
+    }
+    await projectDb`
+DELETE FROM presentation_objects WHERE id = ${presentationObjectId}
+`;
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
+export type UpdateAIPresentationObjectParams = {
+  label?: string;
+  presentationType?: PresentationOption;
+  disaggregations?: { dimension: DisaggregationOption; displayAs: string }[];
+  filters?: { dimension: DisaggregationOption; values: string[] }[];
+  periodFilter?: { startPeriod?: number; endPeriod?: number } | null;
+  valuesFilter?: string[] | null;
+  valuesDisDisplayOpt?: DisaggregationDisplayOption;
+  caption?: string;
+  subCaption?: string;
+  footnote?: string;
+};
+
+export async function updateAIPresentationObject(
+  projectDb: Sql,
+  presentationObjectId: string,
+  updates: UpdateAIPresentationObjectParams
+): Promise<
+  APIResponseWithData<{
+    lastUpdated: string;
+    reportItemsThatDependOnPresentationObjects: string[];
+  }>
+> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rawPresObj = (
+      await projectDb<{
+        created_by_ai: boolean;
+        is_default_visualization: boolean;
+        config: string;
+        results_value: string;
+        module_id: string;
+      }[]>`
+SELECT created_by_ai, is_default_visualization, config, results_value, module_id
+FROM presentation_objects WHERE id = ${presentationObjectId}
+`
+    ).at(0);
+
+    if (rawPresObj === undefined) {
+      return {
+        success: false,
+        err: "No visualization with this ID",
+      };
+    }
+    if (!rawPresObj.created_by_ai) {
+      return {
+        success: false,
+        err: "This visualization was not created by AI and cannot be edited with this function",
+      };
+    }
+    if (rawPresObj.is_default_visualization) {
+      return {
+        success: false,
+        err: "You cannot update a default visualization",
+      };
+    }
+
+    const config = parseJsonOrThrow<PresentationObjectConfig>(rawPresObj.config);
+
+    // Update presentation type
+    if (updates.presentationType !== undefined) {
+      config.d.type = updates.presentationType;
+    }
+
+    // Update disaggregations
+    if (updates.disaggregations !== undefined) {
+      config.d.disaggregateBy = updates.disaggregations.map((d) => ({
+        disOpt: d.dimension,
+        disDisplayOpt: d.displayAs as any,
+      }));
+    }
+
+    // Update filters
+    if (updates.filters !== undefined) {
+      config.d.filterBy = updates.filters.map((f) => ({
+        disOpt: f.dimension,
+        values: f.values,
+      }));
+    }
+
+    // Update period filter
+    if (updates.periodFilter !== undefined) {
+      if (updates.periodFilter === null) {
+        config.d.periodFilter = undefined;
+      } else {
+        config.d.periodFilter = {
+          filterType: "custom",
+          periodOption: config.d.periodOpt,
+          min: updates.periodFilter.startPeriod ?? 0,
+          max: updates.periodFilter.endPeriod ?? 999999,
+        };
+      }
+    }
+
+    // Update values filter
+    if (updates.valuesFilter !== undefined) {
+      if (updates.valuesFilter === null || updates.valuesFilter.length === 0) {
+        config.d.valuesFilter = undefined;
+      } else {
+        config.d.valuesFilter = updates.valuesFilter;
+      }
+    }
+
+    // Update values display option
+    if (updates.valuesDisDisplayOpt !== undefined) {
+      config.d.valuesDisDisplayOpt = updates.valuesDisDisplayOpt;
+    }
+
+    // Update text fields
+    if (updates.caption !== undefined) {
+      config.t.caption = updates.caption;
+    }
+    if (updates.subCaption !== undefined) {
+      config.t.subCaption = updates.subCaption;
+    }
+    if (updates.footnote !== undefined) {
+      config.t.footnote = updates.footnote;
+    }
+
+    const lastUpdated = new Date().toISOString();
+    const reportItemsThatDependOnPresentationObjects =
+      await getReportItemsThatDependOnPresentationObjects(projectDb, [
+        presentationObjectId,
+      ]);
+
+    await projectDb.begin(async (sql: Sql) => {
+      // Update label if provided
+      if (updates.label !== undefined) {
+        await sql`
+UPDATE presentation_objects
+SET
+  label = ${updates.label.trim()},
+  config = ${JSON.stringify(config)},
+  last_updated = ${lastUpdated}
+WHERE id = ${presentationObjectId}
+`;
+      } else {
+        await sql`
+UPDATE presentation_objects
+SET
+  config = ${JSON.stringify(config)},
+  last_updated = ${lastUpdated}
+WHERE id = ${presentationObjectId}
+`;
+      }
+
+      for (const reportItemId of reportItemsThatDependOnPresentationObjects) {
+        await sql`
+UPDATE report_items
+SET last_updated = ${lastUpdated}
+WHERE id = ${reportItemId}`;
+      }
+    });
+
+    return {
+      success: true,
+      data: { lastUpdated, reportItemsThatDependOnPresentationObjects },
+    };
+  });
+}
+
 export async function getVisualizationsListForProject(
   projectDb: Sql
 ): Promise<APIResponseWithData<string>> {
@@ -397,6 +649,8 @@ export async function getVisualizationsListForProject(
         config: string;
         module_definition: string;
         results_object_id: string;
+        is_default_visualization: boolean;
+        created_by_ai: boolean;
       }[]
     >`
 SELECT
@@ -404,6 +658,8 @@ SELECT
   po.label,
   po.config,
   po.results_object_id,
+  po.is_default_visualization,
+  po.created_by_ai,
   m.module_definition
 FROM presentation_objects po
 JOIN modules m ON po.module_id = m.id
@@ -416,6 +672,12 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
         row.module_definition
       );
       const tableName = getResultsObjectTableName(row.results_object_id);
+
+      // Find replicateBy dimension (disaggregation with disDisplayOpt === "replicant")
+      const replicantDis = config.d.disaggregateBy.find(
+        (d) => d.disDisplayOpt === "replicant"
+      );
+
       return {
         id: row.id,
         name: row.label,
@@ -431,6 +693,12 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
           values: f.values,
         })),
         isAvailable: tableNamesSet.has(tableName),
+        // Replicant info for AI
+        replicateBy: replicantDis?.disOpt,
+        selectedReplicantValue: config.d.selectedReplicantValue,
+        // Edit permissions
+        isDefault: row.is_default_visualization,
+        createdByAI: row.created_by_ai,
       };
     });
 
@@ -453,6 +721,9 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
       lines.push(`Name: ${viz.name}`);
       lines.push(`Module: ${viz.moduleName}`);
       lines.push(`Type: ${viz.type}`);
+      lines.push(
+        `Status: ${viz.createdByAI ? "AI-created (editable)" : viz.isDefault ? "Default (read-only)" : "Custom (read-only)"}`
+      );
       if (viz.caption) lines.push(`Caption: ${viz.caption}`);
 
       if (viz.disaggregations.length > 0) {
@@ -467,6 +738,15 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
         for (const filter of viz.filters) {
           lines.push(`  - ${filter.dimension}: ${filter.values.join(", ")}`);
         }
+      }
+
+      // Replicant info - tells AI this viz can be embedded with different replicant values
+      if (viz.replicateBy) {
+        lines.push(`Replicates by: ${viz.replicateBy}`);
+        if (viz.selectedReplicantValue) {
+          lines.push(`  Current value: ${viz.selectedReplicantValue}`);
+        }
+        lines.push(`  (Use syntax: ![Caption](${viz.id}:VALUE) to embed with different values)`);
       }
 
       lines.push("-".repeat(80));

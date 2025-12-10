@@ -128,6 +128,14 @@ export type ResultsObjectDefinition = {
 //                      //
 //////////////////////////
 
+export type AIDescription = {
+  summary: string;
+  methodology?: string;
+  interpretation?: string;
+  useCases?: string[];
+  relatedMetrics?: string[];
+};
+
 export type ResultsValue = {
   id: string;
   resultsObjectId: string;
@@ -152,6 +160,7 @@ export type ResultsValue = {
   }[];
   periodOptions: PeriodOption[];
   autoIncludeFacilityColumns?: boolean;
+  aiDescription?: AIDescription;
 };
 
 // Simplified type for module definitions - will be enriched at runtime

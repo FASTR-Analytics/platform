@@ -135,12 +135,17 @@ function SubListing(p: SubListingProps) {
                     {t2(T.FRENCH_UI_STRINGS.repl__filt)}
                   </div>
                 </Show>
-                <Show when={po.isDefault}>
+                <Show when={po.createdByAI}>
+                  <div class="bg-danger font-400 text-base-100 rounded px-1 py-0.5 text-xs">
+                    AI
+                  </div>
+                </Show>
+                <Show when={!po.createdByAI && po.isDefault}>
                   <div class="bg-success font-400 text-base-100 rounded px-1 py-0.5 text-xs">
                     {t2(T.FRENCH_UI_STRINGS.default)}
                   </div>
                 </Show>
-                <Show when={!po.isDefault}>
+                <Show when={!po.createdByAI && !po.isDefault}>
                   <div class="font-400 text-base-100 rounded bg-[orange] px-1 py-0.5 text-xs">
                     {t2(T.FRENCH_UI_STRINGS.custom)}
                   </div>

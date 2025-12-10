@@ -73,7 +73,7 @@ export function ViewResultsObject(
                   { status: "ok" }
                 >;
                 const csv = createMemo(() => {
-                  return Csv.fromObjectArray(okItems.items);
+                  return Csv.fromObjects(okItems.items);
                 });
                 return (
                   <TableFromCsv

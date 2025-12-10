@@ -521,7 +521,7 @@ function inlinesToFormattedText(
       case "break":
         runs.push({ text: "\n", style: "normal" });
         break;
-      case "code":
+      case "code-inline":
         runs.push({ text: inline.text, style: "normal", isCode: true });
         break;
       case "math-inline":

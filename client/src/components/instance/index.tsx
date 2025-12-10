@@ -7,6 +7,7 @@ import {
   FrameTop,
   UserCircleIcon,
   getEditorWrapper,
+  getFirstString,
   openComponent,
   timQuery,
 } from "panther";
@@ -86,9 +87,9 @@ export default function Instance(p: Props) {
   return (
     <>
       <Switch>
-        <Match when={searchParams.p}>
+        <Match when={getFirstString(searchParams.p)}>
           <Project
-            projectId={searchParams.p!}
+            projectId={getFirstString(searchParams.p)!}
             isGlobalAdmin={p.globalUser.isGlobalAdmin}
             instanceDetail={instanceDetail}
           />

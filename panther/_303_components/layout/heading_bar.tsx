@@ -19,7 +19,7 @@ type Props = {
 export function HeadingBar(p: Props) {
   return (
     <div class="ui-pad ui-gap flex w-full flex-none items-center overflow-hidden border-b">
-      <div class="flex flex-1 basis-1 items-center">
+      <div class="ui-gap flex flex-1 basis-1 items-center">
         <Show when={p.leftChildren} keyed>
           {(keyedLeftChildren) => {
             return <div class="flex-none">{keyedLeftChildren}</div>;

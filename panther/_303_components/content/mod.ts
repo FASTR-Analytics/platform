@@ -4,3 +4,5 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { MarkdownPresentation } from "./markdown_presentation.tsx";
+export { MarkdownPresentationJsx } from "./markdown_presentation_jsx.tsx";
+export type { MarkdownImageRenderer } from "./markdown_presentation_jsx.tsx";

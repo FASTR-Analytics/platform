@@ -7,7 +7,7 @@ import {
   type ItemsHolderDatasetHfaDisplay,
 } from "lib";
 import {
-  ADTFigure,
+  FigureInputs,
   ChartHolder,
   Csv,
   FrameLeft,
@@ -94,7 +94,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
   //   });
   // });
   const csv = createMemo(() => {
-    const csvData = Csv.fromObjectArray(p.displayItems.vizItems).orderCols([
+    const csvData = Csv.fromObjects(p.displayItems.vizItems).reorderCols([
       "var_name",
       "count",
     ]);
@@ -102,7 +102,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
     return csvData;
   });
 
-  const figureInputs = createMemo<ADTFigure>(() => {
+  const figureInputs = createMemo<FigureInputs>(() => {
     const jsonArray = p.displayItems.vizItems;
     // const value = vizConfig.value;
     const figureType = vizConfig.figureType;
@@ -134,7 +134,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
       },
     };
 
-    const figureData: ADTFigure = {
+    const figureData: FigureInputs = {
       tableData: {
         jsonArray,
         jsonDataConfig: {

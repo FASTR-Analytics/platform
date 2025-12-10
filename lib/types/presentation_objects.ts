@@ -34,6 +34,7 @@ export type PresentationObjectSummary = {
   isDefault: boolean;
   replicateBy: DisaggregationOption | undefined;
   isFiltered: boolean;
+  createdByAI: boolean;
 };
 
 export type PresentationObjectInReportInfo = {

@@ -5,7 +5,7 @@ import { PresentationObjectInReportInfo } from "./presentation_objects.ts";
 // Report Core Types
 // ============================================================================
 
-export type ReportType = "slide_deck" | "policy_brief";
+export type ReportType = "slide_deck" | "policy_brief" | "long_form";
 
 export type ReportSummary = {
   id: string;
@@ -42,6 +42,7 @@ export function get_REPORT_TYPE_SELECT_OPTIONS(): {
   return [
     { value: "slide_deck", label: t2(T.FRENCH_UI_STRINGS.slide_deck) },
     { value: "policy_brief", label: t2(T.FRENCH_UI_STRINGS.policy_brief) },
+    { value: "long_form", label: "Long-form report" },
   ];
 }
 
@@ -49,12 +50,24 @@ export function get_REPORT_TYPE_MAP(): Record<ReportType, string> {
   return {
     slide_deck: t2(T.FRENCH_UI_STRINGS.slide_deck),
     policy_brief: t2(T.FRENCH_UI_STRINGS.policy_brief),
+    long_form: "Long-form report",
   };
 }
 
 // ============================================================================
 // Report Configuration Types
 // ============================================================================
+
+export type LongFormReportConfig = {
+  label: string;
+  markdown: string;
+};
+
+export function getStartingConfigForLongFormReport(
+  label: string
+): LongFormReportConfig {
+  return { label, markdown: "" };
+}
 
 export type ReportConfig = {
   label: string;

@@ -6,13 +6,17 @@ import {
   getColorDetailsForColorTheme,
 } from "lib";
 import {
-  ADTItem,
-  ADTParagraphStyleOptions,
   APIResponseWithData,
-  ColContainerForLayout,
-  ItemOrContainerForLayout,
-  MeasurableItem,
-  ADTFigure,
+  createColsNode,
+  createItemNode,
+  createRowsNode,
+  CustomMarkdownStyleOptions,
+  FigureInputs,
+  ImageInputs,
+  LayoutNode,
+  MarkdownRendererInput,
+  PageContentItem,
+  PageSpacerInputs,
 } from "panther";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
@@ -23,95 +27,60 @@ export async function getRowsForFreeform(
   reportConfig: ReportConfig,
   reportItemConfig: ReportItemConfig,
   pdfScaleFactor?: number,
-): Promise<APIResponseWithData<ColContainerForLayout<ADTItem>[]>> {
+): Promise<APIResponseWithData<LayoutNode<PageContentItem>>> {
   try {
     const cDetails = getColorDetailsForColorTheme(reportConfig.colorTheme);
     const extraScale = pdfScaleFactor ?? 1;
-    const finalRows: ColContainerForLayout<ADTItem>[] = [];
-    for (
-      let i_row = 0;
-      i_row < reportItemConfig.freeform.content.length;
-      i_row++
-    ) {
-      const row = reportItemConfig.freeform.content[i_row];
-      const finalCols: (MeasurableItem<ADTItem> & {
-        span?: number;
-      })[] = [];
-      const isOnlyPlaceholders = !reportItemConfig.freeform.content.some(
-        (row) =>
-          row.some((col) => {
-            return (
-              (col.type === "figure" && col.presentationObjectInReportInfo) ||
-              (col.type === "text" && col.markdown?.trim()) ||
-              (col.type === "text" && col.imgFile)
-            );
-          }),
-      );
-      for (let i_col = 0; i_col < row.length; i_col++) {
-        const col = row[i_col];
+
+    const rowNodes: LayoutNode<PageContentItem>[] = [];
+
+    for (const row of reportItemConfig.freeform.content) {
+      const colNodes: (LayoutNode<PageContentItem> & { span?: number })[] = [];
+
+      for (const col of row) {
         if (col.type === "placeholder") {
-          finalCols.push({
-            spacer: true,
-            noShading: col.placeholderInvisible,
+          const spacerItem: PageSpacerInputs = {
+            spacerHeight: col.placeholderHeight ?? 100,
+          };
+          colNodes.push({
+            ...createItemNode(spacerItem),
             span: col.span,
-            stretch: col.placeholderStretch,
-            height: !col.placeholderStretch ? col.placeholderHeight : undefined,
           });
           continue;
         }
+
         if (col.type === "text") {
-          // Note show placeholder if no data
           if (!col.markdown?.trim()) {
-            finalCols.push({
-              spacer: true,
+            const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
+            colNodes.push({
+              ...createItemNode(spacerItem),
               span: col.span,
-              stretch: isOnlyPlaceholders,
             });
             continue;
           }
 
-          const s: ADTParagraphStyleOptions = {
-            fontSizeMultiplier: col.textSize,
-            padding:
-              col.textBackground === undefined || col.textBackground === "none"
-                ? 0
-                : [50 * extraScale, 60 * extraScale],
-            backgroundColor:
-              col.textBackground === "none"
-                ? undefined
-                : col.textBackground === "grey"
-                  ? { key: "base200" }
-                  : col.textBackground === "primary"
-                    ? cDetails.primaryBackgroundColor
-                    : col.textBackground === "success"
-                      ? _SLIDE_BACKGROUND_COLOR
-                      : col.textBackground === "danger"
-                        ? _CF_RED
-                        : undefined,
-            color:
-              (col.textBackground === "primary" &&
-                cDetails.lightOrDark === "dark") ||
-              col.textBackground === "success" ||
-              col.textBackground === "danger"
-                ? { key: "base100" }
-                : { key: "baseContent" },
+          // TODO: Old markdown style had padding, backgroundColor, color - see NEED_TO_REVISIT.md
+          const markdownStyle: CustomMarkdownStyleOptions = {
+            scale: col.textSize,
           };
-          finalCols.push({
-            // We allow extra whitespace lines (but not whitespace within lines)
-            p: col.markdown.split("\n").map((p) => p.trim()),
+
+          const markdownItem: MarkdownRendererInput = {
+            markdown: col.markdown,
+            style: markdownStyle,
+          };
+          colNodes.push({
+            ...createItemNode(markdownItem),
             span: col.span,
-            fillArea: col.fillArea,
-            s,
           });
           continue;
         }
+
         if (col.type === "figure") {
-          // Note show placeholder if no data
           if (!col.presentationObjectInReportInfo) {
-            finalCols.push({
-              spacer: true,
+            const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
+            colNodes.push({
+              ...createItemNode(spacerItem),
               span: col.span,
-              stretch: isOnlyPlaceholders,
             });
             continue;
           }
@@ -132,64 +101,55 @@ export async function getRowsForFreeform(
           if (resFigureInputs.success === false) {
             return resFigureInputs;
           }
-          const figureInputs: ItemOrContainerForLayout<ADTFigure> & {
-            span?: number;
-          } = {
-            ...resFigureInputs.data,
-            // style: {
-            //   ...(resFigureInputs.data.style ?? {}),
-            //   scale:
-            //     reportItemConfig.figureScale === undefined ||
-            //     reportItemConfig.figureScale === "default"
-            //       ? (reportConfig.figureScale ?? 2)
-            //       : (reportItemConfig.figureScale ?? 2),
-            // },
+
+          colNodes.push({
+            ...createItemNode(resFigureInputs.data as FigureInputs),
             span: col.span,
-            stretch: col.stretch,
-            fillArea: false,
-          };
-          finalCols.push(figureInputs);
+          });
           continue;
         }
+
         if (col.type === "image") {
-          // Note show placeholder if no data
           if (!col.imgFile) {
-            finalCols.push({
-              spacer: true,
+            const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
+            colNodes.push({
+              ...createItemNode(spacerItem),
               span: col.span,
-              stretch: isOnlyPlaceholders,
             });
             continue;
           }
+
           const resImg = await getImgFromCacheOrFetch(
             `${_SERVER_HOST}/${col.imgFile}`,
           );
           if (resImg.success === false) {
-            finalCols.push({
-              spacer: true,
+            const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
+            colNodes.push({
+              ...createItemNode(spacerItem),
               span: col.span,
-              stretch: isOnlyPlaceholders,
             });
             continue;
           }
-          finalCols.push({
-            img: resImg.data,
-            span: col.span,
-            stretch: col.imgStretch,
-            s: {
-              fit: col.imgFit ?? "cover",
-              shouldResizeToFit: col.imgStretch,
-            },
+
+          const imageItem: ImageInputs = {
+            image: resImg.data,
             height: col.imgHeight,
-            fillArea: !col.imgStretch ? false : undefined,
+            fit: col.imgFit === "inside" ? "contain" : (col.imgFit ?? "cover"),
+          };
+          colNodes.push({
+            ...createItemNode(imageItem),
+            span: col.span,
           });
           continue;
         }
-        throw new Error("Should not be possible");
+
+        throw new Error("Unknown column type");
       }
-      finalRows.push({ cols: finalCols });
+
+      rowNodes.push(createColsNode(colNodes));
     }
-    return { success: true, data: finalRows };
+
+    return { success: true, data: createRowsNode(rowNodes) };
   } catch (e) {
     return {
       success: false,

@@ -16,6 +16,19 @@ import type {
 } from "./deps.ts";
 
 // =============================================================================
+// Markdown-it Token Type
+// =============================================================================
+
+export type MarkdownItToken = {
+  type: string;
+  tag?: string;
+  level?: number;
+  content?: string;
+  children: MarkdownItToken[] | null;
+  attrs: [string, string][] | null;
+};
+
+// =============================================================================
 // Image Map
 // =============================================================================
 
@@ -52,7 +65,7 @@ export type MarkdownInline =
   | { type: "bold-italic"; text: string }
   | { type: "link"; text: string; url: string }
   | { type: "break" }
-  | { type: "code"; text: string }
+  | { type: "code-inline"; text: string }
   | { type: "math-inline"; latex: string };
 
 export type ParsedMarkdownItem =

@@ -1,5 +1,5 @@
 import { createStore } from "solid-js/store";
-import type { ADTFigure } from "panther";
+import type { FigureInputs } from "panther";
 
 // Store interpretations by a key composed of projectId and presentationObjectId
 type InterpretationKey = string;
@@ -8,7 +8,7 @@ type InterpretationData = {
   interpretation: string;
   additionalInstructions: string;
   hasBeenTriggered: boolean;
-  lastInterpretedInputs: ADTFigure | null;
+  lastInterpretedInputs: FigureInputs | null;
   timestamp: number;
 };
 

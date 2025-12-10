@@ -59,3 +59,10 @@ export function getTruncatedString(str: string, maxCharacter: number): string {
   }
   return str.slice(0, maxCharacter - 3) + "...";
 }
+
+export function getFirstString(
+  val: string | string[] | undefined,
+): string | undefined {
+  if (Array.isArray(val)) return val[0];
+  return val;
+}

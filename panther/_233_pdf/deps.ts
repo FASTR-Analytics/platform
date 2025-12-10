@@ -15,7 +15,7 @@ export type { CustomPageStyleOptions } from "../_005_page_style/mod.ts";
 export { PdfRenderContext, injectKerningIntoJsPdf, patchJsPdfForKerning } from "../_101_pdf/mod.ts";
 export { buildMarkdownPageContents } from "../_105_markdown/mod.ts";
 export type { FigureMap, ImageMap } from "../_105_markdown/mod.ts";
-export { PageRenderer, buildFreeformPages } from "../_121_page/mod.ts";
+export { PageRenderer, buildFreeformPages, measureHeaderFooterHeights } from "../_121_page/mod.ts";
 export type { PageInputs } from "../_121_page/mod.ts";
 export { getTtfFontAbsoluteFilePath } from "../_231_font_paths/mod.ts";
 export { registerFontWithSkiaIfNeeded } from "../_232_skia_canvas/mod.ts";

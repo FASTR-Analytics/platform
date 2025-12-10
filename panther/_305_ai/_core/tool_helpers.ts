@@ -50,29 +50,18 @@ function zodToJsonSchema(zodSchema: zType.ZodType): {
   required?: string[];
   additionalProperties: false;
 } {
-  // Simple conversion for basic Zod object schemas
-  // For more complex schemas, users should provide full JSON schema
-  if (zodSchema instanceof z.ZodObject) {
-    const shape = zodSchema.shape;
-    const properties: Record<string, unknown> = {};
-    const required: string[] = [];
+  const jsonSchema = z.toJSONSchema(zodSchema, { reused: "ref" });
 
-    for (const [key, value] of Object.entries(shape)) {
-      properties[key] = { type: "string" }; // Simplified
-      if (!(value instanceof z.ZodOptional)) {
-        required.push(key);
-      }
-    }
-
-    return {
-      type: "object",
-      properties,
-      required: required.length > 0 ? required : undefined,
-      additionalProperties: false,
-    };
+  if (jsonSchema.type !== "object") {
+    throw new Error(`Zod schema must be an object, but got ${jsonSchema.type}`);
   }
 
-  return { type: "object", additionalProperties: false };
+  return jsonSchema as {
+    type: "object";
+    properties?: Record<string, unknown>;
+    required?: string[];
+    additionalProperties: false;
+  };
 }
 
 export function createAITool<TInput, TOutput = string>(

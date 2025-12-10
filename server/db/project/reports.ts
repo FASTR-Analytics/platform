@@ -2,8 +2,10 @@ import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
   APIResponseWithData,
+  getStartingConfigForLongFormReport,
   getStartingConfigForReport,
   getStartingConfigForReportItem,
+  LongFormReportConfig,
   parseJsonOrThrow,
   ReportConfig,
   ReportItemConfig,
@@ -26,7 +28,10 @@ export async function addReport(
 ): Promise<APIResponseWithData<{ newReportId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const newReportId = crypto.randomUUID();
-    const startingReportConfig = getStartingConfigForReport(label);
+    const startingReportConfig =
+      reportType === "long_form"
+        ? getStartingConfigForLongFormReport(label)
+        : getStartingConfigForReport(label);
     const lastUpdated = new Date().toISOString();
     await projectDb`
 INSERT INTO reports
@@ -196,7 +201,7 @@ export async function getAllReportsForProject(
 SELECT * FROM reports WHERE is_deleted = FALSE ORDER BY last_updated DESC
 `
     ).map<ReportSummary>((rawReport) => {
-      const reportConfig: ReportConfig = parseJsonOrThrow(rawReport.config);
+      const reportConfig: { label: string } = parseJsonOrThrow(rawReport.config);
       return {
         id: rawReport.id,
         label: reportConfig.label,
@@ -400,11 +405,37 @@ export async function deleteReport(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await projectDb`
-UPDATE reports 
+UPDATE reports
 SET is_deleted = TRUE
 WHERE id = ${reportId}
 `;
     return { success: true };
+  });
+}
+
+export async function updateLongFormContent(
+  projectDb: Sql,
+  reportId: string,
+  markdown: string
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const rawReport = (
+      await projectDb<DBReport[]>`
+SELECT * FROM reports WHERE id = ${reportId}
+`
+    ).at(0);
+    if (!rawReport) {
+      throw new Error("No report with this id");
+    }
+    const config: LongFormReportConfig = parseJsonOrThrow(rawReport.config);
+    config.markdown = markdown;
+    await projectDb`
+UPDATE reports
+SET config = ${JSON.stringify(config)}, last_updated = ${lastUpdated}
+WHERE id = ${reportId}
+`;
+    return { success: true, data: { lastUpdated } };
   });
 }
 

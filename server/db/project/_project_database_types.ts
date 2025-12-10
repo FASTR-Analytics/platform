@@ -31,6 +31,7 @@ export type DBPresentationObject = {
   label: string;
   config: string;
   is_default_visualization: boolean;
+  created_by_ai: boolean;
   //
   last_updated: string;
 };

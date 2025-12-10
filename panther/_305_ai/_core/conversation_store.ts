@@ -16,6 +16,7 @@ export type ConversationStore = {
   usage: ReturnType<typeof createSignal<Usage | null>>;
   currentStreamingText: ReturnType<typeof createSignal<string | undefined>>;
   usageHistory: ReturnType<typeof createSignal<Usage[]>>;
+  serverToolLabel: ReturnType<typeof createSignal<string | undefined>>;
 };
 
 const stores = new Map<string, ConversationStore>();
@@ -34,6 +35,7 @@ export function getOrCreateConversationStore(
       usage: createSignal<Usage | null>(null),
       currentStreamingText: createSignal<string | undefined>(undefined),
       usageHistory: createSignal<Usage[]>([]),
+      serverToolLabel: createSignal<string | undefined>(undefined),
     });
   }
   return stores.get(conversationId)!;
@@ -51,6 +53,7 @@ export function clearConversationStore(conversationId: string): void {
     const [, setUsage] = store.usage;
     const [, setCurrentStreamingText] = store.currentStreamingText;
     const [, setUsageHistory] = store.usageHistory;
+    const [, setServerToolLabel] = store.serverToolLabel;
 
     setMessages([]);
     setDisplayItems([]);
@@ -61,6 +64,7 @@ export function clearConversationStore(conversationId: string): void {
     setUsage(null);
     setCurrentStreamingText(undefined);
     setUsageHistory([]);
+    setServerToolLabel(undefined);
   }
 }
 
@@ -77,6 +81,7 @@ export function getConversationState(conversationId: string): ChatState {
   const [error] = store.error;
   const [usage] = store.usage;
   const [currentStreamingText] = store.currentStreamingText;
+  const [serverToolLabel] = store.serverToolLabel;
 
   return {
     messages: messages(),
@@ -86,5 +91,6 @@ export function getConversationState(conversationId: string): ChatState {
     error: error(),
     usage: usage(),
     currentStreamingText: currentStreamingText(),
+    serverToolLabel: serverToolLabel(),
   };
 }

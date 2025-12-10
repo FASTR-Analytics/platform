@@ -3,22 +3,22 @@ import { join } from "@std/path";
 import {
   APIResponseNoData,
   APIResponseWithData,
+  type BatchUser,
   OtherUser,
   type ProjectUserRole,
-  type BatchUser,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { readCsvFile } from "@timroberton/panther";
 import {
-  DBUser,
   type DBProject,
   type DBProjectUserRole,
+  DBUser,
 } from "./_main_database_types.ts";
 
 export async function getOtherUser(
   mainDb: Sql,
-  email: string
+  email: string,
 ): Promise<
   APIResponseWithData<{ user: OtherUser; projectUserRoles: ProjectUserRole[] }>
 > {
@@ -60,7 +60,7 @@ export async function getOtherUser(
 export async function addUsers(
   mainDb: Sql,
   emails: string[],
-  isGlobalAdmin: boolean
+  isGlobalAdmin: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     if (emails.length === 0) {
@@ -80,7 +80,7 @@ export async function addUsers(
 export async function toggleAdmin(
   mainDb: Sql,
   emails: string[],
-  makeAdmin: boolean
+  makeAdmin: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`UPDATE users SET is_admin = ${makeAdmin} WHERE email = ANY(${emails})`;
@@ -90,7 +90,7 @@ export async function toggleAdmin(
 
 export async function deleteUser(
   mainDb: Sql,
-  emails: string[]
+  emails: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`DELETE FROM users WHERE email = ANY(${emails})`;
@@ -102,7 +102,7 @@ export async function batchUploadUsers(
   mainDb: Sql,
   assetFileName: string,
   replaceAllExisting = false,
-  currentUserEmail?: string
+  currentUserEmail?: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // Read and parse the CSV file
@@ -113,7 +113,7 @@ export async function batchUploadUsers(
         await readCsvFile(filePath, {
           rowHeaders: "none",
         })
-      ).getAsObjectArray();
+      ).toObjects();
     } catch (error) {
       return {
         success: false,
@@ -128,7 +128,7 @@ export async function batchUploadUsers(
       (row: Record<string, string>) => ({
         email: row.email || "",
         is_global_admin: row.is_global_admin || "false",
-      })
+      }),
     );
 
     // Validate required fields
@@ -155,7 +155,8 @@ export async function batchUploadUsers(
       ) {
         return {
           success: false,
-          err: `is_global_admin must be 'true' or 'false', got: ${batchUser.is_global_admin}`,
+          err:
+            `is_global_admin must be 'true' or 'false', got: ${batchUser.is_global_admin}`,
         };
       }
     }
@@ -163,7 +164,7 @@ export async function batchUploadUsers(
     // Check if current user would lose admin status or be deleted
     if (currentUserEmail) {
       const currentUserInBatch = batchUsers.find(
-        (u) => u.email === currentUserEmail
+        (u) => u.email === currentUserEmail,
       );
       if (
         replaceAllExisting &&
@@ -172,7 +173,8 @@ export async function batchUploadUsers(
       ) {
         return {
           success: false,
-          err: "You cannot replace all existing users without including yourself as admin. Ask another admin to do this.",
+          err:
+            "You cannot replace all existing users without including yourself as admin. Ask another admin to do this.",
         };
       }
       if (
@@ -181,7 +183,8 @@ export async function batchUploadUsers(
       ) {
         return {
           success: false,
-          err: "You cannot remove yourself as admin. Ask another admin to do this.",
+          err:
+            "You cannot remove yourself as admin. Ask another admin to do this.",
         };
       }
     }

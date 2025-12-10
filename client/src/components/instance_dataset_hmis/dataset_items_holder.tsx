@@ -9,7 +9,7 @@ import {
   type InstanceConfigFacilityColumns,
 } from "lib";
 import {
-  ADTFigure,
+  FigureInputs,
   ChartHolder,
   FrameLeft,
   FrameLeftResizable,
@@ -125,7 +125,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
     });
   });
 
-  const figureInputs = createMemo<StateHolder<ADTFigure>>(() => {
+  const figureInputs = createMemo<StateHolder<FigureInputs>>(() => {
     const jsonArray = filteredVizItems();
 
     const value = vizConfig.value;
@@ -158,40 +158,40 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
       },
     };
 
-    const figureData: ADTFigure =
+    const figureData: FigureInputs =
       figureType === "chart"
         ? {
-            timeseriesData: {
-              jsonArray,
-              jsonDataConfig: {
-                valueProps: [value],
-                periodProp: "period_id",
-                periodType: "year-month",
-                seriesProp: "indicator_id",
-                labelReplacementsBeforeSorting:
-                  p.displayItems.indicatorLabelReplacements,
-                yScaleAxisLabel:
-                  value === "count"
-                    ? t2(T.FRENCH_UI_STRINGS.number_of_records)
-                    : t("Number of service counts"),
-              },
+          timeseriesData: {
+            jsonArray,
+            jsonDataConfig: {
+              valueProps: [value],
+              periodProp: "period_id",
+              periodType: "year-month",
+              seriesProp: "indicator_id",
+              labelReplacementsBeforeSorting:
+                p.displayItems.indicatorLabelReplacements,
+              yScaleAxisLabel:
+                value === "count"
+                  ? t2(T.FRENCH_UI_STRINGS.number_of_records)
+                  : t("Number of service counts"),
             },
-            style,
-          }
+          },
+          style,
+        }
         : {
-            tableData: {
-              jsonArray,
-              jsonDataConfig: {
-                valueProps: [value],
-                colProp: "indicator_id",
-                rowProp: "period_id",
-                sortHeaders: true,
-                labelReplacementsBeforeSorting:
-                  p.displayItems.indicatorLabelReplacements,
-              },
+          tableData: {
+            jsonArray,
+            jsonDataConfig: {
+              valueProps: [value],
+              colProp: "indicator_id",
+              rowProp: "period_id",
+              sortHeaders: true,
+              labelReplacementsBeforeSorting:
+                p.displayItems.indicatorLabelReplacements,
             },
-            style,
-          };
+          },
+          style,
+        };
     return { status: "ready", data: figureData };
   });
 

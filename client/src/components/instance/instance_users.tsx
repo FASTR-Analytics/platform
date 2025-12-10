@@ -63,9 +63,9 @@ export function InstanceUsers(p: Props) {
     <StateHolderWrapper state={p.instanceDetail.state()}>
       {(keyedInstanceDetail) => {
         function downloadUsersCSV() {
-          const csv = new Csv({ colHeaders: ["email", "is_global_admin"] });
-          keyedInstanceDetail.users.forEach((user) => {
-            csv.MUTATE_addRow([user.email, String(user.isGlobalAdmin)]);
+          const csv = new Csv({
+            colHeaders: ["email", "is_global_admin"],
+            aoa: keyedInstanceDetail.users.map((user) => [user.email, String(user.isGlobalAdmin)]),
           });
           const today = new Date()
             .toISOString()
@@ -212,9 +212,9 @@ function UserTable(p: {
   }
 
   function handleBulkDownloadCSV(selectedUsers: UserData[]) {
-    const csv = new Csv({ colHeaders: ["email", "is_global_admin"] });
-    selectedUsers.forEach((user) => {
-      csv.MUTATE_addRow([user.email, String(user.isGlobalAdmin)]);
+    const csv = new Csv({
+      colHeaders: ["email", "is_global_admin"],
+      aoa: selectedUsers.map((user) => [user.email, String(user.isGlobalAdmin)]),
     });
     const today = new Date().toISOString().split("T")[0].replace(/-/g, "_");
     const filename = `selected_users_export_${today}.csv`;

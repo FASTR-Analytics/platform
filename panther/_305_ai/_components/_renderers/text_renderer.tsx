@@ -32,16 +32,16 @@ export const TextRenderer: Component<{
       <Match when={props.item.role === "user"}>
         <div class="ml-auto max-w-[80%]">
           <div
-            class={`ui-pad rounded text-right font-mono text-sm ${userClass}`}
-          >
-            <div class="whitespace-pre-wrap break-words">{props.item.text}</div>
-          </div>
+            class={`py-4 rounded text-right text-sm ${userClass} ${MARKDOWN_BASE_STYLES}`}
+            style={deriveMarkdownCssVars(props.markdownStyle)}
+            innerHTML={md.render(props.item.text)}
+          />
         </div>
       </Match>
       <Match when={props.item.role === "assistant"}>
         <div class="w-fit max-w-full">
           <div
-            class={`ui-pad w-fit max-w-full rounded font-mono text-sm ${assistantClass} ${MARKDOWN_BASE_STYLES}`}
+            class={`py-4 w-fit max-w-full rounded text-sm ${assistantClass} ${MARKDOWN_BASE_STYLES}`}
             style={deriveMarkdownCssVars(props.markdownStyle)}
             innerHTML={md.render(props.item.text)}
           />

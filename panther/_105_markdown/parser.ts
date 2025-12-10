@@ -6,6 +6,7 @@
 import { MarkdownIt, markdownItKatex } from "./deps.ts";
 import type {
   MarkdownInline,
+  MarkdownItToken,
   ParsedMarkdown,
   ParsedMarkdownItem,
 } from "./types.ts";
@@ -191,7 +192,7 @@ function parseInlineTokens(tokens: MarkdownItToken[]): MarkdownInline[] {
       }
       i = result.endIndex + 1;
     } else if (token.type === "code_inline" && token.content) {
-      content.push({ type: "code", text: token.content });
+      content.push({ type: "code-inline", text: token.content });
       i++;
     } else if (token.type === "math_inline" && token.content) {
       content.push({ type: "math-inline", latex: token.content });
@@ -248,11 +249,3 @@ function parseNestedInline(
   return { texts, hasBold, hasItalic, endIndex: i };
 }
 
-type MarkdownItToken = {
-  type: string;
-  tag?: string;
-  level?: number;
-  content?: string;
-  children?: MarkdownItToken[];
-  attrs?: [string, string][];
-};

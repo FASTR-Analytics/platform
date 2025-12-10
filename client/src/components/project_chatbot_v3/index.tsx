@@ -4,15 +4,18 @@ import {
   HeadingBar,
   AIChatProvider,
   AIChat,
-  useAIChat,
+  createAIChat,
+  createSDKClient,
   type OpenEditorProps,
+  type AIChatConfig,
 } from "panther";
 import { isFrench, DEFAULT_ANTHROPIC_MODEL, type ProjectDetail } from "lib";
-import { createMemo } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions/config";
-import { createProjectTools } from "./tools.tsx";
 import { WelcomeMessage } from "./WelcomeMessage";
-import type { MessagePayload, AnthropicResponse } from "panther";
+import { createProjectTools } from "../ai_tools/ai_tool_definitions";
+import { AIToolsDebug } from "../ai_tools/ai_debug_component";
+import { getChatbotSystemPrompt } from "../ai_system_prompts/chatbot_system_prompt";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -25,67 +28,76 @@ type Props = {
 
 export function ProjectChatbotV3(p: Props) {
   const projectId = p.projectDetail.id;
+  const [showDebug, setShowDebug] = createSignal(false);
 
   const tools = createMemo(() => createProjectTools(projectId));
+  const systemPrompt = createMemo(() => getChatbotSystemPrompt(p.projectDetail.aiContext));
+
+  const sdkClient = createSDKClient({
+    baseURL: `${_SERVER_HOST}/ai`, // Uses unified /ai/v1/messages endpoint
+    defaultHeaders: { "Project-Id": projectId },
+  });
 
   return (
     <AIChatProvider
       config={{
-        apiConfig: {
-          endpoint: `${_SERVER_HOST}/chatbot`,
-          transformRequest: async (payload: MessagePayload) => ({
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Project-Id": projectId,
-            },
-            credentials: "include",
-            body: JSON.stringify(payload),
-          }),
-          transformResponse: async (response: Response): Promise<AnthropicResponse> => {
-            const data = await response.json();
-            if (!data.success) {
-              throw new Error(data.err);
-            }
-            return data.data;
-          },
-        },
+        sdkClient,
         modelConfig: {
           model: DEFAULT_ANTHROPIC_MODEL,
           max_tokens: 4096,
         },
-        tools: tools(),
+        tools: tools() as AIChatConfig["tools"],
         conversationId: projectId,
         enableStreaming: false,
-        renderMarkdown: true,
+        system: systemPrompt(),
       }}
     >
-      <FrameTop
-        panelChildren={
-          <HeadingBar heading="AI Assistant" french={isFrench()}>
-            <ProjectChatbotActions />
-          </HeadingBar>
-        }
-      >
-        <AIChat
-          fallbackContent={WelcomeMessage}
-        />
-      </FrameTop>
+      <div class="flex h-full">
+        <div class={showDebug() ? "w-1/2 border-r" : "w-full"}>
+          <FrameTop
+            panelChildren={
+              <HeadingBar heading="AI Assistant" french={isFrench()}>
+                <ProjectChatbotActions
+                  showDebug={showDebug()}
+                  onToggleDebug={() => setShowDebug(!showDebug())}
+                />
+              </HeadingBar>
+            }
+          >
+            <AIChat fallbackContent={WelcomeMessage} />
+          </FrameTop>
+        </div>
+        <Show when={showDebug()}>
+          <div class="w-1/2 overflow-auto">
+            <AIToolsDebug projectId={projectId} />
+          </div>
+        </Show>
+      </div>
     </AIChatProvider>
   );
 }
 
-function ProjectChatbotActions() {
-  const { clearConversation, isLoading } = useAIChat();
+type ProjectChatbotActionsProps = {
+  showDebug: boolean;
+  onToggleDebug: () => void;
+};
+
+function ProjectChatbotActions(p: ProjectChatbotActionsProps) {
+  const { clearConversation, isLoading } = createAIChat();
 
   return (
-    <Button
-      onClick={clearConversation}
-      disabled={isLoading()}
-      outline
-      iconName="trash"
-    >
-      Clear conversation
-    </Button>
+    <div class="ui-gap-sm flex">
+      <Button onClick={p.onToggleDebug} outline iconName="code">
+        {p.showDebug ? "Hide Debug" : "Debug Tools"}
+      </Button>
+      <Button
+        onClick={clearConversation}
+        disabled={isLoading()}
+        outline
+        iconName="trash"
+      >
+        Clear conversation
+      </Button>
+    </div>
   );
 }

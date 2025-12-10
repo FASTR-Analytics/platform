@@ -7,6 +7,7 @@ FASTR (Frequent Assessments and System Tools for Resilience) Analytics Platform 
 ## Technology Stack
 
 **Server**
+
 - Runtime: Deno
 - Framework: Hono (lightweight web framework)
 - Database: PostgreSQL (multi-database architecture)
@@ -15,6 +16,7 @@ FASTR (Frequent Assessments and System Tools for Resilience) Analytics Platform 
 - Background Processing: Web Workers with Server-Sent Events
 
 **Client**
+
 - Framework: SolidJS (client-side SPA)
 - Build Tool: Vite
 - Routing: @solidjs/router
@@ -24,6 +26,7 @@ FASTR (Frequent Assessments and System Tools for Resilience) Analytics Platform 
 - Export: jsPDF, pptxgenjs, docx
 
 **Shared**
+
 - Language: TypeScript (strict mode)
 - Visualization: Custom Canvas API + external panther library
 
@@ -72,6 +75,7 @@ wb-fastr/
 ### Multi-Database System
 
 **Main Database** (`main`)
+
 - User management
 - Instance configuration
 - Project metadata
@@ -79,6 +83,7 @@ wb-fastr/
 - Dataset upload attempts and versions
 
 **Project Databases** (per-project, e.g., `project_{uuid}`)
+
 - Project-specific data isolation
 - Module instances and configurations
 - Presentation objects (visualizations)
@@ -97,6 +102,7 @@ wb-fastr/
 ### Module System
 
 **Module Definitions** (`module_defs/`)
+
 - Versioned R scripts with metadata
 - Parameter configurations
 - Data source requirements
@@ -104,12 +110,14 @@ wb-fastr/
 - Built at startup via `build_module_definitions.ts`
 
 **Module Instances**
+
 - Per-project installations of module definitions
 - User-configured parameters
 - Dependency tracking
 - Dirty state management (triggers re-execution)
 
 **Execution Flow**
+
 1. Task manager identifies dirty modules
 2. Worker routine instantiated in background
 3. R script executed in Docker container
@@ -120,6 +128,7 @@ wb-fastr/
 ### Key Features
 
 **Dataset Management**
+
 - HMIS (Health Management Information System) datasets
 - HFA (Health Facility Assessment) datasets
 - Multi-step upload with validation
@@ -127,23 +136,27 @@ wb-fastr/
 - DHIS2 integration
 
 **Visualization**
+
 - Presentation objects (charts, maps, tables)
 - Dynamic querying with filters
 - Period selection and disaggregation
 - Custom Canvas-based rendering
 
 **Access Control**
+
 - Role-based: viewer/editor/admin
 - Project-level isolation
 - Clerk authentication
 - Optional open access mode
 
 **Internationalization**
+
 - English/French UI
 - Built from XLSX translation files
 - Calendar support (Gregorian/Ethiopian)
 
 **Real-time Updates**
+
 - Server-Sent Events for task progress
 - Background worker coordination
 - Live dirty state synchronization
@@ -151,6 +164,7 @@ wb-fastr/
 ## API Routes
 
 **Instance Routes** (cross-project)
+
 - `/instance/*` - Instance config, user management
 - `/users/*` - User roles and permissions
 - `/structure/*` - Admin areas, facilities, indicators
@@ -159,13 +173,15 @@ wb-fastr/
 - `/assets/*` - Static file serving
 
 **Project Routes** (project-specific)
+
 - `/project/*` - Project metadata and settings
 - `/modules/*` - Module installation and execution
 - `/presentation_objects/*` - Visualization configs
 - `/reports/*` - Report generation
-- `/ai_interpretation/*` - AI analysis
+- `/ai/*` - AI analysis
 
 **Cache Routes**
+
 - `/caches/*` - Cache invalidation endpoints
 
 ## Development
@@ -194,11 +210,13 @@ cd ..
 ### Running
 
 **Single command** (both server + client):
+
 ```bash
 ./run
 ```
 
 **Separate terminals**:
+
 ```bash
 # Terminal 1: Server
 deno task dev
@@ -226,6 +244,7 @@ deno task typecheck           # Check both server + client
 ```
 
 Workflow:
+
 1. Version bump (major/minor/patch)
 2. Client build (optional)
 3. Module definitions + translations build
@@ -259,6 +278,7 @@ Docker image: `timroberton/comb:wb-fastr-server-v{version}`
 ### Worker Routines
 
 Background processors for:
+
 - `run_module/` - R script execution in Docker
 - `integrate_hmis_data/` - HMIS data integration
 - `integrate_hfa_data/` - HFA data integration
@@ -273,6 +293,7 @@ All routes must be registered in `route-tracker.ts` to ensure proper typing and 
 ### Environment Variables
 
 Key variables (see `.env.example`):
+
 - `CLERK_SECRET_KEY` - Authentication
 - `PG_PASSWORD` - PostgreSQL connection
 - `ANTHROPIC_API_KEY` - AI features

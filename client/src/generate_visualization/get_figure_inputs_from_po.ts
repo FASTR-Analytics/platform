@@ -1,5 +1,5 @@
 import {
-  ADTFigure,
+  FigureInputs,
   PeriodType,
   formatPeriod,
   getTimeseriesDataTransformed,
@@ -40,7 +40,7 @@ export function getFigureInputsFromPresentationObject(
   resultsValue: ResultsValue,
   ih: ItemsHolderPresentationObject,
   config: PresentationObjectConfig,
-): StateHolder<ADTFigure> {
+): StateHolder<FigureInputs> {
   // Type guard - this function should only be called with status: "ok"
   if (ih.status !== "ok") {
     throw new Error("getFigureInputsFromPresentationObject called with non-ok status");

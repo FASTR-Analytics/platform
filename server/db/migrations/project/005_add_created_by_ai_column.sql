@@ -1,0 +1,1 @@
+ALTER TABLE presentation_objects ADD COLUMN IF NOT EXISTS created_by_ai BOOLEAN DEFAULT FALSE;

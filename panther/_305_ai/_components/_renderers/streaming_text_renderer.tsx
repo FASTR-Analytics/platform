@@ -24,11 +24,12 @@ export const StreamingTextRenderer: Component<Props> = (props) => {
     "bg-primary/10";
   const assistantText = props.assistantMessageStyle?.text ?? "text-primary";
   const messageClass = `${assistantBg} ${assistantText}`;
+  const cursorClass = () => (props.isComplete ? "" : "ui-streaming-cursor");
 
   return (
     <div class="w-fit max-w-full">
       <div
-        class={`ui-pad w-fit max-w-full rounded font-mono text-sm ${messageClass} ${MARKDOWN_BASE_STYLES}`}
+        class={`py-4 w-fit max-w-full rounded text-sm ${messageClass} ${MARKDOWN_BASE_STYLES} ${cursorClass()}`}
         style={deriveMarkdownCssVars(props.markdownStyle)}
         innerHTML={md.render(props.text)}
       />

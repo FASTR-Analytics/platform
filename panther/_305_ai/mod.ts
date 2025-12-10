@@ -22,12 +22,6 @@ export { createAIChat } from "./_components/_create_ai_chat.ts";
 
 export { createAITool } from "./_core/tool_helpers.ts";
 export { createSDKClient } from "./_core/sdk_client.ts";
-export {
-  createBashTool,
-  createTextEditorTool,
-  createWebFetchTool,
-  createWebSearchTool,
-} from "./_core/builtin_tools.ts";
 export { callAI } from "./_core/one_shot.ts";
 export { BETA_HEADERS, getBetaHeaders } from "./_core/beta_headers.ts";
 
@@ -43,6 +37,7 @@ export type {
 
 export type { CallAIConfig, CallAIResult } from "./_core/one_shot.ts";
 export type {
+  BuiltInToolsConfig,
   WebFetchToolConfig,
   WebSearchToolConfig,
 } from "./_core/builtin_tools.ts";

@@ -39,7 +39,7 @@ export interface InlineContent {
     | "link"
     | "email"
     | "break"
-    | "code"
+    | "code-inline"
     | "math-inline";
   text: string;
   url?: string; // For links and emails

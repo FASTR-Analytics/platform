@@ -443,4 +443,22 @@
   .ui-text-small {
     @apply text-base-content text-xs leading-tight;
   }
+
+  /* Streaming cursor for AI chat */
+  .ui-streaming-cursor > *:last-child::after {
+    content: "";
+    display: inline-block;
+    width: 1ch;
+    height: 1.2em;
+    background-color: currentColor;
+    vertical-align: -0.2em;
+    margin-left: 2px;
+    animation: ui-blink 1s step-end infinite;
+  }
+
+  @keyframes ui-blink {
+    50% {
+      opacity: 0;
+    }
+  }
 }

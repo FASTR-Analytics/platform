@@ -1,5 +1,5 @@
 import { ReplicantValueOverride, getTextRenderingOptions, t, t2, T } from "lib";
-import { ADTFigure, ChartHolder, Loading, StateHolder } from "panther";
+import { FigureInputs, ChartHolder, Loading, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
 import { useProjectDirtyStates } from "~/components/project_runner/mod";
 import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/po_cache";
@@ -17,7 +17,7 @@ type Props = {
 export function PresentationObjectMiniDisplay(p: Props) {
   const pds = useProjectDirtyStates();
 
-  const [figureInputs, setFigureInputs] = createSignal<StateHolder<ADTFigure>>({
+  const [figureInputs, setFigureInputs] = createSignal<StateHolder<FigureInputs>>({
     status: "loading",
     msg: t2(T.FRENCH_UI_STRINGS.fetching_data),
   });
@@ -50,7 +50,7 @@ export function PresentationObjectMiniDisplay(p: Props) {
 }
 
 type PresentationObjectMiniDisplayStateHolderWrapperProps = {
-  state: StateHolder<ADTFigure>;
+  state: StateHolder<FigureInputs>;
   moduleId?: string;
   onErrorButton?:
   | {
@@ -106,7 +106,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
           <Match
             when={
               p.state.status === "ready" &&
-              (p.state as { data: ADTFigure }).data
+              (p.state as { data: FigureInputs }).data
             }
             keyed
           >

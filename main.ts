@@ -26,7 +26,8 @@ import { routesProjectSSE } from "./server/routes/project/project-sse.ts";
 import { routesModules } from "./server/routes/project/modules.ts";
 import { routesPresentationObjects } from "./server/routes/project/presentation_objects.ts";
 import { routesReports } from "./server/routes/project/reports.ts";
-import { routesAi } from "./server/routes/project/ai_interpretation.ts";
+import { routesAiProxy } from "./server/routes/project/ai_proxy.ts";
+import { routesAiTools } from "./server/routes/project/ai_tools.ts";
 
 await dbStartUp();
 
@@ -82,7 +83,8 @@ app.route("/", routesIndicatorsDhis2);
 app.route("/", routesModules);
 app.route("/", routesReports);
 app.route("/", routesPresentationObjects);
-app.route("/", routesAi);
+app.route("/ai", routesAiProxy);
+app.route("/", routesAiTools);
 
 // Cache headers middleware
 app.use("*", cacheMiddleware);

@@ -70,17 +70,50 @@ const result = await callAI({ ..., tools: [weatherTool] }, messages);
 
 ## Built-in Tools
 
+Enable Anthropic's built-in tools with a simple boolean or config object:
+
 ```typescript
-import { createBashTool, createWebSearchTool } from "@timroberton/panther";
+<AIChatProvider
+  config={{
+    sdkClient: anthropic,
+    modelConfig: { ... },
+    builtInTools: {
+      webSearch: true,                    // Enable with defaults
+      webFetch: { max_uses: 3 },          // Enable with config
+      bash: true,                         // Enable bash execution
+      textEditor: true,                   // Enable file editing
+    },
+  }}
+>
+```
 
-// Web search
-createWebSearchTool({ max_uses: 3 });
+### Web Search Options
 
-// Bash execution (use with caution)
-createBashTool();
+```typescript
+builtInTools: {
+  webSearch: {
+    max_uses: 5,                          // Limit searches per request
+    allowed_domains: ["example.com"],     // Only search these domains
+    blocked_domains: ["spam.com"],        // Never search these domains
+    user_location: {
+      type: "approximate",
+      country: "US",
+    },
+  },
+}
+```
 
-// Text editing
-createTextEditorTool();
+### Web Fetch Options
+
+```typescript
+builtInTools: {
+  webFetch: {
+    max_uses: 3,
+    allowed_domains: ["docs.example.com"],
+    citations: { enabled: true },
+    max_content_tokens: 10000,
+  },
+}
 ```
 
 ## API
@@ -93,16 +126,15 @@ createTextEditorTool();
 **Functions:**
 
 - `createSDKClient()` - Configure SDK
-- `createAITool()` - Define tools
-- `createWebSearchTool()` - Web search
-- `createBashTool()` - Bash commands
-- `createTextEditorTool()` - File editing
+- `createAITool()` - Define custom tools
 - `callAI()` - One-shot requests
 
 **Types:**
 
 - `AIChatConfig`
 - `AnthropicModelConfig`
+- `BuiltInToolsConfig`
 - `CallAIConfig`
 - `CallAIResult`
 - `WebSearchToolConfig`
+- `WebFetchToolConfig`

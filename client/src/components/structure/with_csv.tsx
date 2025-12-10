@@ -43,7 +43,7 @@ export function StructureWithCsv(p: Props) {
     <StateHolderWrapper state={structureItems()}>
       {(keyedFacilitiesItems) => {
         const csv = createMemo(() => {
-          const csvData = Csv.fromObjectArray(keyedFacilitiesItems.items);
+          const csvData = Csv.fromObjects(keyedFacilitiesItems.items);
           // Notify parent when CSV is ready
           if (p.onCsvReady) {
             p.onCsvReady(csvData);

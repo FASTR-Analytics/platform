@@ -23,6 +23,7 @@ type Props = {
   isLoading: boolean;
   isStreaming?: boolean;
   currentStreamingText?: string | undefined;
+  serverToolLabel?: string | undefined;
   customRenderers?: DisplayRegistry;
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
@@ -93,6 +94,12 @@ export const MessageList: Component<Props> = (props) => {
               assistantMessageStyle={props.assistantMessageStyle}
               markdownStyle={props.markdownStyle}
             />
+          </Match>
+          <Match when={props.serverToolLabel}>
+            <div class="text-neutral italic">
+              <SpinningCursor class="mr-1 inline-block" />
+              {props.serverToolLabel}
+            </div>
           </Match>
           <Match
             when={(props.isStreaming || props.isLoading) &&

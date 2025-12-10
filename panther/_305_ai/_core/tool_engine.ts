@@ -6,6 +6,15 @@
 import type { ContentBlock, DisplayItem } from "./types.ts";
 import type { AIToolWithMetadata, ToolUIMetadata } from "./tool_helpers.ts";
 
+////////////////////////////////////////////////////////////////////////////////
+// SERVER TOOL LABELS (for built-in tools like web_search)
+////////////////////////////////////////////////////////////////////////////////
+
+export const SERVER_TOOL_LABELS: Record<string, string> = {
+  web_search: "Searching the web...",
+  str_replace_based_edit_tool: "Editing document...",
+};
+
 export type ToolResult = {
   type: "tool_result";
   tool_use_id: string;
@@ -62,6 +71,9 @@ export function getInProgressItems(
       label = typeof metadata.inProgressLabel === "function"
         ? metadata.inProgressLabel(block.input)
         : metadata.inProgressLabel;
+    } else if (SERVER_TOOL_LABELS[block.name]) {
+      // Fall back to built-in tool labels
+      label = SERVER_TOOL_LABELS[block.name];
     }
 
     return {

@@ -9,6 +9,10 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
+    "@codemirror/lang-markdown": "^6.0.0",
+    "@codemirror/merge": "^6.0.0",
+    "@codemirror/state": "^6.0.0",
+    "codemirror": "^6.0.0",
     "@clerk/clerk-js": "^5.56.0",
     "@solid-primitives/deep": "^0.3.2",
     "@solidjs/router": "^0.15.0",
@@ -29,14 +33,15 @@
     "prettier-plugin-tailwindcss": "^0.6.5",
     "solid-js": "^1.9.10",
     "sortablejs": "^1.15.6",
-    "zod": "^4.0.0",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.3.3",
     "vite": "^6.0.11",
     "vite-plugin-solid": "^2.10.2",
-    "vite-tsconfig-paths": "^5.1.4"
+    "vite-tsconfig-paths": "^5.1.4",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@types/markdown-it": "^14.1.2"
+    "@types/markdown-it": "^14.1.2",
+    "@types/papaparse": "^5.5.1"
   }
 }

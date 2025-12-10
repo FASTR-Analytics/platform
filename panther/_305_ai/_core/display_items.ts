@@ -27,8 +27,28 @@ export function getDisplayItemsFromMessage(
   const displayItems: DisplayItem[] = [];
   const content = message.content as ContentBlock[];
 
+  // Accumulator for consecutive text blocks
+  // (API returns multiple text blocks for citations - each cited claim is separate)
+  let accumulatedText: string[] = [];
+
+  const flushText = () => {
+    if (accumulatedText.length > 0) {
+      // Join without separator - blocks are sentence fragments with their own spacing
+      const merged = accumulatedText.join("").trim();
+      if (merged) {
+        displayItems.push({
+          type: "text",
+          role: message.role,
+          text: merged,
+        });
+      }
+      accumulatedText = [];
+    }
+  };
+
   for (const block of content) {
     if (block.type === "tool_use") {
+      flushText();
       const toolWithMetadata = toolRegistry.get(block.name);
       if (toolWithMetadata?.metadata.displayComponent) {
         displayItems.push({
@@ -40,14 +60,14 @@ export function getDisplayItemsFromMessage(
       continue;
     }
 
-    if (block.type === "text" && block.text?.trim()) {
-      displayItems.push({
-        type: "text",
-        role: message.role,
-        text: block.text.trim(),
-      });
+    if (block.type === "text" && block.text) {
+      // Don't trim here - preserve leading/trailing spaces for proper joining
+      accumulatedText.push(block.text);
     }
   }
+
+  // Flush any remaining text
+  flushText();
 
   return displayItems;
 }

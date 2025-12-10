@@ -53,7 +53,7 @@ export function getBetaHeaders(
 }
 
 export function hasWebFetchTool(
-  builtInTools?: Array<{ type: string }>,
+  builtInTools?: { webFetch?: boolean | object },
 ): boolean {
-  return builtInTools?.some((t) => t.type === "web_fetch_20250910") ?? false;
+  return Boolean(builtInTools?.webFetch);
 }

@@ -50,6 +50,7 @@ export const AIChat: Component<Props> = (props) => {
     isStreaming,
     isProcessingTools,
     currentStreamingText,
+    serverToolLabel,
     usage,
     sendMessage,
     sendMessages,
@@ -139,6 +140,7 @@ export const AIChat: Component<Props> = (props) => {
           isLoading={isLoading()}
           isStreaming={isStreaming()}
           currentStreamingText={currentStreamingText()}
+          serverToolLabel={serverToolLabel()}
           customRenderers={props.customRenderers}
           fallbackContent={props.fallbackContent}
           toolRegistry={toolRegistry}

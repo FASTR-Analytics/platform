@@ -33,13 +33,13 @@ export async function getVisualizationDataForAI(
     const tableName = getResultsObjectTableName(
       detail.resultsValue.resultsObjectId,
     );
-    const tableExists = await projectDb<{ exists: boolean }[]>`
+    const tableExists = await projectDb<{ table_exists: boolean }[]>`
       SELECT EXISTS (
-        SELECT FROM information_schema.tables
+        SELECT 1 FROM information_schema.tables
         WHERE table_name = ${tableName}
-      ) as exists
+      ) as table_exists
     `;
-    const resultsTableExists = tableExists.at(0)?.exists ?? false;
+    const resultsTableExists = tableExists.at(0)?.table_exists ?? false;
 
     const rawModule = (
       await projectDb<

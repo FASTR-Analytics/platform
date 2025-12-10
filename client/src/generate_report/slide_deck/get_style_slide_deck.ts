@@ -4,7 +4,7 @@ import {
   _SLIDE_BACKGROUND_COLOR,
   getColorDetailsForColorTheme,
 } from "lib";
-import { CustomPageStyleOptions, FontKeyOrFontInfo, getColor } from "panther";
+import { CustomPageStyleOptions, FontInfo, getColor } from "panther";
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 //   ______   _______                       __               ______    __                __            //
@@ -22,13 +22,13 @@ import { CustomPageStyleOptions, FontKeyOrFontInfo, getColor } from "panther";
 //                                                                                                     //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const _Inter_400: FontKeyOrFontInfo = {
+const _Inter_400: FontInfo = {
   fontFamily: "Inter",
   weight: 400,
   italic: false,
 };
 
-const _Inter_800: FontKeyOrFontInfo = {
+const _Inter_800: FontInfo = {
   fontFamily: "Inter",
   weight: 800,
   italic: false,
@@ -105,13 +105,13 @@ export function getStyle_SlideDeck(
         letterSpacing: "-0.02em",
       },
       //
-      paragraph: {
-        font: _Inter_400,
-        color: cDetails.baseTextColor,
-        relFontSize: 2.3,
-        lineHeight: 1.4,
-        lineBreakGap: 0.7,
-      },
+      // paragraph: {
+      //   font: _Inter_400,
+      //   color: cDetails.baseTextColor,
+      //   relFontSize: 2.3,
+      //   lineHeight: 1.4,
+      //   lineBreakGap: 0.7,
+      // },
       pageNumber: {
         font: _Inter_400,
         color: hasFooter ? cDetails.primaryTextColor : cDetails.baseTextColor,
@@ -137,7 +137,7 @@ export function getStyle_SlideDeck(
     content: {
       padding: [60, 80],
       backgroundColor: cDetails.baseBackgroundColor,
-      tabWidth: 10,
+      // tabWidth: 10,
       gapX: 100,
       gapY: 80,
     },

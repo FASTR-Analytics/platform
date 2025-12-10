@@ -47,3 +47,4 @@ export * from "./_302_query/mod.ts";
 export * from "./_303_components/mod.ts";
 export * from "./_304_query/mod.ts";
 export * from "./_305_ai/mod.ts";
+export * from "./_306_text_editor/mod.ts";

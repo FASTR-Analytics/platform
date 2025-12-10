@@ -650,6 +650,16 @@ function buildInlineContent(
         );
         break;
 
+      case "code-inline":
+        result.push(
+          new TextRun({
+            text: item.text,
+            font: "Consolas",
+            italics: baseStyle?.italics,
+          }),
+        );
+        break;
+
       case "math-inline":
         result.push(latexToDocxMath(item.text));
         break;

@@ -19,43 +19,43 @@ export const MARKDOWN_BASE_STYLES = `
   [&>breakout]:col-span-full [&>breakout]:block [&>breakout]:px-4
   [&>*:first-child]:mt-0
 
-  [&_h1]:font-[family:var(--md-h1-family)] [&_h1]:font-[weight:var(--md-h1-weight)]
+  [&_h1]:[font-family:var(--md-h1-family)] [&_h1]:[font-weight:var(--md-h1-weight)]
   [&_h1]:[font-style:var(--md-h1-style)]
   [&_h1]:text-[length:var(--md-h1-size)] [&_h1]:text-[color:var(--md-h1-color)]
   [&_h1]:mt-[var(--md-h1-mt)] [&_h1]:mb-[var(--md-h1-mb)] [&_h1]:leading-[var(--md-h1-lh)]
 
-  [&_h2]:font-[family:var(--md-h2-family)] [&_h2]:font-[weight:var(--md-h2-weight)]
+  [&_h2]:[font-family:var(--md-h2-family)] [&_h2]:[font-weight:var(--md-h2-weight)]
   [&_h2]:[font-style:var(--md-h2-style)]
   [&_h2]:text-[length:var(--md-h2-size)] [&_h2]:text-[color:var(--md-h2-color)]
   [&_h2]:mt-[var(--md-h2-mt)] [&_h2]:mb-[var(--md-h2-mb)] [&_h2]:leading-[var(--md-h2-lh)]
 
-  [&_h3]:font-[family:var(--md-h3-family)] [&_h3]:font-[weight:var(--md-h3-weight)]
+  [&_h3]:[font-family:var(--md-h3-family)] [&_h3]:[font-weight:var(--md-h3-weight)]
   [&_h3]:[font-style:var(--md-h3-style)]
   [&_h3]:text-[length:var(--md-h3-size)] [&_h3]:text-[color:var(--md-h3-color)]
   [&_h3]:mt-[var(--md-h3-mt)] [&_h3]:mb-[var(--md-h3-mb)] [&_h3]:leading-[var(--md-h3-lh)]
 
-  [&_h4]:font-[family:var(--md-h4-family)] [&_h4]:font-[weight:var(--md-h4-weight)]
+  [&_h4]:[font-family:var(--md-h4-family)] [&_h4]:[font-weight:var(--md-h4-weight)]
   [&_h4]:[font-style:var(--md-h4-style)]
   [&_h4]:text-[length:var(--md-h4-size)] [&_h4]:text-[color:var(--md-h4-color)]
   [&_h4]:mt-[var(--md-h4-mt)] [&_h4]:mb-[var(--md-h4-mb)] [&_h4]:leading-[var(--md-h4-lh)]
 
-  [&_h5]:font-[family:var(--md-h5-family)] [&_h5]:font-[weight:var(--md-h5-weight)]
+  [&_h5]:[font-family:var(--md-h5-family)] [&_h5]:[font-weight:var(--md-h5-weight)]
   [&_h5]:[font-style:var(--md-h5-style)]
   [&_h5]:text-[length:var(--md-h5-size)] [&_h5]:text-[color:var(--md-h5-color)]
   [&_h5]:mt-[var(--md-h5-mt)] [&_h5]:mb-[var(--md-h5-mb)] [&_h5]:leading-[var(--md-h5-lh)]
 
-  [&_h6]:font-[family:var(--md-h6-family)] [&_h6]:font-[weight:var(--md-h6-weight)]
+  [&_h6]:[font-family:var(--md-h6-family)] [&_h6]:[font-weight:var(--md-h6-weight)]
   [&_h6]:[font-style:var(--md-h6-style)]
   [&_h6]:text-[length:var(--md-h6-size)] [&_h6]:text-[color:var(--md-h6-color)]
   [&_h6]:mt-[var(--md-h6-mt)] [&_h6]:mb-[var(--md-h6-mb)] [&_h6]:leading-[var(--md-h6-lh)]
 
-  [&_p]:font-[family:var(--md-p-family)] [&_p]:font-[weight:var(--md-p-weight)]
+  [&_p]:[font-family:var(--md-p-family)] [&_p]:[font-weight:var(--md-p-weight)]
   [&_p]:[font-style:var(--md-p-style)]
   [&_p]:text-[color:var(--md-p-color)] [&_p]:leading-[var(--md-p-lh)]
   [&_p]:mt-[var(--md-p-mt)] [&_p]:mb-[var(--md-p-mb)]
   [&>p:last-child]:mb-0
 
-  [&_ul]:font-[family:var(--md-list-family)] [&_ul]:font-[weight:var(--md-list-weight)]
+  [&_ul]:[font-family:var(--md-list-family)] [&_ul]:[font-weight:var(--md-list-weight)]
   [&_ul]:[font-style:var(--md-list-style)]
   [&_ul]:list-disc [&_ul]:text-[length:var(--md-list-size)] [&_ul]:text-[color:var(--md-list-color)]
   [&_ul]:leading-[var(--md-list-lh)]
@@ -64,7 +64,7 @@ export const MARKDOWN_BASE_STYLES = `
   [&_ul_li]:mt-[var(--md-bullet-gap)]
   [&_ul>li:first-child]:mt-0
 
-  [&_ol]:font-[family:var(--md-list-family)] [&_ol]:font-[weight:var(--md-list-weight)]
+  [&_ol]:[font-family:var(--md-list-family)] [&_ol]:[font-weight:var(--md-list-weight)]
   [&_ol]:[font-style:var(--md-list-style)]
   [&_ol]:list-decimal [&_ol]:text-[length:var(--md-list-size)] [&_ol]:text-[color:var(--md-list-color)]
   [&_ol]:leading-[var(--md-list-lh)]
@@ -75,14 +75,14 @@ export const MARKDOWN_BASE_STYLES = `
 
   [&_a]:text-[color:var(--md-link-color)] [&_a]:underline [&_a]:hover:opacity-80
 
-  [&_code]:font-[family:var(--md-code-family)] [&_code]:font-[weight:var(--md-code-weight)]
+  [&_code]:[font-family:var(--md-code-family)] [&_code]:[font-weight:var(--md-code-weight)]
   [&_code]:[font-style:var(--md-code-style)]
   [&_code]:leading-[var(--md-code-lh)]
   [&_code]:bg-[color:var(--md-code-bg)] [&_code]:rounded
   [&_code]:px-[0.4em] [&_code]:py-[0.2em]
   [&_code]:text-[length:var(--md-code-size)] [&_code]:text-[color:var(--md-code-color)]
 
-  [&_pre]:font-[family:var(--md-code-family)] [&_pre]:font-[weight:var(--md-code-weight)]
+  [&_pre]:[font-family:var(--md-code-family)] [&_pre]:[font-weight:var(--md-code-weight)]
   [&_pre]:[font-style:var(--md-code-style)]
   [&_pre]:leading-[var(--md-code-lh)]
   [&_pre]:bg-[color:var(--md-code-bg)] [&_pre]:rounded
@@ -91,7 +91,7 @@ export const MARKDOWN_BASE_STYLES = `
   [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:rounded-none
   [&_pre_code]:text-[length:var(--md-code-size)] [&_pre_code]:text-[color:var(--md-code-color)]
 
-  [&_blockquote]:font-[family:var(--md-bq-family)] [&_blockquote]:font-[weight:var(--md-bq-weight)]
+  [&_blockquote]:[font-family:var(--md-bq-family)] [&_blockquote]:[font-weight:var(--md-bq-weight)]
   [&_blockquote]:[font-style:var(--md-bq-style)]
   [&_blockquote]:leading-[var(--md-bq-lh)]
   [&_blockquote]:text-[length:var(--md-bq-size)] [&_blockquote]:text-[color:var(--md-bq-color)]

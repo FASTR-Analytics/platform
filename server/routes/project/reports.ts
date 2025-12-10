@@ -11,6 +11,7 @@ import {
   getReportItem,
   moveAndDeleteAllReportItems,
   restoreReport,
+  updateLongFormContent,
   updateReportConfig,
   updateReportItemConfig,
 } from "../../db/mod.ts";
@@ -144,6 +145,29 @@ defineRoute(
   getProjectEditor,
   async (c, { params }) => {
     const res = await deleteReport(c.var.ppk.projectDb, params.report_id);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesReports,
+  "updateLongFormContent",
+  getProjectEditor,
+  async (c, { params, body }) => {
+    const res = await updateLongFormContent(
+      c.var.ppk.projectDb,
+      params.report_id,
+      body.markdown
+    );
+    if (res.success === false) {
+      return c.json(res);
+    }
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "reports",
+      [params.report_id],
+      res.data.lastUpdated
+    );
     return c.json(res);
   }
 );

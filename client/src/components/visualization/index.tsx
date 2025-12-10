@@ -23,7 +23,7 @@ import {
   FrameTop,
   StateHolder,
   StateHolderWrapper,
-  ADTFigure,
+  FigureInputs,
   downloadCsv,
   downloadJson,
   getEditorWrapper,
@@ -446,7 +446,7 @@ function PresentationObjectEditorInner(p: Props) {
       if (res.success === false || res.data.ih.status !== "ok") {
         return;
       }
-      const csv = Csv.fromObjectArray(res.data.ih.items).stringify();
+      const csv = Csv.fromObjects(res.data.ih.items).stringify();
       downloadCsv(
         csv,
         `${p.poDetail.label.replaceAll(" ", "_").trim()}_underlying_data.csv`,
@@ -763,7 +763,7 @@ function PresentationObjectEditorInner(p: Props) {
                         </Match>
                         <Match when={keyedItemsHolder.ih.status === "ok"}>
                           {(() => {
-                            const figureInputs = createMemo<StateHolder<ADTFigure>>(
+                            const figureInputs = createMemo<StateHolder<FigureInputs>>(
                               () => {
                                 // Check for empty items array (shouldn't happen with new discriminated union, but keeping for safety)
                                 if (keyedItemsHolder.ih.status === "ok" && keyedItemsHolder.ih.items.length === 0) {
@@ -801,6 +801,9 @@ function PresentationObjectEditorInner(p: Props) {
                                         projectDetail={p.projectDetail}
                                         presentationObjectId={p.poDetail.id}
                                         figureInputs={figureInputs()}
+                                        tempConfig={tempConfig}
+                                        setTempConfig={setTempConfig}
+                                        resultsValue={p.poDetail.resultsValue}
                                       />
                                     </div>
                                   )

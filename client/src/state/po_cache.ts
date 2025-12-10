@@ -7,7 +7,7 @@ import {
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
 } from "lib";
-import { ADTFigure, StateHolder } from "panther";
+import { FigureInputs, StateHolder } from "panther";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
 import {
@@ -87,7 +87,7 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
   projectId: string,
   presentationObjectId: string,
   replicateOverride: ReplicantValueOverride | undefined,
-): AsyncGenerator<StateHolder<ADTFigure>> {
+): AsyncGenerator<StateHolder<FigureInputs>> {
   yield { status: "loading" };
   const iterPoDetail = getPODetailFromCacheorFetch_AsyncGenderator(
     projectId,
@@ -188,13 +188,13 @@ export async function getPOFigureInputsFromCacheOrFetch(
   projectId: string,
   presentationObjectId: string,
   replicateOverride: ReplicantValueOverride | undefined,
-): Promise<APIResponseWithData<ADTFigure>> {
+): Promise<APIResponseWithData<FigureInputs>> {
   const iter = getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
     projectId,
     presentationObjectId,
     replicateOverride,
   );
-  const arr: StateHolder<ADTFigure>[] = [];
+  const arr: StateHolder<FigureInputs>[] = [];
   for await (const y of iter) {
     arr.push(y);
   }

@@ -92,6 +92,15 @@ export const reportRouteRegistry = {
     requiresProject: true,
   }),
 
+  updateLongFormContent: route({
+    path: "/long_form_content/:report_id",
+    method: "POST",
+    params: {} as { report_id: string },
+    body: {} as { markdown: string },
+    response: {} as { lastUpdated: string },
+    requiresProject: true,
+  }),
+
   createReportItem: route({
     path: "/report_items/:report_id",
     method: "POST",

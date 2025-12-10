@@ -16,6 +16,7 @@ import {
   type FigureMap,
   type ImageMap,
   type jsPDF,
+  measureHeaderFooterHeights,
   PageRenderer,
   RectCoordsDims,
 } from "./deps.ts";
@@ -58,7 +59,6 @@ export async function markdownToPdfDeno(
 ): Promise<jsPDF> {
   const width = config.pageWidth ?? 1280;
   const height = config.pageHeight ?? 720;
-  const padding = config.pagePadding ?? 60;
 
   const markdownStyle = new CustomMarkdownStyle(config.styleMarkdown);
   const pageStyle = new CustomPageStyle(config.stylePage);
@@ -73,57 +73,17 @@ export async function markdownToPdfDeno(
     fonts,
   );
 
-  // Measure header height using actual text measurement
-  const headerPadding = mergedPageStyle.header.padding;
-  const maxHeaderTextWidth = width - headerPadding.totalPx();
-  let headerHeight = 0;
-  if (config.header || config.subHeader || config.date) {
-    headerHeight += headerPadding.totalPy();
-    headerHeight += mergedPageStyle.header.bottomBorderStrokeWidth;
-    let lastExtraToChop = 0;
-    if (config.header) {
-      const mHeader = rc.mText(
-        config.header,
-        mergedPageStyle.text.header,
-        maxHeaderTextWidth,
-      );
-      headerHeight += mHeader.dims.h() +
-        mergedPageStyle.header.headerBottomPadding;
-      lastExtraToChop = mergedPageStyle.header.headerBottomPadding;
-    }
-    if (config.subHeader) {
-      const mSubHeader = rc.mText(
-        config.subHeader,
-        mergedPageStyle.text.subHeader,
-        maxHeaderTextWidth,
-      );
-      headerHeight += mSubHeader.dims.h() +
-        mergedPageStyle.header.subHeaderBottomPadding;
-      lastExtraToChop = mergedPageStyle.header.subHeaderBottomPadding;
-    }
-    if (config.date) {
-      const mDate = rc.mText(
-        config.date,
-        mergedPageStyle.text.date,
-        maxHeaderTextWidth,
-      );
-      headerHeight += mDate.dims.h();
-    } else {
-      headerHeight -= lastExtraToChop;
-    }
-  }
-
-  // Measure footer height using actual text measurement
-  const footerPadding = mergedPageStyle.footer.padding;
-  let footerHeight = 0;
-  if (config.footer) {
-    const mFooter = rc.mText(
-      config.footer,
-      mergedPageStyle.text.footer,
-      width - footerPadding.totalPx(),
-    );
-    footerHeight = footerPadding.totalPy() + mFooter.dims.h();
-  }
+  const { headerHeight, footerHeight } = measureHeaderFooterHeights(
+    rc,
+    width,
+    {
+      header: config.header,
+      subHeader: config.subHeader,
+      date: config.date,
+      footer: config.footer,
+    },
+    mergedPageStyle,
+  );
 
   // Use page style's content padding for actual layout width
   const contentPadding = mergedPageStyle.content.padding;

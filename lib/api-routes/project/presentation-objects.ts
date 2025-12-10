@@ -1,5 +1,6 @@
 import { route } from "../route-utils.ts";
 import {
+  DisaggregationDisplayOption,
   DisaggregationOption,
   GenericLongFormFetchConfig,
   ItemsHolderPresentationObject,
@@ -146,6 +147,60 @@ export const presentationObjectRouteRegistry = {
       fetchConfig: GenericLongFormFetchConfig;
     },
     response: {} as ReplicantOptionsForPresentationObject,
+    requiresProject: true,
+  }),
+
+  createVisualizationFromResultsValue: route({
+    path: "/presentation_objects/from_results_value",
+    method: "POST",
+    body: {} as {
+      label: string;
+      moduleId: string;
+      resultsValueId: string;
+      presentationType: PresentationOption;
+      disaggregations: DisaggregationOption[];
+      filters?: { dimension: DisaggregationOption; values: string[] }[];
+      periodFilter?: { startPeriod?: number; endPeriod?: number };
+      valuesFilter?: string[];
+      valuesDisDisplayOpt?: DisaggregationDisplayOption;
+    },
+    response: {} as {
+      newPresentationObjectId: string;
+      lastUpdated: string;
+    },
+    requiresProject: true,
+  }),
+
+  deleteAIVisualization: route({
+    path: "/presentation_objects/ai/:po_id",
+    method: "DELETE",
+    params: {} as { po_id: string },
+    response: {} as {
+      lastUpdated: string;
+    },
+    requiresProject: true,
+  }),
+
+  updateAIVisualization: route({
+    path: "/presentation_objects/ai/:po_id",
+    method: "POST",
+    params: {} as { po_id: string },
+    body: {} as {
+      label?: string;
+      presentationType?: PresentationOption;
+      disaggregations?: { dimension: DisaggregationOption; displayAs: string }[];
+      filters?: { dimension: DisaggregationOption; values: string[] }[];
+      periodFilter?: { startPeriod?: number; endPeriod?: number } | null;
+      valuesFilter?: string[] | null;
+      valuesDisDisplayOpt?: DisaggregationDisplayOption;
+      caption?: string;
+      subCaption?: string;
+      footnote?: string;
+    },
+    response: {} as {
+      lastUpdated: string;
+      reportItemsThatDependOnPresentationObjects: string[];
+    },
     requiresProject: true,
   }),
 } as const;
