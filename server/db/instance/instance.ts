@@ -12,6 +12,7 @@ import {
   type DatasetType,
   type GlobalUser,
 } from "lib";
+import { _INSTANCE_ID, _INSTANCE_NAME } from "../../exposed_env_vars.ts";
 import { detectHasAnyRows, tryCatchDatabaseAsync } from "./../utils.ts";
 import {
   DBStructureUploadAttempt,
@@ -229,6 +230,8 @@ ORDER BY LOWER(label)`
     const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
 
     const instanceDetails: InstanceDetail = {
+      instanceId: _INSTANCE_ID,
+      instanceName: _INSTANCE_NAME,
       maxAdminArea,
       countryIso3,
       facilityColumns,

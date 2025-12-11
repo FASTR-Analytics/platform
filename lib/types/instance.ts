@@ -68,6 +68,8 @@ export type InstanceMeta = {
 };
 
 export type InstanceDetail = {
+  instanceId: string;
+  instanceName: string;
   maxAdminArea: number;
   countryIso3: string | undefined;
   facilityColumns: InstanceConfigFacilityColumns;

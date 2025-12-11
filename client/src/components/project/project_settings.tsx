@@ -1,4 +1,4 @@
-import { ProjectDetail, ProjectUser, t, t2, T } from "lib";
+import { ProjectDetail, InstanceDetail, ProjectUser, t, t2, T } from "lib";
 import {
   Button,
   FrameTop,
@@ -10,12 +10,15 @@ import {
   timActionDelete,
   timActionButton,
 } from "panther";
-import { Match, Show, Switch, onMount, createSignal, For } from "solid-js";
+import { Match, Show, Switch, onMount, createSignal, For, createResource } from "solid-js";
+import { useAuth } from 'clerk-solidjs'
 import { Table, TableColumn, type BulkAction } from "panther";
 import { EditLabelForm } from "~/components/forms_editors/edit_label";
 import { SelectProjectUserRole } from "~/components/forms_editors/select_project_user_role";
 import { serverActions } from "~/server_actions";
 import { CopyProjectForm } from "./copy_project";
+import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
+import { getInstanceDetail, updateDatasetUploadAttempt_Step1Dhis2Confirm } from "../../../../server/db/mod.ts";
 
 // Backup types
 interface BackupFileInfo {
@@ -35,12 +38,24 @@ interface ProjectBackupInfo {
   files: BackupFileInfo[];
 }
 
+interface BackupInfo {
+  folder: string;
+  timestamp: string;
+  backup_date: string;
+  total_projects: number;
+  backed_up_projects: number;
+  size: number;
+  file_count: number;
+  files: BackupFileInfo[];
+}
+
 type Props = {
   isGlobalAdmin: boolean;
   projectDetail: ProjectDetail;
   silentRefreshProject: () => Promise<void>;
   silentRefreshInstance: () => Promise<void>;
   backToHome: () => void;
+  instanceDetail: InstanceDetail;
 };
 
 export function ProjectSettings(p: Props) {
@@ -225,7 +240,7 @@ export function ProjectSettings(p: Props) {
         <SettingsSection
           header={t2("Backups")}
         >
-          <ProjectBackups projectId={p.projectDetail.id} />
+          <ProjectBackups projectId={p.projectDetail.id} instanceDetail={p.instanceDetail} />
         </SettingsSection>
 
         <div class="ui-gap flex">
@@ -325,25 +340,49 @@ function ProjectUserTable(p: {
   );
 }
 
-function ProjectBackups(props: { projectId: string }) {
-  const [backupsList, setBackupsList] = createSignal<ProjectBackupInfo[]>([]);
-  const [loading, setLoading] = createSignal(true);
-  const [expandedBackup, setExpandedBackup] = createSignal<string | null>(null);
 
-  // Fetch backups for the current project only
-  onMount(async () => {
-    try {
-      const response = await fetch(`/api/project-backups/${props.projectId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setBackupsList(data.backups || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch backups:", error);
-    } finally {
-      setLoading(false);
+
+
+function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDetail }) {
+  const { getToken } = useAuth();
+  const [expandedBackup, setExpandedBackup] = createSignal<string | null>(null);
+  const [backupsList, { refetch: refetchBackups }] = createResource<ProjectBackupInfo[]>(async () => {
+    const token = await getToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
-  });
+    const response = await fetch(`https://status-api.fastr-analytics/api/servers/${props.instanceDetail.instanceId}/backups`, { headers });
+    const data = await response.json();
+    const allBackups = data.backups || [];
+
+    // Filter backups to only include those containing this project
+    const projectBackups = allBackups
+      .map((backup: any) =>{
+        // Filter files to only include the project backups
+        const projectFiles = backup.files.filter((file: BackupFileInfo) =>
+          file.type === 'project' && file.name.includes(props.projectId)
+        );
+
+        // Only include this backup if it has project files
+        if (projectFiles.length === 0) {
+          return null;
+        }
+
+        // Calculate size of just the project files
+        const projectSize = projectFiles.reduce((sum: number, file: BackupFileInfo) => sum + file.size, 0);
+
+        return {
+          ...backup,
+          files: projectFiles,
+          size: projectSize,
+          file_count: projectFiles.length,
+        };
+      })
+      .filter((backup: any) => backup !== null);
+
+    return projectBackups;
+  });                                                                           
 
   const toggleBackupExpand = (folder: string) => {
     setExpandedBackup(expandedBackup() === folder ? null : folder);
@@ -377,10 +416,10 @@ function ProjectBackups(props: { projectId: string }) {
   };
 
   return (
-    <Show when={!loading()} fallback={<div>Loading backups...</div>}>
+    <Show when={!backupsList.loading} fallback={<div>Loading backups...</div>}>
       <Show
-        when={backupsList().length > 0}
-        fallback={<div class="text-neutral">No backups available</div>}
+        when={backupsList() && backupsList()!.length > 0}
+        fallback={<div class="text-neutral">No backups available for this project</div>}
       >
         <div class="flex flex-col gap-2">
           <For each={backupsList()}>

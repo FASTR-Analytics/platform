@@ -283,6 +283,7 @@ export default function Project(p: Props) {
                                     p.instanceDetail.silentFetch
                                   }
                                   backToHome={() => navigate("/")}
+                                  instanceDetail={keyedInstanceDetail}
                                 />
                               </Match>
                             </Switch>
