@@ -11,7 +11,7 @@ import {
   timActionButton,
 } from "panther";
 import { Match, Show, Switch, onMount, createSignal, For, createResource } from "solid-js";
-import { useAuth } from 'clerk-solidjs'
+import { clerk } from "~/components/LoggedInWrapper";
 import { Table, TableColumn, type BulkAction } from "panther";
 import { EditLabelForm } from "~/components/forms_editors/edit_label";
 import { SelectProjectUserRole } from "~/components/forms_editors/select_project_user_role";
@@ -344,10 +344,9 @@ function ProjectUserTable(p: {
 
 
 function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDetail }) {
-  const { getToken } = useAuth();
   const [expandedBackup, setExpandedBackup] = createSignal<string | null>(null);
   const [backupsList, { refetch: refetchBackups }] = createResource<ProjectBackupInfo[]>(async () => {
-    const token = await getToken();
+    const token = await clerk.session?.getToken();
     const headers: HeadersInit = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
