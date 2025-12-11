@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getGlobalNonAdmin } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { _SANDBOX_DIR_PATH } from "../../exposed_env_vars.ts";
+import { _SANDBOX_DIR_PATH, _INSTANCE_ID } from "../../exposed_env_vars.ts";
 import { join } from "@std/path";
 
 export const routesBackups = new Hono();
@@ -23,117 +23,40 @@ interface ProjectBackupInfo {
   files: BackupFileInfo[];
 }
 
-// Get all project backups across all projects
+// Get all project backups across all projects from external API
 defineRoute(
   routesBackups,
   "getAllProjectsBackups",
   getGlobalNonAdmin,
   async (c) => {
     try {
-      // Backup directory is inside the sandbox directory
-      const backupBaseDir = join(_SANDBOX_DIR_PATH, "backups");
+      // Get the authorization header from the incoming request
+      const authHeader = c.req.header('Authorization');
 
-      const allBackups: ProjectBackupInfo[] = [];
-
-      try {
-        // Check if backup directory exists
-        const dirInfo = await Deno.stat(backupBaseDir);
-        if (!dirInfo.isDirectory) {
-          return c.json({
-            success: true,
-            backups: []
-          });
-        }
-      } catch {
-        // Backup directory doesn't exist yet
+      if (!authHeader) {
         return c.json({
-          success: true,
-          backups: []
-        });
+          success: false,
+          backups: [],
+          error: "Authorization header required"
+        }, 401);
       }
 
-      // Read all project folders in backups directory
-      for await (const projectEntry of Deno.readDir(backupBaseDir)) {
-        if (projectEntry.isDirectory) {
-          const projectId = projectEntry.name;
-          const projectBackupDir = join(backupBaseDir, projectId);
-
-          // Read all backup folders for this project
-          try {
-            for await (const backupEntry of Deno.readDir(projectBackupDir)) {
-              if (backupEntry.isDirectory) {
-                const backupPath = join(projectBackupDir, backupEntry.name);
-
-                // Try to read metadata.json
-                let metadata: any = null;
-                let projectLabel = projectId;
-                try {
-                  const metadataText = await Deno.readTextFile(join(backupPath, "metadata.json"));
-                  metadata = JSON.parse(metadataText);
-                  projectLabel = metadata.project_label || projectId;
-                } catch {
-                  // If metadata doesn't exist, use folder name
-                  metadata = {
-                    timestamp: backupEntry.name,
-                    backup_date: backupEntry.name,
-                  };
-                }
-
-                // Get folder size, file count, and list all files
-                let totalSize = 0;
-                let fileCount = 0;
-                const files: BackupFileInfo[] = [];
-
-                try {
-                  for await (const file of Deno.readDir(backupPath)) {
-                    if (file.isFile) {
-                      const fileInfo = await Deno.stat(join(backupPath, file.name));
-                      totalSize += fileInfo.size;
-                      fileCount++;
-
-                      // Categorize file type
-                      let fileType: "main" | "project" | "metadata" | "log" | "other" = "other";
-                      if (file.name === "main.sql.gz") {
-                        fileType = "main";
-                      } else if (file.name === "metadata.json") {
-                        fileType = "metadata";
-                      } else if (file.name === "backup.log") {
-                        fileType = "log";
-                      } else if (file.name.endsWith(".sql.gz") || file.name.endsWith(".sql")) {
-                        fileType = "project";
-                      }
-
-                      files.push({
-                        name: file.name,
-                        size: fileInfo.size,
-                        type: fileType,
-                      });
-                    }
-                  }
-                } catch (err) {
-                  console.error(`Error reading backup files in ${backupPath}:`, err);
-                }
-
-                allBackups.push({
-                  project_id: projectId,
-                  project_label: projectLabel,
-                  folder: backupEntry.name,
-                  timestamp: metadata.timestamp || backupEntry.name,
-                  backup_date: metadata.backup_date || backupEntry.name,
-                  size: totalSize,
-                  file_count: fileCount,
-                  files: files,
-                });
-              }
-            }
-          } catch (err) {
-            console.error(`Error reading project backup directory ${projectBackupDir}:`, err);
-          }
+      // Forward the request to the external API with the same auth token
+      const response = await fetch(
+        `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/backups`,
+        {
+          headers: {
+            'Authorization': authHeader,
+          },
         }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch backups: ${response.status} ${response.statusText}`);
       }
 
-      // Sort by timestamp (newest first)
-      allBackups.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      const data = await response.json();
+      const allBackups = data.backups || [];
 
       return c.json({
         success: true,

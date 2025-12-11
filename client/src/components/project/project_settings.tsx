@@ -351,13 +351,26 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    const response = await fetch(`https://status-api.fastr-analytics.org/api/servers/${props.instanceDetail.instanceId}/backups`, { headers });
+
+    // Call your backend endpoint which will forward to the external API
+    const response = await fetch('/api/all-projects-backups', { headers });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch backups: ${response.status}`);
+    }
+
     const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch backups');
+    }
+
     const allBackups = data.backups || [];
     console.log("All backups fetched:", allBackups);
+
     // Filter backups to only include those containing this project
     const projectBackups = allBackups
-      .map((backup: any) =>{
+      .map((backup: any) => {
         // Filter files to only include the project backups
         const projectFiles = backup.files.filter((file: BackupFileInfo) =>
           file.type === 'project' && file.name.includes(props.projectId)
