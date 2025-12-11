@@ -351,7 +351,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    const response = await fetch(`https://status-api.fastr-analytics/api/servers/${props.instanceDetail.instanceId}/backups`, { headers });
+    const response = await fetch(`https://status-api.fastr-analytics.org/api/servers/${props.instanceDetail.instanceId}/backups`, { headers });
     const data = await response.json();
     const allBackups = data.backups || [];
     console.log("All backups fetched:", allBackups);
