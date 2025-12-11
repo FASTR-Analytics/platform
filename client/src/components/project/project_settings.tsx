@@ -354,7 +354,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     const response = await fetch(`https://status-api.fastr-analytics/api/servers/${props.instanceDetail.instanceId}/backups`, { headers });
     const data = await response.json();
     const allBackups = data.backups || [];
-
+    console.log("All backups fetched:", allBackups);
     // Filter backups to only include those containing this project
     const projectBackups = allBackups
       .map((backup: any) =>{
