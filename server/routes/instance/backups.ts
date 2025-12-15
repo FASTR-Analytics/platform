@@ -116,11 +116,18 @@ defineRoute(
       );
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Failed to download file: ${response.status} ${response.statusText}`, errorText);
         throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
       }
 
+      // Log response headers for debugging
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('Response content-type:', response.headers.get('content-type'));
+
       // Get the file content
       const fileContent = await response.arrayBuffer();
+      console.log('File content size:', fileContent.byteLength);
 
       // Determine content type
       let contentType = "application/octet-stream";
