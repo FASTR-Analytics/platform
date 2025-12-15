@@ -402,9 +402,15 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
-  const downloadFile = async (projectId: string, folder: string, fileName: string) => {
+  const downloadFile = async (folder: string, fileName: string) => {
     try {
-      const response = await fetch(`/api/backups/${projectId}/${folder}/${fileName}`);
+      const token = await clerk.session?.getToken();
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/backups/${folder}/${fileName}`, { headers });
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -415,6 +421,8 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
+      } else {
+        console.error("Download failed:", response.status, response.statusText);
       }
     } catch (error) {
       console.error("Download failed:", error);
@@ -447,7 +455,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
                     </span>
                   </div>
                   <Button
-                    onClick={() => downloadFile(props.projectId, backup.folder, backup.files[0].name)}
+                    onClick={() => downloadFile(backup.folder, backup.files[0].name)}
                     iconName="download"
                     intent="primary"
                     size="sm"

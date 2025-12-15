@@ -73,137 +73,6 @@ defineRoute(
   }
 );
 
-// Get backups for a specific project
-defineRoute(
-  routesBackups,
-  "getProjectBackups",
-  getGlobalNonAdmin,
-  async (c) => {
-    try {
-      const projectId = c.req.param("project_id");
-
-      // Security: Prevent directory traversal
-      if (!projectId || projectId.includes("..") || projectId.includes("/")) {
-        return c.json({
-          success: false,
-          backups: [],
-          error: "Invalid project ID"
-        }, 400);
-      }
-
-      // Backup directory is inside the sandbox directory
-      const backupBaseDir = join(_SANDBOX_DIR_PATH, "backups");
-      const projectBackupDir = join(backupBaseDir, projectId);
-
-      const projectBackups: ProjectBackupInfo[] = [];
-
-      try {
-        // Check if project backup directory exists
-        const dirInfo = await Deno.stat(projectBackupDir);
-        if (!dirInfo.isDirectory) {
-          return c.json({
-            success: true,
-            backups: []
-          });
-        }
-      } catch {
-        // Project backup directory doesn't exist yet
-        return c.json({
-          success: true,
-          backups: []
-        });
-      }
-
-      // Read all backup folders for this project
-      try {
-        for await (const backupEntry of Deno.readDir(projectBackupDir)) {
-          if (backupEntry.isDirectory) {
-            const backupPath = join(projectBackupDir, backupEntry.name);
-
-            // Try to read metadata.json
-            let metadata: any = null;
-            let projectLabel = projectId;
-            try {
-              const metadataText = await Deno.readTextFile(join(backupPath, "metadata.json"));
-              metadata = JSON.parse(metadataText);
-              projectLabel = metadata.project_label || projectId;
-            } catch {
-              // If metadata doesn't exist, use folder name
-              metadata = {
-                timestamp: backupEntry.name,
-                backup_date: backupEntry.name,
-              };
-            }
-
-            // Get folder size, file count, and list all files
-            let totalSize = 0;
-            let fileCount = 0;
-            const files: BackupFileInfo[] = [];
-
-            try {
-              for await (const file of Deno.readDir(backupPath)) {
-                if (file.isFile) {
-                  const fileInfo = await Deno.stat(join(backupPath, file.name));
-                  totalSize += fileInfo.size;
-                  fileCount++;
-
-                  // Categorize file type
-                  let fileType: "main" | "project" | "metadata" | "log" | "other" = "other";
-                  if (file.name === "main.sql.gz") {
-                    fileType = "main";
-                  } else if (file.name === "metadata.json") {
-                    fileType = "metadata";
-                  } else if (file.name === "backup.log") {
-                    fileType = "log";
-                  } else if (file.name.endsWith(".sql.gz") || file.name.endsWith(".sql")) {
-                    fileType = "project";
-                  }
-
-                  files.push({
-                    name: file.name,
-                    size: fileInfo.size,
-                    type: fileType,
-                  });
-                }
-              }
-            } catch (err) {
-              console.error(`Error reading backup files in ${backupPath}:`, err);
-            }
-
-            projectBackups.push({
-              project_id: projectId,
-              project_label: projectLabel,
-              folder: backupEntry.name,
-              timestamp: metadata.timestamp || backupEntry.name,
-              backup_date: metadata.backup_date || backupEntry.name,
-              size: totalSize,
-              file_count: fileCount,
-              files: files,
-            });
-          }
-        }
-      } catch (err) {
-        console.error(`Error reading project backup directory ${projectBackupDir}:`, err);
-      }
-
-      // Sort by timestamp (newest first)
-      projectBackups.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-
-      return c.json({
-        success: true,
-        backups: projectBackups
-      });
-    } catch (error) {
-      console.error("Error fetching project backups:", error);
-      return c.json({
-        success: false,
-        backups: [],
-        error: error instanceof Error ? error.message : "Unknown error"
-      }, 500);
-    }
-  }
-);
-
 // Download a specific backup file
 defineRoute(
   routesBackups,
@@ -211,36 +80,47 @@ defineRoute(
   getGlobalNonAdmin,
   async (c) => {
     try {
-      const projectId = c.req.param("project_id");
       const folder = c.req.param("folder");
       const fileName = c.req.param("file");
 
       // Security: Prevent directory traversal
       if (
-        !projectId ||
         !folder ||
         !fileName ||
-        projectId.includes("..") ||
         folder.includes("..") ||
         fileName.includes("..") ||
-        projectId.includes("/") ||
         folder.includes("/") ||
         fileName.includes("/")
       ) {
         return c.json({ error: "Invalid path" }, 400);
       }
 
-      const backupBaseDir = join(_SANDBOX_DIR_PATH, "backups");
-      const filePath = join(backupBaseDir, projectId, folder, fileName);
+      // Get the authorization header from the incoming request
+      const authHeader = c.req.header('Authorization');
 
-      // Check if file exists
-      const fileInfo = await Deno.stat(filePath);
-      if (!fileInfo.isFile) {
-        return c.json({ error: "File not found" }, 404);
+      if (!authHeader) {
+        return c.json({
+          success: false,
+          error: "Authorization header required"
+        }, 401);
       }
 
-      // Read the file
-      const fileContent = await Deno.readFile(filePath);
+      // Fetch the file from the external API
+      const response = await fetch(
+        `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/backups/${folder}/${fileName}`,
+        {
+          headers: {
+            'Authorization': authHeader,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+      }
+
+      // Get the file content
+      const fileContent = await response.arrayBuffer();
 
       // Determine content type
       let contentType = "application/octet-stream";
@@ -254,12 +134,12 @@ defineRoute(
         contentType = "text/plain";
       }
 
-      // Set appropriate headers for download
+      // Return the file with appropriate headers
       return new Response(fileContent, {
         headers: {
           "Content-Type": contentType,
           "Content-Disposition": `attachment; filename="${fileName}"`,
-          "Content-Length": fileInfo.size.toString(),
+          "Content-Length": fileContent.byteLength.toString(),
         },
       });
     } catch (error) {
