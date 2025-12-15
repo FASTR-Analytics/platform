@@ -12,6 +12,7 @@ export type InstalledModuleSummary = {
   label: string;
   dateInstalled: string;
   configType: "none" | "parameters" | "hfa";
+  commitSha?: string;
   //
   moduleDefinitionLabel: string;
   moduleDefinitionLastScriptUpdated: string;

@@ -34,6 +34,7 @@ async function fetchGitHubScript(
   }
 
   const rawScript = await response.text();
+  // need to get the commit sha here
   return stripFrontmatter(rawScript);
 }
 
@@ -95,6 +96,7 @@ async function scanModuleDefinitions(): Promise<
           script = await Deno.readTextFile(scriptSourcePath);
         } else if (definition.scriptSource.type === "github") {
           script = await fetchGitHubScript(definition.scriptSource);
+          // should return both script and sha here
         } else {
           console.error(
             `✗ Skipping ${moduleId} v${version}: Unknown script source type`
@@ -108,6 +110,7 @@ async function scanModuleDefinitions(): Promise<
         // Inject id from folder structure and update scriptSource and lastScriptUpdate
         const jsonDefinition = {
           ...definition,
+          // add the commit sha here
           id: moduleId,
           lastScriptUpdate: new Date().toISOString(),
           scriptSource: {

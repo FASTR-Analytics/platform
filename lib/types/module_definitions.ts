@@ -26,6 +26,7 @@ export type ModuleDefinition = {
   label: string;
   prerequisites: ModuleId[];
   lastScriptUpdate: string;
+  commitSha?: string;
   scriptSource: ScriptSource;
   dataSources: DataSource[];
   configRequirements: ModuleConfigRequirements;
@@ -256,7 +257,7 @@ export type PartialDefaultPresentationObjectJSON = Omit<
 // id and lastScriptUpdate are inferred/added during build
 export type ModuleDefinitionJSON = Omit<
   ModuleDefinition,
-  "id" | "script" | "lastScriptUpdate" | "resultsObjects" | "defaultPresentationObjects"
+  "id" | "script" | "lastScriptUpdate" | "resultsObjects" | "defaultPresentationObjects" | "commitSha"
 > & {
   resultsObjects: ResultsObjectDefinitionJSON[];
   defaultPresentationObjects: PartialDefaultPresentationObjectJSON[];

@@ -8,18 +8,11 @@ export const definition = {
     type: "github",
     owner: "FASTR-Analytics",
     repo: "modules",
-    path: "04_module_coverage_estimates_part2.R",
+    path: "06_module_coverage_estimates_part2.R",
     commit: "main",
   },
   defaultPresentationObjects: presentationObjects,
-  assetsToImport: [
-    "survey_data_unified.csv",
-    "population_estimates_only.csv",
-    "ng_province_denominators_corrected.csv",
-    "ng_national_denominators_corrected.csv",
-    "chmis_national_for_module4.csv",
-    "chmis_admin_area_for_module4.csv",
-  ],
+  assetsToImport: [],
   dataSources: [
     {
       replacementString: "M4_combined_results_national.csv",
@@ -110,7 +103,7 @@ export const definition = {
       },
       resultsValues: [
         {
-          id: "m6-01-02",
+          id: "m6-02-01",
           valueProps: [
             "coverage_original_estimate",
             "coverage_avgsurveyprojection",
@@ -124,7 +117,25 @@ export const definition = {
               "Projected survey estimate (when survey data is missing)",
             coverage_cov: "Coverage calculated from HMIS data",
           },
-          label: "Coverage calculated from HMIS data (Admin area 2)",
+          label: "Coverage calculated from HMIS data (Admin area 2) - Survey, coverage, projection values",
+          requiredDisaggregationOptions: [
+            "indicator_common_id",
+            "admin_area_2",
+            "year",
+          ],
+          formatAs: "percent",
+          periodOptions: ["year"],
+        },
+        {
+          id: "m6-02-02",
+          valueProps: [
+            "coverage_cov",
+          ],
+          valueFunc: "AVG",
+          valueLabelReplacements: {
+            coverage_cov: "Coverage calculated from HMIS data",
+          },
+          label: "Coverage calculated from HMIS data (Admin area 2) - Coverage value only",
           requiredDisaggregationOptions: [
             "indicator_common_id",
             "admin_area_2",
@@ -152,7 +163,7 @@ export const definition = {
       },
       resultsValues: [
         {
-          id: "m6-01-03",
+          id: "m6-03-01",
           valueProps: [
             "coverage_original_estimate",
             "coverage_avgsurveyprojection",
@@ -166,7 +177,25 @@ export const definition = {
               "Projected survey estimate (when survey data is missing)",
             coverage_cov: "Coverage calculated from HMIS data",
           },
-          label: "Coverage calculated from HMIS data (Admin area 3)",
+          label: "Coverage calculated from HMIS data (Admin area 3) - Survey, coverage, projection values",
+          requiredDisaggregationOptions: [
+            "indicator_common_id",
+            "admin_area_3",
+            "year",
+          ],
+          formatAs: "percent",
+          periodOptions: ["year"],
+        },
+        {
+          id: "m6-03-02",
+          valueProps: [
+            "coverage_cov",
+          ],
+          valueFunc: "AVG",
+          valueLabelReplacements: {
+            coverage_cov: "Coverage calculated from HMIS data",
+          },
+          label: "Coverage calculated from HMIS data (Admin area 3) - Coverage value only",
           requiredDisaggregationOptions: [
             "indicator_common_id",
             "admin_area_3",
@@ -177,6 +206,24 @@ export const definition = {
         },
       ],
     },
+    // {
+    //   id: "M5_coverage_estimation_admin2_simplified.csv",
+    //   description: "Selected denominators",
+    //   createTableStatementPossibleColumns: {
+    //     indicator_common_id: "TEXT NOT NULL",
+    //     denominator: "TEXT NOT NULL",
+    //   },
+    //   resultsValues: [],
+    // },
+    // {
+    //   id: "M5_coverage_estimation_admin3_simplified.csv",
+    //   description: "Selected denominators",
+    //   createTableStatementPossibleColumns: {
+    //     indicator_common_id: "TEXT NOT NULL",
+    //     denominator: "TEXT NOT NULL",
+    //   },
+    //   resultsValues: [],
+    // },
     // {
     //   id: "M4_selected_denominator_per_indicator.csv",
     //   description: "Selected denominators",
@@ -498,12 +545,12 @@ export const definition = {
             { value: `best`, label: "Best" },
 
             ...[
-              "danc1_measles1",
-              "ddelivery_measles1",
-              "dpenta1_measles1",
-              "dbcg_measles1",
-              "dlivebirths_measles1",
-              "dwpp_measles1",
+              "danc1_measles2",
+              "ddelivery_measles2",
+              "dpenta1_measles2",
+              "dbcg_measles2",
+              "dlivebirths_measles2",
+              "dwpp_measles2",
             ].map((v) => ({ value: v, label: v })),
           ],
           valueType: "string",

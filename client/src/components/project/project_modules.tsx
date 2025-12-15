@@ -316,6 +316,11 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                     {new Date(
                       p.thisInstalledModule.dateInstalled,
                     ).toLocaleString()}
+                    {" "}{p.thisInstalledModule.commitSha ? (
+                      <span>
+                        (Commit: {p.thisInstalledModule.commitSha})
+                      </span>
+                    ) : "No SHA"}
                   </div>
                   <div class="text-success text-xs">
                     {t2(T.FRENCH_UI_STRINGS.last_run)}:{" "}

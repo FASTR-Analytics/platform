@@ -91,7 +91,7 @@ export const definition = {
     type: "github",
     owner: "FASTR-Analytics",
     repo: "modules",
-    path: "04_module_coverage_estimates_part1.R",
+    path: "05_module_coverage_estimates_part1.R",
     commit: "main",
   },
   defaultPresentationObjects: presentationObjects,

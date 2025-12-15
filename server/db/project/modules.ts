@@ -362,6 +362,7 @@ SELECT * FROM modules
         moduleDefinitionLastScriptUpdated: moduleDefinition.lastScriptUpdate,
         moduleDefinitionLabel: moduleDefinition.label,
         dateInstalled: rawModule.date_installed,
+        commitSha: moduleDefinition.commitSha,
         moduleDefinitionResultsObjectIds: moduleDefinition.resultsObjects.map(
           (ro) => ro.id
         ),
