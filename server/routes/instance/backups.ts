@@ -83,6 +83,8 @@ defineRoute(
       const folder = c.req.param("folder");
       const fileName = c.req.param("file");
 
+      console.log('Download params - folder:', folder, 'fileName:', fileName);
+
       // Security: Prevent directory traversal
       if (
         !folder ||
