@@ -409,7 +409,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-
+      console.log("Downloading file:", folder, fileName);
       const response = await fetch(`/api/backups/${folder}/${fileName}`, { headers });
       if (response.ok) {
         const blob = await response.blob();
