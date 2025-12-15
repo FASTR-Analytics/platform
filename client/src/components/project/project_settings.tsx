@@ -422,34 +422,44 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
   };
 
   return (
-    <Show when={!backupsList.loading} fallback={<div>Loading backups...</div>}>
-      <Show
-        when={backupsList() && backupsList()!.length > 0}
-        fallback={<div class="text-neutral">No backups available for this project</div>}
-      >
-        <div class="flex flex-col gap-2">
-          <For each={backupsList()}>
-            {(backup) => (
-              <div class="flex items-center justify-between rounded border border-neutral-200 p-3">
-                <div class="flex flex-col gap-1">
-                  <span class="font-medium">{backup.timestamp}</span>
-                  <span class="text-sm text-neutral">
-                    {formatBytes(backup.size)}
-                  </span>
-                </div>
-                <Button
-                  onClick={() => downloadFile(props.projectId, backup.folder, backup.files[0].name)}
-                  iconName="download"
-                  intent="primary"
-                  size="sm"
-                >
-                  Download
-                </Button>
-              </div>
-            )}
-          </For>
+    <div>
+      <div class="mb-3 flex items-center justify-between">
+        <div class="text-sm text-neutral">
+          {backupsList.loading ? "Loading..." : `${backupsList()?.length || 0} backup(s) available`}
         </div>
+        <Button onClick={() => refetchBackups()} iconName="refresh" size="sm" outline>
+          {t("Refresh")}
+        </Button>
+      </div>
+      <Show when={!backupsList.loading} fallback={<div>Loading backups...</div>}>
+        <Show
+          when={backupsList() && backupsList()!.length > 0}
+          fallback={<div class="text-neutral">No backups available for this project</div>}
+        >
+          <div class="flex flex-col gap-2">
+            <For each={backupsList()}>
+              {(backup: ProjectBackupInfo) => (
+                <div class="flex items-center justify-between rounded border border-neutral-200 p-3">
+                  <div class="flex flex-col gap-1">
+                    <span class="font-medium">{backup.timestamp}</span>
+                    <span class="text-sm text-neutral">
+                      {formatBytes(backup.size)}
+                    </span>
+                  </div>
+                  <Button
+                    onClick={() => downloadFile(props.projectId, backup.folder, backup.files[0].name)}
+                    iconName="download"
+                    intent="primary"
+                    size="sm"
+                  >
+                    Download
+                  </Button>
+                </div>
+              )}
+            </For>
+          </div>
+        </Show>
       </Show>
-    </Show>
+    </div>
   );
 }
