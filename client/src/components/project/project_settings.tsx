@@ -10,7 +10,7 @@ import {
   timActionDelete,
   timActionButton,
 } from "panther";
-import { Match, Show, Switch, onMount, createSignal, For, createResource } from "solid-js";
+import { Match, Show, Switch, onMount, For, createResource } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { Table, TableColumn, type BulkAction } from "panther";
 import { EditLabelForm } from "~/components/forms_editors/edit_label";
@@ -344,7 +344,6 @@ function ProjectUserTable(p: {
 
 
 function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDetail }) {
-  const [expandedBackup, setExpandedBackup] = createSignal<string | null>(null);
   const [backupsList, { refetch: refetchBackups }] = createResource<ProjectBackupInfo[]>(async () => {
     const token = await clerk.session?.getToken();
     const headers: HeadersInit = {};
@@ -366,7 +365,6 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     }
 
     const allBackups = data.backups || [];
-    console.log("All backups fetched:", allBackups);
 
     // Filter backups to only include those containing this project
     const projectBackups = allBackups
@@ -394,11 +392,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       .filter((backup: any) => backup !== null);
 
     return projectBackups;
-  });                                                                           
-
-  const toggleBackupExpand = (folder: string) => {
-    setExpandedBackup(expandedBackup() === folder ? null : folder);
-  };
+  });
 
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return "0 B";
@@ -436,51 +430,21 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
         <div class="flex flex-col gap-2">
           <For each={backupsList()}>
             {(backup) => (
-              <div class="rounded border border-neutral-200">
-                <div
-                  class="flex cursor-pointer items-center justify-between p-3 hover:bg-base-200"
-                  onClick={() => toggleBackupExpand(backup.folder)}
-                >
-                  <div class="flex flex-col gap-1">
-                    <span class="font-medium">{backup.timestamp}</span>
-                    <span class="text-sm text-neutral">
-                      {formatBytes(backup.size)} • {backup.file_count} files
-                    </span>
-                  </div>
-                  <span class="text-lg">
-                    {expandedBackup() === backup.folder ? "▼" : "▶"}
+              <div class="flex items-center justify-between rounded border border-neutral-200 p-3">
+                <div class="flex flex-col gap-1">
+                  <span class="font-medium">{backup.timestamp}</span>
+                  <span class="text-sm text-neutral">
+                    {formatBytes(backup.size)}
                   </span>
                 </div>
-
-                <Show when={expandedBackup() === backup.folder}>
-                  <div class="border-t border-neutral-200 bg-base-50 p-3">
-                    <div class="mb-3 text-sm font-semibold text-neutral">Files:</div>
-                    <div class="flex flex-col gap-1">
-                      <For each={backup.files}>
-                        {(file) => (
-                          <div class="flex items-center justify-between rounded bg-base-100 p-2 hover:bg-base-200">
-                            <div class="flex items-center gap-2">
-                              <span class="text-sm">{file.name}</span>
-                              <span class="text-xs text-neutral">
-                                ({formatBytes(file.size)})
-                              </span>
-                            </div>
-                            <Button
-                              onClick={() =>
-                                downloadFile(backup.project_id, backup.folder, file.name)
-                              }
-                              iconName="download"
-                              intent="base-100"
-                              size="sm"
-                            >
-                              Download
-                            </Button>
-                          </div>
-                        )}
-                      </For>
-                    </div>
-                  </div>
-                </Show>
+                <Button
+                  onClick={() => downloadFile(props.projectId, backup.folder, backup.files[0].name)}
+                  iconName="download"
+                  intent="primary"
+                  size="sm"
+                >
+                  Download
+                </Button>
               </div>
             )}
           </For>
