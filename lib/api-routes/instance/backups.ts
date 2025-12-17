@@ -28,10 +28,9 @@ export const backupRouteRegistry = {
     },
   }),
   downloadBackupFile: route({
-    path: "/api/backups/:project_id/:folder/:file",
+    path: "/api/backups/:folder/:file",
     method: "GET",
     params: {} as {
-      project_id: string;
       folder: string;
       file: string;
     },
