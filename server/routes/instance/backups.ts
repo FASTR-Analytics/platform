@@ -73,6 +73,82 @@ defineRoute(
   }
 );
 
+// Create a backup file
+defineRoute(
+  routesBackups,
+  "createBackupFile",
+  getGlobalNonAdmin,
+  async (c) => {
+    try{
+      const name = c.req.param("name");
+
+      if (
+        !name ||
+        name.includes("..") ||
+        name.includes("/") ||
+        name.includes("\\") ||
+        name.includes("\0") ||
+        name.trim() !== name ||
+        name.startsWith(".") ||
+        name.length > 255
+      ) {
+        return c.json({ 
+          success: false, 
+          error: "Invalid backup name" 
+        }, 400);
+      }
+
+      const authHeader = c.req.header('Authorization');
+
+      if (!authHeader) {
+        return c.json({
+          success: false,
+          error: "Authorization header required"
+        }, 401);
+      }
+
+      // Fetch the file from the external API
+      const response = await fetch(
+        `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/backup/${name}`,
+        {
+          headers: {
+            'Authorization': authHeader,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Failed to create backup: ${response.status} ${response.statusText}`, errorText);
+        return c.json({
+          success: false,
+          error: `Failed to create backup: ${response.status} ${response.statusText}`
+        }, response.status);
+      }
+
+      const data = await response.json();
+
+      // Check if the backup script itself failed
+      if (!data.success) {
+        console.error('Backup script failed:', data.error);
+        return c.json({
+          success: false,
+          error: data.error || "Backup failed"
+        }, 500);
+      }
+
+      // Success - backup script ran successfully
+      return c.json({
+        success: true,
+        logs: data.logs
+      });
+    } catch (error) {
+      console.error("Error downloading backup file:", error);
+      return c.json({ error: "File not found" }, 404);
+    }
+  } 
+);
+
 // Download a specific backup file
 defineRoute(
   routesBackups,

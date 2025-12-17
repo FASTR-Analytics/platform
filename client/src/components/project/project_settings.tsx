@@ -437,12 +437,32 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       props: {
         projectId: props.projectId,
         createBackupFunc: async(backupName: string) => {
+          const token = await clerk.session?.getToken();
+          const headers: HeadersInit = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          const response = await fetch(`/api/create-backup/${backupName}`, { 
+            method: 'POST',
+            headers 
+          });
 
+          if (!response.ok) {
+            return { success: false, err: "Failed to create backup" };
+          }
+
+          const data = await response.json();
+        
+          if (!data.success) {
+            return { success: false, err: data.error || "Backup failed" };
+          }
+          
+          return { success: true };
         },
         silentFetch: refetchBackups,
       }
     })
-  }
+  };
 
   return (
     <div>
@@ -450,7 +470,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
         <div class="text-sm text-neutral">
           {backupsList.loading ? "" : `${backupsList()?.length || 0} backup(s) available`}
         </div>
-        <Button>
+        <Button onClick={attemptCreateBackup} size="sm">
           {t("Create backup")}
         </Button>
         <Button onClick={() => refetchBackups()} iconName="refresh" size="sm" outline>
