@@ -107,10 +107,11 @@ defineRoute(
         }, 401);
       }
 
-      // Fetch the file from the external API
+      // Call the external API to create backup
       const response = await fetch(
         `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/backup/${name}`,
         {
+          method: 'POST',
           headers: {
             'Authorization': authHeader,
           },
