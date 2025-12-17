@@ -18,6 +18,7 @@ import { SelectProjectUserRole } from "~/components/forms_editors/select_project
 import { serverActions } from "~/server_actions";
 import { CopyProjectForm } from "./copy_project";
 import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
+import { CreateBackupForm } from "./create_backup_form";
 import { getInstanceDetail, updateDatasetUploadAttempt_Step1Dhis2Confirm } from "../../../../server/db/mod.ts";
 
 // Backup types
@@ -158,6 +159,7 @@ export function ProjectSettings(p: Props) {
 
     await deleteAction.click();
   }
+
 
   return (
     <FrameTop panelChildren={<HeadingBar heading={t2(T.FRENCH_UI_STRINGS.settings)}></HeadingBar>}>
@@ -429,12 +431,28 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     }
   };
 
+  const attemptCreateBackup = async () => {
+    await openComponent({
+      element: CreateBackupForm,
+      props: {
+        projectId: props.projectId,
+        createBackupFunc: async(backupName: string) => {
+
+        },
+        silentFetch: refetchBackups,
+      }
+    })
+  }
+
   return (
     <div>
       <div class="mb-3 flex items-center justify-between">
         <div class="text-sm text-neutral">
-          {backupsList.loading ? "Loading..." : `${backupsList()?.length || 0} backup(s) available`}
+          {backupsList.loading ? "" : `${backupsList()?.length || 0} backup(s) available`}
         </div>
+        <Button>
+          {t("Create backup")}
+        </Button>
         <Button onClick={() => refetchBackups()} iconName="refresh" size="sm" outline>
           {t("Refresh")}
         </Button>
@@ -449,7 +467,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
               {(backup: ProjectBackupInfo) => (
                 <div class="flex items-center justify-between rounded border border-neutral-200 p-3">
                   <div class="flex flex-col gap-1">
-                    <span class="font-medium">{backup.timestamp}</span>
+                    <span class="font-medium">{backup.folder}</span>
                     <span class="text-sm text-neutral">
                       {formatBytes(backup.size)}
                     </span>
