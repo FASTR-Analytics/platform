@@ -108,15 +108,15 @@ defineRoute(
       }
 
       // Call the external API to create backup
-      const response = await fetch(
-        `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/backup/${name}`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': authHeader,
-          },
-        }
-      );
+      const url = `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/backup/${name}`;
+      console.log('Calling backup API:', url, 'with name:', name);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+        },
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -128,6 +128,7 @@ defineRoute(
       }
 
       const data = await response.json();
+      console.log('Backup API response:', data);
 
       // Check if the backup script itself failed
       if (!data.success) {
