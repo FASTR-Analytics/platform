@@ -40,7 +40,7 @@ export function CreateBackupForm(
             <Input
                 label={t("Backup name")}
                 value={backupName()}
-                onChange={setBackupName()}
+                onChange={setBackupName}
                 fullWidth
                 autoFocus
             />
