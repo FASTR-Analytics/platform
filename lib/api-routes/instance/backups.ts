@@ -27,6 +27,18 @@ export const backupRouteRegistry = {
       backups: ProjectBackupInfo[];
     },
   }),
+  createBackupFile: route({
+    path: "/api/create-backup/:name",
+    method: "POST",
+    params: {} as {
+      name: string;
+    },
+    response: {} as {
+      success: boolean;
+      logs?: string;
+      error?: string;
+    },
+  }),
   downloadBackupFile: route({
     path: "/api/backups/:folder/:file",
     method: "GET",
