@@ -15,18 +15,32 @@ export function CreateBackupForm(
 ) {
     const [backupName, setBackupName] = createSignal<string>("");
 
-    const save = timActionForm(
-        async (e: MouseEvent) =>{
-            e.preventDefault();
-            const validName = backupName().trim();
+    const save = p.silentFetch
+        ? timActionForm(
+            async (e: MouseEvent) =>{
+                e.preventDefault();
+                const validName = backupName().trim();
 
-            if(!validName) {
-                return { success: false, err: t("You must enter a backup name") };
-            }
-            return p.createBackupFunc(validName);
-        },
-        p.silentFetch || (() => p.close("NEEDS_UPDATE"))
-    );
+                if(!validName) {
+                    return { success: false, err: t("You must enter a backup name") };
+                }
+                return p.createBackupFunc(validName);
+            },
+            p.silentFetch,
+            () => p.close("NEEDS_UPDATE")
+        )
+        : timActionForm(
+            async (e: MouseEvent) =>{
+                e.preventDefault();
+                const validName = backupName().trim();
+
+                if(!validName) {
+                    return { success: false, err: t("You must enter a backup name") };
+                }
+                return p.createBackupFunc(validName);
+            },
+            () => p.close("NEEDS_UPDATE")
+        );
 
     return (
         <AlertFormHolder
