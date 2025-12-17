@@ -470,12 +470,14 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
         <div class="text-sm text-neutral">
           {backupsList.loading ? "" : `${backupsList()?.length || 0} backup(s) available`}
         </div>
-        <Button onClick={attemptCreateBackup} size="sm">
-          {t("Create backup")}
-        </Button>
-        <Button onClick={() => refetchBackups()} iconName="refresh" size="sm" outline>
-          {t("Refresh")}
-        </Button>
+        <div class="flex gap-2">
+          <Button onClick={attemptCreateBackup} size="sm">
+            {t("Create backup")}
+          </Button>
+          <Button onClick={() => refetchBackups()} iconName="refresh" size="sm" outline>
+            {t("Refresh")}
+          </Button>
+        </div>
       </div>
       <Show when={!backupsList.loading} fallback={<div>Loading backups...</div>}>
         <Show
