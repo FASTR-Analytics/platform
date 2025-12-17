@@ -25,7 +25,7 @@ export function CreateBackupForm(
         "NEEDS_UPDATE"
     >
 ) {
-    const [backupName, setBackupName] = createSignal<string>("");
+    const [backupName, setBackupName] = createSignal<string>(getTimestamp());
 
     const save = p.silentFetch
         ? timActionForm(
@@ -65,7 +65,7 @@ export function CreateBackupForm(
         >
             <Input
                 label={t("Backup name")}
-                value={getTimestamp()}
+                value={backupName()}
                 onChange={setBackupName}
                 fullWidth
                 autoFocus
