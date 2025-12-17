@@ -61,7 +61,7 @@ export function CreateBackupForm(
             savingState={save.state()}
             saveFunc={save.click}
             cancelFunc={() => p.close(undefined)}
-            french={isFrench()}
+            french={isFrench}
         >
             <Input
                 label={t("Backup name")}
