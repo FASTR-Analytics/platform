@@ -431,6 +431,35 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     }
   };
 
+  const restoreBackup = async (folder: string, fileName: string) => {
+    try {
+      const token = await clerk.session?.getToken();
+      const headers: HeadersInit={};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const response = await fetch(`/api/restore-backup`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ folder, fileName })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        return { success: false, err: data.error || "Failed to restore" };
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        return { success: false, err: data.error || "Restore failed" };
+      }
+
+      return { success: true};
+    } catch (error) {
+      console.error("Backup restore failed", error);
+    }
+  };
+
   const attemptCreateBackup = async () => {
     await openComponent({
       element: CreateBackupForm,
@@ -494,14 +523,23 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
                       {formatBytes(backup.size)}
                     </span>
                   </div>
-                  <Button
-                    onClick={() => downloadFile(backup.folder, backup.files[0].name)}
-                    iconName="download"
-                    intent="primary"
-                    size="sm"
-                  >
-                    Download
-                  </Button>
+                  <div class="flex gap-2">                    
+                    <Button
+                      onClick={() => downloadFile(backup.folder, backup.files[0].name)}
+                      iconName="download"
+                      intent="primary"
+                      size="sm"
+                    >
+                      Download
+                    </Button>
+                    <Button
+                      onClick={() => restoreBackup(backup.folder,backup.files[0].name)}
+                      size="sm"
+                      outline
+                    >
+                      Restore
+                    </Button>
+                  </div>
                 </div>
               )}
             </For>
