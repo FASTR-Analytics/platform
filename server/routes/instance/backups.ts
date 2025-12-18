@@ -3,6 +3,7 @@ import { getGlobalNonAdmin } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { _SANDBOX_DIR_PATH, _INSTANCE_ID, _PG_HOST, _PG_PORT, _PG_PASSWORD } from "../../exposed_env_vars.ts";
 import { join } from "@std/path";
+import { getPgConnection } from "../../db/postgres/connection_manager.ts";
 
 export const routesBackups = new Hono();
 
@@ -309,51 +310,73 @@ defineRoute(
         const projectId = projectIdMatch[1];
         console.log('Extracted project ID:', projectId);
 
-        // Step 5: Get database connection details from environment
-        const dbHost = _PG_HOST;
-        const dbPort = _PG_PORT;
-        const dbUser = "postgres";
-        const dbPassword = _PG_PASSWORD;
-        const dbName = projectId;
-
+        // Step 5: Log database details for debugging
         console.log('Database connection details:', {
-          host: dbHost,
-          port: dbPort,
-          user: dbUser,
-          database: dbName,
+          host: _PG_HOST,
+          port: _PG_PORT,
+          user: "postgres",
+          database: projectId,
         });
 
-        // Step 6: Execute restore command
-        const command = new Deno.Command("sh", {
-          args: [
-            "-c",
-            `gunzip -c "${tempPath}" | PGPASSWORD="${dbPassword}" psql -h "${dbHost}" -p "${dbPort}" -U "${dbUser}" -d "${dbName}"`
-          ],
+        // Step 6: Decompress the gzipped SQL file
+        const decompressCommand = new Deno.Command("gunzip", {
+          args: [tempPath],
           stdout: "piped",
           stderr: "piped",
         });
 
-        const process = command.spawn();
-        const { code, stdout, stderr } = await process.output();
+        const decompressProcess = decompressCommand.spawn();
+        const { code: decompressCode, stderr: decompressStderr } = await decompressProcess.output();
 
-        const stdoutText = new TextDecoder().decode(stdout);
-        const stderrText = new TextDecoder().decode(stderr);
-
-        console.log('Restore command stdout:', stdoutText);
-        console.log('Restore command stderr:', stderrText);
-
-        if (code !== 0) {
-          console.error('Restore command failed with code:', code);
+        if (decompressCode !== 0) {
+          const stderrText = new TextDecoder().decode(decompressStderr);
+          console.error('Decompress failed:', stderrText);
           return c.json({
             success: false,
-            error: `Restore command failed: ${stderrText}`
+            error: `Failed to decompress backup: ${stderrText}`
           }, 500);
         }
 
-        console.log('Successfully restored backup');
-        return c.json({
-          success: true,
-        });
+        // After decompression, the file will be without .gz extension
+        const decompressedPath = tempPath.replace(/\.gz$/, '');
+        console.log('Decompressed to:', decompressedPath);
+
+        // Step 7: Read the SQL file
+        const sqlContent = await Deno.readTextFile(decompressedPath);
+        console.log('SQL file size:', sqlContent.length, 'characters');
+
+        // Step 8: Execute SQL using postgres connection
+        let sql;
+        try {
+          sql = getPgConnection(projectId);
+
+          // Execute the SQL dump
+          await sql.unsafe(sqlContent);
+
+          console.log('Successfully restored backup');
+          return c.json({
+            success: true,
+          });
+        } catch (sqlError) {
+          console.error('SQL execution failed:', sqlError);
+          return c.json({
+            success: false,
+            error: `Failed to execute SQL: ${sqlError instanceof Error ? sqlError.message : String(sqlError)}`
+          }, 500);
+        } finally {
+          // Close the connection
+          if (sql) {
+            await sql.end();
+          }
+
+          // Clean up decompressed file
+          try {
+            await Deno.remove(decompressedPath);
+            console.log('Cleaned up decompressed file:', decompressedPath);
+          } catch (err) {
+            console.error('Failed to clean up decompressed file:', err);
+          }
+        }
       } finally {
         // Clean up temporary file
         try {
