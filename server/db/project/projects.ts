@@ -386,7 +386,7 @@ export async function copyProject(
           AND pid <> pg_backend_pid()
       `;
       // Wait a moment for connections to close
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     } catch (e) {
       console.log("Warning: Could not terminate connections:", e);
     }

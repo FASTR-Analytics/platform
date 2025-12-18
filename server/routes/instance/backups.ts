@@ -401,6 +401,10 @@ defineRoute(
         const stderrText = new TextDecoder().decode(restoreStderr);
         const stdoutText = new TextDecoder().decode(restoreStdout);
 
+        console.log('psql exit code:', restoreCode);
+        console.log('psql stderr:', stderrText);
+        console.log('psql stdout (first 500 chars):', stdoutText.substring(0, 500));
+
         if (restoreCode !== 0) {
           console.error('Restore failed with code:', restoreCode);
           console.error('stderr:', stderrText);
