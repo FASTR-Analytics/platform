@@ -373,7 +373,7 @@ defineRoute(
           args: [
             "exec",
             "-i",
-            "testing-postgres",
+            `${_INSTANCE_ID}-postgres`,
             "psql",
             "-U", "postgres",
             "-d", projectId,
@@ -387,6 +387,11 @@ defineRoute(
 
         // Read the SQL file and pipe it to psql's stdin
         const sqlContent = await Deno.readFile(decompressedPath);
+        const sqlText = new TextDecoder().decode(sqlContent);
+        const lineCount = sqlText.split('\n').length;
+        const copyCommands = (sqlText.match(/^COPY /gm) || []).length;
+        console.log(`SQL file stats: ${lineCount} lines, ${copyCommands} COPY commands, ${sqlContent.byteLength} bytes`);
+
         const writer = restoreProcess.stdin.getWriter();
         await writer.write(sqlContent);
         await writer.close();
