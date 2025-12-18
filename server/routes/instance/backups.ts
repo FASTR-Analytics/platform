@@ -429,12 +429,15 @@ defineRoute(
           success: true,
         });
       } finally {
-        // Clean up temporary file
+        // Clean up temporary file (gunzip removes the .gz file, so this might not exist)
         try {
           await Deno.remove(tempPath);
           console.log('Cleaned up temp file:', tempPath);
         } catch (err) {
-          console.error('Failed to clean up temp file:', err);
+          // Ignore NotFound errors - gunzip already removed the .gz file
+          if (!(err instanceof Deno.errors.NotFound)) {
+            console.error('Failed to clean up temp file:', err);
+          }
         }
       }
     } catch (error) {
