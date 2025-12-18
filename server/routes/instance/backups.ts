@@ -350,8 +350,18 @@ defineRoute(
         try {
           sql = getPgConnection(projectId);
 
-          // Execute the SQL dump
-          await sql.unsafe(sqlContent);
+          // Execute the SQL dump using the file() method if available,
+          // otherwise execute as a single unsafe query
+          try {
+            // Try using postgres.js file() method which handles multi-statement SQL
+            await sql.file(decompressedPath);
+          } catch (_fileError) {
+            console.log('file() method not available, falling back to unsafe()');
+
+            // Fallback: execute the entire SQL as one statement
+            // This works for pg_dump output which is designed to be executed as a single script
+            await sql.unsafe(sqlContent);
+          }
 
           console.log('Successfully restored backup');
           return c.json({
