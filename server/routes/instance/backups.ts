@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getGlobalNonAdmin } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { _SANDBOX_DIR_PATH, _INSTANCE_ID } from "../../exposed_env_vars.ts";
+import { _SANDBOX_DIR_PATH, _INSTANCE_ID, _PG_HOST, _PG_PORT, _PG_PASSWORD } from "../../exposed_env_vars.ts";
 import { join } from "@std/path";
 
 export const routesBackups = new Hono();
@@ -300,23 +300,30 @@ defineRoute(
       console.log('Wrote backup to temp file:', tempPath);
 
       try {
-        // Step 4: Restore to database using pg_restore or psql
-        // Assuming the file is a gzipped SQL dump, we need to:
-        // 1. Decompress it
-        // 2. Restore to the database
-
-        // Get database connection details from environment
-        const dbHost = Deno.env.get("DB_HOST") || "localhost";
-        const dbPort = Deno.env.get("DB_PORT") || "5432";
-        const dbName = Deno.env.get("DB_NAME");
-        const dbUser = Deno.env.get("DB_USER");
-        const dbPassword = Deno.env.get("DB_PASSWORD");
-
-        if (!dbName || !dbUser) {
-          throw new Error("Database credentials not configured");
+        // Step 4: Extract project ID from filename
+        // Filename format: project_<project_id>.sql.gz
+        const projectIdMatch = fileName.match(/project_([^.]+)\.sql\.gz/);
+        if (!projectIdMatch) {
+          throw new Error("Invalid backup filename format. Expected: project_<project_id>.sql.gz");
         }
+        const projectId = projectIdMatch[1];
+        console.log('Extracted project ID:', projectId);
 
-        // Execute restore command
+        // Step 5: Get database connection details from environment
+        const dbHost = _PG_HOST;
+        const dbPort = _PG_PORT;
+        const dbUser = "postgres";
+        const dbPassword = _PG_PASSWORD;
+        const dbName = projectId;
+
+        console.log('Database connection details:', {
+          host: dbHost,
+          port: dbPort,
+          user: dbUser,
+          database: dbName,
+        });
+
+        // Step 6: Execute restore command
         const command = new Deno.Command("sh", {
           args: [
             "-c",
