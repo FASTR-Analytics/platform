@@ -341,22 +341,16 @@ defineRoute(
         const decompressedPath = tempPath.replace(/\.gz$/, '');
         console.log('Decompressed to:', decompressedPath);
 
-        // Step 7: Execute SQL using postgres connection
-        // Terminate connections and drop/recreate the database
+        // Step 7: Restore the backup directly to the existing database
+        // The pg_dump file contains DROP statements for all objects, so we don't need to drop the database
 
         // First, close any cached connections to the project database
         await closePgConnection(projectId);
         console.log(`Closed cached connections for database: ${projectId}`);
 
+        // Terminate all existing connections to ensure clean restore
         const postgresDb = getPgConnection("postgres");
         try {
-          // Revoke connection privileges
-          await postgresDb.unsafe(`
-            ALTER DATABASE "${projectId}" CONNECTION LIMIT 0
-          `);
-          console.log(`Set connection limit to 0 for database: ${projectId}`);
-
-          // Terminate all existing connections
           await postgresDb.unsafe(`
             SELECT pg_terminate_backend(pid)
             FROM pg_stat_activity
@@ -367,25 +361,12 @@ defineRoute(
 
           // Small delay to ensure connections are fully terminated
           await new Promise(resolve => setTimeout(resolve, 100));
-
-          // Drop the database
-          await postgresDb.unsafe(`DROP DATABASE IF EXISTS "${projectId}"`);
-          console.log(`Dropped database: ${projectId}`);
-
-          // Create a fresh database
-          await postgresDb.unsafe(`CREATE DATABASE "${projectId}"`);
-          console.log(`Created database: ${projectId}`);
-
-          // Reset connection limit to allow connections
-          await postgresDb.unsafe(`
-            ALTER DATABASE "${projectId}" CONNECTION LIMIT -1
-          `);
-          console.log(`Reset connection limit for database: ${projectId}`);
         } finally {
           await postgresDb.end();
         }
 
-        // Now restore the backup to the fresh database using psql
+        // Now restore the backup using psql
+        // The dump file contains all necessary DROP and CREATE statements
         console.log('Restoring SQL file using psql:', decompressedPath);
 
         const restoreCommand = new Deno.Command("psql", {
