@@ -375,44 +375,72 @@ defineRoute(
           // Create a fresh database
           await postgresDb.unsafe(`CREATE DATABASE "${projectId}"`);
           console.log(`Created database: ${projectId}`);
+
+          // Reset connection limit to allow connections
+          await postgresDb.unsafe(`
+            ALTER DATABASE "${projectId}" CONNECTION LIMIT -1
+          `);
+          console.log(`Reset connection limit for database: ${projectId}`);
         } finally {
           await postgresDb.end();
         }
 
-        // Now restore the backup to the fresh database
-        // The cached connections will reconnect automatically on next use
-        let sql;
-        try {
-          sql = getPgConnection(projectId);
+        // Now restore the backup to the fresh database using psql
+        console.log('Restoring SQL file using psql:', decompressedPath);
 
-          // Use the file() method just like in db_startup.ts
-          console.log('Executing SQL file:', decompressedPath);
-          await sql.file(decompressedPath);
+        const restoreCommand = new Deno.Command("psql", {
+          args: [
+            "-h", _PG_HOST,
+            "-p", _PG_PORT,
+            "-U", "postgres",
+            "-d", projectId,
+            "-f", decompressedPath,
+          ],
+          env: {
+            "PGPASSWORD": _PG_PASSWORD,
+          },
+          stdout: "piped",
+          stderr: "piped",
+        });
 
-          console.log('Successfully restored backup');
-          return c.json({
-            success: true,
-          });
-        } catch (sqlError) {
-          console.error('SQL execution failed:', sqlError);
-          return c.json({
-            success: false,
-            error: `Failed to execute SQL: ${sqlError instanceof Error ? sqlError.message : String(sqlError)}`
-          }, 500);
-        } finally {
-          // Close the connection
-          if (sql) {
-            await sql.end();
-          }
+        const restoreProcess = restoreCommand.spawn();
+        const { code: restoreCode, stderr: restoreStderr, stdout: restoreStdout } = await restoreProcess.output();
+
+        const stderrText = new TextDecoder().decode(restoreStderr);
+        const stdoutText = new TextDecoder().decode(restoreStdout);
+
+        if (restoreCode !== 0) {
+          console.error('Restore failed with code:', restoreCode);
+          console.error('stderr:', stderrText);
+          console.error('stdout:', stdoutText);
 
           // Clean up decompressed file
           try {
             await Deno.remove(decompressedPath);
-            console.log('Cleaned up decompressed file:', decompressedPath);
           } catch (err) {
             console.error('Failed to clean up decompressed file:', err);
           }
+
+          return c.json({
+            success: false,
+            error: `Failed to restore backup: ${stderrText || stdoutText}`
+          }, 500);
         }
+
+        console.log('Successfully restored backup');
+        console.log('psql output:', stdoutText);
+
+        // Clean up decompressed file
+        try {
+          await Deno.remove(decompressedPath);
+          console.log('Cleaned up decompressed file:', decompressedPath);
+        } catch (err) {
+          console.error('Failed to clean up decompressed file:', err);
+        }
+
+        return c.json({
+          success: true,
+        });
       } finally {
         // Clean up temporary file
         try {
