@@ -342,9 +342,18 @@ defineRoute(
         console.log('Decompressed to:', decompressedPath);
 
         // Step 7: Execute SQL using postgres connection
-        // Drop and recreate the database first to ensure a clean restore
+        // Terminate all connections and drop/recreate the database
         const postgresDb = getPgConnection("postgres");
         try {
+          // Terminate all connections to the target database (except our own)
+          await postgresDb.unsafe(`
+            SELECT pg_terminate_backend(pid)
+            FROM pg_stat_activity
+            WHERE datname = '${projectId}'
+              AND pid <> pg_backend_pid()
+          `);
+          console.log(`Terminated all connections to database: ${projectId}`);
+
           // Drop the existing database
           await postgresDb.unsafe(`DROP DATABASE IF EXISTS "${projectId}"`);
           console.log(`Dropped database: ${projectId}`);
@@ -357,6 +366,7 @@ defineRoute(
         }
 
         // Now restore the backup to the fresh database
+        // The cached connections will reconnect automatically on next use
         let sql;
         try {
           sql = getPgConnection(projectId);
