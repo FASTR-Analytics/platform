@@ -365,26 +365,32 @@ defineRoute(
           await postgresDb.end();
         }
 
-        // Now restore the backup using psql
+        // Now restore the backup using docker exec to run psql in the postgres container
         // The dump file contains all necessary DROP and CREATE statements
-        console.log('Restoring SQL file using psql:', decompressedPath);
+        console.log('Restoring SQL file using docker exec psql:', decompressedPath);
 
-        const restoreCommand = new Deno.Command("psql", {
+        const restoreCommand = new Deno.Command("docker", {
           args: [
-            "-h", _PG_HOST,
-            "-p", _PG_PORT,
+            "exec",
+            "-i",
+            "testing-postgres",
+            "psql",
             "-U", "postgres",
             "-d", projectId,
-            "-f", decompressedPath,
           ],
-          env: {
-            "PGPASSWORD": _PG_PASSWORD,
-          },
+          stdin: "piped",
           stdout: "piped",
           stderr: "piped",
         });
 
         const restoreProcess = restoreCommand.spawn();
+
+        // Read the SQL file and pipe it to psql's stdin
+        const sqlContent = await Deno.readFile(decompressedPath);
+        const writer = restoreProcess.stdin.getWriter();
+        await writer.write(sqlContent);
+        await writer.close();
+
         const { code: restoreCode, stderr: restoreStderr, stdout: restoreStdout } = await restoreProcess.output();
 
         const stderrText = new TextDecoder().decode(restoreStderr);
