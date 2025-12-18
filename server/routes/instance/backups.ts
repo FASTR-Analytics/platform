@@ -3,7 +3,7 @@ import { getGlobalNonAdmin } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { _SANDBOX_DIR_PATH, _INSTANCE_ID, _PG_HOST, _PG_PORT, _PG_PASSWORD } from "../../exposed_env_vars.ts";
 import { join } from "@std/path";
-import { getPgConnection } from "../../db/postgres/connection_manager.ts";
+import { getPgConnection, closePgConnection } from "../../db/postgres/connection_manager.ts";
 
 export const routesBackups = new Hono();
 
@@ -342,11 +342,34 @@ defineRoute(
         console.log('Decompressed to:', decompressedPath);
 
         // Step 7: Execute SQL using postgres connection
-        // Drop and recreate the database with FORCE option
+        // Terminate connections and drop/recreate the database
+
+        // First, close any cached connections to the project database
+        await closePgConnection(projectId);
+        console.log(`Closed cached connections for database: ${projectId}`);
+
         const postgresDb = getPgConnection("postgres");
         try {
-          // Use DROP DATABASE WITH (FORCE) which terminates connections automatically
-          await postgresDb.unsafe(`DROP DATABASE IF EXISTS "${projectId}" WITH (FORCE)`);
+          // Revoke connection privileges
+          await postgresDb.unsafe(`
+            ALTER DATABASE "${projectId}" CONNECTION LIMIT 0
+          `);
+          console.log(`Set connection limit to 0 for database: ${projectId}`);
+
+          // Terminate all existing connections
+          await postgresDb.unsafe(`
+            SELECT pg_terminate_backend(pid)
+            FROM pg_stat_activity
+            WHERE datname = '${projectId}'
+              AND pid <> pg_backend_pid()
+          `);
+          console.log(`Terminated all connections to database: ${projectId}`);
+
+          // Small delay to ensure connections are fully terminated
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Drop the database
+          await postgresDb.unsafe(`DROP DATABASE IF EXISTS "${projectId}"`);
           console.log(`Dropped database: ${projectId}`);
 
           // Create a fresh database
