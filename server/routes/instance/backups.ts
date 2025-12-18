@@ -301,10 +301,10 @@ defineRoute(
 
       try {
         // Step 4: Extract project ID from filename
-        // Filename format: project_<project_id>.sql.gz
-        const projectIdMatch = fileName.match(/project_([^.]+)\.sql\.gz/);
+        // Filename format: <project_id>.sql.gz
+        const projectIdMatch = fileName.match(/^([^.]+)\.sql\.gz$/);
         if (!projectIdMatch) {
-          throw new Error("Invalid backup filename format. Expected: project_<project_id>.sql.gz");
+          throw new Error("Invalid backup filename format. Expected: <project_id>.sql.gz");
         }
         const projectId = projectIdMatch[1];
         console.log('Extracted project ID:', projectId);
