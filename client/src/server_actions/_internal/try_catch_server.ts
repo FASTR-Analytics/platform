@@ -26,11 +26,16 @@ export async function tryCatchServer<
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
-      // Use longer timeout for DHIS2 staging which can be slow
+      // Use longer timeout for operations that can be slow
       const isDhis2Staging =
         typeof input === "string" &&
         input.includes("/structure/step3_dhis2_stage_data");
-      const timeout = isDhis2Staging ? 600000 : 300000; // 10 minutes for DHIS2 staging, 5 minutes default
+      const isCopyProject =
+        typeof input === "string" &&
+        input.includes("/project/") &&
+        input.includes("/copy");
+      const needsLongTimeout = isDhis2Staging || isCopyProject;
+      const timeout = needsLongTimeout ? 600000 : 300000; // 10 minutes for slow operations, 5 minutes default
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       const res = await fetch(input, {
