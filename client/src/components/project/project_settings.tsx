@@ -454,6 +454,9 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
         return { success: false, err: data.error || "Restore failed" };
       }
 
+      // Force full page reload after successful restore to clear all cached data
+      window.location.reload();
+
       return { success: true};
     } catch (error) {
       console.error("Backup restore failed", error);
