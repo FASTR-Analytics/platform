@@ -262,13 +262,13 @@ defineRoute(
         projectId = body.projectId;
         console.log('Parsed JSON - folder:', folder, 'fileName:', fileName);
       } else {
-        // Parse as FormData (file upload)
-        const body = await c.req.parseBody({ all: true });
-        console.log('Parsed as FormData, keys:', Object.keys(body));
-        folder = body.folder as string | undefined;
-        fileName = body.fileName as string | undefined;
-        file = body.file as File | null;
-        projectId = body.projectId as string;
+        // Parse as FormData (file upload) - use the native formData() method
+        const formData = await c.req.raw.formData();
+        console.log('Parsed as FormData, keys:', Array.from(formData.keys()));
+        folder = formData.get('folder') as string | null || undefined;
+        fileName = formData.get('fileName') as string | null || undefined;
+        file = formData.get('file') as File | null;
+        projectId = formData.get('projectId') as string;
         console.log('Parsed FormData - file type:', file?.constructor.name, 'file size:', file?.size);
       }
 
