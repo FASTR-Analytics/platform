@@ -503,10 +503,12 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       element: CreateRestoreFromFileForm,
       props: {
         restoreBackupFunc: async(file: File) => {
-          const projectId = props.projectId;
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('projectId', props.projectId);
           const response = await fetch(`/api/restore-backup`, {
             method: 'POST',
-            body: JSON.stringify({ projectId, file })
+            body: formData
           });
 
           if (!response.ok) {
