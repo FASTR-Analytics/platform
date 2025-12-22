@@ -263,7 +263,7 @@ defineRoute(
         console.log('Parsed JSON - folder:', folder, 'fileName:', fileName);
       } else {
         // Parse as FormData (file upload)
-        const body = await c.req.parseBody();
+        const body = await c.req.parseBody({ all: true });
         console.log('Parsed as FormData, keys:', Object.keys(body));
         folder = body.folder as string | undefined;
         fileName = body.fileName as string | undefined;
