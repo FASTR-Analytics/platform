@@ -253,30 +253,31 @@ defineRoute(
 
       console.log('Request Content-Type:', contentType);
 
-      if (contentType.includes('multipart/form-data')) {
-        // Parse as FormData (file upload)
+      // Try to parse as FormData first, fall back to JSON
+      try {
+        const body = await c.req.parseBody();
+        console.log('Parsed as FormData, keys:', Object.keys(body));
+        folder = body.folder as string | undefined;
+        fileName = body.fileName as string | undefined;
+        file = body.file as File | null;
+        projectId = body.projectId as string;
+        console.log('Parsed FormData - file type:', file?.constructor.name, 'file size:', file?.size);
+      } catch (formError) {
+        console.log('FormData parsing failed, trying JSON:', formError);
         try {
-          const body = await c.req.parseBody();
-          folder = body.folder as string | undefined;
-          fileName = body.fileName as string | undefined;
-          file = body.file as File | null;
-          projectId = body.projectId as string;
-          console.log('Parsed FormData - file type:', file?.constructor.name, 'file size:', file?.size);
-        } catch (error) {
-          console.error('Failed to parse FormData:', error);
+          const body = await c.req.json() as { folder?: string; fileName?: string; file?: File; projectId: string };
+          folder = body.folder;
+          fileName = body.fileName;
+          file = body.file || null;
+          projectId = body.projectId;
+          console.log('Parsed JSON - folder:', folder, 'fileName:', fileName);
+        } catch (_jsonError) {
+          console.error('Both FormData and JSON parsing failed');
           return c.json({
             success: false,
-            error: 'Failed to parse form data: ' + (error instanceof Error ? error.message : 'Unknown error')
+            error: 'Failed to parse request body'
           }, 400);
         }
-      } else {
-        // Parse as JSON (existing backup restore)
-        const body = await c.req.json() as { folder?: string; fileName?: string; file?: File; projectId: string };
-        folder = body.folder;
-        fileName = body.fileName;
-        file = body.file || null;
-        projectId = body.projectId;
-        console.log('Parsed JSON - folder:', folder, 'fileName:', fileName);
       }
 
       let fileContent;
