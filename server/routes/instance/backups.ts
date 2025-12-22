@@ -341,8 +341,7 @@ defineRoute(
         const decompressedPath = tempPath.replace(/\.gz$/, '');
         console.log('Decompressed to:', decompressedPath);
 
-        // Step 7: Restore the backup directly to the existing database
-        // The pg_dump file contains DROP statements for all objects, so we don't need to drop the database
+        // Step 7: Drop and recreate the database for a clean restore
 
         // First, close any cached connections to the project database
         await closePgConnection(projectId);
@@ -361,6 +360,13 @@ defineRoute(
 
           // Small delay to ensure connections are fully terminated
           await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Drop and recreate the database for a clean slate
+          console.log(`Dropping database: ${projectId}`);
+          await postgresDb.unsafe(`DROP DATABASE IF EXISTS "${projectId}"`);
+
+          console.log(`Creating fresh database: ${projectId}`);
+          await postgresDb.unsafe(`CREATE DATABASE "${projectId}"`);
         } finally {
           await postgresDb.end();
         }
