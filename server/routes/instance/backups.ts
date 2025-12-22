@@ -256,11 +256,11 @@ defineRoute(
       if (contentType.includes('multipart/form-data')) {
         // Parse as FormData (file upload)
         try {
-          const formData = await c.req.formData();
-          folder = formData.get('folder') as string | undefined;
-          fileName = formData.get('fileName') as string | undefined;
-          file = formData.get('file') as File | null;
-          projectId = formData.get('projectId') as string;
+          const body = await c.req.parseBody();
+          folder = body.folder as string | undefined;
+          fileName = body.fileName as string | undefined;
+          file = body.file as File | null;
+          projectId = body.projectId as string;
           console.log('Parsed FormData - file type:', file?.constructor.name, 'file size:', file?.size);
         } catch (error) {
           console.error('Failed to parse FormData:', error);
