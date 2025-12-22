@@ -244,36 +244,23 @@ defineRoute(
   getGlobalNonAdmin,
   async (c) => {
     try {
-      // Check content type to determine how to parse the request
-      const contentType = c.req.header('Content-Type') || '';
-      let folder: string | undefined;
-      let fileName: string | undefined;
-      let file: File | null = null;
-      let projectId: string;
+      // Parse request body as JSON
+      const body = await c.req.json() as {
+        folder?: string;
+        fileName?: string;
+        fileData?: string;  // base64 encoded file
+        projectId: string;
+      };
 
-      console.log('Request Content-Type:', contentType);
+      const folder = body.folder;
+      const fileName = body.fileName;
+      const fileData = body.fileData;
+      const projectId = body.projectId;
 
-      if (contentType.includes('application/json')) {
-        // Parse as JSON (existing backup restore)
-        const body = await c.req.json() as { folder?: string; fileName?: string; file?: File; projectId: string };
-        folder = body.folder;
-        fileName = body.fileName;
-        file = body.file || null;
-        projectId = body.projectId;
-        console.log('Parsed JSON - folder:', folder, 'fileName:', fileName);
-      } else {
-        // Parse as FormData (file upload) - use Hono's formData helper
-        const formData = await c.req.formData();
-        console.log('Parsed as FormData, keys:', Array.from(formData.keys()));
-        folder = formData.get('folder') as string | null || undefined;
-        fileName = formData.get('fileName') as string | null || undefined;
-        file = formData.get('file') as File | null;
-        projectId = formData.get('projectId') as string;
-        console.log('Parsed FormData - file type:', file?.constructor.name, 'file size:', file?.size);
-      }
+      console.log('Parsed request - folder:', folder, 'fileName:', fileName, 'hasFileData:', !!fileData);
 
       let fileContent;
-      if (!file) {
+      if (!fileData) {
         // Security: Prevent directory traversal
         if (
           !folder ||
@@ -324,7 +311,13 @@ defineRoute(
         fileContent = await response.arrayBuffer();
         console.log('Downloaded backup file, size:', fileContent.byteLength);
       } else {
-        fileContent = await file.arrayBuffer();
+        // Decode base64 file data
+        const binaryString = atob(fileData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        fileContent = bytes.buffer;
         console.log('Received uploaded backup file, size:', fileContent.byteLength);
       }
       // Step 3: Write to temporary file

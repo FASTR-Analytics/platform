@@ -504,12 +504,26 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       element: CreateRestoreFromFileForm,
       props: {
         restoreBackupFunc: async(file: File) => {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('projectId', props.projectId);
+          // Read file as base64
+          const arrayBuffer = await file.arrayBuffer();
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+          const token = await clerk.session?.getToken();
+          const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+          };
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
           const response = await fetch(`/api/restore-backup`, {
             method: 'POST',
-            body: formData
+            headers,
+            body: JSON.stringify({
+              projectId: props.projectId,
+              fileData: base64,
+              fileName: file.name
+            })
           });
 
           if (!response.ok) {
