@@ -51,8 +51,10 @@ export const backupRouteRegistry = {
     path: "/api/restore-backup",
     method: "POST",
     body: {} as {
-      folder: string;
-      fileName: string;
+      folder?: string;
+      fileName?: string;
+      projectId: string;
+      file?: File;
     },
     response: {} as {
       success: boolean;

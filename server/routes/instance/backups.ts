@@ -244,71 +244,69 @@ defineRoute(
   getGlobalNonAdmin,
   async (c) => {
     try {
-      const { folder, fileName } = await c.req.json();
+      const { folder, fileName, file, projectId } = await c.req.json() as { folder?: string; fileName?: string; file?: File ; projectId: string };
 
-      // Security: Prevent directory traversal
-      if (
-        !folder ||
-        !fileName ||
-        folder.includes("..") ||
-        fileName.includes("..") ||
-        folder.includes("/") ||
-        fileName.includes("/")
-      ) {
-        return c.json({
-          success: false,
-          error: "Invalid path"
-        }, 400);
-      }
-
-      const authHeader = c.req.header('Authorization');
-
-      if (!authHeader) {
-        return c.json({
-          success: false,
-          error: "Authorization header required"
-        }, 401);
-      }
-
-      console.log('Restoring backup - folder:', folder, 'fileName:', fileName);
-
-      // Step 1: Download the pgdump file from external API
-      const response = await fetch(
-        `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/backups/${folder}/${fileName}`,
-        {
-          headers: {
-            'Authorization': authHeader,
-          },
+      let fileContent;
+      if (!file) {
+        // Security: Prevent directory traversal
+        if (
+          !folder ||
+          !fileName ||
+          folder.includes("..") ||
+          fileName.includes("..") ||
+          folder.includes("/") ||
+          fileName.includes("/")
+        ) {
+          return c.json({
+            success: false,
+            error: "Invalid path"
+          }, 400);
         }
-      );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Failed to download backup file: ${response.status} ${response.statusText}`, errorText);
-        return c.json({
-          success: false,
-          error: `Failed to download backup file: ${response.status} ${response.statusText}`
-        }, 500);
+        const authHeader = c.req.header('Authorization');
+
+        if (!authHeader) {
+          return c.json({
+            success: false,
+            error: "Authorization header required"
+          }, 401);
+        }
+
+        console.log('Restoring backup - folder:', folder, 'fileName:', fileName);
+
+        // Step 1: Download the pgdump file from external API
+        const response = await fetch(
+          `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/backups/${folder}/${fileName}`,
+          {
+            headers: {
+              'Authorization': authHeader,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Failed to download backup file: ${response.status} ${response.statusText}`, errorText);
+          return c.json({
+            success: false,
+            error: `Failed to download backup file: ${response.status} ${response.statusText}`
+          }, 500);
+        }
+
+      
+        // Step 2: Get the file content
+        fileContent = await response.arrayBuffer();
+        console.log('Downloaded backup file, size:', fileContent.byteLength);
+      } else {
+        fileContent = await file.arrayBuffer();
+        console.log('Received uploaded backup file, size:', fileContent.byteLength);
       }
-
-      // Step 2: Get the file content
-      const fileContent = await response.arrayBuffer();
-      console.log('Downloaded backup file, size:', fileContent.byteLength);
-
       // Step 3: Write to temporary file
       const tempPath = join(_SANDBOX_DIR_PATH, `restore_${Date.now()}.sql.gz`);
       await Deno.writeFile(tempPath, new Uint8Array(fileContent));
       console.log('Wrote backup to temp file:', tempPath);
 
       try {
-        // Step 4: Extract project ID from filename
-        // Filename format: <project_id>.sql.gz
-        const projectIdMatch = fileName.match(/^([^.]+)\.sql\.gz$/);
-        if (!projectIdMatch) {
-          throw new Error("Invalid backup filename format. Expected: <project_id>.sql.gz");
-        }
-        const projectId = projectIdMatch[1];
-        console.log('Extracted project ID:', projectId);
 
         // Step 5: Log database details for debugging
         console.log('Database connection details:', {

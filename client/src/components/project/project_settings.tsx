@@ -19,6 +19,7 @@ import { serverActions } from "~/server_actions";
 import { CopyProjectForm } from "./copy_project";
 import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
 import { CreateBackupForm } from "./create_backup_form";
+import { CreateRestoreFromFileForm } from "./restore_from_file_form"
 import { getInstanceDetail, updateDatasetUploadAttempt_Step1Dhis2Confirm } from "../../../../server/db/mod.ts";
 
 // Backup types
@@ -346,14 +347,6 @@ function ProjectUserTable(p: {
 
 
 function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDetail }) {
-  // Check if restore was successful after page reload
-  onMount(() => {
-    if (sessionStorage.getItem('restoreSuccessful') === 'true') {
-      sessionStorage.removeItem('restoreSuccessful');
-      alert('Restore was successful!');
-    }
-  });
-
   const [backupsList, { refetch: refetchBackups }] = createResource<ProjectBackupInfo[]>(async () => {
     const token = await clerk.session?.getToken();
     const headers: HeadersInit = {};
@@ -443,13 +436,14 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     try {
       const token = await clerk.session?.getToken();
       const headers: HeadersInit={};
+      const projectId = props.projectId;
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
       const response = await fetch(`/api/restore-backup`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ folder, fileName })
+        body: JSON.stringify({ folder, fileName, projectId })
       });
 
       if (!response.ok) {
@@ -461,9 +455,6 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       if (!data.success) {
         return { success: false, err: data.error || "Restore failed" };
       }
-
-      // Set flag in sessionStorage to show alert after reload
-      sessionStorage.setItem('restoreSuccessful', 'true');
 
       // Force full page reload after successful restore to clear all cached data
       window.location.reload();
@@ -507,6 +498,36 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     })
   };
 
+  const attemptRestoreBackup = async () => {
+    await openComponent({
+      element: CreateRestoreFromFileForm,
+      props: {
+        restoreBackupFunc: async(file: File) => {
+          const projectId = props.projectId;
+          const response = await fetch(`/api/restore-backup`, {
+            method: 'POST',
+            body: JSON.stringify({ projectId, file })
+          });
+
+          if (!response.ok) {
+            const data = await response.json();
+            return { success: false, err: data.error || "Failed to restore" };
+          }
+
+          const data = await response.json();
+          if (!data.success) {
+            return { success: false, err: data.error || "Restore failed" };
+          }
+
+          // Force full page reload after successful restore to clear all cached data
+          window.location.reload();
+
+          return { success: true};
+        }
+      }
+    })
+  }
+
   return (
     <div>
       <div class="mb-3 flex items-center justify-between">
@@ -516,6 +537,9 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
         <div class="flex gap-2">
           <Button onClick={attemptCreateBackup} size="sm">
             {t("Create backup")}
+          </Button>
+          <Button size="sm">
+            {t("Restore from file")}
           </Button>
           <Button onClick={() => refetchBackups()} iconName="refresh" size="sm" outline>
             {t("Refresh")}
