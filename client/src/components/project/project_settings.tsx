@@ -440,6 +440,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
+      headers['Content-Type'] = 'application/json';
       const response = await fetch(`/api/restore-backup`, {
         method: 'POST',
         headers,

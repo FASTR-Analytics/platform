@@ -258,6 +258,7 @@ defineRoute(
         fileName = formData.get('fileName') as string | undefined;
         file = formData.get('file') as File | null;
         projectId = formData.get('projectId') as string;
+        console.log('Parsed FormData - file type:', file?.constructor.name, 'file:', file);
       } else {
         // Parse as JSON (existing backup restore)
         const body = await c.req.json() as { folder?: string; fileName?: string; file?: File; projectId: string };
@@ -265,6 +266,7 @@ defineRoute(
         fileName = body.fileName;
         file = body.file || null;
         projectId = body.projectId;
+        console.log('Parsed JSON - folder:', folder, 'fileName:', fileName);
       }
 
       let fileContent;
