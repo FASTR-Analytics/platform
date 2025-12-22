@@ -346,6 +346,14 @@ function ProjectUserTable(p: {
 
 
 function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDetail }) {
+  // Check if restore was successful after page reload
+  onMount(() => {
+    if (sessionStorage.getItem('restoreSuccessful') === 'true') {
+      sessionStorage.removeItem('restoreSuccessful');
+      alert('Restore was successful!');
+    }
+  });
+
   const [backupsList, { refetch: refetchBackups }] = createResource<ProjectBackupInfo[]>(async () => {
     const token = await clerk.session?.getToken();
     const headers: HeadersInit = {};
@@ -453,6 +461,9 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       if (!data.success) {
         return { success: false, err: data.error || "Restore failed" };
       }
+
+      // Set flag in sessionStorage to show alert after reload
+      sessionStorage.setItem('restoreSuccessful', 'true');
 
       // Force full page reload after successful restore to clear all cached data
       window.location.reload();
