@@ -251,14 +251,24 @@ defineRoute(
       let file: File | null = null;
       let projectId: string;
 
+      console.log('Request Content-Type:', contentType);
+
       if (contentType.includes('multipart/form-data')) {
         // Parse as FormData (file upload)
-        const formData = await c.req.formData();
-        folder = formData.get('folder') as string | undefined;
-        fileName = formData.get('fileName') as string | undefined;
-        file = formData.get('file') as File | null;
-        projectId = formData.get('projectId') as string;
-        console.log('Parsed FormData - file type:', file?.constructor.name, 'file:', file);
+        try {
+          const formData = await c.req.formData();
+          folder = formData.get('folder') as string | undefined;
+          fileName = formData.get('fileName') as string | undefined;
+          file = formData.get('file') as File | null;
+          projectId = formData.get('projectId') as string;
+          console.log('Parsed FormData - file type:', file?.constructor.name, 'file size:', file?.size);
+        } catch (error) {
+          console.error('Failed to parse FormData:', error);
+          return c.json({
+            success: false,
+            error: 'Failed to parse form data: ' + (error instanceof Error ? error.message : 'Unknown error')
+          }, 400);
+        }
       } else {
         // Parse as JSON (existing backup restore)
         const body = await c.req.json() as { folder?: string; fileName?: string; file?: File; projectId: string };

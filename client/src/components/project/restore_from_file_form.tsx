@@ -25,11 +25,11 @@ export function CreateRestoreFromFileForm(
             const file = selectedFile();
 
             if (!file) {
-                return { success: false, err: t("You must select a .sql file") };
+                return { success: false, err: t("You must select a .sql.gz file") };
             }
 
-            if (!file.name.endsWith('.sql')) {
-                return { success: false, err: t("Only .sql files are allowed") };
+            if (!file.name.endsWith('.sql.gz')) {
+                return { success: false, err: t("Only .sql.gz files are allowed") };
             }
 
             return p.restoreBackupFunc(file);
@@ -48,11 +48,11 @@ export function CreateRestoreFromFileForm(
         >
             <div class="flex flex-col gap-2">
                 <label class="text-sm font-medium">
-                    {t("Select SQL File")}
+                    {t("Select gzipped SQL file (.sql.gz)")}
                 </label>
                 <input
                     type="file"
-                    accept=".sql"
+                    accept=".gz,.sql.gz"
                     onChange={handleFileChange}
                     class="block w-full text-sm"
                 />
