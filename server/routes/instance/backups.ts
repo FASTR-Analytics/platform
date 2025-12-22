@@ -244,7 +244,28 @@ defineRoute(
   getGlobalNonAdmin,
   async (c) => {
     try {
-      const { folder, fileName, file, projectId } = await c.req.json() as { folder?: string; fileName?: string; file?: File ; projectId: string };
+      // Check content type to determine how to parse the request
+      const contentType = c.req.header('Content-Type') || '';
+      let folder: string | undefined;
+      let fileName: string | undefined;
+      let file: File | null = null;
+      let projectId: string;
+
+      if (contentType.includes('multipart/form-data')) {
+        // Parse as FormData (file upload)
+        const formData = await c.req.formData();
+        folder = formData.get('folder') as string | undefined;
+        fileName = formData.get('fileName') as string | undefined;
+        file = formData.get('file') as File | null;
+        projectId = formData.get('projectId') as string;
+      } else {
+        // Parse as JSON (existing backup restore)
+        const body = await c.req.json() as { folder?: string; fileName?: string; file?: File; projectId: string };
+        folder = body.folder;
+        fileName = body.fileName;
+        file = body.file || null;
+        projectId = body.projectId;
+      }
 
       let fileContent;
       if (!file) {
