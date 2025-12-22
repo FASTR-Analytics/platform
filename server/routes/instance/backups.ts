@@ -262,8 +262,8 @@ defineRoute(
         projectId = body.projectId;
         console.log('Parsed JSON - folder:', folder, 'fileName:', fileName);
       } else {
-        // Parse as FormData (file upload) - use the native formData() method
-        const formData = await c.req.raw.formData();
+        // Parse as FormData (file upload) - use Hono's formData helper
+        const formData = await c.req.formData();
         console.log('Parsed as FormData, keys:', Array.from(formData.keys()));
         folder = formData.get('folder') as string | null || undefined;
         fileName = formData.get('fileName') as string | null || undefined;
