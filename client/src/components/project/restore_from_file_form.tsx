@@ -38,9 +38,16 @@ export function CreateRestoreFromFileForm(
     );
 
     return (
-        <AlertFormHolder>
+        <AlertFormHolder
+            formId="restore-from-file"
+            header={t("Restore from file")}
+            savingState={save.state()}
+            saveFunc={save.click}
+            cancelFunc={() => p.close(undefined)}
+            french={isFrench()}
+        >
             <div class="flex flex-col gap-2">
-                <label class="text-sm font-mdeium">
+                <label class="text-sm font-medium">
                     {t("Select SQL File")}
                 </label>
                 <input
