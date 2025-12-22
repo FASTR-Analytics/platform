@@ -253,8 +253,16 @@ defineRoute(
 
       console.log('Request Content-Type:', contentType);
 
-      // Try to parse as FormData first, fall back to JSON
-      try {
+      if (contentType.includes('application/json')) {
+        // Parse as JSON (existing backup restore)
+        const body = await c.req.json() as { folder?: string; fileName?: string; file?: File; projectId: string };
+        folder = body.folder;
+        fileName = body.fileName;
+        file = body.file || null;
+        projectId = body.projectId;
+        console.log('Parsed JSON - folder:', folder, 'fileName:', fileName);
+      } else {
+        // Parse as FormData (file upload)
         const body = await c.req.parseBody();
         console.log('Parsed as FormData, keys:', Object.keys(body));
         folder = body.folder as string | undefined;
@@ -262,22 +270,6 @@ defineRoute(
         file = body.file as File | null;
         projectId = body.projectId as string;
         console.log('Parsed FormData - file type:', file?.constructor.name, 'file size:', file?.size);
-      } catch (formError) {
-        console.log('FormData parsing failed, trying JSON:', formError);
-        try {
-          const body = await c.req.json() as { folder?: string; fileName?: string; file?: File; projectId: string };
-          folder = body.folder;
-          fileName = body.fileName;
-          file = body.file || null;
-          projectId = body.projectId;
-          console.log('Parsed JSON - folder:', folder, 'fileName:', fileName);
-        } catch (_jsonError) {
-          console.error('Both FormData and JSON parsing failed');
-          return c.json({
-            success: false,
-            error: 'Failed to parse request body'
-          }, 400);
-        }
       }
 
       let fileContent;
