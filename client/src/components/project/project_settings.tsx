@@ -504,9 +504,15 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       element: CreateRestoreFromFileForm,
       props: {
         restoreBackupFunc: async(file: File) => {
-          // Read file as base64
+          // Read file as base64 (handle large files properly)
           const arrayBuffer = await file.arrayBuffer();
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = '';
+          const chunkSize = 0x8000; // 32KB chunks to avoid stack overflow
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+          }
+          const base64 = btoa(binary);
 
           const token = await clerk.session?.getToken();
           const headers: HeadersInit = {
