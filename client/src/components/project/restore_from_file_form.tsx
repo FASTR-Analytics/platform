@@ -52,7 +52,7 @@ export function CreateRestoreFromFileForm(
                 </label>
                 <input
                     type="file"
-                    accept=".gz,.sql.gz"
+                    accept=".gz"
                     onChange={handleFileChange}
                     class="block w-full text-sm"
                 />
