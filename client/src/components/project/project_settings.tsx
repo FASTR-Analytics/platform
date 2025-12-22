@@ -538,7 +538,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
           <Button onClick={attemptCreateBackup} size="sm">
             {t("Create backup")}
           </Button>
-          <Button size="sm">
+          <Button onClick={attemptRestoreBackup}size="sm">
             {t("Restore from file")}
           </Button>
           <Button onClick={() => refetchBackups()} iconName="refresh" size="sm" outline>
