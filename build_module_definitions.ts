@@ -112,6 +112,7 @@ async function scanModuleDefinitions(): Promise<
           const githubResponse = await fetchGitHubScript(definition.scriptSource);
           script = githubResponse.script;
           sha = githubResponse.sha;
+          console.log(`  Fetched script for ${moduleId} v${version} (SHA: ${sha})`);
         } else {
           console.error(
             `✗ Skipping ${moduleId} v${version}: Unknown script source type`
