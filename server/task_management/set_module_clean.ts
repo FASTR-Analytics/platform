@@ -92,7 +92,6 @@ VALUES
     ids: [etd.moduleId],
     dirtyOrRunStatus: "ready",
     lastRun,
-    latestRanCommitSha: commitSha ?? undefined,
   };
   broadcastDirtyStates.postMessage(bm1);
 
