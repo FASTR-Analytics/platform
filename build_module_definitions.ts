@@ -21,7 +21,7 @@ function stripFrontmatter(script: string): string {
 
 async function fetchGitHubScript(
   source: Extract<ScriptSource, { type: "github" }>
-): Promise<string> {
+): Promise<{ script: string, sha: string }> {
   const url = `https://raw.githubusercontent.com/${source.owner}/${source.repo}/${source.commit}/${source.path}`;
 
   console.log(`  Fetching from GitHub: ${url}`);
@@ -34,8 +34,21 @@ async function fetchGitHubScript(
   }
 
   const rawScript = await response.text();
-  // need to get the commit sha here
-  return stripFrontmatter(rawScript);
+  // get the commit sha
+  const shaUrl = `https://api.github.com/repos/${source.owner}/${source.repo}/commits/${source.commit}`;
+  const shaResponse = await fetch(shaUrl);
+
+  if (!shaResponse.ok) {
+    throw new Error(`Failed to fetch commit SHA: ${shaResponse.status} ${shaResponse.statusText}`);
+  }
+
+  const commitInfo = await shaResponse.json();
+  const sha = commitInfo.sha;
+
+  return { 
+    script: stripFrontmatter(rawScript), 
+    sha: sha 
+  };
 }
 
 type ModuleManifest = {
@@ -88,6 +101,7 @@ async function scanModuleDefinitions(): Promise<
 
         // Load script based on source type
         let script: string;
+        let sha: string | undefined;
         if (definition.scriptSource.type === "local") {
           const scriptSourcePath = join(
             entry.path,
@@ -95,8 +109,9 @@ async function scanModuleDefinitions(): Promise<
           );
           script = await Deno.readTextFile(scriptSourcePath);
         } else if (definition.scriptSource.type === "github") {
-          script = await fetchGitHubScript(definition.scriptSource);
-          // should return both script and sha here
+          const githubResponse = await fetchGitHubScript(definition.scriptSource);
+          script = githubResponse.script;
+          sha = githubResponse.sha;
         } else {
           console.error(
             `✗ Skipping ${moduleId} v${version}: Unknown script source type`
@@ -110,7 +125,7 @@ async function scanModuleDefinitions(): Promise<
         // Inject id from folder structure and update scriptSource and lastScriptUpdate
         const jsonDefinition = {
           ...definition,
-          // add the commit sha here
+          sha: sha,
           id: moduleId,
           lastScriptUpdate: new Date().toISOString(),
           scriptSource: {

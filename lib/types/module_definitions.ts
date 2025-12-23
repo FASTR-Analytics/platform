@@ -267,4 +267,5 @@ export type ModuleDefinitionJSON = Omit<
 export type BuiltModuleDefinitionJSON = ModuleDefinitionJSON & {
   id: ModuleId;
   lastScriptUpdate: string;
+  commitSha?: string;
 };
