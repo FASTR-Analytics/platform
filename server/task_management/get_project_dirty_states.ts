@@ -23,6 +23,7 @@ export async function getProjectDirtyStates(
       moduleDirtyStates: {},
       anyModuleLastRun: "",
       moduleLastRun: {},
+      moduleLatestRanCommitSha: {},
       lastUpdated: {
         datasets: {},
         modules: {},
@@ -51,9 +52,10 @@ export async function getProjectDirtyStates(
         id: string;
         last_run: string;
         dirty: string;
+        latest_ran_commit_sha: string | null;
       }[]
     >`
-  SELECT id, last_run, dirty FROM modules
+  SELECT id, last_run, dirty, latest_ran_commit_sha FROM modules
   `;
 
     for (const rawModule of rawModules) {
@@ -85,6 +87,7 @@ SELECT * FROM global_last_updated WHERE id = 'any_module_last_run'
 
     for (const rawModule of rawModules) {
       pds.moduleLastRun[rawModule.id] = rawModule.last_run;
+      pds.moduleLatestRanCommitSha[rawModule.id] = rawModule.latest_ran_commit_sha ?? undefined;
     }
 
     ////////////////////////

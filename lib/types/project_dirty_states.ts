@@ -5,6 +5,7 @@ export type ProjectDirtyStates = {
   moduleDirtyStates: Record<string, DirtyOrRunStatus>;
   anyModuleLastRun: string;
   moduleLastRun: Record<string, string>;
+  moduleLatestRanCommitSha: Record<string, string | undefined>;
   lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
 };
 
@@ -33,6 +34,7 @@ export type ProjectSseUpdateMessage =
       ids: string[];
       dirtyOrRunStatus: DirtyOrRunStatus;
       lastRun: string | undefined;
+      latestRanCommitSha?: string;
     }
   | {
       projectId: string;
