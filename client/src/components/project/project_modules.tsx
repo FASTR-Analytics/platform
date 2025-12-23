@@ -327,6 +327,11 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                     {new Date(
                       pds.moduleLastRun[p.thisInstalledModule.id],
                     ).toLocaleString()}
+                    {" "}{p.thisInstalledModule.latestRanCommitSha ? (
+                      <span>
+                        (Latest run commit: {p.thisInstalledModule.latestRanCommitSha})
+                      </span>
+                    ) : "No SHA"}
                   </div>
                 </div>
               </div>
