@@ -155,6 +155,7 @@ export async function getModuleDefinitionDetail(
       label: tc(rawModuleJSON.label),
       prerequisites: rawModuleJSON.prerequisites,
       lastScriptUpdate: rawModuleJSON.lastScriptUpdate,
+      commitSha: rawModuleJSON.commitSha,
       scriptSource: rawModuleJSON.scriptSource,
       dataSources: rawModuleJSON.dataSources,
       configRequirements: rawModuleJSON.configRequirements,
