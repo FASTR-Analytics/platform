@@ -363,6 +363,7 @@ SELECT * FROM modules
         moduleDefinitionLabel: moduleDefinition.label,
         dateInstalled: rawModule.date_installed,
         commitSha: moduleDefinition.commitSha,
+        latestRanCommitSha: rawModule.latest_ran_commit_sha ?? undefined,
         moduleDefinitionResultsObjectIds: moduleDefinition.resultsObjects.map(
           (ro) => ro.id
         ),

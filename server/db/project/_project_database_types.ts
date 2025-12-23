@@ -20,6 +20,7 @@ export type DBModule = {
   last_updated: string;
   last_run: string;
   dirty: string;
+  latest_ran_commit_sha: string | null;
 };
 
 export type DBPresentationObject = {

@@ -53,7 +53,8 @@ CREATE TABLE modules (
   config_selections text NOT NULL,
   last_updated text NOT NULL,
   last_run text NOT NULL,
-  dirty text NOT NULL
+  dirty text NOT NULL,
+  latest_ran_commit_sha text
 );
 
 CREATE INDEX idx_modules_last_updated ON modules(last_updated);
