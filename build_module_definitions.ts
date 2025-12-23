@@ -125,7 +125,7 @@ async function scanModuleDefinitions(): Promise<
         // Inject id from folder structure and update scriptSource and lastScriptUpdate
         const jsonDefinition = {
           ...definition,
-          sha: sha,
+          commitSha: sha,
           id: moduleId,
           lastScriptUpdate: new Date().toISOString(),
           scriptSource: {
