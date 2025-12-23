@@ -96,6 +96,16 @@ VALUES
   };
   broadcastDirtyStates.postMessage(bm1);
 
+  // Notify that modules table changed so UI refetches module list
+  const bm2: ProjectSseUpdateMessage = {
+    projectId: etd.projectId,
+    type: "last_updated",
+    tableName: "modules",
+    ids: [etd.moduleId],
+    lastUpdated: lastRun,
+  };
+  broadcastDirtyStates.postMessage(bm2);
+
   await setAllModuleDependentsLastUpdatedAndNotify(
     etd.projectId,
     projectDb,
