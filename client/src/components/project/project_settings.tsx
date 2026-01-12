@@ -10,7 +10,7 @@ import {
   timActionDelete,
   timActionButton,
 } from "panther";
-import { Match, Show, Switch, onMount, For, createResource } from "solid-js";
+import { Match, Show, Switch, onMount, For, createResource, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { Table, TableColumn, type BulkAction } from "panther";
 import { EditLabelForm } from "~/components/forms_editors/edit_label";
@@ -346,7 +346,39 @@ function ProjectUserTable(p: {
 
 
 
+// Helper to check if a backup name matches the automatic date format
+const isAutomaticBackup = (folderName: string): boolean => {
+  // Match format: YYYY-MM-DD_HH-MM-SS
+  const datePattern = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
+  return datePattern.test(folderName);
+};
+
+// Helper to extract date from automatic backup folder name
+const extractDate = (folderName: string): string => {
+  return folderName.split('_')[0]; // Returns "YYYY-MM-DD"
+};
+
+interface GroupedBackups {
+  date?: string; // For automatic backups grouped by date
+  isCustom?: boolean; // For custom backups folder
+  backups: ProjectBackupInfo[];
+}
+
 function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDetail }) {
+  const [expandedGroups, setExpandedGroups] = createSignal<Set<string>>(new Set());
+
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups((prev: Set<string>) => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupKey)) {
+        newSet.delete(groupKey);
+      } else {
+        newSet.add(groupKey);
+      }
+      return newSet;
+    });
+  };
+
   const [backupsList, { refetch: refetchBackups }] = createResource<ProjectBackupInfo[]>(async () => {
     const token = await clerk.session?.getToken();
     const headers: HeadersInit = {};
@@ -396,6 +428,52 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
 
     return projectBackups;
   });
+
+  // Group backups by date or custom
+  const groupedBackups = (): GroupedBackups[] => {
+    const backups = backupsList();
+    if (!backups) return [];
+
+    const dateGroups = new Map<string, ProjectBackupInfo[]>();
+    const customBackups: ProjectBackupInfo[] = [];
+
+    backups.forEach((backup: ProjectBackupInfo) => {
+      if (isAutomaticBackup(backup.folder)) {
+        const date = extractDate(backup.folder);
+        if (!dateGroups.has(date)) {
+          dateGroups.set(date, []);
+        }
+        dateGroups.get(date)!.push(backup);
+      } else {
+        customBackups.push(backup);
+      }
+    });
+
+    const groups: GroupedBackups[] = [];
+
+    // Add date groups (sorted newest first)
+    const sortedDates = Array.from(dateGroups.keys()).sort((a, b) => b.localeCompare(a));
+    sortedDates.forEach((date) => {
+      const backupsInGroup = dateGroups.get(date)!;
+      // Sort backups within the group by time (newest first)
+      backupsInGroup.sort((a, b) => b.folder.localeCompare(a.folder));
+      groups.push({
+        date,
+        backups: backupsInGroup,
+      });
+    });
+
+    // Add custom backups group if any exist
+    if (customBackups.length > 0) {
+      customBackups.sort((a, b) => b.folder.localeCompare(a.folder));
+      groups.push({
+        isCustom: true,
+        backups: customBackups,
+      });
+    }
+
+    return groups;
+  };
 
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return "0 B";
@@ -551,6 +629,13 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     })
   }
 
+  const formatTime = (folderName: string): string => {
+    // Extract time from YYYY-MM-DD_HH-MM-SS format
+    const timePart = folderName.split('_')[1];
+    if (!timePart) return folderName;
+    return timePart.replace(/-/g, ':');
+  };
+
   return (
     <div>
       <div class="mb-3 flex items-center justify-between">
@@ -575,34 +660,70 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
           fallback={<div class="text-neutral">No backups available for this project</div>}
         >
           <div class="flex flex-col gap-2">
-            <For each={backupsList()}>
-              {(backup: ProjectBackupInfo) => (
-                <div class="flex items-center justify-between rounded border border-neutral-200 p-3">
-                  <div class="flex flex-col gap-1">
-                    <span class="font-medium">{backup.folder}</span>
-                    <span class="text-sm text-neutral">
-                      {formatBytes(backup.size)}
-                    </span>
-                  </div>
-                  <div class="flex gap-2">                    
-                    <Button
-                      onClick={() => downloadFile(backup.folder, backup.files[0].name)}
-                      iconName="download"
-                      intent="primary"
-                      size="sm"
+            <For each={groupedBackups()}>
+              {(group: GroupedBackups) => {
+                const groupKey = group.isCustom ? 'custom' : group.date!;
+                const isExpanded = () => expandedGroups().has(groupKey);
+
+                return (
+                  <div class="flex flex-col">
+                    {/* Group Header */}
+                    <button
+                      onClick={() => toggleGroup(groupKey)}
+                      class="flex items-center justify-between rounded border border-neutral-200 bg-neutral-50 p-3 text-left hover:bg-neutral-100 transition-colors"
                     >
-                      Download
-                    </Button>
-                    <Button
-                      onClick={() => restoreBackup(backup.folder,backup.files[0].name)}
-                      size="sm"
-                      outline
-                    >
-                      Restore
-                    </Button>
+                      <div class="flex items-center gap-2">
+                        <span class="text-lg">
+                          {isExpanded() ? '▼' : '▶'}
+                        </span>
+                        <span class="font-medium">
+                          {group.isCustom ? 'Custom Backups' : group.date}
+                        </span>
+                        <span class="text-sm text-neutral">
+                          ({group.backups.length} backup{group.backups.length !== 1 ? 's' : ''})
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Expanded Backups */}
+                    <Show when={isExpanded()}>
+                      <div class="ml-6 mt-2 flex flex-col gap-2">
+                        <For each={group.backups}>
+                          {(backup: ProjectBackupInfo) => (
+                            <div class="flex items-center justify-between rounded border border-neutral-200 p-3 bg-white">
+                              <div class="flex flex-col gap-1">
+                                <span class="font-medium">
+                                  {group.isCustom ? backup.folder : formatTime(backup.folder)}
+                                </span>
+                                <span class="text-sm text-neutral">
+                                  {formatBytes(backup.size)}
+                                </span>
+                              </div>
+                              <div class="flex gap-2">
+                                <Button
+                                  onClick={() => downloadFile(backup.folder, backup.files[0].name)}
+                                  iconName="download"
+                                  intent="primary"
+                                  size="sm"
+                                >
+                                  Download
+                                </Button>
+                                <Button
+                                  onClick={() => restoreBackup(backup.folder, backup.files[0].name)}
+                                  size="sm"
+                                  outline
+                                >
+                                  Restore
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
                   </div>
-                </div>
-              )}
+                );
+              }}
             </For>
           </div>
         </Show>
