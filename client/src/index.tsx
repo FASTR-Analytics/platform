@@ -1,16 +1,26 @@
 import { render } from "solid-js/web";
-import { _KEY_COLORS } from "lib";
-import {
-  setGlobalFigureStyle,
-  setGlobalPageStyle,
-  setKeyColors,
-} from "panther";
-import { _GLOBAL_PAGE_STYLE_OPTIONS } from "./generate_report/mod";
-import { _GLOBAL_FIGURE_STYLE_OPTIONS } from "./generate_visualization/mod";
+import { _COLOR_WATERMARK_GREY, _KEY_COLORS } from "lib";
+import { setGlobalStyle, setKeyColors } from "panther";
 import App from "./app";
 
 setKeyColors(_KEY_COLORS);
-setGlobalFigureStyle(_GLOBAL_FIGURE_STYLE_OPTIONS);
-setGlobalPageStyle(_GLOBAL_PAGE_STYLE_OPTIONS);
+setGlobalStyle({
+  scale: 1,
+  baseText: {
+    font: { fontFamily: "Inter", weight: 400, italic: false },
+    fontSize: 40,
+    lineHeight: 1.4,
+  },
+  page: {
+    text: {
+      watermark: {
+        font: { fontFamily: "Inter", weight: 800, italic: false },
+        color: _COLOR_WATERMARK_GREY,
+        relFontSize: 25,
+        lineHeight: 1.4,
+      },
+    },
+  },
+});
 
 render(() => <App />, document.getElementById("app")!);

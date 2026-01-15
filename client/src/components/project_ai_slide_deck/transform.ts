@@ -22,15 +22,11 @@ function transformSlideToReportItem(slide: SimpleSlide): ReportItemConfig {
         ...base,
         type: "cover",
         cover: {
+          ...base.cover,
           titleText: slide.title ?? "",
-          titleTextRelFontSize: 10,
           subTitleText: slide.subtitle ?? "",
-          subTitleTextRelFontSize: 6,
           presenterText: slide.presenter ?? "",
-          presenterTextRelFontSize: 4,
           dateText: slide.date ?? "",
-          dateTextRelFontSize: 3,
-          logos: [],
         },
       };
 
@@ -39,10 +35,9 @@ function transformSlideToReportItem(slide: SimpleSlide): ReportItemConfig {
         ...base,
         type: "section",
         section: {
+          ...base.section,
           sectionText: slide.sectionTitle ?? "",
-          sectionTextRelFontSize: 8,
           smallerSectionText: slide.sectionSubtitle ?? "",
-          smallerSectionTextRelFontSize: 5,
         },
       };
 

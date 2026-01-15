@@ -36,7 +36,7 @@ export async function exportReportAsPdfRaster(
     const canvasH =
       resReportDetail.data.reportType === "slide_deck"
         ? Math.round((canvasW * 9) / 16)
-        : Math.round((canvasW * 11) / 8.5);
+        : Math.round((canvasW * 297) / 210);
 
     const pdfOrientation =
       resReportDetail.data.reportType === "slide_deck"

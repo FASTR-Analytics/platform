@@ -37,7 +37,7 @@ export async function exportReportAsPptxWithImages(
     const canvasH =
       resReportDetail.data.reportType === "slide_deck"
         ? Math.round((canvasW * 9) / 16)
-        : Math.round((canvasW * 11) / 8.5);
+        : Math.round((canvasW * 297) / 210);
 
     const pdfW = Math.round(canvasW * pdfResolution);
     const pdfH = Math.round(canvasH * pdfResolution);
