@@ -5,7 +5,7 @@ import { PresentationObjectInReportInfo } from "./presentation_objects.ts";
 // Report Core Types
 // ============================================================================
 
-export type ReportType = "slide_deck" | "policy_brief" | "long_form";
+export type ReportType = "slide_deck" | "policy_brief" | "long_form" | "ai_slide_deck";
 
 export type ReportSummary = {
   id: string;
@@ -43,6 +43,7 @@ export function get_REPORT_TYPE_SELECT_OPTIONS(): {
     { value: "slide_deck", label: t2(T.FRENCH_UI_STRINGS.slide_deck) },
     { value: "policy_brief", label: t2(T.FRENCH_UI_STRINGS.policy_brief) },
     { value: "long_form", label: "Long-form report" },
+    { value: "ai_slide_deck", label: "AI slide deck" },
   ];
 }
 
@@ -51,6 +52,7 @@ export function get_REPORT_TYPE_MAP(): Record<ReportType, string> {
     slide_deck: t2(T.FRENCH_UI_STRINGS.slide_deck),
     policy_brief: t2(T.FRENCH_UI_STRINGS.policy_brief),
     long_form: "Long-form report",
+    ai_slide_deck: "AI slide deck",
   };
 }
 
@@ -67,6 +69,48 @@ export function getStartingConfigForLongFormReport(
   label: string
 ): LongFormReportConfig {
   return { label, markdown: "" };
+}
+
+export type AiSlideDeckSlide = {
+  type: "cover" | "section" | "content";
+  title?: string;
+  subtitle?: string;
+  presenter?: string;
+  date?: string;
+  sectionTitle?: string;
+  sectionSubtitle?: string;
+  layout?: "single" | "two-column" | "two-column-wide-left" | "two-column-wide-right" | "three-column";
+  heading?: string;
+  blocks?: {
+    type: "text" | "figure";
+    markdown?: string;
+    figureId?: string;
+    replicant?: string;
+  }[];
+};
+
+export type AiSlideDeckReportConfig = {
+  label: string;
+  slides: AiSlideDeckSlide[];
+};
+
+export function getStartingConfigForAiSlideDeck(
+  label: string
+): AiSlideDeckReportConfig {
+  return {
+    label,
+    slides: [
+      {
+        type: "cover",
+        title: label,
+        subtitle: "",
+        date: new Date().toLocaleDateString("en-US", {
+          month: "long",
+          year: "numeric",
+        }),
+      },
+    ],
+  };
 }
 
 export type ReportConfig = {

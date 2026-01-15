@@ -2,6 +2,9 @@ import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
   APIResponseWithData,
+  AiSlideDeckReportConfig,
+  AiSlideDeckSlide,
+  getStartingConfigForAiSlideDeck,
   getStartingConfigForLongFormReport,
   getStartingConfigForReport,
   getStartingConfigForReportItem,
@@ -31,6 +34,8 @@ export async function addReport(
     const startingReportConfig =
       reportType === "long_form"
         ? getStartingConfigForLongFormReport(label)
+        : reportType === "ai_slide_deck"
+        ? getStartingConfigForAiSlideDeck(label)
         : getStartingConfigForReport(label);
     const lastUpdated = new Date().toISOString();
     await projectDb`
@@ -430,6 +435,32 @@ SELECT * FROM reports WHERE id = ${reportId}
     }
     const config: LongFormReportConfig = parseJsonOrThrow(rawReport.config);
     config.markdown = markdown;
+    await projectDb`
+UPDATE reports
+SET config = ${JSON.stringify(config)}, last_updated = ${lastUpdated}
+WHERE id = ${reportId}
+`;
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
+export async function updateAiSlideDeckContent(
+  projectDb: Sql,
+  reportId: string,
+  slides: AiSlideDeckSlide[]
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const rawReport = (
+      await projectDb<DBReport[]>`
+SELECT * FROM reports WHERE id = ${reportId}
+`
+    ).at(0);
+    if (!rawReport) {
+      throw new Error("No report with this id");
+    }
+    const config: AiSlideDeckReportConfig = parseJsonOrThrow(rawReport.config);
+    config.slides = slides;
     await projectDb`
 UPDATE reports
 SET config = ${JSON.stringify(config)}, last_updated = ${lastUpdated}

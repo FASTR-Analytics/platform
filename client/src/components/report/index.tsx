@@ -1,4 +1,4 @@
-import { InstanceDetail, LongFormReportConfig, ProjectDetail, ReportDetail, t, t2, T } from "lib";
+import { AiSlideDeckReportConfig, InstanceDetail, LongFormReportConfig, ProjectDetail, ReportDetail, t, t2, T } from "lib";
 import {
   Button,
   FrameLeft,
@@ -21,6 +21,7 @@ import {
   useProjectDirtyStates,
 } from "~/components/project_runner/mod";
 import { ProjectAiReport } from "~/components/project_ai_report";
+import { ProjectAiSlideDeck } from "~/components/project_ai_slide_deck";
 import { serverActions } from "~/server_actions";
 import { getReportDetailFromCacheOrFetch } from "~/state/ri_cache";
 import { fitWithin, setFitWithin } from "~/state/ui";
@@ -64,10 +65,10 @@ export function Report(p: Props) {
     StateHolder<ReportDetail>
   >({ status: "loading", msg: t2(T.FRENCH_UI_STRINGS.loading_report) });
 
-  // For long_form reports: track lastUpdated to detect external changes
+  // For long_form and ai_slide_deck reports: track lastUpdated to detect external changes
   // This mirrors the pattern used in visualization/index.tsx
   let initialLastUpdated = pds.lastUpdated.reports[p.reportId] ?? "unknown";
-  let isLongFormReport = false;
+  let isAiManagedReport = false;
 
   async function silentGetReportDetail() {
     const res = await getReportDetailFromCacheOrFetch(
@@ -78,7 +79,7 @@ export function Report(p: Props) {
       setReportDetail({ status: "error", err: res.err });
       return;
     }
-    isLongFormReport = res.data.reportType === "long_form";
+    isAiManagedReport = res.data.reportType === "long_form" || res.data.reportType === "ai_slide_deck";
     // Update our reference after successful fetch
     initialLastUpdated = pds.lastUpdated.reports[p.reportId] ?? "unknown";
     setSelectedReportItemId((prev) => {
@@ -94,15 +95,15 @@ export function Report(p: Props) {
     // Track pds.lastUpdated.reports[p.reportId] for reactivity
     const currentLastUpdated = pds.lastUpdated.reports[p.reportId] ?? "unknown";
 
-    // For long_form reports that are already loaded, skip refetch on PDS changes
-    // since ProjectAiReport manages its own content state
-    if (isLongFormReport && currentLastUpdated !== initialLastUpdated) {
-      // PDS changed but we're a long_form - just update our reference, don't refetch
+    // For AI-managed reports (long_form, ai_slide_deck) that are already loaded, skip refetch on PDS changes
+    // since the AI editors manage their own content state
+    if (isAiManagedReport && currentLastUpdated !== initialLastUpdated) {
+      // PDS changed but we're an AI-managed report - just update our reference, don't refetch
       initialLastUpdated = currentLastUpdated;
       return;
     }
 
-    // Initial load, or non-long_form report, or no PDS change - fetch as normal
+    // Initial load, or non-AI-managed report, or no PDS change - fetch as normal
     silentGetReportDetail();
   });
 
@@ -221,6 +222,16 @@ export function Report(p: Props) {
     return undefined;
   };
 
+  // Reactive check for ai_slide_deck report type
+  const aiSlideDeckData = () => {
+    const rd = reportDetail();
+    if (rd.status === "ready" && rd.data.reportType === "ai_slide_deck") {
+      const config = rd.data.config as unknown as AiSlideDeckReportConfig;
+      return { slides: config.slides ?? [], label: config.label };
+    }
+    return undefined;
+  };
+
   return (
     <Switch>
       <Match when={longFormData()} keyed>
@@ -229,6 +240,17 @@ export function Report(p: Props) {
             projectDetail={p.projectDetail}
             reportId={p.reportId}
             initialMarkdown={data.markdown}
+            reportLabel={data.label}
+            backToProject={p.backToProject}
+          />
+        )}
+      </Match>
+      <Match when={aiSlideDeckData()} keyed>
+        {(data) => (
+          <ProjectAiSlideDeck
+            projectDetail={p.projectDetail}
+            reportId={p.reportId}
+            initialSlides={data.slides}
             reportLabel={data.label}
             backToProject={p.backToProject}
           />

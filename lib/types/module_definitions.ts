@@ -1,11 +1,11 @@
-import { t2, T } from "../translate/mod.ts";
+import { T, t2 } from "../translate/mod.ts";
 import type { TranslatableString } from "../translate/types.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { ModuleId } from "./module_metadata_generated.ts";
 import {
   DisaggregationOption,
-  PresentationOption,
   type PresentationObjectConfig,
+  PresentationOption,
 } from "./presentation_objects.ts";
 
 export type { ModuleId };
@@ -19,7 +19,13 @@ export type { ModuleId };
 // Script source descriptor - where to load the R script from
 export type ScriptSource =
   | { type: "local"; filename: string }
-  | { type: "github"; owner: string; repo: string; path: string; commit: string };
+  | {
+    type: "github";
+    owner: string;
+    repo: string;
+    path: string;
+    commit: string;
+  };
 
 export type ModuleDefinition = {
   id: ModuleId;
@@ -64,16 +70,16 @@ export type DataSourceResultsObject = {
 
 export type ModuleConfigRequirements =
   | {
-      configType: "none";
-    }
+    configType: "none";
+  }
   | {
-      configType: "parameters";
-      parameters: ModuleParameter[];
-    }
+    configType: "parameters";
+    parameters: ModuleParameter[];
+  }
   | {
-      configType: "hfa";
-      indicators: HfaIndicator[];
-    };
+    configType: "hfa";
+    indicators: HfaIndicator[];
+  };
 
 export type HfaIndicator = {
   category: string;
@@ -89,23 +95,23 @@ export type ModuleParameter = {
   description: string;
   input:
     | {
-        inputType: "number";
-        defaultValue: string;
-      }
+      inputType: "number";
+      defaultValue: string;
+    }
     | {
-        inputType: "text";
-        defaultValue: string;
-      }
+      inputType: "text";
+      defaultValue: string;
+    }
     | {
-        inputType: "boolean";
-        defaultValue: "TRUE" | "FALSE";
-      }
+      inputType: "boolean";
+      defaultValue: "TRUE" | "FALSE";
+    }
     | {
-        inputType: "select";
-        valueType: "string" | "number";
-        options: { value: string; label: string }[];
-        defaultValue: string;
-      };
+      inputType: "select";
+      valueType: "string" | "number";
+      options: { value: string; label: string }[];
+      defaultValue: string;
+    };
 };
 
 ///////////////////////////
@@ -164,18 +170,20 @@ export type ResultsValue = {
 };
 
 // Simplified type for module definitions - will be enriched at runtime
-export type ResultsValueDefinition = Omit<
-  ResultsValue,
-  "disaggregationOptions"
-> & {
-  requiredDisaggregationOptions: DisaggregationOption[];
-  // customDisaggregationOptions?: {
-  //   value: DisaggregationOption;
-  //   label: string;
-  //   isRequired: boolean;
-  //   allowedPresentationOptions?: PresentationOption[];
-  // }[];
-};
+export type ResultsValueDefinition =
+  & Omit<
+    ResultsValue,
+    "disaggregationOptions"
+  >
+  & {
+    requiredDisaggregationOptions: DisaggregationOption[];
+    // customDisaggregationOptions?: {
+    //   value: DisaggregationOption;
+    //   label: string;
+    //   isRequired: boolean;
+    //   allowedPresentationOptions?: PresentationOption[];
+    // }[];
+  };
 
 export type PeriodOption = "period_id" | "quarter_id" | "year";
 
@@ -247,12 +255,14 @@ export type ResultsValueDefinitionJSON = Omit<
 >;
 
 // JSON representation of results object - omits moduleId which can be inferred from parent
-export type ResultsObjectDefinitionJSON = Omit<
-  ResultsObjectDefinition,
-  "moduleId" | "resultsValues"
-> & {
-  resultsValues: ResultsValueDefinitionJSON[];
-};
+export type ResultsObjectDefinitionJSON =
+  & Omit<
+    ResultsObjectDefinition,
+    "moduleId" | "resultsValues"
+  >
+  & {
+    resultsValues: ResultsValueDefinitionJSON[];
+  };
 
 // JSON representation of presentation object - omits IDs that can be inferred from parent
 export type PartialDefaultPresentationObjectJSON = Omit<
@@ -263,13 +273,19 @@ export type PartialDefaultPresentationObjectJSON = Omit<
 // JSON representation of module definition (stored in built files)
 // Script is stored separately and loaded at runtime
 // id and lastScriptUpdate are inferred/added during build
-export type ModuleDefinitionJSON = Omit<
-  ModuleDefinition,
-  "id" | "script" | "lastScriptUpdate" | "resultsObjects" | "defaultPresentationObjects"
-> & {
-  resultsObjects: ResultsObjectDefinitionJSON[];
-  defaultPresentationObjects: PartialDefaultPresentationObjectJSON[];
-};
+export type ModuleDefinitionJSON =
+  & Omit<
+    ModuleDefinition,
+    | "id"
+    | "script"
+    | "lastScriptUpdate"
+    | "resultsObjects"
+    | "defaultPresentationObjects"
+  >
+  & {
+    resultsObjects: ResultsObjectDefinitionJSON[];
+    defaultPresentationObjects: PartialDefaultPresentationObjectJSON[];
+  };
 
 // Built JSON representation (after build process adds id and lastScriptUpdate)
 export type BuiltModuleDefinitionJSON = ModuleDefinitionJSON & {
