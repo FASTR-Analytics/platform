@@ -206,8 +206,8 @@ defineRoute(
   routesReports,
   "createReportItem",
   getProjectEditor,
-  async (c, { params }) => {
-    const res = await addReportItem(c.var.ppk.projectDb, params.report_id);
+  async (c, { params, body }) => {
+    const res = await addReportItem(c.var.ppk.projectDb, params.report_id, body.afterItemId);
     if (res.success === false) {
       return c.json(res);
     }

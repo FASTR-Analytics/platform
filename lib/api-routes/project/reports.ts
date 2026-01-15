@@ -115,6 +115,7 @@ export const reportRouteRegistry = {
     path: "/report_items/:report_id",
     method: "POST",
     params: {} as { report_id: string },
+    body: {} as { afterItemId: string },
     response: {} as {
       newReportItemId: string;
       lastUpdated: string;

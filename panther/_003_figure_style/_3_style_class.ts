@@ -1142,6 +1142,11 @@ export class CustomFigureStyle {
           d.sankey.defaultLinkColor,
         ),
       ),
+      layoutMode: m(
+        c.sankey?.layoutMode,
+        g.sankey?.layoutMode,
+        d.sankey.layoutMode,
+      ),
     };
   }
 

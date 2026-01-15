@@ -251,16 +251,18 @@ function measureRowNode<T, U>(
       shrinkScaleFactor = Math.max(0, availableForShrink / shrinkableHeight);
     }
 
-    // For warning message, calculate overall scale
-    scaleFactor = availableHeight / totalRequiredHeight;
-    warnings.push({
-      type: "HEIGHT_OVERFLOW",
-      message:
-        `Row heights (${totalRequiredHeight}px) exceed container (${availableHeight}px), scaling shrinkable portion to ${
-          (shrinkScaleFactor * 100).toFixed(1)
-        }%`,
-      path: nodePath,
-    });
+    // Only warn if overflow can't be fully absorbed by shrinkable items
+    if (totalMinHeight + totalGapHeight > availableHeight) {
+      scaleFactor = availableHeight / totalRequiredHeight;
+      warnings.push({
+        type: "HEIGHT_OVERFLOW",
+        message:
+          `Row heights (${totalRequiredHeight}px) exceed container (${availableHeight}px), scaling shrinkable portion to ${
+            (shrinkScaleFactor * 100).toFixed(1)
+          }%`,
+        path: nodePath,
+      });
+    }
   }
 
   // For fill-to-row-height: find tallest non-stretch child

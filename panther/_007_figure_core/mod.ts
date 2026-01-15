@@ -3,6 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export * from "./_sankey/generate_sankey_primitives.ts";
+export * from "./_sankey/types.ts";
 export * from "./_axes/axis_rendering_config.ts";
 export * from "./_axes/get_good_axis_tick_values.ts";
 export * from "./_axes/grid_lines.ts";

@@ -353,6 +353,7 @@ export type CustomFigureStyleOptions = {
     linkOpacity?: number;
     defaultNodeColor?: ColorKeyOrString;
     defaultLinkColor?: ColorKeyOrString;
+    layoutMode?: "flow" | "tiered";
   };
 };
 

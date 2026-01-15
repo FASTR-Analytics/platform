@@ -478,7 +478,8 @@ WHERE id = ${reportId}
 
 export async function addReportItem(
   projectDb: Sql,
-  reportId: string
+  reportId: string,
+  afterItemId: string
 ): Promise<
   APIResponseWithData<{ newReportItemId: string; lastUpdated: string }>
 > {
@@ -486,13 +487,26 @@ export async function addReportItem(
     const newReportItemId = crypto.randomUUID();
     const startingReportItemConfig = getStartingConfigForReportItem();
     const lastUpdated = new Date().toISOString();
-    const rawMaxSortOrder = (
-      await projectDb<{ max_sort_order: number }[]>`
+
+    const afterItem = (
+      await projectDb<{ sort_order: number }[]>`
+SELECT sort_order FROM report_items WHERE id = ${afterItemId} AND report_id = ${reportId}
+`
+    ).at(0);
+
+    let newSortOrder: number;
+    if (afterItem) {
+      newSortOrder = afterItem.sort_order + 1;
+    } else {
+      const rawMaxSortOrder = (
+        await projectDb<{ max_sort_order: number }[]>`
 SELECT max(sort_order) AS max_sort_order FROM report_items
 WHERE report_id = ${reportId}
 `
-    ).at(0);
-    assertNotUndefined(rawMaxSortOrder);
+      ).at(0);
+      assertNotUndefined(rawMaxSortOrder);
+      newSortOrder = (rawMaxSortOrder.max_sort_order ?? 0) + 1;
+    }
 
     await projectDb.begin((sql) => [
       sql`
@@ -500,15 +514,15 @@ INSERT INTO report_items
   (id, report_id, sort_order, config, last_updated)
 VALUES
   (
-    ${newReportItemId}, 
-    ${reportId}, 
-    ${rawMaxSortOrder.max_sort_order + 1}, 
-    ${JSON.stringify(startingReportItemConfig)}, 
+    ${newReportItemId},
+    ${reportId},
+    ${newSortOrder},
+    ${JSON.stringify(startingReportItemConfig)},
     ${lastUpdated}
   )
 `,
       sql`
-UPDATE reports SET last_updated = ${lastUpdated} 
+UPDATE reports SET last_updated = ${lastUpdated}
 WHERE id = ${reportId}`,
       reSequence(sql, reportId),
     ]);

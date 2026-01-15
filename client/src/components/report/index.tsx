@@ -146,6 +146,7 @@ export function Report(p: Props) {
     const res = await serverActions.createReportItem({
       projectId: p.projectDetail.id,
       report_id: p.reportId,
+      afterItemId: selectedReportItemId() ?? "",
     });
     if (res.success === false) {
       return res;

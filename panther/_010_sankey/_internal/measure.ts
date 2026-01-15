@@ -5,18 +5,19 @@
 
 import {
   CustomFigureStyle,
+  generateSankeyPrimitives,
   generateSurroundsPrimitives,
   getColor,
   measureSurrounds,
+  type PositionedSankeyLink,
+  type PositionedSankeyNode,
   type Primitive,
   type RenderContext,
   RectCoordsDims,
 } from "../deps.ts";
-import type { MeasuredSankey, PositionedNode, SankeyInputs } from "../types.ts";
+import type { MeasuredSankey, SankeyInputs } from "../types.ts";
 import { inferColumns } from "./infer_columns.ts";
 import { calculatePositions } from "./calculate_positions.ts";
-import { buildNodePrimitives } from "./build_node_primitives.ts";
-import { buildLinkPrimitives } from "./build_link_primitives.ts";
 import { getMergedSankeyStyle } from "./style.ts";
 
 export function measureSankey(
@@ -65,11 +66,6 @@ export function measureSankey(
     linkColorResolver,
   );
 
-  const nodePositionMap = new Map<string, PositionedNode>();
-  for (const node of positionedNodes) {
-    nodePositionMap.set(node.id, node);
-  }
-
   const surroundsStyle = customFigureStyle.getMergedSurroundsStyle();
   const textInfo = {
     font: surroundsStyle.text.caption.font,
@@ -80,24 +76,24 @@ export function measureSankey(
     letterSpacing: surroundsStyle.text.caption.letterSpacing,
   };
 
-  const nodePrimitives = buildNodePrimitives(
-    rc,
-    positionedNodes,
-    sankeyStyle,
-    textInfo,
-  );
+  const sharedNodes: PositionedSankeyNode[] = positionedNodes;
+  const sharedLinks: PositionedSankeyLink[] = positionedLinks;
 
-  const linkPrimitives = buildLinkPrimitives(
-    positionedLinks,
-    nodePositionMap,
-    sankeyStyle,
+  const sankeyPrimitives = generateSankeyPrimitives(
+    rc,
+    sharedNodes,
+    sharedLinks,
+    {
+      labelGap: sankeyStyle.labelGap,
+      linkOpacity: sankeyStyle.linkOpacity,
+    },
+    textInfo,
   );
 
   const surroundsPrimitives = generateSurroundsPrimitives(measuredSurrounds);
 
   const primitives: Primitive[] = [
-    ...linkPrimitives,
-    ...nodePrimitives,
+    ...sankeyPrimitives,
     ...surroundsPrimitives,
   ];
 

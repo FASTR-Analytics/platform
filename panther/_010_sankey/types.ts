@@ -29,6 +29,8 @@ export type SankeyNode = {
   label?: string;
   color?: ColorKeyOrString;
   column?: number;
+  row?: number;
+  spanRows?: [number, number];
 };
 
 export type SankeyLink = {
@@ -55,6 +57,9 @@ export type PositionedNode = {
   width: number;
   height: number;
   totalValue: number;
+  row?: number;
+  rowStart?: number;
+  rowEnd?: number;
 };
 
 export type PositionedLink = {
@@ -62,7 +67,9 @@ export type PositionedLink = {
   to: string;
   value: number;
   color: string;
+  fromX: number;
   fromY: number;
+  toX: number;
   toY: number;
   height: number;
 };

@@ -244,6 +244,7 @@ const _DS = {
     linkOpacity: 0.5,
     defaultNodeColor: { key: "baseContent" } as ColorKeyOrString,
     defaultLinkColor: { key: "base300" } as ColorKeyOrString,
+    layoutMode: "flow" as "flow" | "tiered",
   },
 };
 

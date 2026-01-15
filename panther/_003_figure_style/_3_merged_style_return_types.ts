@@ -424,6 +424,8 @@ export type MergedSimpleVizStyle = {
 //                                                  $$$$$$/                 //
 /////////////////////////////////////////////////////////////////////////////
 
+export type SankeyLayoutMode = "flow" | "tiered";
+
 export type MergedSankeyStyle = {
   alreadyScaledValue: number;
   nodeWidth: number;
@@ -433,4 +435,5 @@ export type MergedSankeyStyle = {
   linkOpacity: number;
   defaultNodeColor: string;
   defaultLinkColor: string;
+  layoutMode: SankeyLayoutMode;
 };

@@ -10,6 +10,6 @@ export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, Dimensions, Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export { Z_INDEX, computeBoundsForPath, resolvePosition } from "../_001_render_system/mod.ts";
-export type { ArrowPrimitive, BoxPrimitive, ChartAxisPrimitive, ChartCaptionPrimitive, ChartGridPrimitive, ChartLabelPrimitive, ChartLegendPrimitive, ChartSeriesInfo, ChartValueInfo, DataLabel, LineStyle, MeasuredText, PointStyle, PointType, Primitive, RectStyle, RenderContext, SankeyLinkPrimitive, SankeyNodePrimitive } from "../_001_render_system/mod.ts";
+export type { ArrowPrimitive, BoxPrimitive, ChartAxisPrimitive, ChartCaptionPrimitive, ChartGridPrimitive, ChartLabelPrimitive, ChartLegendPrimitive, ChartSeriesInfo, ChartValueInfo, DataLabel, LineStyle, MeasuredText, PathSegment, PointStyle, PointType, Primitive, RectStyle, RenderContext, SankeyLinkPrimitive, SankeyNodePrimitive } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { CustomFigureStyleOptions, MergedChartOVStyle, MergedContentStyle, MergedGridStyle, MergedLegendStyle, MergedPaneStyle, MergedSurroundsStyle, MergedTimeseriesStyle, MergedYScaleAxisStyle } from "../_003_figure_style/mod.ts";

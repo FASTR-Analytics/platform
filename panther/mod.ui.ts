@@ -24,6 +24,7 @@ export * from "./_007_figure_core/mod.ts";
 export * from "./_008_layouter/mod.ts";
 export * from "./_010_chartov/mod.ts";
 export * from "./_010_sankey/mod.ts";
+export * from "./_010_sankey_explicit/mod.ts";
 export * from "./_010_simpleviz/mod.ts";
 export * from "./_010_table/mod.ts";
 export * from "./_010_timeseries/mod.ts";

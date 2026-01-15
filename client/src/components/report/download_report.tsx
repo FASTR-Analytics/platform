@@ -10,6 +10,7 @@ import {
 } from "panther";
 import { Match, Show, Switch, createSignal } from "solid-js";
 import { exportReportAsPdfVector } from "~/export_report/export_report_as_pdf_vector";
+import { exportReportAsPptxVector } from "~/export_report/export_report_as_pptx_vector";
 import { exportReportAsPptxWithImages } from "~/export_report/export_report_as_pptx_with_images";
 import { serverActions } from "~/server_actions";
 
@@ -25,7 +26,7 @@ export function DownloadReport(
 ) {
   const [pct, setPct] = createSignal<number>(0);
   const [err, setErr] = createSignal<string>("");
-  const [resolution, setResolution] = createSignal<string>("vector");
+  const [exportFormat, setExportFormat] = createSignal<string>("vector");
 
   function progress(pct: number) {
     setPct(pct);
@@ -35,8 +36,8 @@ export function DownloadReport(
     setErr("");
     setPct(0.02);
     await new Promise((res) => setTimeout(res, 0));
-    const finalResolution = resolution();
-    if (finalResolution === "json") {
+    const format = exportFormat();
+    if (format === "json") {
       setPct(0.4);
       const res = await serverActions.backupReport({
         projectId: p.projectId,
@@ -54,20 +55,27 @@ export function DownloadReport(
       return;
     }
     const res =
-      finalResolution === "vector"
+      format === "vector"
         ? await exportReportAsPdfVector(
             p.projectId,
             p.reportId,
             p.unwrappedPDS,
             progress,
           )
-        : await exportReportAsPptxWithImages(
-            p.projectId,
-            p.reportId,
-            Number(finalResolution),
-            p.unwrappedPDS,
-            progress,
-          );
+        : format === "pptx"
+          ? await exportReportAsPptxVector(
+              p.projectId,
+              p.reportId,
+              p.unwrappedPDS,
+              progress,
+            )
+          : await exportReportAsPptxWithImages(
+              p.projectId,
+              p.reportId,
+              Number(format),
+              p.unwrappedPDS,
+              progress,
+            );
     if (res.success === false) {
       setErr(res.err);
       setPct(0);
@@ -83,8 +91,16 @@ export function DownloadReport(
         <div class="">{t("PDF")}</div>
         <RadioGroup
           options={[{ value: "vector", label: "Native PDF (Recommended!)" }]}
-          value={resolution()}
-          onChange={setResolution}
+          value={exportFormat()}
+          onChange={setExportFormat}
+        />
+      </div>
+      <div class="ui-spy-sm">
+        <div class="">{t("PPTX")}</div>
+        <RadioGroup
+          options={[{ value: "pptx", label: "Native PPTX" }]}
+          value={exportFormat()}
+          onChange={setExportFormat}
         />
       </div>
       <div class="ui-spy-sm">
@@ -95,21 +111,17 @@ export function DownloadReport(
             { value: "0.33", label: t("Image-based PPTX: Low quality") },
             { value: "0.6", label: "Image-based PPTX: Medium quality" },
             { value: "1", label: t("Image-based PPTX: High quality") },
-            // // { value: "0.2", label: "Image-based PDF: Very low quality" },
-            // { value: "0.33", label: t("Image-based PDF: Low quality") },
-            // // { value: "0.6", label: "Image-based PDF: Medium quality" },
-            // { value: "1", label: t("Image-based PDF: High quality") },
           ]}
-          value={resolution()}
-          onChange={setResolution}
+          value={exportFormat()}
+          onChange={setExportFormat}
         />
       </div>
       <div class="ui-spy-sm">
         <div class="">{t2(T.FRENCH_UI_STRINGS.backup)}</div>
         <RadioGroup
           options={[{ value: "json", label: t("JSON file") }]}
-          value={resolution()}
-          onChange={setResolution}
+          value={exportFormat()}
+          onChange={setExportFormat}
         />
       </div>
       <Switch>
