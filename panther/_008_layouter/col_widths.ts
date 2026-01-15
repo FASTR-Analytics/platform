@@ -111,11 +111,15 @@ export function getColWidths<U>(
   } else {
     const remainingSpan = columnCount - totalSpecifiedSpan;
 
-    if (remainingSpan <= 0) {
+    // Use proportional sharing if not enough space for at least 1 span per unspecified child
+    const baseSpanPerUnspecified = Math.floor(
+      remainingSpan / unspecifiedChildren.length,
+    );
+    if (remainingSpan <= 0 || baseSpanPerUnspecified === 0) {
       warnings.push({
         type: "NO_SPACE_FOR_FLEX",
         message:
-          `Total specified spans (${totalSpecifiedSpan}) meet or exceed grid columns (${columnCount}), sharing space proportionally`,
+          `Grid columns (${columnCount}) insufficient for ${unspecifiedChildren.length} unspecified children with ${totalSpecifiedSpan} specified spans, sharing space proportionally`,
         path: pathPrefix,
       });
 
@@ -147,9 +151,6 @@ export function getColWidths<U>(
         }));
       }
     } else {
-      const baseSpanPerUnspecified = Math.floor(
-        remainingSpan / unspecifiedChildren.length,
-      );
       const extraColumns = remainingSpan % unspecifiedChildren.length;
 
       let unspecifiedIndex = 0;

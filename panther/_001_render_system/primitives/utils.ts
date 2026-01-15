@@ -48,16 +48,18 @@ export function computeBoundsForPoint(
 
 export function computeBoundsForPath(
   coords: Coordinates[],
+  strokeWidth: number = 0,
 ): RectCoordsDims {
   if (coords.length === 0) {
     return new RectCoordsDims({ x: 0, y: 0, w: 0, h: 0 });
   }
   const xs = coords.map((c) => c.x());
   const ys = coords.map((c) => c.y());
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
+  const halfStroke = strokeWidth / 2;
+  const minX = Math.min(...xs) - halfStroke;
+  const maxX = Math.max(...xs) + halfStroke;
+  const minY = Math.min(...ys) - halfStroke;
+  const maxY = Math.max(...ys) + halfStroke;
   return new RectCoordsDims({
     x: minX,
     y: minY,

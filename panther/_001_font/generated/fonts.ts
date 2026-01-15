@@ -11,6 +11,66 @@ type TimFontOption =
   | "Cambria_400"
   | "Cambria_700"
   | "Cambria_700_Italic"
+  // Die Grotesk A
+  | "DieGroteskA_500"
+  | "DieGroteskA_800_Italic"
+  | "DieGroteskA_200_Italic"
+  | "DieGroteskA_500_Italic"
+  | "DieGroteskA_700"
+  | "DieGroteskA_900"
+  | "DieGroteskA_700_Italic"
+  | "DieGroteskA_200"
+  | "DieGroteskA_300_Italic"
+  | "DieGroteskA_400"
+  | "DieGroteskA_300"
+  | "DieGroteskA_800"
+  | "DieGroteskA_900_Italic"
+  | "DieGroteskA_400_Italic"
+  // Die Grotesk B
+  | "DieGroteskB_900"
+  | "DieGroteskB_300_Italic"
+  | "DieGroteskB_500"
+  | "DieGroteskB_500_Italic"
+  | "DieGroteskB_200"
+  | "DieGroteskB_800_Italic"
+  | "DieGroteskB_900_Italic"
+  | "DieGroteskB_400_Italic"
+  | "DieGroteskB_200_Italic"
+  | "DieGroteskB_700_Italic"
+  | "DieGroteskB_300"
+  | "DieGroteskB_800"
+  | "DieGroteskB_400"
+  | "DieGroteskB_700"
+  // Die Grotesk C
+  | "DieGroteskC_300_Italic"
+  | "DieGroteskC_500_Italic"
+  | "DieGroteskC_200"
+  | "DieGroteskC_200_Italic"
+  | "DieGroteskC_300"
+  | "DieGroteskC_700_Italic"
+  | "DieGroteskC_400"
+  | "DieGroteskC_700"
+  | "DieGroteskC_500"
+  | "DieGroteskC_800"
+  | "DieGroteskC_900"
+  | "DieGroteskC_400_Italic"
+  | "DieGroteskC_900_Italic"
+  | "DieGroteskC_800_Italic"
+  // Die Grotesk D
+  | "DieGroteskD_300"
+  | "DieGroteskD_200"
+  | "DieGroteskD_200_Italic"
+  | "DieGroteskD_900"
+  | "DieGroteskD_500_Italic"
+  | "DieGroteskD_700_Italic"
+  | "DieGroteskD_900_Italic"
+  | "DieGroteskD_500"
+  | "DieGroteskD_700"
+  | "DieGroteskD_400"
+  | "DieGroteskD_800_Italic"
+  | "DieGroteskD_400_Italic"
+  | "DieGroteskD_300_Italic"
+  | "DieGroteskD_800"
   // Fira Mono
   | "FiraMono_400"
   | "FiraMono_700"
@@ -150,6 +210,8 @@ type TimFontOption =
   // Inter Variable
   | "InterVariable_400"
   | "InterVariable_400_Italic"
+  // Martina Plantijn
+  | "MartinaPlantijn_700"
   // Merriweather
   | "Merriweather_700"
   | "Merriweather_400"
@@ -299,138 +361,22 @@ type TimFontOption =
   | "SourceSerif4_300"
   | "SourceSerif4_400"
   | "SourceSerif4_800_Italic"
-  // Test Die Grotesk A
-  | "TestDieGroteskA_200"
-  | "TestDieGroteskA_900_Italic"
-  | "TestDieGroteskA_800_Italic"
-  | "TestDieGroteskA_700_Italic"
-  | "TestDieGroteskA_800"
-  | "TestDieGroteskA_300"
-  | "TestDieGroteskA_400_Italic"
-  | "TestDieGroteskA_900"
-  | "TestDieGroteskA_300_Italic"
-  | "TestDieGroteskA_500"
-  | "TestDieGroteskA_200_Italic"
-  | "TestDieGroteskA_500_Italic"
-  | "TestDieGroteskA_700"
-  | "TestDieGroteskA_400"
-  // Test Die Grotesk B
-  | "TestDieGroteskB_400"
-  | "TestDieGroteskB_700"
-  | "TestDieGroteskB_900"
-  | "TestDieGroteskB_200"
-  | "TestDieGroteskB_700_Italic"
-  | "TestDieGroteskB_800"
-  | "TestDieGroteskB_500"
-  | "TestDieGroteskB_200_Italic"
-  | "TestDieGroteskB_300_Italic"
-  | "TestDieGroteskB_900_Italic"
-  | "TestDieGroteskB_800_Italic"
-  | "TestDieGroteskB_300"
-  | "TestDieGroteskB_500_Italic"
-  | "TestDieGroteskB_400_Italic"
-  // Test Die Grotesk C
-  | "TestDieGroteskC_500"
-  | "TestDieGroteskC_900_Italic"
-  | "TestDieGroteskC_700"
-  | "TestDieGroteskC_400"
-  | "TestDieGroteskC_400_Italic"
-  | "TestDieGroteskC_300"
-  | "TestDieGroteskC_200"
-  | "TestDieGroteskC_800"
-  | "TestDieGroteskC_800_Italic"
-  | "TestDieGroteskC_700_Italic"
-  | "TestDieGroteskC_500_Italic"
-  | "TestDieGroteskC_200_Italic"
-  | "TestDieGroteskC_300_Italic"
-  | "TestDieGroteskC_900"
-  // Test Die Grotesk D
-  | "TestDieGroteskD_800_Italic"
-  | "TestDieGroteskD_500"
-  | "TestDieGroteskD_200_Italic"
-  | "TestDieGroteskD_300_Italic"
-  | "TestDieGroteskD_900_Italic"
-  | "TestDieGroteskD_800"
-  | "TestDieGroteskD_400"
-  | "TestDieGroteskD_900"
-  | "TestDieGroteskD_200"
-  | "TestDieGroteskD_400_Italic"
-  | "TestDieGroteskD_700"
-  | "TestDieGroteskD_300"
-  | "TestDieGroteskD_500_Italic"
-  | "TestDieGroteskD_700_Italic"
-  // Test Founders Grotesk
-  | "TestFoundersGrotesk_700_Italic"
-  | "TestFoundersGrotesk_300_Italic"
-  | "TestFoundersGrotesk_500"
-  | "TestFoundersGrotesk_700"
-  | "TestFoundersGrotesk_400"
-  | "TestFoundersGrotesk_600"
-  | "TestFoundersGrotesk_600_Italic"
-  | "TestFoundersGrotesk_400_Italic"
-  | "TestFoundersGrotesk_500_Italic"
-  | "TestFoundersGrotesk_300"
-  // Test Martina Plantijn
-  | "TestMartinaPlantijn_300_Italic"
-  | "TestMartinaPlantijn_500_Italic"
-  | "TestMartinaPlantijn_700"
-  | "TestMartinaPlantijn_300"
-  | "TestMartinaPlantijn_900_Italic"
-  | "TestMartinaPlantijn_500"
-  | "TestMartinaPlantijn_400_Italic"
-  | "TestMartinaPlantijn_900"
-  | "TestMartinaPlantijn_700_Italic"
-  | "TestMartinaPlantijn_400"
-  // Test Metric
-  | "TestMetric_500_Italic"
-  | "TestMetric_600_Italic"
-  | "TestMetric_400_Italic"
-  | "TestMetric_200_Italic"
-  | "TestMetric_500"
-  | "TestMetric_600"
-  | "TestMetric_300"
-  | "TestMetric_700_Italic"
-  | "TestMetric_200"
-  | "TestMetric_700"
-  | "TestMetric_300_Italic"
-  | "TestMetric_900"
-  | "TestMetric_900_Italic"
-  | "TestMetric_400"
-  // Test The Future
-  | "TestTheFuture_700_Italic"
-  | "TestTheFuture_300_Italic"
-  | "TestTheFuture_400_Italic"
-  | "TestTheFuture_500"
-  | "TestTheFuture_300"
-  | "TestTheFuture_200"
-  | "TestTheFuture_900_Italic"
-  | "TestTheFuture_400"
-  | "TestTheFuture_200_Italic"
-  | "TestTheFuture_900"
-  | "TestTheFuture_500_Italic"
-  | "TestTheFuture_700"
-  // Test The Future Mono
-  | "TestTheFutureMono_900_Italic"
-  | "TestTheFutureMono_400_Italic"
-  | "TestTheFutureMono_900"
-  | "TestTheFutureMono_200"
-  | "TestTheFutureMono_200_Italic"
-  | "TestTheFutureMono_300_Italic"
-  | "TestTheFutureMono_700"
-  | "TestTheFutureMono_300"
-  | "TestTheFutureMono_500"
-  | "TestTheFutureMono_700_Italic"
-  | "TestTheFutureMono_400"
-  | "TestTheFutureMono_500_Italic"
-  // Test Tiempos Text
-  | "TestTiemposText_500"
-  | "TestTiemposText_700_Italic"
-  | "TestTiemposText_400"
-  | "TestTiemposText_600_Italic"
-  | "TestTiemposText_700"
-  | "TestTiemposText_400_Italic"
-  | "TestTiemposText_500_Italic"
-  | "TestTiemposText_600";
+  // Söhne Kräftig
+  | "SöhneKräftig_500"
+  // Söhne Leicht
+  | "SöhneLeicht_300_Italic"
+  | "SöhneLeicht_300"
+  // Tiempos Headline
+  | "TiemposHeadline_900"
+  // Tiempos Text
+  | "TiemposText_400_Italic"
+  | "TiemposText_500_Italic"
+  | "TiemposText_600_Italic"
+  | "TiemposText_700"
+  | "TiemposText_700_Italic"
+  | "TiemposText_600"
+  | "TiemposText_500"
+  | "TiemposText_400";
 
 export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
   // Cambria
@@ -453,6 +399,294 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
     fontFamily: "Cambria",
     weight: 700,
     italic: true,
+  },
+
+  // Die Grotesk A
+  DieGroteskA_500: {
+    fontFamily: "Die Grotesk A",
+    weight: 500,
+    italic: false,
+  },
+  DieGroteskA_800_Italic: {
+    fontFamily: "Die Grotesk A",
+    weight: 800,
+    italic: true,
+  },
+  DieGroteskA_200_Italic: {
+    fontFamily: "Die Grotesk A",
+    weight: 200,
+    italic: true,
+  },
+  DieGroteskA_500_Italic: {
+    fontFamily: "Die Grotesk A",
+    weight: 500,
+    italic: true,
+  },
+  DieGroteskA_700: {
+    fontFamily: "Die Grotesk A",
+    weight: 700,
+    italic: false,
+  },
+  DieGroteskA_900: {
+    fontFamily: "Die Grotesk A",
+    weight: 900,
+    italic: false,
+  },
+  DieGroteskA_700_Italic: {
+    fontFamily: "Die Grotesk A",
+    weight: 700,
+    italic: true,
+  },
+  DieGroteskA_200: {
+    fontFamily: "Die Grotesk A",
+    weight: 200,
+    italic: false,
+  },
+  DieGroteskA_300_Italic: {
+    fontFamily: "Die Grotesk A",
+    weight: 300,
+    italic: true,
+  },
+  DieGroteskA_400: {
+    fontFamily: "Die Grotesk A",
+    weight: 400,
+    italic: false,
+  },
+  DieGroteskA_300: {
+    fontFamily: "Die Grotesk A",
+    weight: 300,
+    italic: false,
+  },
+  DieGroteskA_800: {
+    fontFamily: "Die Grotesk A",
+    weight: 800,
+    italic: false,
+  },
+  DieGroteskA_900_Italic: {
+    fontFamily: "Die Grotesk A",
+    weight: 900,
+    italic: true,
+  },
+  DieGroteskA_400_Italic: {
+    fontFamily: "Die Grotesk A",
+    weight: 400,
+    italic: true,
+  },
+
+  // Die Grotesk B
+  DieGroteskB_900: {
+    fontFamily: "Die Grotesk B",
+    weight: 900,
+    italic: false,
+  },
+  DieGroteskB_300_Italic: {
+    fontFamily: "Die Grotesk B",
+    weight: 300,
+    italic: true,
+  },
+  DieGroteskB_500: {
+    fontFamily: "Die Grotesk B",
+    weight: 500,
+    italic: false,
+  },
+  DieGroteskB_500_Italic: {
+    fontFamily: "Die Grotesk B",
+    weight: 500,
+    italic: true,
+  },
+  DieGroteskB_200: {
+    fontFamily: "Die Grotesk B",
+    weight: 200,
+    italic: false,
+  },
+  DieGroteskB_800_Italic: {
+    fontFamily: "Die Grotesk B",
+    weight: 800,
+    italic: true,
+  },
+  DieGroteskB_900_Italic: {
+    fontFamily: "Die Grotesk B",
+    weight: 900,
+    italic: true,
+  },
+  DieGroteskB_400_Italic: {
+    fontFamily: "Die Grotesk B",
+    weight: 400,
+    italic: true,
+  },
+  DieGroteskB_200_Italic: {
+    fontFamily: "Die Grotesk B",
+    weight: 200,
+    italic: true,
+  },
+  DieGroteskB_700_Italic: {
+    fontFamily: "Die Grotesk B",
+    weight: 700,
+    italic: true,
+  },
+  DieGroteskB_300: {
+    fontFamily: "Die Grotesk B",
+    weight: 300,
+    italic: false,
+  },
+  DieGroteskB_800: {
+    fontFamily: "Die Grotesk B",
+    weight: 800,
+    italic: false,
+  },
+  DieGroteskB_400: {
+    fontFamily: "Die Grotesk B",
+    weight: 400,
+    italic: false,
+  },
+  DieGroteskB_700: {
+    fontFamily: "Die Grotesk B",
+    weight: 700,
+    italic: false,
+  },
+
+  // Die Grotesk C
+  DieGroteskC_300_Italic: {
+    fontFamily: "Die Grotesk C",
+    weight: 300,
+    italic: true,
+  },
+  DieGroteskC_500_Italic: {
+    fontFamily: "Die Grotesk C",
+    weight: 500,
+    italic: true,
+  },
+  DieGroteskC_200: {
+    fontFamily: "Die Grotesk C",
+    weight: 200,
+    italic: false,
+  },
+  DieGroteskC_200_Italic: {
+    fontFamily: "Die Grotesk C",
+    weight: 200,
+    italic: true,
+  },
+  DieGroteskC_300: {
+    fontFamily: "Die Grotesk C",
+    weight: 300,
+    italic: false,
+  },
+  DieGroteskC_700_Italic: {
+    fontFamily: "Die Grotesk C",
+    weight: 700,
+    italic: true,
+  },
+  DieGroteskC_400: {
+    fontFamily: "Die Grotesk C",
+    weight: 400,
+    italic: false,
+  },
+  DieGroteskC_700: {
+    fontFamily: "Die Grotesk C",
+    weight: 700,
+    italic: false,
+  },
+  DieGroteskC_500: {
+    fontFamily: "Die Grotesk C",
+    weight: 500,
+    italic: false,
+  },
+  DieGroteskC_800: {
+    fontFamily: "Die Grotesk C",
+    weight: 800,
+    italic: false,
+  },
+  DieGroteskC_900: {
+    fontFamily: "Die Grotesk C",
+    weight: 900,
+    italic: false,
+  },
+  DieGroteskC_400_Italic: {
+    fontFamily: "Die Grotesk C",
+    weight: 400,
+    italic: true,
+  },
+  DieGroteskC_900_Italic: {
+    fontFamily: "Die Grotesk C",
+    weight: 900,
+    italic: true,
+  },
+  DieGroteskC_800_Italic: {
+    fontFamily: "Die Grotesk C",
+    weight: 800,
+    italic: true,
+  },
+
+  // Die Grotesk D
+  DieGroteskD_300: {
+    fontFamily: "Die Grotesk D",
+    weight: 300,
+    italic: false,
+  },
+  DieGroteskD_200: {
+    fontFamily: "Die Grotesk D",
+    weight: 200,
+    italic: false,
+  },
+  DieGroteskD_200_Italic: {
+    fontFamily: "Die Grotesk D",
+    weight: 200,
+    italic: true,
+  },
+  DieGroteskD_900: {
+    fontFamily: "Die Grotesk D",
+    weight: 900,
+    italic: false,
+  },
+  DieGroteskD_500_Italic: {
+    fontFamily: "Die Grotesk D",
+    weight: 500,
+    italic: true,
+  },
+  DieGroteskD_700_Italic: {
+    fontFamily: "Die Grotesk D",
+    weight: 700,
+    italic: true,
+  },
+  DieGroteskD_900_Italic: {
+    fontFamily: "Die Grotesk D",
+    weight: 900,
+    italic: true,
+  },
+  DieGroteskD_500: {
+    fontFamily: "Die Grotesk D",
+    weight: 500,
+    italic: false,
+  },
+  DieGroteskD_700: {
+    fontFamily: "Die Grotesk D",
+    weight: 700,
+    italic: false,
+  },
+  DieGroteskD_400: {
+    fontFamily: "Die Grotesk D",
+    weight: 400,
+    italic: false,
+  },
+  DieGroteskD_800_Italic: {
+    fontFamily: "Die Grotesk D",
+    weight: 800,
+    italic: true,
+  },
+  DieGroteskD_400_Italic: {
+    fontFamily: "Die Grotesk D",
+    weight: 400,
+    italic: true,
+  },
+  DieGroteskD_300_Italic: {
+    fontFamily: "Die Grotesk D",
+    weight: 300,
+    italic: true,
+  },
+  DieGroteskD_800: {
+    fontFamily: "Die Grotesk D",
+    weight: 800,
+    italic: false,
   },
 
   // Fira Mono
@@ -1106,6 +1340,13 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
     fontFamily: "Inter Variable",
     weight: 400,
     italic: true,
+  },
+
+  // Martina Plantijn
+  MartinaPlantijn_700: {
+    fontFamily: "Martina Plantijn",
+    weight: 700,
+    italic: false,
   },
 
   // Merriweather
@@ -1814,633 +2055,71 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
     italic: true,
   },
 
-  // Test Die Grotesk A
-  TestDieGroteskA_200: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 200,
-    italic: false,
-  },
-  TestDieGroteskA_900_Italic: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 900,
-    italic: true,
-  },
-  TestDieGroteskA_800_Italic: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 800,
-    italic: true,
-  },
-  TestDieGroteskA_700_Italic: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 700,
-    italic: true,
-  },
-  TestDieGroteskA_800: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 800,
-    italic: false,
-  },
-  TestDieGroteskA_300: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 300,
-    italic: false,
-  },
-  TestDieGroteskA_400_Italic: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 400,
-    italic: true,
-  },
-  TestDieGroteskA_900: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 900,
-    italic: false,
-  },
-  TestDieGroteskA_300_Italic: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 300,
-    italic: true,
-  },
-  TestDieGroteskA_500: {
-    fontFamily: "Test Die Grotesk A",
+  // Söhne Kräftig
+  SöhneKräftig_500: {
+    fontFamily: "Söhne Kräftig",
     weight: 500,
-    italic: false,
-  },
-  TestDieGroteskA_200_Italic: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 200,
-    italic: true,
-  },
-  TestDieGroteskA_500_Italic: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 500,
-    italic: true,
-  },
-  TestDieGroteskA_700: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 700,
-    italic: false,
-  },
-  TestDieGroteskA_400: {
-    fontFamily: "Test Die Grotesk A",
-    weight: 400,
     italic: false,
   },
 
-  // Test Die Grotesk B
-  TestDieGroteskB_400: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 400,
-    italic: false,
-  },
-  TestDieGroteskB_700: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 700,
-    italic: false,
-  },
-  TestDieGroteskB_900: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 900,
-    italic: false,
-  },
-  TestDieGroteskB_200: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 200,
-    italic: false,
-  },
-  TestDieGroteskB_700_Italic: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 700,
-    italic: true,
-  },
-  TestDieGroteskB_800: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 800,
-    italic: false,
-  },
-  TestDieGroteskB_500: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 500,
-    italic: false,
-  },
-  TestDieGroteskB_200_Italic: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 200,
-    italic: true,
-  },
-  TestDieGroteskB_300_Italic: {
-    fontFamily: "Test Die Grotesk B",
+  // Söhne Leicht
+  SöhneLeicht_300_Italic: {
+    fontFamily: "Söhne Leicht",
     weight: 300,
     italic: true,
   },
-  TestDieGroteskB_900_Italic: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 900,
-    italic: true,
-  },
-  TestDieGroteskB_800_Italic: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 800,
-    italic: true,
-  },
-  TestDieGroteskB_300: {
-    fontFamily: "Test Die Grotesk B",
+  SöhneLeicht_300: {
+    fontFamily: "Söhne Leicht",
     weight: 300,
     italic: false,
-  },
-  TestDieGroteskB_500_Italic: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 500,
-    italic: true,
-  },
-  TestDieGroteskB_400_Italic: {
-    fontFamily: "Test Die Grotesk B",
-    weight: 400,
-    italic: true,
   },
 
-  // Test Die Grotesk C
-  TestDieGroteskC_500: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 500,
-    italic: false,
-  },
-  TestDieGroteskC_900_Italic: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 900,
-    italic: true,
-  },
-  TestDieGroteskC_700: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 700,
-    italic: false,
-  },
-  TestDieGroteskC_400: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 400,
-    italic: false,
-  },
-  TestDieGroteskC_400_Italic: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 400,
-    italic: true,
-  },
-  TestDieGroteskC_300: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 300,
-    italic: false,
-  },
-  TestDieGroteskC_200: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 200,
-    italic: false,
-  },
-  TestDieGroteskC_800: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 800,
-    italic: false,
-  },
-  TestDieGroteskC_800_Italic: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 800,
-    italic: true,
-  },
-  TestDieGroteskC_700_Italic: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 700,
-    italic: true,
-  },
-  TestDieGroteskC_500_Italic: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 500,
-    italic: true,
-  },
-  TestDieGroteskC_200_Italic: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 200,
-    italic: true,
-  },
-  TestDieGroteskC_300_Italic: {
-    fontFamily: "Test Die Grotesk C",
-    weight: 300,
-    italic: true,
-  },
-  TestDieGroteskC_900: {
-    fontFamily: "Test Die Grotesk C",
+  // Tiempos Headline
+  TiemposHeadline_900: {
+    fontFamily: "Tiempos Headline",
     weight: 900,
     italic: false,
   },
 
-  // Test Die Grotesk D
-  TestDieGroteskD_800_Italic: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 800,
-    italic: true,
-  },
-  TestDieGroteskD_500: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 500,
-    italic: false,
-  },
-  TestDieGroteskD_200_Italic: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 200,
-    italic: true,
-  },
-  TestDieGroteskD_300_Italic: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 300,
-    italic: true,
-  },
-  TestDieGroteskD_900_Italic: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 900,
-    italic: true,
-  },
-  TestDieGroteskD_800: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 800,
-    italic: false,
-  },
-  TestDieGroteskD_400: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 400,
-    italic: false,
-  },
-  TestDieGroteskD_900: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 900,
-    italic: false,
-  },
-  TestDieGroteskD_200: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 200,
-    italic: false,
-  },
-  TestDieGroteskD_400_Italic: {
-    fontFamily: "Test Die Grotesk D",
+  // Tiempos Text
+  TiemposText_400_Italic: {
+    fontFamily: "Tiempos Text",
     weight: 400,
     italic: true,
   },
-  TestDieGroteskD_700: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 700,
-    italic: false,
-  },
-  TestDieGroteskD_300: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 300,
-    italic: false,
-  },
-  TestDieGroteskD_500_Italic: {
-    fontFamily: "Test Die Grotesk D",
+  TiemposText_500_Italic: {
+    fontFamily: "Tiempos Text",
     weight: 500,
     italic: true,
   },
-  TestDieGroteskD_700_Italic: {
-    fontFamily: "Test Die Grotesk D",
-    weight: 700,
-    italic: true,
-  },
-
-  // Test Founders Grotesk
-  TestFoundersGrotesk_700_Italic: {
-    fontFamily: "Test Founders Grotesk",
-    weight: 700,
-    italic: true,
-  },
-  TestFoundersGrotesk_300_Italic: {
-    fontFamily: "Test Founders Grotesk",
-    weight: 300,
-    italic: true,
-  },
-  TestFoundersGrotesk_500: {
-    fontFamily: "Test Founders Grotesk",
-    weight: 500,
-    italic: false,
-  },
-  TestFoundersGrotesk_700: {
-    fontFamily: "Test Founders Grotesk",
-    weight: 700,
-    italic: false,
-  },
-  TestFoundersGrotesk_400: {
-    fontFamily: "Test Founders Grotesk",
-    weight: 400,
-    italic: false,
-  },
-  TestFoundersGrotesk_600: {
-    fontFamily: "Test Founders Grotesk",
-    weight: 600,
-    italic: false,
-  },
-  TestFoundersGrotesk_600_Italic: {
-    fontFamily: "Test Founders Grotesk",
+  TiemposText_600_Italic: {
+    fontFamily: "Tiempos Text",
     weight: 600,
     italic: true,
   },
-  TestFoundersGrotesk_400_Italic: {
-    fontFamily: "Test Founders Grotesk",
-    weight: 400,
-    italic: true,
-  },
-  TestFoundersGrotesk_500_Italic: {
-    fontFamily: "Test Founders Grotesk",
-    weight: 500,
-    italic: true,
-  },
-  TestFoundersGrotesk_300: {
-    fontFamily: "Test Founders Grotesk",
-    weight: 300,
-    italic: false,
-  },
-
-  // Test Martina Plantijn
-  TestMartinaPlantijn_300_Italic: {
-    fontFamily: "Test Martina Plantijn",
-    weight: 300,
-    italic: true,
-  },
-  TestMartinaPlantijn_500_Italic: {
-    fontFamily: "Test Martina Plantijn",
-    weight: 500,
-    italic: true,
-  },
-  TestMartinaPlantijn_700: {
-    fontFamily: "Test Martina Plantijn",
+  TiemposText_700: {
+    fontFamily: "Tiempos Text",
     weight: 700,
     italic: false,
   },
-  TestMartinaPlantijn_300: {
-    fontFamily: "Test Martina Plantijn",
-    weight: 300,
-    italic: false,
-  },
-  TestMartinaPlantijn_900_Italic: {
-    fontFamily: "Test Martina Plantijn",
-    weight: 900,
-    italic: true,
-  },
-  TestMartinaPlantijn_500: {
-    fontFamily: "Test Martina Plantijn",
-    weight: 500,
-    italic: false,
-  },
-  TestMartinaPlantijn_400_Italic: {
-    fontFamily: "Test Martina Plantijn",
-    weight: 400,
-    italic: true,
-  },
-  TestMartinaPlantijn_900: {
-    fontFamily: "Test Martina Plantijn",
-    weight: 900,
-    italic: false,
-  },
-  TestMartinaPlantijn_700_Italic: {
-    fontFamily: "Test Martina Plantijn",
+  TiemposText_700_Italic: {
+    fontFamily: "Tiempos Text",
     weight: 700,
     italic: true,
   },
-  TestMartinaPlantijn_400: {
-    fontFamily: "Test Martina Plantijn",
-    weight: 400,
-    italic: false,
-  },
-
-  // Test Metric
-  TestMetric_500_Italic: {
-    fontFamily: "Test Metric",
-    weight: 500,
-    italic: true,
-  },
-  TestMetric_600_Italic: {
-    fontFamily: "Test Metric",
-    weight: 600,
-    italic: true,
-  },
-  TestMetric_400_Italic: {
-    fontFamily: "Test Metric",
-    weight: 400,
-    italic: true,
-  },
-  TestMetric_200_Italic: {
-    fontFamily: "Test Metric",
-    weight: 200,
-    italic: true,
-  },
-  TestMetric_500: {
-    fontFamily: "Test Metric",
-    weight: 500,
-    italic: false,
-  },
-  TestMetric_600: {
-    fontFamily: "Test Metric",
+  TiemposText_600: {
+    fontFamily: "Tiempos Text",
     weight: 600,
     italic: false,
   },
-  TestMetric_300: {
-    fontFamily: "Test Metric",
-    weight: 300,
-    italic: false,
-  },
-  TestMetric_700_Italic: {
-    fontFamily: "Test Metric",
-    weight: 700,
-    italic: true,
-  },
-  TestMetric_200: {
-    fontFamily: "Test Metric",
-    weight: 200,
-    italic: false,
-  },
-  TestMetric_700: {
-    fontFamily: "Test Metric",
-    weight: 700,
-    italic: false,
-  },
-  TestMetric_300_Italic: {
-    fontFamily: "Test Metric",
-    weight: 300,
-    italic: true,
-  },
-  TestMetric_900: {
-    fontFamily: "Test Metric",
-    weight: 900,
-    italic: false,
-  },
-  TestMetric_900_Italic: {
-    fontFamily: "Test Metric",
-    weight: 900,
-    italic: true,
-  },
-  TestMetric_400: {
-    fontFamily: "Test Metric",
-    weight: 400,
-    italic: false,
-  },
-
-  // Test The Future
-  TestTheFuture_700_Italic: {
-    fontFamily: "Test The Future",
-    weight: 700,
-    italic: true,
-  },
-  TestTheFuture_300_Italic: {
-    fontFamily: "Test The Future",
-    weight: 300,
-    italic: true,
-  },
-  TestTheFuture_400_Italic: {
-    fontFamily: "Test The Future",
-    weight: 400,
-    italic: true,
-  },
-  TestTheFuture_500: {
-    fontFamily: "Test The Future",
+  TiemposText_500: {
+    fontFamily: "Tiempos Text",
     weight: 500,
     italic: false,
   },
-  TestTheFuture_300: {
-    fontFamily: "Test The Future",
-    weight: 300,
-    italic: false,
-  },
-  TestTheFuture_200: {
-    fontFamily: "Test The Future",
-    weight: 200,
-    italic: false,
-  },
-  TestTheFuture_900_Italic: {
-    fontFamily: "Test The Future",
-    weight: 900,
-    italic: true,
-  },
-  TestTheFuture_400: {
-    fontFamily: "Test The Future",
+  TiemposText_400: {
+    fontFamily: "Tiempos Text",
     weight: 400,
-    italic: false,
-  },
-  TestTheFuture_200_Italic: {
-    fontFamily: "Test The Future",
-    weight: 200,
-    italic: true,
-  },
-  TestTheFuture_900: {
-    fontFamily: "Test The Future",
-    weight: 900,
-    italic: false,
-  },
-  TestTheFuture_500_Italic: {
-    fontFamily: "Test The Future",
-    weight: 500,
-    italic: true,
-  },
-  TestTheFuture_700: {
-    fontFamily: "Test The Future",
-    weight: 700,
-    italic: false,
-  },
-
-  // Test The Future Mono
-  TestTheFutureMono_900_Italic: {
-    fontFamily: "Test The Future Mono",
-    weight: 900,
-    italic: true,
-  },
-  TestTheFutureMono_400_Italic: {
-    fontFamily: "Test The Future Mono",
-    weight: 400,
-    italic: true,
-  },
-  TestTheFutureMono_900: {
-    fontFamily: "Test The Future Mono",
-    weight: 900,
-    italic: false,
-  },
-  TestTheFutureMono_200: {
-    fontFamily: "Test The Future Mono",
-    weight: 200,
-    italic: false,
-  },
-  TestTheFutureMono_200_Italic: {
-    fontFamily: "Test The Future Mono",
-    weight: 200,
-    italic: true,
-  },
-  TestTheFutureMono_300_Italic: {
-    fontFamily: "Test The Future Mono",
-    weight: 300,
-    italic: true,
-  },
-  TestTheFutureMono_700: {
-    fontFamily: "Test The Future Mono",
-    weight: 700,
-    italic: false,
-  },
-  TestTheFutureMono_300: {
-    fontFamily: "Test The Future Mono",
-    weight: 300,
-    italic: false,
-  },
-  TestTheFutureMono_500: {
-    fontFamily: "Test The Future Mono",
-    weight: 500,
-    italic: false,
-  },
-  TestTheFutureMono_700_Italic: {
-    fontFamily: "Test The Future Mono",
-    weight: 700,
-    italic: true,
-  },
-  TestTheFutureMono_400: {
-    fontFamily: "Test The Future Mono",
-    weight: 400,
-    italic: false,
-  },
-  TestTheFutureMono_500_Italic: {
-    fontFamily: "Test The Future Mono",
-    weight: 500,
-    italic: true,
-  },
-
-  // Test Tiempos Text
-  TestTiemposText_500: {
-    fontFamily: "Test Tiempos Text",
-    weight: 500,
-    italic: false,
-  },
-  TestTiemposText_700_Italic: {
-    fontFamily: "Test Tiempos Text",
-    weight: 700,
-    italic: true,
-  },
-  TestTiemposText_400: {
-    fontFamily: "Test Tiempos Text",
-    weight: 400,
-    italic: false,
-  },
-  TestTiemposText_600_Italic: {
-    fontFamily: "Test Tiempos Text",
-    weight: 600,
-    italic: true,
-  },
-  TestTiemposText_700: {
-    fontFamily: "Test Tiempos Text",
-    weight: 700,
-    italic: false,
-  },
-  TestTiemposText_400_Italic: {
-    fontFamily: "Test Tiempos Text",
-    weight: 400,
-    italic: true,
-  },
-  TestTiemposText_500_Italic: {
-    fontFamily: "Test Tiempos Text",
-    weight: 500,
-    italic: true,
-  },
-  TestTiemposText_600: {
-    fontFamily: "Test Tiempos Text",
-    weight: 600,
     italic: false,
   },
 };

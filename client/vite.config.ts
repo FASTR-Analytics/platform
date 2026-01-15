@@ -27,13 +27,14 @@ export default defineConfig({
       papaparse: path.resolve(__dirname, "node_modules/papaparse"),
       zod: path.resolve(__dirname, "node_modules/zod"),
       "@anthropic-ai/sdk": path.resolve(__dirname, "node_modules/@anthropic-ai/sdk"),
+      pptxgenjs: path.resolve(__dirname, "node_modules/pptxgenjs"),
     },
   },
   server: {
     port: 3000,
   },
   optimizeDeps: {
-    include: ["@uppy/tus", "@uppy/core", "@uppy/dashboard", "@uppy/xhr-upload"],
+    include: ["@uppy/tus", "@uppy/core", "@uppy/dashboard", "@uppy/xhr-upload", "pptxgenjs", "jszip"],
   },
   build: {
     target: "esnext",

@@ -23,11 +23,23 @@ export async function readCsvFile(
 
   try {
     const content = await Deno.readTextFile(filePath);
+    const cleanContent = content.replace(/^\uFEFF/, ""); // Strip BOM
+    const aoa = parseCsvString(cleanContent, filePath);
+    return processCsvData(aoa, opts);
+  } catch (error) {
+    handleFileError(error, filePath, "read", "CSV");
+  }
+}
 
-    // Handle BOM (Byte Order Mark)
-    const cleanContent = content.replace(/^\uFEFF/, "");
+export function readCsvFileSync(
+  filePath: string,
+  opts?: CsvReadOptions,
+): Csv<string> {
+  validateFilePath(filePath);
 
-    // Note: Empty CSV files are valid (they just have no data)
+  try {
+    const content = Deno.readTextFileSync(filePath);
+    const cleanContent = content.replace(/^\uFEFF/, ""); // Strip BOM
     const aoa = parseCsvString(cleanContent, filePath);
     return processCsvData(aoa, opts);
   } catch (error) {

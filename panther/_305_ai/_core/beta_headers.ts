@@ -11,6 +11,7 @@ export const BETA_HEADERS = {
   WEB_FETCH: "web-fetch-2025-09-10",
   STRUCTURED_OUTPUTS: "structured-outputs-2025-11-13",
   INTERLEAVED_THINKING: "interleaved-thinking-2025-05-14",
+  FILES_API: "files-api-2025-04-14",
 } as const;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,6 +22,7 @@ export type BetaHeaderConfig = {
   hasTools?: boolean;
   hasWebFetch?: boolean;
   interleavedThinking?: boolean;
+  hasDocuments?: boolean;
 };
 
 export function getBetaHeaders(
@@ -41,6 +43,11 @@ export function getBetaHeaders(
   // Interleaved thinking (thinking between tool calls)
   if (config.interleavedThinking) {
     headers.push(BETA_HEADERS.INTERLEAVED_THINKING);
+  }
+
+  // Files API for document uploads
+  if (config.hasDocuments) {
+    headers.push(BETA_HEADERS.FILES_API);
   }
 
   if (headers.length === 0) {

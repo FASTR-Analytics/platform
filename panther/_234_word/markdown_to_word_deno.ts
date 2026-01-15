@@ -15,7 +15,7 @@ import {
 } from "./deps.ts";
 
 export type MarkdownToWordDenoConfig = {
-  markdownStyle?: CustomMarkdownStyleOptions;
+  style?: CustomMarkdownStyleOptions;
   wordConfig?: WordSpecificConfig;
   images?: ImageMap;
   figures?: FigureMap;
@@ -51,7 +51,7 @@ export async function markdownToWordDeno(
   }
 
   return coreMarkdownToWord(markdown, {
-    markdownStyle: config?.markdownStyle,
+    style: config?.style,
     wordConfig: config?.wordConfig,
     images: mergedImages.size > 0 ? mergedImages : undefined,
     pageBreakRules: config?.pageBreakRules,

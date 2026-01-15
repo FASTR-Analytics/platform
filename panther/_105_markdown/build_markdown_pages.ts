@@ -5,7 +5,6 @@
 
 import {
   createItemNode,
-  type CustomFigureStyleOptions,
   type CustomMarkdownStyleOptions,
   type ImageMap,
   type LayoutNode,
@@ -17,7 +16,7 @@ import {
   groupDocElementsByContentType,
 } from "./convert_to_page_content.ts";
 import { type PageBreakRules, paginateMarkdown } from "./paginate_to_pages.ts";
-import { parseMarkdown } from "./parse_to_doc_elements.ts";
+import { parseMarkdown } from "./parser.ts";
 import type { FigureMap } from "./types.ts";
 
 export type MarkdownPagesConfig = {
@@ -29,8 +28,7 @@ export type MarkdownPagesConfig = {
   footerHeight?: number;
   gapY?: number;
   pageBreakRules?: PageBreakRules;
-  styleMarkdown?: CustomMarkdownStyleOptions;
-  styleFigure?: CustomFigureStyleOptions;
+  style?: CustomMarkdownStyleOptions;
   images?: ImageMap;
   figures?: FigureMap;
 };
@@ -43,15 +41,14 @@ export function buildMarkdownPageContents(
   if (config.asSlides) {
     return markdown.split(/\n---\n/).map((slideMarkdown) => {
       const parsed = parseMarkdown(slideMarkdown);
-      const groups = groupDocElementsByContentType(parsed.elements);
+      const groups = groupDocElementsByContentType(parsed.items);
       const items = groups
         .map((group) =>
           contentGroupToPageContentItem(
             group,
             config.images,
             config.figures,
-            config.styleMarkdown,
-            config.styleFigure,
+            config.style,
           )
         )
         .filter((item) => item !== undefined)
@@ -67,13 +64,12 @@ export function buildMarkdownPageContents(
     (config.headerHeight ?? 0) -
     (config.footerHeight ?? 0);
 
-  return paginateMarkdown(parsed.elements, rc, {
+  return paginateMarkdown(parsed.items, rc, {
     contentWidth: config.pageWidth - config.pagePadding * 2,
     contentHeight,
     gapY: config.gapY,
     pageBreakRules: config.pageBreakRules,
-    styleMarkdown: config.styleMarkdown,
-    styleFigure: config.styleFigure,
+    style: config.style,
     images: config.images,
     figures: config.figures,
   });

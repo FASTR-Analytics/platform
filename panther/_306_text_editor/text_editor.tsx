@@ -4,10 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  EditorState,
-  EditorView,
   basicSetup,
   createEffect,
+  EditorState,
+  EditorView,
   markdown,
   on,
   onCleanup,

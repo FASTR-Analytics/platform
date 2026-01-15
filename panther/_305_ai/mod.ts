@@ -29,11 +29,7 @@ export { BETA_HEADERS, getBetaHeaders } from "./_core/beta_headers.ts";
 // TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
-export type {
-  AIChatConfig,
-  AnthropicModelConfig,
-  ThinkingConfig,
-} from "./_core/types.ts";
+export type { AIChatConfig } from "./_core/types.ts";
 
 export type { CallAIConfig, CallAIResult } from "./_core/one_shot.ts";
 export type {
@@ -41,3 +37,12 @@ export type {
   WebFetchToolConfig,
   WebSearchToolConfig,
 } from "./_core/builtin_tools.ts";
+
+// Re-export commonly used types from _110_ai_types for consumer convenience
+export type {
+  AnthropicModel,
+  ContentBlock,
+  DocumentContentBlock,
+  MessageParam,
+  Usage,
+} from "../_110_ai_types/mod.ts";

@@ -26,6 +26,7 @@
     "@vscode/markdown-it-katex": "npm:@vscode/markdown-it-katex@^1.1.2",
     "katex": "npm:katex@^0.16.0",
     "docx": "npm:docx@^9.5.1",
+    "pptxgenjs": "npm:pptxgenjs@^4.0.1",
     "solid-js": "npm:solid-js@^1.9.0",
     "solid-js/web": "npm:solid-js@^1.9.0/web",
     "solid-js/store": "npm:solid-js@^1.9.0/store",

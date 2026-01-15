@@ -5,14 +5,13 @@
 
 export { _GLOBAL_CANVAS_PIXEL_WIDTH } from "../_000_consts/mod.ts";
 export { capitalizeFirstLetter, createArray, getSortedAlphabetical, to100Pct0, toNum0, toPct3 } from "../_000_utils/mod.ts";
+export type { FontInfo } from "../_001_font/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";
 export type { TextRenderingOptions } from "../_002_canvas/mod.ts";
-export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
-export type { CustomFigureStyleOptions } from "../_003_figure_style/mod.ts";
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
-export { CustomPageStyle } from "../_005_page_style/mod.ts";
-export type { CustomPageStyleOptions } from "../_005_page_style/mod.ts";
+export { CustomStyle } from "../_006_style/mod.ts";
+export type { CustomStyleOptions } from "../_006_style/mod.ts";
 export type { LayoutWarning } from "../_008_layouter/mod.ts";
 export { FigureRenderer } from "../_011_figure_renderer/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";

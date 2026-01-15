@@ -15,6 +15,7 @@ export type { FontId } from "./generated/map.ts";
 export {
   deduplicateFonts,
   deriveAllVariants,
+  getAdjustedBaseTextOptions,
   getBaseTextInfo,
   getFontsToRegister,
   getMergedFonts,

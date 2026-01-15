@@ -22,10 +22,11 @@ import type { FigureInputs, TextRenderingOptions } from "../deps.ts";
 import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   CanvasRenderContext,
-  CustomFigureStyle,
+  CustomStyle,
   FigureRenderer,
   RectCoordsDims,
 } from "../deps.ts";
+import type { FontInfo } from "../deps.ts";
 
 type Props = {
   chartInputs: FigureInputs;
@@ -91,9 +92,9 @@ export function ChartHolder(p: Props) {
 
     // Preload fonts used by this figure
     if (p.chartInputs) {
-      const style = new CustomFigureStyle(p.chartInputs.style);
+      const style = new CustomStyle(p.chartInputs.style);
       const fonts = style.getFontsToRegister();
-      fonts.forEach((fontInfo) => {
+      fonts.forEach((fontInfo: FontInfo) => {
         loadFont(fontInfo.fontFamily);
       });
 

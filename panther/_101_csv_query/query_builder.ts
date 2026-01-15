@@ -7,6 +7,7 @@ import { Csv } from "./deps.ts";
 import type {
   AggregateFunction,
   OrderDirection,
+  OrderSpec,
   WhereFilter,
   WherePredicate,
 } from "./types.ts";
@@ -17,13 +18,14 @@ type AggregateSpec = {
   outputCol: string;
 };
 
+type GroupKey = (string | number | boolean | null)[];
+
 export class QueryBuilder<T> {
   private csv: Csv<T>;
   private whereFilters: Array<WhereFilter | WherePredicate<T>> = [];
   private groupByCols: string[] = [];
   private aggregateSpecs: AggregateSpec[] = [];
-  private orderByCol?: string;
-  private orderByDirection?: OrderDirection;
+  private orderBySpecs: OrderSpec[] = [];
 
   constructor(csv: Csv<T>) {
     this.csv = csv;
@@ -36,7 +38,15 @@ export class QueryBuilder<T> {
     return this;
   }
 
+  // Note: groupBy always produces Csv<string> results (both keys and aggregates are stringified)
+  // Without aggregates, acts like SELECT DISTINCT on the specified columns
   groupBy(cols: string[]): QueryBuilder<T> {
+    if (this.groupByCols.length > 0) {
+      throw new Error("groupBy() can only be called once");
+    }
+    if (cols.length === 0) {
+      throw new Error("groupBy() requires at least one column");
+    }
     this.groupByCols = cols;
     return this;
   }
@@ -86,13 +96,67 @@ export class QueryBuilder<T> {
     return this;
   }
 
-  orderBy(col: string, direction: OrderDirection = "asc"): QueryBuilder<T> {
-    this.orderByCol = col;
-    this.orderByDirection = direction;
+  median(col: string, outputCol?: string): QueryBuilder<T> {
+    this.aggregateSpecs.push({
+      col,
+      func: "MEDIAN",
+      outputCol: outputCol ?? `${col}_median`,
+    });
+    return this;
+  }
+
+  countDistinct(col: string, outputCol?: string): QueryBuilder<T> {
+    this.aggregateSpecs.push({
+      col,
+      func: "COUNT_DISTINCT",
+      outputCol: outputCol ?? `${col}_distinct`,
+    });
+    return this;
+  }
+
+  first(col: string, outputCol?: string): QueryBuilder<T> {
+    this.aggregateSpecs.push({
+      col,
+      func: "FIRST",
+      outputCol: outputCol ?? `${col}_first`,
+    });
+    return this;
+  }
+
+  last(col: string, outputCol?: string): QueryBuilder<T> {
+    this.aggregateSpecs.push({
+      col,
+      func: "LAST",
+      outputCol: outputCol ?? `${col}_last`,
+    });
+    return this;
+  }
+
+  orderBy(
+    col: string | OrderSpec[],
+    direction: OrderDirection = "asc",
+  ): QueryBuilder<T> {
+    if (this.orderBySpecs.length > 0) {
+      throw new Error("orderBy() can only be called once");
+    }
+    if (Array.isArray(col)) {
+      if (col.length === 0) {
+        throw new Error("orderBy() requires at least one column");
+      }
+      this.orderBySpecs = col;
+    } else {
+      this.orderBySpecs = [{ col, dir: direction }];
+    }
     return this;
   }
 
   execute(): Csv<T> {
+    if (this.aggregateSpecs.length > 0 && this.groupByCols.length === 0) {
+      throw new Error(
+        "Aggregate functions require groupBy() to be called first",
+      );
+    }
+
     let result = this.csv;
 
     if (this.whereFilters.length > 0) {
@@ -103,7 +167,7 @@ export class QueryBuilder<T> {
       result = this.applyGroupBy(result);
     }
 
-    if (this.orderByCol) {
+    if (this.orderBySpecs.length > 0) {
       result = this.applyOrderBy(result);
     }
 
@@ -158,91 +222,136 @@ export class QueryBuilder<T> {
       return idx;
     });
 
-    const groups = new Map<string, T[][]>();
+    const groups = new Map<string, { keyValues: GroupKey; rows: T[][] }>();
 
     for (let i = 0; i < csv.nRows; i++) {
       const row = csv.aoa[i];
-      const groupKey = groupByIndexes.map((idx) => String(row[idx])).join(
-        "|||",
-      );
+      const keyValues: GroupKey = groupByIndexes.map((idx) => {
+        const val = row[idx];
+        if (val === null || val === undefined) return null;
+        if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
+          return val;
+        }
+        return String(val);
+      });
+      const groupKey = JSON.stringify(keyValues);
 
       if (!groups.has(groupKey)) {
-        groups.set(groupKey, []);
+        groups.set(groupKey, { keyValues, rows: [] });
       }
-      groups.get(groupKey)!.push(row);
+      groups.get(groupKey)!.rows.push(row);
     }
 
-    const resultRows: T[][] = [];
+    const resultRows: string[][] = [];
     const resultColHeaders: string[] = [
       ...this.groupByCols,
       ...this.aggregateSpecs.map((spec) => spec.outputCol),
     ];
 
-    for (const [groupKey, groupRows] of groups.entries()) {
-      const groupKeyParts = groupKey.split("|||");
+    for (const { keyValues, rows: groupRows } of groups.values()) {
       const aggregatedValues = this.aggregateSpecs.map((spec) => {
         const colIdx = colHeaders.indexOf(spec.col);
         if (colIdx === -1) {
           throw new Error(`Aggregate column not found: ${spec.col}`);
         }
 
-        const values = groupRows.map((row) => Number(row[colIdx])).filter(
-          (v) => !isNaN(v),
-        );
+        if (spec.func === "COUNT") {
+          return String(groupRows.length);
+        }
+
+        if (spec.func === "COUNT_DISTINCT") {
+          const uniqueValues = new Set(groupRows.map((row) => String(row[colIdx])));
+          return String(uniqueValues.size);
+        }
+
+        if (spec.func === "FIRST") {
+          return groupRows.length > 0 ? String(groupRows[0][colIdx]) : "";
+        }
+
+        if (spec.func === "LAST") {
+          return groupRows.length > 0 ? String(groupRows[groupRows.length - 1][colIdx]) : "";
+        }
+
+        const numericValues = groupRows
+          .map((row) => Number(row[colIdx]))
+          .filter((v) => !isNaN(v));
 
         switch (spec.func) {
           case "SUM":
-            return values.reduce((a, b) => a + b, 0) as T;
+            return String(numericValues.reduce((a, b) => a + b, 0));
           case "AVG":
-            return (values.reduce((a, b) => a + b, 0) / values.length) as T;
-          case "COUNT":
-            return values.length as T;
+            if (numericValues.length === 0) {
+              throw new Error(`Cannot compute AVG on empty set for column "${spec.col}"`);
+            }
+            return String(numericValues.reduce((a, b) => a + b, 0) / numericValues.length);
           case "MIN":
-            return Math.min(...values) as T;
+            if (numericValues.length === 0) {
+              throw new Error(`Cannot compute MIN on empty set for column "${spec.col}"`);
+            }
+            return String(Math.min(...numericValues));
           case "MAX":
-            return Math.max(...values) as T;
+            if (numericValues.length === 0) {
+              throw new Error(`Cannot compute MAX on empty set for column "${spec.col}"`);
+            }
+            return String(Math.max(...numericValues));
+          case "MEDIAN":
+            if (numericValues.length === 0) {
+              throw new Error(`Cannot compute MEDIAN on empty set for column "${spec.col}"`);
+            }
+            const sorted = [...numericValues].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            const median = sorted.length % 2 === 0
+              ? (sorted[mid - 1] + sorted[mid]) / 2
+              : sorted[mid];
+            return String(median);
         }
       });
 
-      resultRows.push([...(groupKeyParts as T[]), ...aggregatedValues]);
+      const keyStrings = keyValues.map((v) => (v === null ? "" : String(v)));
+      resultRows.push([...keyStrings, ...aggregatedValues]);
     }
 
     return new Csv({
       aoa: resultRows,
       colHeaders: resultColHeaders,
-    });
+    }) as unknown as Csv<T>;
   }
 
   private applyOrderBy(csv: Csv<T>): Csv<T> {
-    if (!this.orderByCol) {
+    if (this.orderBySpecs.length === 0) {
       return csv;
     }
 
     const colHeaders = csv.colHeaders;
-    const colIdx = colHeaders.indexOf(this.orderByCol);
-    if (colIdx === -1) {
-      throw new Error(`Order by column not found: ${this.orderByCol}`);
-    }
+    const specs = this.orderBySpecs.map((spec) => {
+      const colIdx = colHeaders.indexOf(spec.col);
+      if (colIdx === -1) {
+        throw new Error(`Order by column not found: ${spec.col}`);
+      }
+      return { colIdx, dir: spec.dir ?? "asc" };
+    });
 
     const indexes = Array.from({ length: csv.nRows }, (_, i) => i);
     indexes.sort((a, b) => {
-      const aVal = csv.aoa[a][colIdx];
-      const bVal = csv.aoa[b][colIdx];
+      for (const { colIdx, dir } of specs) {
+        const aVal = csv.aoa[a][colIdx];
+        const bVal = csv.aoa[b][colIdx];
 
-      const aNum = Number(aVal);
-      const bNum = Number(bVal);
+        const aNum = Number(aVal);
+        const bNum = Number(bVal);
 
-      if (!isNaN(aNum) && !isNaN(bNum)) {
-        return this.orderByDirection === "asc" ? aNum - bNum : bNum - aNum;
+        let cmp: number;
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          cmp = aNum - bNum;
+        } else {
+          cmp = String(aVal).localeCompare(String(bVal));
+        }
+
+        if (cmp !== 0) {
+          return dir === "asc" ? cmp : -cmp;
+        }
       }
-
-      const aStr = String(aVal);
-      const bStr = String(bVal);
-
-      if (this.orderByDirection === "asc") {
-        return aStr.localeCompare(bStr);
-      }
-      return bStr.localeCompare(aStr);
+      return 0;
     });
 
     return csv.selectRows(indexes);

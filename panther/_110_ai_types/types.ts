@@ -33,6 +33,24 @@ export type RedactedThinkingBlock = {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+// DOCUMENT TYPES (Files API)
+////////////////////////////////////////////////////////////////////////////////
+
+export type DocumentSource = {
+  type: "file";
+  file_id: string;
+};
+
+export type DocumentContentBlock = {
+  type: "document";
+  source: DocumentSource;
+  title?: string;
+  context?: string;
+  citations?: { enabled: boolean };
+  cache_control?: CacheControl;
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // CONTENT BLOCKS
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -53,7 +71,8 @@ export type ContentBlock =
     cache_control?: CacheControl;
   }
   | ThinkingBlock
-  | RedactedThinkingBlock;
+  | RedactedThinkingBlock
+  | DocumentContentBlock;
 
 export type MessageParam = {
   role: MessageRole;

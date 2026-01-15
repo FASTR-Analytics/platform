@@ -8,11 +8,12 @@ import type {
   PageBreakRules,
 } from "./converter.ts";
 import type {
-  DocElement,
   DocxMath,
-  InlineContent,
+  ImageMap,
+  MarkdownInline,
   MergedMarkdownStyle,
-  ParsedDocument,
+  ParsedMarkdown,
+  ParsedMarkdownItem,
 } from "./deps.ts";
 import {
   BorderStyle,
@@ -46,19 +47,20 @@ import {
 import { pixelsToTwips } from "./word_units.ts";
 
 export function buildWordDocument(
-  parsedDoc: ParsedDocument,
+  parsedDoc: ParsedMarkdown,
   options?: ConvertMarkdownToWordOptions,
 ): Document {
-  const styleClass = new CustomMarkdownStyle(options?.markdownStyle);
+  const styleClass = new CustomMarkdownStyle(options?.style);
   const merged = styleClass.getMergedMarkdownStyle();
 
   const wordConfig = mergeWordConfig(options?.wordConfig);
+  const images = options?.images;
 
   let currentNumberingInstance = 0;
   let currentBulletInstance = 0;
   let prevMarginBottom = 0;
 
-  const paragraphs: (Paragraph | Table)[] = parsedDoc.elements.map(
+  const paragraphs: (Paragraph | Table)[] = parsedDoc.items.map(
     (element, index) => {
       const isNumberedListItem = element.type === "list-item" &&
         element.listType === "numbered";
@@ -68,8 +70,8 @@ export function buildWordDocument(
       if (
         isNumberedListItem &&
         (index === 0 ||
-          parsedDoc.elements[index - 1]?.type !== "list-item" ||
-          (parsedDoc.elements[index - 1] as any).listType !== "numbered")
+          parsedDoc.items[index - 1]?.type !== "list-item" ||
+          (parsedDoc.items[index - 1] as any).listType !== "numbered")
       ) {
         currentNumberingInstance++;
       }
@@ -77,21 +79,21 @@ export function buildWordDocument(
       if (
         isBulletListItem &&
         (index === 0 ||
-          parsedDoc.elements[index - 1]?.type !== "list-item" ||
-          (parsedDoc.elements[index - 1] as any).listType !== "bullet")
+          parsedDoc.items[index - 1]?.type !== "list-item" ||
+          (parsedDoc.items[index - 1] as any).listType !== "bullet")
       ) {
         currentBulletInstance++;
       }
 
       const margins = getElementMargins(element, merged);
       const isFirst = index === 0;
-      const isLast = index === parsedDoc.elements.length - 1;
+      const isLast = index === parsedDoc.items.length - 1;
 
       const collapsedSpacingBefore = isFirst
         ? 0
         : Math.max(prevMarginBottom, margins.top);
 
-      const nextElement = parsedDoc.elements[index + 1];
+      const nextElement = parsedDoc.items[index + 1];
       const spacingAfter = isLast ? 0 : nextElement?.type === "table" ||
           nextElement?.type === "code-block" ||
           nextElement?.type === "blockquote"
@@ -110,6 +112,7 @@ export function buildWordDocument(
         spacingAfter,
         options?.pageBreakRules,
         index === 0,
+        images,
       );
     },
   );
@@ -132,7 +135,7 @@ export function buildWordDocument(
 type ElementMargins = { top: number; bottom: number };
 
 function getElementMargins(
-  element: DocElement,
+  element: ParsedMarkdownItem,
   merged: MergedMarkdownStyle,
 ): ElementMargins {
   switch (element.type) {
@@ -174,7 +177,7 @@ function getElementMargins(
 }
 
 function shouldPageBreakBefore(
-  element: DocElement,
+  element: ParsedMarkdownItem,
   pageBreakRules: PageBreakRules | undefined,
   isFirst: boolean,
 ): boolean {
@@ -187,7 +190,7 @@ function shouldPageBreakBefore(
 }
 
 function buildParagraph(
-  element: DocElement,
+  element: ParsedMarkdownItem,
   merged: MergedMarkdownStyle,
   wordConfig: WordSpecificConfig,
   numberingInstance: number,
@@ -196,8 +199,11 @@ function buildParagraph(
   spacingAfter: number,
   pageBreakRules: PageBreakRules | undefined,
   isFirst: boolean,
+  images?: ImageMap,
 ): Paragraph | Table {
-  const children = buildInlineContent(element.content, merged);
+  const children = "content" in element
+    ? buildInlineContent(element.content, merged)
+    : [];
   const pageBreakBefore = shouldPageBreakBefore(
     element,
     pageBreakRules,
@@ -230,7 +236,7 @@ function buildParagraph(
     }
 
     case "list-item": {
-      const level = element.listLevel || 0;
+      const level = element.level;
 
       return new Paragraph({
         numbering: {
@@ -284,8 +290,8 @@ function buildParagraph(
 
       // Split content into paragraphs at double-break boundaries
       // In the parsed content, double breaks represent paragraph separators
-      const contentGroups: InlineContent[][] = [];
-      let currentGroup: InlineContent[] = [];
+      const contentGroups: MarkdownInline[][] = [];
+      let currentGroup: MarkdownInline[] = [];
       let consecutiveBreaks = 0;
 
       for (const item of element.content) {
@@ -302,7 +308,7 @@ function buildParagraph(
         } else {
           // Not a break - add any pending single breaks and the item
           while (consecutiveBreaks > 0) {
-            currentGroup.push({ type: "break", text: "" });
+            currentGroup.push({ type: "break" });
             consecutiveBreaks--;
           }
           currentGroup.push(item);
@@ -377,12 +383,27 @@ function buildParagraph(
       );
 
     case "image": {
-      if (!element.imageData) {
-        return new Paragraph({ children: [] });
+      const imageInfo = images?.get(element.src);
+      if (!imageInfo) {
+        return new Paragraph({
+          children: [
+            new TextRun({ text: `[Image: ${element.alt || element.src}]` }),
+          ],
+          spacing: {
+            before: pixelsToTwips(spacingBefore),
+            after: pixelsToTwips(spacingAfter),
+          },
+        });
       }
 
       try {
-        const imageRun = createImageRun(element, merged, wordConfig);
+        const imageRun = createImageRun(
+          imageInfo.dataUrl,
+          element.width ?? imageInfo.width,
+          element.height ?? imageInfo.height,
+          merged,
+          wordConfig,
+        );
         return new Paragraph({
           children: [imageRun],
           spacing: {
@@ -394,7 +415,7 @@ function buildParagraph(
         console.error("Failed to create image:", error);
         return new Paragraph({
           children: [
-            new TextRun({ text: `[Image: ${element.imageAlt || ""}]` }),
+            new TextRun({ text: `[Image: ${element.alt || element.src}]` }),
           ],
           spacing: {
             before: pixelsToTwips(spacingBefore),
@@ -405,7 +426,7 @@ function buildParagraph(
     }
 
     case "code-block": {
-      const codeLines = (element.codeContent ?? "").split("\n");
+      const codeLines = element.code.split("\n");
       if (codeLines.length > 0 && codeLines[codeLines.length - 1] === "") {
         codeLines.pop();
       }
@@ -469,7 +490,7 @@ function buildParagraph(
     }
 
     case "math-block": {
-      const mathContent = element.mathLatex ?? "";
+      const mathContent = element.latex;
       const mathObj = latexToDocxMath(mathContent);
       return new Paragraph({
         children: [mathObj],
@@ -493,11 +514,13 @@ function buildParagraph(
 }
 
 function createImageRun(
-  element: DocElement,
+  imageData: string,
+  width: number | undefined,
+  height: number | undefined,
   merged: MergedMarkdownStyle,
   wordConfig: WordSpecificConfig,
 ): ImageRun {
-  const matches = element.imageData!.match(/^data:image\/(\w+);base64,(.+)$/);
+  const matches = imageData.match(/^data:image\/(\w+);base64,(.+)$/);
   if (!matches) {
     throw new Error("Invalid image data URL format");
   }
@@ -522,14 +545,14 @@ function createImageRun(
   let widthPixels: number;
   let heightPixels: number;
 
-  if (element.imageWidth && element.imageHeight) {
+  if (width && height) {
     const maxWidthInches = wordConfig.image?.maxWidthInches ??
       DEFAULT_WORD_SPECIFIC_CONFIG.image!.maxWidthInches!;
     const maxWidthPixels = maxWidthInches * 96;
 
-    const scale = Math.min(1, maxWidthPixels / element.imageWidth);
-    widthPixels = element.imageWidth * scale;
-    heightPixels = element.imageHeight * scale;
+    const scale = Math.min(1, maxWidthPixels / width);
+    widthPixels = width * scale;
+    heightPixels = height * scale;
   } else {
     const maxWidthInches = wordConfig.image?.maxWidthInches ??
       DEFAULT_WORD_SPECIFIC_CONFIG.image!.maxWidthInches!;
@@ -552,7 +575,7 @@ type BaseTextStyle = {
 };
 
 function buildInlineContent(
-  content: InlineContent[],
+  content: MarkdownInline[],
   merged: MergedMarkdownStyle,
   baseStyle?: BaseTextStyle,
 ): (TextRun | ExternalHyperlink | DocxMath)[] {
@@ -562,9 +585,10 @@ function buildInlineContent(
   for (const item of content) {
     switch (item.type) {
       case "text": {
+        // Check for email addresses in plain text
         const emailParts = parseEmailsInText(item.text);
         for (const part of emailParts) {
-          if (part.type === "email" && part.url) {
+          if (part.type === "link") {
             result.push(
               new ExternalHyperlink({
                 children: [
@@ -578,7 +602,7 @@ function buildInlineContent(
                 link: part.url,
               }),
             );
-          } else {
+          } else if (part.type === "text") {
             result.push(
               new TextRun({
                 text: part.text,
@@ -609,6 +633,16 @@ function buildInlineContent(
         );
         break;
 
+      case "bold-italic":
+        result.push(
+          new TextRun({
+            text: item.text,
+            bold: true,
+            italics: true,
+          }),
+        );
+        break;
+
       case "link":
         result.push(
           new ExternalHyperlink({
@@ -620,23 +654,7 @@ function buildInlineContent(
                 italics: baseStyle?.italics,
               }),
             ],
-            link: item.url || "",
-          }),
-        );
-        break;
-
-      case "email":
-        result.push(
-          new ExternalHyperlink({
-            children: [
-              new TextRun({
-                text: item.text,
-                color: linkColor,
-                underline: {},
-                italics: baseStyle?.italics,
-              }),
-            ],
-            link: item.url || `mailto:${item.text}`,
+            link: item.url,
           }),
         );
         break;
@@ -661,7 +679,7 @@ function buildInlineContent(
         break;
 
       case "math-inline":
-        result.push(latexToDocxMath(item.text));
+        result.push(latexToDocxMath(item.latex));
         break;
     }
   }
@@ -670,7 +688,7 @@ function buildInlineContent(
 }
 
 function buildWordTable(
-  element: DocElement,
+  element: ParsedMarkdownItem & { type: "table" },
   merged: MergedMarkdownStyle,
   wordConfig: WordSpecificConfig,
   spacingBefore: number,
@@ -688,8 +706,8 @@ function buildWordTable(
   const borderSize = merged.table.borderWidth * 8;
   const borderColor = merged.table.borderColor;
 
-  if (element.tableHeader && element.tableHeader.length > 0) {
-    for (const headerRow of element.tableHeader) {
+  if (element.header && element.header.length > 0) {
+    for (const headerRow of element.header) {
       const cells = headerRow.map(
         (cellContent) =>
           new TableCell({
@@ -714,8 +732,8 @@ function buildWordTable(
     }
   }
 
-  if (element.tableRows && element.tableRows.length > 0) {
-    for (const bodyRow of element.tableRows) {
+  if (element.rows && element.rows.length > 0) {
+    for (const bodyRow of element.rows) {
       const cells = bodyRow.map(
         (cellContent) =>
           new TableCell({

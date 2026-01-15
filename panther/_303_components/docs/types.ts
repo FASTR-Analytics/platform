@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  CustomMarkdownStyleOptions,
+  CustomStyleOptions,
   DocsManifest,
   NavItem,
   NavSection,
@@ -20,7 +20,7 @@ export type DocsViewerProps = {
   basePath?: string;
   isGithub?: boolean;
   title?: string;
-  style?: CustomMarkdownStyleOptions;
+  style?: CustomStyleOptions;
 };
 
 export type DocsSidebarProps = {
@@ -36,7 +36,7 @@ export type DocsContentProps = {
   basePath?: string;
   isGithub?: boolean;
   parsedGitHubUrl?: ParsedGitHubUrl;
-  style?: CustomMarkdownStyleOptions;
+  style?: CustomStyleOptions;
 };
 
 export type DocsBreadcrumbsProps = {

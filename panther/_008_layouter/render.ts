@@ -22,8 +22,8 @@ export function renderContainerStyle(
 
   const hasBackground = style.backgroundColor &&
     style.backgroundColor !== "none";
-  const hasBorder = style.borderColor && style.borderWidth &&
-    style.borderWidth > 0;
+  const hasBorder = style.borderColor && style.borderColor !== "none" &&
+    style.borderWidth && style.borderWidth > 0;
 
   if (!hasBackground && !hasBorder) return;
 

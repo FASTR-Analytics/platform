@@ -3,11 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Padding, RectCoordsDims, sum } from "./deps.ts";
+import { Padding, PANTHER_DEBUG, RectCoordsDims, sum } from "./deps.ts";
 import { getColWidths } from "./col_widths.ts";
 import type {
   ContainerStyleOptions,
   HeightMode,
+  IdealHeightResult,
   ItemHeightMeasurer,
   LayoutNode,
   LayoutWarning,
@@ -28,6 +29,14 @@ export function measureLayout<T, U>(
   nColumns: number,
 ): MeasureLayoutResult<U> {
   const warnings: LayoutWarning[] = [];
+  if (PANTHER_DEBUG) {
+    console.log(`\n=== measureLayout DEBUG ===`);
+    console.log(`bounds: ${bounds.w().toFixed(1)} x ${bounds.h().toFixed(1)}`);
+    console.log(`gapX: ${gapX}, gapY: ${gapY}, nColumns: ${nColumns}`);
+    console.log(`--- getIdealHeight pass ---`);
+    getIdealHeight(ctx, layout, bounds.w(), gapX, gapY, itemMeasurer, nColumns);
+    console.log(`--- end getIdealHeight ---\n`);
+  }
   const measured = measureNode(
     ctx,
     layout,
@@ -54,33 +63,53 @@ function getIdealHeight<T, U>(
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
   nColumns: number,
-): number {
+): IdealHeightResult {
   const pad = new Padding(node.style?.padding ?? 0);
   const borderWidth = node.style?.borderWidth ?? 0;
   const borderTotal = borderWidth * 2; // left + right, or top + bottom
   const innerW = width - pad.totalPx() - borderTotal;
+  const paddingAndBorder = pad.totalPy() + borderTotal;
 
   let measuredHeight: number;
+  let minHeight: number;
 
   if (node.type === "item") {
-    const { idealH } = itemMeasurer(ctx, node, innerW);
-    measuredHeight = idealH + pad.totalPy() + borderTotal;
+    const result = itemMeasurer(ctx, node, innerW);
+    measuredHeight = result.idealH + paddingAndBorder;
+    // If noShrink, the entire height is the minimum; otherwise 0 (fully shrinkable)
+    minHeight = result.noShrink ? measuredHeight : 0;
+    if (PANTHER_DEBUG) {
+      console.log(
+        `  ITEM: idealH=${result.idealH.toFixed(1)}, measuredH=${
+          measuredHeight.toFixed(1)
+        }, minH=${minHeight.toFixed(1)}, nodeHeight=${node.height}`,
+      );
+    }
   } else if (node.type === "row") {
-    const childHeights = node.children.map((child) =>
+    const childResults = node.children.map((child) =>
       getIdealHeight(ctx, child, innerW, gapX, gapY, itemMeasurer, nColumns)
     );
+    const childHeights = childResults.map((r) => r.height);
+    const childMinHeights = childResults.map((r) => r.minHeight);
     const totalGaps = (node.children.length - 1) * gapY;
-    measuredHeight = sum(childHeights) + totalGaps + pad.totalPy() +
-      borderTotal;
+    measuredHeight = sum(childHeights) + totalGaps + paddingAndBorder;
+    // For rows (stacked): sum of child minHeights
+    minHeight = sum(childMinHeights) + totalGaps + paddingAndBorder;
+    if (PANTHER_DEBUG) {
+      console.log(
+        `  ROW: heights=[${
+          childHeights.map((h) => h.toFixed(1)).join(", ")
+        }], minHeights=[${
+          childMinHeights.map((h) => h.toFixed(1)).join(", ")
+        }], measuredH=${measuredHeight.toFixed(1)}, minH=${
+          minHeight.toFixed(1)
+        }`,
+      );
+    }
   } else {
     // col
-    const colWidthResult = getColWidths(
-      node.children,
-      innerW,
-      nColumns,
-      gapX,
-    );
-    const childHeights = node.children.map((child, i) =>
+    const colWidthResult = getColWidths(node.children, innerW, nColumns, gapX);
+    const childResults = node.children.map((child, i) =>
       getIdealHeight(
         ctx,
         child,
@@ -91,13 +120,35 @@ function getIdealHeight<T, U>(
         nColumns,
       )
     );
-    measuredHeight = Math.max(...childHeights, 0) + pad.totalPy() + borderTotal;
+    const childHeights = childResults.map((r) => r.height);
+    const childMinHeights = childResults.map((r) => r.minHeight);
+    measuredHeight = Math.max(...childHeights, 0) + paddingAndBorder;
+    // For cols (side by side): max of child minHeights
+    minHeight = Math.max(...childMinHeights, 0) + paddingAndBorder;
+    if (PANTHER_DEBUG) {
+      console.log(
+        `  COL: heights=[${
+          childHeights.map((h) => h.toFixed(1)).join(", ")
+        }], minHeights=[${
+          childMinHeights.map((h) => h.toFixed(1)).join(", ")
+        }], measuredH=${measuredHeight.toFixed(1)}, minH=${
+          minHeight.toFixed(1)
+        }`,
+      );
+    }
   }
 
   // node.height is minimum height - use the larger of measured or specified
-  return node.height !== undefined
+  const finalHeight = node.height !== undefined
     ? Math.max(measuredHeight, node.height)
     : measuredHeight;
+
+  // Also respect explicit node.height as a floor for minHeight
+  const finalMinHeight = node.height !== undefined
+    ? Math.max(minHeight, node.height)
+    : minHeight;
+
+  return { height: finalHeight, minHeight: finalMinHeight };
 }
 
 // =============================================================================
@@ -166,7 +217,7 @@ function measureRowNode<T, U>(
   const borderTotal = borderWidth * 2;
 
   // Get ideal heights for all children using unified function
-  const childIdealHeights = node.children.map((child) =>
+  const childResults = node.children.map((child) =>
     getIdealHeight(
       ctx,
       child,
@@ -178,20 +229,35 @@ function measureRowNode<T, U>(
     )
   );
 
+  const childIdealHeights = childResults.map((r) => r.height);
   const totalIdealHeight = sum(childIdealHeights);
   const totalGapHeight = (node.children.length - 1) * gapY;
   const totalRequiredHeight = totalIdealHeight + totalGapHeight;
   const availableHeight = innerBounds.h();
 
+  // Calculate scale factor using minHeight (the non-shrinkable portion of each child)
+  const childMinHeights = childResults.map((r) => r.minHeight);
+  const totalMinHeight = sum(childMinHeights);
+  const shrinkableHeight = totalIdealHeight - totalMinHeight; // Amount that CAN shrink
+
   let scaleFactor = 1;
+  let shrinkScaleFactor = 1;
 
   if (totalRequiredHeight > availableHeight) {
+    if (shrinkableHeight > 0) {
+      // Available space after reserving for non-shrinkable portions
+      const availableForShrink = availableHeight - totalMinHeight -
+        totalGapHeight;
+      shrinkScaleFactor = Math.max(0, availableForShrink / shrinkableHeight);
+    }
+
+    // For warning message, calculate overall scale
     scaleFactor = availableHeight / totalRequiredHeight;
     warnings.push({
       type: "HEIGHT_OVERFLOW",
       message:
-        `Row heights (${totalRequiredHeight}px) exceed container (${availableHeight}px), scaling to ${
-          (scaleFactor * 100).toFixed(1)
+        `Row heights (${totalRequiredHeight}px) exceed container (${availableHeight}px), scaling shrinkable portion to ${
+          (shrinkScaleFactor * 100).toFixed(1)
         }%`,
       path: nodePath,
     });
@@ -211,19 +277,26 @@ function measureRowNode<T, U>(
 
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
-    const childIdealH = childIdealHeights[i];
+    const childResult = childResults[i];
+    const childIdealH = childResult.height;
+    const childMinH = childResult.minHeight;
+    const childShrinkable = childIdealH - childMinH;
     const heightMode = getHeightMode(child);
 
     let childH: number;
     if (heightMode === "fill-to-container") {
-      childH = scaleFactor < 1
-        ? availableHeight * scaleFactor
+      childH = shrinkScaleFactor < 1
+        ? availableHeight * shrinkScaleFactor
         : availableHeight;
     } else if (heightMode === "fill-to-row-height") {
       // Match the tallest non-stretch sibling
-      childH = Math.max(childIdealH, maxNonStretchHeight) * scaleFactor;
+      const targetH = Math.max(childIdealH, maxNonStretchHeight);
+      const targetShrinkable = targetH - childMinH;
+      childH = childMinH + targetShrinkable * shrinkScaleFactor;
     } else {
-      childH = childIdealH * scaleFactor;
+      // Default: use-measured-height
+      // Keep minHeight, scale only the shrinkable portion
+      childH = childMinH + childShrinkable * shrinkScaleFactor;
     }
 
     const childBounds = new RectCoordsDims({
@@ -247,11 +320,13 @@ function measureRowNode<T, U>(
     );
 
     measuredChildren.push(measuredChild);
+    // Gaps are scaled based on overall scale factor
     currentY += childH + gapY * scaleFactor;
   }
 
+  const actualTotalHeight = currentY - innerBounds.y() - gapY * scaleFactor;
   const finalHeight = node.height ??
-    (totalRequiredHeight * scaleFactor + pad.totalPy() + borderTotal);
+    (actualTotalHeight + pad.totalPy() + borderTotal);
   const rpd = bounds.getAdjusted({ h: Math.min(finalHeight, bounds.h()) });
 
   return {
@@ -289,7 +364,7 @@ function measureColNode<T, U>(
   warnings.push(...colWidthResult.warnings);
 
   // Get ideal heights for all children using unified function
-  const childIdealHeights = node.children.map((child, i) =>
+  const childResults = node.children.map((child, i) =>
     getIdealHeight(
       ctx,
       child,
@@ -301,6 +376,7 @@ function measureColNode<T, U>(
     )
   );
 
+  const childIdealHeights = childResults.map((r) => r.height);
   const maxChildIdealH = Math.max(...childIdealHeights, 0);
   const rowHeight = Math.min(maxChildIdealH, innerBounds.h());
 
@@ -310,7 +386,8 @@ function measureColNode<T, U>(
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
     const childWidth = colWidthResult.widths[i].w;
-    const childIdealH = childIdealHeights[i];
+    const childResult = childResults[i];
+    const childIdealH = childResult.height;
     const heightMode = getHeightMode(child);
 
     let childH: number;

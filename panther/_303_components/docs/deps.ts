@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export type { CustomMarkdownStyleOptions } from "../../_004_markdown_style/mod.ts";
+export type { CustomStyleOptions } from "../../_006_style/mod.ts";
 export { FrameLeftResizable } from "../layout/frames.tsx";
 export { CollapsibleSection } from "../layout/collapsible_section.tsx";
 export { MarkdownPresentation } from "../content/markdown_presentation.tsx";

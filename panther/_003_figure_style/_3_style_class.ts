@@ -18,6 +18,7 @@ import type {
   MergedGridStyle,
   MergedLegendStyle,
   MergedPaneStyle,
+  MergedSankeyStyle,
   MergedSimpleVizStyle,
   MergedTableStyle,
   MergedTimeseriesStyle,
@@ -1078,6 +1079,69 @@ export class CustomFigureStyle {
           d.simpleviz.arrows.truncateEnd,
         ),
       },
+    };
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  //   ______                    __                                          //
+  //  /      \                  /  |                                         //
+  // /$$$$$$  |  ______   ____  $$ |   __   ______   __    __                //
+  // $$ \__$$/  /      \ /    \ $$ |  /  | /      \ /  |  /  |               //
+  // $$      \ /$$$$$$  |$$$$$  $$ |_/$$/  /$$$$$$  |$$ |  $$ |               //
+  //  $$$$$$  |$$ |  $$ |$$ | $$$$ $$<     $$    $$ |$$ |  $$ |               //
+  // /  \__$$ |$$ \__$$ |$$ | $$$$ |$$  \  $$$$$$$$/ $$ \__$$ |               //
+  // $$    $$/ $$    $$/ $$ | $$ $$/   $$  $$       |$$    $$ |               //
+  //  $$$$$$/   $$$$$$/  $$/  $$/  $$$$$$/  $$$$$$$/  $$$$$$$ |               //
+  //                                                 /  \__$$ |               //
+  //                                                 $$    $$/                //
+  //                                                  $$$$$$/                 //
+  /////////////////////////////////////////////////////////////////////////////
+
+  sankey(): MergedSankeyStyle {
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const sf = this._sf;
+    return {
+      alreadyScaledValue: sf,
+      nodeWidth: ms(
+        sf,
+        c.sankey?.nodeWidth,
+        g.sankey?.nodeWidth,
+        d.sankey.nodeWidth,
+      ),
+      nodeGap: ms(
+        sf,
+        c.sankey?.nodeGap,
+        g.sankey?.nodeGap,
+        d.sankey.nodeGap,
+      ),
+      columnGap: c.sankey?.columnGap ?? g.sankey?.columnGap ?? d.sankey.columnGap,
+      labelGap: ms(
+        sf,
+        c.sankey?.labelGap,
+        g.sankey?.labelGap,
+        d.sankey.labelGap,
+      ),
+      linkOpacity: m(
+        c.sankey?.linkOpacity,
+        g.sankey?.linkOpacity,
+        d.sankey.linkOpacity,
+      ),
+      defaultNodeColor: getColor(
+        m(
+          c.sankey?.defaultNodeColor,
+          g.sankey?.defaultNodeColor,
+          d.sankey.defaultNodeColor,
+        ),
+      ),
+      defaultLinkColor: getColor(
+        m(
+          c.sankey?.defaultLinkColor,
+          g.sankey?.defaultLinkColor,
+          d.sankey.defaultLinkColor,
+        ),
+      ),
     };
   }
 

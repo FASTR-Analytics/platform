@@ -92,8 +92,8 @@ const _DS = {
       style: "single" as "single" | "double" | "dotted",
     },
     cellPaddingEm: {
-      horizontal: 1,
-      vertical: 0.5,
+      horizontal: 0.5,
+      vertical: 0.25,
     },
     headerShading: {
       color: { key: "base200" } as ColorKeyOrString,

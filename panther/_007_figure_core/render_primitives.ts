@@ -15,6 +15,8 @@ import type {
   LineStyle,
   Primitive,
   RenderContext,
+  SankeyLinkPrimitive,
+  SankeyNodePrimitive,
 } from "./deps.ts";
 import { Coordinates, RectCoordsDims, resolvePosition } from "./deps.ts";
 
@@ -177,6 +179,14 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
 
     case "simpleviz-arrow":
       renderArrowPrimitive(rc, primitive);
+      break;
+
+    case "sankey-node":
+      renderSankeyNodePrimitive(rc, primitive);
+      break;
+
+    case "sankey-link":
+      renderSankeyLinkPrimitive(rc, primitive);
       break;
 
     default: {
@@ -440,4 +450,41 @@ function renderArrowhead(
   });
 
   rc.rLine([p1, tip, p2], lineStyle);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Sankey Node Rendering                                                   //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderSankeyNodePrimitive(
+  rc: RenderContext,
+  primitive: SankeyNodePrimitive,
+): void {
+  rc.rRect(primitive.rcd, {
+    fillColor: primitive.fillColor,
+  });
+
+  if (primitive.label) {
+    rc.rText(
+      primitive.label.mText,
+      primitive.label.position,
+      primitive.label.alignment,
+      "center",
+    );
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Sankey Link Rendering                                                   //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderSankeyLinkPrimitive(
+  rc: RenderContext,
+  primitive: SankeyLinkPrimitive,
+): void {
+  rc.rPath(primitive.pathSegments, primitive.pathStyle);
 }

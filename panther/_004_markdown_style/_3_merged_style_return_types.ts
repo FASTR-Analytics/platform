@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ColorKeyOrString, TextInfoUnkeyed } from "./deps.ts";
+import type { TextInfoUnkeyed } from "./deps.ts";
 
 export type MergedMargin = {
   top: number;

@@ -235,6 +235,16 @@ const _DS = {
       truncateEnd: 10,
     },
   },
+  // Sankey
+  sankey: {
+    nodeWidth: 20,
+    nodeGap: 10,
+    columnGap: "auto" as number | "auto",
+    labelGap: 8,
+    linkOpacity: 0.5,
+    defaultNodeColor: { key: "baseContent" } as ColorKeyOrString,
+    defaultLinkColor: { key: "base300" } as ColorKeyOrString,
+  },
 };
 
 export type DefaultFigureStyle = typeof _DS;

@@ -4,13 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  collectFontsFromStyles,
-  CustomPageStyle,
+  CustomStyle,
   type FontInfo,
   type jsPDF,
   type PageInputs,
-  PageRenderer,
-  RectCoordsDims,
+  pagesToPdf,
 } from "./deps.ts";
 import { createPdfRenderContextWithFontsDeno } from "./utils.ts";
 
@@ -32,36 +30,23 @@ export async function pagesToPdfDeno(
     fontsToRegister,
   );
 
-  const rcd = new RectCoordsDims([0, 0, width, height]);
-
-  for (let i = 0; i < pages.length; i++) {
-    if (i > 0) {
-      pdf.addPage([width, height]);
-    }
-
-    const measured = await PageRenderer.measure(rc, rcd, pages[i]);
-
-    if (measured.warnings.length > 0) {
-      console.warn(`Page ${i + 1} layout warnings:`);
-      for (const warning of measured.warnings) {
-        console.warn(
-          `  - ${warning.type}: ${warning.message}${
-            warning.path ? ` (at ${warning.path})` : ""
-          }`,
-        );
-      }
-    }
-
-    await PageRenderer.render(rc, measured);
-  }
-
-  return pdf;
+  return pagesToPdf(pdf, rc, pages, width, height);
 }
 
 function extractFontsFromPages(pages: PageInputs[]): FontInfo[] {
-  const pageStyles = pages
-    .map((p) => (p.style ? new CustomPageStyle(p.style) : null))
-    .filter((s): s is CustomPageStyle => s !== null);
-
-  return collectFontsFromStyles(pageStyles);
+  const allFonts: FontInfo[] = [];
+  for (const page of pages) {
+    if (page.style) {
+      const customStyle = new CustomStyle(page.style);
+      allFonts.push(...customStyle.getFontsToRegister());
+    }
+  }
+  // Deduplicate fonts by id
+  const seen = new Set<string>();
+  return allFonts.filter((f) => {
+    const id = `${f.fontFamily}-${f.weight}-${f.italic}`;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }

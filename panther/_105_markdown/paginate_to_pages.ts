@@ -3,10 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { DocElement } from "./doc_element_types.ts";
 import {
   createItemNode,
-  type CustomFigureStyleOptions,
   type CustomMarkdownStyleOptions,
   FigureRenderer,
   type ImageMap,
@@ -23,7 +21,7 @@ import {
   type ConvertedPageContent,
   groupDocElementsByContentType,
 } from "./convert_to_page_content.ts";
-import type { FigureMap } from "./types.ts";
+import type { FigureMap, ParsedMarkdownItem } from "./types.ts";
 
 export type PageBreakRules = {
   h1AlwaysNewPage?: boolean;
@@ -37,14 +35,13 @@ export type PaginationConfig = {
   contentHeight: number;
   gapY?: number; // Gap between items (default from page style)
   pageBreakRules?: PageBreakRules;
-  styleMarkdown?: CustomMarkdownStyleOptions;
-  styleFigure?: CustomFigureStyleOptions;
+  style?: CustomMarkdownStyleOptions;
   images?: ImageMap;
   figures?: FigureMap;
 };
 
 export function paginateMarkdown(
-  elements: DocElement[],
+  elements: ParsedMarkdownItem[],
   rc: RenderContext,
   config: PaginationConfig,
 ): LayoutNode<ConvertedPageContent>[][] {
@@ -80,8 +77,7 @@ export function paginateMarkdown(
       group,
       config.images,
       config.figures,
-      config.styleMarkdown,
-      config.styleFigure,
+      config.style,
     );
     if (!item) continue;
 
@@ -89,7 +85,7 @@ export function paginateMarkdown(
       rc,
       item,
       config.contentWidth,
-      config.styleMarkdown,
+      config.style,
     );
 
     // Add gap between all items (matching layout behavior)
@@ -129,7 +125,7 @@ export function paginateMarkdown(
         config.contentHeight,
         rc,
         config.contentWidth,
-        config.styleMarkdown,
+        config.style,
         rules.preventOrphanHeadings,
       );
 
@@ -138,7 +134,7 @@ export function paginateMarkdown(
           rc,
           splitItem,
           config.contentWidth,
-          config.styleMarkdown,
+          config.style,
         );
 
         const splitNeedsGap = currentPage.length > 0;
@@ -163,7 +159,7 @@ export function paginateMarkdown(
                 rc,
                 orphanHeading.data,
                 config.contentWidth,
-                config.styleMarkdown,
+                config.style,
               )
               : 0;
             previousGroupType = orphanHeading ? "text" : undefined;
@@ -187,7 +183,7 @@ export function paginateMarkdown(
             rc,
             orphanHeading.data,
             config.contentWidth,
-            config.styleMarkdown,
+            config.style,
           )
           : 0;
         previousGroupType = orphanHeading ? "text" : undefined;
@@ -223,7 +219,7 @@ function splitGroupsAtPageBreakHeadings(
       continue;
     }
 
-    let currentElements: DocElement[] = [];
+    let currentElements: ParsedMarkdownItem[] = [];
 
     for (const element of group.elements) {
       const shouldSplit = element.type === "heading" &&

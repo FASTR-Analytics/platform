@@ -3,7 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ContentBlock, DisplayItem } from "./types.ts";
+import type { ContentBlock } from "../deps.ts";
+import type { DisplayItem } from "./types.ts";
 import type { AIToolWithMetadata, ToolUIMetadata } from "./tool_helpers.ts";
 
 ////////////////////////////////////////////////////////////////////////////////

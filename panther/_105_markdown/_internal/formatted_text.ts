@@ -101,7 +101,7 @@ export function renderFormattedText(
       const baselineOffset = line.maxBaseline - runBaseline;
       const runY = lineY + baselineOffset;
 
-      rc.rText(run.mText, { x: lineX + run.x, y: runY }, "left", "top");
+      rc.rText(run.mText, { x: lineX + run.x, y: runY }, "left", "top", run.link?.url);
 
       if (run.underline) {
         rc.rLine(
@@ -236,11 +236,14 @@ function wrapIntoLines(
         mText: chunk.mText,
         x: lineWidth,
       };
-      if (chunk.link && linkUnderline) {
-        run.underline = {
-          yOffset: chunk.ti.fontSize * 1.1,
-          color: chunk.ti.color,
-        };
+      if (chunk.link) {
+        run.link = chunk.link;
+        if (linkUnderline) {
+          run.underline = {
+            yOffset: chunk.ti.fontSize * 1.1,
+            color: chunk.ti.color,
+          };
+        }
       }
       currentLine.push(run);
       lineWidth += chunkWidth;

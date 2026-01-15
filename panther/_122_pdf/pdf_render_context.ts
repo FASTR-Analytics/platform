@@ -7,6 +7,8 @@ import type {
   AreaStyle,
   jsPDF,
   LineStyle,
+  PathSegment,
+  PathStyle,
   PointStyle,
   RectStyle,
 } from "./deps.ts";
@@ -57,6 +59,7 @@ export class PdfRenderContext implements RenderContext {
     coordsOrBounds: CoordinatesOptions | RectCoordsDimsOptions,
     hAlign: "center" | "left" | "right",
     vAlign?: "top" | "center" | "bottom",
+    link?: string,
   ): void {
     try {
       // Check if it's a RectCoordsDims
@@ -139,13 +142,21 @@ export class PdfRenderContext implements RenderContext {
       }
 
       for (const line of mText.lines) {
-        this._jsPdf.text(line.text, c.x(), y + line.y, {
-          maxWidth: 0,
-          charSpace,
-          align: hAlign,
-          baseline: "alphabetic",
-          lineHeightFactor: mText.ti.lineHeight,
-        });
+        if (link) {
+          // Use textWithLink for clickable text
+          this._jsPdf.textWithLink(line.text, c.x(), y + line.y, {
+            url: link,
+            align: hAlign,
+          });
+        } else {
+          this._jsPdf.text(line.text, c.x(), y + line.y, {
+            maxWidth: 0,
+            charSpace,
+            align: hAlign,
+            baseline: "alphabetic",
+            lineHeightFactor: mText.ti.lineHeight,
+          });
+        }
       }
     } catch (e) {
       throw e;
@@ -366,19 +377,52 @@ export class PdfRenderContext implements RenderContext {
       }
       const r = new RectCoordsDims(rcd);
       const f = getColor(s.fillColor);
-      if (f.at(0) === "#") {
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: 1 });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setFillColor(f);
-      } else {
-        const rgba = new Color(f).rgba();
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: rgba.a });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
+
+      // Determine if we have fill and/or stroke
+      const hasFill = f !== "transparent" && f !== "none";
+      const hasStroke = s.strokeColor && s.strokeColor !== "none" &&
+        s.strokeWidth && s.strokeWidth > 0;
+
+      if (!hasFill && !hasStroke) {
+        return;
       }
-      this._jsPdf.rect(r.x(), r.y(), r.w(), r.h(), "F");
+
+      // Set up fill color
+      if (hasFill) {
+        if (f.at(0) === "#") {
+          //@ts-ignore
+          const newGState = new this._jsPdf.GState({ opacity: 1 });
+          this._jsPdf.setGState(newGState);
+          this._jsPdf.setFillColor(f);
+        } else {
+          const rgba = new Color(f).rgba();
+          //@ts-ignore
+          const newGState = new this._jsPdf.GState({ opacity: rgba.a });
+          this._jsPdf.setGState(newGState);
+          this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
+        }
+      }
+
+      // Set up stroke color and width
+      if (hasStroke) {
+        const strokeColor = getColor(s.strokeColor!);
+        if (strokeColor.at(0) === "#") {
+          this._jsPdf.setDrawColor(strokeColor);
+        } else {
+          const rgba = new Color(strokeColor).rgba();
+          this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
+        }
+        this._jsPdf.setLineWidth(s.strokeWidth!);
+      }
+
+      // Draw the rect with appropriate mode
+      if (hasFill && hasStroke) {
+        this._jsPdf.rect(r.x(), r.y(), r.w(), r.h(), "FD"); // Fill and Draw
+      } else if (hasFill) {
+        this._jsPdf.rect(r.x(), r.y(), r.w(), r.h(), "F"); // Fill only
+      } else {
+        this._jsPdf.rect(r.x(), r.y(), r.w(), r.h(), "S"); // Stroke only
+      }
     } catch (e) {
       throw e;
     }
@@ -583,22 +627,22 @@ export class PdfRenderContext implements RenderContext {
           typeof image === "object" &&
           "_isGfxCanvas" in (image as any)
         ) {
-          // This is our wrapped @gfx/canvas Image
+          // This is our wrapped @gfx/canvas Image - use the src data URL if available
           const wrapper = image as any;
-          const gfxImage = wrapper._gfxCanvasImage;
-
-          // Create a temporary canvas matching the destination size
-          const tempCanvas = this._createCanvas(Math.ceil(dw), Math.ceil(dh));
-          const tempCtx = tempCanvas.getContext("2d");
-          if (!tempCtx) {
-            throw new Error("Failed to create temporary canvas context");
+          if (wrapper.src && typeof wrapper.src === "string") {
+            // Use the pre-computed data URL directly
+            this._jsPdf.addImage(wrapper.src, "PNG", dx, dy, dw, dh);
+          } else {
+            // Fallback to canvas-based approach
+            const gfxImage = wrapper._gfxCanvasImage;
+            const tempCanvas = this._createCanvas(Math.ceil(dw), Math.ceil(dh));
+            const tempCtx = tempCanvas.getContext("2d");
+            if (!tempCtx) {
+              throw new Error("Failed to create temporary canvas context");
+            }
+            tempCtx.drawImage(gfxImage, 0, 0, dw, dh);
+            this._jsPdf.addImage(tempCanvas, "PNG", dx, dy, dw, dh);
           }
-
-          // Draw the image to the canvas at the destination size
-          tempCtx.drawImage(gfxImage, 0, 0, dw, dh);
-
-          // Add to PDF using canvas directly
-          this._jsPdf.addImage(tempCanvas, "PNG", dx, dy, dw, dh);
         } else {
           // Regular HTMLImageElement or HTMLCanvasElement
           this._jsPdf.addImage(image, "PNG", dx, dy, dw, dh);
@@ -642,6 +686,98 @@ export class PdfRenderContext implements RenderContext {
       }
     } catch (e) {
       throw e;
+    }
+  }
+
+  rPath(segments: PathSegment[], style: PathStyle): void {
+    if (!style.fill && !style.stroke) {
+      return;
+    }
+
+    const arr = segments.map((seg) => {
+      switch (seg.type) {
+        case "moveTo":
+          return { op: "m", c: [seg.x, seg.y] };
+        case "lineTo":
+          return { op: "l", c: [seg.x, seg.y] };
+        case "bezierCurveTo":
+          return {
+            op: "c",
+            c: [seg.cp1x, seg.cp1y, seg.cp2x, seg.cp2y, seg.x, seg.y],
+          };
+      }
+    });
+
+    this._jsPdf.path(arr);
+
+    if (style.fill && style.stroke) {
+      const fillColor = getColor(style.fill.color);
+      if (fillColor.at(0) === "#") {
+        //@ts-ignore
+        const newGState = new this._jsPdf.GState({
+          opacity: style.fill.opacity ?? 1,
+        });
+        this._jsPdf.setGState(newGState);
+        this._jsPdf.setFillColor(fillColor);
+      } else {
+        const rgba = new Color(fillColor).rgba();
+        //@ts-ignore
+        const newGState = new this._jsPdf.GState({
+          opacity: (style.fill.opacity ?? 1) * rgba.a,
+        });
+        this._jsPdf.setGState(newGState);
+        this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
+      }
+
+      const strokeColor = getColor(style.stroke.color);
+      if (strokeColor.at(0) === "#") {
+        this._jsPdf.setDrawColor(strokeColor);
+      } else {
+        const rgba = new Color(strokeColor).rgba();
+        this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
+      }
+      this._jsPdf.setLineWidth(style.stroke.width);
+
+      this._jsPdf.fillStroke();
+    } else if (style.fill) {
+      const fillColor = getColor(style.fill.color);
+      if (fillColor.at(0) === "#") {
+        //@ts-ignore
+        const newGState = new this._jsPdf.GState({
+          opacity: style.fill.opacity ?? 1,
+        });
+        this._jsPdf.setGState(newGState);
+        this._jsPdf.setFillColor(fillColor);
+      } else {
+        const rgba = new Color(fillColor).rgba();
+        //@ts-ignore
+        const newGState = new this._jsPdf.GState({
+          opacity: (style.fill.opacity ?? 1) * rgba.a,
+        });
+        this._jsPdf.setGState(newGState);
+        this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
+      }
+      this._jsPdf.fill();
+    } else if (style.stroke) {
+      const strokeColor = getColor(style.stroke.color);
+      if (strokeColor.at(0) === "#") {
+        //@ts-ignore
+        const newGState = new this._jsPdf.GState({
+          opacity: style.stroke.opacity ?? 1,
+        });
+        this._jsPdf.setGState(newGState);
+        this._jsPdf.setDrawColor(strokeColor);
+      } else {
+        const rgba = new Color(strokeColor).rgba();
+        //@ts-ignore
+        const newGState = new this._jsPdf.GState({
+          opacity: (style.stroke.opacity ?? 1) * rgba.a,
+        });
+        this._jsPdf.setGState(newGState);
+        this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
+      }
+      this._jsPdf.setLineWidth(style.stroke.width);
+      this._jsPdf.stroke();
     }
   }
 }

@@ -3,9 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { DocElement, InlineContent } from "./doc_element_types.ts";
 import {
-  type CustomFigureStyleOptions,
   type CustomMarkdownStyleOptions,
   type FigureInputs,
   type ImageInputs,
@@ -14,7 +12,7 @@ import {
   type TableData,
   type TableInputs,
 } from "./deps.ts";
-import type { FigureMap } from "./types.ts";
+import type { FigureMap, MarkdownInline, ParsedMarkdownItem } from "./types.ts";
 
 export type ConvertedPageContent =
   | MarkdownRendererInput
@@ -24,14 +22,14 @@ export type ConvertedPageContent =
 
 export type ContentGroup = {
   type: "text" | "table" | "image";
-  elements: DocElement[];
+  elements: ParsedMarkdownItem[];
 };
 
 export function groupDocElementsByContentType(
-  elements: DocElement[],
+  elements: ParsedMarkdownItem[],
 ): ContentGroup[] {
   const groups: ContentGroup[] = [];
-  let currentTextGroup: DocElement[] = [];
+  let currentTextGroup: ParsedMarkdownItem[] = [];
 
   for (const element of elements) {
     if (element.type === "table" || element.type === "image") {
@@ -60,17 +58,23 @@ export function contentGroupToPageContentItem(
   group: ContentGroup,
   images?: ImageMap,
   figures?: FigureMap,
-  styleMarkdown?: CustomMarkdownStyleOptions,
-  styleFigure?: CustomFigureStyleOptions,
+  style?: CustomMarkdownStyleOptions,
 ): ConvertedPageContent | undefined {
   if (group.type === "table") {
-    const tableData = convertMarkdownTableToTableData(group.elements[0]);
-    return { tableData, style: styleFigure };
+    const element = group.elements[0];
+    if (element.type !== "table") {
+      return undefined;
+    }
+    const tableData = convertMarkdownTableToTableData(element);
+    return { tableData };
   }
 
   if (group.type === "image") {
     const element = group.elements[0];
-    const imageSrc = element.imageData;
+    if (element.type !== "image") {
+      return undefined;
+    }
+    const imageSrc = element.src;
     if (!imageSrc) {
       return undefined;
     }
@@ -100,11 +104,11 @@ export function contentGroupToPageContentItem(
     .map((el) => docElementToMarkdown(el))
     .join("\n\n");
 
-  return { markdown, style: styleMarkdown };
+  return { markdown, style };
 }
 
 export function docElementToPageContentItem(
-  element: DocElement,
+  element: ParsedMarkdownItem,
   images?: ImageMap,
 ): ConvertedPageContent | undefined {
   if (element.type === "table") {
@@ -112,7 +116,7 @@ export function docElementToPageContentItem(
     return { tableData };
   }
 
-  if (element.type === "image" && element.imageData) {
+  if (element.type === "image" && element.src) {
     return undefined;
   }
 
@@ -121,9 +125,11 @@ export function docElementToPageContentItem(
   };
 }
 
-function convertMarkdownTableToTableData(element: DocElement): TableData {
-  const headers = element.tableHeader?.[0] || [];
-  const rows = element.tableRows || [];
+function convertMarkdownTableToTableData(
+  element: ParsedMarkdownItem & { type: "table" },
+): TableData {
+  const headers = element.header?.[0] || [];
+  const rows = element.rows || [];
 
   const colHeaders = headers.map((cell) => inlineContentToPlainText(cell));
   const dataRows = rows.map((row) =>
@@ -154,11 +160,10 @@ function convertMarkdownTableToTableData(element: DocElement): TableData {
   return tableData;
 }
 
-export function docElementToMarkdown(element: DocElement): string {
+export function docElementToMarkdown(element: ParsedMarkdownItem): string {
   switch (element.type) {
     case "heading": {
-      const level = element.level ?? 1;
-      const hashes = "#".repeat(level);
+      const hashes = "#".repeat(element.level);
       const text = inlineContentToString(element.content);
       return `${hashes} ${text}`;
     }
@@ -170,7 +175,7 @@ export function docElementToMarkdown(element: DocElement): string {
       const prefix = element.listType === "numbered"
         ? `${element.listIndex ?? 1}. `
         : "- ";
-      const indent = "  ".repeat(element.listLevel ?? 0);
+      const indent = "  ".repeat(element.level);
       const text = inlineContentToString(element.content);
       return `${indent}${prefix}${text}`;
     }
@@ -184,36 +189,46 @@ export function docElementToMarkdown(element: DocElement): string {
       return "---";
 
     case "code-block":
-      return "```\n" + (element.codeContent ?? "") + "```";
+      return "```\n" + element.code + "```";
 
-    default:
+    case "math-block":
+      return "$$\n" + element.latex + "\n$$";
+
+    case "image":
+      return `![${element.alt}](${element.src})`;
+
+    case "table":
       return "";
   }
 }
 
-function inlineContentToString(content: InlineContent[]): string {
+function inlineContentToString(content: MarkdownInline[]): string {
   return content.map((c) => {
-    if (c.type === "break") return "\n";
-
-    let text = c.text;
-
-    if (c.type === "bold") {
-      text = `**${text}**`;
-    } else if (c.type === "italic") {
-      text = `*${text}*`;
-    } else if (c.type === "link" && c.url) {
-      text = `[${text}](${c.url})`;
-    } else if (c.type === "email" && c.url) {
-      text = `[${text}](mailto:${c.url})`;
+    switch (c.type) {
+      case "break":
+        return "\n";
+      case "text":
+        return c.text;
+      case "bold":
+        return `**${c.text}**`;
+      case "italic":
+        return `*${c.text}*`;
+      case "bold-italic":
+        return `***${c.text}***`;
+      case "link":
+        return `[${c.text}](${c.url})`;
+      case "code-inline":
+        return `\`${c.text}\``;
+      case "math-inline":
+        return `$${c.latex}$`;
     }
-
-    return text;
   }).join("");
 }
 
-function inlineContentToPlainText(content: InlineContent[]): string {
+function inlineContentToPlainText(content: MarkdownInline[]): string {
   return content.map((c) => {
     if (c.type === "break") return "\n";
+    if (c.type === "math-inline") return c.latex;
     return c.text;
   }).join("");
 }

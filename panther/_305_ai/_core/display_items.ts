@@ -3,8 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import type { ContentBlock, MessageParam } from "../deps.ts";
 import type { ToolRegistry } from "./tool_engine.ts";
-import type { ContentBlock, DisplayItem, MessageParam } from "./types.ts";
+import type { DisplayItem } from "./types.ts";
 
 export function getDisplayItemsFromMessage(
   message: MessageParam,

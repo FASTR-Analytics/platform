@@ -35,7 +35,7 @@
     "npm:@hono/clerk-auth@2": "2.0.1_@clerk+backend@1.34.0_hono@4.8.10",
     "npm:@solidjs/router@0.15": "0.15.4_solid-js@1.9.10__seroval@1.3.2",
     "npm:@stdlib/random-base-normal@0.2.1": "0.2.1",
-    "npm:@types/node@*": "22.5.4",
+    "npm:@types/node@*": "24.6.2",
     "npm:@types/papaparse@^5.3.15": "5.3.15",
     "npm:@vscode/markdown-it-katex@^1.1.2": "1.1.2",
     "npm:codemirror@6": "6.0.2",
@@ -48,6 +48,7 @@
     "npm:papaparse@^5.5.2": "5.5.2",
     "npm:parse-multipart@^1.0.4": "1.0.4",
     "npm:postgres@^3.4.5": "3.4.5",
+    "npm:pptxgenjs@^4.0.1": "4.0.1",
     "npm:solid-js@^1.9.0": "1.9.10_seroval@1.3.2",
     "npm:sortablejs@^1.15.0": "1.15.6",
     "npm:xlsx@0.18.5": "0.18.5",
@@ -1754,12 +1755,6 @@
         "undici-types@6.20.0"
       ]
     },
-    "@types/node@22.5.4": {
-      "integrity": "sha512-FDuKUJQm/ju9fT/SeX/6+gBzoPzlVCzfzmGkwKvRHQVxi4BntVbyIwf6a4Xn62mrvndLiml6z/UBXIdEVjQLXg==",
-      "dependencies": [
-        "undici-types@6.19.8"
-      ]
-    },
     "@types/node@24.6.2": {
       "integrity": "sha512-d2L25Y4j+W3ZlNAeMKcy7yDsK425ibcAOO2t7aPTz6gNMH0z2GThtwENCDc0d/Pw9wgyRqE5Px1wkV7naz8ang==",
       "dependencies": [
@@ -1772,7 +1767,7 @@
     "@types/papaparse@5.3.15": {
       "integrity": "sha512-JHe6vF6x/8Z85nCX4yFdDslN11d+1pr12E526X8WAfhadOeaOTx5AuIkvDKIBopfvlzpzkdMx4YyvSKCM9oqtw==",
       "dependencies": [
-        "@types/node@22.12.0"
+        "@types/node@24.6.2"
       ]
     },
     "@types/raf@3.4.3": {
@@ -1939,6 +1934,16 @@
         "text-segmentation"
       ]
     },
+    "https@1.0.0": {
+      "integrity": "sha512-4EC57ddXrkaF0x83Oj8sM6SLQHAWXw90Skqu2M4AEWENZ3F02dFJE/GARA8igO79tcgYqGrD7ae4f5L3um2lgg=="
+    },
+    "image-size@1.2.1": {
+      "integrity": "sha512-rH+46sQJ2dlwfjfhCyNx5thzrv+dtmBIhPHk0zgRUukHzZ/kRueTJXoYYsclBaKcSMBWuGbOFXtioLpzTb5euw==",
+      "dependencies": [
+        "queue"
+      ],
+      "bin": true
+    },
     "immediate@3.0.6": {
       "integrity": "sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ=="
     },
@@ -2082,11 +2087,26 @@
     "postgres@3.4.5": {
       "integrity": "sha512-cDWgoah1Gez9rN3H4165peY9qfpEo+SA61oQv65O3cRUE1pOEoJWwddwcqKE8XZYjbblOJlYDlLV4h67HrEVDg=="
     },
+    "pptxgenjs@4.0.1": {
+      "integrity": "sha512-TeJISr8wouAuXw4C1F/mC33xbZs/FuEG6nH9FG1Zj+nuPcGMP5YRHl6X+j3HSUnS1f3at6k75ZZXPMZlA5Lj9A==",
+      "dependencies": [
+        "@types/node@22.12.0",
+        "https",
+        "image-size",
+        "jszip"
+      ]
+    },
     "process-nextick-args@2.0.1": {
       "integrity": "sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag=="
     },
     "punycode.js@2.3.1": {
       "integrity": "sha512-uxFIHU0YlHYhDQtV4R9J6a52SLx28BCjT+4ieh7IGbgwVJWO+km431c4yRlREUAsAmt/uMjQUyQHNEPf0M39CA=="
+    },
+    "queue@6.0.2": {
+      "integrity": "sha512-iHZWu+q3IdFZFX36ro/lKBkSvfkztY5Y7HMiPlOUjhupPcG2JMfst2KKEpu5XndviX/3UhFbRngUPNKtgvtZiA==",
+      "dependencies": [
+        "inherits"
+      ]
     },
     "raf@3.4.1": {
       "integrity": "sha512-Sq4CW4QhwOHE8ucn6J34MqtZCeWFP2aQSmrlroYgqAV1PjStIhJXxYuTgUIfkEk7zTLjmIjLmU5q+fbD1NnOJA==",
@@ -2226,9 +2246,6 @@
     },
     "uc.micro@2.1.0": {
       "integrity": "sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A=="
-    },
-    "undici-types@6.19.8": {
-      "integrity": "sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw=="
     },
     "undici-types@6.20.0": {
       "integrity": "sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg=="
@@ -2410,6 +2427,7 @@
           "npm:markdown-it@^14.1.0",
           "npm:opentype.js@^1.3.4",
           "npm:papaparse@5.4.1",
+          "npm:pptxgenjs@^4.0.1",
           "npm:solid-js@^1.9.0",
           "npm:sortablejs@^1.15.0",
           "npm:xlsx@0.18.5",

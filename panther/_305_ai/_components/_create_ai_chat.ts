@@ -4,7 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createContext, useContext } from "solid-js";
-import type { Anthropic } from "../deps.ts";
+import type { Anthropic, ContentBlock, DocumentContentBlock, MessageParam } from "../deps.ts";
+import { getBetaHeaders, hasWebFetchTool } from "../_core/beta_headers.ts";
 import { resolveBuiltInTools } from "../_core/builtin_tools.ts";
 import {
   clearConversationStore,
@@ -18,12 +19,7 @@ import {
   ToolRegistry,
   type ToolResult,
 } from "../_core/tool_engine.ts";
-import type {
-  AIChatConfig,
-  ContentBlock,
-  DisplayItem,
-  MessageParam,
-} from "../_core/types.ts";
+import type { AIChatConfig, DisplayItem } from "../_core/types.ts";
 
 // SDK tool union type for API calls
 type SDKToolUnion = Anthropic.Messages.ToolUnion;
@@ -34,15 +30,6 @@ type ToolUseBlock = {
   id: string;
   name: string;
   input: unknown;
-};
-
-// Type for stream events with server_tool_use
-type ServerToolUseEvent = {
-  type: "content_block_start";
-  content_block: {
-    type: "server_tool_use";
-    name: string;
-  };
 };
 
 export const AIChatConfigContext = createContext<AIChatConfig>();
@@ -103,6 +90,39 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     );
   };
 
+  const messagesContainDocuments = (): boolean => {
+    return messages().some((msg) => {
+      if (typeof msg.content === "string") return false;
+      return msg.content.some((block) => block.type === "document");
+    });
+  };
+
+  const createUserMessage = (text: string): MessageParam => {
+    // Include documents if we have them AND they're not already in the message array
+    const shouldIncludeDocuments = !messagesContainDocuments();
+    const documentRefs = shouldIncludeDocuments
+      ? (config.getDocumentRefs?.() || [])
+      : [];
+    if (documentRefs.length === 0) {
+      return { role: "user", content: text };
+    }
+
+    const documentBlocks: DocumentContentBlock[] = documentRefs.map((ref) => ({
+      type: "document" as const,
+      source: { type: "file" as const, file_id: ref.file_id },
+      title: ref.title,
+      cache_control: { type: "ephemeral" as const },
+    }));
+
+    return {
+      role: "user",
+      content: [
+        ...documentBlocks,
+        { type: "text" as const, text },
+      ],
+    };
+  };
+
   const processMessageForDisplay = (message: MessageParam) => {
     const items = getDisplayItemsFromMessage(message, toolRegistry);
     addDisplayItems(items);
@@ -115,11 +135,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     // Only add user message if provided (undefined means messages already in state)
     if (userMessage !== undefined) {
-      const userMsg: MessageParam = {
-        role: "user",
-        content: userMessage,
-      };
-
+      const userMsg = createUserMessage(userMessage);
       setMessages([...messages(), userMsg]);
 
       if (userMessage.trim()) {
@@ -137,13 +153,19 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         await blockingWithToolLoop(messages());
       } else {
         // Use SDK's toolRunner - it handles the entire tool loop automatically
+        const betas = getBetasArray(
+          allTools.length > 0,
+          hasWebFetchTool(config.builtInTools),
+          messagesContainDocuments(),
+        );
         const result = await config.sdkClient.beta.messages.toolRunner({
           model: config.modelConfig.model,
           max_tokens: config.modelConfig.max_tokens,
           temperature: config.modelConfig.temperature,
           messages: messages(),
           tools: allTools,
-          system: config.system,
+          system: config.system(),
+          betas,
         });
 
         // Update usage
@@ -180,14 +202,20 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   async function blockingWithToolLoop(
     currentMessages: MessageParam[],
   ): Promise<void> {
-    // Use SDK's messages.create (non-streaming)
-    const response = await config.sdkClient.messages.create({
+    // Use SDK's beta.messages.create (non-streaming)
+    const betas = getBetasArray(
+      allTools.length > 0,
+      hasWebFetchTool(config.builtInTools),
+      messagesContainDocuments(),
+    );
+    const response = await config.sdkClient.beta.messages.create({
       model: config.modelConfig.model,
       max_tokens: config.modelConfig.max_tokens,
       temperature: config.modelConfig.temperature,
       messages: currentMessages,
       tools: allTools,
-      system: config.system,
+      system: config.system(),
+      betas,
     });
 
     // Update usage
@@ -288,11 +316,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     // Only add user message if provided (undefined means messages already in state)
     if (userMessage !== undefined) {
-      const userMsg: MessageParam = {
-        role: "user",
-        content: userMessage,
-      };
-
+      const userMsg = createUserMessage(userMessage);
       setMessages([...messages(), userMsg]);
 
       if (userMessage.trim()) {
@@ -331,14 +355,20 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   async function streamWithToolLoop(
     currentMessages: MessageParam[],
   ): Promise<void> {
-    // Use SDK's streaming
-    const stream = config.sdkClient.messages.stream({
+    // Use SDK's beta streaming
+    const betas = getBetasArray(
+      allTools.length > 0,
+      hasWebFetchTool(config.builtInTools),
+      messagesContainDocuments(),
+    );
+    const stream = config.sdkClient.beta.messages.stream({
       model: config.modelConfig.model,
       max_tokens: config.modelConfig.max_tokens,
       temperature: config.modelConfig.temperature,
       messages: currentMessages,
       tools: allTools,
-      system: config.system,
+      system: config.system(),
+      betas,
     });
 
     // Subscribe to text events
@@ -488,10 +518,15 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     if (userMessages.length === 0) return Promise.resolve();
 
     // Add all user messages to conversation
-    const messagesToAdd: MessageParam[] = userMessages.map((text) => ({
-      role: "user",
-      content: text,
-    }));
+    // Include documents only in the first message of batch if not already in conversation
+    const shouldIncludeDocsOnFirst = !messagesContainDocuments();
+    const messagesToAdd: MessageParam[] = userMessages.map((text, index) => {
+      if (index === 0 && shouldIncludeDocsOnFirst) {
+        return createUserMessage(text);
+      }
+      // For subsequent messages in batch, just create plain text message
+      return { role: "user" as const, content: text };
+    });
 
     const newMessages = [...messages(), ...messagesToAdd];
     setMessages(newMessages);
@@ -525,4 +560,14 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     toolRegistry,
     processMessageForDisplay,
   };
+}
+
+function getBetasArray(
+  hasTools: boolean,
+  hasWebFetch: boolean,
+  hasDocuments: boolean,
+): string[] | undefined {
+  const headers = getBetaHeaders({ hasTools, hasWebFetch, hasDocuments });
+  if (!headers) return undefined;
+  return headers["anthropic-beta"].split(",");
 }

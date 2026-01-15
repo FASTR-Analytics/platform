@@ -13,6 +13,7 @@ export { query, QueryBuilder } from "../_101_csv_query/mod.ts";
 export type {
   AggregateFunction,
   OrderDirection,
+  OrderSpec,
   WhereFilter,
   WherePredicate,
 } from "../_101_csv_query/mod.ts";

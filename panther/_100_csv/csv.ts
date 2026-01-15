@@ -62,17 +62,18 @@ export class Csv<T> {
   // ACCESS
   // ================================================================================
 
-  cell(row: number, col: number | string): T {
+  cell(row: number | string, col: number | string): T {
+    const rowIndex = typeof row === "number" ? row : this.getRowIndex(row);
     const colIndex = typeof col === "number" ? col : this.getColIndex(col);
-    if (row < 0 || row >= this.nRows) {
-      throw new Error(`Row index ${row} out of bounds (0-${this.nRows - 1})`);
+    if (rowIndex < 0 || rowIndex >= this.nRows) {
+      throw new Error(`Row index ${rowIndex} out of bounds (0-${this.nRows - 1})`);
     }
     if (colIndex < 0 || colIndex >= this.nCols) {
       throw new Error(
         `Column index ${colIndex} out of bounds (0-${this.nCols - 1})`,
       );
     }
-    return this.aoa[row][colIndex];
+    return this.aoa[rowIndex][colIndex];
   }
 
   col(colIndexOrName: number | string): T[] {
@@ -89,7 +90,11 @@ export class Csv<T> {
     return this.aoa.map((row) => row[colIndex]);
   }
 
-  row(rowIndex: number): T[] {
+  row(rowIndexOrName: number | string): T[] {
+    const rowIndex = typeof rowIndexOrName === "number"
+      ? rowIndexOrName
+      : this.getRowIndex(rowIndexOrName);
+
     if (rowIndex < 0 || rowIndex >= this.nRows) {
       throw new Error(
         `Row index ${rowIndex} out of bounds (0-${this.nRows - 1})`,
@@ -430,6 +435,261 @@ export class Csv<T> {
   }
 
   // ================================================================================
+  // EXPLORATION
+  // ================================================================================
+
+  head(n: number = 5): Csv<T> {
+    const count = Math.min(n, this.nRows);
+    return this.selectRows(Array.from({ length: count }, (_, i) => i));
+  }
+
+  tail(n: number = 5): Csv<T> {
+    const count = Math.min(n, this.nRows);
+    const start = this.nRows - count;
+    return this.selectRows(Array.from({ length: count }, (_, i) => start + i));
+  }
+
+  limit(n: number): Csv<T> {
+    return this.head(n);
+  }
+
+  slice(start: number, end?: number): Csv<T> {
+    const actualEnd = end ?? this.nRows;
+    if (start < 0 || start > this.nRows) {
+      throw new Error(`Start index ${start} out of bounds (0-${this.nRows})`);
+    }
+    if (actualEnd < start || actualEnd > this.nRows) {
+      throw new Error(`End index ${actualEnd} out of bounds (${start}-${this.nRows})`);
+    }
+    const indexes = Array.from({ length: actualEnd - start }, (_, i) => start + i);
+    return this.selectRows(indexes);
+  }
+
+  sample(n: number): Csv<T> {
+    if (n <= 0) {
+      throw new Error("Sample size must be positive");
+    }
+    if (n >= this.nRows) {
+      return this.copy();
+    }
+    const indexes = Array.from({ length: this.nRows }, (_, i) => i);
+    for (let i = indexes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
+    }
+    return this.selectRows(indexes.slice(0, n));
+  }
+
+  // ================================================================================
+  // FLUENT TRANSFORMS
+  // ================================================================================
+
+  rename(mapping: Record<string, string>): Csv<T> {
+    const newHeaders = this.colHeaders.map((h) => mapping[h] ?? h);
+    return this.withColHeaders(newHeaders);
+  }
+
+  dropCols(cols: (string | number)[]): Csv<T> {
+    const dropIndexes = new Set(
+      cols.map((c) => (typeof c === "number" ? c : this.getColIndex(c)))
+    );
+    const keepIndexes = this.colHeaders
+      .map((_, i) => i)
+      .filter((i) => !dropIndexes.has(i));
+    return this.selectCols(keepIndexes);
+  }
+
+  addCol(name: string, fn: (row: T[], rowIdx: number) => T): Csv<T> {
+    if (this.colHeaders.includes(name)) {
+      throw new Error(`Column "${name}" already exists`);
+    }
+    const newData = this.aoa.map((row, i) => [...row, fn(row, i)]);
+    return new Csv({
+      aoa: newData,
+      colHeaders: [...this.colHeaders, name],
+      rowHeaders: this.rowHeaders,
+    });
+  }
+
+  sortBy(col: string | number, direction: "asc" | "desc" = "asc"): Csv<T> {
+    return this.sortByMultiple([{ col, dir: direction }]);
+  }
+
+  sortByMultiple(
+    specs: Array<{ col: string | number; dir?: "asc" | "desc" }>
+  ): Csv<T> {
+    if (specs.length === 0) {
+      return this.copy();
+    }
+
+    const colIndexes = specs.map((s) => ({
+      idx: typeof s.col === "number" ? s.col : this.getColIndex(s.col),
+      dir: s.dir ?? "asc",
+    }));
+
+    const indexes = Array.from({ length: this.nRows }, (_, i) => i);
+    indexes.sort((a, b) => {
+      for (const { idx, dir } of colIndexes) {
+        const aVal = this.aoa[a][idx];
+        const bVal = this.aoa[b][idx];
+
+        const aNum = Number(aVal);
+        const bNum = Number(bVal);
+
+        let cmp: number;
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          cmp = aNum - bNum;
+        } else {
+          cmp = String(aVal).localeCompare(String(bVal));
+        }
+
+        if (cmp !== 0) {
+          return dir === "asc" ? cmp : -cmp;
+        }
+      }
+      return 0;
+    });
+
+    return this.selectRows(indexes);
+  }
+
+  unique(cols?: (string | number)[]): Csv<T> {
+    const colIndexes = cols
+      ? cols.map((c) => (typeof c === "number" ? c : this.getColIndex(c)))
+      : this.colHeaders.map((_, i) => i);
+
+    const seen = new Set<string>();
+    const keepIndexes: number[] = [];
+
+    for (let i = 0; i < this.nRows; i++) {
+      const key = JSON.stringify(colIndexes.map((idx) => this.aoa[i][idx]));
+      if (!seen.has(key)) {
+        seen.add(key);
+        keepIndexes.push(i);
+      }
+    }
+
+    return this.selectRows(keepIndexes);
+  }
+
+  // ================================================================================
+  // PIVOT / UNPIVOT
+  // ================================================================================
+
+  pivot(opts: {
+    index: string | string[];
+    columns: string;
+    values: string;
+    aggFunc?: "sum" | "avg" | "count" | "min" | "max" | "first";
+  }): Csv<string> {
+    const indexCols = Array.isArray(opts.index) ? opts.index : [opts.index];
+    const indexIndexes = indexCols.map((c) => this.getColIndex(c));
+    const columnsIndex = this.getColIndex(opts.columns);
+    const valuesIndex = this.getColIndex(opts.values);
+    const aggFunc = opts.aggFunc ?? "first";
+
+    const uniqueColumnValues = [...new Set(this.aoa.map((row) => String(row[columnsIndex])))];
+    uniqueColumnValues.sort();
+
+    const groups = new Map<string, Map<string, T[]>>();
+
+    for (const row of this.aoa) {
+      const indexKey = JSON.stringify(indexIndexes.map((i) => row[i]));
+      const columnValue = String(row[columnsIndex]);
+      const value = row[valuesIndex];
+
+      if (!groups.has(indexKey)) {
+        groups.set(indexKey, new Map());
+      }
+      const group = groups.get(indexKey)!;
+      if (!group.has(columnValue)) {
+        group.set(columnValue, []);
+      }
+      group.get(columnValue)!.push(value);
+    }
+
+    const resultColHeaders = [...indexCols, ...uniqueColumnValues];
+    const resultRows: string[][] = [];
+
+    for (const [indexKey, columnMap] of groups.entries()) {
+      const indexValues = JSON.parse(indexKey) as T[];
+      const row: string[] = indexValues.map((v) => String(v));
+
+      for (const colVal of uniqueColumnValues) {
+        const values = columnMap.get(colVal) ?? [];
+        row.push(this.aggregate(values, aggFunc));
+      }
+
+      resultRows.push(row);
+    }
+
+    return new Csv({
+      aoa: resultRows,
+      colHeaders: resultColHeaders,
+    });
+  }
+
+  unpivot(opts: {
+    index: string | string[];
+    valueColumns: string[];
+    varName?: string;
+    valueName?: string;
+  }): Csv<string> {
+    const indexCols = Array.isArray(opts.index) ? opts.index : [opts.index];
+    const indexIndexes = indexCols.map((c) => this.getColIndex(c));
+    const valueColIndexes = opts.valueColumns.map((c) => this.getColIndex(c));
+    const varName = opts.varName ?? "variable";
+    const valueName = opts.valueName ?? "value";
+
+    const resultColHeaders = [...indexCols, varName, valueName];
+    const resultRows: string[][] = [];
+
+    for (const row of this.aoa) {
+      const indexValues = indexIndexes.map((i) => String(row[i]));
+
+      for (let i = 0; i < opts.valueColumns.length; i++) {
+        const colName = opts.valueColumns[i];
+        const value = String(row[valueColIndexes[i]]);
+        resultRows.push([...indexValues, colName, value]);
+      }
+    }
+
+    return new Csv({
+      aoa: resultRows,
+      colHeaders: resultColHeaders,
+    });
+  }
+
+  private aggregate(values: T[], func: string): string {
+    if (values.length === 0) {
+      return "";
+    }
+
+    const nums = values.map((v) => Number(v)).filter((n) => !isNaN(n));
+
+    switch (func) {
+      case "first":
+        return String(values[0]);
+      case "last":
+        return String(values[values.length - 1]);
+      case "count":
+        return String(values.length);
+      case "sum":
+        return nums.length > 0 ? String(nums.reduce((a, b) => a + b, 0)) : "";
+      case "avg":
+        return nums.length > 0
+          ? String(nums.reduce((a, b) => a + b, 0) / nums.length)
+          : "";
+      case "min":
+        return nums.length > 0 ? String(Math.min(...nums)) : "";
+      case "max":
+        return nums.length > 0 ? String(Math.max(...nums)) : "";
+      default:
+        return String(values[0]);
+    }
+  }
+
+  // ================================================================================
   // INTERNAL HELPERS
   // ================================================================================
 
@@ -471,6 +731,17 @@ export class Csv<T> {
     const index = this.colHeaders.indexOf(name);
     if (index === -1) {
       throw new Error(`Column not found: "${name}"`);
+    }
+    return index;
+  }
+
+  private getRowIndex(name: string): number {
+    if (!this.rowHeaders) {
+      throw new Error("Cannot lookup row by name: CSV has no row headers");
+    }
+    const index = this.rowHeaders.indexOf(name);
+    if (index === -1) {
+      throw new Error(`Row not found: "${name}"`);
     }
     return index;
   }

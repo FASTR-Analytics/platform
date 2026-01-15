@@ -3,8 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import type { MessageParam, Usage } from "../deps.ts";
 import { createSignal } from "solid-js";
-import type { ChatState, DisplayItem, MessageParam, Usage } from "./types.ts";
+import type { ChatState, DisplayItem } from "./types.ts";
 
 export type ConversationStore = {
   messages: ReturnType<typeof createSignal<MessageParam[]>>;

@@ -49,7 +49,7 @@ export function ProjectChatbotV3(p: Props) {
         tools: tools() as AIChatConfig["tools"],
         conversationId: projectId,
         enableStreaming: false,
-        system: systemPrompt(),
+        system: systemPrompt,
       }}
     >
       <div class="flex h-full">

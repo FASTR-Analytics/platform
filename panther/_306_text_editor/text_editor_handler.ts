@@ -33,7 +33,11 @@ export function createTextEditorHandler(
     switch (input.command) {
       case "view": {
         if (input.view_range) {
-          return getViewRange(content, input.view_range[0], input.view_range[1]);
+          return getViewRange(
+            content,
+            input.view_range[0],
+            input.view_range[1],
+          );
         }
         return getContentWithLineNumbers(content);
       }
@@ -52,7 +56,11 @@ export function createTextEditorHandler(
         if (input.insert_line === undefined || input.new_str === undefined) {
           return "Error: insert_line and new_str required";
         }
-        const newContent = applyInsert(content, input.insert_line, input.new_str);
+        const newContent = applyInsert(
+          content,
+          input.insert_line,
+          input.new_str,
+        );
         setContent(newContent);
         return "Successfully inserted text.";
       }
@@ -68,14 +76,15 @@ export function createTextEditorHandler(
         if (!sel) {
           return "No text is currently selected.";
         }
-        const lineInfo =
-          sel.fromLine === sel.toLine
-            ? `Line ${sel.fromLine}`
-            : `Lines ${sel.fromLine}-${sel.toLine}`;
+        const lineInfo = sel.fromLine === sel.toLine
+          ? `Line ${sel.fromLine}`
+          : `Lines ${sel.fromLine}-${sel.toLine}`;
         return `Selected text (${lineInfo}):\n${sel.text}`;
       }
       default:
-        return `Error: Unknown command "${(input as TextEditorCommand).command}"`;
+        return `Error: Unknown command "${
+          (input as TextEditorCommand).command
+        }"`;
     }
   };
 }

@@ -49,7 +49,7 @@ export function AiInterpretationPane(p: Props) {
         tools: tools(),
         enableStreaming: true,
         conversationId: `viz-chat-${p.presentationObjectId}`,
-        system: systemPrompt(),
+        system: systemPrompt,
       }}
     >
       <div class="flex h-full flex-col">

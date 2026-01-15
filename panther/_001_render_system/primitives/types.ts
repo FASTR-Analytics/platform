@@ -13,6 +13,8 @@ import type {
   AreaStyle,
   LineStyle,
   MeasuredText,
+  PathSegment,
+  PathStyle,
   PointStyle,
   RectStyle,
 } from "../render_context.ts";
@@ -41,6 +43,9 @@ export const Z_INDEX = {
   // SimpleViz defaults
   SIMPLEVIZ_ARROW: 490, // Behind boxes by default
   SIMPLEVIZ_BOX: 500,
+  // Sankey defaults
+  SANKEY_LINK: 300,
+  SANKEY_NODE: 400,
 } as const;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -328,6 +333,41 @@ export type ArrowPrimitive = BasePrimitive & {
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+//    Sankey Primitives                                                       //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type SankeyNodePrimitive = BasePrimitive & {
+  type: "sankey-node";
+  meta: {
+    nodeId: string;
+    column: number;
+  };
+  // Visual
+  rcd: RectCoordsDims;
+  fillColor: string;
+  // Label (if present)
+  label?: {
+    mText: MeasuredText;
+    position: Coordinates;
+    alignment: "left" | "right";
+  };
+};
+
+export type SankeyLinkPrimitive = BasePrimitive & {
+  type: "sankey-link";
+  meta: {
+    fromNodeId: string;
+    toNodeId: string;
+    value: number;
+  };
+  // Visual - path segments for bezier curve rendering
+  pathSegments: PathSegment[];
+  pathStyle: PathStyle;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
 //    Primitive Union Type                                                    //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -347,4 +387,7 @@ export type Primitive =
   | ChartLabelPrimitive
   // SimpleViz primitives
   | BoxPrimitive
-  | ArrowPrimitive;
+  | ArrowPrimitive
+  // Sankey primitives
+  | SankeyNodePrimitive
+  | SankeyLinkPrimitive;

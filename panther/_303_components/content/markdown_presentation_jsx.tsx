@@ -3,16 +3,22 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createMemo, For, JSX, Match, Show, Switch } from "solid-js";
+import { createMemo, For, type JSX, Match, Show, Switch } from "solid-js";
 import type { CustomMarkdownStyleOptions, ImageMap } from "../deps.ts";
 import { parseMarkdown } from "../../_105_markdown/mod.ts";
-import type { DocElement, InlineContent } from "../../_105_markdown/mod.ts";
+import type {
+  MarkdownInline,
+  ParsedMarkdownItem,
+} from "../../_105_markdown/mod.ts";
 import {
   deriveMarkdownCssVars,
   MARKDOWN_BASE_STYLES,
 } from "../utils/markdown_tailwind.ts";
 
-export type MarkdownImageRenderer = (src: string, alt: string) => JSX.Element | undefined;
+export type MarkdownImageRenderer = (
+  src: string,
+  alt: string,
+) => JSX.Element | undefined;
 
 type Props = {
   markdown: string;
@@ -37,7 +43,7 @@ export function MarkdownPresentationJsx(p: Props) {
   return (
     <div class={MARKDOWN_BASE_STYLES} style={allStyles()}>
       <ElementsRenderer
-        elements={parsedDoc().elements}
+        elements={parsedDoc().items}
         images={p.images}
         renderImage={p.renderImage}
       />
@@ -46,15 +52,21 @@ export function MarkdownPresentationJsx(p: Props) {
 }
 
 type ElementsRendererProps = {
-  elements: DocElement[];
+  elements: ParsedMarkdownItem[];
   images?: ImageMap;
   renderImage?: MarkdownImageRenderer;
 };
 
 function ElementsRenderer(p: ElementsRendererProps) {
   const groupedElements = createMemo(() => {
-    const groups: { type: "single" | "bullet" | "numbered"; elements: DocElement[] }[] = [];
-    let currentList: { type: "bullet" | "numbered"; elements: DocElement[] } | null = null;
+    const groups: {
+      type: "single" | "bullet" | "numbered";
+      elements: ParsedMarkdownItem[];
+    }[] = [];
+    let currentList: {
+      type: "bullet" | "numbered";
+      elements: ParsedMarkdownItem[];
+    } | null = null;
 
     for (const el of p.elements) {
       if (el.type === "list-item") {
@@ -86,7 +98,14 @@ function ElementsRenderer(p: ElementsRendererProps) {
             <ul>
               <For each={group.elements}>
                 {(el) => (
-                  <li><InlineContentRenderer content={el.content} /></li>
+                  <li>
+                    <InlineContentRenderer
+                      content={(el as ParsedMarkdownItem & {
+                        type: "list-item";
+                      })
+                        .content}
+                    />
+                  </li>
                 )}
               </For>
             </ul>
@@ -95,7 +114,14 @@ function ElementsRenderer(p: ElementsRendererProps) {
             <ol>
               <For each={group.elements}>
                 {(el) => (
-                  <li><InlineContentRenderer content={el.content} /></li>
+                  <li>
+                    <InlineContentRenderer
+                      content={(el as ParsedMarkdownItem & {
+                        type: "list-item";
+                      })
+                        .content}
+                    />
+                  </li>
                 )}
               </For>
             </ol>
@@ -114,41 +140,66 @@ function ElementsRenderer(p: ElementsRendererProps) {
 }
 
 type DocElementRendererProps = {
-  element: DocElement;
+  element: ParsedMarkdownItem;
   images?: ImageMap;
   renderImage?: MarkdownImageRenderer;
 };
 
 function DocElementRenderer(p: DocElementRendererProps) {
+  const headingElement = () =>
+    p.element as ParsedMarkdownItem & { type: "heading" };
+  const paragraphElement = () =>
+    p.element as ParsedMarkdownItem & { type: "paragraph" };
+  const blockquoteElement = () =>
+    p.element as ParsedMarkdownItem & { type: "blockquote" };
+  const tableElement = () =>
+    p.element as ParsedMarkdownItem & { type: "table" };
+  const imageElement = () =>
+    p.element as ParsedMarkdownItem & { type: "image" };
+
   return (
     <Switch>
       <Match when={p.element.type === "heading" && p.element.level === 1}>
-        <h1><InlineContentRenderer content={p.element.content} /></h1>
+        <h1>
+          <InlineContentRenderer content={headingElement().content} />
+        </h1>
       </Match>
       <Match when={p.element.type === "heading" && p.element.level === 2}>
-        <h2><InlineContentRenderer content={p.element.content} /></h2>
+        <h2>
+          <InlineContentRenderer content={headingElement().content} />
+        </h2>
       </Match>
       <Match when={p.element.type === "heading" && p.element.level === 3}>
-        <h3><InlineContentRenderer content={p.element.content} /></h3>
+        <h3>
+          <InlineContentRenderer content={headingElement().content} />
+        </h3>
       </Match>
       <Match when={p.element.type === "heading" && p.element.level === 4}>
-        <h4><InlineContentRenderer content={p.element.content} /></h4>
+        <h4>
+          <InlineContentRenderer content={headingElement().content} />
+        </h4>
       </Match>
       <Match when={p.element.type === "heading" && p.element.level === 5}>
-        <h5><InlineContentRenderer content={p.element.content} /></h5>
+        <h5>
+          <InlineContentRenderer content={headingElement().content} />
+        </h5>
       </Match>
       <Match when={p.element.type === "heading" && p.element.level === 6}>
-        <h6><InlineContentRenderer content={p.element.content} /></h6>
+        <h6>
+          <InlineContentRenderer content={headingElement().content} />
+        </h6>
       </Match>
       <Match when={p.element.type === "paragraph"}>
-        <p><InlineContentRenderer content={p.element.content} /></p>
+        <p>
+          <InlineContentRenderer content={paragraphElement().content} />
+        </p>
       </Match>
       <Match when={p.element.type === "image"}>
         <ImageElementRenderer
-          src={p.element.imageData}
-          alt={p.element.imageAlt}
-          width={p.element.imageWidth}
-          height={p.element.imageHeight}
+          src={imageElement().src}
+          alt={imageElement().alt}
+          width={imageElement().width}
+          height={imageElement().height}
           images={p.images}
           renderImage={p.renderImage}
         />
@@ -157,17 +208,25 @@ function DocElementRenderer(p: DocElementRendererProps) {
         <hr />
       </Match>
       <Match when={p.element.type === "blockquote"}>
-        <blockquote><InlineContentRenderer content={p.element.content} /></blockquote>
+        <blockquote>
+          <InlineContentRenderer content={blockquoteElement().content} />
+        </blockquote>
       </Match>
       <Match when={p.element.type === "table"}>
-        <TableElementRenderer element={p.element} />
+        <TableElementRenderer element={tableElement()} />
       </Match>
       <Match when={p.element.type === "code-block"}>
-        <pre><code>{p.element.codeContent}</code></pre>
+        <pre>
+          <code>
+            {(p.element as ParsedMarkdownItem & { type: "code-block" }).code}
+          </code>
+        </pre>
       </Match>
       <Match when={p.element.type === "math-block"}>
         <div class="katex-display">
-          <code>{p.element.mathLatex}</code>
+          <code>
+            {(p.element as ParsedMarkdownItem & { type: "math-block" }).latex}
+          </code>
         </div>
       </Match>
     </Switch>
@@ -184,57 +243,56 @@ type ImageElementRendererProps = {
 };
 
 function ImageElementRenderer(p: ImageElementRendererProps) {
-  if (!p.src) return null;
+  const customElement = createMemo(() => {
+    if (!p.src || !p.renderImage) return undefined;
+    return p.renderImage(p.src, p.alt ?? "");
+  });
 
-  // Try custom renderer first
-  if (p.renderImage) {
-    const customElement = p.renderImage(p.src, p.alt ?? "");
-    if (customElement) {
-      return customElement;
-    }
-  }
+  const imageFromMap = createMemo(() => {
+    if (!p.src || !p.images) return undefined;
+    return p.images.get(p.src);
+  });
 
-  // Try ImageMap
-  if (p.images) {
-    const imageInfo = p.images.get(p.src);
-    if (imageInfo) {
-      return (
-        <img
-          src={imageInfo.dataUrl}
-          alt={p.alt}
-          width={imageInfo.width}
-          height={imageInfo.height}
-        />
-      );
-    }
-  }
-
-  // Fallback to raw src
   return (
-    <img
-      src={p.src}
-      alt={p.alt}
-      width={p.width}
-      height={p.height}
-    />
+    <Show when={p.src}>
+      <Switch
+        fallback={
+          <img src={p.src} alt={p.alt} width={p.width} height={p.height} />
+        }
+      >
+        <Match when={customElement()}>{customElement()}</Match>
+        <Match when={imageFromMap()}>
+          {(info) => (
+            <img
+              src={info().dataUrl}
+              alt={p.alt}
+              width={info().width ?? p.width}
+              height={info().height ?? p.height}
+            />
+          )}
+        </Match>
+      </Switch>
+    </Show>
   );
 }
 
 type TableElementRendererProps = {
-  element: DocElement;
+  element: ParsedMarkdownItem & { type: "table" };
 };
 
 function TableElementRenderer(p: TableElementRendererProps) {
   return (
     <table>
-      <Show when={p.element.tableHeader && p.element.tableHeader.length > 0}>
+      <Show when={p.element.header && p.element.header.length > 0}>
         <thead>
-          <For each={p.element.tableHeader}>
+          <For each={p.element.header}>
             {(row) => (
               <tr>
                 <For each={row}>
                   {(cell) => (
-                    <th><InlineContentRenderer content={cell.flat()} /></th>
+                    <th>
+                      <InlineContentRenderer content={cell.flat()} />
+                    </th>
                   )}
                 </For>
               </tr>
@@ -242,14 +300,16 @@ function TableElementRenderer(p: TableElementRendererProps) {
           </For>
         </thead>
       </Show>
-      <Show when={p.element.tableRows && p.element.tableRows.length > 0}>
+      <Show when={p.element.rows && p.element.rows.length > 0}>
         <tbody>
-          <For each={p.element.tableRows}>
+          <For each={p.element.rows}>
             {(row) => (
               <tr>
                 <For each={row}>
                   {(cell) => (
-                    <td><InlineContentRenderer content={cell.flat()} /></td>
+                    <td>
+                      <InlineContentRenderer content={cell.flat()} />
+                    </td>
                   )}
                 </For>
               </tr>
@@ -262,37 +322,51 @@ function TableElementRenderer(p: TableElementRendererProps) {
 }
 
 type InlineContentRendererProps = {
-  content: InlineContent[];
+  content: MarkdownInline[];
 };
 
 function InlineContentRenderer(p: InlineContentRendererProps) {
   return (
     <For each={p.content}>
       {(item) => (
-        <Switch fallback={item.text}>
+        <Switch fallback={"text" in item ? item.text : undefined}>
           <Match when={item.type === "text"}>
-            {item.text}
+            {(item as MarkdownInline & { type: "text" }).text}
           </Match>
           <Match when={item.type === "bold"}>
-            <strong>{item.text}</strong>
+            <strong>{(item as MarkdownInline & { type: "bold" }).text}</strong>
           </Match>
           <Match when={item.type === "italic"}>
-            <em>{item.text}</em>
+            <em>{(item as MarkdownInline & { type: "italic" }).text}</em>
+          </Match>
+          <Match when={item.type === "bold-italic"}>
+            <strong>
+              <em>
+                {(item as MarkdownInline & { type: "bold-italic" }).text}
+              </em>
+            </strong>
           </Match>
           <Match when={item.type === "link"}>
-            <a href={item.url} target="_blank" rel="noopener noreferrer">{item.text}</a>
-          </Match>
-          <Match when={item.type === "email"}>
-            <a href={`mailto:${item.url ?? item.text}`}>{item.text}</a>
+            <a
+              href={(item as MarkdownInline & { type: "link" }).url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {(item as MarkdownInline & { type: "link" }).text}
+            </a>
           </Match>
           <Match when={item.type === "break"}>
             <br />
           </Match>
           <Match when={item.type === "code-inline"}>
-            <code>{item.text}</code>
+            <code>
+              {(item as MarkdownInline & { type: "code-inline" }).text}
+            </code>
           </Match>
           <Match when={item.type === "math-inline"}>
-            <code>{item.text}</code>
+            <code>
+              {(item as MarkdownInline & { type: "math-inline" }).latex}
+            </code>
           </Match>
         </Switch>
       )}

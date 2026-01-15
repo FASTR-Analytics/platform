@@ -47,6 +47,7 @@ export const MarkdownRenderer: Renderer<
     rc: RenderContext,
     width: number,
     input: MarkdownRendererInput,
+    _responsiveScale?: number,
   ): number {
     const bounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 99999 });
     const measured = measureMarkdown(rc, bounds, input);

@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
+export type { AnthropicModel, AnthropicModelConfig, AnthropicResponse, CacheControl, ContentBlock, DocumentContentBlock, MessageParam, MessagePayload, MessageRole, StreamEvent, Usage } from "../_110_ai_types/mod.ts";
 export { Button, MARKDOWN_BASE_STYLES, TextArea, createMarkdownIt, deriveMarkdownCssVars } from "../_303_components/mod.ts";
 export { default as Anthropic } from "@anthropic-ai/sdk";
 export type { default as AnthropicType } from "@anthropic-ai/sdk";

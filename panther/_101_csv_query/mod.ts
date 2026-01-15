@@ -7,6 +7,7 @@ export { query, QueryBuilder } from "./query_builder.ts";
 export type {
   AggregateFunction,
   OrderDirection,
+  OrderSpec,
   WhereFilter,
   WherePredicate,
 } from "./types.ts";

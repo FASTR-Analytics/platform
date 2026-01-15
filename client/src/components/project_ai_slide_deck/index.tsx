@@ -142,7 +142,7 @@ export function ProjectAiSlideDeck(p: Props) {
         textEditorHandler,
         conversationId: `ai-slide-deck-${p.reportId}`,
         enableStreaming: true,
-        system: systemPrompt(),
+        system: systemPrompt,
       }}
     >
       <ProjectAiSlideDeckInner

@@ -5,12 +5,12 @@
 
 import {
   Coordinates,
-  type CustomFigureStyle,
   type MeasuredText,
   type MergedSurroundsStyle,
   type RectCoordsDims,
   type RenderContext,
 } from "../deps.ts";
+import type { CustomFigureStyle } from "../../_003_figure_style/mod.ts";
 import {
   isArrayOfLegendItems,
   type MeasuredLegend,

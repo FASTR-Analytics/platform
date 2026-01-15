@@ -15,7 +15,7 @@ export type PageBreakRules = {
 };
 
 export type ConvertMarkdownToWordOptions = {
-  markdownStyle?: CustomMarkdownStyleOptions;
+  style?: CustomMarkdownStyleOptions;
   wordConfig?: WordSpecificConfig;
   images?: ImageMap;
   pageBreakRules?: PageBreakRules;
@@ -25,20 +25,6 @@ export function coreMarkdownToWord(
   markdownContent: string,
   options?: ConvertMarkdownToWordOptions,
 ): Document {
-  const parsedDocument = parseMarkdown(markdownContent);
-
-  if (options?.images) {
-    for (const element of parsedDocument.elements) {
-      if (element.type === "image" && element.imageData) {
-        const imageInfo = options.images.get(element.imageData);
-        if (imageInfo) {
-          element.imageData = imageInfo.dataUrl;
-          element.imageWidth = imageInfo.width;
-          element.imageHeight = imageInfo.height;
-        }
-      }
-    }
-  }
-
-  return buildWordDocument(parsedDocument, options);
+  const parsed = parseMarkdown(markdownContent);
+  return buildWordDocument(parsed, options);
 }

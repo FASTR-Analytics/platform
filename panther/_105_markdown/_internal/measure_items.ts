@@ -35,11 +35,18 @@ export function measureMarkdownItems(
   bounds: RectCoordsDims,
   parsed: ParsedMarkdown,
   style: MergedMarkdownStyle,
+  _debug = false,
 ): MeasuredMarkdownItemsResult {
   const items: MeasuredMarkdownItem[] = [];
   let currentY = bounds.y();
   const maxWidth = bounds.w();
   let prevMarginBottom = 0;
+
+  if (_debug) {
+    console.log(
+      `    MD: bounds.w=${bounds.w().toFixed(1)}, items=${parsed.items.length}`,
+    );
+  }
 
   for (let i = 0; i < parsed.items.length; i++) {
     const parsedItem = parsed.items[i];
@@ -59,11 +66,31 @@ export function measureMarkdownItems(
     );
     items.push(item);
 
+    if (_debug) {
+      let extra = "";
+      if (parsedItem.type === "paragraph" || parsedItem.type === "heading") {
+        const mft = (item as any).mFormattedText;
+        if (mft) {
+          extra =
+            `, lines=${mft.lines.length}, fontSize=${mft.baseStyle.fontSize}, lineH=${mft.baseStyle.lineHeight}`;
+        }
+      }
+      console.log(
+        `    MD item[${i}]: type=${parsedItem.type}, gap=${gap.toFixed(1)}, h=${
+          item.bounds.h().toFixed(1)
+        }${extra}`,
+      );
+    }
+
     currentY += item.bounds.h();
     prevMarginBottom = margins.marginBottom;
   }
 
   const totalHeight = currentY - bounds.y();
+
+  if (_debug) {
+    console.log(`    MD total: ${totalHeight.toFixed(1)}`);
+  }
 
   return {
     bounds: new RectCoordsDims({
@@ -119,6 +146,12 @@ function getItemMargins(
       const m = style.margins.paragraph;
       return { marginTop: m.top, marginBottom: m.bottom };
     }
+    case "image":
+    case "table":
+      // These are handled separately and should not reach this function
+      throw new Error(
+        `${item.type} items should not be measured directly`,
+      );
   }
 }
 
@@ -145,6 +178,13 @@ function measureItem(
       return measureCodeBlock(rc, item, x, y, maxWidth, style);
     case "math-block":
       return measureMathBlock(rc, item, x, y, maxWidth, style);
+    case "image":
+    case "table":
+      // Images and tables are handled separately via groupDocElementsByContentType
+      // and rendered through ImageRenderer/TableRenderer, not MarkdownRenderer
+      throw new Error(
+        `${item.type} items should not be measured directly - use groupDocElementsByContentType first`,
+      );
   }
 }
 

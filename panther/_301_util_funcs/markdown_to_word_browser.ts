@@ -15,7 +15,7 @@ import {
 import { getFigureAsDataUrlBrowser } from "./figure_to_image.ts";
 
 export type MarkdownToWordBrowserConfig = {
-  markdownStyle?: CustomMarkdownStyleOptions;
+  style?: CustomMarkdownStyleOptions;
   wordConfig?: WordSpecificConfig;
   images?: ImageMap;
   figures?: FigureMap;
@@ -50,7 +50,7 @@ export async function markdownToWordBrowser(
   }
 
   return coreMarkdownToWord(markdown, {
-    markdownStyle: config?.markdownStyle,
+    style: config?.style,
     wordConfig: config?.wordConfig,
     images: mergedImages.size > 0 ? mergedImages : undefined,
     pageBreakRules: config?.pageBreakRules,

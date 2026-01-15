@@ -8,9 +8,7 @@ import { MarkdownPresentation } from "../content/markdown_presentation.tsx";
 import {
   type APIResponseWithData,
   createMarkdownIt,
-  type CustomFigureStyleOptions,
-  type CustomMarkdownStyleOptions,
-  type CustomPageStyleOptions,
+  type CustomStyleOptions,
   downloadPdf,
   markdownToPdfBrowser,
   timQuery,
@@ -25,9 +23,7 @@ const md = createMarkdownIt();
 type Props = {
   url: string;
   scale?: number;
-  styleMarkdown?: CustomMarkdownStyleOptions;
-  stylePage?: CustomPageStyleOptions;
-  styleFigure?: CustomFigureStyleOptions;
+  style?: CustomStyleOptions;
   fontPaths: {
     basePath: string;
     fontMap: Record<string, string>;
@@ -43,9 +39,7 @@ export function PresentationViewer(p: Props) {
         <PresentationViewerContent
           markdownContent={keyedMarkdownContent}
           scale={p.scale}
-          styleMarkdown={p.styleMarkdown}
-          stylePage={p.stylePage}
-          styleFigure={p.styleFigure}
+          style={p.style}
           fontPaths={p.fontPaths}
         />
       )}
@@ -78,9 +72,7 @@ async function fetchMarkdown(
 type ContentProps = {
   markdownContent: string;
   scale?: number;
-  styleMarkdown?: CustomMarkdownStyleOptions;
-  stylePage?: CustomPageStyleOptions;
-  styleFigure?: CustomFigureStyleOptions;
+  style?: CustomStyleOptions;
   fontPaths: {
     basePath: string;
     fontMap: Record<string, string>;
@@ -166,9 +158,7 @@ function PresentationViewerContent(p: ContentProps) {
 
       const pdf = await markdownToPdfBrowser(markdown, {
         asSlides: true,
-        styleMarkdown: p.styleMarkdown,
-        stylePage: p.stylePage,
-        styleFigure: p.styleFigure,
+        style: p.style,
         pageWidth: 1280,
         pageHeight: 720,
         pagePadding: 60,
@@ -283,7 +273,7 @@ function PresentationViewerContent(p: ContentProps) {
               <MarkdownPresentation
                 markdown={currentSlide()!}
                 scale={scale()}
-                style={p.styleMarkdown}
+                style={p.style}
               />
             </div>
           </FrameBottom>

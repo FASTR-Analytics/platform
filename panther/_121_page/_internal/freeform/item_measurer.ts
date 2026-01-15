@@ -29,7 +29,8 @@ export const itemMeasurer: ItemHeightMeasurer<
 
   if (MarkdownRenderer.isType(item)) {
     const idealH = MarkdownRenderer.getIdealHeight(src.rc, width, item);
-    return { idealH };
+    // Markdown content cannot shrink - text stays the same size
+    return { idealH, noShrink: true };
   }
 
   if (FigureRenderer.isType(item)) {

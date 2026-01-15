@@ -6,13 +6,8 @@
 import {
   buildFreeformPages,
   buildMarkdownPageContents,
-  collectFontsFromStyles,
-  CustomFigureStyle,
-  type CustomFigureStyleOptions,
-  CustomMarkdownStyle,
-  type CustomMarkdownStyleOptions,
-  CustomPageStyle,
-  type CustomPageStyleOptions,
+  CustomStyle,
+  type CustomStyleOptions,
   type FigureMap,
   type ImageMap,
   type jsPDF,
@@ -45,9 +40,7 @@ export type MarkdownToPdfBrowserConfig = {
     preventOrphanHeadings?: boolean;
   };
 
-  styleMarkdown?: CustomMarkdownStyleOptions;
-  stylePage?: CustomPageStyleOptions;
-  styleFigure?: CustomFigureStyleOptions;
+  style?: CustomStyleOptions;
 
   images?: ImageMap;
   figures?: FigureMap;
@@ -65,12 +58,9 @@ export async function markdownToPdfBrowser(
   const width = config.pageWidth ?? 1280;
   const height = config.pageHeight ?? 720;
 
-  const markdownStyle = new CustomMarkdownStyle(config.styleMarkdown);
-  const pageStyle = new CustomPageStyle(config.stylePage);
-  const figureStyle = new CustomFigureStyle(config.styleFigure);
-  const mergedPageStyle = pageStyle.getMergedPageStyle();
-
-  const fonts = collectFontsFromStyles([markdownStyle, pageStyle, figureStyle]);
+  const customStyle = new CustomStyle(config.style);
+  const mergedPageStyle = customStyle.page().getMergedPageStyle();
+  const fonts = customStyle.getFontsToRegister();
 
   const { pdf, rc } = await createPdfRenderContextWithFontsBrowser(
     width,
@@ -105,8 +95,7 @@ export async function markdownToPdfBrowser(
       footerHeight,
       gapY: mergedPageStyle.content.gapY,
       pageBreakRules: config.pageBreakRules,
-      styleMarkdown: config.styleMarkdown,
-      styleFigure: config.styleFigure,
+      style: config.style,
       images: config.images,
       figures: config.figures,
     },
@@ -122,7 +111,7 @@ export async function markdownToPdfBrowser(
     firstPageHeader: config.firstPageHeader,
     firstPageSubHeader: config.firstPageSubHeader,
     skipHeaderOnFirstPage: config.skipHeaderOnFirstPage,
-    style: config.stylePage,
+    style: config.style,
   });
 
   const rcd = new RectCoordsDims([0, 0, width, height]);

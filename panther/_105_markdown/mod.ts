@@ -5,20 +5,31 @@
 
 export type {
   FigureMap,
+  FormattedRun,
+  FormattedRunStyle,
   ImageMap,
+  MarkdownInline,
   MarkdownRendererInput,
+  MeasuredFormattedLine,
+  MeasuredFormattedText,
   MeasuredMarkdown,
+  MeasuredMarkdownBlockquote,
+  MeasuredMarkdownCodeBlock,
+  MeasuredMarkdownHeading,
+  MeasuredMarkdownHorizontalRule,
+  MeasuredMarkdownItem,
+  MeasuredMarkdownListItem,
+  MeasuredMarkdownParagraph,
+  ParsedMarkdown,
+  ParsedMarkdownItem,
 } from "./types.ts";
 
 export { MarkdownRenderer } from "./markdown_renderer.ts";
-export { createMarkdownIt } from "./parser.ts";
-
-export { parseEmailsInText, parseMarkdown } from "./parse_to_doc_elements.ts";
-export type {
-  DocElement,
-  InlineContent,
-  ParsedDocument,
-} from "./doc_element_types.ts";
+export {
+  createMarkdownIt,
+  parseEmailsInText,
+  parseMarkdown,
+} from "./parser.ts";
 
 export {
   contentGroupToPageContentItem,

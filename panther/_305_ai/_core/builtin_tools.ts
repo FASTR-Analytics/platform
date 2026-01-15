@@ -116,8 +116,9 @@ export function resolveBuiltInTools(
   const tools: BuiltInToolSDK[] = [];
 
   if (config.webSearch) {
-    const webSearchConfig =
-      typeof config.webSearch === "object" ? config.webSearch : {};
+    const webSearchConfig = typeof config.webSearch === "object"
+      ? config.webSearch
+      : {};
     tools.push({
       type: "web_search_20250305",
       name: "web_search",
@@ -126,8 +127,9 @@ export function resolveBuiltInTools(
   }
 
   if (config.webFetch) {
-    const webFetchConfig =
-      typeof config.webFetch === "object" ? config.webFetch : {};
+    const webFetchConfig = typeof config.webFetch === "object"
+      ? config.webFetch
+      : {};
     tools.push({
       type: "web_fetch_20250910",
       name: "web_fetch",

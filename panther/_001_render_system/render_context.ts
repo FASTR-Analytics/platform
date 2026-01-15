@@ -73,6 +73,31 @@ export type PointStyle = {
   dataLabelPosition: "top" | "left" | "bottom" | "right";
 };
 
+export type PathSegment =
+  | { type: "moveTo"; x: number; y: number }
+  | { type: "lineTo"; x: number; y: number }
+  | {
+      type: "bezierCurveTo";
+      cp1x: number;
+      cp1y: number;
+      cp2x: number;
+      cp2y: number;
+      x: number;
+      y: number;
+    };
+
+export type PathStyle = {
+  fill?: {
+    color: ColorKeyOrString;
+    opacity?: number;
+  };
+  stroke?: {
+    color: ColorKeyOrString;
+    width: number;
+    opacity?: number;
+  };
+};
+
 export type RenderContext = {
   mText: (
     text: string,
@@ -89,12 +114,14 @@ export type RenderContext = {
       bounds: RectCoordsDimsOptions,
       hAlign: "center" | "left" | "right",
       vAlign?: "top" | "center" | "bottom",
+      link?: string,
     ): void;
     (
       mText: MeasuredText,
       coords: CoordinatesOptions,
       hAlign: "center" | "left" | "right",
       vAlign?: "top" | "center" | "bottom",
+      link?: string,
     ): void;
   };
 
@@ -126,4 +153,6 @@ export type RenderContext = {
       dh: number,
     ): void;
   };
+
+  rPath: (segments: PathSegment[], style: PathStyle) => void;
 };

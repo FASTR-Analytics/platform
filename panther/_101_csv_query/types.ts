@@ -7,6 +7,20 @@ export type WhereFilter = Record<string, (string | number)[]>;
 
 export type WherePredicate<T> = (row: T[], i: number) => boolean;
 
-export type AggregateFunction = "SUM" | "AVG" | "COUNT" | "MIN" | "MAX";
+export type AggregateFunction =
+  | "SUM"
+  | "AVG"
+  | "COUNT"
+  | "MIN"
+  | "MAX"
+  | "MEDIAN"
+  | "COUNT_DISTINCT"
+  | "FIRST"
+  | "LAST";
 
 export type OrderDirection = "asc" | "desc";
+
+export type OrderSpec = {
+  col: string;
+  dir?: OrderDirection;
+};

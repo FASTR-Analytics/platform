@@ -4,13 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  collectFontsFromStyles,
-  CustomPageStyle,
   type FontInfo,
   type jsPDF,
   type PageInputs,
-  PageRenderer,
-  RectCoordsDims,
+  pagesToPdf,
 } from "./deps.ts";
 import { createPdfRenderContextWithFontsBrowser } from "./create_pdf_render_context_browser.ts";
 
@@ -37,28 +34,5 @@ export async function pagesToPdfBrowser(
     fontPaths,
   );
 
-  const rcd = new RectCoordsDims([0, 0, width, height]);
-
-  for (let i = 0; i < pages.length; i++) {
-    if (i > 0) {
-      pdf.addPage([width, height]);
-    }
-
-    const measured = await PageRenderer.measure(rc, rcd, pages[i]);
-
-    if (measured.warnings.length > 0) {
-      console.warn(`Page ${i + 1} layout warnings:`);
-      for (const warning of measured.warnings) {
-        console.warn(
-          `  - ${warning.type}: ${warning.message}${
-            warning.path ? ` (at ${warning.path})` : ""
-          }`,
-        );
-      }
-    }
-
-    await PageRenderer.render(rc, measured);
-  }
-
-  return pdf;
+  return pagesToPdf(pdf, rc, pages, width, height);
 }

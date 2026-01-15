@@ -146,7 +146,7 @@ export function ProjectAiReport(p: Props) {
         textEditorHandler,
         conversationId: `ai-report-${p.reportId}`,
         enableStreaming: true,
-        system: systemPrompt(),
+        system: systemPrompt,
       }}
     >
       <ProjectAiReportInner

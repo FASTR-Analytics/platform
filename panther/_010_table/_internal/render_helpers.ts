@@ -45,7 +45,8 @@ export function renderColAndColGroupHeaders(
             m.colGroupHeaderMaxHeight +
             s.colHeaderPadding.pt() +
             s.colHeaderPadding.pb() +
-            m.extraTopPaddingForRowsAndAllHeaders,
+            m.extraTopPaddingForRowsAndAllHeaders +
+            m.extraBottomPaddingForRowsAndAllHeaders,
           ],
           { fillColor: s.colGroupHeaderBackgroundColor },
         );
@@ -93,7 +94,8 @@ export function renderColAndColGroupHeaders(
             m.colHeaderMaxHeight +
             s.colHeaderPadding.pt() +
             s.colHeaderPadding.pb() +
-            m.extraTopPaddingForRowsAndAllHeaders,
+            m.extraTopPaddingForRowsAndAllHeaders +
+            m.extraBottomPaddingForRowsAndAllHeaders,
           ],
           { fillColor: s.colHeaderBackgroundColor },
         );

@@ -105,13 +105,4 @@ export function renderFooter(
       currentX += logoWidth + s.footer.logoGapX;
     }
   }
-
-  if (inputs.watermark) {
-    const mText = rc.mText(
-      inputs.watermark,
-      s.text.watermark,
-      measured.rcdFooterOuter.w(),
-    );
-    rc.rText(mText, measured.rcdFooterOuter.centerCoords(), "center", "center");
-  }
 }

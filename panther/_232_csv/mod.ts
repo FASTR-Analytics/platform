@@ -10,6 +10,7 @@
 export {
   getXlsxSheetNames,
   readCsvFile,
+  readCsvFileSync,
   readXlsxFileAsSingleCsv,
 } from "./read_csv.ts";
 

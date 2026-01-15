@@ -10,7 +10,7 @@ import {
   formatCost,
   formatTokenCount,
 } from "../_core/cost_utils.ts";
-import type { AnthropicModel, Usage } from "../_core/types.ts";
+import type { AnthropicModel, Usage } from "../deps.ts";
 
 type Props = {
   usage: Usage | null;

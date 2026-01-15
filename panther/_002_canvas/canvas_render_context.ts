@@ -11,9 +11,12 @@ import {
   type AreaStyle,
   Coordinates,
   type CoordinatesOptions,
+  getColor,
   getRectAlignmentCoords,
   type LineStyle,
   type MeasuredText,
+  type PathSegment,
+  type PathStyle,
   type PointStyle,
   RectCoordsDims,
   type RectCoordsDimsOptions,
@@ -76,6 +79,7 @@ export class CanvasRenderContext implements RenderContext {
     coordsOrBounds: CoordinatesOptions | RectCoordsDimsOptions,
     hAlign: "center" | "left" | "right",
     vAlign?: "top" | "center" | "bottom",
+    _link?: string,
   ) {
     // Check if it's a RectCoordsDims
     let coords: CoordinatesOptions;
@@ -167,5 +171,50 @@ export class CanvasRenderContext implements RenderContext {
         `Invalid number of arguments for rImage: ${args.length + 1}`,
       );
     }
+  }
+
+  rPath(segments: PathSegment[], style: PathStyle): void {
+    if (!style.fill && !style.stroke) {
+      return;
+    }
+
+    const ctx = this._ctx;
+    ctx.beginPath();
+
+    for (const seg of segments) {
+      switch (seg.type) {
+        case "moveTo":
+          ctx.moveTo(seg.x, seg.y);
+          break;
+        case "lineTo":
+          ctx.lineTo(seg.x, seg.y);
+          break;
+        case "bezierCurveTo":
+          ctx.bezierCurveTo(
+            seg.cp1x,
+            seg.cp1y,
+            seg.cp2x,
+            seg.cp2y,
+            seg.x,
+            seg.y,
+          );
+          break;
+      }
+    }
+
+    if (style.fill) {
+      ctx.globalAlpha = style.fill.opacity ?? 1;
+      ctx.fillStyle = getColor(style.fill.color);
+      ctx.fill();
+    }
+
+    if (style.stroke) {
+      ctx.globalAlpha = style.stroke.opacity ?? 1;
+      ctx.strokeStyle = getColor(style.stroke.color);
+      ctx.lineWidth = style.stroke.width;
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
   }
 }

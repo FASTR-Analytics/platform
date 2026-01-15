@@ -3,11 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  type MergedPageStyle,
-  Padding,
-  type RenderContext,
-} from "./deps.ts";
+import { type MergedPageStyle, Padding, type RenderContext } from "./deps.ts";
 
 export type HeaderFooterInputs = {
   header?: string;
@@ -108,7 +104,8 @@ function measureHeaderHeight(
     totalInnerHeight = Math.max(totalInnerHeight, s.header.logoHeight);
   }
 
-  return totalInnerHeight + headerPadding.totalPy() + s.header.bottomBorderStrokeWidth;
+  return totalInnerHeight + headerPadding.totalPy() +
+    s.header.bottomBorderStrokeWidth;
 }
 
 function measureFooterHeight(

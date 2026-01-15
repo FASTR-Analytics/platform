@@ -331,6 +331,29 @@ export type CustomFigureStyleOptions = {
       truncateEnd?: number;
     };
   };
+  /////////////////////////////////////////////////////////////////////////////
+  //   ______                    __                                          //
+  //  /      \                  /  |                                         //
+  // /$$$$$$  |  ______   ____  $$ |   __   ______   __    __                //
+  // $$ \__$$/  /      \ /    \ $$ |  /  | /      \ /  |  /  |               //
+  // $$      \ /$$$$$$  |$$$$$  $$ |_/$$/  /$$$$$$  |$$ |  $$ |               //
+  //  $$$$$$  |$$ |  $$ |$$ | $$$$ $$<     $$    $$ |$$ |  $$ |               //
+  // /  \__$$ |$$ \__$$ |$$ | $$$$ |$$  \  $$$$$$$$/ $$ \__$$ |               //
+  // $$    $$/ $$    $$/ $$ | $$ $$/   $$  $$       |$$    $$ |               //
+  //  $$$$$$/   $$$$$$/  $$/  $$/  $$$$$$/  $$$$$$$/  $$$$$$$ |               //
+  //                                                 /  \__$$ |               //
+  //                                                 $$    $$/                //
+  //                                                  $$$$$$/                 //
+  /////////////////////////////////////////////////////////////////////////////
+  sankey?: {
+    nodeWidth?: number;
+    nodeGap?: number;
+    columnGap?: number | "auto";
+    labelGap?: number;
+    linkOpacity?: number;
+    defaultNodeColor?: ColorKeyOrString;
+    defaultLinkColor?: ColorKeyOrString;
+  };
 };
 
 let _GS: CustomFigureStyleOptions | undefined = undefined;

@@ -74,6 +74,12 @@ export type MeasuredLayoutNode<U> =
 
 export type ItemIdealHeightInfo = {
   idealH: number;
+  noShrink?: boolean;
+};
+
+export type IdealHeightResult = {
+  height: number;
+  minHeight: number; // Minimum height that cannot be shrunk (from noShrink items)
 };
 
 export type ItemHeightMeasurer<T, U> = (

@@ -185,6 +185,16 @@ export class Color {
     },${this._a.toFixed(3)})`;
   }
 
+  hexNoHash(): string {
+    let r = this._r.toString(16);
+    let g = this._g.toString(16);
+    let b = this._b.toString(16);
+    if (r.length == 1) r = "0" + r;
+    if (g.length == 1) g = "0" + g;
+    if (b.length == 1) b = "0" + b;
+    return r + g + b;
+  }
+
   MUTATE_setRgb(rgb: ColorRgb): void {
     this._r = rgb.r;
     this._g = rgb.g;
@@ -400,6 +410,10 @@ export class Color {
   // ================================================================================
   // STATIC CONV
   // ================================================================================
+
+  static toHexNoHash(color: ColorOptions): string {
+    return new Color(color).hexNoHash();
+  }
 
   static strToRgba(str: string): ColorRgba {
     if (_REGEX_HEX.test(str)) {

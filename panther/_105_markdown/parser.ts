@@ -70,14 +70,33 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
         });
       }
       i += 2;
+    } else if (token.type === "table_open") {
+      const tableResult = parseTable(tokens, i);
+      items.push(tableResult.item);
+      i = tableResult.endIndex;
     } else if (token.type === "paragraph_open" && token.level === 0) {
       const contentToken = tokens[i + 1];
 
       if (contentToken && contentToken.type === "inline") {
-        items.push({
-          type: "paragraph",
-          content: parseInlineTokens(contentToken.children || []),
-        });
+        // Check if this paragraph contains only a single image
+        const children = contentToken.children || [];
+        if (children.length === 1 && children[0].type === "image") {
+          const imageToken = children[0];
+          const src = imageToken.attrs?.find((a: [string, string]) =>
+            a[0] === "src"
+          )?.[1] || "";
+          const alt = imageToken.content || "";
+          items.push({
+            type: "image",
+            src,
+            alt,
+          });
+        } else {
+          items.push({
+            type: "paragraph",
+            content: parseInlineTokens(children),
+          });
+        }
       }
       i += 2;
       inNumberedList = false;
@@ -249,3 +268,84 @@ function parseNestedInline(
   return { texts, hasBold, hasItalic, endIndex: i };
 }
 
+function parseTable(
+  tokens: MarkdownItToken[],
+  startIndex: number,
+): { item: ParsedMarkdownItem; endIndex: number } {
+  const header: MarkdownInline[][][] = [];
+  const rows: MarkdownInline[][][] = [];
+  let currentTarget: MarkdownInline[][][] | undefined;
+  let i = startIndex + 1; // Skip table_open
+
+  while (i < tokens.length && tokens[i].type !== "table_close") {
+    const token = tokens[i];
+
+    if (token.type === "thead_open") {
+      currentTarget = header;
+    } else if (token.type === "tbody_open") {
+      currentTarget = rows;
+    } else if (token.type === "tr_open" && currentTarget !== undefined) {
+      const rowCells: MarkdownInline[][] = [];
+
+      i++;
+      while (i < tokens.length && tokens[i].type !== "tr_close") {
+        if (tokens[i].type === "th_open" || tokens[i].type === "td_open") {
+          i++;
+          if (i < tokens.length && tokens[i].type === "inline") {
+            const cellContent = parseInlineTokens(tokens[i].children || []);
+            rowCells.push(cellContent);
+          }
+          i++; // Skip th_close or td_close
+        } else {
+          i++;
+        }
+      }
+
+      currentTarget.push(rowCells);
+    }
+
+    i++;
+  }
+
+  return {
+    item: {
+      type: "table",
+      header: header.length > 0 ? header : undefined,
+      rows: rows.length > 0 ? rows : undefined,
+    },
+    endIndex: i,
+  };
+}
+
+export function parseEmailsInText(text: string): MarkdownInline[] {
+  const emailRegex = /<([^>]+@[^>]+)>/g;
+  const parts: MarkdownInline[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = emailRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({
+        type: "text",
+        text: text.substring(lastIndex, match.index),
+      });
+    }
+
+    parts.push({
+      type: "link",
+      text: match[1],
+      url: `mailto:${match[1]}`,
+    });
+
+    lastIndex = emailRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({
+      type: "text",
+      text: text.substring(lastIndex),
+    });
+  }
+
+  return parts.length > 0 ? parts : [{ type: "text", text }];
+}

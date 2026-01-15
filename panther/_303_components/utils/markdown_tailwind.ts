@@ -3,10 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  CustomMarkdownStyle,
-  type CustomMarkdownStyleOptions,
-} from "../../_004_markdown_style/mod.ts";
+import { CustomMarkdownStyle } from "../../_004_markdown_style/mod.ts";
+import type { CustomMarkdownStyleOptions } from "../../_004_markdown_style/mod.ts";
 import { getColor } from "../../_001_color/mod.ts";
 import type { JSX } from "solid-js";
 

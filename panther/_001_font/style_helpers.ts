@@ -7,6 +7,7 @@ import { getColor, m } from "./deps.ts";
 import {
   type CustomStyleTextOptions,
   type FontInfo,
+  type FontInfoOptions,
   type FontWeight,
   getAdjustedFont,
   getFontInfoId,
@@ -14,6 +15,29 @@ import {
   type TextInfoOptions,
   type TextInfoUnkeyed,
 } from "./types.ts";
+
+export function getAdjustedBaseTextOptions(
+  shared: TextInfoOptions | undefined,
+  domain: TextInfoOptions | undefined,
+): TextInfoOptions | undefined {
+  if (!shared && !domain) return undefined;
+  if (!shared) return domain;
+  if (!domain) return shared;
+
+  let font: FontInfoOptions | undefined;
+  if (shared.font || domain.font) {
+    font = { ...shared.font, ...domain.font };
+  }
+
+  return {
+    font,
+    fontSize: domain.fontSize ?? shared.fontSize,
+    color: domain.color ?? shared.color,
+    lineHeight: domain.lineHeight ?? shared.lineHeight,
+    lineBreakGap: domain.lineBreakGap ?? shared.lineBreakGap,
+    letterSpacing: domain.letterSpacing ?? shared.letterSpacing,
+  };
+}
 
 export function getBaseTextInfo(
   cBase: TextInfoOptions | undefined,

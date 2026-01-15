@@ -13,6 +13,62 @@ export const FONT_MAP = {
   "Cambria-400-normal": "cambria/Cambria",
   "Cambria-700-italic": "cambria/Cambria-BoldItalic",
   "Cambria-700-normal": "cambria/Cambria-Bold",
+  "DieGroteskA-200-italic": "die-grotesk/die-grotesk-a-thin-italic",
+  "DieGroteskA-200-normal": "die-grotesk/die-grotesk-a-thin",
+  "DieGroteskA-300-italic": "die-grotesk/die-grotesk-a-light-italic",
+  "DieGroteskA-300-normal": "die-grotesk/die-grotesk-a-light",
+  "DieGroteskA-400-italic": "die-grotesk/die-grotesk-a-italic",
+  "DieGroteskA-400-normal": "die-grotesk/die-grotesk-a-regular",
+  "DieGroteskA-500-italic": "die-grotesk/die-grotesk-a-medium-italic",
+  "DieGroteskA-500-normal": "die-grotesk/die-grotesk-a-medium",
+  "DieGroteskA-700-italic": "die-grotesk/die-grotesk-a-bold-italic",
+  "DieGroteskA-700-normal": "die-grotesk/die-grotesk-a-bold",
+  "DieGroteskA-800-italic": "die-grotesk/die-grotesk-a-black-italic",
+  "DieGroteskA-800-normal": "die-grotesk/die-grotesk-a-black",
+  "DieGroteskA-900-italic": "die-grotesk/die-grotesk-a-heavy-italic",
+  "DieGroteskA-900-normal": "die-grotesk/die-grotesk-a-heavy",
+  "DieGroteskB-200-italic": "die-grotesk/die-grotesk-b-hairline-italic",
+  "DieGroteskB-200-normal": "die-grotesk/die-grotesk-b-hairline",
+  "DieGroteskB-300-italic": "die-grotesk/die-grotesk-b-light-italic",
+  "DieGroteskB-300-normal": "die-grotesk/die-grotesk-b-light",
+  "DieGroteskB-400-italic": "die-grotesk/die-grotesk-b-italic",
+  "DieGroteskB-400-normal": "die-grotesk/die-grotesk-b-regular",
+  "DieGroteskB-500-italic": "die-grotesk/die-grotesk-b-medium-italic",
+  "DieGroteskB-500-normal": "die-grotesk/die-grotesk-b-medium",
+  "DieGroteskB-700-italic": "die-grotesk/die-grotesk-b-bold-italic",
+  "DieGroteskB-700-normal": "die-grotesk/die-grotesk-b-bold",
+  "DieGroteskB-800-italic": "die-grotesk/die-grotesk-b-black-italic",
+  "DieGroteskB-800-normal": "die-grotesk/die-grotesk-b-black",
+  "DieGroteskB-900-italic": "die-grotesk/die-grotesk-b-heavy-italic",
+  "DieGroteskB-900-normal": "die-grotesk/die-grotesk-b-heavy",
+  "DieGroteskC-200-italic": "die-grotesk/die-grotesk-c-hairline-italic",
+  "DieGroteskC-200-normal": "die-grotesk/die-grotesk-c-hairline",
+  "DieGroteskC-300-italic": "die-grotesk/die-grotesk-c-light-italic",
+  "DieGroteskC-300-normal": "die-grotesk/die-grotesk-c-light",
+  "DieGroteskC-400-italic": "die-grotesk/die-grotesk-c-italic",
+  "DieGroteskC-400-normal": "die-grotesk/die-grotesk-c-regular",
+  "DieGroteskC-500-italic": "die-grotesk/die-grotesk-c-medium-italic",
+  "DieGroteskC-500-normal": "die-grotesk/die-grotesk-c-medium",
+  "DieGroteskC-700-italic": "die-grotesk/die-grotesk-c-bold-italic",
+  "DieGroteskC-700-normal": "die-grotesk/die-grotesk-c-bold",
+  "DieGroteskC-800-italic": "die-grotesk/die-grotesk-c-black-italic",
+  "DieGroteskC-800-normal": "die-grotesk/die-grotesk-c-black",
+  "DieGroteskC-900-italic": "die-grotesk/die-grotesk-c-heavy-italic",
+  "DieGroteskC-900-normal": "die-grotesk/die-grotesk-c-heavy",
+  "DieGroteskD-200-italic": "die-grotesk/die-grotesk-d-hairline-italic",
+  "DieGroteskD-200-normal": "die-grotesk/die-grotesk-d-hairline",
+  "DieGroteskD-300-italic": "die-grotesk/die-grotesk-d-light-italic",
+  "DieGroteskD-300-normal": "die-grotesk/die-grotesk-d-light",
+  "DieGroteskD-400-italic": "die-grotesk/die-grotesk-d-italic",
+  "DieGroteskD-400-normal": "die-grotesk/die-grotesk-d-regular",
+  "DieGroteskD-500-italic": "die-grotesk/die-grotesk-d-medium-italic",
+  "DieGroteskD-500-normal": "die-grotesk/die-grotesk-d-medium",
+  "DieGroteskD-700-italic": "die-grotesk/die-grotesk-d-bold-italic",
+  "DieGroteskD-700-normal": "die-grotesk/die-grotesk-d-bold",
+  "DieGroteskD-800-italic": "die-grotesk/die-grotesk-d-black-italic",
+  "DieGroteskD-800-normal": "die-grotesk/die-grotesk-d-black",
+  "DieGroteskD-900-italic": "die-grotesk/die-grotesk-d-heavy-italic",
+  "DieGroteskD-900-normal": "die-grotesk/die-grotesk-d-heavy",
   "FiraMono-400-italic": "fira-mono/FiraMono-Regular",
   "FiraMono-400-normal": "fira-mono/FiraMono-Regular",
   "FiraMono-500-italic": "fira-mono/FiraMono-Medium",
@@ -325,218 +381,16 @@ export const FONT_MAP = {
   "SourceSerif4-800-normal": "source-serif-4/SourceSerif4-ExtraBold",
   "SourceSerif4-900-italic": "source-serif-4/SourceSerif4-BlackItalic",
   "SourceSerif4-900-normal": "source-serif-4/SourceSerif4-Black",
-  "TestDieGroteskA-200-italic":
-    "test-klim-die-grotesk/test-die-grotesk-a-thin-italic",
-  "TestDieGroteskA-200-normal":
-    "test-klim-die-grotesk/test-die-grotesk-a-hairline",
-  "TestDieGroteskA-300-italic":
-    "test-klim-die-grotesk/test-die-grotesk-a-light-italic",
-  "TestDieGroteskA-300-normal":
-    "test-klim-die-grotesk/test-die-grotesk-a-light",
-  "TestDieGroteskA-400-italic":
-    "test-klim-die-grotesk/test-die-grotesk-a-italic",
-  "TestDieGroteskA-400-normal":
-    "test-klim-die-grotesk/test-die-grotesk-a-regular",
-  "TestDieGroteskA-500-italic":
-    "test-klim-die-grotesk/test-die-grotesk-a-medium-italic",
-  "TestDieGroteskA-500-normal":
-    "test-klim-die-grotesk/test-die-grotesk-a-medium",
-  "TestDieGroteskA-700-italic":
-    "test-klim-die-grotesk/test-die-grotesk-a-bold-italic",
-  "TestDieGroteskA-700-normal": "test-klim-die-grotesk/test-die-grotesk-a-bold",
-  "TestDieGroteskA-800-italic":
-    "test-klim-die-grotesk/test-die-grotesk-a-black-italic",
-  "TestDieGroteskA-800-normal":
-    "test-klim-die-grotesk/test-die-grotesk-a-black",
-  "TestDieGroteskA-900-italic":
-    "test-klim-die-grotesk/test-die-grotesk-a-heavy-italic",
-  "TestDieGroteskA-900-normal":
-    "test-klim-die-grotesk/test-die-grotesk-a-heavy",
-  "TestDieGroteskB-200-italic":
-    "test-klim-die-grotesk/test-die-grotesk-b-thin-italic",
-  "TestDieGroteskB-200-normal": "test-klim-die-grotesk/test-die-grotesk-b-thin",
-  "TestDieGroteskB-300-italic":
-    "test-klim-die-grotesk/test-die-grotesk-b-light-italic",
-  "TestDieGroteskB-300-normal":
-    "test-klim-die-grotesk/test-die-grotesk-b-light",
-  "TestDieGroteskB-400-italic":
-    "test-klim-die-grotesk/test-die-grotesk-b-italic",
-  "TestDieGroteskB-400-normal":
-    "test-klim-die-grotesk/test-die-grotesk-b-regular",
-  "TestDieGroteskB-500-italic":
-    "test-klim-die-grotesk/test-die-grotesk-b-medium-italic",
-  "TestDieGroteskB-500-normal":
-    "test-klim-die-grotesk/test-die-grotesk-b-medium",
-  "TestDieGroteskB-700-italic":
-    "test-klim-die-grotesk/test-die-grotesk-b-bold-italic",
-  "TestDieGroteskB-700-normal": "test-klim-die-grotesk/test-die-grotesk-b-bold",
-  "TestDieGroteskB-800-italic":
-    "test-klim-die-grotesk/test-die-grotesk-b-black-italic",
-  "TestDieGroteskB-800-normal":
-    "test-klim-die-grotesk/test-die-grotesk-b-black",
-  "TestDieGroteskB-900-italic":
-    "test-klim-die-grotesk/test-die-grotesk-b-heavy-italic",
-  "TestDieGroteskB-900-normal":
-    "test-klim-die-grotesk/test-die-grotesk-b-heavy",
-  "TestDieGroteskC-200-italic":
-    "test-klim-die-grotesk/test-die-grotesk-c-thin-italic",
-  "TestDieGroteskC-200-normal": "test-klim-die-grotesk/test-die-grotesk-c-thin",
-  "TestDieGroteskC-300-italic":
-    "test-klim-die-grotesk/test-die-grotesk-c-light-italic",
-  "TestDieGroteskC-300-normal":
-    "test-klim-die-grotesk/test-die-grotesk-c-light",
-  "TestDieGroteskC-400-italic":
-    "test-klim-die-grotesk/test-die-grotesk-c-italic",
-  "TestDieGroteskC-400-normal":
-    "test-klim-die-grotesk/test-die-grotesk-c-regular",
-  "TestDieGroteskC-500-italic":
-    "test-klim-die-grotesk/test-die-grotesk-c-medium-italic",
-  "TestDieGroteskC-500-normal":
-    "test-klim-die-grotesk/test-die-grotesk-c-medium",
-  "TestDieGroteskC-700-italic":
-    "test-klim-die-grotesk/test-die-grotesk-c-bold-italic",
-  "TestDieGroteskC-700-normal": "test-klim-die-grotesk/test-die-grotesk-c-bold",
-  "TestDieGroteskC-800-italic":
-    "test-klim-die-grotesk/test-die-grotesk-c-black-italic",
-  "TestDieGroteskC-800-normal":
-    "test-klim-die-grotesk/test-die-grotesk-c-black",
-  "TestDieGroteskC-900-italic":
-    "test-klim-die-grotesk/test-die-grotesk-c-heavy-italic",
-  "TestDieGroteskC-900-normal":
-    "test-klim-die-grotesk/test-die-grotesk-c-heavy",
-  "TestDieGroteskD-200-italic":
-    "test-klim-die-grotesk/test-die-grotesk-d-thin-italic",
-  "TestDieGroteskD-200-normal": "test-klim-die-grotesk/test-die-grotesk-d-thin",
-  "TestDieGroteskD-300-italic":
-    "test-klim-die-grotesk/test-die-grotesk-d-light-italic",
-  "TestDieGroteskD-300-normal":
-    "test-klim-die-grotesk/test-die-grotesk-d-light",
-  "TestDieGroteskD-400-italic":
-    "test-klim-die-grotesk/test-die-grotesk-d-italic",
-  "TestDieGroteskD-400-normal":
-    "test-klim-die-grotesk/test-die-grotesk-d-regular",
-  "TestDieGroteskD-500-italic":
-    "test-klim-die-grotesk/test-die-grotesk-d-medium-italic",
-  "TestDieGroteskD-500-normal":
-    "test-klim-die-grotesk/test-die-grotesk-d-medium",
-  "TestDieGroteskD-700-italic":
-    "test-klim-die-grotesk/test-die-grotesk-d-bold-italic",
-  "TestDieGroteskD-700-normal": "test-klim-die-grotesk/test-die-grotesk-d-bold",
-  "TestDieGroteskD-800-italic":
-    "test-klim-die-grotesk/test-die-grotesk-d-black-italic",
-  "TestDieGroteskD-800-normal":
-    "test-klim-die-grotesk/test-die-grotesk-d-black",
-  "TestDieGroteskD-900-italic":
-    "test-klim-die-grotesk/test-die-grotesk-d-heavy-italic",
-  "TestDieGroteskD-900-normal":
-    "test-klim-die-grotesk/test-die-grotesk-d-heavy",
-  "TestFoundersGrotesk-300-italic":
-    "test-klim-founders-grotesk/test-founders-grotesk-light-italic",
-  "TestFoundersGrotesk-300-normal":
-    "test-klim-founders-grotesk/test-founders-grotesk-light",
-  "TestFoundersGrotesk-400-italic":
-    "test-klim-founders-grotesk/test-founders-grotesk-regular-italic",
-  "TestFoundersGrotesk-400-normal":
-    "test-klim-founders-grotesk/test-founders-grotesk-regular",
-  "TestFoundersGrotesk-500-italic":
-    "test-klim-founders-grotesk/test-founders-grotesk-medium-italic",
-  "TestFoundersGrotesk-500-normal":
-    "test-klim-founders-grotesk/test-founders-grotesk-medium",
-  "TestFoundersGrotesk-600-italic":
-    "test-klim-founders-grotesk/test-founders-grotesk-semibold-italic",
-  "TestFoundersGrotesk-600-normal":
-    "test-klim-founders-grotesk/test-founders-grotesk-semibold",
-  "TestFoundersGrotesk-700-italic":
-    "test-klim-founders-grotesk/test-founders-grotesk-bold-italic",
-  "TestFoundersGrotesk-700-normal":
-    "test-klim-founders-grotesk/test-founders-grotesk-bold",
-  "TestMartinaPlantijn-300-italic":
-    "test-klim-martina-plantijn/test-martina-plantijn-light-italic",
-  "TestMartinaPlantijn-300-normal":
-    "test-klim-martina-plantijn/test-martina-plantijn-light",
-  "TestMartinaPlantijn-400-italic":
-    "test-klim-martina-plantijn/test-martina-plantijn-italic",
-  "TestMartinaPlantijn-400-normal":
-    "test-klim-martina-plantijn/test-martina-plantijn-regular",
-  "TestMartinaPlantijn-500-italic":
-    "test-klim-martina-plantijn/test-martina-plantijn-medium-italic",
-  "TestMartinaPlantijn-500-normal":
-    "test-klim-martina-plantijn/test-martina-plantijn-medium",
-  "TestMartinaPlantijn-700-italic":
-    "test-klim-martina-plantijn/test-martina-plantijn-bold-italic",
-  "TestMartinaPlantijn-700-normal":
-    "test-klim-martina-plantijn/test-martina-plantijn-bold",
-  "TestMartinaPlantijn-900-italic":
-    "test-klim-martina-plantijn/test-martina-plantijn-black-italic",
-  "TestMartinaPlantijn-900-normal":
-    "test-klim-martina-plantijn/test-martina-plantijn-black",
-  "TestMetric-200-italic": "test-klim-metric/test-metric-thin-italic",
-  "TestMetric-200-normal": "test-klim-metric/test-metric-thin",
-  "TestMetric-300-italic": "test-klim-metric/test-metric-light-italic",
-  "TestMetric-300-normal": "test-klim-metric/test-metric-light",
-  "TestMetric-400-italic": "test-klim-metric/test-metric-regular-italic",
-  "TestMetric-400-normal": "test-klim-metric/test-metric-regular",
-  "TestMetric-500-italic": "test-klim-metric/test-metric-medium-italic",
-  "TestMetric-500-normal": "test-klim-metric/test-metric-medium",
-  "TestMetric-600-italic": "test-klim-metric/test-metric-semibold-italic",
-  "TestMetric-600-normal": "test-klim-metric/test-metric-semibold",
-  "TestMetric-700-italic": "test-klim-metric/test-metric-bold-italic",
-  "TestMetric-700-normal": "test-klim-metric/test-metric-bold",
-  "TestMetric-900-italic": "test-klim-metric/test-metric-black-italic",
-  "TestMetric-900-normal": "test-klim-metric/test-metric-black",
-  "TestTheFuture-200-italic":
-    "test-klim-the-future/test-the-future-thin-italic",
-  "TestTheFuture-200-normal": "test-klim-the-future/test-the-future-thin",
-  "TestTheFuture-300-italic":
-    "test-klim-the-future/test-the-future-light-italic",
-  "TestTheFuture-300-normal": "test-klim-the-future/test-the-future-light",
-  "TestTheFuture-400-italic": "test-klim-the-future/test-the-future-italic",
-  "TestTheFuture-400-normal": "test-klim-the-future/test-the-future-regular",
-  "TestTheFuture-500-italic":
-    "test-klim-the-future/test-the-future-medium-italic",
-  "TestTheFuture-500-normal": "test-klim-the-future/test-the-future-medium",
-  "TestTheFuture-700-italic":
-    "test-klim-the-future/test-the-future-bold-italic",
-  "TestTheFuture-700-normal": "test-klim-the-future/test-the-future-bold",
-  "TestTheFuture-900-italic":
-    "test-klim-the-future/test-the-future-black-italic",
-  "TestTheFuture-900-normal": "test-klim-the-future/test-the-future-black",
-  "TestTheFutureMono-200-italic":
-    "test-klim-the-future-mono/test-the-future-mono-thin-italic",
-  "TestTheFutureMono-200-normal":
-    "test-klim-the-future-mono/test-the-future-mono-thin",
-  "TestTheFutureMono-300-italic":
-    "test-klim-the-future-mono/test-the-future-mono-light-italic",
-  "TestTheFutureMono-300-normal":
-    "test-klim-the-future-mono/test-the-future-mono-light",
-  "TestTheFutureMono-400-italic":
-    "test-klim-the-future-mono/test-the-future-mono-italic",
-  "TestTheFutureMono-400-normal":
-    "test-klim-the-future-mono/test-the-future-mono-regular",
-  "TestTheFutureMono-500-italic":
-    "test-klim-the-future-mono/test-the-future-mono-medium-italic",
-  "TestTheFutureMono-500-normal":
-    "test-klim-the-future-mono/test-the-future-mono-medium",
-  "TestTheFutureMono-700-italic":
-    "test-klim-the-future-mono/test-the-future-mono-bold-italic",
-  "TestTheFutureMono-700-normal":
-    "test-klim-the-future-mono/test-the-future-mono-bold",
-  "TestTheFutureMono-900-italic":
-    "test-klim-the-future-mono/test-the-future-mono-black-italic",
-  "TestTheFutureMono-900-normal":
-    "test-klim-the-future-mono/test-the-future-mono-black",
-  "TestTiemposText-400-italic":
-    "test-klim-tiempos/test-tiempos-text-regular-italic",
-  "TestTiemposText-400-normal": "test-klim-tiempos/test-tiempos-text-regular",
-  "TestTiemposText-500-italic":
-    "test-klim-tiempos/test-tiempos-text-medium-italic",
-  "TestTiemposText-500-normal": "test-klim-tiempos/test-tiempos-text-medium",
-  "TestTiemposText-600-italic":
-    "test-klim-tiempos/test-tiempos-text-semibold-italic",
-  "TestTiemposText-600-normal": "test-klim-tiempos/test-tiempos-text-semibold",
-  "TestTiemposText-700-italic":
-    "test-klim-tiempos/test-tiempos-text-bold-italic",
-  "TestTiemposText-700-normal": "test-klim-tiempos/test-tiempos-text-bold",
+  "TiemposHeadline-900-italic": "tiempos/tiempos-headline-black",
+  "TiemposHeadline-900-normal": "tiempos/tiempos-headline-black",
+  "TiemposText-400-italic": "tiempos/tiempos-text-regular-italic",
+  "TiemposText-400-normal": "tiempos/tiempos-text-regular",
+  "TiemposText-500-italic": "tiempos/tiempos-text-medium-italic",
+  "TiemposText-500-normal": "tiempos/tiempos-text-medium",
+  "TiemposText-600-italic": "tiempos/tiempos-text-semibold-italic",
+  "TiemposText-600-normal": "tiempos/tiempos-text-semibold",
+  "TiemposText-700-italic": "tiempos/tiempos-text-bold-italic",
+  "TiemposText-700-normal": "tiempos/tiempos-text-bold",
 } as const;
 
 export type FontId = keyof typeof FONT_MAP;

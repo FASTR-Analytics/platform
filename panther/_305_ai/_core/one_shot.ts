@@ -3,19 +3,19 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { Anthropic } from "../deps.ts";
-import type { AIToolWithMetadata } from "./tool_helpers.ts";
-import {
-  resolveBuiltInTools,
-  type BuiltInToolsConfig,
-} from "./builtin_tools.ts";
 import type {
+  Anthropic,
   AnthropicModelConfig,
   CacheControl,
   ContentBlock,
   MessageParam,
   Usage,
-} from "./types.ts";
+} from "../deps.ts";
+import type { AIToolWithMetadata } from "./tool_helpers.ts";
+import {
+  type BuiltInToolsConfig,
+  resolveBuiltInTools,
+} from "./builtin_tools.ts";
 import { getBetaHeaders, hasWebFetchTool } from "./beta_headers.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,7 +25,7 @@ import { getBetaHeaders, hasWebFetchTool } from "./beta_headers.ts";
 export interface CallAIConfig {
   sdkClient: Anthropic;
   modelConfig: AnthropicModelConfig;
-  system?:
+  system?: () =>
     | string
     | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
   // deno-lint-ignore no-explicit-any
@@ -73,7 +73,7 @@ export async function callAI(
       thinking: config.modelConfig.thinking,
       messages,
       tools: allTools,
-      system: config.system,
+      system: config.system?.(),
       betas: betaHeaders ? [betaHeaders["anthropic-beta"]] : undefined,
     });
 
@@ -90,13 +90,14 @@ export async function callAI(
       ],
     };
   } else {
-    const res = await config.sdkClient.messages.create({
+    const res = await config.sdkClient.beta.messages.create({
       model: config.modelConfig.model,
       max_tokens: config.modelConfig.max_tokens,
       temperature: config.modelConfig.temperature,
       thinking: config.modelConfig.thinking,
       messages,
-      system: config.system,
+      system: config.system?.(),
+      betas: betaHeaders ? [betaHeaders["anthropic-beta"]] : undefined,
     });
 
     return {

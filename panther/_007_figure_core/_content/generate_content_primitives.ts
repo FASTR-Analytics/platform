@@ -6,6 +6,7 @@
 import {
   type ChartSeriesInfo,
   type ChartValueInfo,
+  computeBoundsForPath,
   Coordinates,
   type DataLabel,
   getColor,
@@ -526,7 +527,7 @@ export function generateContentPrimitives(
       type: "chart-line-series",
       key:
         `line-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}`,
-      bounds: new RectCoordsDims({ x: 0, y: 0, w: 0, h: 0 }), // TODO: Compute proper bounds
+      bounds: computeBoundsForPath(lineData.coords, lineStyle.strokeWidth),
       zIndex: Z_INDEX.CONTENT_LINE,
       meta: {
         series: seriesInfo,
@@ -637,7 +638,7 @@ export function generateContentPrimitives(
           type: "chart-area-series",
           key:
             `area-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${i_series}-${i_area}`,
-          bounds: new RectCoordsDims({ x: 0, y: 0, w: 0, h: 0 }), // TODO: Compute proper bounds
+          bounds: computeBoundsForPath(lineCoordArray),
           zIndex: Z_INDEX.CONTENT_AREA,
           meta: {
             series: seriesInfo,
@@ -787,7 +788,7 @@ export function generateContentPrimitives(
           `area-diff-${subChartInfo.i_pane}-${subChartInfo.i_tier}-${subChartInfo.i_lane}-${
             areas[i_area].order
           }-${i_area}`,
-        bounds: new RectCoordsDims({ x: 0, y: 0, w: 0, h: 0 }), // TODO: Compute proper bounds
+        bounds: computeBoundsForPath(lineCoordArray),
         zIndex: Z_INDEX.CONTENT_AREA,
         meta: {
           series: seriesInfo,

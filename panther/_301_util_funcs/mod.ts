@@ -14,4 +14,5 @@ export * from "./fonts_ready.ts";
 export * from "./markdown_to_pdf_browser.ts";
 export * from "./markdown_to_word_browser.ts";
 export * from "./pages_to_pdf_browser.ts";
+export * from "./pages_to_pptx_browser.ts";
 export * from "./use_smart_navigate.ts";

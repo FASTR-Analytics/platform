@@ -3,7 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { AnthropicModel, CostEstimate, Usage } from "./types.ts";
+import type { AnthropicModel, Usage } from "../deps.ts";
+import type { CostEstimate } from "./types.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // PRICING

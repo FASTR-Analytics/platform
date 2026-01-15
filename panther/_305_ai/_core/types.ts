@@ -3,39 +3,19 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-////////////////////////////////////////////////////////////////////////////////
-// RE-EXPORT CORE AI TYPES
-////////////////////////////////////////////////////////////////////////////////
-
-export type {
-  AnthropicModel,
-  AnthropicModelConfig,
-  AnthropicResponse,
-  CacheControl,
-  ContentBlock,
-  MessageParam,
-  MessagePayload,
-  MessageRole,
-  RedactedThinkingBlock,
-  StreamDelta,
-  StreamEvent,
-  ThinkingBlock,
-  ThinkingConfig,
-  ToolDefinition,
-  Usage,
-} from "./ai_types.ts";
-
-import type { Anthropic, Component } from "../deps.ts";
+import type { Accessor } from "solid-js";
 import type {
+  Anthropic,
   AnthropicModelConfig,
   AnthropicResponse,
   CacheControl,
+  Component,
   MessageParam,
   MessagePayload,
   MessageRole,
   StreamEvent,
   Usage,
-} from "./ai_types.ts";
+} from "../deps.ts";
 import type { BuiltInToolsConfig } from "./builtin_tools.ts";
 import type { AIToolWithMetadata } from "./tool_helpers.ts";
 
@@ -149,6 +129,13 @@ export type MessageStyles = {
 // CHAT CONFIGURATION TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
+export type DocumentRef = {
+  file_id: string;
+  title?: string;
+};
+
+export type DocumentRefsGetter = () => DocumentRef[];
+
 export type AIChatConfig = {
   sdkClient: Anthropic;
 
@@ -161,9 +148,9 @@ export type AIChatConfig = {
 
   modelConfig: AnthropicModelConfig;
 
-  system?:
-    | string
-    | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
+  system: Accessor<
+    string | Array<{ type: "text"; text: string; cache_control?: CacheControl }>
+  >;
 
   enableStreaming?: boolean;
 
@@ -174,6 +161,8 @@ export type AIChatConfig = {
   // Handler for built-in text editor tool (str_replace_based_edit_tool)
   // Consumer creates this using createTextEditorHandler from _306_text_editor
   textEditorHandler?: (input: unknown) => string;
+
+  getDocumentRefs?: DocumentRefsGetter;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

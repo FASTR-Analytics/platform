@@ -28,10 +28,11 @@ import type {
 import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   CanvasRenderContext,
-  CustomPageStyle,
+  CustomStyle,
   PageRenderer,
   RectCoordsDims,
 } from "../deps.ts";
+import type { FontInfo } from "../deps.ts";
 
 type Props = {
   pageInputs?: PageInputs;
@@ -80,9 +81,9 @@ export function PageHolder(p: Props) {
 
     // Preload fonts used by this page
     if (p.pageInputs) {
-      const style = new CustomPageStyle(p.pageInputs.style);
+      const style = new CustomStyle(p.pageInputs.style);
       const fonts = style.getFontsToRegister();
-      fonts.forEach((fontInfo: { fontFamily: string }) => {
+      fonts.forEach((fontInfo: FontInfo) => {
         loadFont(fontInfo.fontFamily);
       });
     }

@@ -83,7 +83,13 @@ export type ParsedMarkdownItem =
   | { type: "blockquote"; content: MarkdownInline[] }
   | { type: "horizontal-rule" }
   | { type: "code-block"; code: string }
-  | { type: "math-block"; latex: string };
+  | { type: "math-block"; latex: string }
+  | { type: "image"; src: string; alt: string; width?: number; height?: number }
+  | {
+    type: "table";
+    header?: MarkdownInline[][][];
+    rows?: MarkdownInline[][][];
+  };
 
 export type ParsedMarkdown = {
   items: ParsedMarkdownItem[];
@@ -113,6 +119,9 @@ export type MeasuredFormattedRun = {
   underline?: {
     yOffset: number;
     color: string;
+  };
+  link?: {
+    url: string;
   };
 };
 

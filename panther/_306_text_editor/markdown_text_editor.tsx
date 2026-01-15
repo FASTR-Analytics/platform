@@ -4,9 +4,9 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  CustomMarkdownStyleOptions,
-  ImageMap,
-  MarkdownImageRenderer,
+  type CustomMarkdownStyleOptions,
+  type ImageMap,
+  type MarkdownImageRenderer,
   MarkdownPresentation,
   MarkdownPresentationJsx,
   Match,
