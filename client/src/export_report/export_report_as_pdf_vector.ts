@@ -5,13 +5,15 @@ import {
   PageRenderer,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   _GLOBAL_PDF_PIXEL_WIDTH,
+  createPdfRenderContextWithFontsBrowser,
+  CustomPageStyle,
+  type FontInfo,
 } from "panther";
 import {
   getReportDetailFromCacheOrFetch,
   getPageInputsFromCacheOrFetch,
 } from "~/state/ri_cache";
-import { PdfRenderContext } from "panther";
-// import { PdfRenderContext } from "./pdf_render_context";
+import fontMap from "~/font-map.json";
 
 export async function exportReportAsPdfVector(
   projectId: string,
@@ -46,28 +48,37 @@ export async function exportReportAsPdfVector(
         ? "landscape"
         : "portrait";
 
-    const { default: jsPDF } = await import("jspdf");
-    const pdf = new jsPDF({
-      orientation: pdfOrientation,
-      unit: "px",
-      format: [pdfW, pdfH],
-      // putOnlyUsedFonts: true,
-      compress: true,
+    // Get fonts to register from a representative page style
+    const _Inter_400: FontInfo = {
+      fontFamily: "Inter",
+      weight: 400,
+      italic: false,
+    };
+    const _Inter_800: FontInfo = {
+      fontFamily: "Inter",
+      weight: 800,
+      italic: false,
+    };
+    const representativeStyle = new CustomPageStyle({
+      text: {
+        base: { font: _Inter_400 },
+        coverTitle: { font: _Inter_800 },
+        sectionTitle: { font: _Inter_800 },
+        header: { font: _Inter_800 },
+      },
     });
+    const fonts: FontInfo[] = representativeStyle.getFontsToRegister();
 
-    /////////////////////
-    //                 //
-    //    Add fonts    //
-    //                 //
-    /////////////////////
-    pdf.addFont("/fonts/Inter-Bold.ttf", "Inter", "normal", "700");
     progress(0.15);
-    pdf.addFont("/fonts/Inter-ExtraBold.ttf", "Inter", "normal", "800");
-    progress(0.16);
-    await new Promise((res) => setTimeout(res, 0));
-    pdf.addFont("/fonts/Inter-Regular.ttf", "Inter", "normal", "400");
-    progress(0.18);
-    await new Promise((res) => setTimeout(res, 0));
+
+    const { pdf, rc } = await createPdfRenderContextWithFontsBrowser(
+      pdfW,
+      pdfH,
+      fonts,
+      { basePath: "/fonts", fontMap: fontMap.ttf },
+    );
+
+    // Add Ethiopic fonts separately (not in fontMap)
     if (getTextRenderingOptions()) {
       pdf.addFont(
         "/fonts/NotoSansEthiopic-Regular.ttf",
@@ -83,7 +94,6 @@ export async function exportReportAsPdfVector(
       );
     }
 
-    await new Promise((res) => setTimeout(res, 0));
     progress(0.2);
 
     for (
@@ -112,28 +122,6 @@ export async function exportReportAsPdfVector(
         return resPageInputs;
       }
 
-      const offscreenCanvas = document.createElement("canvas");
-      // Use the original canvas dimensions for accurate text measurement
-      offscreenCanvas.width = _GLOBAL_CANVAS_PIXEL_WIDTH;
-      offscreenCanvas.height = Math.round(
-        (_GLOBAL_CANVAS_PIXEL_WIDTH * pdfH) / pdfW,
-      );
-      const offscreenCtx = offscreenCanvas.getContext("2d")!;
-
-      // Apply the PDF scale factor to the context
-      offscreenCtx.scale(pdfScaleFactor, pdfScaleFactor);
-
-      // Ensure fonts are loaded
-      offscreenCtx.font = "16px Inter";
-
-      function createCanvas(w: number, h: number) {
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = w;
-        tempCanvas.height = h;
-        return tempCanvas;
-      }
-
-      const rc = new PdfRenderContext(pdf, offscreenCtx, createCanvas);
       const rcd = new RectCoordsDims([0, 0, pdfW, pdfH]);
       await PageRenderer.measureAndRender(
         rc,

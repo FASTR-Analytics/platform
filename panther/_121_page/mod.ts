@@ -31,3 +31,16 @@ export { isSpacerItem } from "./types.ts";
 
 export { buildFreeformPages } from "./build_freeform_pages.ts";
 export type { FreeformPagesConfig } from "./build_freeform_pages.ts";
+
+export { buildHitRegions, findHitTarget } from "./hit_regions.ts";
+export type {
+  PageHitTarget,
+  PageHitTargetColDivider,
+  PageHitTargetColGap,
+  PageHitTargetCover,
+  PageHitTargetFooter,
+  PageHitTargetHeader,
+  PageHitTargetLayoutItem,
+  PageHitTargetRowGap,
+  PageHitTargetSection,
+} from "./hit_regions.ts";

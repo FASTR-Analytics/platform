@@ -13,6 +13,9 @@ setGlobalStyle({
   },
   page: {
     text: {
+      header: {
+        relFontSize: 0.5
+      },
       watermark: {
         font: { fontFamily: "Inter", weight: 800, italic: false },
         color: _COLOR_WATERMARK_GREY,

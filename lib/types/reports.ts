@@ -5,7 +5,11 @@ import { PresentationObjectInReportInfo } from "./presentation_objects.ts";
 // Report Core Types
 // ============================================================================
 
-export type ReportType = "slide_deck" | "policy_brief" | "long_form" | "ai_slide_deck";
+export type ReportType =
+  | "slide_deck"
+  | "policy_brief"
+  | "long_form"
+  | "ai_slide_deck";
 
 export type ReportSummary = {
   id: string;
@@ -66,7 +70,7 @@ export type LongFormReportConfig = {
 };
 
 export function getStartingConfigForLongFormReport(
-  label: string
+  label: string,
 ): LongFormReportConfig {
   return { label, markdown: "" };
 }
@@ -79,7 +83,12 @@ export type AiSlideDeckSlide = {
   date?: string;
   sectionTitle?: string;
   sectionSubtitle?: string;
-  layout?: "single" | "two-column" | "two-column-wide-left" | "two-column-wide-right" | "three-column";
+  layout?:
+    | "single"
+    | "two-column"
+    | "two-column-wide-left"
+    | "two-column-wide-right"
+    | "three-column";
   heading?: string;
   blocks?: {
     type: "text" | "figure";
@@ -95,7 +104,7 @@ export type AiSlideDeckReportConfig = {
 };
 
 export function getStartingConfigForAiSlideDeck(
-  label: string
+  label: string,
 ): AiSlideDeckReportConfig {
   return {
     label,
@@ -309,20 +318,20 @@ export function getStartingConfigForReportItem() {
     type: "freeform",
     cover: {
       titleText: "",
-      titleTextRelFontSize: 10,
+      titleTextRelFontSize: 6,
       subTitleText: "",
-      subTitleTextRelFontSize: 6,
+      subTitleTextRelFontSize: 4,
       presenterText: "",
-      presenterTextRelFontSize: 4,
+      presenterTextRelFontSize: 3,
       dateText: "",
-      dateTextRelFontSize: 3,
+      dateTextRelFontSize: 2,
       logos: [],
     },
     section: {
       sectionText: "",
-      sectionTextRelFontSize: 8,
+      sectionTextRelFontSize: 4,
       smallerSectionText: "",
-      smallerSectionTextRelFontSize: 5,
+      smallerSectionTextRelFontSize: 2,
     },
     freeform: {
       content: [[getStartingReportItemPlaceholder()]],

@@ -5,11 +5,9 @@
 
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
-export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
-export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
-export { Z_INDEX } from "../_001_render_system/mod.ts";
-export type { Measured, PathSegment, Primitive, RenderContext, Renderer } from "../_001_render_system/mod.ts";
+export { RectCoordsDims } from "../_001_geometry/mod.ts";
+export type { Measured, Primitive, RenderContext, Renderer } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedSankeyStyle } from "../_003_figure_style/mod.ts";
 export { generateSankeyPrimitives, generateSurroundsPrimitives, measureSurrounds, renderFigurePrimitives } from "../_007_figure_core/mod.ts";
-export type { FigureInputsBase, MeasuredSurrounds, PositionedSankeyLink, PositionedSankeyNode, SankeyPrimitiveOptions } from "../_007_figure_core/mod.ts";
+export type { FigureInputsBase, MeasuredSurrounds, PositionedSankeyLink, PositionedSankeyNode } from "../_007_figure_core/mod.ts";

@@ -9,7 +9,7 @@ export type { Measured, MeasuredText, RenderContext } from "../_001_render_syste
 export { CustomPageStyle } from "../_005_page_style/mod.ts";
 export type { CustomPageStyleOptions, MergedPageStyle } from "../_005_page_style/mod.ts";
 export { createColsNode, createItemNode, createRowsNode, measureLayout, renderContainerStyle, walkLayout } from "../_008_layouter/mod.ts";
-export type { ContainerStyleOptions, ItemHeightMeasurer, ItemIdealHeightInfo, ItemLayoutNode, LayoutNode, LayoutWarning, MeasuredLayoutNode } from "../_008_layouter/mod.ts";
+export type { ContainerStyleOptions, ItemHeightMeasurer, ItemIdealHeightInfo, ItemLayoutNode, LayoutGap, LayoutNode, LayoutWarning, MeasuredLayoutNode } from "../_008_layouter/mod.ts";
 export { FigureRenderer } from "../_011_figure_renderer/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { ImageRenderer } from "../_012_image_renderer/mod.ts";

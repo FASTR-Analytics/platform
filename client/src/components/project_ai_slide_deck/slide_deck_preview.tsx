@@ -72,6 +72,7 @@ function SlidePreviewCard(p: SlidePreviewCardProps) {
 
     try {
       const reportConfig = getStartingConfigForReport(p.deckLabel);
+      reportConfig.showPageNumbers = false
       const reportItems = transformSlideDeckToReportItems({
         label: p.deckLabel,
         slides: [p.slide],
@@ -145,14 +146,14 @@ function SlidePreviewCard(p: SlidePreviewCardProps) {
 
   return (
     <div
-      class="border-base-300 hover:border-primary cursor-pointer rounded-lg border-2 bg-white shadow-sm transition-all hover:shadow-md"
-      onClick={openExpandedView}
+      class=" "
     >
-      <div class="flex items-start gap-3 p-3">
-        <div class="text-neutral w-8 flex-none pt-1 text-right text-sm font-medium">
+      <div class="flex items-start gap-3 ">
+        <div class="text-base-content w-8 flex-none pt-1 text-right text-sm font-medium">
           {p.index + 1}
         </div>
-        <div class="min-w-0 flex-1">
+        <div class="min-w-0 flex-1 border border-base-300 bg-white overflow-clip hover:border-primary cursor-pointer rounded-lg"
+          onClick={openExpandedView}>
           <Switch>
             <Match when={pageInputs().status === "loading"}>
               <div
@@ -169,7 +170,7 @@ function SlidePreviewCard(p: SlidePreviewCardProps) {
                 textRenderingOptions={getTextRenderingOptions()}
                 simpleError
                 externalError={(pageInputs() as { err: string }).err}
-                scalePixelResolution={0.25}
+                scalePixelResolution={0.6}
               />
             </Match>
             <Match
@@ -185,7 +186,7 @@ function SlidePreviewCard(p: SlidePreviewCardProps) {
                   fixedCanvasH={canvasH}
                   textRenderingOptions={getTextRenderingOptions()}
                   simpleError
-                  scalePixelResolution={0.25}
+                  scalePixelResolution={0.6}
                 />
               )}
             </Match>

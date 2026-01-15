@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type LayoutGap,
   type LayoutWarning,
   type MeasuredLayoutNode,
   measureLayout,
@@ -24,6 +25,7 @@ export interface MeasuredContent {
   rcdContentInner: RectCoordsDims;
   mLayout: MeasuredLayoutNode<PageContentItem>;
   warnings: LayoutWarning[];
+  gaps: LayoutGap[];
 }
 
 export function measureContent(
@@ -51,7 +53,7 @@ export function measureContent(
     s.layoutContainers,
   );
 
-  const { measured, warnings } = measureLayout(
+  const { measured, warnings, gaps } = measureLayout(
     { rc, s },
     contentWithContainerDefaults,
     rcdContentInner,
@@ -66,6 +68,7 @@ export function measureContent(
     rcdContentInner,
     mLayout: measured,
     warnings,
+    gaps,
   };
 }
 

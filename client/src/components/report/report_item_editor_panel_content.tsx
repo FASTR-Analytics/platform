@@ -20,7 +20,7 @@ import {
   getSelectOptions,
   timQuery,
 } from "panther";
-import { Match, Show, Switch, createMemo, createSignal } from "solid-js";
+import { Match, Setter, Show, Switch, createMemo } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMiniDisplay";
 import { serverActions } from "~/server_actions";
@@ -36,11 +36,11 @@ type Props = {
   openEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
+  selectedRowCol: number[];
+  setSelectedRowCol: Setter<number[]>;
 };
 
 export function ReportItemEditorContent(p: Props) {
-  const [selectedRowCol, setSelectedRowCol] = createSignal<number[]>([0, 0]);
-
   async function updateItemType(
     type: ReportItemContentItemType,
     iRow: number,
@@ -54,7 +54,7 @@ export function ReportItemEditorContent(p: Props) {
   );
 
   async function updatePresentationObjectId() {
-    const [iRow, iCol] = selectedRowCol();
+    const [iRow, iCol] = p.selectedRowCol;
     const res = await p.openEditor({
       element: SelectPresentationObject,
       props: {
@@ -81,7 +81,7 @@ export function ReportItemEditorContent(p: Props) {
     propertyName: keyof ReportItemContentItem,
     value: T,
   ) {
-    const [iRow, iCol] = selectedRowCol();
+    const [iRow, iCol] = p.selectedRowCol;
     p.setTempReportItemConfig(
       "freeform",
       "content",
@@ -106,14 +106,14 @@ export function ReportItemEditorContent(p: Props) {
         projectId={p.projectDetail.id}
         tempReportItemConfig={p.tempReportItemConfig}
         setTempReportItemConfig={p.setTempReportItemConfig}
-        selectedRowCol={selectedRowCol()}
-        setSelectedRowCol={setSelectedRowCol}
+        selectedRowCol={p.selectedRowCol}
+        setSelectedRowCol={p.setSelectedRowCol}
       />
       <div class="ui-pad">
         <Show
           when={p.tempReportItemConfig.freeform.content
-            .at(selectedRowCol().at(0)!)
-            ?.at(selectedRowCol().at(1)!)}
+            .at(p.selectedRowCol.at(0)!)
+            ?.at(p.selectedRowCol.at(1)!)}
           keyed
         >
           {(keyedItem) => {
@@ -138,8 +138,8 @@ export function ReportItemEditorContent(p: Props) {
                     onChange={(v) =>
                       updateItemType(
                         v as "figure" | "placeholder" | "image" | "text",
-                        selectedRowCol().at(0)!,
-                        selectedRowCol().at(1)!,
+                        p.selectedRowCol.at(0)!,
+                        p.selectedRowCol.at(1)!,
                       )
                     }
                     fullWidth

@@ -5,6 +5,7 @@ import {
   Button,
   ButtonGroup,
   FrameTop,
+  PopoverMenuProvider,
   UserCircleIcon,
   getEditorWrapper,
   getFirstString,
@@ -271,6 +272,7 @@ export default function Instance(p: Props) {
         </Match>
       </Switch>
       <AlertProvider />
+      <PopoverMenuProvider />
     </>
   );
 }

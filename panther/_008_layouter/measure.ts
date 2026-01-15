@@ -10,6 +10,7 @@ import type {
   HeightMode,
   IdealHeightResult,
   ItemHeightMeasurer,
+  LayoutGap,
   LayoutNode,
   LayoutWarning,
   MeasuredColsLayoutNode,
@@ -19,6 +20,10 @@ import type {
   MeasureLayoutResult,
 } from "./types.ts";
 
+export type MeasureLayoutOptions = {
+  gapOverlap?: number;
+};
+
 export function measureLayout<T, U>(
   ctx: T,
   layout: LayoutNode<U>,
@@ -27,6 +32,7 @@ export function measureLayout<T, U>(
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
   nColumns: number,
+  options?: MeasureLayoutOptions,
 ): MeasureLayoutResult<U> {
   const warnings: LayoutWarning[] = [];
   if (PANTHER_DEBUG) {
@@ -48,7 +54,8 @@ export function measureLayout<T, U>(
     bounds.h(),
     nColumns,
   );
-  return { measured, warnings };
+  const gaps = extractGaps(measured, gapX, gapY, options?.gapOverlap ?? 10);
+  return { measured, warnings, gaps };
 }
 
 // =============================================================================
@@ -489,4 +496,101 @@ function getInnerBounds(
   const pad = new Padding(style?.padding ?? 0);
   const boundsAfterBorder = bounds.getPadded(borderPad);
   return boundsAfterBorder.getPadded(pad);
+}
+
+// =============================================================================
+// Gap extraction for hit detection
+// =============================================================================
+
+function extractGaps<U>(
+  node: MeasuredLayoutNode<U>,
+  gapX: number,
+  gapY: number,
+  overlap: number,
+): LayoutGap[] {
+  const gaps: LayoutGap[] = [];
+  extractGapsRecursive(node, gapX, gapY, overlap, gaps, 0, 0);
+  return gaps;
+}
+
+function extractGapsRecursive<U>(
+  node: MeasuredLayoutNode<U>,
+  gapX: number,
+  gapY: number,
+  overlap: number,
+  gaps: LayoutGap[],
+  rowIndex: number,
+  _colIndex: number,
+): void {
+  if (node.type === "row") {
+    const children = node.children;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+
+      // Recurse into child
+      extractGapsRecursive(child, gapX, gapY, overlap, gaps, i, 0);
+
+      // Add row gap after each child except the last
+      if (i < children.length - 1) {
+        const nextChild = children[i + 1];
+        const gapTop = child.rpd.y() + child.rpd.h() - overlap;
+        const gapBottom = nextChild.rpd.y() + overlap;
+        const gapHeight = gapBottom - gapTop;
+
+        gaps.push({
+          type: "row-gap",
+          afterRowIndex: i,
+          rcd: new RectCoordsDims({
+            x: child.rpd.x(),
+            y: gapTop,
+            w: child.rpd.w(),
+            h: gapHeight,
+          }),
+        });
+      }
+    }
+  } else if (node.type === "col") {
+    const children = node.children;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+
+      // Recurse into child
+      extractGapsRecursive(child, gapX, gapY, overlap, gaps, rowIndex, i);
+
+      // Add column gap and divider after each child except the last
+      if (i < children.length - 1) {
+        const nextChild = children[i + 1];
+        const gapLeft = child.rpd.x() + child.rpd.w() - overlap;
+        const gapRight = nextChild.rpd.x() + overlap;
+        const gapWidth = gapRight - gapLeft;
+
+        // Column gap (hit zone for adding columns)
+        gaps.push({
+          type: "col-gap",
+          rowIndex,
+          afterColIndex: i,
+          rcd: new RectCoordsDims({
+            x: gapLeft,
+            y: child.rpd.y(),
+            w: gapWidth,
+            h: child.rpd.h(),
+          }),
+        });
+
+        // Column divider (for drag-to-resize)
+        const dividerX = child.rpd.x() + child.rpd.w() + gapX / 2;
+        gaps.push({
+          type: "col-divider",
+          rowIndex,
+          afterColIndex: i,
+          line: {
+            x: dividerX,
+            y1: child.rpd.y(),
+            y2: child.rpd.y() + child.rpd.h(),
+          },
+        });
+      }
+    }
+  }
+  // Items don't have gaps
 }

@@ -11,6 +11,10 @@ export type {
   ItemHeightMeasurer,
   ItemIdealHeightInfo,
   ItemLayoutNode,
+  LayoutGap,
+  LayoutGapColDivider,
+  LayoutGapColGap,
+  LayoutGapRowGap,
   LayoutNode,
   LayoutNodeBase,
   LayoutNodeId,
@@ -33,6 +37,7 @@ export {
 } from "./types.ts";
 
 export { measureLayout } from "./measure.ts";
+export type { MeasureLayoutOptions } from "./measure.ts";
 
 export { walkLayout } from "./walk.ts";
 export type { LayoutVisitor } from "./walk.ts";

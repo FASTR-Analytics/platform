@@ -1,9 +1,13 @@
-import { ProjectDetail,
+import {
+  ProjectDetail,
   ReportDetail,
   ReportItemConfig,
   ReportItemType,
+  T,
   get_REPORT_ITEM_TYPE_SELECT_OPTIONS,
-  isFrench, t2, T } from "lib";
+  t,
+  t2
+} from "lib";
 import {
   Button,
   ButtonGroup,
@@ -14,7 +18,7 @@ import {
   openComponent,
   timActionDelete,
 } from "panther";
-import { Match, Show, Switch } from "solid-js";
+import { Match, Setter, Show, Switch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
@@ -29,7 +33,6 @@ import { ReportItemEditorPolicyHeaderFooter } from "./report_item_editor_panel_p
 import { ReportItemEditorSlideCover } from "./report_item_editor_panel_slide_cover";
 import { ReportItemEditorSlideHeaderFooter } from "./report_item_editor_panel_slide_header_footer";
 import { ReportItemEditorSlideSection } from "./report_item_editor_panel_slide_section";
-import { t } from "lib";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -44,6 +47,8 @@ type Props = {
   openEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
+  selectedRowCol: number[];
+  setSelectedRowCol: Setter<number[]>;
 };
 
 export function ReportItemEditorPanel(p: Props) {
@@ -75,11 +80,11 @@ export function ReportItemEditorPanel(p: Props) {
         text:
           p.reportDetail.reportType === "slide_deck"
             ? t(
-                "In order to be duplicated, slides cannot have any unsaved changes",
-              )
+              "In order to be duplicated, slides cannot have any unsaved changes",
+            )
             : t(
-                "In order to be duplicated, pages cannot have any unsaved changes",
-              ),
+              "In order to be duplicated, pages cannot have any unsaved changes",
+            ),
       });
       return;
     }
@@ -205,6 +210,8 @@ export function ReportItemEditorPanel(p: Props) {
                       setTempReportItemConfig={p.setTempReportItemConfig}
                       reportDetail={p.reportDetail}
                       openEditor={p.openEditor}
+                      selectedRowCol={p.selectedRowCol}
+                      setSelectedRowCol={p.setSelectedRowCol}
                     />
                   </Match>
                 </Switch>
@@ -244,6 +251,8 @@ export function ReportItemEditorPanel(p: Props) {
                   setTempReportItemConfig={p.setTempReportItemConfig}
                   reportDetail={p.reportDetail}
                   openEditor={p.openEditor}
+                  selectedRowCol={p.selectedRowCol}
+                  setSelectedRowCol={p.setSelectedRowCol}
                 />
               </Match>
             </Switch>

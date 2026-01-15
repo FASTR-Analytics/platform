@@ -102,7 +102,30 @@ export type LayoutWarning = {
 export type MeasureLayoutResult<U> = {
   measured: MeasuredLayoutNode<U>;
   warnings: LayoutWarning[];
+  gaps: LayoutGap[];
 };
+
+export type LayoutGapRowGap = {
+  type: "row-gap";
+  afterRowIndex: number;
+  rcd: RectCoordsDims;
+};
+
+export type LayoutGapColGap = {
+  type: "col-gap";
+  rowIndex: number;
+  afterColIndex: number;
+  rcd: RectCoordsDims;
+};
+
+export type LayoutGapColDivider = {
+  type: "col-divider";
+  rowIndex: number;
+  afterColIndex: number;
+  line: { x: number; y1: number; y2: number };
+};
+
+export type LayoutGap = LayoutGapRowGap | LayoutGapColGap | LayoutGapColDivider;
 
 export function isRowsLayoutNode<U>(
   node: LayoutNode<U>,

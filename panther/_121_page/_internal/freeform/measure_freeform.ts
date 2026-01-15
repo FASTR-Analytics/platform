@@ -48,5 +48,6 @@ export function measureFreeform(
     rcdContentOuter: content.rcdContentOuter,
     rcdContentInner: content.rcdContentInner,
     mLayout: content.mLayout,
+    gaps: content.gaps,
   };
 }

@@ -41,6 +41,7 @@ export function renderFreeform(
       rcdContentInner: measured.rcdContentInner,
       mLayout: measured.mLayout,
       warnings: measured.warnings,
+      gaps: measured.gaps,
     },
     inputs,
     s,

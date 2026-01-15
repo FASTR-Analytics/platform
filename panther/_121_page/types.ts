@@ -7,6 +7,7 @@ import type {
   CustomPageStyleOptions,
   FigureInputs,
   ImageInputs,
+  LayoutGap,
   LayoutNode,
   LayoutWarning,
   MarkdownRendererInput,
@@ -134,6 +135,7 @@ export type MeasuredFreeformPage = MeasuredPageBase & {
   mLayout: MeasuredLayoutNode<PageContentItem>;
   rcdContentOuter: RectCoordsDims;
   rcdContentInner: RectCoordsDims;
+  gaps: LayoutGap[];
 };
 
 // Discriminated union of all measured page types

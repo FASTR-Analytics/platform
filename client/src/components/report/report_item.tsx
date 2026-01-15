@@ -1,5 +1,6 @@
 import { trackStore } from "@solid-primitives/deep";
 import {
+  getStartingReportItemPlaceholder,
   ProjectDetail,
   ReportDetail,
   ReportItem,
@@ -11,9 +12,12 @@ import {
 } from "lib";
 import {
   APIResponseWithData,
+  EditablePageHolder,
   FrameRightResizable,
-  PageHolder,
+  MenuItem,
+  PageHitTarget,
   PageInputs,
+  showMenu,
   StateHolder,
   StateHolderWrapper,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
@@ -33,7 +37,11 @@ import { useProjectDirtyStates } from "~/components/project_runner/mod";
 import { getPageInputsFromReportItem } from "~/generate_report/mod";
 import { serverActions } from "~/server_actions";
 import { getReportItemFromCacheOrFetch } from "~/state/ri_cache";
-import { fitWithin } from "~/state/ui";
+import {
+  fitWithin,
+  setHeaderOrContent,
+  setPolicyHeaderOrContent,
+} from "~/state/ui";
 import { ReportItemEditorPanel } from "./report_item_editor_panel";
 
 type ReportItemEditorProps = {
@@ -179,6 +187,7 @@ export function ReportItemEditorInner(p: Props) {
     "saved" | "pending" | "saving" | "error"
   >("saved");
   const [saveError, setSaveError] = createSignal<string>("");
+  const [selectedRowCol, setSelectedRowCol] = createSignal<number[]>([0, 0]);
   let autoSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
   onMount(() => {
@@ -313,6 +322,8 @@ export function ReportItemEditorInner(p: Props) {
               setSelectedItemId={p.setSelectedItemId}
               reportItemId={p.reportItem.id}
               openEditor={openEditor}
+              selectedRowCol={selectedRowCol()}
+              setSelectedRowCol={setSelectedRowCol}
             />
           </Show>
         }
@@ -321,7 +332,7 @@ export function ReportItemEditorInner(p: Props) {
           {(keyedPageInputs) => {
             return (
               <div class="ui-pad bg-base-300 h-full w-full overflow-auto">
-                <PageHolder
+                <EditablePageHolder
                   pageInputs={keyedPageInputs}
                   canvasElementId="SLIDE_CANVAS_FOR_DOWNLOADING"
                   fixedCanvasH={
@@ -331,6 +342,224 @@ export function ReportItemEditorInner(p: Props) {
                   }
                   fitWithin={fitWithin() === "fit-within"}
                   textRenderingOptions={getTextRenderingOptions()}
+                  hoverStyle={{
+                    fillColor: "rgba(0, 112, 243, 0.1)",
+                    strokeColor: "rgba(0, 112, 243, 0.8)",
+                    strokeWidth: 2,
+                  }}
+                  onClick={(target: PageHitTarget) => {
+                    if (target.type === "layoutItem") {
+                      const parts = target.node.id.split("-");
+                      if (parts.length === 3 && parts[0] === "item") {
+                        const row = parseInt(parts[1], 10);
+                        const col = parseInt(parts[2], 10);
+                        if (!isNaN(row) && !isNaN(col)) {
+                          if (p.reportDetail.reportType === "policy_brief") {
+                            setPolicyHeaderOrContent("content");
+                          } else {
+                            setHeaderOrContent("content");
+                          }
+                          setSelectedRowCol([row, col]);
+                        }
+                      }
+                    } else if (
+                      target.type === "header" ||
+                      target.type === "footer"
+                    ) {
+                      if (p.reportDetail.reportType === "policy_brief") {
+                        setPolicyHeaderOrContent("policyHeaderFooter");
+                      } else {
+                        setHeaderOrContent("slideHeader");
+                      }
+                    } else if (target.type === "rowGap") {
+                      // Add a new row after the gap, matching the row above
+                      const afterRowIndex = target.gap.afterRowIndex;
+                      const currentContent = tempReportItemConfig.freeform.content;
+                      const numCols = currentContent[afterRowIndex]?.length ?? 1;
+                      const newRow = Array.from({ length: numCols }, () =>
+                        getStartingReportItemPlaceholder()
+                      );
+                      const newContent = [
+                        ...currentContent.slice(0, afterRowIndex + 1),
+                        newRow,
+                        ...currentContent.slice(afterRowIndex + 1),
+                      ];
+                      setTempReportItemConfig("freeform", "content", newContent);
+                      setSelectedRowCol([afterRowIndex + 1, 0]);
+                    } else if (target.type === "colGap") {
+                      // Add a new column after the gap
+                      const afterColIndex = target.gap.afterColIndex;
+                      const currentContent = tempReportItemConfig.freeform.content;
+                      const newContent = currentContent.map((row) => [
+                        ...row.slice(0, afterColIndex + 1),
+                        getStartingReportItemPlaceholder(),
+                        ...row.slice(afterColIndex + 1),
+                      ]);
+                      setTempReportItemConfig("freeform", "content", newContent);
+                      setSelectedRowCol([0, afterColIndex + 1]);
+                    }
+                  }}
+                  onContextMenu={(e, target) => {
+                    const currentContent = tempReportItemConfig.freeform.content;
+                    const numRows = currentContent.length;
+                    const items: MenuItem[] = [];
+
+                    if (target.type === "layoutItem") {
+                      const parts = target.node.id.split("-");
+                      if (parts.length === 3 && parts[0] === "item") {
+                        const rowIdx = parseInt(parts[1], 10);
+                        const colIdx = parseInt(parts[2], 10);
+                        const numColsInRow = currentContent[rowIdx]?.length ?? 1;
+
+                        items.push({
+                          label: "Add row above",
+                          icon: "plus",
+                          onClick: () => {
+                            const numCols = currentContent[rowIdx]?.length ?? 1;
+                            const newRow = Array.from({ length: numCols }, () =>
+                              getStartingReportItemPlaceholder()
+                            );
+                            const newContent = [
+                              ...currentContent.slice(0, rowIdx),
+                              newRow,
+                              ...currentContent.slice(rowIdx),
+                            ];
+                            setTempReportItemConfig("freeform", "content", newContent);
+                            setSelectedRowCol([rowIdx, 0]);
+                          },
+                        });
+                        items.push({
+                          label: "Add row below",
+                          icon: "plus",
+                          onClick: () => {
+                            const numCols = currentContent[rowIdx]?.length ?? 1;
+                            const newRow = Array.from({ length: numCols }, () =>
+                              getStartingReportItemPlaceholder()
+                            );
+                            const newContent = [
+                              ...currentContent.slice(0, rowIdx + 1),
+                              newRow,
+                              ...currentContent.slice(rowIdx + 1),
+                            ];
+                            setTempReportItemConfig("freeform", "content", newContent);
+                            setSelectedRowCol([rowIdx + 1, 0]);
+                          },
+                        });
+
+                        if (numColsInRow === 1) {
+                          items.push({ type: "divider" });
+                          items.push({
+                            label: "Split into columns",
+                            icon: "plus",
+                            onClick: () => {
+                              const newContent = currentContent.map((row, rIdx) => {
+                                if (rIdx === rowIdx) {
+                                  return [...row, getStartingReportItemPlaceholder()];
+                                }
+                                return row;
+                              });
+                              setTempReportItemConfig("freeform", "content", newContent);
+                              setSelectedRowCol([rowIdx, 1]);
+                            },
+                          });
+                        } else {
+                          items.push({ type: "divider" });
+                          items.push({
+                            label: "Split into rows",
+                            icon: "plus",
+                            onClick: () => {
+                              const currentRow = currentContent[rowIdx];
+                              const newRows = currentRow.map((cell) => [cell]);
+                              const newContent = [
+                                ...currentContent.slice(0, rowIdx),
+                                ...newRows,
+                                ...currentContent.slice(rowIdx + 1),
+                              ];
+                              setTempReportItemConfig("freeform", "content", newContent);
+                              setSelectedRowCol([rowIdx, 0]);
+                            },
+                          });
+                        }
+
+                        if (numRows > 1) {
+                          items.push({ type: "divider" });
+                          items.push({
+                            label: "Delete row",
+                            icon: "trash",
+                            intent: "danger",
+                            onClick: () => {
+                              const newContent = currentContent.filter((_, i) => i !== rowIdx);
+                              setTempReportItemConfig("freeform", "content", newContent);
+                              setSelectedRowCol([Math.max(0, rowIdx - 1), 0]);
+                            },
+                          });
+                        }
+
+                        if (numColsInRow > 1) {
+                          if (items[items.length - 1]?.type !== "divider") {
+                            items.push({ type: "divider" });
+                          }
+                          items.push({
+                            label: "Delete column",
+                            icon: "trash",
+                            intent: "danger",
+                            onClick: () => {
+                              const newContent = currentContent.map((row, rIdx) => {
+                                if (rIdx === rowIdx) {
+                                  return row.filter((_, cIdx) => cIdx !== colIdx);
+                                }
+                                return row;
+                              });
+                              setTempReportItemConfig("freeform", "content", newContent);
+                              setSelectedRowCol([rowIdx, Math.max(0, colIdx - 1)]);
+                            },
+                          });
+                        }
+                      }
+                    } else if (target.type === "rowGap") {
+                      const afterRowIndex = target.gap.afterRowIndex;
+                      items.push({
+                        label: "Add row here",
+                        icon: "plus",
+                        onClick: () => {
+                          const numCols = currentContent[afterRowIndex]?.length ?? 1;
+                          const newRow = Array.from({ length: numCols }, () =>
+                            getStartingReportItemPlaceholder()
+                          );
+                          const newContent = [
+                            ...currentContent.slice(0, afterRowIndex + 1),
+                            newRow,
+                            ...currentContent.slice(afterRowIndex + 1),
+                          ];
+                          setTempReportItemConfig("freeform", "content", newContent);
+                          setSelectedRowCol([afterRowIndex + 1, 0]);
+                        },
+                      });
+                    } else if (target.type === "colGap") {
+                      const afterColIndex = target.gap.afterColIndex;
+                      items.push({
+                        label: "Add column here",
+                        icon: "plus",
+                        onClick: () => {
+                          const newContent = currentContent.map((row) => [
+                            ...row.slice(0, afterColIndex + 1),
+                            getStartingReportItemPlaceholder(),
+                            ...row.slice(afterColIndex + 1),
+                          ]);
+                          setTempReportItemConfig("freeform", "content", newContent);
+                          setSelectedRowCol([0, afterColIndex + 1]);
+                        },
+                      });
+                    }
+
+                    if (items.length > 0) {
+                      showMenu({
+                        x: e.clientX,
+                        y: e.clientY,
+                        items,
+                      });
+                    }
+                  }}
                 />
               </div>
             );

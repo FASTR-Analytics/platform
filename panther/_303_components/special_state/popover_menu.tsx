@@ -1,0 +1,283 @@
+// Copyright 2023-2025, Tim Roberton, All rights reserved.
+//
+// ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
+// ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
+
+import { createSignal, For, JSX, onCleanup, onMount, Show } from "solid-js";
+import { Button } from "../form_inputs/button.tsx";
+import type { IconName } from "../icons/mod.ts";
+import { IconRenderer } from "../form_inputs/icon_renderer.tsx";
+import type { Intent } from "../types.ts";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+export type MenuItemClickable = {
+  type?: "item";
+  label: string;
+  icon?: IconName;
+  intent?: "default" | "danger";
+  disabled?: boolean;
+  onClick: () => void;
+};
+
+export type MenuItemDivider = {
+  type: "divider";
+};
+
+export type MenuItem = MenuItemClickable | MenuItemDivider;
+
+export type PopoverPosition =
+  | "bottom"
+  | "bottom-start"
+  | "bottom-end"
+  | "top"
+  | "top-start"
+  | "top-end"
+  | "left"
+  | "right";
+
+export type ShowMenuOptions = {
+  x: number;
+  y: number;
+  position?: PopoverPosition;
+  items: MenuItem[];
+};
+
+export type MenuButtonOptions = {
+  buttonProps?: {
+    iconName?: IconName;
+    intent?: Intent;
+    outline?: boolean;
+    children?: JSX.Element;
+  };
+  position?: PopoverPosition;
+  items: MenuItem[];
+};
+
+type MenuState = {
+  x: number;
+  y: number;
+  position: PopoverPosition;
+  items: MenuItem[];
+};
+
+// =============================================================================
+// Module-level state
+// =============================================================================
+
+const [menuState, setMenuState] = createSignal<MenuState | undefined>();
+let popoverRef: HTMLDivElement | undefined;
+let virtualAnchorRef: HTMLDivElement | undefined;
+
+export function showMenu(opts: ShowMenuOptions): void {
+  setMenuState({
+    x: opts.x,
+    y: opts.y,
+    position: opts.position ?? "bottom-start",
+    items: opts.items,
+  });
+
+  // Position the virtual anchor at click coordinates
+  if (virtualAnchorRef) {
+    virtualAnchorRef.style.left = `${opts.x}px`;
+    virtualAnchorRef.style.top = `${opts.y}px`;
+  }
+
+  // Show the popover
+  requestAnimationFrame(() => {
+    popoverRef?.showPopover();
+  });
+}
+
+export function hideMenu(): void {
+  popoverRef?.hidePopover();
+  setMenuState(undefined);
+}
+
+// For testing
+export function _resetMenuState(): void {
+  setMenuState(undefined);
+}
+
+// =============================================================================
+// Position area mapping
+// =============================================================================
+
+function getPositionArea(position: PopoverPosition): string {
+  switch (position) {
+    case "bottom":
+      return "bottom";
+    case "bottom-start":
+      return "bottom span-right";
+    case "bottom-end":
+      return "bottom span-left";
+    case "top":
+      return "top";
+    case "top-start":
+      return "top span-right";
+    case "top-end":
+      return "top span-left";
+    case "left":
+      return "left";
+    case "right":
+      return "right";
+    default:
+      return "bottom span-right";
+  }
+}
+
+// =============================================================================
+// Provider component
+// =============================================================================
+
+export function PopoverMenuProvider() {
+  function handleItemClick(item: MenuItemClickable) {
+    hideMenu();
+    item.onClick();
+  }
+
+  function handleClickOutside(e: MouseEvent) {
+    if (!menuState()) return;
+    if (popoverRef && !popoverRef.contains(e.target as Node)) {
+      hideMenu();
+    }
+  }
+
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.key === "Escape" && menuState()) {
+      hideMenu();
+    }
+  }
+
+  onMount(() => {
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+  });
+
+  onCleanup(() => {
+    document.removeEventListener("mousedown", handleClickOutside);
+    document.removeEventListener("keydown", handleKeyDown);
+  });
+
+  return (
+    <>
+      {/* Virtual anchor - positioned at click coordinates */}
+      <div
+        ref={virtualAnchorRef}
+        style={{
+          position: "fixed",
+          width: "1px",
+          height: "1px",
+          "pointer-events": "none",
+          "anchor-name": "--popover-menu-anchor",
+        }}
+      />
+
+      {/* Menu popover */}
+      <div
+        ref={popoverRef}
+        popover="manual"
+        style={{
+          position: "absolute",
+          "position-anchor": "--popover-menu-anchor",
+          "position-area": menuState()
+            ? getPositionArea(menuState()!.position)
+            : "bottom span-right",
+          "position-try-fallbacks":
+            "flip-block, flip-inline, flip-block flip-inline",
+          margin: "0",
+          padding: "0",
+          border: "none",
+          background: "transparent",
+        }}
+      >
+        <Show when={menuState()} keyed>
+          {(state) => (
+            <div class="bg-base-100 min-w-[160px] overflow-hidden rounded-md border shadow-lg">
+              <For each={state.items}>
+                {(item) => (
+                  <Show
+                    when={item.type !== "divider"}
+                    fallback={<div class="bg-base-300 my-1 h-px" />}
+                  >
+                    <button
+                      type="button"
+                      class="ui-hoverable flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-50"
+                      classList={{
+                        "text-danger":
+                          (item as MenuItemClickable).intent === "danger",
+                      }}
+                      disabled={(item as MenuItemClickable).disabled}
+                      onClick={() => handleItemClick(item as MenuItemClickable)}
+                    >
+                      <Show when={(item as MenuItemClickable).icon}>
+                        {(icon) => (
+                          <span class="w-4">
+                            <IconRenderer iconName={icon()} />
+                          </span>
+                        )}
+                      </Show>
+                      <span>{(item as MenuItemClickable).label}</span>
+                    </button>
+                  </Show>
+                )}
+              </For>
+            </div>
+          )}
+        </Show>
+      </div>
+    </>
+  );
+}
+
+// =============================================================================
+// Menu button factory
+// =============================================================================
+
+export function createMenuButton(opts: MenuButtonOptions) {
+  return function MenuButton(props: { class?: string }): JSX.Element {
+    let buttonRef: HTMLButtonElement | undefined;
+
+    function handleClick() {
+      if (!buttonRef) return;
+      const rect = buttonRef.getBoundingClientRect();
+
+      // Position based on the specified position
+      let x = rect.left;
+      let y = rect.bottom;
+
+      if (opts.position === "top" || opts.position === "top-start") {
+        y = rect.top;
+      } else if (opts.position === "top-end") {
+        x = rect.right;
+        y = rect.top;
+      } else if (opts.position === "bottom-end") {
+        x = rect.right;
+      } else if (opts.position === "left") {
+        x = rect.left;
+        y = rect.top;
+      } else if (opts.position === "right") {
+        x = rect.right;
+        y = rect.top;
+      }
+
+      showMenu({
+        x,
+        y,
+        position: opts.position ?? "bottom-start",
+        items: opts.items,
+      });
+    }
+
+    return (
+      <Button
+        ref={buttonRef}
+        onClick={handleClick}
+        {...opts.buttonProps}
+        {...props}
+      />
+    );
+  };
+}

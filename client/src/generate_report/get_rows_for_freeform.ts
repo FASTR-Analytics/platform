@@ -33,17 +33,22 @@ export async function getRowsForFreeform(
     const extraScale = pdfScaleFactor ?? 1;
 
     const rowNodes: LayoutNode<PageContentItem>[] = [];
+    const content = reportItemConfig.freeform.content;
 
-    for (const row of reportItemConfig.freeform.content) {
+    for (let iRow = 0; iRow < content.length; iRow++) {
+      const row = content[iRow];
       const colNodes: (LayoutNode<PageContentItem> & { span?: number })[] = [];
 
-      for (const col of row) {
+      for (let iCol = 0; iCol < row.length; iCol++) {
+        const col = row[iCol];
+        const itemId = `item-${iRow}-${iCol}`;
+
         if (col.type === "placeholder") {
           const spacerItem: PageSpacerInputs = {
             spacerHeight: col.placeholderHeight ?? 100,
           };
           colNodes.push({
-            ...createItemNode(spacerItem),
+            ...createItemNode(spacerItem, { id: itemId }),
             span: col.span,
           });
           continue;
@@ -53,7 +58,7 @@ export async function getRowsForFreeform(
           if (!col.markdown?.trim()) {
             const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
             colNodes.push({
-              ...createItemNode(spacerItem),
+              ...createItemNode(spacerItem, { id: itemId }),
               span: col.span,
             });
             continue;
@@ -61,7 +66,7 @@ export async function getRowsForFreeform(
 
           // TODO: Old markdown style had padding, backgroundColor, color - see NEED_TO_REVISIT.md
           const markdownStyle: CustomMarkdownStyleOptions = {
-            scale: col.textSize,
+            scale: (col.textSize ?? 1) * extraScale,
           };
 
           const markdownItem: MarkdownRendererInput = {
@@ -69,7 +74,7 @@ export async function getRowsForFreeform(
             style: markdownStyle,
           };
           colNodes.push({
-            ...createItemNode(markdownItem),
+            ...createItemNode(markdownItem, { id: itemId }),
             span: col.span,
           });
           continue;
@@ -79,7 +84,7 @@ export async function getRowsForFreeform(
           if (!col.presentationObjectInReportInfo) {
             const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
             colNodes.push({
-              ...createItemNode(spacerItem),
+              ...createItemNode(spacerItem, { id: itemId }),
               span: col.span,
             });
             continue;
@@ -103,7 +108,7 @@ export async function getRowsForFreeform(
           }
 
           colNodes.push({
-            ...createItemNode(resFigureInputs.data as FigureInputs),
+            ...createItemNode(resFigureInputs.data as FigureInputs, { id: itemId }),
             span: col.span,
           });
           continue;
@@ -113,7 +118,7 @@ export async function getRowsForFreeform(
           if (!col.imgFile) {
             const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
             colNodes.push({
-              ...createItemNode(spacerItem),
+              ...createItemNode(spacerItem, { id: itemId }),
               span: col.span,
             });
             continue;
@@ -125,7 +130,7 @@ export async function getRowsForFreeform(
           if (resImg.success === false) {
             const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
             colNodes.push({
-              ...createItemNode(spacerItem),
+              ...createItemNode(spacerItem, { id: itemId }),
               span: col.span,
             });
             continue;
@@ -137,7 +142,7 @@ export async function getRowsForFreeform(
             fit: col.imgFit === "inside" ? "contain" : (col.imgFit ?? "cover"),
           };
           colNodes.push({
-            ...createItemNode(imageItem),
+            ...createItemNode(imageItem, { id: itemId }),
             span: col.span,
           });
           continue;
