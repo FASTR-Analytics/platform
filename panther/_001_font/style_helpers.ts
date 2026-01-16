@@ -178,9 +178,10 @@ export function deduplicateFonts(fonts: FontInfo[]): FontInfo[] {
 
 export function deriveAllVariants(font: FontInfo): FontInfo[] {
   const base = font;
-  const bold: FontInfo = { ...font, weight: 700 };
+  const boldWeight = Math.max(font.weight, 700) as FontWeight;
+  const bold: FontInfo = { ...font, weight: boldWeight };
   const italic: FontInfo = { ...font, italic: true };
-  const boldItalic: FontInfo = { ...font, weight: 700, italic: true };
+  const boldItalic: FontInfo = { ...font, weight: boldWeight, italic: true };
   return deduplicateFonts([base, bold, italic, boldItalic]);
 }
 

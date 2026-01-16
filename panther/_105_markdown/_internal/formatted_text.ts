@@ -6,6 +6,7 @@
 import {
   type Coordinates,
   Dimensions,
+  type FontWeight,
   type MeasuredText,
   type RenderContext,
   type TextInfoUnkeyed,
@@ -143,7 +144,7 @@ export function resolveRunStyle(
     ...baseStyle,
     font: {
       ...baseStyle.font,
-      weight: isBold ? 700 : baseStyle.font.weight,
+      weight: isBold ? Math.max(baseStyle.font.weight, 700) as FontWeight : baseStyle.font.weight,
       italic: isItalic ? true : baseStyle.font.italic,
     },
   };

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
+export type { FontWeight, TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, Dimensions, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { LineStyle, Measured, MeasuredText, RenderContext, Renderer } from "../_001_render_system/mod.ts";
 export { CustomMarkdownStyle } from "../_004_markdown_style/mod.ts";
