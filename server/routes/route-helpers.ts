@@ -1,6 +1,8 @@
 import { Hono, type Context } from "hono";
 import { routeRegistry } from "lib";
 import { markRouteDefinedEnhanced } from "./route-tracker.ts";
+import { getPgConnectionFromCacheOrNew } from "../db/postgres/connection_manager.ts";
+import { AddLog } from "../db/instance/user_logs.ts";
 
 // Extract params type directly from route registry
 type RouteParams<K extends keyof typeof routeRegistry> =
@@ -57,7 +59,16 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
     }
 
     // Call the handler with typed args
-    return handler(c, { params, body });
+    const response = await handler(c, { params, body });
+
+    // log the request
+    const userEmail = c.var.globalUser?.email;
+    if (userEmail) {
+      const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+      AddLog(mainDb, userEmail, routeName, response.status.toString()).catch(() => {});
+    }
+
+    return response;
   };
 
   // Register the route with Hono

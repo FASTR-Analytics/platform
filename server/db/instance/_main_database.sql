@@ -7,6 +7,15 @@ CREATE TABLE users (
   is_admin boolean NOT NULL
 );
 
+CREATE TABLE user_logs (
+  id SERIAL PRIMARY KEY,
+  user_email text NOT NULL,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  endpoint text NOT NULL,
+  endpoint_result text NOT NULL,
+  FOREIGN KEY (user_email) REFERENCES users(email)
+);
+
 CREATE TABLE instance_config (
   config_key text PRIMARY KEY NOT NULL,
   config_json_value text NOT NULL
