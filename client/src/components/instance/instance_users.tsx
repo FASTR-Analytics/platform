@@ -20,7 +20,6 @@ import { User } from "./user";
 import { Table, TableColumn, BulkAction } from "panther";
 import { serverActions } from "~/server_actions";
 import { UserLog } from "../../../../server/db/mod.ts";
-import { GetLogs } from "../../../../server/db/instance/user_logs.ts";
 
 type Props = {
   thisLoggedInUserEmail: string;
@@ -29,7 +28,7 @@ type Props = {
 
 export function InstanceUsers(p: Props) {
   // Temp state
-  const [userLogs] = createResource(() => serverActions.getUserLogs());
+  const [userLogs] = createResource(() => serverActions.getAllUserLogs());
 
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
     undefined,
@@ -125,9 +124,11 @@ export function InstanceUsers(p: Props) {
                     silentFetch={p.instanceDetail.silentFetch}
                   />
                 </div>
-                <div class="ui-pad h-full w-full">
-                  <UserLogsTable logs={userLogs()!.data}/>
-                </div>
+                <Show when={userLogs()?.data}>
+                  <div class="ui-pad h-full w-full">
+                    <UserLogsTable logs={userLogs()!.data}/>
+                  </div>
+                </Show>
               </FrameTop>
             </Match>
           </Switch>
