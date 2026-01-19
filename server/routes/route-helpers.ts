@@ -65,7 +65,8 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
     const userEmail = c.var.globalUser?.email;
     if (userEmail) {
       const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-      AddLog(mainDb, userEmail, routeName, response.status.toString()).catch(() => {});
+      const details = JSON.stringify({ params, body });
+      AddLog(mainDb, userEmail, routeName, response.status.toString(), details).catch(() => {});
     }
 
     return response;

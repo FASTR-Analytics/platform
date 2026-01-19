@@ -9,7 +9,7 @@ export type UserLog = {
   timestamp: Date;
   endpoint: string;
   endpoint_result: string;
-  details: string;
+  details?: string;
 }
 
 export type DBInstanceConfig = {
