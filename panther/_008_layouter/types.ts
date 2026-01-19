@@ -11,11 +11,6 @@ import type {
 
 export type LayoutNodeId = string;
 
-export type HeightMode =
-  | "use-measured-height"
-  | "fill-to-row-height"
-  | "fill-to-container";
-
 export type ContainerStyleOptions = {
   padding?: PaddingOptions;
   backgroundColor?: ColorKeyOrString;
@@ -26,8 +21,8 @@ export type ContainerStyleOptions = {
 
 export type LayoutNodeBase = {
   id: LayoutNodeId;
-  height?: number;
-  heightMode?: HeightMode;
+  minH?: number; // Override minimum height
+  maxH?: number; // Override maximum height
   style?: ContainerStyleOptions;
   span?: number;
 };
@@ -66,6 +61,7 @@ export type MeasuredColsLayoutNode<U> = ColsLayoutNode<U> & {
 
 export type MeasuredItemLayoutNode<U> = ItemLayoutNode<U> & {
   rpd: RectCoordsDims;
+  idealH: number;
 };
 
 export type MeasuredLayoutNode<U> =
@@ -73,21 +69,17 @@ export type MeasuredLayoutNode<U> =
   | MeasuredColsLayoutNode<U>
   | MeasuredItemLayoutNode<U>;
 
-export type ItemIdealHeightInfo = {
+export type HeightConstraints = {
+  minH: number;
   idealH: number;
-  noShrink?: boolean;
-};
-
-export type IdealHeightResult = {
-  height: number;
-  minHeight: number; // Minimum height that cannot be shrunk (from noShrink items)
+  maxH: number;
 };
 
 export type ItemHeightMeasurer<T, U> = (
   ctx: T,
   item: ItemLayoutNode<U>,
   width: number,
-) => ItemIdealHeightInfo;
+) => HeightConstraints;
 
 export type LayoutWarning = {
   type:

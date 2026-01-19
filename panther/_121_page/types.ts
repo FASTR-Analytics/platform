@@ -28,7 +28,9 @@ export type PageImageInputs = ImageInputs;
 
 // Spacer content for pages (inline renderer)
 export type PageSpacerInputs = {
-  spacerHeight: number;
+  spacer: true;
+  minH?: number;
+  maxH?: number;
 };
 
 // Union of all content types that can appear in a page
@@ -154,7 +156,7 @@ export function isSpacerItem(item: PageContentItem): item is PageSpacerInputs {
   return (
     typeof item === "object" &&
     item !== null &&
-    "spacerHeight" in item &&
-    typeof (item as PageSpacerInputs).spacerHeight === "number"
+    "spacer" in item &&
+    (item as PageSpacerInputs).spacer === true
   );
 }

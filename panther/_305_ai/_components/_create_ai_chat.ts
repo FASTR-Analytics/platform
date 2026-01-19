@@ -4,7 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createContext, useContext } from "solid-js";
-import type { Anthropic, ContentBlock, DocumentContentBlock, MessageParam } from "../deps.ts";
+import type {
+  Anthropic,
+  ContentBlock,
+  DocumentContentBlock,
+  MessageParam,
+} from "../deps.ts";
 import { getBetaHeaders, hasWebFetchTool } from "../_core/beta_headers.ts";
 import { resolveBuiltInTools } from "../_core/builtin_tools.ts";
 import {

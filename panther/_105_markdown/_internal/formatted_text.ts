@@ -102,7 +102,13 @@ export function renderFormattedText(
       const baselineOffset = line.maxBaseline - runBaseline;
       const runY = lineY + baselineOffset;
 
-      rc.rText(run.mText, { x: lineX + run.x, y: runY }, "left", "top", run.link?.url);
+      rc.rText(
+        run.mText,
+        { x: lineX + run.x, y: runY },
+        "left",
+        "top",
+        run.link?.url,
+      );
 
       if (run.underline) {
         rc.rLine(
@@ -144,7 +150,9 @@ export function resolveRunStyle(
     ...baseStyle,
     font: {
       ...baseStyle.font,
-      weight: isBold ? Math.max(baseStyle.font.weight, 700) as FontWeight : baseStyle.font.weight,
+      weight: isBold
+        ? Math.max(baseStyle.font.weight, 700) as FontWeight
+        : baseStyle.font.weight,
       italic: isItalic ? true : baseStyle.font.italic,
     },
   };

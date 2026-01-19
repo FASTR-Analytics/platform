@@ -66,7 +66,9 @@ export class Csv<T> {
     const rowIndex = typeof row === "number" ? row : this.getRowIndex(row);
     const colIndex = typeof col === "number" ? col : this.getColIndex(col);
     if (rowIndex < 0 || rowIndex >= this.nRows) {
-      throw new Error(`Row index ${rowIndex} out of bounds (0-${this.nRows - 1})`);
+      throw new Error(
+        `Row index ${rowIndex} out of bounds (0-${this.nRows - 1})`,
+      );
     }
     if (colIndex < 0 || colIndex >= this.nCols) {
       throw new Error(
@@ -459,9 +461,14 @@ export class Csv<T> {
       throw new Error(`Start index ${start} out of bounds (0-${this.nRows})`);
     }
     if (actualEnd < start || actualEnd > this.nRows) {
-      throw new Error(`End index ${actualEnd} out of bounds (${start}-${this.nRows})`);
+      throw new Error(
+        `End index ${actualEnd} out of bounds (${start}-${this.nRows})`,
+      );
     }
-    const indexes = Array.from({ length: actualEnd - start }, (_, i) => start + i);
+    const indexes = Array.from(
+      { length: actualEnd - start },
+      (_, i) => start + i,
+    );
     return this.selectRows(indexes);
   }
 
@@ -491,7 +498,7 @@ export class Csv<T> {
 
   dropCols(cols: (string | number)[]): Csv<T> {
     const dropIndexes = new Set(
-      cols.map((c) => (typeof c === "number" ? c : this.getColIndex(c)))
+      cols.map((c) => (typeof c === "number" ? c : this.getColIndex(c))),
     );
     const keepIndexes = this.colHeaders
       .map((_, i) => i)
@@ -516,7 +523,7 @@ export class Csv<T> {
   }
 
   sortByMultiple(
-    specs: Array<{ col: string | number; dir?: "asc" | "desc" }>
+    specs: Array<{ col: string | number; dir?: "asc" | "desc" }>,
   ): Csv<T> {
     if (specs.length === 0) {
       return this.copy();
@@ -588,7 +595,9 @@ export class Csv<T> {
     const valuesIndex = this.getColIndex(opts.values);
     const aggFunc = opts.aggFunc ?? "first";
 
-    const uniqueColumnValues = [...new Set(this.aoa.map((row) => String(row[columnsIndex])))];
+    const uniqueColumnValues = [
+      ...new Set(this.aoa.map((row) => String(row[columnsIndex]))),
+    ];
     uniqueColumnValues.sort();
 
     const groups = new Map<string, Map<string, T[]>>();

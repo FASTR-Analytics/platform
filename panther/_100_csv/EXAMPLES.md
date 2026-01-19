@@ -5,23 +5,23 @@
 ### head / tail / limit
 
 ```typescript
-csv.head()       // First 5 rows (default)
-csv.head(10)     // First 10 rows
-csv.tail(10)     // Last 10 rows
-csv.limit(100)   // Alias for head(100)
+csv.head(); // First 5 rows (default)
+csv.head(10); // First 10 rows
+csv.tail(10); // Last 10 rows
+csv.limit(100); // Alias for head(100)
 ```
 
 ### slice
 
 ```typescript
-csv.slice(5, 15)  // Rows 5-14 (exclusive end)
-csv.slice(10)     // Rows 10 to end
+csv.slice(5, 15); // Rows 5-14 (exclusive end)
+csv.slice(10); // Rows 10 to end
 ```
 
 ### sample
 
 ```typescript
-csv.sample(100)   // 100 random rows (without replacement)
+csv.sample(100); // 100 random rows (without replacement)
 ```
 
 ## Transform Methods
@@ -29,43 +29,43 @@ csv.sample(100)   // 100 random rows (without replacement)
 ### rename
 
 ```typescript
-csv.rename({ oldName: "newName", another: "renamed" })
+csv.rename({ oldName: "newName", another: "renamed" });
 ```
 
 ### dropCols
 
 ```typescript
-csv.dropCols(["temp", "unused"])
-csv.dropCols([0, 2])  // By index
+csv.dropCols(["temp", "unused"]);
+csv.dropCols([0, 2]); // By index
 ```
 
 ### addCol
 
 ```typescript
-csv.addCol("fullName", (row, i) => `${row[0]} ${row[1]}`)
-csv.addCol("total", (row) => String(Number(row[1]) + Number(row[2])))
+csv.addCol("fullName", (row, i) => `${row[0]} ${row[1]}`);
+csv.addCol("total", (row) => String(Number(row[1]) + Number(row[2])));
 ```
 
 ### sortBy / sortByMultiple
 
 ```typescript
 // Single column
-csv.sortBy("name")
-csv.sortBy("sales", "desc")
+csv.sortBy("name");
+csv.sortBy("sales", "desc");
 
 // Multiple columns
 csv.sortByMultiple([
   { col: "region", dir: "asc" },
-  { col: "sales", dir: "desc" }
-])
+  { col: "sales", dir: "desc" },
+]);
 ```
 
 ### unique
 
 ```typescript
-csv.unique()                  // Dedupe by all columns
-csv.unique(["email"])         // Dedupe by specific columns
-csv.unique(["firstName", "lastName"])
+csv.unique(); // Dedupe by all columns
+csv.unique(["email"]); // Dedupe by specific columns
+csv.unique(["firstName", "lastName"]);
 ```
 
 ## Pivot / Unpivot
@@ -85,8 +85,8 @@ Transform long format data into wide format:
 csv.pivot({
   index: "date",
   columns: "metric",
-  values: "value"
-})
+  values: "value",
+});
 
 // Output (wide format):
 // date,       cost,  sales
@@ -101,8 +101,8 @@ csv.pivot({
   index: ["year", "region"],
   columns: "product",
   values: "revenue",
-  aggFunc: "sum"  // sum, avg, count, min, max, first (default)
-})
+  aggFunc: "sum", // sum, avg, count, min, max, first (default)
+});
 ```
 
 ### unpivot (wide → long)
@@ -118,8 +118,8 @@ csv.unpivot({
   index: "date",
   valueColumns: ["jan", "feb", "mar"],
   varName: "month",
-  valueName: "amount"
-})
+  valueName: "amount",
+});
 
 // Output (long format):
 // date,  month,  amount
@@ -138,7 +138,7 @@ csv
   .rename({ old_name: "newName" })
   .sortBy("date", "desc")
   .unique(["id"])
-  .head(100)
+  .head(100);
 ```
 
 ## Combined with Query Builder

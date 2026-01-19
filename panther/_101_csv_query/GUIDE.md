@@ -25,7 +25,8 @@ Queries execute in a fixed order regardless of method call order:
 2. **groupBy** - Group and aggregate
 3. **orderBy** - Sort results
 
-This means `.orderBy()` always operates on the final result, even if called before `.groupBy()`.
+This means `.orderBy()` always operates on the final result, even if called
+before `.groupBy()`.
 
 ## Methods
 
@@ -34,12 +35,14 @@ This means `.orderBy()` always operates on the final result, even if called befo
 Filters rows. Can be called multiple times (conditions are ANDed).
 
 **Object filter** - Match column values:
+
 ```typescript
 .where({ region: ["North", "South"] })  // region IN ("North", "South")
 .where({ status: ["active"], type: ["premium"] })  // AND across columns
 ```
 
 **Predicate filter** - Custom function:
+
 ```typescript
 .where((row, index) => Number(row[2]) > 100)
 ```
@@ -54,32 +57,36 @@ Groups rows by specified columns. Can only be called once.
 
 ### Aggregates
 
-Must be used with `groupBy()`. Each takes a column name and optional output column name.
+Must be used with `groupBy()`. Each takes a column name and optional output
+column name.
 
-| Method | Behavior on empty set |
-|--------|----------------------|
-| `sum(col, output?)` | Returns `"0"` |
-| `avg(col, output?)` | Throws error |
-| `count(col, output?)` | Returns row count (never empty) |
-| `min(col, output?)` | Throws error |
-| `max(col, output?)` | Throws error |
-| `median(col, output?)` | Throws error |
-| `countDistinct(col, output?)` | Returns `"0"` |
-| `first(col, output?)` | Returns `""` |
-| `last(col, output?)` | Returns `""` |
+| Method                        | Behavior on empty set           |
+| ----------------------------- | ------------------------------- |
+| `sum(col, output?)`           | Returns `"0"`                   |
+| `avg(col, output?)`           | Throws error                    |
+| `count(col, output?)`         | Returns row count (never empty) |
+| `min(col, output?)`           | Throws error                    |
+| `max(col, output?)`           | Throws error                    |
+| `median(col, output?)`        | Throws error                    |
+| `countDistinct(col, output?)` | Returns `"0"`                   |
+| `first(col, output?)`         | Returns `""`                    |
+| `last(col, output?)`          | Returns `""`                    |
 
-Default output column names: `{col}_sum`, `{col}_avg`, `{col}_median`, `{col}_distinct`, `{col}_first`, `{col}_last`, etc.
+Default output column names: `{col}_sum`, `{col}_avg`, `{col}_median`,
+`{col}_distinct`, `{col}_first`, `{col}_last`, etc.
 
 ### `orderBy(column, direction?)` or `orderBy(specs[])`
 
 Sorts results. Can only be called once.
 
 **Single column:**
+
 ```typescript
 .orderBy("sales", "desc")
 ```
 
 **Multi-column:**
+
 ```typescript
 .orderBy([
   { col: "region", dir: "asc" },
@@ -99,8 +106,10 @@ Runs the query and returns a new `Csv`.
 
 - Input can be `Csv<T>` of any type
 - `where()` preserves the input type
-- `groupBy()` always produces `Csv<string>` (keys and aggregates are stringified)
-- Numeric comparisons in `where()` handle string-to-number conversion automatically
+- `groupBy()` always produces `Csv<string>` (keys and aggregates are
+  stringified)
+- Numeric comparisons in `where()` handle string-to-number conversion
+  automatically
 
 ## Common Patterns
 
@@ -137,7 +146,7 @@ query(csv)
   .sum("sales", "total")
   .orderBy("total", "desc")
   .execute()
-  .selectRows([0, 1, 2, 3, 4]);  // top 5
+  .selectRows([0, 1, 2, 3, 4]); // top 5
 ```
 
 ## Limitations

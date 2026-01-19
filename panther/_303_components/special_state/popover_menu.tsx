@@ -124,7 +124,6 @@ export function _resetMenuState(): void {
   setMenuState(undefined);
 }
 
-
 // =============================================================================
 // Provider component
 // =============================================================================
@@ -269,7 +268,9 @@ export type MenuTriggerWrapperProps = {
   children: JSX.Element;
 };
 
-export function MenuTriggerWrapper(props: MenuTriggerWrapperProps): JSX.Element {
+export function MenuTriggerWrapper(
+  props: MenuTriggerWrapperProps,
+): JSX.Element {
   let wrapperRef: HTMLSpanElement | undefined;
 
   function handleClick(e: MouseEvent) {
@@ -296,7 +297,9 @@ export function MenuTriggerWrapper(props: MenuTriggerWrapperProps): JSX.Element 
       y = rect.top;
     }
 
-    const items = typeof props.items === "function" ? props.items() : props.items;
+    const items = typeof props.items === "function"
+      ? props.items()
+      : props.items;
 
     showMenu({
       x,
@@ -321,7 +324,9 @@ export function createMenuTriggerWrapper(opts: {
   items: MenuItem[] | (() => MenuItem[]);
   position?: PopoverPosition;
 }) {
-  return function MenuTriggerWrapperInstance(props: { children: JSX.Element }): JSX.Element {
+  return function MenuTriggerWrapperInstance(
+    props: { children: JSX.Element },
+  ): JSX.Element {
     return (
       <MenuTriggerWrapper items={opts.items} position={opts.position}>
         {props.children}

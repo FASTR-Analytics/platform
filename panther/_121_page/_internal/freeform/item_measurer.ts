@@ -5,9 +5,9 @@
 
 import {
   FigureRenderer,
+  type HeightConstraints,
   ImageRenderer,
   type ItemHeightMeasurer,
-  type ItemIdealHeightInfo,
   type ItemLayoutNode,
   MarkdownRenderer,
 } from "../../deps.ts";
@@ -24,27 +24,30 @@ export const itemMeasurer: ItemHeightMeasurer<
   src,
   node: ItemLayoutNode<PageContentItem>,
   width,
-): ItemIdealHeightInfo => {
+): HeightConstraints => {
   const item = node.data;
+  const minFigureHeight = src.s.content.gapY * 3;
 
   if (MarkdownRenderer.isType(item)) {
-    const idealH = MarkdownRenderer.getIdealHeight(src.rc, width, item);
-    // Markdown content cannot shrink - text stays the same size
-    return { idealH, noShrink: true };
+    const h = MarkdownRenderer.getIdealHeight(src.rc, width, item);
+    return { minH: h, idealH: h, maxH: h };
   }
 
   if (FigureRenderer.isType(item)) {
     const idealH = FigureRenderer.getIdealHeight(src.rc, width, item);
-    return { idealH };
+    return { minH: minFigureHeight, idealH, maxH: Infinity };
   }
 
   if (ImageRenderer.isType(item)) {
     const idealH = ImageRenderer.getIdealHeight(src.rc, width, item);
-    return { idealH };
+    return { minH: minFigureHeight, idealH, maxH: Infinity };
   }
 
   if (isSpacerItem(item)) {
-    return { idealH: item.spacerHeight };
+    const minH = item.minH ?? minFigureHeight;
+    const maxH = item.maxH ?? Infinity;
+    const idealH = minH;
+    return { minH, idealH, maxH };
   }
 
   throw new Error("No measurer for item type");

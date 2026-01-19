@@ -7,9 +7,8 @@ export type {
   ColsLayoutNode,
   ContainerLayoutNode,
   ContainerStyleOptions,
-  HeightMode,
+  HeightConstraints,
   ItemHeightMeasurer,
-  ItemIdealHeightInfo,
   ItemLayoutNode,
   LayoutGap,
   LayoutGapColDivider,
@@ -80,3 +79,10 @@ export {
 
 export { getColWidths } from "./col_widths.ts";
 export type { ColWidthInfo, ColWidthResult } from "./col_widths.ts";
+
+export { optimizeLayout } from "./optimizer.ts";
+export type {
+  LayoutScore,
+  OptimizerConfig,
+  OptimizeResult,
+} from "./optimizer.ts";

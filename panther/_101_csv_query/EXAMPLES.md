@@ -148,7 +148,7 @@ const topRegions = query(csv)
 const sorted = query(csv)
   .orderBy([
     { col: "region", dir: "asc" },
-    { col: "sales", dir: "desc" }
+    { col: "sales", dir: "desc" },
   ])
   .execute();
 // Sorts by region ascending, then by sales descending within each region
@@ -170,7 +170,8 @@ const report = query(csv)
 
 ## Using groupBy as DISTINCT
 
-Without aggregates, `groupBy()` returns unique combinations of the specified columns:
+Without aggregates, `groupBy()` returns unique combinations of the specified
+columns:
 
 ```typescript
 const uniqueRegions = query(csv)

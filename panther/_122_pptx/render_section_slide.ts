@@ -4,7 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Color, getColor } from "./deps.ts";
-import type { MeasuredSectionPage, MeasuredText, RenderContext } from "./deps.ts";
+import type {
+  MeasuredSectionPage,
+  MeasuredText,
+  RenderContext,
+} from "./deps.ts";
 import { pixelsToInches, pixelsToPoints } from "./pptx_units.ts";
 import type { PptxGenJSInstance, PptxSlide } from "./types.ts";
 

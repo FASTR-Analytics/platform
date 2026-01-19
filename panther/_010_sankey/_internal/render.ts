@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { renderFigurePrimitives, type RenderContext } from "../deps.ts";
+import { type RenderContext, renderFigurePrimitives } from "../deps.ts";
 import type { MeasuredSankey } from "../types.ts";
 
 export function renderSankey(

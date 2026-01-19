@@ -71,11 +71,10 @@ function calculateFlowPositions(
   const availableHeight = bounds.h();
   const availableWidth = bounds.w();
 
-  const columnGap =
-    style.columnGap === "auto"
-      ? (availableWidth - style.nodeWidth * (maxColumn + 1)) /
-        Math.max(maxColumn, 1)
-      : style.columnGap;
+  const columnGap = style.columnGap === "auto"
+    ? (availableWidth - style.nodeWidth * (maxColumn + 1)) /
+      Math.max(maxColumn, 1)
+    : style.columnGap;
 
   const positionedNodes: PositionedNode[] = [];
   const nodePositionMap = new Map<string, PositionedNode>();
@@ -84,8 +83,9 @@ function calculateFlowPositions(
     const colNodes = nodesByColumn.get(col) ?? [];
 
     const totalGaps = Math.max(0, colNodes.length - 1) * style.nodeGap;
-    const scaleFactor =
-      maxTotalValue > 0 ? (availableHeight - totalGaps) / maxTotalValue : 1;
+    const scaleFactor = maxTotalValue > 0
+      ? (availableHeight - totalGaps) / maxTotalValue
+      : 1;
 
     let currentY = bounds.y();
 
@@ -141,14 +141,16 @@ function calculateTieredPositions(
   const availableHeight = bounds.h();
   const availableWidth = bounds.w();
 
-  const columnGap =
-    style.columnGap === "auto"
-      ? (availableWidth - style.nodeWidth * (maxColumn + 1)) /
-        Math.max(maxColumn, 1)
-      : style.columnGap;
+  const columnGap = style.columnGap === "auto"
+    ? (availableWidth - style.nodeWidth * (maxColumn + 1)) /
+      Math.max(maxColumn, 1)
+    : style.columnGap;
 
   // Step 1: Determine row assignments for each node
-  const nodeRows = new Map<string, { row: number; spanRows?: [number, number] }>();
+  const nodeRows = new Map<
+    string,
+    { row: number; spanRows?: [number, number] }
+  >();
   let maxRow = 0;
 
   for (const node of nodes) {
@@ -188,8 +190,9 @@ function calculateTieredPositions(
   }
 
   const totalGaps = Math.max(0, maxRow) * style.nodeGap;
-  const scaleFactor =
-    totalFlowValue > 0 ? (availableHeight - totalGaps) / totalFlowValue : 1;
+  const scaleFactor = totalFlowValue > 0
+    ? (availableHeight - totalGaps) / totalFlowValue
+    : 1;
 
   // Step 4: Calculate row Y positions based on actual row heights
   const rowPositions = new Map<number, { y: number; height: number }>();

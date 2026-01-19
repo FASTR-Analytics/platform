@@ -1,130 +1,180 @@
-# Height Modes and Layout Algorithms
+# Height Constraints and Layout Algorithms
 
-This document explains how the layouter handles height allocation for nested layouts.
+This document explains how the layouter handles height allocation using `minH`
+and `maxH` constraints.
+
+## Core Concept
+
+Every node has height constraints: `{ minH: number, maxH: number }`.
+
+- **minH**: The minimum height the node can be (never shrink below this)
+- **maxH**: The maximum height the node can be (never grow beyond this)
+
+The layouter's job is to **fill available space** while respecting these
+constraints.
 
 ## Layout Structure
 
 A layout is a tree of nodes:
 
-- **`rows`** - Children stack vertically (top to bottom). Each child is a "row".
-- **`cols`** - Children arrange horizontally (left to right). Each child is a "column".
+- **`rows`** - Children stack vertically (top to bottom)
+- **`cols`** - Children arrange horizontally (left to right)
 - **`item`** - Leaf node containing content
 
-## Height Modes
+## Height Constraint Rules
 
-Every node can have a `heightMode` that controls how its height is determined:
+### Items
 
-### `use-measured-height` (default)
+Items get their constraints from the `ItemHeightMeasurer` function provided by
+the caller. The layouter is content-agnostic.
 
-The node uses its measured/ideal height based on content. This is the default when no heightMode is specified.
+### Rows Container
 
-### `fill-to-row-height`
+Rows stack children vertically:
 
-Only meaningful in a `cols` container. The node fills to match the row height (the tallest sibling in the cols container).
+```
+rows.minH = sum(children's minH) + gaps
+rows.maxH = sum(children's maxH) + gaps
+```
 
-### `fill-to-container`
+Extra space is distributed among children that can grow (where
+`currentH < maxH`).
 
-The node fills all available vertical space in its parent container.
+### Cols Container
 
-In a `rows` container: Space is divided equally among all `fill-to-container` siblings after fixed-height items are allocated.
+Cols arrange children horizontally at the same row height:
 
-In a `cols` container: The node fills to the container height. If ANY sibling has `fill-to-container`, the row height becomes the container height, so `fill-to-row-height` siblings will also fill.
+```
+cols.minH = max(children's minH)
+cols.maxH = max(children's maxH)
+```
+
+Row height = min(container height, max of children's maxH). Each child gets
+row height, capped by their individual `maxH`. Children with smaller `maxH`
+have gaps below them.
+
+## Node-Level Overrides
+
+Nodes can override their computed constraints:
+
+```typescript
+createItemNode(data, {
+  minH: 100, // Override minimum height
+  maxH: Infinity, // Override maximum height (allows filling)
+});
+```
+
+This is how placeholders work: the spacer content returns fixed height, but the
+node sets `maxH: Infinity` to allow filling.
 
 ## Measurement Algorithm
 
-Layout measurement happens in two phases:
+### Phase 1: Get Constraints (bottom-up)
 
-### Phase 1: Calculate Ideal Heights (bottom-up)
+For each node, compute `{ minH, maxH }`:
 
-`getIdealHeight` recursively calculates what height each node wants based on its content:
+1. **Items**: Call the measurer, apply node overrides
+2. **Rows**: Sum children's constraints
+3. **Cols**: Max of minH, min of maxH
 
-- **Items**: Measured height from content
-- **Rows container**: Sum of children's ideal heights + gaps
-- **Cols container**: Max of children's ideal heights
+### Phase 2: Allocate Space (top-down)
 
-### Phase 2: Measure Nodes (top-down)
+Starting from the root with container bounds:
 
-`measureNode` allocates actual space to each node:
+#### Rows Container
 
-#### Rows Container Measurement
+1. Calculate initial height for each child (its minH)
+2. Calculate remaining space after all children at minH
+3. Distribute extra space equally among children that can grow
+4. Each child gets `min(minH + share, maxH)`
 
-1. Get ideal height for each child
-2. Identify children with `fill-to-container`
-3. Calculate space for fill children: `(containerHeight - fixedChildrenHeight - gaps) / fillChildCount`
-4. Measure each child with its determined height
+#### Cols Container
 
-#### Cols Container Measurement
+1. Calculate row height = `min(container.h, min(children's maxH))`
+2. Ensure row height >= `max(children's minH)` (warn if impossible)
+3. Each child gets `min(rowHeight, child.maxH)`
+4. If child.maxH < rowHeight, there's a gap below it
 
-1. Get ideal height for each child
-2. Check if ANY child has `fill-to-container`
-3. Calculate row height:
-   - If any child has `fill-to-container`: `rowHeight = containerHeight`
-   - Otherwise: `rowHeight = max(childIdealHeights)`
-4. For each child:
-   - `fill-to-container`: gets `containerHeight`
-   - `fill-to-row-height`: gets `rowHeight`
-   - default: gets `min(idealHeight, containerHeight)`
+## Examples
 
-## Nested Layouts
-
-Height modes work at any nesting depth. Each container independently applies the measurement algorithm. For fill behavior to propagate through nested containers, set `heightMode: "fill-to-container"` at each level.
-
-### Example: Nested Fill
-
-```
-cols
-  └─ rows (heightMode: fill-to-container)
-       └─ cols (heightMode: fill-to-container)
-            ├─ item1
-            └─ item2 (heightMode: fill-to-container)
-```
-
-Measurement order:
-1. Outer cols sees rows container has `fill-to-container` → rowHeight = container height
-2. Rows container receives full container height
-3. Inner cols has `fill-to-container` → receives full height from rows
-4. Inner cols sees item2 has `fill-to-container` → rowHeight = container height
-5. Both items measured with full height; item1 uses measured height, item2 fills
-
-### Example: Mixed Heights in Cols
-
-```typescript
-createColsNode([
-  spacer(200, "red", { span: 4 }),                              // Fixed 200px
-  spacer(50, "green", { heightMode: "fill-to-row-height", span: 4 }),  // Fills to row height
-  spacer(50, "blue", { heightMode: "fill-to-container", span: 4 }),    // Fills to container
-])
-```
-
-Because blue has `fill-to-container`:
-- Row height = container height
-- Green (`fill-to-row-height`) = container height
-- Red (no heightMode) = 200px measured height
-- Blue (`fill-to-container`) = container height
-
-### Example: Dividing Space in Rows
+### Example 1: Fixed + Flexible in Rows
 
 ```typescript
 createRowsNode([
-  spacer(100, "red"),                                    // Fixed 100px
-  spacer(50, "green", { heightMode: "fill-to-container" }),  // Gets remaining/2
-  spacer(50, "blue", { heightMode: "fill-to-container" }),   // Gets remaining/2
-])
+  fixedSpacer(100, "red"), // minH=100, maxH=100
+  flexSpacer(50, "blue"), // minH=50, maxH=Infinity
+]);
 ```
 
 If container is 500px:
-- Red: 100px (fixed)
-- Remaining: 500 - 100 - gaps = ~380px
-- Green and Blue: ~190px each
+
+- Red: 100px (fixed, can't grow)
+- Blue: 400px (fills remaining space)
+
+### Example 2: Two Flexible Items
+
+```typescript
+createRowsNode([
+  flexSpacer(50, "red"), // minH=50, maxH=Infinity
+  flexSpacer(50, "blue"), // minH=50, maxH=Infinity
+]);
+```
+
+If container is 500px:
+
+- Each gets 250px (equal division of space)
+
+### Example 3: Cols with Mixed Heights
+
+```typescript
+createColsNode([
+  fixedSpacer(200, "red", { span: 6 }), // minH=200, maxH=200
+  flexSpacer(50, "blue", { span: 6 }), // minH=50, maxH=Infinity
+]);
+```
+
+- Row height = min(container.h, 200) = 200px (limited by red's maxH)
+- Red: 200px (matches row height)
+- Blue: 200px (fills to row height, within its maxH)
+
+### Example 4: Nested Flexible Layout
+
+```typescript
+createRowsNode([
+  createColsNode([
+    flexSpacer(50, "red", { span: 6 }),
+    flexSpacer(50, "blue", { span: 6 }),
+  ], { maxH: Infinity }),
+  createColsNode([
+    flexSpacer(50, "green", { span: 6 }),
+    flexSpacer(50, "orange", { span: 6 }),
+  ], { maxH: Infinity }),
+]);
+```
+
+Both cols containers are flexible, so they divide the container height equally.
+
+## Warnings
+
+The layouter warns about constraint conflicts:
+
+- **HEIGHT_OVERFLOW**: In cols, when
+  `max(children's minH) > min(children's maxH)`. This means children can't all
+  fit at their minimum heights.
 
 ## Key Points
 
-1. **Default is measured height** - Nodes use content-based height unless heightMode is set
+1. **Fill is implicit** - Everything fills available space by default,
+   constrained only by minH/maxH
 
-2. **Fill must be explicit at each level** - A descendant's `fill-to-container` doesn't automatically make ancestors fill; set heightMode on each container that should expand
+2. **minH is iron-clad** - Content is never shrunk below minH. Gaps are
+   acceptable; constraint violations get warnings.
 
-3. **In cols containers, fill-to-container affects siblings** - If any child in a cols container has `fill-to-container`, the row height becomes container height, affecting `fill-to-row-height` siblings
+3. **maxH limits growth** - In cols, the smallest maxH limits the row height for
+   all siblings
 
-4. **In rows containers, fill-to-container divides space** - Multiple `fill-to-container` children share remaining space equally
+4. **Node overrides are powerful** - Set `maxH: Infinity` on any node to make it
+   flexible, regardless of its content's natural constraints
 
-5. **Span is independent of height** - `span` controls horizontal width in cols containers; `heightMode` controls vertical sizing
+5. **Constraints propagate** - A rows container's constraints are the sum of its
+   children; a cols container's constraints are the intersection of its children

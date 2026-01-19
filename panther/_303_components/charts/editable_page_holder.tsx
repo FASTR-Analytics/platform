@@ -176,7 +176,12 @@ export function EditablePageHolder(p: Props) {
       const layoutItems = regions.filter((r) => r.type === "layoutItem");
       const hitNodeId = hit?.type === "layoutItem" ? hit.node.id : undefined;
       for (const region of layoutItems) {
-        renderBoundary(ctx, region, hitNodeId === region.node.id, screenPixelSize);
+        renderBoundary(
+          ctx,
+          region,
+          hitNodeId === region.node.id,
+          screenPixelSize,
+        );
       }
     }
 
@@ -372,7 +377,12 @@ function renderBoundary(
   ctx.lineWidth = screenPixelSize;
   ctx.setLineDash([6 * screenPixelSize, 4 * screenPixelSize]);
   const inset = screenPixelSize;
-  ctx.strokeRect(rcd.x() + inset, rcd.y() + inset, rcd.w() - inset * 2, rcd.h() - inset * 2);
+  ctx.strokeRect(
+    rcd.x() + inset,
+    rcd.y() + inset,
+    rcd.w() - inset * 2,
+    rcd.h() - inset * 2,
+  );
   ctx.restore();
 }
 

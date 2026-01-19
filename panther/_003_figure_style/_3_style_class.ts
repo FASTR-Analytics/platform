@@ -1116,7 +1116,8 @@ export class CustomFigureStyle {
         g.sankey?.nodeGap,
         d.sankey.nodeGap,
       ),
-      columnGap: c.sankey?.columnGap ?? g.sankey?.columnGap ?? d.sankey.columnGap,
+      columnGap: c.sankey?.columnGap ?? g.sankey?.columnGap ??
+        d.sankey.columnGap,
       labelGap: ms(
         sf,
         c.sankey?.labelGap,

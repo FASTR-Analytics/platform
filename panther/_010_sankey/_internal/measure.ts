@@ -12,8 +12,8 @@ import {
   type PositionedSankeyLink,
   type PositionedSankeyNode,
   type Primitive,
-  type RenderContext,
   RectCoordsDims,
+  type RenderContext,
 } from "../deps.ts";
 import type { MeasuredSankey, SankeyInputs } from "../types.ts";
 import { inferColumns } from "./infer_columns.ts";

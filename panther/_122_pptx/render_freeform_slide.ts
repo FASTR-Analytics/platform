@@ -19,7 +19,11 @@ import {
   sum,
   walkLayout,
 } from "./deps.ts";
-import type { CreateCanvasRenderContext, PptxGenJSInstance, PptxSlide } from "./types.ts";
+import type {
+  CreateCanvasRenderContext,
+  PptxGenJSInstance,
+  PptxSlide,
+} from "./types.ts";
 import {
   pixelsToInches,
   pixelsToPoints,

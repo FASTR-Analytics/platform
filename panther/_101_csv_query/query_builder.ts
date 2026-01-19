@@ -229,7 +229,10 @@ export class QueryBuilder<T> {
       const keyValues: GroupKey = groupByIndexes.map((idx) => {
         const val = row[idx];
         if (val === null || val === undefined) return null;
-        if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
+        if (
+          typeof val === "string" || typeof val === "number" ||
+          typeof val === "boolean"
+        ) {
           return val;
         }
         return String(val);
@@ -260,7 +263,9 @@ export class QueryBuilder<T> {
         }
 
         if (spec.func === "COUNT_DISTINCT") {
-          const uniqueValues = new Set(groupRows.map((row) => String(row[colIdx])));
+          const uniqueValues = new Set(
+            groupRows.map((row) => String(row[colIdx])),
+          );
           return String(uniqueValues.size);
         }
 
@@ -269,7 +274,9 @@ export class QueryBuilder<T> {
         }
 
         if (spec.func === "LAST") {
-          return groupRows.length > 0 ? String(groupRows[groupRows.length - 1][colIdx]) : "";
+          return groupRows.length > 0
+            ? String(groupRows[groupRows.length - 1][colIdx])
+            : "";
         }
 
         const numericValues = groupRows
@@ -281,22 +288,32 @@ export class QueryBuilder<T> {
             return String(numericValues.reduce((a, b) => a + b, 0));
           case "AVG":
             if (numericValues.length === 0) {
-              throw new Error(`Cannot compute AVG on empty set for column "${spec.col}"`);
+              throw new Error(
+                `Cannot compute AVG on empty set for column "${spec.col}"`,
+              );
             }
-            return String(numericValues.reduce((a, b) => a + b, 0) / numericValues.length);
+            return String(
+              numericValues.reduce((a, b) => a + b, 0) / numericValues.length,
+            );
           case "MIN":
             if (numericValues.length === 0) {
-              throw new Error(`Cannot compute MIN on empty set for column "${spec.col}"`);
+              throw new Error(
+                `Cannot compute MIN on empty set for column "${spec.col}"`,
+              );
             }
             return String(Math.min(...numericValues));
           case "MAX":
             if (numericValues.length === 0) {
-              throw new Error(`Cannot compute MAX on empty set for column "${spec.col}"`);
+              throw new Error(
+                `Cannot compute MAX on empty set for column "${spec.col}"`,
+              );
             }
             return String(Math.max(...numericValues));
           case "MEDIAN":
             if (numericValues.length === 0) {
-              throw new Error(`Cannot compute MEDIAN on empty set for column "${spec.col}"`);
+              throw new Error(
+                `Cannot compute MEDIAN on empty set for column "${spec.col}"`,
+              );
             }
             const sorted = [...numericValues].sort((a, b) => a - b);
             const mid = Math.floor(sorted.length / 2);

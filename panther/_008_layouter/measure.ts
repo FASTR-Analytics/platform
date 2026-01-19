@@ -7,8 +7,7 @@ import { Padding, PANTHER_DEBUG, RectCoordsDims, sum } from "./deps.ts";
 import { getColWidths } from "./col_widths.ts";
 import type {
   ContainerStyleOptions,
-  HeightMode,
-  IdealHeightResult,
+  HeightConstraints,
   ItemHeightMeasurer,
   LayoutGap,
   LayoutNode,
@@ -39,9 +38,17 @@ export function measureLayout<T, U>(
     console.log(`\n=== measureLayout DEBUG ===`);
     console.log(`bounds: ${bounds.w().toFixed(1)} x ${bounds.h().toFixed(1)}`);
     console.log(`gapX: ${gapX}, gapY: ${gapY}, nColumns: ${nColumns}`);
-    console.log(`--- getIdealHeight pass ---`);
-    getIdealHeight(ctx, layout, bounds.w(), gapX, gapY, itemMeasurer, nColumns);
-    console.log(`--- end getIdealHeight ---\n`);
+    console.log(`--- getHeightConstraints pass ---`);
+    getHeightConstraints(
+      ctx,
+      layout,
+      bounds.w(),
+      gapX,
+      gapY,
+      itemMeasurer,
+      nColumns,
+    );
+    console.log(`--- end getHeightConstraints ---\n`);
   }
   const measured = measureNode(
     ctx,
@@ -51,7 +58,6 @@ export function measureLayout<T, U>(
     gapY,
     itemMeasurer,
     warnings,
-    bounds.h(),
     nColumns,
   );
   const gaps = extractGaps(measured, gapX, gapY, options?.gapOverlap ?? 10);
@@ -59,10 +65,10 @@ export function measureLayout<T, U>(
 }
 
 // =============================================================================
-// Single recursive function for ideal height calculation
+// Recursive function to calculate height constraints (minH, maxH) for each node
 // =============================================================================
 
-function getIdealHeight<T, U>(
+function getHeightConstraints<T, U>(
   ctx: T,
   node: LayoutNode<U>,
   width: number,
@@ -70,54 +76,59 @@ function getIdealHeight<T, U>(
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
   nColumns: number,
-): IdealHeightResult {
+): HeightConstraints {
   const pad = new Padding(node.style?.padding ?? 0);
   const borderWidth = node.style?.borderWidth ?? 0;
-  const borderTotal = borderWidth * 2; // left + right, or top + bottom
+  const borderTotal = borderWidth * 2;
   const innerW = width - pad.totalPx() - borderTotal;
   const paddingAndBorder = pad.totalPy() + borderTotal;
 
-  let measuredHeight: number;
-  let minHeight: number;
+  let minH: number;
+  let idealH: number;
+  let maxH: number;
 
   if (node.type === "item") {
     const result = itemMeasurer(ctx, node, innerW);
-    measuredHeight = result.idealH + paddingAndBorder;
-    // If noShrink, the entire height is the minimum; otherwise 0 (fully shrinkable)
-    minHeight = result.noShrink ? measuredHeight : 0;
+    minH = result.minH + paddingAndBorder;
+    idealH = result.idealH + paddingAndBorder;
+    maxH = result.maxH + paddingAndBorder;
     if (PANTHER_DEBUG) {
       console.log(
-        `  ITEM: idealH=${result.idealH.toFixed(1)}, measuredH=${
-          measuredHeight.toFixed(1)
-        }, minH=${minHeight.toFixed(1)}, nodeHeight=${node.height}`,
+        `  ITEM: minH=${minH.toFixed(1)}, idealH=${idealH.toFixed(1)}, maxH=${
+          maxH.toFixed(1)
+        }`,
       );
     }
   } else if (node.type === "rows") {
     const childResults = node.children.map((child) =>
-      getIdealHeight(ctx, child, innerW, gapX, gapY, itemMeasurer, nColumns)
+      getHeightConstraints(
+        ctx,
+        child,
+        innerW,
+        gapX,
+        gapY,
+        itemMeasurer,
+        nColumns,
+      )
     );
-    const childHeights = childResults.map((r) => r.height);
-    const childMinHeights = childResults.map((r) => r.minHeight);
     const totalGaps = (node.children.length - 1) * gapY;
-    measuredHeight = sum(childHeights) + totalGaps + paddingAndBorder;
-    // For rows (stacked): sum of child minHeights
-    minHeight = sum(childMinHeights) + totalGaps + paddingAndBorder;
+    // Rows: sum of children's constraints
+    minH = sum(childResults.map((r) => r.minH)) + totalGaps + paddingAndBorder;
+    idealH = sum(childResults.map((r) => r.idealH)) + totalGaps +
+      paddingAndBorder;
+    maxH = sum(childResults.map((r) => r.maxH)) + totalGaps + paddingAndBorder;
     if (PANTHER_DEBUG) {
       console.log(
-        `  ROW: heights=[${
-          childHeights.map((h) => h.toFixed(1)).join(", ")
-        }], minHeights=[${
-          childMinHeights.map((h) => h.toFixed(1)).join(", ")
-        }], measuredH=${measuredHeight.toFixed(1)}, minH=${
-          minHeight.toFixed(1)
+        `  ROWS: minH=${minH.toFixed(1)}, idealH=${idealH.toFixed(1)}, maxH=${
+          maxH.toFixed(1)
         }`,
       );
     }
   } else {
-    // col
+    // cols
     const colWidthResult = getColWidths(node.children, innerW, nColumns, gapX);
     const childResults = node.children.map((child, i) =>
-      getIdealHeight(
+      getHeightConstraints(
         ctx,
         child,
         colWidthResult.widths[i].w,
@@ -127,39 +138,37 @@ function getIdealHeight<T, U>(
         nColumns,
       )
     );
-    const childHeights = childResults.map((r) => r.height);
-    const childMinHeights = childResults.map((r) => r.minHeight);
-    measuredHeight = Math.max(...childHeights, 0) + paddingAndBorder;
-    // For cols (side by side): max of child minHeights
-    minHeight = Math.max(...childMinHeights, 0) + paddingAndBorder;
+    // Cols: both use max - need space for tallest, can grow to tallest
+    minH = Math.max(...childResults.map((r) => r.minH), 0) + paddingAndBorder;
+    idealH = Math.max(...childResults.map((r) => r.idealH), 0) +
+      paddingAndBorder;
+    maxH = Math.max(...childResults.map((r) => r.maxH), 0) + paddingAndBorder;
     if (PANTHER_DEBUG) {
       console.log(
-        `  COL: heights=[${
-          childHeights.map((h) => h.toFixed(1)).join(", ")
-        }], minHeights=[${
-          childMinHeights.map((h) => h.toFixed(1)).join(", ")
-        }], measuredH=${measuredHeight.toFixed(1)}, minH=${
-          minHeight.toFixed(1)
+        `  COLS: minH=${minH.toFixed(1)}, idealH=${idealH.toFixed(1)}, maxH=${
+          maxH.toFixed(1)
         }`,
       );
     }
   }
 
-  // node.height is minimum height - use the larger of measured or specified
-  const finalHeight = node.height !== undefined
-    ? Math.max(measuredHeight, node.height)
-    : measuredHeight;
+  // Apply node-level overrides
+  if (node.minH !== undefined) {
+    minH = Math.max(minH, node.minH);
+  }
+  if (node.maxH !== undefined) {
+    maxH = node.maxH;
+  }
+  // Ensure maxH >= minH after overrides
+  maxH = Math.max(minH, maxH);
+  // Ensure idealH is within bounds
+  idealH = Math.max(minH, Math.min(idealH, maxH));
 
-  // Also respect explicit node.height as a floor for minHeight
-  const finalMinHeight = node.height !== undefined
-    ? Math.max(minHeight, node.height)
-    : minHeight;
-
-  return { height: finalHeight, minHeight: finalMinHeight };
+  return { minH, idealH, maxH };
 }
 
 // =============================================================================
-// Layout pass - allocates actual space based on ideal heights and heightMode
+// Layout pass - allocates actual space based on constraints
 // =============================================================================
 
 function measureNode<T, U>(
@@ -170,7 +179,6 @@ function measureNode<T, U>(
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
   warnings: LayoutWarning[],
-  containerHeight: number,
   nColumns: number,
   path?: string,
 ): MeasuredLayoutNode<U> {
@@ -183,7 +191,6 @@ function measureNode<T, U>(
       gapY,
       itemMeasurer,
       warnings,
-      containerHeight,
       nColumns,
       path,
     );
@@ -197,12 +204,11 @@ function measureNode<T, U>(
       gapY,
       itemMeasurer,
       warnings,
-      containerHeight,
       nColumns,
       path,
     );
   }
-  return measureItemNode(ctx, node, bounds, itemMeasurer, containerHeight);
+  return measureItemNode(ctx, node, bounds, itemMeasurer);
 }
 
 function measureRowNode<T, U>(
@@ -213,19 +219,18 @@ function measureRowNode<T, U>(
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
   warnings: LayoutWarning[],
-  _containerHeight: number,
   nColumns: number,
   path?: string,
 ): MeasuredRowsLayoutNode<U> {
-  const nodePath = path ? `${path}.row(${node.id})` : `row(${node.id})`;
+  const nodePath = path ? `${path}.rows(${node.id})` : `rows(${node.id})`;
   const innerBounds = getInnerBounds(bounds, node.style);
   const pad = new Padding(node.style?.padding ?? 0);
   const borderWidth = node.style?.borderWidth ?? 0;
   const borderTotal = borderWidth * 2;
 
-  // Get ideal heights for all children using unified function
-  const childResults = node.children.map((child) =>
-    getIdealHeight(
+  // Get constraints for all children
+  const childConstraints = node.children.map((child) =>
+    getHeightConstraints(
       ctx,
       child,
       innerBounds.w(),
@@ -236,105 +241,67 @@ function measureRowNode<T, U>(
     )
   );
 
-  const childIdealHeights = childResults.map((r) => r.height);
-  const totalIdealHeight = sum(childIdealHeights);
   const totalGapHeight = (node.children.length - 1) * gapY;
-  const totalRequiredHeight = totalIdealHeight + totalGapHeight;
+  const totalMinH = sum(childConstraints.map((c) => c.minH));
+  const totalMaxH = sum(childConstraints.map((c) => c.maxH));
   const availableHeight = innerBounds.h();
 
-  // Calculate scale factor using minHeight (the non-shrinkable portion of each child)
-  const childMinHeights = childResults.map((r) => r.minHeight);
-  const totalMinHeight = sum(childMinHeights);
-  const shrinkableHeight = totalIdealHeight - totalMinHeight; // Amount that CAN shrink
-
-  let scaleFactor = 1;
-  let shrinkScaleFactor = 1;
-
-  if (totalRequiredHeight > availableHeight) {
-    if (shrinkableHeight > 0) {
-      // Available space after reserving for non-shrinkable portions
-      const availableForShrink = availableHeight - totalMinHeight -
-        totalGapHeight;
-      shrinkScaleFactor = Math.max(0, availableForShrink / shrinkableHeight);
-    }
-
-    // Only warn if overflow can't be fully absorbed by shrinkable items
-    if (totalMinHeight + totalGapHeight > availableHeight) {
-      scaleFactor = availableHeight / totalRequiredHeight;
-      warnings.push({
-        type: "HEIGHT_OVERFLOW",
-        message:
-          `Row heights (${totalRequiredHeight}px) exceed container (${availableHeight}px), scaling shrinkable portion to ${
-            (shrinkScaleFactor * 100).toFixed(1)
-          }%`,
-        path: nodePath,
-      });
-    }
+  // Check for overflow
+  if (totalMinH + totalGapHeight > availableHeight) {
+    warnings.push({
+      type: "HEIGHT_OVERFLOW",
+      message: `Row minimum heights (${
+        totalMinH + totalGapHeight
+      }px) exceed container (${availableHeight}px)`,
+      path: nodePath,
+    });
   }
 
-  // For fill-to-row-height: find tallest non-stretch child
-  const maxNonStretchHeight = Math.max(
-    ...node.children
-      .map((child, i) =>
-        getHeightMode(child) === "fill-to-row-height" ? 0 : childIdealHeights[i]
-      ),
-    0,
-  );
+  // Calculate how much space we can use
+  const usableHeight = availableHeight - totalGapHeight;
 
-  // For fill-to-container: calculate space to divide among them
-  const fillToContainerIndices: number[] = [];
-  let nonFillHeight = 0;
-  for (let i = 0; i < node.children.length; i++) {
-    const child = node.children[i];
-    if (getHeightMode(child) === "fill-to-container") {
-      fillToContainerIndices.push(i);
-    } else {
-      const childResult = childResults[i];
-      const childIdealH = childResult.height;
-      const childMinH = childResult.minHeight;
-      const childShrinkable = childIdealH - childMinH;
-      nonFillHeight += childMinH + childShrinkable * shrinkScaleFactor;
+  // Start with minH for everyone
+  const childHeights = childConstraints.map((c) => c.minH);
+  let totalUsed = totalMinH;
+
+  // Distribute extra space among children that can grow
+  let extraSpace = usableHeight - totalUsed;
+  while (extraSpace > 0.001) {
+    // Find children that can still grow
+    const growableIndices: number[] = [];
+    for (let i = 0; i < node.children.length; i++) {
+      if (childHeights[i] < childConstraints[i].maxH) {
+        growableIndices.push(i);
+      }
     }
-  }
-  const fillToContainerCount = fillToContainerIndices.length;
-  const gapsForNonFillChildren = (node.children.length - fillToContainerCount) *
-    gapY;
-  const gapsForFillChildren = fillToContainerCount > 1
-    ? (fillToContainerCount - 1) * gapY
-    : 0;
-  const spaceForFillChildren = availableHeight - nonFillHeight -
-    gapsForNonFillChildren;
-  const fillToContainerHeight = fillToContainerCount > 0
-    ? Math.max(
-      0,
-      (spaceForFillChildren - gapsForFillChildren) / fillToContainerCount,
-    )
-    : 0;
 
+    if (growableIndices.length === 0) break;
+
+    // Distribute equally among growable children
+    const sharePerChild = extraSpace / growableIndices.length;
+    let distributed = 0;
+
+    for (const i of growableIndices) {
+      const canGrow = childConstraints[i].maxH - childHeights[i];
+      const growth = Math.min(sharePerChild, canGrow);
+      childHeights[i] += growth;
+      distributed += growth;
+    }
+
+    extraSpace -= distributed;
+    totalUsed += distributed;
+
+    // Safety: if nothing was distributed, break to avoid infinite loop
+    if (distributed < 0.001) break;
+  }
+
+  // Measure children with allocated heights
   const measuredChildren: MeasuredLayoutNode<U>[] = [];
   let currentY = innerBounds.y();
 
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
-    const childResult = childResults[i];
-    const childIdealH = childResult.height;
-    const childMinH = childResult.minHeight;
-    const childShrinkable = childIdealH - childMinH;
-    const heightMode = getHeightMode(child);
-
-    let childH: number;
-    if (heightMode === "fill-to-container") {
-      childH = fillToContainerHeight;
-    } else if (heightMode === "fill-to-row-height") {
-      // Match the tallest non-stretch sibling
-      const targetH = Math.max(childIdealH, maxNonStretchHeight);
-      const targetShrinkable = targetH - childMinH;
-      childH = childMinH + targetShrinkable * shrinkScaleFactor;
-    } else {
-      // Default: use-measured-height
-      // Keep minHeight, scale only the shrinkable portion
-      childH = childMinH + childShrinkable * shrinkScaleFactor;
-    }
+    const childH = childHeights[i];
 
     const childBounds = new RectCoordsDims({
       x: innerBounds.x(),
@@ -351,19 +318,16 @@ function measureRowNode<T, U>(
       gapY,
       itemMeasurer,
       warnings,
-      childH,
       nColumns,
       nodePath,
     );
 
     measuredChildren.push(measuredChild);
-    // Gaps are scaled based on overall scale factor
-    currentY += childH + gapY * scaleFactor;
+    currentY += childH + gapY;
   }
 
-  const actualTotalHeight = currentY - innerBounds.y() - gapY * scaleFactor;
-  const finalHeight = node.height ??
-    (actualTotalHeight + pad.totalPy() + borderTotal);
+  const actualTotalHeight = currentY - innerBounds.y() - gapY;
+  const finalHeight = actualTotalHeight + pad.totalPy() + borderTotal;
   const rpd = bounds.getAdjusted({ h: Math.min(finalHeight, bounds.h()) });
 
   return {
@@ -381,11 +345,10 @@ function measureColNode<T, U>(
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
   warnings: LayoutWarning[],
-  _containerHeight: number,
   nColumns: number,
   path?: string,
 ): MeasuredColsLayoutNode<U> {
-  const nodePath = path ? `${path}.col(${node.id})` : `col(${node.id})`;
+  const nodePath = path ? `${path}.cols(${node.id})` : `cols(${node.id})`;
   const innerBounds = getInnerBounds(bounds, node.style);
   const pad = new Padding(node.style?.padding ?? 0);
   const borderWidth = node.style?.borderWidth ?? 0;
@@ -400,9 +363,9 @@ function measureColNode<T, U>(
   );
   warnings.push(...colWidthResult.warnings);
 
-  // Get ideal heights for all children using unified function
-  const childResults = node.children.map((child, i) =>
-    getIdealHeight(
+  // Get constraints for all children
+  const childConstraints = node.children.map((child, i) =>
+    getHeightConstraints(
       ctx,
       child,
       colWidthResult.widths[i].w,
@@ -413,33 +376,36 @@ function measureColNode<T, U>(
     )
   );
 
-  const childIdealHeights = childResults.map((r) => r.height);
-  const maxChildIdealH = Math.max(...childIdealHeights, 0);
-  const anyChildFillsToContainer = node.children.some(
-    (child) => getHeightMode(child) === "fill-to-container",
-  );
-  const rowHeight = anyChildFillsToContainer
-    ? innerBounds.h()
-    : Math.min(maxChildIdealH, innerBounds.h());
+  // Cols row height: up to largest maxH, but at least largest minH
+  const maxOfMinH = Math.max(...childConstraints.map((c) => c.minH), 0);
+  const maxOfMaxH = Math.max(...childConstraints.map((c) => c.maxH), 0);
 
+  // Row height is the smaller of container and max of maxH, but at least max of minH
+  let rowHeight = Math.min(innerBounds.h(), maxOfMaxH);
+  rowHeight = Math.max(rowHeight, maxOfMinH);
+
+  // Check for overflow (can't fit minimum heights)
+  if (maxOfMinH > innerBounds.h()) {
+    warnings.push({
+      type: "HEIGHT_OVERFLOW",
+      message: `Cols overflow: max(minH)=${maxOfMinH.toFixed(1)} > container=${
+        innerBounds.h().toFixed(1)
+      }`,
+      path: nodePath,
+    });
+  }
+
+  // Measure children - each gets row height, capped by their maxH
   const measuredChildren: MeasuredLayoutNode<U>[] = [];
   let currentX = innerBounds.x();
 
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
     const childWidth = colWidthResult.widths[i].w;
-    const childResult = childResults[i];
-    const childIdealH = childResult.height;
-    const heightMode = getHeightMode(child);
+    const childConstraint = childConstraints[i];
 
-    let childH: number;
-    if (heightMode === "fill-to-container") {
-      childH = innerBounds.h();
-    } else if (heightMode === "fill-to-row-height") {
-      childH = rowHeight;
-    } else {
-      childH = Math.min(childIdealH, innerBounds.h());
-    }
+    // Child height is row height, but capped by their maxH
+    const childH = Math.min(rowHeight, childConstraint.maxH);
 
     const childBounds = new RectCoordsDims({
       x: currentX,
@@ -456,7 +422,6 @@ function measureColNode<T, U>(
       gapY,
       itemMeasurer,
       warnings,
-      childH,
       nColumns,
       nodePath,
     );
@@ -465,7 +430,7 @@ function measureColNode<T, U>(
     currentX += childWidth + gapX;
   }
 
-  const finalHeight = node.height ?? (rowHeight + pad.totalPy() + borderTotal);
+  const finalHeight = rowHeight + pad.totalPy() + borderTotal;
   const rpd = bounds.getAdjusted({ h: Math.min(finalHeight, bounds.h()) });
 
   return {
@@ -480,37 +445,39 @@ function measureItemNode<T, U>(
   node: LayoutNode<U> & { type: "item" },
   bounds: RectCoordsDims,
   itemMeasurer: ItemHeightMeasurer<T, U>,
-  containerHeight: number,
 ): MeasuredItemLayoutNode<U> {
   const innerBounds = getInnerBounds(bounds, node.style);
   const borderWidth = node.style?.borderWidth ?? 0;
   const borderTotal = borderWidth * 2;
   const pad = new Padding(node.style?.padding ?? 0);
 
-  const { idealH } = itemMeasurer(ctx, node, innerBounds.w());
-  const heightMode = getHeightMode(node);
+  const constraints = itemMeasurer(ctx, node, innerBounds.w());
+  const idealH = constraints.idealH + pad.totalPy() + borderTotal;
 
-  let finalH: number;
-  if (node.height !== undefined) {
-    finalH = node.height;
-  } else if (heightMode === "fill-to-container") {
-    finalH = containerHeight;
-  } else if (heightMode === "fill-to-row-height") {
-    finalH = bounds.h();
-  } else {
-    finalH = idealH + pad.totalPy() + borderTotal;
+  // Apply node-level overrides
+  let minH = constraints.minH;
+  let maxH = constraints.maxH;
+  if (node.minH !== undefined) {
+    minH = Math.max(minH, node.minH);
   }
+  if (node.maxH !== undefined) {
+    maxH = node.maxH;
+  }
+  maxH = Math.max(minH, maxH);
 
+  // Fill to bounds, capped by maxH, never below minH
+  const availableH = bounds.h() - pad.totalPy() - borderTotal;
+  let contentH = Math.min(availableH, maxH);
+  contentH = Math.max(contentH, minH);
+
+  const finalH = contentH + pad.totalPy() + borderTotal;
   const rpd = bounds.getAdjusted({ h: Math.min(finalH, bounds.h()) });
 
   return {
     ...node,
     rpd,
+    idealH,
   };
-}
-
-function getHeightMode(node: LayoutNode<unknown>): HeightMode {
-  return node.heightMode ?? "use-measured-height";
 }
 
 /**

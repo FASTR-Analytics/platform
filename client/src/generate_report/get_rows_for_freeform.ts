@@ -19,7 +19,6 @@ import { getPOFigureInputsFromCacheOrFetch } from "~/state/po_cache";
 
 type ConvertResult = {
   node: LayoutNode<PageContentItem>;
-  isAllPlaceholders: boolean;
 };
 
 export async function getRowsForFreeform(
@@ -68,21 +67,15 @@ async function convertLayoutNode(
     );
     if (result.success === false) return result;
 
-    const isPlaceholder = node.data.type === "placeholder";
     const convertedNode: LayoutNode<PageContentItem> = {
       ...node,
       data: result.data,
-      heightMode: isPlaceholder ? "fill-to-container" : undefined,
     };
 
-    return {
-      success: true,
-      data: { node: convertedNode, isAllPlaceholders: isPlaceholder },
-    };
+    return { success: true, data: { node: convertedNode } };
   }
 
   const convertedChildren: (LayoutNode<PageContentItem> & { span?: number })[] = [];
-  let allChildrenArePlaceholders = true;
 
   for (const child of node.children) {
     const result = await convertLayoutNode(
@@ -93,10 +86,6 @@ async function convertLayoutNode(
     );
     if (result.success === false) return result;
 
-    if (!result.data.isAllPlaceholders) {
-      allChildrenArePlaceholders = false;
-    }
-
     convertedChildren.push({
       ...result.data.node,
       span: (child as { span?: number }).span,
@@ -106,13 +95,9 @@ async function convertLayoutNode(
   const convertedNode: LayoutNode<PageContentItem> = {
     ...node,
     children: convertedChildren,
-    heightMode: allChildrenArePlaceholders ? "fill-to-container" : undefined,
   };
 
-  return {
-    success: true,
-    data: { node: convertedNode, isAllPlaceholders: allChildrenArePlaceholders },
-  };
+  return { success: true, data: { node: convertedNode } };
 }
 
 async function convertContentItem(
@@ -123,15 +108,13 @@ async function convertContentItem(
   pdfScaleFactor?: number,
 ): Promise<APIResponseWithData<PageContentItem>> {
   if (item.type === "placeholder") {
-    const spacerItem: PageSpacerInputs = {
-      spacerHeight: item.placeholderHeight ?? 100,
-    };
+    const spacerItem: PageSpacerInputs = { spacer: true };
     return { success: true, data: spacerItem };
   }
 
   if (item.type === "text") {
     if (!item.markdown?.trim()) {
-      const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
+      const spacerItem: PageSpacerInputs = { spacer: true };
       return { success: true, data: spacerItem };
     }
 
@@ -148,7 +131,7 @@ async function convertContentItem(
 
   if (item.type === "figure") {
     if (!item.presentationObjectInReportInfo) {
-      const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
+      const spacerItem: PageSpacerInputs = { spacer: true };
       return { success: true, data: spacerItem };
     }
 
@@ -174,7 +157,7 @@ async function convertContentItem(
 
   if (item.type === "image") {
     if (!item.imgFile) {
-      const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
+      const spacerItem: PageSpacerInputs = { spacer: true };
       return { success: true, data: spacerItem };
     }
 
@@ -182,7 +165,7 @@ async function convertContentItem(
       `${_SERVER_HOST}/${item.imgFile}`,
     );
     if (resImg.success === false) {
-      const spacerItem: PageSpacerInputs = { spacerHeight: 50 };
+      const spacerItem: PageSpacerInputs = { spacer: true };
       return { success: true, data: spacerItem };
     }
 
