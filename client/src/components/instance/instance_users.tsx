@@ -13,12 +13,14 @@ import {
   timActionButton,
   timActionDelete,
 } from "panther";
-import { Match, Show, Switch, createSignal } from "solid-js";
+import { Match, Show, Switch, createSignal, createResource } from "solid-js";
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { User } from "./user";
 import { Table, TableColumn, BulkAction } from "panther";
 import { serverActions } from "~/server_actions";
+import { UserLog } from "../../../../server/db/mod.ts";
+import { GetLogs } from "../../../../server/db/instance/user_logs.ts";
 
 type Props = {
   thisLoggedInUserEmail: string;
@@ -27,6 +29,7 @@ type Props = {
 
 export function InstanceUsers(p: Props) {
   // Temp state
+  const [userLogs] = createResource(() => serverActions.getUserLogs());
 
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
     undefined,
@@ -121,6 +124,9 @@ export function InstanceUsers(p: Props) {
                     showCommingSoon={showCommingSoon}
                     silentFetch={p.instanceDetail.silentFetch}
                   />
+                </div>
+                <div class="ui-pad h-full w-full">
+                  <UserLogsTable logs={userLogs()!.data}/>
                 </div>
               </FrameTop>
             </Match>
@@ -263,3 +269,59 @@ function UserTable(p: {
     />
   );
 }
+
+function UserLogsTable(p :{
+  logs: UserLog[];
+}) {
+  const columns: TableColumn<UserLog>[] = [
+    {
+      key: "timestamp",
+      header: t("Timestamp"),
+      sortable: true,
+      render: (log) => (
+        <span class="text-sm">
+          {new Date(log.timestamp).toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      key: "user_email",
+      header: t("User"),
+      sortable: true,
+    },
+    {
+      key: "endpoint",
+      header: t("Endpoint Accessed"),
+      sortable: true,
+    },
+    {
+      key: "endpoint_result",
+      header: t("Status"),
+      sortable: true,
+    },
+    {
+      key: "details",
+      header: t("Details"),
+      render: (log) => (
+        <Show when={log.details}>
+          <span clas="text-neutral text-xs truncate max-w-xs" title={log.details}>
+            {log.details}
+          </span>
+        </Show>
+      )
+    }
+  ];
+
+  return (
+    <Table
+      data={p.logs}
+      columns={columns}
+      default={{ key: "timestamp", direction: "desc" }}
+      keyFeild="id"
+      noRowsMessage={t("No Logs")}
+      fitTableToAvailableHeight
+    />
+  )
+}
+
+

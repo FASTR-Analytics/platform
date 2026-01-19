@@ -9,6 +9,7 @@ import {
 import { defineRoute } from "../route-helpers.ts";
 import { getGlobalAdmin, getGlobalNonAdmin } from "../../project_auth.ts";
 import { _IS_PRODUCTION } from "../../exposed_env_vars.ts";
+import { GetLogs } from "../../db/instance/user_logs.ts";
 
 export const routesUsers = new Hono();
 
@@ -84,6 +85,16 @@ defineRoute(
       body.replace_all_existing,
       c.var.globalUser.email
     );
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesUsers,
+  "getAllUserLogs",
+  getGlobalAdmin,
+  async(c) => {
+    const res = await GetLogs(c.var.mainDb);
     return c.json(res);
   }
 );

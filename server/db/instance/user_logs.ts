@@ -1,6 +1,7 @@
 import { Sql } from "postgres";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { APIResponseNoData } from "lib";
+import { UserLog } from "../mod.ts";
 
 export async function AddLog(
     mainDb: Sql,
@@ -18,4 +19,17 @@ VALUES
         `;
         return { success: true };
     });
+}
+
+export async function GetLogs(
+    mainDb: Sql,
+): Promise<APIResponseNoData & { data: UserLog[] }> {
+    return await tryCatchDatabaseAsync(async () => {
+        const logs: UserLog[] = await mainDb`
+SELECT id, user_email, timestamp, endpoint, endpoint_result, details
+FROM user_logs
+ORDER BY timestamp DESC
+        `;
+        return { success: true, data: logs };
+    })
 }

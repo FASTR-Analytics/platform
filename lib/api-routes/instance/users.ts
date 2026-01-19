@@ -1,4 +1,5 @@
 import type { GlobalUser } from "../../types/mod.ts";
+import type { UserLog } from "../../../server/db/mod.ts";
 import { route } from "../route-utils.ts";
 
 // Route registry for users
@@ -35,4 +36,9 @@ export const userRouteRegistry = {
     method: "POST",
     body: {} as { asset_file_name: string; replace_all_existing: boolean },
   }),
+  getAllUserLogs: route({
+    path: "/all-user-logs",
+    method: "GET",
+    response: {} as UserLog[],
+  })
 } as const;
