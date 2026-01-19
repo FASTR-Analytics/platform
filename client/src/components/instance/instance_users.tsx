@@ -116,19 +116,21 @@ export function InstanceUsers(p: Props) {
                   </HeadingBarMainRibbon>
                 }
               >
-                <div class="ui-pad h-full w-full">
-                  <UserTable
-                    users={keyedInstanceDetail.users}
-                    onUserClick={(user) => setSelectedUser(user.email)}
-                    showCommingSoon={showCommingSoon}
-                    silentFetch={p.instanceDetail.silentFetch}
-                  />
-                </div>
-                <Show when={userLogs()?.data}>
-                  <div class="ui-pad h-full w-full">
-                    <UserLogsTable logs={userLogs()!.data}/>
+                <div class="ui-pad h-full w-full flex flex-col gap-4">
+                  <div class="flex-1">
+                    <UserTable
+                      users={keyedInstanceDetail.users}
+                      onUserClick={(user) => setSelectedUser(user.email)}
+                      showCommingSoon={showCommingSoon}
+                      silentFetch={p.instanceDetail.silentFetch}
+                    />
                   </div>
-                </Show>
+                  <Show when={userLogs()?.data}>
+                    <div class="flex-1">
+                      <UserLogsTable logs={userLogs()!.data}/>
+                    </div>
+                  </Show>
+                </div>
               </FrameTop>
             </Match>
           </Switch>
