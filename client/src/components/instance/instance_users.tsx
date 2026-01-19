@@ -126,7 +126,7 @@ export function InstanceUsers(p: Props) {
                     />
                   </div>
                   <Show when={userLogs()?.data}>
-                    <div class="flex-1">
+                    <div class="flex-1 overflow-auto">
                       <UserLogsTable logs={userLogs()!.data}/>
                     </div>
                   </Show>
