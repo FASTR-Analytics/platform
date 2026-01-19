@@ -7,6 +7,7 @@ export async function AddLog(
     user_email: string,
     endpoint: string,
     endpoint_result: string,
+    details: string,
 ): Promise<APIResponseNoData> {
     return await tryCatchDatabaseAsync(async () => {
         await mainDb`

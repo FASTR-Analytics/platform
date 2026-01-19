@@ -3,6 +3,15 @@ export type DBUser = {
   is_admin: boolean;
 };
 
+export type UserLog = {
+  id: number;
+  user_email: string;
+  timestamp: Date;
+  endpoint: string;
+  endpoint_result: string;
+  details: string;
+}
+
 export type DBInstanceConfig = {
   config_key: string;
   config_json_value: string;
