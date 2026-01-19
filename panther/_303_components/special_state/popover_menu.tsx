@@ -71,23 +71,46 @@ const [menuState, setMenuState] = createSignal<MenuState | undefined>();
 let popoverRef: HTMLDivElement | undefined;
 let virtualAnchorRef: HTMLDivElement | undefined;
 
+const POPOVER_GAP = 6;
+
 export function showMenu(opts: ShowMenuOptions): void {
+  // Hide first to force recalculation of anchor positioning fallbacks
+  popoverRef?.hidePopover();
+
+  const position = opts.position ?? "bottom-start";
+
   setMenuState({
     x: opts.x,
     y: opts.y,
-    position: opts.position ?? "bottom-start",
+    position,
     items: opts.items,
   });
 
-  // Position the virtual anchor at click coordinates
-  if (virtualAnchorRef) {
-    virtualAnchorRef.style.left = `${opts.x}px`;
-    virtualAnchorRef.style.top = `${opts.y}px`;
+  // Offset anchor away from popover position to create gap
+  let offsetX = 0;
+  let offsetY = 0;
+
+  if (position.startsWith("bottom")) {
+    offsetY = POPOVER_GAP;
+  } else if (position.startsWith("top")) {
+    offsetY = -POPOVER_GAP;
+  } else if (position === "left") {
+    offsetX = -POPOVER_GAP;
+  } else if (position === "right") {
+    offsetX = POPOVER_GAP;
   }
 
-  // Show the popover
+  // Position the virtual anchor at click coordinates with offset
+  if (virtualAnchorRef) {
+    virtualAnchorRef.style.left = `${opts.x + offsetX}px`;
+    virtualAnchorRef.style.top = `${opts.y + offsetY}px`;
+  }
+
+  // Double rAF: first lets SolidJS update DOM, second lets browser process styles
   requestAnimationFrame(() => {
-    popoverRef?.showPopover();
+    requestAnimationFrame(() => {
+      popoverRef?.showPopover();
+    });
   });
 }
 
@@ -101,32 +124,6 @@ export function _resetMenuState(): void {
   setMenuState(undefined);
 }
 
-// =============================================================================
-// Position area mapping
-// =============================================================================
-
-function getPositionArea(position: PopoverPosition): string {
-  switch (position) {
-    case "bottom":
-      return "bottom";
-    case "bottom-start":
-      return "bottom span-right";
-    case "bottom-end":
-      return "bottom span-left";
-    case "top":
-      return "top";
-    case "top-start":
-      return "top span-right";
-    case "top-end":
-      return "top span-left";
-    case "left":
-      return "left";
-    case "right":
-      return "right";
-    default:
-      return "bottom span-right";
-  }
-}
 
 // =============================================================================
 // Provider component
@@ -164,34 +161,14 @@ export function PopoverMenuProvider() {
   return (
     <>
       {/* Virtual anchor - positioned at click coordinates */}
-      <div
-        ref={virtualAnchorRef}
-        style={{
-          position: "fixed",
-          width: "1px",
-          height: "1px",
-          "pointer-events": "none",
-          "anchor-name": "--popover-menu-anchor",
-        }}
-      />
+      <div ref={virtualAnchorRef} class="ui-popover-anchor" />
 
       {/* Menu popover */}
       <div
         ref={popoverRef}
         popover="manual"
-        style={{
-          position: "absolute",
-          "position-anchor": "--popover-menu-anchor",
-          "position-area": menuState()
-            ? getPositionArea(menuState()!.position)
-            : "bottom span-right",
-          "position-try-fallbacks":
-            "flip-block, flip-inline, flip-block flip-inline",
-          margin: "0",
-          padding: "0",
-          border: "none",
-          background: "transparent",
-        }}
+        class="ui-popover-menu"
+        data-position={menuState()?.position ?? "bottom-start"}
       >
         <Show when={menuState()} keyed>
           {(state) => (
@@ -278,6 +255,77 @@ export function createMenuButton(opts: MenuButtonOptions) {
         {...opts.buttonProps}
         {...props}
       />
+    );
+  };
+}
+
+// =============================================================================
+// Menu trigger wrapper
+// =============================================================================
+
+export type MenuTriggerWrapperProps = {
+  items: MenuItem[] | (() => MenuItem[]);
+  position?: PopoverPosition;
+  children: JSX.Element;
+};
+
+export function MenuTriggerWrapper(props: MenuTriggerWrapperProps): JSX.Element {
+  let wrapperRef: HTMLSpanElement | undefined;
+
+  function handleClick(e: MouseEvent) {
+    e.stopPropagation();
+    if (!wrapperRef) return;
+    const rect = wrapperRef.getBoundingClientRect();
+    const position = props.position ?? "bottom-start";
+
+    let x = rect.left;
+    let y = rect.bottom;
+
+    if (position === "top" || position === "top-start") {
+      y = rect.top;
+    } else if (position === "top-end") {
+      x = rect.right;
+      y = rect.top;
+    } else if (position === "bottom-end") {
+      x = rect.right;
+    } else if (position === "left") {
+      x = rect.left;
+      y = rect.top;
+    } else if (position === "right") {
+      x = rect.right;
+      y = rect.top;
+    }
+
+    const items = typeof props.items === "function" ? props.items() : props.items;
+
+    showMenu({
+      x,
+      y,
+      position,
+      items,
+    });
+  }
+
+  return (
+    <span
+      ref={wrapperRef}
+      onClick={handleClick}
+      style={{ cursor: "pointer" }}
+    >
+      {props.children}
+    </span>
+  );
+}
+
+export function createMenuTriggerWrapper(opts: {
+  items: MenuItem[] | (() => MenuItem[]);
+  position?: PopoverPosition;
+}) {
+  return function MenuTriggerWrapperInstance(props: { children: JSX.Element }): JSX.Element {
+    return (
+      <MenuTriggerWrapper items={opts.items} position={opts.position}>
+        {props.children}
+      </MenuTriggerWrapper>
     );
   };
 }

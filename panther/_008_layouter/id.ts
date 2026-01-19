@@ -21,19 +21,19 @@ export function createRowsNode<U>(
 ): RowsLayoutNode<U> {
   return {
     id: generateLayoutId(),
-    type: "row",
+    type: "rows",
     children,
     ...options,
   };
 }
 
 export function createColsNode<U>(
-  children: (LayoutNode<U> & { span?: number })[],
+  children: LayoutNode<U>[],
   options?: Partial<Omit<ColsLayoutNode<U>, "type" | "children">>,
 ): ColsLayoutNode<U> {
   return {
     id: generateLayoutId(),
-    type: "col",
+    type: "cols",
     children,
     ...options,
   };

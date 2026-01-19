@@ -63,10 +63,17 @@ export type { NodeLookupResult, ParentLookupResult } from "./lookup.ts";
 export { updateLayout } from "./update.ts";
 
 export {
+  addCol,
+  addRow,
   deleteNode,
+  deleteNodeWithCleanup,
+  insertSibling,
   moveNode,
   reorderNode,
   setColumnSpan,
+  simplifyLayout,
+  splitIntoColumns,
+  splitIntoRows,
   updateNodeData,
   updateNodeStyle,
 } from "./operations.ts";

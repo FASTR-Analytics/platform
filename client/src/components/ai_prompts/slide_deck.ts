@@ -1,4 +1,4 @@
-export function getAiSlideDeckSystemPrompt(projectContext: string): string {
+export function getSlideDeckSystemPrompt(projectContext: string): string {
   const contextSection = projectContext.trim()
     ? `# Project Context
 

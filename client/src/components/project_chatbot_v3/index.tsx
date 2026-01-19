@@ -13,9 +13,9 @@ import { isFrench, DEFAULT_ANTHROPIC_MODEL, type ProjectDetail } from "lib";
 import { createMemo, createSignal, Show } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { WelcomeMessage } from "./WelcomeMessage";
-import { createProjectTools } from "../ai_tools/ai_tool_definitions";
+import { getProjectTools } from "../ai_tools/ai_tool_definitions";
 import { AIToolsDebug } from "../ai_tools/ai_debug_component";
-import { getChatbotSystemPrompt } from "../ai_system_prompts/chatbot_system_prompt";
+import { getChatbotSystemPrompt } from "../ai_prompts/chatbot";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -30,7 +30,7 @@ export function ProjectChatbotV3(p: Props) {
   const projectId = p.projectDetail.id;
   const [showDebug, setShowDebug] = createSignal(false);
 
-  const tools = createMemo(() => createProjectTools(projectId));
+  const tools = createMemo(() => getProjectTools(projectId));
   const systemPrompt = createMemo(() => getChatbotSystemPrompt(p.projectDetail.aiContext));
 
   const sdkClient = createSDKClient({

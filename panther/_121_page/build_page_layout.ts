@@ -25,13 +25,13 @@ export function buildPageLayout(
   }
 
   if (isLayoutNode<PageContentItem>(input)) {
-    if (input.type === "row") {
+    if (input.type === "rows") {
       return {
         ...input,
         children: input.children.map((child) => buildPageLayout(child, 1)),
       };
     }
-    if (input.type === "col") {
+    if (input.type === "cols") {
       return {
         ...input,
         children: input.children.map((child) => buildPageLayout(child, 0)),
@@ -55,5 +55,5 @@ function isLayoutNode<U>(input: unknown): input is LayoutNode<U> {
     return false;
   }
   const type = (input as { type: unknown }).type;
-  return type === "row" || type === "col" || type === "item";
+  return type === "rows" || type === "cols" || type === "item";
 }

@@ -29,16 +29,17 @@ export type LayoutNodeBase = {
   height?: number;
   heightMode?: HeightMode;
   style?: ContainerStyleOptions;
+  span?: number;
 };
 
 export type RowsLayoutNode<U> = LayoutNodeBase & {
-  type: "row";
+  type: "rows";
   children: LayoutNode<U>[];
 };
 
 export type ColsLayoutNode<U> = LayoutNodeBase & {
-  type: "col";
-  children: (LayoutNode<U> & { span?: number })[];
+  type: "cols";
+  children: LayoutNode<U>[];
 };
 
 export type ItemLayoutNode<U> = LayoutNodeBase & {
@@ -60,7 +61,7 @@ export type MeasuredRowsLayoutNode<U> = RowsLayoutNode<U> & {
 
 export type MeasuredColsLayoutNode<U> = ColsLayoutNode<U> & {
   rpd: RectCoordsDims;
-  children: (MeasuredLayoutNode<U> & { span?: number })[];
+  children: MeasuredLayoutNode<U>[];
 };
 
 export type MeasuredItemLayoutNode<U> = ItemLayoutNode<U> & {
@@ -130,13 +131,13 @@ export type LayoutGap = LayoutGapRowGap | LayoutGapColGap | LayoutGapColDivider;
 export function isRowsLayoutNode<U>(
   node: LayoutNode<U>,
 ): node is RowsLayoutNode<U> {
-  return node.type === "row";
+  return node.type === "rows";
 }
 
 export function isColsLayoutNode<U>(
   node: LayoutNode<U>,
 ): node is ColsLayoutNode<U> {
-  return node.type === "col";
+  return node.type === "cols";
 }
 
 export function isItemLayoutNode<U>(
@@ -148,13 +149,13 @@ export function isItemLayoutNode<U>(
 export function isMeasuredRowsLayoutNode<U>(
   node: MeasuredLayoutNode<U>,
 ): node is MeasuredRowsLayoutNode<U> {
-  return node.type === "row";
+  return node.type === "rows";
 }
 
 export function isMeasuredColsLayoutNode<U>(
   node: MeasuredLayoutNode<U>,
 ): node is MeasuredColsLayoutNode<U> {
-  return node.type === "col";
+  return node.type === "cols";
 }
 
 export function isMeasuredItemLayoutNode<U>(

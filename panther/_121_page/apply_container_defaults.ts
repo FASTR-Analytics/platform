@@ -27,7 +27,7 @@ export function applyContainerDefaults<U>(
   };
 
   // Recursively apply to children
-  if (node.type === "row") {
+  if (node.type === "rows") {
     return {
       ...node,
       style: mergedStyle,
@@ -37,7 +37,7 @@ export function applyContainerDefaults<U>(
     };
   }
 
-  if (node.type === "col") {
+  if (node.type === "cols") {
     return {
       ...node,
       style: mergedStyle,

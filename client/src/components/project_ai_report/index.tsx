@@ -23,8 +23,8 @@ import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { longFormEditorState } from "~/state/long_form_editor";
 import { AIToolsDebug } from "../ai_tools/ai_debug_component";
-import { createProjectTools } from "../ai_tools/ai_tool_definitions";
-import { getAiReportSystemPrompt } from "../ai_system_prompts/ai_report_system_prompt";
+import { getProjectTools } from "../ai_tools/ai_tool_definitions";
+import { getReportSystemPrompt } from "../ai_prompts/report";
 import { buildFigureMapForExport } from "./build_figure_map";
 import { extractFiguresFromMarkdown } from "./extract_figure_ids";
 import { createFigureRenderer } from "./markdown_figure_renderer";
@@ -46,7 +46,7 @@ export function ProjectAiReport(p: Props) {
     defaultHeaders: { "Project-Id": projectId },
   });
 
-  const systemPrompt = createMemo(() => getAiReportSystemPrompt(p.projectDetail.aiContext));
+  const systemPrompt = createMemo(() => getReportSystemPrompt(p.projectDetail.aiContext));
 
   // Use stable UI state from module-level store
   const { textEditorMode, setTextEditorMode, rightPanelMode, setRightPanelMode } = longFormEditorState;
@@ -141,7 +141,7 @@ export function ProjectAiReport(p: Props) {
           model: DEFAULT_ANTHROPIC_MODEL,
           max_tokens: 4096,
         },
-        tools: createProjectTools(projectId, () => currentSelection()),
+        tools: getProjectTools(projectId, () => currentSelection()),
         builtInTools: { webSearch: true, textEditor: true },
         textEditorHandler,
         conversationId: `ai-report-${p.reportId}`,

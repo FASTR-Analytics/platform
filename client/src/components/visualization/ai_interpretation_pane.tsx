@@ -10,7 +10,7 @@ import { createMemo } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { getToolsForVizPane } from "../ai_tools/ai_tool_definitions";
-import { getVizChatSystemPrompt } from "../ai_system_prompts/viz_chat_system_prompt";
+import { getVizChatSystemPrompt } from "../ai_prompts/viz_chat";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -36,7 +36,9 @@ export function AiInterpretationPane(p: Props) {
     )
   );
 
-  const systemPrompt = createMemo(() => getVizChatSystemPrompt(p.resultsValue));
+  const systemPrompt = createMemo(() =>
+    getVizChatSystemPrompt(p.resultsValue, p.projectDetail.aiContext)
+  );
 
   return (
     <AIChatProvider

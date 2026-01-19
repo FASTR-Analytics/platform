@@ -1,4 +1,4 @@
-export function getAiReportSystemPrompt(projectContext: string): string {
+export function getReportSystemPrompt(projectContext: string): string {
   const contextSection = projectContext.trim()
     ? `# Project Context
 

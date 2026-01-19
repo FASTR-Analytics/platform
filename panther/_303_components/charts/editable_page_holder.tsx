@@ -42,6 +42,7 @@ export type EditableHoverStyle = {
   fillColor?: string;
   strokeColor?: string;
   strokeWidth?: number;
+  showLayoutBoundaries?: boolean;
 };
 
 type Props = {
@@ -88,6 +89,7 @@ export function EditablePageHolder(p: Props) {
   const [currentHit, setCurrentHit] = createSignal<PageHitTarget | undefined>(
     undefined,
   );
+  const [isCanvasHovered, setIsCanvasHovered] = createSignal(false);
 
   onMount(() => {
     mainCanvas.width = fixedCanvasW;
@@ -159,14 +161,27 @@ export function EditablePageHolder(p: Props) {
 
   createEffect(() => {
     const hit = currentHit();
+    const regions = hitRegions();
+    const canvasHovered = isCanvasHovered();
     const ctx = overlayCachedContext;
     if (!ctx) return;
 
     ctx.clearRect(0, 0, unscaledW, unscaledH);
 
+    const style = p.hoverStyle ?? DEFAULT_HOVER_STYLE;
+    const displayedWidth = overlayCanvas.getBoundingClientRect().width;
+    const screenPixelSize = displayedWidth > 0 ? unscaledW / displayedWidth : 1;
+
+    if (canvasHovered && style.showLayoutBoundaries) {
+      const layoutItems = regions.filter((r) => r.type === "layoutItem");
+      const hitNodeId = hit?.type === "layoutItem" ? hit.node.id : undefined;
+      for (const region of layoutItems) {
+        renderBoundary(ctx, region, hitNodeId === region.node.id, screenPixelSize);
+      }
+    }
+
     if (hit) {
-      const style = p.hoverStyle ?? DEFAULT_HOVER_STYLE;
-      renderHover(ctx, hit, style);
+      renderHover(ctx, hit, style, screenPixelSize);
     }
 
     p.onHover?.(hit);
@@ -192,13 +207,18 @@ export function EditablePageHolder(p: Props) {
     overlayCachedContext = undefined;
   });
 
+  function handlePointerEnter() {
+    setIsCanvasHovered(true);
+  }
+
   function handlePointerMove(e: PointerEvent) {
     const coords = getCanvasCoords(e, overlayCanvas, scale);
     const hit = findHitTarget(hitRegions(), coords.x, coords.y);
     setCurrentHit(hit);
   }
 
-  function handlePointerOut() {
+  function handlePointerLeave() {
+    setIsCanvasHovered(false);
     setCurrentHit(undefined);
   }
 
@@ -223,9 +243,6 @@ export function EditablePageHolder(p: Props) {
     <div
       ref={div!}
       class="relative w-full data-[fitWithin=true]:h-full"
-      style={{
-        "place-items": "center",
-      }}
       data-fitWithin={!!p.fitWithin}
     >
       <Show when={err() || warnings().length > 0}>
@@ -255,18 +272,19 @@ export function EditablePageHolder(p: Props) {
 
       <canvas
         ref={mainCanvas!}
-        class="pointer-events-none data-[fitWithin=true]:max-h-full data-[fitWithin=false]:w-full data-[fitWithin=true]:max-w-full"
+        class="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 data-[fitWithin=true]:max-h-full data-[fitWithin=false]:w-full data-[fitWithin=true]:max-w-full"
         data-fitWithin={!!p.fitWithin}
       />
 
       <canvas
         ref={overlayCanvas!}
         id={p.canvasElementId}
-        class="absolute left-0 top-0 data-[fitWithin=true]:max-h-full data-[fitWithin=false]:w-full data-[fitWithin=true]:max-w-full"
+        class="absolute left-1/2 top-0 -translate-x-1/2 data-[fitWithin=true]:max-h-full data-[fitWithin=false]:w-full data-[fitWithin=true]:max-w-full"
         data-fitWithin={!!p.fitWithin}
         style={{ cursor: currentHit() ? "pointer" : "default" }}
+        onPointerEnter={handlePointerEnter}
         onPointerMove={handlePointerMove}
-        onPointerOut={handlePointerOut}
+        onPointerLeave={handlePointerLeave}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       />
@@ -341,10 +359,28 @@ function getCanvasCoords(
   };
 }
 
+function renderBoundary(
+  ctx: CanvasRenderingContext2D,
+  target: PageHitTarget,
+  isHovered: boolean,
+  screenPixelSize: number,
+) {
+  if (isHovered) return;
+  const { rcd } = target;
+  ctx.save();
+  ctx.strokeStyle = "rgba(100, 100, 100, 0.6)";
+  ctx.lineWidth = screenPixelSize;
+  ctx.setLineDash([6 * screenPixelSize, 4 * screenPixelSize]);
+  const inset = screenPixelSize;
+  ctx.strokeRect(rcd.x() + inset, rcd.y() + inset, rcd.w() - inset * 2, rcd.h() - inset * 2);
+  ctx.restore();
+}
+
 function renderHover(
   ctx: CanvasRenderingContext2D,
   target: PageHitTarget,
   style: EditableHoverStyle,
+  screenPixelSize: number,
 ) {
   const { rcd } = target;
 
@@ -355,7 +391,7 @@ function renderHover(
 
   if (style.strokeColor) {
     ctx.strokeStyle = style.strokeColor;
-    ctx.lineWidth = style.strokeWidth ?? 2;
+    ctx.lineWidth = (style.strokeWidth ?? 2) * screenPixelSize;
     ctx.strokeRect(rcd.x(), rcd.y(), rcd.w(), rcd.h());
   }
 }

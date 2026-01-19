@@ -1,3 +1,4 @@
+import { LayoutNode } from "@timroberton/panther";
 import { T, t2 } from "../translate/mod.ts";
 import { PresentationObjectInReportInfo } from "./presentation_objects.ts";
 
@@ -309,7 +310,7 @@ export type ReportItemConfig = {
     footerText?: string;
     footerLogos?: string[];
     //
-    content: ReportItemContentItem[][];
+    content: LayoutNode<ReportItemContentItem>;
   };
 };
 
@@ -334,7 +335,11 @@ export function getStartingConfigForReportItem() {
       smallerSectionTextRelFontSize: 2,
     },
     freeform: {
-      content: [[getStartingReportItemPlaceholder()]],
+      content: {
+        type: "item",
+        id: crypto.randomUUID(),
+        data: getStartingReportItemPlaceholder(),
+      },
     },
   };
   return startingConfig;

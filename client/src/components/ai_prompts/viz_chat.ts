@@ -1,6 +1,17 @@
 import { ResultsValue } from "lib";
 
-export function getVizChatSystemPrompt(resultsValue: ResultsValue): string {
+export function getVizChatSystemPrompt(
+  resultsValue: ResultsValue,
+  projectContext: string
+): string {
+  const contextSection = projectContext.trim()
+    ? `# Project Context
+
+${projectContext.trim()}
+
+`
+    : "";
+
   const disaggregationList = resultsValue.disaggregationOptions
     .map((d) => {
       const label = typeof d.label === "string" ? d.label : d.label.en;
@@ -9,7 +20,7 @@ export function getVizChatSystemPrompt(resultsValue: ResultsValue): string {
     })
     .join("\n");
 
-  return `You are an expert data analyst helping users understand and customize a health data visualization.
+  return `${contextSection}You are an expert data analyst helping users understand and customize a health data visualization.
 
 YOUR ROLE:
 - Help users interpret the data shown in the visualization

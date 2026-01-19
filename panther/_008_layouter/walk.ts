@@ -12,7 +12,7 @@ export function walkLayout<U>(
   visitor: LayoutVisitor<U>,
 ): void {
   visitor(node);
-  if (node.type === "row" || node.type === "col") {
+  if (node.type === "rows" || node.type === "cols") {
     for (const child of node.children) {
       walkLayout(child, visitor);
     }

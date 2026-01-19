@@ -46,6 +46,101 @@ ${userInserts}
       "READ_AND_WRITE"
     );
     await runProjectMigrations(projectDb);
+    await migrateReportItemsToNestedLayout(projectDb);
+  }
+}
+
+// =============================================================================
+// TEMPORARY MIGRATION - Remove after all instances have run
+// Added: 2025-01-16
+//
+// This migrates report item content from 2D array format to nested layout tree.
+// Safe to remove once all servers have started at least once with this code.
+//
+// To check if migration is complete, run against each project database:
+//   SELECT COUNT(*) FROM report_items WHERE config LIKE '%"content":[[%';
+// If count is 0, this migration can be deleted.
+// =============================================================================
+async function migrateReportItemsToNestedLayout(
+  sql: ReturnType<typeof getPgConnectionFromCacheOrNew>
+) {
+  const rows = await sql<
+    { id: string; config: string }[]
+  >`SELECT id, config FROM report_items`;
+
+  let migrated = 0;
+  let fixed = 0;
+  for (const row of rows) {
+    const config = JSON.parse(row.config);
+
+    // Migrate from 2D array format
+    if (Array.isArray(config.freeform?.content)) {
+      // Transform 2D array to panther LayoutNode structure
+      // In panther: "rows" = children stacked vertically, "cols" = children side by side
+      // So root is "rows" (stack visual rows vertically), each visual row is "cols" (items side by side)
+      config.freeform.content = {
+        type: "rows",
+        id: crypto.randomUUID(),
+        children: config.freeform.content.map((r: unknown[]) => ({
+          type: "cols",
+          id: crypto.randomUUID(),
+          children: r.map((item: unknown) => ({
+            type: "item",
+            id: crypto.randomUUID(),
+            data: item,
+            span: (item as { span?: number }).span,
+          })),
+        })),
+      };
+      await sql`UPDATE report_items SET config = ${JSON.stringify(config)} WHERE id = ${row.id}`;
+      migrated++;
+      continue;
+    }
+
+    // Fix items that were incorrectly swapped (root is "cols" instead of "rows")
+    const content = config.freeform?.content;
+    if (
+      content?.type === "cols" &&
+      content?.id === "root" &&
+      content?.children?.every(
+        (c: { type: string }) => c.type === "rows" || c.type === "item"
+      )
+    ) {
+      swapRowColTypes(content);
+      await sql`UPDATE report_items SET config = ${JSON.stringify(config)} WHERE id = ${row.id}`;
+      fixed++;
+    }
+  }
+
+  if (migrated > 0) {
+    console.log(
+      `[MIGRATION] Migrated ${migrated} report items to nested layout`
+    );
+  }
+  if (fixed > 0) {
+    console.log(
+      `[MIGRATION] Fixed ${fixed} report items with swapped row/col types`
+    );
+  }
+}
+
+function swapRowColTypes(node: { type: string; children?: unknown[] }) {
+  if (node.type === "rows") {
+    node.type = "cols";
+  } else if (node.type === "cols") {
+    node.type = "rows";
+  }
+  if (node.children) {
+    for (const child of node.children) {
+      if (
+        typeof child === "object" &&
+        child !== null &&
+        "type" in child &&
+        (child as { type: string }).type !== "item"
+      ) {
+        swapRowColTypes(child as { type: string; children?: unknown[] });
+      }
+    }
   }
 }
 

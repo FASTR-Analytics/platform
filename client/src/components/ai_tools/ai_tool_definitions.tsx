@@ -8,8 +8,8 @@ import { createVisualizationTools } from "./tools/visualization_tools";
 // Re-export viz pane tools for convenience
 export { getToolsForVizPane } from "./tools/viz_pane_tools";
 
-// For AI Report Editor - project-wide tools with DB persistence
-export function getToolsForReportEditor(
+// Project-wide tools with DB persistence (used by chatbot, report editor, etc.)
+export function getProjectTools(
   projectId: string,
   getSelection?: () => TextEditorSelection,
 ) {
@@ -45,6 +45,3 @@ export function getToolsForReportEditor(
 
   return tools;
 }
-
-// Backward compatibility alias
-export const createProjectTools = getToolsForReportEditor;

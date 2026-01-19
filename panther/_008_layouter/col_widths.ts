@@ -18,7 +18,7 @@ export type ColWidthResult = {
 };
 
 export function getColWidths<U>(
-  children: (LayoutNode<U> & { span?: number })[],
+  children: LayoutNode<U>[],
   width: number,
   columnCount: number,
   gapX: number,

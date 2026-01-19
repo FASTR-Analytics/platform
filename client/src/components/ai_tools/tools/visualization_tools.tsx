@@ -55,6 +55,7 @@ export function createVisualizationTools(projectId: string) {
       handler: async () => {
         return "User has seen these visualizations";
       },
+      inProgressLabel: "Showing visualizations...",
       displayComponent: (props: {
         input: { visualizations: { id: string; replicantValue?: string }[] };
       }) => {

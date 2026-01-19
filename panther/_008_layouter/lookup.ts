@@ -33,7 +33,7 @@ function findByIdRecursive<U>(
     return { node, parent, index };
   }
 
-  if (node.type === "row" || node.type === "col") {
+  if (node.type === "rows" || node.type === "cols") {
     for (let i = 0; i < node.children.length; i++) {
       const result = findByIdRecursive(node.children[i], id, node, i);
       if (result) return result;
@@ -52,7 +52,7 @@ export function findByPoint<U>(
     return undefined;
   }
 
-  if (measured.type === "row" || measured.type === "col") {
+  if (measured.type === "rows" || measured.type === "cols") {
     for (const child of measured.children) {
       const result = findByPoint(child, x, y);
       if (result) return result;
@@ -85,7 +85,7 @@ export function getAllIds<U>(layout: LayoutNode<U>): LayoutNodeId[] {
 function collectIds<U>(node: LayoutNode<U>, ids: LayoutNodeId[]): void {
   ids.push(node.id);
 
-  if (node.type === "row" || node.type === "col") {
+  if (node.type === "rows" || node.type === "cols") {
     for (const child of node.children) {
       collectIds(child, ids);
     }
@@ -100,7 +100,7 @@ export function findNodeInDraft<U>(
     return draft;
   }
 
-  if (draft.type === "row" || draft.type === "col") {
+  if (draft.type === "rows" || draft.type === "cols") {
     for (const child of draft.children) {
       const result = findNodeInDraft(child, id);
       if (result) return result;
@@ -119,7 +119,7 @@ export function findParentInDraft<U>(
   draft: LayoutNode<U>,
   id: LayoutNodeId,
 ): ParentLookupResult<U> | undefined {
-  if (draft.type === "row" || draft.type === "col") {
+  if (draft.type === "rows" || draft.type === "cols") {
     for (let i = 0; i < draft.children.length; i++) {
       if (draft.children[i].id === id) {
         return { parent: draft, index: i };

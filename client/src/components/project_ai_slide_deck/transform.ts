@@ -4,6 +4,7 @@ import {
   getStartingConfigForReportItem,
   getStartingReportItemPlaceholder,
 } from "lib";
+import { LayoutNode } from "panther";
 import type { SimpleSlide, SimpleSlideDeck, ContentBlock, ContentLayout } from "./types";
 
 // Transform SimpleSlideDeck to array of ReportItemConfig for rendering
@@ -63,20 +64,37 @@ function transformSlideToReportItem(slide: SimpleSlide): ReportItemConfig {
 function transformBlocksToContent(
   blocks: ContentBlock[],
   layout: string
-): ReportItemContentItem[][] {
+): LayoutNode<ReportItemContentItem> {
   if (blocks.length === 0) {
-    return [[getStartingReportItemPlaceholder()]];
+    return {
+      type: "item",
+      id: crypto.randomUUID(),
+      data: getStartingReportItemPlaceholder(),
+    };
   }
 
   // Determine column spans based on layout
   const spans = getSpansForLayout(layout, blocks.length);
 
-  // Create single row with all blocks
-  const row: ReportItemContentItem[] = blocks.map((block, i) =>
-    transformBlockToContentItem(block, spans[i])
-  );
+  // Create items for each block
+  const items: LayoutNode<ReportItemContentItem>[] = blocks.map((block, i) => ({
+    type: "item" as const,
+    id: crypto.randomUUID(),
+    data: transformBlockToContentItem(block, spans[i]),
+    span: spans[i],
+  }));
 
-  return [row];
+  // Single item - return directly
+  if (items.length === 1) {
+    return items[0];
+  }
+
+  // Multiple items - wrap in a cols (horizontal arrangement)
+  return {
+    type: "cols",
+    id: crypto.randomUUID(),
+    children: items,
+  };
 }
 
 function getSpansForLayout(layout: string, blockCount: number): number[] {
@@ -195,17 +213,19 @@ function transformReportItemToSlide(
 }
 
 function inferLayoutFromContent(
-  content: ReportItemContentItem[][]
+  content: LayoutNode<ReportItemContentItem>
 ): ContentLayout {
-  if (!content.length || !content[0].length) return "single";
+  // Single item
+  if (content.type === "item") return "single";
 
-  const firstRow = content[0];
-  const count = firstRow.length;
+  // Get all items from the tree
+  const items = getAllItems(content);
+  const count = items.length;
 
   if (count === 1) return "single";
   if (count === 2) {
-    const span0 = firstRow[0].span ?? 6;
-    const span1 = firstRow[1].span ?? 6;
+    const span0 = items[0].span ?? 6;
+    const span1 = items[1].span ?? 6;
     if (span0 > span1) return "two-column-wide-left";
     if (span1 > span0) return "two-column-wide-right";
     return "two-column";
@@ -215,27 +235,39 @@ function inferLayoutFromContent(
   return "single";
 }
 
+function getAllItems(
+  node: LayoutNode<ReportItemContentItem>
+): (ReportItemContentItem & { span?: number })[] {
+  if (node.type === "item") {
+    return [{ ...node.data, span: (node as { span?: number }).span }];
+  }
+  const items: (ReportItemContentItem & { span?: number })[] = [];
+  for (const child of node.children) {
+    items.push(...getAllItems(child));
+  }
+  return items;
+}
+
 function transformContentToBlocks(
-  content: ReportItemContentItem[][]
+  content: LayoutNode<ReportItemContentItem>
 ): ContentBlock[] {
   const blocks: ContentBlock[] = [];
+  const items = getAllItems(content);
 
-  for (const row of content) {
-    for (const item of row) {
-      if (item.type === "text") {
-        blocks.push({
-          type: "text",
-          markdown: item.markdown ?? "",
-        });
-      } else if (item.type === "figure") {
-        blocks.push({
-          type: "figure",
-          figureId: item.presentationObjectInReportInfo?.id,
-          replicant: item.presentationObjectInReportInfo?.selectedReplicantValue,
-        });
-      }
-      // Skip placeholders and images for now
+  for (const item of items) {
+    if (item.type === "text") {
+      blocks.push({
+        type: "text",
+        markdown: item.markdown ?? "",
+      });
+    } else if (item.type === "figure") {
+      blocks.push({
+        type: "figure",
+        figureId: item.presentationObjectInReportInfo?.id,
+        replicant: item.presentationObjectInReportInfo?.selectedReplicantValue,
+      });
     }
+    // Skip placeholders and images for now
   }
 
   return blocks;

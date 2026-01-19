@@ -1,9 +1,11 @@
 import {
   ReportType,
+  ReportItemContentItem,
   getStartingConfigForReport,
-  getStartingConfigForReportItem
+  getStartingConfigForReportItem,
+  getStartingReportItemPlaceholder,
 } from "lib";
-import type { AlertComponentProps, PageInputs } from "panther";
+import type { AlertComponentProps, LayoutNode, PageInputs } from "panther";
 import { Button, openComponent, StateHolder } from "panther";
 import { createSignal, onMount } from "solid-js";
 import { ReportItemMiniDisplayStateHolderWrapper } from "~/components/ReportItemMiniDisplay";
@@ -13,6 +15,30 @@ type Props = {
   projectId: string;
   slideDataFromAI: unknown;
 };
+
+function createFigureItem(visualizationId: string): LayoutNode<ReportItemContentItem> {
+  return {
+    type: "item",
+    id: crypto.randomUUID(),
+    data: {
+      ...getStartingReportItemPlaceholder(),
+      type: "figure",
+      presentationObjectInReportInfo: { id: visualizationId } as any,
+    },
+  };
+}
+
+function createTextItem(markdown: string): LayoutNode<ReportItemContentItem> {
+  return {
+    type: "item",
+    id: crypto.randomUUID(),
+    data: {
+      ...getStartingReportItemPlaceholder(),
+      type: "text",
+      markdown,
+    },
+  };
+}
 
 export function SlidePreview(p: Props) {
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
@@ -32,67 +58,33 @@ export function SlidePreview(p: Props) {
     ).format;
     const ric = getStartingConfigForReportItem();
     ric.type = "freeform";
+
+    const visualizationId = (p.slideDataFromAI as { visualizationId: string }).visualizationId;
+    const commentaryText = (p.slideDataFromAI as { commentaryText: string }).commentaryText;
+
+    let content: LayoutNode<ReportItemContentItem>;
+
+    if (format === "figure_on_left" || format === "figure_on_right") {
+      const figureItem = createFigureItem(visualizationId);
+      const textItem = createTextItem(commentaryText);
+      content = {
+        type: "cols",
+        id: crypto.randomUUID(),
+        children: [
+          { ...figureItem, span: 8 },
+          textItem,
+        ],
+      };
+    } else if (format === "only_figure") {
+      content = createFigureItem(visualizationId);
+    } else {
+      content = createTextItem(commentaryText);
+    }
+
     ric.freeform = {
       useHeader: true,
       headerText: (p.slideDataFromAI as { header: string }).header,
-      content: [
-        //@ts-ignore
-        format === "figure_on_left"
-          ? [
-            {
-              type: "figure",
-              span: 8,
-              //@ts-ignore
-              presentationObjectInReportInfo: {
-                id: (p.slideDataFromAI as { visualizationId: string })
-                  .visualizationId,
-              },
-            },
-            //@ts-ignore
-            {
-              type: "text",
-              markdown: (p.slideDataFromAI as { commentaryText: string })
-                .commentaryText,
-            },
-          ]
-          : format === "figure_on_right"
-            ? [
-              {
-                type: "figure",
-                span: 8,
-                //@ts-ignore
-                presentationObjectInReportInfo: {
-                  id: (p.slideDataFromAI as { visualizationId: string })
-                    .visualizationId,
-                },
-              },
-              //@ts-ignore
-              {
-                type: "text",
-                markdown: (p.slideDataFromAI as { commentaryText: string })
-                  .commentaryText,
-              },
-            ]
-            : format === "only_figure"
-              ? [
-                {
-                  type: "figure",
-                  //@ts-ignore
-                  presentationObjectInReportInfo: {
-                    id: (p.slideDataFromAI as { visualizationId: string })
-                      .visualizationId,
-                  },
-                },
-              ]
-              : [
-                //@ts-ignore
-                {
-                  type: "text",
-                  markdown: (p.slideDataFromAI as { commentaryText: string })
-                    .commentaryText,
-                },
-              ],
-      ],
+      content,
     };
     const res = await getPageInputs_SlideDeck_Freeform(
       p.projectId,

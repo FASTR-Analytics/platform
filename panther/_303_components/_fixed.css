@@ -461,4 +461,102 @@
       opacity: 0;
     }
   }
+
+  /* ============================================= */
+  /* Popover Menu Positioning                      */
+  /* ============================================= */
+
+  /* Position-try fallback definitions */
+  @position-try --pm-top {
+    position-area: top;
+  }
+  @position-try --pm-top-start {
+    position-area: top span-right;
+  }
+  @position-try --pm-top-end {
+    position-area: top span-left;
+  }
+  @position-try --pm-bottom {
+    position-area: bottom;
+  }
+  @position-try --pm-bottom-start {
+    position-area: bottom span-right;
+  }
+  @position-try --pm-bottom-end {
+    position-area: bottom span-left;
+  }
+  @position-try --pm-left {
+    position-area: left;
+  }
+  @position-try --pm-right {
+    position-area: right;
+  }
+
+  /* Virtual anchor for popover positioning */
+  .ui-popover-anchor {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+    anchor-name: --popover-menu-anchor;
+  }
+
+  /* Popover base styles */
+  .ui-popover-menu {
+    position: absolute;
+    position-anchor: --popover-menu-anchor;
+    position-try-order: most-block-size;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  /* Position: bottom-start (default) */
+  .ui-popover-menu[data-position="bottom-start"] {
+    position-area: bottom span-right;
+    position-try-fallbacks: --pm-bottom-end, --pm-top-start, --pm-top-end;
+  }
+
+  /* Position: bottom */
+  .ui-popover-menu[data-position="bottom"] {
+    position-area: bottom;
+    position-try-fallbacks: --pm-top, --pm-bottom-start, --pm-bottom-end, --pm-top-start, --pm-top-end;
+  }
+
+  /* Position: bottom-end */
+  .ui-popover-menu[data-position="bottom-end"] {
+    position-area: bottom span-left;
+    position-try-fallbacks: --pm-bottom-start, --pm-top-end, --pm-top-start;
+  }
+
+  /* Position: top-start */
+  .ui-popover-menu[data-position="top-start"] {
+    position-area: top span-right;
+    position-try-fallbacks: --pm-top-end, --pm-bottom-start, --pm-bottom-end;
+  }
+
+  /* Position: top */
+  .ui-popover-menu[data-position="top"] {
+    position-area: top;
+    position-try-fallbacks: --pm-bottom, --pm-top-start, --pm-top-end, --pm-bottom-start, --pm-bottom-end;
+  }
+
+  /* Position: top-end */
+  .ui-popover-menu[data-position="top-end"] {
+    position-area: top span-left;
+    position-try-fallbacks: --pm-top-start, --pm-bottom-end, --pm-bottom-start;
+  }
+
+  /* Position: left */
+  .ui-popover-menu[data-position="left"] {
+    position-area: left;
+    position-try-fallbacks: --pm-right, --pm-bottom-start, --pm-top-start;
+  }
+
+  /* Position: right */
+  .ui-popover-menu[data-position="right"] {
+    position-area: right;
+    position-try-fallbacks: --pm-left, --pm-bottom-end, --pm-top-end;
+  }
 }

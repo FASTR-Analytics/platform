@@ -11,6 +11,8 @@ import {
 import {
   Button,
   Checkbox,
+  findById,
+  LayoutNode,
   OpenEditorProps,
   RadioGroup,
   Select,
@@ -24,7 +26,8 @@ import { Match, Setter, Show, Switch, createMemo } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMiniDisplay";
 import { serverActions } from "~/server_actions";
-import { ReportItemEditorPanelContentBox } from "./report_item_editor_panel_content_box";
+// TODO: Re-enable when nested layout UI is implemented
+// import { ReportItemEditorPanelContentBox } from "./report_item_editor_panel_content_box";
 import { SelectPresentationObject } from "./select_presentation_object";
 import { InlineReplicantSelector } from "./inline_replicant_selector";
 
@@ -36,17 +39,47 @@ type Props = {
   openEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
-  selectedRowCol: number[];
-  setSelectedRowCol: Setter<number[]>;
+  selectedItemId: string | undefined;
+  setSelectedItemId: Setter<string | undefined>;
 };
 
 export function ReportItemEditorContent(p: Props) {
-  async function updateItemType(
-    type: ReportItemContentItemType,
-    iRow: number,
-    iCol: number,
+  // Helper to get the current item from the nested tree structure by ID
+  function getCurrentItem(): ReportItemContentItem | undefined {
+    if (!p.selectedItemId) return undefined;
+    const root = p.tempReportItemConfig.freeform.content;
+    const result = findById(root, p.selectedItemId);
+    if (!result || result.node.type !== "item") return undefined;
+    return result.node.data;
+  }
+
+  // Helper to update the selected item's data immutably
+  function updateSelectedItemData(
+    updater: (data: ReportItemContentItem) => ReportItemContentItem
   ) {
-    p.setTempReportItemConfig("freeform", "content", iRow, iCol, "type", type);
+    if (!p.selectedItemId) return;
+
+    function updateNode(
+      node: LayoutNode<ReportItemContentItem>
+    ): LayoutNode<ReportItemContentItem> {
+      if (node.id === p.selectedItemId && node.type === "item") {
+        return { ...node, data: updater(node.data) };
+      }
+      if (node.type === "rows" || node.type === "cols") {
+        return {
+          ...node,
+          children: node.children.map(updateNode),
+        } as LayoutNode<ReportItemContentItem>;
+      }
+      return node;
+    }
+
+    const newContent = updateNode(p.tempReportItemConfig.freeform.content);
+    p.setTempReportItemConfig("freeform", "content", newContent);
+  }
+
+  async function updateItemType(type: ReportItemContentItemType) {
+    updateSelectedItemData((data) => ({ ...data, type }));
   }
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
@@ -54,7 +87,6 @@ export function ReportItemEditorContent(p: Props) {
   );
 
   async function updatePresentationObjectId() {
-    const [iRow, iCol] = p.selectedRowCol;
     const res = await p.openEditor({
       element: SelectPresentationObject,
       props: {
@@ -66,30 +98,18 @@ export function ReportItemEditorContent(p: Props) {
       return;
     }
     // TODO - add something here that asks the user to select their replicant
-    p.setTempReportItemConfig(
-      "freeform",
-      "content",
-      iRow,
-      iCol,
-      "presentationObjectInReportInfo",
-      res,
-    );
+    updateSelectedItemData((data) => ({
+      ...data,
+      presentationObjectInReportInfo: res,
+    }));
   }
 
   // Generic helper function to update content properties
-  function updateContentProperty<T>(
-    propertyName: keyof ReportItemContentItem,
-    value: T,
+  function updateContentProperty<K extends keyof ReportItemContentItem>(
+    propertyName: K,
+    value: ReportItemContentItem[K],
   ) {
-    const [iRow, iCol] = p.selectedRowCol;
-    p.setTempReportItemConfig(
-      "freeform",
-      "content",
-      iRow,
-      iCol,
-      propertyName,
-      value as any,
-    );
+    updateSelectedItemData((data) => ({ ...data, [propertyName]: value }));
   }
 
   // Special case for updateHides since it has a different signature
@@ -102,6 +122,7 @@ export function ReportItemEditorContent(p: Props) {
 
   return (
     <div class="">
+      {/* TODO: Re-enable when nested layout UI is implemented
       <ReportItemEditorPanelContentBox
         projectId={p.projectDetail.id}
         tempReportItemConfig={p.tempReportItemConfig}
@@ -109,13 +130,9 @@ export function ReportItemEditorContent(p: Props) {
         selectedRowCol={p.selectedRowCol}
         setSelectedRowCol={p.setSelectedRowCol}
       />
+      */}
       <div class="ui-pad">
-        <Show
-          when={p.tempReportItemConfig.freeform.content
-            .at(p.selectedRowCol.at(0)!)
-            ?.at(p.selectedRowCol.at(1)!)}
-          keyed
-        >
+        <Show when={getCurrentItem()} keyed>
           {(keyedItem) => {
             return (
               <div class="ui-spy">
@@ -138,8 +155,6 @@ export function ReportItemEditorContent(p: Props) {
                     onChange={(v) =>
                       updateItemType(
                         v as "figure" | "placeholder" | "image" | "text",
-                        p.selectedRowCol.at(0)!,
-                        p.selectedRowCol.at(1)!,
                       )
                     }
                     fullWidth
@@ -420,7 +435,7 @@ export function ReportItemEditorContent(p: Props) {
                               label: t2(T.FRENCH_UI_STRINGS.fit_inside_area),
                             },
                           ]}
-                          onChange={(v) => updateContentProperty("imgFit", v)}
+                          onChange={(v) => updateContentProperty("imgFit", v as "cover" | "inside")}
                         />
                         {/* </Show> */}
                       </Show>

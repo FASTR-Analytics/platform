@@ -15,7 +15,7 @@ import { createMemo, createSignal, Match, onCleanup, Show, Switch } from "solid-
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { createVisualizationTools } from "../ai_tools/tools/visualization_tools";
-import { getAiSlideDeckSystemPrompt } from "./ai_system_prompt";
+import { getSlideDeckSystemPrompt } from "../ai_prompts/slide_deck";
 import { SlideDeckPreview } from "./slide_deck_preview";
 import { AIToolsDebug } from "../ai_tools/ai_debug_component";
 
@@ -36,7 +36,7 @@ export function ProjectAiSlideDeck(p: Props) {
   });
 
   const systemPrompt = createMemo(() =>
-    getAiSlideDeckSystemPrompt(p.projectDetail.aiContext)
+    getSlideDeckSystemPrompt(p.projectDetail.aiContext)
   );
 
   // Initialize JSON string from initial slides (just the array, label stored separately)

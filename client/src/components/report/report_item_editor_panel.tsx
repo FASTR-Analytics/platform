@@ -47,8 +47,8 @@ type Props = {
   openEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
-  selectedRowCol: number[];
-  setSelectedRowCol: Setter<number[]>;
+  selectedItemId: string | undefined;
+  setSelectedItemId2: Setter<string | undefined>;
 };
 
 export function ReportItemEditorPanel(p: Props) {
@@ -210,8 +210,8 @@ export function ReportItemEditorPanel(p: Props) {
                       setTempReportItemConfig={p.setTempReportItemConfig}
                       reportDetail={p.reportDetail}
                       openEditor={p.openEditor}
-                      selectedRowCol={p.selectedRowCol}
-                      setSelectedRowCol={p.setSelectedRowCol}
+                      selectedItemId={p.selectedItemId}
+                      setSelectedItemId={p.setSelectedItemId2}
                     />
                   </Match>
                 </Switch>
@@ -251,8 +251,8 @@ export function ReportItemEditorPanel(p: Props) {
                   setTempReportItemConfig={p.setTempReportItemConfig}
                   reportDetail={p.reportDetail}
                   openEditor={p.openEditor}
-                  selectedRowCol={p.selectedRowCol}
-                  setSelectedRowCol={p.setSelectedRowCol}
+                  selectedItemId={p.selectedItemId}
+                  setSelectedItemId={p.setSelectedItemId2}
                 />
               </Match>
             </Switch>

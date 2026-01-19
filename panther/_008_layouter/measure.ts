@@ -92,7 +92,7 @@ function getIdealHeight<T, U>(
         }, minH=${minHeight.toFixed(1)}, nodeHeight=${node.height}`,
       );
     }
-  } else if (node.type === "row") {
+  } else if (node.type === "rows") {
     const childResults = node.children.map((child) =>
       getIdealHeight(ctx, child, innerW, gapX, gapY, itemMeasurer, nColumns)
     );
@@ -174,7 +174,7 @@ function measureNode<T, U>(
   nColumns: number,
   path?: string,
 ): MeasuredLayoutNode<U> {
-  if (node.type === "row") {
+  if (node.type === "rows") {
     return measureRowNode(
       ctx,
       node,
@@ -188,7 +188,7 @@ function measureNode<T, U>(
       path,
     );
   }
-  if (node.type === "col") {
+  if (node.type === "cols") {
     return measureColNode(
       ctx,
       node,
@@ -207,7 +207,7 @@ function measureNode<T, U>(
 
 function measureRowNode<T, U>(
   ctx: T,
-  node: LayoutNode<U> & { type: "row" },
+  node: LayoutNode<U> & { type: "rows" },
   bounds: RectCoordsDims,
   gapX: number,
   gapY: number,
@@ -281,6 +281,36 @@ function measureRowNode<T, U>(
     0,
   );
 
+  // For fill-to-container: calculate space to divide among them
+  const fillToContainerIndices: number[] = [];
+  let nonFillHeight = 0;
+  for (let i = 0; i < node.children.length; i++) {
+    const child = node.children[i];
+    if (getHeightMode(child) === "fill-to-container") {
+      fillToContainerIndices.push(i);
+    } else {
+      const childResult = childResults[i];
+      const childIdealH = childResult.height;
+      const childMinH = childResult.minHeight;
+      const childShrinkable = childIdealH - childMinH;
+      nonFillHeight += childMinH + childShrinkable * shrinkScaleFactor;
+    }
+  }
+  const fillToContainerCount = fillToContainerIndices.length;
+  const gapsForNonFillChildren = (node.children.length - fillToContainerCount) *
+    gapY;
+  const gapsForFillChildren = fillToContainerCount > 1
+    ? (fillToContainerCount - 1) * gapY
+    : 0;
+  const spaceForFillChildren = availableHeight - nonFillHeight -
+    gapsForNonFillChildren;
+  const fillToContainerHeight = fillToContainerCount > 0
+    ? Math.max(
+      0,
+      (spaceForFillChildren - gapsForFillChildren) / fillToContainerCount,
+    )
+    : 0;
+
   const measuredChildren: MeasuredLayoutNode<U>[] = [];
   let currentY = innerBounds.y();
 
@@ -294,9 +324,7 @@ function measureRowNode<T, U>(
 
     let childH: number;
     if (heightMode === "fill-to-container") {
-      childH = shrinkScaleFactor < 1
-        ? availableHeight * shrinkScaleFactor
-        : availableHeight;
+      childH = fillToContainerHeight;
     } else if (heightMode === "fill-to-row-height") {
       // Match the tallest non-stretch sibling
       const targetH = Math.max(childIdealH, maxNonStretchHeight);
@@ -347,7 +375,7 @@ function measureRowNode<T, U>(
 
 function measureColNode<T, U>(
   ctx: T,
-  node: LayoutNode<U> & { type: "col" },
+  node: LayoutNode<U> & { type: "cols" },
   bounds: RectCoordsDims,
   gapX: number,
   gapY: number,
@@ -387,9 +415,14 @@ function measureColNode<T, U>(
 
   const childIdealHeights = childResults.map((r) => r.height);
   const maxChildIdealH = Math.max(...childIdealHeights, 0);
-  const rowHeight = Math.min(maxChildIdealH, innerBounds.h());
+  const anyChildFillsToContainer = node.children.some(
+    (child) => getHeightMode(child) === "fill-to-container",
+  );
+  const rowHeight = anyChildFillsToContainer
+    ? innerBounds.h()
+    : Math.min(maxChildIdealH, innerBounds.h());
 
-  const measuredChildren: (MeasuredLayoutNode<U> & { span?: number })[] = [];
+  const measuredChildren: MeasuredLayoutNode<U>[] = [];
   let currentX = innerBounds.x();
 
   for (let i = 0; i < node.children.length; i++) {
@@ -428,10 +461,7 @@ function measureColNode<T, U>(
       nodePath,
     );
 
-    const span = (child as { span?: number }).span;
-    measuredChildren.push(
-      span !== undefined ? { ...measuredChild, span } : measuredChild,
-    );
+    measuredChildren.push(measuredChild);
     currentX += childWidth + gapX;
   }
 
@@ -522,7 +552,7 @@ function extractGapsRecursive<U>(
   rowIndex: number,
   _colIndex: number,
 ): void {
-  if (node.type === "row") {
+  if (node.type === "rows") {
     const children = node.children;
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
@@ -549,7 +579,7 @@ function extractGapsRecursive<U>(
         });
       }
     }
-  } else if (node.type === "col") {
+  } else if (node.type === "cols") {
     const children = node.children;
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
