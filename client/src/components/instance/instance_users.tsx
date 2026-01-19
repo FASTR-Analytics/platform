@@ -317,8 +317,8 @@ function UserLogsTable(p :{
     <Table
       data={p.logs}
       columns={columns}
-      default={{ key: "timestamp", direction: "desc" }}
-      keyFeild="id"
+      defaultSort={{ key: "timestamp", direction: "desc" }}
+      keyField="id"
       noRowsMessage={t("No Logs")}
       fitTableToAvailableHeight
     />
