@@ -314,7 +314,7 @@ function UserLogsTable(p :{
               e.stopPropagation();
               openAlert({
                 title: t("Request Details"),
-                element: () => (
+                text: (
                   <div class="whitespace-pre-wrap font-mono text-sm max-h-96 overflow-auto">
                     {formatJsonDetails(log.details)}
                   </div>
