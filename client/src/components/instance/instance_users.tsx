@@ -35,6 +35,9 @@ export function InstanceUsers(p: Props) {
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
     undefined,
   );
+  const [logFilterUser, setLogFilterUser] = createSignal<string | undefined>(
+    undefined,
+  );
 
   // Actions
 
@@ -123,6 +126,7 @@ export function InstanceUsers(p: Props) {
                     <UserTable
                       users={keyedInstanceDetail.users}
                       onUserClick={(user) => setSelectedUser(user.email)}
+                      onViewLogs={(email) => setLogFilterUser(email)}
                       showCommingSoon={showCommingSoon}
                       silentFetch={p.instanceDetail.silentFetch}
                     />
@@ -130,7 +134,11 @@ export function InstanceUsers(p: Props) {
                   <Suspense fallback={<div class="text-neutral text-sm">Loading activity logs...</div>}>
                     <Show when={userLogs()?.data}>
                       <div class="flex-1 overflow-auto">
-                        <UserLogsTable logs={userLogs()!.data}/>
+                        <UserLogsTable
+                          logs={userLogs()!.data}
+                          filterByUser={logFilterUser()}
+                          onFilterByUser={setLogFilterUser}
+                        />
                       </div>
                     </Show>
                   </Suspense>
@@ -152,6 +160,7 @@ type UserData = {
 function UserTable(p: {
   users: UserData[];
   onUserClick: (user: UserData) => void;
+  onViewLogs: (email: string) => void;
   showCommingSoon: () => Promise<boolean>;
   silentFetch: () => Promise<void>;
 }) {
@@ -181,15 +190,26 @@ function UserTable(p: {
       header: "",
       align: "right",
       render: (user) => (
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            p.onUserClick(user);
-          }}
-          intent="base-100"
-          // outline
-          iconName="pencil"
-        />
+        <div class="flex gap-1">
+          <Button
+            onClick={(e: MouseEvent) => {
+              e.stopPropagation();
+              p.onViewLogs(user.email);
+            }}
+            intent="base-100"
+            iconName="list"
+            title={t("View Logs")}
+          />
+          <Button
+            onClick={(e: MouseEvent) => {
+              e.stopPropagation();
+              p.onUserClick(user);
+            }}
+            intent="base-100"
+            iconName="pencil"
+            title={t("Edit User")}
+          />
+        </div>
       ),
     },
   ];
@@ -277,9 +297,16 @@ function UserTable(p: {
   );
 }
 
-function UserLogsTable(p :{
+function UserLogsTable(p: {
   logs: UserLog[];
+  filterByUser?: string;
+  onFilterByUser: (email: string | undefined) => void;
 }) {
+  const filteredLogs = () => {
+    if (!p.filterByUser) return p.logs;
+    return p.logs.filter((log) => log.user_email === p.filterByUser);
+  };
+
   const columns: TableColumn<UserLog>[] = [
     {
       key: "timestamp",
@@ -295,6 +322,17 @@ function UserLogsTable(p :{
       key: "user_email",
       header: t("User"),
       sortable: true,
+      render: (log) => (
+        <button
+          class="text-left hover:underline hover:text-primary cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            p.onFilterByUser(p.filterByUser === log.user_email ? undefined : log.user_email);
+          }}
+        >
+          {log.user_email}
+        </button>
+      ),
     },
     {
       key: "endpoint",
@@ -334,14 +372,28 @@ function UserLogsTable(p :{
   ];
 
   return (
-    <Table
-      data={p.logs}
-      columns={columns}
-      defaultSort={{ key: "timestamp", direction: "desc" }}
-      keyField="id"
-      noRowsMessage={t("No Logs")}
-      fitTableToAvailableHeight
-    />
+    <div class="flex flex-col h-full">
+      <Show when={p.filterByUser}>
+        <div class="flex items-center gap-2 mb-2 text-sm">
+          <span class="text-neutral">{t("Filtering by")}:</span>
+          <span class="font-medium">{p.filterByUser}</span>
+          <Button
+            size="sm"
+            intent="base-100"
+            iconName="x"
+            onClick={() => p.onFilterByUser(undefined)}
+          />
+        </div>
+      </Show>
+      <Table
+        data={filteredLogs()}
+        columns={columns}
+        defaultSort={{ key: "timestamp", direction: "desc" }}
+        keyField="id"
+        noRowsMessage={t("No Logs")}
+        fitTableToAvailableHeight
+      />
+    </div>
   )
 }
 
