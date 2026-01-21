@@ -28,7 +28,10 @@ type Props = {
 
 export function InstanceUsers(p: Props) {
   // Temp state
-  const [userLogs] = createResource(() => serverActions.getAllUserLogs());
+  const [userLogs] = createResource(
+    () => serverActions.getAllUserLogs(),
+    { deferStream: true }
+  );
 
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
     undefined,
