@@ -24,13 +24,13 @@ export function getToolsForMetrics(projectId: string) {
     createAITool({
       name: "get_metric_data",
       description:
-        "Query data from a metric WITHOUT creating a visualization. Returns a markdown table. Use for: (1) answering data questions directly, (2) exploring data before visualizing, (3) analysis that doesn't need a chart.",
+        "Query data from a metric WITHOUT creating a visualization. Returns CSV data with dimension summary. Required disaggregations are automatically included. Use for: (1) answering data questions directly, (2) exploring data before visualizing, (3) analysis that doesn't need a chart.",
       inputSchema: z.object({
         metricId: z.string().describe("Metric ID to query"),
         disaggregations: z
           .array(z.string())
           .describe(
-            "Disaggregation dimensions to include. Required disaggregations from get_available_metrics MUST be included."
+            "Additional disaggregation dimensions to include (optional ones from get_available_metrics). Required disaggregations are automatically added."
           ),
         filters: z
           .array(

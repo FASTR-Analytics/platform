@@ -206,6 +206,7 @@ function generateModuleMetadata(
     valueFunc: string;
     formatAs: string;
     valueLabelReplacements?: Record<string, string>;
+    requiredDisaggregationOptions: string[];
   }> = {};
 
   for (const [moduleId, versions] of modules.entries()) {
@@ -229,6 +230,7 @@ function generateModuleMetadata(
         valueFunc: metric.valueFunc,
         formatAs: metric.formatAs,
         valueLabelReplacements: metric.valueLabelReplacements,
+        requiredDisaggregationOptions: metric.requiredDisaggregationOptions,
       };
     }
 
@@ -277,7 +279,7 @@ function generateModuleMetadata(
     .map((metricId) => {
       const d = metricStaticData[metricId];
       const replacements = d.valueLabelReplacements ? `, valueLabelReplacements: ${JSON.stringify(d.valueLabelReplacements)}` : "";
-      return `  "${metricId}": { resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements} }`;
+      return `  "${metricId}": { resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)} }`;
     })
     .join(",\n");
 
@@ -338,6 +340,7 @@ export const METRIC_STATIC_DATA: Record<string, {
   valueFunc: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
   formatAs: "percent" | "number";
   valueLabelReplacements?: Record<string, string>;
+  requiredDisaggregationOptions: string[];
 }> = {
 ${metricStaticDataCode},
 };

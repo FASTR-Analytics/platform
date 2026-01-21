@@ -660,14 +660,11 @@ export async function getMetricsListForAI(
           const optional = firstVariant.disaggregationOptions.filter(opt => !opt.isRequired);
 
           if (required.length > 0) {
-            lines.push(`    Required disaggregations:`);
-            for (const opt of required) {
-              lines.push(`      - ${opt.value} (${getAIStr(opt.label)})`);
-            }
+            lines.push(`    Automatically disaggregated by: ${required.map(opt => opt.value).join(", ")}`);
           }
 
           if (optional.length > 0) {
-            lines.push(`    Optional disaggregations:`);
+            lines.push(`    Optional additional disaggregations:`);
             for (const opt of optional) {
               lines.push(`      - ${opt.value} (${getAIStr(opt.label)})`);
             }
@@ -719,11 +716,11 @@ export async function getMetricsListForAI(
             const optional = variant.disaggregationOptions.filter(opt => !opt.isRequired);
 
             if (required.length > 0) {
-              lines.push(`        Required disaggregations: ${required.map(opt => opt.value).join(", ")}`);
+              lines.push(`        Automatically disaggregated by: ${required.map(opt => opt.value).join(", ")}`);
             }
 
             if (optional.length > 0) {
-              lines.push(`        Optional disaggregations: ${optional.map(opt => opt.value).join(", ")}`);
+              lines.push(`        Optional: ${optional.map(opt => opt.value).join(", ")}`);
             }
 
             lines.push("");

@@ -19,13 +19,20 @@ export async function getMetricDataForAI(
   // Get static metric data from build-time map
   const staticData = getMetricStaticData(metricId);
 
+  // Auto-merge required disaggregations (AI doesn't need to specify them)
+  const allDisaggregations = [
+    ...staticData.requiredDisaggregationOptions,
+    ...disaggregations,
+  ];
+  const uniqueDisaggregations = [...new Set(allDisaggregations)] as DisaggregationOption[];
+
   // Build fetchConfig
   const fetchConfig: GenericLongFormFetchConfig = {
     values: staticData.valueProps.map((prop) => ({
       prop,
       func: staticData.valueFunc,
     })),
-    groupBys: disaggregations,
+    groupBys: uniqueDisaggregations,
     filters: filters ?? [],
     periodFilter: periodFilter
       ? {
