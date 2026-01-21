@@ -190,14 +190,14 @@ function UserTable(p: {
       header: "",
       align: "right",
       render: (user) => (
-        <div class="flex gap-1">
+        <div class="flex gap-1 justify-end">
           <Button
             onClick={(e: MouseEvent) => {
               e.stopPropagation();
               p.onViewLogs(user.email);
             }}
             intent="base-100"
-            iconName="list"
+            iconName="document"
             title={t("View Logs")}
           />
           <Button
