@@ -29,7 +29,7 @@ export type DisaggregationOption =
 
 export type PresentationObjectSummary = {
   id: string;
-  moduleId: string;
+  metricId: string;
   label: string;
   isDefault: boolean;
   replicateBy: DisaggregationOption | undefined;
@@ -39,7 +39,7 @@ export type PresentationObjectSummary = {
 
 export type PresentationObjectInReportInfo = {
   id: string;
-  moduleId: string;
+  metricId: string;
   isDefault: boolean;
   replicateBy: DisaggregationOption | undefined;
   selectedReplicantValue: string;
@@ -80,7 +80,7 @@ export type DisaggregationPossibleValuesStatus =
 
 export type ResultsValueInfoForPresentationObject = {
   resultsObjectId: string;
-  resultsValueId: string;
+  metricId: string;
   projectId: string;
   moduleLastRun: string;
   periodBounds?: PeriodBounds;
@@ -92,7 +92,11 @@ export type ResultsValueInfoForPresentationObject = {
 // Discriminated union for replicant option states
 export type ReplicantOptionsForPresentationObject =
   & {
+    projectId: string;
+    resultsObjectId: string;
     replicateBy: DisaggregationOption;
+    fetchConfig: GenericLongFormFetchConfig;
+    moduleLastRun: string;
   }
   & (
     | {

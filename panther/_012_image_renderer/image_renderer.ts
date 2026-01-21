@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type HeightConstraints,
   type Measured,
   RectCoordsDims,
   type RenderContext,
@@ -88,7 +89,7 @@ export const ImageRenderer: Renderer<ImageInputs, MeasuredImage> = {
     _rc: RenderContext,
     width: number,
     item: ImageInputs,
-  ): number {
+  ): HeightConstraints {
     const imgW = typeof item.image === "string"
       ? item.width!
       : item.image.width;
@@ -96,7 +97,8 @@ export const ImageRenderer: Renderer<ImageInputs, MeasuredImage> = {
       ? item.height!
       : item.image.height;
     const aspectRatio = imgH / imgW;
-    return width * aspectRatio;
+    const idealH = width * aspectRatio;
+    return { minH: 0, idealH, maxH: Infinity };
   },
 };
 

@@ -103,7 +103,6 @@ export const presentationObjectRouteRegistry = {
     path: "/presentation_object_items",
     method: "POST",
     body: {} as {
-      presentationObjectId: string;
       resultsObjectId: string;
       fetchConfig: GenericLongFormFetchConfig;
       firstPeriodOption: PeriodOption | undefined;
@@ -130,8 +129,7 @@ export const presentationObjectRouteRegistry = {
     path: "/results_value_info",
     method: "POST",
     body: {} as {
-      moduleId: string;
-      resultsValueId: string;
+      metricId: string;
     },
     response: {} as ResultsValueInfoForPresentationObject,
     requiresProject: true,
@@ -141,7 +139,6 @@ export const presentationObjectRouteRegistry = {
     path: "/replicant_options",
     method: "POST",
     body: {} as {
-      moduleId: string;
       resultsObjectId: string;
       replicateBy: DisaggregationOption;
       fetchConfig: GenericLongFormFetchConfig;
@@ -155,8 +152,7 @@ export const presentationObjectRouteRegistry = {
     method: "POST",
     body: {} as {
       label: string;
-      moduleId: string;
-      resultsValueId: string;
+      metricId: string;
       presentationType: PresentationOption;
       disaggregations: DisaggregationOption[];
       filters?: { dimension: DisaggregationOption; values: string[] }[];

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { validateFetchConfig } from "lib";
+import { getModuleIdForMetric, getModuleIdForResultsObject, validateFetchConfig } from "lib";
 import {
   addPresentationObject,
   deleteAIPresentationObject,
@@ -11,7 +11,7 @@ import {
   updatePresentationObjectConfig,
   updatePresentationObjectLabel,
 } from "../../db/mod.ts";
-import { resolveResultsValueFromInstalledModule } from "../../db/project/results_value_resolver.ts";
+import { resolveMetricById } from "../../db/project/results_value_resolver.ts";
 import { getFacilityColumnsConfig } from "../../db/instance/config.ts";
 import {
   getGlobalNonAdmin,
@@ -30,7 +30,7 @@ import {
   _PO_DETAIL_CACHE,
   _PO_ITEMS_CACHE,
   _REPLICANT_OPTIONS_CACHE,
-  _RESULTS_VALUE_INFO_CACHE,
+  _METRIC_INFO_CACHE,
 } from "../caches/visualizations.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { RequestQueue } from "../../utils/request_queue.ts";
@@ -252,28 +252,17 @@ defineRoute(
     const t0 = performance.now();
     console.log(
       `[SERVER] PO Items ${
-        body.presentationObjectId.slice(0, 8)
+        body.resultsObjectId.slice(0, 8)
       }: REQUEST received`,
     );
     validateFetchConfig(body.fetchConfig);
 
-    // Get metadata (lightweight indexed queries - do BEFORE cache check)
-    const poData = (
-      await c.var.ppk.projectDb<{ module_id: string; last_updated: string }[]>`
-SELECT module_id, last_updated FROM presentation_objects WHERE id = ${body.presentationObjectId}
-`
-    ).at(0);
-
-    if (!poData) {
-      return c.json({
-        success: false,
-        err: "Presentation object not found",
-      });
-    }
+    // Derive moduleId from resultsObjectId (works for both real POs and ad-hoc AI queries)
+    const moduleId = getModuleIdForResultsObject(body.resultsObjectId);
 
     const moduleLastRun = (
       await c.var.ppk.projectDb<{ last_run: string }[]>`
-SELECT last_run FROM modules WHERE id = ${poData.module_id}
+SELECT last_run FROM modules WHERE id = ${moduleId}
 `
     ).at(0)?.last_run;
 
@@ -297,7 +286,7 @@ SELECT last_run FROM modules WHERE id = ${poData.module_id}
       const t1 = performance.now();
       const stats = poItemsQueue.getStats();
       console.log(
-        `[SERVER] PO Items ${body.presentationObjectId.slice(0, 8)}: HIT (${
+        `[SERVER] PO Items ${body.resultsObjectId.slice(0, 8)}: HIT (${
           (t1 - t0).toFixed(0)
         }ms) [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
       );
@@ -308,21 +297,20 @@ SELECT last_run FROM modules WHERE id = ${poData.module_id}
     const stats = poItemsQueue.getStats();
     console.log(
       `[SERVER] PO Items ${
-        body.presentationObjectId.slice(0, 8)
+        body.resultsObjectId.slice(0, 8)
       }: ENTERING QUEUE [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
     );
     const result = await poItemsQueue.enqueue(async () => {
       const tQueue = performance.now();
       console.log(
         `[SERVER] PO Items ${
-          body.presentationObjectId.slice(0, 8)
+          body.resultsObjectId.slice(0, 8)
         }: EXECUTING (waited ${(tQueue - t0).toFixed(0)}ms in queue)`,
       );
       const newPromise = getPresentationObjectItems(
         c.var.mainDb,
         c.var.ppk.projectId,
         c.var.ppk.projectDb,
-        body.presentationObjectId,
         body.resultsObjectId,
         body.fetchConfig,
         body.firstPeriodOption,
@@ -341,7 +329,7 @@ SELECT last_run FROM modules WHERE id = ${poData.module_id}
       const t1 = performance.now();
       const stats = poItemsQueue.getStats();
       console.log(
-        `[SERVER] PO Items ${body.presentationObjectId.slice(0, 8)}: MISS (${
+        `[SERVER] PO Items ${body.resultsObjectId.slice(0, 8)}: MISS (${
           (t1 - t0).toFixed(0)
         }ms) [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
       );
@@ -360,10 +348,13 @@ defineRoute(
   async (c, { body }) => {
     const t0 = performance.now();
 
+    // Derive moduleId from metricId
+    const moduleId = getModuleIdForMetric(body.metricId);
+
     // Read moduleLastRun from DB
     const moduleLastRun = (
       await c.var.ppk.projectDb<{ last_run: string }[]>`
-SELECT last_run FROM modules WHERE id = ${body.moduleId}
+SELECT last_run FROM modules WHERE id = ${moduleId}
 `
     ).at(0)?.last_run;
 
@@ -376,15 +367,15 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
 
     console.log(
       `[SERVER] Results Value Info ${
-        body.resultsValueId.slice(0, 8)
+        body.metricId.slice(0, 8)
       }: REQUEST received (moduleLastRun: ${moduleLastRun})`,
     );
 
     // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
-    const existing = await _RESULTS_VALUE_INFO_CACHE.get(
+    const existing = await _METRIC_INFO_CACHE.get(
       {
         projectId: c.var.ppk.projectId,
-        resultsValueId: body.resultsValueId,
+        metricId: body.metricId,
       },
       { moduleLastRun },
     );
@@ -393,7 +384,7 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
       const t1 = performance.now();
       const stats = resultsValueInfoQueue.getStats();
       console.log(
-        `[SERVER] Results Value Info ${body.resultsValueId.slice(0, 8)}: HIT (${
+        `[SERVER] Results Value Info ${body.metricId.slice(0, 8)}: HIT (${
           (t1 - t0).toFixed(0)
         }ms) [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
       );
@@ -404,7 +395,7 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
     const stats = resultsValueInfoQueue.getStats();
     console.log(
       `[SERVER] Results Value Info ${
-        body.resultsValueId.slice(0, 8)
+        body.metricId.slice(0, 8)
       }: ENTERING QUEUE [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
     );
 
@@ -412,7 +403,7 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
       const tQueue = performance.now();
       console.log(
         `[SERVER] Results Value Info ${
-          body.resultsValueId.slice(0, 8)
+          body.metricId.slice(0, 8)
         }: EXECUTING (waited ${(tQueue - t0).toFixed(0)}ms in queue)`,
       );
 
@@ -420,16 +411,15 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
         c.var.mainDb,
         c.var.ppk.projectDb,
         c.var.ppk.projectId,
-        body.moduleId,
-        body.resultsValueId,
+        body.metricId,
         moduleLastRun,
       );
 
-      _RESULTS_VALUE_INFO_CACHE.setPromise(
+      _METRIC_INFO_CACHE.setPromise(
         newPromise,
         {
           projectId: c.var.ppk.projectId,
-          resultsValueId: body.resultsValueId,
+          metricId: body.metricId,
         },
         { moduleLastRun },
       );
@@ -439,7 +429,7 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
       const statsEnd = resultsValueInfoQueue.getStats();
       console.log(
         `[SERVER] Results Value Info ${
-          body.resultsValueId.slice(0, 8)
+          body.metricId.slice(0, 8)
         }: MISS (${
           (t1 - t0).toFixed(0)
         }ms) [Queue: ${statsEnd.running}/${statsEnd.maxConcurrent} running, ${statsEnd.queued} waiting]`,
@@ -462,10 +452,13 @@ defineRoute(
       ? `${body.fetchConfig.filters.length} filters`
       : "no filters";
 
+    // Derive moduleId from resultsObjectId
+    const moduleId = getModuleIdForResultsObject(body.resultsObjectId);
+
     // Read moduleLastRun from DB
     const moduleLastRun = (
       await c.var.ppk.projectDb<{ last_run: string }[]>`
-SELECT last_run FROM modules WHERE id = ${body.moduleId}
+SELECT last_run FROM modules WHERE id = ${moduleId}
 `
     ).at(0)?.last_run;
 
@@ -540,7 +533,11 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
           return {
             success: true as const,
             data: {
+              projectId: c.var.ppk.projectId,
+              resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
+              fetchConfig: body.fetchConfig,
+              moduleLastRun,
               status: "no_values_available" as const,
             },
           };
@@ -552,7 +549,11 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
           return {
             success: true as const,
             data: {
+              projectId: c.var.ppk.projectId,
+              resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
+              fetchConfig: body.fetchConfig,
+              moduleLastRun,
               status: "too_many_values" as const,
             },
           };
@@ -562,7 +563,11 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
           return {
             success: true as const,
             data: {
+              projectId: c.var.ppk.projectId,
+              resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
+              fetchConfig: body.fetchConfig,
+              moduleLastRun,
               status: "no_values_available" as const,
             },
           };
@@ -571,7 +576,11 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
         return {
           success: true as const,
           data: {
+            projectId: c.var.ppk.projectId,
+            resultsObjectId: body.resultsObjectId,
             replicateBy: body.replicateBy,
+            fetchConfig: body.fetchConfig,
+            moduleLastRun,
             status: "ok" as const,
             possibleValues: vals,
           },
@@ -618,11 +627,10 @@ defineRoute(
       return c.json(resFacilityConfig);
     }
 
-    // Resolve the results value from the installed module
-    const resResultsValue = await resolveResultsValueFromInstalledModule(
+    // Resolve the metric
+    const resResultsValue = await resolveMetricById(
       c.var.ppk.projectDb,
-      body.moduleId,
-      body.resultsValueId,
+      body.metricId,
       resFacilityConfig.data,
     );
     if (!resResultsValue.success) {

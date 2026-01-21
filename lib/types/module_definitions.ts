@@ -1,11 +1,11 @@
-import { T, t2 } from "../translate/mod.ts";
+import { t2, T } from "../translate/mod.ts";
 import type { TranslatableString } from "../translate/types.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { ModuleId } from "./module_metadata_generated.ts";
 import {
   DisaggregationOption,
-  type PresentationObjectConfig,
   PresentationOption,
+  type PresentationObjectConfig,
 } from "./presentation_objects.ts";
 
 export type { ModuleId };
@@ -19,25 +19,21 @@ export type { ModuleId };
 // Script source descriptor - where to load the R script from
 export type ScriptSource =
   | { type: "local"; filename: string }
-  | {
-    type: "github";
-    owner: string;
-    repo: string;
-    path: string;
-    commit: string;
-  };
+  | { type: "github"; owner: string; repo: string; path: string; commit: string; replacements?: { from: string; to: string }[] };
 
 export type ModuleDefinition = {
   id: ModuleId;
   label: string;
   prerequisites: ModuleId[];
   lastScriptUpdate: string;
+  commitSha?: string;
   scriptSource: ScriptSource;
   dataSources: DataSource[];
   configRequirements: ModuleConfigRequirements;
   script: string;
   assetsToImport: string[];
   resultsObjects: ResultsObjectDefinition[];
+  metrics: MetricDefinition[];
   defaultPresentationObjects: DefaultPresentationObject[];
 };
 
@@ -70,16 +66,16 @@ export type DataSourceResultsObject = {
 
 export type ModuleConfigRequirements =
   | {
-    configType: "none";
-  }
+      configType: "none";
+    }
   | {
-    configType: "parameters";
-    parameters: ModuleParameter[];
-  }
+      configType: "parameters";
+      parameters: ModuleParameter[];
+    }
   | {
-    configType: "hfa";
-    indicators: HfaIndicator[];
-  };
+      configType: "hfa";
+      indicators: HfaIndicator[];
+    };
 
 export type HfaIndicator = {
   category: string;
@@ -95,23 +91,23 @@ export type ModuleParameter = {
   description: string;
   input:
     | {
-      inputType: "number";
-      defaultValue: string;
-    }
+        inputType: "number";
+        defaultValue: string;
+      }
     | {
-      inputType: "text";
-      defaultValue: string;
-    }
+        inputType: "text";
+        defaultValue: string;
+      }
     | {
-      inputType: "boolean";
-      defaultValue: "TRUE" | "FALSE";
-    }
+        inputType: "boolean";
+        defaultValue: "TRUE" | "FALSE";
+      }
     | {
-      inputType: "select";
-      valueType: "string" | "number";
-      options: { value: string; label: string }[];
-      defaultValue: string;
-    };
+        inputType: "select";
+        valueType: "string" | "number";
+        options: { value: string; label: string }[];
+        defaultValue: string;
+      };
 };
 
 ///////////////////////////
@@ -125,7 +121,6 @@ export type ResultsObjectDefinition = {
   moduleId: string;
   description: string;
   createTableStatementPossibleColumns?: Record<string, string>;
-  resultsValues: ResultsValueDefinition[];
 };
 
 //////////////////////////
@@ -134,29 +129,25 @@ export type ResultsObjectDefinition = {
 //                      //
 //////////////////////////
 
-export type AIDescription = {
-  summary: string;
-  methodology?: string;
-  interpretation?: string;
-  useCases?: string[];
-  relatedMetrics?: string[];
+export type PostAggregationExpression = {
+  ingredientValues: {
+    prop: string;
+    func: "SUM" | "AVG";
+  }[];
+  expression: string;
 };
+
+export type ValueFunc = "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
 
 export type ResultsValue = {
   id: string;
   resultsObjectId: string;
-  moduleId: string;
   valueProps: string[];
-  valueFunc: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
-  postAggregationExpression?: {
-    ingredientValues: {
-      prop: string;
-      func: "SUM" | "AVG";
-    }[];
-    expression: string;
-  };
+  valueFunc: ValueFunc;
+  postAggregationExpression?: PostAggregationExpression;
   valueLabelReplacements?: Record<string, string>;
   label: string;
+  variantLabel?: string;
   formatAs: "percent" | "number";
   disaggregationOptions: {
     value: DisaggregationOption;
@@ -166,26 +157,54 @@ export type ResultsValue = {
   }[];
   periodOptions: PeriodOption[];
   autoIncludeFacilityColumns?: boolean;
-  aiDescription?: AIDescription;
+  aiDescription?: MetricAIDescription;
 };
 
 // Simplified type for module definitions - will be enriched at runtime
-export type ResultsValueDefinition =
-  & Omit<
-    ResultsValue,
-    "disaggregationOptions"
-  >
-  & {
-    requiredDisaggregationOptions: DisaggregationOption[];
-    // customDisaggregationOptions?: {
-    //   value: DisaggregationOption;
-    //   label: string;
-    //   isRequired: boolean;
-    //   allowedPresentationOptions?: PresentationOption[];
-    // }[];
-  };
+export type ResultsValueDefinition = Omit<
+  ResultsValue,
+  "disaggregationOptions"
+> & {
+  requiredDisaggregationOptions: DisaggregationOption[];
+  // customDisaggregationOptions?: {
+  //   value: DisaggregationOption;
+  //   label: string;
+  //   isRequired: boolean;
+  //   allowedPresentationOptions?: PresentationOption[];
+  // }[];
+};
 
 export type PeriodOption = "period_id" | "quarter_id" | "year";
+
+export type MetricDefinition = {
+  id: string;
+  label: string;
+  variantLabel?: string;
+  valueProps: string[];
+  valueFunc: ValueFunc;
+  formatAs: "percent" | "number";
+  periodOptions: PeriodOption[];
+  requiredDisaggregationOptions: DisaggregationOption[];
+  valueLabelReplacements?: Record<string, string>;
+  postAggregationExpression?: PostAggregationExpression;
+  autoIncludeFacilityColumns?: boolean;
+  resultsObjectId: string;
+  aiDescription?: MetricAIDescription;
+};
+
+// Alias for backwards compatibility
+export type TranslatableAIString = TranslatableString;
+
+export type MetricAIDescription = {
+  summary: TranslatableString;
+  methodology: TranslatableString;
+  interpretation: TranslatableString;
+  typicalRange: TranslatableString;
+  caveats?: TranslatableString;
+  useCases: TranslatableString[];
+  relatedMetrics?: string[];
+  disaggregationGuidance: TranslatableString;
+};
 
 export function get_PERIOD_OPTION_MAP(): Record<PeriodOption, string> {
   return {
@@ -224,8 +243,7 @@ export type DefaultPresentationObject = {
   id: string;
   label: string;
   moduleId: string;
-  resultsObjectId: string;
-  resultsValueId: string;
+  metricId: string;
   config: PresentationObjectConfig;
 };
 
@@ -233,8 +251,7 @@ export type PartialDefaultPresentationObject = {
   id: string;
   label: string;
   moduleId: string;
-  resultsObjectId: string;
-  resultsValueId: string;
+  metricId: string;
   config: {
     d: PresentationObjectConfig["d"];
     s?: Partial<PresentationObjectConfig["s"]>;
@@ -255,40 +272,28 @@ export type ResultsValueDefinitionJSON = Omit<
 >;
 
 // JSON representation of results object - omits moduleId which can be inferred from parent
-export type ResultsObjectDefinitionJSON =
-  & Omit<
-    ResultsObjectDefinition,
-    "moduleId" | "resultsValues"
-  >
-  & {
-    resultsValues: ResultsValueDefinitionJSON[];
-  };
+export type ResultsObjectDefinitionJSON = Omit<ResultsObjectDefinition, "moduleId">;
 
-// JSON representation of presentation object - omits IDs that can be inferred from parent
+// JSON representation of presentation object - omits moduleId which can be inferred from parent
 export type PartialDefaultPresentationObjectJSON = Omit<
   PartialDefaultPresentationObject,
-  "moduleId" | "resultsObjectId"
+  "moduleId"
 >;
 
 // JSON representation of module definition (stored in built files)
 // Script is stored separately and loaded at runtime
 // id and lastScriptUpdate are inferred/added during build
-export type ModuleDefinitionJSON =
-  & Omit<
-    ModuleDefinition,
-    | "id"
-    | "script"
-    | "lastScriptUpdate"
-    | "resultsObjects"
-    | "defaultPresentationObjects"
-  >
-  & {
-    resultsObjects: ResultsObjectDefinitionJSON[];
-    defaultPresentationObjects: PartialDefaultPresentationObjectJSON[];
-  };
+export type ModuleDefinitionJSON = Omit<
+  ModuleDefinition,
+  "id" | "script" | "lastScriptUpdate" | "resultsObjects" | "defaultPresentationObjects" | "commitSha"
+> & {
+  resultsObjects: ResultsObjectDefinitionJSON[];
+  defaultPresentationObjects: PartialDefaultPresentationObjectJSON[];
+};
 
 // Built JSON representation (after build process adds id and lastScriptUpdate)
 export type BuiltModuleDefinitionJSON = ModuleDefinitionJSON & {
   id: ModuleId;
   lastScriptUpdate: string;
+  commitSha?: string;
 };

@@ -14,6 +14,7 @@ export type {
 export { PageRenderer } from "./page_renderer.ts";
 export type {
   CoverPageInputs,
+  FreeformPageContent,
   FreeformPageInputs,
   MeasuredCoverPage,
   MeasuredFreeformPage,
@@ -44,3 +45,9 @@ export type {
   PageHitTargetRowGap,
   PageHitTargetSection,
 } from "./hit_regions.ts";
+
+export { optimizePageLayout } from "./optimize_page_layout.ts";
+export type { OptimizePageLayoutResult } from "./optimize_page_layout.ts";
+
+// Re-export constraint type for convenience
+export type { OptimizerConstraint } from "./types.ts";

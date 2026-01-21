@@ -60,28 +60,6 @@ export const definition = {
         coverage_avgsurveyprojection: "NUMERIC",
         coverage_cov: "NUMERIC",
       },
-      resultsValues: [
-        {
-          id: "m4-01-01",
-          valueProps: [
-            "coverage_original_estimate",
-            "coverage_avgsurveyprojection",
-            "coverage_cov",
-          ],
-          valueFunc: "AVG",
-          valueLabelReplacements: {
-            coverage_original_estimate:
-              "Survey-based estimate (when available)",
-            coverage_avgsurveyprojection:
-              "Projected survey estimate (when survey data is missing)",
-            coverage_cov: "Coverage calculated from HMIS data",
-          },
-          label: "Coverage calculated from HMIS data (National)",
-          requiredDisaggregationOptions: ["indicator_common_id", "year"],
-          formatAs: "percent",
-          periodOptions: ["year"],
-        },
-      ],
     },
     {
       id: "M4_coverage_estimation_admin_area_2.csv",
@@ -92,24 +70,6 @@ export const definition = {
         year: "INTEGER NOT NULL",
         coverage_cov: "NUMERIC",
       },
-      resultsValues: [
-        {
-          id: "m4-02-01",
-          valueProps: ["coverage_cov"],
-          valueFunc: "AVG",
-          valueLabelReplacements: {
-            coverage_cov: "Coverage calculated from HMIS data",
-          },
-          label: "Coverage calculated from HMIS data (Admin Area 2)",
-          requiredDisaggregationOptions: [
-            "indicator_common_id",
-            "admin_area_2",
-            "year",
-          ],
-          formatAs: "percent",
-          periodOptions: ["year"],
-        },
-      ],
     },
     {
       id: "M4_coverage_estimation_admin_area_3.csv",
@@ -120,24 +80,6 @@ export const definition = {
         year: "INTEGER NOT NULL",
         coverage_cov: "NUMERIC",
       },
-      resultsValues: [
-        {
-          id: "m4-03-01",
-          valueProps: ["coverage_cov"],
-          valueFunc: "AVG",
-          valueLabelReplacements: {
-            coverage_cov: "Coverage calculated from HMIS data",
-          },
-          label: "Coverage calculated from HMIS data (Admin Area 3)",
-          requiredDisaggregationOptions: [
-            "indicator_common_id",
-            "admin_area_3",
-            "year",
-          ],
-          formatAs: "percent",
-          periodOptions: ["year"],
-        },
-      ],
     },
     {
       id: "M4_selected_denominator_per_indicator.csv",
@@ -148,7 +90,74 @@ export const definition = {
         denominator_admin2: "TEXT NOT NULL",
         denominator_admin3: "TEXT NOT NULL",
       },
-      resultsValues: [],
+    },
+  ],
+  /////////////////////////////////////////////////////////////////////////
+  //  __       __              __                __                      //
+  // /  \     /  |            /  |              /  |                     //
+  // $$  \   /$$ |  ______   _$$ |_     ______  $$/   _______   _______  //
+  // $$$  \ /$$$ | /      \ / $$   |   /      \ /  | /       | /       | //
+  // $$$$  /$$$$ |/$$$$$$  |$$$$$$/   /$$$$$$  |$$ |/$$$$$$$/ /$$$$$$$/  //
+  // $$ $$ $$/$$ |$$    $$ |  $$ | __ $$ |  $$/ $$ |$$ |      $$      \  //
+  // $$ |$$$/ $$ |$$$$$$$$/   $$ |/  |$$ |      $$ |$$ \_____  $$$$$$  | //
+  // $$ | $/  $$ |$$       |  $$  $$/ $$ |      $$ |$$       |/     $$/  //
+  // $$/      $$/  $$$$$$$/    $$$$/  $$/       $$/  $$$$$$$/ $$$$$$$/   //
+  //                                                                     //
+  /////////////////////////////////////////////////////////////////////////
+  metrics: [
+    {
+      id: "m4-01-01",
+      resultsObjectId: "M4_coverage_estimation.csv",
+      valueProps: [
+        "coverage_original_estimate",
+        "coverage_avgsurveyprojection",
+        "coverage_cov",
+      ],
+      valueFunc: "AVG",
+      valueLabelReplacements: {
+        coverage_original_estimate: "Survey-based estimate (when available)",
+        coverage_avgsurveyprojection:
+          "Projected survey estimate (when survey data is missing)",
+        coverage_cov: "Coverage calculated from HMIS data",
+      },
+      label: "Coverage calculated from HMIS data (National)",
+      requiredDisaggregationOptions: ["indicator_common_id", "year"],
+      formatAs: "percent",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m4-02-01",
+      resultsObjectId: "M4_coverage_estimation_admin_area_2.csv",
+      valueProps: ["coverage_cov"],
+      valueFunc: "AVG",
+      valueLabelReplacements: {
+        coverage_cov: "Coverage calculated from HMIS data",
+      },
+      label: "Coverage calculated from HMIS data (Admin Area 2)",
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_2",
+        "year",
+      ],
+      formatAs: "percent",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m4-03-01",
+      resultsObjectId: "M4_coverage_estimation_admin_area_3.csv",
+      valueProps: ["coverage_cov"],
+      valueFunc: "AVG",
+      valueLabelReplacements: {
+        coverage_cov: "Coverage calculated from HMIS data",
+      },
+      label: "Coverage calculated from HMIS data (Admin Area 3)",
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_3",
+        "year",
+      ],
+      formatAs: "percent",
+      periodOptions: ["year"],
     },
   ],
   ////////////////////////////////////////////////////////////////////

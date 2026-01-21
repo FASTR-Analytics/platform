@@ -308,7 +308,7 @@ function updateChart(
           unscaledW,
           chartInputs,
           responsiveScale,
-        );
+        ).idealH;
 
         const scaledHeight = Math.round(hFigure * (scale || 1));
         if (scaledHeight !== canvas.height) {

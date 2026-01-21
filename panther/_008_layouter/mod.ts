@@ -17,7 +17,6 @@ export type {
   LayoutNode,
   LayoutNodeBase,
   LayoutNodeId,
-  LayoutWarning,
   MeasuredColsLayoutNode,
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,
@@ -78,11 +77,13 @@ export {
 } from "./operations.ts";
 
 export { getColWidths } from "./col_widths.ts";
-export type { ColWidthInfo, ColWidthResult } from "./col_widths.ts";
+export type { ColWidthInfo } from "./col_widths.ts";
 
 export { optimizeLayout } from "./optimizer.ts";
 export type {
   LayoutScore,
+  LayoutStyleConfig,
   OptimizerConfig,
+  OptimizerConstraint,
   OptimizeResult,
 } from "./optimizer.ts";

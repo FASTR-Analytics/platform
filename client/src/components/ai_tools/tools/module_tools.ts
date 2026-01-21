@@ -5,15 +5,15 @@ import { z } from "zod";
 export function createModuleTools(projectId: string) {
   return [
     createAITool({
-      name: "get_module_information",
+      name: "get_available_modules",
       description: "Get a list of analysis modules and their status",
       inputSchema: z.object({}),
       handler: async () => {
-        const res = await serverActions.getModulesList({ projectId });
+        const res = await serverActions.getModulesListForAI({ projectId });
         if (!res.success) throw new Error(res.err);
         return res.data;
       },
-      inProgressLabel: "Getting module information...",
+      inProgressLabel: "Getting available modules...",
     }),
 
     createAITool({

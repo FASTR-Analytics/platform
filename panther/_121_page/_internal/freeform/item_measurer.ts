@@ -26,28 +26,24 @@ export const itemMeasurer: ItemHeightMeasurer<
   width,
 ): HeightConstraints => {
   const item = node.data;
-  const minFigureHeight = src.s.content.gapY * 3;
 
   if (MarkdownRenderer.isType(item)) {
-    const h = MarkdownRenderer.getIdealHeight(src.rc, width, item);
-    return { minH: h, idealH: h, maxH: h };
+    return MarkdownRenderer.getIdealHeight(src.rc, width, item);
   }
 
   if (FigureRenderer.isType(item)) {
-    const idealH = FigureRenderer.getIdealHeight(src.rc, width, item);
-    return { minH: minFigureHeight, idealH, maxH: Infinity };
+    return FigureRenderer.getIdealHeight(src.rc, width, item);
   }
 
   if (ImageRenderer.isType(item)) {
-    const idealH = ImageRenderer.getIdealHeight(src.rc, width, item);
-    return { minH: minFigureHeight, idealH, maxH: Infinity };
+    return ImageRenderer.getIdealHeight(src.rc, width, item);
   }
 
   if (isSpacerItem(item)) {
-    const minH = item.minH ?? minFigureHeight;
+    const minH = item.minH ?? 0;
     const maxH = item.maxH ?? Infinity;
     const idealH = minH;
-    return { minH, idealH, maxH };
+    return { minH, idealH, maxH, neededScalingToFitWidth: "none" };
   }
 
   throw new Error("No measurer for item type");

@@ -84,9 +84,13 @@ export async function getPresentationObjectsThatDependOnModule(
   projectDb: Sql,
   moduleId: string
 ): Promise<string[]> {
+  // Join through metrics to find presentation objects for this module
   return (
     await projectDb<{ id: string }[]>`
-SELECT id FROM presentation_objects WHERE module_id = ${moduleId}
+SELECT po.id
+FROM presentation_objects po
+JOIN metrics m ON po.metric_id = m.id
+WHERE m.module_id = ${moduleId}
 `
   ).map((rawPresObj) => rawPresObj.id);
 }
@@ -145,26 +149,19 @@ WHERE dataset_type = ${datasetType}
       return false;
     }
   }
-  // Other modules
-  const otherModules = await projectDb<
-    {
-      id: string;
-      module_definition: string;
-      dirty: string;
-    }[]
-  >`
-SELECT id, module_definition, dirty FROM modules
-WHERE id != ${moduleId}
-`;
-  for (const otherMod of otherModules) {
-    const modDef = parseJsonOrThrow<ModuleDefinition>(
-      otherMod.module_definition
-    );
-    const anyLinks = modDef.resultsObjects.some((ro) =>
-      resultsObjectDataSources.includes(ro.id)
-    );
-    if (anyLinks && otherMod.dirty !== "ready") {
-      return false;
+  // Check if modules that produce the required results objects are ready
+  if (resultsObjectDataSources.length > 0) {
+    const upstreamModules = await projectDb<{ module_id: string; dirty: string }[]>`
+      SELECT DISTINCT ro.module_id, m.dirty
+      FROM results_objects ro
+      JOIN modules m ON m.id = ro.module_id
+      WHERE ro.id IN ${projectDb(resultsObjectDataSources)}
+      AND ro.module_id != ${moduleId}
+    `;
+    for (const upstream of upstreamModules) {
+      if (upstream.dirty !== "ready") {
+        return false;
+      }
     }
   }
 

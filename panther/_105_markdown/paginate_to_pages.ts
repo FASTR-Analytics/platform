@@ -272,19 +272,19 @@ function measureContentHeight(
     return MarkdownRenderer.getIdealHeight(rc, width, {
       markdown: item.markdown,
       style,
-    });
+    }).idealH;
   }
 
   if ("tableData" in item) {
-    return TableRenderer.getIdealHeight(rc, width, item);
+    return TableRenderer.getIdealHeight(rc, width, item).idealH;
   }
 
   if ("image" in item) {
-    return ImageRenderer.getIdealHeight(rc, width, item);
+    return ImageRenderer.getIdealHeight(rc, width, item).idealH;
   }
 
   if (FigureRenderer.isType(item)) {
-    return FigureRenderer.getIdealHeight(rc, width, item);
+    return FigureRenderer.getIdealHeight(rc, width, item).idealH;
   }
 
   return 0;

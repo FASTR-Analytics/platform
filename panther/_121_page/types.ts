@@ -9,15 +9,18 @@ import type {
   ImageInputs,
   LayoutGap,
   LayoutNode,
-  LayoutWarning,
   MarkdownRendererInput,
   Measured,
   MeasuredLayoutNode,
   MeasuredText,
   MergedPageStyle,
+  OptimizerConstraint,
   RectCoordsDims,
   RenderContext,
 } from "./deps.ts";
+
+// Re-export types that consumers need
+export type { OptimizerConstraint };
 
 // =============================================================================
 // Page Content Items
@@ -68,6 +71,15 @@ export type SectionPageInputs = PageInputsBase & {
   sectionSubTitle?: string;
 };
 
+// Freeform page content - either explicit layout or items to optimize
+export type FreeformPageContent =
+  | { layoutType: "explicit"; layout: LayoutNode<PageContentItem> }
+  | {
+      layoutType: "optimize";
+      items: PageContentItem[];
+      constraint?: OptimizerConstraint;
+    };
+
 // Freeform page specific inputs
 export type FreeformPageInputs = PageInputsBase & {
   type: "freeform";
@@ -77,7 +89,7 @@ export type FreeformPageInputs = PageInputsBase & {
   footer?: string;
   headerLogos?: HTMLImageElement[];
   footerLogos?: HTMLImageElement[];
-  content: LayoutNode<PageContentItem>;
+  content: FreeformPageContent;
   pageNumber?: string;
 };
 
@@ -97,7 +109,7 @@ export type PageRenderContext = { rc: RenderContext; s: MergedPageStyle };
 type MeasuredPageBase = Measured<PageInputs> & {
   mergedPageStyle: MergedPageStyle;
   responsiveScale?: number;
-  warnings: LayoutWarning[];
+  overflow: boolean;
 };
 
 // Cover page specific measured data

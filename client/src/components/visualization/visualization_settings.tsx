@@ -8,7 +8,7 @@ import {
   timActionForm,
 } from "panther";
 import { Show, createSignal } from "solid-js";
-import { _PO_DETAIL_CACHE, _PO_ITEMS_CACHE, _REPLICANT_OPTIONS_CACHE, _RESULTS_VALUE_INFO_CACHE } from "~/state/caches/visualizations";
+import { _PO_DETAIL_CACHE, _PO_ITEMS_CACHE, _REPLICANT_OPTIONS_CACHE, _METRIC_INFO_CACHE } from "~/state/caches/visualizations";
 
 export function VisualizationSettings(
   p: AlertComponentProps<
@@ -46,10 +46,9 @@ export function VisualizationSettings(
         presentationObjectId: p.presentationObjectId,
       });
 
-      await _RESULTS_VALUE_INFO_CACHE.clearEntry({
+      await _METRIC_INFO_CACHE.clearEntry({
         projectId: p.projectId,
-        resultsValueId: p.resultsObjectId,
-        moduleId: p.moduleId,
+        metricId: p.resultsObjectId,
       });
 
       // Clear all items for this results object (all fetchConfig variations)

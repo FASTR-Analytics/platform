@@ -37,7 +37,7 @@ export function measureSection(
     bounds,
     mergedPageStyle: s,
     responsiveScale,
-    warnings: [],
+    overflow: false,
     mSectionTitle,
     mSectionSubTitle,
   };

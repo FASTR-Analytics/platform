@@ -12,6 +12,8 @@ export type InstalledModuleSummary = {
   label: string;
   dateInstalled: string;
   configType: "none" | "parameters" | "hfa";
+  commitSha?: string; // SHA from when module was installed/last updated
+  latestRanCommitSha?: string; // Latest SHA from when module was last run
   //
   moduleDefinitionLabel: string;
   moduleDefinitionLastScriptUpdated: string;

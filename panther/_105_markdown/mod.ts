@@ -8,6 +8,7 @@ export type {
   FormattedRun,
   FormattedRunStyle,
   ImageMap,
+  MarkdownAutofitOptions,
   MarkdownInline,
   MarkdownRendererInput,
   MeasuredFormattedLine,

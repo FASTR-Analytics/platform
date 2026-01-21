@@ -40,7 +40,7 @@ export function renderFreeform(
       rcdContentOuter: measured.rcdContentOuter,
       rcdContentInner: measured.rcdContentInner,
       mLayout: measured.mLayout,
-      warnings: measured.warnings,
+      overflow: measured.overflow,
       gaps: measured.gaps,
     },
     inputs,

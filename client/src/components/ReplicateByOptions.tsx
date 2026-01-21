@@ -56,7 +56,6 @@ export function ReplicateByOptionsPresentationObject(
       p.poDetail.projectId,
       p.poDetail.resultsValue.resultsObjectId,
       p.replicateBy,
-      p.poDetail.resultsValue.moduleId,
       resFetchConfig.data,
     );
   }, "Loading...");
@@ -128,7 +127,6 @@ export function ReplicateByOptionsPresentationObjectSelect(
       p.poDetail.projectId,
       p.poDetail.resultsValue.resultsObjectId,
       p.replicateBy,
-      p.poDetail.resultsValue.moduleId,
       resFetchConfig.data,
     );
   }, t2(T.FRENCH_UI_STRINGS.loading_1));

@@ -68,6 +68,8 @@ export type InstanceMeta = {
 };
 
 export type InstanceDetail = {
+  instanceId: string;
+  instanceName: string;
   maxAdminArea: number;
   countryIso3: string | undefined;
   facilityColumns: InstanceConfigFacilityColumns;
@@ -346,7 +348,6 @@ export type ItemsHolderPresentationObject = {
   projectId: string;
   resultsObjectId: string;
   fetchConfig: GenericLongFormFetchConfig;
-  presentationObjectLastUpdated: string;
   moduleLastRun: string;
   dateRange: PeriodBounds | undefined;
 } & (

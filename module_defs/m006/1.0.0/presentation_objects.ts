@@ -18,7 +18,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
     "id": "2a74f737-78e5-41a1-8f6d-7a3f59be2d19",
     "label":
       "Default 1. Couverture calculée à partir des données du SGIS (niveau national)",
-    "resultsValueId": "m6-01-01",
+    "metricId": "m6-01-01",
     "config": {
       "d": {
         "type": "timeseries",
@@ -90,7 +90,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     "id": "e5f8740b-a690-4a84-a0cd-05d529676f26",
     "label": "Deafult 2. Coverage calculated from HMIS data (Admin area 2)",
-    "resultsValueId": "m6-01-02",
+    "metricId": "m6-02-01",
     "config": {
       "d": {
         "type": "timeseries",
@@ -166,7 +166,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     "id": "e5f8740b-a690-4a84-a0cd-05d529676f27",
     "label": "Deafult 3. Coverage calculated from HMIS data (Admin area 3)",
-    "resultsValueId": "m6-01-02",
+    "metricId": "m6-03-01",
     "config": {
       "d": {
         "type": "timeseries",
@@ -242,7 +242,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     "id": "9d4977b4-0d87-44e1-b2bd-3eddcba623f4",
     "label": "Default 4. Coverage calculated from HMIS data (Admin area 2)",
-    "resultsValueId": "m6-01-02",
+    "metricId": "m6-02-01",
     "config": {
       "d": {
         "type": "chart",
@@ -326,7 +326,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     "id": "9d4977b4-0d87-44e1-b2bd-3eddcba623f5",
     "label": "Default 5. Coverage calculated from HMIS data (Admin area 3)",
-    "resultsValueId": "m6-01-02",
+    "metricId": "m6-03-01",
     "config": {
       "d": {
         "type": "chart",

@@ -3,6 +3,7 @@ import { getResultsObjectTableName, tryCatchDatabaseAsync } from "../db/mod.ts";
 import {
   APIResponseWithData,
   GenericLongFormFetchConfig,
+  getModuleIdForResultsObject,
   getPeriodFilterExactBounds,
   ItemsHolderPresentationObject,
   PeriodOption,
@@ -18,22 +19,14 @@ export async function getPresentationObjectItems(
   mainDb: Sql,
   projectId: string,
   projectDb: Sql,
-  presentationObjectId: string,
   resultsObjectId: string,
   fetchConfig: GenericLongFormFetchConfig,
   firstPeriodOption: PeriodOption | undefined,
   moduleLastRun: string,
 ): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
   return await tryCatchDatabaseAsync(async () => {
-    const poData = (
-      await projectDb<{ module_id: string; last_updated: string }[]>`
-SELECT module_id, last_updated FROM presentation_objects WHERE id = ${presentationObjectId}
-`
-    ).at(0);
-
-    if (!poData) {
-      throw new Error("Presentation object not found");
-    }
+    // Derive moduleId from resultsObjectId
+    const moduleId = getModuleIdForResultsObject(resultsObjectId);
 
     const tableName = getResultsObjectTableName(resultsObjectId);
 
@@ -52,7 +45,7 @@ SELECT module_id, last_updated FROM presentation_objects WHERE id = ${presentati
 
     const indicatorLabelReplacements = await getIndicatorLabelReplacements(
       projectDb,
-      poData.module_id,
+      moduleId,
     );
 
     const nonFacilityFetchConfig = {
@@ -114,8 +107,7 @@ SELECT module_id, last_updated FROM presentation_objects WHERE id = ${presentati
         projectId,
         resultsObjectId,
         fetchConfig,
-        presentationObjectLastUpdated: poData.last_updated,
-        moduleLastRun,
+          moduleLastRun,
         dateRange,
         status: "too_many_items" as const,
       };
@@ -127,8 +119,7 @@ SELECT module_id, last_updated FROM presentation_objects WHERE id = ${presentati
         projectId,
         resultsObjectId,
         fetchConfig,
-        presentationObjectLastUpdated: poData.last_updated,
-        moduleLastRun,
+          moduleLastRun,
         dateRange,
         status: "no_data_available" as const,
       };
@@ -139,7 +130,6 @@ SELECT module_id, last_updated FROM presentation_objects WHERE id = ${presentati
       projectId,
       resultsObjectId,
       fetchConfig,
-      presentationObjectLastUpdated: poData.last_updated,
       moduleLastRun,
       dateRange,
       status: "ok" as const,

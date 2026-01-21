@@ -6,8 +6,10 @@
 import { measureSimpleViz } from "./_internal/measure.ts";
 import { renderSimpleViz } from "./_internal/render.ts";
 import { RectCoordsDims } from "./deps.ts";
-import type { BoxPrimitive, RenderContext, Renderer } from "./deps.ts";
+import type { BoxPrimitive, HeightConstraints, RenderContext, Renderer } from "./deps.ts";
 import type { MeasuredSimpleViz, SimpleVizInputs } from "./types.ts";
+
+const MIN_CONTENT_HEIGHT = 50;
 
 export const SimpleVizRenderer: Renderer<
   SimpleVizInputs,
@@ -45,7 +47,7 @@ export const SimpleVizRenderer: Renderer<
     width: number,
     item: SimpleVizInputs,
     responsiveScale?: number,
-  ): number {
+  ): HeightConstraints {
     const dummyRcd = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
     const mSimpleViz = measureSimpleViz(rc, dummyRcd, item, responsiveScale);
 
@@ -54,20 +56,23 @@ export const SimpleVizRenderer: Renderer<
       p.type === "simpleviz-box"
     ) as BoxPrimitive[];
 
+    let idealH: number;
     if (boxPrimitives.length === 0) {
-      return width + mSimpleViz.extraHeightDueToSurrounds;
+      idealH = width + mSimpleViz.extraHeightDueToSurrounds;
+    } else {
+      let minY = Infinity;
+      let maxY = -Infinity;
+
+      for (const boxPrim of boxPrimitives) {
+        const rcd = boxPrim.rcd;
+        minY = Math.min(minY, rcd.y());
+        maxY = Math.max(maxY, rcd.y() + rcd.h());
+      }
+
+      const contentHeight = maxY - minY;
+      idealH = contentHeight + mSimpleViz.extraHeightDueToSurrounds;
     }
-
-    let minY = Infinity;
-    let maxY = -Infinity;
-
-    for (const boxPrim of boxPrimitives) {
-      const rcd = boxPrim.rcd;
-      minY = Math.min(minY, rcd.y());
-      maxY = Math.max(maxY, rcd.y() + rcd.h());
-    }
-
-    const contentHeight = maxY - minY;
-    return contentHeight + mSimpleViz.extraHeightDueToSurrounds;
+    const minH = mSimpleViz.extraHeightDueToSurrounds + MIN_CONTENT_HEIGHT;
+    return { minH, idealH, maxH: Infinity, neededScalingToFitWidth: "none" };
   },
 };

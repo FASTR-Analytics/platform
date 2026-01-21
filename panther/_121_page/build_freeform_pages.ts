@@ -43,7 +43,10 @@ export function buildFreeformPages<T extends PageContentItem>(
       footer: config.footer,
       date: config.date,
       pageNumber: config.pageNumbers ? String(i + 1) : undefined,
-      content: createRowsNode(content) as LayoutNode<PageContentItem>,
+      content: {
+        layoutType: "explicit" as const,
+        layout: createRowsNode(content) as LayoutNode<PageContentItem>,
+      },
       style: config.style,
     };
   });

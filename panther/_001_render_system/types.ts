@@ -12,6 +12,14 @@ export interface Measured<TItem> {
   bounds: RectCoordsDims;
 }
 
+// Height constraints for layout system
+export type HeightConstraints = {
+  minH: number;
+  idealH: number;
+  maxH: number;
+  neededScalingToFitWidth?: "none" | number; // "none" = N/A, 1.0 = fits fine, <1.0 = had to shrink
+};
+
 // Synchronous renderer interface
 export interface Renderer<TItem, TMeasured extends Measured<TItem>> {
   isType(item: unknown): item is TItem;
@@ -37,7 +45,7 @@ export interface Renderer<TItem, TMeasured extends Measured<TItem>> {
     width: number,
     item: TItem,
     responsiveScale?: number,
-  ): number;
+  ): HeightConstraints;
 }
 
 // Asynchronous renderer interface
@@ -65,5 +73,5 @@ export interface AsyncRenderer<TItem, TMeasured extends Measured<TItem>> {
     width: number,
     item: TItem,
     responsiveScale?: number,
-  ): Promise<number>;
+  ): Promise<HeightConstraints>;
 }

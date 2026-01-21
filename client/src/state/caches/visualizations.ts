@@ -1,5 +1,7 @@
 import {
   GenericLongFormFetchConfig,
+  getModuleIdForMetric,
+  getModuleIdForResultsObject,
   ItemsHolderPresentationObject,
   PresentationObjectDetail,
   ReplicantOptionsForPresentationObject,
@@ -22,20 +24,19 @@ import { createReactiveCache } from "./reactive_cache";
 //                                                                                                                                      //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export const _RESULTS_VALUE_INFO_CACHE = createReactiveCache<
+export const _METRIC_INFO_CACHE = createReactiveCache<
   {
     projectId: string;
-    resultsValueId: string;
-    moduleId: string;
+    metricId: string;
   },
   ResultsValueInfoForPresentationObject
 >({
-  name: "results_value_info",
+  name: "metric_info",
   uniquenessKeys: (params) => [
     params.projectId,
-    params.resultsValueId,
+    params.metricId,
   ],
-  versionKey: (params, pds) => pds.moduleLastRun[params.moduleId] ?? "unknown",
+  versionKey: (params, pds) => pds.moduleLastRun[getModuleIdForMetric(params.metricId)] ?? "unknown",
 });
 
 export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
@@ -44,7 +45,6 @@ export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
     resultsObjectId: string;
     replicateBy: DisaggregationOption;
     fetchConfig: GenericLongFormFetchConfig;
-    moduleId: string;
   },
   ReplicantOptionsForPresentationObject
 >({
@@ -55,7 +55,7 @@ export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
     params.replicateBy,
     hashFetchConfig(params.fetchConfig),
   ],
-  versionKey: (params, pds) => pds.moduleLastRun[params.moduleId] ?? "unknown",
+  versionKey: (params, pds) => pds.moduleLastRun[getModuleIdForResultsObject(params.resultsObjectId)] ?? "unknown",
 });
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +102,6 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
     projectId: string;
     resultsObjectId: string;
     fetchConfig: GenericLongFormFetchConfig;
-    moduleId: string;
   },
   ItemsHolderPresentationObject
 >({
@@ -113,5 +112,5 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
     hashFetchConfig(params.fetchConfig),
   ],
   versionKey: (params, pds) =>
-    pds.moduleLastRun[params.moduleId] ?? "unknown",
+    pds.moduleLastRun[getModuleIdForResultsObject(params.resultsObjectId)] ?? "unknown",
 });

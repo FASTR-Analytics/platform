@@ -4,7 +4,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "3e3230cb-ad9e-48b9-b3ce-7bd01255d20b",
     label: "Default 1. Coverage calculated from HMIS data (National)",
-    resultsValueId: "m4-01-01",
+    metricId: "m4-01-01",
     config: {
       d: {
         type: "timeseries",
@@ -38,7 +38,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "a7727717-92d9-4676-b533-9b98be426a81",
     label: "Default 2. Coverage calculated from HMIS data (Admin Area 2)",
-    resultsValueId: "m4-02-01",
+    metricId: "m4-02-01",
     config: {
       d: {
         type: "timeseries",
@@ -76,7 +76,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "d452dfcf-2cc9-4c7f-bfb0-bf5b8ab6433d",
     label: "Default 3. Coverage calculated from HMIS data (Admin Area 2)",
-    resultsValueId: "m4-02-01",
+    metricId: "m4-02-01",
     config: {
       d: {
         type: "chart",

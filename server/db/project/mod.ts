@@ -3,7 +3,6 @@ export * from "./datasets_in_project_hmis.ts";
 export * from "./datasets_in_project_hfa.ts";
 export * from "./modules.ts";
 export * from "./presentation_objects.ts";
-export * from "./presentation_object_data_for_ai.ts";
 export * from "./projects.ts";
 export * from "./reports.ts";
 export * from "./results_objects.ts";

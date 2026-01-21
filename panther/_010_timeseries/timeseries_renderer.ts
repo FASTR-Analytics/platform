@@ -7,11 +7,36 @@ import { measureTimeseries } from "./_internal/measure_timeseries.ts";
 import { renderTimeseries } from "./_internal/render_timeseries.ts";
 import {
   CustomFigureStyle,
-  type RectCoordsDims,
+  estimateMinSurroundsWidth,
+  estimateMinYAxisWidth,
+  type HeightConstraints,
+  measureSurrounds,
+  RectCoordsDims,
   type RenderContext,
   type Renderer,
 } from "./deps.ts";
 import type { MeasuredTimeseries, TimeseriesInputs } from "./types.ts";
+
+const MIN_PLOT_AREA_HEIGHT = 50;
+const MIN_PLOT_AREA_WIDTH = 50;
+
+function getMinComfortableWidth(
+  rc: RenderContext,
+  item: TimeseriesInputs,
+  responsiveScale?: number,
+): number {
+  const customFigureStyle = new CustomFigureStyle(item.style, responsiveScale);
+  const mergedStyle = customFigureStyle.getMergedTimeseriesStyle();
+
+  // Y-axis needs space for tick labels using shared helper
+  const yAxisWidth = estimateMinYAxisWidth(rc, mergedStyle.yScaleAxis, mergedStyle.grid);
+
+  // Calculate surrounds minimum width (mainly for right-positioned legends)
+  const surroundsMinWidth = estimateMinSurroundsWidth(rc, customFigureStyle, item.legendItemsOrLabels);
+
+  // Minimum plot area width (even with adapted labels, need some space for data)
+  return yAxisWidth + surroundsMinWidth + MIN_PLOT_AREA_WIDTH;
+}
 
 export const TimeseriesRenderer: Renderer<
   TimeseriesInputs,
@@ -103,23 +128,40 @@ export const TimeseriesRenderer: Renderer<
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   getIdealHeight(
-    _rc: RenderContext,
+    rc: RenderContext,
     width: number,
     item: TimeseriesInputs,
     responsiveScale?: number,
-  ): number {
+  ): HeightConstraints {
     const customFigureStyle = new CustomFigureStyle(
       item.style,
       responsiveScale,
     );
     const idealAspectRatio = customFigureStyle.getIdealAspectRatio();
+    let idealH: number;
     if (idealAspectRatio === "video") {
-      return (width * 9) / 16;
+      idealH = (width * 9) / 16;
+    } else if (idealAspectRatio === "square") {
+      idealH = width;
+    } else {
+      idealH = (width * 9) / 16;
     }
-    if (idealAspectRatio === "square") {
-      return width;
-    }
-    return (width * 9) / 16;
+    // Calculate minH = surrounds + minimum plot area
+    const dummyBounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
+    const mSurrounds = measureSurrounds(
+      rc,
+      dummyBounds,
+      customFigureStyle,
+      item.caption,
+      item.subCaption,
+      item.footnote,
+      item.legendItemsOrLabels,
+    );
+    const minH = mSurrounds.extraHeightDueToSurrounds + MIN_PLOT_AREA_HEIGHT;
+
+    // Timeseries has adaptive label formatting (Jan → J → tick-only → year-only)
+    // so width scaling doesn't apply - it handles narrow widths internally
+    return { minH, idealH, maxH: Infinity, neededScalingToFitWidth: "none" };
   },
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
   //   ______    ______   __     __                                                            __      //

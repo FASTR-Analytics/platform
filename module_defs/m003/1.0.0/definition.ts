@@ -72,43 +72,7 @@ export const definition = {
         count_final_completeness: "NUMERIC",
         count_final_both: "NUMERIC",
       },
-      resultsValues: [
-        {
-          id: "m3-01-01",
-          valueProps: [
-            "count_final_none",
-            "count_final_outliers",
-            "count_final_completeness",
-            "count_final_both",
-          ],
-          valueFunc: "SUM",
-          valueLabelReplacements: {
-            count_final_none: "Number of services reported",
-            count_final_outliers: "Number of services after outlier adjustment",
-            count_final_completeness:
-              "Number of services after completeness adjustment",
-            count_final_both:
-              "Number of services after both outlier and completeness adjustment",
-          },
-          label: "Number of services reported, by adjustment type",
-          requiredDisaggregationOptions: ["indicator_common_id"],
-          formatAs: "number",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-      ],
     },
-    //////////////////////////////////////////////////////////////////////////
-    //  __    __              __      __                                __  //
-    // /  \  /  |            /  |    /  |                              /  | //
-    // $$  \ $$ |  ______   _$$ |_   $$/   ______   _______    ______  $$ | //
-    // $$$  \$$ | /      \ / $$   |  /  | /      \ /       \  /      \ $$ | //
-    // $$$$  $$ | $$$$$$  |$$$$$$/   $$ |/$$$$$$  |$$$$$$$  | $$$$$$  |$$ | //
-    // $$ $$ $$ | /    $$ |  $$ | __ $$ |$$ |  $$ |$$ |  $$ | /    $$ |$$ | //
-    // $$ |$$$$ |/$$$$$$$ |  $$ |/  |$$ |$$ \__$$ |$$ |  $$ |/$$$$$$$ |$$ | //
-    // $$ | $$$ |$$    $$ |  $$  $$/ $$ |$$    $$/ $$ |  $$ |$$    $$ |$$ | //
-    // $$/   $$/  $$$$$$$/    $$$$/  $$/  $$$$$$/  $$/   $$/  $$$$$$$/ $$/  //
-    //                                                                      //
-    //////////////////////////////////////////////////////////////////////////
     {
       id: "M3_disruptions_analysis_admin_area_1.csv",
       description: "National-level disruption analysis results",
@@ -122,55 +86,7 @@ export const definition = {
         count_expect_sum: "NUMERIC",
         count_expected_if_above_diff_threshold: "NUMERIC",
       },
-      resultsValues: [
-        {
-          id: "m3-02-01",
-          label: "Actual vs expected service volume (National)",
-          valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
-          valueFunc: "SUM",
-          valueLabelReplacements: {
-            count_sum: "Actual service volume",
-            count_expected_if_above_diff_threshold: "Expected service volume",
-          },
-          requiredDisaggregationOptions: ["indicator_common_id"],
-          formatAs: "number",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-        {
-          id: "m3-02-02",
-          label:
-            "Difference between actual and expected service volume (National)",
-          valueProps: ["pct_diff"],
-          valueFunc: "identity",
-          valueLabelReplacements: {
-            pct_diff: "Percent difference",
-          },
-          postAggregationExpression: {
-            ingredientValues: [
-              { prop: "count_sum", func: "SUM" },
-              { prop: "count_expect_sum", func: "SUM" },
-            ],
-            expression:
-              "pct_diff = (count_sum - count_expect_sum)/count_expect_sum",
-          },
-          requiredDisaggregationOptions: ["indicator_common_id"],
-          formatAs: "percent",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-      ],
     },
-    //////////////////////////////////////////
-    //   ______    ______          ______   //
-    //  /      \  /      \        /      \  //
-    // /$$$$$$  |/$$$$$$  |      /$$$$$$  | //
-    // $$ |__$$ |$$ |__$$ |      $$____$$ | //
-    // $$    $$ |$$    $$ |       /    $$/  //
-    // $$$$$$$$ |$$$$$$$$ |      /$$$$$$/   //
-    // $$ |  $$ |$$ |  $$ |      $$ |_____  //
-    // $$ |  $$ |$$ |  $$ |      $$       | //
-    // $$/   $$/ $$/   $$/       $$$$$$$$/  //
-    //                                      //
-    //////////////////////////////////////////
     {
       id: "M3_disruptions_analysis_admin_area_2.csv",
       description: "Admin area 2 level disruption analysis results",
@@ -184,61 +100,7 @@ export const definition = {
         count_expect_sum: "NUMERIC",
         count_expected_if_above_diff_threshold: "NUMERIC",
       },
-      resultsValues: [
-        {
-          id: "m3-03-01",
-          label: "Actual vs expected service volume (Admin area 2)",
-          valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
-          valueFunc: "SUM",
-          valueLabelReplacements: {
-            count_sum: "Actual service volume",
-            count_expected_if_above_diff_threshold: "Expected service volume",
-          },
-          requiredDisaggregationOptions: [
-            "indicator_common_id",
-            "admin_area_2",
-          ],
-          formatAs: "number",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-        {
-          id: "m3-03-02",
-          label:
-            "Difference between actual and expected service volume (Admin area 2)",
-          valueProps: ["pct_diff"],
-          valueFunc: "identity",
-          valueLabelReplacements: {
-            pct_diff: "Percent difference",
-          },
-          postAggregationExpression: {
-            ingredientValues: [
-              { prop: "count_sum", func: "SUM" },
-              { prop: "count_expect_sum", func: "SUM" },
-            ],
-            expression:
-              "pct_diff = (count_sum - count_expect_sum)/count_expect_sum",
-          },
-          requiredDisaggregationOptions: [
-            "indicator_common_id",
-            "admin_area_2",
-          ],
-          formatAs: "percent",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-      ],
     },
-    //////////////////////////////////////////
-    //   ______    ______          ______   //
-    //  /      \  /      \        /      \  //
-    // /$$$$$$  |/$$$$$$  |      /$$$$$$  | //
-    // $$ |__$$ |$$ |__$$ |      $$ ___$$ | //
-    // $$    $$ |$$    $$ |        /   $$<  //
-    // $$$$$$$$ |$$$$$$$$ |       _$$$$$  | //
-    // $$ |  $$ |$$ |  $$ |      /  \__$$ | //
-    // $$ |  $$ |$$ |  $$ |      $$    $$/  //
-    // $$/   $$/ $$/   $$/        $$$$$$/   //
-    //                                      //
-    //////////////////////////////////////////
     {
       id: "M3_disruptions_analysis_admin_area_3.csv",
       description: "Admin area 3 level disruption analysis results",
@@ -253,62 +115,7 @@ export const definition = {
         count_expect_sum: "NUMERIC",
         count_expected_if_above_diff_threshold: "NUMERIC",
       },
-      resultsValues: [
-        {
-          id: "m3-04-01",
-          label: "Actual vs expected service volume (Admin area 3)",
-          valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
-          valueFunc: "SUM",
-          valueLabelReplacements: {
-            count_sum: "Actual service volume",
-            count_expected_if_above_diff_threshold: "Expected service volume",
-          },
-          requiredDisaggregationOptions: [
-            "indicator_common_id",
-            "admin_area_3",
-          ],
-          formatAs: "number",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-        {
-          id: "m3-04-02",
-          label:
-            "Difference between actual and expected service volume (Admin area 3)",
-          valueProps: ["pct_diff"],
-          valueFunc: "identity",
-          valueLabelReplacements: {
-            pct_diff: "Percent difference",
-          },
-          postAggregationExpression: {
-            ingredientValues: [
-              { prop: "count_sum", func: "SUM" },
-              { prop: "count_expect_sum", func: "SUM" },
-            ],
-            expression:
-              "pct_diff = (count_sum - count_expect_sum)/count_expect_sum",
-          },
-          requiredDisaggregationOptions: [
-            "indicator_common_id",
-            "admin_area_3",
-          ],
-          formatAs: "percent",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-      ],
     },
-
-    //////////////////////////////////////////
-    //   ______    ______         __    __  //
-    //  /      \  /      \       /  |  /  | //
-    // /$$$$$$  |/$$$$$$  |      $$ |  $$ | //
-    // $$ |__$$ |$$ |__$$ |      $$ |__$$ | //
-    // $$    $$ |$$    $$ |      $$    $$ | //
-    // $$$$$$$$ |$$$$$$$$ |      $$$$$$$$ | //
-    // $$ |  $$ |$$ |  $$ |            $$ | //
-    // $$ |  $$ |$$ |  $$ |            $$ | //
-    // $$/   $$/ $$/   $$/             $$/  //
-    //                                      //
-    //////////////////////////////////////////
     {
       id: "M3_disruptions_analysis_admin_area_4.csv",
       description: "Admin area 4 level disruption analysis results",
@@ -324,77 +131,233 @@ export const definition = {
         count_expect_sum: "NUMERIC",
         count_expected_if_above_diff_threshold: "NUMERIC",
       },
-      resultsValues: [
-        {
-          id: "m3-05-01",
-          label: "Actual vs expected service volume (Admin area 4)",
-          valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
-          valueFunc: "SUM",
-          valueLabelReplacements: {
-            count_sum: "Actual service volume",
-            count_expected_if_above_diff_threshold: "Expected service volume",
-          },
-          requiredDisaggregationOptions: [
-            "indicator_common_id",
-            "admin_area_4",
-          ],
-          formatAs: "number",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-        {
-          id: "m3-05-02",
-          label:
-            "Difference between actual and expected service volume (Admin area 4)",
-          valueProps: ["pct_diff"],
-          valueFunc: "identity",
-          valueLabelReplacements: {
-            pct_diff: "Percent difference",
-          },
-          postAggregationExpression: {
-            ingredientValues: [
-              { prop: "count_sum", func: "SUM" },
-              { prop: "count_expect_sum", func: "SUM" },
-            ],
-            expression:
-              "pct_diff = (count_sum - count_expect_sum)/count_expect_sum",
-          },
-          requiredDisaggregationOptions: [
-            "indicator_common_id",
-            "admin_area_4",
-          ],
-          formatAs: "percent",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-      ],
     },
     {
       id: "M3_chartout.csv",
       description: "Control chart analysis results with tagged anomalies",
-      resultsValues: [],
     },
     {
       id: "M3_all_indicators_shortfalls_admin_area_1.csv",
       description:
         "Shortfall and surplus calculations for all indicators (Admin area 1)",
-      resultsValues: [],
     },
     {
       id: "M3_all_indicators_shortfalls_admin_area_2.csv",
       description:
         "Shortfall and surplus calculations for all indicators (Admin area 2)",
-      resultsValues: [],
     },
     {
       id: "M3_all_indicators_shortfalls_admin_area_3.csv",
       description:
         "Shortfall and surplus calculations for all indicators (Admin area 3)",
-      resultsValues: [],
     },
     {
       id: "M3_all_indicators_shortfalls_admin_area_4.csv",
       description:
         "Shortfall and surplus calculations for all indicators (Admin area 4)",
-      resultsValues: [],
+    },
+  ],
+  /////////////////////////////////////////////////////////////////////////
+  //  __       __              __                __                      //
+  // /  \     /  |            /  |              /  |                     //
+  // $$  \   /$$ |  ______   _$$ |_     ______  $$/   _______   _______  //
+  // $$$  \ /$$$ | /      \ / $$   |   /      \ /  | /       | /       | //
+  // $$$$  /$$$$ |/$$$$$$  |$$$$$$/   /$$$$$$  |$$ |/$$$$$$$/ /$$$$$$$/  //
+  // $$ $$ $$/$$ |$$    $$ |  $$ | __ $$ |  $$/ $$ |$$ |      $$      \  //
+  // $$ |$$$/ $$ |$$$$$$$$/   $$ |/  |$$ |      $$ |$$ \_____  $$$$$$  | //
+  // $$ | $/  $$ |$$       |  $$  $$/ $$ |      $$ |$$       |/     $$/  //
+  // $$/      $$/  $$$$$$$/    $$$$/  $$/       $$/  $$$$$$$/ $$$$$$$/   //
+  //                                                                     //
+  /////////////////////////////////////////////////////////////////////////
+  metrics: [
+    {
+      id: "m3-01-01",
+      resultsObjectId: "M3_service_utilization.csv",
+      valueProps: [
+        "count_final_none",
+        "count_final_outliers",
+        "count_final_completeness",
+        "count_final_both",
+      ],
+      valueFunc: "SUM",
+      valueLabelReplacements: {
+        count_final_none: "Number of services reported",
+        count_final_outliers: "Number of services after outlier adjustment",
+        count_final_completeness:
+          "Number of services after completeness adjustment",
+        count_final_both:
+          "Number of services after both outlier and completeness adjustment",
+      },
+      label: "Number of services reported, by adjustment type",
+      requiredDisaggregationOptions: ["indicator_common_id"],
+      formatAs: "number",
+      periodOptions: ["period_id", "quarter_id", "year"],
+    },
+    {
+      id: "m3-02-01",
+      resultsObjectId: "M3_disruptions_analysis_admin_area_1.csv",
+      label: "Actual vs expected service volume",
+      variantLabel: "National",
+      valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
+      valueFunc: "SUM",
+      valueLabelReplacements: {
+        count_sum: "Actual service volume",
+        count_expected_if_above_diff_threshold: "Expected service volume",
+      },
+      requiredDisaggregationOptions: ["indicator_common_id"],
+      formatAs: "number",
+      periodOptions: ["period_id", "quarter_id", "year"],
+    },
+    {
+      id: "m3-02-02",
+      resultsObjectId: "M3_disruptions_analysis_admin_area_1.csv",
+      label: "Difference between actual and expected service volume",
+      variantLabel: "National",
+      valueProps: ["pct_diff"],
+      valueFunc: "identity",
+      valueLabelReplacements: {
+        pct_diff: "Percent difference",
+      },
+      postAggregationExpression: {
+        ingredientValues: [
+          { prop: "count_sum", func: "SUM" },
+          { prop: "count_expect_sum", func: "SUM" },
+        ],
+        expression:
+          "pct_diff = (count_sum - count_expect_sum)/count_expect_sum",
+      },
+      requiredDisaggregationOptions: ["indicator_common_id"],
+      formatAs: "percent",
+      periodOptions: ["period_id", "quarter_id", "year"],
+    },
+    {
+      id: "m3-03-01",
+      resultsObjectId: "M3_disruptions_analysis_admin_area_2.csv",
+      label: "Actual vs expected service volume",
+      variantLabel: "Admin area 2",
+      valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
+      valueFunc: "SUM",
+      valueLabelReplacements: {
+        count_sum: "Actual service volume",
+        count_expected_if_above_diff_threshold: "Expected service volume",
+      },
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_2",
+      ],
+      formatAs: "number",
+      periodOptions: ["period_id", "quarter_id", "year"],
+    },
+    {
+      id: "m3-03-02",
+      resultsObjectId: "M3_disruptions_analysis_admin_area_2.csv",
+      label: "Difference between actual and expected service volume",
+      variantLabel: "Admin area 2",
+      valueProps: ["pct_diff"],
+      valueFunc: "identity",
+      valueLabelReplacements: {
+        pct_diff: "Percent difference",
+      },
+      postAggregationExpression: {
+        ingredientValues: [
+          { prop: "count_sum", func: "SUM" },
+          { prop: "count_expect_sum", func: "SUM" },
+        ],
+        expression:
+          "pct_diff = (count_sum - count_expect_sum)/count_expect_sum",
+      },
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_2",
+      ],
+      formatAs: "percent",
+      periodOptions: ["period_id", "quarter_id", "year"],
+    },
+    {
+      id: "m3-04-01",
+      resultsObjectId: "M3_disruptions_analysis_admin_area_3.csv",
+      label: "Actual vs expected service volume",
+      variantLabel: "Admin area 3",
+      valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
+      valueFunc: "SUM",
+      valueLabelReplacements: {
+        count_sum: "Actual service volume",
+        count_expected_if_above_diff_threshold: "Expected service volume",
+      },
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_3",
+      ],
+      formatAs: "number",
+      periodOptions: ["period_id", "quarter_id", "year"],
+    },
+    {
+      id: "m3-04-02",
+      resultsObjectId: "M3_disruptions_analysis_admin_area_3.csv",
+      label: "Difference between actual and expected service volume",
+      variantLabel: "Admin area 3",
+      valueProps: ["pct_diff"],
+      valueFunc: "identity",
+      valueLabelReplacements: {
+        pct_diff: "Percent difference",
+      },
+      postAggregationExpression: {
+        ingredientValues: [
+          { prop: "count_sum", func: "SUM" },
+          { prop: "count_expect_sum", func: "SUM" },
+        ],
+        expression:
+          "pct_diff = (count_sum - count_expect_sum)/count_expect_sum",
+      },
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_3",
+      ],
+      formatAs: "percent",
+      periodOptions: ["period_id", "quarter_id", "year"],
+    },
+    {
+      id: "m3-05-01",
+      resultsObjectId: "M3_disruptions_analysis_admin_area_4.csv",
+      label: "Actual vs expected service volume",
+      variantLabel: "Admin area 4",
+      valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
+      valueFunc: "SUM",
+      valueLabelReplacements: {
+        count_sum: "Actual service volume",
+        count_expected_if_above_diff_threshold: "Expected service volume",
+      },
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_4",
+      ],
+      formatAs: "number",
+      periodOptions: ["period_id", "quarter_id", "year"],
+    },
+    {
+      id: "m3-05-02",
+      resultsObjectId: "M3_disruptions_analysis_admin_area_4.csv",
+      label: "Difference between actual and expected service volume",
+      variantLabel: "Admin area 4",
+      valueProps: ["pct_diff"],
+      valueFunc: "identity",
+      valueLabelReplacements: {
+        pct_diff: "Percent difference",
+      },
+      postAggregationExpression: {
+        ingredientValues: [
+          { prop: "count_sum", func: "SUM" },
+          { prop: "count_expect_sum", func: "SUM" },
+        ],
+        expression:
+          "pct_diff = (count_sum - count_expect_sum)/count_expect_sum",
+      },
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_4",
+      ],
+      formatAs: "percent",
+      periodOptions: ["period_id", "quarter_id", "year"],
     },
   ],
   ////////////////////////////////////////////////////////////////////

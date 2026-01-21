@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { RectCoordsDims, type RenderContext, type Renderer } from "./deps.ts";
+import { type HeightConstraints, RectCoordsDims, type RenderContext, type Renderer } from "./deps.ts";
 import type { MeasuredSankey, SankeyInputs } from "./types.ts";
 import { measureSankey } from "./_internal/measure.ts";
 import { renderSankey } from "./_internal/render.ts";
@@ -41,10 +41,11 @@ export const SankeyRenderer: Renderer<SankeyInputs, MeasuredSankey> = {
     width: number,
     item: SankeyInputs,
     responsiveScale?: number,
-  ): number {
+  ): HeightConstraints {
     const testHeight = 1000;
     const bounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: testHeight });
     const measured = this.measure(rc, bounds, item, responsiveScale);
-    return testHeight + measured.extraHeightDueToSurrounds;
+    const idealH = testHeight + measured.extraHeightDueToSurrounds;
+    return { minH: 0, idealH, maxH: Infinity };
   },
 };

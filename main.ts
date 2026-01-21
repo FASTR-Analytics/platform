@@ -19,6 +19,7 @@ import { routesInstance } from "./server/routes/instance/instance.ts";
 import { routesStructure } from "./server/routes/instance/structure.ts";
 import { routesUpload } from "./server/routes/instance/upload.ts";
 import { routesUsers } from "./server/routes/instance/users.ts";
+import { routesBackups } from "./server/routes/instance/backups.ts";
 
 // Project routes
 import { routesProject } from "./server/routes/project/project.ts";
@@ -75,6 +76,7 @@ app.route("/", routesUsers);
 app.route("/", routesProject);
 app.route("/", routesProjectSSE);
 app.route("/", routesStructure);
+app.route("/", routesBackups);
 app.route("/", routesAssets);
 app.route("/", routesUpload);
 app.route("/", routesDatasets);
@@ -92,9 +94,15 @@ app.use("*", cacheMiddleware);
 // Static file serving
 setupStaticServing(app);
 
-const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
-app.get("/docs", (c) => c.html(indexHtml));
-app.get("/claire", (c) => c.html(indexHtml));
+// Only serve static HTML in production (when client_dist exists)
+try {
+  const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
+  app.get("/docs", (c) => c.html(indexHtml));
+  app.get("/claire", (c) => c.html(indexHtml));
+} catch {
+  // In development, these routes are handled by the Vite dev server
+  console.log("Skipping /docs and /claire routes (client_dist not found - running in dev mode)");
+}
 
 app.get("*", (c) => {
   return c.redirect("/", 302);

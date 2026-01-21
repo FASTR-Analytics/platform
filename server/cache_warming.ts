@@ -9,7 +9,7 @@ import {
 import {
   _PO_DETAIL_CACHE,
   _PO_ITEMS_CACHE,
-  _RESULTS_VALUE_INFO_CACHE,
+  _METRIC_INFO_CACHE,
 } from "./routes/caches/visualizations.ts";
 import {
   _FETCH_CACHE_DATASET_HFA_ITEMS,
@@ -67,12 +67,14 @@ async function warmPresentationObjectCaches(): Promise<number> {
   let totalPOs = 0;
 
   for (const project of projects) {
-    // Get POs for this project from project database
+    // Get POs for this project from project database (join through metrics to get module_id)
     let projectDb = getPgConnection(project.id);
     const allPresentationObjects = await projectDb<
       { id: string; label: string; module_id: string }[]
     >`
-      SELECT id, label, module_id FROM presentation_objects
+      SELECT po.id, po.label, m.module_id
+      FROM presentation_objects po
+      JOIN metrics m ON po.metric_id = m.id
     `;
     await projectDb.end();
 
@@ -179,11 +181,11 @@ async function warmPresentationObjectCaches(): Promise<number> {
               /////////////////////////
 
               // Warm variable info (unfiltered - shows all possible values)
-              const existingResultsValueInfo = await _RESULTS_VALUE_INFO_CACHE
+              const existingResultsValueInfo = await _METRIC_INFO_CACHE
                 .get(
                   {
                     projectId: project.id,
-                    resultsValueId: poDetail.resultsValue.id,
+                    metricId: poDetail.resultsValue.id,
                   },
                   { moduleLastRun },
                 );
@@ -197,16 +199,15 @@ async function warmPresentationObjectCaches(): Promise<number> {
                     mainDb,
                     projectDb,
                     project.id,
-                    po.module_id,
                     poDetail.resultsValue.id,
                     moduleLastRun,
                   );
 
-                _RESULTS_VALUE_INFO_CACHE.setPromise(
+                _METRIC_INFO_CACHE.setPromise(
                   resultsValueInfoPromise,
                   {
                     projectId: project.id,
-                    resultsValueId: poDetail.resultsValue.id,
+                    metricId: poDetail.resultsValue.id,
                   },
                   { moduleLastRun },
                 );
@@ -245,7 +246,6 @@ async function warmPresentationObjectCaches(): Promise<number> {
                   mainDb,
                   project.id,
                   projectDb,
-                  po.id,
                   poDetail.resultsValue.resultsObjectId,
                   fetchConfig,
                   poDetail.resultsValue.periodOptions.at(0),

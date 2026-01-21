@@ -28,7 +28,7 @@ export function getFigureAsCanvas(
     width,
     figureInputs,
     responsiveScale,
-  );
+  ).idealH;
 
   canvas.width = width * scale;
   canvas.height = idealHeight * scale;

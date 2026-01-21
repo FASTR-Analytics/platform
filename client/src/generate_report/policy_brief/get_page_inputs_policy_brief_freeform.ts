@@ -100,7 +100,7 @@ export async function getPageInputs_PolicyBrief_Freeform(
         headerLogos,
         footerLogos,
         overlay,
-        content: resRows.data,
+        content: { layoutType: "explicit", layout: resRows.data },
         pageNumber:
           reportConfig.showPageNumbers && itemIndex !== undefined
             ? String(itemIndex + 1)

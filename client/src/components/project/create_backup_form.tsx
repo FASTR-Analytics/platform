@@ -1,7 +1,6 @@
 import { AlertComponentProps, AlertFormHolder, Input, timActionForm } from "panther";
 import { createSignal } from "solid-js";
 import { t, isFrench, APIResponseNoData } from "lib";
-import { StringLiteralUnion } from "hono/utils/types";
 
 function getTimestamp() {
   const now = new Date();

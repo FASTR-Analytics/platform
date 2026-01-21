@@ -96,7 +96,7 @@ export async function getPageInputs_SlideDeck_Freeform(
             : undefined,
         headerLogos,
         footerLogos,
-        content: resRows.data,
+        content: { layoutType: "explicit", layout: resRows.data },
         pageNumber:
           reportConfig.showPageNumbers && itemIndex !== undefined
             ? String(itemIndex + 1)

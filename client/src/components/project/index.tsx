@@ -112,18 +112,12 @@ export default function Project(p: Props) {
                       />
                     </Match>
                     <Match when={getFirstString(searchParams.v)}>
-                      <Show
-                        when={getFirstString(searchParams.m)}
-                        fallback="No module ID in url"
-                      >
-                        <Visualization
-                          isGlobalAdmin={p.isGlobalAdmin}
-                          projectDetail={keyedProjectDetail}
-                          moduleId={getFirstString(searchParams.m)!}
-                          presentationObjectId={getFirstString(searchParams.v)!}
-                          backToProject={backToProject}
-                        />
-                      </Show>
+                      <Visualization
+                        isGlobalAdmin={p.isGlobalAdmin}
+                        projectDetail={keyedProjectDetail}
+                        presentationObjectId={getFirstString(searchParams.v)!}
+                        backToProject={backToProject}
+                      />
                     </Match>
                     <Match when={true}>
                       <ProjectEditorWrapper>
@@ -279,6 +273,7 @@ export default function Project(p: Props) {
                                     p.instanceDetail.silentFetch
                                   }
                                   backToHome={() => navigate("/")}
+                                  instanceDetail={keyedInstanceDetail}
                                 />
                               </Match>
                             </Switch>

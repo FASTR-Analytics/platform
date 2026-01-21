@@ -12,6 +12,7 @@ import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMi
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
 import { ReplicateByOptionsPresentationObjectSelect } from "~/components/ReplicateByOptions";
 import {
+  getModuleIdForMetric,
   PresentationObjectInReportInfo,
   PresentationObjectSummary,
   ProjectDetail,
@@ -71,7 +72,7 @@ export function SelectPresentationObject(
     }
     const poReportInfo: PresentationObjectInReportInfo = {
       id: resPoDetail.data.id,
-      moduleId: resPoDetail.data.resultsValue.moduleId,
+      metricId: resPoDetail.data.resultsValue.id,
       isDefault: resPoDetail.data.isDefault,
       replicateBy,
       selectedReplicantValue: goodSelectedReplicant,
@@ -131,7 +132,7 @@ export function SelectPresentationObject(
                 <Side
                   projectId={p.projectDetail.id}
                   presObjId={kP.id}
-                  moduleId={kP.moduleId}
+                  moduleId={getModuleIdForMetric(kP.metricId)}
                   selectedReplicant={selectedReplicant()}
                   setSelectedReplicant={setSelectedReplicant}
                 />
@@ -167,7 +168,7 @@ function Side(p: SideProps) {
               <PresentationObjectMiniDisplay
                 projectId={p.projectId}
                 presentationObjectId={keyedPoDetail.id}
-                moduleId={keyedPoDetail.resultsValue.moduleId}
+                moduleId={getModuleIdForMetric(keyedPoDetail.resultsValue.id)}
                 shapeType={"force-aspect-video"}
                 repliantOverride={{
                   selectedReplicantValue: p.selectedReplicant,

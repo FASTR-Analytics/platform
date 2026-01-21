@@ -12,7 +12,6 @@ export async function getReplicantOptionsFromCacheOrFetch(
   projectId: string,
   resultsObjectId: string,
   replicateBy: DisaggregationOption,
-  moduleId: string,
   fetchConfig: GenericLongFormFetchConfig,
 ): Promise<APIResponseWithData<ReplicantOptionsForPresentationObject>> {
   const { data, version } = await _REPLICANT_OPTIONS_CACHE.get({
@@ -20,7 +19,6 @@ export async function getReplicantOptionsFromCacheOrFetch(
     resultsObjectId,
     replicateBy,
     fetchConfig,
-    moduleId,
   });
 
   if (data) {
@@ -30,7 +28,6 @@ export async function getReplicantOptionsFromCacheOrFetch(
   const newPromise = resultsValueInfoQueue.enqueue(() =>
     serverActions.getReplicantOptions({
       projectId,
-      moduleId,
       resultsObjectId,
       replicateBy,
       fetchConfig,
@@ -44,7 +41,6 @@ export async function getReplicantOptionsFromCacheOrFetch(
       resultsObjectId,
       replicateBy,
       fetchConfig,
-      moduleId,
     },
     version,
   );

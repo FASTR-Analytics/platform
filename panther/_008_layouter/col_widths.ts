@@ -4,17 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { sum } from "./deps.ts";
-import type { LayoutNode, LayoutWarning } from "./types.ts";
+import type { LayoutNode } from "./types.ts";
 
 export type ColWidthInfo = {
   w: number;
   span: number;
-  adjusted?: boolean;
-};
-
-export type ColWidthResult = {
-  widths: ColWidthInfo[];
-  warnings: LayoutWarning[];
 };
 
 export function getColWidths<U>(
@@ -22,168 +16,94 @@ export function getColWidths<U>(
   width: number,
   columnCount: number,
   gapX: number,
-  pathPrefix?: string,
-): ColWidthResult {
-  const warnings: LayoutWarning[] = [];
-
+): ColWidthInfo[] {
   if (children.length === 0) {
-    return { widths: [], warnings };
+    return [];
   }
 
   if (children.length === 1 && children[0].span === undefined) {
-    return {
-      widths: [{ w: width, span: columnCount, adjusted: false }],
-      warnings: [],
-    };
+    return [{ w: width, span: columnCount }];
   }
 
   const singleColWidth = (width - (columnCount - 1) * gapX) / columnCount;
 
-  const adjustedChildren = children.map((child, index) => {
-    let span = child.span;
-    let adjusted = false;
-
-    if (span !== undefined) {
-      if (isNaN(span) || span < 1) {
-        const path = pathPrefix
-          ? `${pathPrefix}.children[${index}]`
-          : `children[${index}]`;
-        warnings.push({
-          type: "INVALID_SPAN",
-          message: `Column has invalid span ${span}, using 1`,
-          path,
-        });
-        span = 1;
-        adjusted = true;
-      } else if (span > columnCount) {
-        const path = pathPrefix
-          ? `${pathPrefix}.children[${index}]`
-          : `children[${index}]`;
-        warnings.push({
-          type: "SPAN_OVERFLOW",
-          message:
-            `Column span ${span} exceeds grid columns ${columnCount}, capping at ${columnCount}`,
-          path,
-        });
-        span = columnCount;
-        adjusted = true;
-      }
-    }
-
-    return { span, adjusted };
+  // Normalize spans: clamp to valid range
+  const spans = children.map((child) => {
+    if (child.span === undefined) return undefined;
+    if (isNaN(child.span) || child.span < 1) return 1;
+    if (child.span > columnCount) return columnCount;
+    return child.span;
   });
 
-  const specifiedChildren = adjustedChildren.filter((c) =>
-    c.span !== undefined
-  );
-  const unspecifiedChildren = adjustedChildren.filter((c) =>
-    c.span === undefined
-  );
-  const totalSpecifiedSpan = sum(specifiedChildren.map((c) => c.span!));
+  const specifiedSpans = spans.filter((s): s is number => s !== undefined);
+  const unspecifiedCount = spans.filter((s) => s === undefined).length;
+  const totalSpecifiedSpan = sum(specifiedSpans);
 
-  let finalWidths: ColWidthInfo[];
-
-  if (unspecifiedChildren.length === 0) {
+  // All children have explicit spans
+  if (unspecifiedCount === 0) {
     if (totalSpecifiedSpan !== columnCount) {
-      warnings.push({
-        type: "SPAN_MISMATCH",
-        message:
-          `Total span ${totalSpecifiedSpan} doesn't match grid columns ${columnCount}, proportionally adjusting`,
-        path: pathPrefix,
-      });
-
+      // Proportionally scale spans to fit
       const scaleFactor = columnCount / totalSpecifiedSpan;
-      finalWidths = adjustedChildren.map((child) => {
-        const adjustedSpan = Math.round((child.span || 1) * scaleFactor);
-        return getBlockWidth(adjustedSpan || 1, singleColWidth, gapX, true);
-      });
+      const scaledSpans = spans.map((s) => Math.round((s || 1) * scaleFactor));
 
-      const totalWidth = sum(finalWidths.map((w) => w.w)) +
-        (children.length - 1) * gapX;
-      if (Math.abs(totalWidth - width) > 0.01) {
-        finalWidths[finalWidths.length - 1].w += width - totalWidth;
+      // Fix rounding errors by adjusting last span
+      const scaledTotal = sum(scaledSpans);
+      if (scaledTotal !== columnCount) {
+        scaledSpans[scaledSpans.length - 1] += columnCount - scaledTotal;
       }
-    } else {
-      finalWidths = adjustedChildren.map((child) =>
-        getBlockWidth(child.span!, singleColWidth, gapX, child.adjusted)
-      );
+
+      return scaledSpans.map((span) => getBlockWidth(span, singleColWidth, gapX));
     }
-  } else {
-    const remainingSpan = columnCount - totalSpecifiedSpan;
-
-    // Use proportional sharing if not enough space for at least 1 span per unspecified child
-    const baseSpanPerUnspecified = Math.floor(
-      remainingSpan / unspecifiedChildren.length,
-    );
-    if (remainingSpan <= 0 || baseSpanPerUnspecified === 0) {
-      warnings.push({
-        type: "NO_SPACE_FOR_FLEX",
-        message:
-          `Grid columns (${columnCount}) insufficient for ${unspecifiedChildren.length} unspecified children with ${totalSpecifiedSpan} specified spans, sharing space proportionally`,
-        path: pathPrefix,
-      });
-
-      const totalEffectiveSpans = totalSpecifiedSpan +
-        unspecifiedChildren.length;
-      const scaleFactor = columnCount / totalEffectiveSpans;
-
-      finalWidths = adjustedChildren.map((child) => {
-        const effectiveSpan = child.span !== undefined ? child.span : 1;
-        const scaledSpan = effectiveSpan * scaleFactor;
-        const finalSpan = Math.max(0.1, scaledSpan);
-
-        const w = singleColWidth * finalSpan + gapX * (finalSpan - 1);
-        return {
-          w: Math.max(1, w),
-          span: finalSpan,
-          adjusted: true,
-        };
-      });
-
-      const totalWidth = sum(finalWidths.map((w) => w.w)) +
-        (children.length - 1) * gapX;
-      if (Math.abs(totalWidth - width) > 0.01) {
-        const widthDiff = width - totalWidth;
-        const widthAdjustmentPerCol = widthDiff / children.length;
-        finalWidths = finalWidths.map((colWidth) => ({
-          ...colWidth,
-          w: colWidth.w + widthAdjustmentPerCol,
-        }));
-      }
-    } else {
-      const extraColumns = remainingSpan % unspecifiedChildren.length;
-
-      let unspecifiedIndex = 0;
-      finalWidths = adjustedChildren.map((child) => {
-        if (child.span !== undefined) {
-          return getBlockWidth(
-            child.span,
-            singleColWidth,
-            gapX,
-            child.adjusted,
-          );
-        } else {
-          const extraCol = unspecifiedIndex < extraColumns ? 1 : 0;
-          const span = baseSpanPerUnspecified + extraCol;
-          unspecifiedIndex++;
-          return getBlockWidth(span, singleColWidth, gapX, false);
-        }
-      });
-    }
+    return spans.map((s) => getBlockWidth(s!, singleColWidth, gapX));
   }
 
-  return { widths: finalWidths, warnings };
+  // Some children have unspecified spans - distribute remaining space
+  const remainingSpan = columnCount - totalSpecifiedSpan;
+  const baseSpanPerUnspecified = Math.floor(remainingSpan / unspecifiedCount);
+
+  // Not enough space - share proportionally
+  if (remainingSpan <= 0 || baseSpanPerUnspecified === 0) {
+    const totalEffectiveSpans = totalSpecifiedSpan + unspecifiedCount;
+    const scaleFactor = columnCount / totalEffectiveSpans;
+
+    const widths = spans.map((span) => {
+      const effectiveSpan = span ?? 1;
+      const scaledSpan = Math.max(0.1, effectiveSpan * scaleFactor);
+      const w = singleColWidth * scaledSpan + gapX * (scaledSpan - 1);
+      return { w: Math.max(1, w), span: scaledSpan };
+    });
+
+    // Fix total width rounding
+    const totalWidth = sum(widths.map((w) => w.w)) + (children.length - 1) * gapX;
+    if (Math.abs(totalWidth - width) > 0.01) {
+      const adjustment = (width - totalWidth) / children.length;
+      return widths.map((w) => ({ ...w, w: w.w + adjustment }));
+    }
+    return widths;
+  }
+
+  // Distribute remaining span among unspecified children
+  const extraColumns = remainingSpan % unspecifiedCount;
+  let unspecifiedIndex = 0;
+
+  return spans.map((span) => {
+    if (span !== undefined) {
+      return getBlockWidth(span, singleColWidth, gapX);
+    }
+    const extraCol = unspecifiedIndex < extraColumns ? 1 : 0;
+    const assignedSpan = baseSpanPerUnspecified + extraCol;
+    unspecifiedIndex++;
+    return getBlockWidth(assignedSpan, singleColWidth, gapX);
+  });
 }
 
 function getBlockWidth(
   nCols: number,
   singleColWidth: number,
   gapX: number,
-  adjusted?: boolean,
 ): ColWidthInfo {
   return {
     w: singleColWidth * nCols + gapX * (nCols - 1),
     span: nCols,
-    adjusted,
   };
 }

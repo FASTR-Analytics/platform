@@ -1,4 +1,4 @@
-import { PresentationObjectSummary, ProjectDetail, t, t2, T } from "lib";
+import { getModuleIdForMetric, PresentationObjectSummary, ProjectDetail, t, t2, T } from "lib";
 import { CollapsibleSection } from "panther";
 import { For, Show, createEffect, createSignal } from "solid-js";
 import { setShowModules, showModules } from "~/state/ui";
@@ -18,7 +18,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
       <For each={p.projectDetail.projectModules}>
         {(ms) => {
           const nViz = () =>
-            p.projectDetail.visualizations.filter((po) => po.moduleId === ms.id)
+            p.projectDetail.visualizations.filter((po) => getModuleIdForMetric(po.metricId) === ms.id)
               .length;
 
           return (
@@ -43,7 +43,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
                 onClick={p.onClick}
                 searchText={p.searchText}
                 presObjSummaries={p.projectDetail.visualizations.filter(
-                  (po) => po.moduleId === ms.id,
+                  (po) => getModuleIdForMetric(po.metricId) === ms.id,
                 )}
               />
             </CollapsibleSection>
@@ -109,7 +109,7 @@ function SubListing(p: SubListingProps) {
                 <PresentationObjectMiniDisplay
                   projectId={p.projectId}
                   presentationObjectId={po.id}
-                  moduleId={po.moduleId}
+                  moduleId={getModuleIdForMetric(po.metricId)}
                   shapeType={"force-aspect-video"}
                   scalePixelResolution={0.2}
                 />

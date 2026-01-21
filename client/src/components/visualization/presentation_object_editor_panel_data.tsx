@@ -29,7 +29,6 @@ export function PresentationObjectEditorPanelData(p: Props) {
   const resultsValueInfo = timQuery(() => {
     return getResultsValueInfoForPresentationObjectFromCacheOrFetch(
       p.poDetail.projectId,
-      p.poDetail.resultsValue.moduleId,
       p.poDetail.resultsValue.id,
     );
   }, "Loading...");

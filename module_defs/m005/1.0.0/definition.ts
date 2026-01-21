@@ -91,7 +91,7 @@ export const definition = {
     type: "github",
     owner: "FASTR-Analytics",
     repo: "modules",
-    path: "04_module_coverage_estimates_part1.R",
+    path: "05_module_coverage_estimates_part1.R",
     commit: "main",
   },
   defaultPresentationObjects: presentationObjects,
@@ -134,7 +134,7 @@ export const definition = {
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   resultsObjects: [
     {
-      id: "M4_denominators_national.csv",
+      id: "M5_denominators_national.csv",
       description: "Selected denominators (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -144,21 +144,9 @@ export const definition = {
         source_indicator: "TEXT",
         target_population: "TEXT",
       },
-      resultsValues: [
-        {
-          id: "m4a-01-01",
-          valueProps: ["value"],
-          valueFunc: "AVG",
-          valueLabelReplacements: _VALUE_LABELS,
-          label: "Denominator values (National)",
-          requiredDisaggregationOptions: ["denominator", "year"],
-          formatAs: "number",
-          periodOptions: ["year"],
-        },
-      ],
     },
     {
-      id: "M4_denominators_admin2.csv",
+      id: "M5_denominators_admin2.csv",
       description: "Selected denominators (Admin area 2)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -169,25 +157,9 @@ export const definition = {
         source_indicator: "TEXT",
         target_population: "TEXT",
       },
-      resultsValues: [
-        {
-          id: "m4a-01-02",
-          valueProps: ["value"],
-          valueFunc: "AVG",
-          valueLabelReplacements: _VALUE_LABELS,
-          label: "Denominator values (Admin area 2)",
-          requiredDisaggregationOptions: [
-            "denominator",
-            "admin_area_2",
-            "year",
-          ],
-          formatAs: "number",
-          periodOptions: ["year"],
-        },
-      ],
     },
     {
-      id: "M4_denominators_admin3.csv",
+      id: "M5_denominators_admin3.csv",
       description: "Selected denominators (Admin area 3)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -198,30 +170,9 @@ export const definition = {
         source_indicator: "TEXT",
         target_population: "TEXT",
       },
-      resultsValues: [
-        {
-          id: "m4a-01-03",
-          valueProps: ["value"],
-          valueFunc: "AVG",
-          valueLabelReplacements: _VALUE_LABELS,
-          label: "Denominator values (Admin area 3)",
-          requiredDisaggregationOptions: [
-            "denominator",
-            "admin_area_3",
-            "year",
-          ],
-          formatAs: "number",
-          periodOptions: ["year"],
-        },
-      ],
     },
-    ////////////////////////////
-    //                        //
-    //    Combined results    //
-    //                        //
-    ////////////////////////////
     {
-      id: "M4_combined_results_national.csv",
+      id: "M5_combined_results_national.csv",
       description: "Selected denominators (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -230,25 +181,9 @@ export const definition = {
         denominator_best_or_survey: "TEXT NOT NULL",
         value: "NUMERIC NOT NULL",
       },
-      resultsValues: [
-        {
-          id: "m4a-02-01",
-          valueProps: ["value"],
-          valueFunc: "AVG",
-          valueLabelReplacements: _VALUE_LABELS,
-          label: "Coverage estimated with different denominators (National)",
-          requiredDisaggregationOptions: [
-            "denominator_best_or_survey",
-            "indicator_common_id",
-            "year",
-          ],
-          formatAs: "percent",
-          periodOptions: ["year"],
-        },
-      ],
     },
     {
-      id: "M4_combined_results_admin2.csv",
+      id: "M5_combined_results_admin2.csv",
       description: "Selected denominators (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -258,27 +193,9 @@ export const definition = {
         denominator_best_or_survey: "TEXT NOT NULL",
         value: "NUMERIC NOT NULL",
       },
-      resultsValues: [
-        {
-          id: "m4a-02-02",
-          valueProps: ["value"],
-          valueFunc: "AVG",
-          valueLabelReplacements: _VALUE_LABELS,
-          label:
-            "Coverage estimated with different denominators (Admin area 2)",
-          requiredDisaggregationOptions: [
-            "denominator_best_or_survey",
-            "admin_area_2",
-            "indicator_common_id",
-            "year",
-          ],
-          formatAs: "percent",
-          periodOptions: ["year"],
-        },
-      ],
     },
     {
-      id: "M4_combined_results_admin3.csv",
+      id: "M5_combined_results_admin3.csv",
       description: "Selected denominators (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -288,32 +205,9 @@ export const definition = {
         denominator_best_or_survey: "TEXT NOT NULL",
         value: "NUMERIC NOT NULL",
       },
-      resultsValues: [
-        {
-          id: "m4a-02-03",
-          valueProps: ["value"],
-          valueFunc: "AVG",
-          valueLabelReplacements: _VALUE_LABELS,
-          label:
-            "Coverage estimated with different denominators (Admin area 3)",
-          requiredDisaggregationOptions: [
-            "denominator_best_or_survey",
-            "admin_area_3",
-            "indicator_common_id",
-            "year",
-          ],
-          formatAs: "percent",
-          periodOptions: ["year"],
-        },
-      ],
     },
-    /////////////////////////
-    //                     //
-    //    Documentation    //
-    //                     //
-    /////////////////////////
     {
-      id: "M4_selected_denominator_per_indicator.csv",
+      id: "M5_selected_denominator_per_indicator.csv",
       description: "Selected denominators",
       createTableStatementPossibleColumns: {
         indicator_common_id: "TEXT NOT NULL",
@@ -321,7 +215,114 @@ export const definition = {
         denominator_admin2: "TEXT NOT NULL",
         denominator_admin3: "TEXT NOT NULL",
       },
-      resultsValues: [],
+    },
+  ],
+  /////////////////////////////////////////////////////////////////////////
+  //  __       __              __                __                      //
+  // /  \     /  |            /  |              /  |                     //
+  // $$  \   /$$ |  ______   _$$ |_     ______  $$/   _______   _______  //
+  // $$$  \ /$$$ | /      \ / $$   |   /      \ /  | /       | /       | //
+  // $$$$  /$$$$ |/$$$$$$  |$$$$$$/   /$$$$$$  |$$ |/$$$$$$$/ /$$$$$$$/  //
+  // $$ $$ $$/$$ |$$    $$ |  $$ | __ $$ |  $$/ $$ |$$ |      $$      \  //
+  // $$ |$$$/ $$ |$$$$$$$$/   $$ |/  |$$ |      $$ |$$ \_____  $$$$$$  | //
+  // $$ | $/  $$ |$$       |  $$  $$/ $$ |      $$ |$$       |/     $$/  //
+  // $$/      $$/  $$$$$$$/    $$$$/  $$/       $$/  $$$$$$$/ $$$$$$$/   //
+  //                                                                     //
+  /////////////////////////////////////////////////////////////////////////
+  metrics: [
+    {
+      id: "m4a-01-01",
+      resultsObjectId: "M5_denominators_national.csv",
+      valueProps: ["value"],
+      valueFunc: "AVG",
+      valueLabelReplacements: _VALUE_LABELS,
+      label: "Denominator values",
+      variantLabel: "National",
+      requiredDisaggregationOptions: ["denominator", "year"],
+      formatAs: "number",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m4a-01-02",
+      resultsObjectId: "M5_denominators_admin2.csv",
+      valueProps: ["value"],
+      valueFunc: "AVG",
+      valueLabelReplacements: _VALUE_LABELS,
+      label: "Denominator values",
+      variantLabel: "Admin area 2",
+      requiredDisaggregationOptions: [
+        "denominator",
+        "admin_area_2",
+        "year",
+      ],
+      formatAs: "number",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m4a-01-03",
+      resultsObjectId: "M5_denominators_admin3.csv",
+      valueProps: ["value"],
+      valueFunc: "AVG",
+      valueLabelReplacements: _VALUE_LABELS,
+      label: "Denominator values",
+      variantLabel: "Admin area 3",
+      requiredDisaggregationOptions: [
+        "denominator",
+        "admin_area_3",
+        "year",
+      ],
+      formatAs: "number",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m4a-02-01",
+      resultsObjectId: "M5_combined_results_national.csv",
+      valueProps: ["value"],
+      valueFunc: "AVG",
+      valueLabelReplacements: _VALUE_LABELS,
+      label: "Coverage estimated with different denominators",
+      variantLabel: "National",
+      requiredDisaggregationOptions: [
+        "denominator_best_or_survey",
+        "indicator_common_id",
+        "year",
+      ],
+      formatAs: "percent",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m4a-02-02",
+      resultsObjectId: "M5_combined_results_admin2.csv",
+      valueProps: ["value"],
+      valueFunc: "AVG",
+      valueLabelReplacements: _VALUE_LABELS,
+      label: "Coverage estimated with different denominators",
+      variantLabel: "Admin area 2",
+      requiredDisaggregationOptions: [
+        "denominator_best_or_survey",
+        "admin_area_2",
+        "indicator_common_id",
+        "year",
+      ],
+      formatAs: "percent",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m4a-02-03",
+      resultsObjectId: "M5_combined_results_admin3.csv",
+      valueProps: ["value"],
+      valueFunc: "AVG",
+      valueLabelReplacements: _VALUE_LABELS,
+      label: "Coverage estimated with different denominators",
+      variantLabel: "Admin area 3",
+      requiredDisaggregationOptions: [
+        "denominator_best_or_survey",
+        "admin_area_3",
+        "indicator_common_id",
+        "year",
+      ],
+      formatAs: "percent",
+      periodOptions: ["year"],
     },
   ],
   ////////////////////////////////////////////////////////////////////

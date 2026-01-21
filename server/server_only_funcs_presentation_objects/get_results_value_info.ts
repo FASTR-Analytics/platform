@@ -10,17 +10,15 @@ import {
 } from "lib";
 import { getPeriodBounds } from "./get_period_bounds.ts";
 import { getPossibleValues } from "./get_possible_values.ts";
-import { resolveResultsValueFromInstalledModule } from "../db/project/results_value_resolver.ts";
+import { resolveMetricById } from "../db/project/results_value_resolver.ts";
 import { getFacilityColumnsConfig } from "../db/instance/config.ts";
 import { MAX_REPLICANT_OPTIONS } from "./consts.ts";
 
-// New V2 function that derives everything from the module definition
 export async function getResultsValueInfoForPresentationObject(
   mainDb: Sql,
   projectDb: Sql,
   projectId: string,
-  moduleId: string,
-  resultsValueId: string,
+  metricId: string,
   moduleLastRun: string,
 ): Promise<
   APIResponseWithData<ResultsValueInfoForPresentationObject>
@@ -32,11 +30,10 @@ export async function getResultsValueInfoForPresentationObject(
       ? facilityConfigResult.data
       : undefined;
 
-    // Resolve the ResultsValue with enrichment
-    const resResultsValue = await resolveResultsValueFromInstalledModule(
+    // Resolve the metric with enrichment
+    const resResultsValue = await resolveMetricById(
       projectDb,
-      moduleId,
-      resultsValueId,
+      metricId,
       facilityConfig,
     );
     throwIfErrWithData(resResultsValue);
@@ -53,7 +50,7 @@ export async function getResultsValueInfoForPresentationObject(
       projectDb,
       projectId,
       resultsObjectId,
-      resultsValueId,
+      metricId,
       firstPeriodOption,
       disaggregationOptions,
       moduleLastRun,
@@ -90,7 +87,7 @@ async function getResultsObjectVariableInfoCore(
   projectDb: Sql,
   projectId: string,
   resultsObjectId: string,
-  resultsValueId: string,
+  metricId: string,
   firstPeriodOption: PeriodOption | undefined,
   disaggregationOptions: DisaggregationOption[],
   moduleLastRun: string,
@@ -157,7 +154,7 @@ async function getResultsObjectVariableInfoCore(
       success: true,
       data: {
         resultsObjectId,
-        resultsValueId,
+        metricId,
         projectId,
         moduleLastRun,
         periodBounds,

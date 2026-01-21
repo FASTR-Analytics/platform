@@ -23,7 +23,6 @@ import {
   untrackCanvas,
 } from "../deps.ts";
 import type {
-  LayoutWarning,
   MeasuredPage,
   PageHitTarget,
   PageInputs,
@@ -84,7 +83,7 @@ export function EditablePageHolder(p: Props) {
   const unscaledH = p.fixedCanvasH;
 
   const [err, setErr] = createSignal<string>("");
-  const [warnings, setWarnings] = createSignal<LayoutWarning[]>([]);
+  const [overflow, setOverflow] = createSignal<boolean>(false);
   const [hitRegions, setHitRegions] = createSignal<PageHitTarget[]>([]);
   const [currentHit, setCurrentHit] = createSignal<PageHitTarget | undefined>(
     undefined,
@@ -139,7 +138,7 @@ export function EditablePageHolder(p: Props) {
       mainCachedContext!,
       p.pageInputs,
       setErr,
-      setWarnings,
+      setOverflow,
       setHitRegions,
       unscaledW,
       unscaledH,
@@ -250,13 +249,13 @@ export function EditablePageHolder(p: Props) {
       class="relative w-full data-[fitWithin=true]:h-full"
       data-fitWithin={!!p.fitWithin}
     >
-      <Show when={err() || warnings().length > 0}>
+      <Show when={err() || overflow()}>
         <Switch>
           <Match when={p.simpleError}>
             <div class="absolute inset-0 flex items-center justify-center">
               <div class="bg-danger text-base-100 pointer-events-none p-1 text-xs">
                 <Show when={err()}>Config error</Show>
-                <Show when={!err()}>Layout error</Show>
+                <Show when={!err()}>Layout overflow</Show>
               </div>
             </div>
           </Match>
@@ -267,7 +266,7 @@ export function EditablePageHolder(p: Props) {
                   <div class="">{err()}</div>
                 </Show>
                 <Show when={!err()}>
-                  <div class="">{warnings().at(0)?.message}</div>
+                  <div class="">Content exceeds available space</div>
                 </Show>
               </div>
             </div>
@@ -301,7 +300,7 @@ function updatePage(
   ctx: CanvasRenderingContext2D,
   pageInputs: PageInputs | undefined,
   setErr: Setter<string>,
-  setWarnings: Setter<LayoutWarning[]>,
+  setOverflow: Setter<boolean>,
   setHitRegions: Setter<PageHitTarget[]>,
   unscaledW: number,
   unscaledH: number,
@@ -333,7 +332,7 @@ function updatePage(
         const rcd = new RectCoordsDims([0, 0, unscaledW, unscaledH]);
 
         const mPage = await PageRenderer.measure(rc, rcd, pageInputs);
-        setWarnings(mPage.warnings);
+        setOverflow(mPage.overflow);
 
         const regions = buildHitRegions(mPage);
         setHitRegions(regions);

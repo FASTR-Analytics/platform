@@ -10,7 +10,7 @@ import {
   type LayoutNode,
   type RenderContext,
 } from "./deps.ts";
-import { type ConvertedPageContent } from "./convert_to_page_content.ts";
+import type { ConvertedPageContent } from "./convert_to_page_content.ts";
 import {
   contentGroupToPageContentItem,
   groupDocElementsByContentType,
@@ -49,7 +49,7 @@ export function buildMarkdownPageContents(
             config.images,
             config.figures,
             config.style,
-          )
+          ),
         )
         .filter((item) => item !== undefined)
         .map((item) => createItemNode(item));
@@ -59,7 +59,8 @@ export function buildMarkdownPageContents(
 
   const parsed = parseMarkdown(markdown);
 
-  const contentHeight = config.pageHeight -
+  const contentHeight =
+    config.pageHeight -
     config.pagePadding * 2 -
     (config.headerHeight ?? 0) -
     (config.footerHeight ?? 0);

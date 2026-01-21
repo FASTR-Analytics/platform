@@ -15,4 +15,4 @@ export { PageRenderer } from "../_121_page/mod.ts";
 export type { PageInputs } from "../_121_page/mod.ts";
 export { validateFilePath } from "../_230_file_utils/mod.ts";
 export { getWoffFontAbsoluteFilePath } from "../_231_font_paths/mod.ts";
-export { Canvas, createCanvas, Fonts, Image } from "@gfx/canvas";
+export { Canvas, Fonts, Image, createCanvas } from "@gfx/canvas";

@@ -66,7 +66,7 @@ async function getSlideAsCanvas(
 
   if (h === undefined) {
     const { rc } = await createCanvasRenderContext(w, 100);
-    finalH = await PageRenderer.getIdealHeight(rc, w, inputs);
+    finalH = PageRenderer.getIdealHeight(rc, w, inputs).idealH;
   } else {
     finalH = h;
   }
@@ -74,19 +74,12 @@ async function getSlideAsCanvas(
   const { canvas, rc, rcd } = await createCanvasRenderContext(w, finalH);
   const mSlide = await PageRenderer.measure(rc, rcd, inputs);
 
-  // Check for warnings from layout measurement
-  if (mSlide.warnings.length > 0) {
+  // Check for overflow
+  if (mSlide.overflow) {
     const slideLabel = slideNumber !== undefined
       ? `Slide ${slideNumber}`
       : "Slide";
-    console.warn(`${slideLabel} layout warnings:`);
-    for (const warning of mSlide.warnings) {
-      console.warn(
-        `  - ${warning.type}: ${warning.message}${
-          warning.path ? ` (at ${warning.path})` : ""
-        }`,
-      );
-    }
+    console.warn(`${slideLabel}: Content exceeds available space`);
   }
 
   await PageRenderer.render(rc, mSlide);

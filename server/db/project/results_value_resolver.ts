@@ -1,67 +1,35 @@
 import { Sql } from "postgres";
 import {
-  ModuleDefinition,
   ResultsValue,
-  parseJsonOrThrow,
   type APIResponseWithData,
   type InstanceConfigFacilityColumns,
-  type ResultsValueDefinition,
 } from "lib";
-import { DBModule } from "./_project_database_types.ts";
-import { enrichResultsValue } from "./results_value_enricher.ts";
+import { DBMetric } from "./_project_database_types.ts";
+import { enrichMetric } from "./metric_enricher.ts";
 
-export async function resolveResultsValueFromInstalledModule(
+/**
+ * Resolves a metric by its ID from the metrics table.
+ * Returns a fully enriched ResultsValue with disaggregation options.
+ */
+export async function resolveMetricById(
   projectDb: Sql,
-  moduleId: string,
-  resultsValueId: string,
+  metricId: string,
   facilityConfig?: InstanceConfigFacilityColumns
 ): Promise<APIResponseWithData<ResultsValue>> {
   try {
-    // Query the installed module from the modules table
-    const rawModule = (
-      await projectDb<DBModule[]>`
-        SELECT module_definition FROM modules WHERE id = ${moduleId}
+    const dbMetric = (
+      await projectDb<DBMetric[]>`
+        SELECT * FROM metrics WHERE id = ${metricId}
       `
     ).at(0);
 
-    if (!rawModule) {
-      return { success: false, err: `Module not found: ${moduleId}` };
+    if (!dbMetric) {
+      return { success: false, err: `Metric not found: ${metricId}` };
     }
 
-    // Parse the module definition
-    const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-      rawModule.module_definition
-    );
-
-    // Search for the ResultsValue in all resultsObjects
-    let foundResultsValue: ResultsValueDefinition | null = null;
-    for (const resultsObject of moduleDefinition.resultsObjects) {
-      for (const resultsValue of resultsObject.resultsValues) {
-        if (resultsValue.id === resultsValueId) {
-          foundResultsValue = resultsValue;
-          break;
-        }
-      }
-      if (foundResultsValue) break;
-    }
-
-    if (!foundResultsValue) {
-      return {
-        success: false,
-        err: `ResultsValue not found: ${resultsValueId} in module ${moduleId}`,
-      };
-    }
-
-    // Use the enricher to handle all enrichment logic including facility columns
-    const enrichedResultsValue = await enrichResultsValue(
-      foundResultsValue,
-      foundResultsValue.resultsObjectId,
-      projectDb,
-      facilityConfig
-    );
-
-    return { success: true, data: enrichedResultsValue };
+    const enrichedMetric = await enrichMetric(dbMetric, projectDb, facilityConfig);
+    return { success: true, data: enrichedMetric };
   } catch (error) {
-    return { success: false, err: `Error resolving ResultsValue: ${error}` };
+    return { success: false, err: `Error resolving metric: ${error}` };
   }
 }

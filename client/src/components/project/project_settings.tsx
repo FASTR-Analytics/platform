@@ -1,4 +1,4 @@
-import { ProjectDetail, ProjectUser, t, t2, T } from "lib";
+import { ProjectDetail, InstanceDetail, ProjectUser, t, t2, T, APIResponseNoData } from "lib";
 import {
   Button,
   FrameTop,
@@ -10,12 +10,45 @@ import {
   timActionDelete,
   timActionButton,
 } from "panther";
-import { Match, Show, Switch } from "solid-js";
+import { Match, Show, Switch, onMount, For, createResource, createSignal } from "solid-js";
+import { clerk } from "~/components/LoggedInWrapper";
 import { Table, TableColumn, type BulkAction } from "panther";
 import { EditLabelForm } from "~/components/forms_editors/edit_label";
 import { SelectProjectUserRole } from "~/components/forms_editors/select_project_user_role";
 import { serverActions } from "~/server_actions";
 import { CopyProjectForm } from "./copy_project";
+import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
+import { CreateBackupForm } from "./create_backup_form";
+import { CreateRestoreFromFileForm } from "./restore_from_file_form"
+
+// Backup types
+interface BackupFileInfo {
+  name: string;
+  size: number;
+  type: "main" | "project" | "metadata" | "log" | "other";
+}
+
+interface ProjectBackupInfo {
+  project_id: string;
+  project_label: string;
+  folder: string;
+  timestamp: string;
+  backup_date: string;
+  size: number;
+  file_count: number;
+  files: BackupFileInfo[];
+}
+
+interface BackupInfo {
+  folder: string;
+  timestamp: string;
+  backup_date: string;
+  total_projects: number;
+  backed_up_projects: number;
+  size: number;
+  file_count: number;
+  files: BackupFileInfo[];
+}
 
 type Props = {
   isGlobalAdmin: boolean;
@@ -23,6 +56,7 @@ type Props = {
   silentRefreshProject: () => Promise<void>;
   silentRefreshInstance: () => Promise<void>;
   backToHome: () => void;
+  instanceDetail: InstanceDetail;
 };
 
 export function ProjectSettings(p: Props) {
@@ -126,6 +160,7 @@ export function ProjectSettings(p: Props) {
     await deleteAction.click();
   }
 
+
   return (
     <FrameTop panelChildren={<HeadingBar heading={t2(T.FRENCH_UI_STRINGS.settings)}></HeadingBar>}>
       <div class="ui-pad ui-spy">
@@ -207,7 +242,7 @@ export function ProjectSettings(p: Props) {
         <SettingsSection
           header={t2("Backups")}
         >
-          Backups go here
+          <ProjectBackups projectId={p.projectDetail.id} instanceDetail={p.instanceDetail} />
         </SettingsSection>
 
         <div class="ui-gap flex">
@@ -304,5 +339,394 @@ function ProjectUserTable(p: {
       bulkActions={bulkActions}
       tableContentMaxHeight="500px"
     />
+  );
+}
+
+
+
+
+// Helper to check if a backup name matches the automatic date format
+const isAutomaticBackup = (folderName: string): boolean => {
+  // Match format: YYYY-MM-DD_HH-MM-SS
+  const datePattern = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
+  return datePattern.test(folderName);
+};
+
+// Helper to extract date from automatic backup folder name
+const extractDate = (folderName: string): string => {
+  return folderName.split('_')[0]; // Returns "YYYY-MM-DD"
+};
+
+interface GroupedBackups {
+  date?: string; // For automatic backups grouped by date
+  isCustom?: boolean; // For custom backups folder
+  backups: ProjectBackupInfo[];
+}
+
+function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDetail }) {
+  const [expandedGroups, setExpandedGroups] = createSignal<Set<string>>(new Set());
+
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups((prev: Set<string>) => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupKey)) {
+        newSet.delete(groupKey);
+      } else {
+        newSet.add(groupKey);
+      }
+      return newSet;
+    });
+  };
+
+  const [backupsList, { refetch: refetchBackups }] = createResource<ProjectBackupInfo[]>(async () => {
+    const token = await clerk.session?.getToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Call your backend endpoint which will forward to the external API
+    const response = await fetch('/api/all-projects-backups', { headers });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch backups: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch backups');
+    }
+
+    const allBackups = data.backups || [];
+
+    // Filter backups to only include those containing this project
+    const projectBackups = allBackups
+      .map((backup: any) => {
+        // Filter files to only include the project backups
+        const projectFiles = backup.files.filter((file: BackupFileInfo) =>
+          file.type === 'project' && file.name.includes(props.projectId)
+        );
+
+        // Only include this backup if it has project files
+        if (projectFiles.length === 0) {
+          return null;
+        }
+
+        // Calculate size of just the project files
+        const projectSize = projectFiles.reduce((sum: number, file: BackupFileInfo) => sum + file.size, 0);
+
+        return {
+          ...backup,
+          files: projectFiles,
+          size: projectSize,
+          file_count: projectFiles.length,
+        };
+      })
+      .filter((backup: any) => backup !== null);
+
+    return projectBackups;
+  });
+
+  // Group backups by date or custom
+  const groupedBackups = (): GroupedBackups[] => {
+    const backups = backupsList();
+    if (!backups) return [];
+
+    const dateGroups = new Map<string, ProjectBackupInfo[]>();
+    const customBackups: ProjectBackupInfo[] = [];
+
+    backups.forEach((backup: ProjectBackupInfo) => {
+      if (isAutomaticBackup(backup.folder)) {
+        const date = extractDate(backup.folder);
+        if (!dateGroups.has(date)) {
+          dateGroups.set(date, []);
+        }
+        dateGroups.get(date)!.push(backup);
+      } else {
+        customBackups.push(backup);
+      }
+    });
+
+    const groups: GroupedBackups[] = [];
+
+    // Add date groups (sorted newest first)
+    const sortedDates = Array.from(dateGroups.keys()).sort((a, b) => b.localeCompare(a));
+    sortedDates.forEach((date) => {
+      const backupsInGroup = dateGroups.get(date)!;
+      // Sort backups within the group by time (newest first)
+      backupsInGroup.sort((a, b) => b.folder.localeCompare(a.folder));
+      groups.push({
+        date,
+        backups: backupsInGroup,
+      });
+    });
+
+    // Add custom backups group if any exist
+    if (customBackups.length > 0) {
+      customBackups.sort((a, b) => b.folder.localeCompare(a.folder));
+      groups.push({
+        isCustom: true,
+        backups: customBackups,
+      });
+    }
+
+    return groups;
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  };
+
+  const downloadFile = async (folder: string, fileName: string) => {
+    try {
+      const token = await clerk.session?.getToken();
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      console.log("Downloading file:", folder, fileName);
+      const response = await fetch(`/api/backups/${folder}/${fileName}`, { headers });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        console.error("Download failed:", response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error("Download failed:", error);
+    }
+  };
+
+  const restoreBackup = async (folder: string, fileName: string) => {
+    try {
+      const token = await clerk.session?.getToken();
+      const headers: HeadersInit={};
+      const projectId = props.projectId;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      headers['Content-Type'] = 'application/json';
+      const response = await fetch(`/api/restore-backup`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ folder, fileName, projectId })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        return { success: false, err: data.error || "Failed to restore" };
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        return { success: false, err: data.error || "Restore failed" };
+      }
+
+      // Force full page reload after successful restore to clear all cached data
+      window.location.reload();
+
+      return { success: true};
+    } catch (error) {
+      console.error("Backup restore failed", error);
+    }
+  };
+
+  const attemptCreateBackup = async () => {
+    await openComponent({
+      element: CreateBackupForm,
+      props: {
+        projectId: props.projectId,
+        createBackupFunc: async(backupName: string): Promise<APIResponseNoData> => {
+          const token = await clerk.session?.getToken();
+          const headers: HeadersInit = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          const response = await fetch(`/api/create-backup/${backupName}`, {
+            method: 'POST',
+            headers
+          });
+
+          if (!response.ok) {
+            return { success: false, err: "Failed to create backup" };
+          }
+
+          const data = await response.json();
+
+          if (!data.success) {
+            return { success: false, err: data.error || "Backup failed" };
+          }
+
+          return { success: true };
+        },
+        silentFetch: async () => { refetchBackups(); },
+      }
+    })
+  };
+
+  const attemptRestoreBackup = async () => {
+    await openComponent({
+      element: CreateRestoreFromFileForm,
+      props: {
+        restoreBackupFunc: async(file: File): Promise<APIResponseNoData> => {
+          // Read file as base64 (handle large files properly)
+          const arrayBuffer = await file.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = '';
+          const chunkSize = 0x8000; // 32KB chunks to avoid stack overflow
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+          }
+          const base64 = btoa(binary);
+
+          const token = await clerk.session?.getToken();
+          const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+          };
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          const response = await fetch(`/api/restore-backup`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              projectId: props.projectId,
+              fileData: base64,
+              fileName: file.name
+            })
+          });
+
+          if (!response.ok) {
+            const data = await response.json();
+            return { success: false, err: data.error || "Failed to restore" };
+          }
+
+          const data = await response.json();
+          if (!data.success) {
+            return { success: false, err: data.error || "Restore failed" };
+          }
+
+          // Force full page reload after successful restore to clear all cached data
+          window.location.reload();
+
+          return { success: true};
+        }
+      }
+    })
+  }
+
+  const formatTime = (folderName: string): string => {
+    // Extract time from YYYY-MM-DD_HH-MM-SS format
+    const timePart = folderName.split('_')[1];
+    if (!timePart) return folderName;
+    return timePart.replace(/-/g, ':');
+  };
+
+  return (
+    <div>
+      <div class="mb-3 flex items-center justify-between">
+        <div class="text-sm text-neutral">
+          {backupsList.loading ? "" : `${backupsList()?.length || 0} backup(s) available`}
+        </div>
+        <div class="flex gap-2">
+          <Button onClick={attemptCreateBackup} size="sm">
+            {t("Create backup")}
+          </Button>
+          <Button onClick={attemptRestoreBackup}size="sm">
+            {t("Restore from file")}
+          </Button>
+          <Button onClick={() => refetchBackups()} iconName="refresh" size="sm" outline>
+            {t("Refresh")}
+          </Button>
+        </div>
+      </div>
+      <Show when={!backupsList.loading} fallback={<div>Loading backups...</div>}>
+        <Show
+          when={backupsList() && backupsList()!.length > 0}
+          fallback={<div class="text-neutral">No backups available for this project</div>}
+        >
+          <div class="flex flex-col gap-2">
+            <For each={groupedBackups()}>
+              {(group: GroupedBackups) => {
+                const groupKey = group.isCustom ? 'custom' : group.date!;
+                const isExpanded = () => expandedGroups().has(groupKey);
+
+                return (
+                  <div class="flex flex-col">
+                    {/* Group Header */}
+                    <button
+                      onClick={() => toggleGroup(groupKey)}
+                      class="flex items-center justify-between rounded border border-neutral-200 bg-neutral-50 p-3 text-left hover:bg-neutral-100 transition-colors"
+                    >
+                      <div class="flex items-center gap-2">
+                        <span class="text-lg">
+                          {isExpanded() ? '▼' : '▶'}
+                        </span>
+                        <span class="font-medium">
+                          {group.isCustom ? 'Custom Backups' : group.date}
+                        </span>
+                        <span class="text-sm text-neutral">
+                          ({group.backups.length} backup{group.backups.length !== 1 ? 's' : ''})
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Expanded Backups */}
+                    <Show when={isExpanded()}>
+                      <div class="ml-6 mt-2 flex flex-col gap-2">
+                        <For each={group.backups}>
+                          {(backup: ProjectBackupInfo) => (
+                            <div class="flex items-center justify-between rounded border border-neutral-200 p-3 bg-white">
+                              <div class="flex flex-col gap-1">
+                                <span class="font-medium">
+                                  {group.isCustom ? backup.folder : formatTime(backup.folder)}
+                                </span>
+                                <span class="text-sm text-neutral">
+                                  {formatBytes(backup.size)}
+                                </span>
+                              </div>
+                              <div class="flex gap-2">
+                                <Button
+                                  onClick={() => downloadFile(backup.folder, backup.files[0].name)}
+                                  iconName="download"
+                                  intent="primary"
+                                  size="sm"
+                                >
+                                  Download
+                                </Button>
+                                <Button
+                                  onClick={() => restoreBackup(backup.folder, backup.files[0].name)}
+                                  size="sm"
+                                  outline
+                                >
+                                  Restore
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
+                  </div>
+                );
+              }}
+            </For>
+          </div>
+        </Show>
+      </Show>
+    </div>
   );
 }

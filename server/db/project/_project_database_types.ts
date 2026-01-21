@@ -20,20 +20,34 @@ export type DBModule = {
   last_updated: string;
   last_run: string;
   dirty: string;
+  latest_ran_commit_sha: string | null;
+};
+
+export type DBMetric = {
+  id: string;
+  module_id: string;
+  label: string;
+  variant_label: string | null;
+  value_func: string;
+  format_as: string;
+  value_props: string;
+  period_options: string;
+  required_disaggregation_options: string;
+  value_label_replacements: string | null;
+  post_aggregation_expression: string | null;
+  auto_include_facility_columns: boolean;
+  results_object_id: string;
+  ai_description: string | null;
 };
 
 export type DBPresentationObject = {
   id: string;
-  module_id: string;
-  results_object_id: string;
-  results_value: string;
-  //
+  metric_id: string;
+  is_default_visualization: boolean;
   label: string;
   config: string;
-  is_default_visualization: boolean;
-  created_by_ai: boolean;
-  //
   last_updated: string;
+  created_by_ai: boolean;
 };
 
 export type DBReport = {

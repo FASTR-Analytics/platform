@@ -4,7 +4,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "45f2bcd8-879d-4423-a4b0-a84127e168bf",
     label: "Default 1. Number of services reported",
-    resultsValueId: "m3-01-01",
+    metricId: "m3-01-01",
     config: {
       d: {
         type: "timeseries",
@@ -36,7 +36,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "7196a784-8665-41ad-b563-965c59937def",
     label: "Default 2. Change in service volume, quarterly",
-    resultsValueId: "m3-01-01",
+    metricId: "m3-01-01",
     config: {
       d: {
         type: "timeseries",
@@ -74,7 +74,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "cfc11e32-5102-484c-b242-892bb132c410",
     label: "Default 3. Change in service volume, annually",
-    resultsValueId: "m3-01-01",
+    metricId: "m3-01-01",
     config: {
       d: {
         type: "timeseries",
@@ -106,7 +106,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "20658bc8-2b24-4adc-8090-407c6e34f22a",
     label: "Default 4. Change in service volume (Admin area 2)",
-    resultsValueId: "m3-01-01",
+    metricId: "m3-01-01",
     config: {
       d: {
         type: "timeseries",
@@ -143,7 +143,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "e51a15fd-acfc-4da9-8797-b462b9626cff",
     label: "Default 5. Actual vs expected number of services (National)",
-    resultsValueId: "m3-02-01",
+    metricId: "m3-02-01",
     config: {
       d: {
         type: "timeseries",
@@ -177,7 +177,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "e1916b10-433a-4b19-b376-491a66b81f11",
     label: "Default 6. Actual vs expected number of services (Admin area 2)",
-    resultsValueId: "m3-03-01",
+    metricId: "m3-03-01",
     config: {
       d: {
         type: "timeseries",
@@ -220,7 +220,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "508f17cc-fbfd-4585-a2e8-8242234898c3",
     label: "Default 7. Volume change due to data quality adjustments",
-    resultsValueId: "m3-01-01",
+    metricId: "m3-01-01",
     config: {
       d: {
         type: "timeseries",

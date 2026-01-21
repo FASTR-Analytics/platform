@@ -1,54 +1,63 @@
-import { t } from "lib";
-import { Button, getSelectOptions, getSelectOptionsFromIdLabel, Input, Select, timActionButton } from "panther";
-import { createSignal, For, Show } from "solid-js";
+import { t, type DisaggregationOption } from "lib";
+import { Button, getSelectOptionsFromIdLabel, Input, Select, timActionButton } from "panther";
+import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { getMetricDataForAI } from "~/utils/get_metric_data_for_ai";
 
 type Props = {
   projectId: string;
 };
 
 const TOOLS = [
-  { id: "get_available_results_values", label: "Get Available Results Values" },
-  { id: "get_results_value_details", label: "Get Results Value Details" },
+  { id: "get_available_metrics", label: "Get Available Metrics" },
+  { id: "get_metric_data", label: "Get Metric Data" },
   { id: "get_visualizations_list", label: "Get Visualizations List" },
   { id: "get_modules_list", label: "Get Modules List" },
 ];
 
 export function AIToolsDebug(p: Props) {
   const [selectedTool, setSelectedTool] = createSignal<string>(TOOLS[0].id);
-  const [moduleId, setModuleId] = createSignal("");
-  const [resultsValueId, setResultsValueId] = createSignal("");
   const [output, setOutput] = createSignal<string | null>(null);
+
+  // Inputs for get_metric_data
+  const [metricId, setMetricId] = createSignal("");
+  const [disaggregations, setDisaggregations] = createSignal("");
 
   const runTool = timActionButton(async () => {
     const tool = selectedTool();
     let result: string;
 
-    if (tool === "get_available_results_values") {
-      const res = await serverActions.getAllModulesWithResultsValues({
+    if (tool === "get_available_metrics") {
+      const res = await serverActions.getMetricsListForAI({
         projectId: p.projectId,
       });
       if (!res.success) return res;
-      result = formatResultsValuesForAI(res.data);
-    } else if (tool === "get_results_value_details") {
-      if (!moduleId() || !resultsValueId()) {
-        return { success: false, err: t("moduleId and resultsValueId are required") };
+      result = res.data;
+    } else if (tool === "get_metric_data") {
+      if (!metricId()) {
+        return { success: false, err: "metricId is required" };
       }
-      const res = await serverActions.getResultsValueInfoForPresentationObject({
-        projectId: p.projectId,
-        moduleId: moduleId(),
-        resultsValueId: resultsValueId(),
-      });
-      if (!res.success) return res;
-      result = formatResultsValueDetailsForAI(res.data);
+      const disaggArr = disaggregations()
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0) as DisaggregationOption[];
+      try {
+        result = await getMetricDataForAI(
+          p.projectId,
+          metricId(),
+          disaggArr,
+        );
+      } catch (error) {
+        return { success: false, err: String(error) };
+      }
     } else if (tool === "get_visualizations_list") {
-      const res = await serverActions.getVisualizationsList({
+      const res = await serverActions.getVisualizationsListForAI({
         projectId: p.projectId,
       });
       if (!res.success) return res;
       result = res.data;
     } else if (tool === "get_modules_list") {
-      const res = await serverActions.getModulesList({
+      const res = await serverActions.getModulesListForAI({
         projectId: p.projectId,
       });
       if (!res.success) return res;
@@ -61,7 +70,7 @@ export function AIToolsDebug(p: Props) {
     return { success: true, data: null };
   }, () => { });
 
-  const needsParams = () => selectedTool() === "get_results_value_details";
+  const needsMetricInputs = () => selectedTool() === "get_metric_data";
 
   return (
     <div class="ui-pad ui-spy flex h-full flex-col">
@@ -75,18 +84,18 @@ export function AIToolsDebug(p: Props) {
           options={getSelectOptionsFromIdLabel(TOOLS)}
         />
 
-        <Show when={needsParams()}>
+        <Show when={needsMetricInputs()}>
           <Input
-            label={t("Module ID")}
-            value={moduleId()}
-            onChange={setModuleId}
-            placeholder="e.g., m003"
+            label="Metric ID"
+            value={metricId()}
+            onChange={setMetricId}
+            placeholder="e.g., m1-01-00"
           />
           <Input
-            label={t("Results Value ID")}
-            value={resultsValueId()}
-            onChange={setResultsValueId}
-            placeholder="e.g., m3-01-01"
+            label="Disaggregations"
+            value={disaggregations()}
+            onChange={setDisaggregations}
+            placeholder="e.g., indicator_common_id, year"
           />
         </Show>
 
@@ -104,108 +113,4 @@ export function AIToolsDebug(p: Props) {
       </Show>
     </div>
   );
-}
-
-function formatResultsValuesForAI(
-  modules: {
-    id: string;
-    label: string;
-    resultsValues: {
-      id: string;
-      label: string;
-      formatAs: string;
-      disaggregationOptions: {
-        value: string;
-        label: string | { en: string; fr?: string };
-        isRequired: boolean;
-      }[];
-      periodOptions: string[];
-      aiDescription?: {
-        summary: string;
-        methodology?: string;
-        interpretation?: string;
-        useCases?: string[];
-      };
-    }[];
-  }[]
-): string {
-  const lines: string[] = [
-    "AVAILABLE DATA VALUES (ResultsValues)",
-    "=".repeat(80),
-    "",
-  ];
-
-  for (const module of modules) {
-    lines.push(`MODULE: ${module.label} (${module.id})`);
-    lines.push("-".repeat(40));
-
-    if (module.resultsValues.length === 0) {
-      lines.push("  No results values available");
-    }
-
-    for (const rv of module.resultsValues) {
-      lines.push(`  ID: ${rv.id}`);
-      lines.push(`  Label: ${rv.label}`);
-      lines.push(`  Format: ${rv.formatAs}`);
-
-      if (rv.aiDescription?.summary) {
-        lines.push(`  Description: ${rv.aiDescription.summary}`);
-      }
-
-      lines.push(`  Disaggregation options:`);
-      for (const opt of rv.disaggregationOptions) {
-        const label = typeof opt.label === "string" ? opt.label : opt.label.en;
-        const required = opt.isRequired ? " (required)" : "";
-        lines.push(`    - ${opt.value}: ${label}${required}`);
-      }
-
-      lines.push(`  Period options: ${rv.periodOptions.join(", ")}`);
-      lines.push("");
-    }
-    lines.push("");
-  }
-
-  return lines.join("\n");
-}
-
-function formatResultsValueDetailsForAI(data: {
-  periodBounds?: { min: number; max: number };
-  disaggregationPossibleValues: {
-    [key: string]:
-    | { status: "ok"; values: string[] }
-    | { status: "too_many_values" }
-    | { status: "no_values_available" }
-    | undefined;
-  };
-}): string {
-  const lines: string[] = ["RESULTS VALUE DETAILS", "=".repeat(80), ""];
-
-  if (data.periodBounds) {
-    lines.push(
-      `Period range: ${data.periodBounds.min} to ${data.periodBounds.max}`
-    );
-    lines.push("");
-  }
-
-  lines.push("Disaggregation dimensions:");
-  for (const [disOpt, info] of Object.entries(data.disaggregationPossibleValues)) {
-    if (!info) continue;
-    lines.push(`  ${disOpt}:`);
-    if (info.status === "too_many_values") {
-      lines.push(`    Status: Too many values (use filtering)`);
-    } else if (info.status === "no_values_available") {
-      lines.push(`    Status: No values available`);
-    } else if (info.status === "ok") {
-      lines.push(`    Values (${info.values.length}):`);
-      for (const val of info.values.slice(0, 20)) {
-        lines.push(`      - ${val}`);
-      }
-      if (info.values.length > 20) {
-        lines.push(`      ... and ${info.values.length - 20} more`);
-      }
-    }
-    lines.push("");
-  }
-
-  return lines.join("\n");
 }

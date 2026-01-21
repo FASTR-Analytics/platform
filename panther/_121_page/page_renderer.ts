@@ -5,7 +5,7 @@
 
 import { measurePage } from "./_internal/measure_page.ts";
 import { renderPage } from "./_internal/render_page.ts";
-import type { RectCoordsDims, RenderContext } from "./deps.ts";
+import type { HeightConstraints, RectCoordsDims, RenderContext } from "./deps.ts";
 import type { MeasuredPage, PageInputs } from "./types.ts";
 
 type PageRendererType = {
@@ -28,7 +28,7 @@ type PageRendererType = {
     width: number,
     item: PageInputs,
     responsiveScale?: number,
-  ): number;
+  ): HeightConstraints;
 };
 
 export const PageRenderer: PageRendererType = {
@@ -129,7 +129,8 @@ export const PageRenderer: PageRendererType = {
     width: number,
     _item: PageInputs,
     _responsiveScale?: number,
-  ): number {
-    return Math.round((width * 9) / 16);
+  ): HeightConstraints {
+    const h = Math.round((width * 9) / 16);
+    return { minH: h, idealH: h, maxH: h };
   },
 };

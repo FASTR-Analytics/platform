@@ -5,14 +5,13 @@ import {
   type BuiltModuleDefinitionJSON,
   type DefaultPresentationObject,
   type InstanceLanguage,
+  type MetricDefinition,
   type ModuleDefinition,
   type ModuleId,
   type PartialDefaultPresentationObject,
   type PartialDefaultPresentationObjectJSON,
   type PresentationObjectConfig,
   type ResultsObjectDefinition,
-  type ResultsObjectDefinitionJSON,
-  type ResultsValueDefinition,
 } from "lib";
 import { getTranslateFunc } from "./translation_utils.ts";
 
@@ -35,44 +34,18 @@ function mergePartialPresentationObjects(
   return partials.map(mergePartialPresentationObject);
 }
 
-function injectIdsIntoResultsObjects(
-  resultsObjects: ResultsObjectDefinitionJSON[],
-  moduleId: ModuleId
-): ResultsObjectDefinition[] {
-  return resultsObjects.map((ro) => ({
-    ...ro,
-    moduleId,
-    resultsValues: ro.resultsValues.map((rv) => ({
-      ...rv,
-      moduleId,
-      resultsObjectId: ro.id,
-    })),
-  }));
-}
-
-function injectIdsIntoPresentationObjects(
+function validatePresentationObjectMetricIds(
   presentationObjects: PartialDefaultPresentationObjectJSON[],
-  moduleId: ModuleId,
-  resultsObjects: ResultsObjectDefinition[]
-): PartialDefaultPresentationObject[] {
-  return presentationObjects.map((po) => {
-    // Find which resultsObject contains this resultsValueId
-    const resultsObject = resultsObjects.find((ro) =>
-      ro.resultsValues.some((rv) => rv.id === po.resultsValueId)
-    );
-
-    if (!resultsObject) {
+  metrics: MetricDefinition[]
+): void {
+  const metricIds = new Set(metrics.map((m) => m.id));
+  for (const po of presentationObjects) {
+    if (!metricIds.has(po.metricId)) {
       throw new Error(
-        `Could not find resultsObject for resultsValueId: ${po.resultsValueId}`
+        `Presentation object "${po.id}" references unknown metricId: ${po.metricId}`
       );
     }
-
-    return {
-      ...po,
-      moduleId,
-      resultsObjectId: resultsObject.id,
-    };
-  });
+  }
 }
 
 type ModuleManifest = {
@@ -134,37 +107,48 @@ export async function getModuleDefinitionDetail(
 
     const tc = getTranslateFunc(language);
 
-    // Inject IDs into results objects and values
-    const resultsObjectsWithIds = injectIdsIntoResultsObjects(
-      rawModuleJSON.resultsObjects,
-      rawModuleJSON.id
+    // Validate presentation objects reference valid metrics
+    validatePresentationObjectMetricIds(
+      rawModuleJSON.defaultPresentationObjects,
+      rawModuleJSON.metrics
     );
 
-    // Merge partial presentation objects and inject IDs
-    const presentationObjectsWithIds = injectIdsIntoPresentationObjects(
-      rawModuleJSON.defaultPresentationObjects,
-      rawModuleJSON.id,
-      resultsObjectsWithIds
-    );
+    // Add moduleId to presentation objects (derived from parent)
+    const presentationObjectsWithModuleId: PartialDefaultPresentationObject[] =
+      rawModuleJSON.defaultPresentationObjects.map((po) => ({
+        ...po,
+        moduleId: rawModuleJSON.id,
+      }));
+
+    // Merge partial presentation objects
     const fullPresentationObjects = mergePartialPresentationObjects(
-      presentationObjectsWithIds
+      presentationObjectsWithModuleId
     );
+
+    // Add moduleId to resultsObjects (derived from parent)
+    const resultsObjectsWithModuleId: ResultsObjectDefinition[] =
+      rawModuleJSON.resultsObjects.map((ro) => ({
+        ...ro,
+        moduleId: rawModuleJSON.id,
+      }));
 
     const translatedModule: ModuleDefinition = {
       id: rawModuleJSON.id,
       label: tc(rawModuleJSON.label),
       prerequisites: rawModuleJSON.prerequisites,
       lastScriptUpdate: rawModuleJSON.lastScriptUpdate,
+      commitSha: rawModuleJSON.commitSha,
       scriptSource: rawModuleJSON.scriptSource,
       dataSources: rawModuleJSON.dataSources,
       configRequirements: rawModuleJSON.configRequirements,
       script,
       assetsToImport: rawModuleJSON.assetsToImport,
-      resultsObjects: translateResultsObjects(resultsObjectsWithIds, tc),
+      resultsObjects: translateResultsObjects(resultsObjectsWithModuleId, tc),
       defaultPresentationObjects: translateDefaultPresentationObjects(
         fullPresentationObjects,
         tc
       ),
+      metrics: translateMetrics(rawModuleJSON.metrics, tc),
     };
 
     return { success: true, data: translatedModule };
@@ -181,33 +165,28 @@ function translateResultsObjects(
   resultsObjects: ResultsObjectDefinition[],
   tc: (v: string) => string
 ): ResultsObjectDefinition[] {
-  return resultsObjects.map((ro) => {
-    return {
-      ...ro,
-      description: tc(ro.description),
-      resultsValues: ro.resultsValues.map((rv) =>
-        translateResultsValue(rv, tc)
-      ),
-    };
-  });
+  return resultsObjects.map((ro) => ({
+    ...ro,
+    description: tc(ro.description),
+  }));
 }
 
-function translateResultsValue(
-  rv: ResultsValueDefinition,
+function translateMetrics(
+  metrics: MetricDefinition[],
   tc: (v: string) => string
-): ResultsValueDefinition {
-  return {
-    ...rv,
-    label: tc(rv.label),
-    valueLabelReplacements: rv.valueLabelReplacements
+): MetricDefinition[] {
+  return metrics.map((m) => ({
+    ...m,
+    label: tc(m.label),
+    valueLabelReplacements: m.valueLabelReplacements
       ? Object.fromEntries(
-          Object.entries(rv.valueLabelReplacements).map(([key, value]) => [
+          Object.entries(m.valueLabelReplacements).map(([key, value]) => [
             key,
             tc(value),
           ])
         )
       : undefined,
-  };
+  }));
 }
 
 function translateDefaultPresentationObjects(
@@ -232,8 +211,7 @@ function translateDefaultPresentationObjects(
       id: po.id,
       label: tc(po.label),
       moduleId: po.moduleId,
-      resultsObjectId: po.resultsObjectId,
-      resultsValueId: po.resultsValueId,
+      metricId: po.metricId,
       config: translatedConfig,
     };
   });

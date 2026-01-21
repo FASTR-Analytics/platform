@@ -6,6 +6,7 @@
 import {
   type ChartOVInputs,
   ChartOVRenderer,
+  type HeightConstraints,
   type MeasuredChartOV,
   type MeasuredSimpleViz,
   type MeasuredTable,
@@ -81,7 +82,7 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
     width: number,
     item: FigureInputs,
     responsiveScale?: number,
-  ): number {
+  ): HeightConstraints {
     const renderer = getRendererForFigureItem(item);
     return renderer.getIdealHeight(rc, width, item as any, responsiveScale);
   },

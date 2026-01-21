@@ -316,12 +316,22 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                     {new Date(
                       p.thisInstalledModule.dateInstalled,
                     ).toLocaleString()}
+                    {" "}{p.thisInstalledModule.commitSha ? (
+                      <span>
+                        (Commit: {p.thisInstalledModule.commitSha})
+                      </span>
+                    ) : "No SHA"}
                   </div>
                   <div class="text-success text-xs">
                     {t2(T.FRENCH_UI_STRINGS.last_run)}:{" "}
                     {new Date(
                       pds.moduleLastRun[p.thisInstalledModule.id],
                     ).toLocaleString()}
+                    {" "}{p.thisInstalledModule.latestRanCommitSha ? (
+                      <span>
+                        (Latest run commit: {p.thisInstalledModule.latestRanCommitSha})
+                      </span>
+                    ) : "No SHA"}
                   </div>
                 </div>
               </div>

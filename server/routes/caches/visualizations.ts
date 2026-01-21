@@ -77,10 +77,10 @@ export const _PO_ITEMS_CACHE = new TimCacheB<
   },
 });
 
-export const _RESULTS_VALUE_INFO_CACHE = new TimCacheB<
+export const _METRIC_INFO_CACHE = new TimCacheB<
   {
     projectId: string;
-    resultsValueId: string;
+    metricId: string;
   },
   {
     moduleLastRun: string;
@@ -88,7 +88,7 @@ export const _RESULTS_VALUE_INFO_CACHE = new TimCacheB<
   APIResponseWithData<ResultsValueInfoForPresentationObject>
 >({
   uniquenessHashFromParams: (params) =>
-    [params.projectId, params.resultsValueId].join("::"),
+    [params.projectId, params.metricId].join("::"),
   versionHashFromParams: (params) => params.moduleLastRun,
   parseData: (res) => {
     if (res.success === false) {
@@ -102,7 +102,7 @@ export const _RESULTS_VALUE_INFO_CACHE = new TimCacheB<
       shouldStore: true,
       uniquenessHash: [
         res.data.projectId,
-        res.data.resultsValueId,
+        res.data.metricId,
       ].join("::"),
       versionHash: res.data.moduleLastRun,
     };
@@ -139,9 +139,14 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheB<
       };
     }
     return {
-      shouldStore: false,
-      uniquenessHash: "",
-      versionHash: "",
+      shouldStore: true,
+      uniquenessHash: [
+        res.data.projectId,
+        res.data.resultsObjectId,
+        res.data.replicateBy,
+        hashFetchConfig(res.data.fetchConfig),
+      ].join("::"),
+      versionHash: res.data.moduleLastRun,
     };
   },
 });

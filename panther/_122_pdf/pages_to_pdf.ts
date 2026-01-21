@@ -26,15 +26,8 @@ export async function pagesToPdf(
 
     const measured = await PageRenderer.measure(rc, rcd, pages[i]);
 
-    if (measured.warnings.length > 0) {
-      console.warn(`Page ${i + 1} layout warnings:`);
-      for (const warning of measured.warnings) {
-        console.warn(
-          `  - ${warning.type}: ${warning.message}${
-            warning.path ? ` (at ${warning.path})` : ""
-          }`,
-        );
-      }
+    if (measured.overflow) {
+      console.warn(`Page ${i + 1}: Content exceeds available space`);
     }
 
     await PageRenderer.render(rc, measured);

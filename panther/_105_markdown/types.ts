@@ -48,10 +48,17 @@ export type FigureMap = Map<string, FigureInputs>;
 // Renderer Input
 // =============================================================================
 
+export type MarkdownAutofitOptions = {
+  minScale?: number;
+  maxScale?: number;
+  minFontSize?: number;
+};
+
 export type MarkdownRendererInput = {
   markdown: string;
   style?: CustomMarkdownStyleOptions;
   images?: ImageMap;
+  autofit?: boolean | MarkdownAutofitOptions;
 };
 
 // =============================================================================
@@ -228,4 +235,5 @@ export type MeasuredMarkdownCodeBlock = {
 
 export type MeasuredMarkdown = Measured<MarkdownRendererInput> & {
   markdownItems: MeasuredMarkdownItem[];
+  autofitScale?: number;
 };

@@ -8,35 +8,28 @@ export const definition = {
     type: "github",
     owner: "FASTR-Analytics",
     repo: "modules",
-    path: "04_module_coverage_estimates_part2.R",
+    path: "06_module_coverage_estimates_part2.R",
     commit: "main",
   },
   defaultPresentationObjects: presentationObjects,
-  assetsToImport: [
-    "survey_data_unified.csv",
-    "population_estimates_only.csv",
-    "ng_province_denominators_corrected.csv",
-    "ng_national_denominators_corrected.csv",
-    "chmis_national_for_module4.csv",
-    "chmis_admin_area_for_module4.csv",
-  ],
+  assetsToImport: [],
   dataSources: [
     {
-      replacementString: "M4_combined_results_national.csv",
+      replacementString: "M5_combined_results_national.csv",
       sourceType: "results_object",
-      resultsObjectId: "M4_combined_results_national.csv",
+      resultsObjectId: "M5_combined_results_national.csv",
       moduleId: "m005",
     },
     {
-      replacementString: "M4_combined_results_admin2.csv",
+      replacementString: "M5_combined_results_admin2.csv",
       sourceType: "results_object",
-      resultsObjectId: "M4_combined_results_admin2.csv",
+      resultsObjectId: "M5_combined_results_admin2.csv",
       moduleId: "m005",
     },
     {
-      replacementString: "M4_combined_results_admin3.csv",
+      replacementString: "M5_combined_results_admin3.csv",
       sourceType: "results_object",
-      resultsObjectId: "M4_combined_results_admin3.csv",
+      resultsObjectId: "M5_combined_results_admin3.csv",
       moduleId: "m005",
     },
   ],
@@ -57,7 +50,7 @@ export const definition = {
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   resultsObjects: [
     {
-      id: "M5_coverage_estimation_national.csv",
+      id: "M6_coverage_estimation_national.csv",
       description: "Coverage estimates (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -70,31 +63,9 @@ export const definition = {
         survey_raw_source: "TEXT",
         survey_raw_source_detail: "TEXT",
       },
-      resultsValues: [
-        {
-          id: "m6-01-01",
-          valueProps: [
-            "coverage_original_estimate",
-            "coverage_avgsurveyprojection",
-            "coverage_cov",
-          ],
-          valueFunc: "AVG",
-          valueLabelReplacements: {
-            coverage_original_estimate:
-              "Survey-based estimate (when available)",
-            coverage_avgsurveyprojection:
-              "Projected survey estimate (when survey data is missing)",
-            coverage_cov: "Coverage calculated from HMIS data",
-          },
-          label: "Coverage calculated from HMIS data (National)",
-          requiredDisaggregationOptions: ["indicator_common_id", "year"],
-          formatAs: "percent",
-          periodOptions: ["year"],
-        },
-      ],
     },
     {
-      id: "M5_coverage_estimation_admin2.csv",
+      id: "M6_coverage_estimation_admin2.csv",
       description: "Coverage results (Admin area 2)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -108,35 +79,9 @@ export const definition = {
         survey_raw_source: "TEXT",
         survey_raw_source_detail: "TEXT",
       },
-      resultsValues: [
-        {
-          id: "m6-01-02",
-          valueProps: [
-            "coverage_original_estimate",
-            "coverage_avgsurveyprojection",
-            "coverage_cov",
-          ],
-          valueFunc: "AVG",
-          valueLabelReplacements: {
-            coverage_original_estimate:
-              "Survey-based estimate (when available)",
-            coverage_avgsurveyprojection:
-              "Projected survey estimate (when survey data is missing)",
-            coverage_cov: "Coverage calculated from HMIS data",
-          },
-          label: "Coverage calculated from HMIS data (Admin area 2)",
-          requiredDisaggregationOptions: [
-            "indicator_common_id",
-            "admin_area_2",
-            "year",
-          ],
-          formatAs: "percent",
-          periodOptions: ["year"],
-        },
-      ],
     },
     {
-      id: "M5_coverage_estimation_admin3.csv",
+      id: "M6_coverage_estimation_admin3.csv",
       description: "Coverage results (Admin area 3)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -150,33 +95,25 @@ export const definition = {
         survey_raw_source: "TEXT",
         survey_raw_source_detail: "TEXT",
       },
-      resultsValues: [
-        {
-          id: "m6-01-03",
-          valueProps: [
-            "coverage_original_estimate",
-            "coverage_avgsurveyprojection",
-            "coverage_cov",
-          ],
-          valueFunc: "AVG",
-          valueLabelReplacements: {
-            coverage_original_estimate:
-              "Survey-based estimate (when available)",
-            coverage_avgsurveyprojection:
-              "Projected survey estimate (when survey data is missing)",
-            coverage_cov: "Coverage calculated from HMIS data",
-          },
-          label: "Coverage calculated from HMIS data (Admin area 3)",
-          requiredDisaggregationOptions: [
-            "indicator_common_id",
-            "admin_area_3",
-            "year",
-          ],
-          formatAs: "percent",
-          periodOptions: ["year"],
-        },
-      ],
     },
+    // {
+    //   id: "M5_coverage_estimation_admin2_simplified.csv",
+    //   description: "Selected denominators",
+    //   createTableStatementPossibleColumns: {
+    //     indicator_common_id: "TEXT NOT NULL",
+    //     denominator: "TEXT NOT NULL",
+    //   },
+    //
+    // },
+    // {
+    //   id: "M5_coverage_estimation_admin3_simplified.csv",
+    //   description: "Selected denominators",
+    //   createTableStatementPossibleColumns: {
+    //     indicator_common_id: "TEXT NOT NULL",
+    //     denominator: "TEXT NOT NULL",
+    //   },
+    //
+    // },
     // {
     //   id: "M4_selected_denominator_per_indicator.csv",
     //   description: "Selected denominators",
@@ -184,8 +121,133 @@ export const definition = {
     //     indicator_common_id: "TEXT NOT NULL",
     //     denominator: "TEXT NOT NULL",
     //   },
-    //   resultsValues: [],
+    //
     // },
+  ],
+  /////////////////////////////////////////////////////////////////////////
+  //  __       __              __                __                      //
+  // /  \     /  |            /  |              /  |                     //
+  // $$  \   /$$ |  ______   _$$ |_     ______  $$/   _______   _______  //
+  // $$$  \ /$$$ | /      \ / $$   |   /      \ /  | /       | /       | //
+  // $$$$  /$$$$ |/$$$$$$  |$$$$$$/   /$$$$$$  |$$ |/$$$$$$$/ /$$$$$$$/  //
+  // $$ $$ $$/$$ |$$    $$ |  $$ | __ $$ |  $$/ $$ |$$ |      $$      \  //
+  // $$ |$$$/ $$ |$$$$$$$$/   $$ |/  |$$ |      $$ |$$ \_____  $$$$$$  | //
+  // $$ | $/  $$ |$$       |  $$  $$/ $$ |      $$ |$$       |/     $$/  //
+  // $$/      $$/  $$$$$$$/    $$$$/  $$/       $$/  $$$$$$$/ $$$$$$$/   //
+  //                                                                     //
+  /////////////////////////////////////////////////////////////////////////
+  metrics: [
+    {
+      id: "m6-01-01",
+      resultsObjectId: "M6_coverage_estimation_national.csv",
+      valueProps: [
+        "coverage_original_estimate",
+        "coverage_avgsurveyprojection",
+        "coverage_cov",
+      ],
+      valueFunc: "AVG",
+      valueLabelReplacements: {
+        coverage_original_estimate: "Survey-based estimate (when available)",
+        coverage_avgsurveyprojection:
+          "Projected survey estimate (when survey data is missing)",
+        coverage_cov: "Coverage calculated from HMIS data",
+      },
+      label: "Coverage (all estimation types)",
+      variantLabel: "National",
+      requiredDisaggregationOptions: ["indicator_common_id", "year"],
+      formatAs: "percent",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m6-02-01",
+      resultsObjectId: "M6_coverage_estimation_admin2.csv",
+      valueProps: [
+        "coverage_original_estimate",
+        "coverage_avgsurveyprojection",
+        "coverage_cov",
+      ],
+      valueFunc: "AVG",
+      valueLabelReplacements: {
+        coverage_original_estimate: "Survey-based estimate (when available)",
+        coverage_avgsurveyprojection:
+          "Projected survey estimate (when survey data is missing)",
+        coverage_cov: "Coverage calculated from HMIS data",
+      },
+      label: "Coverage (all estimation types)",
+      variantLabel: "Admin area 2",
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_2",
+        "year",
+      ],
+      formatAs: "percent",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m6-02-02",
+      resultsObjectId: "M6_coverage_estimation_admin2.csv",
+      valueProps: [
+        "coverage_cov",
+      ],
+      valueFunc: "AVG",
+      valueLabelReplacements: {
+        coverage_cov: "Coverage calculated from HMIS data",
+      },
+      label: "Coverage (HMIS only)",
+      variantLabel: "Admin area 2",
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_2",
+        "year",
+      ],
+      formatAs: "percent",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m6-03-01",
+      resultsObjectId: "M6_coverage_estimation_admin3.csv",
+      valueProps: [
+        "coverage_original_estimate",
+        "coverage_avgsurveyprojection",
+        "coverage_cov",
+      ],
+      valueFunc: "AVG",
+      valueLabelReplacements: {
+        coverage_original_estimate: "Survey-based estimate (when available)",
+        coverage_avgsurveyprojection:
+          "Projected survey estimate (when survey data is missing)",
+        coverage_cov: "Coverage calculated from HMIS data",
+      },
+      label: "Coverage (all estimation types)",
+      variantLabel: "Admin area 3",
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_3",
+        "year",
+      ],
+      formatAs: "percent",
+      periodOptions: ["year"],
+    },
+    {
+      id: "m6-03-02",
+      resultsObjectId: "M6_coverage_estimation_admin3.csv",
+      valueProps: [
+        "coverage_cov",
+      ],
+      valueFunc: "AVG",
+      valueLabelReplacements: {
+        coverage_cov: "Coverage calculated from HMIS data",
+      },
+      label: "Coverage (HMIS only)",
+      variantLabel: "Admin area 3",
+      requiredDisaggregationOptions: [
+        "indicator_common_id",
+        "admin_area_3",
+        "year",
+      ],
+      formatAs: "percent",
+      periodOptions: ["year"],
+    },
   ],
   ////////////////////////////////////////////////////////////////////
   //  _______                                                       //
@@ -498,12 +560,12 @@ export const definition = {
             { value: `best`, label: "Best" },
 
             ...[
-              "danc1_measles1",
-              "ddelivery_measles1",
-              "dpenta1_measles1",
-              "dbcg_measles1",
-              "dlivebirths_measles1",
-              "dwpp_measles1",
+              "danc1_measles2",
+              "ddelivery_measles2",
+              "dpenta1_measles2",
+              "dbcg_measles2",
+              "dlivebirths_measles2",
+              "dwpp_measles2",
             ].map((v) => ({ value: v, label: v })),
           ],
           valueType: "string",

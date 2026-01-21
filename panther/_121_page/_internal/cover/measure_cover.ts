@@ -41,7 +41,7 @@ export function measureCover(
     bounds,
     mergedPageStyle: s,
     responsiveScale,
-    warnings: [],
+    overflow: false,
     mTitle,
     mSubTitle,
     mAuthor,

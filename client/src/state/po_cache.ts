@@ -13,7 +13,7 @@ import { serverActions } from "~/server_actions";
 import {
   _PO_DETAIL_CACHE,
   _PO_ITEMS_CACHE,
-  _RESULTS_VALUE_INFO_CACHE,
+  _METRIC_INFO_CACHE,
 } from "./caches/visualizations";
 import { poItemsQueue, resultsValueInfoQueue } from "~/utils/request_queue";
 
@@ -32,13 +32,11 @@ import { poItemsQueue, resultsValueInfoQueue } from "~/utils/request_queue";
 
 export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
   projectId: string,
-  moduleId: string,
-  resultsValueId: string,
+  metricId: string,
 ) {
-  const { data, version } = await _RESULTS_VALUE_INFO_CACHE.get({
+  const { data, version } = await _METRIC_INFO_CACHE.get({
     projectId,
-    resultsValueId,
-    moduleId,
+    metricId,
   });
 
   if (data) {
@@ -49,17 +47,15 @@ export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
   const newPromise = resultsValueInfoQueue.enqueue(() =>
     serverActions.getResultsValueInfoForPresentationObject({
       projectId,
-      resultsValueId,
-      moduleId,
+      metricId: metricId,
     })
   );
 
-  _RESULTS_VALUE_INFO_CACHE.setPromise(
+  _METRIC_INFO_CACHE.setPromise(
     newPromise,
     {
       projectId,
-      resultsValueId,
-      moduleId,
+      metricId,
     },
     version,
   );
@@ -336,7 +332,6 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   const resResultsValueInfo =
     await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
       poDetail.projectId,
-      poDetail.resultsValue.moduleId,
       poDetail.resultsValue.id,
     );
   if (resResultsValueInfo.success === false) {
@@ -362,7 +357,6 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     projectId,
     resultsObjectId: poDetail.resultsValue.resultsObjectId,
     fetchConfig: resFetchConfig.data,
-    moduleId: poDetail.resultsValue.moduleId,
   });
 
   if (data) {
@@ -389,7 +383,6 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   const newPromise = poItemsQueue.enqueue(() =>
     serverActions.getPresentationObjectItems({
       projectId,
-      presentationObjectId: poDetail.id,
       resultsObjectId: poDetail.resultsValue.resultsObjectId,
       fetchConfig: resFetchConfig.data,
       firstPeriodOption: poDetail.resultsValue.periodOptions.at(0),
@@ -402,7 +395,6 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
       projectId,
       resultsObjectId: poDetail.resultsValue.resultsObjectId,
       fetchConfig: resFetchConfig.data,
-      moduleId: poDetail.resultsValue.moduleId,
     },
     version,
   );

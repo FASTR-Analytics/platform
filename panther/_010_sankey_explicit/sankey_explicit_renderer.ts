@@ -7,6 +7,7 @@ import {
   CustomFigureStyle,
   generateSankeyPrimitives,
   generateSurroundsPrimitives,
+  type HeightConstraints,
   measureSurrounds,
   type PositionedSankeyLink,
   type PositionedSankeyNode,
@@ -184,7 +185,7 @@ function getIdealHeight(
   width: number,
   item: SankeyExplicitInputs,
   responsiveScale?: number,
-): number {
+): HeightConstraints {
   const customFigureStyle = new CustomFigureStyle(item.style, responsiveScale);
 
   const tempBounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 1000 });
@@ -200,7 +201,8 @@ function getIdealHeight(
 
   const bbox = getInputBoundingBox(item.nodes, item.links);
 
-  return bbox.height + measuredSurrounds.extraHeightDueToSurrounds;
+  const idealH = bbox.height + measuredSurrounds.extraHeightDueToSurrounds;
+  return { minH: 0, idealH, maxH: Infinity };
 }
 
 function isType(item: unknown): item is SankeyExplicitInputs {

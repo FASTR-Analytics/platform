@@ -4,23 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export type { FontWeight, TextInfoUnkeyed } from "../_001_font/mod.ts";
-export {
-  Coordinates,
-  Dimensions,
-  RectCoordsDims,
-} from "../_001_geometry/mod.ts";
-export type {
-  LineStyle,
-  Measured,
-  MeasuredText,
-  RenderContext,
-  Renderer,
-} from "../_001_render_system/mod.ts";
+export { Coordinates, Dimensions, RectCoordsDims } from "../_001_geometry/mod.ts";
+export type { HeightConstraints, LineStyle, Measured, MeasuredText, RenderContext, Renderer } from "../_001_render_system/mod.ts";
 export { CustomMarkdownStyle } from "../_004_markdown_style/mod.ts";
-export type {
-  CustomMarkdownStyleOptions,
-  MergedMarkdownStyle,
-} from "../_004_markdown_style/mod.ts";
+export type { CustomMarkdownStyleOptions, MergedMarkdownStyle } from "../_004_markdown_style/mod.ts";
 export { createItemNode } from "../_008_layouter/mod.ts";
 export type { ItemLayoutNode, LayoutNode } from "../_008_layouter/mod.ts";
 export { TableRenderer } from "../_010_table/mod.ts";

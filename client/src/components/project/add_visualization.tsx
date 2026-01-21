@@ -1,7 +1,8 @@
 import {
   DisaggregationOption,
-  InstalledModuleSummary,
+  getModuleIdForMetric,
   PresentationOption,
+  ResultsValue,
   get_PRESENTATION_SELECT_OPTIONS,
   isFrench,
   t,
@@ -15,7 +16,6 @@ import {
   LabelHolder,
   RadioGroup,
   StateHolderWrapper,
-  getSelectOptionsFromIdLabel,
   timActionForm,
   timQuery,
 } from "panther";
@@ -31,16 +31,14 @@ export function AddVisualization(
     { moduleId: string; newPresentationObjectId: string; lastUpdated: string }
   >,
 ) {
-  const modulesWithResultsValues = timQuery(
-    () =>
-      serverActions.getAllModulesWithResultsValues({ projectId: p.projectId }),
+  const metricsQuery = timQuery(
+    () => serverActions.getAllMetrics({ projectId: p.projectId }),
     "Loading...",
   );
 
   // Temp state
 
-  const [tempModuleId, setTempModuleId] = createSignal<string>("");
-  const [tempResultsValue, setTempResultsValue] = createSignal<string>("");
+  const [tempMetricId, setTempMetricId] = createSignal<string>("");
   const [tempPresentationOption, setTempPresentationOption] = createSignal<
     PresentationOption | undefined
   >(undefined);
@@ -49,22 +47,14 @@ export function AddVisualization(
   >([]);
   const [tempMakeDefault, setTempMakeDefault] = createSignal<boolean>(false);
 
-  const readyToSave = () =>
-    tempModuleId() && tempResultsValue() && tempPresentationOption();
+  const readyToSave = () => tempMetricId() && tempPresentationOption();
 
-  const selectedModule = () => {
-    const modules = modulesWithResultsValues.state();
-    const moduleId = tempModuleId();
-    if (modules.status !== "ready") {
+  const selectedMetric = (): ResultsValue | undefined => {
+    const metrics = metricsQuery.state();
+    if (metrics.status !== "ready") {
       return;
     }
-    return modules.data.find((modDef) => modDef.id === moduleId);
-  };
-
-  const selectedResultsValue = () => {
-    return selectedModule()?.resultsValues.find(
-      (rv) => rv.id === tempResultsValue(),
-    );
+    return metrics.data.find((m) => m.id === tempMetricId());
   };
 
   // Actions
@@ -72,11 +62,11 @@ export function AddVisualization(
   const save = timActionForm(
     async (e: MouseEvent) => {
       e.preventDefault();
-      const resultsValue = selectedResultsValue();
-      if (!resultsValue) {
+      const metric = selectedMetric();
+      if (!metric) {
         return {
           success: false,
-          err: t("You must select a results value"),
+          err: t("You must select a metric"),
         };
       }
 
@@ -88,7 +78,7 @@ export function AddVisualization(
         };
       }
 
-      const disaggregations = resultsValue.disaggregationOptions
+      const disaggregations = metric.disaggregationOptions
         .filter(
           (disOpt) =>
             disOpt.isRequired || tempDisaggregations().includes(disOpt.value),
@@ -102,18 +92,18 @@ export function AddVisualization(
 
       return serverActions.createPresentationObject({
         projectId: p.projectId,
-        label: resultsValue.label.trim(),
-        resultsValue,
+        label: metric.label.trim(),
+        resultsValue: metric,
         presentationOption,
         disaggregations,
         makeDefault: p.isGlobalAdmin && tempMakeDefault(),
       });
     },
     (data) => {
-      const resultsValue = selectedResultsValue();
-      if (resultsValue) {
+      const metric = selectedMetric();
+      if (metric) {
         p.close({
-          moduleId: resultsValue.moduleId,
+          moduleId: getModuleIdForMetric(metric.id),
           newPresentationObjectId: data.newPresentationObjectId,
           lastUpdated: data.lastUpdated,
         });
@@ -132,53 +122,31 @@ export function AddVisualization(
       disableSaveButton={!readyToSave()}
       french={isFrench()}
     >
-      <StateHolderWrapper state={modulesWithResultsValues.state()} noPad>
-        {(keyedModules) => {
+      <StateHolderWrapper state={metricsQuery.state()} noPad>
+        {(metrics) => {
           return (
             <>
-              {/* <Show when={p.isGlobalAdmin}>
-                <Checkbox
-                  label={t2(T.FRENCH_UI_STRINGS.make_this_visualization_a_defa)}
-                  checked={tempMakeDefault()}
-                  onChange={setTempMakeDefault}
-                />
-              </Show> */}
               <Show
-                when={keyedModules.length > 0}
+                when={metrics.length > 0}
                 fallback={t(
                   "You need to enable at least one module in order to create visualizations",
                 )}
               >
                 <RadioGroup
-                  label={t2(T.FRENCH_UI_STRINGS.module)}
-                  options={getSelectOptionsFromIdLabel(keyedModules)}
-                  value={tempModuleId()}
+                  label={t("Metric")}
+                  options={metrics.map((m) => ({
+                    value: m.id,
+                    label: m.label,
+                  }))}
+                  value={tempMetricId()}
                   onChange={(v) => {
-                    setTempModuleId(v);
-                    setTempResultsValue("");
+                    setTempMetricId(v);
                     setTempDisaggregations([]);
                   }}
                 />
               </Show>
-              <Show when={selectedModule()} keyed>
-                {(selectedModule) => {
-                  return (
-                    <RadioGroup
-                      label={t2(T.FRENCH_UI_STRINGS.results_value)}
-                      options={getSelectOptionsFromIdLabel(
-                        selectedModule.resultsValues,
-                      )}
-                      value={tempResultsValue()}
-                      onChange={(v) => {
-                        setTempResultsValue(v);
-                        setTempDisaggregations([]);
-                      }}
-                    />
-                  );
-                }}
-              </Show>
-              <Show when={selectedResultsValue()} keyed>
-                {(selectedResultsValue) => {
+              <Show when={selectedMetric()} keyed>
+                {(metric) => {
                   return (
                     <>
                       <RadioGroup
@@ -195,7 +163,7 @@ export function AddVisualization(
                             >
                               <div class="space-y-1">
                                 <For
-                                  each={selectedResultsValue.disaggregationOptions.filter(
+                                  each={metric.disaggregationOptions.filter(
                                     (disOpt) =>
                                       !disOpt.allowedPresentationOptions ||
                                       disOpt.allowedPresentationOptions.includes(

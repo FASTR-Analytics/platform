@@ -12,7 +12,7 @@ import {
   uninstallModule,
   updateModuleDefinition,
   updateModuleParameters,
-  getAllModulesWithResultsValues,
+  getAllMetrics,
   getModuleWithConfigSelections,
   getCountryIso3Config,
 } from "../../db/mod.ts";
@@ -269,17 +269,6 @@ defineRoute(
 
 defineRoute(
   routesModules,
-  "getAllModulesWithResultsValues",
-  getGlobalNonAdmin,
-  getProjectViewer,
-  async (c) => {
-    const res = await getAllModulesWithResultsValues(c.var.mainDb, c.var.ppk.projectDb);
-    return c.json(res);
-  }
-);
-
-defineRoute(
-  routesModules,
   "getModuleWithConfigSelections",
   getProjectViewer,
   async (c, { params }) => {
@@ -287,6 +276,17 @@ defineRoute(
       c.var.ppk.projectDb,
       params.module_id
     );
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesModules,
+  "getAllMetrics",
+  getGlobalNonAdmin,
+  getProjectViewer,
+  async (c) => {
+    const res = await getAllMetrics(c.var.mainDb, c.var.ppk.projectDb);
     return c.json(res);
   }
 );

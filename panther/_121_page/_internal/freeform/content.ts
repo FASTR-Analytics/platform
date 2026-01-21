@@ -4,11 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  createItemNode,
   type LayoutGap,
-  type LayoutWarning,
   type MeasuredLayoutNode,
   measureLayout,
   type MergedPageStyle,
+  optimizeLayout,
   Padding,
   RectCoordsDims,
   renderContainerStyle,
@@ -24,7 +25,7 @@ export interface MeasuredContent {
   rcdContentOuter: RectCoordsDims;
   rcdContentInner: RectCoordsDims;
   mLayout: MeasuredLayoutNode<PageContentItem>;
-  warnings: LayoutWarning[];
+  overflow: boolean;
   gaps: LayoutGap[];
 }
 
@@ -47,27 +48,51 @@ export function measureContent(
 
   const rcdContentInner = rcdContentOuter.getPadded(padContent);
 
-  // Apply container defaults before measuring
-  const contentWithContainerDefaults = applyContainerDefaults(
-    inputs.content,
-    s.layoutContainers,
-  );
+  let measured: MeasuredLayoutNode<PageContentItem>;
+  let overflow: boolean;
+  let gaps: LayoutGap[];
 
-  const { measured, warnings, gaps } = measureLayout(
-    { rc, s },
-    contentWithContainerDefaults,
-    rcdContentInner,
-    s.content.gapX,
-    s.content.gapY,
-    itemMeasurer,
-    s.content.nColumns,
-  );
+  if (inputs.content.layoutType === "optimize") {
+    // Optimize layout from items
+    const itemNodes = inputs.content.items.map((item) => createItemNode(item));
+    const optimized = optimizeLayout(
+      { rc, s },
+      itemNodes,
+      rcdContentInner,
+      s.content,
+      itemMeasurer,
+      (layout) => applyContainerDefaults(layout, s.layoutContainers),
+      { constraint: inputs.content.constraint },
+    );
+    measured = optimized.measured;
+    overflow = optimized.score.overflow > 0;
+    gaps = [];
+  } else {
+    // Use provided layout
+    const contentWithContainerDefaults = applyContainerDefaults(
+      inputs.content.layout,
+      s.layoutContainers,
+    );
+
+    const result = measureLayout(
+      { rc, s },
+      contentWithContainerDefaults,
+      rcdContentInner,
+      s.content.gapX,
+      s.content.gapY,
+      itemMeasurer,
+      s.content.nColumns,
+    );
+    measured = result.measured;
+    overflow = result.overflow;
+    gaps = result.gaps;
+  }
 
   return {
     rcdContentOuter,
     rcdContentInner,
     mLayout: measured,
-    warnings,
+    overflow,
     gaps,
   };
 }

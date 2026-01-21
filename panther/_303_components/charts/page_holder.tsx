@@ -21,7 +21,6 @@ import {
   untrackCanvas,
 } from "../deps.ts";
 import type {
-  LayoutWarning,
   PageInputs,
   TextRenderingOptions,
 } from "../deps.ts";
@@ -60,7 +59,7 @@ export function PageHolder(p: Props) {
   const unscaledH = p.fixedCanvasH;
 
   const [err, setErr] = createSignal<string>("");
-  const [warnings, setWarnings] = createSignal<LayoutWarning[]>([]);
+  const [overflow, setOverflow] = createSignal<boolean>(false);
 
   onMount(() => {
     // Set canvas dimensions once - they never change
@@ -104,7 +103,7 @@ export function PageHolder(p: Props) {
       cachedContext!,
       p.pageInputs,
       setErr,
-      setWarnings,
+      setOverflow,
       unscaledW,
       unscaledH,
       p.textRenderingOptions,
@@ -158,13 +157,13 @@ export function PageHolder(p: Props) {
       }}
       data-fitWithin={!!p.fitWithin}
     >
-      <Show when={err() || warnings().length > 0}>
+      <Show when={err() || overflow()}>
         <Switch>
           <Match when={p.simpleError}>
             <div class="absolute inset-0 flex items-center justify-center">
               <div class="bg-danger text-base-100 pointer-events-none p-1 text-xs">
                 <Show when={err()}>Config error</Show>
-                <Show when={!err()}>Layout error</Show>
+                <Show when={!err()}>Layout overflow</Show>
               </div>
             </div>
           </Match>
@@ -175,7 +174,7 @@ export function PageHolder(p: Props) {
                   <div class="">{err()}</div>
                 </Show>
                 <Show when={!err()}>
-                  <div class="">{warnings().at(0)?.message}</div>
+                  <div class="">Content exceeds available space</div>
                 </Show>
               </div>
             </div>
@@ -197,7 +196,7 @@ function updatePage(
   ctx: CanvasRenderingContext2D,
   pageInputs: PageInputs | undefined,
   setErr: Setter<string>,
-  setWarnings: Setter<LayoutWarning[]>,
+  setOverflow: Setter<boolean>,
   unscaledW: number,
   unscaledH: number,
   textRenderingOptions: TextRenderingOptions | undefined,
@@ -232,7 +231,7 @@ function updatePage(
         const rcd = new RectCoordsDims([0, 0, unscaledW, unscaledH]);
 
         const mPage = await PageRenderer.measure(rc, rcd, pageInputs);
-        setWarnings(mPage.warnings);
+        setOverflow(mPage.overflow);
         await PageRenderer.render(rc, mPage);
       } catch (e) {
         console.error("PageHolder render error:", e);

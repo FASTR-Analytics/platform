@@ -66,165 +66,16 @@ export const definition = {
         count_final_completeness: "NUMERIC",
         count_final_both: "NUMERIC",
       },
-      resultsValues: [
-        {
-          id: "m2-01-01",
-          label: "Percent change in volume due to outlier adjustment",
-          valueProps: ["pct_change"],
-          valueFunc: "identity",
-          valueLabelReplacements: {
-            pct_change: "Percent change",
-          },
-          postAggregationExpression: {
-            ingredientValues: [
-              { prop: "count_final_none", func: "SUM" },
-              { prop: "count_final_outliers", func: "SUM" },
-            ],
-            expression:
-              "pct_change = ABS(count_final_none-count_final_outliers)/count_final_none",
-          },
-          requiredDisaggregationOptions: [],
-          // disaggregationOptions: [
-          //   {
-          //     value: "indicator_common_id",
-          //     label: "Indicator",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "admin_area_2",
-          //     label: "Admin area 2",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "admin_area_3",
-          //     label: "Admin area 3",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "admin_area_4",
-          //     label: "Admin area 4",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "year",
-          //     label: "Year",
-          //     isRequired: false,
-          //     allowedPresentationOptions: ["table", "chart"],
-          //   },
-          // ],
-          formatAs: "percent",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-        {
-          id: "m2-01-02",
-          label: "Percent change in volume due to completeness adjustment",
-          valueProps: ["pct_change"],
-          valueFunc: "identity",
-          valueLabelReplacements: {
-            pct_change: "Percent change",
-          },
-          postAggregationExpression: {
-            ingredientValues: [
-              { prop: "count_final_none", func: "SUM" },
-              { prop: "count_final_completeness", func: "SUM" },
-            ],
-            expression:
-              "pct_change = ABS(count_final_none-count_final_completeness)/count_final_none",
-          },
-          requiredDisaggregationOptions: [],
-          // disaggregationOptions: [
-          //   {
-          //     value: "indicator_common_id",
-          //     label: "Indicator",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "admin_area_2",
-          //     label: "Admin area 2",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "admin_area_3",
-          //     label: "Admin area 3",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "admin_area_4",
-          //     label: "Admin area 4",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "year",
-          //     label: "Year",
-          //     isRequired: false,
-          //     allowedPresentationOptions: ["table", "chart"],
-          //   },
-          // ],
-          formatAs: "percent",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-        {
-          id: "m2-01-03",
-          label:
-            "Percent change in volume due to both outlier and completeness adjustment",
-          valueProps: ["pct_change"],
-          valueFunc: "identity",
-          valueLabelReplacements: {
-            pct_change: "Percent change",
-          },
-          postAggregationExpression: {
-            ingredientValues: [
-              { prop: "count_final_none", func: "SUM" },
-              { prop: "count_final_both", func: "SUM" },
-            ],
-            expression:
-              "pct_change = ABS(count_final_none-count_final_both)/count_final_none",
-          },
-          requiredDisaggregationOptions: [],
-          // disaggregationOptions: [
-          //   {
-          //     value: "indicator_common_id",
-          //     label: "Indicator",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "admin_area_2",
-          //     label: "Admin area 2",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "admin_area_3",
-          //     label: "Admin area 3",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "admin_area_4",
-          //     label: "Admin area 4",
-          //     isRequired: false,
-          //   },
-          //   {
-          //     value: "year",
-          //     label: "Year",
-          //     isRequired: false,
-          //     allowedPresentationOptions: ["table", "chart"],
-          //   },
-          // ],
-          formatAs: "percent",
-          periodOptions: ["period_id", "quarter_id", "year"],
-        },
-      ],
     },
     {
       id: "M2_adjusted_data_admin_area.csv",
       description:
         "Dataset including admin-level adjusted volumes for all adjustment scenarios",
-      resultsValues: [],
     },
     {
       id: "M2_adjusted_data_national.csv",
       description:
         "Dataset including national-level adjusted volumes for all adjustment scenarios",
-      resultsValues: [],
     },
     {
       id: "M2_low_volume_exclusions.csv",
@@ -234,9 +85,82 @@ export const definition = {
         indicator_common_id: "TEXT NOT NULL",
         low_volume_exclude: "TEXT NOT NULL",
       },
-      resultsValues: [],
     },
   ],
+  /////////////////////////////////////////////////////////////////////////
+  //  __       __              __                __                      //
+  // /  \     /  |            /  |              /  |                     //
+  // $$  \   /$$ |  ______   _$$ |_     ______  $$/   _______   _______  //
+  // $$$  \ /$$$ | /      \ / $$   |   /      \ /  | /       | /       | //
+  // $$$$  /$$$$ |/$$$$$$  |$$$$$$/   /$$$$$$  |$$ |/$$$$$$$/ /$$$$$$$/  //
+  // $$ $$ $$/$$ |$$    $$ |  $$ | __ $$ |  $$/ $$ |$$ |      $$      \  //
+  // $$ |$$$/ $$ |$$$$$$$$/   $$ |/  |$$ |      $$ |$$ \_____  $$$$$$  | //
+  // $$ | $/  $$ |$$       |  $$  $$/ $$ |      $$ |$$       |/     $$/  //
+  // $$/      $$/  $$$$$$$/    $$$$/  $$/       $$/  $$$$$$$/ $$$$$$$/   //
+  //                                                                     //
+  /////////////////////////////////////////////////////////////////////////
+  metrics: [{
+    id: "m2-01-01",
+    resultsObjectId: "M2_adjusted_data.csv",
+    label: "Percent change in volume due to outlier adjustment",
+    valueProps: ["pct_change"],
+    valueFunc: "identity",
+    valueLabelReplacements: {
+      pct_change: "Percent change",
+    },
+    postAggregationExpression: {
+      ingredientValues: [
+        { prop: "count_final_none", func: "SUM" },
+        { prop: "count_final_outliers", func: "SUM" },
+      ],
+      expression:
+        "pct_change = ABS(count_final_none-count_final_outliers)/count_final_none",
+    },
+    requiredDisaggregationOptions: [],
+    formatAs: "percent",
+    periodOptions: ["period_id", "quarter_id", "year"],
+  }, {
+    id: "m2-01-02",
+    resultsObjectId: "M2_adjusted_data.csv",
+    label: "Percent change in volume due to completeness adjustment",
+    valueProps: ["pct_change"],
+    valueFunc: "identity",
+    valueLabelReplacements: {
+      pct_change: "Percent change",
+    },
+    postAggregationExpression: {
+      ingredientValues: [
+        { prop: "count_final_none", func: "SUM" },
+        { prop: "count_final_completeness", func: "SUM" },
+      ],
+      expression:
+        "pct_change = ABS(count_final_none-count_final_completeness)/count_final_none",
+    },
+    requiredDisaggregationOptions: [],
+    formatAs: "percent",
+    periodOptions: ["period_id", "quarter_id", "year"],
+  }, {
+    id: "m2-01-03",
+    resultsObjectId: "M2_adjusted_data.csv",
+    label:
+      "Percent change in volume due to both outlier and completeness adjustment",
+    valueProps: ["pct_change"],
+    valueFunc: "identity",
+    valueLabelReplacements: {
+      pct_change: "Percent change",
+    },
+    postAggregationExpression: {
+      ingredientValues: [
+        { prop: "count_final_none", func: "SUM" },
+        { prop: "count_final_both", func: "SUM" },
+      ],
+      expression:
+        "pct_change = ABS(count_final_none-count_final_both)/count_final_none",
+    },
+    requiredDisaggregationOptions: [],
+    formatAs: "percent",
+    periodOptions: ["period_id", "quarter_id", "year"],
+  }],
   ////////////////////////////////////////////////////////////////////
   //  _______                                                       //
   // /       \                                                      //

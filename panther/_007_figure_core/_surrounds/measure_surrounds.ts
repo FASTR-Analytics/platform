@@ -18,6 +18,50 @@ import {
 } from "../mod.ts";
 import type { LegendItem } from "../types.ts";
 
+export function estimateMinSurroundsWidth(
+  rc: RenderContext,
+  cs: CustomFigureStyle,
+  legendLabels: LegendItem[] | string[] | undefined,
+): number {
+  const sSurrounds = cs.getMergedSurroundsStyle();
+
+  // Only right-positioned legends contribute to minimum width
+  const isRightLegend = ["right-top", "right-center", "right-bottom"].includes(
+    sSurrounds.legendPosition,
+  );
+  if (!isRightLegend) {
+    return sSurrounds.padding.totalPx();
+  }
+
+  if (!legendLabels || legendLabels.length === 0 ||
+      (legendLabels.length === 1 && legendLabels[0] === "default")) {
+    return sSurrounds.padding.totalPx();
+  }
+
+  const sLegend = sSurrounds.legend;
+  const legendItems: LegendItem[] = isArrayOfLegendItems(legendLabels)
+    ? legendLabels
+    : legendLabels.map((label, i_label, arr_label) => ({
+        label,
+        color: sLegend.seriesColorFunc({
+          i_series: i_label,
+          seriesHeader: label,
+          nSerieses: arr_label.length,
+          seriesValArrays: [],
+          nVals: 0,
+          i_lane: 0,
+          nLanes: 0,
+          i_tier: 0,
+          nTiers: 0,
+          i_pane: 0,
+          nPanes: 0,
+        }),
+      }));
+
+  const mLegend = measureLegend(rc, legendItems, sLegend);
+  return sSurrounds.padding.totalPx() + mLegend.dimensions.w() + sSurrounds.legendGap;
+}
+
 export type MeasuredSurrounds = {
   caption?: {
     rcd: RectCoordsDims;

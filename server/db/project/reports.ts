@@ -1,4 +1,4 @@
-import { assertNotUndefined } from "@timroberton/panther";
+import { assertNotUndefined, LayoutNode } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
   APIResponseWithData,
@@ -12,6 +12,7 @@ import {
   parseJsonOrThrow,
   ReportConfig,
   ReportItemConfig,
+  ReportItemContentItem,
   ReportSummary,
   ReportType,
   throwIfErrWithData,
@@ -23,6 +24,19 @@ import { DBReport, type DBReportItem } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { getPgConnectionFromCacheOrNew } from "../postgres/mod.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
+
+function forEachLayoutItem<T>(
+  node: LayoutNode<T>,
+  fn: (item: T) => void
+): void {
+  if (node.type === "item") {
+    fn(node.data);
+  } else {
+    for (const child of node.children) {
+      forEachLayoutItem(child, fn);
+    }
+  }
+}
 
 export async function addReport(
   projectDb: Sql,
@@ -143,36 +157,34 @@ VALUES
           const config = parseJsonOrThrow<ReportItemConfig>(
             rawReportItem.config
           );
-          for (const row of config.freeform.content) {
-            for (const col of row) {
-              if (col.type === "figure") {
-                // Check to see if this figure is a default figure, using this project's database
-                // OR... using what is listed in the col
-                // Need to do this in case project currently doesn't have the module installed
-                const databasePO = resPOs.data.find(
-                  (po) => po.id === col.presentationObjectInReportInfo?.id
-                );
-                if (
-                  !databasePO?.isDefault &&
-                  !col.presentationObjectInReportInfo?.isDefault
-                ) {
-                  col.type = "placeholder";
-                  col.presentationObjectInReportInfo = undefined;
-                  col.markdown = undefined;
-                  col.textSize = 1;
-                  col.textBackground = "none";
-                  col.placeholderInvisible = false;
-                  col.useFigureAdditionalScale = false;
-                  col.figureAdditionalScale = 1;
-                  col.imgFile = undefined;
-                  col.imgHeight = undefined;
-                  col.hideFigureCaption = false;
-                  col.hideFigureSubCaption = false;
-                  col.hideFigureFootnote = false;
-                }
+          forEachLayoutItem(config.freeform.content, (item) => {
+            if (item.type === "figure") {
+              // Check to see if this figure is a default figure, using this project's database
+              // OR... using what is listed in the item
+              // Need to do this in case project currently doesn't have the module installed
+              const databasePO = resPOs.data.find(
+                (po) => po.id === item.presentationObjectInReportInfo?.id
+              );
+              if (
+                !databasePO?.isDefault &&
+                !item.presentationObjectInReportInfo?.isDefault
+              ) {
+                item.type = "placeholder";
+                item.presentationObjectInReportInfo = undefined;
+                item.markdown = undefined;
+                item.textSize = 1;
+                item.textBackground = "none";
+                item.placeholderInvisible = false;
+                item.useFigureAdditionalScale = false;
+                item.figureAdditionalScale = 1;
+                item.imgFile = undefined;
+                item.imgHeight = undefined;
+                item.hideFigureCaption = false;
+                item.hideFigureSubCaption = false;
+                item.hideFigureFootnote = false;
               }
             }
-          }
+          });
 
           await sql`
 INSERT INTO report_items

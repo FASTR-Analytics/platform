@@ -17,7 +17,8 @@ export function createMarkdownIt(): MarkdownIt {
     html: true,
     linkify: false,
   });
-  md.use(markdownItKatex);
+  // TODO: Fix katex plugin loading issue
+  // md.use(markdownItKatex);
   return md;
 }
 

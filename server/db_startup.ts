@@ -47,6 +47,7 @@ ${userInserts}
     );
     await runProjectMigrations(projectDb);
     await migrateReportItemsToNestedLayout(projectDb);
+    await migrateToMetricsTables(projectDb);
   }
 }
 
@@ -205,4 +206,138 @@ VALUES
   ${valueRows.join(",\n  ")}
 ON CONFLICT (indicator_common_id) DO NOTHING;
 `;
+}
+
+// =============================================================================
+// MIGRATION: Migrate to metrics tables
+// Added: 2025-01-21
+//
+// This migrates from resultsValues nested in module_definition JSON to the
+// metrics table, and populates presentation_objects.metric_id from results_value.
+// =============================================================================
+async function migrateToMetricsTables(
+  sql: ReturnType<typeof getPgConnectionFromCacheOrNew>
+) {
+  const MIGRATION_ID = "js_migrate_to_metrics_tables";
+
+  // Check if already migrated
+  const applied = await sql<{ migration_id: string }[]>`
+    SELECT migration_id FROM schema_migrations WHERE migration_id = ${MIGRATION_ID}
+  `;
+  if (applied.length > 0) {
+    return;
+  }
+
+  console.log("[MIGRATION] Migrating to metrics tables...");
+
+  // 1. Populate results_objects and metrics tables from module_definition JSON
+  const modules = await sql<{ id: string; module_definition: string }[]>`
+    SELECT id, module_definition FROM modules
+  `;
+
+  let resultsObjectsInserted = 0;
+  let metricsInserted = 0;
+  for (const mod of modules) {
+    const modDef = JSON.parse(mod.module_definition);
+
+    // Extract results_objects and metrics from resultsObjects
+    for (const ro of modDef.resultsObjects ?? []) {
+      // Insert results_object
+      await sql`
+        INSERT INTO results_objects (id, module_id, description, column_definitions)
+        VALUES (
+          ${ro.id},
+          ${mod.id},
+          ${ro.description ?? ""},
+          ${ro.createTableStatementPossibleColumns ? JSON.stringify(ro.createTableStatementPossibleColumns) : null}
+        )
+        ON CONFLICT (id) DO NOTHING
+      `;
+      resultsObjectsInserted++;
+
+      // Insert metrics from resultsValues
+      for (const rv of ro.resultsValues ?? []) {
+        await sql`
+          INSERT INTO metrics (
+            id,
+            module_id,
+            label,
+            value_func,
+            format_as,
+            value_props,
+            period_options,
+            required_disaggregation_options,
+            value_label_replacements,
+            post_aggregation_expression,
+            auto_include_facility_columns,
+            results_object_id,
+            ai_description
+          ) VALUES (
+            ${rv.id},
+            ${mod.id},
+            ${rv.label},
+            ${rv.valueFunc},
+            ${rv.formatAs},
+            ${JSON.stringify(rv.valueProps)},
+            ${JSON.stringify(rv.periodOptions)},
+            ${JSON.stringify(rv.requiredDisaggregationOptions ?? [])},
+            ${rv.valueLabelReplacements ? JSON.stringify(rv.valueLabelReplacements) : null},
+            ${rv.postAggregationExpression ? JSON.stringify(rv.postAggregationExpression) : null},
+            ${rv.autoIncludeFacilityColumns ?? false},
+            ${ro.id},
+            ${rv.aiDescription ? JSON.stringify(rv.aiDescription) : null}
+          )
+          ON CONFLICT (id) DO NOTHING
+        `;
+        metricsInserted++;
+      }
+    }
+  }
+
+  // 2. Populate presentation_objects.metric_id from results_value JSON (if column still exists)
+  let presObjsUpdated = 0;
+  const hasResultsValueColumn = await sql<{ exists: boolean }[]>`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public'
+      AND table_name = 'presentation_objects'
+      AND column_name = 'results_value'
+    ) as exists
+  `;
+
+  if (hasResultsValueColumn[0]?.exists) {
+    const presObjs = await sql<{ id: string; results_value: string }[]>`
+      SELECT id, results_value FROM presentation_objects WHERE metric_id IS NULL
+    `;
+
+    for (const po of presObjs) {
+      try {
+        const resultsValue = JSON.parse(po.results_value);
+        if (resultsValue?.id) {
+          await sql`
+            UPDATE presentation_objects
+            SET metric_id = ${resultsValue.id}
+            WHERE id = ${po.id}
+          `;
+          presObjsUpdated++;
+        }
+      } catch {
+        // Skip if results_value is not valid JSON
+      }
+    }
+  }
+
+  // 3. Drop old columns from presentation_objects (now that we've read from them)
+  await sql`ALTER TABLE presentation_objects DROP COLUMN IF EXISTS module_id`;
+  await sql`ALTER TABLE presentation_objects DROP COLUMN IF EXISTS results_object_id`;
+  await sql`ALTER TABLE presentation_objects DROP COLUMN IF EXISTS results_value`;
+
+  // 4. Mark migration as complete
+  await sql`
+    INSERT INTO schema_migrations (migration_id) VALUES (${MIGRATION_ID})
+  `;
+
+  console.log(
+    `[MIGRATION] Migrated to metrics tables: ${resultsObjectsInserted} results objects, ${metricsInserted} metrics, ${presObjsUpdated} presentation objects`
+  );
 }

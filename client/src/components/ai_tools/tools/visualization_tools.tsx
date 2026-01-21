@@ -3,32 +3,92 @@ import { createAITool } from "panther";
 import { z } from "zod";
 import { For } from "solid-js";
 import { VisualizationPreview } from "../VisualizationPreview";
+import { getPODetailFromCacheorFetch } from "~/state/po_cache";
+import { getMetricDataForAI } from "~/utils/get_metric_data_for_ai";
+import { DisaggregationOption, PeriodOption } from "lib";
 
 export function createVisualizationTools(projectId: string) {
   return [
     createAITool({
-      name: "get_visualizations_and_metadata",
+      name: "get_available_visualizations",
       description: "Get a list of available visualizations and their metadata",
       inputSchema: z.object({}),
       handler: async () => {
-        const res = await serverActions.getVisualizationsList({ projectId });
+        const res = await serverActions.getVisualizationsListForAI({ projectId });
         if (!res.success) throw new Error(res.err);
         return res.data;
       },
-      inProgressLabel: "Getting a list of visualizations...",
+      inProgressLabel: "Getting available visualizations...",
     }),
 
     createAITool({
-      name: "get_data_for_one_visualization",
+      name: "get_visualization_data",
       description: "Get the underlying data for a single visualization",
       inputSchema: z.object({ id: z.string().describe("Visualization ID") }),
       handler: async (input) => {
-        const res = await serverActions.getVisualizationDataForAI({
+        // Fetch PO detail to get metric and config
+        const resPoDetail = await getPODetailFromCacheorFetch(projectId, input.id);
+        if (!resPoDetail.success) throw new Error(resPoDetail.err);
+
+        const poDetail = resPoDetail.data;
+        const config = poDetail.config;
+
+        // Extract disaggregations from config
+        const disaggregations = config.d.disaggregateBy.map(d => d.disOpt);
+        if (config.d.type === "timeseries") {
+          disaggregations.push(config.d.periodOpt);
+        }
+
+        // Extract filters
+        const filters = config.d.filterBy.map(f => ({
+          col: f.disOpt,
+          vals: f.values,
+        }));
+
+        // Extract period filter
+        const periodFilter = config.d.periodFilter
+          ? {
+            periodOption: config.d.periodFilter.periodOption,
+            min: config.d.periodFilter.min,
+            max: config.d.periodFilter.max,
+          }
+          : undefined;
+
+        // Get data using existing metric tool (reuses cache!)
+        const dataOutput = await getMetricDataForAI(
           projectId,
-          po_id: input.id,
-        });
-        if (!res.success) throw new Error(res.err);
-        return res.data;
+          poDetail.resultsValue.id,
+          disaggregations as DisaggregationOption[],
+          filters.length > 0 ? filters : undefined,
+          periodFilter,
+        );
+
+        // Prepend visualization context
+        const contextLines = [
+          "# VISUALIZATION DATA",
+          "=".repeat(80),
+          "",
+          `**Name:** ${poDetail.label}`,
+          `**Type:** ${config.d.type}`,
+        ];
+
+        if (config.t.caption) {
+          contextLines.push(`**Caption:** ${config.t.caption}`);
+        }
+
+        if (config.d.disaggregateBy.length > 0) {
+          contextLines.push("");
+          contextLines.push("**How dimensions are displayed:**");
+          for (const dis of config.d.disaggregateBy) {
+            contextLines.push(`- ${dis.disOpt} as ${dis.disDisplayOpt}`);
+          }
+        }
+
+        contextLines.push("");
+        contextLines.push("---");
+        contextLines.push("");
+
+        return contextLines.join("\n") + dataOutput;
       },
       inProgressLabel: "Getting visualization data...",
     }),
@@ -36,7 +96,7 @@ export function createVisualizationTools(projectId: string) {
     createAITool({
       name: "show_visualization_to_user",
       description:
-        "Show visualizations to the user. Up to 12 visualizations can be shown, ideally no more than 5. You can show the same visualization multiple times with different replicant values - for example, show one chart for ANC1, another for Penta3, etc. Use get_visualizations_and_metadata to see which visualizations have 'Replicates by' configured and what dimension they replicate by (e.g., indicator_common_id).",
+        "Show visualizations to the user. Up to 12 visualizations can be shown, ideally no more than 5. You can show the same visualization multiple times with different replicant values - for example, show one chart for ANC1, another for Penta3, etc. Use get_available_visualizations to see which visualizations have 'Replicates by' configured and what dimension they replicate by (e.g., indicator_common_id).",
       inputSchema: z.object({
         visualizations: z
           .array(
@@ -79,11 +139,10 @@ export function createVisualizationTools(projectId: string) {
     createAITool({
       name: "create_visualization",
       description:
-        "Create a new visualization from a ResultsValue. Requires specifying the data source (moduleId and resultsValueId), presentation type (timeseries, table, or chart), and which dimensions to disaggregate by. You can optionally filter the data by specific dimension values, time periods, or value properties. Returns the new visualization ID.",
+        "Create a new visualization from a ResultsValue. Requires specifying the metricId, presentation type (timeseries, table, or chart), and which dimensions to disaggregate by. You can optionally filter the data by specific dimension values, time periods, or value properties. Returns the new visualization ID.",
       inputSchema: z.object({
         label: z.string().describe("Name for the visualization"),
-        moduleId: z.string().describe("Module ID containing the data"),
-        resultsValueId: z.string().describe("ResultsValue ID to visualize"),
+        metricId: z.string().describe("ResultsValue ID to visualize"),
         presentationType: z
           .enum(["timeseries", "table", "chart"])
           .describe("How to display the data"),
@@ -143,8 +202,7 @@ export function createVisualizationTools(projectId: string) {
         const res = await serverActions.createVisualizationFromResultsValue({
           projectId,
           label: input.label,
-          moduleId: input.moduleId,
-          resultsValueId: input.resultsValueId,
+          metricId: input.metricId,
           presentationType: input.presentationType as any,
           disaggregations: input.disaggregations as any,
           filters: input.filters?.map((f) => ({

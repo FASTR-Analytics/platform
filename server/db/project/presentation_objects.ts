@@ -2,7 +2,6 @@ import { Sql } from "postgres";
 import {
   DisaggregationDisplayOption,
   DisaggregationOption,
-  PeriodFilter,
   PresentationOption,
   ProjectUser,
   ReportItemConfig,
@@ -18,12 +17,12 @@ import {
 } from "lib";
 import { getResultsObjectTableName, tryCatchDatabaseAsync } from "./../utils.ts";
 import {
+  type DBMetric,
   type DBPresentationObject,
   type DBReportItem,
 } from "./_project_database_types.ts";
 import { getFacilityColumnsConfig } from "../instance/config.ts";
-import { resolveResultsValueFromInstalledModule } from "./results_value_resolver.ts";
-import { assertNotUndefined } from "@timroberton/panther";
+import { resolveMetricById } from "./results_value_resolver.ts";
 
 export type AddPresentationObjectParams = {
   projectDb: Sql;
@@ -97,23 +96,11 @@ export async function addPresentationObject(
     const lastUpdated = new Date().toISOString();
     await projectDb`
 INSERT INTO presentation_objects
-  (
-    id,
-    module_id,
-    results_object_id,
-    results_value,
-    is_default_visualization,
-    created_by_ai,
-    label,
-    config,
-    last_updated
-  )
+  (id, metric_id, is_default_visualization, created_by_ai, label, config, last_updated)
 VALUES
   (
     ${newPresentationObjectId},
-    ${resultsValue.moduleId},
-    ${resultsValue.resultsObjectId},
-    ${JSON.stringify({ id: resultsValue.id })},
+    ${resultsValue.id},
     ${projectUser.isGlobalAdmin && makeDefault},
     ${createdByAI},
     ${label.trim()},
@@ -145,22 +132,11 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
     const lastUpdated = new Date().toISOString();
     await projectDb`
 INSERT INTO presentation_objects
-  (
-    id,
-    module_id,
-    results_object_id,
-    results_value,
-    is_default_visualization,
-    label,
-    config,
-    last_updated
-  )
+  (id, metric_id, is_default_visualization, label, config, last_updated)
 VALUES
   (
     ${newPresentationObjectId},
-    ${rawPresObj.module_id},
-    ${rawPresObj.results_object_id},
-    ${rawPresObj.results_value},
+    ${rawPresObj.metric_id},
     ${false},
     ${label.trim()},
     ${rawPresObj.config},
@@ -176,22 +152,24 @@ export async function getAllPresentationObjectsForModule(
   moduleId: string
 ): Promise<APIResponseWithData<PresentationObjectSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const presentationObjects = (
-      await projectDb<DBPresentationObject[]>`
-SELECT * FROM presentation_objects WHERE module_id = ${moduleId} ORDER BY LOWER(label)
-`
-    ).map<PresentationObjectSummary>((rawPresObj: DBPresentationObject) => {
-      const config = parseJsonOrThrow<PresentationObjectConfig>(
-        rawPresObj.config
-      );
+    // Join through metrics to find presentation objects for this module
+    const rows = await projectDb<DBPresentationObject[]>`
+SELECT po.*
+FROM presentation_objects po
+JOIN metrics m ON po.metric_id = m.id
+WHERE m.module_id = ${moduleId}
+ORDER BY LOWER(po.label)
+`;
+    const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
+      const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
       return {
-        id: rawPresObj.id,
-        moduleId: rawPresObj.module_id,
-        label: rawPresObj.label,
-        isDefault: rawPresObj.is_default_visualization,
+        id: row.id,
+        metricId: row.metric_id,
+        label: row.label,
+        isDefault: row.is_default_visualization,
         replicateBy: getReplicateByProp(config),
         isFiltered: config.d.filterBy.length > 0 || !!config.d.periodFilter,
-        createdByAI: rawPresObj.created_by_ai,
+        createdByAI: row.created_by_ai,
       };
     });
     return { success: true, data: presentationObjects };
@@ -202,22 +180,21 @@ export async function getAllPresentationObjectsForProject(
   projectDb: Sql
 ): Promise<APIResponseWithData<PresentationObjectSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const presentationObjects = (
-      await projectDb<DBPresentationObject[]>`
-SELECT * FROM presentation_objects ORDER BY is_default_visualization DESC, LOWER(label)
-`
-    ).map<PresentationObjectSummary>((rawPresObj: DBPresentationObject) => {
-      const config = parseJsonOrThrow<PresentationObjectConfig>(
-        rawPresObj.config
-      );
+    const rows = await projectDb<DBPresentationObject[]>`
+SELECT po.*
+FROM presentation_objects po
+ORDER BY po.is_default_visualization DESC, LOWER(po.label)
+`;
+    const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
+      const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
       return {
-        id: rawPresObj.id,
-        moduleId: rawPresObj.module_id,
-        label: rawPresObj.label,
-        isDefault: rawPresObj.is_default_visualization,
+        id: row.id,
+        metricId: row.metric_id,
+        label: row.label,
+        isDefault: row.is_default_visualization,
         replicateBy: getReplicateByProp(config),
         isFiltered: config.d.filterBy.length > 0 || !!config.d.periodFilter,
-        createdByAI: rawPresObj.created_by_ai,
+        createdByAI: row.created_by_ai,
       };
     });
     return { success: true, data: presentationObjects };
@@ -244,25 +221,18 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
     const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
     throwIfErrWithData(resFacilityConfig);
 
-    // Check if stored value is just an ID reference
-    const resResultsValueId = parseJsonOrThrow<{ id: string }>(
-      rawPresObj.results_value
-    );
-    assertNotUndefined(resResultsValueId.id, "No results value ID");
-
-    // New format: resolve from installed module with enrichment
-    const resResultsValue = await resolveResultsValueFromInstalledModule(
+    // Resolve metric by ID with enrichment
+    const resResultsValue = await resolveMetricById(
       projectDb,
-      rawPresObj.module_id,
-      resResultsValueId.id,
-      resFacilityConfig.data // Pass facility config for enrichment
+      rawPresObj.metric_id,
+      resFacilityConfig.data
     );
     throwIfErrWithData(resResultsValue);
 
     const presObj: PresentationObjectDetail = {
       id: rawPresObj.id,
       projectId,
-      resultsValue: resResultsValue.data, // Already enriched
+      resultsValue: resResultsValue.data,
       lastUpdated: rawPresObj.last_updated,
       label: rawPresObj.label,
       config: parseJsonOrThrow(rawPresObj.config),
@@ -385,26 +355,15 @@ WHERE id = ${reportItemId}`;
 export async function getReportItemsThatDependOnPresentationObjects(
   projectDb: Sql,
   presentationObjectIds: string[]
-) {
-  return (await projectDb<DBReportItem[]>`SELECT * FROM report_items`)
-    .filter((rawPresObj: DBReportItem) => {
-      const config = parseJsonOrThrow<ReportItemConfig>(rawPresObj.config);
-      for (const row of config.freeform.content) {
-        for (const col of row) {
-          if (
-            col.type === "figure" &&
-            col.presentationObjectInReportInfo !== undefined &&
-            presentationObjectIds.includes(
-              col.presentationObjectInReportInfo.id
-            )
-          ) {
-            return true;
-          }
-        }
-      }
-      return false;
-    })
-    .map((rawPresObj: DBReportItem) => rawPresObj.id);
+): Promise<string[]> {
+  if (presentationObjectIds.length === 0) return [];
+  const rows = await projectDb<{ id: string }[]>`
+    SELECT id FROM report_items
+    WHERE ${projectDb.unsafe(
+      presentationObjectIds.map((id) => `config LIKE '%${id}%'`).join(" OR ")
+    )}
+  `;
+  return rows.map((r) => r.id);
 }
 
 export async function deletePresentationObject(
@@ -499,10 +458,8 @@ export async function updateAIPresentationObject(
         created_by_ai: boolean;
         is_default_visualization: boolean;
         config: string;
-        results_value: string;
-        module_id: string;
       }[]>`
-SELECT created_by_ai, is_default_visualization, config, results_value, module_id
+SELECT created_by_ai, is_default_visualization, config
 FROM presentation_objects WHERE id = ${presentationObjectId}
 `
     ).at(0);
@@ -630,7 +587,7 @@ WHERE id = ${reportItemId}`;
   });
 }
 
-export async function getVisualizationsListForProject(
+export async function getVisualizationsListForAI(
   projectDb: Sql
 ): Promise<APIResponseWithData<string>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -642,6 +599,7 @@ export async function getVisualizationsListForProject(
     `;
     const tableNamesSet = new Set(existingTables.map((t) => t.table_name));
 
+    // Join through metrics to get module info and results object
     const rows = await projectDb<
       {
         id: string;
@@ -657,12 +615,13 @@ SELECT
   po.id,
   po.label,
   po.config,
-  po.results_object_id,
   po.is_default_visualization,
   po.created_by_ai,
-  m.module_definition
+  met.results_object_id,
+  mod.module_definition
 FROM presentation_objects po
-JOIN modules m ON po.module_id = m.id
+JOIN metrics met ON po.metric_id = met.id
+JOIN modules mod ON met.module_id = mod.id
 ORDER BY po.is_default_visualization DESC, LOWER(po.label)
 `;
 

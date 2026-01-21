@@ -42,7 +42,7 @@ export function measureFreeform(
     bounds: rcdOuter,
     mergedPageStyle: s,
     responsiveScale,
-    warnings: content.warnings,
+    overflow: content.overflow,
     header,
     footer,
     rcdContentOuter: content.rcdContentOuter,

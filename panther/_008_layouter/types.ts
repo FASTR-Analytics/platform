@@ -5,9 +5,12 @@
 
 import type {
   ColorKeyOrString,
+  HeightConstraints,
   PaddingOptions,
   RectCoordsDims,
 } from "./deps.ts";
+
+export type { HeightConstraints };
 
 export type LayoutNodeId = string;
 
@@ -62,6 +65,8 @@ export type MeasuredColsLayoutNode<U> = ColsLayoutNode<U> & {
 export type MeasuredItemLayoutNode<U> = ItemLayoutNode<U> & {
   rpd: RectCoordsDims;
   idealH: number;
+  maxH: number;
+  neededScalingToFitWidth?: "none" | number;
 };
 
 export type MeasuredLayoutNode<U> =
@@ -69,32 +74,15 @@ export type MeasuredLayoutNode<U> =
   | MeasuredColsLayoutNode<U>
   | MeasuredItemLayoutNode<U>;
 
-export type HeightConstraints = {
-  minH: number;
-  idealH: number;
-  maxH: number;
-};
-
 export type ItemHeightMeasurer<T, U> = (
   ctx: T,
   item: ItemLayoutNode<U>,
   width: number,
 ) => HeightConstraints;
 
-export type LayoutWarning = {
-  type:
-    | "INVALID_SPAN"
-    | "SPAN_OVERFLOW"
-    | "SPAN_MISMATCH"
-    | "NO_SPACE_FOR_FLEX"
-    | "HEIGHT_OVERFLOW";
-  message: string;
-  path?: string;
-};
-
 export type MeasureLayoutResult<U> = {
   measured: MeasuredLayoutNode<U>;
-  warnings: LayoutWarning[];
+  overflow: boolean;
   gaps: LayoutGap[];
 };
 

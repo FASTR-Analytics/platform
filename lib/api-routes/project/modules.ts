@@ -1,9 +1,9 @@
 import type {
   HfaIndicator,
   InstalledModuleWithConfigSelections,
-  InstalledModuleWithResultsValues,
   ItemsHolderResultsObject,
   ModuleId,
+  ResultsValue,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -78,10 +78,10 @@ export const moduleRouteRegistry = {
     response: {} as { logs: string },
     requiresProject: true,
   }),
-  getAllModulesWithResultsValues: route({
-    path: "/modules/results_values",
+  getAllMetrics: route({
+    path: "/metrics",
     method: "GET",
-    response: {} as InstalledModuleWithResultsValues[],
+    response: {} as ResultsValue[],
     requiresProject: true,
   }),
   getModuleWithConfigSelections: route({

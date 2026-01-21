@@ -52,48 +52,66 @@ export const definition = {
         facility_custom_5: "TEXT NOT NULL",
         value: "NUMERIC",
       },
-      resultsValues: [
-        {
-          id: "hfa001-percentage",
-          valueProps: ["value"],
-          valueFunc: "AVG",
-          valueLabelReplacements: {},
-          label: "HFA indicators (percentage/proportion) - use for binary indicators",
-          requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
-          formatAs: "percent",
-          periodOptions: [],
-        },
-        {
-          id: "hfa001-average",
-          valueProps: ["value"],
-          valueFunc: "AVG",
-          valueLabelReplacements: {},
-          label: "HFA indicators (mean/average value) - use for averaging numeric indicators",
-          requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
-          formatAs: "number",
-          periodOptions: [],
-        },
-        {
-          id: "hfa001-total",
-          valueProps: ["value"],
-          valueFunc: "SUM",
-          valueLabelReplacements: {},
-          label: "HFA indicators (total/sum) - use for summing numeric values",
-          requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
-          formatAs: "number",
-          periodOptions: [],
-        },
-        {
-          id: "hfa001-count",
-          valueProps: ["value"],
-          valueFunc: "COUNT",
-          valueLabelReplacements: {},
-          label: "HFA indicators (record count) - useful for data quality checks",
-          requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
-          formatAs: "number",
-          periodOptions: [],
-        },
-      ],
+    },
+  ],
+  /////////////////////////////////////////////////////////////////////////
+  //  __       __              __                __                      //
+  // /  \     /  |            /  |              /  |                     //
+  // $$  \   /$$ |  ______   _$$ |_     ______  $$/   _______   _______  //
+  // $$$  \ /$$$ | /      \ / $$   |   /      \ /  | /       | /       | //
+  // $$$$  /$$$$ |/$$$$$$  |$$$$$$/   /$$$$$$  |$$ |/$$$$$$$/ /$$$$$$$/  //
+  // $$ $$ $$/$$ |$$    $$ |  $$ | __ $$ |  $$/ $$ |$$ |      $$      \  //
+  // $$ |$$$/ $$ |$$$$$$$$/   $$ |/  |$$ |      $$ |$$ \_____  $$$$$$  | //
+  // $$ | $/  $$ |$$       |  $$  $$/ $$ |      $$ |$$       |/     $$/  //
+  // $$/      $$/  $$$$$$$/    $$$$/  $$/       $$/  $$$$$$$/ $$$$$$$/   //
+  //                                                                     //
+  /////////////////////////////////////////////////////////////////////////
+  metrics: [
+    {
+      id: "hfa001-percentage",
+      resultsObjectId: "HFA001_results.csv",
+      valueProps: ["value"],
+      valueFunc: "AVG",
+      valueLabelReplacements: {},
+      label:
+        "HFA indicators (percentage/proportion) - use for binary indicators",
+      requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
+      formatAs: "percent",
+      periodOptions: [],
+    },
+    {
+      id: "hfa001-average",
+      resultsObjectId: "HFA001_results.csv",
+      valueProps: ["value"],
+      valueFunc: "AVG",
+      valueLabelReplacements: {},
+      label:
+        "HFA indicators (mean/average value) - use for averaging numeric indicators",
+      requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
+      formatAs: "number",
+      periodOptions: [],
+    },
+    {
+      id: "hfa001-total",
+      resultsObjectId: "HFA001_results.csv",
+      valueProps: ["value"],
+      valueFunc: "SUM",
+      valueLabelReplacements: {},
+      label: "HFA indicators (total/sum) - use for summing numeric values",
+      requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
+      formatAs: "number",
+      periodOptions: [],
+    },
+    {
+      id: "hfa001-count",
+      resultsObjectId: "HFA001_results.csv",
+      valueProps: ["value"],
+      valueFunc: "COUNT",
+      valueLabelReplacements: {},
+      label: "HFA indicators (record count) - useful for data quality checks",
+      requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
+      formatAs: "number",
+      periodOptions: [],
     },
   ],
   ////////////////////////////////////////////////////////////////////

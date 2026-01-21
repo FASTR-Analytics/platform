@@ -53,7 +53,8 @@ CREATE TABLE modules (
   config_selections text NOT NULL,
   last_updated text NOT NULL,
   last_run text NOT NULL,
-  dirty text NOT NULL
+  dirty text NOT NULL,
+  latest_ran_commit_sha text
 );
 
 CREATE INDEX idx_modules_last_updated ON modules(last_updated);
@@ -61,7 +62,7 @@ CREATE INDEX idx_modules_last_run ON modules(last_run);
 CREATE INDEX idx_modules_dirty ON modules(dirty);
 
 -- ============================================================================
--- RESULTS OBJECTS AND VALUES (NORMALIZED FROM MODULE DEFINITIONS)
+-- RESULTS OBJECTS AND METRICS
 -- ============================================================================
 
 -- Results object definitions extracted from module definitions
@@ -76,27 +77,25 @@ CREATE TABLE results_objects (
 
 CREATE INDEX idx_results_objects_module_id ON results_objects(module_id);
 
--- Results value definitions extracted from module definitions
-CREATE TABLE results_values (
+-- Metrics extracted from module definitions
+CREATE TABLE metrics (
   id text PRIMARY KEY NOT NULL,
-  results_object_id text NOT NULL,
   module_id text NOT NULL,
   label text NOT NULL,
   value_func text NOT NULL CHECK (value_func IN ('SUM', 'AVG', 'COUNT', 'MIN', 'MAX', 'identity')),
   format_as text NOT NULL CHECK (format_as IN ('percent', 'number')),
-  -- Store complex fields as JSON
   value_props text NOT NULL,  -- JSON array of property names
   period_options text NOT NULL,  -- JSON array of period options
-  disaggregation_options text NOT NULL,  -- JSON array with full disaggregation config
+  required_disaggregation_options text NOT NULL,  -- JSON array
   value_label_replacements text,  -- JSON object (nullable)
   post_aggregation_expression text,  -- JSON object (nullable)
   auto_include_facility_columns boolean DEFAULT false,
-  FOREIGN KEY (results_object_id) REFERENCES results_objects(id) ON DELETE CASCADE,
+  results_object_id text NOT NULL,
+  ai_description text,  -- JSON object (nullable)
   FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_results_values_results_object_id ON results_values(results_object_id);
-CREATE INDEX idx_results_values_module_id ON results_values(module_id);
+CREATE INDEX idx_metrics_module_id ON metrics(module_id);
 
 -- ============================================================================
 -- VISUALIZATION AND PRESENTATION
@@ -104,9 +103,7 @@ CREATE INDEX idx_results_values_module_id ON results_values(module_id);
 
 CREATE TABLE presentation_objects (
   id text PRIMARY KEY NOT NULL,
-  module_id text NOT NULL,  -- Purposefully not a foreign key
-  results_object_id text NOT NULL,
-  results_value text NOT NULL,
+  metric_id text NOT NULL,  -- No FK - preserved across module uninstall/reinstall
   is_default_visualization boolean NOT NULL,
   label text NOT NULL,
   config text NOT NULL,
@@ -114,8 +111,7 @@ CREATE TABLE presentation_objects (
   created_by_ai boolean DEFAULT FALSE
 );
 
-CREATE INDEX idx_presentation_objects_module_id ON presentation_objects(module_id);
-CREATE INDEX idx_presentation_objects_results_object_id ON presentation_objects(results_object_id);
+CREATE INDEX idx_presentation_objects_metric_id ON presentation_objects(metric_id);
 CREATE INDEX idx_presentation_objects_last_updated ON presentation_objects(last_updated);
 
 -- ============================================================================

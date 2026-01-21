@@ -12,6 +12,15 @@ import type {
 import type { YScaleAxisData, YScaleAxisWidthInfo } from "../../types.ts";
 import { getGoodAxisTickValues_V2 } from "../get_good_axis_tick_values.ts";
 
+export function estimateMinYAxisWidth(
+  rc: RenderContext,
+  sy: MergedYScaleAxisStyle,
+  sg: MergedGridStyle,
+): number {
+  const sampleLabel = rc.mText("100,000", sy.text.yScaleAxisTickLabels, Infinity);
+  return sampleLabel.dims.w() + sy.tickLabelGap + sy.tickWidth + sg.axisStrokeWidth;
+}
+
 export function measureYScaleAxisWidthInfo(
   rc: RenderContext,
   dy: YScaleAxisData,

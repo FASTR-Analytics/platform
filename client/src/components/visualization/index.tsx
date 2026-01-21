@@ -5,6 +5,7 @@ import {
   PresentationObjectConfig,
   PresentationObjectDetail,
   ProjectDetail,
+  getModuleIdForMetric,
   getReplicateByProp,
   getTextRenderingOptions,
   hasDuplicateDisaggregatorDisplayOptions,
@@ -70,7 +71,6 @@ import { getFigureInputsFromPresentationObject } from "~/generate_visualization/
 export function Visualization(p: {
   isGlobalAdmin: boolean;
   projectDetail: ProjectDetail;
-  moduleId: string;
   presentationObjectId: string;
   backToProject: (withUpdate: boolean) => void;
 }) {
@@ -344,7 +344,7 @@ function PresentationObjectEditorInner(p: Props) {
         projectId: p.projectDetail.id,
         presentationObjectId: p.poDetail.id,
         resultsObjectId: p.poDetail.resultsValue.resultsObjectId,
-        moduleId: p.poDetail.resultsValue.moduleId,
+        moduleId: getModuleIdForMetric(p.poDetail.resultsValue.id),
         isDefault: p.poDetail.isDefault,
         existingLabel: p.poDetail.label,
         silentFetchPoDetail: p.silentFetchPoDetail,
@@ -388,7 +388,7 @@ function PresentationObjectEditorInner(p: Props) {
     );
     optimisticSetProjectLastUpdated(res.lastUpdated);
     navigate(
-      `/?p=${p.projectDetail.id}&m=${p.poDetail.resultsValue.moduleId}&v=${res.newPresentationObjectId}`,
+      `/?p=${p.projectDetail.id}&v=${res.newPresentationObjectId}`,
     );
   }
 
@@ -424,7 +424,7 @@ function PresentationObjectEditorInner(p: Props) {
       const jsonDef = {
         id: p.poDetail.id,
         label: p.poDetail.label,
-        resultsValueId: p.poDetail.resultsValue.id,
+        metricId: p.poDetail.resultsValue.id,
         config: p.poDetail.config,
       };
       downloadJson(
@@ -595,7 +595,7 @@ function PresentationObjectEditorInner(p: Props) {
       element: ViewResultsObject,
       props: {
         projectId: p.projectDetail.id,
-        moduleId: p.poDetail.resultsValue.moduleId,
+        moduleId: getModuleIdForMetric(p.poDetail.resultsValue.id),
         resultsObjectId,
       },
     });

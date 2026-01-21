@@ -65,7 +65,7 @@ export async function getFigureAsCanvas(
 
   if (h === undefined) {
     const { rc } = await createCanvasRenderContext(w, 100);
-    finalH = FigureRenderer.getIdealHeight(rc, w, inputs);
+    finalH = FigureRenderer.getIdealHeight(rc, w, inputs).idealH;
   } else {
     finalH = h;
   }

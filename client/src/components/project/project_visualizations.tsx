@@ -119,7 +119,7 @@ export function ProjectVisualizations(p: Props) {
           projectDetail={p.projectDetail}
           searchText={searchText().trim()}
           onClick={(po) => {
-            navigate(`/?p=${p.projectDetail.id}&m=${po.moduleId}&v=${po.id}`);
+            navigate(`/?p=${p.projectDetail.id}&v=${po.id}`);
           }}
         />
       </Show>

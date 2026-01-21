@@ -21,7 +21,7 @@ function stripFrontmatter(script: string): string {
 
 async function fetchGitHubScript(
   source: Extract<ScriptSource, { type: "github" }>
-): Promise<string> {
+): Promise<{ script: string, sha: string }> {
   const url = `https://raw.githubusercontent.com/${source.owner}/${source.repo}/${source.commit}/${source.path}`;
 
   console.log(`  Fetching from GitHub: ${url}`);
@@ -34,7 +34,26 @@ async function fetchGitHubScript(
   }
 
   const rawScript = await response.text();
-  return stripFrontmatter(rawScript);
+  // get the commit sha
+  const shaUrl = `https://api.github.com/repos/${source.owner}/${source.repo}/commits/${source.commit}`;
+  const shaResponse = await fetch(shaUrl);
+
+  if (!shaResponse.ok) {
+    throw new Error(`Failed to fetch commit SHA: ${shaResponse.status} ${shaResponse.statusText}`);
+  }
+
+  const commitInfo = await shaResponse.json();
+  const sha = commitInfo.sha;
+
+  let script = stripFrontmatter(rawScript);
+
+  if (source.replacements) {
+    for (const { from, to } of source.replacements) {
+      script = script.replaceAll(from, to);
+    }
+  }
+
+  return { script, sha };
 }
 
 type ModuleManifest = {
@@ -87,6 +106,7 @@ async function scanModuleDefinitions(): Promise<
 
         // Load script based on source type
         let script: string;
+        let sha: string | undefined;
         if (definition.scriptSource.type === "local") {
           const scriptSourcePath = join(
             entry.path,
@@ -94,7 +114,10 @@ async function scanModuleDefinitions(): Promise<
           );
           script = await Deno.readTextFile(scriptSourcePath);
         } else if (definition.scriptSource.type === "github") {
-          script = await fetchGitHubScript(definition.scriptSource);
+          const githubResponse = await fetchGitHubScript(definition.scriptSource);
+          script = githubResponse.script;
+          sha = githubResponse.sha;
+          console.log(`  Fetched script for ${moduleId} v${version} (SHA: ${sha})`);
         } else {
           console.error(
             `✗ Skipping ${moduleId} v${version}: Unknown script source type`
@@ -108,6 +131,7 @@ async function scanModuleDefinitions(): Promise<
         // Inject id from folder structure and update scriptSource and lastScriptUpdate
         const jsonDefinition = {
           ...definition,
+          commitSha: sha,
           id: moduleId,
           lastScriptUpdate: new Date().toISOString(),
           scriptSource: {
@@ -173,6 +197,16 @@ function generateModuleMetadata(
     prerequisites: ModuleId[];
   }> = [];
 
+  // Collect mappings
+  const metricToModule: Record<string, ModuleId> = {};
+  const resultsObjectToModule: Record<string, ModuleId> = {};
+  const metricStaticData: Record<string, {
+    resultsObjectId: string;
+    valueProps: string[];
+    valueFunc: string;
+    formatAs: string;
+  }> = {};
+
   for (const [moduleId, versions] of modules.entries()) {
     const versionList = Array.from(versions.keys()).sort();
     const latestVersion = versionList[versionList.length - 1];
@@ -184,6 +218,22 @@ function generateModuleMetadata(
       label: latestDef.label,
       prerequisites: latestDef.prerequisites,
     });
+
+    // Add metrics for this module
+    for (const metric of latestDef.metrics) {
+      metricToModule[metric.id] = moduleId;
+      metricStaticData[metric.id] = {
+        resultsObjectId: metric.resultsObjectId,
+        valueProps: metric.valueProps,
+        valueFunc: metric.valueFunc,
+        formatAs: metric.formatAs,
+      };
+    }
+
+    // Add results objects for this module
+    for (const resultsObject of latestDef.resultsObjects) {
+      resultsObjectToModule[resultsObject.id] = moduleId;
+    }
   }
 
   // Sort by module ID for consistent output, with HFA modules last
@@ -205,6 +255,27 @@ function generateModuleMetadata(
           .map((p) => `"${p}"`)
           .join(", ")}] }`
     )
+    .join(",\n");
+
+  // Sort metric mappings for consistent output
+  const sortedMetricIds = Object.keys(metricToModule).sort();
+  const metricMapping = sortedMetricIds
+    .map((metricId) => `  "${metricId}": "${metricToModule[metricId]}"`)
+    .join(",\n");
+
+  // Sort results object mappings for consistent output
+  const sortedResultsObjectIds = Object.keys(resultsObjectToModule).sort();
+  const resultsObjectMapping = sortedResultsObjectIds
+    .map((roId) => `  "${roId}": "${resultsObjectToModule[roId]}"`)
+    .join(",\n");
+
+  // Generate metric static data map
+  const sortedMetricStaticIds = Object.keys(metricStaticData).sort();
+  const metricStaticDataCode = sortedMetricStaticIds
+    .map((metricId) => {
+      const d = metricStaticData[metricId];
+      return `  "${metricId}": { resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}" }`;
+    })
     .join(",\n");
 
   return `// ⚠️  THIS FILE IS AUTO-GENERATED - DO NOT EDIT MANUALLY
@@ -230,13 +301,187 @@ export const _POSSIBLE_MODULES: {
 }[] = [
 ${possibleModules},
 ];
+
+// Metric ID to Module ID mapping
+export const METRIC_TO_MODULE: Record<string, ModuleId> = {
+${metricMapping},
+};
+
+export function getModuleIdForMetric(metricId: string): ModuleId {
+  const moduleId = METRIC_TO_MODULE[metricId];
+  if (!moduleId) {
+    throw new Error(\`Unknown metricId: \${metricId}. This may indicate a migration issue.\`);
+  }
+  return moduleId;
+}
+
+// Results Object ID to Module ID mapping
+export const RESULTS_OBJECT_TO_MODULE: Record<string, ModuleId> = {
+${resultsObjectMapping},
+};
+
+export function getModuleIdForResultsObject(resultsObjectId: string): ModuleId {
+  const moduleId = RESULTS_OBJECT_TO_MODULE[resultsObjectId];
+  if (!moduleId) {
+    throw new Error(\`Unknown resultsObjectId: \${resultsObjectId}. This may indicate a migration issue.\`);
+  }
+  return moduleId;
+}
+
+// Static metric data for building fetchConfig client-side
+export const METRIC_STATIC_DATA: Record<string, {
+  resultsObjectId: string;
+  valueProps: string[];
+  valueFunc: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
+  formatAs: "percent" | "number";
+}> = {
+${metricStaticDataCode},
+};
+
+export function getMetricStaticData(metricId: string) {
+  const data = METRIC_STATIC_DATA[metricId];
+  if (!data) {
+    throw new Error(\`Unknown metricId: \${metricId}. This may indicate a migration issue.\`);
+  }
+  return data;
+}
 `;
+}
+
+function validateResultsObjects(
+  modules: Map<
+    ModuleId,
+    Map<string, { definition: ModuleDefinitionJSON; script: string }>
+  >
+): void {
+  const resultsObjectIds = new Map<string, { moduleId: ModuleId; version: string }>();
+  const duplicates: string[] = [];
+
+  for (const [moduleId, versions] of modules.entries()) {
+    for (const [version, { definition }] of versions.entries()) {
+      for (const ro of definition.resultsObjects) {
+        const existing = resultsObjectIds.get(ro.id);
+        if (existing) {
+          duplicates.push(
+            `  "${ro.id}" in ${moduleId}@${version} conflicts with ${existing.moduleId}@${existing.version}`
+          );
+        } else {
+          resultsObjectIds.set(ro.id, { moduleId, version });
+        }
+      }
+    }
+  }
+
+  if (duplicates.length > 0) {
+    console.error("\n✗ Duplicate results object IDs found:");
+    for (const dup of duplicates) {
+      console.error(dup);
+    }
+    throw new Error("Results object validation failed");
+  }
+
+  console.log(`✓ Validated ${resultsObjectIds.size} unique results object IDs`);
+}
+
+function validateMetrics(
+  modules: Map<
+    ModuleId,
+    Map<string, { definition: ModuleDefinitionJSON; script: string }>
+  >
+): void {
+  const metricIds = new Map<string, { moduleId: ModuleId; version: string }>();
+  const duplicates: string[] = [];
+  const invalidRoutes: string[] = [];
+  const variantErrors: string[] = [];
+
+  for (const [moduleId, versions] of modules.entries()) {
+    for (const [version, { definition }] of versions.entries()) {
+      const validResultsObjectIds = new Set(
+        definition.resultsObjects.map((ro) => ro.id)
+      );
+
+      // Group metrics by label to validate variantLabel consistency
+      const metricsByLabel = new Map<string, typeof definition.metrics>();
+      for (const metric of definition.metrics) {
+        const existing = metricsByLabel.get(metric.label) ?? [];
+        existing.push(metric);
+        metricsByLabel.set(metric.label, existing);
+      }
+
+      // Validate variantLabel consistency
+      for (const [label, metricsWithLabel] of metricsByLabel.entries()) {
+        if (metricsWithLabel.length > 1) {
+          // Multiple metrics share this label - ALL must have variantLabel
+          const missingVariant = metricsWithLabel.filter((m) => !m.variantLabel);
+          if (missingVariant.length > 0) {
+            variantErrors.push(
+              `  ${moduleId}@${version}: Metrics with label "${label}" have ${metricsWithLabel.length} entries but ${missingVariant.length} are missing variantLabel: ${missingVariant.map((m) => m.id).join(", ")}`
+            );
+          }
+        } else if (metricsWithLabel.length === 1 && metricsWithLabel[0].variantLabel) {
+          // Single metric with variantLabel but no siblings - warn
+          variantErrors.push(
+            `  ${moduleId}@${version}: Metric "${metricsWithLabel[0].id}" has variantLabel "${metricsWithLabel[0].variantLabel}" but no other metrics share its label "${label}"`
+          );
+        }
+      }
+
+      for (const metric of definition.metrics) {
+        // Check for duplicate metric IDs
+        const existing = metricIds.get(metric.id);
+        if (existing) {
+          duplicates.push(
+            `  "${metric.id}" in ${moduleId}@${version} conflicts with ${existing.moduleId}@${existing.version}`
+          );
+        } else {
+          metricIds.set(metric.id, { moduleId, version });
+        }
+
+        // Check resultsObjectId points to valid resultsObject
+        if (!validResultsObjectIds.has(metric.resultsObjectId)) {
+          invalidRoutes.push(
+            `  "${metric.id}" in ${moduleId}@${version}: resultsObjectId "${metric.resultsObjectId}" not found in resultsObjects`
+          );
+        }
+      }
+    }
+  }
+
+  if (duplicates.length > 0) {
+    console.error("\n✗ Duplicate metric IDs found:");
+    for (const dup of duplicates) {
+      console.error(dup);
+    }
+  }
+
+  if (invalidRoutes.length > 0) {
+    console.error("\n✗ Invalid resultsObjectId references:");
+    for (const route of invalidRoutes) {
+      console.error(route);
+    }
+  }
+
+  if (variantErrors.length > 0) {
+    console.error("\n✗ Variant label validation errors:");
+    for (const err of variantErrors) {
+      console.error(err);
+    }
+  }
+
+  if (duplicates.length > 0 || invalidRoutes.length > 0 || variantErrors.length > 0) {
+    throw new Error("Metric validation failed");
+  }
+
+  console.log(`✓ Validated ${metricIds.size} unique metric IDs with valid resultsObjectId`);
 }
 
 async function buildModules() {
   console.log("Building module definitions...\n");
 
   const modules = await scanModuleDefinitions();
+
+  validateResultsObjects(modules);
+  validateMetrics(modules);
 
   const outDir = "./module_defs_dist";
   await Deno.mkdir(outDir, { recursive: true });
@@ -310,7 +555,7 @@ function cleanPresentationObjectJSON(
   const cleaned: PartialDefaultPresentationObjectJSON = {
     id: obj.id,
     label: obj.label,
-    resultsValueId: obj.resultsValueId,
+    metricId: obj.metricId,
     config: {
       d: obj.config.d,
     },

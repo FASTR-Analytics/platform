@@ -4,7 +4,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "c3cb0cc9-4352-4b27-8532-f18e465faec8",
     label: "Default 1. Proportion of outliers",
-    resultsValueId: "m1-01-01",
+    metricId: "m1-01-01",
     config: {
       d: {
         type: "table",
@@ -49,7 +49,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "c20f1672-edfc-4140-ae2c-09a30b50443a",
     label: "Default 2. Proportion of completed records",
-    resultsValueId: "m1-02-02",
+    metricId: "m1-02-02",
     config: {
       d: {
         type: "table",
@@ -94,7 +94,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "26dedd7c-4577-4022-928c-69e0ee790a71",
     label: "Default 3. Proportion of completed records over time",
-    resultsValueId: "m1-02-02",
+    metricId: "m1-02-02",
     config: {
       d: {
         type: "timeseries",
@@ -129,7 +129,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
     id: "cf5b8649-93c2-4bbe-8f2d-773f42ce8ec3",
     label:
       "Default 4. Proportion of sub-national areas meeting consistency criteria",
-    resultsValueId: "m1-03-01",
+    metricId: "m1-03-01",
     config: {
       d: {
         type: "table",
@@ -174,7 +174,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "d46e1957-09dd-41c3-b7dc-b4409da23bbe",
     label: "Default 5. Overall DQA score",
-    resultsValueId: "m1-04-01",
+    metricId: "m1-04-01",
     config: {
       d: {
         type: "table",
@@ -213,7 +213,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "4dc02c21-29da-4a01-9812-469deedaaac8",
     label: "Default 6. Mean DQA score",
-    resultsValueId: "m1-04-02",
+    metricId: "m1-04-02",
     config: {
       d: {
         type: "table",

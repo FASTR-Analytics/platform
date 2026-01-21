@@ -26,9 +26,9 @@ import {
   getResultsObjectTableName,
   tryCatchDatabaseAsync,
 } from "./../utils.ts";
-import { DBModule } from "./_project_database_types.ts";
+import { DBMetric, DBModule } from "./_project_database_types.ts";
 import { getFacilityColumnsConfig } from "../instance/config.ts";
-import { enrichResultsValue } from "./results_value_enricher.ts";
+import { enrichMetric } from "./metric_enricher.ts";
 
 //////////////////////////////////////////////////////////////
 //  ______                        __                __  __  //
@@ -67,8 +67,14 @@ export async function installModule(
 
     const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
 
+    // Get all metric IDs for this module to find related presentation objects
+    const metricIds = modDef.data.metrics.map((m) => m.id);
+
     await projectDb.begin(async (sql: Sql) => {
+      // Delete existing module (cascades to results_objects and metrics)
       await sql`DELETE FROM modules WHERE id = ${modDef.data.id}`;
+
+      // Insert module
       await sql`
 INSERT INTO modules
   (id, module_definition, date_installed, config_type, config_selections, last_updated, last_run, dirty)
@@ -84,39 +90,68 @@ VALUES
     'queued'
   )
 `;
+
+      // Drop and recreate results object tables, insert into results_objects table
       for (const resultsObject of modDef.data.resultsObjects) {
         const roTableName = getResultsObjectTableName(resultsObject.id);
         await sql`DROP TABLE IF EXISTS ${sql(roTableName)}`;
+        await sql`
+INSERT INTO results_objects (id, module_id, description, column_definitions)
+VALUES (
+  ${resultsObject.id},
+  ${modDef.data.id},
+  ${resultsObject.description},
+  ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null}
+)
+`;
       }
 
-      await sql`
-DELETE FROM presentation_objects
-WHERE module_id = ${modDef.data.id} AND is_default_visualization = TRUE
+      // Insert metrics
+      for (const metric of modDef.data.metrics) {
+        await sql`
+INSERT INTO metrics (
+  id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
+  required_disaggregation_options, value_label_replacements, post_aggregation_expression,
+  auto_include_facility_columns, results_object_id, ai_description
+)
+VALUES (
+  ${metric.id},
+  ${modDef.data.id},
+  ${metric.label},
+  ${metric.variantLabel ?? null},
+  ${metric.valueFunc},
+  ${metric.formatAs},
+  ${JSON.stringify(metric.valueProps)},
+  ${JSON.stringify(metric.periodOptions)},
+  ${JSON.stringify(metric.requiredDisaggregationOptions)},
+  ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
+  ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
+  ${metric.autoIncludeFacilityColumns ?? false},
+  ${metric.resultsObjectId},
+  ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null}
+)
 `;
+      }
 
-      for (const presObjectDef of defaultPresentationObjects) {
+      // Delete default presentation objects for this module's metrics
+      if (metricIds.length > 0) {
         await sql`
 DELETE FROM presentation_objects
-WHERE module_id = ${modDef.data.id} AND id = ${presObjectDef.id}
+WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE
 `;
+      }
+
+      // Insert default presentation objects
+      for (const presObjectDef of defaultPresentationObjects) {
+        // Delete any existing PO with this ID (in case of reinstall)
+        await sql`DELETE FROM presentation_objects WHERE id = ${presObjectDef.id}`;
         await sql`
 INSERT INTO presentation_objects
-  (
-    id,
-    module_id,
-    results_object_id,
-    results_value,
-    is_default_visualization,
-    label,
-    config,
-    last_updated
-  )
+  (id, metric_id, is_default_visualization, label, config, last_updated)
 VALUES
   (
     ${presObjectDef.id},
-    ${modDef.data.id},
-    ${presObjectDef.resultsObjectId},
-    ${JSON.stringify({ id: presObjectDef.resultsValueId })},
+    ${presObjectDef.metricId},
     ${true},
     ${presObjectDef.label},
     ${JSON.stringify(presObjectDef.config)},
@@ -126,14 +161,17 @@ VALUES
       }
     });
 
-    await projectDb`
+    // Update last_updated for all presentation objects using this module's metrics
+    if (metricIds.length > 0) {
+      await projectDb`
 UPDATE presentation_objects
 SET last_updated = ${lastUpdated}
-WHERE module_id = ${modDef.data.id}
+WHERE metric_id = ANY(${metricIds})
 `;
+    }
 
     const allPresObjs = await projectDb<{ id: string }[]>`
-SELECT id FROM presentation_objects WHERE module_id = ${modDef.data.id}
+SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})
 `;
     const presObjIdsWithNewLastUpdateds = allPresObjs.map((po) => po.id);
 
@@ -234,6 +272,9 @@ export async function updateModuleDefinition(
     // Get default presentation objects from the module definition
     const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
 
+    // Get all metric IDs for this module
+    const metricIds = modDef.data.metrics.map((m) => m.id);
+
     await projectDb.begin(async (sql: Sql) => {
       // Update the module definition and last_updated
       if (preserveSettings) {
@@ -267,59 +308,94 @@ export async function updateModuleDefinition(
             module_definition = ${JSON.stringify(modDef.data)},
             config_selections = ${JSON.stringify(startingConfigSelections)},
             date_installed = ${lastUpdated},
-            last_updated = ${lastUpdated}
+            last_updated = ${lastUpdated},
             dirty = 'queued'
           WHERE id = ${moduleDefinitionId}
         `;
       }
 
-      await sql`
-        DELETE FROM presentation_objects
-        WHERE module_id = ${modDef.data.id} AND is_default_visualization = TRUE
-      `;
+      // Delete existing results_objects and metrics (will be recreated)
+      await sql`DELETE FROM results_objects WHERE module_id = ${modDef.data.id}`;
+      await sql`DELETE FROM metrics WHERE module_id = ${modDef.data.id}`;
 
-      // Update default presentation objects
+      // Recreate results_objects
+      for (const resultsObject of modDef.data.resultsObjects) {
+        await sql`
+INSERT INTO results_objects (id, module_id, description, column_definitions)
+VALUES (
+  ${resultsObject.id},
+  ${modDef.data.id},
+  ${resultsObject.description},
+  ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null}
+)
+`;
+      }
+
+      // Recreate metrics
+      for (const metric of modDef.data.metrics) {
+        await sql`
+INSERT INTO metrics (
+  id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
+  required_disaggregation_options, value_label_replacements, post_aggregation_expression,
+  auto_include_facility_columns, results_object_id, ai_description
+)
+VALUES (
+  ${metric.id},
+  ${modDef.data.id},
+  ${metric.label},
+  ${metric.variantLabel ?? null},
+  ${metric.valueFunc},
+  ${metric.formatAs},
+  ${JSON.stringify(metric.valueProps)},
+  ${JSON.stringify(metric.periodOptions)},
+  ${JSON.stringify(metric.requiredDisaggregationOptions)},
+  ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
+  ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
+  ${metric.autoIncludeFacilityColumns ?? false},
+  ${metric.resultsObjectId},
+  ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null}
+)
+`;
+      }
+
+      // Delete default presentation objects for this module's metrics
+      if (metricIds.length > 0) {
+        await sql`
+DELETE FROM presentation_objects
+WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE
+`;
+      }
+
+      // Insert default presentation objects
       for (const presObjectDef of defaultPresentationObjects) {
+        await sql`DELETE FROM presentation_objects WHERE id = ${presObjectDef.id}`;
         await sql`
-          DELETE FROM presentation_objects
-          WHERE module_id = ${modDef.data.id} AND id = ${presObjectDef.id}
-        `;
-
-        await sql`
-          INSERT INTO presentation_objects
-            (
-              id,
-              module_id,
-              results_object_id,
-              results_value,
-              is_default_visualization,
-              label,
-              config,
-              last_updated
-            )
-          VALUES
-            (
-              ${presObjectDef.id},
-              ${modDef.data.id},
-              ${presObjectDef.resultsObjectId},
-              ${JSON.stringify({ id: presObjectDef.resultsValueId })},
-              ${true},
-              ${presObjectDef.label},
-              ${JSON.stringify(presObjectDef.config)},
-              ${lastUpdated}
-            )
-        `;
+INSERT INTO presentation_objects
+  (id, metric_id, is_default_visualization, label, config, last_updated)
+VALUES
+  (
+    ${presObjectDef.id},
+    ${presObjectDef.metricId},
+    ${true},
+    ${presObjectDef.label},
+    ${JSON.stringify(presObjectDef.config)},
+    ${lastUpdated}
+  )
+`;
       }
     });
 
-    await projectDb`
+    // Update last_updated for all presentation objects using this module's metrics
+    if (metricIds.length > 0) {
+      await projectDb`
 UPDATE presentation_objects
 SET last_updated = ${lastUpdated}
-WHERE module_id = ${modDef.data.id}
+WHERE metric_id = ANY(${metricIds})
 `;
+    }
 
     const allPresObjs = await projectDb<{ id: string }[]>`
-SELECT id FROM presentation_objects WHERE module_id = ${modDef.data.id}
+SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})
 `;
     const presObjIdsWithNewLastUpdateds = allPresObjs.map((po) => po.id);
 
@@ -347,11 +423,20 @@ export async function getAllModulesForProject(
   projectDb: Sql
 ): Promise<APIResponseWithData<InstalledModuleSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const modules = (
-      await projectDb<DBModule[]>`
-SELECT * FROM modules
-`
-    ).map<InstalledModuleSummary>((rawModule: DBModule) => {
+    const rawModules = await projectDb<DBModule[]>`SELECT * FROM modules`;
+
+    // Get results object IDs per module from results_objects table
+    const resultsObjectRows = await projectDb<{ module_id: string; id: string }[]>`
+      SELECT module_id, id FROM results_objects ORDER BY module_id, id
+    `;
+    const resultsObjectIdsByModule = new Map<string, string[]>();
+    for (const row of resultsObjectRows) {
+      const existing = resultsObjectIdsByModule.get(row.module_id) ?? [];
+      existing.push(row.id);
+      resultsObjectIdsByModule.set(row.module_id, existing);
+    }
+
+    const modules = rawModules.map<InstalledModuleSummary>((rawModule) => {
       const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
         rawModule.module_definition
       );
@@ -362,9 +447,9 @@ SELECT * FROM modules
         moduleDefinitionLastScriptUpdated: moduleDefinition.lastScriptUpdate,
         moduleDefinitionLabel: moduleDefinition.label,
         dateInstalled: rawModule.date_installed,
-        moduleDefinitionResultsObjectIds: moduleDefinition.resultsObjects.map(
-          (ro) => ro.id
-        ),
+        commitSha: moduleDefinition.commitSha,
+        latestRanCommitSha: rawModule.latest_ran_commit_sha ?? undefined,
+        moduleDefinitionResultsObjectIds: resultsObjectIdsByModule.get(rawModule.id) ?? [],
         configType: rawModule.config_type,
       };
     });
@@ -471,10 +556,180 @@ SELECT last_run FROM modules WHERE id = ${moduleId}
   });
 }
 
-export async function getAllModulesWithResultsValues(
+export async function getMetricsListForAI(
   mainDb: Sql,
   projectDb: Sql
-): Promise<APIResponseWithData<InstalledModuleWithResultsValues[]>> {
+): Promise<APIResponseWithData<string>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
+    const facilityConfig = facilityConfigResult.success
+      ? facilityConfigResult.data
+      : undefined;
+
+    const rawModules = await projectDb<DBModule[]>`
+      SELECT * FROM modules ORDER BY id
+    `;
+
+    const rawMetrics = await projectDb<DBMetric[]>`
+      SELECT * FROM metrics
+    `;
+
+    const metricsByModule = new Map<string, DBMetric[]>();
+    for (const metric of rawMetrics) {
+      const existing = metricsByModule.get(metric.module_id) ?? [];
+      existing.push(metric);
+      metricsByModule.set(metric.module_id, existing);
+    }
+
+    const lines: string[] = [
+      "AVAILABLE METRICS",
+      "=".repeat(80),
+      "",
+      "Each metric can be queried using get_metric_data with metricId.",
+      "Required disaggregations MUST be included. Optional ones can be added for more detail.",
+      "",
+    ];
+
+    for (const rawModule of rawModules) {
+      const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
+        rawModule.module_definition
+      );
+      const moduleMetrics = metricsByModule.get(rawModule.id) ?? [];
+
+      lines.push(`MODULE: ${moduleDefinition.label} (${rawModule.id})`);
+      lines.push("-".repeat(60));
+
+      if (moduleMetrics.length === 0) {
+        lines.push("  No metrics available");
+        lines.push("");
+        continue;
+      }
+
+      // Enrich all metrics first
+      const enrichedMetrics: ResultsValue[] = [];
+      for (const dbMetric of moduleMetrics) {
+        const metric = await enrichMetric(dbMetric, projectDb, facilityConfig);
+        enrichedMetrics.push(metric);
+      }
+
+      // Group by label
+      const metricGroups = new Map<string, ResultsValue[]>();
+      for (const metric of enrichedMetrics) {
+        const existing = metricGroups.get(metric.label) ?? [];
+        existing.push(metric);
+        metricGroups.set(metric.label, existing);
+      }
+
+      for (const [label, variants] of metricGroups) {
+        const firstVariant = variants[0];
+
+        if (variants.length === 1 && !firstVariant.variantLabel) {
+          // Single metric without variants - use old format
+          lines.push(`  METRIC: ${label}`);
+          lines.push(`    ID: ${firstVariant.id}`);
+          lines.push(`    Format: ${firstVariant.formatAs}`);
+
+          if (firstVariant.aiDescription?.summary) {
+            lines.push(`    Summary: ${getAIStr(firstVariant.aiDescription.summary)}`);
+          }
+          if (firstVariant.aiDescription?.methodology) {
+            lines.push(`    Methodology: ${getAIStr(firstVariant.aiDescription.methodology)}`);
+          }
+          if (firstVariant.aiDescription?.interpretation) {
+            lines.push(`    Interpretation: ${getAIStr(firstVariant.aiDescription.interpretation)}`);
+          }
+          if (firstVariant.aiDescription?.typicalRange) {
+            lines.push(`    Typical range: ${getAIStr(firstVariant.aiDescription.typicalRange)}`);
+          }
+          if (firstVariant.aiDescription?.caveats) {
+            lines.push(`    Caveats: ${getAIStr(firstVariant.aiDescription.caveats)}`);
+          }
+          if (firstVariant.aiDescription?.disaggregationGuidance) {
+            lines.push(`    Disaggregation guidance: ${getAIStr(firstVariant.aiDescription.disaggregationGuidance)}`);
+          }
+
+          const required = firstVariant.disaggregationOptions.filter(opt => opt.isRequired);
+          const optional = firstVariant.disaggregationOptions.filter(opt => !opt.isRequired);
+
+          if (required.length > 0) {
+            lines.push(`    Required disaggregations:`);
+            for (const opt of required) {
+              lines.push(`      - ${opt.value} (${getAIStr(opt.label)})`);
+            }
+          }
+
+          if (optional.length > 0) {
+            lines.push(`    Optional disaggregations:`);
+            for (const opt of optional) {
+              lines.push(`      - ${opt.value} (${getAIStr(opt.label)})`);
+            }
+          }
+
+          lines.push(`    Period options: ${firstVariant.periodOptions.join(", ")}`);
+          lines.push("");
+        } else {
+          // Multiple variants or has variantLabel - use grouped format
+          lines.push(`  METRIC: ${label}`);
+          lines.push(`    Format: ${firstVariant.formatAs}`);
+
+          if (firstVariant.aiDescription?.summary) {
+            lines.push(`    Summary: ${getAIStr(firstVariant.aiDescription.summary)}`);
+          }
+          if (firstVariant.aiDescription?.methodology) {
+            lines.push(`    Methodology: ${getAIStr(firstVariant.aiDescription.methodology)}`);
+          }
+          if (firstVariant.aiDescription?.interpretation) {
+            lines.push(`    Interpretation: ${getAIStr(firstVariant.aiDescription.interpretation)}`);
+          }
+          if (firstVariant.aiDescription?.typicalRange) {
+            lines.push(`    Typical range: ${getAIStr(firstVariant.aiDescription.typicalRange)}`);
+          }
+          if (firstVariant.aiDescription?.caveats) {
+            lines.push(`    Caveats: ${getAIStr(firstVariant.aiDescription.caveats)}`);
+          }
+          if (firstVariant.aiDescription?.disaggregationGuidance) {
+            lines.push(`    Disaggregation guidance: ${getAIStr(firstVariant.aiDescription.disaggregationGuidance)}`);
+          }
+
+          lines.push(`    Period options: ${firstVariant.periodOptions.join(", ")}`);
+          lines.push("");
+          lines.push(`    Available at:`);
+
+          for (const variant of variants) {
+            const variantName = variant.variantLabel || "Default";
+            lines.push(`      - ${variantName} (ID: ${variant.id})`);
+
+            const required = variant.disaggregationOptions.filter(opt => opt.isRequired);
+            const optional = variant.disaggregationOptions.filter(opt => !opt.isRequired);
+
+            if (required.length > 0) {
+              lines.push(`        Required disaggregations: ${required.map(opt => opt.value).join(", ")}`);
+            }
+
+            if (optional.length > 0) {
+              lines.push(`        Optional disaggregations: ${optional.map(opt => opt.value).join(", ")}`);
+            }
+
+            lines.push("");
+          }
+        }
+      }
+      lines.push("");
+    }
+
+    return { success: true, data: lines.join("\n") };
+  });
+}
+
+function getAIStr(val: string | { en: string; fr?: string }): string {
+  if (typeof val === "string") return val;
+  return val.en;
+}
+
+export async function getAllMetrics(
+  mainDb: Sql,
+  projectDb: Sql
+): Promise<APIResponseWithData<ResultsValue[]>> {
   return await tryCatchDatabaseAsync(async () => {
     // Get facility config once for all modules
     const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
@@ -482,54 +737,39 @@ export async function getAllModulesWithResultsValues(
       ? facilityConfigResult.data
       : undefined;
 
-    const rawModules = await projectDb<DBModule[]>`
-      SELECT * FROM modules
+    // Get all metrics from the database
+    const rawMetrics = await projectDb<DBMetric[]>`
+      SELECT * FROM metrics ORDER BY label
     `;
 
-    // Process each module and enrich results values
-    const modules = await Promise.all(
-      rawModules.map(async (rawModule: DBModule) => {
-        const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-          rawModule.module_definition
-        );
+    // Enrich each metric
+    const metrics: ResultsValue[] = [];
+    for (const dbMetric of rawMetrics) {
+      const enrichedMetric = await enrichMetric(
+        dbMetric,
+        projectDb,
+        facilityConfig
+      );
+      metrics.push(enrichedMetric);
+    }
 
-        const resultsValues: ResultsValue[] = [];
-
-        // Enrich each results value
-        for (const resultsObject of moduleDefinition.resultsObjects) {
-          for (const resultsValue of resultsObject.resultsValues) {
-            const enrichedResultsValue = await enrichResultsValue(
-              resultsValue,
-              resultsObject.id,
-              projectDb,
-              facilityConfig
-            );
-            resultsValues.push(enrichedResultsValue);
-          }
-        }
-
-        return {
-          id: getValidatedModuleId(rawModule.id),
-          label: moduleDefinition.label,
-          resultsValues,
-        };
-      })
-    );
-
-    // Sort modules alphabetically by label
-    modules.sort((a, b) => a.label.localeCompare(b.label));
-
-    return { success: true, data: modules };
+    return { success: true, data: metrics };
   });
 }
 
-export async function getModulesListForProject(
+export async function getModulesListForAI(
   projectDb: Sql
 ): Promise<APIResponseWithData<string>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawModules = await projectDb<DBModule[]>`
       SELECT * FROM modules ORDER BY id
     `;
+
+    // Get metric counts per module
+    const metricCounts = await projectDb<{ module_id: string; count: string }[]>`
+      SELECT module_id, COUNT(*) as count FROM metrics GROUP BY module_id
+    `;
+    const metricCountMap = new Map(metricCounts.map((m) => [m.module_id, parseInt(m.count)]));
 
     const lines = ["AVAILABLE MODULES", "=".repeat(80), ""];
 
@@ -547,16 +787,8 @@ export async function getModulesListForProject(
         `Status: ${rawModule.dirty === "true" ? "Needs update" : "Up to date"}`
       );
 
-      if (moduleDefinition.resultsObjects.length > 0) {
-        lines.push(`Results Objects:`);
-        for (const ro of moduleDefinition.resultsObjects) {
-          lines.push(
-            `  - ${ro.id} (${ro.resultsValues.length} value${
-              ro.resultsValues.length === 1 ? "" : "s"
-            })`
-          );
-        }
-      }
+      const metricCount = metricCountMap.get(rawModule.id) ?? 0;
+      lines.push(`Metrics: ${metricCount}`);
 
       lines.push("-".repeat(80));
       lines.push("");

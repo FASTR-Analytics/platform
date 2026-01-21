@@ -11,7 +11,6 @@ import type {
   ItemHeightMeasurer,
   LayoutGap,
   LayoutNode,
-  LayoutWarning,
   MeasuredColsLayoutNode,
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,
@@ -33,7 +32,7 @@ export function measureLayout<T, U>(
   nColumns: number,
   options?: MeasureLayoutOptions,
 ): MeasureLayoutResult<U> {
-  const warnings: LayoutWarning[] = [];
+  const overflowTracker = { overflow: false };
   if (PANTHER_DEBUG) {
     console.log(`\n=== measureLayout DEBUG ===`);
     console.log(`bounds: ${bounds.w().toFixed(1)} x ${bounds.h().toFixed(1)}`);
@@ -57,11 +56,11 @@ export function measureLayout<T, U>(
     gapX,
     gapY,
     itemMeasurer,
-    warnings,
+    overflowTracker,
     nColumns,
   );
   const gaps = extractGaps(measured, gapX, gapY, options?.gapOverlap ?? 10);
-  return { measured, warnings, gaps };
+  return { measured, overflow: overflowTracker.overflow, gaps };
 }
 
 // =============================================================================
@@ -126,12 +125,12 @@ function getHeightConstraints<T, U>(
     }
   } else {
     // cols
-    const colWidthResult = getColWidths(node.children, innerW, nColumns, gapX);
+    const colWidths = getColWidths(node.children, innerW, nColumns, gapX);
     const childResults = node.children.map((child, i) =>
       getHeightConstraints(
         ctx,
         child,
-        colWidthResult.widths[i].w,
+        colWidths[i].w,
         gapX,
         gapY,
         itemMeasurer,
@@ -178,9 +177,8 @@ function measureNode<T, U>(
   gapX: number,
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
-  warnings: LayoutWarning[],
+  overflowTracker: { overflow: boolean },
   nColumns: number,
-  path?: string,
 ): MeasuredLayoutNode<U> {
   if (node.type === "rows") {
     return measureRowNode(
@@ -190,9 +188,8 @@ function measureNode<T, U>(
       gapX,
       gapY,
       itemMeasurer,
-      warnings,
+      overflowTracker,
       nColumns,
-      path,
     );
   }
   if (node.type === "cols") {
@@ -203,9 +200,8 @@ function measureNode<T, U>(
       gapX,
       gapY,
       itemMeasurer,
-      warnings,
+      overflowTracker,
       nColumns,
-      path,
     );
   }
   return measureItemNode(ctx, node, bounds, itemMeasurer);
@@ -218,11 +214,9 @@ function measureRowNode<T, U>(
   gapX: number,
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
-  warnings: LayoutWarning[],
+  overflowTracker: { overflow: boolean },
   nColumns: number,
-  path?: string,
 ): MeasuredRowsLayoutNode<U> {
-  const nodePath = path ? `${path}.rows(${node.id})` : `rows(${node.id})`;
   const innerBounds = getInnerBounds(bounds, node.style);
   const pad = new Padding(node.style?.padding ?? 0);
   const borderWidth = node.style?.borderWidth ?? 0;
@@ -243,18 +237,11 @@ function measureRowNode<T, U>(
 
   const totalGapHeight = (node.children.length - 1) * gapY;
   const totalMinH = sum(childConstraints.map((c) => c.minH));
-  const totalMaxH = sum(childConstraints.map((c) => c.maxH));
   const availableHeight = innerBounds.h();
 
   // Check for overflow
   if (totalMinH + totalGapHeight > availableHeight) {
-    warnings.push({
-      type: "HEIGHT_OVERFLOW",
-      message: `Row minimum heights (${
-        totalMinH + totalGapHeight
-      }px) exceed container (${availableHeight}px)`,
-      path: nodePath,
-    });
+    overflowTracker.overflow = true;
   }
 
   // Calculate how much space we can use
@@ -317,9 +304,8 @@ function measureRowNode<T, U>(
       gapX,
       gapY,
       itemMeasurer,
-      warnings,
+      overflowTracker,
       nColumns,
-      nodePath,
     );
 
     measuredChildren.push(measuredChild);
@@ -344,31 +330,27 @@ function measureColNode<T, U>(
   gapX: number,
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
-  warnings: LayoutWarning[],
+  overflowTracker: { overflow: boolean },
   nColumns: number,
-  path?: string,
 ): MeasuredColsLayoutNode<U> {
-  const nodePath = path ? `${path}.cols(${node.id})` : `cols(${node.id})`;
   const innerBounds = getInnerBounds(bounds, node.style);
   const pad = new Padding(node.style?.padding ?? 0);
   const borderWidth = node.style?.borderWidth ?? 0;
   const borderTotal = borderWidth * 2;
 
-  const colWidthResult = getColWidths(
+  const colWidths = getColWidths(
     node.children,
     innerBounds.w(),
     nColumns,
     gapX,
-    nodePath,
   );
-  warnings.push(...colWidthResult.warnings);
 
   // Get constraints for all children
   const childConstraints = node.children.map((child, i) =>
     getHeightConstraints(
       ctx,
       child,
-      colWidthResult.widths[i].w,
+      colWidths[i].w,
       gapX,
       gapY,
       itemMeasurer,
@@ -386,13 +368,7 @@ function measureColNode<T, U>(
 
   // Check for overflow (can't fit minimum heights)
   if (maxOfMinH > innerBounds.h()) {
-    warnings.push({
-      type: "HEIGHT_OVERFLOW",
-      message: `Cols overflow: max(minH)=${maxOfMinH.toFixed(1)} > container=${
-        innerBounds.h().toFixed(1)
-      }`,
-      path: nodePath,
-    });
+    overflowTracker.overflow = true;
   }
 
   // Measure children - each gets row height, capped by their maxH
@@ -401,7 +377,7 @@ function measureColNode<T, U>(
 
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
-    const childWidth = colWidthResult.widths[i].w;
+    const childWidth = colWidths[i].w;
     const childConstraint = childConstraints[i];
 
     // Child height is row height, but capped by their maxH
@@ -421,9 +397,8 @@ function measureColNode<T, U>(
       gapX,
       gapY,
       itemMeasurer,
-      warnings,
+      overflowTracker,
       nColumns,
-      nodePath,
     );
 
     measuredChildren.push(measuredChild);
@@ -473,10 +448,15 @@ function measureItemNode<T, U>(
   const finalH = contentH + pad.totalPy() + borderTotal;
   const rpd = bounds.getAdjusted({ h: Math.min(finalH, bounds.h()) });
 
+  // Store maxH with padding/border for use in scoring
+  const finalMaxH = maxH + pad.totalPy() + borderTotal;
+
   return {
     ...node,
     rpd,
     idealH,
+    maxH: finalMaxH,
+    neededScalingToFitWidth: constraints.neededScalingToFitWidth,
   };
 }
 

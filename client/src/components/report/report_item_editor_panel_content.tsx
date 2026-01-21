@@ -1,4 +1,5 @@
 import {
+  getModuleIdForMetric,
   ProjectDetail,
   ReportDetail,
   ReportItemConfig,
@@ -190,7 +191,7 @@ export function ReportItemEditorContent(p: Props) {
                                 <PresentationObjectMiniDisplay
                                   projectId={p.projectDetail.id}
                                   moduleId={
-                                    keyedPresentationObjectInReportInfo.moduleId
+                                    getModuleIdForMetric(keyedPresentationObjectInReportInfo.metricId)
                                   }
                                   presentationObjectId={
                                     keyedPresentationObjectInReportInfo.id
