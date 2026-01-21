@@ -13,7 +13,7 @@ import {
   timActionButton,
   timActionDelete,
 } from "panther";
-import { Match, Show, Switch, createSignal, createResource } from "solid-js";
+import { Match, Show, Switch, createSignal, createResource, Suspense } from "solid-js";
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { User } from "./user";
@@ -29,8 +29,7 @@ type Props = {
 export function InstanceUsers(p: Props) {
   // Temp state
   const [userLogs] = createResource(
-    () => serverActions.getAllUserLogs(),
-    { deferStream: true }
+    () => serverActions.getAllUserLogs()
   );
 
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
@@ -128,14 +127,13 @@ export function InstanceUsers(p: Props) {
                       silentFetch={p.instanceDetail.silentFetch}
                     />
                   </div>
-                  <Show 
-                    when={userLogs()?.data}
-                    fallback={<div class="text-neutral text-sm">Loading activity logs...</div>}
-                  >
-                    <div class="flex-1 overflow-auto">
-                      <UserLogsTable logs={userLogs()!.data}/>
-                    </div>
-                  </Show>
+                  <Suspense fallback={<div class="text-neutral text-sm">Loading activity logs...</div>}>
+                    <Show when={userLogs()?.data}>
+                      <div class="flex-1 overflow-auto">
+                        <UserLogsTable logs={userLogs()!.data}/>
+                      </div>
+                    </Show>
+                  </Suspense>
                 </div>
               </FrameTop>
             </Match>
