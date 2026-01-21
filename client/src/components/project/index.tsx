@@ -310,9 +310,9 @@ export default function Project(p: Props) {
                                 when={tab() === "logs" && p.isGlobalAdmin}
                               >
                                 <Suspense fallback={<div class="text-neutral text-sm">Loading logs...</div>}>
-                                  <Show when={projectLogs()?.data}>
+                                  <Show when={projectLogs()}>
                                     <ProjectLogs
-                                      logs={projectLogs()!.data}
+                                      logs={projectLogs()!}
                                       filterByUser={logFilterUser()}
                                       onFilterByUser={setLogFilterUser}
                                     />
