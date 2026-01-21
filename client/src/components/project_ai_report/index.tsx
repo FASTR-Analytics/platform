@@ -22,8 +22,8 @@ import fontMap from "~/font-map.json";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { longFormEditorState } from "~/state/long_form_editor";
-import { AIToolsDebug } from "../ai_tools/ai_debug_component";
-import { getReportTools } from "../ai_tools/ai_tool_definitions";
+import { AIToolsDebug } from "../ai_tools/AIDebugComponent";
+import { getToolsForReport } from "../ai_tools/ai_tool_definitions";
 import { getReportSystemPrompt } from "../ai_prompts/report";
 import { buildFigureMapForExport } from "./build_figure_map";
 import { extractFiguresFromMarkdown } from "./extract_figure_ids";
@@ -141,7 +141,7 @@ export function ProjectAiReport(p: Props) {
           model: DEFAULT_ANTHROPIC_MODEL,
           max_tokens: 4096,
         },
-        tools: getReportTools(projectId, () => currentSelection()),
+        tools: getToolsForReport(projectId, () => currentSelection()),
         builtInTools: { webSearch: true, textEditor: true },
         textEditorHandler,
         conversationId: `ai-report-${p.reportId}`,

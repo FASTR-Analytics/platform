@@ -4,7 +4,7 @@ import { z } from "zod";
 import { type DisaggregationOption, type PeriodOption } from "lib";
 import { getMetricDataForAI } from "~/utils/get_metric_data_for_ai";
 
-export function createMetricTools(projectId: string) {
+export function getToolsForMetrics(projectId: string) {
   return [
     createAITool({
       name: "get_available_metrics",

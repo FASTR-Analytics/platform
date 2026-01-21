@@ -40,21 +40,11 @@ ${resultsValue.periodOptions.join(", ")}
 AVAILABLE TOOLS:
 
 Analysis tools:
-- get_visualization_data: Get the current data for analysis (call this first!)
-- get_current_config: See current visualization settings
-- get_available_options: See all available configuration options
+- get_visualization_data: Get the underlying CSV data with dimension summary (call this first!)
+- get_visualization_config: Get current configuration and available options
 
-Edit tools (changes are LOCAL until user clicks "Save"):
-- set_presentation_type: Change between timeseries/table/chart
-- set_values_display: Change how value properties are displayed (series, cell, row, col, etc.)
-- set_values_filter: Filter to show only specific value properties
-- set_filters: Filter data by dimension values (indicators, admin areas, etc.)
-- set_disaggregations: Change how data is broken down by dimensions (use displayAs: "replicant" to create a replicant dimension)
-- set_period_option: Change time granularity (e.g., monthly vs quarterly)
-- set_period_filter: Limit the time range
-- set_replicant_value: Select which specific value to show when using replicant display
-- set_national_inclusion: Include/exclude national data when viewing sub-national areas
-- set_captions: Update title/subtitle/footnote
+Edit tool (changes are LOCAL until user clicks "Save"):
+- update_visualization_config: Update any aspect of the configuration (type, disaggregations, filters, period, captions, etc.)
 
 IMPORTANT NOTES:
 1. Changes you make are LOCAL - the user must click "Save" in the toolbar to persist them
@@ -65,7 +55,8 @@ IMPORTANT NOTES:
 
 WORKFLOW:
 1. When user asks about the visualization, first call get_visualization_data
-2. Analyze the data and provide insights
-3. If user wants changes, use the edit tools
-4. Remind user to click "Save" after making changes they want to keep`;
+2. Analyze the CSV data and provide insights
+3. If user wants to see/change settings, call get_visualization_config
+4. If user wants changes, use update_visualization_config
+5. Remind user to click "Save" after making changes they want to keep`;
 }

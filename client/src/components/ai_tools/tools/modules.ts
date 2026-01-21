@@ -2,7 +2,7 @@ import { serverActions } from "~/server_actions";
 import { createAITool } from "panther";
 import { z } from "zod";
 
-export function createModuleTools(projectId: string) {
+export function getToolsForModules(projectId: string) {
   return [
     createAITool({
       name: "get_available_modules",

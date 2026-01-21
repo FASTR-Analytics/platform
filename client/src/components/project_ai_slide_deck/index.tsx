@@ -14,10 +14,10 @@ import {
 import { createMemo, createSignal, Match, onCleanup, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions/config";
-import { createVisualizationTools } from "../ai_tools/tools/visualization_tools";
+import { getToolsForSlideDeck } from "../ai_tools/ai_tool_definitions";
 import { getSlideDeckSystemPrompt } from "../ai_prompts/slide_deck";
 import { SlideDeckPreview } from "./slide_deck_preview";
-import { AIToolsDebug } from "../ai_tools/ai_debug_component";
+import { AIToolsDebug } from "../ai_tools/AIDebugComponent";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -137,7 +137,7 @@ export function ProjectAiSlideDeck(p: Props) {
           model: DEFAULT_ANTHROPIC_MODEL,
           max_tokens: 4096,
         },
-        tools: createVisualizationTools(projectId),
+        tools: getToolsForSlideDeck(projectId),
         builtInTools: { webSearch: true, textEditor: true },
         textEditorHandler,
         conversationId: `ai-slide-deck-${p.reportId}`,

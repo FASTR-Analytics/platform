@@ -29,10 +29,11 @@ export function AiInterpretationPane(p: Props) {
 
   const tools = createMemo(() =>
     getToolsForVizPane(
-      p.tempConfig,
+      p.projectDetail.id,
+      p.presentationObjectId,
+      () => p.tempConfig,
       p.setTempConfig,
-      () => p.figureInputs,
-      p.resultsValue
+      () => p.resultsValue
     )
   );
 
