@@ -52,11 +52,6 @@ type Props = {
 export default function Project(p: Props) {
   // Utils
 
-  const [projectLogs] = createResource(
-    () => serverActions.getProjectLogs()
-  );
-  const [logFilterUser, setLogFilterUser] = createSignal<string | undefined>(undefined);
-
   const [searchParams, setSearchParams] = useSearchParams();
 
   const navigate = useNavigate();
@@ -110,6 +105,12 @@ export default function Project(p: Props) {
                   }
                   projectDetail.silentFetch();
                 });
+
+                // Project logs state
+                const [projectLogs] = createResource(
+                  () => serverActions.getProjectLogs()
+                );
+                const [logFilterUser, setLogFilterUser] = createSignal<string | undefined>(undefined);
 
                 return (
                   <Switch>
