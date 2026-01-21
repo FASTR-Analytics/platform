@@ -629,6 +629,14 @@ export async function getMetricsListForAI(
           lines.push(`    ID: ${firstVariant.id}`);
           lines.push(`    Format: ${firstVariant.formatAs}`);
 
+          if (firstVariant.valueProps.length > 0) {
+            lines.push(`    Value properties:`);
+            for (const prop of firstVariant.valueProps) {
+              const propLabel = firstVariant.valueLabelReplacements?.[prop] || prop;
+              lines.push(`      - ${prop}: ${propLabel}`);
+            }
+          }
+
           if (firstVariant.aiDescription?.summary) {
             lines.push(`    Summary: ${getAIStr(firstVariant.aiDescription.summary)}`);
           }
@@ -671,6 +679,14 @@ export async function getMetricsListForAI(
           // Multiple variants or has variantLabel - use grouped format
           lines.push(`  METRIC: ${label}`);
           lines.push(`    Format: ${firstVariant.formatAs}`);
+
+          if (firstVariant.valueProps.length > 0) {
+            lines.push(`    Value properties:`);
+            for (const prop of firstVariant.valueProps) {
+              const propLabel = firstVariant.valueLabelReplacements?.[prop] || prop;
+              lines.push(`      - ${prop}: ${propLabel}`);
+            }
+          }
 
           if (firstVariant.aiDescription?.summary) {
             lines.push(`    Summary: ${getAIStr(firstVariant.aiDescription.summary)}`);

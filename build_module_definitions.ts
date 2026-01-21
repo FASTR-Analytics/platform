@@ -205,6 +205,7 @@ function generateModuleMetadata(
     valueProps: string[];
     valueFunc: string;
     formatAs: string;
+    valueLabelReplacements?: Record<string, string>;
   }> = {};
 
   for (const [moduleId, versions] of modules.entries()) {
@@ -227,6 +228,7 @@ function generateModuleMetadata(
         valueProps: metric.valueProps,
         valueFunc: metric.valueFunc,
         formatAs: metric.formatAs,
+        valueLabelReplacements: metric.valueLabelReplacements,
       };
     }
 
@@ -274,7 +276,8 @@ function generateModuleMetadata(
   const metricStaticDataCode = sortedMetricStaticIds
     .map((metricId) => {
       const d = metricStaticData[metricId];
-      return `  "${metricId}": { resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}" }`;
+      const replacements = d.valueLabelReplacements ? `, valueLabelReplacements: ${JSON.stringify(d.valueLabelReplacements)}` : "";
+      return `  "${metricId}": { resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements} }`;
     })
     .join(",\n");
 
@@ -334,6 +337,7 @@ export const METRIC_STATIC_DATA: Record<string, {
   valueProps: string[];
   valueFunc: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
   formatAs: "percent" | "number";
+  valueLabelReplacements?: Record<string, string>;
 }> = {
 ${metricStaticDataCode},
 };

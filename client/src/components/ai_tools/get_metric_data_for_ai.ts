@@ -98,6 +98,16 @@ function formatItemsAsMarkdown(
   lines.push("");
   lines.push(`**Metric ID:** ${metricId}`);
   lines.push(`**Format:** ${staticData.formatAs}`);
+
+  if (staticData.valueProps.length > 0) {
+    lines.push("");
+    lines.push("**Value properties:**");
+    for (const prop of staticData.valueProps) {
+      const propLabel = staticData.valueLabelReplacements?.[prop] || prop;
+      lines.push(`  - ${prop}: ${propLabel}`);
+    }
+  }
+
   lines.push("");
 
   if (itemsHolder.status === "too_many_items") {
