@@ -15,7 +15,7 @@ CREATE TABLE project_logs (
   endpoint text NOT NULL,
   endpoint_result text NOT NULL,
   project_id text NOT NULL,
-  FOREIGN KEY (user_email) REFERENCES users(email)
+  details text
 );
 
 CREATE TABLE indicators (
