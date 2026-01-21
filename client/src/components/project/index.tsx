@@ -16,7 +16,7 @@ import {
   getEditorWrapper,
   timQuery,
 } from "panther";
-import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
+import { Match, Show, Switch, Suspense, createEffect, createSignal, createResource } from "solid-js";
 import { ProjectRunnerProvider } from "~/components/project_runner/mod";
 // import { PresentationObjectEditor } from "~/components/forms_editors/presentation_object_editor";
 // import { Module } from "~/components/module";
@@ -32,6 +32,7 @@ import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
 import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
+import { ProjectLogs } from "./project_logs.tsx";
 
 type TabOption =
   | "chatbot"
@@ -39,7 +40,8 @@ type TabOption =
   | "visualizations"
   | "modules"
   | "data"
-  | "settings";
+  | "settings"
+  | "logs";
 
 type Props = {
   instanceDetail: TimQuery<InstanceDetail>;
@@ -49,6 +51,11 @@ type Props = {
 
 export default function Project(p: Props) {
   // Utils
+
+  const [projectLogs] = createResource(
+    () => serverActions.getProjectLogs()
+  );
+  const [logFilterUser, setLogFilterUser] = createSignal<string | undefined>(undefined);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -214,6 +221,18 @@ export default function Project(p: Props) {
                                     {t2(T.FRENCH_UI_STRINGS.settings)}
                                   </div>
                                 </Show>
+                                <Show when={p.isGlobalAdmin}>
+                                  <div
+                                    class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                    onClick={() => changeTab("logs")}
+                                    data-selected={tab() === "logs"}
+                                  >
+                                    <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                      <ChartIcon />
+                                    </span>
+                                    {t("Logs")}
+                                  </div>
+                                </Show>          
                               </div>
                             }
                           >
@@ -285,6 +304,19 @@ export default function Project(p: Props) {
                                   backToHome={() => navigate("/")}
                                   instanceDetail={keyedInstanceDetail}
                                 />
+                              </Match>
+                              <Match
+                                when={tab() === "logs" && p.isGlobalAdmin}
+                              >
+                                <Suspense fallback={<div class="text-neutral text-sm">Loading logs...</div>}>
+                                  <Show when={projectLogs()?.data}>
+                                    <ProjectLogs
+                                      logs={projectLogs()!.data}
+                                      filterByUser={logFilterUser()}
+                                      onFilterByUser={setLogFilterUser}
+                                    />
+                                  </Show>
+                                </Suspense>
                               </Match>
                             </Switch>
                           </FrameLeft>

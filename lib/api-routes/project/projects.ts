@@ -1,3 +1,4 @@
+import { ProjectLog } from "../../../server/db/mod.ts";
 import type {
   ProjectDetail,
   ProjectUserRoleType,
@@ -106,4 +107,11 @@ export const projectRouteRegistry = {
     body: {} as { newProjectLabel: string },
     response: {} as { newProjectId: string },
   }),
+
+  getProjectLogs: route({
+    path: "/project-logs",
+    method: "GET",
+    response: {} as ProjectLog[],
+    requiresProject: true,
+  })
 } as const;

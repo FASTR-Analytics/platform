@@ -25,6 +25,7 @@ import {
 } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
+import { GetProjectLogs } from "../../db/project/project_user_logs.ts";
 
 export const routesProject = new Hono();
 
@@ -224,3 +225,12 @@ defineRoute(
     return c.json(res);
   }
 );
+
+defineRoute(
+  routesProject,
+  "getProjectLogs",
+  async (c) => {
+    const res = await GetProjectLogs(c.var.ppk.projectDb, c.var.ppk.projectId);
+    if (!res.success) return c.json(res, 500);
+    return c.json(res.data);
+});
