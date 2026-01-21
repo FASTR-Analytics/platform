@@ -125,6 +125,7 @@ export function InstanceUsers(p: Props) {
                   <div class="flex-1">
                     <UserTable
                       users={keyedInstanceDetail.users}
+                      logs={userLogs()?.data ?? []}
                       onUserClick={(user) => setSelectedUser(user.email)}
                       onViewLogs={(email) => setLogFilterUser(email)}
                       showCommingSoon={showCommingSoon}
@@ -157,18 +158,54 @@ type UserData = {
   isGlobalAdmin: boolean;
 };
 
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return t("Just now");
+  if (diffMins < 60) return t(`${diffMins}m ago`);
+  if (diffHours < 24) return t(`${diffHours}h ago`);
+  if (diffDays < 30) return t(`${diffDays}d ago`);
+  return date.toLocaleDateString();
+}
+
 function UserTable(p: {
   users: UserData[];
+  logs: UserLog[];
   onUserClick: (user: UserData) => void;
   onViewLogs: (email: string) => void;
   showCommingSoon: () => Promise<boolean>;
   silentFetch: () => Promise<void>;
 }) {
+  const lastActiveByUser = () => {
+    const map = new Map<string, Date>();
+    for (const log of p.logs) {
+      const existing = map.get(log.user_email);
+      const logDate = new Date(log.timestamp);
+      if (!existing || logDate > existing) {
+        map.set(log.user_email, logDate);
+      }
+    }
+    return map;
+  };
   const columns: TableColumn<UserData>[] = [
     {
       key: "email",
       header: t2(T.FRENCH_UI_STRINGS.email),
       sortable: true,
+    },
+    {
+      key: "last_active",
+      header: t("Last active"),
+      sortable: true,
+      render: (user) => {
+        const lastActive = lastActiveByUser().get(user.email);
+        if (!lastActive) return <span class="text-neutral text-sm">{t("Never")}</span>;
+        return <span class="text-sm">{formatTimeAgo(lastActive)}</span>;
+      },
     },
     {
       key: "isGlobalAdmin",
