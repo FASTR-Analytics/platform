@@ -229,8 +229,10 @@ defineRoute(
 defineRoute(
   routesProject,
   "getProjectLogs",
+  getProjectViewer,
   async (c) => {
     const res = await GetProjectLogs(c.var.ppk.projectDb, c.var.ppk.projectId);
     if (!res.success) return c.json(res, 500);
     return c.json(res.data);
-});
+  }
+);
