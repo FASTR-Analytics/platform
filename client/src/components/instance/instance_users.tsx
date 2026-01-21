@@ -307,9 +307,23 @@ function UserLogsTable(p :{
       header: t("Details"),
       render: (log) => (
         <Show when={log.details}>
-          <span clas="text-neutral text-xs truncate max-w-xs" title={log.details}>
-            {log.details}
-          </span>
+          <Button
+            intent="base-100"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              openAlert({
+                title: t("Request Details"),
+                element: () => (
+                  <div class="whitespace-pre-wrap font-mono text-sm max-h-96 overflow-auto">
+                    {formatJsonDetails(log.details)}
+                  </div>
+                )
+              });
+            }}
+          >
+            {t("View")}
+          </Button>
         </Show>
       )
     }
@@ -327,4 +341,11 @@ function UserLogsTable(p :{
   )
 }
 
-
+function formatJsonDetails(details: string): string {
+  try {
+    const parsed = JSON.parse(details);
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return details; 
+  }
+}
