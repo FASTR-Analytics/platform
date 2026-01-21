@@ -2,7 +2,7 @@ import { serverActions } from "~/server_actions";
 import { createAITool } from "panther";
 import { z } from "zod";
 import { type DisaggregationOption, type PeriodOption } from "lib";
-import { getMetricDataForAI } from "~/utils/get_metric_data_for_ai";
+import { getMetricDataForAI } from "../get_metric_data_for_ai";
 
 export function getToolsForMetrics(projectId: string) {
   return [

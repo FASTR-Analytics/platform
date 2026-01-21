@@ -4,7 +4,7 @@ import { z } from "zod";
 import { For } from "solid-js";
 import { VisualizationPreview } from "../VisualizationPreview";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
-import { getMetricDataForAI } from "~/utils/get_metric_data_for_ai";
+import { getMetricDataForAI } from "../get_metric_data_for_ai";
 import { DisaggregationOption, PeriodOption } from "lib";
 
 // Shared helper to get visualization CSV data

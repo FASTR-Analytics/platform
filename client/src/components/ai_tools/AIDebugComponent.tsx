@@ -2,7 +2,7 @@ import { t, type DisaggregationOption } from "lib";
 import { Button, getSelectOptionsFromIdLabel, Input, Select, timActionButton } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { getMetricDataForAI } from "~/utils/get_metric_data_for_ai";
+import { getMetricDataForAI } from "./get_metric_data_for_ai";
 
 type Props = {
   projectId: string;
