@@ -125,7 +125,10 @@ export function InstanceUsers(p: Props) {
                       silentFetch={p.instanceDetail.silentFetch}
                     />
                   </div>
-                  <Show when={userLogs()?.data}>
+                  <Show 
+                    when={userLogs()?.data}
+                    fallback={<div class="text-neutral text-sm">Loading activity logs...</div>}
+                  >
                     <div class="flex-1 overflow-auto">
                       <UserLogsTable logs={userLogs()!.data}/>
                     </div>
