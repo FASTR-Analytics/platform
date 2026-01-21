@@ -1,6 +1,7 @@
 import { trackStore } from "@solid-primitives/deep";
 import { useNavigate } from "@solidjs/router";
 import {
+  type InstanceDetail,
   ItemsHolderPresentationObject,
   PresentationObjectConfig,
   PresentationObjectDetail,
@@ -70,6 +71,7 @@ import { getFigureInputsFromPresentationObject } from "~/generate_visualization/
 
 export function Visualization(p: {
   isGlobalAdmin: boolean;
+  instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   presentationObjectId: string;
   backToProject: (withUpdate: boolean) => void;
@@ -110,6 +112,7 @@ export function Visualization(p: {
       {(keyedPoDetail: PresentationObjectDetail) => {
         return (
           <PresentationObjectEditorInner
+            instanceDetail={p.instanceDetail}
             projectDetail={p.projectDetail}
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={keyedPoDetail}
@@ -124,6 +127,7 @@ export function Visualization(p: {
 }
 
 type Props = {
+  instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
   poDetail: PresentationObjectDetail;
@@ -798,6 +802,7 @@ function PresentationObjectEditorInner(p: Props) {
                                   showAi() && (
                                     <div class="bg-base-100 h-full border-l">
                                       <AiInterpretationPane
+                                        instanceDetail={p.instanceDetail}
                                         projectDetail={p.projectDetail}
                                         presentationObjectId={p.poDetail.id}
                                         figureInputs={figureInputs()}

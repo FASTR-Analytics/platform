@@ -238,6 +238,7 @@ export function Report(p: Props) {
       <Match when={longFormData()} keyed>
         {(data) => (
           <ProjectAiReport
+            instanceDetail={p.instanceDetail}
             projectDetail={p.projectDetail}
             reportId={p.reportId}
             initialMarkdown={data.markdown}
@@ -249,6 +250,7 @@ export function Report(p: Props) {
       <Match when={aiSlideDeckData()} keyed>
         {(data) => (
           <ProjectAiSlideDeck
+            instanceDetail={p.instanceDetail}
             projectDetail={p.projectDetail}
             reportId={p.reportId}
             initialSlides={data.slides}

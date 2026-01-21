@@ -1,4 +1,4 @@
-import { DEFAULT_ANTHROPIC_MODEL, PresentationObjectConfig, ProjectDetail, ResultsValue, t } from "lib";
+import { DEFAULT_ANTHROPIC_MODEL, type InstanceDetail, PresentationObjectConfig, ProjectDetail, ResultsValue, t } from "lib";
 import {
   AIChat,
   AIChatProvider,
@@ -13,6 +13,7 @@ import { getToolsForVizPane } from "../ai_tools/ai_tool_definitions";
 import { getVizChatSystemPrompt } from "../ai_prompts/viz_chat";
 
 type Props = {
+  instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   presentationObjectId: string;
   figureInputs: StateHolder<FigureInputs>;
@@ -38,7 +39,7 @@ export function AiInterpretationPane(p: Props) {
   );
 
   const systemPrompt = createMemo(() =>
-    getVizChatSystemPrompt(p.resultsValue, p.projectDetail.aiContext)
+    getVizChatSystemPrompt(p.instanceDetail, p.projectDetail, p.resultsValue)
   );
 
   return (

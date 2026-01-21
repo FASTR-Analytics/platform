@@ -9,7 +9,7 @@ import {
   type OpenEditorProps,
   type AIChatConfig,
 } from "panther";
-import { isFrench, DEFAULT_ANTHROPIC_MODEL, type ProjectDetail } from "lib";
+import { isFrench, DEFAULT_ANTHROPIC_MODEL, type ProjectDetail, type InstanceDetail } from "lib";
 import { createMemo, createSignal, Show } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { WelcomeMessage } from "./WelcomeMessage";
@@ -18,6 +18,7 @@ import { AIToolsDebug } from "../ai_tools/AIDebugComponent";
 import { getChatbotSystemPrompt } from "../ai_prompts/chatbot";
 
 type Props = {
+  instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   attemptGetProjectDetail: () => Promise<void>;
   silentRefreshProject: () => Promise<void>;
@@ -31,7 +32,7 @@ export function ProjectChatbotV3(p: Props) {
   const [showDebug, setShowDebug] = createSignal(false);
 
   const tools = createMemo(() => getToolsForChatbot(projectId));
-  const systemPrompt = createMemo(() => getChatbotSystemPrompt(p.projectDetail.aiContext));
+  const systemPrompt = createMemo(() => getChatbotSystemPrompt(p.instanceDetail, p.projectDetail));
 
   const sdkClient = createSDKClient({
     baseURL: `${_SERVER_HOST}/ai`, // Uses unified /ai/v1/messages endpoint

@@ -114,6 +114,7 @@ export default function Project(p: Props) {
                     <Match when={getFirstString(searchParams.v)}>
                       <Visualization
                         isGlobalAdmin={p.isGlobalAdmin}
+                        instanceDetail={keyedInstanceDetail}
                         projectDetail={keyedProjectDetail}
                         presentationObjectId={getFirstString(searchParams.v)!}
                         backToProject={backToProject}
@@ -210,6 +211,7 @@ export default function Project(p: Props) {
                             <Switch>
                               <Match when={tab() === "chatbot"}>
                                 <ProjectChatbot
+                                  instanceDetail={keyedInstanceDetail}
                                   projectDetail={keyedProjectDetail}
                                   attemptGetProjectDetail={projectDetail.fetch}
                                   silentRefreshProject={

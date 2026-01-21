@@ -1,4 +1,4 @@
-import { AiSlideDeckSlide, DEFAULT_ANTHROPIC_MODEL, type ProjectDetail } from "lib";
+import { AiSlideDeckSlide, DEFAULT_ANTHROPIC_MODEL, type InstanceDetail, type ProjectDetail } from "lib";
 import {
   AIChat,
   AIChatProvider,
@@ -20,6 +20,7 @@ import { SlideDeckPreview } from "./slide_deck_preview";
 import { AIToolsDebug } from "../ai_tools/AIDebugComponent";
 
 type Props = {
+  instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   reportId: string;
   initialSlides: AiSlideDeckSlide[];
@@ -36,7 +37,7 @@ export function ProjectAiSlideDeck(p: Props) {
   });
 
   const systemPrompt = createMemo(() =>
-    getSlideDeckSystemPrompt(p.projectDetail.aiContext)
+    getSlideDeckSystemPrompt(p.instanceDetail, p.projectDetail)
   );
 
   // Initialize JSON string from initial slides (just the array, label stored separately)

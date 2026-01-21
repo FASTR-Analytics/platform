@@ -1,16 +1,12 @@
-import { ResultsValue } from "lib";
+import { type InstanceDetail, type ProjectDetail, ResultsValue } from "lib";
+import { buildAISystemContext } from "./build_context";
 
 export function getVizChatSystemPrompt(
+  instanceDetail: InstanceDetail,
+  projectDetail: ProjectDetail,
   resultsValue: ResultsValue,
-  projectContext: string
 ): string {
-  const contextSection = projectContext.trim()
-    ? `# Project Context
-
-${projectContext.trim()}
-
-`
-    : "";
+  const contextSection = buildAISystemContext(instanceDetail, projectDetail);
 
   const disaggregationList = resultsValue.disaggregationOptions
     .map((d) => {

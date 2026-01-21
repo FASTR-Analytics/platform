@@ -1,4 +1,4 @@
-import { DEFAULT_ANTHROPIC_MODEL, isFrench, type ProjectDetail } from "lib";
+import { DEFAULT_ANTHROPIC_MODEL, isFrench, type InstanceDetail, type ProjectDetail } from "lib";
 import {
   AIChat,
   AIChatProvider,
@@ -31,6 +31,7 @@ import { createFigureRenderer } from "./markdown_figure_renderer";
 import { createUndoRedo } from "./use_undo_redo";
 
 type Props = {
+  instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   reportId: string;
   initialMarkdown: string;
@@ -46,7 +47,7 @@ export function ProjectAiReport(p: Props) {
     defaultHeaders: { "Project-Id": projectId },
   });
 
-  const systemPrompt = createMemo(() => getReportSystemPrompt(p.projectDetail.aiContext));
+  const systemPrompt = createMemo(() => getReportSystemPrompt(p.instanceDetail, p.projectDetail));
 
   // Use stable UI state from module-level store
   const { textEditorMode, setTextEditorMode, rightPanelMode, setRightPanelMode } = longFormEditorState;

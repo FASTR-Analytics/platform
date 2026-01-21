@@ -1,11 +1,11 @@
-export function getReportSystemPrompt(projectContext: string): string {
-  const contextSection = projectContext.trim()
-    ? `# Project Context
+import { type InstanceDetail, type ProjectDetail } from "lib";
+import { buildAISystemContext } from "./build_context";
 
-${projectContext.trim()}
-
-`
-    : "";
+export function getReportSystemPrompt(
+  instanceDetail: InstanceDetail,
+  projectDetail: ProjectDetail,
+): string {
+  const contextSection = buildAISystemContext(instanceDetail, projectDetail);
 
   return `${contextSection}# Role and Purpose
 
