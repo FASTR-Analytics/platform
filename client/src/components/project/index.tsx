@@ -108,7 +108,7 @@ export default function Project(p: Props) {
 
                 // Project logs state
                 const [projectLogs] = createResource(
-                  () => serverActions.getProjectLogs()
+                  () => serverActions.getProjectLogs({ projectId: p.projectId })
                 );
                 const [logFilterUser, setLogFilterUser] = createSignal<string | undefined>(undefined);
 
