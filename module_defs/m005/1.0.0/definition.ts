@@ -248,7 +248,7 @@ export const definition = {
       ],
     },
     {
-      id: "M5combined_results_admin2.csv",
+      id: "M5_combined_results_admin2.csv",
       description: "Selected denominators (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
