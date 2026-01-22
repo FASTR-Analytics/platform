@@ -22,7 +22,7 @@ export const log = (routeName: string) =>
         const userEmail = c.var.globalUser?.email;
         if(!userEmail) return;
 
-        const mainDb = c.var.ppk.mainDb;
+        const mainDb = c.var.mainDb;
         
         const params: Record<string, string> = {};
         for (const [key, value] of Object.entries(c.req.param())) {

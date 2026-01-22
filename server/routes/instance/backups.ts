@@ -30,7 +30,7 @@ defineRoute(
   routesBackups,
   "getAllProjectsBackups",
   getGlobalNonAdmin,
-  log,
+  log("getAllProjectBackups"),
   async (c) => {
     try {
       // Get the authorization header from the incoming request
