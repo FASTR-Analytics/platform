@@ -351,6 +351,7 @@ export const METRIC_STATIC_DATA: Record<string, {
   formatAs: "percent" | "number";
   valueLabelReplacements?: Record<string, string>;
   requiredDisaggregationOptions: string[];
+  postAggregationExpression?: any;
 }> = {
 ${metricStaticDataCode},
 };
