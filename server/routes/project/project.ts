@@ -26,6 +26,7 @@ import {
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
 import { GetProjectLogs } from "../../db/project/project_user_logs.ts";
+import { log } from "../../middleware/logging.ts";
 
 export const routesProject = new Hono();
 
@@ -33,6 +34,7 @@ defineRoute(
   routesProject,
   "createProject",
   getGlobalAdmin,
+  log("createProject"),
   async (c, { body }) => {
     const res = await addProject(
       c.var.mainDb,
@@ -70,6 +72,7 @@ defineRoute(
   "getProjectDetail",
   getGlobalNonAdmin,
   getProjectViewer,
+  log("getProjectDetail"),
   async (c) => {
     const res = await getProjectDetail(
       c.var.projectUser,
@@ -85,6 +88,7 @@ defineRoute(
   routesProject,
   "updateProjectUserRole",
   getGlobalAdmin,
+  log("updateProjectUserRole"),
   async (c, { body }) => {
     console.log("updateProjectUserRole body:", JSON.stringify(body));
     console.log("projectId:", body.projectId, "type:", typeof body.projectId);
@@ -103,6 +107,7 @@ defineRoute(
   "updateProject",
   getGlobalAdmin,
   checkProjectNotLocked,
+  log("updateProject"),
   async (c, { params, body }) => {
     const res = await updateProject(
       c.var.mainDb,
@@ -119,6 +124,7 @@ defineRoute(
   "addDatasetToProject",
   getGlobalNonAdmin,
   getProjectEditor,
+  log("addDatasetToProject"),
   (c, { body }) => {
     return streamResponse<{ lastUpdated: string }>(c, async (writer) => {
       await writer.progress(0, "Starting dataset addition...");
@@ -164,6 +170,7 @@ defineRoute(
   routesProject,
   "removeDatasetFromProject",
   getProjectEditor,
+  log("removeDatasetFromProject"),
   async (c, { params }) => {
     const res = await removeDatasetFromProject(
       c.var.ppk.projectDb,
@@ -180,6 +187,7 @@ defineRoute(
   "deleteProject",
   getGlobalAdmin,
   checkProjectNotLocked,
+  log("deleteProject"),
   async (c, { params }) => {
     const res = await deleteProject(c.var.mainDb, params.project_id);
     return c.json(res);
@@ -190,6 +198,7 @@ defineRoute(
   routesProject,
   "setProjectLockStatus",
   getGlobalAdmin,
+  log("setProjectLockStatus"),
   async (c, { params, body }) => {
     const res = await setProjectLockStatus(
       c.var.mainDb,
@@ -205,6 +214,7 @@ defineRoute(
   "setAllModulesDirty",
   getGlobalAdmin,
   getProjectEditor,
+  log("setAllModulesDirty"),
   async (c) => {
     await setAllModulesDirty(c.var.ppk);
     return c.json({ success: true });
@@ -215,6 +225,7 @@ defineRoute(
   routesProject,
   "copyProject",
   getGlobalAdmin,
+  log("copyProject"),
   async (c, { params, body }) => {
     const res = await copyProject(
       c.var.mainDb,
@@ -230,6 +241,7 @@ defineRoute(
   routesProject,
   "getProjectLogs",
   getProjectViewer,
+  log("getProjectLogs"),
   async (c) => {
     const res = await GetProjectLogs(c.var.ppk.projectDb, c.var.ppk.projectId);
     if (!res.success) return c.json(res, 500);

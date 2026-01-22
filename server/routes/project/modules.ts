@@ -29,6 +29,7 @@ import {
 } from "../../task_management/mod.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { log } from "../../middleware/logging.ts";
 
 export const routesModules = new Hono();
 
@@ -42,6 +43,7 @@ defineRoute(
   routesModules,
   "installModule",
   getProjectEditor,
+  log("installModule"),
   async (c, { params }) => {
     const res = await installModule(c.var.ppk.projectDb, params.module_id);
     if (res.success === false) {
@@ -69,6 +71,7 @@ defineRoute(
   routesModules,
   "uninstallModule",
   getProjectEditor,
+  log("uninstallModule"),
   async (c, { params }) => {
     const res = await uninstallModule(c.var.ppk.projectDb, params.module_id);
     if (res.success === false) {
@@ -83,6 +86,7 @@ defineRoute(
   routesModules,
   "updateModuleDefinition",
   getProjectEditor,
+  log("updateModuleDefinition"),
   async (c, { params, body }) => {
     const res = await updateModuleDefinition(
       c.var.ppk.projectDb,
@@ -126,6 +130,7 @@ defineRoute(
   routesModules,
   "updateModuleParameters",
   getProjectEditor,
+  log("updateModuleParameters"),
   async (c, { params, body }) => {
     const res = await updateModuleParameters(
       c.var.ppk.projectDb,
@@ -156,6 +161,7 @@ defineRoute(
   routesModules,
   "rerunModule",
   getProjectEditor,
+  log("rerunModule"),
   async (c, { params }) => {
     const res = await getModuleDetail(c.var.ppk.projectDb, params.module_id);
     if (res.success === false) {
@@ -176,6 +182,7 @@ defineRoute(
   routesModules,
   "getResultsObjectItems",
   getProjectViewer,
+  log("getResultsObjectItems"),
   async (c, { params }) => {
     const res = await getResultsObjectItems(
       c.var.ppk.projectDb,
@@ -197,6 +204,7 @@ defineRoute(
   "getScript",
   getGlobalNonAdmin,
   getProjectViewer,
+  log("getModuleScript"),
   async (c, { params }) => {
     const res = await getModuleDetail(c.var.ppk.projectDb, params.module_id);
     if (res.success === false) {
@@ -235,6 +243,7 @@ defineRoute(
   routesModules,
   "getLogs",
   getProjectViewer,
+  log("getModuleLogs"),
   async (c, { params }) => {
     const logFilePath = join(
       _SANDBOX_DIR_PATH,
@@ -272,6 +281,7 @@ defineRoute(
   "getAllModulesWithResultsValues",
   getGlobalNonAdmin,
   getProjectViewer,
+  log("getAllModulesWithResultsValues"),
   async (c) => {
     const res = await getAllModulesWithResultsValues(c.var.mainDb, c.var.ppk.projectDb);
     return c.json(res);
@@ -282,6 +292,7 @@ defineRoute(
   routesModules,
   "getModuleWithConfigSelections",
   getProjectViewer,
+  log("getModuleWithConfigSelections"),
   async (c, { params }) => {
     const res = await getModuleWithConfigSelections(
       c.var.ppk.projectDb,

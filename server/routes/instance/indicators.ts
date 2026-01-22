@@ -12,11 +12,12 @@ import {
 } from "../../db/mod.ts";
 import { getGlobalAdmin } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { log } from "../../middleware/logging.ts";
 
 export const routesIndicators = new Hono();
 
 // GET /indicators - Get all indicators with their mappings
-defineRoute(routesIndicators, "getIndicators", getGlobalAdmin, async (c) => {
+defineRoute(routesIndicators, "getIndicators", getGlobalAdmin, log("getIndicators"), async (c) => {
   const res = await getIndicatorsWithMappings(c.var.mainDb);
   return c.json(res);
 });
@@ -39,6 +40,7 @@ defineRoute(
   routesIndicators,
   "createCommonIndicators",
   getGlobalAdmin,
+  log("createCommonIndicators"),
   async (c, { body }) => {
     // Validate required fields
     if (!Array.isArray(body.indicators)) {
@@ -72,6 +74,7 @@ defineRoute(
   routesIndicators,
   "updateCommonIndicator",
   getGlobalAdmin,
+  log("updateCommonIndicator"),
   async (c, { body }) => {
     if (
       !body.old_indicator_common_id ||
@@ -101,6 +104,7 @@ defineRoute(
   routesIndicators,
   "deleteCommonIndicators",
   getGlobalAdmin,
+  log("deleteCommonIndicators"),
   async (c, { body }) => {
     if (!Array.isArray(body.indicator_common_ids)) {
       return c.json({
@@ -135,6 +139,7 @@ defineRoute(
   routesIndicators,
   "createRawIndicators",
   getGlobalAdmin,
+  log("createRawIndicators"),
   async (c, { body }) => {
     // Validate required fields
     if (!Array.isArray(body.indicators)) {
@@ -168,6 +173,7 @@ defineRoute(
   routesIndicators,
   "updateRawIndicator",
   getGlobalAdmin,
+  log("updateRawIndicator"),
   async (c, { body }) => {
     if (
       !body.old_indicator_raw_id ||
@@ -197,6 +203,7 @@ defineRoute(
   routesIndicators,
   "deleteRawIndicators",
   getGlobalAdmin,
+  log("deleteRawIndicators"),
   async (c, { body }) => {
     if (!Array.isArray(body.indicator_raw_ids)) {
       return c.json({
@@ -228,6 +235,7 @@ defineRoute(
   routesIndicators,
   "batchUploadIndicators",
   getGlobalAdmin,
+  log("batchUploadIndicators"),
   async (c, { body }) => {
     // Validate that asset_file_name is provided
     if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
@@ -251,6 +259,7 @@ defineRoute(
   routesIndicators,
   "deleteAllIndicators",
   getGlobalAdmin,
+  log("deleteAllIndicators"),
   async (c) => {
     const res = await deleteAllIndicators(c.var.mainDb);
     return c.json(res);

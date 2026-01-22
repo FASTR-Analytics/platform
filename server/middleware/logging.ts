@@ -1,5 +1,4 @@
 import { createMiddleware } from "hono/factory";
-import { getPgConnectionFromCacheOrNew } from "../db/postgres/connection_manager.ts";
 import { AddLog } from "../db/instance/user_logs.ts";
 import { AddProjectLog } from "../db/project/project_user_logs.ts";
 

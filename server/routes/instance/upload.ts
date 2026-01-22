@@ -3,6 +3,7 @@ import { join } from "@std/path";
 import { ensureDir } from "@std/fs";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { getGlobalAdmin } from "../../project_auth.ts";
+import { log } from "../../middleware/logging.ts";
 
 export const routesUpload = new Hono();
 
@@ -87,7 +88,7 @@ function parseMetadata(metadataHeader: string | null): Record<string, string> {
 }
 
 // POST /upload - Create new upload
-routesUpload.post("/upload", getGlobalAdmin, async (c) => {
+routesUpload.post("/upload", getGlobalAdmin, log("upload"), async (c) => {
   // Cleanup old uploads when starting a new one
   cleanupOldUploads();
 
@@ -198,7 +199,7 @@ routesUpload.on("HEAD", "/upload/:id", async (c) => {
 });
 
 // PATCH /upload/:id - Upload chunk
-routesUpload.patch("/upload/:id", getGlobalAdmin, async (c) => {
+routesUpload.patch("/upload/:id", getGlobalAdmin, log("upload"), async (c) => {
   const uploadId = c.req.param("id");
   const upload = uploads.get(uploadId);
 
@@ -289,7 +290,7 @@ routesUpload.patch("/upload/:id", getGlobalAdmin, async (c) => {
 });
 
 // DELETE /upload/:id - Cancel upload
-routesUpload.delete("/upload/:id", getGlobalAdmin, async (c) => {
+routesUpload.delete("/upload/:id", getGlobalAdmin, log("upload"), async (c) => {
   const uploadId = c.req.param("id");
   const upload = uploads.get(uploadId);
 

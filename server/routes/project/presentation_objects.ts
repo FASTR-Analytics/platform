@@ -30,6 +30,7 @@ import {
 } from "../caches/visualizations.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { RequestQueue } from "../../utils/request_queue.ts";
+import { log } from "../../middleware/mod.ts";
 
 export const routesPresentationObjects = new Hono();
 
@@ -46,6 +47,7 @@ defineRoute(
   routesPresentationObjects,
   "createPresentationObject",
   getProjectEditor,
+  log("createPresentationObject"),
   async (c, { body }) => {
     const res = await addPresentationObject(
       c.var.ppk.projectDb,
@@ -74,6 +76,7 @@ defineRoute(
   routesPresentationObjects,
   "duplicatePresentationObject",
   getProjectEditor,
+  log("duplicatePresentationObject"),
   async (c, { params, body }) => {
     const res = await duplicatePresentationObject(
       c.var.ppk.projectDb,
@@ -98,6 +101,7 @@ defineRoute(
   routesPresentationObjects,
   "getAllPresentationObjects",
   getProjectViewer,
+  log("getAllPresentationObjects"),
   async (c) => {
     const res = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
     return c.json(res);
@@ -109,6 +113,7 @@ defineRoute(
   "getPresentationObjectDetail",
   getGlobalNonAdmin,
   getProjectViewer,
+  log("getPresentationObjectDetail"),
   async (c, { params }) => {
     const t0 = performance.now();
 
@@ -174,6 +179,7 @@ defineRoute(
   routesPresentationObjects,
   "updatePresentationObjectLabel",
   getProjectEditor,
+  log("updatePresentationObjectLabel"),
   async (c, { params, body }) => {
     const res = await updatePresentationObjectLabel(
       c.var.ppk.projectDb,
@@ -197,6 +203,7 @@ defineRoute(
   routesPresentationObjects,
   "updatePresentationObjectConfig",
   getProjectEditor,
+  log("updatePresentationObjectConfig"),
   async (c, { params, body }) => {
     const res = await updatePresentationObjectConfig(
       c.var.ppk.projectDb,
@@ -226,6 +233,7 @@ defineRoute(
   routesPresentationObjects,
   "deletePresentationObject",
   getProjectEditor,
+  log("deletePresentationObject"),
   async (c, { params }) => {
     const res = await deletePresentationObject(
       c.var.ppk.projectDb,
@@ -244,6 +252,7 @@ defineRoute(
   "getPresentationObjectItems",
   getGlobalNonAdmin,
   getProjectViewer,
+  log("getPresentationObjectItems"),
   async (c, { body }) => {
     const t0 = performance.now();
     console.log(
@@ -353,6 +362,7 @@ defineRoute(
   "getResultsValueInfoForPresentationObject",
   getGlobalNonAdmin,
   getProjectViewer,
+  log("getResultsValueInfoForPresentationObject"),
   async (c, { body }) => {
     const t0 = performance.now();
 
@@ -452,6 +462,7 @@ defineRoute(
   "getReplicantOptions",
   getGlobalNonAdmin,
   getProjectViewer,
+  log("getReplicantOptions"),
   async (c, { body }) => {
     const t0 = performance.now();
     const filterSummary = body.fetchConfig.filters.length > 0

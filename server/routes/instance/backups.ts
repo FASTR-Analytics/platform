@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getGlobalNonAdmin } from "../../project_auth.ts";
+import { getGlobalNonAdmin, getProjectEditor } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { _SANDBOX_DIR_PATH, _INSTANCE_ID, _PG_HOST, _PG_PORT, _PG_PASSWORD } from "../../exposed_env_vars.ts";
 import { join } from "@std/path";
@@ -30,6 +30,7 @@ defineRoute(
   routesBackups,
   "getAllProjectsBackups",
   getGlobalNonAdmin,
+  getProjectEditor,
   log("getAllProjectBackups"),
   async (c) => {
     try {
@@ -81,6 +82,8 @@ defineRoute(
   routesBackups,
   "createBackupFile",
   getGlobalNonAdmin,
+  getProjectEditor,
+  log("createBackupFile"),
   async (c) => {
     try{
       const name = c.req.param("name");
@@ -158,7 +161,9 @@ defineRoute(
 defineRoute(
   routesBackups,
   "downloadBackupFile",
+  getProjectEditor,
   getGlobalNonAdmin,
+  log("downloadBackupFile"),
   async (c) => {
     try {
       const folder = c.req.param("folder");
@@ -244,6 +249,8 @@ defineRoute(
   routesBackups,
   "restoreBackup",
   getGlobalNonAdmin,
+  getProjectEditor,
+  log("restoreBackup"),
   async (c) => {
     try {
       // Parse request body as JSON

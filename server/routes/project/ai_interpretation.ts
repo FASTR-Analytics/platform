@@ -10,6 +10,7 @@ import {
   getVisualizationDataForAI,
   getModulesListForProject,
 } from "../../db/mod.ts";
+import { log } from "../../middleware/logging.ts";
 
 export const routesAi = new Hono();
 
@@ -17,6 +18,7 @@ defineRoute(
   routesAi,
   "getAiInterpretation",
   getProjectViewer,
+  log("getAiInterpretation"),
   async (c, { body }) => {
     const data = await getAIInterpretation(
       body.figureInputs,
@@ -32,6 +34,7 @@ defineRoute(
   "chatbot",
   getGlobalNonAdmin,
   getProjectViewer,
+  log("chatbot"),
   async (c, { body }) => {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
@@ -79,21 +82,34 @@ defineRoute(
   }
 );
 
-defineRoute(routesAi, "getModulesList", getProjectViewer, async (c) => {
-  const res = await getModulesListForProject(c.var.ppk.projectDb);
-  return c.json(res);
-});
+defineRoute(
+  routesAi, 
+  "getModulesList", 
+  getProjectViewer, 
+  log("getModulesList"),
+  async (c) => {
+    const res = await getModulesListForProject(c.var.ppk.projectDb);
+    return c.json(res);
+  }
+);
 
-defineRoute(routesAi, "getVisualizationsList", getProjectViewer, async (c) => {
-  const res = await getVisualizationsListForProject(c.var.ppk.projectDb);
-  return c.json(res);
-});
+defineRoute(
+  routesAi, 
+  "getVisualizationsList", 
+  getProjectViewer, 
+  log("getVisualizationsList"),
+  async (c) => {
+    const res = await getVisualizationsListForProject(c.var.ppk.projectDb);
+    return c.json(res);
+  } 
+);
 
 defineRoute(
   routesAi,
   "getVisualizationDataForAI",
   getGlobalNonAdmin,
   getProjectViewer,
+  log("getVisualizationDataForAI"),
   async (c, { params }) => {
     const res = await getVisualizationDataForAI(
       c.var.mainDb,

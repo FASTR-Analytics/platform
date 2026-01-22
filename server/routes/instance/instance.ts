@@ -19,6 +19,7 @@ import {
 import { InstanceMeta } from "lib";
 import { defineRoute } from "../route-helpers.ts";
 import { getGlobalAdmin, getGlobalNonAdmin } from "../../project_auth.ts";
+import { log } from "../../middleware/mod.ts";
 
 export const routesInstance = new Hono();
 
@@ -52,6 +53,7 @@ defineRoute(
   routesInstance,
   "getInstanceDetail",
   getGlobalNonAdmin,
+  log("getInstanceDetail"),
   async (c) => {
     const res = await getInstanceDetail(c.var.mainDb, c.var.globalUser);
     return c.json(res);
@@ -62,6 +64,7 @@ defineRoute(
   routesInstance,
   "updateMaxAdminArea",
   getGlobalAdmin,
+  log("updateMaxAdminArea"),
   async (c, { body }) => {
     const res = await updateMaxAdminArea(c.var.mainDb, body.maxAdminArea);
     return c.json(res);
@@ -72,6 +75,7 @@ defineRoute(
   routesInstance,
   "updateFacilityColumnsConfig",
   getGlobalAdmin,
+  log("updateFacilityColumnsConfig"),
   async (c, { body }) => {
     const res = await updateFacilityColumnsConfig(c.var.mainDb, body);
     return c.json(res);
@@ -82,6 +86,7 @@ defineRoute(
   routesInstance,
   "updateCountryIso3",
   getGlobalAdmin,
+  log("updateCountryIso3"),
   async (c, { body }) => {
     const res = await updateCountryIso3Config(
       c.var.mainDb,

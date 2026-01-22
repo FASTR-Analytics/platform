@@ -17,6 +17,7 @@ import {
 import { getProjectEditor, getProjectViewer } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { log } from "../../middleware/logging.ts";
 
 export const routesReports = new Hono();
 
@@ -24,6 +25,7 @@ defineRoute(
   routesReports,
   "createReport",
   getProjectEditor,
+  log("createReport"),
   async (c, { body }) => {
     const res = await addReport(
       c.var.ppk.projectDb,
@@ -47,6 +49,7 @@ defineRoute(
   routesReports,
   "duplicateReport",
   getProjectViewer,
+  log("duplicateReport"),
   async (c, { params, body }) => {
     const res = await duplicateReport(
       c.var.ppk.projectDb,
@@ -77,6 +80,7 @@ defineRoute(
   routesReports,
   "getReportDetail",
   getProjectViewer,
+  log("getReportDetail"),
   async (c, { params }) => {
     const res = await getReportDetail(
       c.var.ppk.projectId,
@@ -91,6 +95,7 @@ defineRoute(
   routesReports,
   "updateReportConfig",
   getProjectEditor,
+  log("updateReportConfig"),
   async (c, { params, body }) => {
     const res = await updateReportConfig(
       c.var.ppk.projectDb,
@@ -114,6 +119,7 @@ defineRoute(
   routesReports,
   "backupReport",
   getProjectEditor,
+  log("backupReport"),
   async (c, { params }) => {
     const res = await backupReport(
       c.var.ppk.projectId,
@@ -128,6 +134,7 @@ defineRoute(
   routesReports,
   "restoreReport",
   getProjectEditor,
+  log("restoreReport"),
   async (c, { body }) => {
     const res = await restoreReport(
       c.var.ppk.projectDb,
@@ -142,6 +149,7 @@ defineRoute(
   routesReports,
   "deleteReport",
   getProjectEditor,
+  log("deleteReport"),
   async (c, { params }) => {
     const res = await deleteReport(c.var.ppk.projectDb, params.report_id);
     return c.json(res);
@@ -158,6 +166,7 @@ defineRoute(
   routesReports,
   "createReportItem",
   getProjectEditor,
+  log("createReportItem"),
   async (c, { params }) => {
     const res = await addReportItem(c.var.ppk.projectDb, params.report_id);
     if (res.success === false) {
@@ -183,6 +192,7 @@ defineRoute(
   routesReports,
   "duplicateReportItem",
   getProjectEditor,
+  log("duplicateReportItem"),
   async (c, { params, body }) => {
     const res = await duplicateReportItem(
       c.var.ppk.projectDb,
@@ -214,6 +224,7 @@ defineRoute(
   routesReports,
   "getReportItem",
   getProjectViewer,
+  log("getReportItem"),
   async (c, { params }) => {
     const res = await getReportItem(
       c.var.ppk.projectId,
@@ -228,6 +239,7 @@ defineRoute(
   routesReports,
   "updateReportItemConfig",
   getProjectEditor,
+  log("updateReportItemConfig"),
   async (c, { params, body }) => {
     const res = await updateReportItemConfig(
       c.var.ppk.projectDb,
@@ -251,6 +263,7 @@ defineRoute(
   routesReports,
   "moveAndDeleteAllReportItems",
   getProjectEditor,
+  log("moveAndDeleteAllReportItems"),
   async (c, { params, body }) => {
     const res = await moveAndDeleteAllReportItems(
       c.var.ppk.projectDb,
@@ -274,6 +287,7 @@ defineRoute(
   routesReports,
   "deleteReportItem",
   getProjectEditor,
+  log("deleteReportItem"),
   async (c, { params }) => {
     const res = await deleteReportItem(c.var.ppk.projectDb, params.item_id);
     if (res.success === false) {
