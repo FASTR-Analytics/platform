@@ -181,6 +181,7 @@ defineRoute(
     const res = await updateAiSlideDeckContent(
       c.var.ppk.projectDb,
       params.report_id,
+      body.plan,
       body.slides
     );
     if (res.success === false) {

@@ -21,13 +21,11 @@ type ConvertResult = {
   node: LayoutNode<PageContentItem>;
 };
 
-type ConvertItemsResult = {
-  items: PageContentItem[];
+// Now always returns explicit layout
+export type FreeformContentResult = {
+  layoutType: "explicit";
+  layout: LayoutNode<PageContentItem>;
 };
-
-export type FreeformContentResult =
-  | { layoutType: "explicit"; layout: LayoutNode<PageContentItem> }
-  | { layoutType: "optimize"; items: PageContentItem[] };
 
 export async function getRowsForFreeform(
   projectId: string,
@@ -39,48 +37,7 @@ export async function getRowsForFreeform(
     const extraScale = pdfScaleFactor ?? 1;
     const content = reportItemConfig.freeform.content;
 
-    // Handle new format with layoutType
-    if (typeof content === "object" && content !== null && "layoutType" in content) {
-      if (content.layoutType === "optimize") {
-        const result = await convertItemsArray(
-          content.items,
-          projectId,
-          extraScale,
-          pdfScaleFactor,
-        );
-        if (result.success === false) return result;
-        console.log("[OPTIMIZE] Converted items:", result.data.items.map(item => {
-          if ('markdown' in item) {
-            return `markdown(autofit=${(item as any).autofit})`;
-          }
-          if ('chartData' in item) return 'chartOV';
-          if ('tableData' in item) return 'table';
-          if ('timeseriesData' in item) return 'timeseries';
-          if ('simpleVizData' in item) return 'simpleViz';
-          if ('spacer' in item) return 'spacer';
-          if ('image' in item) return 'image';
-          return `unknown: ${JSON.stringify(Object.keys(item))}`;
-        }));
-        return {
-          success: true,
-          data: { layoutType: "optimize", items: result.data.items },
-        };
-      } else {
-        const result = await convertLayoutNode(
-          content.layout,
-          projectId,
-          extraScale,
-          pdfScaleFactor,
-        );
-        if (result.success === false) return result;
-        return {
-          success: true,
-          data: { layoutType: "explicit", layout: result.data.node },
-        };
-      }
-    }
-
-    // Handle legacy format (direct LayoutNode) for backwards compatibility
+    // Content is now always a LayoutNode (explicit layout)
     const result = await convertLayoutNode(
       content,
       projectId,
@@ -100,30 +57,6 @@ export async function getRowsForFreeform(
         (e instanceof Error ? e.message : ""),
     };
   }
-}
-
-async function convertItemsArray(
-  items: ReportItemContentItem[],
-  projectId: string,
-  extraScale: number,
-  pdfScaleFactor?: number,
-): Promise<APIResponseWithData<ConvertItemsResult>> {
-  const convertedItems: PageContentItem[] = [];
-
-  for (const item of items) {
-    const result = await convertContentItem(
-      item,
-      crypto.randomUUID(),
-      projectId,
-      extraScale,
-      pdfScaleFactor,
-      true, // isForOptimizer - reduce figure scale
-    );
-    if (result.success === false) return result;
-    convertedItems.push(result.data);
-  }
-
-  return { success: true, data: { items: convertedItems } };
 }
 
 async function convertLayoutNode(

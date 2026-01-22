@@ -11,8 +11,31 @@ export function getGoodAxisTickValues(
   startingMaxNumberTicks: number,
   formatter: (v: number) => string,
 ): number[] {
-  if (maxValue === 0 && minValue === 0) {
-    return getGoodAxisTickValues(1, 0, startingMaxNumberTicks, formatter);
+  if (!isFinite(maxValue) || !isFinite(minValue)) {
+    throw new Error(
+      `Invalid axis range: maxValue (${maxValue}) or minValue (${minValue}) is not finite`,
+    );
+  }
+
+  if (maxValue < minValue) {
+    throw new Error(
+      `Invalid axis range: maxValue (${maxValue}) < minValue (${minValue})`,
+    );
+  }
+
+  const range = maxValue - minValue;
+  const avgMagnitude = Math.max(Math.abs(maxValue), Math.abs(minValue));
+  const epsilon = avgMagnitude * Number.EPSILON * 100;
+
+  if (range <= epsilon) {
+    const adjustedMax = maxValue === 0 ? 1 : maxValue * 1.1;
+    const adjustedMin = minValue === 0 ? 0 : minValue * 0.9;
+    return getGoodAxisTickValues(
+      adjustedMax,
+      adjustedMin,
+      startingMaxNumberTicks,
+      formatter,
+    );
   }
 
   let nTicks = startingMaxNumberTicks;
@@ -32,8 +55,31 @@ export function getGoodAxisTickValues_V2(
   startingMaxNumberTicks: number,
   formatter: (v: number) => string,
 ): number[] {
-  if (maxValue === 0 && minValue === 0) {
-    return getGoodAxisTickValues_V2(1, 0, startingMaxNumberTicks, formatter);
+  if (!isFinite(maxValue) || !isFinite(minValue)) {
+    throw new Error(
+      `Invalid axis range: maxValue (${maxValue}) or minValue (${minValue}) is not finite`,
+    );
+  }
+
+  if (maxValue < minValue) {
+    throw new Error(
+      `Invalid axis range: maxValue (${maxValue}) < minValue (${minValue})`,
+    );
+  }
+
+  const range = maxValue - minValue;
+  const avgMagnitude = Math.max(Math.abs(maxValue), Math.abs(minValue));
+  const epsilon = avgMagnitude * Number.EPSILON * 100;
+
+  if (range <= epsilon) {
+    const adjustedMax = maxValue === 0 ? 1 : maxValue * 1.1;
+    const adjustedMin = minValue === 0 ? 0 : minValue * 0.9;
+    return getGoodAxisTickValues_V2(
+      adjustedMax,
+      adjustedMin,
+      startingMaxNumberTicks,
+      formatter,
+    );
   }
 
   let nTicks = startingMaxNumberTicks;
@@ -68,11 +114,23 @@ function getArrayForNTicksAndExpandedRange(
   const rawIncrement = (maxValue - minValue) / (nTicks - 1);
   const roundedIncrement = getAppropriatelyRoundedIncrement(rawIncrement);
 
+  if (roundedIncrement === 0 || !isFinite(roundedIncrement)) {
+    throw new Error(
+      `Invalid roundedIncrement (${roundedIncrement}) for range [${minValue}, ${maxValue}] with ${nTicks} ticks`,
+    );
+  }
+
   const roundedMin = Math.floor(minValue / roundedIncrement) * roundedIncrement;
   const roundedMax = Math.ceil(maxValue / roundedIncrement) * roundedIncrement;
 
   const actualNTicks =
     Math.round((roundedMax - roundedMin) / roundedIncrement) + 1;
+
+  if (!isFinite(actualNTicks) || actualNTicks < 0) {
+    throw new Error(
+      `Invalid actualNTicks (${actualNTicks}) for range [${roundedMin}, ${roundedMax}] with increment ${roundedIncrement}`,
+    );
+  }
 
   return new Array(actualNTicks)
     .fill(0)
@@ -84,17 +142,25 @@ function isNotUnique(arr: number[], formatter: (v: number) => string) {
 }
 
 function getAppropriatelyRoundedIncrement(n: number): number {
+  if (n <= 0 || !isFinite(n)) {
+    throw new Error(`Invalid increment value: ${n}`);
+  }
+
   const tens = Math.ceil(Math.log10(n));
   const denom = Math.pow(10, tens);
   const denom5 = denom / 2;
-  if (n > denom5) {
-    return Math.ceil(n / denom) * denom;
-  }
   const denom2 = denom / 5;
-  if (n > denom2) {
-    return Math.ceil(n / denom5) * denom5;
+
+  if (n > denom5) {
+    const result = Math.ceil(n / denom) * denom;
+    return result > 0 ? result : n;
   }
-  return Math.ceil(n / denom2) * denom2;
+  if (n > denom2) {
+    const result = Math.ceil(n / denom5) * denom5;
+    return result > 0 ? result : n;
+  }
+  const result = Math.ceil(n / denom2) * denom2;
+  return result > 0 ? result : n;
 }
 
 export function getPropotionOfYAxisTakenUpByTicks(

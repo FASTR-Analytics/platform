@@ -1,8 +1,18 @@
-import { type SimpleSlide, type ContentBlock, getStartingConfigForReportItem } from "lib";
+import {
+  type SimpleSlide,
+  type MixedSlide,
+  type ContentBlock,
+  type ReportItemConfig,
+  type ReportItemContentItem,
+  getStartingConfigForReportItem,
+  isSimpleSlide,
+  isCustomUserSlide,
+} from "lib";
 import {
   type PageInputs,
   type PageContentItem,
   type ItemLayoutNode,
+  type LayoutNode,
   type MarkdownRendererInput,
   type FigureInputs,
   type APIResponseWithData,
@@ -14,10 +24,31 @@ import { getStyle_SlideDeck } from "~/generate_report/slide_deck/get_style_slide
 import { getPOFigureInputsFromCacheOrFetch } from "~/state/po_cache";
 
 /**
- * Direct conversion: SimpleSlide → PageInputs for panther rendering
- * Bypasses the ReportItemConfig intermediate format entirely
+ * Convert MixedSlide (SimpleSlide | CustomUserSlide) → PageInputs for panther rendering
+ * Handles both simple AI-friendly format and custom user-edited format
  */
 export async function convertSlideToPageInputs(
+  projectId: string,
+  slide: MixedSlide,
+  slideIndex?: number,
+): Promise<APIResponseWithData<PageInputs>> {
+  // Handle CustomUserSlide - use its full ReportItemConfig
+  if (isCustomUserSlide(slide)) {
+    return convertReportItemConfigToPageInputs(
+      projectId,
+      slide.config,
+      slideIndex
+    );
+  }
+
+  // Handle SimpleSlide - original direct conversion logic
+  return convertSimpleSlideToPageInputs(projectId, slide, slideIndex);
+}
+
+/**
+ * Direct conversion: SimpleSlide → PageInputs (original logic)
+ */
+async function convertSimpleSlideToPageInputs(
   projectId: string,
   slide: SimpleSlide,
   slideIndex?: number,
@@ -124,8 +155,8 @@ async function convertBlockToPageContentItem(
       return { success: true, data: createItemNode({ spacer: true }) };  // Fallback to spacer on error
     }
 
-    console.log("[V2 FIGURE] style.idealAspectRatio:", (resFigure.data as any).style?.idealAspectRatio);
-    console.log("[V2 FIGURE] style.scale:", (resFigure.data as any).style?.scale);
+    // console.log("[V2 FIGURE] style.idealAspectRatio:", (resFigure.data as any).style?.idealAspectRatio);
+    // console.log("[V2 FIGURE] style.scale:", (resFigure.data as any).style?.scale);
 
     return { success: true, data: createItemNode(resFigure.data as FigureInputs, {
       minH: 0
@@ -147,6 +178,150 @@ const _Inter_800: FontInfo = {
   weight: 800,
   italic: false,
 };
+
+/**
+ * Convert ReportItemConfig → PageInputs for CustomUserSlide rendering
+ * Uses simplified AI slide deck styling (no report-level config)
+ */
+export async function convertReportItemConfigToPageInputs(
+  projectId: string,
+  config: ReportItemConfig,
+  slideIndex?: number,
+): Promise<APIResponseWithData<PageInputs>> {
+  try {
+    // Cover slide
+    if (config.type === "cover") {
+      return {
+        success: true,
+        data: {
+          type: "cover",
+          title: config.cover.titleText,
+          subTitle: config.cover.subTitleText,
+          author: config.cover.presenterText,
+          date: config.cover.dateText,
+          style: slideDeckStyle,
+        },
+      };
+    }
+
+    // Section slide
+    if (config.type === "section") {
+      return {
+        success: true,
+        data: {
+          type: "section",
+          sectionTitle: config.section.sectionText,
+          sectionSubTitle: config.section.smallerSectionText,
+          style: slideDeckStyle,
+        },
+      };
+    }
+
+    // Freeform slide - content is now always a LayoutNode
+    const content = config.freeform.content;
+
+    // Convert layout tree (preserving structure)
+    const convertedLayout = await convertLayoutNodeToPageContentItems(
+      projectId,
+      content
+    );
+
+    const pageInputs = {
+      type: "freeform" as const,
+      header: config.freeform.useHeader ? config.freeform.headerText : undefined,
+      content: { layoutType: "explicit" as const, layout: convertedLayout },
+      style: slideDeckStyle,
+      pageNumber: slideIndex !== undefined ? String(slideIndex + 1) : undefined,
+    };
+
+    return {
+      success: true,
+      data: pageInputs,
+    };
+  } catch (e) {
+    return {
+      success: false,
+      err:
+        "Problem converting ReportItemConfig to PageInputs: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
+/**
+ * Convert LayoutNode<ReportItemContentItem> to LayoutNode<PageContentItem>
+ * Preserves layout structure (rows/cols/items)
+ */
+async function convertLayoutNodeToPageContentItems(
+  projectId: string,
+  node: LayoutNode<ReportItemContentItem>
+): Promise<LayoutNode<PageContentItem>> {
+  // Item node - convert the data
+  if (node.type === "item") {
+    const convertedData = await convertSingleContentItem(projectId, node.data);
+    return {
+      type: "item",
+      id: node.id,
+      data: convertedData,
+    };
+  }
+
+  // Rows/Cols node - recursively convert children
+  const convertedChildren: LayoutNode<PageContentItem>[] = [];
+  for (const child of node.children) {
+    const converted = await convertLayoutNodeToPageContentItems(projectId, child);
+    convertedChildren.push(converted);
+  }
+
+  return {
+    type: node.type,
+    id: node.id,
+    children: convertedChildren,
+  };
+}
+
+/**
+ * Convert single ReportItemContentItem to PageContentItem
+ */
+async function convertSingleContentItem(
+  projectId: string,
+  item: ReportItemContentItem
+): Promise<PageContentItem> {
+  if (item.type === "text") {
+    const markdown: MarkdownRendererInput = {
+      markdown: item.markdown ?? "",
+      autofit: {
+        minScale: 0,
+        maxScale: item.textSize,
+      },
+    };
+    return markdown;
+  }
+
+  if (item.type === "figure" && item.presentationObjectInReportInfo?.id) {
+    const resFigure = await getPOFigureInputsFromCacheOrFetch(
+      projectId,
+      item.presentationObjectInReportInfo.id,
+      {
+        selectedReplicantValue:
+          item.presentationObjectInReportInfo.selectedReplicantValue ?? "",
+        hideFigureCaption: item.hideFigureCaption,
+        hideFigureSubCaption: item.hideFigureSubCaption,
+        hideFigureFootnote: item.hideFigureFootnote,
+        additionalScale: item.useFigureAdditionalScale
+          ? item.figureAdditionalScale
+          : undefined,
+        _forOptimizer: true,
+      } as any,
+    );
+    if (resFigure.success) {
+      return resFigure.data as FigureInputs;
+    }
+  }
+
+  // Fallback: spacer
+  return { spacer: true };
+}
 
 export const slideDeckStyle: CustomPageStyleOptions = {
     text: {
@@ -218,7 +393,8 @@ export const slideDeckStyle: CustomPageStyleOptions = {
       backgroundColor: "white"
     },
     header: {
-      padding: [100, 120],
+      padding: [100, 120, 0, 120],
+      backgroundColor: "white"
     },
     footer: {
       logoGapX: 80,

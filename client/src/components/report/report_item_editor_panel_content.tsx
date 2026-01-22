@@ -49,10 +49,7 @@ export function ReportItemEditorContent(p: Props) {
   function getCurrentItem(): ReportItemContentItem | undefined {
     if (!p.selectedItemId) return undefined;
     const content = p.tempReportItemConfig.freeform.content;
-    if (content.layoutType !== "explicit") {
-      throw new Error("Manual editor only supports explicit layout");
-    }
-    const result = findById(content.layout, p.selectedItemId);
+    const result = findById(content, p.selectedItemId);
     if (!result || result.node.type !== "item") return undefined;
     return result.node.data;
   }
@@ -79,14 +76,8 @@ export function ReportItemEditorContent(p: Props) {
     }
 
     const content = p.tempReportItemConfig.freeform.content;
-    if (content.layoutType !== "explicit") {
-      throw new Error("Manual editor only supports explicit layout");
-    }
-    const newLayout = updateNode(content.layout);
-    p.setTempReportItemConfig("freeform", "content", {
-      layoutType: "explicit",
-      layout: newLayout,
-    });
+    const newLayout = updateNode(content);
+    p.setTempReportItemConfig("freeform", "content", newLayout);
   }
 
   async function updateItemType(type: ReportItemContentItemType) {
@@ -201,7 +192,9 @@ export function ReportItemEditorContent(p: Props) {
                                 <PresentationObjectMiniDisplay
                                   projectId={p.projectDetail.id}
                                   moduleId={
-                                    getModuleIdForMetric(keyedPresentationObjectInReportInfo.metricId)
+                                    keyedPresentationObjectInReportInfo.metricId
+                                      ? getModuleIdForMetric(keyedPresentationObjectInReportInfo.metricId)
+                                      : undefined
                                   }
                                   presentationObjectId={
                                     keyedPresentationObjectInReportInfo.id

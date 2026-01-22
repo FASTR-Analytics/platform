@@ -84,7 +84,7 @@ export function SlidePreview(p: Props) {
     ric.freeform = {
       useHeader: true,
       headerText: (p.slideDataFromAI as { header: string }).header,
-      content: { layoutType: "explicit", layout: content },
+      content: content,
     };
     const res = await getPageInputs_SlideDeck_Freeform(
       p.projectId,

@@ -1,6 +1,7 @@
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import { InstanceDetail, T, t, t2 } from "lib";
 import {
+  BadgeIcon,
   Button,
   ChartIcon,
   CodeIcon,
@@ -24,6 +25,7 @@ import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
 import { Report } from "../report";
 import { Visualization } from "../visualization";
 import { ProjectData } from "./project_data";
+import { ProjectMetrics } from "./project_metrics";
 import { ProjectModules } from "./project_modules";
 import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
@@ -33,6 +35,7 @@ type TabOption =
   | "chatbot"
   | "reports"
   | "visualizations"
+  | "metrics"
   | "modules"
   | "data"
   | "settings";
@@ -175,6 +178,16 @@ export default function Project(p: Props) {
                                 </div>
                                 <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                  onClick={() => changeTab("metrics")}
+                                  data-selected={tab() === "metrics"}
+                                >
+                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                    <BadgeIcon />
+                                  </span>
+                                  {t2("Metrics menu")}
+                                </div>
+                                <div
+                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                   onClick={() => changeTab("modules")}
                                   data-selected={tab() === "modules"}
                                 >
@@ -239,6 +252,11 @@ export default function Project(p: Props) {
                                     projectDetail.silentFetch
                                   }
                                   openProjectEditor={openProjectEditor}
+                                />
+                              </Match>
+                              <Match when={tab() === "metrics"}>
+                                <ProjectMetrics
+                                  projectId={p.projectId}
                                 />
                               </Match>
                               <Match when={tab() === "modules"}>

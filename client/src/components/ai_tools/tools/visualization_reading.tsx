@@ -77,7 +77,7 @@ export function getToolsForReadingVisualizations(projectId: string) {
   return [
     createAITool({
       name: "get_available_visualizations",
-      description: "Get a list of available visualizations and their metadata",
+      description: "Get a list of available visualizations with their metadata, including metric ID and label. Use this to see which visualizations are available for each metric.",
       inputSchema: z.object({}),
       handler: async () => {
         const res = await serverActions.getVisualizationsListForAI({ projectId });

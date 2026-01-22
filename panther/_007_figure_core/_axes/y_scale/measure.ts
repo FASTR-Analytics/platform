@@ -78,10 +78,9 @@ export function measureYScaleAxisWidthInfo(
     .mText("100%", sy.text.yScaleAxisTickLabels, Number.POSITIVE_INFINITY)
     .dims.h();
   const halfYAxisTickLabelH = yAxisTickLabelH / 2;
-  const guessMaxNTicks = Math.max(
-    2,
-    Math.floor(guessSubChartH / 2 / yAxisTickLabelH),
-  );
+  const guessMaxNTicks = yAxisTickLabelH > 0
+    ? Math.max(2, Math.floor(guessSubChartH / 2 / yAxisTickLabelH))
+    : 2;
 
   const yAxisTickValues = dy.tierHeaders.map((_, i_tier) => {
     const finalValueMin = typeof sy.min === "function"

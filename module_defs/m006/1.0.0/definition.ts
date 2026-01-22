@@ -157,6 +157,64 @@ export const definition = {
       requiredDisaggregationOptions: ["indicator_common_id", "year"],
       formatAs: "percent",
       periodOptions: ["year"],
+      aiDescription: {
+        summary: {
+          en:
+            "Comprehensive coverage estimates at national level using user-selected denominators, combining survey benchmarks with HMIS-derived trends.",
+          fr:
+            "Estimations de couverture complètes au niveau national utilisant des dénominateurs sélectionnés par l'utilisateur, combinant repères d'enquête avec tendances dérivées du HMIS.",
+        },
+        methodology: {
+          en:
+            "AVG of three coverage types: (1) original survey estimates when available, (2) survey estimates projected forward using HMIS year-over-year deltas (additive method), (3) HMIS-derived coverage using user-specified denominators. Denominators selected via module parameters (e.g., DENOM_ANC1, DENOM_PENTA1).",
+          fr:
+            "Moyenne de trois types de couverture: (1) estimations d'enquête originales, (2) estimations d'enquête projetées en utilisant les deltas HMIS année par année, (3) couverture dérivée du HMIS avec dénominateurs spécifiés.",
+        },
+        interpretation: {
+          en:
+            "This is the final, policy-relevant coverage metric combining best available data sources. Survey estimates anchor coverage to gold-standard benchmarks; projected estimates fill inter-survey gaps using HMIS momentum; HMIS coverage enables annual monitoring. Concordance between the three types validates data quality and denominator selection.",
+          fr:
+            "C'est la métrique de couverture finale pertinente pour les politiques, combinant les meilleures sources de données disponibles. Les estimations d'enquête ancrent la couverture aux repères étalon-or.",
+        },
+        typicalRange: {
+          en:
+            "0-100%. Coverage >100% indicates denominator or data quality problems requiring investigation.",
+          fr:
+            "0-100%. Couverture >100% indique des problèmes de dénominateur ou de qualité des données nécessitant investigation.",
+        },
+        caveats: {
+          en:
+            "Projection method assumes HMIS trends accurately reflect true coverage changes. Denominator selection (via module parameters) critically affects results - inappropriate denominators produce implausible coverage. Survey timing and data quality affect baseline accuracy.",
+          fr:
+            "La méthode de projection suppose que les tendances HMIS reflètent avec précision les vrais changements de couverture. La sélection du dénominateur affecte de manière critique les résultats.",
+        },
+        useCases: [
+          {
+            en: "Official coverage reporting and monitoring",
+            fr: "Déclaration et surveillance officielle de la couverture",
+          },
+          {
+            en: "Track progress toward health coverage targets",
+            fr:
+              "Suivre les progrès vers les objectifs de couverture sanitaire",
+          },
+          {
+            en: "Validate HMIS-survey concordance",
+            fr: "Valider la concordance HMIS-enquête",
+          },
+          {
+            en: "Generate annual coverage time series",
+            fr: "Générer des séries temporelles de couverture annuelles",
+          },
+        ],
+        relatedMetrics: ["m6-02-01", "m6-03-01", "m4a-02-01"],
+        disaggregationGuidance: {
+          en:
+            "Always disaggregate by indicator_common_id and year (both required). Compare the three coverage types to assess data quality - they should show consistent trends if both HMIS and denominators are reliable. Time series reveals coverage evolution and inter-survey projection accuracy.",
+          fr:
+            "Toujours désagréger par indicator_common_id et year (tous deux requis). Comparer les trois types de couverture pour évaluer la qualité des données.",
+        },
+      },
     },
     {
       id: "m6-02-01",
@@ -182,6 +240,49 @@ export const definition = {
       ],
       formatAs: "percent",
       periodOptions: ["year"],
+      aiDescription: {
+        summary: {
+          en:
+            "Subnational coverage estimates at admin area 2 level combining survey, projected, and HMIS-derived values.",
+          fr:
+            "Estimations de couverture sous-nationales au niveau de la zone administrative 2 combinant valeurs d'enquête, projetées et dérivées du HMIS.",
+        },
+        methodology: {
+          en:
+            "AVG of survey, projected survey, and HMIS coverage at regional level. Uses user-specified denominators and survey projection methodology.",
+          fr:
+            "Moyenne de la couverture d'enquête, d'enquête projetée et HMIS au niveau régional. Utilise des dénominateurs spécifiés par l'utilisateur.",
+        },
+        interpretation: {
+          en:
+            "Enables regional equity analysis and geographic targeting. Compare across admin areas to identify coverage disparities. Three estimation types validate subnational data quality.",
+          fr:
+            "Permet l'analyse de l'équité régionale et le ciblage géographique. Comparer entre zones administratives pour identifier les disparités de couverture.",
+        },
+        typicalRange: {
+          en:
+            "0-100%. Regional variation expected; remote areas typically have lower coverage.",
+          fr:
+            "0-100%. Variation régionale attendue; zones éloignées ont généralement une couverture plus faible.",
+        },
+        useCases: [
+          {
+            en: "Regional coverage equity monitoring",
+            fr: "Surveillance de l'équité de couverture régionale",
+          },
+          {
+            en: "Geographic targeting of health interventions",
+            fr: "Ciblage géographique des interventions sanitaires",
+          },
+        ],
+        relatedMetrics: ["m6-02-02", "m6-01-01", "m6-03-01"],
+        disaggregationGuidance: {
+          en:
+            "Always disaggregate by indicator_common_id, admin_area_2, and year (all required). Compare three coverage types for regional data quality validation.",
+          fr:
+            "Toujours désagréger par indicator_common_id, admin_area_2 et year (tous requis). Comparer trois types de couverture pour la validation de la qualité des données régionales.",
+        },
+      },
     },
     {
       id: "m6-02-02",
@@ -202,6 +303,45 @@ export const definition = {
       ],
       formatAs: "percent",
       periodOptions: ["year"],
+      aiDescription: {
+        summary: {
+          en:
+            "HMIS-only coverage estimates at admin area 2 level for simplified regional monitoring.",
+          fr:
+            "Estimations de couverture HMIS uniquement au niveau de la zone administrative 2 pour une surveillance régionale simplifiée.",
+        },
+        methodology: {
+          en:
+            "AVG of HMIS-derived coverage only (excludes survey and projected values). Useful for operational dashboards focusing solely on routine data.",
+          fr:
+            "Moyenne de la couverture dérivée du HMIS uniquement (exclut les valeurs d'enquête et projetées). Utile pour les tableaux de bord opérationnels.",
+        },
+        interpretation: {
+          en:
+            "Simplified metric for routine monitoring without survey complexity. Use for operational decision-making and trend tracking.",
+          fr:
+            "Métrique simplifiée pour la surveillance de routine sans complexité d'enquête. Utiliser pour la prise de décision opérationnelle.",
+        },
+        typicalRange: {
+          en:
+            "0-100%. Should align with full coverage metric (m6-02-01) but may differ from survey estimates.",
+          fr:
+            "0-100%. Devrait s'aligner avec la métrique de couverture complète (m6-02-01) mais peut différer des estimations d'enquête.",
+        },
+        useCases: [
+          {
+            en: "Operational performance dashboards",
+            fr: "Tableaux de bord de performance opérationnelle",
+          },
+        ],
+        relatedMetrics: ["m6-02-01"],
+        disaggregationGuidance: {
+          en:
+            "Always disaggregate by indicator_common_id, admin_area_2, and year (all required). Use for regional operational monitoring.",
+          fr:
+            "Toujours désagréger par indicator_common_id, admin_area_2 et year (tous requis). Utiliser pour la surveillance opérationnelle régionale.",
+        },
+      },
     },
     {
       id: "m6-03-01",
@@ -227,6 +367,45 @@ export const definition = {
       ],
       formatAs: "percent",
       periodOptions: ["year"],
+      aiDescription: {
+        summary: {
+          en:
+            "District-level coverage estimates combining survey, projected, and HMIS-derived values.",
+          fr:
+            "Estimations de couverture au niveau du district combinant valeurs d'enquête, projetées et dérivées du HMIS.",
+        },
+        methodology: {
+          en:
+            "AVG of survey, projected survey, and HMIS coverage at district level. Finest geographic resolution for coverage estimation.",
+          fr:
+            "Moyenne de la couverture d'enquête, d'enquête projetée et HMIS au niveau du district. Résolution géographique la plus fine.",
+        },
+        interpretation: {
+          en:
+            "Enables district-level targeting and micro-planning. Interpret with caution due to smaller sample sizes and denominator uncertainty.",
+          fr:
+            "Permet le ciblage au niveau du district et la micro-planification. Interpréter avec prudence en raison de petites tailles d'échantillon.",
+        },
+        typicalRange: {
+          en:
+            "0-100%. Greater variation expected at district level; interpret with caution.",
+          fr:
+            "0-100%. Plus grande variation attendue au niveau du district; interpréter avec prudence.",
+        },
+        useCases: [
+          {
+            en: "District-level health planning",
+            fr: "Planification sanitaire au niveau du district",
+          },
+        ],
+        relatedMetrics: ["m6-03-02", "m6-02-01"],
+        disaggregationGuidance: {
+          en:
+            "Always disaggregate by indicator_common_id, admin_area_3, and year (all required). Compare with admin area 2 for context.",
+          fr:
+            "Toujours désagréger par indicator_common_id, admin_area_3 et year (tous requis). Comparer avec la zone administrative 2 pour le contexte.",
+        },
+      },
     },
     {
       id: "m6-03-02",
@@ -247,6 +426,45 @@ export const definition = {
       ],
       formatAs: "percent",
       periodOptions: ["year"],
+      aiDescription: {
+        summary: {
+          en:
+            "HMIS-only coverage estimates at district level for operational monitoring.",
+          fr:
+            "Estimations de couverture HMIS uniquement au niveau du district pour la surveillance opérationnelle.",
+        },
+        methodology: {
+          en:
+            "AVG of HMIS-derived coverage at district level. Excludes survey complexity for simplified operational use.",
+          fr:
+            "Moyenne de la couverture dérivée du HMIS au niveau du district. Exclut la complexité de l'enquête pour une utilisation opérationnelle simplifiée.",
+        },
+        interpretation: {
+          en:
+            "District-level operational metric. Use for micro-level performance tracking and facility supervision planning.",
+          fr:
+            "Métrique opérationnelle au niveau du district. Utiliser pour le suivi de la performance micro-niveau.",
+        },
+        typicalRange: {
+          en:
+            "0-100%. Highest variation expected at this level; use for operational monitoring only.",
+          fr:
+            "0-100%. Variation la plus élevée attendue à ce niveau; utiliser uniquement pour la surveillance opérationnelle.",
+        },
+        useCases: [
+          {
+            en: "District health management dashboards",
+            fr: "Tableaux de bord de gestion sanitaire de district",
+          },
+        ],
+        relatedMetrics: ["m6-03-01"],
+        disaggregationGuidance: {
+          en:
+            "Always disaggregate by indicator_common_id, admin_area_3, and year (all required). Simplified metric for district operations.",
+          fr:
+            "Toujours désagréger par indicator_common_id, admin_area_3 et year (tous requis). Métrique simplifiée pour les opérations de district.",
+        },
+      },
     },
   ],
   ////////////////////////////////////////////////////////////////////

@@ -55,27 +55,60 @@ gaps below them.
 
 ## Node-Level Overrides
 
-Nodes can override their computed constraints:
+All nodes (items, rows, cols) can override their computed constraints:
 
 ```typescript
 createItemNode(data, {
-  minH: 100, // Override minimum height
-  maxH: Infinity, // Override maximum height (allows filling)
+  minH: 100,        // Override minimum height (total height including padding/borders)
+  maxH: Infinity,   // Override maximum height (allows filling)
+});
+
+createRowsNode([...], {
+  minH: 200,        // Override minimum height for the entire rows container
+  maxH: 500,        // Override maximum height
 });
 ```
 
-This is how placeholders work: the spacer content returns fixed height, but the
-node sets `maxH: Infinity` to allow filling.
+**Important:** `minH` and `maxH` overrides represent **total heights** (including
+padding and borders), not content-only heights. For example:
+
+```typescript
+// Item with 10px padding on all sides
+createItemNode(data, {
+  minH: 100,
+  style: { padding: 10 }
+});
+// Final rendered height: 100px total (80px content + 20px padding)
+```
+
+**Use cases:**
+
+1. **Flexible spacers:** Content returns fixed height, but node sets `maxH: Infinity`
+2. **Override renderer constraints:** Force a figure to have `minH: 0` for flexible sizing
+3. **Container size limits:** Cap a rows container at `maxH: 500` regardless of content
 
 ## Measurement Algorithm
 
 ### Phase 1: Get Constraints (bottom-up)
 
-For each node, compute `{ minH, maxH }`:
+For each node, compute `{ minH, idealH, maxH }`:
 
-1. **Items**: Call the measurer, apply node overrides
-2. **Rows**: Sum children's constraints
-3. **Cols**: Max of minH, min of maxH
+1. **Items**:
+   - Call itemMeasurer to get content constraints
+   - Add padding and borders to convert to total heights
+   - Apply node.minH/maxH overrides (which replace total heights)
+   - Clamp idealH to [minH, maxH]
+
+2. **Rows**:
+   - Sum children's constraints
+   - Add gaps between children
+   - Apply node.minH/maxH overrides
+   - Clamp idealH to [minH, maxH]
+
+3. **Cols**:
+   - Take max of children's minH, max of children's maxH
+   - Apply node.minH/maxH overrides
+   - Clamp idealH to [minH, maxH]
 
 ### Phase 2: Allocate Space (top-down)
 

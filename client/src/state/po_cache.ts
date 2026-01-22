@@ -237,7 +237,7 @@ async function* getPODetailFromCacheorFetch_AsyncGenderator(
   if (data) {
     const t1 = performance.now();
     const status = isInflight ? "INFLIGHT" : "HIT";
-    console.log(`[VIZ] ${presentationObjectId.slice(0, 8)} "${data.label}" | Detail: ${status} (${(t1 - t0).toFixed(0)}ms)`);
+    // console.log(`[VIZ] ${presentationObjectId.slice(0, 8)} "${data.label}" | Detail: ${status} (${(t1 - t0).toFixed(0)}ms)`);
     yield {
       status: "ready",
       data,
@@ -266,14 +266,14 @@ async function* getPODetailFromCacheorFetch_AsyncGenderator(
   const res = await newPromise;
   const t1 = performance.now();
   if (res.success === false) {
-    console.log(`[VIZ] ${presentationObjectId.slice(0, 8)} | Detail: MISS ERROR (${(t1 - t0).toFixed(0)}ms)`);
+    // console.log(`[VIZ] ${presentationObjectId.slice(0, 8)} | Detail: MISS ERROR (${(t1 - t0).toFixed(0)}ms)`);
     yield {
       status: "error",
       err: res.err,
     };
     return;
   }
-  console.log(`[VIZ] ${presentationObjectId.slice(0, 8)} "${res.data.label}" | Detail: MISS (${(t1 - t0).toFixed(0)}ms)`);
+  // console.log(`[VIZ] ${presentationObjectId.slice(0, 8)} "${res.data.label}" | Detail: MISS (${(t1 - t0).toFixed(0)}ms)`);
   yield {
     status: "ready",
     data: res.data,
@@ -371,7 +371,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
       : data.status === "too_many_items"
       ? "TOO MANY ITEMS"
       : "NO DATA";
-    console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: ${cacheStatus} (${(t1 - t0).toFixed(0)}ms) | ${itemsInfo}`);
+    // console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: ${cacheStatus} (${(t1 - t0).toFixed(0)}ms) | ${itemsInfo}`);
     yield {
       status: "ready",
       data: { ih: data, config },
@@ -407,18 +407,18 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   const t1 = performance.now();
   const queueStats = poItemsQueue.getStats();
   if (res.success === false) {
-    console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS ERROR (${(t1 - t0).toFixed(0)}ms) [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
+    // console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS ERROR (${(t1 - t0).toFixed(0)}ms) [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
     yield { status: "error", err: res.err };
     return;
   }
 
   // Log based on status
   if (res.data.status === "ok") {
-    console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS (${(t1 - t0).toFixed(0)}ms) | ${res.data.items.length} rows [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
+    // console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS (${(t1 - t0).toFixed(0)}ms) | ${res.data.items.length} rows [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
   } else if (res.data.status === "too_many_items") {
-    console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS (${(t1 - t0).toFixed(0)}ms) | TOO MANY ITEMS [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
+    // console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS (${(t1 - t0).toFixed(0)}ms) | TOO MANY ITEMS [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
   } else {
-    console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS (${(t1 - t0).toFixed(0)}ms) | NO DATA [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
+    // console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS (${(t1 - t0).toFixed(0)}ms) | NO DATA [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
   }
 
   yield {

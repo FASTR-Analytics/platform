@@ -119,6 +119,62 @@ export const definition = {
     requiredDisaggregationOptions: [],
     formatAs: "percent",
     periodOptions: ["period_id", "quarter_id", "year"],
+    aiDescription: {
+      summary: {
+        en:
+          "Magnitude of change in reported service volumes after removing or adjusting outlier values.",
+        fr:
+          "Ampleur du changement dans les volumes de services déclarés après suppression ou ajustement des valeurs aberrantes.",
+      },
+      methodology: {
+        en:
+          "Calculated as ABS(unadjusted - outlier_adjusted) / unadjusted. Outlier adjustment replaces flagged extreme values using rolling mean imputation (6-month centered, forward, or backward windows) or facility-level means.",
+        fr:
+          "Calculé comme ABS(non ajusté - ajusté pour aberrants) / non ajusté. L'ajustement des aberrants remplace les valeurs extrêmes par imputation par moyenne mobile.",
+      },
+      interpretation: {
+        en:
+          "Higher percentages indicate that outliers had significant impact on reported volumes. Values above 10% suggest substantial data quality issues that could bias analysis if left unadjusted. Compare across indicators to identify those most affected.",
+        fr:
+          "Des pourcentages plus élevés indiquent que les aberrants ont eu un impact significatif. Les valeurs supérieures à 10% suggèrent des problèmes de qualité importants.",
+      },
+      typicalRange: {
+        en:
+          "0-5% indicates minimal outlier impact; 5-15% moderate; >15% suggests major quality issues.",
+        fr:
+          "0-5% indique un impact aberrant minimal; 5-15% modéré; >15% suggère des problèmes majeurs.",
+      },
+      caveats: {
+        en:
+          "Percentage change reflects magnitude but not direction. Large changes may be appropriate if outliers were genuine data errors, but could also indicate over-correction if flagged values were valid.",
+        fr:
+          "Le changement en pourcentage reflète l'ampleur mais pas la direction. Les grands changements peuvent être appropriés si les aberrants étaient des erreurs.",
+      },
+      useCases: [
+        {
+          en: "Assess impact of outlier correction on totals",
+          fr:
+            "Évaluer l'impact de la correction des aberrants sur les totaux",
+        },
+        {
+          en: "Identify indicators most affected by outliers",
+          fr:
+            "Identifier les indicateurs les plus affectés par les aberrants",
+        },
+        {
+          en: "Justify use of adjusted vs unadjusted data",
+          fr:
+            "Justifier l'utilisation de données ajustées vs non ajustées",
+        },
+      ],
+      relatedMetrics: ["m2-01-02", "m2-01-03", "m1-01-01"],
+      disaggregationGuidance: {
+        en:
+          "Disaggregate by indicator_common_id to identify which services are most affected by outlier adjustment. Use admin_area to find regions where outliers have larger impact. Time series analysis shows if adjustment impact changes over time.",
+        fr:
+          "Désagréger par indicator_common_id pour identifier quels services sont les plus affectés. Utiliser admin_area pour trouver les régions où l'impact est plus important.",
+      },
+    },
   }, {
     id: "m2-01-02",
     resultsObjectId: "M2_adjusted_data.csv",
@@ -139,6 +195,61 @@ export const definition = {
     requiredDisaggregationOptions: [],
     formatAs: "percent",
     periodOptions: ["period_id", "quarter_id", "year"],
+    aiDescription: {
+      summary: {
+        en:
+          "Magnitude of change in reported service volumes after imputing missing facility reports.",
+        fr:
+          "Ampleur du changement dans les volumes de services déclarés après imputation des rapports d'établissement manquants.",
+      },
+      methodology: {
+        en:
+          "Calculated as ABS(unadjusted - completeness_adjusted) / unadjusted. Completeness adjustment fills missing facility-period records using rolling mean imputation to account for non-reporting facilities.",
+        fr:
+          "Calculé comme ABS(non ajusté - ajusté pour complétude) / non ajusté. L'ajustement de complétude remplit les enregistrements manquants par imputation.",
+      },
+      interpretation: {
+        en:
+          "Higher percentages indicate significant missing data that affects totals. Values above 20% suggest incomplete reporting that could substantially underestimate service coverage. This adjustment increases volumes by filling gaps.",
+        fr:
+          "Des pourcentages plus élevés indiquent des données manquantes significatives. Les valeurs supérieures à 20% suggèrent une déclaration incomplète.",
+      },
+      typicalRange: {
+        en:
+          "0-10% indicates good reporting completeness; 10-30% moderate gaps; >30% indicates major reporting issues.",
+        fr:
+          "0-10% indique une bonne complétude; 10-30% lacunes modérées; >30% indique des problèmes de déclaration majeurs.",
+      },
+      caveats: {
+        en:
+          "Completeness adjustment assumes missing facilities have similar service volumes to reporting facilities. If non-reporting facilities systematically differ (e.g., closed or low-functioning), imputation may over- or under-estimate totals.",
+        fr:
+          "L'ajustement de complétude suppose que les établissements manquants ont des volumes similaires. Si les établissements non déclarants diffèrent systématiquement, l'imputation peut surestimer.",
+      },
+      useCases: [
+        {
+          en: "Assess impact of incomplete reporting on totals",
+          fr:
+            "Évaluer l'impact de la déclaration incomplète sur les totaux",
+        },
+        {
+          en: "Identify periods with major reporting gaps",
+          fr: "Identifier les périodes avec des lacunes de déclaration majeures",
+        },
+        {
+          en: "Compare adjusted vs unadjusted trend analysis",
+          fr:
+            "Comparer l'analyse de tendance ajustée vs non ajustée",
+        },
+      ],
+      relatedMetrics: ["m2-01-01", "m2-01-03", "m1-02-02"],
+      disaggregationGuidance: {
+        en:
+          "Disaggregate by indicator_common_id to see which services have most missing data. Use time periods to identify when reporting completeness deteriorated. Admin_area disaggregation reveals geographic reporting patterns.",
+        fr:
+          "Désagréger par indicator_common_id pour voir quels services ont le plus de données manquantes. Utiliser les périodes pour identifier quand la complétude s'est détériorée.",
+      },
+    },
   }, {
     id: "m2-01-03",
     resultsObjectId: "M2_adjusted_data.csv",
@@ -160,6 +271,61 @@ export const definition = {
     requiredDisaggregationOptions: [],
     formatAs: "percent",
     periodOptions: ["period_id", "quarter_id", "year"],
+    aiDescription: {
+      summary: {
+        en:
+          "Combined magnitude of change in reported service volumes after both outlier removal and missing data imputation.",
+        fr:
+          "Ampleur combinée du changement dans les volumes après suppression des aberrants et imputation des données manquantes.",
+      },
+      methodology: {
+        en:
+          "Calculated as ABS(unadjusted - both_adjusted) / unadjusted. Applies both outlier correction (replacing extreme values) and completeness adjustment (filling missing records) sequentially to produce fully-adjusted estimates.",
+        fr:
+          "Calculé comme ABS(non ajusté - ajusté pour les deux) / non ajusté. Applique à la fois la correction des aberrants et l'ajustement de complétude séquentiellement.",
+      },
+      interpretation: {
+        en:
+          "Represents the total impact of data quality corrections on service volumes. Higher percentages indicate that raw data required substantial adjustment. Compare with individual adjustment metrics (m2-01-01, m2-01-02) to understand whether outliers or completeness drove the change.",
+        fr:
+          "Représente l'impact total des corrections de qualité des données. Des pourcentages plus élevés indiquent que les données brutes nécessitaient un ajustement substantiel.",
+      },
+      typicalRange: {
+        en:
+          "0-10% indicates minor corrections; 10-25% moderate adjustment; >25% indicates major data quality issues requiring substantial correction.",
+        fr:
+          "0-10% indique des corrections mineures; 10-25% ajustement modéré; >25% indique des problèmes majeurs nécessitant correction substantielle.",
+      },
+      caveats: {
+        en:
+          "Combined adjustment effect is not simply additive - outlier and completeness adjustments interact. Large combined changes may indicate the need to verify that adjustments are appropriate rather than over-correcting.",
+        fr:
+          "L'effet d'ajustement combiné n'est pas simplement additif - les ajustements interagissent. Les grands changements combinés peuvent indiquer la nécessité de vérifier les ajustements.",
+      },
+      useCases: [
+        {
+          en: "Assess overall data quality correction needs",
+          fr:
+            "Évaluer les besoins globaux de correction de la qualité des données",
+        },
+        {
+          en: "Compare fully-adjusted vs raw data trends",
+          fr: "Comparer les tendances ajustées vs données brutes",
+        },
+        {
+          en: "Document magnitude of data cleaning for transparency",
+          fr:
+            "Documenter l'ampleur du nettoyage des données pour la transparence",
+        },
+      ],
+      relatedMetrics: ["m2-01-01", "m2-01-02"],
+      disaggregationGuidance: {
+        en:
+          "Disaggregate by indicator_common_id to identify indicators requiring most adjustment. Time series shows if data quality improves over time (decreasing adjustment percentages). Regional disaggregation reveals geographic patterns in data quality.",
+        fr:
+          "Désagréger par indicator_common_id pour identifier les indicateurs nécessitant le plus d'ajustement. Les séries temporelles montrent si la qualité s'améliore.",
+      },
+    },
   }],
   ////////////////////////////////////////////////////////////////////
   //  _______                                                       //

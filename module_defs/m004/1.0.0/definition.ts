@@ -124,6 +124,59 @@ export const definition = {
       requiredDisaggregationOptions: ["indicator_common_id", "year"],
       formatAs: "percent",
       periodOptions: ["year"],
+      aiDescription: {
+        summary: {
+          en:
+            "Health service coverage estimates at national level, comparing HMIS-derived coverage with survey-based benchmarks.",
+          fr:
+            "Estimations de couverture des services de santé au niveau national, comparant la couverture dérivée du HMIS avec les repères d'enquête.",
+        },
+        methodology: {
+          en:
+            "AVG of three coverage types: (1) original survey estimates when available, (2) projected survey estimates using HMIS trends, (3) HMIS-derived coverage calculated as service volumes divided by population denominators. Denominators selected based on minimizing error against survey benchmarks.",
+          fr:
+            "Moyenne de trois types de couverture: (1) estimations d'enquête originales, (2) estimations d'enquête projetées utilisant les tendances HMIS, (3) couverture dérivée du HMIS.",
+        },
+        interpretation: {
+          en:
+            "Three values provide complementary perspectives: survey estimates are gold standard but sparse; projected estimates fill gaps using HMIS trends; HMIS-derived estimates enable annual monitoring. Large gaps between HMIS and survey coverage suggest data quality issues or denominator problems.",
+          fr:
+            "Trois valeurs fournissent des perspectives complémentaires: les estimations d'enquête sont l'étalon-or mais rares; les estimations projetées comblent les lacunes.",
+        },
+        typicalRange: {
+          en:
+            "0-100% for coverage. Maternal services typically 40-80%; vaccination 60-95%; varies by country context.",
+          fr:
+            "0-100% pour la couverture. Services maternels généralement 40-80%; vaccination 60-95%; varie selon le contexte.",
+        },
+        caveats: {
+          en:
+            "Denominator selection is critical - inappropriate denominators can produce implausible coverage >100%. Projection assumes HMIS trends reflect true coverage changes. Survey timing and HMIS data quality affect comparability.",
+          fr:
+            "La sélection du dénominateur est critique - les dénominateurs inappropriés peuvent produire une couverture >100%. La projection suppose que les tendances HMIS reflètent les vrais changements.",
+        },
+        useCases: [
+          {
+            en: "Monitor annual coverage trends between surveys",
+            fr: "Surveiller les tendances de couverture annuelles entre enquêtes",
+          },
+          {
+            en: "Validate HMIS data against survey benchmarks",
+            fr: "Valider les données HMIS contre les repères d'enquête",
+          },
+          {
+            en: "Assess denominator quality and selection",
+            fr: "Évaluer la qualité et sélection du dénominateur",
+          },
+        ],
+        relatedMetrics: ["m4-02-01", "m4-03-01"],
+        disaggregationGuidance: {
+          en:
+            "Always disaggregate by indicator_common_id and year (both required). Compare the three coverage types to assess HMIS-survey concordance. Time series reveals coverage trends and data quality evolution.",
+          fr:
+            "Toujours désagréger par indicator_common_id et year (tous deux requis). Comparer les trois types de couverture pour évaluer la concordance HMIS-enquête.",
+        },
+      },
     },
     {
       id: "m4-02-01",
@@ -141,6 +194,59 @@ export const definition = {
       ],
       formatAs: "percent",
       periodOptions: ["year"],
+      aiDescription: {
+        summary: {
+          en:
+            "HMIS-derived health service coverage at admin area 2 (province/state) level.",
+          fr:
+            "Couverture des services de santé dérivée du HMIS au niveau de la zone administrative 2 (province/état).",
+        },
+        methodology: {
+          en:
+            "AVG of coverage calculated as HMIS service volumes divided by subnational population denominators. Uses nationally-selected denominator with subnational fallback if national-only denominator chosen.",
+          fr:
+            "Moyenne de la couverture calculée comme volumes de services HMIS divisés par dénominateurs de population sous-nationale.",
+        },
+        interpretation: {
+          en:
+            "Enables subnational coverage monitoring and equity analysis. Compare across regions to identify geographic disparities. Coverage >100% indicates denominator or data quality issues.",
+          fr:
+            "Permet la surveillance de la couverture sous-nationale et l'analyse de l'équité. Comparer entre régions pour identifier les disparités géographiques.",
+        },
+        typicalRange: {
+          en:
+            "0-100%. Regional variation expected; coverage gaps often larger in remote/underserved areas.",
+          fr:
+            "0-100%. Variation régionale attendue; écarts de couverture souvent plus grands dans les zones éloignées.",
+        },
+        caveats: {
+          en:
+            "Subnational denominators may be less reliable than national. Migration and population estimates affect accuracy. Some denominators only available at national level.",
+          fr:
+            "Les dénominateurs sous-nationaux peuvent être moins fiables que nationaux. Les estimations de migration et population affectent la précision.",
+        },
+        useCases: [
+          {
+            en: "Assess regional coverage equity",
+            fr: "Évaluer l'équité de couverture régionale",
+          },
+          {
+            en: "Target low-coverage areas for improvement",
+            fr: "Cibler les zones de faible couverture pour amélioration",
+          },
+          {
+            en: "Monitor subnational performance",
+            fr: "Surveiller la performance sous-nationale",
+          },
+        ],
+        relatedMetrics: ["m4-01-01", "m4-03-01"],
+        disaggregationGuidance: {
+          en:
+            "Always disaggregate by indicator_common_id, admin_area_2, and year (all required). Map visualization effectively shows geographic coverage patterns. Time series reveals regional improvement or deterioration.",
+          fr:
+            "Toujours désagréger par indicator_common_id, admin_area_2 et year (tous requis). La visualisation cartographique montre efficacement les modèles de couverture géographique.",
+        },
+      },
     },
     {
       id: "m4-03-01",
@@ -158,6 +264,59 @@ export const definition = {
       ],
       formatAs: "percent",
       periodOptions: ["year"],
+      aiDescription: {
+        summary: {
+          en:
+            "HMIS-derived health service coverage at admin area 3 (district) level.",
+          fr:
+            "Couverture des services de santé dérivée du HMIS au niveau de la zone administrative 3 (district).",
+        },
+        methodology: {
+          en:
+            "AVG of district-level coverage calculated as HMIS service volumes divided by district population denominators. Finest geographic resolution for coverage monitoring.",
+          fr:
+            "Moyenne de la couverture au niveau du district calculée comme volumes de services HMIS divisés par dénominateurs de population du district.",
+        },
+        interpretation: {
+          en:
+            "Enables district-level targeting and operational planning. Useful for identifying micro-level coverage gaps. Interpret with caution if sample sizes small.",
+          fr:
+            "Permet le ciblage au niveau du district et la planification opérationnelle. Utile pour identifier les lacunes de couverture au micro-niveau.",
+        },
+        typicalRange: {
+          en:
+            "0-100%. Greater variation expected than higher geographic levels due to smaller denominators and sample sizes.",
+          fr:
+            "0-100%. Plus grande variation attendue que les niveaux géographiques supérieurs en raison de plus petits dénominateurs.",
+        },
+        caveats: {
+          en:
+            "District-level denominators may have substantial uncertainty. Population mobility and small sample sizes increase volatility. Only available when ANALYSIS_LEVEL includes admin_area_3.",
+          fr:
+            "Les dénominateurs au niveau du district peuvent avoir une incertitude substantielle. Disponible uniquement lorsque ANALYSIS_LEVEL inclut admin_area_3.",
+        },
+        useCases: [
+          {
+            en: "District-level operational planning",
+            fr: "Planification opérationnelle au niveau du district",
+          },
+          {
+            en: "Identify micro-level coverage gaps",
+            fr: "Identifier les lacunes de couverture au micro-niveau",
+          },
+          {
+            en: "Support targeted facility supervision",
+            fr: "Soutenir la supervision ciblée des établissements",
+          },
+        ],
+        relatedMetrics: ["m4-01-01", "m4-02-01"],
+        disaggregationGuidance: {
+          en:
+            "Always disaggregate by indicator_common_id, admin_area_3, and year (all required). Consider aggregating to admin_area_2 if district-level estimates appear unstable.",
+          fr:
+            "Toujours désagréger par indicator_common_id, admin_area_3 et year (tous requis). Considérer l'agrégation à admin_area_2 si les estimations au niveau district semblent instables.",
+        },
+      },
     },
   ],
   ////////////////////////////////////////////////////////////////////

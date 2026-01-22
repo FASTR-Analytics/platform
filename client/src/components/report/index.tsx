@@ -228,7 +228,11 @@ export function Report(p: Props) {
     const rd = reportDetail();
     if (rd.status === "ready" && rd.data.reportType === "ai_slide_deck") {
       const config = rd.data.config as unknown as AISlideDeckConfig;
-      return { slides: config.slides ?? [], label: config.label };
+      return {
+        plan: config.plan,
+        slides: config.slides ?? [],
+        label: config.label
+      };
     }
     return undefined;
   };
@@ -253,7 +257,7 @@ export function Report(p: Props) {
             instanceDetail={p.instanceDetail}
             projectDetail={p.projectDetail}
             reportId={p.reportId}
-            initialSlides={data.slides}
+            initialConfig={{ plan: data.plan, slides: data.slides }}
             reportLabel={data.label}
             backToProject={p.backToProject}
           />

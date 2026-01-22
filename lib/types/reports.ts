@@ -76,7 +76,6 @@ export function getStartingConfigForLongFormReport(
   return { label, markdown: "" };
 }
 
-
 // AI Slide Deck types (simplified format for AI editing)
 export type SlideType = "cover" | "section" | "content";
 
@@ -104,9 +103,31 @@ export type SimpleSlide = {
   blocks?: ContentBlock[];
 };
 
+// CustomUserSlide - wraps full ReportItemConfig for rich user editing
+export type CustomUserSlide = {
+  type: "custom";
+  slideType: "cover" | "section" | "freeform";
+  config: ReportItemConfig;
+  _originalSimpleSlide?: SimpleSlide; // Optional: preserve for reference
+};
+
+// Mixed slide type - can be either simple or custom
+export type MixedSlide = SimpleSlide | CustomUserSlide;
+
+// Type guards
+export function isSimpleSlide(slide: MixedSlide): slide is SimpleSlide {
+  return (slide as CustomUserSlide).type !== "custom";
+}
+
+export function isCustomUserSlide(slide: MixedSlide): slide is CustomUserSlide {
+  return (slide as CustomUserSlide).type === "custom";
+}
+
 export type AISlideDeckConfig = {
   label: string;
-  slides: SimpleSlide[];
+  version: 1 | 2; // v1: SimpleSlide[] only, v2: MixedSlide[]
+  plan?: string;
+  slides: MixedSlide[];
 };
 
 export type ReportConfig = {
@@ -296,9 +317,7 @@ export type ReportItemConfig = {
     footerText?: string;
     footerLogos?: string[];
     //
-    content:
-      | { layoutType: "explicit"; layout: LayoutNode<ReportItemContentItem> }
-      | { layoutType: "optimize"; items: ReportItemContentItem[] };
+    content: LayoutNode<ReportItemContentItem>;
   };
 };
 
@@ -324,12 +343,9 @@ export function getStartingConfigForReportItem() {
     },
     freeform: {
       content: {
-        layoutType: "explicit",
-        layout: {
-          type: "item",
-          id: crypto.randomUUID(),
-          data: getStartingReportItemPlaceholder(),
-        },
+        type: "item",
+        id: crypto.randomUUID(),
+        data: getStartingReportItemPlaceholder(),
       },
     },
   };
@@ -395,25 +411,3 @@ export function getStartingReportItemPlaceholder() {
   return startingPlaceholder;
 }
 
-export type FreeformContent =
-  | { layoutType: "explicit"; layout: LayoutNode<ReportItemContentItem> }
-  | { layoutType: "optimize"; items: ReportItemContentItem[] };
-
-export function getLayoutFromContent(
-  content: FreeformContent
-): LayoutNode<ReportItemContentItem> {
-  if (content.layoutType === "explicit") {
-    return content.layout;
-  }
-  throw new Error("Cannot get layout from optimize content - optimize layout is computed at render time");
-}
-
-export function setLayoutInContent(
-  content: FreeformContent,
-  layout: LayoutNode<ReportItemContentItem>
-): FreeformContent {
-  if (content.layoutType === "explicit") {
-    return { layoutType: "explicit", layout };
-  }
-  throw new Error("Cannot set layout on optimize content");
-}

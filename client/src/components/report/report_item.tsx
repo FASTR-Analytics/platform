@@ -216,11 +216,8 @@ export function ReportItemEditorInner(p: Props) {
     return node.id;
   };
   const initContent = p.reportItem.config.freeform.content;
-  if (initContent.layoutType !== "explicit") {
-    throw new Error("Manual editor only supports explicit layout");
-  }
   const [selectedItemId, setSelectedItemId] = createSignal<string | undefined>(
-    getFirstItemId(initContent.layout)
+    getFirstItemId(initContent)
   );
   let autoSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -416,10 +413,7 @@ export function ReportItemEditorInner(p: Props) {
                     if (target.type !== "layoutItem") return;
 
                     const content = tempReportItemConfig.freeform.content;
-                    if (content.layoutType !== "explicit") {
-                      throw new Error("Manual editor only supports explicit layout");
-                    }
-                    const root = structuredClone(unwrap(content.layout));
+                    const root = structuredClone(unwrap(content));
                     const targetId = target.node.id;
                     const items: MenuItem[] = [];
 
@@ -438,10 +432,7 @@ export function ReportItemEditorInner(p: Props) {
                         onClick: () => {
                           const newItem = makeNewItem();
                           const result = splitIntoRows(root, targetId, newItem);
-                          setTempReportItemConfig("freeform", "content", {
-                          layoutType: "explicit",
-                          layout: result,
-                        });
+                          setTempReportItemConfig("freeform", "content", result);
                           setSelectedItemId(newItem.id);
                         },
                       });
@@ -453,10 +444,7 @@ export function ReportItemEditorInner(p: Props) {
                         onClick: () => {
                           const newItem = makeNewItem();
                           const result = splitIntoColumns(root, targetId, newItem);
-                          setTempReportItemConfig("freeform", "content", {
-                          layoutType: "explicit",
-                          layout: result,
-                        });
+                          setTempReportItemConfig("freeform", "content", result);
                           setSelectedItemId(newItem.id);
                         },
                       });
@@ -471,10 +459,7 @@ export function ReportItemEditorInner(p: Props) {
                       onClick: () => {
                         const newItem = makeNewItem();
                         const result = addCol(root, targetId, newItem, "left");
-                        setTempReportItemConfig("freeform", "content", {
-                          layoutType: "explicit",
-                          layout: result,
-                        });
+                        setTempReportItemConfig("freeform", "content", result);
                         setSelectedItemId(newItem.id);
                       },
                     });
@@ -484,10 +469,7 @@ export function ReportItemEditorInner(p: Props) {
                       onClick: () => {
                         const newItem = makeNewItem();
                         const result = addCol(root, targetId, newItem, "right");
-                        setTempReportItemConfig("freeform", "content", {
-                          layoutType: "explicit",
-                          layout: result,
-                        });
+                        setTempReportItemConfig("freeform", "content", result);
                         setSelectedItemId(newItem.id);
                       },
                     });
@@ -501,10 +483,7 @@ export function ReportItemEditorInner(p: Props) {
                       onClick: () => {
                         const newItem = makeNewItem();
                         const result = addRow(root, targetId, newItem, "above");
-                        setTempReportItemConfig("freeform", "content", {
-                          layoutType: "explicit",
-                          layout: result,
-                        });
+                        setTempReportItemConfig("freeform", "content", result);
                         setSelectedItemId(newItem.id);
                       },
                     });
@@ -514,10 +493,7 @@ export function ReportItemEditorInner(p: Props) {
                       onClick: () => {
                         const newItem = makeNewItem();
                         const result = addRow(root, targetId, newItem, "below");
-                        setTempReportItemConfig("freeform", "content", {
-                          layoutType: "explicit",
-                          layout: result,
-                        });
+                        setTempReportItemConfig("freeform", "content", result);
                         setSelectedItemId(newItem.id);
                       },
                     });
@@ -532,10 +508,7 @@ export function ReportItemEditorInner(p: Props) {
                         onClick: () => {
                           const result = deleteNodeWithCleanup(root, targetId);
                           if (result) {
-                            setTempReportItemConfig("freeform", "content", {
-                          layoutType: "explicit",
-                          layout: result,
-                        });
+                            setTempReportItemConfig("freeform", "content", result);
                             // Select first item in the result
                             const firstItem = findFirstItem(result);
                             setSelectedItemId(firstItem?.id);

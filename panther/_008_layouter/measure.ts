@@ -429,11 +429,12 @@ function measureItemNode<T, U>(
 
   const constraints = itemMeasurer(ctx, node, innerBounds.w());
 
-  // Apply node-level overrides to content heights
-  let minH = constraints.minH;
-  let idealH = constraints.idealH;
-  let maxH = constraints.maxH;
+  // Convert content heights to total heights by adding padding
+  let minH = constraints.minH + pad.totalPy() + borderTotal;
+  let idealH = constraints.idealH + pad.totalPy() + borderTotal;
+  let maxH = constraints.maxH + pad.totalPy() + borderTotal;
 
+  // Apply node-level overrides (overrides are total heights)
   if (node.minH !== undefined) {
     minH = node.minH;
   }
@@ -443,23 +444,18 @@ function measureItemNode<T, U>(
   maxH = Math.max(minH, maxH);
   idealH = Math.max(minH, Math.min(idealH, maxH));
 
-  // Convert to total heights by adding padding
-  const minHTotal = minH + pad.totalPy() + borderTotal;
-  const idealHTotal = idealH + pad.totalPy() + borderTotal;
-  const maxHTotal = maxH + pad.totalPy() + borderTotal;
-
   // Fill to bounds, capped by maxH, never below minH
   const availableH = bounds.h();
-  let finalH = Math.min(availableH, maxHTotal);
-  finalH = Math.max(finalH, minHTotal);
+  let finalH = Math.min(availableH, maxH);
+  finalH = Math.max(finalH, minH);
 
   const rpd = bounds.getAdjusted({ h: Math.min(finalH, bounds.h()) });
 
   return {
     ...node,
     rpd,
-    idealH: idealHTotal,
-    maxH: maxHTotal,
+    idealH,
+    maxH,
     neededScalingToFitWidth: constraints.neededScalingToFitWidth,
   };
 }

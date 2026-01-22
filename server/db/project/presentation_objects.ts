@@ -609,6 +609,8 @@ export async function getVisualizationsListForAI(
         results_object_id: string;
         is_default_visualization: boolean;
         created_by_ai: boolean;
+        metric_id: string;
+        metric_label: string;
       }[]
     >`
 SELECT
@@ -617,6 +619,8 @@ SELECT
   po.config,
   po.is_default_visualization,
   po.created_by_ai,
+  met.id AS metric_id,
+  met.label AS metric_label,
   met.results_object_id,
   mod.module_definition
 FROM presentation_objects po
@@ -641,6 +645,8 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
         id: row.id,
         name: row.label,
         moduleName: moduleDef.name,
+        metricId: row.metric_id,
+        metricLabel: row.metric_label,
         caption: config.t.caption,
         type: config.d.type,
         disaggregations: config.d.disaggregateBy.map((d) => ({
@@ -679,6 +685,7 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
       lines.push(`ID: ${viz.id}`);
       lines.push(`Name: ${viz.name}`);
       lines.push(`Module: ${viz.moduleName}`);
+      lines.push(`Metric: ${viz.metricLabel} (ID: ${viz.metricId})`);
       lines.push(`Type: ${viz.type}`);
       lines.push(
         `Status: ${viz.createdByAI ? "AI-created (editable)" : viz.isDefault ? "Default (read-only)" : "Custom (read-only)"}`

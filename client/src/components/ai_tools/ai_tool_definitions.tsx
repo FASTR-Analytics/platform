@@ -19,7 +19,6 @@ export function getToolsForChatbot(projectId: string) {
     getToolForShowingVisualizations(projectId),
     ...getToolsForWritingVisualizations(projectId),
     ...getToolsForMethodologyDocs(),
-    // ...createSlideTools(projectId),
   ];
 }
 
@@ -29,7 +28,11 @@ export function getToolsForReport(
   getSelection: () => TextEditorSelection,
 ) {
   return [
+    ...getToolsForModules(projectId),
     ...getToolsForMetrics(projectId),
+    ...getToolsForReadingVisualizations(projectId),
+    // getToolForShowingVisualizations(projectId),
+    ...getToolsForWritingVisualizations(projectId),
     getToolForSelectedText(getSelection),
     ...getToolsForMethodologyDocs(),
   ];
@@ -43,21 +46,13 @@ export function getToolsForSlides(
   return [
     ...getToolsForModules(projectId),
     ...getToolsForMetrics(projectId),
-    getToolForSelectedText(getSelection),
     ...getToolsForReadingVisualizations(projectId),
+    // getToolForShowingVisualizations(projectId),
+    ...getToolsForWritingVisualizations(projectId),
+    getToolForSelectedText(getSelection),
     ...getToolsForMethodologyDocs(),
   ];
 }
-
-// // Tools for the slide deck AI
-// export function getToolsForSlideDeck(projectId: string) {
-//   return [
-//     ...getToolsForReadingVisualizations(projectId),
-//     getToolForShowingVisualizations(projectId),
-//     ...getToolsForWritingVisualizations(projectId),
-//     // ...createSlideTools(projectId),
-//   ];
-// }
 
 // Tools for the visualization pane AI (editing a single viz)
 export function getToolsForVizPane(

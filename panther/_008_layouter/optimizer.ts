@@ -238,7 +238,7 @@ function scoreLayout<U>(
   walkMeasuredItems(measured, (node) => {
     const actualH = node.rpd.h();
     const idealH = node.idealH;
-    console.log("item", node.data, node.idealH, actualH);
+    // console.log("item", node.data, node.idealH, actualH);
     const maxH = node.maxH;
     if (actualH < idealH) {
       shrinkPenalty += idealH - actualH;
@@ -258,12 +258,12 @@ function scoreLayout<U>(
   });
 
   const heightImbalance = calculateHeightImbalance(measured);
-  console.log("heightImbalance", heightImbalance);
+  // console.log("heightImbalance", heightImbalance);
 
   const overflowPenalty = overflow ? 100 : 0;
   const totalIdealHeight = sumIdealHeights(measured);
   const wastedSpace = Math.max(0, bounds.h() - totalIdealHeight);
-  console.log("wastedSpace", wastedSpace);
+  // console.log("wastedSpace", wastedSpace);
 
   const total =
     overflowPenalty * 1000 +
@@ -273,7 +273,7 @@ function scoreLayout<U>(
     heightImbalance * 2 +
     wastedSpace;
 
-  console.log("Scoring", total);
+  // console.log("Scoring", total);
 
   return {
     overflow: overflowPenalty,
@@ -292,7 +292,7 @@ function calculateHeightImbalance<U>(node: MeasuredLayoutNode<U>): number {
   if (isMeasuredColsLayoutNode(node)) {
     const children = node.children as MeasuredLayoutNode<U>[];
     const heights = children.map((child) => child.rpd.h());
-    console.log(heights);
+    // console.log(heights);
     if (heights.length >= 2) {
       const maxH = Math.max(...heights);
       const minH = Math.min(...heights);

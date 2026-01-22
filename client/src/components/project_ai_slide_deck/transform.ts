@@ -3,18 +3,26 @@ import {
   ReportItemContentItem,
   getStartingConfigForReportItem,
   getStartingReportItemPlaceholder,
+  isCustomUserSlide,
 } from "lib";
 import { LayoutNode } from "panther";
-import type { SimpleSlide, AISlideDeckConfig, ContentBlock } from "lib";
+import type { SimpleSlide, MixedSlide, AISlideDeckConfig, ContentBlock } from "lib";
 
 // Transform AISlideDeckConfig to array of ReportItemConfig for rendering
 export function transformSlideDeckToReportItems(
   deck: AISlideDeckConfig
 ): ReportItemConfig[] {
-  return deck.slides.map((slide) => transformSlideToReportItem(slide));
+  return deck.slides.map((slide) => {
+    // If it's already a CustomUserSlide, use its config directly
+    if (isCustomUserSlide(slide)) {
+      return slide.config;
+    }
+    // Otherwise transform SimpleSlide to ReportItemConfig
+    return transformSlideToReportItem(slide);
+  });
 }
 
-function transformSlideToReportItem(slide: SimpleSlide): ReportItemConfig {
+export function transformSlideToReportItem(slide: SimpleSlide): ReportItemConfig {
   const base = getStartingConfigForReportItem();
 
   switch (slide.type) {
@@ -60,19 +68,36 @@ function transformSlideToReportItem(slide: SimpleSlide): ReportItemConfig {
 
 function transformBlocksToContent(
   blocks: ContentBlock[]
-): { layoutType: "optimize"; items: ReportItemContentItem[] } {
+): LayoutNode<ReportItemContentItem> {
   if (blocks.length === 0) {
+    // Single placeholder cell
     return {
-      layoutType: "optimize",
-      items: [getStartingReportItemPlaceholder()],
+      type: "item",
+      id: crypto.randomUUID(),
+      data: getStartingReportItemPlaceholder(),
     };
   }
 
   const items = blocks.map((block) => transformBlockToContentItem(block));
 
+  // Single item - single cell
+  if (items.length === 1) {
+    return {
+      type: "item",
+      id: crypto.randomUUID(),
+      data: items[0],
+    };
+  }
+
+  // Multiple items - arrange in rows
   return {
-    layoutType: "optimize",
-    items,
+    type: "rows",
+    id: crypto.randomUUID(),
+    children: items.map((item) => ({
+      type: "item",
+      id: crypto.randomUUID(),
+      data: item,
+    })),
   };
 }
 
@@ -117,11 +142,12 @@ export function transformReportItemsToSlideDeck(
 ): AISlideDeckConfig {
   return {
     label,
+    version: 1,
     slides: items.map((item, index) => transformReportItemToSlide(item, index)),
   };
 }
 
-function transformReportItemToSlide(
+export function transformReportItemToSlide(
   item: ReportItemConfig,
   _index: number
 ): SimpleSlide {
@@ -155,26 +181,12 @@ function transformReportItemToSlide(
 }
 
 function transformContentToBlocks(
-  content:
-    | { layoutType: "optimize"; items: ReportItemContentItem[] }
-    | { layoutType: "explicit"; layout: LayoutNode<ReportItemContentItem> }
-    | LayoutNode<ReportItemContentItem> // Legacy format for backwards compatibility
+  content: LayoutNode<ReportItemContentItem>
 ): ContentBlock[] {
   const blocks: ContentBlock[] = [];
 
-  let items: ReportItemContentItem[];
-
-  // Handle new format
-  if (typeof content === "object" && content !== null && "layoutType" in content) {
-    if (content.layoutType === "optimize") {
-      items = content.items;
-    } else {
-      items = getAllItems(content.layout);
-    }
-  } else {
-    // Handle legacy format (direct LayoutNode)
-    items = getAllItems(content);
-  }
+  // Extract all items from layout tree
+  const items = getAllItems(content);
 
   for (const item of items) {
     if (item.type === "text") {
@@ -195,7 +207,7 @@ function transformContentToBlocks(
   return blocks;
 }
 
-function getAllItems(
+export function getAllItems(
   node: LayoutNode<ReportItemContentItem>
 ): ReportItemContentItem[] {
   if (node.type === "item") {

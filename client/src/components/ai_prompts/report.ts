@@ -55,10 +55,10 @@ For example, if a visualization replicates by indicator:
 
 This allows you to embed multiple variants of the same chart with different indicators, admin areas, or other dimensions without creating separate visualizations for each.
 
-When using \`get_visualizations_and_metadata\`, look for the "Replicates by" field to see which visualizations support this feature and what dimension they replicate by.
+When using \`get_available_visualizations\`, look for the "Replicates by" field to see which visualizations support this feature and what dimension they replicate by.
 
 To add a visualization:
-1. Use the \`get_visualizations_and_metadata\` tool to see available visualizations and their IDs
+1. Use the \`get_available_visualizations\` tool to see available visualizations and their IDs
 2. Or use \`create_visualization\` to create a new visualization from the available data
 3. Insert the visualization into the report using the markdown image syntax above
 4. For replicant visualizations, add the :VALUE suffix to show different variants
