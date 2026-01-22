@@ -17,6 +17,7 @@ import { StreamingTextRenderer } from "./_renderers/streaming_text_renderer.tsx"
 import { TextRenderer } from "./_renderers/text_renderer.tsx";
 import { ToolErrorRenderer } from "./_renderers/tool_error_renderer.tsx";
 import { ToolLoadingRenderer } from "./_renderers/tool_loading_renderer.tsx";
+import { ToolSuccessRenderer } from "./_renderers/tool_success_renderer.tsx";
 
 type Props = {
   displayItems: DisplayItem[];
@@ -50,6 +51,10 @@ export const MessageList: Component<Props> = (props) => {
       }
       case "tool_in_progress": {
         const Renderer = registry.toolLoading ?? ToolLoadingRenderer;
+        return <Renderer item={item} />;
+      }
+      case "tool_success": {
+        const Renderer = registry.toolSuccess ?? ToolSuccessRenderer;
         return <Renderer item={item} />;
       }
       case "tool_error": {

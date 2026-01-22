@@ -52,7 +52,9 @@ export function getColWidths<U>(
         scaledSpans[scaledSpans.length - 1] += columnCount - scaledTotal;
       }
 
-      return scaledSpans.map((span) => getBlockWidth(span, singleColWidth, gapX));
+      return scaledSpans.map((span) =>
+        getBlockWidth(span, singleColWidth, gapX)
+      );
     }
     return spans.map((s) => getBlockWidth(s!, singleColWidth, gapX));
   }
@@ -74,7 +76,8 @@ export function getColWidths<U>(
     });
 
     // Fix total width rounding
-    const totalWidth = sum(widths.map((w) => w.w)) + (children.length - 1) * gapX;
+    const totalWidth = sum(widths.map((w) => w.w)) +
+      (children.length - 1) * gapX;
     if (Math.abs(totalWidth - width) > 0.01) {
       const adjustment = (width - totalWidth) / children.length;
       return widths.map((w) => ({ ...w, w: w.w + adjustment }));

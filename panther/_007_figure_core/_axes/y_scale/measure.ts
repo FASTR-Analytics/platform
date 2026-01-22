@@ -17,8 +17,13 @@ export function estimateMinYAxisWidth(
   sy: MergedYScaleAxisStyle,
   sg: MergedGridStyle,
 ): number {
-  const sampleLabel = rc.mText("100,000", sy.text.yScaleAxisTickLabels, Infinity);
-  return sampleLabel.dims.w() + sy.tickLabelGap + sy.tickWidth + sg.axisStrokeWidth;
+  const sampleLabel = rc.mText(
+    "100,000",
+    sy.text.yScaleAxisTickLabels,
+    Infinity,
+  );
+  return sampleLabel.dims.w() + sy.tickLabelGap + sy.tickWidth +
+    sg.axisStrokeWidth;
 }
 
 export function measureYScaleAxisWidthInfo(

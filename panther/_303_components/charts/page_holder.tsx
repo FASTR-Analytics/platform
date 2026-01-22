@@ -20,10 +20,7 @@ import {
   trackCanvas,
   untrackCanvas,
 } from "../deps.ts";
-import type {
-  PageInputs,
-  TextRenderingOptions,
-} from "../deps.ts";
+import type { PageInputs, TextRenderingOptions } from "../deps.ts";
 import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   CanvasRenderContext,

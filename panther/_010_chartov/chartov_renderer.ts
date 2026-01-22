@@ -64,10 +64,18 @@ function getMinComfortableWidth(
     sx.lanePaddingLeft + sx.lanePaddingRight + (nLanes - 1) * sx.laneGapX;
 
   // Calculate y-axis minimum width using shared helper
-  const yAxisMinWidth = estimateMinYAxisWidth(rc, mergedStyle.yScaleAxis, mergedStyle.grid);
+  const yAxisMinWidth = estimateMinYAxisWidth(
+    rc,
+    mergedStyle.yScaleAxis,
+    mergedStyle.grid,
+  );
 
   // Calculate surrounds minimum width (mainly for right-positioned legends)
-  const surroundsMinWidth = estimateMinSurroundsWidth(rc, customFigureStyle, item.legendItemsOrLabels);
+  const surroundsMinWidth = estimateMinSurroundsWidth(
+    rc,
+    customFigureStyle,
+    item.legendItemsOrLabels,
+  );
 
   return minXAxisWidth + yAxisMinWidth + surroundsMinWidth;
 }
@@ -191,7 +199,11 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
     const minH = mSurrounds.extraHeightDueToSurrounds + MIN_PLOT_AREA_HEIGHT;
 
     // Calculate width scaling
-    const minComfortableWidth = getMinComfortableWidth(rc, item, responsiveScale);
+    const minComfortableWidth = getMinComfortableWidth(
+      rc,
+      item,
+      responsiveScale,
+    );
     const neededScalingToFitWidth: "none" | number =
       width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
 

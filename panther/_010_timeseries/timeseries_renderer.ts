@@ -29,10 +29,18 @@ function getMinComfortableWidth(
   const mergedStyle = customFigureStyle.getMergedTimeseriesStyle();
 
   // Y-axis needs space for tick labels using shared helper
-  const yAxisWidth = estimateMinYAxisWidth(rc, mergedStyle.yScaleAxis, mergedStyle.grid);
+  const yAxisWidth = estimateMinYAxisWidth(
+    rc,
+    mergedStyle.yScaleAxis,
+    mergedStyle.grid,
+  );
 
   // Calculate surrounds minimum width (mainly for right-positioned legends)
-  const surroundsMinWidth = estimateMinSurroundsWidth(rc, customFigureStyle, item.legendItemsOrLabels);
+  const surroundsMinWidth = estimateMinSurroundsWidth(
+    rc,
+    customFigureStyle,
+    item.legendItemsOrLabels,
+  );
 
   // Minimum plot area width (even with adapted labels, need some space for data)
   return yAxisWidth + surroundsMinWidth + MIN_PLOT_AREA_WIDTH;

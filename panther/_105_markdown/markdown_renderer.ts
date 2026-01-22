@@ -41,7 +41,10 @@ function getMinComfortableWidth(
 
   let maxWordWidth = 0;
 
-  function measureWordsInInline(inline: MarkdownInline, textStyle: Parameters<typeof rc.mText>[1]) {
+  function measureWordsInInline(
+    inline: MarkdownInline,
+    textStyle: Parameters<typeof rc.mText>[1],
+  ) {
     if (inline.type === "break") return;
     if (inline.type === "code-inline" || inline.type === "math-inline") {
       // For code/math, measure the whole thing as one "word"
@@ -126,7 +129,8 @@ function getMinComfortableWidth(
     style.numberedList.level1.textIndent,
     style.numberedList.level2.textIndent,
   );
-  const margin = maxListIndent + style.blockquote.leftBorderWidth + style.blockquote.paddingLeft;
+  const margin = maxListIndent + style.blockquote.leftBorderWidth +
+    style.blockquote.paddingLeft;
 
   return maxWordWidth + margin;
 }
@@ -217,7 +221,13 @@ export const MarkdownRenderer: Renderer<
 
     if (autofitOpts) {
       const baseFontSize = getBaseFontSize(input);
-      const constraints = getAutofitHeightConstraints(rc, width, input, baseFontSize, autofitOpts);
+      const constraints = getAutofitHeightConstraints(
+        rc,
+        width,
+        input,
+        baseFontSize,
+        autofitOpts,
+      );
       return { ...constraints, neededScalingToFitWidth };
     }
 

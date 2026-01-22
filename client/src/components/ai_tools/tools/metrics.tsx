@@ -66,6 +66,7 @@ export function getToolsForMetrics(projectId: string) {
         );
       },
       inProgressLabel: input => `Querying data for metric ${input.metricId}...`,
+      completionMessage: input => `Queried data for metric ${input.metricId}`,
     }),
   ];
 }

@@ -33,8 +33,10 @@ export function estimateMinSurroundsWidth(
     return sSurrounds.padding.totalPx();
   }
 
-  if (!legendLabels || legendLabels.length === 0 ||
-      (legendLabels.length === 1 && legendLabels[0] === "default")) {
+  if (
+    !legendLabels || legendLabels.length === 0 ||
+    (legendLabels.length === 1 && legendLabels[0] === "default")
+  ) {
     return sSurrounds.padding.totalPx();
   }
 
@@ -42,24 +44,25 @@ export function estimateMinSurroundsWidth(
   const legendItems: LegendItem[] = isArrayOfLegendItems(legendLabels)
     ? legendLabels
     : legendLabels.map((label, i_label, arr_label) => ({
-        label,
-        color: sLegend.seriesColorFunc({
-          i_series: i_label,
-          seriesHeader: label,
-          nSerieses: arr_label.length,
-          seriesValArrays: [],
-          nVals: 0,
-          i_lane: 0,
-          nLanes: 0,
-          i_tier: 0,
-          nTiers: 0,
-          i_pane: 0,
-          nPanes: 0,
-        }),
-      }));
+      label,
+      color: sLegend.seriesColorFunc({
+        i_series: i_label,
+        seriesHeader: label,
+        nSerieses: arr_label.length,
+        seriesValArrays: [],
+        nVals: 0,
+        i_lane: 0,
+        nLanes: 0,
+        i_tier: 0,
+        nTiers: 0,
+        i_pane: 0,
+        nPanes: 0,
+      }),
+    }));
 
   const mLegend = measureLegend(rc, legendItems, sLegend);
-  return sSurrounds.padding.totalPx() + mLegend.dimensions.w() + sSurrounds.legendGap;
+  return sSurrounds.padding.totalPx() + mLegend.dimensions.w() +
+    sSurrounds.legendGap;
 }
 
 export type MeasuredSurrounds = {

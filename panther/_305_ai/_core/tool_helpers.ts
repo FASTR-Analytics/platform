@@ -10,6 +10,8 @@ export interface ToolUIMetadata<TInput = unknown> {
   displayComponent?: Component<{ input: TInput }>;
 
   inProgressLabel?: string | ((input: TInput) => string);
+
+  completionMessage?: string | ((input: TInput) => string);
 }
 
 export interface SDKTool<TInput = unknown> {
@@ -42,6 +44,8 @@ export interface CreateAIToolConfig<TInput, TOutput = string> {
   displayComponent?: Component<{ input: TInput }>;
 
   inProgressLabel?: string | ((input: TInput) => string);
+
+  completionMessage?: string | ((input: TInput) => string);
 }
 
 function zodToJsonSchema(zodSchema: zType.ZodType): {
@@ -80,6 +84,7 @@ export function createAITool<TInput, TOutput = string>(
   const metadata: ToolUIMetadata<TInput> = {
     displayComponent: config.displayComponent,
     inProgressLabel: config.inProgressLabel,
+    completionMessage: config.completionMessage,
   };
 
   return {

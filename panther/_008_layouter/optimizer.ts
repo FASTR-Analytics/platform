@@ -6,10 +6,7 @@
 import type { RectCoordsDims } from "./deps.ts";
 import { createColsNode, createRowsNode } from "./id.ts";
 import { measureLayout } from "./measure.ts";
-import {
-  isMeasuredColsLayoutNode,
-  isMeasuredRowsLayoutNode,
-} from "./types.ts";
+import { isMeasuredColsLayoutNode, isMeasuredRowsLayoutNode } from "./types.ts";
 import type {
   HeightConstraints,
   ItemHeightMeasurer,
@@ -264,8 +261,7 @@ function scoreLayout<U>(
   const overflowPenalty = overflow ? 100 : 0;
   const wastedSpace = Math.max(0, bounds.h() - measured.rpd.h());
 
-  const total =
-    overflowPenalty * 1000 +
+  const total = overflowPenalty * 1000 +
     shrinkPenalty * 10 +
     stretchPenalty * 5 +
     scalePenalty * 8 +
@@ -336,7 +332,11 @@ function createCachedMeasurer<T, U>(
 ): ItemHeightMeasurer<T, U> {
   const cache = new Map<string, HeightConstraints>();
 
-  return (ctx: T, node: ItemLayoutNode<U>, width: number): HeightConstraints => {
+  return (
+    ctx: T,
+    node: ItemLayoutNode<U>,
+    width: number,
+  ): HeightConstraints => {
     const key = `${node.id}:${width.toFixed(1)}`;
     const cached = cache.get(key);
     if (cached) {
@@ -473,7 +473,15 @@ export function optimizeLayout<T, U>(
     console.log(`\n=== Optimizer Debug (${candidates.length} candidates) ===`);
     for (const { layout, score } of debugScores.slice(0, 10)) {
       console.log(
-        `  ${score.total.toFixed(0).padStart(6)} | overflow=${score.overflow} shrink=${score.shrinkPenalty.toFixed(0)} stretch=${score.stretchPenalty.toFixed(0)} scale=${score.scalePenalty.toFixed(0)} imbal=${score.heightImbalance.toFixed(0)} waste=${score.wastedSpace.toFixed(0)} | ${layout}`,
+        `  ${
+          score.total.toFixed(0).padStart(6)
+        } | overflow=${score.overflow} shrink=${
+          score.shrinkPenalty.toFixed(0)
+        } stretch=${score.stretchPenalty.toFixed(0)} scale=${
+          score.scalePenalty.toFixed(0)
+        } imbal=${score.heightImbalance.toFixed(0)} waste=${
+          score.wastedSpace.toFixed(0)
+        } | ${layout}`,
       );
     }
     console.log(`=== Best: ${layoutToString(bestLayout)} ===\n`);

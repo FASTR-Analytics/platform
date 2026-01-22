@@ -3,10 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  RectCoordsDims,
-  type RenderContext,
-} from "../deps.ts";
+import { RectCoordsDims, type RenderContext } from "../deps.ts";
 import type {
   MarkdownAutofitOptions,
   MarkdownRendererInput,
@@ -178,8 +175,12 @@ export function getAutofitHeightConstraints(
 
   const effectiveMaxScale = Math.min(options.maxScale, 3);
 
-  const minH = minScale < 1 ? getHeightAtScale(rc, width, input, minScale) : idealH;
-  const maxH = effectiveMaxScale > 1 ? getHeightAtScale(rc, width, input, effectiveMaxScale) : idealH;
+  const minH = minScale < 1
+    ? getHeightAtScale(rc, width, input, minScale)
+    : idealH;
+  const maxH = effectiveMaxScale > 1
+    ? getHeightAtScale(rc, width, input, effectiveMaxScale)
+    : idealH;
 
   return { minH, idealH, maxH };
 }

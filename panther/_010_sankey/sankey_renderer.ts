@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type HeightConstraints, RectCoordsDims, type RenderContext, type Renderer } from "./deps.ts";
+import {
+  type HeightConstraints,
+  RectCoordsDims,
+  type RenderContext,
+  type Renderer,
+} from "./deps.ts";
 import type { MeasuredSankey, SankeyInputs } from "./types.ts";
 import { measureSankey } from "./_internal/measure.ts";
 import { renderSankey } from "./_internal/render.ts";

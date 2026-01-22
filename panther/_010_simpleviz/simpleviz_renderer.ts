@@ -6,7 +6,12 @@
 import { measureSimpleViz } from "./_internal/measure.ts";
 import { renderSimpleViz } from "./_internal/render.ts";
 import { RectCoordsDims } from "./deps.ts";
-import type { BoxPrimitive, HeightConstraints, RenderContext, Renderer } from "./deps.ts";
+import type {
+  BoxPrimitive,
+  HeightConstraints,
+  RenderContext,
+  Renderer,
+} from "./deps.ts";
 import type { MeasuredSimpleViz, SimpleVizInputs } from "./types.ts";
 
 const MIN_CONTENT_HEIGHT = 50;

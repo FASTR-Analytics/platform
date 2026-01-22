@@ -256,6 +256,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // Process tools - handle text editor tool specially
       const allResults: ToolResult[] = [];
       const allErrorItems: DisplayItem[] = [];
+      const allSuccessItems: DisplayItem[] = [];
 
       for (const block of toolUseBlocks) {
         // Handle built-in text editor tool locally
@@ -283,17 +284,23 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           }
         } else {
           // Use existing tool processing for custom tools
-          const { results, errorItems } = await processToolUses(
+          const { results, errorItems, successItems } = await processToolUses(
             [block],
             toolRegistry,
           );
           allResults.push(...results);
           allErrorItems.push(...errorItems);
+          allSuccessItems.push(...successItems);
         }
       }
 
       // Clear in-progress items now that tools are done
       clearInProgressItems();
+
+      // Add success items to display
+      if (allSuccessItems.length > 0) {
+        addDisplayItems(allSuccessItems);
+      }
 
       // Add error items to display
       if (allErrorItems.length > 0) {
@@ -451,6 +458,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // Process tools - handle text editor tool specially
       const allResults: ToolResult[] = [];
       const allErrorItems: DisplayItem[] = [];
+      const allSuccessItems: DisplayItem[] = [];
 
       for (const block of toolUseBlocks) {
         // Handle built-in text editor tool locally
@@ -478,17 +486,23 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           }
         } else {
           // Use existing tool processing for custom tools
-          const { results, errorItems } = await processToolUses(
+          const { results, errorItems, successItems } = await processToolUses(
             [block],
             toolRegistry,
           );
           allResults.push(...results);
           allErrorItems.push(...errorItems);
+          allSuccessItems.push(...successItems);
         }
       }
 
       // Clear in-progress items now that tools are done
       clearInProgressItems();
+
+      // Add success items to display
+      if (allSuccessItems.length > 0) {
+        addDisplayItems(allSuccessItems);
+      }
 
       // Add error items to display
       if (allErrorItems.length > 0) {

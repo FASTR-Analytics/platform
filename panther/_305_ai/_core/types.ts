@@ -63,6 +63,12 @@ export type DisplayItem =
     label?: string;
   }
   | {
+    type: "tool_success";
+    toolName: string;
+    toolInput: unknown;
+    message: string;
+  }
+  | {
     type: "tool_error";
     toolName: string;
     errorMessage: string;
@@ -85,6 +91,9 @@ export type DisplayRegistry = {
   thinking?: DisplayItemRenderer<Extract<DisplayItem, { type: "thinking" }>>;
   toolLoading?: DisplayItemRenderer<
     Extract<DisplayItem, { type: "tool_in_progress" }>
+  >;
+  toolSuccess?: DisplayItemRenderer<
+    Extract<DisplayItem, { type: "tool_success" }>
   >;
   toolError?: DisplayItemRenderer<Extract<DisplayItem, { type: "tool_error" }>>;
   default?: DisplayItemRenderer<DisplayItem>;

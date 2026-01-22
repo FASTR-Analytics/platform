@@ -75,10 +75,10 @@ export type SectionPageInputs = PageInputsBase & {
 export type FreeformPageContent =
   | { layoutType: "explicit"; layout: LayoutNode<PageContentItem> }
   | {
-      layoutType: "optimize";
-      items: PageContentItem[];
-      constraint?: OptimizerConstraint;
-    };
+    layoutType: "optimize";
+    items: PageContentItem[];
+    constraint?: OptimizerConstraint;
+  };
 
 // Freeform page specific inputs
 export type FreeformPageInputs = PageInputsBase & {

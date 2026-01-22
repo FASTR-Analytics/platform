@@ -49,9 +49,9 @@ cols.minH = max(children's minH)
 cols.maxH = max(children's maxH)
 ```
 
-Row height = min(container height, max of children's maxH). Each child gets
-row height, capped by their individual `maxH`. Children with smaller `maxH`
-have gaps below them.
+Row height = min(container height, max of children's maxH). Each child gets row
+height, capped by their individual `maxH`. Children with smaller `maxH` have
+gaps below them.
 
 ## Node-Level Overrides
 

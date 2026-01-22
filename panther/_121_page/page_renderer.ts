@@ -5,7 +5,11 @@
 
 import { measurePage } from "./_internal/measure_page.ts";
 import { renderPage } from "./_internal/render_page.ts";
-import type { HeightConstraints, RectCoordsDims, RenderContext } from "./deps.ts";
+import type {
+  HeightConstraints,
+  RectCoordsDims,
+  RenderContext,
+} from "./deps.ts";
 import type { MeasuredPage, PageInputs } from "./types.ts";
 
 type PageRendererType = {

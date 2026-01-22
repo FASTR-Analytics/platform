@@ -93,6 +93,7 @@ export async function processToolUses(
   results: ToolResult[];
   inProgressItems: DisplayItem[];
   errorItems: DisplayItem[];
+  successItems: DisplayItem[];
 }> {
   const toolUseBlocks = content.filter(
     (block): block is ContentBlock & { type: "tool_use" } =>
@@ -149,10 +150,36 @@ export async function processToolUses(
       };
     });
 
+  const successItems: DisplayItem[] = results
+    .filter((r) => !r.is_error)
+    .map((result) => {
+      const toolBlock = toolUseBlocks.find((b) => b.id === result.tool_use_id)!;
+      const metadata = toolRegistry.getMetadata(toolBlock.name);
+
+      if (!metadata?.completionMessage) {
+        return null;
+      }
+
+      const message = typeof metadata.completionMessage === "function"
+        ? metadata.completionMessage(toolBlock.input)
+        : metadata.completionMessage;
+
+      return {
+        type: "tool_success" as const,
+        toolName: toolBlock.name,
+        toolInput: toolBlock.input,
+        message,
+      };
+    })
+    .filter((item): item is Extract<DisplayItem, { type: "tool_success" }> =>
+      item !== null
+    );
+
   return {
     results,
     inProgressItems,
     errorItems,
+    successItems,
   };
 }
 

@@ -5,7 +5,15 @@
 
 import { measureTable } from "./_internal/measure_table.ts";
 import { renderTable } from "./_internal/render_table.ts";
-import { CustomFigureStyle, estimateMinSurroundsWidth, type HeightConstraints, RectCoordsDims, type RenderContext, type Renderer, sum } from "./deps.ts";
+import {
+  CustomFigureStyle,
+  estimateMinSurroundsWidth,
+  type HeightConstraints,
+  RectCoordsDims,
+  type RenderContext,
+  type Renderer,
+  sum,
+} from "./deps.ts";
 import { getTableDataTransformed } from "./get_table_data.ts";
 import type { TableInputs } from "./mod.ts";
 import type { MeasuredTable } from "./types.ts";
@@ -68,12 +76,14 @@ function getMinComfortableWidth(
       // Check cell values for this column
       for (const row of d.aoa) {
         const val = row[col.index];
-        const valStr = typeof val === "number" ? s.cellValueFormatter(val, {
-          colHeader: col.label ?? "",
-          colIndex: col.index,
-          rowHeader: "",
-          rowIndex: 0,
-        }) : val;
+        const valStr = typeof val === "number"
+          ? s.cellValueFormatter(val, {
+            colHeader: col.label ?? "",
+            colIndex: col.index,
+            rowHeader: "",
+            rowIndex: 0,
+          })
+          : val;
         minColWidth = Math.max(
           minColWidth,
           getWidestWord(rc, valStr, s.text.cells),
@@ -94,9 +104,14 @@ function getMinComfortableWidth(
     (s.showGridLines ? nCols : nCols - 1) * s.gridLineWidth;
 
   // Calculate surrounds minimum width (mainly for right-positioned legends)
-  const surroundsMinWidth = estimateMinSurroundsWidth(rc, customFigureStyle, item.legendItemsOrLabels);
+  const surroundsMinWidth = estimateMinSurroundsWidth(
+    rc,
+    customFigureStyle,
+    item.legendItemsOrLabels,
+  );
 
-  return rowHeaderTotalWidth + colsTotalWidth + s.gridLineWidth * 2 + surroundsMinWidth;
+  return rowHeaderTotalWidth + colsTotalWidth + s.gridLineWidth * 2 +
+    surroundsMinWidth;
 }
 
 export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
@@ -206,7 +221,11 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     const minH = mTable.extraHeightDueToSurrounds! + headersHeight;
 
     // Calculate width scaling
-    const minComfortableWidth = getMinComfortableWidth(rc, item, responsiveScale);
+    const minComfortableWidth = getMinComfortableWidth(
+      rc,
+      item,
+      responsiveScale,
+    );
     const neededScalingToFitWidth: "none" | number =
       width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
 
