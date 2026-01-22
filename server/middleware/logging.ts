@@ -1,6 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import { AddLog } from "../db/instance/user_logs.ts";
 import { AddProjectLog } from "../db/project/project_user_logs.ts";
+import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 
 export const log = (routeName: string) =>  
     createMiddleware(async (c, next) => {
@@ -18,10 +19,10 @@ export const log = (routeName: string) =>
         await next();
 
         // Log after route completes
-        const userEmail = c.var.globalUser?.email;
+        const userEmail = c.var.globalUser?.email ?? c.var.projectUser?.email;
         if(!userEmail) return;
 
-        const mainDb = c.var.mainDb;
+        const mainDb = c.var.mainDb ?? getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
         
         const params: Record<string, string> = {};
         for (const [key, value] of Object.entries(c.req.param())) {
@@ -37,6 +38,4 @@ export const log = (routeName: string) =>
             AddProjectLog(projectDb, userEmail, routeName, status, projectId, details).catch(() => {});
         }
         AddLog(mainDb, userEmail, routeName, status, details).catch(() => {});
-
-        console.log(`[LOG] ${userEmail} - ${routeName} - ${status}`);
     });

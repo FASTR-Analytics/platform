@@ -134,7 +134,7 @@ export const definition = {
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   resultsObjects: [
     {
-      id: "M4_denominators_national.csv",
+      id: "M5_denominators_national.csv",
       description: "Selected denominators (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -158,7 +158,7 @@ export const definition = {
       ],
     },
     {
-      id: "M4_denominators_admin2.csv",
+      id: "M5_denominators_admin2.csv",
       description: "Selected denominators (Admin area 2)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -187,7 +187,7 @@ export const definition = {
       ],
     },
     {
-      id: "M4_denominators_admin3.csv",
+      id: "M5_denominators_admin3.csv",
       description: "Selected denominators (Admin area 3)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -221,7 +221,7 @@ export const definition = {
     //                        //
     ////////////////////////////
     {
-      id: "M4_combined_results_national.csv",
+      id: "M5_combined_results_national.csv",
       description: "Selected denominators (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -248,7 +248,7 @@ export const definition = {
       ],
     },
     {
-      id: "M4_combined_results_admin2.csv",
+      id: "M5combined_results_admin2.csv",
       description: "Selected denominators (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -278,7 +278,7 @@ export const definition = {
       ],
     },
     {
-      id: "M4_combined_results_admin3.csv",
+      id: "M5_combined_results_admin3.csv",
       description: "Selected denominators (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -313,7 +313,7 @@ export const definition = {
     //                     //
     /////////////////////////
     {
-      id: "M4_selected_denominator_per_indicator.csv",
+      id: "M5_selected_denominator_per_indicator.csv",
       description: "Selected denominators",
       createTableStatementPossibleColumns: {
         indicator_common_id: "TEXT NOT NULL",

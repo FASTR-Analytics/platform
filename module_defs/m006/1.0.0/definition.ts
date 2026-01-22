@@ -15,21 +15,21 @@ export const definition = {
   assetsToImport: [],
   dataSources: [
     {
-      replacementString: "M4_combined_results_national.csv",
+      replacementString: "M5_combined_results_national.csv",
       sourceType: "results_object",
-      resultsObjectId: "M4_combined_results_national.csv",
+      resultsObjectId: "M5_combined_results_national.csv",
       moduleId: "m005",
     },
     {
-      replacementString: "M4_combined_results_admin2.csv",
+      replacementString: "M5_combined_results_admin2.csv",
       sourceType: "results_object",
-      resultsObjectId: "M4_combined_results_admin2.csv",
+      resultsObjectId: "M5_combined_results_admin2.csv",
       moduleId: "m005",
     },
     {
-      replacementString: "M4_combined_results_admin3.csv",
+      replacementString: "M5_combined_results_admin3.csv",
       sourceType: "results_object",
-      resultsObjectId: "M4_combined_results_admin3.csv",
+      resultsObjectId: "M5_combined_results_admin3.csv",
       moduleId: "m005",
     },
   ],
@@ -50,7 +50,7 @@ export const definition = {
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   resultsObjects: [
     {
-      id: "M5_coverage_estimation_national.csv",
+      id: "M6_coverage_estimation_national.csv",
       description: "Coverage estimates (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -87,7 +87,7 @@ export const definition = {
       ],
     },
     {
-      id: "M5_coverage_estimation_admin2.csv",
+      id: "M6_coverage_estimation_admin2.csv",
       description: "Coverage results (Admin area 2)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -147,7 +147,7 @@ export const definition = {
       ],
     },
     {
-      id: "M5_coverage_estimation_admin3.csv",
+      id: "M6_coverage_estimation_admin3.csv",
       description: "Coverage results (Admin area 3)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
