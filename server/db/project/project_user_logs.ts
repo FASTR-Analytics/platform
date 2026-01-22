@@ -30,7 +30,6 @@ export async function GetProjectLogs(
         const logs: ProjectLog[] = await projectDb`
 SELECT id, user_email, timestamp, endpoint, endpoint_result, details
 FROM project_logs
-WHERE project_id = ${project_id}
 ORDER BY timestamp DESC`;
         return { success: true, data: logs };
     });

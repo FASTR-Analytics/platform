@@ -4,6 +4,7 @@ import { defineRoute } from "../route-helpers.ts";
 import { _SANDBOX_DIR_PATH, _INSTANCE_ID, _PG_HOST, _PG_PORT, _PG_PASSWORD } from "../../exposed_env_vars.ts";
 import { join } from "@std/path";
 import { getPgConnection, closePgConnection } from "../../db/postgres/connection_manager.ts";
+import { log } from "../../middleware/mod.ts";
 
 export const routesBackups = new Hono();
 
@@ -29,6 +30,7 @@ defineRoute(
   routesBackups,
   "getAllProjectsBackups",
   getGlobalNonAdmin,
+  log,
   async (c) => {
     try {
       // Get the authorization header from the incoming request

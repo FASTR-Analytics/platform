@@ -31,5 +31,5 @@ FROM user_logs
 ORDER BY timestamp DESC
         `;
         return { success: true, data: logs };
-    })
+    });
 }
