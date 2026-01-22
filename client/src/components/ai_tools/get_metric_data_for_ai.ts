@@ -27,24 +27,42 @@ export async function getMetricDataForAI(
   const uniqueDisaggregations = [...new Set(allDisaggregations)] as DisaggregationOption[];
 
   // Build fetchConfig
-  const fetchConfig: GenericLongFormFetchConfig = {
-    values: staticData.valueProps.map((prop) => ({
-      prop,
-      func: staticData.valueFunc,
-    })),
-    groupBys: uniqueDisaggregations,
-    filters: filters ?? [],
-    periodFilter: periodFilter
-      ? {
-        periodOption: periodFilter.periodOption,
-        min: periodFilter.min,
-        max: periodFilter.max,
-      }
-      : undefined,
-    postAggregationExpression: undefined,
-    includeNationalForAdminArea2: false,
-    includeNationalPosition: undefined,
-  };
+  const fetchConfig: GenericLongFormFetchConfig = staticData.postAggregationExpression
+    ? {
+      // Use ingredientValues when there's a post-aggregation expression
+      values: staticData.postAggregationExpression.ingredientValues,
+      groupBys: uniqueDisaggregations,
+      filters: filters ?? [],
+      periodFilter: periodFilter
+        ? {
+          periodOption: periodFilter.periodOption,
+          min: periodFilter.min,
+          max: periodFilter.max,
+        }
+        : undefined,
+      postAggregationExpression: staticData.postAggregationExpression.expression,
+      includeNationalForAdminArea2: false,
+      includeNationalPosition: undefined,
+    }
+    : {
+      // Standard query for simple metrics
+      values: staticData.valueProps.map((prop) => ({
+        prop,
+        func: staticData.valueFunc,
+      })),
+      groupBys: uniqueDisaggregations,
+      filters: filters ?? [],
+      periodFilter: periodFilter
+        ? {
+          periodOption: periodFilter.periodOption,
+          min: periodFilter.min,
+          max: periodFilter.max,
+        }
+        : undefined,
+      postAggregationExpression: undefined,
+      includeNationalForAdminArea2: false,
+      includeNationalPosition: undefined,
+    };
 
   // Follow same pattern as getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   const { data, version } = await _PO_ITEMS_CACHE.get({

@@ -209,6 +209,7 @@ function generateModuleMetadata(
     formatAs: string;
     valueLabelReplacements?: Record<string, string>;
     requiredDisaggregationOptions: string[];
+    postAggregationExpression?: any;
   }> = {};
 
   for (const [moduleId, versions] of modules.entries()) {
@@ -235,6 +236,7 @@ function generateModuleMetadata(
         formatAs: metric.formatAs,
         valueLabelReplacements: metric.valueLabelReplacements,
         requiredDisaggregationOptions: metric.requiredDisaggregationOptions,
+        postAggregationExpression: metric.postAggregationExpression,
       };
     }
 
@@ -284,7 +286,8 @@ function generateModuleMetadata(
       const d = metricStaticData[metricId];
       const variant = d.variantLabel ? `, variantLabel: "${d.variantLabel}"` : "";
       const replacements = d.valueLabelReplacements ? `, valueLabelReplacements: ${JSON.stringify(d.valueLabelReplacements)}` : "";
-      return `  "${metricId}": { label: "${d.label}"${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)} }`;
+      const postAgg = d.postAggregationExpression ? `, postAggregationExpression: ${JSON.stringify(d.postAggregationExpression)}` : "";
+      return `  "${metricId}": { label: "${d.label}"${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)}${postAgg} }`;
     })
     .join(",\n");
 
