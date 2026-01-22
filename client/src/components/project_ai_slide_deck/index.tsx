@@ -1,4 +1,4 @@
-import { AiSlideDeckSlide, DEFAULT_ANTHROPIC_MODEL, type InstanceDetail, type ProjectDetail } from "lib";
+import { SimpleSlide, DEFAULT_ANTHROPIC_MODEL, type InstanceDetail, type ProjectDetail } from "lib";
 import {
   AIChat,
   AIChatProvider,
@@ -10,20 +10,22 @@ import {
   FrameLeftResizable,
   FrameTop,
   HeadingBar,
+  Slider,
+  type TextEditorSelection,
 } from "panther";
 import { createMemo, createSignal, Match, onCleanup, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions/config";
-import { getToolsForSlideDeck } from "../ai_tools/ai_tool_definitions";
 import { getSlideDeckSystemPrompt } from "../ai_prompts/slide_deck";
-import { SlideDeckPreview } from "./slide_deck_preview";
+import { getToolsForSlides } from "../ai_tools/ai_tool_definitions";
 import { AIToolsDebug } from "../ai_tools/AIDebugComponent";
+import { SlideDeckPreview } from "./slide_deck_preview";
 
 type Props = {
   instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   reportId: string;
-  initialSlides: AiSlideDeckSlide[];
+  initialSlides: SimpleSlide[];
   reportLabel: string;
   backToProject: (withUpdate: boolean) => Promise<void>;
 };
@@ -47,7 +49,7 @@ export function ProjectAiSlideDeck(p: Props) {
   const [jsonContent, setJsonContent] = createSignal(initialJson);
 
   // Parsed slides (for preview) - null if invalid JSON
-  const [parsedSlides, setParsedSlides] = createSignal<AiSlideDeckSlide[]>(p.initialSlides ?? []);
+  const [parsedSlides, setParsedSlides] = createSignal<SimpleSlide[]>(p.initialSlides ?? []);
   const [jsonError, setJsonError] = createSignal<string | undefined>(undefined);
 
   // Save state
@@ -59,7 +61,7 @@ export function ProjectAiSlideDeck(p: Props) {
   const DEBOUNCE_MS = 2000;
   let saveTimeout: ReturnType<typeof setTimeout> | undefined;
 
-  async function saveContent(slides: AiSlideDeckSlide[]) {
+  async function saveContent(slides: SimpleSlide[]) {
     setIsSaving(true);
     try {
       const res = await serverActions.updateAiSlideDeckContent({
@@ -80,7 +82,7 @@ export function ProjectAiSlideDeck(p: Props) {
     }
   }
 
-  function debouncedSave(slides: AiSlideDeckSlide[]) {
+  function debouncedSave(slides: SimpleSlide[]) {
     setHasUnsavedChanges(true);
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
@@ -124,10 +126,13 @@ export function ProjectAiSlideDeck(p: Props) {
     }
   });
 
+  // Track text selection for AI
+  const [currentSelection, setCurrentSelection] = createSignal<TextEditorSelection>(null);
+
   const textEditorHandler = createTextEditorHandler(
     jsonContent,
     handleContentChange,
-    () => null,
+    () => currentSelection(),
   );
 
   return (
@@ -138,7 +143,7 @@ export function ProjectAiSlideDeck(p: Props) {
           model: DEFAULT_ANTHROPIC_MODEL,
           max_tokens: 4096,
         },
-        tools: getToolsForSlideDeck(projectId),
+        tools: getToolsForSlides(projectId, () => currentSelection()),
         builtInTools: { webSearch: true, textEditor: true },
         textEditorHandler,
         conversationId: `ai-slide-deck-${p.reportId}`,
@@ -171,7 +176,7 @@ function ProjectAiSlideDeckInner(p: {
   reportLabel: string;
   jsonContent: string;
   setJsonContent: (content: string) => void;
-  parsedSlides: AiSlideDeckSlide[];
+  parsedSlides: SimpleSlide[];
   jsonError: string | undefined;
   backToProject: (withUpdate: boolean) => Promise<void>;
   isSaving: boolean;
@@ -181,6 +186,7 @@ function ProjectAiSlideDeckInner(p: {
   const { clearConversation, isLoading } = createAIChat();
 
   const [rightPanelMode, setRightPanelMode] = createSignal<RightPanelMode>("slides");
+  const [slideSize, setSlideSize] = createSignal(400);
 
   return (
     <FrameTop
@@ -215,6 +221,17 @@ function ProjectAiSlideDeckInner(p: {
               value={rightPanelMode()}
               onChange={(v) => setRightPanelMode(v as RightPanelMode)}
             />
+            <Show when={rightPanelMode() === "slides"}>
+              <div class="flex items-center gap-2" style={{ width: "200px" }}>
+                <Slider
+                  min={150}
+                  max={1200}
+                  step={50}
+                  value={slideSize()}
+                  onChange={setSlideSize}
+                />
+              </div>
+            </Show>
             <Button
               onClick={clearConversation}
               disabled={isLoading()}
@@ -255,6 +272,7 @@ function ProjectAiSlideDeckInner(p: {
                 projectId={p.projectId}
                 slides={p.parsedSlides}
                 deckLabel={p.reportLabel}
+                slideSize={slideSize()}
               />
             </div>
           </Match>

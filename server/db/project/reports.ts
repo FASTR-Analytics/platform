@@ -2,9 +2,8 @@ import { assertNotUndefined, LayoutNode } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
   APIResponseWithData,
-  AiSlideDeckReportConfig,
-  AiSlideDeckSlide,
-  getStartingConfigForAiSlideDeck,
+  AISlideDeckConfig,
+  SimpleSlide,
   getStartingConfigForLongFormReport,
   getStartingConfigForReport,
   getStartingConfigForReportItem,
@@ -49,7 +48,20 @@ export async function addReport(
       reportType === "long_form"
         ? getStartingConfigForLongFormReport(label)
         : reportType === "ai_slide_deck"
-        ? getStartingConfigForAiSlideDeck(label)
+        ? {
+            label,
+            slides: [
+              {
+                type: "cover" as const,
+                title: label,
+                subtitle: "",
+                date: new Date().toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                }),
+              },
+            ],
+          }
         : getStartingConfigForReport(label);
     const lastUpdated = new Date().toISOString();
     await projectDb`
@@ -157,7 +169,16 @@ VALUES
           const config = parseJsonOrThrow<ReportItemConfig>(
             rawReportItem.config
           );
-          forEachLayoutItem(config.freeform.content, (item) => {
+
+          const content = config.freeform.content;
+          const items: ReportItemContentItem[] = [];
+          if (content.layoutType === "explicit") {
+            forEachLayoutItem(content.layout, (item) => items.push(item));
+          } else {
+            items.push(...content.items);
+          }
+
+          for (const item of items) {
             if (item.type === "figure") {
               // Check to see if this figure is a default figure, using this project's database
               // OR... using what is listed in the item
@@ -184,7 +205,7 @@ VALUES
                 item.hideFigureFootnote = false;
               }
             }
-          });
+          }
 
           await sql`
 INSERT INTO report_items
@@ -459,7 +480,7 @@ WHERE id = ${reportId}
 export async function updateAiSlideDeckContent(
   projectDb: Sql,
   reportId: string,
-  slides: AiSlideDeckSlide[]
+  slides: SimpleSlide[]
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -471,11 +492,15 @@ SELECT * FROM reports WHERE id = ${reportId}
     if (!rawReport) {
       throw new Error("No report with this id");
     }
-    const config: AiSlideDeckReportConfig = parseJsonOrThrow(rawReport.config);
-    config.slides = slides;
+    // Preserve the label from existing config
+    const existingConfig: AISlideDeckConfig = parseJsonOrThrow(rawReport.config);
+    const updatedConfig: AISlideDeckConfig = {
+      label: existingConfig.label,
+      slides,
+    };
     await projectDb`
 UPDATE reports
-SET config = ${JSON.stringify(config)}, last_updated = ${lastUpdated}
+SET config = ${JSON.stringify(updatedConfig)}, last_updated = ${lastUpdated}
 WHERE id = ${reportId}
 `;
     return { success: true, data: { lastUpdated } };

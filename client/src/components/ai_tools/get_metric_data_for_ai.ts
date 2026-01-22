@@ -13,8 +13,8 @@ export async function getMetricDataForAI(
   projectId: string,
   metricId: string,
   disaggregations: DisaggregationOption[],
-  filters?: { col: DisaggregationOption; vals: string[] }[],
-  periodFilter?: { periodOption: PeriodOption; min: number; max: number },
+  filters: { col: DisaggregationOption; vals: string[] }[],
+  periodFilter: { periodOption: PeriodOption; min: number; max: number } | undefined,
 ): Promise<string> {
   // Get static metric data from build-time map
   const staticData = getMetricStaticData(metricId);
@@ -32,7 +32,7 @@ export async function getMetricDataForAI(
       // Use ingredientValues when there's a post-aggregation expression
       values: staticData.postAggregationExpression.ingredientValues,
       groupBys: uniqueDisaggregations,
-      filters: filters ?? [],
+      filters: filters,
       periodFilter: periodFilter
         ? {
           periodOption: periodFilter.periodOption,
@@ -51,7 +51,7 @@ export async function getMetricDataForAI(
         func: staticData.valueFunc,
       })),
       groupBys: uniqueDisaggregations,
-      filters: filters ?? [],
+      filters: filters,
       periodFilter: periodFilter
         ? {
           periodOption: periodFilter.periodOption,

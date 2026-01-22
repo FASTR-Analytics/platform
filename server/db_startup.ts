@@ -61,6 +61,14 @@ ${userInserts}
 // To check if migration is complete, run against each project database:
 //   SELECT COUNT(*) FROM report_items WHERE config LIKE '%"content":[[%';
 // If count is 0, this migration can be deleted.
+//
+// NOTE: When completing this migration, also consider migrating to the new
+// format where content is wrapped in { layoutType: "explicit", layout: ... }
+// to support the optimizer. Current format is:
+//   freeform.content: LayoutNode<ReportItemContentItem>
+// New format should be:
+//   freeform.content: { layoutType: "explicit", layout: LayoutNode<...> }
+// This will enable AI slide deck generation to use { layoutType: "optimize", items: [...] }
 // =============================================================================
 async function migrateReportItemsToNestedLayout(
   sql: ReturnType<typeof getPgConnectionFromCacheOrNew>

@@ -1,12 +1,12 @@
 import { createSignal } from "solid-js";
-import type { SimpleSlideDeck } from "./types";
+import type { AISlideDeckConfig } from "lib";
 
-export function createSlideDeckUndoRedo(initialValue: SimpleSlideDeck) {
-  const [undoStack, setUndoStack] = createSignal<SimpleSlideDeck[]>([]);
-  const [redoStack, setRedoStack] = createSignal<SimpleSlideDeck[]>([]);
-  const [current, setCurrent] = createSignal<SimpleSlideDeck>(initialValue);
+export function createSlideDeckUndoRedo(initialValue: AISlideDeckConfig) {
+  const [undoStack, setUndoStack] = createSignal<AISlideDeckConfig[]>([]);
+  const [redoStack, setRedoStack] = createSignal<AISlideDeckConfig[]>([]);
+  const [current, setCurrent] = createSignal<AISlideDeckConfig>(initialValue);
 
-  function pushChange(newValue: SimpleSlideDeck) {
+  function pushChange(newValue: AISlideDeckConfig) {
     const currentJson = JSON.stringify(current());
     const newJson = JSON.stringify(newValue);
     if (newJson === currentJson) return;
@@ -16,7 +16,7 @@ export function createSlideDeckUndoRedo(initialValue: SimpleSlideDeck) {
     setCurrent(newValue);
   }
 
-  function undo(): SimpleSlideDeck | undefined {
+  function undo(): AISlideDeckConfig | undefined {
     const stack = undoStack();
     if (stack.length === 0) return undefined;
     const prev = stack[stack.length - 1];
@@ -26,7 +26,7 @@ export function createSlideDeckUndoRedo(initialValue: SimpleSlideDeck) {
     return prev;
   }
 
-  function redo(): SimpleSlideDeck | undefined {
+  function redo(): AISlideDeckConfig | undefined {
     const stack = redoStack();
     if (stack.length === 0) return undefined;
     const next = stack[stack.length - 1];

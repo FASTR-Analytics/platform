@@ -1,4 +1,4 @@
-import { AiSlideDeckSlide, getStartingConfigForReport, getTextRenderingOptions } from "lib";
+import { SimpleSlide, getStartingConfigForReport, getTextRenderingOptions } from "lib";
 import type { AlertComponentProps, PageInputs } from "panther";
 import {
   Button,
@@ -17,21 +17,25 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { getPageInputs_SlideDeck_Cover } from "~/generate_report/slide_deck/get_page_inputs_slide_deck_cover";
-import { getPageInputs_SlideDeck_Freeform } from "~/generate_report/slide_deck/get_page_inputs_slide_deck_freeform";
-import { getPageInputs_SlideDeck_Section } from "~/generate_report/slide_deck/get_page_inputs_slide_deck_section";
-import { transformSlideDeckToReportItems } from "./transform";
+import { convertSlideToPageInputs } from "./transform_v2";
+// import { getPageInputs_SlideDeck_Cover } from "~/generate_report/slide_deck/get_page_inputs_slide_deck_cover";
+// import { getPageInputs_SlideDeck_Freeform } from "~/generate_report/slide_deck/get_page_inputs_slide_deck_freeform";
+// import { getPageInputs_SlideDeck_Section } from "~/generate_report/slide_deck/get_page_inputs_slide_deck_section";
+// import { transformSlideDeckToReportItems } from "./transform";
 
 type Props = {
   projectId: string;
-  slides: AiSlideDeckSlide[];
+  slides: SimpleSlide[];
   deckLabel: string;
+  slideSize?: number;
 };
 
 export function SlideDeckPreview(p: Props) {
+  const slideSize = () => p.slideSize ?? 400;
+
   return (
     <div class="h-full overflow-auto p-4">
-      <div class="mx-auto flex max-w-4xl flex-col gap-4">
+      <div class="flex flex-wrap justify-center gap-4">
         <For each={p.slides}>
           {(slide, index) => (
             <SlidePreviewCard
@@ -40,11 +44,12 @@ export function SlideDeckPreview(p: Props) {
               index={index()}
               totalSlides={p.slides.length}
               deckLabel={p.deckLabel}
+              slideSize={slideSize()}
             />
           )}
         </For>
         <Show when={p.slides.length === 0}>
-          <div class="text-neutral py-16 text-center">
+          <div class="text-neutral w-full py-16 text-center">
             No slides yet. Ask the AI to create some slides.
           </div>
         </Show>
@@ -55,10 +60,11 @@ export function SlideDeckPreview(p: Props) {
 
 type SlidePreviewCardProps = {
   projectId: string;
-  slide: AiSlideDeckSlide;
+  slide: SimpleSlide;
   index: number;
   totalSlides: number;
   deckLabel: string;
+  slideSize: number;
 };
 
 function SlidePreviewCard(p: SlidePreviewCardProps) {
@@ -71,42 +77,8 @@ function SlidePreviewCard(p: SlidePreviewCardProps) {
     setPageInputs({ status: "loading", msg: "Rendering..." });
 
     try {
-      const reportConfig = getStartingConfigForReport(p.deckLabel);
-      reportConfig.showPageNumbers = false
-      const reportItems = transformSlideDeckToReportItems({
-        label: p.deckLabel,
-        slides: [p.slide],
-      });
-
-      if (reportItems.length === 0) {
-        setPageInputs({ status: "error", err: "No slide to render" });
-        return;
-      }
-
-      const reportItemConfig = reportItems[0];
-      let res;
-
-      if (reportItemConfig.type === "cover") {
-        res = await getPageInputs_SlideDeck_Cover(
-          p.projectId,
-          reportConfig,
-          reportItemConfig
-        );
-      } else if (reportItemConfig.type === "section") {
-        res = await getPageInputs_SlideDeck_Section(
-          p.projectId,
-          reportConfig,
-          reportItemConfig,
-          p.index
-        );
-      } else {
-        res = await getPageInputs_SlideDeck_Freeform(
-          p.projectId,
-          reportConfig,
-          reportItemConfig,
-          p.index
-        );
-      }
+      // V2: Direct conversion to PageInputs (bypasses ReportItemConfig)
+      const res = await convertSlideToPageInputs(p.projectId, p.slide, p.index);
 
       if (!res.success) {
         setPageInputs({ status: "error", err: res.err });
@@ -145,53 +117,52 @@ function SlidePreviewCard(p: SlidePreviewCardProps) {
   const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
 
   return (
-    <div
-      class=" "
-    >
-      <div class="flex items-start gap-3 ">
-        <div class="text-base-content w-8 flex-none pt-1 text-right text-sm font-medium">
-          {p.index + 1}
-        </div>
-        <div class="min-w-0 flex-1 border border-base-300 bg-white overflow-clip hover:border-primary cursor-pointer rounded-lg"
-          onClick={openExpandedView}>
-          <Switch>
-            <Match when={pageInputs().status === "loading"}>
-              <div
-                class="bg-base-200 flex items-center justify-center rounded"
-                style={{ "aspect-ratio": "16/9" }}
-              >
-                <Loading msg="Rendering..." noPad />
-              </div>
-            </Match>
-            <Match when={pageInputs().status === "error"}>
-              <PageHolder
-                pageInputs={undefined}
+    <div style={{ width: `${p.slideSize}px` }}>
+      <div class="mb-2 text-base-content text-center text-sm font-medium">
+        {p.index + 1}
+      </div>
+      <div
+        class="cursor-pointer overflow-clip rounded-lg border border-base-300 bg-white hover:border-primary"
+        onClick={openExpandedView}
+      >
+        <Switch>
+          <Match when={pageInputs().status === "loading"}>
+            <div
+              class="bg-base-200 flex items-center justify-center rounded"
+              style={{ "aspect-ratio": "16/9" }}
+            >
+              <Loading msg="Rendering..." noPad />
+            </div>
+          </Match>
+          <Match when={pageInputs().status === "error"}>
+            <PageHolder
+              pageInputs={undefined}
+              fixedCanvasH={canvasH}
+              textRenderingOptions={getTextRenderingOptions()}
+              simpleError
+              externalError={(pageInputs() as { err: string }).err}
+              scalePixelResolution={0.6}
+            />
+          </Match>
+          <Match
+            when={
+              pageInputs().status === "ready" &&
+              (pageInputs() as { data: PageInputs }).data
+            }
+            keyed
+          >
+            {(data) => {
+              console.log("Page inputs", data)
+              return <PageHolder
+                pageInputs={data}
                 fixedCanvasH={canvasH}
                 textRenderingOptions={getTextRenderingOptions()}
                 simpleError
-                externalError={(pageInputs() as { err: string }).err}
                 scalePixelResolution={0.6}
               />
-            </Match>
-            <Match
-              when={
-                pageInputs().status === "ready" &&
-                (pageInputs() as { data: PageInputs }).data
-              }
-              keyed
-            >
-              {(data) => (
-                <PageHolder
-                  pageInputs={data}
-                  fixedCanvasH={canvasH}
-                  textRenderingOptions={getTextRenderingOptions()}
-                  simpleError
-                  scalePixelResolution={0.6}
-                />
-              )}
-            </Match>
-          </Switch>
-        </div>
+            }}
+          </Match>
+        </Switch>
       </div>
     </div>
   );

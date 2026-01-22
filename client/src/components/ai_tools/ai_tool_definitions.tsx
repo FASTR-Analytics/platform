@@ -6,6 +6,7 @@ import { getToolForSelectedText } from "./tools/document_editing";
 import { getToolsForReadingVisualizations, getToolForVisualizationData, getToolForShowingVisualizations } from "./tools/visualization_reading";
 import { getToolsForWritingVisualizations } from "./tools/visualization_writing";
 import { getToolsForConfiguringVisualizations } from "./tools/visualization_config";
+import { getToolsForMethodologyDocs } from "./tools/methodology_docs";
 import { PresentationObjectConfig, ResultsValue } from "lib";
 import { SetStoreFunction } from "solid-js/store";
 
@@ -17,6 +18,7 @@ export function getToolsForChatbot(projectId: string) {
     ...getToolsForReadingVisualizations(projectId),
     getToolForShowingVisualizations(projectId),
     ...getToolsForWritingVisualizations(projectId),
+    ...getToolsForMethodologyDocs(),
     // ...createSlideTools(projectId),
   ];
 }
@@ -29,18 +31,33 @@ export function getToolsForReport(
   return [
     ...getToolsForMetrics(projectId),
     getToolForSelectedText(getSelection),
+    ...getToolsForMethodologyDocs(),
   ];
 }
 
-// Tools for the slide deck AI
-export function getToolsForSlideDeck(projectId: string) {
+// Tools for the report editor AI
+export function getToolsForSlides(
+  projectId: string,
+  getSelection: () => TextEditorSelection,
+) {
   return [
+    ...getToolsForModules(projectId),
+    ...getToolsForMetrics(projectId),
+    getToolForSelectedText(getSelection),
     ...getToolsForReadingVisualizations(projectId),
-    getToolForShowingVisualizations(projectId),
-    ...getToolsForWritingVisualizations(projectId),
-    // ...createSlideTools(projectId),
+    ...getToolsForMethodologyDocs(),
   ];
 }
+
+// // Tools for the slide deck AI
+// export function getToolsForSlideDeck(projectId: string) {
+//   return [
+//     ...getToolsForReadingVisualizations(projectId),
+//     getToolForShowingVisualizations(projectId),
+//     ...getToolsForWritingVisualizations(projectId),
+//     // ...createSlideTools(projectId),
+//   ];
+// }
 
 // Tools for the visualization pane AI (editing a single viz)
 export function getToolsForVizPane(

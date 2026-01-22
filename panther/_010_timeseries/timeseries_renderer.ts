@@ -167,6 +167,9 @@ export const TimeseriesRenderer: Renderer<
     );
     const minH = mSurrounds.extraHeightDueToSurrounds + MIN_PLOT_AREA_HEIGHT;
 
+    // DEBUG: Log width vs height calculations
+    // console.log(`[TIMESERIES getIdealHeight] width=${width.toFixed(0)}, idealH=${idealH.toFixed(0)}, minH=${minH.toFixed(0)}, surrounds=${mSurrounds.extraHeightDueToSurrounds.toFixed(0)}`);
+
     // Timeseries has adaptive label formatting (Jan → J → tick-only → year-only)
     // so width scaling doesn't apply - it handles narrow widths internally
     return { minH, idealH, maxH: Infinity, neededScalingToFitWidth: "none" };

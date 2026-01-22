@@ -37,7 +37,7 @@ async function getVisualizationDataAsCSV(projectId: string, presentationObjectId
     projectId,
     poDetail.resultsValue.id,
     disaggregations as DisaggregationOption[],
-    filters.length > 0 ? filters : undefined,
+    filters,
     periodFilter,
   );
 

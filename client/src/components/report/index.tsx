@@ -1,4 +1,4 @@
-import { AiSlideDeckReportConfig, InstanceDetail, LongFormReportConfig, ProjectDetail, ReportDetail, t, t2, T } from "lib";
+import { AISlideDeckConfig, InstanceDetail, LongFormReportConfig, ProjectDetail, ReportDetail, t, t2, T } from "lib";
 import {
   Button,
   FrameLeft,
@@ -227,7 +227,7 @@ export function Report(p: Props) {
   const aiSlideDeckData = () => {
     const rd = reportDetail();
     if (rd.status === "ready" && rd.data.reportType === "ai_slide_deck") {
-      const config = rd.data.config as unknown as AiSlideDeckReportConfig;
+      const config = rd.data.config as unknown as AISlideDeckConfig;
       return { slides: config.slides ?? [], label: config.label };
     }
     return undefined;

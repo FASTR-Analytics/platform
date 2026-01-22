@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  createItemNode,
   type LayoutGap,
   type MeasuredLayoutNode,
   measureLayout,
@@ -54,10 +53,9 @@ export function measureContent(
 
   if (inputs.content.layoutType === "optimize") {
     // Optimize layout from items
-    const itemNodes = inputs.content.items.map((item) => createItemNode(item));
     const optimized = optimizeLayout(
       { rc, s },
-      itemNodes,
+      inputs.content.items,
       rcdContentInner,
       s.content,
       itemMeasurer,

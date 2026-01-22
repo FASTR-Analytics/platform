@@ -7,6 +7,7 @@ import type {
   CustomPageStyleOptions,
   FigureInputs,
   ImageInputs,
+  ItemLayoutNode,
   LayoutGap,
   LayoutNode,
   MarkdownRendererInput,
@@ -76,7 +77,7 @@ export type FreeformPageContent =
   | { layoutType: "explicit"; layout: LayoutNode<PageContentItem> }
   | {
     layoutType: "optimize";
-    items: PageContentItem[];
+    items: ItemLayoutNode<PageContentItem>[];
     constraint?: OptimizerConstraint;
   };
 

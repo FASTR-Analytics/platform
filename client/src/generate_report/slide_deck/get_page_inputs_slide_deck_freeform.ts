@@ -42,6 +42,8 @@ export async function getPageInputs_SlideDeck_Freeform(
       return resRows;
     }
 
+    console.log("[SLIDE DECK FREEFORM] Content:", resRows.data);
+
     const headerLogos: HTMLImageElement[] = [];
     if (reportItemConfig.freeform.useHeader) {
       for (const logo of reportConfig.logos ?? []) {
@@ -96,7 +98,7 @@ export async function getPageInputs_SlideDeck_Freeform(
             : undefined,
         headerLogos,
         footerLogos,
-        content: { layoutType: "explicit", layout: resRows.data },
+        content: resRows.data,
         pageNumber:
           reportConfig.showPageNumbers && itemIndex !== undefined
             ? String(itemIndex + 1)

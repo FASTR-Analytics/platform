@@ -76,52 +76,38 @@ export function getStartingConfigForLongFormReport(
   return { label, markdown: "" };
 }
 
-export type AiSlideDeckSlide = {
-  type: "cover" | "section" | "content";
+
+// AI Slide Deck types (simplified format for AI editing)
+export type SlideType = "cover" | "section" | "content";
+
+export type ContentBlockType = "text" | "figure";
+
+export type ContentBlock = {
+  type: ContentBlockType;
+  markdown?: string;
+  figureId?: string;
+  replicant?: string;
+};
+
+export type SimpleSlide = {
+  type: SlideType;
+  // Cover slide fields
   title?: string;
   subtitle?: string;
   presenter?: string;
   date?: string;
+  // Section slide fields
   sectionTitle?: string;
   sectionSubtitle?: string;
-  layout?:
-    | "single"
-    | "two-column"
-    | "two-column-wide-left"
-    | "two-column-wide-right"
-    | "three-column";
+  // Content slide fields
   heading?: string;
-  blocks?: {
-    type: "text" | "figure";
-    markdown?: string;
-    figureId?: string;
-    replicant?: string;
-  }[];
+  blocks?: ContentBlock[];
 };
 
-export type AiSlideDeckReportConfig = {
+export type AISlideDeckConfig = {
   label: string;
-  slides: AiSlideDeckSlide[];
+  slides: SimpleSlide[];
 };
-
-export function getStartingConfigForAiSlideDeck(
-  label: string,
-): AiSlideDeckReportConfig {
-  return {
-    label,
-    slides: [
-      {
-        type: "cover",
-        title: label,
-        subtitle: "",
-        date: new Date().toLocaleDateString("en-US", {
-          month: "long",
-          year: "numeric",
-        }),
-      },
-    ],
-  };
-}
 
 export type ReportConfig = {
   label: string;
@@ -310,7 +296,9 @@ export type ReportItemConfig = {
     footerText?: string;
     footerLogos?: string[];
     //
-    content: LayoutNode<ReportItemContentItem>;
+    content:
+      | { layoutType: "explicit"; layout: LayoutNode<ReportItemContentItem> }
+      | { layoutType: "optimize"; items: ReportItemContentItem[] };
   };
 };
 
@@ -336,9 +324,12 @@ export function getStartingConfigForReportItem() {
     },
     freeform: {
       content: {
-        type: "item",
-        id: crypto.randomUUID(),
-        data: getStartingReportItemPlaceholder(),
+        layoutType: "explicit",
+        layout: {
+          type: "item",
+          id: crypto.randomUUID(),
+          data: getStartingReportItemPlaceholder(),
+        },
       },
     },
   };
@@ -402,4 +393,27 @@ export function getStartingReportItemPlaceholder() {
     hideFigureFootnote: false,
   };
   return startingPlaceholder;
+}
+
+export type FreeformContent =
+  | { layoutType: "explicit"; layout: LayoutNode<ReportItemContentItem> }
+  | { layoutType: "optimize"; items: ReportItemContentItem[] };
+
+export function getLayoutFromContent(
+  content: FreeformContent
+): LayoutNode<ReportItemContentItem> {
+  if (content.layoutType === "explicit") {
+    return content.layout;
+  }
+  throw new Error("Cannot get layout from optimize content - optimize layout is computed at render time");
+}
+
+export function setLayoutInContent(
+  content: FreeformContent,
+  layout: LayoutNode<ReportItemContentItem>
+): FreeformContent {
+  if (content.layoutType === "explicit") {
+    return { layoutType: "explicit", layout };
+  }
+  throw new Error("Cannot set layout on optimize content");
 }

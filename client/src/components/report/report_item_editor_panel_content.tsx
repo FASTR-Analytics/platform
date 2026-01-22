@@ -48,8 +48,11 @@ export function ReportItemEditorContent(p: Props) {
   // Helper to get the current item from the nested tree structure by ID
   function getCurrentItem(): ReportItemContentItem | undefined {
     if (!p.selectedItemId) return undefined;
-    const root = p.tempReportItemConfig.freeform.content;
-    const result = findById(root, p.selectedItemId);
+    const content = p.tempReportItemConfig.freeform.content;
+    if (content.layoutType !== "explicit") {
+      throw new Error("Manual editor only supports explicit layout");
+    }
+    const result = findById(content.layout, p.selectedItemId);
     if (!result || result.node.type !== "item") return undefined;
     return result.node.data;
   }
@@ -75,8 +78,15 @@ export function ReportItemEditorContent(p: Props) {
       return node;
     }
 
-    const newContent = updateNode(p.tempReportItemConfig.freeform.content);
-    p.setTempReportItemConfig("freeform", "content", newContent);
+    const content = p.tempReportItemConfig.freeform.content;
+    if (content.layoutType !== "explicit") {
+      throw new Error("Manual editor only supports explicit layout");
+    }
+    const newLayout = updateNode(content.layout);
+    p.setTempReportItemConfig("freeform", "content", {
+      layoutType: "explicit",
+      layout: newLayout,
+    });
   }
 
   async function updateItemType(type: ReportItemContentItemType) {

@@ -5,16 +5,16 @@ import {
   _SANDBOX_DIR_PATH,
 } from "../../exposed_env_vars.ts";
 import {
+  getAllMetrics,
+  getCountryIso3Config,
   getModuleDetail,
+  getModuleWithConfigSelections,
   // getModuleParameters,
   getResultsObjectItems,
   installModule,
   uninstallModule,
   updateModuleDefinition,
   updateModuleParameters,
-  getAllMetrics,
-  getModuleWithConfigSelections,
-  getCountryIso3Config,
 } from "../../db/mod.ts";
 import { _DATASET_LIMIT, throwIfErrWithData } from "lib";
 import {
@@ -52,17 +52,17 @@ defineRoute(
       c.var.ppk.projectId,
       "modules",
       [params.module_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     notifyLastUpdated(
       c.var.ppk.projectId,
       "presentation_objects",
       res.data.presObjIdsWithNewLastUpdateds,
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -76,7 +76,7 @@ defineRoute(
     }
     notifyProjectUpdated(c.var.ppk.projectId, new Date().toISOString());
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -87,7 +87,7 @@ defineRoute(
     const res = await updateModuleDefinition(
       c.var.ppk.projectDb,
       params.module_id,
-      body.preserveSettings
+      body.preserveSettings,
     );
     if (res.success === false) {
       return c.json(res);
@@ -99,17 +99,17 @@ defineRoute(
       c.var.ppk.projectId,
       "modules",
       [params.module_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     notifyLastUpdated(
       c.var.ppk.projectId,
       "presentation_objects",
       res.data.presObjIdsWithNewLastUpdateds,
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     return c.json(res);
-  }
+  },
 );
 
 // routesModules.get(
@@ -130,7 +130,7 @@ defineRoute(
     const res = await updateModuleParameters(
       c.var.ppk.projectDb,
       params.module_id,
-      body.newParams
+      body.newParams,
     );
     if (res.success === false) {
       return c.json(res);
@@ -140,10 +140,10 @@ defineRoute(
       c.var.ppk.projectId,
       "modules",
       [params.module_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     return c.json(res);
-  }
+  },
 );
 
 ///////////////
@@ -163,7 +163,7 @@ defineRoute(
     }
     await setModuleDirty(c.var.ppk, params.module_id);
     return c.json({ success: true });
-  }
+  },
 );
 
 ///////////////////////////
@@ -180,10 +180,10 @@ defineRoute(
     const res = await getResultsObjectItems(
       c.var.ppk.projectDb,
       params.results_object_id,
-      _DATASET_LIMIT
+      _DATASET_LIMIT,
     );
     return c.json(res);
-  }
+  },
 );
 
 ///////////////////////////
@@ -211,7 +211,7 @@ defineRoute(
         SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
       `;
       knownDatasetVariables = new Set(
-        hfaVarRows.map((r: { var_name: string }) => r.var_name)
+        hfaVarRows.map((r: { var_name: string }) => r.var_name),
       );
     }
 
@@ -219,10 +219,10 @@ defineRoute(
       res.data.moduleDefinition,
       res.data.configSelections,
       resCountryIso3.data.countryIso3,
-      knownDatasetVariables
+      knownDatasetVariables,
     );
     return c.json({ success: true, data: { script } });
-  }
+  },
 );
 
 ///////////////////////////
@@ -240,7 +240,7 @@ defineRoute(
       _SANDBOX_DIR_PATH,
       c.var.ppk.projectId,
       params.module_id,
-      _MODULE_LOG_FILE_NAME
+      _MODULE_LOG_FILE_NAME,
     );
 
     try {
@@ -258,7 +258,7 @@ defineRoute(
         err: "Error reading log file: " + String(error),
       });
     }
-  }
+  },
 );
 
 ///////////////////////////////////
@@ -274,10 +274,10 @@ defineRoute(
   async (c, { params }) => {
     const res = await getModuleWithConfigSelections(
       c.var.ppk.projectDb,
-      params.module_id
+      params.module_id,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -288,5 +288,5 @@ defineRoute(
   async (c) => {
     const res = await getAllMetrics(c.var.mainDb, c.var.ppk.projectDb);
     return c.json(res);
-  }
+  },
 );

@@ -186,7 +186,7 @@ function generateCandidatesExhaustive<U>(
 
     // For rows: children can have any structure
     const groupLayoutsForRows: LayoutNode<U>[][] = partition.map((group) =>
-      generateCandidatesExhaustive(group, minSpan, undefined, false)
+      generateCandidatesExhaustive(group, minSpan, undefined, false),
     );
 
     // Generate rows combinations
@@ -238,6 +238,7 @@ function scoreLayout<U>(
   walkMeasuredItems(measured, (node) => {
     const actualH = node.rpd.h();
     const idealH = node.idealH;
+    console.log("item", node.data, node.idealH, actualH);
     const maxH = node.maxH;
     if (actualH < idealH) {
       shrinkPenalty += idealH - actualH;
@@ -257,16 +258,22 @@ function scoreLayout<U>(
   });
 
   const heightImbalance = calculateHeightImbalance(measured);
+  console.log("heightImbalance", heightImbalance);
 
   const overflowPenalty = overflow ? 100 : 0;
-  const wastedSpace = Math.max(0, bounds.h() - measured.rpd.h());
+  const totalIdealHeight = sumIdealHeights(measured);
+  const wastedSpace = Math.max(0, bounds.h() - totalIdealHeight);
+  console.log("wastedSpace", wastedSpace);
 
-  const total = overflowPenalty * 1000 +
+  const total =
+    overflowPenalty * 1000 +
     shrinkPenalty * 10 +
     stretchPenalty * 5 +
     scalePenalty * 8 +
     heightImbalance * 2 +
     wastedSpace;
+
+  console.log("Scoring", total);
 
   return {
     overflow: overflowPenalty,
@@ -285,6 +292,7 @@ function calculateHeightImbalance<U>(node: MeasuredLayoutNode<U>): number {
   if (isMeasuredColsLayoutNode(node)) {
     const children = node.children as MeasuredLayoutNode<U>[];
     const heights = children.map((child) => child.rpd.h());
+    console.log(heights);
     if (heights.length >= 2) {
       const maxH = Math.max(...heights);
       const minH = Math.min(...heights);
@@ -321,6 +329,14 @@ function walkMeasuredItems<U>(
       walkMeasuredItems(child, callback);
     }
   }
+}
+
+function sumIdealHeights<U>(node: MeasuredLayoutNode<U>): number {
+  let total = 0;
+  walkMeasuredItems(node, (item) => {
+    total += item.idealH;
+  });
+  return total;
 }
 
 // =============================================================================
@@ -473,15 +489,17 @@ export function optimizeLayout<T, U>(
     console.log(`\n=== Optimizer Debug (${candidates.length} candidates) ===`);
     for (const { layout, score } of debugScores.slice(0, 10)) {
       console.log(
-        `  ${
-          score.total.toFixed(0).padStart(6)
-        } | overflow=${score.overflow} shrink=${
-          score.shrinkPenalty.toFixed(0)
-        } stretch=${score.stretchPenalty.toFixed(0)} scale=${
-          score.scalePenalty.toFixed(0)
-        } imbal=${score.heightImbalance.toFixed(0)} waste=${
-          score.wastedSpace.toFixed(0)
-        } | ${layout}`,
+        `  ${score.total
+          .toFixed(0)
+          .padStart(
+            6,
+          )} | overflow=${score.overflow} shrink=${score.shrinkPenalty.toFixed(
+          0,
+        )} stretch=${score.stretchPenalty.toFixed(0)} scale=${score.scalePenalty.toFixed(
+          0,
+        )} imbal=${score.heightImbalance.toFixed(0)} waste=${score.wastedSpace.toFixed(
+          0,
+        )} | ${layout}`,
       );
     }
     console.log(`=== Best: ${layoutToString(bestLayout)} ===\n`);

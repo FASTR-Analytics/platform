@@ -88,6 +88,7 @@ function getHeightConstraints<T, U>(
 
   if (node.type === "item") {
     const result = itemMeasurer(ctx, node, innerW);
+    // Add padding to convert content heights to total heights
     minH = result.minH + paddingAndBorder;
     idealH = result.idealH + paddingAndBorder;
     maxH = result.maxH + paddingAndBorder;
@@ -153,7 +154,7 @@ function getHeightConstraints<T, U>(
 
   // Apply node-level overrides
   if (node.minH !== undefined) {
-    minH = Math.max(minH, node.minH);
+    minH = node.minH;
   }
   if (node.maxH !== undefined) {
     maxH = node.maxH;
@@ -427,35 +428,38 @@ function measureItemNode<T, U>(
   const pad = new Padding(node.style?.padding ?? 0);
 
   const constraints = itemMeasurer(ctx, node, innerBounds.w());
-  const idealH = constraints.idealH + pad.totalPy() + borderTotal;
 
-  // Apply node-level overrides
+  // Apply node-level overrides to content heights
   let minH = constraints.minH;
+  let idealH = constraints.idealH;
   let maxH = constraints.maxH;
+
   if (node.minH !== undefined) {
-    minH = Math.max(minH, node.minH);
+    minH = node.minH;
   }
   if (node.maxH !== undefined) {
     maxH = node.maxH;
   }
   maxH = Math.max(minH, maxH);
+  idealH = Math.max(minH, Math.min(idealH, maxH));
+
+  // Convert to total heights by adding padding
+  const minHTotal = minH + pad.totalPy() + borderTotal;
+  const idealHTotal = idealH + pad.totalPy() + borderTotal;
+  const maxHTotal = maxH + pad.totalPy() + borderTotal;
 
   // Fill to bounds, capped by maxH, never below minH
-  const availableH = bounds.h() - pad.totalPy() - borderTotal;
-  let contentH = Math.min(availableH, maxH);
-  contentH = Math.max(contentH, minH);
+  const availableH = bounds.h();
+  let finalH = Math.min(availableH, maxHTotal);
+  finalH = Math.max(finalH, minHTotal);
 
-  const finalH = contentH + pad.totalPy() + borderTotal;
   const rpd = bounds.getAdjusted({ h: Math.min(finalH, bounds.h()) });
-
-  // Store maxH with padding/border for use in scoring
-  const finalMaxH = maxH + pad.totalPy() + borderTotal;
 
   return {
     ...node,
     rpd,
-    idealH,
-    maxH: finalMaxH,
+    idealH: idealHTotal,
+    maxH: maxHTotal,
     neededScalingToFitWidth: constraints.neededScalingToFitWidth,
   };
 }

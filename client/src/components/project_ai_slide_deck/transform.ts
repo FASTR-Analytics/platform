@@ -5,11 +5,11 @@ import {
   getStartingReportItemPlaceholder,
 } from "lib";
 import { LayoutNode } from "panther";
-import type { SimpleSlide, SimpleSlideDeck, ContentBlock, ContentLayout } from "./types";
+import type { SimpleSlide, AISlideDeckConfig, ContentBlock } from "lib";
 
-// Transform SimpleSlideDeck to array of ReportItemConfig for rendering
+// Transform AISlideDeckConfig to array of ReportItemConfig for rendering
 export function transformSlideDeckToReportItems(
-  deck: SimpleSlideDeck
+  deck: AISlideDeckConfig
 ): ReportItemConfig[] {
   return deck.slides.map((slide) => transformSlideToReportItem(slide));
 }
@@ -49,10 +49,7 @@ function transformSlideToReportItem(slide: SimpleSlide): ReportItemConfig {
         freeform: {
           useHeader: !!slide.heading,
           headerText: slide.heading ?? "",
-          content: transformBlocksToContent(
-            slide.blocks ?? [],
-            slide.layout ?? "single"
-          ),
+          content: transformBlocksToContent(slide.blocks ?? []),
         },
       };
 
@@ -62,80 +59,26 @@ function transformSlideToReportItem(slide: SimpleSlide): ReportItemConfig {
 }
 
 function transformBlocksToContent(
-  blocks: ContentBlock[],
-  layout: string
-): LayoutNode<ReportItemContentItem> {
+  blocks: ContentBlock[]
+): { layoutType: "optimize"; items: ReportItemContentItem[] } {
   if (blocks.length === 0) {
     return {
-      type: "item",
-      id: crypto.randomUUID(),
-      data: getStartingReportItemPlaceholder(),
+      layoutType: "optimize",
+      items: [getStartingReportItemPlaceholder()],
     };
   }
 
-  // Determine column spans based on layout
-  const spans = getSpansForLayout(layout, blocks.length);
+  const items = blocks.map((block) => transformBlockToContentItem(block));
 
-  // Create items for each block
-  const items: LayoutNode<ReportItemContentItem>[] = blocks.map((block, i) => ({
-    type: "item" as const,
-    id: crypto.randomUUID(),
-    data: transformBlockToContentItem(block, spans[i]),
-    span: spans[i],
-  }));
-
-  // Single item - return directly
-  if (items.length === 1) {
-    return items[0];
-  }
-
-  // Multiple items - wrap in a cols (horizontal arrangement)
   return {
-    type: "cols",
-    id: crypto.randomUUID(),
-    children: items,
+    layoutType: "optimize",
+    items,
   };
 }
 
-function getSpansForLayout(layout: string, blockCount: number): number[] {
-  // Total span is typically 12 (like a 12-column grid)
-  switch (layout) {
-    case "single":
-      return [12];
-
-    case "two-column":
-      if (blockCount === 1) return [12];
-      if (blockCount === 2) return [6, 6];
-      return blocks(blockCount, 6);
-
-    case "two-column-wide-left":
-      if (blockCount === 1) return [12];
-      if (blockCount === 2) return [8, 4];
-      return [8, ...blocks(blockCount - 1, 4)];
-
-    case "two-column-wide-right":
-      if (blockCount === 1) return [12];
-      if (blockCount === 2) return [4, 8];
-      return [4, ...blocks(blockCount - 1, 8)];
-
-    case "three-column":
-      if (blockCount === 1) return [12];
-      if (blockCount === 2) return [6, 6];
-      if (blockCount === 3) return [4, 4, 4];
-      return blocks(blockCount, 4);
-
-    default:
-      return blocks(blockCount, Math.floor(12 / blockCount));
-  }
-}
-
-function blocks(count: number, span: number): number[] {
-  return Array(count).fill(span);
-}
 
 function transformBlockToContentItem(
-  block: ContentBlock,
-  span: number
+  block: ContentBlock
 ): ReportItemContentItem {
   const base = getStartingReportItemPlaceholder();
 
@@ -143,8 +86,8 @@ function transformBlockToContentItem(
     return {
       ...base,
       type: "text",
-      span,
       markdown: block.markdown ?? "",
+      stretch: undefined as any, // AI slides don't use stretch
     };
   }
 
@@ -152,7 +95,7 @@ function transformBlockToContentItem(
     return {
       ...base,
       type: "figure",
-      span,
+      stretch: undefined as any, // AI slides don't use stretch
       // @ts-ignore - Partial PresentationObjectInReportInfo, matches SlidePreview.tsx pattern
       presentationObjectInReportInfo: block.figureId
         ? {
@@ -163,15 +106,15 @@ function transformBlockToContentItem(
     };
   }
 
-  return { ...base, span };
+  return base;
 }
 
-// Reverse transform: ReportItemConfig[] -> SimpleSlideDeck
+// Reverse transform: ReportItemConfig[] -> AISlideDeckConfig
 // Useful if we later want to load existing slide decks
 export function transformReportItemsToSlideDeck(
   label: string,
   items: ReportItemConfig[]
-): SimpleSlideDeck {
+): AISlideDeckConfig {
   return {
     label,
     slides: items.map((item, index) => transformReportItemToSlide(item, index)),
@@ -203,7 +146,6 @@ function transformReportItemToSlide(
       return {
         type: "content",
         heading: item.freeform.headerText,
-        layout: inferLayoutFromContent(item.freeform.content),
         blocks: transformContentToBlocks(item.freeform.content),
       };
 
@@ -212,47 +154,27 @@ function transformReportItemToSlide(
   }
 }
 
-function inferLayoutFromContent(
-  content: LayoutNode<ReportItemContentItem>
-): ContentLayout {
-  // Single item
-  if (content.type === "item") return "single";
-
-  // Get all items from the tree
-  const items = getAllItems(content);
-  const count = items.length;
-
-  if (count === 1) return "single";
-  if (count === 2) {
-    const span0 = items[0].span ?? 6;
-    const span1 = items[1].span ?? 6;
-    if (span0 > span1) return "two-column-wide-left";
-    if (span1 > span0) return "two-column-wide-right";
-    return "two-column";
-  }
-  if (count >= 3) return "three-column";
-
-  return "single";
-}
-
-function getAllItems(
-  node: LayoutNode<ReportItemContentItem>
-): (ReportItemContentItem & { span?: number })[] {
-  if (node.type === "item") {
-    return [{ ...node.data, span: (node as { span?: number }).span }];
-  }
-  const items: (ReportItemContentItem & { span?: number })[] = [];
-  for (const child of node.children) {
-    items.push(...getAllItems(child));
-  }
-  return items;
-}
-
 function transformContentToBlocks(
-  content: LayoutNode<ReportItemContentItem>
+  content:
+    | { layoutType: "optimize"; items: ReportItemContentItem[] }
+    | { layoutType: "explicit"; layout: LayoutNode<ReportItemContentItem> }
+    | LayoutNode<ReportItemContentItem> // Legacy format for backwards compatibility
 ): ContentBlock[] {
   const blocks: ContentBlock[] = [];
-  const items = getAllItems(content);
+
+  let items: ReportItemContentItem[];
+
+  // Handle new format
+  if (typeof content === "object" && content !== null && "layoutType" in content) {
+    if (content.layoutType === "optimize") {
+      items = content.items;
+    } else {
+      items = getAllItems(content.layout);
+    }
+  } else {
+    // Handle legacy format (direct LayoutNode)
+    items = getAllItems(content);
+  }
 
   for (const item of items) {
     if (item.type === "text") {
@@ -271,4 +193,17 @@ function transformContentToBlocks(
   }
 
   return blocks;
+}
+
+function getAllItems(
+  node: LayoutNode<ReportItemContentItem>
+): ReportItemContentItem[] {
+  if (node.type === "item") {
+    return [node.data];
+  }
+  const items: ReportItemContentItem[] = [];
+  for (const child of node.children) {
+    items.push(...getAllItems(child));
+  }
+  return items;
 }

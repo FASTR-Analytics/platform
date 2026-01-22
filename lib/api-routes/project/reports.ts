@@ -1,6 +1,6 @@
 import { route } from "../route-utils.ts";
 import {
-  AiSlideDeckSlide,
+  SimpleSlide,
   ReportType,
   ReportConfig,
   ReportDetail,
@@ -106,7 +106,7 @@ export const reportRouteRegistry = {
     path: "/ai_slide_deck_content/:report_id",
     method: "POST",
     params: {} as { report_id: string },
-    body: {} as { slides: AiSlideDeckSlide[] },
+    body: {} as { slides: SimpleSlide[] },
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),

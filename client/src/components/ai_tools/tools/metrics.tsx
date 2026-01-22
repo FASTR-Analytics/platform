@@ -57,9 +57,7 @@ export function getToolsForMetrics(projectId: string) {
           projectId,
           input.metricId,
           input.disaggregations as DisaggregationOption[],
-          input.filters as
-          | { col: DisaggregationOption; vals: string[] }[]
-          | undefined,
+          (input.filters ?? []) as { col: DisaggregationOption; vals: string[] }[],
           input.periodFilter as
           | { periodOption: PeriodOption; min: number; max: number }
           | undefined,

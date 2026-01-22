@@ -46,6 +46,8 @@ export function AIToolsDebug(p: Props) {
           p.projectId,
           metricId(),
           disaggArr,
+          [],
+          undefined
         );
       } catch (error) {
         return { success: false, err: String(error) };
