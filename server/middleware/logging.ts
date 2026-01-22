@@ -37,4 +37,6 @@ export const log = (routeName: string) =>
             AddProjectLog(projectDb, userEmail, routeName, status, projectId, details).catch(() => {});
         }
         AddLog(mainDb, userEmail, routeName, status, details).catch(() => {});
+
+        console.log(`[LOG] ${userEmail} - ${routeName} - ${status}`);
     });
