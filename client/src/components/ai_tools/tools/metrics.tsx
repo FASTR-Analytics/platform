@@ -58,14 +58,14 @@ export function getToolsForMetrics(projectId: string) {
           input.metricId,
           input.disaggregations as DisaggregationOption[],
           input.filters as
-            | { col: DisaggregationOption; vals: string[] }[]
-            | undefined,
+          | { col: DisaggregationOption; vals: string[] }[]
+          | undefined,
           input.periodFilter as
-            | { periodOption: PeriodOption; min: number; max: number }
-            | undefined,
+          | { periodOption: PeriodOption; min: number; max: number }
+          | undefined,
         );
       },
-      inProgressLabel: "Querying metric data...",
+      inProgressLabel: input => `Querying data for metric ${input.metricId}...`,
     }),
   ];
 }

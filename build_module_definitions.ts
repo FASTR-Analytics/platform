@@ -201,6 +201,8 @@ function generateModuleMetadata(
   const metricToModule: Record<string, ModuleId> = {};
   const resultsObjectToModule: Record<string, ModuleId> = {};
   const metricStaticData: Record<string, {
+    label: string;
+    variantLabel?: string;
     resultsObjectId: string;
     valueProps: string[];
     valueFunc: string;
@@ -225,6 +227,8 @@ function generateModuleMetadata(
     for (const metric of latestDef.metrics) {
       metricToModule[metric.id] = moduleId;
       metricStaticData[metric.id] = {
+        label: metric.label,
+        variantLabel: metric.variantLabel,
         resultsObjectId: metric.resultsObjectId,
         valueProps: metric.valueProps,
         valueFunc: metric.valueFunc,
@@ -278,8 +282,9 @@ function generateModuleMetadata(
   const metricStaticDataCode = sortedMetricStaticIds
     .map((metricId) => {
       const d = metricStaticData[metricId];
+      const variant = d.variantLabel ? `, variantLabel: "${d.variantLabel}"` : "";
       const replacements = d.valueLabelReplacements ? `, valueLabelReplacements: ${JSON.stringify(d.valueLabelReplacements)}` : "";
-      return `  "${metricId}": { resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)} }`;
+      return `  "${metricId}": { label: "${d.label}"${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)} }`;
     })
     .join(",\n");
 
@@ -335,6 +340,8 @@ export function getModuleIdForResultsObject(resultsObjectId: string): ModuleId {
 
 // Static metric data for building fetchConfig client-side
 export const METRIC_STATIC_DATA: Record<string, {
+  label: string;
+  variantLabel?: string;
   resultsObjectId: string;
   valueProps: string[];
   valueFunc: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";

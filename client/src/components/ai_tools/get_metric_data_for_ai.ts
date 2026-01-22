@@ -103,6 +103,7 @@ function formatItemsAsMarkdown(
   lines.push("# METRIC DATA");
   lines.push("=".repeat(80));
   lines.push("");
+  lines.push(`**Metric:** ${staticData.label}${staticData.variantLabel ? ` [${staticData.variantLabel}]` : ""}`);
   lines.push(`**Metric ID:** ${metricId}`);
   lines.push(`**Format:** ${staticData.formatAs}`);
 
