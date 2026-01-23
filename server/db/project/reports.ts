@@ -2,13 +2,8 @@ import { assertNotUndefined, LayoutNode } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
   APIResponseWithData,
-  AISlideDeckConfig,
-  SimpleSlide,
-  MixedSlide,
-  getStartingConfigForLongFormReport,
   getStartingConfigForReport,
   getStartingConfigForReportItem,
-  LongFormReportConfig,
   parseJsonOrThrow,
   ReportConfig,
   ReportItemConfig,
@@ -38,27 +33,6 @@ function forEachLayoutItem<T>(
   }
 }
 
-/**
- * Migrate AISlideDeckConfig from v1 to v2 format
- * v1: { label, plan?, slides: SimpleSlide[] }
- * v2: { label, version: 2, plan?, slides: MixedSlide[] }
- */
-function migrateAISlideDeckConfig(rawConfig: string): AISlideDeckConfig {
-  const parsed = JSON.parse(rawConfig);
-
-  // Already has version field - no migration needed
-  if ('version' in parsed) {
-    return parsed as AISlideDeckConfig;
-  }
-
-  // Legacy format - add version 1
-  return {
-    ...parsed,
-    version: 1 as 1 | 2,
-    slides: parsed.slides || [], // Already SimpleSlide[]
-  };
-}
-
 export async function addReport(
   projectDb: Sql,
   label: string,
@@ -66,26 +40,7 @@ export async function addReport(
 ): Promise<APIResponseWithData<{ newReportId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const newReportId = crypto.randomUUID();
-    const startingReportConfig =
-      reportType === "long_form"
-        ? getStartingConfigForLongFormReport(label)
-        : reportType === "ai_slide_deck"
-        ? {
-            label,
-            version: 1 as 1 | 2,
-            slides: [
-              {
-                type: "cover" as const,
-                title: label,
-                subtitle: "",
-                date: new Date().toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                }),
-              },
-            ],
-          }
-        : getStartingConfigForReport(label);
+    const startingReportConfig = getStartingConfigForReport(label);
     const lastUpdated = new Date().toISOString();
     await projectDb`
 INSERT INTO reports
@@ -297,13 +252,7 @@ SELECT id FROM report_items WHERE report_id = ${reportId} ORDER BY sort_order
 `
     ).map((row) => row.id);
 
-    // Apply migration for AI slide decks
-    let config: any;
-    if (rawReport.report_type === "ai_slide_deck") {
-      config = migrateAISlideDeckConfig(rawReport.config);
-    } else {
-      config = parseJsonOrThrow(rawReport.config);
-    }
+    const config = parseJsonOrThrow(rawReport.config) as ReportConfig;
 
     const report: ReportDetail = {
       id: rawReport.id,
@@ -479,64 +428,32 @@ WHERE id = ${reportId}
   });
 }
 
-export async function updateLongFormContent(
-  projectDb: Sql,
-  reportId: string,
-  markdown: string
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const lastUpdated = new Date().toISOString();
-    const rawReport = (
-      await projectDb<DBReport[]>`
-SELECT * FROM reports WHERE id = ${reportId}
-`
-    ).at(0);
-    if (!rawReport) {
-      throw new Error("No report with this id");
-    }
-    const config: LongFormReportConfig = parseJsonOrThrow(rawReport.config);
-    config.markdown = markdown;
-    await projectDb`
-UPDATE reports
-SET config = ${JSON.stringify(config)}, last_updated = ${lastUpdated}
-WHERE id = ${reportId}
-`;
-    return { success: true, data: { lastUpdated } };
-  });
-}
-
-export async function updateAiSlideDeckContent(
-  projectDb: Sql,
-  reportId: string,
-  plan: string | undefined,
-  slides: MixedSlide[]
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const lastUpdated = new Date().toISOString();
-    const rawReport = (
-      await projectDb<DBReport[]>`
-SELECT * FROM reports WHERE id = ${reportId}
-`
-    ).at(0);
-    if (!rawReport) {
-      throw new Error("No report with this id");
-    }
-    // Preserve the label from existing config, apply migration
-    const existingConfig = migrateAISlideDeckConfig(rawReport.config);
-    const updatedConfig: AISlideDeckConfig = {
-      label: existingConfig.label,
-      version: 2, // Upgrade to v2 on save
-      plan,
-      slides,
-    };
-    await projectDb`
-UPDATE reports
-SET config = ${JSON.stringify(updatedConfig)}, last_updated = ${lastUpdated}
-WHERE id = ${reportId}
-`;
-    return { success: true, data: { lastUpdated } };
-  });
-}
+// TODO: Re-enable when LongFormReport is implemented
+// export async function updateLongFormContent(
+//   projectDb: Sql,
+//   reportId: string,
+//   markdown: string
+// ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+//   return await tryCatchDatabaseAsync(async () => {
+//     const lastUpdated = new Date().toISOString();
+//     const rawReport = (
+//       await projectDb<DBReport[]>`
+// SELECT * FROM reports WHERE id = ${reportId}
+// `
+//     ).at(0);
+//     if (!rawReport) {
+//       throw new Error("No report with this id");
+//     }
+//     const config: LongFormReportConfig = parseJsonOrThrow(rawReport.config);
+//     config.markdown = markdown;
+//     await projectDb`
+// UPDATE reports
+// SET config = ${JSON.stringify(config)}, last_updated = ${lastUpdated}
+// WHERE id = ${reportId}
+// `;
+//     return { success: true, data: { lastUpdated } };
+//   });
+// }
 
 ////////////////////////
 //                    //

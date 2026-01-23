@@ -69,6 +69,21 @@ export type DBReportItem = {
   last_updated: string;
 };
 
+export type DBSlideDeck = {
+  id: string;
+  label: string;
+  plan: string | null;
+  last_updated: string;
+};
+
+export type DBSlide = {
+  id: string;
+  slide_deck_id: string;
+  sort_order: number;
+  config: string;
+  last_updated: string;
+};
+
 export type DBGlobalLastUpdated = {
   id: string;
   last_updated: string;

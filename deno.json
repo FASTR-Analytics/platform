@@ -25,7 +25,8 @@
     "hono": "jsr:@hono/hono@^4.5.3",
     "papaparse": "npm:papaparse@^5.5.2",
     "parse-multipart": "npm:parse-multipart@^1.0.4",
-    "postgres": "npm:postgres@^3.4.5"
+    "postgres": "npm:postgres@^3.4.5",
+    "zod": "npm:zod@^3.22.4"
   },
   "compilerOptions": {
     "jsx": "precompile",

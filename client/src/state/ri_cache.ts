@@ -1,4 +1,4 @@
-import type { APIResponseWithData } from "lib";
+import type { APIResponseWithData, ReportConfig } from "lib";
 import type { PageInputs } from "panther";
 import { getPageInputsFromReportItem } from "~/generate_report/mod";
 import { serverActions } from "~/server_actions";
@@ -85,7 +85,7 @@ async function getPageInputsCombo(
   const resPageInputs = await getPageInputsFromReportItem(
     projectId,
     resReportDetail.data.reportType,
-    resReportDetail.data.config,
+    resReportDetail.data.config as ReportConfig,  // Report items only used with traditional reports
     resReportItem.data.config,
     resReportDetail.data.itemIdsInOrder.indexOf(resReportItem.data.id),
     pdfScaleFactor,

@@ -1,3 +1,4 @@
+export * from "./ai_id_mapping.ts";
 export * from "./assets.ts";
 export * from "./dataset_hfa.ts";
 export * from "./dimension_definitions.ts";
@@ -16,5 +17,8 @@ export * from "./presentation_objects.ts";
 export * from "./project_dirty_states.ts";
 export * from "./projects.ts";
 export * from "./reports.ts";
+export * from "./slides.ts";
+export * from "./slides_ai_input.ts";
+export * from "./slides_validation.ts";
 export * from "./streaming.ts";
 export * from "./structure.ts";

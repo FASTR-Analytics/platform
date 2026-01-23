@@ -6,12 +6,12 @@ import {
   DisaggregationDisplayOption,
   DisaggregationOption,
   PresentationObjectConfig,
-  ResultsValue,
+  ResultsValueForVisualization,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
 } from "./types/mod.ts";
 
 export function getDisaggregatorDisplayProp(
-  resultsValue: ResultsValue,
+  resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
   props: DisaggregationDisplayOption[]
 ): DisaggregationOption | "--v" | undefined {
@@ -50,7 +50,7 @@ export function getReplicateByProp(
 }
 
 export function hasDuplicateDisaggregatorDisplayOptions(
-  resultsValue: ResultsValue,
+  resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig
 ) {
   const disDisplayOpts: DisaggregationDisplayOption[] = [];
@@ -74,7 +74,7 @@ export function hasDuplicateDisaggregatorDisplayOptions(
 }
 
 export function getNextAvailableDisaggregationDisplayOption(
-  resultsValue: ResultsValue,
+  resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
   disOpt: DisaggregationOption
 ): DisaggregationDisplayOption {

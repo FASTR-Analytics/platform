@@ -5,7 +5,7 @@ import {
 } from "panther";
 import {
   PresentationObjectConfig,
-  ResultsValue,
+  ResultsValueForVisualization,
   getDisaggregatorDisplayProp,
   getFilteredValueProps,
   get_INDICATOR_COMMON_IDS_IN_SORT_ORDER,
@@ -17,7 +17,7 @@ import { getDateLabelReplacements } from "./get_date_label_replacements";
 import { getAdminArea3LabelReplacements } from "./format_admin_area_labels";
 
 export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
-  resultsValue: ResultsValue,
+  resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
@@ -70,7 +70,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
 }
 
 export function getTableJsonDataConfigFromPresentationObjectConfig(
-  resultsValue: ResultsValue,
+  resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
@@ -129,7 +129,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
 }
 
 export function getChartOVJsonDataConfigFromPresentationObjectConfig(
-  resultsValue: ResultsValue,
+  resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],

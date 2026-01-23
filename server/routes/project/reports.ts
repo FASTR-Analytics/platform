@@ -11,7 +11,6 @@ import {
   getReportItem,
   moveAndDeleteAllReportItems,
   restoreReport,
-  updateAiSlideDeckContent,
   updateLongFormContent,
   updateReportConfig,
   updateReportItemConfig,
@@ -159,30 +158,6 @@ defineRoute(
       c.var.ppk.projectDb,
       params.report_id,
       body.markdown
-    );
-    if (res.success === false) {
-      return c.json(res);
-    }
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [params.report_id],
-      res.data.lastUpdated
-    );
-    return c.json(res);
-  }
-);
-
-defineRoute(
-  routesReports,
-  "updateAiSlideDeckContent",
-  getProjectEditor,
-  async (c, { params, body }) => {
-    const res = await updateAiSlideDeckContent(
-      c.var.ppk.projectDb,
-      params.report_id,
-      body.plan,
-      body.slides
     );
     if (res.success === false) {
       return c.json(res);

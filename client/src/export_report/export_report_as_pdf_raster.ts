@@ -10,6 +10,7 @@ import {
   getReportDetailFromCacheOrFetch,
   getPageInputsFromCacheOrFetch,
 } from "~/state/ri_cache";
+import jsPDF from "jspdf";
 
 export async function exportReportAsPdfRaster(
   projectId: string,
@@ -45,7 +46,6 @@ export async function exportReportAsPdfRaster(
     const pdfW = Math.round(canvasW * pdfResolution);
     const pdfH = Math.round(canvasH * pdfResolution);
 
-    const { default: jsPDF } = await import("jspdf");
     const pdf = new jsPDF({
       orientation: pdfOrientation,
       unit: "px",

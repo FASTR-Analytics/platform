@@ -144,6 +144,32 @@ CREATE INDEX idx_report_items_sort_order ON report_items(report_id, sort_order);
 CREATE INDEX idx_report_items_last_updated ON report_items(last_updated);
 
 -- ============================================================================
+-- AI SLIDE DECKS
+-- ============================================================================
+
+CREATE TABLE slide_decks (
+  id text PRIMARY KEY NOT NULL,
+  label text NOT NULL,
+  plan text,
+  last_updated text NOT NULL
+);
+
+CREATE INDEX idx_slide_decks_last_updated ON slide_decks(last_updated);
+
+CREATE TABLE slides (
+  id text PRIMARY KEY NOT NULL,
+  slide_deck_id text NOT NULL,
+  sort_order integer NOT NULL,
+  config text NOT NULL,
+  last_updated text NOT NULL,
+  FOREIGN KEY (slide_deck_id) REFERENCES slide_decks(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_slides_deck_id ON slides(slide_deck_id);
+CREATE INDEX idx_slides_deck_sort ON slides(slide_deck_id, sort_order);
+CREATE INDEX idx_slides_last_updated ON slides(last_updated);
+
+-- ============================================================================
 -- METADATA
 -- ============================================================================
 

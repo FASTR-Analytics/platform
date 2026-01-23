@@ -10,13 +10,15 @@ type Props = {
 };
 
 export function ReportItemEditorSlideCover(p: Props) {
+  const config = p.reportDetail.config as ReportConfig;
+
   return (
     <div class="ui-pad ui-spy">
       <LabelHolder label={t2(T.FRENCH_UI_STRINGS.logos_to_use)}>
-        {p.reportDetail.config.logos && p.reportDetail.config.logos.length > 0 ? (
+        {config.logos && config.logos.length > 0 ? (
           <MultiSelect
             values={p.tempReportItemConfig.cover.logos ?? []}
-            options={p.reportDetail.config.logos.map((logo) => ({
+            options={config.logos.map((logo: string) => ({
               value: logo,
               label: logo,
             }))}

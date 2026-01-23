@@ -8,9 +8,8 @@ import { PresentationObjectInReportInfo } from "./presentation_objects.ts";
 
 export type ReportType =
   | "slide_deck"
-  | "policy_brief"
-  | "long_form"
-  | "ai_slide_deck";
+  | "policy_brief";
+  // | "long_form";  // TODO: Re-enable later
 
 export type ReportSummary = {
   id: string;
@@ -22,7 +21,7 @@ export type ReportDetail = {
   id: string;
   projectId: string;
   reportType: ReportType;
-  config: ReportConfig;
+  config: ReportConfig;  // | LongFormReportConfig - disabled for now
   itemIdsInOrder: string[];
   // anyModuleLastRun: string;
   lastUpdated: string;
@@ -47,8 +46,7 @@ export function get_REPORT_TYPE_SELECT_OPTIONS(): {
   return [
     { value: "slide_deck", label: t2(T.FRENCH_UI_STRINGS.slide_deck) },
     { value: "policy_brief", label: t2(T.FRENCH_UI_STRINGS.policy_brief) },
-    { value: "long_form", label: "Long-form report" },
-    { value: "ai_slide_deck", label: "AI slide deck" },
+    // { value: "long_form", label: "Long-form report" },  // TODO: Re-enable
   ];
 }
 
@@ -56,8 +54,7 @@ export function get_REPORT_TYPE_MAP(): Record<ReportType, string> {
   return {
     slide_deck: t2(T.FRENCH_UI_STRINGS.slide_deck),
     policy_brief: t2(T.FRENCH_UI_STRINGS.policy_brief),
-    long_form: "Long-form report",
-    ai_slide_deck: "AI slide deck",
+    // long_form: "Long-form report",  // TODO: Re-enable
   };
 }
 
@@ -75,60 +72,6 @@ export function getStartingConfigForLongFormReport(
 ): LongFormReportConfig {
   return { label, markdown: "" };
 }
-
-// AI Slide Deck types (simplified format for AI editing)
-export type SlideType = "cover" | "section" | "content";
-
-export type ContentBlockType = "text" | "figure";
-
-export type ContentBlock = {
-  type: ContentBlockType;
-  markdown?: string;
-  figureId?: string;
-  replicant?: string;
-};
-
-export type SimpleSlide = {
-  type: SlideType;
-  // Cover slide fields
-  title?: string;
-  subtitle?: string;
-  presenter?: string;
-  date?: string;
-  // Section slide fields
-  sectionTitle?: string;
-  sectionSubtitle?: string;
-  // Content slide fields
-  heading?: string;
-  blocks?: ContentBlock[];
-};
-
-// CustomUserSlide - wraps full ReportItemConfig for rich user editing
-export type CustomUserSlide = {
-  type: "custom";
-  slideType: "cover" | "section" | "freeform";
-  config: ReportItemConfig;
-  _originalSimpleSlide?: SimpleSlide; // Optional: preserve for reference
-};
-
-// Mixed slide type - can be either simple or custom
-export type MixedSlide = SimpleSlide | CustomUserSlide;
-
-// Type guards
-export function isSimpleSlide(slide: MixedSlide): slide is SimpleSlide {
-  return (slide as CustomUserSlide).type !== "custom";
-}
-
-export function isCustomUserSlide(slide: MixedSlide): slide is CustomUserSlide {
-  return (slide as CustomUserSlide).type === "custom";
-}
-
-export type AISlideDeckConfig = {
-  label: string;
-  version: 1 | 2; // v1: SimpleSlide[] only, v2: MixedSlide[]
-  plan?: string;
-  slides: MixedSlide[];
-};
 
 export type ReportConfig = {
   label: string;

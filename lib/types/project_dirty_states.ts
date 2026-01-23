@@ -52,7 +52,9 @@ export type LastUpdateTableName =
   | "modules"
   | "presentation_objects"
   | "report_items"
-  | "reports";
+  | "reports"
+  | "slide_decks"
+  | "slides";
 
 export const _LAST_UPDATE_TABLE_NAMES: LastUpdateTableName[] = [
   "datasets",
@@ -60,4 +62,6 @@ export const _LAST_UPDATE_TABLE_NAMES: LastUpdateTableName[] = [
   "presentation_objects",
   "report_items",
   "reports",
+  "slide_decks",
+  "slides",
 ];

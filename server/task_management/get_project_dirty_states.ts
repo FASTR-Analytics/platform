@@ -29,6 +29,8 @@ export async function getProjectDirtyStates(
         presentation_objects: {},
         reports: {},
         report_items: {},
+        slide_decks: {},
+        slides: {},
       },
     };
 

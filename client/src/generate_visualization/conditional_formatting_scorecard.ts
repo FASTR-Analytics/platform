@@ -1,7 +1,7 @@
 // export const _SCORECARD = {
 
 import {
-  type ResultsValue,
+  type ResultsValueForVisualization,
   type ItemsHolderPresentationObject,
   type PresentationObjectConfig,
   withReplicant,
@@ -230,7 +230,7 @@ const _SCORECARD_LABEL_TO_THRESHOLD = new Map(
 // );
 
 export function getSpecialScorecardTableFigureInputs(
-  resultsValue: ResultsValue,
+  resultsValue: ResultsValueForVisualization,
   ih: ItemsHolderPresentationObject,
   config: PresentationObjectConfig,
 ): FigureInputs {

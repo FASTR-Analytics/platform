@@ -8,7 +8,7 @@ import {
   ItemsHolderPresentationObject,
   PeriodBounds,
   PresentationObjectConfig,
-  ResultsValue,
+  ResultsValueForVisualization,
   getCalendar,
   isFrench,
   withReplicant,
@@ -37,7 +37,7 @@ type StateHolder<T> =
     };
 
 export function getFigureInputsFromPresentationObject(
-  resultsValue: ResultsValue,
+  resultsValue: ResultsValueForVisualization,
   ih: ItemsHolderPresentationObject,
   config: PresentationObjectConfig,
 ): StateHolder<FigureInputs> {

@@ -1,4 +1,4 @@
-import { ReportDetail, ReportItemConfig, t2, T } from "lib";
+import { ReportDetail, ReportItemConfig, ReportConfig, t2, T } from "lib";
 import { Checkbox, LabelHolder, MultiSelect, TextArea, TimActionButton } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
@@ -53,10 +53,10 @@ export function ReportItemEditorSlideHeaderFooter(p: Props) {
             height="80px"
           />
           <LabelHolder label={t2(T.FRENCH_UI_STRINGS.footer_logos)}>
-            {p.reportDetail.config.logos && p.reportDetail.config.logos.length > 0 ? (
+            {(p.reportDetail.config as ReportConfig).logos && (p.reportDetail.config as ReportConfig).logos.length > 0 ? (
               <MultiSelect
                 values={p.tempReportItemConfig.freeform.footerLogos ?? []}
-                options={p.reportDetail.config.logos.map((logo) => ({
+                options={(p.reportDetail.config as ReportConfig).logos.map((logo) => ({
                   value: logo,
                   label: logo,
                 }))}

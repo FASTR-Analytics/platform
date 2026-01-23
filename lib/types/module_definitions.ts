@@ -160,6 +160,13 @@ export type ResultsValue = {
   aiDescription?: MetricAIDescription;
 };
 
+// Minimal subset used by visualization generation functions
+export type ResultsValueForVisualization = {
+  formatAs: "percent" | "number";
+  valueProps: string[];
+  valueLabelReplacements?: Record<string, string>;
+};
+
 // Simplified type for module definitions - will be enriched at runtime
 export type ResultsValueDefinition = Omit<
   ResultsValue,

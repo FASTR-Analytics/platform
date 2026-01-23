@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./canvas_debug.ts";
+export * from "./create_canvas_render_context_browser.ts";
 export * from "./create_pdf_render_context_browser.ts";
 export * from "./css_variables.ts";
 export * from "./dimensions.ts";

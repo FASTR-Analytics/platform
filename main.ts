@@ -27,6 +27,8 @@ import { routesProjectSSE } from "./server/routes/project/project-sse.ts";
 import { routesModules } from "./server/routes/project/modules.ts";
 import { routesPresentationObjects } from "./server/routes/project/presentation_objects.ts";
 import { routesReports } from "./server/routes/project/reports.ts";
+import { routesSlideDecks } from "./server/routes/project/slide_decks.ts";
+import { routesSlides } from "./server/routes/project/slides.ts";
 import { routesAiProxy } from "./server/routes/project/ai_proxy.ts";
 import { routesAiTools } from "./server/routes/project/ai_tools.ts";
 
@@ -84,6 +86,8 @@ app.route("/", routesIndicators);
 app.route("/", routesIndicatorsDhis2);
 app.route("/", routesModules);
 app.route("/", routesReports);
+app.route("/", routesSlideDecks);
+app.route("/", routesSlides);
 app.route("/", routesPresentationObjects);
 app.route("/ai", routesAiProxy);
 app.route("/", routesAiTools);

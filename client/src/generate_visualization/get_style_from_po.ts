@@ -19,7 +19,7 @@ import {
   getAbcQualScale2,
 } from "lib";
 import { getCalendar } from "lib";
-import { PresentationObjectConfig, ResultsValue } from "lib";
+import { PresentationObjectConfig, ResultsValueForVisualization } from "lib";
 import { getColorFuncGivenConditionalFormatting } from "./conditional_formatting";
 
 const _Inter_800: FontInfo = {
@@ -44,7 +44,7 @@ function getSpecialBarChartDiff(info: ChartValueInfo) {
 }
 
 export function getStyleFromPresentationObject(
-  resultsValue: ResultsValue,
+  resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
 ) {
   const dataFormat = resultsValue.formatAs ?? "number";

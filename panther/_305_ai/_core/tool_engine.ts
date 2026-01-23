@@ -103,20 +103,10 @@ export async function processToolUses(
   const inProgressItems = getInProgressItems(content, toolRegistry);
 
   const toolPromises = toolUseBlocks.map(async (block) => {
-    // console.log('[TOOL_ENGINE] Processing tool block:', {
-    //   name: block.name,
-    //   id: block.id,
-    //   input: block.input,
-    //   fullBlock: JSON.stringify(block)
-    // });
-    // console.log('[TOOL_ENGINE] Registered tools:', Array.from(toolRegistry.getAll()).map(t => t.sdkTool.name));
-
     const toolWithMetadata = toolRegistry.get(block.name);
 
     if (!toolWithMetadata) {
       console.error(`Unknown tool: ${block.name}`);
-      // console.error('[TOOL_ENGINE] Tool name as array:', Array.from(block.name));
-      // console.error('[TOOL_ENGINE] Tool name charCodes:', Array.from(block.name).map(c => c.charCodeAt(0)));
       return {
         type: "tool_result" as const,
         tool_use_id: block.id,

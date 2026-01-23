@@ -42,6 +42,8 @@ export function ProjectRunnerProvider(p: Props) {
         presentation_objects: {},
         reports: {},
         report_items: {},
+        slide_decks: {},
+        slides: {},
       },
     });
 

@@ -11,6 +11,8 @@ import { moduleRouteRegistry } from "./project/modules.ts";
 import { presentationObjectRouteRegistry } from "./project/presentation-objects.ts";
 import { projectRouteRegistry } from "./project/projects.ts";
 import { reportRouteRegistry } from "./project/reports.ts";
+import { slideDeckRouteRegistry } from "./project/slide-decks.ts";
+import { slideRouteRegistry } from "./project/slides.ts";
 
 // Combined route registry
 export const routeRegistry = {
@@ -27,4 +29,6 @@ export const routeRegistry = {
   ...aiToolsRouteRegistry,
   ...presentationObjectRouteRegistry,
   ...reportRouteRegistry,
+  ...slideDeckRouteRegistry,
+  ...slideRouteRegistry,
 } as const;

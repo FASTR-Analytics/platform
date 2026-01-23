@@ -1,4 +1,4 @@
-import { AISlideDeckConfig, InstanceDetail, LongFormReportConfig, ProjectDetail, ReportDetail, t, t2, T } from "lib";
+import { InstanceDetail, LongFormReportConfig, ProjectDetail, ReportDetail, t, t2, T } from "lib";
 import {
   Button,
   FrameLeft,
@@ -79,7 +79,7 @@ export function Report(p: Props) {
       setReportDetail({ status: "error", err: res.err });
       return;
     }
-    isAiManagedReport = res.data.reportType === "long_form" || res.data.reportType === "ai_slide_deck";
+    // isAiManagedReport = res.data.reportType === "long_form";
     // Update our reference after successful fetch
     initialLastUpdated = pds.lastUpdated.reports[p.reportId] ?? "unknown";
     setSelectedReportItemId((prev) => {
@@ -214,32 +214,19 @@ export function Report(p: Props) {
   };
 
   // Reactive check for long_form report type
-  const longFormData = () => {
-    const rd = reportDetail();
-    if (rd.status === "ready" && rd.data.reportType === "long_form") {
-      const config = rd.data.config as unknown as LongFormReportConfig;
-      return { markdown: config.markdown, label: config.label };
-    }
-    return undefined;
-  };
+  // const longFormData = () => {
+  //   const rd = reportDetail();
+  //   if (rd.status === "ready" && rd.data.reportType === "long_form") {
+  //     const config = rd.data.config as unknown as LongFormReportConfig;
+  //     return { markdown: config.markdown, label: config.label };
+  //   }
+  //   return undefined;
+  // };
 
-  // Reactive check for ai_slide_deck report type
-  const aiSlideDeckData = () => {
-    const rd = reportDetail();
-    if (rd.status === "ready" && rd.data.reportType === "ai_slide_deck") {
-      const config = rd.data.config as unknown as AISlideDeckConfig;
-      return {
-        plan: config.plan,
-        slides: config.slides ?? [],
-        label: config.label
-      };
-    }
-    return undefined;
-  };
 
   return (
     <Switch>
-      <Match when={longFormData()} keyed>
+      {/* <Match when={longFormData()} keyed>
         {(data) => (
           <ProjectAiReport
             instanceDetail={p.instanceDetail}
@@ -250,19 +237,7 @@ export function Report(p: Props) {
             backToProject={p.backToProject}
           />
         )}
-      </Match>
-      <Match when={aiSlideDeckData()} keyed>
-        {(data) => (
-          <ProjectAiSlideDeck
-            instanceDetail={p.instanceDetail}
-            projectDetail={p.projectDetail}
-            reportId={p.reportId}
-            initialConfig={{ plan: data.plan, slides: data.slides }}
-            reportLabel={data.label}
-            backToProject={p.backToProject}
-          />
-        )}
-      </Match>
+      </Match> */}
       <Match when={true}>
         <EditorWrapperForSettings>
           <FrameTop

@@ -2,12 +2,12 @@ import { type TextEditorSelection } from "panther";
 import { getToolsForModules } from "./tools/modules";
 import { getToolsForMetrics } from "./tools/metrics";
 import { getToolForSelectedText } from "./tools/document_editing";
-// import { createSlideTools } from "./tools/slides";
+import { getToolsForSlides as getSlideTools } from "./tools/slides";
 import { getToolsForReadingVisualizations, getToolForVisualizationData, getToolForShowingVisualizations } from "./tools/visualization_reading";
 import { getToolsForWritingVisualizations } from "./tools/visualization_writing";
 import { getToolsForConfiguringVisualizations } from "./tools/visualization_config";
 import { getToolsForMethodologyDocs } from "./tools/methodology_docs";
-import { PresentationObjectConfig, ResultsValue } from "lib";
+import { PresentationObjectConfig, ResultsValue, type DeckSummary, type SlideWithMeta, type AiIdScope } from "lib";
 import { SetStoreFunction } from "solid-js/store";
 
 // Tools for the main project chatbot
@@ -38,18 +38,32 @@ export function getToolsForReport(
   ];
 }
 
-// Tools for the report editor AI
+// Tools for the AI slide deck editor
 export function getToolsForSlides(
   projectId: string,
-  getSelection: () => TextEditorSelection,
+  reportId: string,
+  aiIdScope: AiIdScope,
+  getDeckSummary: () => Promise<DeckSummary>,
+  onSlideCreated: (slide: SlideWithMeta) => void,
+  onSlideUpdated: (slide: SlideWithMeta) => void,
+  onSlidesDeleted: (slideIds: string[]) => void,
+  onSlidesReordered: (slides: SlideWithMeta[]) => void,
 ) {
   return [
+    ...getSlideTools(
+      projectId,
+      reportId,
+      aiIdScope,
+      getDeckSummary,
+      onSlideCreated,
+      onSlideUpdated,
+      onSlidesDeleted,
+      onSlidesReordered,
+    ),
     ...getToolsForModules(projectId),
     ...getToolsForMetrics(projectId),
     ...getToolsForReadingVisualizations(projectId),
-    // getToolForShowingVisualizations(projectId),
     ...getToolsForWritingVisualizations(projectId),
-    getToolForSelectedText(getSelection),
     ...getToolsForMethodologyDocs(),
   ];
 }
