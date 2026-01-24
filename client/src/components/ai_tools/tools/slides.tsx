@@ -7,19 +7,16 @@ import {
   ContentSlideSchema,
   getSlideTitle,
   type Slide,
-  type AiIdScope,
 } from "lib";
 import { convertAiInputToSlide } from "~/components/project_ai_slide_deck/utils/convert_ai_input_to_slide";
 import { simplifySlideForAI } from "~/components/project_ai_slide_deck/utils/extract_blocks_from_layout";
 import { getSlideWithUpdatedBlocks } from "~/components/project_ai_slide_deck/utils/get_slide_with_updated_blocks";
-import { registerSlide, registerBlock, getSlideUuid, getBlockUuid } from "~/components/project_ai_slide_deck/utils/ai_id_scope";
 import { getDeckSummaryForAI } from "~/components/project_ai_slide_deck/utils/get_deck_summary";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 
 export function getToolsForSlides(
   projectId: string,
   deckId: string,
-  aiIdScope: AiIdScope,
   getSlideIds: () => string[],
   optimisticSetLastUpdated: (tableName: "slides" | "slide_decks", id: string, lastUpdated: string) => void,
 ) {
@@ -30,7 +27,7 @@ export function getToolsForSlides(
         "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck.",
       inputSchema: z.object({}),
       handler: async () => {
-        return await getDeckSummaryForAI(projectId, getSlideIds(), aiIdScope);
+        return await getDeckSummaryForAI(projectId, getSlideIds());
       },
       inProgressLabel: "Getting deck state...",
     }),
@@ -40,17 +37,16 @@ export function getToolsForSlides(
       description:
         "Retrieve the content and structure of a specific slide. For content slides, this returns a simplified view showing each content block with its unique ID and a summary. Use these block IDs with update_slide_content to make targeted changes without regenerating the entire layout. Always call this before modifying a slide to see what's currently in it.",
       inputSchema: z.object({
-        slideId: z.string().describe("Short slide ID like 's1', 's2'. Get these from get_deck."),
+        slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
       }),
       handler: async (input) => {
-        const slideUuid = getSlideUuid(aiIdScope, input.slideId);
-        const cached = await _SLIDE_CACHE.get({ projectId, slideId: slideUuid });
+        const cached = await _SLIDE_CACHE.get({ projectId, slideId: input.slideId });
 
         let slide;
         if (!cached.data) {
           // Cache miss - fetch and cache
-          const promise = serverActions.getSlide({ projectId, slide_id: slideUuid });
-          await _SLIDE_CACHE.setPromise(promise, { projectId, slideId: slideUuid }, cached.version);
+          const promise = serverActions.getSlide({ projectId, slide_id: input.slideId });
+          await _SLIDE_CACHE.setPromise(promise, { projectId, slideId: input.slideId }, cached.version);
           const res = await promise;
           if (!res.success) throw new Error(res.err);
           slide = res.data.slide;
@@ -60,17 +56,6 @@ export function getToolsForSlides(
         }
 
         const simplified = simplifySlideForAI(slide);
-
-        if (simplified.type === "content") {
-          return {
-            ...simplified,
-            blocks: simplified.blocks.map((block) => ({
-              ...block,
-              id: registerBlock(aiIdScope, slideUuid, block.id),
-            })),
-          };
-        }
-
         return simplified;
       },
       inProgressLabel: (input) => `Getting slide ${input.slideId}...`,
@@ -84,9 +69,9 @@ export function getToolsForSlides(
         afterSlideId: z
           .string()
           .nullable()
-          .describe("Short slide ID like 's1' to insert after, or null to insert at the beginning."),
+          .describe("Slide ID (3-char alphanumeric, e.g. 'a3k') to insert after, or null to insert at the beginning."),
         slide: z
-          .discriminatedUnion("type", [
+          .union([
             CoverSlideSchema,
             SectionSlideSchema,
             ContentSlideSchema,
@@ -94,16 +79,12 @@ export function getToolsForSlides(
           .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with heading and blocks array containing text and/or figures)."),
       }),
       handler: async (input) => {
-        const afterSlideUuid = input.afterSlideId
-          ? getSlideUuid(aiIdScope, input.afterSlideId)
-          : null;
-
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide);
 
         const res = await serverActions.createSlide({
           projectId,
           deck_id: deckId,
-          afterSlideId: afterSlideUuid,
+          afterSlideId: input.afterSlideId,
           slide: convertedSlide,
         });
         if (!res.success) throw new Error(res.err);
@@ -112,9 +93,7 @@ export function getToolsForSlides(
         optimisticSetLastUpdated("slides", res.data.slide.id, lastUpdated);
         optimisticSetLastUpdated("slide_decks", deckId, lastUpdated);
 
-        const newSlideShortId = registerSlide(aiIdScope, res.data.slide.id);
-
-        return `Created slide ${newSlideShortId}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
+        return `Created slide ${res.data.slide.id}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
       inProgressLabel: (input) =>
         `Creating ${input.slide.type} slide...`,
@@ -127,9 +106,9 @@ export function getToolsForSlides(
       description:
         "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. For content slides with custom layouts, use update_slide_content instead to make targeted changes. Only use this when you need to completely rebuild a slide.",
       inputSchema: z.object({
-        slideId: z.string().describe("Short slide ID like 's1', 's2'. Get these from get_deck."),
+        slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         slide: z
-          .discriminatedUnion("type", [
+          .union([
             CoverSlideSchema,
             SectionSlideSchema,
             ContentSlideSchema,
@@ -137,12 +116,11 @@ export function getToolsForSlides(
           .describe("The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized."),
       }),
       handler: async (input) => {
-        const slideUuid = getSlideUuid(aiIdScope, input.slideId);
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide);
 
         const res = await serverActions.updateSlide({
           projectId,
-          slide_id: slideUuid,
+          slide_id: input.slideId,
           slide: convertedSlide,
         });
         if (!res.success) throw new Error(res.err);
@@ -161,10 +139,10 @@ export function getToolsForSlides(
       description:
         "Update specific content blocks within a slide while preserving the layout structure. This is the preferred way to modify content slides as it maintains any custom layout arrangements. Use block IDs from get_slide to target specific text or figure blocks for replacement.",
       inputSchema: z.object({
-        slideId: z.string().describe("Short slide ID like 's1', 's2'. Get these from get_deck."),
+        slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         updates: z.array(z.object({
-          blockId: z.string().describe("Short block ID like 'b1', 'b2'. Get these from get_slide."),
-          newContent: z.discriminatedUnion("type", [
+          blockId: z.string().describe("Block ID (3-char alphanumeric, e.g. 't2n'). Get these from get_slide."),
+          newContent: z.union([
             z.object({
               type: z.literal("text"),
               markdown: z.string().max(5000),
@@ -193,28 +171,21 @@ export function getToolsForSlides(
         })).min(1).describe("Array of updates to apply. Each update specifies a block ID and the new content for that block."),
       }),
       handler: async (input) => {
-        const slideUuid = getSlideUuid(aiIdScope, input.slideId);
-
         const currentRes = await serverActions.getSlide({
           projectId,
-          slide_id: slideUuid,
+          slide_id: input.slideId,
         });
         if (!currentRes.success) throw new Error(currentRes.err);
-
-        const updatesWithUuids = input.updates.map((u) => ({
-          blockId: getBlockUuid(aiIdScope, slideUuid, u.blockId),
-          newContent: u.newContent,
-        }));
 
         const updatedSlide = await getSlideWithUpdatedBlocks(
           projectId,
           currentRes.data.slide,
-          updatesWithUuids as any,
+          input.updates as any,
         );
 
         const res = await serverActions.updateSlide({
           projectId,
-          slide_id: slideUuid,
+          slide_id: input.slideId,
           slide: updatedSlide,
         });
         if (!res.success) throw new Error(res.err);
@@ -234,20 +205,18 @@ export function getToolsForSlides(
       inputSchema: z.object({
         slideIds: z
           .array(z.string())
-          .describe("Array of short slide IDs to delete, like ['s1', 's2']. Get these from get_deck."),
+          .describe("Array of slide IDs to delete (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
       }),
       handler: async (input) => {
-        const slideUuids = input.slideIds.map((id) => getSlideUuid(aiIdScope, id));
-
         const res = await serverActions.deleteSlides({
           projectId,
           deck_id: deckId,
-          slideIds: slideUuids,
+          slideIds: input.slideIds,
         });
         if (!res.success) throw new Error(res.err);
 
         const lastUpdated = new Date().toISOString();
-        for (const slideId of slideUuids) {
+        for (const slideId of input.slideIds) {
           optimisticSetLastUpdated("slides", slideId, lastUpdated);
         }
         optimisticSetLastUpdated("slide_decks", deckId, lastUpdated);
@@ -267,31 +236,22 @@ export function getToolsForSlides(
       inputSchema: z.object({
         slideIds: z
           .array(z.string())
-          .describe("Array of short slide IDs to move, like ['s1', 's2']. Get these from get_deck."),
+          .describe("Array of slide IDs to move (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
         position: z
           .union([
-            z.object({ after: z.string().describe("Short slide ID to place after, like 's3'") }),
-            z.object({ before: z.string().describe("Short slide ID to place before, like 's3'") }),
+            z.object({ after: z.string().describe("Slide ID to place after (3-char, e.g. 'p4q')") }),
+            z.object({ before: z.string().describe("Slide ID to place before (3-char, e.g. 'p4q')") }),
             z.object({ toStart: z.literal(true).describe("Set to true to move slides to the beginning") }),
             z.object({ toEnd: z.literal(true).describe("Set to true to move slides to the end") }),
           ])
           .describe("The destination position for the slides."),
       }),
       handler: async (input) => {
-        const slideUuids = input.slideIds.map((id) => getSlideUuid(aiIdScope, id));
-
-        let positionWithUuids: any = input.position;
-        if ("after" in input.position) {
-          positionWithUuids = { after: getSlideUuid(aiIdScope, input.position.after) };
-        } else if ("before" in input.position) {
-          positionWithUuids = { before: getSlideUuid(aiIdScope, input.position.before) };
-        }
-
         const res = await serverActions.moveSlides({
           projectId,
           deck_id: deckId,
-          slideIds: slideUuids,
-          position: positionWithUuids,
+          slideIds: input.slideIds,
+          position: input.position,
         });
         if (!res.success) throw new Error(res.err);
 

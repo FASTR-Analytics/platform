@@ -15,6 +15,7 @@ import type {
 import { slideDeckStyle } from "./convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
+import { generateUniqueBlockId } from "~/utils/id_generation";
 
 /**
  * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>)
@@ -30,7 +31,8 @@ export async function convertAiInputToSlide(
 
   // Content slide - resolve figures and optimize layout
   if (!slideInput.blocks || !Array.isArray(slideInput.blocks)) {
-    throw new Error("Content slide must have a 'blocks' array");
+    console.error("Invalid blocks:", JSON.stringify(slideInput, null, 2));
+    throw new Error(`Content slide must have a 'blocks' array. Received: ${typeof slideInput.blocks}`);
   }
 
   const resolvedBlocks: ContentBlock[] = [];
@@ -63,12 +65,16 @@ export async function convertAiInputToSlide(
 
     const node = createItemNode(pageItem);
 
-    // Store figure source metadata by ID
+    // Override panther UUID with short ID
+    const shortId = generateUniqueBlockId();
+    const nodeWithShortId = { ...node, id: shortId };
+
+    // Store figure source metadata by short ID
     if (block.type === "figure" && block.source) {
-      sourceMap.set(node.id, block.source);
+      sourceMap.set(shortId, block.source);
     }
 
-    return node;
+    return nodeWithShortId;
   });
 
   // Optimize layout
@@ -84,13 +90,44 @@ export async function convertAiInputToSlide(
     undefined  // No constraint - let optimizer decide
   );
 
-  // Restore metadata into optimized layout
-  const layoutWithMeta = restoreMetadata(optimized.layout, sourceMap);
+  // Reassign short IDs to optimized layout (optimizer creates new row/col nodes with UUIDs)
+  const layoutWithShortIds = reassignLayoutIds(optimized.layout, sourceMap);
+
+  // Restore metadata into layout
+  const layoutWithMeta = restoreMetadata(layoutWithShortIds, sourceMap);
 
   return {
     type: "content",
     heading: slideInput.heading,
     layout: layoutWithMeta,
+  };
+}
+
+/**
+ * Reassign short IDs to all nodes in layout tree (after optimization creates UUID nodes)
+ */
+function reassignLayoutIds(
+  node: LayoutNode<PageContentItem>,
+  sourceMap: Map<string, FigureSource>
+): LayoutNode<PageContentItem> {
+  const oldId = node.id;
+  const newId = generateUniqueBlockId();
+
+  // Transfer source metadata from old to new ID
+  const source = sourceMap.get(oldId);
+  if (source) {
+    sourceMap.delete(oldId);
+    sourceMap.set(newId, source);
+  }
+
+  if (node.type === "item") {
+    return { ...node, id: newId };
+  }
+
+  return {
+    ...node,
+    id: newId,
+    children: node.children.map((child) => reassignLayoutIds(child, sourceMap)),
   };
 }
 

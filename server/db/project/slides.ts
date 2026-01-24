@@ -7,6 +7,7 @@ import {
 } from "lib";
 import { DBSlide } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
+import { generateUniqueSlideId } from "../../utils/id_generation.ts";
 
 // Get all slides for a deck (ordered)
 export async function getSlides(
@@ -77,7 +78,7 @@ export async function createSlide(
   slide: Slide
 ): Promise<APIResponseWithData<{ slide: SlideWithMeta; index: number }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const slideId = crypto.randomUUID();
+    const slideId = await generateUniqueSlideId(projectDb);
     const lastUpdated = new Date().toISOString();
 
     let newSortOrder: number;

@@ -2,6 +2,7 @@ import { Sql } from "postgres";
 import { type APIResponseNoData, APIResponseWithData, SlideDeckSummary, SlideDeckDetail } from "lib";
 import { DBSlideDeck } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
+import { generateUniqueDeckId } from "../../utils/id_generation.ts";
 
 export async function getAllSlideDecks(
   projectDb: Sql,
@@ -60,7 +61,7 @@ export async function createSlideDeck(
   label: string,
 ): Promise<APIResponseWithData<{ deckId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const deckId = crypto.randomUUID();
+    const deckId = await generateUniqueDeckId(projectDb);
     const lastUpdated = new Date().toISOString();
 
     await projectDb`

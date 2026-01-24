@@ -12,7 +12,6 @@ import { serverActions } from "~/server_actions";
 import { getToolsForSlides } from "../ai_tools/ai_tool_definitions";
 import { useProjectDirtyStates, useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideList } from "./slide_list";
-import { createAiIdScope } from "./utils/ai_id_scope";
 import { DEFAULT_MODEL_CONFIG, DEFAULT_BUILTIN_TOOLS, createProjectSDKClient } from "~/components/ai_configs/defaults";
 
 type Props = {
@@ -57,14 +56,10 @@ export function ProjectAiSlideDeck(p: Props) {
   // AI setup
   const sdkClient = createProjectSDKClient(projectId);
 
-  // Create ID scope once per session - persists for conversation lifetime
-  const aiIdScope = createAiIdScope(p.deckId);
-
   const tools = createMemo(() =>
     getToolsForSlides(
       projectId,
       p.deckId,
-      aiIdScope,
       slideIds,
       optimisticSetLastUpdated
     )
@@ -76,7 +71,7 @@ export function ProjectAiSlideDeck(p: Props) {
 Current deck: "${p.reportLabel}"
 Slide count: ${slideIds().length}
 
-Use get_deck to see the current deck structure before making changes. Slides have short IDs like 's1', 's2', etc. Content blocks within slides have short IDs like 'b1', 'b2', etc. Use these IDs when referencing slides or blocks in tool calls.`;
+Use get_deck to see the current deck structure before making changes. Slides have 3-character alphanumeric IDs (e.g. 'a3k'). Content blocks within slides also have 3-character IDs (e.g. 't2n'). Use these IDs when referencing slides or blocks in tool calls.`;
   });
 
   return (

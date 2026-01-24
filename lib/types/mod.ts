@@ -1,4 +1,3 @@
-export * from "./ai_id_mapping.ts";
 export * from "./assets.ts";
 export * from "./dataset_hfa.ts";
 export * from "./dimension_definitions.ts";

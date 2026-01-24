@@ -5,7 +5,7 @@ import { getToolsForReadingVisualizations, getToolForVisualizationData, getToolF
 import { getToolsForWritingVisualizations } from "./tools/visualization_writing";
 import { getToolsForConfiguringVisualizations } from "./tools/visualization_config";
 import { getToolsForMethodologyDocs } from "./tools/methodology_docs";
-import { PresentationObjectConfig, ResultsValue, type AiIdScope } from "lib";
+import { PresentationObjectConfig, ResultsValue } from "lib";
 import { SetStoreFunction } from "solid-js/store";
 
 // Tools for the main project chatbot
@@ -24,7 +24,6 @@ export function getToolsForChatbot(projectId: string) {
 export function getToolsForSlides(
   projectId: string,
   reportId: string,
-  aiIdScope: AiIdScope,
   getSlideIds: () => string[],
   optimisticSetLastUpdated: (tableName: "slides" | "slide_decks", id: string, lastUpdated: string) => void,
 ) {
@@ -32,7 +31,6 @@ export function getToolsForSlides(
     ...getSlideTools(
       projectId,
       reportId,
-      aiIdScope,
       getSlideIds,
       optimisticSetLastUpdated,
     ),
