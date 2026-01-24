@@ -31,10 +31,20 @@ function getCurrentPeriodId(calendar: CalendarType): number {
   const gregorianMonth = now.getMonth() + 1; // JS months are 0-based
 
   if (calendar === "ethiopian") {
-    // Ethiopian calendar is ~8 years behind Gregorian
-    const ethiopianYear = gregorianYear - 8;
-    // Simplified month mapping - could be refined based on actual Ethiopian calendar
-    return ethiopianYear * 100 + Math.min(gregorianMonth, 13);
+    let ethiopianYear: number;
+    let ethiopianMonth: number;
+
+    if (gregorianMonth >= 9) {
+      // Sept-Dec → Ethiopian months 1-4, same Ethiopian year
+      ethiopianYear = gregorianYear - 7;
+      ethiopianMonth = gregorianMonth - 8;
+    } else {
+      // Jan-Aug → Ethiopian months 5-12, previous Ethiopian year
+      ethiopianYear = gregorianYear - 8;
+      ethiopianMonth = gregorianMonth + 4;
+    }
+
+    return ethiopianYear * 100 + ethiopianMonth;
   }
 
   return gregorianYear * 100 + gregorianMonth;

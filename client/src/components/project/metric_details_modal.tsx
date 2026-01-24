@@ -92,7 +92,7 @@ export function MetricDetailsModal(
             </div>
           </div>
 
-          <Show when={p.metric.postAggregationExpression}>
+          {/* <Show when={p.metric.postAggregationExpression}>
             <div>
               <div class="text-neutral font-700 mb-1 text-xs">
                 {t("Post aggregation expression")}
@@ -101,7 +101,7 @@ export function MetricDetailsModal(
                 {p.metric.postAggregationExpression}
               </div>
             </div>
-          </Show>
+          </Show> */}
 
           <div>
             <div class="text-neutral font-700 mb-1 text-xs">

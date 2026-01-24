@@ -1,11 +1,10 @@
-import { DEFAULT_ANTHROPIC_MODEL, isFrench, type InstanceDetail, type ProjectDetail } from "lib";
+import { isFrench, type InstanceDetail, type ProjectDetail } from "lib";
 import {
   AIChat,
   AIChatProvider,
   Button,
   ButtonGroup,
   createAIChat,
-  createSDKClient,
   createTextEditorHandler,
   downloadPdf,
   downloadWord,
@@ -20,7 +19,6 @@ import {
 import { createMemo, createSignal, Match, onCleanup, Show, Switch } from "solid-js";
 import fontMap from "~/font-map.json";
 import { serverActions } from "~/server_actions";
-import { _SERVER_HOST } from "~/server_actions/config";
 import { longFormEditorState } from "~/state/long_form_editor";
 import { AIToolsDebug } from "../ai_tools/AIDebugComponent";
 import { getToolsForReport } from "../ai_tools/ai_tool_definitions";
@@ -29,6 +27,7 @@ import { buildFigureMapForExport } from "./build_figure_map";
 import { extractFiguresFromMarkdown } from "./extract_figure_ids";
 import { createFigureRenderer } from "./markdown_figure_renderer";
 import { createUndoRedo } from "./use_undo_redo";
+import { DEFAULT_MODEL_CONFIG, createProjectSDKClient } from "~/components/ai_configs/defaults";
 
 type Props = {
   instanceDetail: InstanceDetail;
@@ -41,12 +40,7 @@ type Props = {
 
 export function ProjectAiReport(p: Props) {
   const projectId = p.projectDetail.id;
-
-  const sdkClient = createSDKClient({
-    baseURL: `${_SERVER_HOST}/ai`, // Uses unified /ai/v1/messages endpoint
-    defaultHeaders: { "Project-Id": projectId },
-  });
-
+  const sdkClient = createProjectSDKClient(projectId);
   const systemPrompt = createMemo(() => getReportSystemPrompt(p.instanceDetail, p.projectDetail));
 
   // Use stable UI state from module-level store
@@ -138,10 +132,7 @@ export function ProjectAiReport(p: Props) {
     <AIChatProvider
       config={{
         sdkClient,
-        modelConfig: {
-          model: DEFAULT_ANTHROPIC_MODEL,
-          max_tokens: 4096,
-        },
+        modelConfig: DEFAULT_MODEL_CONFIG,
         tools: getToolsForReport(projectId, () => currentSelection()),
         builtInTools: { webSearch: true, textEditor: true },
         textEditorHandler,

@@ -3,15 +3,6 @@ import { Slide, DeckSummary } from "../../types/mod.ts";
 import type { SlideWithMeta } from "../../types/slides.ts";
 
 export const slideRouteRegistry = {
-  // Get deck summary (for AI context)
-  getDeckSummary: route({
-    path: "/slides/deck/:deck_id",
-    method: "GET",
-    params: {} as { deck_id: string },
-    response: {} as DeckSummary,
-    requiresProject: true,
-  }),
-
   // Get all slides
   getSlides: route({
     path: "/slides/:deck_id",
@@ -86,29 +77,6 @@ export const slideRouteRegistry = {
     response: {} as {
       slides: SlideWithMeta[];
     },
-    requiresProject: true,
-  }),
-
-  // Update plan
-  updatePlan: route({
-    path: "/slides/:deck_id/plan",
-    method: "PUT",
-    params: {} as { deck_id: string },
-    body: {} as { plan: string },
-    response: {} as { lastUpdated: string },
-    requiresProject: true,
-  }),
-
-  // Resolve figure from presentation object (snapshot)
-  // TODO: Implement in Phase 8
-  resolveFigure: route({
-    path: "/slides/resolve-figure",
-    method: "POST",
-    body: {} as {
-      presentationObjectId: string;
-      replicant?: string;
-    },
-    response: {} as any, // Will be FigureBlock or similar
     requiresProject: true,
   }),
 };

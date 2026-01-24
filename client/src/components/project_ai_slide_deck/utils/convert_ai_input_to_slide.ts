@@ -29,6 +29,10 @@ export async function convertAiInputToSlide(
   }
 
   // Content slide - resolve figures and optimize layout
+  if (!slideInput.blocks || !Array.isArray(slideInput.blocks)) {
+    throw new Error("Content slide must have a 'blocks' array");
+  }
+
   const resolvedBlocks: ContentBlock[] = [];
 
   for (const block of slideInput.blocks) {

@@ -3,6 +3,7 @@ import { ProjectUser } from "./instance.ts";
 import { type InstalledModuleSummary } from "./modules.ts";
 import { PresentationObjectSummary } from "./presentation_objects.ts";
 import { ReportSummary } from "./reports.ts";
+import { SlideDeckSummary } from "./slides.ts";
 
 // ============================================================================
 // Project Types
@@ -25,6 +26,7 @@ export type ProjectDetail = {
   projectModules: InstalledModuleSummary[];
   visualizations: PresentationObjectSummary[];
   reports: ReportSummary[];
+  slideDecks: SlideDeckSummary[];
   projectUsers: ProjectUser[];
 };
 

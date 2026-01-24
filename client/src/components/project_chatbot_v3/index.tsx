@@ -5,17 +5,16 @@ import {
   AIChatProvider,
   AIChat,
   createAIChat,
-  createSDKClient,
   type OpenEditorProps,
   type AIChatConfig,
 } from "panther";
-import { isFrench, DEFAULT_ANTHROPIC_MODEL, type ProjectDetail, type InstanceDetail } from "lib";
+import { isFrench, type ProjectDetail, type InstanceDetail } from "lib";
 import { createMemo, createSignal, Show } from "solid-js";
-import { _SERVER_HOST } from "~/server_actions/config";
 import { WelcomeMessage } from "./WelcomeMessage";
 import { getToolsForChatbot } from "../ai_tools/ai_tool_definitions";
 import { AIToolsDebug } from "../ai_tools/AIDebugComponent";
 import { getChatbotSystemPrompt } from "../ai_prompts/chatbot";
+import { DEFAULT_MODEL_CONFIG, createProjectSDKClient } from "~/components/ai_configs/defaults";
 
 type Props = {
   instanceDetail: InstanceDetail;
@@ -33,20 +32,13 @@ export function ProjectChatbotV3(p: Props) {
 
   const tools = createMemo(() => getToolsForChatbot(projectId));
   const systemPrompt = createMemo(() => getChatbotSystemPrompt(p.instanceDetail, p.projectDetail));
-
-  const sdkClient = createSDKClient({
-    baseURL: `${_SERVER_HOST}/ai`, // Uses unified /ai/v1/messages endpoint
-    defaultHeaders: { "Project-Id": projectId },
-  });
+  const sdkClient = createProjectSDKClient(projectId);
 
   return (
     <AIChatProvider
       config={{
         sdkClient,
-        modelConfig: {
-          model: DEFAULT_ANTHROPIC_MODEL,
-          max_tokens: 4096,
-        },
+        modelConfig: DEFAULT_MODEL_CONFIG,
         tools: tools() as AIChatConfig["tools"],
         conversationId: projectId,
         enableStreaming: false,

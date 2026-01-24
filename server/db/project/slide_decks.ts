@@ -1,23 +1,10 @@
 import { Sql } from "postgres";
-import { APIResponseWithData, type APIResponseNoData } from "lib";
+import { type APIResponseNoData, APIResponseWithData, SlideDeckSummary, SlideDeckDetail } from "lib";
 import { DBSlideDeck } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 
-export type SlideDeckSummary = {
-  id: string;
-  label: string;
-};
-
-export type SlideDeckDetail = {
-  id: string;
-  label: string;
-  plan: string;
-  slideIds: string[];
-  lastUpdated: string;
-};
-
 export async function getAllSlideDecks(
-  projectDb: Sql
+  projectDb: Sql,
 ): Promise<APIResponseWithData<SlideDeckSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const decks = await projectDb<DBSlideDeck[]>`
@@ -36,7 +23,7 @@ export async function getAllSlideDecks(
 
 export async function getSlideDeckDetail(
   projectDb: Sql,
-  deckId: string
+  deckId: string,
 ): Promise<APIResponseWithData<SlideDeckDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const deck = (
@@ -70,7 +57,7 @@ export async function getSlideDeckDetail(
 
 export async function createSlideDeck(
   projectDb: Sql,
-  label: string
+  label: string,
 ): Promise<APIResponseWithData<{ deckId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const deckId = crypto.randomUUID();
@@ -88,7 +75,7 @@ export async function createSlideDeck(
 export async function updateSlideDeckLabel(
   projectDb: Sql,
   deckId: string,
-  label: string
+  label: string,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -106,7 +93,7 @@ export async function updateSlideDeckLabel(
 export async function updateSlideDeckPlan(
   projectDb: Sql,
   deckId: string,
-  plan: string
+  plan: string,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -123,7 +110,7 @@ export async function updateSlideDeckPlan(
 
 export async function deleteSlideDeck(
   projectDb: Sql,
-  deckId: string
+  deckId: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await projectDb`

@@ -3,7 +3,7 @@ import type { LayoutNode } from "panther";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 
-export async function updateSlideBlocks(
+export async function getSlideWithUpdatedBlocks(
   projectId: string,
   currentSlide: Slide,
   updates: Array<{ blockId: string; newContent: AiContentBlockInput }>

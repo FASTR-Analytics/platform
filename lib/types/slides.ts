@@ -59,6 +59,21 @@ export type ContentSlide = {
 // Union type
 export type Slide = CoverSlide | SectionSlide | ContentSlide;
 
+// Slide deck summary (list view)
+export type SlideDeckSummary = {
+  id: string;
+  label: string;
+};
+
+// Slide deck detail (for rendering)
+export type SlideDeckDetail = {
+  id: string;
+  label: string;
+  plan: string;
+  slideIds: string[];
+  lastUpdated: string;
+};
+
 // Deck summary (for AI context)
 export type DeckSummary = {
   reportId: string;

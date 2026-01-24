@@ -39,7 +39,7 @@
     "build:server": "deno task build:modules && deno task build:translations",
     "build:modules": "deno run --allow-read --allow-write --allow-env --allow-net --env-file --unstable-raw-imports build_module_definitions.ts",
     "build:translations": "deno run --allow-read --allow-write --allow-env --allow-ffi --env-file build_translations.ts",
-    "typecheck": "deno check --no-emit main.ts && cd client && npm run typecheck",
+    "typecheck": "deno check main.ts && echo '✓ Server typecheck passed' && sh -c 'cd client && npm run typecheck' && echo '✓ Client typecheck passed\n\n'",
     "check": "deno check main.ts",
     "check:all": "deno check main.ts server/**/*.ts",
     "compile": "deno compile --allow-all --env-file --output=wb-fastr-server main.ts",

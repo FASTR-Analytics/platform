@@ -12,44 +12,8 @@ import {
 import { getProjectEditor, getProjectViewer } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { getSlideTitle, type DeckSummary } from "lib";
 
 export const routesSlides = new Hono();
-
-// Get deck summary (for AI context)
-defineRoute(
-  routesSlides,
-  "getDeckSummary",
-  getProjectViewer,
-  async (c, { params }) => {
-    const deckId = params.deck_id;
-
-    const deckRes = await getSlideDeckDetail(c.var.ppk.projectDb, deckId);
-    if (!deckRes.success) {
-      return c.json(deckRes);
-    }
-
-    const slidesRes = await getSlides(c.var.ppk.projectDb, deckId);
-    if (!slidesRes.success) {
-      return c.json(slidesRes);
-    }
-
-    const summary: DeckSummary = {
-      reportId: deckId,
-      label: deckRes.data.label,
-      plan: deckRes.data.plan,
-      slides: slidesRes.data.map((s) => ({
-        id: s.id,
-        index: s.index,
-        type: s.slide.type,
-        title: getSlideTitle(s.slide),
-      })),
-      lastUpdated: deckRes.data.lastUpdated,
-    };
-
-    return c.json({ success: true, data: summary });
-  }
-);
 
 // Get all slides
 defineRoute(
@@ -89,11 +53,20 @@ defineRoute(
       return c.json(res);
     }
 
+    const lastUpdated = res.data.slide.lastUpdated;
+
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slides",
       [res.data.slide.id],
-      res.data.slide.lastUpdated
+      lastUpdated
+    );
+
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "slide_decks",
+      [params.deck_id],
+      lastUpdated
     );
 
     return c.json(res);
@@ -150,6 +123,13 @@ defineRoute(
       lastUpdated
     );
 
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "slide_decks",
+      [params.deck_id],
+      lastUpdated
+    );
+
     return c.json(res);
   }
 );
@@ -170,62 +150,50 @@ defineRoute(
       return c.json(res);
     }
 
+    const lastUpdated = new Date().toISOString();
+
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slides",
       body.slideIds,
-      new Date().toISOString()
+      lastUpdated
     );
-
-    return c.json(res);
-  }
-);
-
-// Update plan
-defineRoute(
-  routesSlides,
-  "updatePlan",
-  getProjectEditor,
-  async (c, { params, body }) => {
-    const deckId = params.deck_id;
-
-    const res = await updateSlideDeckPlan(
-      c.var.ppk.projectDb,
-      deckId,
-      body.plan
-    );
-    if (!res.success) {
-      return c.json(res);
-    }
 
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slide_decks",
-      [deckId],
-      res.data.lastUpdated
+      [params.deck_id],
+      lastUpdated
     );
 
     return c.json(res);
   }
 );
 
-// Resolve figure - returns snapshot data
-// TODO: Implement this in Phase 8 when we add figure snapshot support
-defineRoute(
-  routesSlides,
-  "resolveFigure",
-  getProjectViewer,
-  async (c, { body }) => {
-    // Placeholder - will implement when we add figure resolution logic
-    // This needs to:
-    // 1. Get presentation object config
-    // 2. Get results data from module
-    // 3. Build FigureInputs
-    // 4. Return FigureSnapshot
+// COMMENTED OUT: Plan feature hidden
+// defineRoute(
+//   routesSlides,
+//   "updatePlan",
+//   getProjectEditor,
+//   async (c, { params, body }) => {
+//     const deckId = params.deck_id;
 
-    return c.json({
-      success: false,
-      err: "resolveFigure not yet implemented - Phase 8",
-    });
-  }
-);
+//     const res = await updateSlideDeckPlan(
+//       c.var.ppk.projectDb,
+//       deckId,
+//       body.plan
+//     );
+//     if (!res.success) {
+//       return c.json(res);
+//     }
+
+//     notifyLastUpdated(
+//       c.var.ppk.projectId,
+//       "slide_decks",
+//       [deckId],
+//       res.data.lastUpdated
+//     );
+
+//     return c.json(res);
+//   }
+// );

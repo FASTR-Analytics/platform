@@ -11,7 +11,7 @@ import {
   getReportItem,
   moveAndDeleteAllReportItems,
   restoreReport,
-  updateLongFormContent,
+  // updateLongFormContent,
   updateReportConfig,
   updateReportItemConfig,
 } from "../../db/mod.ts";
@@ -29,7 +29,7 @@ defineRoute(
     const res = await addReport(
       c.var.ppk.projectDb,
       body.label,
-      body.reportType
+      body.reportType,
     );
     if (res.success === false) {
       return c.json(res);
@@ -38,10 +38,10 @@ defineRoute(
       c.var.ppk.projectId,
       "reports",
       [res.data.newReportId],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -53,7 +53,7 @@ defineRoute(
       c.var.ppk.projectDb,
       params.report_id,
       body.label,
-      body.newProjectId
+      body.newProjectId,
     );
     if (res.success === false) {
       return c.json(res);
@@ -62,16 +62,16 @@ defineRoute(
       c.var.ppk.projectId,
       "reports",
       [res.data.newReportId],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     notifyLastUpdated(
       c.var.ppk.projectId,
       "report_items",
       res.data.newReportItemIds,
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -82,10 +82,10 @@ defineRoute(
     const res = await getReportDetail(
       c.var.ppk.projectId,
       c.var.ppk.projectDb,
-      params.report_id
+      params.report_id,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -96,7 +96,7 @@ defineRoute(
     const res = await updateReportConfig(
       c.var.ppk.projectDb,
       params.report_id,
-      body.config
+      body.config,
     );
     if (res.success === false) {
       return c.json(res);
@@ -105,10 +105,10 @@ defineRoute(
       c.var.ppk.projectId,
       "reports",
       [params.report_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -119,10 +119,10 @@ defineRoute(
     const res = await backupReport(
       c.var.ppk.projectId,
       c.var.ppk.projectDb,
-      params.report_id
+      params.report_id,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -133,10 +133,10 @@ defineRoute(
     const res = await restoreReport(
       c.var.ppk.projectDb,
       body.report,
-      body.reportItems
+      body.reportItems,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -146,31 +146,31 @@ defineRoute(
   async (c, { params }) => {
     const res = await deleteReport(c.var.ppk.projectDb, params.report_id);
     return c.json(res);
-  }
+  },
 );
 
-defineRoute(
-  routesReports,
-  "updateLongFormContent",
-  getProjectEditor,
-  async (c, { params, body }) => {
-    const res = await updateLongFormContent(
-      c.var.ppk.projectDb,
-      params.report_id,
-      body.markdown
-    );
-    if (res.success === false) {
-      return c.json(res);
-    }
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [params.report_id],
-      res.data.lastUpdated
-    );
-    return c.json(res);
-  }
-);
+// defineRoute(
+//   routesReports,
+//   "updateLongFormContent",
+//   getProjectEditor,
+//   async (c, { params, body }) => {
+//     const res = await updateLongFormContent(
+//       c.var.ppk.projectDb,
+//       params.report_id,
+//       body.markdown,
+//     );
+//     if (res.success === false) {
+//       return c.json(res);
+//     }
+//     notifyLastUpdated(
+//       c.var.ppk.projectId,
+//       "reports",
+//       [params.report_id],
+//       res.data.lastUpdated,
+//     );
+//     return c.json(res);
+//   },
+// );
 
 ////////////////////////
 //                    //
@@ -183,7 +183,11 @@ defineRoute(
   "createReportItem",
   getProjectEditor,
   async (c, { params, body }) => {
-    const res = await addReportItem(c.var.ppk.projectDb, params.report_id, body.afterItemId);
+    const res = await addReportItem(
+      c.var.ppk.projectDb,
+      params.report_id,
+      body.afterItemId,
+    );
     if (res.success === false) {
       return c.json(res);
     }
@@ -191,16 +195,16 @@ defineRoute(
       c.var.ppk.projectId,
       "report_items",
       [res.data.newReportItemId],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     notifyLastUpdated(
       c.var.ppk.projectId,
       "reports",
       [params.report_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -213,7 +217,7 @@ defineRoute(
       params.report_id,
       params.item_id,
       body.nextOrEnd,
-      body.newReportId
+      body.newReportId,
     );
     if (res.success === false) {
       return c.json(res);
@@ -222,16 +226,16 @@ defineRoute(
       c.var.ppk.projectId,
       "report_items",
       [res.data.newReportItemId],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     notifyLastUpdated(
       c.var.ppk.projectId,
       "reports",
       [params.report_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -242,10 +246,10 @@ defineRoute(
     const res = await getReportItem(
       c.var.ppk.projectId,
       c.var.ppk.projectDb,
-      params.item_id
+      params.item_id,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -256,7 +260,7 @@ defineRoute(
     const res = await updateReportItemConfig(
       c.var.ppk.projectDb,
       params.item_id,
-      body.config
+      body.config,
     );
     if (res.success === false) {
       return c.json(res);
@@ -265,10 +269,10 @@ defineRoute(
       c.var.ppk.projectId,
       "report_items",
       [params.item_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -279,7 +283,7 @@ defineRoute(
     const res = await moveAndDeleteAllReportItems(
       c.var.ppk.projectDb,
       params.report_id,
-      body.itemIdsInOrder
+      body.itemIdsInOrder,
     );
     if (res.success === false) {
       return c.json(res);
@@ -288,10 +292,10 @@ defineRoute(
       c.var.ppk.projectId,
       "reports",
       [params.report_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -307,8 +311,8 @@ defineRoute(
       c.var.ppk.projectId,
       "reports",
       [params.report_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
     return c.json(res);
-  }
+  },
 );

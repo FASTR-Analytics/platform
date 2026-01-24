@@ -1,16 +1,15 @@
-import { DEFAULT_ANTHROPIC_MODEL, type InstanceDetail, PresentationObjectConfig, ProjectDetail, ResultsValue, t } from "lib";
+import { type InstanceDetail, PresentationObjectConfig, ProjectDetail, ResultsValue, t } from "lib";
 import {
   AIChat,
   AIChatProvider,
-  createSDKClient,
   FigureInputs,
   StateHolder,
 } from "panther";
 import { createMemo } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { _SERVER_HOST } from "~/server_actions/config";
 import { getToolsForVizPane } from "../ai_tools/ai_tool_definitions";
 import { getVizChatSystemPrompt } from "../ai_prompts/viz_chat";
+import { VIZ_CHAT_MODEL_CONFIG, createProjectSDKClient } from "~/components/ai_configs/defaults";
 
 type Props = {
   instanceDetail: InstanceDetail;
@@ -23,10 +22,7 @@ type Props = {
 };
 
 export function AiInterpretationPane(p: Props) {
-  const sdkClient = createSDKClient({
-    baseURL: `${_SERVER_HOST}/ai`, // Uses /ai/v1/messages endpoint
-    defaultHeaders: { "Project-Id": p.projectDetail.id },
-  });
+  const sdkClient = createProjectSDKClient(p.projectDetail.id);
 
   const tools = createMemo(() =>
     getToolsForVizPane(
@@ -46,10 +42,7 @@ export function AiInterpretationPane(p: Props) {
     <AIChatProvider
       config={{
         sdkClient,
-        modelConfig: {
-          model: DEFAULT_ANTHROPIC_MODEL,
-          max_tokens: 2048,
-        },
+        modelConfig: VIZ_CHAT_MODEL_CONFIG,
         tools: tools(),
         enableStreaming: true,
         conversationId: `viz-chat-${p.presentationObjectId}`,

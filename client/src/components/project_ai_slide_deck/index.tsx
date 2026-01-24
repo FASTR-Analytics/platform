@@ -1,25 +1,19 @@
-import {
-  DEFAULT_ANTHROPIC_MODEL,
-  type ProjectDetail,
-  type DeckSummary,
-  type SlideWithMeta,
-} from "lib";
+import { type ProjectDetail } from "lib";
 import {
   AIChat,
   AIChatProvider,
   Button,
   createAIChat,
-  createSDKClient,
   FrameTop,
   HeadingBar,
 } from "panther";
 import { createEffect, createMemo, createSignal, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { _SERVER_HOST } from "~/server_actions/config";
 import { getToolsForSlides } from "../ai_tools/ai_tool_definitions";
-import { useProjectDirtyStates } from "../project_runner/mod";
+import { useProjectDirtyStates, useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideList } from "./slide_list";
 import { createAiIdScope } from "./utils/ai_id_scope";
+import { DEFAULT_MODEL_CONFIG, DEFAULT_BUILTIN_TOOLS, createProjectSDKClient } from "~/components/ai_configs/defaults";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -31,6 +25,7 @@ type Props = {
 export function ProjectAiSlideDeck(p: Props) {
   const projectId = p.projectDetail.id;
   const pds = useProjectDirtyStates();
+  const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
 
   // State - just track slide IDs, not full slide data
   const [slideIds, setSlideIds] = createSignal<string[]>([]);
@@ -46,35 +41,6 @@ export function ProjectAiSlideDeck(p: Props) {
     setIsLoading(false);
   });
 
-  // Deck summary for AI context - fetch from server
-  const getDeckSummary = async (): Promise<DeckSummary> => {
-    const res = await serverActions.getDeckSummary({ projectId, deck_id: p.deckId });
-    if (!res.success) throw new Error(res.err);
-    return res.data;
-  };
-
-  // Tool callbacks - update slideIds array
-  const onSlideCreated = (newSlide: SlideWithMeta) => {
-    setSlideIds((prev) => {
-      const updated = [...prev];
-      updated.splice(newSlide.index, 0, newSlide.id);
-      return updated;
-    });
-  };
-
-  const onSlideUpdated = (updatedSlide: SlideWithMeta) => {
-    // No change to slideIds array, just cache updated
-  };
-
-  const onSlidesDeleted = (deletedIds: string[]) => {
-    const idsSet = new Set(deletedIds);
-    setSlideIds((prev) => prev.filter((id) => !idsSet.has(id)));
-  };
-
-  const onSlidesReordered = (reorderedSlides: SlideWithMeta[]) => {
-    setSlideIds(reorderedSlides.map((s) => s.id));
-  };
-
   // SSE handling - watch for deck updates
   createEffect(() => {
     const deckUpdate = pds.lastUpdated.slide_decks[p.deckId];
@@ -89,10 +55,7 @@ export function ProjectAiSlideDeck(p: Props) {
   });
 
   // AI setup
-  const sdkClient = createSDKClient({
-    baseURL: `${_SERVER_HOST}/ai`,
-    defaultHeaders: { "Project-Id": projectId },
-  });
+  const sdkClient = createProjectSDKClient(projectId);
 
   // Create ID scope once per session - persists for conversation lifetime
   const aiIdScope = createAiIdScope(p.deckId);
@@ -102,11 +65,8 @@ export function ProjectAiSlideDeck(p: Props) {
       projectId,
       p.deckId,
       aiIdScope,
-      getDeckSummary,
-      onSlideCreated,
-      onSlideUpdated,
-      onSlidesDeleted,
-      onSlidesReordered
+      slideIds,
+      optimisticSetLastUpdated
     )
   );
 
@@ -123,12 +83,9 @@ Use get_deck to see the current deck structure before making changes. Slides hav
     <AIChatProvider
       config={{
         sdkClient,
-        modelConfig: {
-          model: DEFAULT_ANTHROPIC_MODEL,
-          max_tokens: 4096,
-        },
+        modelConfig: DEFAULT_MODEL_CONFIG,
         tools: tools(),
-        builtInTools: { webSearch: true },
+        builtInTools: DEFAULT_BUILTIN_TOOLS,
         conversationId: `ai-slide-deck-${p.deckId}`,
         enableStreaming: true,
         system: systemPrompt,

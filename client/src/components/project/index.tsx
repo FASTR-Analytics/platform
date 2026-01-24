@@ -25,15 +25,18 @@ import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
 import { Report } from "../report";
 import { Visualization } from "../visualization";
 import { ProjectData } from "./project_data";
+import { ProjectDecks } from "./project_decks";
 import { ProjectMetrics } from "./project_metrics";
 import { ProjectModules } from "./project_modules";
 import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
+import { ProjectAiSlideDeck } from "../project_ai_slide_deck";
 
 type TabOption =
   | "chatbot"
   | "reports"
+  | "decks"
   | "visualizations"
   | "metrics"
   | "modules"
@@ -56,7 +59,7 @@ export default function Project(p: Props) {
   const [tab, setTab] = createSignal<TabOption>("reports");
 
   function changeTab(tab: TabOption) {
-    setSearchParams({ b: undefined, d: undefined });
+    setSearchParams({ r: undefined, d: undefined, v: undefined });
     setTab(tab);
   }
 
@@ -114,6 +117,14 @@ export default function Project(p: Props) {
                         instanceDetail={keyedInstanceDetail}
                       />
                     </Match>
+                    <Match when={getFirstString(searchParams.d)}>
+                      <ProjectAiSlideDeck
+                        projectDetail={keyedProjectDetail}
+                        deckId={getFirstString(searchParams.d)!}
+                        reportLabel={keyedProjectDetail.slideDecks.find(d => d.id === getFirstString(searchParams.d))?.label || "Slide Deck"}
+                        backToProject={backToProject}
+                      />
+                    </Match>
                     <Match when={getFirstString(searchParams.v)}>
                       <Visualization
                         isGlobalAdmin={p.isGlobalAdmin}
@@ -165,6 +176,16 @@ export default function Project(p: Props) {
                                     <ReportIcon />
                                   </span>
                                   {t2(T.FRENCH_UI_STRINGS.reports)}
+                                </div>
+                                <div
+                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                  onClick={() => changeTab("decks")}
+                                  data-selected={tab() === "decks"}
+                                >
+                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                    <SparklesIcon />
+                                  </span>
+                                  Decks
                                 </div>
                                 <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
@@ -235,6 +256,16 @@ export default function Project(p: Props) {
                               </Match>
                               <Match when={tab() === "reports"}>
                                 <ProjectReports
+                                  projectDetail={keyedProjectDetail}
+                                  attemptGetProjectDetail={projectDetail.fetch}
+                                  silentRefreshProject={
+                                    projectDetail.silentFetch
+                                  }
+                                  openProjectEditor={openProjectEditor}
+                                />
+                              </Match>
+                              <Match when={tab() === "decks"}>
+                                <ProjectDecks
                                   projectDetail={keyedProjectDetail}
                                   attemptGetProjectDetail={projectDetail.fetch}
                                   silentRefreshProject={

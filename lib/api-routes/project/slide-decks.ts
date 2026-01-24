@@ -1,5 +1,5 @@
 import { route } from "../route-utils.ts";
-import type { SlideDeckSummary, SlideDeckDetail } from "../../../server/db/project/slide_decks.ts";
+import type { SlideDeckSummary, SlideDeckDetail } from "../../types/slides.ts";
 
 export const slideDeckRouteRegistry = {
   getAllSlideDecks: route({

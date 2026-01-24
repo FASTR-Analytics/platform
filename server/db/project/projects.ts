@@ -28,6 +28,7 @@ import { addDatasetHmisToProject } from "./datasets_in_project_hmis.ts";
 import { getAllModulesForProject, installModule } from "./modules.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
 import { getAllReportsForProject } from "./reports.ts";
+import { getAllSlideDecks } from "./slide_decks.ts";
 import { addDatasetHfaToProject } from "./datasets_in_project_hfa.ts";
 import { runProjectMigrations } from "../migrations/runner.ts";
 
@@ -86,6 +87,9 @@ export async function getProjectDetail(
     const resReports = await getAllReportsForProject(projectDb);
     throwIfErrWithData(resReports);
 
+    const resSlideDecks = await getAllSlideDecks(projectDb);
+    throwIfErrWithData(resSlideDecks);
+
     const resVisualizations = await getAllPresentationObjectsForProject(
       projectDb
     );
@@ -132,6 +136,7 @@ export async function getProjectDetail(
       projectModules: sortedModules,
       visualizations: resVisualizations.data,
       reports: resReports.data,
+      slideDecks: resSlideDecks.data,
       projectUsers: fullProjectUsers,
     };
 

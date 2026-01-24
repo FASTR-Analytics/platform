@@ -7,40 +7,30 @@ import {
   ContentSlideSchema,
   getSlideTitle,
   type Slide,
-  type DeckSummary,
-  type SlideWithMeta,
   type AiIdScope,
 } from "lib";
 import { convertAiInputToSlide } from "~/components/project_ai_slide_deck/utils/convert_ai_input_to_slide";
-import { simplifySlideForAI, extractBlocksFromLayout } from "~/components/project_ai_slide_deck/utils/extract_blocks_from_layout";
-import { updateSlideBlocks } from "~/components/project_ai_slide_deck/utils/update_slide_blocks";
+import { simplifySlideForAI } from "~/components/project_ai_slide_deck/utils/extract_blocks_from_layout";
+import { getSlideWithUpdatedBlocks } from "~/components/project_ai_slide_deck/utils/get_slide_with_updated_blocks";
 import { registerSlide, registerBlock, getSlideUuid, getBlockUuid } from "~/components/project_ai_slide_deck/utils/ai_id_scope";
+import { getDeckSummaryForAI } from "~/components/project_ai_slide_deck/utils/get_deck_summary";
+import { _SLIDE_CACHE } from "~/state/caches/slides";
 
 export function getToolsForSlides(
   projectId: string,
   deckId: string,
   aiIdScope: AiIdScope,
-  getDeckSummary: () => Promise<DeckSummary>,
-  onSlideCreated: (slide: SlideWithMeta) => void,
-  onSlideUpdated: (slide: SlideWithMeta) => void,
-  onSlidesDeleted: (slideIds: string[]) => void,
-  onSlidesReordered: (slides: SlideWithMeta[]) => void,
+  getSlideIds: () => string[],
+  optimisticSetLastUpdated: (tableName: "slides" | "slide_decks", id: string, lastUpdated: string) => void,
 ) {
   return [
     createAITool({
       name: "get_deck",
       description:
-        "Get the current state of the slide deck, including the deck plan/notes and a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck.",
+        "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck.",
       inputSchema: z.object({}),
       handler: async () => {
-        const summary = await getDeckSummary();
-        return {
-          ...summary,
-          slides: summary.slides.map((slide) => ({
-            ...slide,
-            id: registerSlide(aiIdScope, slide.id),
-          })),
-        };
+        return await getDeckSummaryForAI(projectId, getSlideIds(), aiIdScope);
       },
       inProgressLabel: "Getting deck state...",
     }),
@@ -54,23 +44,29 @@ export function getToolsForSlides(
       }),
       handler: async (input) => {
         const slideUuid = getSlideUuid(aiIdScope, input.slideId);
+        const cached = await _SLIDE_CACHE.get({ projectId, slideId: slideUuid });
 
-        const res = await serverActions.getSlide({
-          projectId,
-          slide_id: slideUuid,
-        });
-        if (!res.success) throw new Error(res.err);
+        let slide;
+        if (!cached.data) {
+          // Cache miss - fetch and cache
+          const promise = serverActions.getSlide({ projectId, slide_id: slideUuid });
+          await _SLIDE_CACHE.setPromise(promise, { projectId, slideId: slideUuid }, cached.version);
+          const res = await promise;
+          if (!res.success) throw new Error(res.err);
+          slide = res.data.slide;
+        } else {
+          // Cache hit
+          slide = cached.data.slide;
+        }
 
-        const slide = res.data.slide;
         const simplified = simplifySlideForAI(slide);
 
-        if (simplified.type === "content" && slide.type === "content") {
-          const blocks = extractBlocksFromLayout(slide.layout);
+        if (simplified.type === "content") {
           return {
             ...simplified,
-            blocks: simplified.blocks.map((block, idx) => ({
+            blocks: simplified.blocks.map((block) => ({
               ...block,
-              id: registerBlock(aiIdScope, slideUuid, blocks[idx].id),
+              id: registerBlock(aiIdScope, slideUuid, block.id),
             })),
           };
         }
@@ -112,21 +108,13 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        onSlideCreated(res.data.slide);
+        const lastUpdated = res.data.slide.lastUpdated;
+        optimisticSetLastUpdated("slides", res.data.slide.id, lastUpdated);
+        optimisticSetLastUpdated("slide_decks", deckId, lastUpdated);
 
-        const summary = await getDeckSummary();
         const newSlideShortId = registerSlide(aiIdScope, res.data.slide.id);
 
-        return {
-          createdSlideId: newSlideShortId,
-          deckSummary: {
-            ...summary,
-            slides: summary.slides.map((slide) => ({
-              ...slide,
-              id: registerSlide(aiIdScope, slide.id),
-            })),
-          },
-        };
+        return `Created slide ${newSlideShortId}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
       inProgressLabel: (input) =>
         `Creating ${input.slide.type} slide...`,
@@ -159,11 +147,9 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        onSlideUpdated(res.data.slide);
+        optimisticSetLastUpdated("slides", res.data.slide.id, res.data.slide.lastUpdated);
 
-        return {
-          message: `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`,
-        };
+        return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
       },
       inProgressLabel: (input) => `Replacing slide ${input.slideId}...`,
       completionMessage: (input) =>
@@ -188,7 +174,22 @@ export function getToolsForSlides(
               visualizationId: z.string(),
               replicant: z.string().optional(),
             }),
-          ]).describe("The new content for this block. Can be text (markdown) or a figure from an existing visualization. The block type can be changed (e.g., replace text with figure)."),
+            z.object({
+              type: z.literal("from_metric"),
+              metricId: z.string(),
+              disaggregations: z.array(z.string()).optional(),
+              filters: z.array(z.object({
+                col: z.string(),
+                vals: z.array(z.string()),
+              })).optional(),
+              periodFilter: z.object({
+                periodOption: z.enum(["period_id", "quarter_id", "year"]),
+                min: z.number(),
+                max: z.number(),
+              }).optional(),
+              chartType: z.enum(["bar", "line", "table"]).optional(),
+            }),
+          ]).describe("The new content for this block. Can be text (markdown), a figure from an existing visualization, or a figure from metric data. The block type can be changed."),
         })).min(1).describe("Array of updates to apply. Each update specifies a block ID and the new content for that block."),
       }),
       handler: async (input) => {
@@ -205,7 +206,7 @@ export function getToolsForSlides(
           newContent: u.newContent,
         }));
 
-        const updatedSlide = await updateSlideBlocks(
+        const updatedSlide = await getSlideWithUpdatedBlocks(
           projectId,
           currentRes.data.slide,
           updatesWithUuids as any,
@@ -218,11 +219,9 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        onSlideUpdated(res.data.slide);
+        optimisticSetLastUpdated("slides", res.data.slide.id, res.data.slide.lastUpdated);
 
-        return {
-          message: `Updated ${input.updates.length} block(s) in slide ${input.slideId}`,
-        };
+        return `Updated ${input.updates.length} block(s) in slide ${input.slideId}`;
       },
       inProgressLabel: (input) => `Updating ${input.updates.length} block(s)...`,
       completionMessage: (input) => `Updated ${input.updates.length} block(s)`,
@@ -247,19 +246,13 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        onSlidesDeleted(slideUuids);
+        const lastUpdated = new Date().toISOString();
+        for (const slideId of slideUuids) {
+          optimisticSetLastUpdated("slides", slideId, lastUpdated);
+        }
+        optimisticSetLastUpdated("slide_decks", deckId, lastUpdated);
 
-        const summary = await getDeckSummary();
-        return {
-          deletedCount: res.data.deletedCount,
-          deckSummary: {
-            ...summary,
-            slides: summary.slides.map((slide) => ({
-              ...slide,
-              id: registerSlide(aiIdScope, slide.id),
-            })),
-          },
-        };
+        return `Deleted ${res.data.deletedCount} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
       inProgressLabel: (input) =>
         `Deleting ${input.slideIds.length} slide(s)...`,
@@ -302,46 +295,38 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        onSlidesReordered(res.data.slides);
+        const lastUpdated = res.data.slides[0]?.lastUpdated || new Date().toISOString();
+        for (const slide of res.data.slides) {
+          optimisticSetLastUpdated("slides", slide.id, slide.lastUpdated);
+        }
+        optimisticSetLastUpdated("slide_decks", deckId, lastUpdated);
 
-        const summary = await getDeckSummary();
-        return {
-          message: `Moved ${input.slideIds.length} slide(s)`,
-          deckSummary: {
-            ...summary,
-            slides: summary.slides.map((slide) => ({
-              ...slide,
-              id: registerSlide(aiIdScope, slide.id),
-            })),
-          },
-        };
+        return `Moved ${input.slideIds.length} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
       inProgressLabel: (input) => `Moving ${input.slideIds.length} slide(s)...`,
       completionMessage: (input) => `Moved ${input.slideIds.length} slide(s)`,
     }),
 
-    createAITool({
-      name: "update_plan",
-      description:
-        "Update the deck's plan and notes section. This is a markdown document that serves as a workspace for ideas, outlines, talking points, and planning notes about the presentation. Use this to maintain context between conversations, track todo items, or store information about the presentation's goals and structure. The plan is NOT displayed in the final presentation - it's purely for planning purposes.",
-      inputSchema: z.object({
-        plan: z.string().describe("The new plan content in markdown format. This can include headings, bullet points, todo lists, or any other markdown-formatted notes about the presentation."),
-      }),
-      handler: async (input) => {
-        const res = await serverActions.updatePlan({
-          projectId,
-          deck_id: deckId,
-          plan: input.plan,
-        });
-        if (!res.success) throw new Error(res.err);
+    // COMMENTED OUT: Plan feature hidden
+    // createAITool({
+    //   name: "update_plan",
+    //   description:
+    //     "Update the deck's plan and notes section. This is a markdown document that serves as a workspace for ideas, outlines, talking points, and planning notes about the presentation. Use this to maintain context between conversations, track todo items, or store information about the presentation's goals and structure. The plan is NOT displayed in the final presentation - it's purely for planning purposes.",
+    //   inputSchema: z.object({
+    //     plan: z.string().describe("The new plan content in markdown format. This can include headings, bullet points, todo lists, or any other markdown-formatted notes about the presentation."),
+    //   }),
+    //   handler: async (input) => {
+    //     const res = await serverActions.updatePlan({
+    //       projectId,
+    //       deck_id: deckId,
+    //       plan: input.plan,
+    //     });
+    //     if (!res.success) throw new Error(res.err);
 
-        return {
-          success: true,
-          message: "Plan updated",
-        };
-      },
-      inProgressLabel: "Updating plan...",
-      completionMessage: "Updated plan",
-    }),
+    //     return "Plan updated";
+    //   },
+    //   inProgressLabel: "Updating plan...",
+    //   completionMessage: "Updated plan",
+    // }),
   ];
 }

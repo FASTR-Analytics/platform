@@ -20,8 +20,6 @@ import {
   useOptimisticSetProjectLastUpdated,
   useProjectDirtyStates,
 } from "~/components/project_runner/mod";
-import { ProjectAiReport } from "~/components/project_ai_report";
-import { ProjectAiSlideDeck } from "~/components/project_ai_slide_deck";
 import { serverActions } from "~/server_actions";
 import { getReportDetailFromCacheOrFetch } from "~/state/ri_cache";
 import { fitWithin, setFitWithin } from "~/state/ui";

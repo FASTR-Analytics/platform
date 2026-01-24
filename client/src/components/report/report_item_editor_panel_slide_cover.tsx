@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function ReportItemEditorSlideCover(p: Props) {
-  const config = p.reportDetail.config as ReportConfig;
+  const config = p.reportDetail.config;
 
   return (
     <div class="ui-pad ui-spy">
