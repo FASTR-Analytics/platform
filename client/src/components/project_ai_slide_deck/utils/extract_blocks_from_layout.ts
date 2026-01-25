@@ -60,13 +60,15 @@ export function simplifySlideForAI(slide: Slide): SimplifiedSlide {
     heading: slide.heading,
     blocks: blocks.map(({ id, block }) => {
       if (block.type === "text") {
-        const preview = block.markdown.length > 150
-          ? block.markdown.substring(0, 150) + "..."
-          : block.markdown;
+        // const preview = block.markdown.length > 150
+        //   ? block.markdown.substring(0, 150) + "..."
+        //   : block.markdown;
         return {
           id,
-          summary: `Text: ${preview}`,
+          summary: `Text: ${block.markdown}`,
         };
+      } else if (block.type === "placeholder") {
+        return { id, summary: "Placeholder" };
       } else {
         let summary = "Figure";
         if (block.source?.type === "from_metric") {

@@ -102,6 +102,10 @@ function convertBlockToPageContentItem(block: ContentBlock): PageContentItem {
     };
   }
 
+  if (block.type === "placeholder") {
+    return { spacer: true };
+  }
+
   // Figure block - figureInputs already resolved
   return block.figureInputs;
 }

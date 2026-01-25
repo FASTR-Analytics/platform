@@ -89,11 +89,10 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        const lastUpdated = res.data.slide.lastUpdated;
-        optimisticSetLastUpdated("slides", res.data.slide.id, lastUpdated);
-        optimisticSetLastUpdated("slide_decks", deckId, lastUpdated);
+        optimisticSetLastUpdated("slides", res.data.slideId, res.data.lastUpdated);
+        optimisticSetLastUpdated("slide_decks", deckId, res.data.lastUpdated);
 
-        return `Created slide ${res.data.slide.id}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
+        return `Created slide ${res.data.slideId}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
       inProgressLabel: (input) =>
         `Creating ${input.slide.type} slide...`,
@@ -125,7 +124,7 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        optimisticSetLastUpdated("slides", res.data.slide.id, res.data.slide.lastUpdated);
+        optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
 
         return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
       },
@@ -190,7 +189,7 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        optimisticSetLastUpdated("slides", res.data.slide.id, res.data.slide.lastUpdated);
+        optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
 
         return `Updated ${input.updates.length} block(s) in slide ${input.slideId}`;
       },
@@ -227,6 +226,36 @@ export function getToolsForSlides(
         `Deleting ${input.slideIds.length} slide(s)...`,
       completionMessage: (input) =>
         `Deleted ${input.slideIds.length} slide(s)`,
+    }),
+
+    createAITool({
+      name: "duplicate_slides",
+      description:
+        "Create copies of one or more slides. Each duplicate is inserted immediately after its original slide. The duplicated slides have identical content but receive new unique IDs.",
+      inputSchema: z.object({
+        slideIds: z
+          .array(z.string())
+          .describe("Array of slide IDs to duplicate (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
+      }),
+      handler: async (input) => {
+        const res = await serverActions.duplicateSlides({
+          projectId,
+          deck_id: deckId,
+          slideIds: input.slideIds,
+        });
+        if (!res.success) throw new Error(res.err);
+
+        for (const slideId of res.data.newSlideIds) {
+          optimisticSetLastUpdated("slides", slideId, res.data.lastUpdated);
+        }
+        optimisticSetLastUpdated("slide_decks", deckId, res.data.lastUpdated);
+
+        return `Duplicated ${input.slideIds.length} slide(s). Created ${res.data.newSlideIds.length} new slide(s) with IDs: ${res.data.newSlideIds.join(', ')}. Deck has been updated. Call get_deck if you need to review the current deck state.`;
+      },
+      inProgressLabel: (input) =>
+        `Duplicating ${input.slideIds.length} slide(s)...`,
+      completionMessage: (input) =>
+        `Duplicated ${input.slideIds.length} slide(s)`,
     }),
 
     createAITool({

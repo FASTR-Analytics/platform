@@ -31,7 +31,12 @@ export type FigureBlock = {
   source?: FigureSource;
 };
 
-export type ContentBlock = TextBlock | FigureBlock;
+// Placeholder block - empty space for user to fill
+export type PlaceholderBlock = {
+  type: "placeholder";
+};
+
+export type ContentBlock = TextBlock | FigureBlock | PlaceholderBlock;
 
 // Cover slide
 export type CoverSlide = {

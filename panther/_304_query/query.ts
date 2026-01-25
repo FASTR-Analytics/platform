@@ -133,12 +133,28 @@ export type TimActionDelete<U extends any[]> = {
   click: (...args: U) => Promise<void>;
 };
 
+// Overload 1: Action returns data
+export function timActionDelete<T, U extends any[]>(
+  confirmText: string | JSX.Element | { text: string; itemList: string[] },
+  actionFunc: (...args: U) => Promise<APIResponseWithData<T>>,
+  ...onSuccessCallbacks: Array<(data: T) => void | Promise<void>>
+): TimActionDelete<U>;
+
+// Overload 2: Action returns no data
 export function timActionDelete<U extends any[]>(
+  confirmText: string | JSX.Element | { text: string; itemList: string[] },
+  actionFunc: (...args: U) => Promise<APIResponseNoData>,
+  ...onSuccessCallbacks: Array<() => void | Promise<void>>
+): TimActionDelete<U>;
+
+export function timActionDelete<T, U extends any[]>(
   confirmText: string | JSX.Element | { text: string; itemList: string[] },
   actionFunc: (
     ...args: U
-  ) => Promise<APIResponseWithData<any> | APIResponseNoData>,
-  ...onSuccessCallbacks: Array<() => void | Promise<void>>
+  ) => Promise<APIResponseWithData<T> | APIResponseNoData>,
+  ...onSuccessCallbacks: Array<
+    ((data: T) => void | Promise<void>) | (() => void | Promise<void>)
+  >
 ): TimActionDelete<U> {
   async function click(...args: U) {
     const isObjectWithItemList = typeof confirmText === "object" &&

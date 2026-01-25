@@ -13,23 +13,23 @@ import { Button } from "../form_inputs/button.tsx";
 import { AlertComponentProps } from "./alert.tsx";
 import { StateHolderFormError } from "./state_holder_wrapper.tsx";
 
-export function ConfirmDeleteForm(
+export function ConfirmDeleteForm<T>(
   p: AlertComponentProps<
     {
       text: string | JSX.Element;
       itemList?: string[];
       actionFunc: () => Promise<
-        APIResponseWithData<unknown> | APIResponseNoData
+        APIResponseWithData<T> | APIResponseNoData
       >;
-      onSuccessCallbacks?: Array<() => void | Promise<void>>;
+      onSuccessCallbacks?: Array<((data: T) => void | Promise<void>) | (() => void | Promise<void>)>;
     },
     "SUCCESS"
   >,
 ) {
   const confirm = timActionForm(
-    p.actionFunc,
-    ...(p.onSuccessCallbacks ?? []),
-    () => p.close("SUCCESS"),
+    p.actionFunc as () => Promise<APIResponseWithData<T>>,
+    ...((p.onSuccessCallbacks ?? []) as Array<(data: T) => void | Promise<void>>),
+    (() => p.close("SUCCESS")) as (data: T) => void,
   );
 
   return (

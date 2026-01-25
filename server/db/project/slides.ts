@@ -76,7 +76,7 @@ export async function createSlide(
   deckId: string,
   afterSlideId: string | null,
   slide: Slide
-): Promise<APIResponseWithData<{ slide: SlideWithMeta; index: number }>> {
+): Promise<APIResponseWithData<{ slideId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const slideId = await generateUniqueSlideId(projectDb);
     const lastUpdated = new Date().toISOString();
@@ -127,15 +127,9 @@ export async function createSlide(
       reSequence(sql, deckId),
     ]);
 
-    // Fetch the created slide with its index
-    const result = await getSlide(projectDb, slideId);
-    if (!result.success) {
-      throw new Error("Failed to fetch created slide");
-    }
-
     return {
       success: true,
-      data: { slide: result.data, index: result.data.index },
+      data: { slideId, lastUpdated },
     };
   });
 }
@@ -145,7 +139,7 @@ export async function updateSlide(
   projectDb: Sql,
   slideId: string,
   slide: Slide
-): Promise<APIResponseWithData<{ slide: SlideWithMeta }>> {
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
 
@@ -172,13 +166,7 @@ export async function updateSlide(
       `,
     ]);
 
-    // Fetch updated slide
-    const result = await getSlide(projectDb, slideId);
-    if (!result.success) {
-      throw new Error("Failed to fetch updated slide");
-    }
-
-    return { success: true, data: { slide: result.data } };
+    return { success: true, data: { lastUpdated } };
   });
 }
 
@@ -204,6 +192,55 @@ export async function deleteSlides(
     ]);
 
     return { success: true, data: { deletedCount: slideIds.length } };
+  });
+}
+
+// Duplicate slides
+export async function duplicateSlides(
+  projectDb: Sql,
+  deckId: string,
+  slideIds: string[]
+): Promise<APIResponseWithData<{ newSlideIds: string[]; lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const newSlideIds: string[] = [];
+
+    // Fetch original slides
+    const originalSlides = await projectDb<{ id: string; config: string; sort_order: number }[]>`
+      SELECT id, config, sort_order FROM slides
+      WHERE slide_deck_id = ${deckId} AND id = ANY(${slideIds})
+      ORDER BY sort_order
+    `;
+
+    // Create duplicates inserted after each original
+    for (const original of originalSlides) {
+      const newSlideId = await generateUniqueSlideId(projectDb);
+      const newSortOrder = original.sort_order + 5;
+
+      await projectDb`
+        INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
+        VALUES (
+          ${newSlideId},
+          ${deckId},
+          ${newSortOrder},
+          ${original.config},
+          ${lastUpdated}
+        )
+      `;
+
+      newSlideIds.push(newSlideId);
+    }
+
+    // Update deck and resequence
+    await projectDb.begin((sql) => [
+      sql`
+        UPDATE slide_decks SET last_updated = ${lastUpdated}
+        WHERE id = ${deckId}
+      `,
+      reSequence(sql, deckId),
+    ]);
+
+    return { success: true, data: { newSlideIds, lastUpdated } };
   });
 }
 

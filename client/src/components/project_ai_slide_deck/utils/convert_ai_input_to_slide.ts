@@ -58,10 +58,14 @@ export async function convertAiInputToSlide(
   // Extract PageContentItems and build ID → source map
   const sourceMap = new Map<string, FigureSource>();
   const itemNodes = resolvedBlocks.map((block) => {
-    const pageItem: PageContentItem =
-      block.type === "text"
-        ? { markdown: block.markdown, autofit: { minScale: 0, maxScale: 1 } }
-        : block.figureInputs;
+    let pageItem: PageContentItem;
+    if (block.type === "text") {
+      pageItem = { markdown: block.markdown, autofit: { minScale: 0, maxScale: 1 } };
+    } else if (block.type === "placeholder") {
+      pageItem = { spacer: true };
+    } else {
+      pageItem = block.figureInputs;
+    }
 
     const node = createItemNode(pageItem);
 

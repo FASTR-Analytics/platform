@@ -1,4 +1,4 @@
-import { type ProjectDetail } from "lib";
+import { type InstanceDetail, type ProjectDetail } from "lib";
 import {
   AIChat,
   AIChatProvider,
@@ -13,8 +13,10 @@ import { getToolsForSlides } from "../ai_tools/ai_tool_definitions";
 import { useProjectDirtyStates, useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideList } from "./slide_list";
 import { DEFAULT_MODEL_CONFIG, DEFAULT_BUILTIN_TOOLS, createProjectSDKClient } from "~/components/ai_configs/defaults";
+import { getSlideDeckSystemPrompt } from "~/components/ai_prompts/slide_deck";
 
 type Props = {
+  instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   deckId: string;
   reportLabel: string;
@@ -29,6 +31,7 @@ export function ProjectAiSlideDeck(p: Props) {
   // State - just track slide IDs, not full slide data
   const [slideIds, setSlideIds] = createSignal<string[]>([]);
   const [isLoading, setIsLoading] = createSignal(true);
+  const [selectedSlideIds, setSelectedSlideIds] = createSignal<string[]>([]);
 
   // Load deck metadata on mount (not full slide data)
   onMount(async () => {
@@ -65,14 +68,14 @@ export function ProjectAiSlideDeck(p: Props) {
     )
   );
 
-  const systemPrompt = createMemo(() => {
-    return `You are helping create a slide deck presentation.
-
-Current deck: "${p.reportLabel}"
-Slide count: ${slideIds().length}
-
-Use get_deck to see the current deck structure before making changes. Slides have 3-character alphanumeric IDs (e.g. 'a3k'). Content blocks within slides also have 3-character IDs (e.g. 't2n'). Use these IDs when referencing slides or blocks in tool calls.`;
-  });
+  const systemPrompt = createMemo(() =>
+    getSlideDeckSystemPrompt(
+      p.instanceDetail,
+      p.projectDetail,
+      slideIds().length,
+      selectedSlideIds()
+    )
+  );
 
   return (
     <AIChatProvider
@@ -92,6 +95,7 @@ Use get_deck to see the current deck structure before making changes. Slides hav
         reportLabel={p.reportLabel}
         slideIds={slideIds()}
         isLoading={isLoading()}
+        setSelectedSlideIds={setSelectedSlideIds}
         backToProject={p.backToProject}
       />
     </AIChatProvider>
@@ -104,6 +108,7 @@ function ProjectAiSlideDeckInner(p: {
   reportLabel: string;
   slideIds: string[];
   isLoading: boolean;
+  setSelectedSlideIds: (ids: string[]) => void;
   backToProject: (withUpdate: boolean) => Promise<void>;
 }) {
   const { clearConversation, isLoading: aiLoading } = createAIChat();
@@ -119,6 +124,14 @@ function ProjectAiSlideDeckInner(p: {
           }
         >
           <div class="ui-gap-sm flex w-full items-center">
+          </div>
+        </HeadingBar>
+      }
+    >
+      <div class="flex h-full">
+        <div class="border-base-300 h-full w-[600px] border-r flex flex-col">
+          <div class="flex items-center border-b border-base-300 ui-pad">
+            <div class="flex-1 font-700 text-lg">AI chat</div>
             <Button
               onClick={clearConversation}
               disabled={aiLoading()}
@@ -129,27 +142,17 @@ function ProjectAiSlideDeckInner(p: {
               Clear chat
             </Button>
           </div>
-        </HeadingBar>
-      }
-    >
-      <div class="flex h-full">
-        <div class="border-base-300 h-full w-[600px] border-r flex flex-col">
-          <div class="flex items-center border-b border-base-300 ui-pad">
-            <div class="flex-1 font-700">AI Chat</div>
-          </div>
           <div class="w-full h-0 flex-1">
             <AIChat />
           </div>
         </div>
-        <div class="h-full flex-1">
-          <div class="flex items-center border-b border-base-300 ui-pad">
-            <div class="flex-1 font-700">Slides</div>
-          </div>
+        <div class="h-full flex-1 flex flex-col">
           <SlideList
             projectDetail={p.projectDetail}
             deckId={p.deckId}
             slideIds={p.slideIds}
             isLoading={p.isLoading}
+            setSelectedSlideIds={p.setSelectedSlideIds}
           />
         </div>
       </div>

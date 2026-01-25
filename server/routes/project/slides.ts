@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import {
   createSlide,
   deleteSlides,
+  duplicateSlides,
   getSlide,
   getSlides,
   moveSlides,
@@ -53,20 +54,18 @@ defineRoute(
       return c.json(res);
     }
 
-    const lastUpdated = res.data.slide.lastUpdated;
-
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slides",
-      [res.data.slide.id],
-      lastUpdated
+      [res.data.slideId],
+      res.data.lastUpdated
     );
 
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slide_decks",
       [params.deck_id],
-      lastUpdated
+      res.data.lastUpdated
     );
 
     return c.json(res);
@@ -91,8 +90,8 @@ defineRoute(
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slides",
-      [res.data.slide.id],
-      res.data.slide.lastUpdated
+      [params.slide_id],
+      res.data.lastUpdated
     );
 
     return c.json(res);
@@ -128,6 +127,44 @@ defineRoute(
       "slide_decks",
       [params.deck_id],
       lastUpdated
+    );
+
+    return c.json({
+      success: true,
+      data: { ...res.data, lastUpdated },
+    });
+  }
+);
+
+// Duplicate slides
+defineRoute(
+  routesSlides,
+  "duplicateSlides",
+  getProjectEditor,
+  async (c, { params, body }) => {
+    const res = await duplicateSlides(
+      c.var.ppk.projectDb,
+      params.deck_id,
+      body.slideIds
+    );
+    if (!res.success) {
+      return c.json(res);
+    }
+
+    for (const slideId of res.data.newSlideIds) {
+      notifyLastUpdated(
+        c.var.ppk.projectId,
+        "slides",
+        [slideId],
+        res.data.lastUpdated
+      );
+    }
+
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "slide_decks",
+      [params.deck_id],
+      res.data.lastUpdated
     );
 
     return c.json(res);

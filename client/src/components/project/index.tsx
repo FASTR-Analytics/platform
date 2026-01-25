@@ -119,6 +119,7 @@ export default function Project(p: Props) {
                     </Match>
                     <Match when={getFirstString(searchParams.d)}>
                       <ProjectAiSlideDeck
+                        instanceDetail={keyedInstanceDetail}
                         projectDetail={keyedProjectDetail}
                         deckId={getFirstString(searchParams.d)!}
                         reportLabel={keyedProjectDetail.slideDecks.find(d => d.id === getFirstString(searchParams.d))?.label || "Slide Deck"}

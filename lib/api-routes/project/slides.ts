@@ -31,8 +31,8 @@ export const slideRouteRegistry = {
       slide: Slide;
     },
     response: {} as {
-      slide: SlideWithMeta;
-      index: number;
+      slideId: string;
+      lastUpdated: string;
     },
     requiresProject: true,
   }),
@@ -44,7 +44,7 @@ export const slideRouteRegistry = {
     params: {} as { slide_id: string },
     body: {} as { slide: Slide },
     response: {} as {
-      slide: SlideWithMeta;
+      lastUpdated: string;
     },
     requiresProject: true,
   }),
@@ -57,6 +57,20 @@ export const slideRouteRegistry = {
     body: {} as { slideIds: string[] },
     response: {} as {
       deletedCount: number;
+      lastUpdated: string;
+    },
+    requiresProject: true,
+  }),
+
+  // Duplicate slides
+  duplicateSlides: route({
+    path: "/slides/:deck_id/duplicate",
+    method: "POST",
+    params: {} as { deck_id: string },
+    body: {} as { slideIds: string[] },
+    response: {} as {
+      newSlideIds: string[];
+      lastUpdated: string;
     },
     requiresProject: true,
   }),
