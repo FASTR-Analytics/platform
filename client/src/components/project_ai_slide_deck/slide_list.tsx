@@ -1,5 +1,5 @@
 import { t, type ProjectDetail, type Slide } from "lib";
-import { Button, Loading, timActionButton, timActionDelete } from "panther";
+import { Button, Loading, Slider, timActionButton, timActionDelete } from "panther";
 import SortableVendor from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -19,6 +19,8 @@ export function SlideList(p: Props) {
 
   const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(null);
+  const [slideSize, setSlideSize] = createSignal(400);
+  const [isFillWidth, setIsFillWidth] = createSignal(false);
 
   // Local copy of slide order for optimistic drag-and-drop updates
   const [sortableSlideItems, setSortableSlideItems] = createSignal<{ id: string }[]>(
@@ -240,12 +242,31 @@ export function SlideList(p: Props) {
   );
 
   return (
-    <>
+    <div class="w-full h-full flex flex-col">
       <div class="flex items-center border-b border-base-300 ui-pad">
         <div class="flex-1 font-700 text-lg">Slides</div>
-        <Button iconName="plus" size="sm" onClick={addSlide.click} state={addSlide.state()}>
-          Add slide
-        </Button>
+        <div class="flex items-center gap-4">
+          <div class="w-32">
+            <Slider
+              value={slideSize()}
+              onChange={setSlideSize}
+              min={200}
+              max={800}
+              step={50}
+              fullWidth
+              disabled={isFillWidth()}
+            />
+          </div>
+          <Button
+            iconName={isFillWidth() ? "minimize" : "maximize"}
+            size="sm"
+            outline
+            onClick={() => setIsFillWidth(!isFillWidth())}
+          />
+          <Button iconName="plus" size="sm" onClick={addSlide.click} state={addSlide.state()}>
+            Add slide
+          </Button>
+        </div>
       </div>
       <div
         class="h-0 flex-1 overflow-auto p-4"
@@ -314,6 +335,8 @@ export function SlideList(p: Props) {
                   index={index()}
                   isSelected={selectedIds().has(item.id)}
                   selectedCount={selectedIds().size}
+                  slideSize={slideSize()}
+                  fillWidth={isFillWidth()}
                   onSelect={(e) => handleItemClick(index(), item.id, e)}
                   onDelete={() => handleDelete(item.id)}
                   onDuplicate={() => handleDuplicate(item.id)}
@@ -323,6 +346,6 @@ export function SlideList(p: Props) {
           </SortableVendor>
         </Show>
       </div>
-    </>
+    </div>
   );
 }

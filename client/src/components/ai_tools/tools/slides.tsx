@@ -64,7 +64,7 @@ export function getToolsForSlides(
     createAITool({
       name: "create_slide",
       description:
-        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures). The slide will be inserted after the specified slide ID, or at the beginning if afterSlideId is null.",
+        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures). The slide will be inserted after the specified slide ID, or at the beginning if afterSlideId is null.\n\nFor content blocks, you have three figure source options:\n- from_visualization: Clone an existing saved visualization (created via Presentations section). Use 'replicant' to show different indicator variants from the same viz config (e.g., 'anc1', 'penta3').\n- from_metric: Create a new chart directly from metric data. Requires metricId, optional chartType (bar/line/table), disaggregations, filters, and periodFilter (format: 202001=Jan 2020, 20241=Q1 2024, 2024=year).\n- text: Markdown text content with autofit.",
       inputSchema: z.object({
         afterSlideId: z
           .string()
@@ -103,7 +103,7 @@ export function getToolsForSlides(
     createAITool({
       name: "replace_slide",
       description:
-        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. For content slides with custom layouts, use update_slide_content instead to make targeted changes. Only use this when you need to completely rebuild a slide.",
+        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n- Adding/removing blocks from content slides\n\nFor content slides with existing layout, prefer update_slide_content (preserves layout) or update_slide_heading (preserves content and layout).",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         slide: z
@@ -136,7 +136,7 @@ export function getToolsForSlides(
     createAITool({
       name: "update_slide_content",
       description:
-        "Update specific content blocks within a slide while preserving the layout structure. This is the preferred way to modify content slides as it maintains any custom layout arrangements. Use block IDs from get_slide to target specific text or figure blocks for replacement.",
+        "Update specific content blocks within a slide while preserving the layout structure. This is the PREFERRED way to modify content slides as it maintains custom layout arrangements. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. This is much safer than replace_slide for targeted content updates. Use block IDs from get_slide to target specific text or figure blocks for replacement.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         updates: z.array(z.object({
@@ -195,6 +195,46 @@ export function getToolsForSlides(
       },
       inProgressLabel: (input) => `Updating ${input.updates.length} block(s)...`,
       completionMessage: (input) => `Updated ${input.updates.length} block(s)`,
+    }),
+
+    createAITool({
+      name: "update_slide_heading",
+      description:
+        "Update just the heading of a content slide without modifying its content or layout. Use this for simple heading changes like fixing typos or rewording. Much faster and safer than replace_slide for heading-only changes. For cover slides, use replace_slide to update the title.",
+      inputSchema: z.object({
+        slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
+        newHeading: z.string().describe("The new heading text for the content slide"),
+      }),
+      handler: async (input) => {
+        const currentRes = await serverActions.getSlide({
+          projectId,
+          slide_id: input.slideId,
+        });
+        if (!currentRes.success) throw new Error(currentRes.err);
+
+        const slide = currentRes.data.slide;
+
+        if (slide.type !== "content") {
+          throw new Error(
+            `Cannot update heading on ${slide.type} slide. Use replace_slide for cover/section slides.`
+          );
+        }
+
+        const updatedSlide = { ...slide, heading: input.newHeading };
+
+        const res = await serverActions.updateSlide({
+          projectId,
+          slide_id: input.slideId,
+          slide: updatedSlide,
+        });
+        if (!res.success) throw new Error(res.err);
+
+        optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
+
+        return `Updated heading for slide ${input.slideId}: "${input.newHeading}"`;
+      },
+      inProgressLabel: () => `Updating slide heading...`,
+      completionMessage: () => `Updated slide heading`,
     }),
 
     createAITool({

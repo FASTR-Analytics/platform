@@ -6,6 +6,10 @@
 import type { MessageParam, Usage } from "../deps.ts";
 import { createSignal } from "solid-js";
 import type { ChatState, DisplayItem } from "./types.ts";
+import {
+  loadConversation,
+  clearConversationPersistence,
+} from "./persistence.ts";
 
 export type ConversationStore = {
   messages: ReturnType<typeof createSignal<MessageParam[]>>;
@@ -24,9 +28,11 @@ const stores = new Map<string, ConversationStore>();
 
 export function getOrCreateConversationStore(
   conversationId: string,
+  enablePersistence: boolean = true,
 ): ConversationStore {
   if (!stores.has(conversationId)) {
-    stores.set(conversationId, {
+    // Create store with empty state (synchronous)
+    const store: ConversationStore = {
       messages: createSignal<MessageParam[]>([]),
       displayItems: createSignal<DisplayItem[]>([]),
       isLoading: createSignal(false),
@@ -37,7 +43,21 @@ export function getOrCreateConversationStore(
       currentStreamingText: createSignal<string | undefined>(undefined),
       usageHistory: createSignal<Usage[]>([]),
       serverToolLabel: createSignal<string | undefined>(undefined),
-    });
+    };
+
+    stores.set(conversationId, store);
+
+    // Hydrate from IndexedDB asynchronously (non-blocking)
+    if (enablePersistence) {
+      loadConversation(conversationId).then((persisted) => {
+        if (persisted && persisted.messages.length > 0) {
+          const [, setMessages] = store.messages;
+          const [, setDisplayItems] = store.displayItems;
+          setMessages(persisted.messages);
+          setDisplayItems(persisted.displayItems);
+        }
+      });
+    }
   }
   return stores.get(conversationId)!;
 }
@@ -66,6 +86,9 @@ export function clearConversationStore(conversationId: string): void {
     setCurrentStreamingText(undefined);
     setUsageHistory([]);
     setServerToolLabel(undefined);
+
+    // Also clear persisted data
+    clearConversationPersistence(conversationId);
   }
 }
 

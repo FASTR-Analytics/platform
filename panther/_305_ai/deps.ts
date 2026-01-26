@@ -41,3 +41,4 @@ export {
 export type { Component, JSX } from "solid-js";
 export { z } from "zod";
 export type { z as zType } from "zod";
+export { get, set, del } from "idb-keyval";

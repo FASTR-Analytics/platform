@@ -45,11 +45,27 @@ export async function convertAiInputToSlide(
 
     // Handle figure input types
     if (block.type === "from_visualization") {
-      const figureBlock = await resolveFigureFromVisualization(projectId, block);
-      resolvedBlocks.push(figureBlock);
+      try {
+        const figureBlock = await resolveFigureFromVisualization(projectId, block);
+        resolvedBlocks.push(figureBlock);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Failed to resolve visualization "${block.visualizationId}"${
+            block.replicant ? ` with replicant "${block.replicant}"` : ''
+          }. Check that the visualization exists and the replicant is valid. Original error: ${errMsg}`
+        );
+      }
     } else if (block.type === "from_metric") {
-      const figureBlock = await resolveFigureFromMetric(projectId, block);
-      resolvedBlocks.push(figureBlock);
+      try {
+        const figureBlock = await resolveFigureFromMetric(projectId, block);
+        resolvedBlocks.push(figureBlock);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Failed to create figure from metric "${block.metricId}". Check that the metric exists and parameters are valid. Original error: ${errMsg}`
+        );
+      }
     } else if (block.type === "custom") {
       throw new Error("custom figure type not yet implemented");
     }

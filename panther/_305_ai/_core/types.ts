@@ -150,6 +150,8 @@ export type AIChatConfig = {
 
   conversationId?: string;
 
+  enablePersistence?: boolean;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tools?: AIToolWithMetadata<any>[];
 

@@ -13,6 +13,8 @@ type Props = {
   index: number;
   isSelected: boolean;
   selectedCount: number;
+  slideSize: number;
+  fillWidth: boolean;
   onSelect: (event: MouseEvent) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -60,7 +62,6 @@ export function SlideCard(p: Props) {
   });
 
   const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
-  const slideSize = 400;
 
   function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
@@ -94,7 +95,7 @@ export function SlideCard(p: Props) {
       class="cursor-pointer"
       classList={{ "sortable-selected": p.isSelected }}
       onClick={p.onSelect}
-      style={{ width: `${slideSize}px` }}
+      style={{ width: p.fillWidth ? "100%" : `${p.slideSize}px` }}
     >
       <div class="mb-2 text-base-content text-center text-sm font-medium">
         {p.index + 1}

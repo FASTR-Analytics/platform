@@ -4,6 +4,7 @@ import {
   AIChatProvider,
   Button,
   createAIChat,
+  FrameLeftResizable,
   FrameTop,
   HeadingBar,
 } from "panther";
@@ -128,8 +129,11 @@ function ProjectAiSlideDeckInner(p: {
         </HeadingBar>
       }
     >
-      <div class="flex h-full">
-        <div class="border-base-300 h-full w-[600px] border-r flex flex-col">
+      <FrameLeftResizable
+        minWidth={300}
+        startingWidth={600}
+        maxWidth={1200}
+        panelChildren={<div class="border-base-300 h-full w-full border-r flex flex-col">
           <div class="flex items-center border-b border-base-300 ui-pad">
             <div class="flex-1 font-700 text-lg">AI chat</div>
             <Button
@@ -146,16 +150,16 @@ function ProjectAiSlideDeckInner(p: {
             <AIChat />
           </div>
         </div>
-        <div class="h-full flex-1 flex flex-col">
-          <SlideList
-            projectDetail={p.projectDetail}
-            deckId={p.deckId}
-            slideIds={p.slideIds}
-            isLoading={p.isLoading}
-            setSelectedSlideIds={p.setSelectedSlideIds}
-          />
-        </div>
-      </div>
+
+        }>
+        <SlideList
+          projectDetail={p.projectDetail}
+          deckId={p.deckId}
+          slideIds={p.slideIds}
+          isLoading={p.isLoading}
+          setSelectedSlideIds={p.setSelectedSlideIds}
+        />
+      </FrameLeftResizable>
     </FrameTop>
   );
 }

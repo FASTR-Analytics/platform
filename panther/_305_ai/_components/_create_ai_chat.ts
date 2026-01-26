@@ -16,6 +16,7 @@ import {
   clearConversationStore,
   getOrCreateConversationStore,
 } from "../_core/conversation_store.ts";
+import { saveConversation } from "../_core/persistence.ts";
 import { getDisplayItemsFromMessage } from "../_core/display_items.ts";
 import {
   getInProgressItems,
@@ -58,7 +59,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     & AIChatConfig;
 
   const conversationId = config.conversationId ?? "default";
-  const store = getOrCreateConversationStore(conversationId);
+  const store = getOrCreateConversationStore(
+    conversationId,
+    config.enablePersistence ?? true,
+  );
 
   const [messages, setMessages] = store.messages;
   const [displayItems, setDisplayItems] = store.displayItems;
@@ -201,6 +205,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     } finally {
       setIsLoading(false);
       setIsProcessingTools(false);
+
+      // Save conversation state after turn completes
+      if (config.enablePersistence ?? true) {
+        saveConversation(conversationId, messages(), displayItems());
+      }
     }
   }
 
@@ -361,6 +370,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       setCurrentStreamingText(undefined);
       setServerToolLabel(undefined);
       setIsProcessingTools(false);
+
+      // Save conversation state after turn completes
+      if (config.enablePersistence ?? true) {
+        saveConversation(conversationId, messages(), displayItems());
+      }
     }
   }
 

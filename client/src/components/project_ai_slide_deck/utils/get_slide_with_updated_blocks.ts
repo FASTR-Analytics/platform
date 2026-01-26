@@ -19,11 +19,27 @@ export async function getSlideWithUpdatedBlocks(
     if (update.newContent.type === "text") {
       updateMap.set(update.blockId, update.newContent);
     } else if (update.newContent.type === "from_visualization") {
-      const figureBlock = await resolveFigureFromVisualization(projectId, update.newContent);
-      updateMap.set(update.blockId, figureBlock);
+      try {
+        const figureBlock = await resolveFigureFromVisualization(projectId, update.newContent);
+        updateMap.set(update.blockId, figureBlock);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Failed to resolve visualization "${update.newContent.visualizationId}"${
+            update.newContent.replicant ? ` with replicant "${update.newContent.replicant}"` : ''
+          }. Check that the visualization exists and the replicant is valid. Original error: ${errMsg}`
+        );
+      }
     } else if (update.newContent.type === "from_metric") {
-      const figureBlock = await resolveFigureFromMetric(projectId, update.newContent);
-      updateMap.set(update.blockId, figureBlock);
+      try {
+        const figureBlock = await resolveFigureFromMetric(projectId, update.newContent);
+        updateMap.set(update.blockId, figureBlock);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Failed to create figure from metric "${update.newContent.metricId}". Check that the metric exists and parameters are valid. Original error: ${errMsg}`
+        );
+      }
     } else {
       throw new Error("Custom figures not yet supported");
     }
