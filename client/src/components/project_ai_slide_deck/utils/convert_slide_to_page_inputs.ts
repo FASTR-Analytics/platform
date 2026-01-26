@@ -12,22 +12,22 @@ import type {
 
 export const slideDeckStyle: CustomPageStyleOptions = {
   text: {
-    coverTitle: { relFontSize: 5.5, lineHeight: 1, font: {
+    coverTitle: { relFontSize: 5.5, lineHeight: 1, lineBreakGap: 0, font: {
       weight: 800
     } },
-    coverSubTitle: { relFontSize: 3, lineHeight: 1.1 },
-    coverAuthor: { relFontSize: 2, lineHeight: 1.2 },
-    coverDate: { relFontSize: 1.5, lineHeight: 1.2 },
-    sectionTitle: { relFontSize: 4.5, lineHeight: 1.05, font: {
+    coverSubTitle: { relFontSize: 3, lineHeight: 1.2, lineBreakGap: 0 },
+    coverAuthor: { relFontSize: 2, lineHeight: 1.2, lineBreakGap: 0 },
+    coverDate: { relFontSize: 1.5, lineHeight: 1.2, lineBreakGap: 0 },
+    sectionTitle: { relFontSize: 4.5, lineHeight: 1.05, lineBreakGap: 0, font: {
       weight: 800
     } },
-    sectionSubTitle: { relFontSize: 2, lineHeight: 1.1 },
-    header: { relFontSize: 4, lineHeight: 1.1, font: {
+    sectionSubTitle: { relFontSize: 2, lineHeight: 1.1, lineBreakGap: 0 },
+    header: { relFontSize: 4, lineHeight: 1.1, lineBreakGap: 0, font: {
       weight: 800
     } },
     pageNumber: { relFontSize: 1.5 },
   },
-  cover: { backgroundColor: "white" },
+  cover: { backgroundColor: "white", gapY: 80 },
   section: { backgroundColor: "white" },
   header: { padding: [100, 120, 0, 120] as [number, number, number, number], backgroundColor: "white" },
   content: {  padding: [100, 120] as [number, number], gapX: 100, gapY: 80 },
@@ -77,7 +77,7 @@ export function convertSlideToPageInputs(
         layout: convertedLayout,
       },
       style: slideDeckStyle,
-      pageNumber: slideIndex !== undefined ? String(slideIndex + 1) : undefined,
+      // pageNumber: slideIndex !== undefined ? String(slideIndex + 1) : undefined,
     },
   };
 }
