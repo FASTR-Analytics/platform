@@ -5,9 +5,8 @@
 
 import type { RenderContext } from "../../deps.ts";
 import { renderContent } from "./content.ts";
-import { renderFooter } from "./footer.ts";
-import { renderHeader } from "./header.ts";
 import type { MeasuredFreeformPage } from "../../types.ts";
+import { renderPagePrimitives } from "../render_primitives.ts";
 
 export function renderFreeform(
   rc: RenderContext,
@@ -23,15 +22,8 @@ export function renderFreeform(
     });
   }
 
-  // Render header
-  if (measured.header) {
-    renderHeader(rc, measured.header, inputs, s);
-  }
-
-  // Render footer
-  if (measured.footer) {
-    renderFooter(rc, measured.footer, inputs, s);
-  }
+  // Render header/footer primitives
+  renderPagePrimitives(rc, measured.primitives);
 
   // Render content
   renderContent(

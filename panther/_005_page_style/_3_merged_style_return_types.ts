@@ -24,12 +24,14 @@ export type MergedPageStyle = {
     watermark: TextInfoUnkeyed;
   };
   cover: {
+    padding: Padding;
     backgroundColor: string;
     logoHeight: number;
     logoGapX: number;
     gapY: number;
   };
   section: {
+    padding: Padding;
     backgroundColor: string;
     gapY: number;
   };

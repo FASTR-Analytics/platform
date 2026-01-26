@@ -12,8 +12,8 @@ export function SlideEditorPanelCover(p: Props) {
     <div class="ui-pad ui-spy">
       <TextArea
         label="Title"
-        value={p.tempSlide.title ?? ""}
-        onChange={(v: string) => p.setTempSlide("title", v || undefined)}
+        value={p.tempSlide.title}
+        onChange={(v: string) => p.setTempSlide("title", v)}
         fullWidth
         height="80px"
       />

@@ -17,7 +17,7 @@ export function convertSlideType(
       : "";
     return {
       type: "cover",
-      title: title || undefined,
+      title: title,
       subtitle: undefined,
       presenter: undefined,
       date: undefined,

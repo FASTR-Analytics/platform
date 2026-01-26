@@ -135,7 +135,7 @@ function ProjectAiSlideDeckInner(p: {
 
     setEditingSlideId(slideId);
 
-    const editedSlide = await openEditor({
+    const saved = await openEditor({
       element: SlideEditor,
       props: {
         projectId: p.projectDetail.id,
@@ -147,16 +147,8 @@ function ProjectAiSlideDeckInner(p: {
 
     setEditingSlideId(undefined);
 
-    if (editedSlide) {
-      const updateRes = await serverActions.updateSlide({
-        projectId: p.projectDetail.id,
-        slide_id: slideId,
-        slide: editedSlide,
-      });
-
-      if (updateRes.success) {
-        optimisticSetLastUpdated("slides", slideId, updateRes.data.lastUpdated);
-      }
+    if (saved) {
+      optimisticSetLastUpdated("slides", slideId, Date.now().toString());
     }
   }
 

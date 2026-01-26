@@ -1,5 +1,6 @@
 import { trackStore } from "@solid-primitives/deep";
-import { Slide, getTextRenderingOptions } from "lib";
+import type { Slide, CoverSlide, SectionSlide, ContentSlide } from "lib";
+import { getTextRenderingOptions } from "lib";
 import {
   AlertComponentProps,
   Button,
@@ -17,6 +18,9 @@ import { createStore, unwrap, reconcile } from "solid-js/store";
 import { convertSlideToPageInputs } from "../utils/convert_slide_to_page_inputs";
 import { SlideEditorPanel } from "./editor_panel";
 import { convertSlideType } from "./convert_slide_type";
+import { serverActions } from "~/server_actions";
+import { useOptimisticSetLastUpdated } from "../../project_runner/mod";
+import { _SLIDE_CACHE } from "~/state/caches/slides";
 
 type SlideEditorInnerProps = {
   projectId: string;
@@ -25,13 +29,26 @@ type SlideEditorInnerProps = {
   slide: Slide;
 };
 
-type Props = AlertComponentProps<SlideEditorInnerProps, Slide | undefined>;
+type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
 
 export function SlideEditor(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
+  const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
 
   const [needsSave, setNeedsSave] = createSignal(false);
+  const [isSaving, setIsSaving] = createSignal(false);
   const [tempSlide, setTempSlide] = createStore<Slide>(structuredClone(p.slide));
+
+  // Cache each type's state for restoration when switching back
+  const typeCache = {
+    cover: p.slide.type === "cover" ? structuredClone(p.slide) : undefined,
+    section: p.slide.type === "section" ? structuredClone(p.slide) : undefined,
+    content: p.slide.type === "content" ? structuredClone(p.slide) : undefined,
+  } as {
+    cover?: CoverSlide;
+    section?: SectionSlide;
+    content?: ContentSlide;
+  };
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
     msg: "Rendering...",
@@ -80,20 +97,64 @@ export function SlideEditor(p: Props) {
     }
   });
 
-  function handleSave() {
+  async function handleSave() {
     if (!needsSave()) {
-      p.close(undefined);
+      p.close(false);
       return;
     }
-    p.close(unwrap(tempSlide));
+
+    setIsSaving(true);
+
+    const updateRes = await serverActions.updateSlide({
+      projectId: p.projectId,
+      slide_id: p.slideId,
+      slide: unwrap(tempSlide),
+    });
+
+    if (updateRes.success) {
+      optimisticSetLastUpdated("slides", p.slideId, updateRes.data.lastUpdated);
+
+      // Immediate cache update for instant thumbnail refresh
+      const cached = await _SLIDE_CACHE.get({ projectId: p.projectId, slideId: p.slideId });
+      const promise = serverActions.getSlide({ projectId: p.projectId, slide_id: p.slideId });
+      await _SLIDE_CACHE.setPromise(promise, { projectId: p.projectId, slideId: p.slideId }, cached.version);
+      await promise;
+
+      p.close(true);
+    } else {
+      setIsSaving(false);
+    }
   }
 
   function handleCancel() {
-    p.close(undefined);
+    p.close(false);
   }
 
   function handleTypeChange(newType: "cover" | "section" | "content") {
-    const converted = convertSlideType(unwrap(tempSlide), newType);
+    const currentSlide = unwrap(tempSlide);
+
+    // Save current state before switching
+    if (currentSlide.type === "cover") {
+      typeCache.cover = structuredClone(currentSlide);
+    } else if (currentSlide.type === "section") {
+      typeCache.section = structuredClone(currentSlide);
+    } else if (currentSlide.type === "content") {
+      typeCache.content = structuredClone(currentSlide);
+    }
+
+    // Check if we have a cached version of the target type
+    let converted: Slide;
+    if (newType === "cover" && typeCache.cover) {
+      converted = typeCache.cover;
+    } else if (newType === "section" && typeCache.section) {
+      converted = typeCache.section;
+    } else if (newType === "content" && typeCache.content) {
+      converted = typeCache.content;
+    } else {
+      // No cache - convert from current slide
+      converted = convertSlideType(currentSlide, newType);
+    }
+
     setTempSlide(reconcile(converted));
     setNeedsSave(true);
   }
@@ -114,12 +175,12 @@ export function SlideEditor(p: Props) {
               }
             >
               <div class="flex items-center ui-gap-sm">
-
                 <Button
                   intent="success"
                   onClick={handleSave}
+                  disabled={isSaving()}
                 >
-                  Save
+                  {isSaving() ? "Saving..." : "Save"}
                 </Button>
                 <Button
                   outline

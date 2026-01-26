@@ -11,11 +11,13 @@ import {
   type RenderContext,
   sum,
 } from "../../deps.ts";
-import type { FreeformPageInputs } from "../../types.ts";
+import { RectCoordsDims as RCD } from "../../deps.ts";
+import type { FreeformPageInputs, PagePrimitive } from "../../types.ts";
 
 export interface MeasuredFooter {
   mFooter?: MeasuredText;
   rcdFooterOuter: RectCoordsDims;
+  maxWidthForFooterText: number;
 }
 
 export function measureFooter(
@@ -34,12 +36,13 @@ export function measureFooter(
   const padFooter = new Padding(s.footer.padding);
   let mFooter: MeasuredText | undefined;
   let totalInnerFooterHeight = 0;
+  const maxWidthForFooterText = rcdOuter.w() - padFooter.totalPx();
 
   if (inputs.footer?.trim()) {
     mFooter = rc.mText(
       inputs.footer.trim(),
       s.text.footer,
-      rcdOuter.w() - padFooter.totalPx(),
+      maxWidthForFooterText,
     );
     totalInnerFooterHeight = mFooter.dims.h();
   }
@@ -61,28 +64,45 @@ export function measureFooter(
   return {
     mFooter,
     rcdFooterOuter,
+    maxWidthForFooterText,
   };
 }
 
-export function renderFooter(
-  rc: RenderContext,
+export function buildFooterPrimitives(
   measured: MeasuredFooter,
   inputs: FreeformPageInputs,
   s: MergedPageStyle,
-): void {
+): PagePrimitive[] {
+  const primitives: PagePrimitive[] = [];
   const padFooter = new Padding(s.footer.padding);
 
+  // Background
   if (s.footer.backgroundColor !== "none") {
-    rc.rRect(measured.rcdFooterOuter, {
+    primitives.push({
+      type: "background",
+      id: "footerBackground",
+      rcd: measured.rcdFooterOuter,
       fillColor: s.footer.backgroundColor,
     });
   }
 
   const paddedRcd = measured.rcdFooterOuter.getPadded(padFooter);
+
+  // Footer text
   if (measured.mFooter) {
-    rc.rText(measured.mFooter, paddedRcd.topLeftCoords(), "left");
+    primitives.push({
+      type: "text",
+      id: "footerText",
+      mText: measured.mFooter,
+      x: paddedRcd.x(),
+      y: paddedRcd.y(),
+      hAlign: "left",
+      vAlign: "top",
+      maxWidth: measured.maxWidthForFooterText,
+    });
   }
 
+  // Footer logos (right-aligned, vertically centered)
   if (inputs.footerLogos && inputs.footerLogos.length > 0) {
     const logosWidth = sum(
       inputs.footerLogos.map(
@@ -92,17 +112,20 @@ export function renderFooter(
       s.footer.logoGapX * (inputs.footerLogos.length - 1);
 
     let currentX = paddedRcd.rightX() - logosWidth;
+    const logoY = paddedRcd.y() + (paddedRcd.h() - s.footer.logoHeight) / 2;
 
-    for (const logo of inputs.footerLogos) {
+    for (let i = 0; i < inputs.footerLogos.length; i++) {
+      const logo = inputs.footerLogos[i];
       const logoWidth = (s.footer.logoHeight * logo.width) / logo.height;
-      rc.rImage(
-        logo,
-        currentX,
-        paddedRcd.y() + (paddedRcd.h() - s.footer.logoHeight) / 2,
-        logoWidth,
-        s.footer.logoHeight,
-      );
+      primitives.push({
+        type: "image",
+        id: `footerLogo${i}`,
+        image: logo,
+        rcd: new RCD([currentX, logoY, logoWidth, s.footer.logoHeight]),
+      });
       currentX += logoWidth + s.footer.logoGapX;
     }
   }
+
+  return primitives;
 }

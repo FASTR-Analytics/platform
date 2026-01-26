@@ -148,16 +148,25 @@ export function SlideList(p: Props) {
     let targetPosition: { after: string } | { before: string } | { toStart: true } | { toEnd: true } | null = null;
 
     for (let i = 0; i < newSlideIds.length; i++) {
-      if (newSlideIds[i] !== oldSlideIds[i]) {
-        const movedId = newSlideIds[i];
-        movedIds.push(movedId);
+      const slideAtNewPos = newSlideIds[i];
+      const slideAtOldPos = oldSlideIds[i];
 
-        if (i === 0) {
-          targetPosition = { toStart: true };
-        } else {
-          targetPosition = { after: newSlideIds[i - 1] };
+      if (slideAtNewPos !== slideAtOldPos) {
+        const oldIndex = oldSlideIds.indexOf(slideAtNewPos);
+        if (oldIndex !== i) {
+          let j = i;
+          while (j < newSlideIds.length && oldSlideIds.indexOf(newSlideIds[j]) !== j) {
+            movedIds.push(newSlideIds[j]);
+            j++;
+          }
+
+          if (i === 0) {
+            targetPosition = { toStart: true };
+          } else {
+            targetPosition = { after: newSlideIds[i - 1] };
+          }
+          break;
         }
-        break;
       }
     }
 
@@ -169,8 +178,6 @@ export function SlideList(p: Props) {
       slideIds: movedIds,
       position: targetPosition,
     });
-    // Don't trigger refetch - stay optimistic until next add/delete
-    // SSE from AI moves will still update via effect
   }
 
   const addSlide = timActionButton(
@@ -339,7 +346,11 @@ export function SlideList(p: Props) {
                     slideSize={slideSize()}
                     fillWidth={isFillWidth()}
                     onSelect={(e) => handleItemClick(index(), item.id, e)}
-                    onEdit={() => p.onEditSlide(item.id)}
+                    onEdit={() => {
+                      setSelectedIds(new Set<string>());
+                      p.setSelectedSlideIds([]);
+                      p.onEditSlide(item.id);
+                    }}
                     onDelete={() => handleDelete(item.id)}
                     onDuplicate={() => handleDuplicate(item.id)}
                   />

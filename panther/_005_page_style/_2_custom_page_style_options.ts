@@ -10,12 +10,14 @@ export type CustomPageStyleOptions = {
   scale?: number;
   text?: PageTextStyleOptions;
   cover?: {
+    padding?: PaddingOptions;
     backgroundColor?: ColorKeyOrString;
     logoHeight?: number;
     logoGapX?: number;
     gapY?: number;
   };
   section?: {
+    padding?: PaddingOptions;
     backgroundColor?: ColorKeyOrString;
     gapY?: number;
   };

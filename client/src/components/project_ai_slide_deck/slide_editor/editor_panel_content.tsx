@@ -49,36 +49,34 @@ export function SlideEditorPanelContent(p: Props) {
       />
 
       {/* Selected block editor */}
-      <Show when={getCurrentBlock()} keyed>
-        {(block) => (
-          <div class="ui-spy">
-            <div class="text-sm font-medium">Selected Block</div>
+      <Show when={getCurrentBlock()}>
+        <div class="ui-spy">
+          <div class="text-sm font-medium">Selected Block</div>
 
-            <Switch>
-              <Match when={block.type === "text"}>
-                <TextArea
-                  label="Markdown Content"
-                  value={(block as any).markdown}
-                  onChange={(v: string) => updateSelectedBlock((b: any) => ({ ...b, markdown: v }))}
-                  fullWidth
-                  height="300px"
-                />
-              </Match>
+          <Switch>
+            <Match when={getCurrentBlock()?.type === "text"}>
+              <TextArea
+                label="Markdown Content"
+                value={(getCurrentBlock() as any).markdown}
+                onChange={(v: string) => updateSelectedBlock((b: any) => ({ ...b, markdown: v }))}
+                fullWidth
+                height="300px"
+              />
+            </Match>
 
-              <Match when={block.type === "placeholder"}>
-                <div class="text-sm text-base-content/70">
-                  Placeholder block - empty space
-                </div>
-              </Match>
+            <Match when={getCurrentBlock()?.type === "placeholder"}>
+              <div class="text-sm text-base-content/70">
+                Placeholder block - empty space
+              </div>
+            </Match>
 
-              <Match when={block.type === "figure"}>
-                <div class="text-sm text-base-content/70">
-                  Figure block - editing not yet implemented
-                </div>
-              </Match>
-            </Switch>
-          </div>
-        )}
+            <Match when={getCurrentBlock()?.type === "figure"}>
+              <div class="text-sm text-base-content/70">
+                Figure block - editing not yet implemented
+              </div>
+            </Match>
+          </Switch>
+        </div>
       </Show>
 
       <Show when={!p.selectedBlockId}>

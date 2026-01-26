@@ -41,7 +41,7 @@ export type ContentBlock = TextBlock | FigureBlock | PlaceholderBlock;
 // Cover slide
 export type CoverSlide = {
   type: "cover";
-  title?: string;
+  title: string;
   subtitle?: string;
   presenter?: string;
   date?: string;

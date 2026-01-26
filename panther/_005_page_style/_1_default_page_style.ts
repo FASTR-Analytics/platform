@@ -9,12 +9,14 @@ const _DS = {
   scale: 1,
 
   cover: {
+    padding: [200, 300] as PaddingOptions,
     backgroundColor: { key: "base300" } as ColorKeyOrString,
     logoHeight: 320,
     logoGapX: 40,
     gapY: 30,
   },
   section: {
+    padding: [200, 300] as PaddingOptions,
     backgroundColor: { key: "base300" } as ColorKeyOrString,
     gapY: 30,
   },

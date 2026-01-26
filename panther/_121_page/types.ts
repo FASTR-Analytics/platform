@@ -4,12 +4,14 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  ColorKeyOrString,
   CustomPageStyleOptions,
   FigureInputs,
   ImageInputs,
   ItemLayoutNode,
   LayoutGap,
   LayoutNode,
+  LineStyle,
   MarkdownRendererInput,
   Measured,
   MeasuredLayoutNode,
@@ -22,6 +24,48 @@ import type {
 
 // Re-export types that consumers need
 export type { OptimizerConstraint };
+
+// =============================================================================
+// Page Primitives (for rendering page decoration elements)
+// =============================================================================
+
+export type PagePrimitive =
+  | PagePrimitiveBackground
+  | PagePrimitiveText
+  | PagePrimitiveImage
+  | PagePrimitiveLine;
+
+export type PagePrimitiveBackground = {
+  type: "background";
+  id: string;
+  rcd: RectCoordsDims;
+  fillColor: ColorKeyOrString;
+};
+
+export type PagePrimitiveText = {
+  type: "text";
+  id: string; // e.g., "coverTitle", "headerText", "footerText"
+  mText: MeasuredText;
+  x: number;
+  y: number;
+  hAlign: "left" | "center" | "right";
+  vAlign?: "top" | "center" | "bottom";
+  maxWidth?: number; // Available width constraint (for full-width hit areas)
+};
+
+export type PagePrimitiveImage = {
+  type: "image";
+  id: string; // e.g., "coverOverlay", "headerLogo1"
+  image: HTMLImageElement;
+  rcd: RectCoordsDims;
+};
+
+export type PagePrimitiveLine = {
+  type: "line";
+  id: string; // e.g., "headerBorder"
+  points: [[number, number], [number, number]];
+  style: LineStyle;
+};
 
 // =============================================================================
 // Page Content Items
@@ -117,6 +161,8 @@ type MeasuredPageBase = Measured<PageInputs> & {
 export type MeasuredCoverPage = MeasuredPageBase & {
   type: "cover";
   item: CoverPageInputs;
+  primitives: PagePrimitive[];
+  // Keep existing fields for backward compatibility
   mTitle?: MeasuredText;
   mSubTitle?: MeasuredText;
   mAuthor?: MeasuredText;
@@ -127,6 +173,8 @@ export type MeasuredCoverPage = MeasuredPageBase & {
 export type MeasuredSectionPage = MeasuredPageBase & {
   type: "section";
   item: SectionPageInputs;
+  primitives: PagePrimitive[];
+  // Keep existing fields for backward compatibility
   mSectionTitle?: MeasuredText;
   mSectionSubTitle?: MeasuredText;
 };
@@ -135,6 +183,8 @@ export type MeasuredSectionPage = MeasuredPageBase & {
 export type MeasuredFreeformPage = MeasuredPageBase & {
   type: "freeform";
   item: FreeformPageInputs;
+  primitives: PagePrimitive[]; // Header/footer elements
+  // Keep existing fields (unchanged)
   header?: {
     mHeader?: MeasuredText;
     mSubHeader?: MeasuredText;

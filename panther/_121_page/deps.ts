@@ -4,8 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { sum } from "../_000_utils/mod.ts";
+export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type {
+  LineStyle,
   Measured,
   MeasuredText,
   RenderContext,

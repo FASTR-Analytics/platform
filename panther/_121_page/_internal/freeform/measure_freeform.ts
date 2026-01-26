@@ -9,9 +9,13 @@ import type {
   RenderContext,
 } from "../../deps.ts";
 import { measureContent } from "./content.ts";
-import { measureFooter } from "./footer.ts";
-import { measureHeader } from "./header.ts";
-import type { FreeformPageInputs, MeasuredFreeformPage } from "../../types.ts";
+import { buildFooterPrimitives, measureFooter } from "./footer.ts";
+import { buildHeaderPrimitives, measureHeader } from "./header.ts";
+import type {
+  FreeformPageInputs,
+  MeasuredFreeformPage,
+  PagePrimitive,
+} from "../../types.ts";
 
 export function measureFreeform(
   rc: RenderContext,
@@ -36,6 +40,9 @@ export function measureFreeform(
     footer?.rcdFooterOuter.h() ?? 0,
   );
 
+  // Build primitives from header and footer
+  const primitives = buildFreeformPrimitives(header, footer, inputs, s);
+
   return {
     type: "freeform",
     item: inputs,
@@ -43,6 +50,7 @@ export function measureFreeform(
     mergedPageStyle: s,
     responsiveScale,
     overflow: content.overflow,
+    primitives,
     header,
     footer,
     rcdContentOuter: content.rcdContentOuter,
@@ -50,4 +58,25 @@ export function measureFreeform(
     mLayout: content.mLayout,
     gaps: content.gaps,
   };
+}
+
+function buildFreeformPrimitives(
+  header: ReturnType<typeof measureHeader>,
+  footer: ReturnType<typeof measureFooter>,
+  inputs: FreeformPageInputs,
+  s: import("../../deps.ts").MergedPageStyle,
+): PagePrimitive[] {
+  const primitives: PagePrimitive[] = [];
+
+  // Add header primitives
+  if (header) {
+    primitives.push(...buildHeaderPrimitives(header, inputs, s));
+  }
+
+  // Add footer primitives
+  if (footer) {
+    primitives.push(...buildFooterPrimitives(footer, inputs, s));
+  }
+
+  return primitives;
 }

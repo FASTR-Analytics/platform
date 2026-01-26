@@ -38,12 +38,9 @@ export type {
   PageHitTarget,
   PageHitTargetColDivider,
   PageHitTargetColGap,
-  PageHitTargetCover,
-  PageHitTargetFooter,
-  PageHitTargetHeader,
   PageHitTargetLayoutItem,
   PageHitTargetRowGap,
-  PageHitTargetSection,
+  PageHitTargetText,
 } from "./hit_regions.ts";
 
 export { optimizePageLayout } from "./optimize_page_layout.ts";

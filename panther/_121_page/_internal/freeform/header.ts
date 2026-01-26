@@ -10,7 +10,8 @@ import {
   RectCoordsDims,
   type RenderContext,
 } from "../../deps.ts";
-import type { FreeformPageInputs } from "../../types.ts";
+import { RectCoordsDims as RCD } from "../../deps.ts";
+import type { FreeformPageInputs, PagePrimitive } from "../../types.ts";
 
 export interface MeasuredHeader {
   mHeader?: MeasuredText;
@@ -19,6 +20,7 @@ export interface MeasuredHeader {
   rcdHeaderOuter: RectCoordsDims;
   yOffsetHeader: number;
   yOffsetRightPlacementLogos: number;
+  maxWidthForHeaderText: number;
 }
 
 export function measureHeader(
@@ -136,50 +138,65 @@ export function measureHeader(
     rcdHeaderOuter,
     yOffsetHeader,
     yOffsetRightPlacementLogos,
+    maxWidthForHeaderText,
   };
 }
 
-export function renderHeader(
-  rc: RenderContext,
+export function buildHeaderPrimitives(
   measured: MeasuredHeader,
   inputs: FreeformPageInputs,
   s: MergedPageStyle,
-): void {
+): PagePrimitive[] {
+  const primitives: PagePrimitive[] = [];
   const padHeader = new Padding(s.header.padding);
 
+  // Background
   if (s.header.backgroundColor !== "none") {
-    rc.rRect(measured.rcdHeaderOuter, {
+    primitives.push({
+      type: "background",
+      id: "headerBackground",
+      rcd: measured.rcdHeaderOuter,
       fillColor: s.header.backgroundColor,
     });
   }
 
+  // Overlay (complex sizing logic from renderHeader)
   if (inputs.overlay) {
     const overlayFinalWidth = measured.rcdHeaderOuter.w();
     const overlayFinalHeight = overlayFinalWidth *
       (inputs.overlay.height / inputs.overlay.width);
+
     if (overlayFinalHeight > measured.rcdHeaderOuter.h()) {
       const overlayFinalYOffset = overlayFinalHeight -
         measured.rcdHeaderOuter.h();
-      rc.rImage(
-        inputs.overlay,
-        measured.rcdHeaderOuter.x(),
-        measured.rcdHeaderOuter.y() - overlayFinalYOffset,
-        overlayFinalWidth,
-        overlayFinalHeight,
-      );
+      primitives.push({
+        type: "image",
+        id: "headerOverlay",
+        image: inputs.overlay,
+        rcd: new RCD([
+          measured.rcdHeaderOuter.x(),
+          measured.rcdHeaderOuter.y() - overlayFinalYOffset,
+          overlayFinalWidth,
+          overlayFinalHeight,
+        ]),
+      });
     } else {
       const overlayFinalHeight = measured.rcdHeaderOuter.h();
       const overlayFinalWidth = overlayFinalHeight *
         (inputs.overlay.width / inputs.overlay.height);
       const overlayFinalXOffset =
         (overlayFinalWidth - measured.rcdHeaderOuter.w()) / 2;
-      rc.rImage(
-        inputs.overlay,
-        measured.rcdHeaderOuter.x() - overlayFinalXOffset,
-        measured.rcdHeaderOuter.y(),
-        overlayFinalWidth,
-        overlayFinalHeight,
-      );
+      primitives.push({
+        type: "image",
+        id: "headerOverlay",
+        image: inputs.overlay,
+        rcd: new RCD([
+          measured.rcdHeaderOuter.x() - overlayFinalXOffset,
+          measured.rcdHeaderOuter.y(),
+          overlayFinalWidth,
+          overlayFinalHeight,
+        ]),
+      });
     }
   }
 
@@ -187,33 +204,72 @@ export function renderHeader(
   let currentY = measured.rcdHeaderOuter.getPadded(padHeader).y() +
     measured.yOffsetHeader;
 
+  // Left-placed logos
   if (
     s.header.logoPlacement === "left" &&
     inputs.headerLogos &&
     inputs.headerLogos.length > 0
   ) {
     let currentX = x;
-    for (const logo of inputs.headerLogos) {
+    for (let i = 0; i < inputs.headerLogos.length; i++) {
+      const logo = inputs.headerLogos[i];
       const logoWidth = (s.header.logoHeight * logo.width) / logo.height;
-      rc.rImage(logo, currentX, currentY, logoWidth, s.header.logoHeight);
+      primitives.push({
+        type: "image",
+        id: `headerLogoLeft${i}`,
+        image: logo,
+        rcd: new RCD([currentX, currentY, logoWidth, s.header.logoHeight]),
+      });
       currentX += logoWidth + s.header.logoGapX;
     }
     currentY += s.header.logoHeight + s.header.logoBottomPadding;
   }
 
+  // Header text
   if (measured.mHeader) {
-    rc.rText(measured.mHeader, [x, currentY], "left");
+    primitives.push({
+      type: "text",
+      id: "headerText",
+      mText: measured.mHeader,
+      x,
+      y: currentY,
+      hAlign: "left",
+      vAlign: "top",
+      maxWidth: measured.maxWidthForHeaderText,
+    });
     currentY += measured.mHeader.dims.h() + s.header.headerBottomPadding;
   }
+
+  // Subheader text
   if (measured.mSubHeader) {
-    rc.rText(measured.mSubHeader, [x, currentY], "left");
+    primitives.push({
+      type: "text",
+      id: "subHeaderText",
+      mText: measured.mSubHeader,
+      x,
+      y: currentY,
+      hAlign: "left",
+      vAlign: "top",
+      maxWidth: measured.maxWidthForHeaderText,
+    });
     currentY += measured.mSubHeader.dims.h() + s.header.subHeaderBottomPadding;
   }
+
+  // Date text
   if (measured.mDate) {
-    rc.rText(measured.mDate, [x, currentY], "left");
-    currentY += measured.mDate.dims.h();
+    primitives.push({
+      type: "text",
+      id: "dateText",
+      mText: measured.mDate,
+      x,
+      y: currentY,
+      hAlign: "left",
+      vAlign: "top",
+      maxWidth: measured.maxWidthForHeaderText,
+    });
   }
 
+  // Right-placed logos
   if (
     s.header.logoPlacement === "right" &&
     inputs.headerLogos &&
@@ -222,16 +278,26 @@ export function renderHeader(
     let currentX = measured.rcdHeaderOuter.getPadded(padHeader).rightX();
     const y = measured.rcdHeaderOuter.getPadded(padHeader).y() +
       measured.yOffsetRightPlacementLogos;
-    for (const logo of inputs.headerLogos) {
+
+    for (let i = 0; i < inputs.headerLogos.length; i++) {
+      const logo = inputs.headerLogos[i];
       const logoWidth = (s.header.logoHeight * logo.width) / logo.height;
-      rc.rImage(logo, currentX - logoWidth, y, logoWidth, s.header.logoHeight);
+      primitives.push({
+        type: "image",
+        id: `headerLogoRight${i}`,
+        image: logo,
+        rcd: new RCD([currentX - logoWidth, y, logoWidth, s.header.logoHeight]),
+      });
       currentX -= logoWidth + s.header.logoGapX;
     }
   }
 
+  // Bottom border
   if (s.header.bottomBorderStrokeWidth > 0) {
-    rc.rLine(
-      [
+    primitives.push({
+      type: "line",
+      id: "headerBorder",
+      points: [
         [
           measured.rcdHeaderOuter.x(),
           measured.rcdHeaderOuter.bottomY() -
@@ -243,11 +309,13 @@ export function renderHeader(
           s.header.bottomBorderStrokeWidth / 2,
         ],
       ],
-      {
+      style: {
         strokeWidth: s.header.bottomBorderStrokeWidth,
         strokeColor: s.header.bottomBorderColor,
         lineDash: "solid",
       },
-    );
+    });
   }
+
+  return primitives;
 }

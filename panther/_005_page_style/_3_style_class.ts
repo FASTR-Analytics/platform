@@ -200,6 +200,9 @@ export class CustomPageStyle {
           d.content.nColumns,
       },
       cover: {
+        padding: new Padding(
+          m(c.cover?.padding, g.cover?.padding, d.cover.padding),
+        ).toScaled(sf),
         backgroundColor: getColor(
           m(
             c.cover?.backgroundColor,
@@ -222,6 +225,9 @@ export class CustomPageStyle {
         gapY: ms(sf, c.cover?.gapY, g.cover?.gapY, d.cover.gapY),
       },
       section: {
+        padding: new Padding(
+          m(c.section?.padding, g.section?.padding, d.section.padding),
+        ).toScaled(sf),
         backgroundColor: getColor(
           m(
             c.section?.backgroundColor,

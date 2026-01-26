@@ -36,7 +36,7 @@ export const ContentBlockSchema = z.discriminatedUnion("type", [
 
 export const CoverSlideSchema = z.object({
   type: z.literal("cover").describe("Slide type identifier for title/cover slides"),
-  title: z.string().max(200).optional().describe("Optional: The main title of the presentation, displayed prominently on the cover slide. Maximum 200 characters."),
+  title: z.string().max(200).describe("The main title of the presentation, displayed prominently on the cover slide. Maximum 200 characters."),
   subtitle: z.string().max(500).optional().describe("Optional: A subtitle or tagline that provides additional context about the presentation. Maximum 500 characters."),
   presenter: z.string().max(200).optional().describe("Optional: The name(s) of the presenter(s) or author(s), e.g., 'Dr. Jane Smith' or 'Health Analytics Team'. Maximum 200 characters."),
   date: z.string().max(100).optional().describe("Optional: The presentation date or time period, e.g., 'January 2024' or 'Q4 2023'. Maximum 100 characters."),
