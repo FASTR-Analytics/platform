@@ -35,7 +35,8 @@
       "@codemirror/state": ["./node_modules/@codemirror/state"],
       "@codemirror/lang-markdown": ["./node_modules/@codemirror/lang-markdown"],
       "@codemirror/merge": ["./node_modules/@codemirror/merge"],
-      "pptxgenjs": ["./node_modules/pptxgenjs"]
+      "pptxgenjs": ["./node_modules/pptxgenjs"],
+      "idb-keyval": ["./node_modules/idb-keyval"]
     }
   },
   "include": [

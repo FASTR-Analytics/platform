@@ -399,8 +399,8 @@ export function ReportItemEditorInner(p: Props) {
                       }
                       setSelectedItemId(target.node.id);
                     } else if (
-                      target.type === "header" ||
-                      target.type === "footer"
+                      target.type === "headerText" ||
+                      target.type === "footerText"
                     ) {
                       if (p.reportDetail.reportType === "policy_brief") {
                         setPolicyHeaderOrContent("policyHeaderFooter");
