@@ -11,7 +11,7 @@ export const ToolLoadingRenderer: Component<{
   item: Extract<DisplayItem, { type: "tool_in_progress" }>;
 }> = (props) => {
   return (
-    <div class="text-neutral italic">
+    <div class="text-sm text-neutral italic">
       <SpinningCursor class="mr-1 inline-block" />
       {props.item.label ?? `Processing ${props.item.toolName}...`}
     </div>

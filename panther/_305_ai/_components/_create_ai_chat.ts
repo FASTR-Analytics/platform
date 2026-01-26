@@ -168,8 +168,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         {
           type: "tool_error",
           toolName: "system",
-          errorMessage,
-          result: errorMessage,
+          errorMessage: "System error",
+          errorDetails: errorMessage,
         },
       ]);
     } finally {
@@ -302,9 +302,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             allErrorItems.push({
               type: "tool_error",
               toolName: block.name,
-              errorMessage: result,
+              errorMessage: `Tool error: ${block.name}`,
+              errorDetails: result,
               toolInput: block.input,
-              result,
             });
           }
         } else {

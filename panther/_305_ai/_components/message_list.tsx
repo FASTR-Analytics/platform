@@ -117,7 +117,7 @@ export const MessageList: Component<Props> = (props) => {
             })()}
           </Match>
           <Match when={props.serverToolLabel}>
-            <div class="text-neutral italic">
+            <div class="text-sm text-neutral italic">
               <SpinningCursor class="mr-1 inline-block" />
               {props.serverToolLabel}
             </div>
@@ -126,7 +126,7 @@ export const MessageList: Component<Props> = (props) => {
             when={(props.isStreaming || props.isLoading) &&
               toolInProgressItems().length === 0}
           >
-            <div class="text-neutral italic">
+            <div class="text-sm text-neutral italic">
               <SpinningCursor class="mr-1 inline-block" />
               Thinking...
             </div>

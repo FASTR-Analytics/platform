@@ -27,11 +27,11 @@ export const slideDeckStyle: CustomPageStyleOptions = {
   content: { padding: [100, 120] as [number, number], gapX: 100, gapY: 80 },
 };
 
-export async function convertSlideToPageInputs(
+export function convertSlideToPageInputs(
   projectId: string,
   slide: Slide,
   slideIndex?: number
-): Promise<APIResponseWithData<PageInputs>> {
+): APIResponseWithData<PageInputs> {
   if (slide.type === "cover") {
     return {
       success: true,

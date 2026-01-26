@@ -21,6 +21,9 @@ export type ToolResult = {
   tool_use_id: string;
   content: string;
   is_error?: boolean;
+};
+
+type ToolResultInternal = ToolResult & {
   _fullError?: string;
 };
 
@@ -103,75 +106,98 @@ export async function processToolUses(
 
   const inProgressItems = getInProgressItems(content, toolRegistry);
 
-  const toolPromises = toolUseBlocks.map(async (block) => {
-    const toolWithMetadata = toolRegistry.get(block.name);
+  const toolPromises = toolUseBlocks.map(
+    async (block): Promise<ToolResultInternal> => {
+      const toolWithMetadata = toolRegistry.get(block.name);
 
-    if (!toolWithMetadata) {
-      console.error(`Unknown tool: ${block.name}`);
-      const errorMsg = `Unknown tool "${block.name}"`;
-      return {
-        type: "tool_result" as const,
-        tool_use_id: block.id,
-        content: errorMsg,
-        is_error: true,
-        _fullError: errorMsg,
-      };
-    }
+      if (!toolWithMetadata) {
+        console.error(`Unknown tool: ${block.name}`);
+        const errorMsg = `Unknown tool "${block.name}"`;
+        return {
+          type: "tool_result" as const,
+          tool_use_id: block.id,
+          content: errorMsg,
+          is_error: true,
+          _fullError: errorMsg,
+        };
+      }
 
-    try {
-      // SDK tools have a run() method that executes the handler
-      const result = await toolWithMetadata.sdkTool.run(block.input);
-      return {
-        type: "tool_result" as const,
-        tool_use_id: block.id,
-        content: result, // SDK tool already returns string
-      };
-    } catch (error) {
-      // Clean message for Claude API (no stack, no "Error:" prefix)
-      const errorMessage = error instanceof Error
-        ? error.message
-        : String(error);
-      const cleanMessage = errorMessage.replace(/^Error:\s*/i, "");
+      try {
+        // SDK tools have a run() method that executes the handler
+        const result = await toolWithMetadata.sdkTool.run(block.input);
+        return {
+          type: "tool_result" as const,
+          tool_use_id: block.id,
+          content: result, // SDK tool already returns string
+        };
+      } catch (error) {
+        // Clean message for Claude API (no stack, no "Error:" prefix)
+        const errorMessage = error instanceof Error
+          ? error.message
+          : String(error);
+        const cleanMessage = errorMessage.replace(/^Error:\s*/i, "");
 
-      // Full error details for UI (includes stack)
-      const fullError = error instanceof Error && error.stack
-        ? error.stack
-        : cleanMessage;
+        // Full error details for UI (includes stack)
+        const fullError = error instanceof Error && error.stack
+          ? error.stack
+          : cleanMessage;
 
-      return {
-        type: "tool_result" as const,
-        tool_use_id: block.id,
-        content: cleanMessage,
-        is_error: true,
-        _fullError: fullError,
-      };
-    }
-  });
+        return {
+          type: "tool_result" as const,
+          tool_use_id: block.id,
+          content: cleanMessage,
+          is_error: true,
+          _fullError: fullError,
+        };
+      }
+    },
+  );
 
-  const results = await Promise.all(toolPromises);
+  const resultsInternal = await Promise.all(toolPromises);
 
-  const errorItems: DisplayItem[] = results
+  // Strip _fullError before returning to API
+  const results: ToolResult[] = resultsInternal.map(({ _fullError, ...rest }) =>
+    rest
+  );
+
+  const errorItems: DisplayItem[] = resultsInternal
     .filter((r) => r.is_error)
     .map((result) => {
       const toolBlock = toolUseBlocks.find((b) => b.id === result.tool_use_id)!;
+      const metadata = toolRegistry.getMetadata(toolBlock.name);
+
+      const errorLabel = metadata?.errorMessage
+        ? (typeof metadata.errorMessage === "function"
+          ? metadata.errorMessage(toolBlock.input)
+          : metadata.errorMessage)
+        : `Tool error: ${toolBlock.name}`;
+
       return {
         type: "tool_error" as const,
         toolName: toolBlock.name,
-        errorMessage: result.content,
+        errorMessage: errorLabel,
+        errorDetails: result.content,
+        errorStack: result._fullError !== result.content
+          ? result._fullError
+          : undefined,
         toolInput: toolBlock.input,
-        result: result._fullError ?? result.content,
       };
     });
 
-  const successItems: DisplayItem[] = results
+  const successItems: DisplayItem[] = resultsInternal
     .filter((r) => !r.is_error)
     .map((result) => {
       const toolBlock = toolUseBlocks.find((b) => b.id === result.tool_use_id)!;
       const metadata = toolRegistry.getMetadata(toolBlock.name);
 
-      const message = typeof metadata?.completionMessage === "function"
-        ? metadata.completionMessage(toolBlock.input)
-        : metadata?.completionMessage ?? `${toolBlock.name} completed`;
+      // Use successMessage if provided, fall back to completionMessage (backwards compat), then default
+      const messageSource = metadata?.successMessage ??
+        metadata?.completionMessage;
+      const message = messageSource
+        ? (typeof messageSource === "function"
+          ? messageSource(toolBlock.input)
+          : messageSource)
+        : `Tool success: ${toolBlock.name}`;
 
       return {
         type: "tool_success" as const,

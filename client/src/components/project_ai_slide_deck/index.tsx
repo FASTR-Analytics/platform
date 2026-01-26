@@ -1,4 +1,4 @@
-import { type InstanceDetail, type ProjectDetail } from "lib";
+import { type InstanceDetail, type ProjectDetail, type Slide } from "lib";
 import {
   AIChat,
   AIChatProvider,
@@ -7,14 +7,17 @@ import {
   FrameLeftResizable,
   FrameTop,
   HeadingBar,
+  getEditorWrapper,
 } from "panther";
-import { createEffect, createMemo, createSignal, onMount } from "solid-js";
+import { createEffect, createMemo, createSignal, onMount, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getToolsForSlides } from "../ai_tools/ai_tool_definitions";
 import { useProjectDirtyStates, useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideList } from "./slide_list";
 import { DEFAULT_MODEL_CONFIG, DEFAULT_BUILTIN_TOOLS, createProjectSDKClient } from "~/components/ai_configs/defaults";
 import { getSlideDeckSystemPrompt } from "~/components/ai_prompts/slide_deck";
+import { SlideEditor } from "./slide_editor";
+import { _SLIDE_CACHE } from "~/state/caches/slides";
 
 type Props = {
   instanceDetail: InstanceDetail;
@@ -112,53 +115,98 @@ function ProjectAiSlideDeckInner(p: {
   backToProject: (withUpdate: boolean) => Promise<void>;
 }) {
   const { clearConversation, isLoading: aiLoading } = createAIChat();
+  const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
+  const { openEditor, EditorWrapper } = getEditorWrapper();
+
+  // Editor state
+  const [editingSlideId, setEditingSlideId] = createSignal<string | undefined>();
+
+  async function handleEditSlide(slideId: string) {
+    const cached = await _SLIDE_CACHE.get({ projectId: p.projectDetail.id, slideId });
+    let slide: Slide;
+
+    if (!cached.data) {
+      const res = await serverActions.getSlide({ projectId: p.projectDetail.id, slide_id: slideId });
+      if (!res.success) return;
+      slide = res.data.slide;
+    } else {
+      slide = cached.data.slide;
+    }
+
+    setEditingSlideId(slideId);
+
+    const editedSlide = await openEditor({
+      element: SlideEditor,
+      props: {
+        projectId: p.projectDetail.id,
+        deckId: p.deckId,
+        slideId: slideId,
+        slide: slide,
+      },
+    });
+
+    setEditingSlideId(undefined);
+
+    if (editedSlide) {
+      const updateRes = await serverActions.updateSlide({
+        projectId: p.projectDetail.id,
+        slide_id: slideId,
+        slide: editedSlide,
+      });
+
+      if (updateRes.success) {
+        optimisticSetLastUpdated("slides", slideId, updateRes.data.lastUpdated);
+      }
+    }
+  }
 
   return (
-    <FrameTop
-      panelChildren={
-        <HeadingBar
-          heading={p.reportLabel}
-          french={false}
-          leftChildren={
-            <Button iconName="chevronLeft" onClick={() => p.backToProject(true)} />
-          }
-        >
-          <div class="ui-gap-sm flex w-full items-center">
+    <EditorWrapper>
+      <FrameTop
+        panelChildren={
+          <HeadingBar
+            heading={p.reportLabel}
+            french={false}
+            leftChildren={
+              <Button iconName="chevronLeft" onClick={() => p.backToProject(true)} />
+            }
+          >
+          </HeadingBar>
+        }
+      >
+        <FrameLeftResizable
+          minWidth={300}
+          startingWidth={600}
+          maxWidth={1200}
+          panelChildren={<div class="border-base-300 h-full w-full border-r flex flex-col">
+            <div class="flex items-center border-b border-base-300 ui-pad">
+              <div class="flex-1 font-700 text-lg">AI chat</div>
+              <Button
+                onClick={clearConversation}
+                disabled={aiLoading()}
+                outline
+                iconName="trash"
+                size="sm"
+              >
+                Clear chat
+              </Button>
+            </div>
+            <div class="w-full h-0 flex-1">
+              <AIChat />
+            </div>
           </div>
-        </HeadingBar>
-      }
-    >
-      <FrameLeftResizable
-        minWidth={300}
-        startingWidth={600}
-        maxWidth={1200}
-        panelChildren={<div class="border-base-300 h-full w-full border-r flex flex-col">
-          <div class="flex items-center border-b border-base-300 ui-pad">
-            <div class="flex-1 font-700 text-lg">AI chat</div>
-            <Button
-              onClick={clearConversation}
-              disabled={aiLoading()}
-              outline
-              iconName="trash"
-              size="sm"
-            >
-              Clear chat
-            </Button>
-          </div>
-          <div class="w-full h-0 flex-1">
-            <AIChat />
-          </div>
-        </div>
 
-        }>
-        <SlideList
-          projectDetail={p.projectDetail}
-          deckId={p.deckId}
-          slideIds={p.slideIds}
-          isLoading={p.isLoading}
-          setSelectedSlideIds={p.setSelectedSlideIds}
-        />
-      </FrameLeftResizable>
-    </FrameTop>
+          }>
+          <SlideList
+            projectDetail={p.projectDetail}
+            deckId={p.deckId}
+            slideIds={p.slideIds}
+            isLoading={p.isLoading}
+            setSelectedSlideIds={p.setSelectedSlideIds}
+            onEditSlide={handleEditSlide}
+          />
+        </FrameLeftResizable>
+      </FrameTop>
+    </EditorWrapper>
   );
 }

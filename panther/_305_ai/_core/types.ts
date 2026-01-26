@@ -72,8 +72,9 @@ export type DisplayItem =
     type: "tool_error";
     toolName: string;
     errorMessage: string;
+    errorDetails: string;
+    errorStack?: string;
     toolInput?: unknown;
-    result: string;
   }
   | {
     type: "tool_display";

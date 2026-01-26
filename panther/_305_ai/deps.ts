@@ -19,6 +19,8 @@ export type {
 } from "../_110_ai_types/mod.ts";
 export {
   Button,
+  ChevronDownIcon,
+  ChevronRightIcon,
   createMarkdownIt,
   deriveMarkdownCssVars,
   MARKDOWN_BASE_STYLES,

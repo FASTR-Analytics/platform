@@ -62,6 +62,10 @@ const weatherTool = createAITool({
   description: "Get weather for a location",
   inputSchema: z.object({ location: z.string() }),
   handler: async (input) => `Weather in ${input.location}: Sunny`,
+
+  // Optional - customize labels shown to users:
+  successMessage: (input) => `Weather retrieved for ${input.location}`,  // Default: "Tool success: get_weather"
+  errorMessage: "Weather service unavailable",  // Default: "Tool error: get_weather"
 });
 
 // Use in chat

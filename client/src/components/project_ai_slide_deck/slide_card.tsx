@@ -16,6 +16,7 @@ type Props = {
   slideSize: number;
   fillWidth: boolean;
   onSelect: (event: MouseEvent) => void;
+  onEdit: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
 };
@@ -41,7 +42,7 @@ export function SlideCard(p: Props) {
       const res = await promise;
 
       if (res.success) {
-        const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, p.index);
+        const renderRes = convertSlideToPageInputs(p.projectId, res.data.slide, p.index);
         if (renderRes.success) {
           setPageInputs({ status: "ready", data: renderRes.data });
         } else {
@@ -52,7 +53,7 @@ export function SlideCard(p: Props) {
       }
     } else {
       // Cache hit - render from cached data
-      const renderRes = await convertSlideToPageInputs(p.projectId, cached.data.slide, p.index);
+      const renderRes = convertSlideToPageInputs(p.projectId, cached.data.slide, p.index);
       if (renderRes.success) {
         setPageInputs({ status: "ready", data: renderRes.data });
       } else {
@@ -75,6 +76,11 @@ export function SlideCard(p: Props) {
       : "Duplicate slide";
 
     const items: MenuItem[] = [
+      {
+        label: "Edit slide",
+        icon: "pencil",
+        onClick: p.onEdit,
+      },
       {
         label: duplicateLabel,
         icon: "copy",
