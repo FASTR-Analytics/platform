@@ -8,7 +8,4 @@ export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { PaddingOptions } from "../_001_geometry/mod.ts";
-export type {
-  HeightConstraints,
-  RenderContext,
-} from "../_001_render_system/mod.ts";
+export type { HeightConstraints, RenderContext } from "../_001_render_system/mod.ts";

@@ -76,7 +76,7 @@ export {
   updateNodeStyle,
 } from "./operations.ts";
 
-export { getColWidths } from "./col_widths.ts";
+export { getColWidths, getWidthForSpan } from "./col_widths.ts";
 export type { ColWidthInfo } from "./col_widths.ts";
 
 export { optimizeLayout } from "./optimizer.ts";

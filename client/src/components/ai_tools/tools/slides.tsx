@@ -271,7 +271,7 @@ export function getToolsForSlides(
     createAITool({
       name: "duplicate_slides",
       description:
-        "Create copies of one or more slides. Each duplicate is inserted immediately after its original slide. The duplicated slides have identical content but receive new unique IDs.",
+        "Create copies of one or more slides. All duplicates are inserted after the last original slide (preserving their relative order). The duplicated slides have identical content but receive new unique IDs.",
       inputSchema: z.object({
         slideIds: z
           .array(z.string())

@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Padding, PANTHER_DEBUG, RectCoordsDims, sum } from "./deps.ts";
-import { getColWidths } from "./col_widths.ts";
+import { getColWidths, getWidthForSpan } from "./col_widths.ts";
 import type {
   ContainerStyleOptions,
   HeightConstraints,
@@ -59,7 +59,7 @@ export function measureLayout<T, U>(
     overflowTracker,
     nColumns,
   );
-  const gaps = extractGaps(measured, gapX, gapY, options?.gapOverlap ?? 10);
+  const gaps = extractGaps(measured, gapX, gapY, options?.gapOverlap ?? 10, nColumns);
   return { measured, overflow: overflowTracker.overflow, gaps };
 }
 
@@ -484,9 +484,10 @@ function extractGaps<U>(
   gapX: number,
   gapY: number,
   overlap: number,
+  nColumns: number,
 ): LayoutGap[] {
   const gaps: LayoutGap[] = [];
-  extractGapsRecursive(node, gapX, gapY, overlap, gaps, 0, 0);
+  extractGapsRecursive(node, gapX, gapY, overlap, nColumns, gaps, 0, 0);
   return gaps;
 }
 
@@ -495,6 +496,7 @@ function extractGapsRecursive<U>(
   gapX: number,
   gapY: number,
   overlap: number,
+  nColumns: number,
   gaps: LayoutGap[],
   rowIndex: number,
   _colIndex: number,
@@ -505,7 +507,7 @@ function extractGapsRecursive<U>(
       const child = children[i];
 
       // Recurse into child
-      extractGapsRecursive(child, gapX, gapY, overlap, gaps, i, 0);
+      extractGapsRecursive(child, gapX, gapY, overlap, nColumns, gaps, i, 0);
 
       // Add row gap after each child except the last
       if (i < children.length - 1) {
@@ -532,7 +534,7 @@ function extractGapsRecursive<U>(
       const child = children[i];
 
       // Recurse into child
-      extractGapsRecursive(child, gapX, gapY, overlap, gaps, rowIndex, i);
+      extractGapsRecursive(child, gapX, gapY, overlap, nColumns, gaps, rowIndex, i);
 
       // Add column gap and divider after each child except the last
       if (i < children.length - 1) {
@@ -555,9 +557,23 @@ function extractGapsRecursive<U>(
         });
 
         // Column divider (for drag-to-resize)
+        // Snap positions for valid spans within the combined span of two adjacent columns
+        const leftSpan = child.span ?? 1;
+        const rightSpan = nextChild.span ?? 1;
+        const combinedSpan = leftSpan + rightSpan;
+
+        const leftStartX = child.rpd.x();
+        const combinedWidth = child.rpd.w() + nextChild.rpd.w();
+        const snapPositions: number[] = [];
+        for (let span = 1; span < combinedSpan; span++) {
+          const leftWidth = getWidthForSpan(span, combinedWidth, gapX, combinedSpan);
+          snapPositions.push(leftStartX + leftWidth + gapX / 2);
+        }
+
         const dividerX = child.rpd.x() + child.rpd.w() + gapX / 2;
         gaps.push({
           type: "col-divider",
+          colsNodeId: node.id,
           rowIndex,
           afterColIndex: i,
           line: {
@@ -565,6 +581,7 @@ function extractGapsRecursive<U>(
             y1: child.rpd.y(),
             y2: child.rpd.y() + child.rpd.h(),
           },
+          snapPositions,
         });
       }
     }

@@ -1,6 +1,6 @@
 import { t, type ProjectDetail, type Slide } from "lib";
 import { Button, Loading, Slider, timActionButton, timActionDelete } from "panther";
-import SortableVendor from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
+import SortableVendor, { SortableJs } from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { useOptimisticSetLastUpdated } from "../project_runner/mod";
@@ -22,6 +22,15 @@ export function SlideList(p: Props) {
   const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(null);
   const [slideSize, setSlideSize] = createSignal(400);
   const [isFillWidth, setIsFillWidth] = createSignal(false);
+
+  function clearSelection() {
+    setSelectedIds(new Set<string>());
+    setLastSelectedIndex(null);
+    p.setSelectedSlideIds([]);
+    document.querySelectorAll('.sortable-selected').forEach(el => {
+      SortableJs.utils.deselect(el);
+    });
+  }
 
   // Local copy of slide order for optimistic drag-and-drop updates
   const [sortableSlideItems, setSortableSlideItems] = createSignal<{ id: string }[]>(
@@ -95,8 +104,7 @@ export function SlideList(p: Props) {
       (data) => {
         // Optimistic: remove from local state immediately
         setSortableSlideItems(items => items.filter(i => !slideIdsToDelete.includes(i.id)));
-        setSelectedIds(new Set<string>());
-        p.setSelectedSlideIds([]);
+        clearSelection();
         // Trigger SSE refetch which will sync the real state
         optimisticSetLastUpdated("slide_decks", p.deckId, data.lastUpdated);
       },
@@ -118,16 +126,21 @@ export function SlideList(p: Props) {
     });
 
     if (res.success) {
-      // Optimistic: insert duplicated slides
+      // Optimistic: insert all duplicates after the last original
       setSortableSlideItems(currentItems => {
         const newItems = [...currentItems];
-        // Insert each duplicate after its original
-        for (let i = slideIdsToDuplicate.length - 1; i >= 0; i--) {
-          const originalId = slideIdsToDuplicate[i];
-          const originalIndex = newItems.findIndex(item => item.id === originalId);
-          if (originalIndex !== -1 && res.data.newSlideIds[i]) {
-            newItems.splice(originalIndex + 1, 0, { id: res.data.newSlideIds[i] });
+        // Find the last original's index
+        let lastOriginalIndex = -1;
+        for (const originalId of slideIdsToDuplicate) {
+          const idx = newItems.findIndex(item => item.id === originalId);
+          if (idx > lastOriginalIndex) {
+            lastOriginalIndex = idx;
           }
+        }
+        // Insert all duplicates after the last original
+        if (lastOriginalIndex !== -1) {
+          const newSlideItems = res.data.newSlideIds.map(id => ({ id }));
+          newItems.splice(lastOriginalIndex + 1, 0, ...newSlideItems);
         }
         return newItems;
       });
@@ -283,8 +296,7 @@ export function SlideList(p: Props) {
             const target = e.target as HTMLElement;
             const clickedOnSlide = target.closest('.slide-card-wrapper');
             if (!clickedOnSlide) {
-              setSelectedIds(new Set<string>());
-              p.setSelectedSlideIds([]);
+              clearSelection();
             }
           }}
         >
@@ -347,8 +359,7 @@ export function SlideList(p: Props) {
                     fillWidth={isFillWidth()}
                     onSelect={(e) => handleItemClick(index(), item.id, e)}
                     onEdit={() => {
-                      setSelectedIds(new Set<string>());
-                      p.setSelectedSlideIds([]);
+                      clearSelection();
                       p.onEditSlide(item.id);
                     }}
                     onDelete={() => handleDelete(item.id)}

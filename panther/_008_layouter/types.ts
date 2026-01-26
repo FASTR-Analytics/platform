@@ -101,9 +101,11 @@ export type LayoutGapColGap = {
 
 export type LayoutGapColDivider = {
   type: "col-divider";
+  colsNodeId: LayoutNodeId;
   rowIndex: number;
   afterColIndex: number;
   line: { x: number; y1: number; y2: number };
+  snapPositions: number[]; // Valid x positions for snapping (index 0 = span 1, index n-2 = span n-1)
 };
 
 export type LayoutGap = LayoutGapRowGap | LayoutGapColGap | LayoutGapColDivider;

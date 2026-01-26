@@ -77,9 +77,9 @@ const _DS = {
     cellBackgroundColorFormatter: "none" as
       | "none"
       | TableCellFormatterFunc<
-        string | number | null | undefined,
-        ColorKeyOrString
-      >,
+          string | number | null | undefined,
+          ColorKeyOrString
+        >,
     cellValueFormatter: ((v) => toPct1(v)) as TableCellFormatterFunc<
       string | number | null | undefined,
       string

@@ -12,7 +12,9 @@ import {
   PageInputs,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   HeadingBar,
+  findById,
 } from "panther";
+import type { DividerDragUpdate } from "panther";
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { createStore, unwrap, reconcile } from "solid-js/store";
 import { convertSlideToPageInputs } from "../utils/convert_slide_to_page_inputs";
@@ -130,6 +132,24 @@ export function SlideEditor(p: Props) {
     p.close(false);
   }
 
+  function handleDividerDrag(update: DividerDragUpdate) {
+    if (tempSlide.type !== "content") return;
+
+    const slide = structuredClone(unwrap(tempSlide)) as ContentSlide;
+
+    const leftResult = findById(slide.layout, update.leftNodeId);
+    if (leftResult) {
+      leftResult.node.span = update.suggestedSpans.left;
+    }
+
+    const rightResult = findById(slide.layout, update.rightNodeId);
+    if (rightResult) {
+      rightResult.node.span = update.suggestedSpans.right;
+    }
+
+    setTempSlide(reconcile(slide));
+  }
+
   function handleTypeChange(newType: "cover" | "section" | "content") {
     const currentSlide = unwrap(tempSlide);
 
@@ -179,8 +199,9 @@ export function SlideEditor(p: Props) {
                   intent="success"
                   onClick={handleSave}
                   disabled={isSaving()}
+                  loading={isSaving()}
                 >
-                  {isSaving() ? "Saving..." : "Save"}
+                  Save
                 </Button>
                 <Button
                   outline
@@ -241,7 +262,8 @@ export function SlideEditor(p: Props) {
                         setSelectedBlockId(target.node.id);
                       }
                     }}
-                    onContextMenu={(e, target) => {
+                    onDividerDrag={handleDividerDrag}
+                    onContextMenu={(_e, _target) => {
                       // Future: Layout manipulation menu
                     }}
                   />

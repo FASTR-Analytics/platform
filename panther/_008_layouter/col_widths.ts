@@ -110,3 +110,19 @@ function getBlockWidth(
     span: nCols,
   };
 }
+
+/**
+ * Calculate the width for a given span when redistributing a combined width.
+ * Used for snap positions when dragging column dividers.
+ *
+ * Derives from: width = span * singleColWidth + (span - 1) * gapX
+ * where singleColWidth = (combinedWidth - (nColumns - 2) * gapX) / nColumns
+ */
+export function getWidthForSpan(
+  span: number,
+  combinedWidth: number,
+  gapX: number,
+  nColumns: number,
+): number {
+  return (span * combinedWidth + gapX * (2 * span - nColumns)) / nColumns;
+}

@@ -274,4 +274,4 @@ function Sortable(props) {
   })();
 }
 
-export { Sortable as default };
+export { Sortable as default, SortableJs };

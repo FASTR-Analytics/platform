@@ -212,10 +212,22 @@ export async function duplicateSlides(
       ORDER BY sort_order
     `;
 
-    // Create duplicates inserted after each original
-    for (const original of originalSlides) {
+    // Find the max sort_order among originals - all duplicates go after the last original
+    const maxOriginalSortOrder = Math.max(...originalSlides.map(s => s.sort_order));
+
+    // Shift all slides after the last original to make room for duplicates
+    const numDuplicates = originalSlides.length;
+    await projectDb`
+      UPDATE slides
+      SET sort_order = sort_order + ${numDuplicates * 10}
+      WHERE slide_deck_id = ${deckId} AND sort_order > ${maxOriginalSortOrder}
+    `;
+
+    // Insert duplicates right after the last original
+    for (let i = 0; i < originalSlides.length; i++) {
+      const original = originalSlides[i];
       const newSlideId = await generateUniqueSlideId(projectDb);
-      const newSortOrder = original.sort_order + 5;
+      const newSortOrder = maxOriginalSortOrder + 1 + i;
 
       await projectDb`
         INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)

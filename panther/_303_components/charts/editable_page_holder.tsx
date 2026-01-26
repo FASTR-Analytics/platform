@@ -23,8 +23,13 @@ import {
   untrackCanvas,
 } from "../deps.ts";
 import type {
+  MeasuredColsLayoutNode,
+  MeasuredFreeformPage,
+  MeasuredLayoutNode,
   MeasuredPage,
+  PageContentItem,
   PageHitTarget,
+  PageHitTargetColDivider,
   PageInputs,
   TextRenderingOptions,
 } from "../deps.ts";
@@ -44,6 +49,17 @@ export type EditableHoverStyle = {
   showLayoutBoundaries?: boolean;
 };
 
+export type DividerDragUpdate = {
+  colsNodeId: string;
+  leftNodeId: string;
+  rightNodeId: string;
+  suggestedSpans: {
+    left: number;
+    right: number;
+  };
+  totalSpans: number;
+};
+
 type Props = {
   pageInputs?: PageInputs;
   canvasElementId?: string;
@@ -58,6 +74,7 @@ type Props = {
   onContextMenu?: (e: MouseEvent, target: PageHitTarget) => void;
   onHover?: (target: PageHitTarget | undefined) => void;
   onMeasured?: (measured: MeasuredPage) => void;
+  onDividerDrag?: (update: DividerDragUpdate) => void;
 };
 
 const DEFAULT_HOVER_STYLE: EditableHoverStyle = {
@@ -89,6 +106,18 @@ export function EditablePageHolder(p: Props) {
     undefined,
   );
   const [isCanvasHovered, setIsCanvasHovered] = createSignal(false);
+  const [measuredPage, setMeasuredPage] = createSignal<
+    MeasuredPage | undefined
+  >();
+  const [dragState, setDragState] = createSignal<
+    {
+      target: PageHitTargetColDivider;
+      startX: number;
+      currentX: number;
+      colsNode: MeasuredColsLayoutNode<PageContentItem>;
+      nColumns: number;
+    } | undefined
+  >();
 
   onMount(() => {
     mainCanvas.width = fixedCanvasW;
@@ -129,6 +158,8 @@ export function EditablePageHolder(p: Props) {
         loadFont(fontInfo.fontFamily);
       });
     }
+
+    document.addEventListener("keydown", handleKeyDown);
   });
 
   createEffect(() => {
@@ -140,13 +171,14 @@ export function EditablePageHolder(p: Props) {
       setErr,
       setOverflow,
       setHitRegions,
+      setMeasuredPage,
       unscaledW,
       unscaledH,
       p.textRenderingOptions,
       p.externalError,
       p.onMeasured,
       animationFrameId,
-      (id) => {
+      (id: number | undefined) => {
         animationFrameId = id;
       },
     );
@@ -162,6 +194,7 @@ export function EditablePageHolder(p: Props) {
     const hit = currentHit();
     const regions = hitRegions();
     const canvasHovered = isCanvasHovered();
+    const drag = dragState();
     const ctx = overlayCachedContext;
     if (!ctx) return;
 
@@ -172,23 +205,52 @@ export function EditablePageHolder(p: Props) {
     const screenPixelSize = displayedWidth > 0 ? unscaledW / displayedWidth : 1;
 
     if (canvasHovered && style.showLayoutBoundaries) {
+      // Layout items - dotted rect boundaries
       const layoutItems = regions.filter((r) => r.type === "layoutItem");
-      const hitNodeId = hit?.type === "layoutItem" ? hit.node.id : undefined;
+      const hitLayoutId = hit?.type === "layoutItem" ? hit.node.id : undefined;
       for (const region of layoutItems) {
-        renderBoundary(
-          ctx,
-          region,
-          hitNodeId === region.node.id,
-          screenPixelSize,
-        );
+        renderBoundary(ctx, region, hitLayoutId === region.node.id, screenPixelSize);
+      }
+
+      // Text items - dotted rect boundaries
+      const textItems = regions.filter((r) => isTextHitTarget(r));
+      for (const region of textItems) {
+        const isThisHovered = hit?.type === region.type;
+        renderBoundary(ctx, region, isThisHovered, screenPixelSize);
+      }
+
+      // Dividers - thin lines (not rects)
+      const dividers = regions.filter(
+        (r): r is PageHitTargetColDivider => r.type === "colDivider",
+      );
+      for (const region of dividers) {
+        const isThisHovered =
+          hit?.type === "colDivider" &&
+          hit.gap.colsNodeId === region.gap.colsNodeId &&
+          hit.gap.afterColIndex === region.gap.afterColIndex;
+        if (!isThisHovered) {
+          renderDividerLine(ctx, region, false, screenPixelSize);
+        }
       }
     }
 
-    if (hit) {
+    if (drag) {
+      const { target, startX, currentX } = drag;
+      const gap = target.gap;
+      const deltaX = currentX - startX;
+      const snappedX = calculateSnappedDividerX(drag, deltaX);
+
+      ctx.strokeStyle = "rgba(0, 112, 243, 0.9)";
+      ctx.lineWidth = 2 * screenPixelSize;
+      ctx.beginPath();
+      ctx.moveTo(snappedX, gap.line.y1);
+      ctx.lineTo(snappedX, gap.line.y2);
+      ctx.stroke();
+    } else if (hit) {
       renderHover(ctx, hit, style, screenPixelSize);
     }
 
-    p.onHover?.(hit);
+    p.onHover?.(drag ? undefined : hit);
   });
 
   onCleanup(() => {
@@ -209,6 +271,9 @@ export function EditablePageHolder(p: Props) {
 
     mainCachedContext = undefined;
     overlayCachedContext = undefined;
+
+    setDragState(undefined);
+    document.removeEventListener("keydown", handleKeyDown);
   });
 
   function handlePointerEnter() {
@@ -217,19 +282,90 @@ export function EditablePageHolder(p: Props) {
 
   function handlePointerMove(e: PointerEvent) {
     const coords = getCanvasCoords(e, overlayCanvas, scale);
+    const drag = dragState();
+
+    if (drag) {
+      setDragState({ ...drag, currentX: coords.x });
+      return;
+    }
+
     const hit = findHitTarget(hitRegions(), coords.x, coords.y);
     setCurrentHit(hit);
   }
 
-  function handlePointerLeave() {
-    setIsCanvasHovered(false);
-    setCurrentHit(undefined);
+  function handlePointerDown(e: PointerEvent) {
+    const hit = currentHit();
+    if (hit?.type !== "colDivider" || !p.onDividerDrag) return;
+
+    const mPage = measuredPage();
+    if (!mPage || mPage.type !== "freeform") return;
+
+    const colsNode = findColsNodeById(mPage.mLayout, hit.gap.colsNodeId);
+    if (!colsNode) return;
+
+    e.preventDefault();
+    overlayCanvas.setPointerCapture(e.pointerId);
+
+    const coords = getCanvasCoords(e, overlayCanvas, scale);
+    setDragState({
+      target: hit,
+      startX: coords.x,
+      currentX: coords.x,
+      colsNode,
+      nColumns: mPage.mergedPageStyle.content.nColumns,
+    });
   }
 
+  function handlePointerUp(e: PointerEvent) {
+    const drag = dragState();
+    if (!drag) return;
+
+    overlayCanvas.releasePointerCapture(e.pointerId);
+    justFinishedDrag = true;
+
+    const coords = getCanvasCoords(e, overlayCanvas, scale);
+    const deltaX = coords.x - drag.startX;
+
+    if (Math.abs(deltaX) > 5) {
+      const update = calculateDividerDragUpdate(drag, deltaX);
+      if (update) {
+        p.onDividerDrag?.(update);
+      }
+    }
+
+    setDragState(undefined);
+  }
+
+  function handlePointerCancel(e: PointerEvent) {
+    if (dragState()) {
+      overlayCanvas.releasePointerCapture(e.pointerId);
+      setDragState(undefined);
+    }
+  }
+
+  function handlePointerLeave() {
+    setIsCanvasHovered(false);
+    if (!dragState()) {
+      setCurrentHit(undefined);
+    }
+  }
+
+  let justFinishedDrag = false;
+
   function handleClick() {
+    if (justFinishedDrag) {
+      justFinishedDrag = false;
+      return;
+    }
     const hit = currentHit();
     if (hit) {
       p.onClick?.(hit);
+    }
+  }
+
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.key === "Escape" && dragState()) {
+      setDragState(undefined);
     }
   }
 
@@ -285,10 +421,21 @@ export function EditablePageHolder(p: Props) {
         id={p.canvasElementId}
         class="absolute left-1/2 top-0 -translate-x-1/2 data-[fitWithin=true]:max-h-full data-[fitWithin=false]:w-full data-[fitWithin=true]:max-w-full"
         data-fitWithin={!!p.fitWithin}
-        style={{ cursor: currentHit() ? "pointer" : "default" }}
+        style={{
+          cursor: dragState()
+            ? "col-resize"
+            : currentHit()?.type === "colDivider"
+            ? "col-resize"
+            : currentHit()
+            ? "pointer"
+            : "default",
+        }}
         onPointerEnter={handlePointerEnter}
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       />
@@ -302,6 +449,7 @@ function updatePage(
   setErr: Setter<string>,
   setOverflow: Setter<boolean>,
   setHitRegions: Setter<PageHitTarget[]>,
+  setMeasuredPage: Setter<MeasuredPage | undefined>,
   unscaledW: number,
   unscaledH: number,
   textRenderingOptions: TextRenderingOptions | undefined,
@@ -336,6 +484,7 @@ function updatePage(
 
         const regions = buildHitRegions(mPage);
         setHitRegions(regions);
+        setMeasuredPage(mPage);
 
         onMeasured?.(mPage);
 
@@ -391,6 +540,12 @@ function renderHover(
   style: EditableHoverStyle,
   screenPixelSize: number,
 ) {
+  // Dividers get a thicker blue line, not a rect
+  if (target.type === "colDivider") {
+    renderDividerLine(ctx, target, true, screenPixelSize);
+    return;
+  }
+
   const { rcd } = target;
 
   if (style.fillColor) {
@@ -403,4 +558,140 @@ function renderHover(
     ctx.lineWidth = (style.strokeWidth ?? 2) * screenPixelSize;
     ctx.strokeRect(rcd.x(), rcd.y(), rcd.w(), rcd.h());
   }
+}
+
+function isTextHitTarget(target: PageHitTarget): boolean {
+  return [
+    "coverTitle",
+    "coverSubTitle",
+    "coverAuthor",
+    "coverDate",
+    "sectionTitle",
+    "sectionSubTitle",
+    "headerText",
+    "subHeaderText",
+    "dateText",
+    "footerText",
+  ].includes(target.type);
+}
+
+function renderDividerLine(
+  ctx: CanvasRenderingContext2D,
+  target: PageHitTargetColDivider,
+  isHovered: boolean,
+  screenPixelSize: number,
+) {
+  const { gap } = target;
+
+  if (isHovered) {
+    ctx.strokeStyle = "rgba(0, 112, 243, 0.9)";
+    ctx.lineWidth = 2 * screenPixelSize;
+  } else {
+    ctx.strokeStyle = "rgba(100, 100, 100, 0.6)";
+    ctx.lineWidth = screenPixelSize;
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(gap.line.x, gap.line.y1);
+  ctx.lineTo(gap.line.x, gap.line.y2);
+  ctx.stroke();
+}
+
+function calculateSnappedDividerX(drag: DragStateValue, deltaX: number): number {
+  const { target } = drag;
+  const snapPositions = target.gap.snapPositions;
+
+  if (!snapPositions || snapPositions.length === 0) {
+    return target.gap.line.x;
+  }
+
+  // Current mouse position for the divider
+  const mouseX = target.gap.line.x + deltaX;
+
+  // Find nearest snap position
+  let nearestPos = snapPositions[0];
+  let nearestDist = Math.abs(mouseX - nearestPos);
+
+  for (const pos of snapPositions) {
+    const dist = Math.abs(mouseX - pos);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearestPos = pos;
+    }
+  }
+
+  return nearestPos;
+}
+
+function findColsNodeById<T>(
+  node: MeasuredLayoutNode<T>,
+  id: string,
+): MeasuredColsLayoutNode<T> | undefined {
+  if (node.type === "cols" && node.id === id) {
+    return node;
+  }
+  if (node.type === "rows" || node.type === "cols") {
+    for (const child of node.children) {
+      const found = findColsNodeById(child, id);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+type DragStateValue = {
+  target: PageHitTargetColDivider;
+  startX: number;
+  currentX: number;
+  colsNode: MeasuredColsLayoutNode<PageContentItem>;
+  nColumns: number;
+};
+
+function calculateDividerDragUpdate(
+  drag: DragStateValue,
+  deltaX: number,
+): DividerDragUpdate | undefined {
+  const { target, colsNode } = drag;
+  const { afterColIndex } = target.gap;
+  const snapPositions = target.gap.snapPositions;
+
+  const leftNode = colsNode.children[afterColIndex];
+  const rightNode = colsNode.children[afterColIndex + 1];
+  if (!leftNode || !rightNode) return undefined;
+
+  if (!snapPositions || snapPositions.length === 0) return undefined;
+
+  // Find which snap position (and thus span) the mouse is closest to
+  const mouseX = target.gap.line.x + deltaX;
+  let nearestIndex = 0;
+  let nearestDist = Math.abs(mouseX - snapPositions[0]);
+
+  for (let i = 1; i < snapPositions.length; i++) {
+    const dist = Math.abs(mouseX - snapPositions[i]);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearestIndex = i;
+    }
+  }
+
+  // Snap positions correspond to left span of (index + 1) within combinedSpan
+  const currentLeftSpan = leftNode.span ?? 1;
+  const currentRightSpan = rightNode.span ?? 1;
+  const combinedSpan = currentLeftSpan + currentRightSpan;
+
+  const newLeftSpan = nearestIndex + 1;
+  const newRightSpan = combinedSpan - newLeftSpan;
+
+  if (newLeftSpan === currentLeftSpan) return undefined;
+
+  return {
+    colsNodeId: colsNode.id,
+    leftNodeId: leftNode.id,
+    rightNodeId: rightNode.id,
+    suggestedSpans: {
+      left: newLeftSpan,
+      right: newRightSpan,
+    },
+    totalSpans: combinedSpan,
+  };
 }

@@ -4,27 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { Color, getAdjustedColor, getColor } from "../_001_color/mod.ts";
-export { cleanFontFamilyForJsPdf, FONT_KERNING } from "../_001_font/mod.ts";
+export { FONT_KERNING, cleanFontFamilyForJsPdf } from "../_001_font/mod.ts";
 export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
-export {
-  Coordinates,
-  getRectAlignmentCoords,
-  RectCoordsDims,
-} from "../_001_geometry/mod.ts";
-export type {
-  CoordinatesOptions,
-  RectCoordsDimsOptions,
-} from "../_001_geometry/mod.ts";
-export type {
-  AreaStyle,
-  LineStyle,
-  MeasuredText,
-  PathSegment,
-  PathStyle,
-  PointStyle,
-  RectStyle,
-  RenderContext,
-} from "../_001_render_system/mod.ts";
+export { Coordinates, RectCoordsDims, getRectAlignmentCoords } from "../_001_geometry/mod.ts";
+export type { CoordinatesOptions, RectCoordsDimsOptions } from "../_001_geometry/mod.ts";
+export type { AreaStyle, LineStyle, MeasuredText, PathSegment, PathStyle, PointStyle, RectStyle, RenderContext } from "../_001_render_system/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";
 export { PageRenderer } from "../_121_page/mod.ts";
 export type { PageInputs } from "../_121_page/mod.ts";

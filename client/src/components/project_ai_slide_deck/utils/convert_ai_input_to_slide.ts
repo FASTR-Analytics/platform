@@ -169,13 +169,14 @@ function restoreMetadata(
       ? { type: "text", markdown: pageItem.markdown }
       : { type: "figure", figureInputs: pageItem as any, source };
 
-    return { type: "item", id: node.id, data: contentBlock };
+    return { type: "item", id: node.id, span: node.span, data: contentBlock };
   }
 
-  // Rows/cols - recurse
+  // Rows/cols - recurse, preserving span
   return {
     type: node.type,
     id: node.id,
+    span: node.span,
     children: node.children.map((child) => restoreMetadata(child, sourceMap)),
   };
 }

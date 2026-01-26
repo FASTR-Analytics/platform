@@ -12,19 +12,25 @@ import type {
 
 export const slideDeckStyle: CustomPageStyleOptions = {
   text: {
-    coverTitle: { relFontSize: 6, lineHeight: 1 },
-    coverSubTitle: { relFontSize: 4, lineHeight: 1.1 },
+    coverTitle: { relFontSize: 5.5, lineHeight: 1, font: {
+      weight: 800
+    } },
+    coverSubTitle: { relFontSize: 3, lineHeight: 1.1 },
     coverAuthor: { relFontSize: 2, lineHeight: 1.2 },
-    coverDate: { relFontSize: 1.5, lineHeight: 1.1 },
-    sectionTitle: { relFontSize: 4, lineHeight: 1.05 },
+    coverDate: { relFontSize: 1.5, lineHeight: 1.2 },
+    sectionTitle: { relFontSize: 4.5, lineHeight: 1.05, font: {
+      weight: 800
+    } },
     sectionSubTitle: { relFontSize: 2, lineHeight: 1.1 },
-    header: { relFontSize: 4, lineHeight: 1 },
+    header: { relFontSize: 4, lineHeight: 1.1, font: {
+      weight: 800
+    } },
     pageNumber: { relFontSize: 1.5 },
   },
   cover: { backgroundColor: "white" },
   section: { backgroundColor: "white" },
   header: { padding: [100, 120, 0, 120] as [number, number, number, number], backgroundColor: "white" },
-  content: { padding: [100, 120] as [number, number], gapX: 100, gapY: 80 },
+  content: {  padding: [100, 120] as [number, number], gapX: 100, gapY: 80 },
 };
 
 export function convertSlideToPageInputs(
@@ -82,6 +88,7 @@ function convertLayoutNode(node: LayoutNode<ContentBlock>): LayoutNode<PageConte
     return {
       type: "item",
       id: node.id,
+      span: node.span,
       data: convertBlockToPageContentItem(node.data),
     };
   }
@@ -90,6 +97,7 @@ function convertLayoutNode(node: LayoutNode<ContentBlock>): LayoutNode<PageConte
   return {
     type: node.type,
     id: node.id,
+    span: node.span,
     children: node.children.map(convertLayoutNode),
   };
 }
@@ -99,6 +107,16 @@ function convertBlockToPageContentItem(block: ContentBlock): PageContentItem {
     return {
       markdown: block.markdown,
       autofit: { minScale: 0, maxScale: 1 },
+      style: {
+        text: {
+          base: {
+            fontSize: 60
+          },
+          // paragraph: {
+          //   relFontSize: 5
+          // }
+        }
+      }
     };
   }
 
