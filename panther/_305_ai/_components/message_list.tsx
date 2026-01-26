@@ -11,13 +11,14 @@ import type {
   DisplayRegistry,
   MessageStyle,
 } from "../_core/types.ts";
+import { AssistantCompletedTextRenderer } from "./_renderers/assistant_completed_text_renderer.tsx";
+import { AssistantStreamingTextRenderer } from "./_renderers/assistant_streaming_text_renderer.tsx";
 import { DefaultRenderer } from "./_renderers/default_renderer.tsx";
 import { SpinningCursor } from "./_renderers/spinning_cursor.tsx";
-import { StreamingTextRenderer } from "./_renderers/streaming_text_renderer.tsx";
-import { TextRenderer } from "./_renderers/text_renderer.tsx";
 import { ToolErrorRenderer } from "./_renderers/tool_error_renderer.tsx";
 import { ToolLoadingRenderer } from "./_renderers/tool_loading_renderer.tsx";
 import { ToolSuccessRenderer } from "./_renderers/tool_success_renderer.tsx";
+import { UserTextRenderer } from "./_renderers/user_text_renderer.tsx";
 
 type Props = {
   displayItems: DisplayItem[];
@@ -38,13 +39,23 @@ export const MessageList: Component<Props> = (props) => {
     const registry = props.customRenderers ?? {};
 
     switch (item.type) {
-      case "text": {
-        const Renderer = registry.text ?? TextRenderer;
+      case "user_text": {
+        const Renderer = registry.userText ?? UserTextRenderer;
         return (
           <Renderer
             item={item}
-            userMessageStyle={props.userMessageStyle}
-            assistantMessageStyle={props.assistantMessageStyle}
+            messageStyle={props.userMessageStyle}
+            markdownStyle={props.markdownStyle}
+          />
+        );
+      }
+      case "assistant_text": {
+        const Renderer = registry.assistantCompletedText ??
+          AssistantCompletedTextRenderer;
+        return (
+          <Renderer
+            item={item}
+            messageStyle={props.assistantMessageStyle}
             markdownStyle={props.markdownStyle}
           />
         );
@@ -93,12 +104,17 @@ export const MessageList: Component<Props> = (props) => {
           <Match
             when={props.isStreaming && props.currentStreamingText !== undefined}
           >
-            <StreamingTextRenderer
-              text={props.currentStreamingText!}
-              isComplete={false}
-              assistantMessageStyle={props.assistantMessageStyle}
-              markdownStyle={props.markdownStyle}
-            />
+            {(() => {
+              const Renderer = props.customRenderers?.assistantStreamingText ??
+                AssistantStreamingTextRenderer;
+              return (
+                <Renderer
+                  text={props.currentStreamingText!}
+                  messageStyle={props.assistantMessageStyle}
+                  markdownStyle={props.markdownStyle}
+                />
+              );
+            })()}
           </Match>
           <Match when={props.serverToolLabel}>
             <div class="text-neutral italic">

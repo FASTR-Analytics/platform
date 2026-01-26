@@ -18,10 +18,9 @@ export function getDisplayItemsFromMessage(
     }
     return [
       {
-        type: "text",
-        role: message.role,
+        type: message.role === "user" ? "user_text" : "assistant_text",
         text: trimmed,
-      },
+      } as DisplayItem,
     ];
   }
 
@@ -38,10 +37,9 @@ export function getDisplayItemsFromMessage(
       const merged = accumulatedText.join("").trim();
       if (merged) {
         displayItems.push({
-          type: "text",
-          role: message.role,
+          type: message.role === "user" ? "user_text" : "assistant_text",
           text: merged,
-        });
+        } as DisplayItem);
       }
       accumulatedText = [];
     }

@@ -186,7 +186,7 @@ function generateCandidatesExhaustive<U>(
 
     // For rows: children can have any structure
     const groupLayoutsForRows: LayoutNode<U>[][] = partition.map((group) =>
-      generateCandidatesExhaustive(group, minSpan, undefined, false),
+      generateCandidatesExhaustive(group, minSpan, undefined, false)
     );
 
     // Generate rows combinations
@@ -265,8 +265,7 @@ function scoreLayout<U>(
   const wastedSpace = Math.max(0, bounds.h() - totalIdealHeight);
   // console.log("wastedSpace", wastedSpace);
 
-  const total =
-    overflowPenalty * 1000 +
+  const total = overflowPenalty * 1000 +
     shrinkPenalty * 10 +
     stretchPenalty * 5 +
     scalePenalty * 8 +
@@ -489,17 +488,25 @@ export function optimizeLayout<T, U>(
     console.log(`\n=== Optimizer Debug (${candidates.length} candidates) ===`);
     for (const { layout, score } of debugScores.slice(0, 10)) {
       console.log(
-        `  ${score.total
-          .toFixed(0)
-          .padStart(
-            6,
-          )} | overflow=${score.overflow} shrink=${score.shrinkPenalty.toFixed(
-          0,
-        )} stretch=${score.stretchPenalty.toFixed(0)} scale=${score.scalePenalty.toFixed(
-          0,
-        )} imbal=${score.heightImbalance.toFixed(0)} waste=${score.wastedSpace.toFixed(
-          0,
-        )} | ${layout}`,
+        `  ${
+          score.total
+            .toFixed(0)
+            .padStart(
+              6,
+            )
+        } | overflow=${score.overflow} shrink=${
+          score.shrinkPenalty.toFixed(
+            0,
+          )
+        } stretch=${score.stretchPenalty.toFixed(0)} scale=${
+          score.scalePenalty.toFixed(
+            0,
+          )
+        } imbal=${score.heightImbalance.toFixed(0)} waste=${
+          score.wastedSpace.toFixed(
+            0,
+          )
+        } | ${layout}`,
       );
     }
     console.log(`=== Best: ${layoutToString(bestLayout)} ===\n`);

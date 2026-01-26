@@ -14,7 +14,7 @@ const _contextCache = new Map<string, CanvasRenderContext>();
  */
 export function createCanvasRenderContextBrowser(
   width = 1920,
-  height = 1080
+  height = 1080,
 ): CanvasRenderContext {
   const cacheKey = `${width}x${height}`;
 

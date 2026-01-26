@@ -7,8 +7,8 @@ import type { MessageParam, Usage } from "../deps.ts";
 import { createSignal } from "solid-js";
 import type { ChatState, DisplayItem } from "./types.ts";
 import {
-  loadConversation,
   clearConversationPersistence,
+  loadConversation,
 } from "./persistence.ts";
 
 export type ConversationStore = {

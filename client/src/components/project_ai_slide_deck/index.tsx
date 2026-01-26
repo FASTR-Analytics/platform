@@ -86,7 +86,6 @@ export function ProjectAiSlideDeck(p: Props) {
         tools: tools(),
         builtInTools: DEFAULT_BUILTIN_TOOLS,
         conversationId: `ai-slide-deck-${p.deckId}`,
-        enableStreaming: true,
         system: systemPrompt,
       }}
     >

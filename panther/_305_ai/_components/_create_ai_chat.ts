@@ -137,199 +137,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     addDisplayItems(items);
   };
 
-  async function sendMessageBlocking(
-    userMessage: string | undefined,
-  ): Promise<void> {
-    setError(null);
-
-    // Only add user message if provided (undefined means messages already in state)
-    if (userMessage !== undefined) {
-      const userMsg = createUserMessage(userMessage);
-      setMessages([...messages(), userMsg]);
-
-      if (userMessage.trim()) {
-        processMessageForDisplay(userMsg);
-      }
-    }
-
-    setIsLoading(true);
-    setIsProcessingTools(true);
-
-    try {
-      // If textEditorHandler is provided, use manual loop (same as streaming)
-      // so we can intercept and execute text editor tool calls locally
-      if (config.textEditorHandler) {
-        await blockingWithToolLoop(messages());
-      } else {
-        // Use SDK's toolRunner - it handles the entire tool loop automatically
-        const betas = getBetasArray(
-          allTools.length > 0,
-          hasWebFetchTool(config.builtInTools),
-          messagesContainDocuments(),
-        );
-        const result = await config.sdkClient.beta.messages.toolRunner({
-          model: config.modelConfig.model,
-          max_tokens: config.modelConfig.max_tokens,
-          temperature: config.modelConfig.temperature,
-          messages: messages(),
-          tools: allTools,
-          system: config.system(),
-          betas,
-        });
-
-        // Update usage
-        if (result.usage) {
-          setUsage(result.usage);
-          setUsageHistory([...usageHistory(), result.usage]);
-        }
-
-        // Add assistant message to conversation
-        const assistantMsg: MessageParam = {
-          role: "assistant",
-          content: result.content as ContentBlock[],
-        };
-
-        setMessages([...messages(), assistantMsg]);
-        processMessageForDisplay(assistantMsg);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-      addDisplayItems([
-        {
-          type: "tool_error",
-          toolName: "system",
-          errorMessage,
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-      setIsProcessingTools(false);
-
-      // Save conversation state after turn completes
-      if (config.enablePersistence ?? true) {
-        saveConversation(conversationId, messages(), displayItems());
-      }
-    }
-  }
-
-  async function blockingWithToolLoop(
-    currentMessages: MessageParam[],
-  ): Promise<void> {
-    // Use SDK's beta.messages.create (non-streaming)
-    const betas = getBetasArray(
-      allTools.length > 0,
-      hasWebFetchTool(config.builtInTools),
-      messagesContainDocuments(),
-    );
-    const response = await config.sdkClient.beta.messages.create({
-      model: config.modelConfig.model,
-      max_tokens: config.modelConfig.max_tokens,
-      temperature: config.modelConfig.temperature,
-      messages: currentMessages,
-      tools: allTools,
-      system: config.system(),
-      betas,
-    });
-
-    // Update usage
-    if (response.usage) {
-      setUsage(response.usage);
-      setUsageHistory([...usageHistory(), response.usage]);
-    }
-
-    // Add assistant message
-    const assistantMsg: MessageParam = {
-      role: "assistant",
-      content: response.content as ContentBlock[],
-    };
-
-    const updatedMessages = [...currentMessages, assistantMsg];
-    setMessages(updatedMessages);
-    processMessageForDisplay(assistantMsg);
-
-    // Handle tool execution
-    if (response.stop_reason === "tool_use") {
-      // Show in-progress items
-      const inProgressItems = getInProgressItems(
-        response.content as ContentBlock[],
-        toolRegistry,
-      );
-      addDisplayItems(inProgressItems);
-
-      // Filter tool_use blocks
-      const toolUseBlocks = (response.content as ContentBlock[]).filter(
-        (block): block is ToolUseBlock => block.type === "tool_use",
-      );
-
-      // Process tools - handle text editor tool specially
-      const allResults: ToolResult[] = [];
-      const allErrorItems: DisplayItem[] = [];
-      const allSuccessItems: DisplayItem[] = [];
-
-      for (const block of toolUseBlocks) {
-        // Handle built-in text editor tool locally
-        if (
-          block.name === "str_replace_based_edit_tool" &&
-          config.textEditorHandler
-        ) {
-          setServerToolLabel(SERVER_TOOL_LABELS[block.name]);
-          const result = config.textEditorHandler(block.input);
-          setServerToolLabel(undefined);
-          const isError = result.startsWith("Error:");
-          allResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content: result,
-            is_error: isError,
-          });
-          if (isError) {
-            allErrorItems.push({
-              type: "tool_error",
-              toolName: block.name,
-              errorMessage: result,
-              toolInput: block.input,
-            });
-          }
-        } else {
-          // Use existing tool processing for custom tools
-          const { results, errorItems, successItems } = await processToolUses(
-            [block],
-            toolRegistry,
-          );
-          allResults.push(...results);
-          allErrorItems.push(...errorItems);
-          allSuccessItems.push(...successItems);
-        }
-      }
-
-      // Clear in-progress items now that tools are done
-      clearInProgressItems();
-
-      // Add success items to display
-      if (allSuccessItems.length > 0) {
-        addDisplayItems(allSuccessItems);
-      }
-
-      // Add error items to display
-      if (allErrorItems.length > 0) {
-        addDisplayItems(allErrorItems);
-      }
-
-      // Add tool results to messages
-      const toolResultMsg: MessageParam = {
-        role: "user",
-        content: allResults,
-      };
-
-      const messagesWithToolResults = [...updatedMessages, toolResultMsg];
-      setMessages(messagesWithToolResults);
-
-      // Continue with tool results (recursive call)
-      await blockingWithToolLoop(messagesWithToolResults);
-    }
-  }
-
   async function sendMessageStreaming(
     userMessage: string | undefined,
   ): Promise<void> {
@@ -362,6 +169,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           type: "tool_error",
           toolName: "system",
           errorMessage,
+          result: errorMessage,
         },
       ]);
     } finally {
@@ -496,6 +304,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
               toolName: block.name,
               errorMessage: result,
               toolInput: block.input,
+              result,
             });
           }
         } else {
@@ -539,13 +348,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     }
   }
 
-  function sendMessage(userMessage: string | undefined): Promise<void> {
-    if (config.enableStreaming) {
-      return sendMessageStreaming(userMessage);
-    } else {
-      return sendMessageBlocking(userMessage);
-    }
-  }
+  const sendMessage = sendMessageStreaming;
 
   function sendMessages(userMessages: string[]): Promise<void> {
     if (userMessages.length === 0) return Promise.resolve();
@@ -565,11 +368,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     setMessages(newMessages);
     setError(null);
 
-    if (config.enableStreaming) {
-      return sendMessageStreaming(undefined);
-    } else {
-      return sendMessageBlocking(undefined);
-    }
+    return sendMessageStreaming(undefined);
   }
 
   function clearConversation() {

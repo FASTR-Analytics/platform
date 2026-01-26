@@ -21,14 +21,18 @@ export function ConfirmDeleteForm<T>(
       actionFunc: () => Promise<
         APIResponseWithData<T> | APIResponseNoData
       >;
-      onSuccessCallbacks?: Array<((data: T) => void | Promise<void>) | (() => void | Promise<void>)>;
+      onSuccessCallbacks?: Array<
+        ((data: T) => void | Promise<void>) | (() => void | Promise<void>)
+      >;
     },
     "SUCCESS"
   >,
 ) {
   const confirm = timActionForm(
     p.actionFunc as () => Promise<APIResponseWithData<T>>,
-    ...((p.onSuccessCallbacks ?? []) as Array<(data: T) => void | Promise<void>>),
+    ...((p.onSuccessCallbacks ?? []) as Array<
+      (data: T) => void | Promise<void>
+    >),
     (() => p.close("SUCCESS")) as (data: T) => void,
   );
 

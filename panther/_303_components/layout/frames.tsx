@@ -372,9 +372,15 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   let resizeObserver: ResizeObserver | undefined;
   let rafId: number | null = null;
 
-  const hasLeft = createMemo(() => p.leftChild !== undefined && p.leftChild !== null);
-  const hasCenter = createMemo(() => p.centerChild !== undefined && p.centerChild !== null);
-  const hasRight = createMemo(() => p.rightChild !== undefined && p.rightChild !== null);
+  const hasLeft = createMemo(() =>
+    p.leftChild !== undefined && p.leftChild !== null
+  );
+  const hasCenter = createMemo(() =>
+    p.centerChild !== undefined && p.centerChild !== null
+  );
+  const hasRight = createMemo(() =>
+    p.rightChild !== undefined && p.rightChild !== null
+  );
 
   const normalizeWidths = () => {
     const visiblePanes = [hasLeft(), hasCenter(), hasRight()];

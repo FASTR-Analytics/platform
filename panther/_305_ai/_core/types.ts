@@ -10,9 +10,9 @@ import type {
   AnthropicResponse,
   CacheControl,
   Component,
+  CustomMarkdownStyleOptions,
   MessageParam,
   MessagePayload,
-  MessageRole,
   StreamEvent,
   Usage,
 } from "../deps.ts";
@@ -48,13 +48,12 @@ export type AITool<TInput = unknown, TOutput = string> = {
 
 export type DisplayItem =
   | {
-    type: "text";
-    role: MessageRole;
+    type: "user_text";
     text: string;
   }
   | {
-    type: "thinking";
-    thinking: string;
+    type: "assistant_text";
+    text: string;
   }
   | {
     type: "tool_in_progress";
@@ -67,12 +66,14 @@ export type DisplayItem =
     toolName: string;
     toolInput: unknown;
     message: string;
+    result: string;
   }
   | {
     type: "tool_error";
     toolName: string;
     errorMessage: string;
     toolInput?: unknown;
+    result: string;
   }
   | {
     type: "tool_display";
@@ -87,8 +88,15 @@ export type DisplayItem =
 export type DisplayItemRenderer<T = unknown> = Component<{ item: T }>;
 
 export type DisplayRegistry = {
-  text?: DisplayItemRenderer<Extract<DisplayItem, { type: "text" }>>;
-  thinking?: DisplayItemRenderer<Extract<DisplayItem, { type: "thinking" }>>;
+  userText?: DisplayItemRenderer<Extract<DisplayItem, { type: "user_text" }>>;
+  assistantCompletedText?: DisplayItemRenderer<
+    Extract<DisplayItem, { type: "assistant_text" }>
+  >;
+  assistantStreamingText?: Component<{
+    text: string;
+    markdownStyle?: CustomMarkdownStyleOptions;
+    messageStyle?: MessageStyle;
+  }>;
   toolLoading?: DisplayItemRenderer<
     Extract<DisplayItem, { type: "tool_in_progress" }>
   >;
@@ -162,8 +170,6 @@ export type AIChatConfig = {
   system: Accessor<
     string | Array<{ type: "text"; text: string; cache_control?: CacheControl }>
   >;
-
-  enableStreaming?: boolean;
 
   apiConfig?: APIConfig;
 

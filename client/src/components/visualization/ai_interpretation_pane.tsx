@@ -44,7 +44,6 @@ export function AiInterpretationPane(p: Props) {
         sdkClient,
         modelConfig: VIZ_CHAT_MODEL_CONFIG,
         tools: tools(),
-        enableStreaming: true,
         conversationId: `viz-chat-${p.presentationObjectId}`,
         system: systemPrompt,
       }}

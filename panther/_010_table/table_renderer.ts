@@ -76,15 +76,14 @@ function getMinComfortableWidth(
       // Check cell values for this column
       for (const row of d.aoa) {
         const val = row[col.index];
-        const valStr =
-          typeof val === "number"
-            ? s.cellValueFormatter(val, {
-                colHeader: col.label ?? "",
-                colIndex: col.index,
-                rowHeader: "",
-                rowIndex: 0,
-              })
-            : val;
+        const valStr = typeof val === "number"
+          ? s.cellValueFormatter(val, {
+            colHeader: col.label ?? "",
+            colIndex: col.index,
+            rowHeader: "",
+            rowIndex: 0,
+          })
+          : val;
         minColWidth = Math.max(
           minColWidth,
           getWidestWord(rc, valStr, s.text.cells),
@@ -94,16 +93,14 @@ function getMinComfortableWidth(
   }
 
   // Build minimum width
-  const rowHeaderTotalWidth =
-    minRowHeaderWidth > 0
-      ? s.rowHeaderPadding.totalPx() +
-        minRowHeaderWidth +
-        (hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0) +
-        s.headerBorderWidth
-      : 0;
+  const rowHeaderTotalWidth = minRowHeaderWidth > 0
+    ? s.rowHeaderPadding.totalPx() +
+      minRowHeaderWidth +
+      (hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0) +
+      s.headerBorderWidth
+    : 0;
 
-  const colsTotalWidth =
-    nCols * (s.cellPadding.totalPx() + minColWidth) +
+  const colsTotalWidth = nCols * (s.cellPadding.totalPx() + minColWidth) +
     (s.showGridLines ? nCols : nCols - 1) * s.gridLineWidth;
 
   // Calculate surrounds minimum width (mainly for right-positioned legends)
@@ -220,11 +217,11 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
       item,
       responsiveScale,
     );
-    const idealH =
-      mTable.measuredInfo!.finalContentH + mTable.extraHeightDueToSurrounds!;
+    const idealH = mTable.measuredInfo!.finalContentH +
+      mTable.extraHeightDueToSurrounds!;
     // minH = surrounds + column headers (no data rows)
-    const headersHeight =
-      mTable.measuredInfo!.firstCellY - mTable.measuredInfo!.contentRcd.y();
+    const headersHeight = mTable.measuredInfo!.firstCellY -
+      mTable.measuredInfo!.contentRcd.y();
     const minH = mTable.extraHeightDueToSurrounds! + headersHeight;
 
     // Calculate width scaling

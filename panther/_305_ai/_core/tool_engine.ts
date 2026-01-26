@@ -21,6 +21,7 @@ export type ToolResult = {
   tool_use_id: string;
   content: string;
   is_error?: boolean;
+  _fullError?: string;
 };
 
 export class ToolRegistry {
@@ -107,11 +108,13 @@ export async function processToolUses(
 
     if (!toolWithMetadata) {
       console.error(`Unknown tool: ${block.name}`);
+      const errorMsg = `Unknown tool "${block.name}"`;
       return {
         type: "tool_result" as const,
         tool_use_id: block.id,
-        content: `Error: Unknown tool "${block.name}"`,
+        content: errorMsg,
         is_error: true,
+        _fullError: errorMsg,
       };
     }
 
@@ -124,14 +127,23 @@ export async function processToolUses(
         content: result, // SDK tool already returns string
       };
     } catch (error) {
+      // Clean message for Claude API (no stack, no "Error:" prefix)
       const errorMessage = error instanceof Error
         ? error.message
         : String(error);
+      const cleanMessage = errorMessage.replace(/^Error:\s*/i, "");
+
+      // Full error details for UI (includes stack)
+      const fullError = error instanceof Error && error.stack
+        ? error.stack
+        : cleanMessage;
+
       return {
         type: "tool_result" as const,
         tool_use_id: block.id,
-        content: `Error: ${errorMessage}`,
+        content: cleanMessage,
         is_error: true,
+        _fullError: fullError,
       };
     }
   });
@@ -147,6 +159,7 @@ export async function processToolUses(
         toolName: toolBlock.name,
         errorMessage: result.content,
         toolInput: toolBlock.input,
+        result: result._fullError ?? result.content,
       };
     });
 
@@ -156,24 +169,18 @@ export async function processToolUses(
       const toolBlock = toolUseBlocks.find((b) => b.id === result.tool_use_id)!;
       const metadata = toolRegistry.getMetadata(toolBlock.name);
 
-      if (!metadata?.completionMessage) {
-        return null;
-      }
-
-      const message = typeof metadata.completionMessage === "function"
+      const message = typeof metadata?.completionMessage === "function"
         ? metadata.completionMessage(toolBlock.input)
-        : metadata.completionMessage;
+        : metadata?.completionMessage ?? `${toolBlock.name} completed`;
 
       return {
         type: "tool_success" as const,
         toolName: toolBlock.name,
         toolInput: toolBlock.input,
         message,
+        result: result.content,
       };
-    })
-    .filter((item): item is Extract<DisplayItem, { type: "tool_success" }> =>
-      item !== null
-    );
+    });
 
   return {
     results,

@@ -2,6 +2,9 @@
 
 Minimal API for building AI applications with Claude.
 
+All AI chat responses use streaming for better UX with real-time text updates,
+server tool labels, and live feedback during tool execution.
+
 ## Chat Applications
 
 ```typescript
@@ -67,6 +70,22 @@ const weatherTool = createAITool({
 // Use in one-shot
 const result = await callAI({ ..., tools: [weatherTool] }, messages);
 ```
+
+## Tool Results Display
+
+Tool executions now show their results to users (collapsible):
+
+**Success:**
+
+- Shows success message (e.g., "Weather retrieved")
+- Click to expand and see actual result data
+- Useful for understanding what tools returned
+
+**Errors:**
+
+- Shows error message
+- Click "stack trace" to see full error details
+- Helps debug tool issues
 
 ## Built-in Tools
 

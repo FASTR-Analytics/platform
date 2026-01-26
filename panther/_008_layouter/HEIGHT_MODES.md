@@ -69,23 +69,26 @@ createRowsNode([...], {
 });
 ```
 
-**Important:** `minH` and `maxH` overrides represent **total heights** (including
-padding and borders), not content-only heights. For example:
+**Important:** `minH` and `maxH` overrides represent **total heights**
+(including padding and borders), not content-only heights. For example:
 
 ```typescript
 // Item with 10px padding on all sides
 createItemNode(data, {
   minH: 100,
-  style: { padding: 10 }
+  style: { padding: 10 },
 });
 // Final rendered height: 100px total (80px content + 20px padding)
 ```
 
 **Use cases:**
 
-1. **Flexible spacers:** Content returns fixed height, but node sets `maxH: Infinity`
-2. **Override renderer constraints:** Force a figure to have `minH: 0` for flexible sizing
-3. **Container size limits:** Cap a rows container at `maxH: 500` regardless of content
+1. **Flexible spacers:** Content returns fixed height, but node sets
+   `maxH: Infinity`
+2. **Override renderer constraints:** Force a figure to have `minH: 0` for
+   flexible sizing
+3. **Container size limits:** Cap a rows container at `maxH: 500` regardless of
+   content
 
 ## Measurement Algorithm
 
