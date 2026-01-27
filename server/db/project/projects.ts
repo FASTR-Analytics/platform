@@ -29,6 +29,7 @@ import { getAllModulesForProject, installModule } from "./modules.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
 import { getAllReportsForProject } from "./reports.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
+import { getAllVisualizationFolders } from "./visualization_folders.ts";
 import { addDatasetHfaToProject } from "./datasets_in_project_hfa.ts";
 import { runProjectMigrations } from "../migrations/runner.ts";
 
@@ -95,6 +96,9 @@ export async function getProjectDetail(
     );
     throwIfErrWithData(resVisualizations);
 
+    const resFolders = await getAllVisualizationFolders(projectDb);
+    throwIfErrWithData(resFolders);
+
     const thisUserRole: ProjectUserRoleType = projectUser?.role ?? "viewer";
     if (thisUserRole === "none") {
       throw new Error(
@@ -135,6 +139,7 @@ export async function getProjectDetail(
       projectDatasets: datasetsInProject,
       projectModules: sortedModules,
       visualizations: resVisualizations.data,
+      visualizationFolders: resFolders.data,
       reports: resReports.data,
       slideDecks: resSlideDecks.data,
       projectUsers: fullProjectUsers,

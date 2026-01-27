@@ -42,12 +42,21 @@ export async function resolveFigureFromMetric(
     presentationType = "chart";
   }
 
-  // Auto-merge required disaggregations
+  // Time-based disaggregations (matches allowedPresentationOptions logic in metric_enricher.ts)
+  const timeBasedDisaggregations = ["year", "month", "quarter_id", "period_id", "time_point"];
+
+  // Merge required disaggregations with input disaggregations (for data fetching)
   const allDisaggregations = [
     ...staticData.requiredDisaggregationOptions,
     ...(inputDisaggregations || []),
   ];
   const uniqueDisaggregations = [...new Set(allDisaggregations)] as DisaggregationOption[];
+
+  // For timeseries, filter out time-based disaggregations from display config
+  // (time flows on the x-axis via periodOpt, not as a disaggregation dimension)
+  const displayDisaggregations = presentationType === "timeseries"
+    ? uniqueDisaggregations.filter(dis => !timeBasedDisaggregations.includes(dis))
+    : uniqueDisaggregations;
 
   // Build fetchConfig following getMetricDataForAI pattern
   const fetchConfigFilters = (inputFilters || []).map(f => ({
@@ -150,7 +159,8 @@ export async function resolveFigureFromMetric(
   };
 
   // Intelligently assign disaggregations to display slots
-  for (const dis of uniqueDisaggregations) {
+  // Use displayDisaggregations (excludes time-based for timeseries)
+  for (const dis of displayDisaggregations) {
     const disDisplayOpt = getNextAvailableDisaggregationDisplayOption(
       resultsValueForViz,
       config,

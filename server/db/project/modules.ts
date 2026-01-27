@@ -586,7 +586,13 @@ export async function getMetricsListForAI(
       "=".repeat(80),
       "",
       "Each metric can be queried using get_metric_data with metricId.",
-      "Required disaggregations MUST be included. Optional ones can be added for more detail.",
+      "Required disaggregations are automatically included. Optional ones can be added for more detail.",
+      "",
+      "PERIOD OPTIONS (for disaggregation and filtering):",
+      "  - period_id (YYYYMM): By specific month. Examples: 202301 (Jan 2023), 202412 (Dec 2024)",
+      "  - quarter_id (YYYYQ): By specific quarter. Examples: 20231 (Q1 2023), 20244 (Q4 2024)",
+      "  - year (YYYY): By year. Examples: 2023, 2024",
+      "  - month (1-12): By month-of-year for seasonal patterns. Examples: 1 (all Januaries), 12 (all Decembers)",
       "",
     ];
 

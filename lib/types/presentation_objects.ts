@@ -35,6 +35,8 @@ export type PresentationObjectSummary = {
   replicateBy: DisaggregationOption | undefined;
   isFiltered: boolean;
   createdByAI: boolean;
+  folderId: string | null;
+  sortOrder: number;
 };
 
 export type PresentationObjectInReportInfo = {

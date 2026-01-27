@@ -13,6 +13,7 @@ import { projectRouteRegistry } from "./project/projects.ts";
 import { reportRouteRegistry } from "./project/reports.ts";
 import { slideDeckRouteRegistry } from "./project/slide-decks.ts";
 import { slideRouteRegistry } from "./project/slides.ts";
+import { visualizationFolderRouteRegistry } from "./project/visualization-folders.ts";
 
 // Combined route registry
 export const routeRegistry = {
@@ -31,4 +32,5 @@ export const routeRegistry = {
   ...reportRouteRegistry,
   ...slideDeckRouteRegistry,
   ...slideRouteRegistry,
+  ...visualizationFolderRouteRegistry,
 } as const;

@@ -26,7 +26,7 @@ export const AiMetricQuerySchema = z.object({
     "The unique ID of the metric/indicator to query. This metric must exist in the project's data.",
   ),
   disaggregations: z.array(z.string()).optional().describe(
-    "Optional: Array of disaggregation dimensions to break down the data by, e.g., ['gender', 'age_group']. Each dimension splits the data into separate series.",
+    "Optional: Array of disaggregation dimensions to break down the data by, e.g., ['gender', 'age_group']. Time disaggregations: 'period_id' (by specific month), 'quarter_id' (by specific quarter), 'year' (by year), 'month' (1-12, by month-of-year for seasonal patterns).",
   ),
   filters: z.array(z.object({
     col: z.string().describe(
@@ -40,16 +40,16 @@ export const AiMetricQuerySchema = z.object({
   ),
   periodFilter: z.object({
     periodOption: z.enum(["period_id", "quarter_id", "year"]).describe(
-      "The time granularity to filter by: 'period_id' for months, 'quarter_id' for quarters, or 'year' for years",
+      "Time granularity: 'period_id' = YYYYMM format (202301 = Jan 2023), 'quarter_id' = YYYYQ format (20231 = Q1 2023), 'year' = YYYY format (2023)",
     ),
     min: z.number().describe(
-      "The minimum time period value (inclusive). Use period IDs like 202401 for January 2024, quarter IDs like 20241 for Q1 2024, or years like 2024.",
+      "Start of time range (inclusive). Examples: period_id 202301 (Jan 2023), quarter_id 20231 (Q1 2023), year 2023",
     ),
     max: z.number().describe(
-      "The maximum time period value (inclusive). Same format as min.",
+      "End of time range (inclusive). Examples: period_id 202412 (Dec 2024), quarter_id 20244 (Q4 2024), year 2024",
     ),
   }).optional().describe(
-    "Optional: Filter to limit the time range of data shown. Useful for showing only recent data or a specific historical period.",
+    "Optional: Filter to limit the time range. Format depends on periodOption: period_id=YYYYMM (202301-202412), quarter_id=YYYYQ (20231-20244), year=YYYY (2023-2024).",
   ),
 });
 

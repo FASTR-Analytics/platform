@@ -48,6 +48,17 @@ export type DBPresentationObject = {
   config: string;
   last_updated: string;
   created_by_ai: boolean;
+  folder_id: string | null;
+  sort_order: number;
+};
+
+export type DBVisualizationFolder = {
+  id: string;
+  label: string;
+  color: string | null;
+  description: string | null;
+  sort_order: number;
+  last_updated: string;
 };
 
 export type DBReport = {

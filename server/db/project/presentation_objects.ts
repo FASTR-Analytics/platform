@@ -158,7 +158,7 @@ SELECT po.*
 FROM presentation_objects po
 JOIN metrics m ON po.metric_id = m.id
 WHERE m.module_id = ${moduleId}
-ORDER BY LOWER(po.label)
+ORDER BY po.sort_order, LOWER(po.label)
 `;
     const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
       const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
@@ -170,6 +170,8 @@ ORDER BY LOWER(po.label)
         replicateBy: getReplicateByProp(config),
         isFiltered: config.d.filterBy.length > 0 || !!config.d.periodFilter,
         createdByAI: row.created_by_ai,
+        folderId: row.folder_id,
+        sortOrder: row.sort_order,
       };
     });
     return { success: true, data: presentationObjects };
@@ -183,7 +185,7 @@ export async function getAllPresentationObjectsForProject(
     const rows = await projectDb<DBPresentationObject[]>`
 SELECT po.*
 FROM presentation_objects po
-ORDER BY po.is_default_visualization DESC, LOWER(po.label)
+ORDER BY po.is_default_visualization DESC, po.sort_order, LOWER(po.label)
 `;
     const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
       const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
@@ -195,6 +197,8 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
         replicateBy: getReplicateByProp(config),
         isFiltered: config.d.filterBy.length > 0 || !!config.d.periodFilter,
         createdByAI: row.created_by_ai,
+        folderId: row.folder_id,
+        sortOrder: row.sort_order,
       };
     });
     return { success: true, data: presentationObjects };
@@ -720,5 +724,40 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
     }
 
     return { success: true, data: lines.join("\n") };
+  });
+}
+
+export async function updatePresentationObjectFolder(
+  projectDb: Sql,
+  presentationObjectId: string,
+  folderId: string | null
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    await projectDb`
+      UPDATE presentation_objects
+      SET folder_id = ${folderId}, last_updated = ${lastUpdated}
+      WHERE id = ${presentationObjectId}
+    `;
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
+export async function reorderPresentationObjects(
+  projectDb: Sql,
+  orderUpdates: { id: string; sortOrder: number }[]
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    await projectDb.begin(async (sql) => {
+      for (const update of orderUpdates) {
+        await sql`
+          UPDATE presentation_objects
+          SET sort_order = ${update.sortOrder}, last_updated = ${lastUpdated}
+          WHERE id = ${update.id}
+        `;
+      }
+    });
+    return { success: true, data: { lastUpdated } };
   });
 }

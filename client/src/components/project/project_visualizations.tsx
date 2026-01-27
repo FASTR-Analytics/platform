@@ -1,10 +1,11 @@
 import { useNavigate } from "@solidjs/router";
-import { ProjectDetail, isFrench, t, t2, T } from "lib";
+import { ProjectDetail, isFrench, t, t2, T, VisualizationGroupingMode } from "lib";
 import {
   Button,
   FrameTop,
   HeadingBar,
   OpenEditorProps,
+  Select,
   downloadJson,
   openAlert,
   openComponent,
@@ -16,7 +17,16 @@ import {
   useOptimisticSetProjectLastUpdated,
 } from "~/components/project_runner/mod";
 import { serverActions } from "~/server_actions";
+import { vizGroupingMode, setVizGroupingMode } from "~/state/ui";
 import { AddVisualization } from "./add_visualization";
+
+const GROUPING_OPTIONS: { value: VisualizationGroupingMode; label: string }[] = [
+  { value: "module", label: "By module" },
+  { value: "folders", label: "By folder" },
+  { value: "metric", label: "By metric" },
+  { value: "ai-status", label: "By status" },
+  { value: "flat", label: "Flat list" },
+];
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -81,27 +91,24 @@ export function ProjectVisualizations(p: Props) {
           setSearchText={setSearchText}
           french={isFrench()}
         >
-          <Show
-            when={
-              !p.projectDetail.isLocked &&
-              p.projectDetail.projectModules.length > 0
-            }
-          >
-            <div class="ui-gap-sm flex items-center">
-              {/* <Show when={p.isGlobalAdmin}>
-                <Button
-                  onClick={attemptBackupPresentationObjects}
-                  intent="neutral"
-                  outline
-                >
-                  {t("Backup all")}
-                </Button>
-              </Show> */}
+          <div class="ui-gap-sm flex items-center">
+            <Select
+              options={GROUPING_OPTIONS}
+              value={vizGroupingMode()}
+              onChange={(v) => setVizGroupingMode(v as VisualizationGroupingMode)}
+              size="sm"
+            />
+            <Show
+              when={
+                !p.projectDetail.isLocked &&
+                p.projectDetail.projectModules.length > 0
+              }
+            >
               <Button onClick={attempAddPresentationObject} iconName="plus">
                 {t2(T.FRENCH_UI_STRINGS.create_visualization)}
               </Button>
-            </div>
-          </Show>
+            </Show>
+          </div>
         </HeadingBar>
       }
     >

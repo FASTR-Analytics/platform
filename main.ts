@@ -31,6 +31,7 @@ import { routesSlideDecks } from "./server/routes/project/slide_decks.ts";
 import { routesSlides } from "./server/routes/project/slides.ts";
 import { routesAiProxy } from "./server/routes/project/ai_proxy.ts";
 import { routesAiTools } from "./server/routes/project/ai_tools.ts";
+import { routesVisualizationFolders } from "./server/routes/project/visualization_folders.ts";
 
 await dbStartUp();
 
@@ -89,6 +90,7 @@ app.route("/", routesReports);
 app.route("/", routesSlideDecks);
 app.route("/", routesSlides);
 app.route("/", routesPresentationObjects);
+app.route("/", routesVisualizationFolders);
 app.route("/ai", routesAiProxy);
 app.route("/", routesAiTools);
 
