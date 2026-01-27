@@ -1,4 +1,4 @@
-import { t, type DisaggregationOption } from "lib";
+import { t } from "lib";
 import { Button, getSelectOptionsFromIdLabel, Input, Select, timActionButton } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -40,15 +40,14 @@ export function AIToolsDebug(p: Props) {
       const disaggArr = disaggregations()
         .split(",")
         .map((s) => s.trim())
-        .filter((s) => s.length > 0) as DisaggregationOption[];
+        .filter((s) => s.length > 0);
       try {
-        result = await getMetricDataForAI(
-          p.projectId,
-          metricId(),
-          disaggArr,
-          [],
-          undefined
-        );
+        result = await getMetricDataForAI(p.projectId, {
+          metricId: metricId(),
+          disaggregations: disaggArr,
+          filters: [],
+          periodFilter: undefined,
+        });
       } catch (error) {
         return { success: false, err: String(error) };
       }

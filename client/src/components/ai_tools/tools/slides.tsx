@@ -2,9 +2,10 @@ import { serverActions } from "~/server_actions";
 import { createAITool } from "panther";
 import { z } from "zod";
 import {
-  CoverSlideSchema,
-  SectionSlideSchema,
-  ContentSlideSchema,
+  AiCoverSlideSchema,
+  AiSectionSlideSchema,
+  AiContentSlideSchema,
+  AiContentBlockInputSchema,
   getSlideTitle,
   type Slide,
 } from "lib";
@@ -72,9 +73,9 @@ export function getToolsForSlides(
           .describe("Slide ID (3-char alphanumeric, e.g. 'a3k') to insert after, or null to insert at the beginning."),
         slide: z
           .union([
-            CoverSlideSchema,
-            SectionSlideSchema,
-            ContentSlideSchema,
+            AiCoverSlideSchema,
+            AiSectionSlideSchema,
+            AiContentSlideSchema,
           ])
           .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with heading and blocks array containing text and/or figures)."),
       }),
@@ -108,9 +109,9 @@ export function getToolsForSlides(
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         slide: z
           .union([
-            CoverSlideSchema,
-            SectionSlideSchema,
-            ContentSlideSchema,
+            AiCoverSlideSchema,
+            AiSectionSlideSchema,
+            AiContentSlideSchema,
           ])
           .describe("The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized."),
       }),
@@ -141,32 +142,7 @@ export function getToolsForSlides(
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         updates: z.array(z.object({
           blockId: z.string().describe("Block ID (3-char alphanumeric, e.g. 't2n'). Get these from get_slide."),
-          newContent: z.union([
-            z.object({
-              type: z.literal("text"),
-              markdown: z.string().max(5000),
-            }),
-            z.object({
-              type: z.literal("from_visualization"),
-              visualizationId: z.string(),
-              replicant: z.string().optional(),
-            }),
-            z.object({
-              type: z.literal("from_metric"),
-              metricId: z.string(),
-              disaggregations: z.array(z.string()).optional(),
-              filters: z.array(z.object({
-                col: z.string(),
-                vals: z.array(z.string()),
-              })).optional(),
-              periodFilter: z.object({
-                periodOption: z.enum(["period_id", "quarter_id", "year"]),
-                min: z.number(),
-                max: z.number(),
-              }).optional(),
-              chartType: z.enum(["bar", "line", "table"]).optional(),
-            }),
-          ]).describe("The new content for this block. Can be text (markdown), a figure from an existing visualization, or a figure from metric data. The block type can be changed."),
+          newContent: AiContentBlockInputSchema.describe("The new content for this block. Can be text (markdown), a figure from an existing visualization, or a figure from metric data. The block type can be changed."),
         })).min(1).describe("Array of updates to apply. Each update specifies a block ID and the new content for that block."),
       }),
       handler: async (input) => {

@@ -1,7 +1,7 @@
 import { serverActions } from "~/server_actions";
 import { createAITool } from "panther";
 import { z } from "zod";
-import { type DisaggregationOption, type PeriodOption } from "lib";
+import { AiMetricQuerySchema, type AiMetricQuery } from "lib";
 import { getMetricDataForAI } from "../get_metric_data_for_ai";
 
 export function getToolsForMetrics(projectId: string) {
@@ -25,46 +25,12 @@ export function getToolsForMetrics(projectId: string) {
       name: "get_metric_data",
       description:
         "Query data from a metric WITHOUT creating a visualization. Returns CSV data with dimension summary. Required disaggregations are automatically included. Use for: (1) answering data questions directly, (2) exploring data before visualizing, (3) analysis that doesn't need a chart.",
-      inputSchema: z.object({
-        metricId: z.string().describe("Metric ID to query"),
-        disaggregations: z
-          .array(z.string())
-          .describe(
-            "Additional disaggregation dimensions to include (optional ones from get_available_metrics). Required disaggregations are automatically added."
-          ),
-        filters: z
-          .array(
-            z.object({
-              col: z.string().describe("Disaggregation column to filter"),
-              vals: z.array(z.string()).describe("Values to include"),
-            })
-          )
-          .optional()
-          .describe("Optional filters to narrow results"),
-        periodFilter: z
-          .object({
-            periodOption: z
-              .enum(["period_id", "quarter_id", "year"])
-              .describe("Period granularity: period_id=monthly, quarter_id=quarterly, year=yearly"),
-            min: z.number().describe("Start period (e.g., 202001 for Jan 2020)"),
-            max: z.number().describe("End period (e.g., 202312 for Dec 2023)"),
-          })
-          .optional()
-          .describe("Optional time range filter"),
-      }),
-      handler: async (input) => {
-        return await getMetricDataForAI(
-          projectId,
-          input.metricId,
-          input.disaggregations as DisaggregationOption[],
-          (input.filters ?? []) as { col: DisaggregationOption; vals: string[] }[],
-          input.periodFilter as
-          | { periodOption: PeriodOption; min: number; max: number }
-          | undefined,
-        );
+      inputSchema: AiMetricQuerySchema,
+      handler: async (input: AiMetricQuery) => {
+        return await getMetricDataForAI(projectId, input);
       },
-      inProgressLabel: input => `Querying data for metric ${input.metricId}...`,
-      completionMessage: input => `Queried data for metric ${input.metricId}`,
+      inProgressLabel: (input: AiMetricQuery) => `Querying data for metric ${input.metricId}...`,
+      completionMessage: (input: AiMetricQuery) => `Queried data for metric ${input.metricId}`,
     }),
   ];
 }

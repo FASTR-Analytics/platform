@@ -22,7 +22,10 @@ export async function resolveFigureFromMetric(
   projectId: string,
   block: AiFigureFromMetric
 ): Promise<FigureBlock> {
-  const staticData = getMetricStaticData(block.metricId);
+  const { metricQuery, chartType } = block;
+  const { metricId, disaggregations: inputDisaggregations, filters: inputFilters, periodFilter } = metricQuery;
+
+  const staticData = getMetricStaticData(metricId);
 
   // TODO: Implement smart presentation type selection based on:
   // - Disaggregations (time dimensions → timeseries)
@@ -31,9 +34,9 @@ export async function resolveFigureFromMetric(
   // - Data characteristics
   // For now, use simple chartType mapping
   let presentationType: PresentationOption;
-  if (block.chartType === "line") {
+  if (chartType === "line") {
     presentationType = "timeseries";
-  } else if (block.chartType === "table") {
+  } else if (chartType === "table") {
     presentationType = "table";
   } else {
     presentationType = "chart";
@@ -42,17 +45,17 @@ export async function resolveFigureFromMetric(
   // Auto-merge required disaggregations
   const allDisaggregations = [
     ...staticData.requiredDisaggregationOptions,
-    ...(block.disaggregations || []),
+    ...(inputDisaggregations || []),
   ];
   const uniqueDisaggregations = [...new Set(allDisaggregations)] as DisaggregationOption[];
 
   // Build fetchConfig following getMetricDataForAI pattern
-  const fetchConfigFilters = (block.filters || []).map(f => ({
+  const fetchConfigFilters = (inputFilters || []).map(f => ({
     col: f.col as DisaggregationOption,
     vals: f.vals,
   }));
 
-  const configFilters = (block.filters || []).map(f => ({
+  const configFilters = (inputFilters || []).map(f => ({
     disOpt: f.col as DisaggregationOption,
     values: f.vals,
   }));
@@ -62,7 +65,7 @@ export async function resolveFigureFromMetric(
       values: staticData.postAggregationExpression.ingredientValues,
       groupBys: uniqueDisaggregations,
       filters: fetchConfigFilters,
-      periodFilter: block.periodFilter,
+      periodFilter: periodFilter,
       postAggregationExpression: staticData.postAggregationExpression.expression,
       includeNationalForAdminArea2: false,
       includeNationalPosition: undefined,
@@ -74,7 +77,7 @@ export async function resolveFigureFromMetric(
       })),
       groupBys: uniqueDisaggregations,
       filters: fetchConfigFilters,
-      periodFilter: block.periodFilter,
+      periodFilter: periodFilter,
       postAggregationExpression: undefined,
       includeNationalForAdminArea2: false,
       includeNationalPosition: undefined,
@@ -118,13 +121,13 @@ export async function resolveFigureFromMetric(
   }
 
   // Get minimal ResultsValue for visualization
-  const resultsValueForViz = getResultsValueForVisualizationFromMetricId(block.metricId);
+  const resultsValueForViz = getResultsValueForVisualizationFromMetricId(metricId);
 
   // Build config for visualization with intelligent slot assignment
   const config: PresentationObjectConfig = {
     d: {
       type: presentationType,
-      periodOpt: block.periodFilter?.periodOption || "period_id",
+      periodOpt: periodFilter?.periodOption || "period_id",
       valuesDisDisplayOpt: presentationType === "timeseries"
         ? "series"
         : presentationType === "table"
@@ -133,7 +136,7 @@ export async function resolveFigureFromMetric(
       valuesFilter: undefined,
       disaggregateBy: [],
       filterBy: configFilters,
-      periodFilter: block.periodFilter,
+      periodFilter: periodFilter,
       selectedReplicantValue: undefined,
       includeNationalForAdminArea2: false,
       includeNationalPosition: "bottom",
@@ -175,7 +178,7 @@ export async function resolveFigureFromMetric(
     figureInputs: figureInputsResult.data,
     source: {
       type: "from_metric",
-      metricId: block.metricId,
+      metricId,
       config,
       snapshotAt: new Date().toISOString(),
     },

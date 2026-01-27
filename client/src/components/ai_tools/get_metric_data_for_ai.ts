@@ -1,4 +1,5 @@
 import {
+  type AiMetricQuery,
   DisaggregationOption,
   GenericLongFormFetchConfig,
   getMetricStaticData,
@@ -11,11 +12,12 @@ import { poItemsQueue } from "~/utils/request_queue";
 
 export async function getMetricDataForAI(
   projectId: string,
-  metricId: string,
-  disaggregations: DisaggregationOption[],
-  filters: { col: DisaggregationOption; vals: string[] }[],
-  periodFilter: { periodOption: PeriodOption; min: number; max: number } | undefined,
+  query: AiMetricQuery,
 ): Promise<string> {
+  const { metricId, disaggregations: inputDisaggregations, filters: inputFilters, periodFilter } = query;
+  const disaggregations = (inputDisaggregations ?? []) as DisaggregationOption[];
+  const filters = (inputFilters ?? []) as { col: DisaggregationOption; vals: string[] }[];
+
   // Get static metric data from build-time map
   const staticData = getMetricStaticData(metricId);
 

@@ -5,7 +5,6 @@ import { For } from "solid-js";
 import { VisualizationPreview } from "../VisualizationPreview";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
 import { getMetricDataForAI } from "../get_metric_data_for_ai";
-import { DisaggregationOption, PeriodOption } from "lib";
 
 // Shared helper to get visualization CSV data
 async function getVisualizationDataAsCSV(projectId: string, presentationObjectId: string): Promise<string> {
@@ -33,13 +32,12 @@ async function getVisualizationDataAsCSV(projectId: string, presentationObjectId
     }
     : undefined;
 
-  const dataOutput = await getMetricDataForAI(
-    projectId,
-    poDetail.resultsValue.id,
-    disaggregations as DisaggregationOption[],
+  const dataOutput = await getMetricDataForAI(projectId, {
+    metricId: poDetail.resultsValue.id,
+    disaggregations,
     filters,
     periodFilter,
-  );
+  });
 
   const contextLines = [
     "# VISUALIZATION DATA",

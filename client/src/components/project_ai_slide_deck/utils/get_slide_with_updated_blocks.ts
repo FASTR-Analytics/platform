@@ -37,7 +37,7 @@ export async function getSlideWithUpdatedBlocks(
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `Failed to create figure from metric "${update.newContent.metricId}". Check that the metric exists and parameters are valid. Original error: ${errMsg}`
+          `Failed to create figure from metric "${update.newContent.metricQuery.metricId}". Check that the metric exists and parameters are valid. Original error: ${errMsg}`
         );
       }
     } else {
