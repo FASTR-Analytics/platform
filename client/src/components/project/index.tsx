@@ -8,6 +8,7 @@ import {
   DatabaseIcon,
   FrameLeft,
   FrameTop,
+  PencilIcon,
   ReportIcon,
   SettingsIcon,
   SparklesIcon,
@@ -32,9 +33,11 @@ import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
 import { ProjectAiSlideDeck } from "../project_ai_slide_deck";
+import { ProjectWhiteboard } from "../project_whiteboard";
 
 type TabOption =
   | "chatbot"
+  | "whiteboard"
   | "reports"
   | "decks"
   | "visualizations"
@@ -170,6 +173,16 @@ export default function Project(p: Props) {
                                 </div>
                                 <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                  onClick={() => changeTab("whiteboard")}
+                                  data-selected={tab() === "whiteboard"}
+                                >
+                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                    <PencilIcon />
+                                  </span>
+                                  {t2("Whiteboard")}
+                                </div>
+                                <div
+                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                   onClick={() => changeTab("reports")}
                                   data-selected={tab() === "reports"}
                                 >
@@ -253,6 +266,12 @@ export default function Project(p: Props) {
                                     projectDetail.silentFetch
                                   }
                                   openProjectEditor={openProjectEditor}
+                                />
+                              </Match>
+                              <Match when={tab() === "whiteboard"}>
+                                <ProjectWhiteboard
+                                  instanceDetail={keyedInstanceDetail}
+                                  projectDetail={keyedProjectDetail}
                                 />
                               </Match>
                               <Match when={tab() === "reports"}>
