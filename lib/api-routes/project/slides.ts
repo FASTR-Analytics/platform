@@ -1,6 +1,6 @@
 import { route } from "../route-utils.ts";
 import { Slide, DeckSummary } from "../../types/mod.ts";
-import type { SlideWithMeta } from "../../types/slides.ts";
+import type { SlideWithMeta, SlidePosition } from "../../types/slides.ts";
 
 export const slideRouteRegistry = {
   // Get all slides
@@ -27,7 +27,7 @@ export const slideRouteRegistry = {
     method: "POST",
     params: {} as { deck_id: string },
     body: {} as {
-      afterSlideId: string | null;
+      position: SlidePosition;
       slide: Slide;
     },
     response: {} as {
@@ -82,11 +82,7 @@ export const slideRouteRegistry = {
     params: {} as { deck_id: string },
     body: {} as {
       slideIds: string[];
-      position:
-        | { after: string }
-        | { before: string }
-        | { toStart: true }
-        | { toEnd: true };
+      position: SlidePosition;
     },
     response: {} as {
       slides: SlideWithMeta[];

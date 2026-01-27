@@ -14,12 +14,16 @@ import {
   StateHolderWrapper,
   timQuery,
 } from "panther";
-import { For, Show } from "solid-js";
+import { For, Setter, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { MetricDetailsModal } from "./metric_details_modal";
+import { AddVisualization } from "./add_visualization";
+import type { CreateModeVisualizationData } from "../visualization";
 
 type Props = {
   projectId: string;
+  isGlobalAdmin: boolean;
+  onStartCreateMode: Setter<CreateModeVisualizationData | null>;
 };
 
 type MetricsByModule = {
@@ -85,7 +89,7 @@ export function ProjectMetrics(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={t2("Metrics menu")}></HeadingBar>
+        <HeadingBar heading={t2("Metrics")}></HeadingBar>
       }
     >
       <StateHolderWrapper state={metricsQuery.state()}>
@@ -96,14 +100,19 @@ export function ProjectMetrics(p: Props) {
               <For each={organized}>
                 {(moduleGroup) => (
                   <div class="ui-spy">
-                    <div class="border-primary bg-primary/5 border-base-300 ui-pad-sm rounded border-l-4">
+                    <div class=" bg-primary/5 border-base-300 ui-pad-sm rounded border-l-4">
                       <div class="font-700 text-lg">{moduleGroup.moduleLabel}</div>
                       <div class="font-mono text-neutral text-xs">{moduleGroup.moduleId}</div>
                     </div>
                     <div class="ui-gap grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                       <For each={moduleGroup.metricGroups}>
                         {(metricGroup) => (
-                          <MetricGroupCard metricGroup={metricGroup} />
+                          <MetricGroupCard
+                            metricGroup={metricGroup}
+                            projectId={p.projectId}
+                            isGlobalAdmin={p.isGlobalAdmin}
+                            onStartCreateMode={p.onStartCreateMode}
+                          />
                         )}
                       </For>
                     </div>
@@ -123,6 +132,9 @@ type MetricGroupCardProps = {
     label: string;
     variants: ResultsValue[];
   };
+  projectId: string;
+  isGlobalAdmin: boolean;
+  onStartCreateMode: Setter<CreateModeVisualizationData | null>;
 };
 
 function MetricGroupCard(p: MetricGroupCardProps) {
@@ -134,6 +146,20 @@ function MetricGroupCard(p: MetricGroupCardProps) {
       element: MetricDetailsModal,
       props: { metric },
     });
+  }
+
+  async function visualize(metric: ResultsValue) {
+    const res = await openComponent({
+      element: AddVisualization,
+      props: {
+        projectId: p.projectId,
+        isGlobalAdmin: p.isGlobalAdmin,
+        preselectedMetric: metric,
+      },
+    });
+    if (res) {
+      p.onStartCreateMode(res);
+    }
   }
 
   return (
@@ -174,12 +200,20 @@ function MetricGroupCard(p: MetricGroupCardProps) {
                     </div>
                     <div class="font-mono text-neutral text-xs">{variant.id}</div>
                   </div>
-                  <Button
-                    onClick={() => showDetails(variant)}
-                    size="sm"
-                    outline
-                    iconName="info"
-                  />
+                  <div class="ui-gap-sm flex">
+                    <Button
+                      onClick={() => visualize(variant)}
+                      size="sm"
+                      outline
+                      iconName="plus"
+                    />
+                    <Button
+                      onClick={() => showDetails(variant)}
+                      size="sm"
+                      outline
+                      iconName="info"
+                    />
+                  </div>
                 </div>
               )}
             </For>
@@ -188,12 +222,20 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         <Show when={!hasVariants}>
           <div class="ui-gap-sm flex items-center justify-between">
             <div class="font-mono text-neutral flex-1 text-xs">{firstMetric.id}</div>
-            <Button
-              onClick={() => showDetails(firstMetric)}
-              size="sm"
-              outline
-              iconName="info"
-            />
+            <div class="ui-gap-sm flex">
+              <Button
+                onClick={() => visualize(firstMetric)}
+                size="sm"
+                outline
+                iconName="plus"
+              />
+              <Button
+                onClick={() => showDetails(firstMetric)}
+                size="sm"
+                outline
+                iconName="info"
+              />
+            </div>
           </div>
         </Show>
       </div>

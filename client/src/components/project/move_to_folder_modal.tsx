@@ -3,6 +3,7 @@ import {
   AlertComponentProps,
   AlertFormHolder,
   Button,
+  ColorPicker,
   Input,
   RadioGroup,
   timActionForm,
@@ -28,7 +29,7 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   const [newFolderColor, setNewFolderColor] = createSignal("#3b82f6");
 
   const folderOptions = () => [
-    { value: "_none", label: "No folder" },
+    { value: "_none", label: "General" },
     ...p.folders.map((f) => ({
       value: f.id,
       label: f.label,
@@ -93,19 +94,20 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
         when={!isCreatingFolder()}
         fallback={
           <div class="space-y-4">
-            <Input
-              label="Folder name"
-              value={newFolderLabel()}
-              onChange={setNewFolderLabel}
-              autoFocus
-            />
-            <div class="flex items-center gap-2">
-              <label class="text-sm font-medium">Color</label>
-              <input
-                type="color"
+
+            <div class="flex ui-gap">
+              <Input
+                label="Folder name"
+                value={newFolderLabel()}
+                onChange={setNewFolderLabel}
+                autoFocus
+                fullWidth
+              />
+              <ColorPicker
+                label="Color"
                 value={newFolderColor()}
-                onInput={(e) => setNewFolderColor(e.currentTarget.value)}
-                class="h-8 w-12 cursor-pointer rounded border"
+                onChange={(c) => setNewFolderColor(c)}
+                position="right"
               />
             </div>
             <Button
@@ -124,6 +126,8 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
             options={folderOptions()}
             value={selectedFolderId() ?? "_none"}
             onChange={(v) => setSelectedFolderId(v === "_none" ? null : v)}
+            convertToSelectThreshold={6}
+            fullWidthForSelect
           />
           <Button
             size="sm"

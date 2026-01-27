@@ -1,19 +1,20 @@
-import { PresentationObjectDetail, isFrench, t2, T } from "lib";
+import { isFrench, t, t2, T, VisualizationFolder } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
   Input,
+  Select,
   timActionForm,
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { t } from "lib";
 
 export function DuplicateVisualization(
   p: AlertComponentProps<
     {
       projectId: string;
-      poDetail: PresentationObjectDetail;
+      poDetail: { id: string; label: string; folderId: string | null };
+      folders: VisualizationFolder[];
     },
     { newPresentationObjectId: string; lastUpdated: string }
   >,
@@ -21,6 +22,12 @@ export function DuplicateVisualization(
   // Temp state
 
   const [tempLabel, setTempLabel] = createSignal<string>(p.poDetail.label);
+  const [tempFolderId, setTempFolderId] = createSignal<string>(p.poDetail.folderId ?? "_none");
+
+  const folderOptions = () => [
+    { value: "_none", label: t("General") },
+    ...p.folders.map((f) => ({ value: f.id, label: f.label })),
+  ];
 
   // Actions
 
@@ -35,10 +42,12 @@ export function DuplicateVisualization(
         };
       }
 
+      const folderId = tempFolderId() === "_none" ? null : tempFolderId();
       return serverActions.duplicatePresentationObject({
         projectId: p.projectId,
         po_id: p.poDetail.id,
         label,
+        folderId,
       });
     },
     (res) => {
@@ -60,13 +69,22 @@ export function DuplicateVisualization(
       cancelFunc={() => p.close(undefined)}
       french={isFrench()}
     >
-      <Input
-        label={t2(T.FRENCH_UI_STRINGS.new_visualization_name)}
-        value={tempLabel()}
-        onChange={setTempLabel}
-        fullWidth
-        autoFocus
-      />
+      <div class="space-y-4">
+        <Input
+          label={t2(T.FRENCH_UI_STRINGS.new_visualization_name)}
+          value={tempLabel()}
+          onChange={setTempLabel}
+          fullWidth
+          autoFocus
+        />
+        <Select
+          label={t("Folder")}
+          options={folderOptions()}
+          value={tempFolderId()}
+          onChange={setTempFolderId}
+          fullWidth
+        />
+      </div>
     </AlertFormHolder>
   );
 }

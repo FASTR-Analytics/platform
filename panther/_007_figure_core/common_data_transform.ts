@@ -226,6 +226,24 @@ export function calculateYScaleLimits(
     }
   }
 
+  // Handle case where no data was found - set sensible defaults
+  for (let i_pane = 0; i_pane < dimensions.paneCount; i_pane++) {
+    if (!isFinite(paneLimits[i_pane].valueMin)) {
+      paneLimits[i_pane].valueMin = 0;
+    }
+    if (!isFinite(paneLimits[i_pane].valueMax)) {
+      paneLimits[i_pane].valueMax = 1;
+    }
+    for (let i_tier = 0; i_tier < dimensions.tierCount; i_tier++) {
+      if (!isFinite(paneLimits[i_pane].tierLimits[i_tier].valueMin)) {
+        paneLimits[i_pane].tierLimits[i_tier].valueMin = 0;
+      }
+      if (!isFinite(paneLimits[i_pane].tierLimits[i_tier].valueMax)) {
+        paneLimits[i_pane].tierLimits[i_tier].valueMax = 1;
+      }
+    }
+  }
+
   return paneLimits;
 }
 

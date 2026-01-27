@@ -71,7 +71,7 @@ export function simplifySlideForAI(slide: Slide): SimplifiedSlide {
         return { id, summary: "Placeholder" };
       } else {
         let summary = "Figure";
-        if (block.source?.type === "from_metric") {
+        if (block.source?.type === "from_data") {
           summary += ` (metric: ${block.source.metricId})`;
           if (block.source.clonedFromVisualizationId) {
             summary += ` [cloned from viz: ${block.source.clonedFromVisualizationId}]`;

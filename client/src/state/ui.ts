@@ -8,12 +8,27 @@ export const [fitWithin, setFitWithin] = createSignal<
 const storedGroupingMode = localStorage.getItem("vizGroupingMode") as VisualizationGroupingMode | null;
 
 export const [vizGroupingMode, setVizGroupingModeInternal] = createSignal<VisualizationGroupingMode>(
-  storedGroupingMode ?? "module"
+  storedGroupingMode ?? "folders"
 );
 
 export function setVizGroupingMode(mode: VisualizationGroupingMode) {
   localStorage.setItem("vizGroupingMode", mode);
   setVizGroupingModeInternal(mode);
+}
+
+const storedSelectedGroup = localStorage.getItem("vizSelectedGroup");
+
+export const [vizSelectedGroup, setVizSelectedGroupInternal] = createSignal<string | null>(
+  storedSelectedGroup
+);
+
+export function setVizSelectedGroup(group: string | null) {
+  if (group === null) {
+    localStorage.removeItem("vizSelectedGroup");
+  } else {
+    localStorage.setItem("vizSelectedGroup", group);
+  }
+  setVizSelectedGroupInternal(group);
 }
 
 export const [headerOrContent, setHeaderOrContent] = createSignal<

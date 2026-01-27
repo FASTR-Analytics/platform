@@ -7,13 +7,10 @@ import {
   OpenEditorProps,
   openComponent,
 } from "panther";
-import { Show, createSignal } from "solid-js";
+import { Setter, Show, createSignal } from "solid-js";
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
-import {
-  useOptimisticSetLastUpdated,
-  useOptimisticSetProjectLastUpdated,
-} from "~/components/project_runner/mod";
 import { AddVisualization } from "./add_visualization";
+import type { CreateModeVisualizationData } from "../visualization";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -23,12 +20,11 @@ type Props = {
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
+  onStartCreateMode: Setter<CreateModeVisualizationData | null>;
 };
 
 export function ProjectVisualizations(p: Props) {
   const navigate = useNavigate();
-  const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
-  const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
 
   const [searchText, setSearchText] = createSignal<string>("");
 
@@ -43,15 +39,8 @@ export function ProjectVisualizations(p: Props) {
     if (res === undefined) {
       return;
     }
-    optimisticSetLastUpdated(
-      "presentation_objects",
-      res.newPresentationObjectId,
-      res.lastUpdated,
-    );
-    optimisticSetProjectLastUpdated(res.lastUpdated);
-    navigate(
-      `/?p=${p.projectDetail.id}&m=${res.moduleId}&v=${res.newPresentationObjectId}`,
-    );
+    // Open editor in create mode
+    p.onStartCreateMode(res);
   }
 
   // async function attemptBackupPresentationObjects() {

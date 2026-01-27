@@ -22,9 +22,9 @@ import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
 import { ProjectRunnerProvider, useProjectDirtyStates } from "~/components/project_runner/mod";
 import { serverActions } from "~/server_actions";
-import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
+// import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
 import { Report } from "../report";
-import { Visualization } from "../visualization";
+import { Visualization, VisualizationCreateMode, type CreateModeVisualizationData } from "../visualization";
 import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
 import { ProjectMetrics } from "./project_metrics";
@@ -34,6 +34,7 @@ import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
 import { ProjectAiSlideDeck } from "../project_ai_slide_deck";
 import { ProjectWhiteboard } from "../project_whiteboard";
+import { setVizGroupingMode, setVizSelectedGroup } from "~/state/ui";
 
 type TabOption =
   | "chatbot"
@@ -60,6 +61,9 @@ export default function Project(p: Props) {
   const navigate = useNavigate();
 
   const [tab, setTab] = createSignal<TabOption>("reports");
+
+  // Create mode state for visualization editor
+  const [createModeData, setCreateModeData] = createSignal<CreateModeVisualizationData | null>(null);
 
   function changeTab(tab: TabOption) {
     setSearchParams({ r: undefined, d: undefined, v: undefined });
@@ -129,6 +133,26 @@ export default function Project(p: Props) {
                         backToProject={backToProject}
                       />
                     </Match>
+                    <Match when={createModeData()}>
+                      {(data) => (
+                        <VisualizationCreateMode
+                          isGlobalAdmin={p.isGlobalAdmin}
+                          instanceDetail={keyedInstanceDetail}
+                          projectDetail={keyedProjectDetail}
+                          createData={data()}
+                          onCreated={(folderId) => {
+                            setCreateModeData(null);
+                            projectDetail.silentFetch();
+                            setTab("visualizations");
+                            setVizGroupingMode("folders");
+                            setVizSelectedGroup(folderId === null ? "_unfiled" : folderId);
+                          }}
+                          onCancel={() => {
+                            setCreateModeData(null);
+                          }}
+                        />
+                      )}
+                    </Match>
                     <Match when={getFirstString(searchParams.v)}>
                       <Visualization
                         isGlobalAdmin={p.isGlobalAdmin}
@@ -161,7 +185,7 @@ export default function Project(p: Props) {
                           <FrameLeft
                             panelChildren={
                               <div class="font-700 h-full border-r text-sm">
-                                <div
+                                {/* <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                   onClick={() => changeTab("chatbot")}
                                   data-selected={tab() === "chatbot"}
@@ -170,7 +194,7 @@ export default function Project(p: Props) {
                                     <SparklesIcon />
                                   </span>
                                   {t2("AI Assistant")}
-                                </div>
+                                </div> */}
                                 <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                   onClick={() => changeTab("whiteboard")}
@@ -181,7 +205,7 @@ export default function Project(p: Props) {
                                   </span>
                                   {t2("Whiteboard")}
                                 </div>
-                                <div
+                                {/* <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                   onClick={() => changeTab("reports")}
                                   data-selected={tab() === "reports"}
@@ -190,7 +214,7 @@ export default function Project(p: Props) {
                                     <ReportIcon />
                                   </span>
                                   {t2(T.FRENCH_UI_STRINGS.reports)}
-                                </div>
+                                </div> */}
                                 <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                   onClick={() => changeTab("decks")}
@@ -199,7 +223,7 @@ export default function Project(p: Props) {
                                   <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
                                     <SparklesIcon />
                                   </span>
-                                  Decks
+                                  Slide decks
                                 </div>
                                 <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
@@ -219,29 +243,29 @@ export default function Project(p: Props) {
                                   <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
                                     <BadgeIcon />
                                   </span>
-                                  {t2("Metrics menu")}
+                                  {t2("Metrics")}
                                 </div>
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("modules")}
-                                  data-selected={tab() === "modules"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <CodeIcon />
-                                  </span>
-                                  {t2(T.FRENCH_UI_STRINGS.modules)}
-                                </div>
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("data")}
-                                  data-selected={tab() === "data"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <DatabaseIcon />
-                                  </span>
-                                  {t2(T.FRENCH_UI_STRINGS.data)}
-                                </div>
-                                <Show when={p.isGlobalAdmin}>
+                                {/* <Show when={p.isGlobalAdmin}>
+                                  <div
+                                    class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                    onClick={() => changeTab("modules")}
+                                    data-selected={tab() === "modules"}
+                                  >
+                                    <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                      <CodeIcon />
+                                    </span>
+                                    {t2(T.FRENCH_UI_STRINGS.modules)}
+                                  </div>
+                                  <div
+                                    class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                    onClick={() => changeTab("data")}
+                                    data-selected={tab() === "data"}
+                                  >
+                                    <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                      <DatabaseIcon />
+                                    </span>
+                                    {t2(T.FRENCH_UI_STRINGS.data)}
+                                  </div>
                                   <div
                                     class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                     onClick={() => changeTab("settings")}
@@ -252,12 +276,12 @@ export default function Project(p: Props) {
                                     </span>
                                     {t2(T.FRENCH_UI_STRINGS.settings)}
                                   </div>
-                                </Show>
+                                </Show> */}
                               </div>
                             }
                           >
                             <Switch>
-                              <Match when={tab() === "chatbot"}>
+                              {/* <Match when={tab() === "chatbot"}>
                                 <ProjectChatbot
                                   instanceDetail={keyedInstanceDetail}
                                   projectDetail={keyedProjectDetail}
@@ -267,7 +291,7 @@ export default function Project(p: Props) {
                                   }
                                   openProjectEditor={openProjectEditor}
                                 />
-                              </Match>
+                              </Match> */}
                               <Match when={tab() === "whiteboard"}>
                                 <ProjectWhiteboard
                                   instanceDetail={keyedInstanceDetail}
@@ -303,11 +327,14 @@ export default function Project(p: Props) {
                                     projectDetail.silentFetch
                                   }
                                   openProjectEditor={openProjectEditor}
+                                  onStartCreateMode={setCreateModeData}
                                 />
                               </Match>
                               <Match when={tab() === "metrics"}>
                                 <ProjectMetrics
                                   projectId={p.projectId}
+                                  isGlobalAdmin={p.isGlobalAdmin}
+                                  onStartCreateMode={setCreateModeData}
                                 />
                               </Match>
                               <Match when={tab() === "modules"}>

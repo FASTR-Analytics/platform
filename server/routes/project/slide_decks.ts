@@ -9,6 +9,7 @@ import {
 } from "../../db/mod.ts";
 import { getProjectEditor, getProjectViewer } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
+import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesSlideDecks = new Hono();
@@ -49,6 +50,8 @@ defineRoute(
       [res.data.deckId],
       res.data.lastUpdated
     );
+
+    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
 
     return c.json(res);
   }
@@ -110,6 +113,9 @@ defineRoute(
   getProjectEditor,
   async (c, { params }) => {
     const res = await deleteSlideDeck(c.var.ppk.projectDb, params.deck_id);
+    if (res.success) {
+      notifyProjectUpdated(c.var.ppk.projectId, new Date().toISOString());
+    }
     return c.json(res);
   }
 );

@@ -107,10 +107,10 @@ export function SlideCard(p: Props) {
         {p.index + 1}
       </div>
       <div
-        class="slide-card-wrapper relative overflow-clip rounded-lg border-2 bg-white transition-all"
+        class="slide-card-wrapper relative overflow-clip rounded-lg border bg-white "
         classList={{
           "border-base-300": !p.isSelected,
-          "border-primary ring-2 ring-primary/30": p.isSelected,
+          "border-primary": p.isSelected,
           "hover:border-primary": !p.isSelected,
         }}
         onContextMenu={handleContextMenu}

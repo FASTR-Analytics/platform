@@ -1,13 +1,15 @@
-import { APIResponseNoData, isFrench, t, t2, T } from "lib";
+import { APIResponseNoData, isFrench, t, t2, T, VisualizationFolder } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
   Button,
   Input,
+  Select,
   timActionButton,
   timActionForm,
 } from "panther";
 import { Show, createSignal } from "solid-js";
+import { serverActions } from "~/server_actions";
 import { _PO_DETAIL_CACHE, _PO_ITEMS_CACHE, _REPLICANT_OPTIONS_CACHE, _METRIC_INFO_CACHE } from "~/state/caches/visualizations";
 
 export function VisualizationSettings(
@@ -19,6 +21,8 @@ export function VisualizationSettings(
       moduleId: string;
       isDefault: boolean;
       existingLabel: string;
+      currentFolderId: string | null;
+      folders: VisualizationFolder[];
       mutateFunc: (newLabel: string) => Promise<APIResponseNoData>;
       silentFetchPoDetail: () => Promise<void>;
     },
@@ -26,6 +30,12 @@ export function VisualizationSettings(
   >,
 ) {
   const [tempLabel, setTempLabel] = createSignal<string>(p.existingLabel);
+  const [tempFolderId, setTempFolderId] = createSignal<string>(p.currentFolderId ?? "_none");
+
+  const folderOptions = () => [
+    { value: "_none", label: t("General") },
+    ...p.folders.map((f) => ({ value: f.id, label: f.label })),
+  ];
 
   const save = timActionForm(
     async (e: MouseEvent) => {
@@ -33,6 +43,18 @@ export function VisualizationSettings(
       const goodLabel = tempLabel().trim();
       if (!goodLabel) {
         return { success: false, err: t("You must enter a name") };
+      }
+      const newFolderId = tempFolderId() === "_none" ? null : tempFolderId();
+      const folderChanged = newFolderId !== p.currentFolderId;
+      if (folderChanged) {
+        const folderRes = await serverActions.updatePresentationObjectFolder({
+          projectId: p.projectId,
+          po_id: p.presentationObjectId,
+          folderId: newFolderId,
+        });
+        if (!folderRes.success) {
+          return folderRes;
+        }
       }
       return p.mutateFunc(goodLabel);
     },
@@ -89,6 +111,13 @@ export function VisualizationSettings(
             onChange={setTempLabel}
             fullWidth
             autoFocus
+          />
+          <Select
+            label={t("Folder")}
+            options={folderOptions()}
+            value={tempFolderId()}
+            onChange={setTempFolderId}
+            fullWidth
           />
         </Show>
 

@@ -2,6 +2,7 @@ import type {
   Slide,
   ContentBlock,
 } from "lib";
+import { getMetricStaticData } from "lib";
 import type {
   APIResponseWithData,
   PageInputs,
@@ -9,6 +10,7 @@ import type {
   LayoutNode,
   CustomPageStyleOptions,
 } from "panther";
+import { getStyleFromPresentationObject } from "~/generate_visualization/get_style_from_po";
 
 export const slideDeckStyle: CustomPageStyleOptions = {
   text: {
@@ -112,9 +114,6 @@ function convertBlockToPageContentItem(block: ContentBlock): PageContentItem {
           base: {
             fontSize: 60
           },
-          // paragraph: {
-          //   relFontSize: 5
-          // }
         }
       }
     };
@@ -124,6 +123,13 @@ function convertBlockToPageContentItem(block: ContentBlock): PageContentItem {
     return { spacer: true };
   }
 
-  // Figure block - figureInputs already resolved
+  // Figure block - regenerate style from source
+  if (block.source?.type === "from_data") {
+    const { formatAs } = getMetricStaticData(block.source.metricId);
+    const style = getStyleFromPresentationObject(block.source.config, formatAs);
+    return { ...block.figureInputs, style };
+  }
+
+  // No source or custom source - use figureInputs as-is
   return block.figureInputs;
 }

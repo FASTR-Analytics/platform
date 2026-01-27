@@ -13,7 +13,6 @@ import {
   timQuery,
   getSelectOptions,
 } from "panther";
-import { useProjectDirtyStates } from "~/components/project_runner/mod";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/replicant_options_cache";
 import { t } from "lib";
 import { SelectList } from "panther";
@@ -43,8 +42,6 @@ type ReplicateByOptionsPresentationObjectProps = {
 export function ReplicateByOptionsPresentationObject(
   p: ReplicateByOptionsPresentationObjectProps,
 ) {
-  const pds = useProjectDirtyStates();
-
   const replicantOptions = timQuery(() => {
     const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
       p.poDetail.resultsValue,
@@ -114,8 +111,6 @@ export function ReplicateByOptionsPresentationObject(
 export function ReplicateByOptionsPresentationObjectSelect(
   p: ReplicateByOptionsPresentationObjectProps,
 ) {
-  const pds = useProjectDirtyStates();
-
   const replicantOptions = timQuery(() => {
     const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
       p.poDetail.resultsValue,

@@ -220,7 +220,8 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     const idealH = mTable.measuredInfo!.finalContentH +
       mTable.extraHeightDueToSurrounds!;
     // minH = surrounds + column headers (no data rows)
-    const headersHeight = mTable.measuredInfo!.firstCellY -
+    // Use unadjusted firstCellY to avoid flex padding inflation from dummy h:9999 bounds
+    const headersHeight = mTable.measuredInfo!.firstCellYUnadjusted -
       mTable.measuredInfo!.contentRcd.y();
     const minH = mTable.extraHeightDueToSurrounds! + headersHeight;
 

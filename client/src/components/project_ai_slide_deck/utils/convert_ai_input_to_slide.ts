@@ -104,50 +104,19 @@ export async function convertAiInputToSlide(
   const optimized = optimizePageLayout(
     rc,
     bounds,
-    itemNodes.map((n) => n.data),
+    itemNodes,
     slideDeckStyle,
     undefined,
     undefined  // No constraint - let optimizer decide
   );
 
-  // Reassign short IDs to optimized layout (optimizer creates new row/col nodes with UUIDs)
-  const layoutWithShortIds = reassignLayoutIds(optimized.layout, sourceMap);
-
-  // Restore metadata into layout
-  const layoutWithMeta = restoreMetadata(layoutWithShortIds, sourceMap);
+  // Restore metadata into layout (IDs are preserved by optimizer)
+  const layoutWithMeta = restoreMetadata(optimized.layout, sourceMap);
 
   return {
     type: "content",
     heading: slideInput.heading,
     layout: layoutWithMeta,
-  };
-}
-
-/**
- * Reassign short IDs to all nodes in layout tree (after optimization creates UUID nodes)
- */
-function reassignLayoutIds(
-  node: LayoutNode<PageContentItem>,
-  sourceMap: Map<string, FigureSource>
-): LayoutNode<PageContentItem> {
-  const oldId = node.id;
-  const newId = generateUniqueBlockId();
-
-  // Transfer source metadata from old to new ID
-  const source = sourceMap.get(oldId);
-  if (source) {
-    sourceMap.delete(oldId);
-    sourceMap.set(newId, source);
-  }
-
-  if (node.type === "item") {
-    return { ...node, id: newId };
-  }
-
-  return {
-    ...node,
-    id: newId,
-    children: node.children.map((child) => reassignLayoutIds(child, sourceMap)),
   };
 }
 

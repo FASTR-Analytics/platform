@@ -89,10 +89,11 @@ For replicant visualizations (show different indicators/variants):
 ## Creating Slides
 
 **For cover/section slides:**
-create_slide({ afterSlideId: null, slide: { type: "cover", title: "Health Metrics Review", subtitle: "Q4 2024", date: "January 2025" } })
+create_slide({ position: { toEnd: true }, slide: { type: "cover", title: "Health Metrics Review", subtitle: "Q4 2024", date: "January 2025" } })
 
 **For content slides:**
-create_slide({ afterSlideId: "a3k", slide: { type: "content", heading: "ANC Coverage Trends", blocks: [{ type: "from_visualization", visualizationId: "viz-id", replicant: "anc1" }, { type: "text", markdown: "- Coverage up 12%\\n- Rural gains strong" }] } })
+create_slide({ position: { after: "a3k" }, slide: { type: "content", heading: "ANC Coverage Trends", blocks: [{ type: "from_visualization", visualizationId: "viz-id", replicant: "anc1" }, { type: "text", markdown: "- Coverage up 12%\\n- Rural gains strong" }] } })
+// Position options: { after: "id" }, { before: "id" }, { toStart: true }, { toEnd: true }
 
 ## Modifying Slides
 
@@ -125,7 +126,7 @@ When the user has slides selected, you can reference them by their IDs shown in 
 - "Delete these" → delete_slides with selected IDs
 - "Duplicate these" → duplicate_slides with selected IDs
 - "Move these to the end" → move_slides with selected IDs
-- "Add a slide after these" → create_slide with afterSlideId = last selected
+- "Add a slide after these" → create_slide with position: { after: lastSelectedId }
 
 # Best Practices
 

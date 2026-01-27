@@ -4,9 +4,9 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  createItemNode,
   CustomPageStyle,
   type CustomPageStyleOptions,
+  type ItemLayoutNode,
   type LayoutNode,
   optimizeLayout,
   type OptimizerConstraint,
@@ -24,7 +24,7 @@ export type OptimizePageLayoutResult = OptimizeResult<PageContentItem>;
 export function optimizePageLayout(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  items: PageContentItem[],
+  itemNodes: ItemLayoutNode<PageContentItem>[],
   style?: CustomPageStyleOptions,
   responsiveScale?: number,
   constraint?: OptimizerConstraint,
@@ -34,9 +34,6 @@ export function optimizePageLayout(
   // Calculate content bounds (same as measureContent does)
   const padContent = new Padding(s.content.padding);
   const contentBounds = bounds.getPadded(padContent);
-
-  // Wrap items in ItemLayoutNodes
-  const itemNodes = items.map((item) => createItemNode(item));
 
   // Call the generic optimizer with container defaults transform
   return optimizeLayout(

@@ -1,18 +1,38 @@
-import type { InstanceDetail, ProjectDetail, ContentSlide } from "lib";
+import type { InstanceDetail, ProjectDetail, AiContentSlideInput, VisualizationFolder } from "lib";
 import {
   AIChat,
   AIChatProvider,
   Button,
   createAIChat,
   FrameLeftResizable,
+  FrameTop,
+  openComponent,
   type AIChatConfig,
 } from "panther";
-import { createMemo, createSignal, onMount } from "solid-js";
-import { getToolsForWhiteboard } from "../ai_tools/ai_tool_definitions";
+import { createMemo, createSignal, onMount, Show } from "solid-js";
+import { getToolsForWhiteboard, type WhiteboardContent } from "../ai_tools/ai_tool_definitions";
 import { DEFAULT_MODEL_CONFIG, createProjectSDKClient } from "~/components/ai_configs/defaults";
 import { getWhiteboardSystemPrompt } from "~/components/ai_prompts/whiteboard";
+import { convertWhiteboardInputToPageInputs } from "./convert_whiteboard_input";
 import { WhiteboardCanvas } from "./whiteboard_canvas";
 import { loadWhiteboard, clearWhiteboard as clearWhiteboardStore } from "./whiteboard_store";
+import { SaveToDeckModal } from "./save_to_deck_modal";
+import { SaveToVisualizationModal } from "./save_to_visualization_modal";
+
+type SaveToDeckModalProps = {
+  projectId: string;
+  input: AiContentSlideInput;
+};
+
+type SaveToDeckModalReturn = { deckId: string } | undefined;
+
+type SaveToVizModalProps = {
+  projectId: string;
+  input: AiContentSlideInput;
+  folders: VisualizationFolder[];
+};
+
+type SaveToVizModalReturn = { visualizationId: string } | undefined;
 
 type Props = {
   instanceDetail: InstanceDetail;
@@ -23,13 +43,14 @@ export function ProjectWhiteboard(p: Props) {
   const projectId = p.projectDetail.id;
   const conversationId = `whiteboard-${projectId}`;
 
-  const [content, setContent] = createSignal<ContentSlide | null>(null);
+  const [content, setContent] = createSignal<WhiteboardContent | null>(null);
   const [isLoading, setIsLoading] = createSignal(true);
 
   onMount(async () => {
     const saved = await loadWhiteboard(conversationId);
-    if (saved?.content) {
-      setContent(saved.content);
+    if (saved?.input) {
+      const pageInputs = await convertWhiteboardInputToPageInputs(projectId, saved.input);
+      setContent({ input: saved.input, pageInputs });
     }
     setIsLoading(false);
   });
@@ -60,6 +81,7 @@ export function ProjectWhiteboard(p: Props) {
         content={content()}
         isLoading={isLoading()}
         setContent={setContent}
+        folders={p.projectDetail.visualizationFolders}
       />
     </AIChatProvider>
   );
@@ -68,9 +90,10 @@ export function ProjectWhiteboard(p: Props) {
 function ProjectWhiteboardInner(p: {
   projectId: string;
   conversationId: string;
-  content: ContentSlide | null;
+  content: WhiteboardContent | null;
   isLoading: boolean;
-  setContent: (c: ContentSlide | null) => void;
+  setContent: (c: WhiteboardContent | null) => void;
+  folders: VisualizationFolder[];
 }) {
   const { clearConversation, isLoading: aiLoading } = createAIChat();
 
@@ -80,6 +103,29 @@ function ProjectWhiteboardInner(p: {
     await clearWhiteboardStore(p.conversationId);
   }
 
+  async function handleSaveToDeck() {
+    if (!p.content) return;
+    await openComponent<SaveToDeckModalProps, SaveToDeckModalReturn>({
+      element: SaveToDeckModal,
+      props: {
+        projectId: p.projectId,
+        input: p.content.input,
+      },
+    });
+  }
+
+  async function handleSaveToVisualization() {
+    if (!p.content) return;
+    await openComponent<SaveToVizModalProps, SaveToVizModalReturn>({
+      element: SaveToVisualizationModal,
+      props: {
+        projectId: p.projectId,
+        input: p.content.input,
+        folders: p.folders,
+      },
+    });
+  }
+
   return (
     <FrameLeftResizable
       minWidth={300}
@@ -87,8 +133,9 @@ function ProjectWhiteboardInner(p: {
       maxWidth={800}
       panelChildren={
         <div class="border-base-300 h-full w-full border-r flex flex-col">
-          <div class="flex items-center border-b border-base-300 ui-pad">
-            <div class="flex-1 font-700 text-lg">AI Whiteboard</div>
+          <div class="flex items-center gap-2 border-b border-base-300 ui-pad">
+            <div class="flex-1 font-700 text-lg">AI chat</div>
+
             <Button
               onClick={handleClear}
               disabled={aiLoading()}
@@ -96,7 +143,7 @@ function ProjectWhiteboardInner(p: {
               iconName="trash"
               size="sm"
             >
-              Clear
+              Clear chat
             </Button>
           </div>
           <div class="w-full h-0 flex-1">
@@ -105,11 +152,36 @@ function ProjectWhiteboardInner(p: {
         </div>
       }
     >
-      <WhiteboardCanvas
-        projectId={p.projectId}
-        content={p.content}
-        isLoading={p.isLoading}
-      />
+
+      <FrameTop panelChildren={<div class="flex items-center border-b border-base-300 ui-pad">
+        <div class="flex-1 font-700 text-lg">Whiteboard</div>
+        <div class="flex items-center gap-4">
+          <Show when={p.content}>
+            <Button
+              onClick={handleSaveToVisualization}
+              disabled={aiLoading()}
+              outline
+              iconName="chart"
+              size="sm"
+            >
+              Save as visualization
+            </Button>
+            <Button
+              onClick={handleSaveToDeck}
+              disabled={aiLoading()}
+              outline
+              iconName="plus"
+              size="sm"
+            >
+              Save as slide deck
+            </Button>
+          </Show>
+        </div>
+      </div>}>
+        <WhiteboardCanvas
+          pageInputs={p.content?.pageInputs ?? null}
+          isLoading={p.isLoading}
+        /></FrameTop>
     </FrameLeftResizable>
   );
 }

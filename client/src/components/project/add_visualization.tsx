@@ -1,20 +1,22 @@
 import {
   DisaggregationOption,
-  getModuleIdForMetric,
   PresentationOption,
   ResultsValue,
   get_PRESENTATION_SELECT_OPTIONS,
+  getStartingConfigForPresentationObject,
   isFrench,
   t,
   t2,
   T,
 } from "lib";
+import type { CreateModeVisualizationData } from "../visualization";
 import {
   AlertComponentProps,
   AlertFormHolder,
   Checkbox,
   LabelHolder,
   RadioGroup,
+  Select,
   StateHolderWrapper,
   timActionForm,
   timQuery,
@@ -27,25 +29,27 @@ export function AddVisualization(
     {
       projectId: string;
       isGlobalAdmin: boolean;
+      preselectedMetric?: ResultsValue;
     },
-    { moduleId: string; newPresentationObjectId: string; lastUpdated: string }
+    CreateModeVisualizationData
   >,
 ) {
   const metricsQuery = timQuery(
-    () => serverActions.getAllMetrics({ projectId: p.projectId }),
+    () => p.preselectedMetric
+      ? Promise.resolve({ success: true as const, data: [p.preselectedMetric] })
+      : serverActions.getAllMetrics({ projectId: p.projectId }),
     "Loading...",
   );
 
   // Temp state
 
-  const [tempMetricId, setTempMetricId] = createSignal<string>("");
+  const [tempMetricId, setTempMetricId] = createSignal<string>(p.preselectedMetric?.id ?? "");
   const [tempPresentationOption, setTempPresentationOption] = createSignal<
     PresentationOption | undefined
   >(undefined);
   const [tempDisaggregations, setTempDisaggregations] = createSignal<
     DisaggregationOption[]
   >([]);
-  const [tempMakeDefault, setTempMakeDefault] = createSignal<boolean>(false);
 
   const readyToSave = () => tempMetricId() && tempPresentationOption();
 
@@ -90,24 +94,23 @@ export function AddVisualization(
         )
         .map((disOpt) => disOpt.value);
 
-      return serverActions.createPresentationObject({
-        projectId: p.projectId,
-        label: metric.label.trim(),
-        resultsValue: metric,
+      const config = getStartingConfigForPresentationObject(
+        metric,
         presentationOption,
         disaggregations,
-        makeDefault: p.isGlobalAdmin && tempMakeDefault(),
-      });
+      );
+
+      return {
+        success: true,
+        data: {
+          label: metric.label.trim(),
+          resultsValue: metric,
+          config,
+        } satisfies CreateModeVisualizationData,
+      };
     },
     (data) => {
-      const metric = selectedMetric();
-      if (metric) {
-        p.close({
-          moduleId: getModuleIdForMetric(metric.id),
-          newPresentationObjectId: data.newPresentationObjectId,
-          lastUpdated: data.lastUpdated,
-        });
-      }
+      p.close(data);
     },
   );
 
@@ -132,18 +135,28 @@ export function AddVisualization(
                   "You need to enable at least one module in order to create visualizations",
                 )}
               >
-                <RadioGroup
-                  label={t("Metric")}
-                  options={metrics.map((m) => ({
-                    value: m.id,
-                    label: m.label,
-                  }))}
-                  value={tempMetricId()}
-                  onChange={(v) => {
-                    setTempMetricId(v);
-                    setTempDisaggregations([]);
-                  }}
-                />
+                <Show when={!p.preselectedMetric}>
+                  <RadioGroup
+                    label={t("Metric")}
+                    options={metrics.map((m) => ({
+                      value: m.id,
+                      label: m.label,
+                    }))}
+                    value={tempMetricId()}
+                    onChange={(v) => {
+                      setTempMetricId(v);
+                      setTempDisaggregations([]);
+                    }}
+                    convertToSelectThreshold={6}
+                    fullWidthForSelect
+                  />
+                </Show>
+                <Show when={p.preselectedMetric}>
+                  <div class="text-sm">
+                    <span class="text-neutral">{t("Metric")}:</span>{" "}
+                    <span class="font-700">{p.preselectedMetric!.label}</span>
+                  </div>
+                </Show>
               </Show>
               <Show when={selectedMetric()} keyed>
                 {(metric) => {
@@ -211,7 +224,7 @@ export function AddVisualization(
                                               </>
                                             }
                                             checked={true}
-                                            onChange={() => {}}
+                                            onChange={() => { }}
                                             disabled={true}
                                           />
                                         </Match>

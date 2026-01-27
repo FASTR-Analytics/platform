@@ -1,5 +1,5 @@
 import { t, type ProjectDetail, type Slide } from "lib";
-import { Button, Loading, Slider, timActionButton, timActionDelete } from "panther";
+import { Button, FrameTop, Loading, Slider, timActionButton, timActionDelete } from "panther";
 import SortableVendor, { SortableJs } from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -210,8 +210,6 @@ export function SlideList(p: Props) {
             afterSlideId = id;
           }
         }
-      } else if (items.length > 0) {
-        afterSlideId = items[items.length - 1].id;
       }
 
       const newSlide: Slide = {
@@ -227,7 +225,7 @@ export function SlideList(p: Props) {
       const res = await serverActions.createSlide({
         projectId: p.projectDetail.id,
         deck_id: p.deckId,
-        afterSlideId,
+        position: afterSlideId ? { after: afterSlideId } : { toEnd: true },
         slide: newSlide,
       });
 
@@ -235,8 +233,8 @@ export function SlideList(p: Props) {
         // Optimistic: insert new slide at correct position
         setSortableSlideItems(currentItems => {
           if (afterSlideId === null) {
-            // No slides yet - add as first
-            return [{ id: res.data.slideId }];
+            // toEnd - add at end
+            return [...currentItems, { id: res.data.slideId }];
           }
 
           // Find where to insert based on afterSlideId
@@ -263,113 +261,113 @@ export function SlideList(p: Props) {
   );
 
   return (
-    <div class="w-full h-full flex flex-col">
-        <div class="flex items-center border-b border-base-300 ui-pad">
-          <div class="flex-1 font-700 text-lg">Slides</div>
-          <div class="flex items-center gap-4">
-            <div class="w-32">
-              <Slider
-                value={slideSize()}
-                onChange={setSlideSize}
-                min={200}
-                max={800}
-                step={50}
-                fullWidth
-                disabled={isFillWidth()}
-              />
-            </div>
-            <Button
-              iconName={isFillWidth() ? "minimize" : "maximize"}
-              size="sm"
-              outline
-              onClick={() => setIsFillWidth(!isFillWidth())}
-            />
-            <Button iconName="plus" size="sm" onClick={addSlide.click} state={addSlide.state()}>
-              Add slide
-            </Button>
-          </div>
+    <FrameTop panelChildren={<div class="flex items-center border-b border-base-300 ui-pad">
+      <div class="flex-1 font-700 text-lg">Slides</div>
+      <div class="flex items-center gap-4">
+        <div class="w-32">
+          <Slider
+            value={slideSize()}
+            onChange={setSlideSize}
+            min={200}
+            max={800}
+            step={50}
+            fullWidth
+            disabled={isFillWidth()}
+          />
         </div>
-        <div
-          class="h-0 flex-1 overflow-auto p-4"
-          onClick={(e) => {
-            // Clear selection when clicking outside slide cards
-            const target = e.target as HTMLElement;
-            const clickedOnSlide = target.closest('.slide-card-wrapper');
-            if (!clickedOnSlide) {
-              clearSelection();
-            }
-          }}
-        >
-          <Show when={p.isLoading}>
-            <Loading msg="Loading slides..." />
-          </Show>
-          <Show when={!p.isLoading && p.slideIds.length === 0}>
-            <div class="text-neutral w-full py-16 text-center">
-              No slides yet. Ask the AI to create some slides.
-            </div>
-          </Show>
-          <Show when={!p.isLoading && p.slideIds.length > 0}>
-            <SortableVendor
-              idField="id"
-              items={sortableSlideItems()}
-              setItems={(newItems: { id: string }[]) => {
-                const oldItems = sortableSlideItems();
-                setSortableSlideItems(newItems);
-                handleReorder(oldItems.map(i => i.id), newItems.map(i => i.id));
-              }}
-              class="flex flex-wrap justify-center gap-4"
-              multiDrag
-              multiDragKey="META"
-              avoidImplicitDeselect
-              selectedClass="sortable-selected"
-              animation={150}
-              ghostClass="opacity-50"
-              chosenClass="shadow-2xl"
-              dragClass="cursor-grabbing"
-              fallbackTolerance={3}
-              onSelect={(evt: any) => {
-                const itemId = evt.item.dataset.id;
-                if (itemId && !selectedIds().has(itemId)) {
-                  const newSelected = new Set([...selectedIds(), itemId]);
-                  setSelectedIds(newSelected);
-                  p.setSelectedSlideIds(Array.from(newSelected));
-                }
-              }}
-              onDeselect={(evt: any) => {
-                const itemId = evt.item.dataset.id;
-                if (itemId && selectedIds().has(itemId)) {
-                  const newSet = new Set(selectedIds());
-                  newSet.delete(itemId);
-                  setSelectedIds(newSet);
-                  p.setSelectedSlideIds(Array.from(newSet));
-                }
-              }}
-            >
-              {(item: { id: string }) => {
-                const index = () => sortableSlideItems().findIndex(i => i.id === item.id);
-                return (
-                  <SlideCard
-                    projectId={p.projectDetail.id}
-                    deckId={p.deckId}
-                    slideId={item.id}
-                    index={index()}
-                    isSelected={selectedIds().has(item.id)}
-                    selectedCount={selectedIds().size}
-                    slideSize={slideSize()}
-                    fillWidth={isFillWidth()}
-                    onSelect={(e) => handleItemClick(index(), item.id, e)}
-                    onEdit={() => {
-                      clearSelection();
-                      p.onEditSlide(item.id);
-                    }}
-                    onDelete={() => handleDelete(item.id)}
-                    onDuplicate={() => handleDuplicate(item.id)}
-                  />
-                );
-              }}
-            </SortableVendor>
-          </Show>
-        </div>
+        <Button
+          iconName={isFillWidth() ? "minimize" : "maximize"}
+          size="sm"
+          outline
+          onClick={() => setIsFillWidth(!isFillWidth())}
+        />
+        <Button iconName="plus" size="sm" onClick={addSlide.click} state={addSlide.state()}>
+          Add slide
+        </Button>
       </div>
+    </div>}>
+
+      <div
+        class="h-full w-full overflow-auto p-4"
+        onClick={(e) => {
+          // Clear selection when clicking outside slide cards
+          const target = e.target as HTMLElement;
+          const clickedOnSlide = target.closest('.slide-card-wrapper');
+          if (!clickedOnSlide) {
+            clearSelection();
+          }
+        }}
+      >
+        <Show when={p.isLoading}>
+          <Loading msg="Loading slides..." />
+        </Show>
+        <Show when={!p.isLoading && p.slideIds.length === 0}>
+          <div class="text-neutral w-full py-16 text-center">
+            No slides yet. Ask the AI to create some slides.
+          </div>
+        </Show>
+        <Show when={!p.isLoading && p.slideIds.length > 0}>
+          <SortableVendor
+            idField="id"
+            items={sortableSlideItems()}
+            setItems={(newItems: { id: string }[]) => {
+              const oldItems = sortableSlideItems();
+              setSortableSlideItems(newItems);
+              handleReorder(oldItems.map(i => i.id), newItems.map(i => i.id));
+            }}
+            class="flex flex-wrap justify-center gap-4"
+            multiDrag
+            multiDragKey="META"
+            avoidImplicitDeselect
+            selectedClass="sortable-selected"
+            animation={150}
+            ghostClass="opacity-50"
+            chosenClass="shadow-2xl"
+            dragClass="cursor-grabbing"
+            fallbackTolerance={3}
+            onSelect={(evt: any) => {
+              const itemId = evt.item.dataset.id;
+              if (itemId && !selectedIds().has(itemId)) {
+                const newSelected = new Set([...selectedIds(), itemId]);
+                setSelectedIds(newSelected);
+                p.setSelectedSlideIds(Array.from(newSelected));
+              }
+            }}
+            onDeselect={(evt: any) => {
+              const itemId = evt.item.dataset.id;
+              if (itemId && selectedIds().has(itemId)) {
+                const newSet = new Set(selectedIds());
+                newSet.delete(itemId);
+                setSelectedIds(newSet);
+                p.setSelectedSlideIds(Array.from(newSet));
+              }
+            }}
+          >
+            {(item: { id: string }) => {
+              const index = () => sortableSlideItems().findIndex(i => i.id === item.id);
+              return (
+                <SlideCard
+                  projectId={p.projectDetail.id}
+                  deckId={p.deckId}
+                  slideId={item.id}
+                  index={index()}
+                  isSelected={selectedIds().has(item.id)}
+                  selectedCount={selectedIds().size}
+                  slideSize={slideSize()}
+                  fillWidth={isFillWidth()}
+                  onSelect={(e) => handleItemClick(index(), item.id, e)}
+                  onEdit={() => {
+                    clearSelection();
+                    p.onEditSlide(item.id);
+                  }}
+                  onDelete={() => handleDelete(item.id)}
+                  onDuplicate={() => handleDuplicate(item.id)}
+                />
+              );
+            }}
+          </SortableVendor>
+        </Show>
+      </div>
+    </FrameTop>
   );
 }

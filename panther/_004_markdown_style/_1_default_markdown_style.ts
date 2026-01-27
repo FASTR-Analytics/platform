@@ -9,9 +9,9 @@ const _DS = {
   scale: 1,
 
   headingRelFontSizes: {
-    h1: 2.0,
-    h2: 1.5,
-    h3: 1.25,
+    h1: 1.5,
+    h2: 1.25,
+    h3: 1.125,
   },
 
   marginsEm: {
@@ -22,7 +22,7 @@ const _DS = {
     h4: { top: 1, bottom: 0 },
     h5: { top: 1, bottom: 0 },
     h6: { top: 1, bottom: 0 },
-    list: { top: 0.5, bottom: 1, gap: 0.5 },
+    list: { top: 0.5, bottom: 0.5, gap: 0.5 },
     image: { top: 1, bottom: 1.5 },
     table: { top: 1, bottom: 1.5 },
     blockquote: { top: 1.5, bottom: 1.5 },

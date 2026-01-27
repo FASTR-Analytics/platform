@@ -1,8 +1,7 @@
-import { AlertComponentProps, Button } from "panther";
+import { AlertComponentProps, Button, ColorPicker } from "panther";
 import { For } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
-import { CustomSeriesStyle, T, _KEY_COLORS, _RANDOM_BLUE, t2 } from "lib";
-import { t } from "lib";
+import { CustomSeriesStyle, T, t, t2 } from "lib";
 
 export function CustomSeriesStyles(
   p: AlertComponentProps<
@@ -62,28 +61,32 @@ export function CustomSeriesStyles(
             return (
               <div class="ui-gap-sm flex items-center">
                 <div class="flex-none">{i() + 1}.</div>
-                <div class="h-6 flex-1" style={{ background: s.color }}></div>
-                <ColorPicker
-                  id={`_${i()}`}
-                  onSelectColor={(c) => update(i(), c)}
-                />
-                <span
-                  class="text-danger cursor-pointer text-sm hover:underline"
+                <div class="flex-1"><ColorPicker
+                  value={s.color}
+                  onChange={(c) => update(i(), c)}
+                  position="right"
+                  fullWidth
+                /></div>
+
+                <Button
                   onClick={() => del(i())}
+                  iconName="trash"
+                  outline
+                  intent="neutral"
                 >
-                  {t("del")}
-                </span>
+                </Button>
               </div>
             );
           }}
         </For>
         <div class="">
-          <span
-            class="text-success cursor-pointer text-sm hover:underline"
+          <Button
             onClick={add}
+            outline
+            intent="success"
           >
-            {t2(T.FRENCH_UI_STRINGS.add)}
-          </span>
+            {t2("Add")}
+          </Button>
         </div>
       </div>
       <div class="ui-gap-sm flex">
@@ -99,101 +102,5 @@ export function CustomSeriesStyles(
         </Button>
       </div>
     </div>
-  );
-}
-
-type ColorPickerProps = {
-  id: string;
-  onSelectColor: (color: string) => void;
-};
-
-function ColorPicker(p: ColorPickerProps) {
-  let pickerEl!: HTMLDivElement & PopoverInvokerElement;
-
-  function selectColor(color: string) {
-    p.onSelectColor(color);
-    pickerEl.hidePopover();
-  }
-
-  return (
-    <>
-      <button
-        id={`btn_${p.id}`}
-        class="text-neutral relative select-none rounded text-sm hover:underline"
-        //@ts-ignore
-        popovertarget={`popover_${p.id}`}
-        style={{
-          //@ts-ignore
-          "anchor-name": `--${p.id}`,
-        }}
-        // onClick={(e) => {
-        //   e.preventDefault();
-        // }}
-      >
-        {t("edit")}
-      </button>
-      <div
-        ref={pickerEl}
-        id={`popover_${p.id}`}
-        style={{
-          position: "absolute",
-          //@ts-ignore
-          "position-anchor": `--${p.id}`,
-          top: "unset",
-          right: "unset",
-          bottom: `anchor(center)`,
-          left: `anchor(right)`,
-          translate: "5px 50%",
-          "inline-size": "max-content",
-          "max-inline-size": "25ch",
-        }}
-        // class="bottom-0 top-0"
-        class="white text-base-100 absolute rounded px-2 py-1.5 text-sm shadow-lg"
-        popover
-        //@ts-ignore
-        anchor={`btn_${p.id}`}
-      >
-        <div class="grid grid-cols-6">
-          <For
-            each={[
-              _RANDOM_BLUE,
-              _KEY_COLORS.base100,
-              _KEY_COLORS.base200,
-              _KEY_COLORS.base300,
-              "#e53935",
-              "#d81b60",
-              "#8e24aa",
-              "#5e35b1",
-              "#3949ab",
-              "#1e88e5",
-              "#039be5",
-              "#00acc1",
-              "#00897b",
-              "#43a047",
-              "#7cb342",
-              "#c0ca33",
-              "#fdd835",
-              "#ffb300",
-              "#fb8c00",
-              "#f4511e",
-              "#6d4c41",
-              "#757575",
-              "#546e7A",
-              "#000000",
-            ]}
-          >
-            {(color) => {
-              return (
-                <div
-                  class="ui-hoverable col-span-1 h-8 w-8"
-                  style={{ background: color }}
-                  onClick={() => selectColor(color)}
-                ></div>
-              );
-            }}
-          </For>
-        </div>
-      </div>
-    </>
   );
 }

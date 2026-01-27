@@ -1,8 +1,8 @@
 import { get, set, del } from "idb-keyval";
-import type { ContentSlide } from "lib";
+import type { AiContentSlideInput } from "lib";
 
 type WhiteboardData = {
-  content: ContentSlide | null;
+  input: AiContentSlideInput | null;
   lastUpdated: string;
 };
 
@@ -10,9 +10,9 @@ export async function loadWhiteboard(conversationId: string): Promise<Whiteboard
   return await get<WhiteboardData>(`whiteboard/${conversationId}`);
 }
 
-export async function saveWhiteboard(conversationId: string, content: ContentSlide | null): Promise<void> {
+export async function saveWhiteboard(conversationId: string, input: AiContentSlideInput | null): Promise<void> {
   await set(`whiteboard/${conversationId}`, {
-    content,
+    input,
     lastUpdated: new Date().toISOString(),
   } satisfies WhiteboardData);
 }

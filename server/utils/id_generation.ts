@@ -23,3 +23,13 @@ export async function generateUniqueSlideId(db: Sql): Promise<string> {
   }
   throw new Error("Failed to generate unique slide ID after 10 attempts");
 }
+
+export async function generateUniquePresentationObjectId(db: Sql): Promise<string> {
+  const maxAttempts = 10;
+  for (let i = 0; i < maxAttempts; i++) {
+    const id = generateId();
+    const existing = await db`SELECT 1 FROM presentation_objects WHERE id = ${id}`;
+    if (existing.length === 0) return id;
+  }
+  throw new Error("Failed to generate unique presentation object ID after 10 attempts");
+}

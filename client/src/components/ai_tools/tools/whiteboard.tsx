@@ -1,13 +1,18 @@
-import { createAITool } from "panther";
+import { createAITool, type PageInputs } from "panther";
 import { z } from "zod";
-import { AiContentBlockInputSchema, type ContentSlide } from "lib";
-import { convertAiInputToSlide } from "~/components/project_ai_slide_deck/utils/convert_ai_input_to_slide";
+import { AiContentBlockInputSchema, type AiContentSlideInput } from "lib";
+import { convertWhiteboardInputToPageInputs } from "~/components/project_whiteboard/convert_whiteboard_input";
 import { saveWhiteboard, clearWhiteboard as clearWhiteboardStore } from "~/components/project_whiteboard/whiteboard_store";
+
+export type WhiteboardContent = {
+  input: AiContentSlideInput;
+  pageInputs: PageInputs;
+};
 
 export function getWhiteboardTools(
   projectId: string,
   conversationId: string,
-  onUpdate: (content: ContentSlide | null) => void,
+  onUpdate: (content: WhiteboardContent | null) => void,
 ) {
   return [
     createAITool({
@@ -23,14 +28,14 @@ export function getWhiteboardTools(
         ),
       }),
       handler: async (input) => {
-        const slide = await convertAiInputToSlide(projectId, {
+        const slideInput: AiContentSlideInput = {
           type: "content",
           heading: input.heading || "",
           blocks: input.blocks,
-        });
-        const contentSlide = slide as ContentSlide;
-        onUpdate(contentSlide);
-        await saveWhiteboard(conversationId, contentSlide);
+        };
+        const pageInputs = await convertWhiteboardInputToPageInputs(projectId, slideInput);
+        onUpdate({ input: slideInput, pageInputs });
+        await saveWhiteboard(conversationId, slideInput);
         return "Whiteboard updated";
       },
       inProgressLabel: "Updating whiteboard...",

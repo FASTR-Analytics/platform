@@ -25,9 +25,9 @@ export async function resolveFigureFromVisualization(
 
   return {
     type: "figure",
-    figureInputs: figureInputsRes.data,
+    figureInputs: { ...figureInputsRes.data, style: undefined },
     source: {
-      type: "from_metric",
+      type: "from_data",
       metricId: poDetailRes.data.resultsValue.id,
       config: poDetailRes.data.config,
       snapshotAt: new Date().toISOString(),

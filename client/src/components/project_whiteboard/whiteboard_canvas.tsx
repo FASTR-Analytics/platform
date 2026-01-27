@@ -1,45 +1,51 @@
-import type { ContentSlide } from "lib";
 import { getTextRenderingOptions } from "lib";
-import { PageHolder, Loading, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
-import { createMemo, Show } from "solid-js";
-import { convertSlideToPageInputs } from "../project_ai_slide_deck/utils/convert_slide_to_page_inputs";
+import {
+  EditablePageHolder,
+  Loading,
+  SizeMeasurer,
+  _GLOBAL_CANVAS_PIXEL_WIDTH,
+  type PageInputs,
+} from "panther";
+import { Show } from "solid-js";
 
 type Props = {
-  projectId: string;
-  content: ContentSlide | null;
+  pageInputs: PageInputs | null;
   isLoading: boolean;
 };
 
 export function WhiteboardCanvas(p: Props) {
-  const pageInputs = createMemo(() => {
-    if (!p.content) return null;
-    const result = convertSlideToPageInputs(p.projectId, p.content);
-    return result.success ? result.data : null;
-  });
-
-  const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
-
   return (
-    <div class="h-full w-full flex flex-col items-center justify-center bg-base-200 p-8">
+    <div class="h-full w-full bg-base-200">
       <Show when={p.isLoading}>
-        <Loading msg="Loading..." />
-      </Show>
-      <Show when={!p.isLoading && !p.content}>
-        <div class="text-neutral text-center">
-          <div class="text-lg font-medium mb-2">Whiteboard is empty</div>
-          <div class="text-sm">Ask the AI to show something</div>
+        <div class="h-full w-full flex items-center justify-center">
+          <Loading msg="Loading..." />
         </div>
       </Show>
-      <Show when={!p.isLoading && p.content && pageInputs()}>
-        <div class="w-full max-w-4xl rounded-lg border bg-white shadow-lg overflow-hidden">
-          <PageHolder
-            pageInputs={pageInputs()!}
-            fixedCanvasH={canvasH}
-            textRenderingOptions={getTextRenderingOptions()}
-            simpleError
-            scalePixelResolution={1}
-          />
+      <Show when={!p.isLoading && !p.pageInputs}>
+        <div class="h-full w-full flex items-center justify-center text-neutral text-center">
+          <div>
+            <div class="text-lg font-medium mb-2">Whiteboard is empty</div>
+            <div class="text-sm">Ask the AI to show something</div>
+          </div>
         </div>
+      </Show>
+      <Show when={!p.isLoading && p.pageInputs}>
+        <SizeMeasurer class="h-full w-full p-4">
+          {(size) => {
+            const containerAspect = size.width / size.height;
+            const canvasH = Math.round(_GLOBAL_CANVAS_PIXEL_WIDTH / containerAspect);
+            return (
+              <EditablePageHolder
+                pageInputs={p.pageInputs!}
+                fixedCanvasH={canvasH}
+                fitWithin={true}
+                textRenderingOptions={getTextRenderingOptions()}
+                simpleError
+                scalePixelResolution={1}
+              />
+            );
+          }}
+        </SizeMeasurer>
       </Show>
     </div>
   );

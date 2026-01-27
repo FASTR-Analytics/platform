@@ -185,9 +185,9 @@ export async function resolveFigureFromMetric(
 
   return {
     type: "figure",
-    figureInputs: figureInputsResult.data,
+    figureInputs: { ...figureInputsResult.data, style: undefined },
     source: {
-      type: "from_metric",
+      type: "from_data",
       metricId,
       config,
       snapshotAt: new Date().toISOString(),

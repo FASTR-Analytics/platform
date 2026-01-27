@@ -13,7 +13,7 @@ export type TextBlock = {
 // Figure source - enables refresh
 export type FigureSource =
   | {
-      type: "from_metric";
+      type: "from_data";
       metricId: string;
       config: PresentationObjectConfig;
       snapshotAt: string;
@@ -63,6 +63,13 @@ export type ContentSlide = {
 
 // Union type
 export type Slide = CoverSlide | SectionSlide | ContentSlide;
+
+// Position for inserting/moving slides
+export type SlidePosition =
+  | { after: string }
+  | { before: string }
+  | { toStart: true }
+  | { toEnd: true };
 
 // Slide deck summary (list view)
 export type SlideDeckSummary = {

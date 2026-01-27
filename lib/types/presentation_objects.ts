@@ -55,6 +55,7 @@ export type PresentationObjectDetail = {
   resultsValue: ResultsValue;
   config: PresentationObjectConfig;
   isDefault: boolean;
+  folderId: string | null;
 };
 
 export type PeriodBounds = {

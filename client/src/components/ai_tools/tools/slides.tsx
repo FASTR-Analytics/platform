@@ -65,12 +65,16 @@ export function getToolsForSlides(
     createAITool({
       name: "create_slide",
       description:
-        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures). The slide will be inserted after the specified slide ID, or at the beginning if afterSlideId is null.\n\nFor content blocks, you have three figure source options:\n- from_visualization: Clone an existing saved visualization (created via Presentations section). Use 'replicant' to show different indicator variants from the same viz config (e.g., 'anc1', 'penta3').\n- from_metric: Create a new chart directly from metric data. Requires metricId, optional chartType (bar/line/table), disaggregations, filters, and periodFilter (format: 202001=Jan 2020, 20241=Q1 2024, 2024=year).\n- text: Markdown text content with autofit.",
+        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures).\n\nFor content blocks, you have three figure source options:\n- from_visualization: Clone an existing saved visualization (created via Presentations section). Use 'replicant' to show different indicator variants from the same viz config (e.g., 'anc1', 'penta3').\n- from_metric: Create a new chart directly from metric data. Requires metricId, optional chartType (bar/line/table), disaggregations, filters, and periodFilter (format: 202001=Jan 2020, 20241=Q1 2024, 2024=year).\n- text: Markdown text content with autofit.",
       inputSchema: z.object({
-        afterSlideId: z
-          .string()
-          .nullable()
-          .describe("Slide ID (3-char alphanumeric, e.g. 'a3k') to insert after, or null to insert at the beginning."),
+        position: z
+          .union([
+            z.object({ after: z.string().describe("Slide ID to place after (3-char, e.g. 'p4q')") }),
+            z.object({ before: z.string().describe("Slide ID to place before (3-char, e.g. 'p4q')") }),
+            z.object({ toStart: z.literal(true).describe("Set to true to insert at the beginning") }),
+            z.object({ toEnd: z.literal(true).describe("Set to true to insert at the end") }),
+          ])
+          .describe("The position to insert the new slide."),
         slide: z
           .union([
             AiCoverSlideSchema,
@@ -85,7 +89,7 @@ export function getToolsForSlides(
         const res = await serverActions.createSlide({
           projectId,
           deck_id: deckId,
-          afterSlideId: input.afterSlideId,
+          position: input.position,
           slide: convertedSlide,
         });
         if (!res.success) throw new Error(res.err);

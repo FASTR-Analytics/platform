@@ -4,10 +4,8 @@ import {
   DisaggregationOption,
   PresentationOption,
   ProjectUser,
-  ReportItemConfig,
   ResultsValue,
   getReplicateByProp,
-  getStartingConfigForPresentationObject,
   parseJsonOrThrow,
   throwIfErrWithData,
   type APIResponseWithData,
@@ -23,20 +21,17 @@ import {
 } from "./_project_database_types.ts";
 import { getFacilityColumnsConfig } from "../instance/config.ts";
 import { resolveMetricById } from "./results_value_resolver.ts";
+import { generateUniquePresentationObjectId } from "../../utils/id_generation.ts";
 
 export type AddPresentationObjectParams = {
   projectDb: Sql;
   projectUser: ProjectUser;
   label: string;
   resultsValue: ResultsValue;
-  presentationOption: PresentationOption;
-  disaggregations: DisaggregationOption[];
+  config: PresentationObjectConfig;
   makeDefault: boolean;
   createdByAI?: boolean;
-  filters?: { dimension: DisaggregationOption; values: string[] }[];
-  periodFilter?: { startPeriod?: number; endPeriod?: number };
-  valuesFilter?: string[];
-  valuesDisDisplayOpt?: DisaggregationDisplayOption;
+  folderId?: string | null;
 };
 
 export async function addPresentationObject(
@@ -49,54 +44,18 @@ export async function addPresentationObject(
     projectUser,
     label,
     resultsValue,
-    presentationOption,
-    disaggregations,
+    config,
     makeDefault,
     createdByAI = false,
-    filters,
-    periodFilter,
-    valuesFilter,
-    valuesDisDisplayOpt,
+    folderId,
   } = params;
 
   return await tryCatchDatabaseAsync(async () => {
-    const newPresentationObjectId = crypto.randomUUID();
-
-    const startingConfig = getStartingConfigForPresentationObject(
-      resultsValue,
-      presentationOption,
-      disaggregations
-    );
-
-    if (filters && filters.length > 0) {
-      startingConfig.d.filterBy = filters.map((f) => ({
-        disOpt: f.dimension,
-        values: f.values,
-      }));
-    }
-
-    if (periodFilter) {
-      const periodOpt = resultsValue.periodOptions.at(0) ?? "period_id";
-      startingConfig.d.periodFilter = {
-        filterType: "custom",
-        periodOption: periodOpt,
-        min: periodFilter.startPeriod ?? 0,
-        max: periodFilter.endPeriod ?? 999999,
-      };
-    }
-
-    if (valuesFilter && valuesFilter.length > 0) {
-      startingConfig.d.valuesFilter = valuesFilter;
-    }
-
-    if (valuesDisDisplayOpt) {
-      startingConfig.d.valuesDisDisplayOpt = valuesDisDisplayOpt;
-    }
-
+    const newPresentationObjectId = await generateUniquePresentationObjectId(projectDb);
     const lastUpdated = new Date().toISOString();
     await projectDb`
 INSERT INTO presentation_objects
-  (id, metric_id, is_default_visualization, created_by_ai, label, config, last_updated)
+  (id, metric_id, is_default_visualization, created_by_ai, label, config, last_updated, folder_id)
 VALUES
   (
     ${newPresentationObjectId},
@@ -104,8 +63,9 @@ VALUES
     ${projectUser.isGlobalAdmin && makeDefault},
     ${createdByAI},
     ${label.trim()},
-    ${JSON.stringify(startingConfig)},
-    ${lastUpdated}
+    ${JSON.stringify(config)},
+    ${lastUpdated},
+    ${folderId ?? null}
   )
 `;
     return { success: true, data: { newPresentationObjectId, lastUpdated } };
@@ -115,7 +75,8 @@ VALUES
 export async function duplicatePresentationObject(
   projectDb: Sql,
   presentationObjectId: string,
-  label: string
+  label: string,
+  folderId?: string | null
 ): Promise<
   APIResponseWithData<{ newPresentationObjectId: string; lastUpdated: string }>
 > {
@@ -128,11 +89,11 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
     if (rawPresObj === undefined) {
       throw new Error("No presentation object with this id");
     }
-    const newPresentationObjectId = crypto.randomUUID();
+    const newPresentationObjectId = await generateUniquePresentationObjectId(projectDb);
     const lastUpdated = new Date().toISOString();
     await projectDb`
 INSERT INTO presentation_objects
-  (id, metric_id, is_default_visualization, label, config, last_updated)
+  (id, metric_id, is_default_visualization, label, config, last_updated, folder_id)
 VALUES
   (
     ${newPresentationObjectId},
@@ -140,7 +101,8 @@ VALUES
     ${false},
     ${label.trim()},
     ${rawPresObj.config},
-    ${lastUpdated}
+    ${lastUpdated},
+    ${folderId ?? null}
   )
 `;
     return { success: true, data: { newPresentationObjectId, lastUpdated } };
@@ -241,6 +203,7 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       label: rawPresObj.label,
       config: parseJsonOrThrow(rawPresObj.config),
       isDefault: rawPresObj.is_default_visualization,
+      folderId: rawPresObj.folder_id,
     };
     return { success: true, data: presObj };
   });

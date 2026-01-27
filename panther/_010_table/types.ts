@@ -172,6 +172,7 @@ export type TableMeasuredInfo = {
   colInnerWidth: number;
   colHeadersInnerY: number;
   firstCellY: number;
+  firstCellYUnadjusted: number;
   measuredRows: MeasuredRowInfo[];
   hasRowHeaders: boolean;
   hasRowGroupHeaders: boolean;

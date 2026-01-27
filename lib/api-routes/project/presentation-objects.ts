@@ -22,9 +22,9 @@ export const presentationObjectRouteRegistry = {
     body: {} as {
       label: string;
       resultsValue: ResultsValue;
-      presentationOption: PresentationOption;
-      disaggregations: DisaggregationOption[];
+      config: PresentationObjectConfig;
       makeDefault: boolean;
+      folderId?: string | null;
     },
     response: {} as {
       newPresentationObjectId: string;
@@ -39,6 +39,7 @@ export const presentationObjectRouteRegistry = {
     params: {} as { po_id: string },
     body: {} as {
       label: string;
+      folderId?: string | null;
     },
     response: {} as {
       newPresentationObjectId: string;
@@ -144,26 +145,6 @@ export const presentationObjectRouteRegistry = {
       fetchConfig: GenericLongFormFetchConfig;
     },
     response: {} as ReplicantOptionsForPresentationObject,
-    requiresProject: true,
-  }),
-
-  createVisualizationFromResultsValue: route({
-    path: "/presentation_objects/from_results_value",
-    method: "POST",
-    body: {} as {
-      label: string;
-      metricId: string;
-      presentationType: PresentationOption;
-      disaggregations: DisaggregationOption[];
-      filters?: { dimension: DisaggregationOption; values: string[] }[];
-      periodFilter?: { startPeriod?: number; endPeriod?: number };
-      valuesFilter?: string[];
-      valuesDisDisplayOpt?: DisaggregationDisplayOption;
-    },
-    response: {} as {
-      newPresentationObjectId: string;
-      lastUpdated: string;
-    },
     requiresProject: true,
   }),
 

@@ -38,8 +38,8 @@ export function ProjectDecks(p: Props) {
     const newDecks =
       searchText.length >= 3
         ? p.projectDetail.slideDecks.filter((deck) =>
-            deck.label.toLowerCase().includes(searchTextLowerCase),
-          )
+          deck.label.toLowerCase().includes(searchTextLowerCase),
+        )
         : p.projectDetail.slideDecks;
     setDeckListing(newDecks);
   }
@@ -62,7 +62,7 @@ export function ProjectDecks(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading="Slide Decks"
+          heading="Slide decks"
           searchText={searchText()}
           setSearchText={setSearchText}
           french={isFrench()}
@@ -74,7 +74,7 @@ export function ProjectDecks(p: Props) {
             }
           >
             <Button onClick={attemptAddDeck} iconName="plus">
-              New Deck
+              New slide deck
             </Button>
           </Show>
         </HeadingBar>

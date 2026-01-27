@@ -6,6 +6,7 @@
 export * from "./button.tsx";
 export * from "./button_group.tsx";
 export * from "./checkbox.tsx";
+export * from "./color_picker.tsx";
 export * from "./copy_button.tsx";
 export * from "./comparison_slider.tsx";
 export * from "./double_slider.tsx";

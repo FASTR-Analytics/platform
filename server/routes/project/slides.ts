@@ -47,7 +47,7 @@ defineRoute(
     const res = await createSlide(
       c.var.ppk.projectDb,
       params.deck_id,
-      body.afterSlideId,
+      body.position,
       body.slide
     );
     if (!res.success) {

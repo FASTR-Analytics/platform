@@ -199,6 +199,7 @@ export function measureTable(
     firstCellY: firstCellY +
       (hasColGroupHeaders ? extraPaddingForRowsAndAllHeaders : 0) +
       (hasColHeaders ? extraPaddingForRowsAndAllHeaders : 0),
+    firstCellYUnadjusted: firstCellY,
     hasRowHeaders,
     measuredRows,
     hasRowGroupHeaders,

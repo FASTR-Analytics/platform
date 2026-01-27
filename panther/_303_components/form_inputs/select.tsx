@@ -45,7 +45,7 @@ type Props<T extends string> = {
   options: SelectOption<T>[];
   onChange: (v: string) => void;
   intent?: Intent;
-  label?: string;
+  label?: string | JSX.Element;
   fullWidth?: boolean;
   autoFocus?: boolean;
   invalidMsg?: string;

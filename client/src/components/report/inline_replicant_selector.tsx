@@ -1,6 +1,5 @@
 import { DisaggregationOption, t2, T } from "lib";
 import { StateHolderWrapper, timQuery } from "panther";
-import { useProjectDirtyStates } from "~/components/project_runner/mod";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
 import { ReplicateByOptionsPresentationObjectSelect } from "~/components/ReplicateByOptions";
 
@@ -13,8 +12,6 @@ type Props = {
 };
 
 export function InlineReplicantSelector(p: Props) {
-  const pds = useProjectDirtyStates();
-
   const poDetail = timQuery(async () => {
     return await getPODetailFromCacheorFetch(
       p.projectId,

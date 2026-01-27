@@ -11,8 +11,6 @@ import {
   updatePresentationObjectConfig,
   updatePresentationObjectLabel,
 } from "../../db/mod.ts";
-import { resolveMetricById } from "../../db/project/results_value_resolver.ts";
-import { getFacilityColumnsConfig } from "../../db/instance/config.ts";
 import {
   getGlobalNonAdmin,
   getProjectEditor,
@@ -56,9 +54,9 @@ defineRoute(
       projectUser: c.var.projectUser,
       label: body.label,
       resultsValue: body.resultsValue,
-      presentationOption: body.presentationOption,
-      disaggregations: body.disaggregations,
+      config: body.config,
       makeDefault: body.makeDefault,
+      folderId: body.folderId,
     });
     if (res.success === false) {
       return c.json(res);
@@ -83,6 +81,7 @@ defineRoute(
       c.var.ppk.projectDb,
       params.po_id,
       body.label,
+      body.folderId,
     );
     if (res.success === false) {
       return c.json(res);
@@ -612,58 +611,6 @@ SELECT last_run FROM modules WHERE id = ${moduleId}
     });
 
     return c.json(result);
-  },
-);
-
-defineRoute(
-  routesPresentationObjects,
-  "createVisualizationFromResultsValue",
-  getGlobalNonAdmin,
-  getProjectEditor,
-  async (c, { body }) => {
-    // Get facility config for enrichment
-    const resFacilityConfig = await getFacilityColumnsConfig(c.var.mainDb);
-    if (!resFacilityConfig.success) {
-      return c.json(resFacilityConfig);
-    }
-
-    // Resolve the metric
-    const resResultsValue = await resolveMetricById(
-      c.var.ppk.projectDb,
-      body.metricId,
-      resFacilityConfig.data,
-    );
-    if (!resResultsValue.success) {
-      return c.json(resResultsValue);
-    }
-
-    const res = await addPresentationObject({
-      projectDb: c.var.ppk.projectDb,
-      projectUser: c.var.projectUser,
-      label: body.label,
-      resultsValue: resResultsValue.data,
-      presentationOption: body.presentationType,
-      disaggregations: body.disaggregations,
-      makeDefault: false,
-      createdByAI: true,
-      filters: body.filters,
-      periodFilter: body.periodFilter,
-      valuesFilter: body.valuesFilter,
-      valuesDisDisplayOpt: body.valuesDisDisplayOpt,
-    });
-
-    if (!res.success) {
-      return c.json(res);
-    }
-
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "presentation_objects",
-      [res.data.newPresentationObjectId],
-      res.data.lastUpdated,
-    );
-    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-    return c.json(res);
   },
 );
 

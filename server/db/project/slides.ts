@@ -3,6 +3,7 @@ import {
   APIResponseWithData,
   parseJsonOrThrow,
   Slide,
+  SlidePosition,
   SlideWithMeta,
 } from "lib";
 import { DBSlide } from "./_project_database_types.ts";
@@ -74,7 +75,7 @@ export async function getSlide(
 export async function createSlide(
   projectDb: Sql,
   deckId: string,
-  afterSlideId: string | null,
+  position: SlidePosition,
   slide: Slide
 ): Promise<APIResponseWithData<{ slideId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -83,30 +84,45 @@ export async function createSlide(
 
     let newSortOrder: number;
 
-    if (afterSlideId) {
-      // Insert after specific slide
+    if ("toEnd" in position) {
+      const maxResult = (
+        await projectDb<{ max_sort_order: number | null }[]>`
+          SELECT max(sort_order) AS max_sort_order FROM slides
+          WHERE slide_deck_id = ${deckId}
+        `
+      ).at(0);
+      newSortOrder = (maxResult?.max_sort_order ?? 0) + 10;
+    } else if ("toStart" in position) {
+      const minResult = (
+        await projectDb<{ min_sort_order: number | null }[]>`
+          SELECT min(sort_order) AS min_sort_order FROM slides
+          WHERE slide_deck_id = ${deckId}
+        `
+      ).at(0);
+      newSortOrder = (minResult?.min_sort_order ?? 10) - 5;
+    } else if ("after" in position) {
       const afterSlide = (
         await projectDb<{ sort_order: number }[]>`
           SELECT sort_order FROM slides
-          WHERE id = ${afterSlideId} AND slide_deck_id = ${deckId}
+          WHERE id = ${position.after} AND slide_deck_id = ${deckId}
         `
       ).at(0);
-
-      if (afterSlide) {
-        newSortOrder = afterSlide.sort_order + 5; // Insert between
-      } else {
-        // afterSlideId not found, append at end
-        const maxResult = (
-          await projectDb<{ max_sort_order: number | null }[]>`
-            SELECT max(sort_order) AS max_sort_order FROM slides
-            WHERE slide_deck_id = ${deckId}
-          `
-        ).at(0);
-        newSortOrder = (maxResult?.max_sort_order ?? 0) + 10;
+      if (!afterSlide) {
+        throw new Error(`Target slide not found: ${position.after}`);
       }
+      newSortOrder = afterSlide.sort_order + 5;
     } else {
-      // Insert at beginning
-      newSortOrder = 5;
+      // before
+      const beforeSlide = (
+        await projectDb<{ sort_order: number }[]>`
+          SELECT sort_order FROM slides
+          WHERE id = ${position.before} AND slide_deck_id = ${deckId}
+        `
+      ).at(0);
+      if (!beforeSlide) {
+        throw new Error(`Target slide not found: ${position.before}`);
+      }
+      newSortOrder = beforeSlide.sort_order - 5;
     }
 
     await projectDb.begin((sql) => [

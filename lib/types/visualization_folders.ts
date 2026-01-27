@@ -11,5 +11,4 @@ export type VisualizationGroupingMode =
   | "module"
   | "metric"
   | "type"
-  | "ai-status"
   | "flat";

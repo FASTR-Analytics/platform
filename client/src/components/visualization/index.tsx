@@ -67,6 +67,7 @@ import { AiInterpretationPane } from "./ai_interpretation_pane";
 import { DuplicateVisualization } from "./duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
 import { VisualizationSettings } from "./visualization_settings";
+import { CreateVisualizationModal } from "./create_visualization_modal";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 
 export function Visualization(p: {
@@ -126,6 +127,46 @@ export function Visualization(p: {
   );
 }
 
+export type CreateModeVisualizationData = {
+  label: string;
+  resultsValue: PresentationObjectDetail["resultsValue"];
+  config: PresentationObjectConfig;
+};
+
+export function VisualizationCreateMode(p: {
+  isGlobalAdmin: boolean;
+  instanceDetail: InstanceDetail;
+  projectDetail: ProjectDetail;
+  createData: CreateModeVisualizationData;
+  onCreated: (folderId: string | null) => void;
+  onCancel: () => void;
+}) {
+  const syntheticPoDetail: PresentationObjectDetail = {
+    id: "",
+    projectId: p.projectDetail.id,
+    lastUpdated: "",
+    label: p.createData.label,
+    resultsValue: p.createData.resultsValue,
+    config: p.createData.config,
+    isDefault: false,
+    folderId: null,
+  };
+
+  return (
+    <PresentationObjectEditorInner
+      instanceDetail={p.instanceDetail}
+      projectDetail={p.projectDetail}
+      isGlobalAdmin={p.isGlobalAdmin}
+      poDetail={syntheticPoDetail}
+      silentFetchPoDetail={async () => { }}
+      refreshPoDetail={async () => { }}
+      backToProject={p.onCancel}
+      isCreateMode={true}
+      onCreated={p.onCreated}
+    />
+  );
+}
+
 type Props = {
   instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
@@ -134,6 +175,8 @@ type Props = {
   backToProject: () => void;
   silentFetchPoDetail: () => Promise<void>;
   refreshPoDetail: () => Promise<void>;
+  isCreateMode?: boolean;
+  onCreated?: (folderId: string | null) => void;
 };
 
 function PresentationObjectEditorInner(p: Props) {
@@ -257,9 +300,10 @@ function PresentationObjectEditorInner(p: Props) {
     setNeedsSave(true);
   });
 
-  // Someone else saved mechanism
+  // Someone else saved mechanism (skip in create mode - no DB record yet)
 
   createEffect(() => {
+    if (p.isCreateMode) return;
     const _lastUpdated =
       pds.lastUpdated.presentation_objects[p.poDetail.id] ?? "unknown";
     const _needsSave = untrack(() => needsSave());
@@ -292,11 +336,31 @@ function PresentationObjectEditorInner(p: Props) {
 
   // Actions
 
+  // Create mode: open modal to get name and folder, then create
+  async function createVisualization() {
+    const unwrappedTempConfig = unwrap(tempConfig);
+    const modalRes = await openComponent({
+      element: CreateVisualizationModal,
+      props: {
+        projectId: p.projectDetail.id,
+        existingLabel: p.poDetail.label,
+        resultsValue: p.poDetail.resultsValue,
+        config: unwrappedTempConfig,
+        folders: p.projectDetail.visualizationFolders,
+      },
+    });
+    if (modalRes) {
+      p.onCreated?.(modalRes.folderId);
+    }
+  }
+
+  // Edit mode: save existing presentation object
   async function saveFunc(): Promise<
     APIResponseWithData<{ lastUpdated: string }>
   > {
     isCurrentlySaving = true;
     const unwrappedTempConfig = unwrap(tempConfig);
+
     const res = await serverActions.updatePresentationObjectConfig({
       projectId: p.projectDetail.id,
       po_id: p.poDetail.id,
@@ -306,8 +370,6 @@ function PresentationObjectEditorInner(p: Props) {
       isCurrentlySaving = false;
       return res;
     }
-    // optimisticSetLastUpdated(p.poDetail.id, res.data.lastUpdated);
-    console.log("TIM NEED TO WORK ON THIS");
     initialLastUpdated = res.data.lastUpdated;
     isCurrentlySaving = false;
     setNeedsSave(false);
@@ -351,6 +413,8 @@ function PresentationObjectEditorInner(p: Props) {
         moduleId: getModuleIdForMetric(p.poDetail.resultsValue.id),
         isDefault: p.poDetail.isDefault,
         existingLabel: p.poDetail.label,
+        currentFolderId: p.poDetail.folderId,
+        folders: p.projectDetail.visualizationFolders,
         silentFetchPoDetail: p.silentFetchPoDetail,
         mutateFunc: async (newLabel) =>
           serverActions.updatePresentationObjectLabel({
@@ -379,7 +443,8 @@ function PresentationObjectEditorInner(p: Props) {
       element: DuplicateVisualization,
       props: {
         projectId: p.projectDetail.id,
-        poDetail: p.poDetail,
+        poDetail: { id: p.poDetail.id, label: p.poDetail.label, folderId: p.poDetail.folderId },
+        folders: p.projectDetail.visualizationFolders,
       },
     });
     if (res === undefined) {
@@ -613,7 +678,7 @@ function PresentationObjectEditorInner(p: Props) {
             <div class="ui-gap-sm flex items-center">
               <Show
                 when={
-                  needsSave() &&
+                  (needsSave() || p.isCreateMode) &&
                   !p.projectDetail.isLocked &&
                   !p.poDetail.isDefault
                 }
@@ -624,22 +689,37 @@ function PresentationObjectEditorInner(p: Props) {
                   />
                 }
               >
-                <Button
-                  intent="success"
-                  onClick={saveAndClose.click}
-                  state={saveAndClose.state()}
-                  iconName="save"
+                <Show
+                  when={p.isCreateMode}
+                  fallback={
+                    <>
+                      <Button
+                        intent="success"
+                        onClick={saveAndClose.click}
+                        state={saveAndClose.state()}
+                        iconName="save"
+                      >
+                        {t2(T.FRENCH_UI_STRINGS.save_and_close)}
+                      </Button>
+                      <Button
+                        intent="success"
+                        onClick={save.click}
+                        state={save.state()}
+                        iconName="save"
+                      >
+                        {t2(T.FRENCH_UI_STRINGS.save)}
+                      </Button>
+                    </>
+                  }
                 >
-                  {t2(T.FRENCH_UI_STRINGS.save_and_close)}
-                </Button>
-                <Button
-                  intent="success"
-                  onClick={save.click}
-                  state={save.state()}
-                  iconName="save"
-                >
-                  {t2(T.FRENCH_UI_STRINGS.save)}
-                </Button>
+                  <Button
+                    intent="success"
+                    onClick={createVisualization}
+                    iconName="plus"
+                  >
+                    {t("Save as new visualization")}
+                  </Button>
+                </Show>
                 <Button
                   intent="neutral"
                   onClick={() => p.backToProject()}
@@ -670,17 +750,14 @@ function PresentationObjectEditorInner(p: Props) {
                   onChange={setShowAi}
                 />
               </div>
-              <Show when={!p.projectDetail.isLocked}>
+              <Show when={!p.projectDetail.isLocked && !p.isCreateMode}>
                 <Button
                   onClick={attemptUpdateLabel}
                   iconName="settings"
-                  // intent="neutral"
                   outline
                 >
-                  {/* {t2(T.FRENCH_UI_STRINGS.edit_name)} */}
                 </Button>
                 <Button onClick={duplicate} iconName="copy" outline>
-                  {/* {t2(T.FRENCH_UI_STRINGS.duplicate)} */}
                 </Button>
                 <Show when={!p.poDetail.isDefault}>
                   <Button
@@ -688,7 +765,6 @@ function PresentationObjectEditorInner(p: Props) {
                     iconName="trash"
                     outline
                   >
-                    {/* {t2(T.FRENCH_UI_STRINGS.delete)} */}
                   </Button>
                 </Show>
               </Show>

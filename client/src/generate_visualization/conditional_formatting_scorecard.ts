@@ -255,7 +255,7 @@ export function getSpecialScorecardTableFigureInputs(
     jsonArray,
   );
   jsonDataConfig.colGroupProp = "group";
-  const style = getStyleFromPresentationObject(resultsValue, config);
+  const style = getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number");
   style.table!.cellBackgroundColorFormatter = (v, info) => {
     const thresholdType = _SCORECARD_LABEL_TO_THRESHOLD.get(info.colHeader);
     if (thresholdType === "80-60") {

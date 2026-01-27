@@ -89,7 +89,7 @@ export function getFigureInputsFromPresentationObject(
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(resultsValue, config),
+          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
           legendItemsOrLabels: getLegendItemsFromConfig(config),
         },
       };
@@ -138,7 +138,7 @@ export function getFigureInputsFromPresentationObject(
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(resultsValue, config),
+          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
           legendItemsOrLabels: getLegendItemsFromConfig(config),
         },
       };
@@ -182,7 +182,7 @@ export function getFigureInputsFromPresentationObject(
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(resultsValue, config),
+          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
         },
       };
     }
