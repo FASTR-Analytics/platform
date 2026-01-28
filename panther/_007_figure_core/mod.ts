@@ -38,4 +38,5 @@ export {
 export * from "./render_sub_chart.ts";
 export * from "./tier_headers.ts";
 export * from "./types.ts";
+export * from "./autofit.ts";
 export * from "./with_any_label_replacement.ts";

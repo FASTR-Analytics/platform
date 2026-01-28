@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_CONTENT_BLOCKS } from "../consts.ts";
 
 // Metric schema
 
@@ -131,14 +132,12 @@ export const AiFigureCustomSchema = z.object({
 export const AiFigureBlockInputSchema = z.union([
   AiFigureFromVisualizationSchema,
   AiFigureFromMetricSchema,
-  AiFigureCustomSchema,
+  // AiFigureCustomSchema,
 ]);
 
 export const AiContentBlockInputSchema = z.union([
   AiTextBlockSchema,
-  AiFigureFromVisualizationSchema,
-  AiFigureFromMetricSchema,
-  AiFigureCustomSchema,
+  AiFigureBlockInputSchema,
 ]);
 
 // Slide schemas
@@ -180,8 +179,8 @@ export const AiContentSlideSchema = z.object({
   heading: z.string().min(1).max(200).describe(
     "Required: The slide heading/title that appears at the top of the slide. Should clearly describe what this slide is about. Minimum 1 character, maximum 200 characters.",
   ),
-  blocks: z.array(AiContentBlockInputSchema).max(10).describe(
-    "Required: Array of content blocks (text and/or figures) to display on this slide. Blocks can be text (markdown), figures from existing visualizations, figures from metrics with custom config, or figures from custom data. The layout will be automatically optimized. Maximum 10 blocks per slide.",
+  blocks: z.array(AiContentBlockInputSchema).describe(
+    `Required: Array of content blocks (text and/or figures) to display on this slide. Blocks can be text (markdown), figures from existing visualizations, or figures from metrics with custom config. The layout will be automatically optimized. Maximum ${MAX_CONTENT_BLOCKS} blocks per slide.`,
   ),
 });
 

@@ -8,10 +8,12 @@ import { renderTable } from "./_internal/render_table.ts";
 import {
   CustomFigureStyle,
   estimateMinSurroundsWidth,
+  findOptimalScale,
   type HeightConstraints,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
+  resolveFigureAutofitOptions,
   sum,
 } from "./deps.ts";
 import { getTableDataTransformed } from "./get_table_data.ts";
@@ -225,14 +227,18 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
       mTable.measuredInfo!.contentRcd.y();
     const minH = mTable.extraHeightDueToSurrounds! + headersHeight;
 
-    // Calculate width scaling
-    const minComfortableWidth = getMinComfortableWidth(
-      rc,
-      item,
-      responsiveScale,
+    // Only calculate scaling if autofit is enabled
+    const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+    if (!autofitOpts) {
+      return { minH, idealH, maxH: Infinity, neededScalingToFitWidth: "none" };
+    }
+
+    // Binary search for optimal scale using actual measurements
+    const neededScalingToFitWidth = findOptimalScale(
+      width,
+      autofitOpts,
+      (scale) => getMinComfortableWidth(rc, item, scale),
     );
-    const neededScalingToFitWidth: "none" | number =
-      width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
 
     return { minH, idealH, maxH: Infinity, neededScalingToFitWidth };
   },

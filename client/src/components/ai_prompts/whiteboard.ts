@@ -1,4 +1,4 @@
-import type { InstanceDetail, ProjectDetail } from "lib";
+import { MAX_CONTENT_BLOCKS, type InstanceDetail, type ProjectDetail } from "lib";
 import { buildAISystemContext } from "./build_context";
 
 export function getWhiteboardSystemPrompt(
@@ -24,6 +24,8 @@ The whiteboard is a canvas on the right side of the screen. Use it to visually d
 **clear_whiteboard** - Clear all content from the whiteboard
 
 ## Content Blocks
+
+**IMPORTANT: Maximum ${MAX_CONTENT_BLOCKS} blocks per whiteboard update.** If you need to show more content, combine related items into a single text block or focus on the most important visualizations.
 
 **Text (markdown):**
 { "type": "text", "markdown": "- Key finding 1\\n- Key finding 2" }

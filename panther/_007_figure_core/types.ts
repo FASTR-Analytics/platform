@@ -12,12 +12,18 @@ export type JsonArrayItem = {
 
 export type JsonArray = JsonArrayItem[];
 
+export type FigureAutofitOptions = {
+  minScale?: number;
+  maxScale?: number;
+};
+
 export type FigureInputsBase = {
   caption?: string | undefined;
   subCaption?: string | undefined;
   footnote?: string | string[] | undefined;
   legendItemsOrLabels?: LegendItem[] | string[] | undefined;
   style?: CustomFigureStyleOptions | undefined;
+  autofit?: boolean | FigureAutofitOptions;
 };
 
 export type YScaleAxisData = {

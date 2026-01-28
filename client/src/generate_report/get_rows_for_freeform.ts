@@ -170,7 +170,10 @@ async function convertContentItem(
       console.log("[OPTIMIZE FIGURE] footnote:", (resFigureInputs.data as any).footnote?.substring(0, 50));
     }
 
-    return { success: true, data: resFigureInputs.data as FigureInputs };
+    return { success: true, data: {
+      ...resFigureInputs.data as FigureInputs,
+      autofit: item.stretch ? false : true,
+     } };
   }
 
   if (item.type === "image") {

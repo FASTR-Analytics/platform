@@ -7,6 +7,7 @@ import {
   AiContentSlideSchema,
   AiContentBlockInputSchema,
   getSlideTitle,
+  MAX_CONTENT_BLOCKS,
   type Slide,
   type MetricWithStatus,
 } from "lib";
@@ -86,6 +87,9 @@ export function getToolsForSlides(
           .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with heading and blocks array containing text and/or figures)."),
       }),
       handler: async (input) => {
+        if (input.slide.type === "content" && input.slide.blocks.length > MAX_CONTENT_BLOCKS) {
+          return `Error: Too many blocks (${input.slide.blocks.length}). Maximum is ${MAX_CONTENT_BLOCKS} blocks per slide. Please reduce the number of blocks and try again.`;
+        }
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics);
 
         const res = await serverActions.createSlide({
@@ -122,6 +126,9 @@ export function getToolsForSlides(
           .describe("The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized."),
       }),
       handler: async (input) => {
+        if (input.slide.type === "content" && input.slide.blocks.length > MAX_CONTENT_BLOCKS) {
+          return `Error: Too many blocks (${input.slide.blocks.length}). Maximum is ${MAX_CONTENT_BLOCKS} blocks per slide. Please reduce the number of blocks and try again.`;
+        }
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics);
 
         const res = await serverActions.updateSlide({

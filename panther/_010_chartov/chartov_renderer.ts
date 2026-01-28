@@ -9,11 +9,13 @@ import {
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   estimateMinYAxisWidth,
+  findOptimalScale,
   type HeightConstraints,
   measureSurrounds,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
+  resolveFigureAutofitOptions,
 } from "./deps.ts";
 import { getChartOVDataTransformed } from "./get_chartov_data.ts";
 import type { ChartOVInputs, MeasuredChartOV } from "./types.ts";
@@ -198,14 +200,18 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
     );
     const minH = mSurrounds.extraHeightDueToSurrounds + MIN_PLOT_AREA_HEIGHT;
 
-    // Calculate width scaling
-    const minComfortableWidth = getMinComfortableWidth(
-      rc,
-      item,
-      responsiveScale,
+    // Only calculate scaling if autofit is enabled
+    const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+    if (!autofitOpts) {
+      return { minH, idealH, maxH: Infinity, neededScalingToFitWidth: "none" };
+    }
+
+    // Binary search for optimal scale using actual measurements
+    const neededScalingToFitWidth = findOptimalScale(
+      width,
+      autofitOpts,
+      (scale) => getMinComfortableWidth(rc, item, scale),
     );
-    const neededScalingToFitWidth: "none" | number =
-      width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
 
     return { minH, idealH, maxH: Infinity, neededScalingToFitWidth };
   },

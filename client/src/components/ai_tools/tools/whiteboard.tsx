@@ -1,6 +1,6 @@
 import { createAITool, type PageInputs } from "panther";
 import { z } from "zod";
-import { AiContentBlockInputSchema, type AiContentSlideInput, type MetricWithStatus } from "lib";
+import { AiContentBlockInputSchema, MAX_CONTENT_BLOCKS, type AiContentSlideInput, type MetricWithStatus } from "lib";
 import { convertWhiteboardInputToPageInputs } from "~/components/project_whiteboard/convert_whiteboard_input";
 import { saveWhiteboard, clearWhiteboard as clearWhiteboardStore } from "~/components/project_whiteboard/whiteboard_store";
 
@@ -24,11 +24,14 @@ export function getWhiteboardTools(
         heading: z.string().max(200).optional().describe(
           "Optional heading displayed at the top of the whiteboard. Use to label what's being shown, e.g., 'ANC Coverage Trends' or 'Regional Comparison'.",
         ),
-        blocks: z.array(AiContentBlockInputSchema).min(1).max(10).describe(
-          "Content blocks to display on the whiteboard. Can include text (markdown), figures from existing visualizations, or figures from metric data. The layout will be automatically optimized.",
+        blocks: z.array(AiContentBlockInputSchema).min(1).describe(
+          `Content blocks to display on the whiteboard. MAXIMUM ${MAX_CONTENT_BLOCKS} BLOCKS. Can include text (markdown), figures from existing visualizations, or figures from metric data.`,
         ),
       }),
       handler: async (input) => {
+        if (input.blocks.length > MAX_CONTENT_BLOCKS) {
+          return `Error: Too many blocks (${input.blocks.length}). Maximum is ${MAX_CONTENT_BLOCKS} blocks per whiteboard update. Please reduce the number of blocks and try again. Consider combining text into a single block or showing fewer charts.`;
+        }
         const slideInput: AiContentSlideInput = {
           type: "content",
           heading: input.heading || "",

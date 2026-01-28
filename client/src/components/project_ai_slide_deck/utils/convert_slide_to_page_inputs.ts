@@ -127,7 +127,7 @@ function convertBlockToPageContentItem(block: ContentBlock): PageContentItem {
   if (block.source?.type === "from_data") {
     const { formatAs } = getMetricStaticData(block.source.metricId);
     const style = getStyleFromPresentationObject(block.source.config, formatAs);
-    return { ...block.figureInputs, style };
+    return { ...block.figureInputs, autofit: true, style };
   }
 
   // No source or custom source - use figureInputs as-is

@@ -68,8 +68,9 @@ export async function convertAiInputToSlide(
           `Failed to create figure from metric "${block.metricQuery.metricId}". Check that the metric exists and parameters are valid. Original error: ${errMsg}`
         );
       }
-    } else if (block.type === "custom") {
-      throw new Error("custom figure type not yet implemented");
+    // } else if (block.type === "custom") {
+    } else {
+      throw new Error("Bad input figure type");
     }
   }
 

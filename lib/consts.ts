@@ -6,3 +6,7 @@ export const _IMAGE_DIMENSIONS = {
 };
 
 export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
+
+// Maximum content blocks per slide/whiteboard - panther optimizer limit is 4,
+// but we use 3 for better layouts
+export const MAX_CONTENT_BLOCKS = 3;

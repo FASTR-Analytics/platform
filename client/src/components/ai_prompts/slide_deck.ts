@@ -1,4 +1,4 @@
-import { type InstanceDetail, type ProjectDetail } from "lib";
+import { MAX_CONTENT_BLOCKS, type InstanceDetail, type ProjectDetail } from "lib";
 import { buildAISystemContext } from "./build_context";
 
 export function getSlideDeckSystemPrompt(
@@ -57,7 +57,7 @@ You have access to tools for managing slides. Slides are identified by 3-charact
 
 **Content Slide** (type: "content"):
 - heading: Slide title
-- blocks: Array of content blocks
+- blocks: Array of content blocks (maximum ${MAX_CONTENT_BLOCKS} blocks per slide)
 
 ## Content Blocks
 

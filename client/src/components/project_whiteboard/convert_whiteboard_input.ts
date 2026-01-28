@@ -1,5 +1,5 @@
 import { createItemNode, type PageInputs, type PageContentItem, type ItemLayoutNode } from "panther";
-import type { AiContentSlideInput, MetricWithStatus } from "lib";
+import { MAX_CONTENT_BLOCKS, type AiContentBlockInput, type AiContentSlideInput, type MetricWithStatus } from "lib";
 import { getMetricStaticData } from "lib";
 import { slideDeckStyle } from "../project_ai_slide_deck/utils/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "../project_ai_slide_deck/utils/resolve_figure_from_metric";
@@ -14,7 +14,23 @@ export async function convertWhiteboardInputToPageInputs(
 ): Promise<PageInputs> {
   const items: ItemLayoutNode<PageContentItem>[] = [];
 
-  for (const block of input.blocks) {
+  // ==========================================================================
+  // TODO: TEMPORARY WORKAROUND - The panther optimizer only supports 4 items
+  // max. We limit to MAX_CONTENT_BLOCKS for better layouts. The tool handler
+  // should reject requests with too many blocks before reaching here, but this
+  // is a safety fallback.
+  // Better solution: Use layoutType: "explicit" with auto-generated layout.
+  // ==========================================================================
+  let blocksToProcess = input.blocks;
+  if (input.blocks.length > MAX_CONTENT_BLOCKS) {
+    console.warn(
+      `[convert_whiteboard_input] Optimizer only supports ${MAX_CONTENT_BLOCKS} items, ` +
+      `but received ${input.blocks.length}. Truncating to first ${MAX_CONTENT_BLOCKS} blocks.`
+    );
+    blocksToProcess = input.blocks.slice(0, MAX_CONTENT_BLOCKS);
+  }
+
+  for (const block of blocksToProcess) {
     const pageItem = await resolveBlockToPageContentItem(projectId, block, metrics);
     if (pageItem) {
       items.push(createItemNode(pageItem));
@@ -34,7 +50,7 @@ export async function convertWhiteboardInputToPageInputs(
 
 async function resolveBlockToPageContentItem(
   projectId: string,
-  block: AiContentSlideInput["blocks"][number],
+  block: AiContentBlockInput,
   metrics: MetricWithStatus[],
 ): Promise<PageContentItem | null> {
   if (block.type === "text") {
@@ -69,9 +85,8 @@ async function resolveBlockToPageContentItem(
     return figureBlock.figureInputs;
   }
 
-  if (block.type === "custom") {
-    throw new Error("custom figure type not yet implemented");
-  }
+  // if (block.type === "custom") {
+    throw new Error("Bad input figure type");
+  // }
 
-  return null;
 }
