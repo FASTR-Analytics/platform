@@ -1,10 +1,10 @@
-import { serverActions } from "~/server_actions";
 import { createAITool } from "panther";
 import { z } from "zod";
-import { AiMetricQuerySchema, type AiMetricQuery } from "lib";
+import { AiMetricQuerySchema, type AiMetricQuery, type MetricWithStatus } from "lib";
 import { getMetricDataForAI } from "../get_metric_data_for_ai";
+import { formatMetricsListForAI } from "../format_metrics_list_for_ai";
 
-export function getToolsForMetrics(projectId: string) {
+export function getToolsForMetrics(projectId: string, metrics: MetricWithStatus[]) {
   return [
     createAITool({
       name: "get_available_metrics",
@@ -12,11 +12,7 @@ export function getToolsForMetrics(projectId: string) {
         "Get all available metrics from installed modules. Each metric represents a data value that can be queried or visualized. Returns metric IDs, labels (with variants where applicable), disaggregation options (required and optional dimensions), period options, and AI descriptions (summary, methodology, interpretation, typical ranges, caveats).",
       inputSchema: z.object({}),
       handler: async () => {
-        const res = await serverActions.getMetricsListForAI({
-          projectId,
-        });
-        if (!res.success) throw new Error(res.err);
-        return res.data;
+        return formatMetricsListForAI(metrics);
       },
       inProgressLabel: "Getting available metrics...",
     }),

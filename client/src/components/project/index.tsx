@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from "@solidjs/router";
-import { InstanceDetail, T, t, t2 } from "lib";
+import { InstanceDetail, T, t, t2, type CreateModeVisualizationData } from "lib";
 import {
   BadgeIcon,
   Button,
@@ -24,7 +24,7 @@ import { ProjectRunnerProvider, useProjectDirtyStates } from "~/components/proje
 import { serverActions } from "~/server_actions";
 // import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
 import { Report } from "../report";
-import { Visualization, VisualizationCreateMode, type CreateModeVisualizationData } from "../visualization";
+import { Visualization, VisualizationCreateMode } from "../visualization";
 import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
 import { ProjectMetrics } from "./project_metrics";
@@ -245,7 +245,7 @@ export default function Project(p: Props) {
                                   </span>
                                   {t2("Metrics")}
                                 </div>
-                                {/* <Show when={p.isGlobalAdmin}>
+                                <Show when={p.isGlobalAdmin}>
                                   <div
                                     class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                     onClick={() => changeTab("modules")}
@@ -276,7 +276,7 @@ export default function Project(p: Props) {
                                     </span>
                                     {t2(T.FRENCH_UI_STRINGS.settings)}
                                   </div>
-                                </Show> */}
+                                </Show>
                               </div>
                             }
                           >
@@ -321,6 +321,7 @@ export default function Project(p: Props) {
                               <Match when={tab() === "visualizations"}>
                                 <ProjectVisualizations
                                   isGlobalAdmin={p.isGlobalAdmin}
+                                  instanceDetail={keyedInstanceDetail}
                                   projectDetail={keyedProjectDetail}
                                   attemptGetProjectDetail={projectDetail.fetch}
                                   silentRefreshProject={
@@ -332,7 +333,7 @@ export default function Project(p: Props) {
                               </Match>
                               <Match when={tab() === "metrics"}>
                                 <ProjectMetrics
-                                  projectId={p.projectId}
+                                  projectDetail={keyedProjectDetail}
                                   isGlobalAdmin={p.isGlobalAdmin}
                                   onStartCreateMode={setCreateModeData}
                                 />

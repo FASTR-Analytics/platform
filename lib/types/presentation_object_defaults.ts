@@ -12,7 +12,7 @@ export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   colorScale: "pastel-discrete",
   decimalPlaces: 0,
   hideLegend: false,
-  showDataLabels: true,
+  showDataLabels: false,
   showDataLabelsLineCharts: false,
   barsStacked: false,
   specialCoverageChart: false,

@@ -8,6 +8,7 @@ import {
   AiContentBlockInputSchema,
   getSlideTitle,
   type Slide,
+  type MetricWithStatus,
 } from "lib";
 import { convertAiInputToSlide } from "~/components/project_ai_slide_deck/utils/convert_ai_input_to_slide";
 import { simplifySlideForAI } from "~/components/project_ai_slide_deck/utils/extract_blocks_from_layout";
@@ -20,6 +21,7 @@ export function getToolsForSlides(
   deckId: string,
   getSlideIds: () => string[],
   optimisticSetLastUpdated: (tableName: "slides" | "slide_decks", id: string, lastUpdated: string) => void,
+  metrics: MetricWithStatus[],
 ) {
   return [
     createAITool({
@@ -84,7 +86,7 @@ export function getToolsForSlides(
           .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with heading and blocks array containing text and/or figures)."),
       }),
       handler: async (input) => {
-        const convertedSlide = await convertAiInputToSlide(projectId, input.slide);
+        const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics);
 
         const res = await serverActions.createSlide({
           projectId,
@@ -120,7 +122,7 @@ export function getToolsForSlides(
           .describe("The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized."),
       }),
       handler: async (input) => {
-        const convertedSlide = await convertAiInputToSlide(projectId, input.slide);
+        const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics);
 
         const res = await serverActions.updateSlide({
           projectId,
@@ -160,6 +162,7 @@ export function getToolsForSlides(
           projectId,
           currentRes.data.slide,
           input.updates as any,
+          metrics,
         );
 
         const res = await serverActions.updateSlide({

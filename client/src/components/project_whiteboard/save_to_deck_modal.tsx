@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router";
-import type { SlideDeckSummary, AiContentSlideInput } from "lib";
+import type { SlideDeckSummary, AiContentSlideInput, MetricWithStatus } from "lib";
 import { AlertComponentProps, AlertFormHolder, Button, Input, Loading, RadioGroup, timActionForm, type SelectOption } from "panther";
 import { createSignal, Show, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -8,6 +8,7 @@ import { convertAiInputToSlide } from "../project_ai_slide_deck/utils/convert_ai
 type Props = {
   projectId: string;
   input: AiContentSlideInput;
+  metrics: MetricWithStatus[];
 };
 
 type ReturnType = { deckId: string } | undefined;
@@ -57,7 +58,7 @@ export function SaveToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
         deckId = selectedDeckId();
       }
 
-      const slide = await convertAiInputToSlide(p.projectId, p.input);
+      const slide = await convertAiInputToSlide(p.projectId, p.input, p.metrics);
 
       const addRes = await serverActions.createSlide({
         projectId: p.projectId,

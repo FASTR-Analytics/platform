@@ -120,7 +120,8 @@ export const definition = {
           "Projected survey estimate (when survey data is missing)",
         coverage_cov: "Coverage calculated from HMIS data",
       },
-      label: "Coverage calculated from HMIS data (National)",
+      label: "Coverage calculated from HMIS data",
+      variantLabel: "National",
       requiredDisaggregationOptions: ["indicator_common_id", "year"],
       formatAs: "percent",
       periodOptions: ["year"],
@@ -158,7 +159,8 @@ export const definition = {
         useCases: [
           {
             en: "Monitor annual coverage trends between surveys",
-            fr: "Surveiller les tendances de couverture annuelles entre enquêtes",
+            fr:
+              "Surveiller les tendances de couverture annuelles entre enquêtes",
           },
           {
             en: "Validate HMIS data against survey benchmarks",
@@ -186,7 +188,8 @@ export const definition = {
       valueLabelReplacements: {
         coverage_cov: "Coverage calculated from HMIS data",
       },
-      label: "Coverage calculated from HMIS data (Admin Area 2)",
+      label: "Coverage calculated from HMIS data",
+      variantLabel: "Admin Area 2",
       requiredDisaggregationOptions: [
         "indicator_common_id",
         "admin_area_2",
@@ -256,7 +259,8 @@ export const definition = {
       valueLabelReplacements: {
         coverage_cov: "Coverage calculated from HMIS data",
       },
-      label: "Coverage calculated from HMIS data (Admin Area 3)",
+      label: "Coverage calculated from HMIS data",
+      variantLabel: "Admin Area 3",
       requiredDisaggregationOptions: [
         "indicator_common_id",
         "admin_area_3",

@@ -11,6 +11,7 @@ import type {
   ContentBlock,
   FigureSource,
   AiSlideInput,
+  MetricWithStatus,
 } from "lib";
 import { slideDeckStyle } from "./convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
@@ -22,7 +23,8 @@ import { generateUniqueBlockId } from "~/utils/id_generation";
  */
 export async function convertAiInputToSlide(
   projectId: string,
-  slideInput: AiSlideInput
+  slideInput: AiSlideInput,
+  metrics: MetricWithStatus[],
 ): Promise<Slide> {
   // Cover and section pass through unchanged
   if (slideInput.type === "cover" || slideInput.type === "section") {
@@ -58,7 +60,7 @@ export async function convertAiInputToSlide(
       }
     } else if (block.type === "from_metric") {
       try {
-        const figureBlock = await resolveFigureFromMetric(projectId, block);
+        const figureBlock = await resolveFigureFromMetric(projectId, block, metrics);
         resolvedBlocks.push(figureBlock);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);

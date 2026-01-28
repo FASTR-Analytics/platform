@@ -6,8 +6,10 @@ import { getToolsForReadingVisualizations, getToolForVisualizationData, getToolF
 // import { getToolsForWritingVisualizations } from "./tools/visualization_writing";
 import { getToolsForConfiguringVisualizations } from "./tools/visualization_config";
 import { getToolsForMethodologyDocs } from "./tools/methodology_docs";
-import { PresentationObjectConfig, ResultsValue } from "lib";
+import { PresentationObjectConfig, ResultsValue, type CreateModeVisualizationData, type InstalledModuleSummary, type MetricWithStatus } from "lib";
 import { SetStoreFunction } from "solid-js/store";
+import type { Setter } from "solid-js";
+import { getToolForVisualizationCreationWithCallback } from "./tools/visualization_creation";
 
 export type { WhiteboardContent };
 
@@ -23,16 +25,30 @@ export type { WhiteboardContent };
 //   ];
 // }
 
+// Tools for the visualization creation
+export function getToolsForVisualizationCreation(
+  projectId: string,
+  metrics: MetricWithStatus[],
+  setResult: Setter<CreateModeVisualizationData | null>,
+) {
+  return [
+    ...getToolsForMetrics(projectId, metrics),
+    getToolForVisualizationCreationWithCallback(metrics, setResult),
+  ];
+}
+
 // Tools for the AI whiteboard
 export function getToolsForWhiteboard(
   projectId: string,
   conversationId: string,
   onUpdate: (content: WhiteboardContent | null) => void,
+  modules: InstalledModuleSummary[],
+  metrics: MetricWithStatus[],
 ) {
   return [
-    ...getWhiteboardTools(projectId, conversationId, onUpdate),
-    ...getToolsForModules(projectId),
-    ...getToolsForMetrics(projectId),
+    ...getWhiteboardTools(projectId, conversationId, onUpdate, metrics),
+    ...getToolsForModules(projectId, modules, metrics),
+    ...getToolsForMetrics(projectId, metrics),
     ...getToolsForReadingVisualizations(projectId),
     ...getToolsForMethodologyDocs(),
   ];
@@ -44,6 +60,8 @@ export function getToolsForSlides(
   reportId: string,
   getSlideIds: () => string[],
   optimisticSetLastUpdated: (tableName: "slides" | "slide_decks", id: string, lastUpdated: string) => void,
+  modules: InstalledModuleSummary[],
+  metrics: MetricWithStatus[],
 ) {
   return [
     ...getSlideTools(
@@ -51,9 +69,10 @@ export function getToolsForSlides(
       reportId,
       getSlideIds,
       optimisticSetLastUpdated,
+      metrics,
     ),
-    ...getToolsForModules(projectId),
-    ...getToolsForMetrics(projectId),
+    ...getToolsForModules(projectId, modules, metrics),
+    ...getToolsForMetrics(projectId, metrics),
     ...getToolsForReadingVisualizations(projectId),
     // ...getToolsForWritingVisualizations(projectId),
     ...getToolsForMethodologyDocs(),

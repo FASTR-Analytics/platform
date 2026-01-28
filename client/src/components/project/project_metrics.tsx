@@ -1,27 +1,26 @@
 import {
-  getModuleIdForMetric,
-  ResultsValue,
   t,
   t2,
   _POSSIBLE_MODULES,
+  groupMetricsByLabel,
+  type MetricGroup,
+  type MetricWithStatus,
   type ModuleId,
+  type CreateModeVisualizationData,
+  type ProjectDetail,
 } from "lib";
 import {
   Button,
   FrameTop,
   HeadingBar,
   openComponent,
-  StateHolderWrapper,
-  timQuery,
 } from "panther";
 import { For, Setter, Show } from "solid-js";
-import { serverActions } from "~/server_actions";
 import { MetricDetailsModal } from "./metric_details_modal";
 import { AddVisualization } from "./add_visualization";
-import type { CreateModeVisualizationData } from "../visualization";
 
 type Props = {
-  projectId: string;
+  projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
   onStartCreateMode: Setter<CreateModeVisualizationData | null>;
 };
@@ -29,62 +28,34 @@ type Props = {
 type MetricsByModule = {
   moduleId: ModuleId;
   moduleLabel: string;
-  metricGroups: {
-    label: string;
-    variants: ResultsValue[];
-  }[];
+  metricGroups: MetricGroup[];
 };
 
 export function ProjectMetrics(p: Props) {
-  const metricsQuery = timQuery(
-    () => serverActions.getAllMetrics({ projectId: p.projectId }),
-    t("Loading metrics..."),
-  );
-
-  function organizeMetrics(metrics: ResultsValue[]): MetricsByModule[] {
-    const moduleMap = new Map<ModuleId, Map<string, ResultsValue[]>>();
-
+  function organizeMetrics(metrics: MetricWithStatus[]): MetricsByModule[] {
+    const moduleMap = new Map<ModuleId, MetricWithStatus[]>();
     for (const metric of metrics) {
-      const moduleId = getModuleIdForMetric(metric.id);
-
-      if (!moduleMap.has(moduleId)) {
-        moduleMap.set(moduleId, new Map());
+      if (!moduleMap.has(metric.moduleId)) {
+        moduleMap.set(metric.moduleId, []);
       }
-
-      const labelMap = moduleMap.get(moduleId)!;
-      const label = metric.label;
-
-      if (!labelMap.has(label)) {
-        labelMap.set(label, []);
-      }
-
-      labelMap.get(label)!.push(metric);
+      moduleMap.get(metric.moduleId)!.push(metric);
     }
 
     const result: MetricsByModule[] = [];
-
     for (const possibleModule of _POSSIBLE_MODULES) {
-      const labelMap = moduleMap.get(possibleModule.id);
-      if (labelMap) {
-        const metricGroups = Array.from(labelMap.entries()).map(([label, variants]) => ({
-          label,
-          variants: variants.sort((a, b) => {
-            const aVariant = a.variantLabel || "";
-            const bVariant = b.variantLabel || "";
-            return aVariant.localeCompare(bVariant);
-          }),
-        }));
-
+      const moduleMetrics = moduleMap.get(possibleModule.id);
+      if (moduleMetrics) {
         result.push({
           moduleId: possibleModule.id,
           moduleLabel: possibleModule.label,
-          metricGroups,
+          metricGroups: groupMetricsByLabel(moduleMetrics),
         });
       }
     }
-
     return result;
   }
+
+  const organized = () => organizeMetrics(p.projectDetail.metrics);
 
   return (
     <FrameTop
@@ -92,37 +63,30 @@ export function ProjectMetrics(p: Props) {
         <HeadingBar heading={t2("Metrics")}></HeadingBar>
       }
     >
-      <StateHolderWrapper state={metricsQuery.state()}>
-        {(metrics) => {
-          const organized = organizeMetrics(metrics);
-          return (
-            <div class="ui-pad ui-spy">
-              <For each={organized}>
-                {(moduleGroup) => (
-                  <div class="ui-spy">
-                    <div class=" bg-primary/5 border-base-300 ui-pad-sm rounded border-l-4">
-                      <div class="font-700 text-lg">{moduleGroup.moduleLabel}</div>
-                      <div class="font-mono text-neutral text-xs">{moduleGroup.moduleId}</div>
-                    </div>
-                    <div class="ui-gap grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                      <For each={moduleGroup.metricGroups}>
-                        {(metricGroup) => (
-                          <MetricGroupCard
-                            metricGroup={metricGroup}
-                            projectId={p.projectId}
-                            isGlobalAdmin={p.isGlobalAdmin}
-                            onStartCreateMode={p.onStartCreateMode}
-                          />
-                        )}
-                      </For>
-                    </div>
-                  </div>
-                )}
-              </For>
+      <div class="ui-pad ui-spy">
+        <For each={organized()}>
+          {(moduleGroup) => (
+            <div class="ui-spy">
+              <div class=" bg-primary/5 border-base-300 ui-pad-sm rounded border-l-4">
+                <div class="font-700 text-lg">{moduleGroup.moduleLabel}</div>
+                <div class="font-mono text-neutral text-xs">{moduleGroup.moduleId}</div>
+              </div>
+              <div class="ui-gap grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                <For each={moduleGroup.metricGroups}>
+                  {(metricGroup) => (
+                    <MetricGroupCard
+                      metricGroup={metricGroup}
+                      projectId={p.projectDetail.id}
+                      isGlobalAdmin={p.isGlobalAdmin}
+                      onStartCreateMode={p.onStartCreateMode}
+                    />
+                  )}
+                </For>
+              </div>
             </div>
-          );
-        }}
-      </StateHolderWrapper>
+          )}
+        </For>
+      </div>
     </FrameTop>
   );
 }
@@ -130,7 +94,7 @@ export function ProjectMetrics(p: Props) {
 type MetricGroupCardProps = {
   metricGroup: {
     label: string;
-    variants: ResultsValue[];
+    variants: MetricWithStatus[];
   };
   projectId: string;
   isGlobalAdmin: boolean;
@@ -141,14 +105,14 @@ function MetricGroupCard(p: MetricGroupCardProps) {
   const firstMetric = p.metricGroup.variants[0];
   const hasVariants = p.metricGroup.variants.length > 1;
 
-  async function showDetails(metric: ResultsValue) {
+  async function showDetails(metric: MetricWithStatus) {
     await openComponent({
       element: MetricDetailsModal,
       props: { metric },
     });
   }
 
-  async function visualize(metric: ResultsValue) {
+  async function visualize(metric: MetricWithStatus) {
     const res = await openComponent({
       element: AddVisualization,
       props: {
@@ -205,8 +169,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
                       onClick={() => visualize(variant)}
                       size="sm"
                       outline
-                      iconName="plus"
-                    />
+                    >Visualize</Button>
                     <Button
                       onClick={() => showDetails(variant)}
                       size="sm"
@@ -227,8 +190,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
                 onClick={() => visualize(firstMetric)}
                 size="sm"
                 outline
-                iconName="plus"
-              />
+              >Visualize</Button>
               <Button
                 onClick={() => showDetails(firstMetric)}
                 size="sm"

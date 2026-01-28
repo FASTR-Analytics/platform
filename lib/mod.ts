@@ -3,6 +3,7 @@ export * from "./cache_class_B_in_memory_map.ts";
 export * from "./consts.ts";
 export * from "./get_disaggregator_display_prop.ts";
 export * from "./get_fetch_config_from_po.ts";
+export * from "./group_metrics.ts";
 export * from "./key_colors.ts";
 export * from "./table_structures/mod.ts";
 export * from "./translate/mod.ts";

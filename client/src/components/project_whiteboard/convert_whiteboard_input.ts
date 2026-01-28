@@ -1,5 +1,5 @@
 import { createItemNode, type PageInputs, type PageContentItem, type ItemLayoutNode } from "panther";
-import type { AiContentSlideInput } from "lib";
+import type { AiContentSlideInput, MetricWithStatus } from "lib";
 import { getMetricStaticData } from "lib";
 import { slideDeckStyle } from "../project_ai_slide_deck/utils/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "../project_ai_slide_deck/utils/resolve_figure_from_metric";
@@ -9,12 +9,13 @@ import { getStyleFromPresentationObject } from "~/generate_visualization/get_sty
 // Async: resolves figures from server, returns PageInputs ready for rendering
 export async function convertWhiteboardInputToPageInputs(
   projectId: string,
-  input: AiContentSlideInput
+  input: AiContentSlideInput,
+  metrics: MetricWithStatus[],
 ): Promise<PageInputs> {
   const items: ItemLayoutNode<PageContentItem>[] = [];
 
   for (const block of input.blocks) {
-    const pageItem = await resolveBlockToPageContentItem(projectId, block);
+    const pageItem = await resolveBlockToPageContentItem(projectId, block, metrics);
     if (pageItem) {
       items.push(createItemNode(pageItem));
     }
@@ -33,7 +34,8 @@ export async function convertWhiteboardInputToPageInputs(
 
 async function resolveBlockToPageContentItem(
   projectId: string,
-  block: AiContentSlideInput["blocks"][number]
+  block: AiContentSlideInput["blocks"][number],
+  metrics: MetricWithStatus[],
 ): Promise<PageContentItem | null> {
   if (block.type === "text") {
     return {
@@ -58,7 +60,7 @@ async function resolveBlockToPageContentItem(
   }
 
   if (block.type === "from_metric") {
-    const figureBlock = await resolveFigureFromMetric(projectId, block);
+    const figureBlock = await resolveFigureFromMetric(projectId, block, metrics);
     if (figureBlock.source?.type === "from_data") {
       const { formatAs } = getMetricStaticData(figureBlock.source.metricId);
       const style = getStyleFromPresentationObject(figureBlock.source.config, formatAs);

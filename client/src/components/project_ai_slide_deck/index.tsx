@@ -68,7 +68,9 @@ export function ProjectAiSlideDeck(p: Props) {
       projectId,
       p.deckId,
       slideIds,
-      optimisticSetLastUpdated
+      optimisticSetLastUpdated,
+      p.projectDetail.projectModules,
+      p.projectDetail.metrics
     )
   );
 

@@ -1,49 +1,47 @@
 import {
   DisaggregationOption,
   PresentationOption,
-  ResultsValue,
   get_PRESENTATION_SELECT_OPTIONS,
+  getMetricDisplayLabel,
   getStartingConfigForPresentationObject,
+  groupMetricsByLabel,
   isFrench,
   t,
   t2,
   T,
+  type CreateModeVisualizationData,
+  type MetricWithStatus,
 } from "lib";
-import type { CreateModeVisualizationData } from "../visualization";
 import {
   AlertComponentProps,
   AlertFormHolder,
   Checkbox,
   LabelHolder,
   RadioGroup,
-  Select,
-  StateHolderWrapper,
   timActionForm,
-  timQuery,
 } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
-import { serverActions } from "~/server_actions";
+
+type AddVisualizationProps = {
+  projectId: string;
+  isGlobalAdmin: boolean;
+} & (
+  | { preselectedMetric: MetricWithStatus }
+  | { metrics: MetricWithStatus[] }
+);
 
 export function AddVisualization(
-  p: AlertComponentProps<
-    {
-      projectId: string;
-      isGlobalAdmin: boolean;
-      preselectedMetric?: ResultsValue;
-    },
-    CreateModeVisualizationData
-  >,
+  p: AlertComponentProps<AddVisualizationProps, CreateModeVisualizationData>,
 ) {
-  const metricsQuery = timQuery(
-    () => p.preselectedMetric
-      ? Promise.resolve({ success: true as const, data: [p.preselectedMetric] })
-      : serverActions.getAllMetrics({ projectId: p.projectId }),
-    "Loading...",
+  const preselectedMetric = "preselectedMetric" in p ? p.preselectedMetric : undefined;
+
+  const metricGroups = () =>
+    "metrics" in p ? groupMetricsByLabel(p.metrics, { onlyReady: true }) : [];
+
+  const [selectedGroupLabel, setSelectedGroupLabel] = createSignal<string>("");
+  const [selectedMetricId, setSelectedMetricId] = createSignal<string>(
+    preselectedMetric?.id ?? ""
   );
-
-  // Temp state
-
-  const [tempMetricId, setTempMetricId] = createSignal<string>(p.preselectedMetric?.id ?? "");
   const [tempPresentationOption, setTempPresentationOption] = createSignal<
     PresentationOption | undefined
   >(undefined);
@@ -51,17 +49,17 @@ export function AddVisualization(
     DisaggregationOption[]
   >([]);
 
-  const readyToSave = () => tempMetricId() && tempPresentationOption();
+  const selectedGroup = () =>
+    metricGroups().find((g) => g.label === selectedGroupLabel());
 
-  const selectedMetric = (): ResultsValue | undefined => {
-    const metrics = metricsQuery.state();
-    if (metrics.status !== "ready") {
-      return;
-    }
-    return metrics.data.find((m) => m.id === tempMetricId());
+  const selectedMetric = (): MetricWithStatus | undefined => {
+    if (preselectedMetric) return preselectedMetric;
+    const group = selectedGroup();
+    if (!group) return undefined;
+    return group.variants.find((m) => m.id === selectedMetricId());
   };
 
-  // Actions
+  const readyToSave = () => selectedMetricId() && tempPresentationOption();
 
   const save = timActionForm(
     async (e: MouseEvent) => {
@@ -125,126 +123,140 @@ export function AddVisualization(
       disableSaveButton={!readyToSave()}
       french={isFrench()}
     >
-      <StateHolderWrapper state={metricsQuery.state()} noPad>
-        {(metrics) => {
+      <Show when={preselectedMetric}>
+        <div class="text-sm">
+          <span class="text-neutral">{t("Metric")}:</span>{" "}
+          <span class="font-700">{getMetricDisplayLabel(preselectedMetric!)}</span>
+        </div>
+      </Show>
+      <Show
+        when={!preselectedMetric && metricGroups().length > 0}
+        fallback={
+          !preselectedMetric
+            ? t("You need to enable at least one module in order to create visualizations")
+            : null
+        }
+      >
+        <RadioGroup
+          label={t("Metric")}
+          options={metricGroups().map((g) => ({
+            value: g.label,
+            label: g.label,
+          }))}
+          value={selectedGroupLabel()}
+          onChange={(v) => {
+            setSelectedGroupLabel(v);
+            const group = metricGroups().find((g) => g.label === v);
+            if (group?.variants.length === 1) {
+              setSelectedMetricId(group.variants[0].id);
+            } else {
+              setSelectedMetricId("");
+            }
+            setTempDisaggregations([]);
+            setTempPresentationOption(undefined);
+          }}
+          convertToSelectThreshold={6}
+          fullWidthForSelect
+        />
+        <Show when={selectedGroup() && selectedGroup()!.variants.length > 1}>
+          <RadioGroup
+            label={t("Variant")}
+            options={selectedGroup()!.variants.map((m) => ({
+              value: m.id,
+              label: m.variantLabel || t("Default"),
+            }))}
+            value={selectedMetricId()}
+            onChange={(v) => {
+              setSelectedMetricId(v);
+              setTempDisaggregations([]);
+              setTempPresentationOption(undefined);
+            }}
+          />
+        </Show>
+      </Show>
+      <Show when={selectedMetric()} keyed>
+        {(metric) => {
           return (
             <>
-              <Show
-                when={metrics.length > 0}
-                fallback={t(
-                  "You need to enable at least one module in order to create visualizations",
-                )}
-              >
-                <Show when={!p.preselectedMetric}>
-                  <RadioGroup
-                    label={t("Metric")}
-                    options={metrics.map((m) => ({
-                      value: m.id,
-                      label: m.label,
-                    }))}
-                    value={tempMetricId()}
-                    onChange={(v) => {
-                      setTempMetricId(v);
-                      setTempDisaggregations([]);
-                    }}
-                    convertToSelectThreshold={6}
-                    fullWidthForSelect
-                  />
-                </Show>
-                <Show when={p.preselectedMetric}>
-                  <div class="text-sm">
-                    <span class="text-neutral">{t("Metric")}:</span>{" "}
-                    <span class="font-700">{p.preselectedMetric!.label}</span>
-                  </div>
-                </Show>
-              </Show>
-              <Show when={selectedMetric()} keyed>
-                {(metric) => {
+              <RadioGroup
+                label={t2(T.FRENCH_UI_STRINGS.present_as)}
+                options={get_PRESENTATION_SELECT_OPTIONS()}
+                value={tempPresentationOption()}
+                onChange={setTempPresentationOption}
+              />
+              <Show when={tempPresentationOption()} keyed>
+                {(selectedPresentationOption) => {
                   return (
-                    <>
-                      <RadioGroup
-                        label={t2(T.FRENCH_UI_STRINGS.present_as)}
-                        options={get_PRESENTATION_SELECT_OPTIONS()}
-                        value={tempPresentationOption()}
-                        onChange={setTempPresentationOption}
-                      />
-                      <Show when={tempPresentationOption()} keyed>
-                        {(selectedPresentationOption) => {
-                          return (
-                            <LabelHolder
-                              label={t2(T.FRENCH_UI_STRINGS.disaggregate_by)}
-                            >
-                              <div class="space-y-1">
-                                <For
-                                  each={metric.disaggregationOptions.filter(
-                                    (disOpt) =>
-                                      !disOpt.allowedPresentationOptions ||
-                                      disOpt.allowedPresentationOptions.includes(
-                                        selectedPresentationOption,
-                                      ),
-                                  )}
-                                >
-                                  {(disOpt) => {
-                                    return (
-                                      <Switch>
-                                        <Match when={!disOpt.isRequired}>
-                                          <Checkbox
-                                            label={t2(disOpt.label)}
-                                            checked={tempDisaggregations().includes(
-                                              disOpt.value,
-                                            )}
-                                            onChange={(checked) => {
-                                              setTempDisaggregations((prev) => {
-                                                if (checked) {
-                                                  return [
-                                                    ...prev,
-                                                    disOpt.value,
-                                                  ];
-                                                } else {
-                                                  return prev.filter(
-                                                    (d) => d !== disOpt.value,
-                                                  );
-                                                }
-                                              });
-                                            }}
-                                          />
-                                        </Match>
-                                        <Match when={disOpt.isRequired}>
-                                          <Checkbox
-                                            label={
-                                              <>
-                                                {t2(disOpt.label)}
-                                                <span class="ml-1 text-xs">
-                                                  (
-                                                  {t(
-                                                    "Required for this visualization",
-                                                  )}
-                                                  )
-                                                </span>
-                                              </>
-                                            }
-                                            checked={true}
-                                            onChange={() => { }}
-                                            disabled={true}
-                                          />
-                                        </Match>
-                                      </Switch>
-                                    );
-                                  }}
-                                </For>
-                              </div>
-                            </LabelHolder>
-                          );
-                        }}
-                      </Show>
-                    </>
+                    <LabelHolder
+                      label={t2(T.FRENCH_UI_STRINGS.disaggregate_by)}
+                    >
+                      <div class="space-y-1">
+                        <For
+                          each={metric.disaggregationOptions.filter(
+                            (disOpt) =>
+                              !disOpt.allowedPresentationOptions ||
+                              disOpt.allowedPresentationOptions.includes(
+                                selectedPresentationOption,
+                              ),
+                          )}
+                        >
+                          {(disOpt) => {
+                            return (
+                              <Switch>
+                                <Match when={!disOpt.isRequired}>
+                                  <Checkbox
+                                    label={t2(disOpt.label)}
+                                    checked={tempDisaggregations().includes(
+                                      disOpt.value,
+                                    )}
+                                    onChange={(checked) => {
+                                      setTempDisaggregations((prev) => {
+                                        if (checked) {
+                                          return [
+                                            ...prev,
+                                            disOpt.value,
+                                          ];
+                                        } else {
+                                          return prev.filter(
+                                            (d) => d !== disOpt.value,
+                                          );
+                                        }
+                                      });
+                                    }}
+                                  />
+                                </Match>
+                                <Match when={disOpt.isRequired}>
+                                  <Checkbox
+                                    label={
+                                      <>
+                                        {t2(disOpt.label)}
+                                        <span class="ml-1 text-xs">
+                                          (
+                                          {t(
+                                            "Required for this visualization",
+                                          )}
+                                          )
+                                        </span>
+                                      </>
+                                    }
+                                    checked={true}
+                                    onChange={() => { }}
+                                    disabled={true}
+                                  />
+                                </Match>
+                              </Switch>
+                            );
+                          }}
+                        </For>
+                      </div>
+                    </LabelHolder>
                   );
                 }}
               </Show>
             </>
           );
         }}
-      </StateHolderWrapper>
+      </Show>
     </AlertFormHolder>
   );
 }

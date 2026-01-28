@@ -3,96 +3,55 @@ import type {
   FigureBlock,
   DisaggregationOption,
   GenericLongFormFetchConfig,
-  PresentationOption,
-  PresentationObjectConfig,
+  MetricWithStatus,
 } from "lib";
-import {
-  getMetricStaticData,
-  getResultsValueForVisualizationFromMetricId,
-  DEFAULT_S_CONFIG,
-  DEFAULT_T_CONFIG,
-  getNextAvailableDisaggregationDisplayOption,
-} from "lib";
+import { getMetricStaticData } from "lib";
 import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/utils/request_queue";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
+import { buildConfigFromMetric, buildFetchConfigFromMetric } from "./build_config_from_metric";
 
 export async function resolveFigureFromMetric(
   projectId: string,
-  block: AiFigureFromMetric
+  block: AiFigureFromMetric,
+  metrics: MetricWithStatus[],
 ): Promise<FigureBlock> {
-  const { metricQuery, chartType } = block;
+  const { metricQuery } = block;
   const { metricId, disaggregations: inputDisaggregations, filters: inputFilters, periodFilter } = metricQuery;
+
+  const buildResult = buildConfigFromMetric(block, metrics);
+  if (!buildResult.success) {
+    throw new Error(buildResult.error);
+  }
+
+  const { resultsValue, resultsValueForViz, config } = buildResult;
+
+  // Validate metric is ready
+  if (resultsValue.status !== "ready") {
+    throw new Error(`Metric "${metricId}" is not ready (status: ${resultsValue.status})`);
+  }
 
   const staticData = getMetricStaticData(metricId);
 
-  // TODO: Implement smart presentation type selection based on:
-  // - Disaggregations (time dimensions → timeseries)
-  // - Number of series/dimensions (many → table)
-  // - Period filter presence
-  // - Data characteristics
-  // For now, use simple chartType mapping
-  let presentationType: PresentationOption;
-  if (chartType === "line") {
-    presentationType = "timeseries";
-  } else if (chartType === "table") {
-    presentationType = "table";
-  } else {
-    presentationType = "chart";
-  }
-
-  // Time-based disaggregations (matches allowedPresentationOptions logic in metric_enricher.ts)
-  const timeBasedDisaggregations = ["year", "month", "quarter_id", "period_id", "time_point"];
-
-  // Merge required disaggregations with input disaggregations (for data fetching)
   const allDisaggregations = [
     ...staticData.requiredDisaggregationOptions,
     ...(inputDisaggregations || []),
   ];
   const uniqueDisaggregations = [...new Set(allDisaggregations)] as DisaggregationOption[];
 
-  // For timeseries, filter out time-based disaggregations from display config
-  // (time flows on the x-axis via periodOpt, not as a disaggregation dimension)
-  const displayDisaggregations = presentationType === "timeseries"
-    ? uniqueDisaggregations.filter(dis => !timeBasedDisaggregations.includes(dis))
-    : uniqueDisaggregations;
-
-  // Build fetchConfig following getMetricDataForAI pattern
   const fetchConfigFilters = (inputFilters || []).map(f => ({
     col: f.col as DisaggregationOption,
     vals: f.vals,
   }));
 
-  const configFilters = (inputFilters || []).map(f => ({
-    disOpt: f.col as DisaggregationOption,
-    values: f.vals,
-  }));
+  const fetchConfig: GenericLongFormFetchConfig = buildFetchConfigFromMetric(
+    metricId,
+    uniqueDisaggregations,
+    fetchConfigFilters,
+    periodFilter,
+  );
 
-  const fetchConfig: GenericLongFormFetchConfig = staticData.postAggregationExpression
-    ? {
-      values: staticData.postAggregationExpression.ingredientValues,
-      groupBys: uniqueDisaggregations,
-      filters: fetchConfigFilters,
-      periodFilter: periodFilter,
-      postAggregationExpression: staticData.postAggregationExpression.expression,
-      includeNationalForAdminArea2: false,
-      includeNationalPosition: undefined,
-    }
-    : {
-      values: staticData.valueProps.map((prop) => ({
-        prop,
-        func: staticData.valueFunc,
-      })),
-      groupBys: uniqueDisaggregations,
-      filters: fetchConfigFilters,
-      periodFilter: periodFilter,
-      postAggregationExpression: undefined,
-      includeNationalForAdminArea2: false,
-      includeNationalPosition: undefined,
-    };
-
-  // Fetch items with cache (following getMetricDataForAI pattern)
   const { data, version } = await _PO_ITEMS_CACHE.get({
     projectId,
     resultsObjectId: staticData.resultsObjectId,
@@ -129,50 +88,6 @@ export async function resolveFigureFromMetric(
     throw new Error("No data available or too many items");
   }
 
-  // Get minimal ResultsValue for visualization
-  const resultsValueForViz = getResultsValueForVisualizationFromMetricId(metricId);
-
-  // Build config for visualization with intelligent slot assignment
-  const config: PresentationObjectConfig = {
-    d: {
-      type: presentationType,
-      periodOpt: periodFilter?.periodOption || "period_id",
-      valuesDisDisplayOpt: presentationType === "timeseries"
-        ? "series"
-        : presentationType === "table"
-        ? "col"
-        : "indicator",
-      valuesFilter: undefined,
-      disaggregateBy: [],
-      filterBy: configFilters,
-      periodFilter: periodFilter,
-      selectedReplicantValue: undefined,
-      includeNationalForAdminArea2: false,
-      includeNationalPosition: "bottom",
-    },
-    s: {
-      ...DEFAULT_S_CONFIG,
-      content: presentationType === "timeseries" ? "lines" : "bars",
-      idealAspectRatio: "video",
-    },
-    t: DEFAULT_T_CONFIG,
-  };
-
-  // Intelligently assign disaggregations to display slots
-  // Use displayDisaggregations (excludes time-based for timeseries)
-  for (const dis of displayDisaggregations) {
-    const disDisplayOpt = getNextAvailableDisaggregationDisplayOption(
-      resultsValueForViz,
-      config,
-      dis,
-    );
-    config.d.disaggregateBy.push({
-      disOpt: dis,
-      disDisplayOpt,
-    });
-  }
-
-  // Generate FigureInputs
   const figureInputsResult = getFigureInputsFromPresentationObject(
     resultsValueForViz,
     itemsHolder,

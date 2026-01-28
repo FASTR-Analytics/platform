@@ -1,25 +1,6 @@
 import { z } from "zod";
 
-// Individual figure schemas (unnested for type inference)
-
-export const AiTextBlockSchema = z.object({
-  type: z.literal("text").describe("Block type identifier for text content"),
-  markdown: z.string().max(5000).describe(
-    "The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. Maximum 5000 characters.",
-  ),
-});
-
-export const AiFigureFromVisualizationSchema = z.object({
-  type: z.literal("from_visualization").describe(
-    "Block type identifier for figures cloned from existing visualizations",
-  ),
-  visualizationId: z.string().describe(
-    "The unique ID of an existing visualization/presentation object to clone into this slide. The visualization must already exist in the project.",
-  ),
-  replicant: z.string().optional().describe(
-    "Optional: If the source visualization uses replication (e.g., one chart per region), specify which replicant value to show. For example, 'North' to show only the North region's chart.",
-  ),
-});
+// Metric schema
 
 export const AiMetricQuerySchema = z.object({
   metricId: z.string().describe(
@@ -53,17 +34,82 @@ export const AiMetricQuerySchema = z.object({
   ),
 });
 
-export const AiFigureFromMetricSchema = z.object({
-  type: z.literal("from_metric").describe(
-    "Block type identifier for figures created from metric data with custom configuration",
-  ),
+export type AiChartType = "bar" | "line" | "table";
+
+// Visualization creation schemas
+
+// const DisaggregationDisplaySchema = z.object({
+//   disOpt: z.string(),
+//   disDisplayOpt: z.enum([
+//     "row",
+//     "col",
+//     "series",
+//     "cell",
+//     "indicator",
+//     "replicant",
+//     "rowGroup",
+//     "colGroup",
+//   ]),
+// });
+
+// const StylingSchema = z.object({
+//   colorScale: z.enum([
+//     "pastel-discrete",
+//     "alt-discrete",
+//     "red-green",
+//     "blue-green",
+//     "single-grey",
+//     "custom",
+//   ]).optional(),
+//   showDataLabels: z.boolean().optional(),
+//   content: z.enum(["lines", "bars", "points", "areas"]).optional(),
+//   decimalPlaces: z.number().min(0).max(3).optional(),
+//   barsStacked: z.boolean().optional(),
+//   hideLegend: z.boolean().optional(),
+// }).optional();
+
+export const AiCreateVisualizationInputSchema = z.object({
   metricQuery: AiMetricQuerySchema.describe(
     "The metric query parameters specifying what data to visualize.",
   ),
   chartType: z.enum(["bar", "line", "table"]).optional().describe(
     "Optional: The visualization type - 'bar' for bar charts, 'line' for line charts, or 'table' for data tables. If not specified, an appropriate type will be chosen automatically.",
   ),
+  chartTitle: z.string().max(200).describe("The chart title"),
+  // disaggregationDisplay: z.array(DisaggregationDisplaySchema).optional(),
+  // styling: StylingSchema,
 });
+
+export type AiCreateVisualizationInput = z.infer<
+  typeof AiCreateVisualizationInputSchema
+>;
+
+// Individual figure schemas (unnested for type inference)
+
+export const AiTextBlockSchema = z.object({
+  type: z.literal("text").describe("Block type identifier for text content"),
+  markdown: z.string().max(5000).describe(
+    "The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. Maximum 5000 characters.",
+  ),
+});
+
+export const AiFigureFromVisualizationSchema = z.object({
+  type: z.literal("from_visualization").describe(
+    "Block type identifier for figures cloned from existing visualizations",
+  ),
+  visualizationId: z.string().describe(
+    "The unique ID of an existing visualization/presentation object to clone into this slide. The visualization must already exist in the project.",
+  ),
+  replicant: z.string().optional().describe(
+    "Optional: If the source visualization uses replication (e.g., one chart per region), specify which replicant value to show. For example, 'North' to show only the North region's chart.",
+  ),
+});
+
+export const AiFigureFromMetricSchema = z.object({
+  type: z.literal("from_metric").describe(
+    "Block type identifier for figures created from metric data with custom configuration",
+  ),
+}).merge(AiCreateVisualizationInputSchema);
 
 export const AiFigureCustomSchema = z.object({
   type: z.literal("custom").describe(
@@ -148,7 +194,9 @@ export const AiSlideInputSchema = z.union([
 // Inferred types (single source of truth)
 
 export type AiTextBlock = z.infer<typeof AiTextBlockSchema>;
-export type AiFigureFromVisualization = z.infer<typeof AiFigureFromVisualizationSchema>;
+export type AiFigureFromVisualization = z.infer<
+  typeof AiFigureFromVisualizationSchema
+>;
 export type AiMetricQuery = z.infer<typeof AiMetricQuerySchema>;
 export type AiFigureFromMetric = z.infer<typeof AiFigureFromMetricSchema>;
 export type AiFigureCustom = z.infer<typeof AiFigureCustomSchema>;

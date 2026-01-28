@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router";
-import { ProjectDetail, isFrench, t, t2, T } from "lib";
+import { ProjectDetail, InstanceDetail, isFrench, t, t2, T, type CreateModeVisualizationData } from "lib";
 import {
   Button,
   FrameTop,
@@ -10,10 +10,11 @@ import {
 import { Setter, Show, createSignal } from "solid-js";
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
 import { AddVisualization } from "./add_visualization";
-import type { CreateModeVisualizationData } from "../visualization";
+import { CreateVisualizationFromPromptModal } from "./create_visualization_from_prompt_modal";
 
 type Props = {
   projectDetail: ProjectDetail;
+  instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
   attemptGetProjectDetail: () => Promise<void>;
   silentRefreshProject: () => Promise<void>;
@@ -34,12 +35,27 @@ export function ProjectVisualizations(p: Props) {
       props: {
         projectId: p.projectDetail.id,
         isGlobalAdmin: p.isGlobalAdmin,
+        metrics: p.projectDetail.metrics,
       },
     });
     if (res === undefined) {
       return;
     }
-    // Open editor in create mode
+    p.onStartCreateMode(res);
+  }
+
+  async function attemptAICreatePresentationObject() {
+    const res = await openComponent({
+      element: CreateVisualizationFromPromptModal,
+      props: {
+        projectId: p.projectDetail.id,
+        instanceDetail: p.instanceDetail,
+        projectDetail: p.projectDetail,
+      },
+    });
+    if (res === undefined) {
+      return;
+    }
     p.onStartCreateMode(res);
   }
 
@@ -73,9 +89,14 @@ export function ProjectVisualizations(p: Props) {
               p.projectDetail.projectModules.length > 0
             }
           >
-            <Button onClick={attempAddPresentationObject} iconName="plus">
-              {t2(T.FRENCH_UI_STRINGS.create_visualization)}
-            </Button>
+            <div class="flex items-center ui-gap-sm">
+              <Button onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
+                {t("Create with AI")}
+              </Button>
+              <Button onClick={attempAddPresentationObject} iconName="plus">
+                {t2(T.FRENCH_UI_STRINGS.create_visualization)}
+              </Button>
+            </div>
           </Show>
         </HeadingBar>
       }

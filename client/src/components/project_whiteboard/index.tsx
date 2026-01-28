@@ -1,4 +1,4 @@
-import type { InstanceDetail, ProjectDetail, AiContentSlideInput, VisualizationFolder } from "lib";
+import type { InstanceDetail, ProjectDetail, AiContentSlideInput, VisualizationFolder, MetricWithStatus } from "lib";
 import {
   AIChat,
   AIChatProvider,
@@ -22,6 +22,7 @@ import { SaveToVisualizationModal } from "./save_to_visualization_modal";
 type SaveToDeckModalProps = {
   projectId: string;
   input: AiContentSlideInput;
+  metrics: MetricWithStatus[];
 };
 
 type SaveToDeckModalReturn = { deckId: string } | undefined;
@@ -30,6 +31,7 @@ type SaveToVizModalProps = {
   projectId: string;
   input: AiContentSlideInput;
   folders: VisualizationFolder[];
+  metrics: MetricWithStatus[];
 };
 
 type SaveToVizModalReturn = { visualizationId: string } | undefined;
@@ -49,7 +51,7 @@ export function ProjectWhiteboard(p: Props) {
   onMount(async () => {
     const saved = await loadWhiteboard(conversationId);
     if (saved?.input) {
-      const pageInputs = await convertWhiteboardInputToPageInputs(projectId, saved.input);
+      const pageInputs = await convertWhiteboardInputToPageInputs(projectId, saved.input, p.projectDetail.metrics);
       setContent({ input: saved.input, pageInputs });
     }
     setIsLoading(false);
@@ -58,7 +60,7 @@ export function ProjectWhiteboard(p: Props) {
   const sdkClient = createProjectSDKClient(projectId);
 
   const tools = createMemo(() =>
-    getToolsForWhiteboard(projectId, conversationId, setContent)
+    getToolsForWhiteboard(projectId, conversationId, setContent, p.projectDetail.projectModules, p.projectDetail.metrics)
   );
 
   const systemPrompt = createMemo(() =>
@@ -82,6 +84,7 @@ export function ProjectWhiteboard(p: Props) {
         isLoading={isLoading()}
         setContent={setContent}
         folders={p.projectDetail.visualizationFolders}
+        metrics={p.projectDetail.metrics}
       />
     </AIChatProvider>
   );
@@ -94,6 +97,7 @@ function ProjectWhiteboardInner(p: {
   isLoading: boolean;
   setContent: (c: WhiteboardContent | null) => void;
   folders: VisualizationFolder[];
+  metrics: MetricWithStatus[];
 }) {
   const { clearConversation, isLoading: aiLoading } = createAIChat();
 
@@ -110,6 +114,7 @@ function ProjectWhiteboardInner(p: {
       props: {
         projectId: p.projectId,
         input: p.content.input,
+        metrics: p.metrics,
       },
     });
   }
@@ -122,6 +127,7 @@ function ProjectWhiteboardInner(p: {
         projectId: p.projectId,
         input: p.content.input,
         folders: p.folders,
+        metrics: p.metrics,
       },
     });
   }

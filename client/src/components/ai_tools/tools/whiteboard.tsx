@@ -1,6 +1,6 @@
 import { createAITool, type PageInputs } from "panther";
 import { z } from "zod";
-import { AiContentBlockInputSchema, type AiContentSlideInput } from "lib";
+import { AiContentBlockInputSchema, type AiContentSlideInput, type MetricWithStatus } from "lib";
 import { convertWhiteboardInputToPageInputs } from "~/components/project_whiteboard/convert_whiteboard_input";
 import { saveWhiteboard, clearWhiteboard as clearWhiteboardStore } from "~/components/project_whiteboard/whiteboard_store";
 
@@ -13,6 +13,7 @@ export function getWhiteboardTools(
   projectId: string,
   conversationId: string,
   onUpdate: (content: WhiteboardContent | null) => void,
+  metrics: MetricWithStatus[],
 ) {
   return [
     createAITool({
@@ -33,7 +34,7 @@ export function getWhiteboardTools(
           heading: input.heading || "",
           blocks: input.blocks,
         };
-        const pageInputs = await convertWhiteboardInputToPageInputs(projectId, slideInput);
+        const pageInputs = await convertWhiteboardInputToPageInputs(projectId, slideInput, metrics);
         onUpdate({ input: slideInput, pageInputs });
         await saveWhiteboard(conversationId, slideInput);
         return "Whiteboard updated";

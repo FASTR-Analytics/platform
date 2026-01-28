@@ -167,6 +167,19 @@ export type ResultsValueForVisualization = {
   valueLabelReplacements?: Record<string, string>;
 };
 
+// Status tracking for metrics availability
+export type MetricStatus =
+  | "ready"               // Module ran successfully, results available
+  | "module_not_installed" // Metric in static data but module not installed
+  | "results_not_ready"   // Module installed but hasn't run or no data yet
+  | "error";              // Module ran but failed
+
+// ResultsValue with status tracking for projectDetail.metrics
+export type MetricWithStatus = ResultsValue & {
+  status: MetricStatus;
+  moduleId: ModuleId;
+};
+
 // Simplified type for module definitions - will be enriched at runtime
 export type ResultsValueDefinition = Omit<
   ResultsValue,

@@ -25,7 +25,7 @@ import { getPgConnectionFromCacheOrNew } from "../postgres/mod.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { DBDataset_IN_PROJECT } from "./_project_database_types.ts";
 import { addDatasetHmisToProject } from "./datasets_in_project_hmis.ts";
-import { getAllModulesForProject, installModule } from "./modules.ts";
+import { getAllModulesForProject, getMetricsWithStatus, installModule } from "./modules.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
 import { getAllReportsForProject } from "./reports.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
@@ -72,6 +72,9 @@ export async function getProjectDetail(
 
     const resModules = await getAllModulesForProject(projectDb);
     throwIfErrWithData(resModules);
+
+    const resMetrics = await getMetricsWithStatus(mainDb, projectDb);
+    throwIfErrWithData(resMetrics);
 
     const sortedModules = resModules.data.toSorted((a, b) => {
       const a1 = a.id.toLowerCase().trim();
@@ -138,6 +141,7 @@ export async function getProjectDetail(
       isLocked: rawProject.is_locked,
       projectDatasets: datasetsInProject,
       projectModules: sortedModules,
+      metrics: resMetrics.data,
       visualizations: resVisualizations.data,
       visualizationFolders: resFolders.data,
       reports: resReports.data,

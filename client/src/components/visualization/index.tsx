@@ -1,19 +1,19 @@
 import { trackStore } from "@solid-primitives/deep";
 import { useNavigate } from "@solidjs/router";
 import {
-  type InstanceDetail,
   ItemsHolderPresentationObject,
   PresentationObjectConfig,
   PresentationObjectDetail,
   ProjectDetail,
+  T,
   getModuleIdForMetric,
   getReplicateByProp,
   getTextRenderingOptions,
   hasDuplicateDisaggregatorDisplayOptions,
-  isFrench,
   t,
   t2,
-  T,
+  type CreateModeVisualizationData,
+  type InstanceDetail
 } from "lib";
 import {
   APIResponseWithData,
@@ -21,25 +21,25 @@ import {
   ChartHolder,
   Checkbox,
   Csv,
+  FigureInputs,
   FrameRightResizable,
   FrameTop,
   StateHolder,
   StateHolderWrapper,
-  FigureInputs,
   downloadCsv,
   downloadJson,
   getEditorWrapper,
   openAlert,
   openComponent,
   saveAs,
-  timActionDelete,
   timActionButton,
+  timActionDelete,
   timQuery,
 } from "panther";
 import {
+  Match,
   Show,
   Switch,
-  Match,
   createEffect,
   createMemo,
   createSignal,
@@ -56,6 +56,7 @@ import {
   useOptimisticSetProjectLastUpdated,
   useProjectDirtyStates,
 } from "~/components/project_runner/mod";
+import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
 import {
   getPODetailFromCacheorFetch,
@@ -64,11 +65,10 @@ import {
 } from "~/state/po_cache";
 import { setShowAi, showAi } from "~/state/ui";
 import { AiInterpretationPane } from "./ai_interpretation_pane";
+import { CreateVisualizationModal } from "./create_visualization_modal";
 import { DuplicateVisualization } from "./duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
 import { VisualizationSettings } from "./visualization_settings";
-import { CreateVisualizationModal } from "./create_visualization_modal";
-import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 
 export function Visualization(p: {
   isGlobalAdmin: boolean;
@@ -126,12 +126,6 @@ export function Visualization(p: {
     </StateHolderWrapper>
   );
 }
-
-export type CreateModeVisualizationData = {
-  label: string;
-  resultsValue: PresentationObjectDetail["resultsValue"];
-  config: PresentationObjectConfig;
-};
 
 export function VisualizationCreateMode(p: {
   isGlobalAdmin: boolean;

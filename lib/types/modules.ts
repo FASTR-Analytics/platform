@@ -5,12 +5,15 @@ import {
   type ModuleParameter,
   type ResultsValue,
 } from "./module_definitions.ts";
+import type { DirtyOrRunStatus } from "./project_dirty_states.ts";
 import type { ModuleId } from "./module_metadata_generated.ts";
 
 export type InstalledModuleSummary = {
   id: ModuleId;
   label: string;
   dateInstalled: string;
+  lastRun: string;
+  dirty: DirtyOrRunStatus;
   configType: "none" | "parameters" | "hfa";
   commitSha?: string; // SHA from when module was installed/last updated
   latestRanCommitSha?: string; // Latest SHA from when module was last run

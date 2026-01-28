@@ -18,6 +18,24 @@ fi
 ORIGINAL_VERSION=$(cat VERSION)
 echo "Current version: $ORIGINAL_VERSION"
 
+# Ask if this is an ad-hoc deploy
+echo "Is this an ad-hoc/testing deploy? (y/n)"
+read -r ADHOC_DEPLOY
+
+if [ "$ADHOC_DEPLOY" = "y" ] || [ "$ADHOC_DEPLOY" = "Y" ]; then
+    ADHOC_MODE=true
+    echo "Enter ad-hoc tag name (e.g., test-feature-x, debug-2024-01-28):"
+    read -r ADHOC_TAG
+    if [ -z "$ADHOC_TAG" ]; then
+        echo "ERROR: Ad-hoc tag cannot be empty"
+        exit 1
+    fi
+    VERSION="$ADHOC_TAG"
+    echo "Ad-hoc version: $VERSION"
+else
+    ADHOC_MODE=false
+fi
+
 # Cleanup function to restore VERSION on failure
 cleanup() {
     echo "ERROR: Deployment failed! Restoring original version..."
@@ -54,36 +72,38 @@ if ! docker info 2>/dev/null | grep -q "Username:"; then
     echo "Run 'docker login' if needed."
 fi
 
-# Parse current version
-MAJOR=$(echo $ORIGINAL_VERSION | cut -d. -f1)
-MINOR=$(echo $ORIGINAL_VERSION | cut -d. -f2)
-PATCH=$(echo $ORIGINAL_VERSION | cut -d. -f3)
+if [ "$ADHOC_MODE" = "false" ]; then
+    # Parse current version
+    MAJOR=$(echo $ORIGINAL_VERSION | cut -d. -f1)
+    MINOR=$(echo $ORIGINAL_VERSION | cut -d. -f2)
+    PATCH=$(echo $ORIGINAL_VERSION | cut -d. -f3)
 
-# Ask if user wants to bump minor version first
-echo "Do you want to bump the minor version $ORIGINAL_VERSION → $MAJOR.$((MINOR + 1)).0? (y/n)"
-read -r BUMP_MINOR
+    # Ask if user wants to bump minor version first
+    echo "Do you want to bump the minor version $ORIGINAL_VERSION → $MAJOR.$((MINOR + 1)).0? (y/n)"
+    read -r BUMP_MINOR
 
-if [ "$BUMP_MINOR" = "y" ] || [ "$BUMP_MINOR" = "Y" ]; then
-    MINOR=$((MINOR + 1))
-    PATCH=0
-else
-    # Only ask about patch if minor wasn't bumped
-    echo "Do you want to bump the patch version $ORIGINAL_VERSION → $MAJOR.$MINOR.$((PATCH + 1))? (y/n)"
-    read -r BUMP_PATCH
-
-    if [ "$BUMP_PATCH" = "y" ] || [ "$BUMP_PATCH" = "Y" ]; then
-        PATCH=$((PATCH + 1))
+    if [ "$BUMP_MINOR" = "y" ] || [ "$BUMP_MINOR" = "Y" ]; then
+        MINOR=$((MINOR + 1))
+        PATCH=0
     else
-        echo "Keeping current version: $ORIGINAL_VERSION"
+        # Only ask about patch if minor wasn't bumped
+        echo "Do you want to bump the patch version $ORIGINAL_VERSION → $MAJOR.$MINOR.$((PATCH + 1))? (y/n)"
+        read -r BUMP_PATCH
+
+        if [ "$BUMP_PATCH" = "y" ] || [ "$BUMP_PATCH" = "Y" ]; then
+            PATCH=$((PATCH + 1))
+        else
+            echo "Keeping current version: $ORIGINAL_VERSION"
+        fi
     fi
+
+    NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+
+    # Update VERSION file
+    echo "$NEW_VERSION" > VERSION
+    echo "Version bumped to: $NEW_VERSION"
+    VERSION=$NEW_VERSION
 fi
-
-NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-
-# Update VERSION file
-echo "$NEW_VERSION" > VERSION
-echo "Version bumped to: $NEW_VERSION"
-VERSION=$NEW_VERSION
 
 # Ask if user wants to build client
 echo "Do you want to build the client? (y/n)"
@@ -175,7 +195,13 @@ if ! git add .; then
     exit 1
 fi
 
-if ! git commit -m "Deploy version $VERSION at $today" --allow-empty; then
+if [ "$ADHOC_MODE" = "true" ]; then
+    COMMIT_MSG="Ad-hoc deploy: $VERSION at $today"
+else
+    COMMIT_MSG="Deploy version $VERSION at $today"
+fi
+
+if ! git commit -m "$COMMIT_MSG" --allow-empty; then
     echo "ERROR: Git commit failed!"
     exit 1
 fi
@@ -203,7 +229,11 @@ echo ""
 echo -e "\033[92m"
 echo "╔══════════════════════════════════════════════════════════════════════╗"
 echo "║                                                                      ║"
-echo "║                      DEPLOYMENT SUCCESSFUL!                          ║"
+if [ "$ADHOC_MODE" = "true" ]; then
+    echo "║                   AD-HOC DEPLOYMENT SUCCESSFUL!                     ║"
+else
+    echo "║                      DEPLOYMENT SUCCESSFUL!                         ║"
+fi
 echo "║                                                                      ║"
 echo "╠══════════════════════════════════════════════════════════════════════╣"
 printf "║  Version:        %-51s ║\n" "$VERSION"

@@ -1,17 +1,21 @@
 import { serverActions } from "~/server_actions";
 import { createAITool } from "panther";
 import { z } from "zod";
+import type { InstalledModuleSummary, MetricWithStatus } from "lib";
+import { formatModulesListForAI } from "../format_modules_list_for_ai";
 
-export function getToolsForModules(projectId: string) {
+export function getToolsForModules(
+  projectId: string,
+  modules: InstalledModuleSummary[],
+  metrics: MetricWithStatus[],
+) {
   return [
     createAITool({
       name: "get_available_modules",
       description: "Get a list of analysis modules and their status",
       inputSchema: z.object({}),
       handler: async () => {
-        const res = await serverActions.getModulesListForAI({ projectId });
-        if (!res.success) throw new Error(res.err);
-        return res.data;
+        return formatModulesListForAI(modules, metrics);
       },
       inProgressLabel: "Getting available modules...",
     }),

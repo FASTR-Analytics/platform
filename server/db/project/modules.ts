@@ -15,7 +15,10 @@ import {
   getValidatedModuleId,
   parseJsonOrThrow,
   throwIfErrWithData,
+  type DirtyOrRunStatus,
   type HfaIndicator,
+  type MetricStatus,
+  type MetricWithStatus,
   type ModuleConfigSelections,
   type ModuleDetailForRunningScript,
   type ModuleId,
@@ -23,6 +26,7 @@ import {
 } from "lib";
 import { getModuleDefinitionDetail } from "../../module_loader/mod.ts";
 import {
+  detectHasAnyRows,
   getResultsObjectTableName,
   tryCatchDatabaseAsync,
 } from "./../utils.ts";
@@ -447,6 +451,8 @@ export async function getAllModulesForProject(
         moduleDefinitionLastScriptUpdated: moduleDefinition.lastScriptUpdate,
         moduleDefinitionLabel: moduleDefinition.label,
         dateInstalled: rawModule.date_installed,
+        lastRun: rawModule.last_run,
+        dirty: rawModule.dirty as DirtyOrRunStatus,
         commitSha: moduleDefinition.commitSha,
         latestRanCommitSha: rawModule.latest_ran_commit_sha ?? undefined,
         moduleDefinitionResultsObjectIds: resultsObjectIdsByModule.get(rawModule.id) ?? [],
@@ -770,6 +776,70 @@ export async function getAllMetrics(
         facilityConfig
       );
       metrics.push(enrichedMetric);
+    }
+
+    return { success: true, data: metrics };
+  });
+}
+
+export async function getMetricsWithStatus(
+  mainDb: Sql,
+  projectDb: Sql
+): Promise<APIResponseWithData<MetricWithStatus[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    // Get facility config once for all modules
+    const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
+    const facilityConfig = facilityConfigResult.success
+      ? facilityConfigResult.data
+      : undefined;
+
+    // Get all modules with their dirty states
+    const rawModules = await projectDb<{ id: string; dirty: string }[]>`
+      SELECT id, dirty FROM modules
+    `;
+    const moduleDirtyMap = new Map<string, DirtyOrRunStatus>();
+    for (const mod of rawModules) {
+      moduleDirtyMap.set(mod.id, mod.dirty as DirtyOrRunStatus);
+    }
+
+    // Get all metrics from the database
+    const rawMetrics = await projectDb<DBMetric[]>`
+      SELECT * FROM metrics ORDER BY label
+    `;
+
+    // Enrich each metric and determine status
+    const metrics: MetricWithStatus[] = [];
+    for (const dbMetric of rawMetrics) {
+      const enrichedMetric = await enrichMetric(
+        dbMetric,
+        projectDb,
+        facilityConfig
+      );
+
+      const moduleId = dbMetric.module_id as ModuleId;
+      const moduleDirty = moduleDirtyMap.get(dbMetric.module_id);
+
+      // Determine status
+      let status: MetricStatus;
+      if (!moduleDirty) {
+        // Module not installed (shouldn't happen if metric exists, but handle it)
+        status = "module_not_installed";
+      } else if (moduleDirty === "error") {
+        status = "error";
+      } else if (moduleDirty === "queued" || moduleDirty === "running") {
+        status = "results_not_ready";
+      } else {
+        // Module is "ready" - but check if results object table has data
+        const tableName = getResultsObjectTableName(dbMetric.results_object_id);
+        const hasData = await detectHasAnyRows(projectDb, tableName);
+        status = hasData ? "ready" : "results_not_ready";
+      }
+
+      metrics.push({
+        ...enrichedMetric,
+        status,
+        moduleId,
+      });
     }
 
     return { success: true, data: metrics };

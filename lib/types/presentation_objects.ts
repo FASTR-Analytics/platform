@@ -242,6 +242,12 @@ export type PresentationObjectConfig = {
 
 export type PresentationOption = "timeseries" | "table" | "chart";
 
+export type CreateModeVisualizationData = {
+  label: string;
+  resultsValue: PresentationObjectDetail["resultsValue"];
+  config: PresentationObjectConfig;
+};
+
 export function get_PRESENTATION_SELECT_OPTIONS(): {
   value: PresentationOption;
   label: string;

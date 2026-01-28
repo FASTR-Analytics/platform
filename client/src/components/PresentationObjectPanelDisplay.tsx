@@ -1,6 +1,10 @@
 import {
+  createMetricLookup,
+  getMetricDisplayLabel,
   getModuleIdForMetric,
+  groupMetricsByLabel,
   InstalledModuleSummary,
+  MetricWithStatus,
   PresentationObjectSummary,
   ProjectDetail,
   VisualizationFolder,
@@ -8,7 +12,7 @@ import {
   t2,
   T,
 } from "lib";
-import { Button, FrameLeft, getColor, openComponent, Select, SelectList, showMenu, timActionDelete, type MenuItem, type SelectOption } from "panther";
+import { Button, FrameLeft, FrameLeftResizable, getColor, openComponent, Select, SelectList, showMenu, timActionDelete, type MenuItem, type SelectOption } from "panther";
 import { createEffect, For, Show } from "solid-js";
 import { vizGroupingMode, setVizGroupingMode, vizSelectedGroup, setVizSelectedGroup } from "~/state/ui";
 import { serverActions } from "~/server_actions";
@@ -84,17 +88,36 @@ export function PresentationObjectPanelDisplay(p: Props) {
         }));
 
       case "metric": {
-        const metricMap = new Map<string, number>();
-        for (const viz of vizs) {
-          metricMap.set(viz.metricId, (metricMap.get(viz.metricId) ?? 0) + 1);
-        }
-        return Array.from(metricMap.entries())
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([metricId, count]) => ({
-            value: metricId,
-            label: metricId,
-            count,
-          }));
+        const metricGroups = groupMetricsByLabel(p.projectDetail.metrics);
+        const moduleOrder = new Map(
+          p.projectDetail.projectModules.map((m, i) => [m.id, i])
+        );
+        return metricGroups
+          .filter((group) => {
+            // Only include groups that have visualizations
+            return group.variants.some((m) => vizs.some((v) => v.metricId === m.id));
+          })
+          .sort((a, b) => {
+            const moduleA = a.variants[0].moduleId;
+            const moduleB = b.variants[0].moduleId;
+            const moduleOrderA = moduleOrder.get(moduleA) ?? 999;
+            const moduleOrderB = moduleOrder.get(moduleB) ?? 999;
+            if (moduleOrderA !== moduleOrderB) {
+              return moduleOrderA - moduleOrderB;
+            }
+            return a.variants[0].id.localeCompare(b.variants[0].id);
+          })
+          .map((group) => {
+            const count = group.variants.reduce(
+              (sum, m) => sum + vizs.filter((v) => v.metricId === m.id).length,
+              0
+            );
+            return {
+              value: group.label,
+              label: group.label,
+              count,
+            };
+          });
       }
 
 
@@ -126,8 +149,14 @@ export function PresentationObjectPanelDisplay(p: Props) {
       case "module":
         return vizs.filter((v) => getModuleIdForMetric(v.metricId) === group);
 
-      case "metric":
-        return vizs.filter((v) => v.metricId === group);
+      case "metric": {
+        // group is the metric label, find all metric IDs with that label
+        const metricGroups = groupMetricsByLabel(p.projectDetail.metrics);
+        const metricGroup = metricGroups.find((g) => g.label === group);
+        if (!metricGroup) return [];
+        const metricIds = new Set(metricGroup.variants.map((m) => m.id));
+        return vizs.filter((v) => metricIds.has(v.metricId));
+      }
 
 
       case "flat":
@@ -153,11 +182,32 @@ export function PresentationObjectPanelDisplay(p: Props) {
 
     // Sub-group by metric for module view
     if (mode === "module") {
+      const lookup = createMetricLookup(p.projectDetail.metrics);
       return {
         getGroupKey: (po) => po.metricId,
-        getGroupLabel: (key) => key,
+        getGroupLabel: (key) => {
+          const metric = lookup.get(key);
+          return metric ? getMetricDisplayLabel(metric) : key;
+        },
         getGroupOrder: () => [], // Empty = use natural order from visualizations
       };
+    }
+
+    // Sub-group by variant for metric view (only if metric has multiple variants)
+    if (mode === "metric" && group) {
+      const metricGroups = groupMetricsByLabel(p.projectDetail.metrics);
+      const metricGroup = metricGroups.find((g) => g.label === group);
+      if (metricGroup && metricGroup.variants.length > 1) {
+        const lookup = createMetricLookup(p.projectDetail.metrics);
+        return {
+          getGroupKey: (po) => po.metricId,
+          getGroupLabel: (key) => {
+            const metric = lookup.get(key);
+            return metric?.variantLabel || "Default";
+          },
+          getGroupOrder: () => metricGroup.variants.map((m) => m.id),
+        };
+      }
     }
 
     return null;
@@ -242,9 +292,11 @@ export function PresentationObjectPanelDisplay(p: Props) {
   };
 
   return (
-    <FrameLeft
+    <FrameLeftResizable
+      startingWidth={250}
+      minWidth={180}
       panelChildren={
-        <div class="border-base-300 flex h-full w-56 flex-col border-r">
+        <div class="border-base-300 flex h-full w-full flex-col border-r">
           <div class="border-base-300 border-b p-3">
             <Select
               options={GROUPING_OPTIONS}
@@ -288,11 +340,12 @@ export function PresentationObjectPanelDisplay(p: Props) {
         visualizations={filteredVisualizations()}
         folders={p.projectDetail.visualizationFolders}
         modules={p.projectDetail.projectModules}
+        metrics={p.projectDetail.metrics}
         subGroupConfig={subGroupConfig()}
         onClick={p.onClick}
         searchText={p.searchText}
       />
-    </FrameLeft>
+    </FrameLeftResizable>
   );
 }
 
@@ -301,6 +354,7 @@ type VisualizationGridProps = {
   visualizations: PresentationObjectSummary[];
   folders: VisualizationFolder[];
   modules: InstalledModuleSummary[];
+  metrics: MetricWithStatus[];
   subGroupConfig: SubGroupConfig | null;
   onClick: (po: PresentationObjectSummary) => void;
   searchText: string;
@@ -338,6 +392,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       projectId={p.projectId}
       po={po}
       folders={p.folders}
+      metrics={p.metrics}
       onClick={() => p.onClick(po)}
       onDuplicate={() => handleDuplicate(po)}
       onDelete={() => handleDelete(po)}
@@ -413,6 +468,7 @@ type VisualizationCardProps = {
   projectId: string;
   po: PresentationObjectSummary;
   folders: VisualizationFolder[];
+  metrics: MetricWithStatus[];
   onClick: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -427,6 +483,7 @@ function VisualizationCard(p: VisualizationCardProps) {
         visualizationId: p.po.id,
         visualizationLabel: p.po.label,
         replicateBy: p.po.replicateBy,
+        metrics: p.metrics,
       },
     });
   }

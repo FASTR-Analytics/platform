@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router";
-import type { AiContentSlideInput, DisaggregationOption, SlideDeckSummary } from "lib";
+import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckSummary } from "lib";
 import { AlertComponentProps, AlertFormHolder, Button, Input, Loading, RadioGroup, timActionForm, type SelectOption } from "panther";
 import { createSignal, Show, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -11,6 +11,7 @@ type Props = {
   visualizationId: string;
   visualizationLabel: string;
   replicateBy: DisaggregationOption | undefined;
+  metrics: MetricWithStatus[];
 };
 
 type ReturnType = { deckId: string } | undefined;
@@ -75,7 +76,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
         }],
       };
 
-      const slide = await convertAiInputToSlide(p.projectId, input);
+      const slide = await convertAiInputToSlide(p.projectId, input, p.metrics);
 
       const addRes = await serverActions.createSlide({
         projectId: p.projectId,

@@ -1,11 +1,15 @@
-import { t } from "lib";
+import { t, type InstalledModuleSummary, type MetricWithStatus } from "lib";
 import { Button, getSelectOptionsFromIdLabel, Input, Select, timActionButton } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getMetricDataForAI } from "./get_metric_data_for_ai";
+import { formatMetricsListForAI } from "./format_metrics_list_for_ai";
+import { formatModulesListForAI } from "./format_modules_list_for_ai";
 
 type Props = {
   projectId: string;
+  modules: InstalledModuleSummary[];
+  metrics: MetricWithStatus[];
 };
 
 const TOOLS = [
@@ -28,11 +32,7 @@ export function AIToolsDebug(p: Props) {
     let result: string;
 
     if (tool === "get_available_metrics") {
-      const res = await serverActions.getMetricsListForAI({
-        projectId: p.projectId,
-      });
-      if (!res.success) return res;
-      result = res.data;
+      result = formatMetricsListForAI(p.metrics);
     } else if (tool === "get_metric_data") {
       if (!metricId()) {
         return { success: false, err: "metricId is required" };
@@ -58,11 +58,7 @@ export function AIToolsDebug(p: Props) {
       if (!res.success) return res;
       result = res.data;
     } else if (tool === "get_modules_list") {
-      const res = await serverActions.getModulesListForAI({
-        projectId: p.projectId,
-      });
-      if (!res.success) return res;
-      result = res.data;
+      result = formatModulesListForAI(p.modules, p.metrics);
     } else {
       return { success: false, err: t("Unknown tool") };
     }

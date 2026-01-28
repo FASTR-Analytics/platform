@@ -1,37 +1,21 @@
 import type {
   AiContentSlideInput,
-  PresentationOption,
-  DisaggregationOption,
   VisualizationFolder,
-} from "lib";
-import {
-  getStartingConfigForPresentationObject,
+  MetricWithStatus,
 } from "lib";
 import { AlertComponentProps, AlertFormHolder, Select, timActionForm } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { buildConfigFromMetric } from "~/components/project_ai_slide_deck/utils/build_config_from_metric";
 
 type Props = {
   projectId: string;
   input: AiContentSlideInput;
   folders: VisualizationFolder[];
+  metrics: MetricWithStatus[];
 };
 
 type ReturnType = { visualizationId: string } | undefined;
-
-function mapChartTypeToPresentationOption(
-  chartType: "bar" | "line" | "table" | undefined
-): PresentationOption {
-  switch (chartType) {
-    case "line":
-      return "timeseries";
-    case "table":
-      return "table";
-    case "bar":
-    default:
-      return "chart";
-  }
-}
 
 export function SaveToVisualizationModal(p: AlertComponentProps<Props, ReturnType>) {
   const [selectedFolderId, setSelectedFolderId] = createSignal<string>("_none");
@@ -70,59 +54,21 @@ export function SaveToVisualizationModal(p: AlertComponentProps<Props, ReturnTyp
       }
 
       if (firstFigureBlock.type === "from_metric") {
-        const { metricQuery, chartType } = firstFigureBlock;
-        const { metricId, disaggregations: inputDisaggregations, filters: inputFilters, periodFilter } = metricQuery;
+        const buildResult = buildConfigFromMetric(firstFigureBlock, p.metrics);
 
-        // Fetch all metrics to get the full ResultsValue
-        const metricsRes = await serverActions.getAllMetrics({ projectId: p.projectId });
-        if (!metricsRes.success) {
-          return metricsRes;
+        if (!buildResult.success) {
+          return { success: false as const, err: buildResult.error };
         }
 
-        const metric = metricsRes.data.find((m) => m.id === metricId);
-        if (!metric) {
-          return { success: false as const, err: `Metric not found: ${metricId}` };
-        }
+        const { resultsValue, config } = buildResult;
 
-        const presentationType = mapChartTypeToPresentationOption(chartType);
-
-        // Merge required disaggregations with input disaggregations
-        const requiredDisaggregations = metric.disaggregationOptions
-          .filter((d) => d.isRequired)
-          .map((d) => d.value);
-        const allDisaggregations = [
-          ...requiredDisaggregations,
-          ...(inputDisaggregations || []),
-        ];
-        const uniqueDisaggregations = [...new Set(allDisaggregations)] as DisaggregationOption[];
-
-        // Build config
-        const config = getStartingConfigForPresentationObject(
-          metric,
-          presentationType,
-          uniqueDisaggregations,
-        );
-
-        // Apply filters
-        if (inputFilters && inputFilters.length > 0) {
-          config.d.filterBy = inputFilters.map((f) => ({
-            disOpt: f.col as DisaggregationOption,
-            values: f.vals,
-          }));
-        }
-
-        // Apply period filter
-        if (periodFilter) {
-          config.d.periodFilter = periodFilter;
-        }
-
-        // Set caption to label
+        // Override caption with the whiteboard heading
         config.t.caption = label;
 
         const res = await serverActions.createPresentationObject({
           projectId: p.projectId,
           label,
-          resultsValue: metric,
+          resultsValue,
           config,
           makeDefault: false,
           folderId,

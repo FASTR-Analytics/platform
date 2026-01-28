@@ -1,4 +1,4 @@
-import type { Slide, ContentBlock, AiContentBlockInput } from "lib";
+import type { Slide, ContentBlock, AiContentBlockInput, MetricWithStatus } from "lib";
 import type { LayoutNode } from "panther";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
@@ -6,7 +6,8 @@ import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 export async function getSlideWithUpdatedBlocks(
   projectId: string,
   currentSlide: Slide,
-  updates: Array<{ blockId: string; newContent: AiContentBlockInput }>
+  updates: Array<{ blockId: string; newContent: AiContentBlockInput }>,
+  metrics: MetricWithStatus[],
 ): Promise<Slide> {
   if (currentSlide.type !== "content") {
     throw new Error("Can only update blocks on content slides");
@@ -32,7 +33,7 @@ export async function getSlideWithUpdatedBlocks(
       }
     } else if (update.newContent.type === "from_metric") {
       try {
-        const figureBlock = await resolveFigureFromMetric(projectId, update.newContent);
+        const figureBlock = await resolveFigureFromMetric(projectId, update.newContent, metrics);
         updateMap.set(update.blockId, figureBlock);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
