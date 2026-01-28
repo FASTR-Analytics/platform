@@ -116,7 +116,7 @@ export function SelectProjectUserRole(
   const [permissions, setPermissions] = createSignal<Record<ProjectPermission, boolean> | null>(null);
   
   // only fetch the existing permissions if modifying a single users permissions
-  if(!(p.users.length() > 1)){
+  if(!(p.users.length > 1)){
     (async () => {
       const res = await serverActions.getProjectUserPermissions({
         projectId: p.projectId,
