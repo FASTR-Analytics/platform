@@ -127,7 +127,7 @@ export const projectRouteRegistry = {
   }),
 
   getProjectUserPermissions: route({
-    path: ("/get_project_user_permissions"),
+    path: "/get_project_user_permissions/:projectId/:email",
     method: "GET",
     params: {} as {
       projectId: string;
