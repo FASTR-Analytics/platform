@@ -13,6 +13,7 @@ import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   HeadingBar,
   findById,
+  openComponent,
 } from "panther";
 import type { DividerDragUpdate } from "panther";
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
@@ -23,12 +24,14 @@ import { convertSlideType } from "./convert_slide_type";
 import { serverActions } from "~/server_actions";
 import { useOptimisticSetLastUpdated } from "../../project_runner/mod";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
+import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 
 type SlideEditorInnerProps = {
   projectId: string;
   deckId: string;
   slideId: string;
   slide: Slide;
+  lastUpdated: string;
 };
 
 type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
@@ -99,7 +102,7 @@ export function SlideEditor(p: Props) {
     }
   });
 
-  async function handleSave() {
+  async function handleSave(overwriteIfConflict?: boolean) {
     if (!needsSave()) {
       p.close(false);
       return;
@@ -111,7 +114,33 @@ export function SlideEditor(p: Props) {
       projectId: p.projectId,
       slide_id: p.slideId,
       slide: unwrap(tempSlide),
+      expectedLastUpdated: p.lastUpdated,
+      overwrite: overwriteIfConflict,
     });
+
+    if (updateRes.success === false && updateRes.err === "CONFLICT") {
+      setIsSaving(false);
+
+      // Show modal with options
+      const userChoice = await openComponent({
+        element: ConflictResolutionModal,
+        props: {},
+      });
+
+      if (userChoice === "view_theirs") {
+        // Close editor, parent will show their changes
+        p.close(false);
+        return;
+      }
+
+      if (userChoice === "overwrite") {
+        // Retry with overwrite flag
+        return handleSave(true);
+      }
+
+      // userChoice === "cancel" - stay in editor
+      return;
+    }
 
     if (updateRes.success) {
       optimisticSetLastUpdated("slides", p.slideId, updateRes.data.lastUpdated);
@@ -197,7 +226,7 @@ export function SlideEditor(p: Props) {
               <div class="flex items-center ui-gap-sm">
                 <Button
                   intent="success"
-                  onClick={handleSave}
+                  onClick={() => handleSave()}
                   disabled={isSaving()}
                   loading={isSaving()}
                 >

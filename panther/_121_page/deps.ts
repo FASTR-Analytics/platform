@@ -11,7 +11,6 @@ export { CustomPageStyle } from "../_005_page_style/mod.ts";
 export type { CustomPageStyleOptions, MergedPageStyle } from "../_005_page_style/mod.ts";
 export { createColsNode, createItemNode, createRowsNode, measureLayout, optimizeLayout, renderContainerStyle, walkLayout } from "../_008_layouter/mod.ts";
 export type { ContainerStyleOptions, HeightConstraints, ItemHeightMeasurer, ItemLayoutNode, LayoutGap, LayoutNode, MeasuredLayoutNode, OptimizeResult, OptimizerConstraint } from "../_008_layouter/mod.ts";
-export { resolveFigureAutofitOptions } from "../_007_figure_core/mod.ts";
 export { FigureRenderer } from "../_011_figure_renderer/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { ImageRenderer } from "../_012_image_renderer/mod.ts";

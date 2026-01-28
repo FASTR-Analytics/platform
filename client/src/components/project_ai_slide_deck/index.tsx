@@ -126,13 +126,16 @@ function ProjectAiSlideDeckInner(p: {
   async function handleEditSlide(slideId: string) {
     const cached = await _SLIDE_CACHE.get({ projectId: p.projectDetail.id, slideId });
     let slide: Slide;
+    let lastUpdated: string;
 
     if (!cached.data) {
       const res = await serverActions.getSlide({ projectId: p.projectDetail.id, slide_id: slideId });
       if (!res.success) return;
       slide = res.data.slide;
+      lastUpdated = res.data.lastUpdated;
     } else {
       slide = cached.data.slide;
+      lastUpdated = cached.data.lastUpdated;
     }
 
     setEditingSlideId(slideId);
@@ -144,6 +147,7 @@ function ProjectAiSlideDeckInner(p: {
         deckId: p.deckId,
         slideId: slideId,
         slide: slide,
+        lastUpdated: lastUpdated,
       },
     });
 

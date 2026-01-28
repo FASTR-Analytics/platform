@@ -15,8 +15,11 @@ export const VIZ_CHAT_MODEL_CONFIG = {
 export const DEFAULT_BUILTIN_TOOLS = { webSearch: true };
 
 export function createProjectSDKClient(projectId: string) {
+  const baseURL = _SERVER_HOST
+    ? `${_SERVER_HOST}/ai`
+    : `${window.location.origin}/ai`;
   return createSDKClient({
-    baseURL: `${_SERVER_HOST}/ai`,
+    baseURL,
     defaultHeaders: { "Project-Id": projectId },
   });
 }

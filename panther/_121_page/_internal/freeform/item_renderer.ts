@@ -9,7 +9,6 @@ import {
   MarkdownRenderer,
   type MeasuredLayoutNode,
   type RenderContext,
-  resolveFigureAutofitOptions,
 } from "../../deps.ts";
 import { isSpacerItem, type PageContentItem } from "../../types.ts";
 
@@ -26,15 +25,8 @@ export function renderItem(
   }
 
   if (FigureRenderer.isType(item)) {
-    // Apply scale only when autofit is enabled and scale < 1.0
-    let responsiveScale: number | undefined;
-    const autofitOpts = resolveFigureAutofitOptions(item.autofit);
-    if (autofitOpts && typeof node.neededScalingToFitWidth === "number") {
-      if (node.neededScalingToFitWidth < 1.0) {
-        responsiveScale = node.neededScalingToFitWidth;
-      }
-    }
-    FigureRenderer.measureAndRender(rc, rcd, item, responsiveScale);
+    // Autofit is handled inside the renderer based on bounds
+    FigureRenderer.measureAndRender(rc, rcd, item);
     return;
   }
 

@@ -81,7 +81,9 @@ defineRoute(
     const res = await updateSlide(
       c.var.ppk.projectDb,
       params.slide_id,
-      body.slide
+      body.slide,
+      body.expectedLastUpdated,
+      body.overwrite
     );
     if (!res.success) {
       return c.json(res);

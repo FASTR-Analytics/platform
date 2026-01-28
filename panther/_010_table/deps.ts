@@ -10,5 +10,5 @@ export type { HeightConstraints, Measured, MeasuredText, RenderContext, Renderer
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedTableStyle } from "../_003_figure_style/mod.ts";
 export { addSurrounds } from "../_007_figure_core/_surrounds/add_surrounds.ts";
-export { estimateMinSurroundsWidth, findOptimalScale, measureSurrounds, resolveFigureAutofitOptions, withAnyLabelReplacement } from "../_007_figure_core/mod.ts";
-export type { FigureInputsBase, JsonArray, JsonArrayItem, LegendItem, MeasuredSurrounds, ResolvedFigureAutofitOptions } from "../_007_figure_core/mod.ts";
+export { estimateMinSurroundsWidth, findOptimalScaleForBounds, measureSurrounds, resolveFigureAutofitOptions, withAnyLabelReplacement } from "../_007_figure_core/mod.ts";
+export type { FigureInputsBase, JsonArray, JsonArrayItem, LegendItem, MeasuredSurrounds } from "../_007_figure_core/mod.ts";

@@ -82,6 +82,8 @@ export const presentationObjectRouteRegistry = {
     params: {} as { po_id: string },
     body: {} as {
       config: PresentationObjectConfig;
+      expectedLastUpdated?: string;
+      overwrite?: boolean;
     },
     response: {} as {
       lastUpdated: string;

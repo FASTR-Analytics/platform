@@ -44,17 +44,15 @@ import {
   createMemo,
   createSignal,
   onMount,
-  untrack,
 } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { ReplicateByOptionsPresentationObject } from "~/components/ReplicateByOptions";
-import { ConfirmUpdate } from "~/components/forms_editors/confirm_update";
+import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { DownloadPresentationObject } from "~/components/forms_editors/download_presentation_object";
 import { ViewResultsObject } from "~/components/forms_editors/view_results_object";
 import {
   useOptimisticSetLastUpdated,
   useOptimisticSetProjectLastUpdated,
-  useProjectDirtyStates,
 } from "~/components/project_runner/mod";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
@@ -174,13 +172,9 @@ type Props = {
 };
 
 function PresentationObjectEditorInner(p: Props) {
-  const pds = useProjectDirtyStates();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
   const navigate = useNavigate();
-  let initialLastUpdated =
-    pds.lastUpdated.presentation_objects[p.poDetail.id] ?? "unknown";
-  let isCurrentlySaving = false;
 
   const {
     openEditor: openEditorForResultsObject,
@@ -294,39 +288,6 @@ function PresentationObjectEditorInner(p: Props) {
     setNeedsSave(true);
   });
 
-  // Someone else saved mechanism (skip in create mode - no DB record yet)
-
-  createEffect(() => {
-    if (p.isCreateMode) return;
-    const _lastUpdated =
-      pds.lastUpdated.presentation_objects[p.poDetail.id] ?? "unknown";
-    const _needsSave = untrack(() => needsSave());
-    console.log("NEEDS SAVE =", _needsSave);
-    console.log("isCurrentlySaving =", isCurrentlySaving);
-    console.log("_lastUpdated =", _lastUpdated);
-    console.log("initialLastUpdated =", initialLastUpdated);
-    if (!isCurrentlySaving && _lastUpdated !== initialLastUpdated) {
-      if (_needsSave || firstRunNeedsSave) {
-        console.log("CALLING askIfWantToUpdate");
-        askIfWantToUpdate();
-      } else {
-        console.log("CALLING p.refreshPoDetail");
-        p.refreshPoDetail();
-      }
-    }
-  });
-
-  async function askIfWantToUpdate() {
-    const res = await openComponent({
-      element: ConfirmUpdate,
-      props: {
-        thingLabel: "visualization",
-      },
-    });
-    if (res) {
-      p.refreshPoDetail();
-    }
-  }
 
   // Actions
 
@@ -349,23 +310,47 @@ function PresentationObjectEditorInner(p: Props) {
   }
 
   // Edit mode: save existing presentation object
-  async function saveFunc(): Promise<
+  async function saveFunc(overwriteIfConflict?: boolean): Promise<
     APIResponseWithData<{ lastUpdated: string }>
   > {
-    isCurrentlySaving = true;
     const unwrappedTempConfig = unwrap(tempConfig);
 
     const res = await serverActions.updatePresentationObjectConfig({
       projectId: p.projectDetail.id,
       po_id: p.poDetail.id,
       config: unwrappedTempConfig,
+      expectedLastUpdated: p.poDetail.lastUpdated,
+      overwrite: overwriteIfConflict,
     });
-    if (res.success === false) {
-      isCurrentlySaving = false;
+
+    if (res.success === false && res.err === "CONFLICT") {
+      // Show modal with options
+      const userChoice = await openComponent({
+        element: ConflictResolutionModal,
+        props: {},
+      });
+
+      if (userChoice === "view_theirs") {
+        // Close editor, parent will show their changes
+        p.backToProject();
+        return res;
+      }
+
+      if (userChoice === "overwrite") {
+        // Retry with overwrite flag
+        return saveFunc(true);
+      }
+
+      // userChoice === "cancel" - stay in editor
       return res;
     }
-    initialLastUpdated = res.data.lastUpdated;
-    isCurrentlySaving = false;
+
+    if (res.success === false) {
+      return res;
+    }
+
+    // Refetch to update p.poDetail.lastUpdated for next save
+    p.refreshPoDetail();
     setNeedsSave(false);
     return res;
   }

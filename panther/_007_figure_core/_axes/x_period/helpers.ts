@@ -356,3 +356,57 @@ export function getYearDigits(
 ): "four" | "two" {
   return fourDigitW + _PIXEL_PAD < availableSpace ? "four" : "two";
 }
+
+export function calculateYearSkipInterval(
+  rc: RenderContext,
+  periodType: PeriodType,
+  periodAxisType: PeriodAxisType,
+  periodIncrementWidth: number,
+  s: MergedTimeseriesStyle,
+): number {
+  const twoDigitYearW = rc
+    .mText(
+      "22",
+      s.xPeriodAxis.text.xPeriodAxisTickLabels,
+      Number.POSITIVE_INFINITY,
+    )
+    .dims.w();
+  const padding = 4;
+  const minWidthNeeded = twoDigitYearW + padding;
+
+  let periodsPerYear: number;
+  if (periodType === "year-month") periodsPerYear = 12;
+  else if (periodType === "year-quarter") periodsPerYear = 4;
+  else periodsPerYear = 1;
+
+  const widthPerYear = periodAxisType === "year-centered"
+    ? periodIncrementWidth
+    : periodIncrementWidth * periodsPerYear;
+
+  const skipIntervals = [1, 2, 5, 10, 20, 50, 100];
+  for (const interval of skipIntervals) {
+    if (widthPerYear * interval >= minWidthNeeded) {
+      return interval;
+    }
+  }
+
+  return 100;
+}
+
+export function shouldShowYearBoundary(
+  v: number | string,
+  periodType: PeriodType,
+  skipInterval: number,
+): boolean {
+  if (!isLargePeriod(v, periodType)) return false;
+
+  const year = Number(String(v).slice(0, 4));
+
+  if (skipInterval === 1) return true;
+  if (skipInterval === 2) return year % 2 === 0;
+  if (skipInterval === 5) return year % 5 === 0;
+  if (skipInterval === 10) return year % 10 === 0;
+  if (skipInterval === 20) return year % 20 === 0;
+  if (skipInterval === 50) return year % 50 === 0;
+  return year % 100 === 0;
+}

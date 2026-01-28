@@ -205,6 +205,8 @@ defineRoute(
       c.var.ppk.projectDb,
       params.po_id,
       body.config,
+      body.expectedLastUpdated,
+      body.overwrite,
     );
     if (res.success === false) {
       return c.json(res);

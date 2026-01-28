@@ -6,10 +6,12 @@
 import { measureChartOV } from "./_internal/measure_chartov.ts";
 import { renderChartOV } from "./_internal/render_chartov.ts";
 import {
+  calculateMinSubChartHeight,
+  calculatePaneGrid,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   estimateMinYAxisWidth,
-  findOptimalScale,
+  findOptimalScaleForBounds,
   type HeightConstraints,
   measureSurrounds,
   RectCoordsDims,
@@ -32,6 +34,12 @@ function getMinComfortableWidth(
   const transformedData = getChartOVDataTransformed(
     item.chartData,
     mergedStyle.content.bars.stacking === "stacked",
+  );
+
+  // Calculate pane grid
+  const { nGCols } = calculatePaneGrid(
+    transformedData.paneHeaders.length,
+    mergedStyle.panes.nCols,
   );
 
   const textStyle = mergedStyle.xTextAxis.text.xTextAxisTickLabels;
@@ -61,9 +69,11 @@ function getMinComfortableWidth(
     ? nIndicators * minIndicatorAreaWidth
     : nIndicators * minIndicatorAreaWidth + gridStrokeWidth * (nIndicators + 1);
 
-  // Calculate minimum x-axis width (all lanes + padding + gaps)
-  const minXAxisWidth = nLanes * minSubChartWidth +
-    sx.lanePaddingLeft + sx.lanePaddingRight + (nLanes - 1) * sx.laneGapX;
+  // Total width = subcharts × lanes × pane columns + all gaps + y-axis + surrounds
+  const totalSubChartsWidth = minSubChartWidth * nLanes * nGCols;
+  const laneGapsWidth = (nLanes - 1) * sx.laneGapX * nGCols;
+  const paneGapsWidth = (nGCols - 1) * mergedStyle.panes.gapX;
+  const lanePaddingWidth = (sx.lanePaddingLeft + sx.lanePaddingRight) * nGCols;
 
   // Calculate y-axis minimum width using shared helper
   const yAxisMinWidth = estimateMinYAxisWidth(
@@ -79,7 +89,75 @@ function getMinComfortableWidth(
     item.legendItemsOrLabels,
   );
 
-  return minXAxisWidth + yAxisMinWidth + surroundsMinWidth;
+  return totalSubChartsWidth + laneGapsWidth + paneGapsWidth + lanePaddingWidth + yAxisMinWidth + surroundsMinWidth;
+}
+
+function getIdealHeightAtScale(
+  rc: RenderContext,
+  width: number,
+  item: ChartOVInputs,
+  scale: number,
+): number {
+  const customFigureStyle = new CustomFigureStyle(item.style, scale);
+  const mergedStyle = customFigureStyle.getMergedChartOVStyle();
+  const transformedData = getChartOVDataTransformed(
+    item.chartData,
+    mergedStyle.content.bars.stacking === "stacked",
+  );
+
+  // Calculate pane grid
+  const { nGRows } = calculatePaneGrid(
+    transformedData.paneHeaders.length,
+    mergedStyle.panes.nCols,
+  );
+
+  // Minimum subchart height (2 tick labels + 2× spacing)
+  const minSubChartHeight = calculateMinSubChartHeight(rc, mergedStyle.yScaleAxis);
+
+  // Total plot height = subcharts × tiers × pane rows + all gaps
+  const nTiers = transformedData.yScaleAxisData.tierHeaders.length;
+  const totalSubChartsHeight = minSubChartHeight * nTiers * nGRows;
+  const tierGapsHeight = (nTiers - 1) * mergedStyle.yScaleAxis.tierGapY * nGRows;
+  const paneGapsHeight = (nGRows - 1) * mergedStyle.panes.gapY;
+  const tierPaddingHeight = (mergedStyle.yScaleAxis.tierPaddingTop + mergedStyle.yScaleAxis.tierPaddingBottom) * nGRows;
+
+  // Add surrounds
+  const dummyBounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
+  const mSurrounds = measureSurrounds(
+    rc,
+    dummyBounds,
+    customFigureStyle,
+    item.caption,
+    item.subCaption,
+    item.footnote,
+    item.legendItemsOrLabels,
+  );
+
+  return totalSubChartsHeight + tierGapsHeight + paneGapsHeight + tierPaddingHeight + mSurrounds.extraHeightDueToSurrounds;
+}
+
+function measureWithAutofit(
+  rc: RenderContext,
+  bounds: RectCoordsDims,
+  item: ChartOVInputs,
+  responsiveScale?: number,
+): MeasuredChartOV {
+  const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+
+  if (!autofitOpts) {
+    return measureChartOV(rc, bounds, item, responsiveScale);
+  }
+
+  // Find optimal scale for BOTH width and height
+  const optimalScale = findOptimalScaleForBounds(
+    bounds.w(),
+    bounds.h(),
+    autofitOpts,
+    (scale) => getMinComfortableWidth(rc, item, scale),
+    (scale) => getIdealHeightAtScale(rc, bounds.w(), item, scale),
+  );
+
+  return measureChartOV(rc, bounds, item, optimalScale);
 }
 
 export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
@@ -122,7 +200,7 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
     item: ChartOVInputs,
     responsiveScale?: number,
   ): MeasuredChartOV {
-    return measureChartOV(rc, bounds, item, responsiveScale);
+    return measureWithAutofit(rc, bounds, item, responsiveScale);
   },
 
   //////////////////////////////////////////////////////////////////
@@ -148,7 +226,7 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
     item: ChartOVInputs,
     responsiveScale?: number,
   ): void {
-    const measured = measureChartOV(rc, bounds, item, responsiveScale);
+    const measured = measureWithAutofit(rc, bounds, item, responsiveScale);
     renderChartOV(rc, measured);
   },
 
@@ -172,22 +250,15 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
     rc: RenderContext,
     width: number,
     item: ChartOVInputs,
-    responsiveScale?: number,
+    _responsiveScale?: number,
   ): HeightConstraints {
-    const customFigureStyle = new CustomFigureStyle(
-      item.style,
-      responsiveScale,
-    );
-    const idealAspectRatio = customFigureStyle.getIdealAspectRatio();
-    let idealH: number;
-    if (idealAspectRatio === "video") {
-      idealH = (width * 9) / 16;
-    } else if (idealAspectRatio === "square") {
-      idealH = width;
-    } else {
-      idealH = (width * 9) / 16;
-    }
-    // Calculate minH = surrounds + minimum plot area
+    const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+
+    // Calculate idealH at scale 1.0
+    const idealH = getIdealHeightAtScale(rc, width, item, 1.0);
+
+    // Calculate minH = surrounds + minimum plot area at scale 1.0
+    const customFigureStyle = new CustomFigureStyle(item.style, 1.0);
     const dummyBounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
     const mSurrounds = measureSurrounds(
       rc,
@@ -198,20 +269,20 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
       item.footnote,
       item.legendItemsOrLabels,
     );
-    const minH = mSurrounds.extraHeightDueToSurrounds + MIN_PLOT_AREA_HEIGHT;
+    const minHAtScale1 = mSurrounds.extraHeightDueToSurrounds + MIN_PLOT_AREA_HEIGHT;
 
-    // Only calculate scaling if autofit is enabled
-    const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+    // Width-based scaling for optimizer scoring
+    const minComfortableWidth = getMinComfortableWidth(rc, item, 1.0);
+    const neededScalingToFitWidth =
+      width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
+
     if (!autofitOpts) {
-      return { minH, idealH, maxH: Infinity, neededScalingToFitWidth: "none" };
+      // No autofit - return heights at scale 1.0
+      return { minH: minHAtScale1, idealH, maxH: Infinity, neededScalingToFitWidth };
     }
 
-    // Binary search for optimal scale using actual measurements
-    const neededScalingToFitWidth = findOptimalScale(
-      width,
-      autofitOpts,
-      (scale) => getMinComfortableWidth(rc, item, scale),
-    );
+    // With autofit - minH is height at minimum scale
+    const minH = getIdealHeightAtScale(rc, width, item, autofitOpts.minScale);
 
     return { minH, idealH, maxH: Infinity, neededScalingToFitWidth };
   },

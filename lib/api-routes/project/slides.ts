@@ -42,7 +42,11 @@ export const slideRouteRegistry = {
     path: "/slides/slide/:slide_id",
     method: "PUT",
     params: {} as { slide_id: string },
-    body: {} as { slide: Slide },
+    body: {} as {
+      slide: Slide;
+      expectedLastUpdated?: string;
+      overwrite?: boolean;
+    },
     response: {} as {
       lastUpdated: string;
     },

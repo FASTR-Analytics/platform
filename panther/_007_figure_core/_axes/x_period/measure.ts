@@ -9,7 +9,10 @@ import type {
   RenderContext,
 } from "../../deps.ts";
 import type { YScaleAxisWidthInfo } from "../../types.ts";
-import { getPeriodAxisInfo } from "./helpers.ts";
+import {
+  calculateYearSkipInterval,
+  getPeriodAxisInfo,
+} from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
 
 // NOTE: This function depends on TimeseriesDataTransformed from _010_timeseries
@@ -51,6 +54,19 @@ export function measureXPeriodAxis(
     s.xPeriodAxis.showEveryNthTick,
   );
 
+  const autoCalculatedSkipInterval = calculateYearSkipInterval(
+    rc,
+    periodType,
+    periodAxisType,
+    periodIncrementWidth,
+    s,
+  );
+
+  const yearSkipInterval = Math.max(
+    s.xPeriodAxis.showEveryNthTick,
+    autoCalculatedSkipInterval,
+  );
+
   const heightIncludingXAxisStrokeWidth = s.grid.axisStrokeWidth + maxTickH;
 
   const xAxisRcd = contentRcd.getAdjusted((prev) => ({
@@ -71,5 +87,6 @@ export function measureXPeriodAxis(
     periodAxisType,
     periodAxisSmallTickH,
     fourDigitYearW,
+    yearSkipInterval,
   };
 }

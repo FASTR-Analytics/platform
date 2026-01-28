@@ -8,7 +8,7 @@ import { renderTable } from "./_internal/render_table.ts";
 import {
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  findOptimalScale,
+  findOptimalScaleForBounds,
   type HeightConstraints,
   RectCoordsDims,
   type RenderContext,
@@ -120,6 +120,41 @@ function getMinComfortableWidth(
   );
 }
 
+function getIdealHeightAtScale(
+  rc: RenderContext,
+  width: number,
+  item: TableInputs,
+  scale: number,
+): number {
+  const dummyRcd = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
+  const mTable = measureTable(rc, dummyRcd, item, scale);
+  return mTable.measuredInfo!.finalContentH + mTable.extraHeightDueToSurrounds!;
+}
+
+function measureWithAutofit(
+  rc: RenderContext,
+  bounds: RectCoordsDims,
+  item: TableInputs,
+  responsiveScale?: number,
+): MeasuredTable {
+  const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+
+  if (!autofitOpts) {
+    return measureTable(rc, bounds, item, responsiveScale);
+  }
+
+  // Find optimal scale for BOTH width and height
+  const optimalScale = findOptimalScaleForBounds(
+    bounds.w(),
+    bounds.h(),
+    autofitOpts,
+    (scale) => getMinComfortableWidth(rc, item, scale),
+    (scale) => getIdealHeightAtScale(rc, bounds.w(), item, scale),
+  );
+
+  return measureTable(rc, bounds, item, optimalScale);
+}
+
 export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
   ////////////////////////////////////////////////////////////////////////////////////////////////////
   //  ________                                                                                  __  //
@@ -160,7 +195,7 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     item: TableInputs,
     responsiveScale?: number,
   ): MeasuredTable {
-    return measureTable(rc, bounds, item, responsiveScale);
+    return measureWithAutofit(rc, bounds, item, responsiveScale);
   },
 
   //////////////////////////////////////////////////////////////////
@@ -186,7 +221,7 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     item: TableInputs,
     responsiveScale?: number,
   ): void {
-    const measured = measureTable(rc, bounds, item, responsiveScale);
+    const measured = measureWithAutofit(rc, bounds, item, responsiveScale);
     renderTable(rc, measured);
   },
 
@@ -210,35 +245,32 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     rc: RenderContext,
     width: number,
     item: TableInputs,
-    responsiveScale?: number,
+    _responsiveScale?: number,
   ): HeightConstraints {
+    const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+
+    // Calculate idealH at scale 1.0
+    const idealH = getIdealHeightAtScale(rc, width, item, 1.0);
+
+    // Calculate minH
     const dummyRcd = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
-    const mTable: MeasuredTable = measureTable(
-      rc,
-      dummyRcd,
-      item,
-      responsiveScale,
-    );
-    const idealH = mTable.measuredInfo!.finalContentH +
-      mTable.extraHeightDueToSurrounds!;
-    // minH = surrounds + column headers (no data rows)
-    // Use unadjusted firstCellY to avoid flex padding inflation from dummy h:9999 bounds
+    const mTable = measureTable(rc, dummyRcd, item, 1.0);
     const headersHeight = mTable.measuredInfo!.firstCellYUnadjusted -
       mTable.measuredInfo!.contentRcd.y();
-    const minH = mTable.extraHeightDueToSurrounds! + headersHeight;
+    const minHAtScale1 = mTable.extraHeightDueToSurrounds! + headersHeight;
 
-    // Only calculate scaling if autofit is enabled
-    const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+    // Width-based scaling for optimizer scoring
+    const minComfortableWidth = getMinComfortableWidth(rc, item, 1.0);
+    const neededScalingToFitWidth =
+      width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
+
     if (!autofitOpts) {
-      return { minH, idealH, maxH: Infinity, neededScalingToFitWidth: "none" };
+      // No autofit - return heights at scale 1.0
+      return { minH: minHAtScale1, idealH, maxH: Infinity, neededScalingToFitWidth };
     }
 
-    // Binary search for optimal scale using actual measurements
-    const neededScalingToFitWidth = findOptimalScale(
-      width,
-      autofitOpts,
-      (scale) => getMinComfortableWidth(rc, item, scale),
-    );
+    // With autofit - minH is height at minimum scale
+    const minH = getIdealHeightAtScale(rc, width, item, autofitOpts.minScale);
 
     return { minH, idealH, maxH: Infinity, neededScalingToFitWidth };
   },

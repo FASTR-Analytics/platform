@@ -1,5 +1,5 @@
 import { createItemNode, type PageInputs, type PageContentItem, type ItemLayoutNode } from "panther";
-import { MAX_CONTENT_BLOCKS, type AiContentBlockInput, type AiContentSlideInput, type MetricWithStatus } from "lib";
+import { FIGURE_AUTOFIT, MAX_CONTENT_BLOCKS, MARKDOWN_AUTOFIT, type AiContentBlockInput, type AiContentSlideInput, type MetricWithStatus } from "lib";
 import { getMetricStaticData } from "lib";
 import { slideDeckStyle } from "../project_ai_slide_deck/utils/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "../project_ai_slide_deck/utils/resolve_figure_from_metric";
@@ -56,7 +56,7 @@ async function resolveBlockToPageContentItem(
   if (block.type === "text") {
     return {
       markdown: block.markdown,
-      autofit: { minScale: 0, maxScale: 1 },
+      autofit: MARKDOWN_AUTOFIT,
       style: {
         text: {
           base: { fontSize: 60 },
@@ -70,9 +70,9 @@ async function resolveBlockToPageContentItem(
     if (figureBlock.source?.type === "from_data") {
       const { formatAs } = getMetricStaticData(figureBlock.source.metricId);
       const style = getStyleFromPresentationObject(figureBlock.source.config, formatAs);
-      return { ...figureBlock.figureInputs, style };
+      return { ...figureBlock.figureInputs, autofit: FIGURE_AUTOFIT, style };
     }
-    return figureBlock.figureInputs;
+    return { ...figureBlock.figureInputs, autofit: FIGURE_AUTOFIT };
   }
 
   if (block.type === "from_metric") {
@@ -80,9 +80,9 @@ async function resolveBlockToPageContentItem(
     if (figureBlock.source?.type === "from_data") {
       const { formatAs } = getMetricStaticData(figureBlock.source.metricId);
       const style = getStyleFromPresentationObject(figureBlock.source.config, formatAs);
-      return { ...figureBlock.figureInputs, style };
+      return { ...figureBlock.figureInputs, autofit: FIGURE_AUTOFIT, style };
     }
-    return figureBlock.figureInputs;
+    return { ...figureBlock.figureInputs, autofit: FIGURE_AUTOFIT };
   }
 
   // if (block.type === "custom") {

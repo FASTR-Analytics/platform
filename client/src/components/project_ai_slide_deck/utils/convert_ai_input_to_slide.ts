@@ -13,6 +13,7 @@ import type {
   AiSlideInput,
   MetricWithStatus,
 } from "lib";
+import { FIGURE_AUTOFIT, MARKDOWN_AUTOFIT } from "lib";
 import { slideDeckStyle } from "./convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
@@ -79,11 +80,11 @@ export async function convertAiInputToSlide(
   const itemNodes = resolvedBlocks.map((block) => {
     let pageItem: PageContentItem;
     if (block.type === "text") {
-      pageItem = { markdown: block.markdown, autofit: { minScale: 0, maxScale: 1 } };
+      pageItem = { markdown: block.markdown, autofit: MARKDOWN_AUTOFIT };
     } else if (block.type === "placeholder") {
       pageItem = { spacer: true };
     } else {
-      pageItem = block.figureInputs;
+      pageItem = { ...block.figureInputs, autofit: FIGURE_AUTOFIT };
     }
 
     const node = createItemNode(pageItem);

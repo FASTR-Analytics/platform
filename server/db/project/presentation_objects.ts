@@ -267,7 +267,9 @@ WHERE id = ${presentationObjectId}
 export async function updatePresentationObjectConfig(
   projectDb: Sql,
   presentationObjectId: string,
-  config: PresentationObjectConfig
+  config: PresentationObjectConfig,
+  expectedLastUpdated: string | undefined,
+  overwrite: boolean | undefined
 ): Promise<
   APIResponseWithData<{
     lastUpdated: string;
@@ -276,8 +278,8 @@ export async function updatePresentationObjectConfig(
 > {
   return await tryCatchDatabaseAsync(async () => {
     const rawPresObj = (
-      await projectDb<{ is_default_visualization: boolean }[]>`
-SELECT is_default_visualization FROM presentation_objects WHERE id = ${presentationObjectId}
+      await projectDb<{ is_default_visualization: boolean; last_updated: string }[]>`
+SELECT is_default_visualization, last_updated FROM presentation_objects WHERE id = ${presentationObjectId}
 `
     ).at(0);
     if (rawPresObj === undefined) {
@@ -292,6 +294,19 @@ SELECT is_default_visualization FROM presentation_objects WHERE id = ${presentat
         err: "You cannot update a default visualization",
       };
     }
+
+    // Check for conflict (unless user explicitly chose to overwrite)
+    if (expectedLastUpdated && !overwrite && rawPresObj.last_updated !== expectedLastUpdated) {
+      return {
+        success: false,
+        err: "CONFLICT",
+        data: {
+          message: "This visualization was modified by another user.",
+          currentLastUpdated: rawPresObj.last_updated,
+        },
+      };
+    }
+
     const lastUpdated = new Date().toISOString();
     const reportItemsThatDependOnPresentationObjects =
       await getReportItemsThatDependOnPresentationObjects(projectDb, [

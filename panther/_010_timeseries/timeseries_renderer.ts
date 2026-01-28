@@ -6,15 +6,20 @@
 import { measureTimeseries } from "./_internal/measure_timeseries.ts";
 import { renderTimeseries } from "./_internal/render_timeseries.ts";
 import {
+  calculateMinSubChartHeight,
+  calculatePaneGrid,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   estimateMinYAxisWidth,
+  findOptimalScaleForBounds,
   type HeightConstraints,
   measureSurrounds,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
+  resolveFigureAutofitOptions,
 } from "./deps.ts";
+import { getTimeseriesDataTransformed } from "./get_timeseries_data.ts";
 import type { MeasuredTimeseries, TimeseriesInputs } from "./types.ts";
 
 const MIN_PLOT_AREA_HEIGHT = 50;
@@ -27,6 +32,28 @@ function getMinComfortableWidth(
 ): number {
   const customFigureStyle = new CustomFigureStyle(item.style, responsiveScale);
   const mergedStyle = customFigureStyle.getMergedTimeseriesStyle();
+  const transformedData = getTimeseriesDataTransformed(
+    item.timeseriesData,
+    mergedStyle.content.bars.stacking === "stacked",
+  );
+
+  // Calculate pane grid
+  const { nGCols } = calculatePaneGrid(
+    transformedData.paneHeaders.length,
+    mergedStyle.panes.nCols,
+  );
+
+  const nLanes = transformedData.laneHeaders.length;
+  const sx = mergedStyle.xPeriodAxis;
+
+  // Minimum plot area width per subchart (time axis is adaptive)
+  const minSubChartWidth = MIN_PLOT_AREA_WIDTH;
+
+  // Total width = subcharts × lanes × pane columns + all gaps + y-axis + surrounds
+  const totalSubChartsWidth = minSubChartWidth * nLanes * nGCols;
+  const laneGapsWidth = (nLanes - 1) * sx.laneGapX * nGCols;
+  const paneGapsWidth = (nGCols - 1) * mergedStyle.panes.gapX;
+  const lanePaddingWidth = (sx.lanePaddingLeft + sx.lanePaddingRight) * nGCols;
 
   // Y-axis needs space for tick labels using shared helper
   const yAxisWidth = estimateMinYAxisWidth(
@@ -42,8 +69,75 @@ function getMinComfortableWidth(
     item.legendItemsOrLabels,
   );
 
-  // Minimum plot area width (even with adapted labels, need some space for data)
-  return yAxisWidth + surroundsMinWidth + MIN_PLOT_AREA_WIDTH;
+  return totalSubChartsWidth + laneGapsWidth + paneGapsWidth + lanePaddingWidth + yAxisWidth + surroundsMinWidth;
+}
+
+function getIdealHeightAtScale(
+  rc: RenderContext,
+  width: number,
+  item: TimeseriesInputs,
+  scale: number,
+): number {
+  const customFigureStyle = new CustomFigureStyle(item.style, scale);
+  const mergedStyle = customFigureStyle.getMergedTimeseriesStyle();
+  const transformedData = getTimeseriesDataTransformed(
+    item.timeseriesData,
+    mergedStyle.content.bars.stacking === "stacked",
+  );
+
+  // Calculate pane grid
+  const { nGRows } = calculatePaneGrid(
+    transformedData.paneHeaders.length,
+    mergedStyle.panes.nCols,
+  );
+
+  // Minimum subchart height (2 tick labels + 2× spacing)
+  const minSubChartHeight = calculateMinSubChartHeight(rc, mergedStyle.yScaleAxis);
+
+  // Total plot height = subcharts × tiers × pane rows + all gaps
+  const nTiers = transformedData.yScaleAxisData.tierHeaders.length;
+  const totalSubChartsHeight = minSubChartHeight * nTiers * nGRows;
+  const tierGapsHeight = (nTiers - 1) * mergedStyle.yScaleAxis.tierGapY * nGRows;
+  const paneGapsHeight = (nGRows - 1) * mergedStyle.panes.gapY;
+  const tierPaddingHeight = (mergedStyle.yScaleAxis.tierPaddingTop + mergedStyle.yScaleAxis.tierPaddingBottom) * nGRows;
+
+  // Add surrounds
+  const dummyBounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
+  const mSurrounds = measureSurrounds(
+    rc,
+    dummyBounds,
+    customFigureStyle,
+    item.caption,
+    item.subCaption,
+    item.footnote,
+    item.legendItemsOrLabels,
+  );
+
+  return totalSubChartsHeight + tierGapsHeight + paneGapsHeight + tierPaddingHeight + mSurrounds.extraHeightDueToSurrounds;
+}
+
+function measureWithAutofit(
+  rc: RenderContext,
+  bounds: RectCoordsDims,
+  item: TimeseriesInputs,
+  responsiveScale?: number,
+): MeasuredTimeseries {
+  const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+
+  if (!autofitOpts) {
+    return measureTimeseries(rc, bounds, item, responsiveScale);
+  }
+
+  // Find optimal scale for BOTH width and height
+  const optimalScale = findOptimalScaleForBounds(
+    bounds.w(),
+    bounds.h(),
+    autofitOpts,
+    (scale) => getMinComfortableWidth(rc, item, scale),
+    (scale) => getIdealHeightAtScale(rc, bounds.w(), item, scale),
+  );
+
+  return measureTimeseries(rc, bounds, item, optimalScale);
 }
 
 export const TimeseriesRenderer: Renderer<
@@ -89,7 +183,7 @@ export const TimeseriesRenderer: Renderer<
     item: TimeseriesInputs,
     responsiveScale?: number,
   ): MeasuredTimeseries {
-    return measureTimeseries(rc, bounds, item, responsiveScale);
+    return measureWithAutofit(rc, bounds, item, responsiveScale);
   },
 
   //////////////////////////////////////////////////////////////////
@@ -115,7 +209,7 @@ export const TimeseriesRenderer: Renderer<
     item: TimeseriesInputs,
     responsiveScale?: number,
   ): void {
-    const measured = measureTimeseries(rc, bounds, item, responsiveScale);
+    const measured = measureWithAutofit(rc, bounds, item, responsiveScale);
     renderTimeseries(rc, measured);
   },
 
@@ -139,22 +233,15 @@ export const TimeseriesRenderer: Renderer<
     rc: RenderContext,
     width: number,
     item: TimeseriesInputs,
-    responsiveScale?: number,
+    _responsiveScale?: number,
   ): HeightConstraints {
-    const customFigureStyle = new CustomFigureStyle(
-      item.style,
-      responsiveScale,
-    );
-    const idealAspectRatio = customFigureStyle.getIdealAspectRatio();
-    let idealH: number;
-    if (idealAspectRatio === "video") {
-      idealH = (width * 9) / 16;
-    } else if (idealAspectRatio === "square") {
-      idealH = width;
-    } else {
-      idealH = (width * 9) / 16;
-    }
-    // Calculate minH = surrounds + minimum plot area
+    const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+
+    // Calculate idealH at scale 1.0
+    const idealH = getIdealHeightAtScale(rc, width, item, 1.0);
+
+    // Calculate minH = surrounds + minimum plot area at scale 1.0
+    const customFigureStyle = new CustomFigureStyle(item.style, 1.0);
     const dummyBounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
     const mSurrounds = measureSurrounds(
       rc,
@@ -165,14 +252,22 @@ export const TimeseriesRenderer: Renderer<
       item.footnote,
       item.legendItemsOrLabels,
     );
-    const minH = mSurrounds.extraHeightDueToSurrounds + MIN_PLOT_AREA_HEIGHT;
+    const minHAtScale1 = mSurrounds.extraHeightDueToSurrounds + MIN_PLOT_AREA_HEIGHT;
 
-    // DEBUG: Log width vs height calculations
-    // console.log(`[TIMESERIES getIdealHeight] width=${width.toFixed(0)}, idealH=${idealH.toFixed(0)}, minH=${minH.toFixed(0)}, surrounds=${mSurrounds.extraHeightDueToSurrounds.toFixed(0)}`);
+    // Width-based scaling for optimizer scoring
+    const minComfortableWidth = getMinComfortableWidth(rc, item, 1.0);
+    const neededScalingToFitWidth =
+      width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
 
-    // Timeseries has adaptive label formatting (Jan → J → tick-only → year-only)
-    // so width scaling doesn't apply - it handles narrow widths internally
-    return { minH, idealH, maxH: Infinity, neededScalingToFitWidth: "none" };
+    if (!autofitOpts) {
+      // No autofit - return heights at scale 1.0
+      return { minH: minHAtScale1, idealH, maxH: Infinity, neededScalingToFitWidth };
+    }
+
+    // With autofit - minH is height at minimum scale
+    const minH = getIdealHeightAtScale(rc, width, item, autofitOpts.minScale);
+
+    return { minH, idealH, maxH: Infinity, neededScalingToFitWidth };
   },
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
   //   ______    ______   __     __                                                            __      //

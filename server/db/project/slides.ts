@@ -154,21 +154,35 @@ export async function createSlide(
 export async function updateSlide(
   projectDb: Sql,
   slideId: string,
-  slide: Slide
+  slide: Slide,
+  expectedLastUpdated: string | undefined,
+  overwrite: boolean | undefined
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const lastUpdated = new Date().toISOString();
-
-    // Get slide_deck_id for updating report timestamp
+    // Get slide_deck_id and last_updated for conflict check
     const existingSlide = (
-      await projectDb<{ slide_deck_id: string }[]>`
-        SELECT slide_deck_id FROM slides WHERE id = ${slideId}
+      await projectDb<{ slide_deck_id: string; last_updated: string }[]>`
+        SELECT slide_deck_id, last_updated FROM slides WHERE id = ${slideId}
       `
     ).at(0);
 
     if (!existingSlide) {
       throw new Error("Slide not found");
     }
+
+    // Check for conflict (unless user explicitly chose to overwrite)
+    if (expectedLastUpdated && !overwrite && existingSlide.last_updated !== expectedLastUpdated) {
+      return {
+        success: false,
+        err: "CONFLICT",
+        data: {
+          message: "This slide was modified by another user.",
+          currentLastUpdated: existingSlide.last_updated,
+        },
+      };
+    }
+
+    const lastUpdated = new Date().toISOString();
 
     await projectDb.begin((sql) => [
       sql`

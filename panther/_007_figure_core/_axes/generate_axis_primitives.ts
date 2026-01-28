@@ -26,6 +26,7 @@ import {
   getSmallPeriodLabelIfAny,
   getYearDigits,
   isLargePeriod,
+  shouldShowYearBoundary,
 } from "./x_period/helpers.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -182,7 +183,7 @@ export function generateXPeriodAxisPrimitive(
     const time = timeMin + i_val;
     const period = getPeriodIdFromTime(time, periodType);
     const isLargeTick = mx.periodAxisType !== "year-centered" &&
-      (i_val === 0 || isLargePeriod(period, periodType));
+      (i_val === 0 || shouldShowYearBoundary(period, periodType, mx.yearSkipInterval));
 
     if (isLargeTick) {
       // Large tick (year boundary) - full height
@@ -218,7 +219,7 @@ export function generateXPeriodAxisPrimitive(
           });
         } else {
           // Year-centered: centered ticks
-          if (i_val % sx.showEveryNthTick === 0) {
+          if (i_val % mx.yearSkipInterval === 0) {
             const tickX = currentX + mx.periodIncrementWidth / 2;
             ticks.push({
               position: new Coordinates([tickX, tickY]),
@@ -260,16 +261,16 @@ export function generateXPeriodAxisPrimitive(
         }
       } else {
         // Year-centered: label every Nth
-        if (i_val % sx.showEveryNthTick === 0) {
+        if (i_val % mx.yearSkipInterval === 0) {
           const digits = getYearDigits(
-            mx.periodIncrementWidth * sx.showEveryNthTick,
+            mx.periodIncrementWidth * mx.yearSkipInterval,
             mx.fourDigitYearW,
           );
           const yearLabel = getLargePeriodLabel(period, digits);
           const mText = rc.mText(
             yearLabel,
             sx.text.xPeriodAxisTickLabels,
-            mx.periodIncrementWidth * sx.showEveryNthTick,
+            mx.periodIncrementWidth * mx.yearSkipInterval,
           );
           const labelPos = new Coordinates([
             currentX + mx.periodIncrementWidth / 2,

@@ -2,7 +2,7 @@ import type {
   Slide,
   ContentBlock,
 } from "lib";
-import { getMetricStaticData } from "lib";
+import { FIGURE_AUTOFIT, getMetricStaticData, MARKDOWN_AUTOFIT } from "lib";
 import type {
   APIResponseWithData,
   PageInputs,
@@ -108,7 +108,7 @@ function convertBlockToPageContentItem(block: ContentBlock): PageContentItem {
   if (block.type === "text") {
     return {
       markdown: block.markdown,
-      autofit: { minScale: 0, maxScale: 1 },
+      autofit: MARKDOWN_AUTOFIT,
       style: {
         text: {
           base: {
@@ -127,9 +127,9 @@ function convertBlockToPageContentItem(block: ContentBlock): PageContentItem {
   if (block.source?.type === "from_data") {
     const { formatAs } = getMetricStaticData(block.source.metricId);
     const style = getStyleFromPresentationObject(block.source.config, formatAs);
-    return { ...block.figureInputs, autofit: true, style };
+    return { ...block.figureInputs, autofit: FIGURE_AUTOFIT, style };
   }
 
   // No source or custom source - use figureInputs as-is
-  return block.figureInputs;
+  return { ...block.figureInputs, autofit: FIGURE_AUTOFIT };
 }

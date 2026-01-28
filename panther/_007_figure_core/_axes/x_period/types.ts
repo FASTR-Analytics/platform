@@ -22,4 +22,5 @@ export type XPeriodAxisMeasuredInfo = {
   periodAxisSmallTickH: number | "none";
   periodAxisType: PeriodAxisType;
   fourDigitYearW: number;
+  yearSkipInterval: number;
 };
