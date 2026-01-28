@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS results_objects (
 CREATE INDEX IF NOT EXISTS idx_results_objects_module_id ON results_objects(module_id);
 
 -- Create metrics table if it doesn't exist
+-- Note: New databases will have this table from base schema with results_object_id
+-- Old databases need this migration to create the table with table_routing (later converted by migration 008)
 CREATE TABLE IF NOT EXISTS metrics (
   id text PRIMARY KEY NOT NULL,
   module_id text NOT NULL,

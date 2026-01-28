@@ -82,6 +82,7 @@ CREATE TABLE metrics (
   id text PRIMARY KEY NOT NULL,
   module_id text NOT NULL,
   label text NOT NULL,
+  variant_label text,
   value_func text NOT NULL CHECK (value_func IN ('SUM', 'AVG', 'COUNT', 'MIN', 'MAX', 'identity')),
   format_as text NOT NULL CHECK (format_as IN ('percent', 'number')),
   value_props text NOT NULL,  -- JSON array of property names
@@ -101,6 +102,18 @@ CREATE INDEX idx_metrics_module_id ON metrics(module_id);
 -- VISUALIZATION AND PRESENTATION
 -- ============================================================================
 
+CREATE TABLE visualization_folders (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  color TEXT,
+  description TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  last_updated TEXT NOT NULL
+);
+
+CREATE INDEX idx_visualization_folders_sort_order ON visualization_folders(sort_order);
+CREATE INDEX idx_visualization_folders_last_updated ON visualization_folders(last_updated);
+
 CREATE TABLE presentation_objects (
   id text PRIMARY KEY NOT NULL,
   metric_id text NOT NULL,  -- No FK - preserved across module uninstall/reinstall
@@ -108,11 +121,15 @@ CREATE TABLE presentation_objects (
   label text NOT NULL,
   config text NOT NULL,
   last_updated text NOT NULL,
-  created_by_ai boolean DEFAULT FALSE
+  created_by_ai boolean DEFAULT FALSE,
+  folder_id TEXT REFERENCES visualization_folders(id) ON DELETE SET NULL,
+  sort_order INTEGER DEFAULT 0
 );
 
 CREATE INDEX idx_presentation_objects_metric_id ON presentation_objects(metric_id);
 CREATE INDEX idx_presentation_objects_last_updated ON presentation_objects(last_updated);
+CREATE INDEX idx_presentation_objects_folder_id ON presentation_objects(folder_id);
+CREATE INDEX idx_presentation_objects_sort_order ON presentation_objects(sort_order);
 
 -- ============================================================================
 -- REPORTING
