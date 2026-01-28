@@ -1,1 +1,1 @@
-DELETE table audit_logs;
+DROP table audit_logs;
