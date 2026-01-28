@@ -19,7 +19,6 @@
     "@std/fs": "jsr:@std/fs@^1.0.0",
     "@std/path": "jsr:@std/path@^1.0.0",
     "@std/streams": "jsr:@std/streams@^1.0.8",
-    "@stdlib/random-base-normal": "npm:@stdlib/random-base-normal@0.2.1",
     "@types/papaparse": "npm:@types/papaparse@^5.3.15",
     "csv": "jsr:@std/csv@1.0.3",
     "hono": "jsr:@hono/hono@^4.5.3",
