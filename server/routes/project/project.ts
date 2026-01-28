@@ -6,9 +6,11 @@ import {
   copyProject,
   deleteProject,
   getProjectDetail,
+  getProjectUserPermissions,
   removeDatasetFromProject,
   setProjectLockStatus,
   updateProject,
+  updateProjectUserPermissions,
   updateProjectUserRole,
 } from "../../db/mod.ts";
 import {
@@ -101,6 +103,37 @@ defineRoute(
     return c.json(res);
   }
 );
+
+defineRoute(
+  routesProject,
+  "updateProjectUserPermissions",
+  getGlobalAdmin,
+  log("updateProjectUserPermissions"),
+  async (c, { body }) => {
+    const res = await updateProjectUserPermissions(
+      c.var.mainDb,
+      body.projectId,
+      body.emails,
+      body.permissions
+    );
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesProject,
+  "getProjectUserPermissions",
+  getGlobalAdmin,
+  log("getProjectUserPermissions"),
+  async (c, { body }) => {
+    const res = await getProjectUserPermissions(
+      c.var.mainDb,
+      body.projectId,
+      body.email
+    );
+    return c.json(res);
+  }
+)
 
 defineRoute(
   routesProject,

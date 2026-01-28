@@ -1,0 +1,1 @@
+DELETE table audit_logs;

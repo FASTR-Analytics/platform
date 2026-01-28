@@ -14,6 +14,7 @@ import {
   type ModuleId,
   type ProjectUser,
   type ProjectUserRoleType,
+  type ProjectPermission,
   parseJsonOrThrow,
 } from "lib";
 import {
@@ -307,7 +308,7 @@ export async function setProjectLockStatus(
 //                     //
 /////////////////////////
 
-export async function updateProjectUserRole(
+export async function updateProjectUserRole( // delete this after implementing new permissions system
   mainDb: Sql,
   projectId: string,
   emails: string[],
@@ -345,6 +346,62 @@ export async function updateProjectUserRole(
     });
 
     return { success: true };
+  });
+}
+
+export async function updateProjectUserPermissions(
+  mainDb: Sql,
+  projectId: string,
+  emails: string[],
+  permissions: Record<ProjectPermission, boolean>
+) {
+  return await tryCatchDatabaseAsync(async () => {
+    for(const email of emails){
+      await mainDb`
+        UPDATE project_user_roles
+        SET ${mainDb(permissions, ...Object.keys(permissions))}
+        WHERE email = ${email}
+        AND project_id = ${projectId}
+      `;
+    }
+    return { success: true };
+  });
+}
+
+export async function getProjectUserPermissions(
+  mainDb: Sql,
+  projectId: string,
+  email: string
+): Promise<APIResponseWithData<{ permissions: Record<ProjectPermission, boolean> }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await mainDb<
+        Record<ProjectPermission, boolean>[]
+      >`SELECT
+        can_configure_settings,
+        can_create_backups,
+        can_restore_backups,
+        can_configure_modules,
+        can_run_modules,
+        can_configure_users,
+        can_configure_visulizations,
+        can_configure_reports,
+        can_configure_data,
+        can_view_data,
+        can_view_logs
+      FROM project_user_roles
+      WHERE email = ${email}
+      AND project_id = ${projectId}`
+    ).at(0);
+
+    if (!row) {
+      throw new Error("User does not have a role in this project");
+    }
+
+    return {
+      success: true,
+      data: { permissions: row },
+    };
   });
 }
 

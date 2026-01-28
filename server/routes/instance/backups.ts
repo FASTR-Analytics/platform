@@ -30,7 +30,6 @@ defineRoute(
   routesBackups,
   "getAllProjectsBackups",
   getGlobalNonAdmin,
-  getProjectEditor,
   log("getAllProjectBackups"),
   async (c) => {
     try {
@@ -82,7 +81,6 @@ defineRoute(
   routesBackups,
   "createBackupFile",
   getGlobalNonAdmin,
-  getProjectEditor,
   log("createBackupFile"),
   async (c) => {
     try{
@@ -161,7 +159,6 @@ defineRoute(
 defineRoute(
   routesBackups,
   "downloadBackupFile",
-  getProjectEditor,
   getGlobalNonAdmin,
   log("downloadBackupFile"),
   async (c) => {
@@ -249,7 +246,6 @@ defineRoute(
   routesBackups,
   "restoreBackup",
   getGlobalNonAdmin,
-  getProjectEditor,
   log("restoreBackup"),
   async (c) => {
     try {

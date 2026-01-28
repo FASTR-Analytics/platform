@@ -16,7 +16,7 @@ import type {
   DBUser,
 } from "./db/mod.ts";
 import { getPgConnectionFromCacheOrNew } from "./db/mod.ts";
-import type { GlobalUser, ProjectUser } from "lib";
+import type { GlobalUser, ProjectUser, ProjectPermission } from "lib";
 import { createDevGlobalUser, createDevProjectUser } from "lib";
 import { ProjectPk } from "./server_only_types/mod.ts";
 
@@ -109,6 +109,98 @@ export const getProjectViewer = createMiddleware<{
         authError: true,
       });
     }
+    const projectDb = getPgConnectionFromCacheOrNew(
+      res.projectId,
+      "READ_AND_WRITE"
+    );
+    const ppk: ProjectPk = {
+      projectDb,
+      projectId: res.projectId,
+    };
+    c.set("ppk", ppk);
+    c.set("projectUser", res.projectUser);
+    c.set("projectLabel", res.projectLabel);
+    await next();
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "SERVICE_UNAVAILABLE") {
+        c.status(503);
+        return c.json({
+          success: false,
+          err: "Service temporarily unavailable",
+        });
+      }
+      if (error.message.startsWith("Middleware error:")) {
+        c.status(403);
+        return c.json({
+          success: false,
+          err: error.message.replace("Middleware error: ", ""),
+          authError: true,
+        });
+      }
+    }
+    throw error;
+  }
+});
+
+export const requireProjectPermission = (checkLock: boolean = false,...perms: ProjectPermission[]) => createMiddleware<{
+  Variables: {
+    ppk: ProjectPk;
+    projectUser: ProjectUser;
+    projectLabel: string;
+  };
+}>(async (c: Context, next: any) => {
+  try{
+    // check if project roles entry exists for the user
+    const res = await getProjectUser(c);
+    if (res === "NOT_AUTHENTICATED") {
+      c.status(401);
+      return c.json({
+        success: false,
+        err: "Authentication required",
+        authError: true,
+      });
+    }
+    // check all permisions
+    for(const perm of perms){
+      if(!res.projectUser[perm]){
+        c.status(403);
+        return c.json({
+          success: false,
+          err: `User does not have ${perm} permissions for this project`,
+          authError: true,
+        });
+      }
+    }
+
+    if(checkLock){
+      // Check if project is locked
+      const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+      try {
+        const rawProjectResult = await mainDb<
+          { is_locked: boolean }[]
+        >`SELECT is_locked FROM projects WHERE id = ${res.projectId}`;
+        const rawProject = rawProjectResult.at(0);
+
+        if (!rawProject) {
+          c.status(404);
+          return c.json({ success: false, err: "Project not found" });
+        }
+
+        if (rawProject.is_locked) {
+          c.status(403);
+          return c.json({
+            success: false,
+            err: "This project is locked and cannot be edited",
+          });
+        }
+      } catch (dbError) {
+        console.error("Database error checking project lock:", dbError);
+        c.status(503);
+        return c.json({ success: false, err: "Service temporarily unavailable" });
+      }
+    }
+
     const projectDb = getPgConnectionFromCacheOrNew(
       res.projectId,
       "READ_AND_WRITE"

@@ -198,9 +198,34 @@ export type OtherUser = {
   isGlobalAdmin: boolean;
 };
 
+export type ProjectPermission = Extract<keyof ProjectUser,
+  | "can_configure_settings"
+  | "can_create_backups"
+  | "can_restore_backups"
+  | "can_configure_modules"
+  | "can_run_modules"
+  | "can_configure_users"
+  | "can_configure_visulizations"
+  | "can_configure_reports"
+  | "can_configure_data"
+  | "can_view_data"
+  | "can_view_logs"
+>;
+
 export type ProjectUser = {
   email: string;
-  role: ProjectUserRoleType;
+  role: ProjectUserRoleType; // delete after implementing new system
+  can_configure_settings: boolean;
+  can_create_backups: boolean;
+  can_restore_backups: boolean;
+  can_configure_modules: boolean;
+  can_run_modules: boolean;
+  can_configure_users: boolean;
+  can_configure_visulizations: boolean;
+  can_configure_reports: boolean;
+  can_configure_data: boolean;
+  can_view_data: boolean;
+  can_view_logs: boolean;
   isGlobalAdmin: boolean;
 };
 

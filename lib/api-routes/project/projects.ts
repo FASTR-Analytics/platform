@@ -1,4 +1,5 @@
 import { ProjectLog } from "../../../server/db/mod.ts";
+import { ProjectPermission } from "lib";
 import type {
   ProjectDetail,
   ProjectUserRoleType,
@@ -113,5 +114,24 @@ export const projectRouteRegistry = {
     method: "GET",
     response: {} as ProjectLog[],
     requiresProject: true,
+  }),
+
+  updateProjectUserPermissions: route({
+    path: "/update_project_user_permissions",
+    method: "POST",
+    body: {} as {
+      projectId: string;
+      emails: string[];
+      permissions: Record<ProjectPermission, boolean>;
+    },
+  }),
+
+  getProjectUserPermissions: route({
+    path: ("/get_project_user_permissions"),
+    method: "GET",
+    body: {} as {
+      projectId: string;
+      email: string;
+    }
   })
 } as const;
