@@ -23,9 +23,26 @@ routesAiProxy.post(
       "anthropic-version": "2023-06-01",
     };
 
-    // Add beta header for prompt caching if needed
+    // Build beta headers based on features used
+    const betaFeatures: string[] = [];
+
+    // Prompt caching
     if (stream || rest.system?.some?.((block: { cache_control?: unknown }) => block.cache_control)) {
-      headers["anthropic-beta"] = "prompt-caching-2024-07-31";
+      betaFeatures.push("prompt-caching-2024-07-31");
+    }
+
+    // Files API for documents
+    const hasDocuments = rest.messages?.some(
+      (m: { content?: unknown }) =>
+        Array.isArray(m.content) &&
+        m.content.some((c: { type?: string }) => c.type === "document")
+    );
+    if (hasDocuments) {
+      betaFeatures.push("files-api-2025-04-14");
+    }
+
+    if (betaFeatures.length > 0) {
+      headers["anthropic-beta"] = betaFeatures.join(",");
     }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {

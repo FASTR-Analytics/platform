@@ -18,6 +18,7 @@ import { WhiteboardCanvas } from "./whiteboard_canvas";
 import { loadWhiteboard, clearWhiteboard as clearWhiteboardStore } from "./whiteboard_store";
 import { SaveToDeckModal } from "./save_to_deck_modal";
 import { SaveToVisualizationModal } from "./save_to_visualization_modal";
+import { useAIDocuments, AIDocumentButton, AIDocumentList } from "../ai_documents";
 
 type SaveToDeckModalProps = {
   projectId: string;
@@ -48,6 +49,8 @@ export function ProjectWhiteboard(p: Props) {
   const [content, setContent] = createSignal<WhiteboardContent | null>(null);
   const [isLoading, setIsLoading] = createSignal(true);
 
+  const aiDocs = useAIDocuments({ projectId, conversationId });
+
   onMount(async () => {
     const saved = await loadWhiteboard(conversationId);
     if (saved?.input) {
@@ -75,6 +78,7 @@ export function ProjectWhiteboard(p: Props) {
         tools: tools() as AIChatConfig["tools"],
         conversationId,
         system: systemPrompt,
+        getDocumentRefs: aiDocs.getDocumentRefs,
       }}
     >
       <ProjectWhiteboardInner
@@ -85,6 +89,7 @@ export function ProjectWhiteboard(p: Props) {
         setContent={setContent}
         folders={p.projectDetail.visualizationFolders}
         metrics={p.projectDetail.metrics}
+        aiDocs={aiDocs}
       />
     </AIChatProvider>
   );
@@ -98,6 +103,7 @@ function ProjectWhiteboardInner(p: {
   setContent: (c: WhiteboardContent | null) => void;
   folders: VisualizationFolder[];
   metrics: MetricWithStatus[];
+  aiDocs: ReturnType<typeof useAIDocuments>;
 }) {
   const { clearConversation, isLoading: aiLoading } = createAIChat();
 
@@ -142,6 +148,12 @@ function ProjectWhiteboardInner(p: {
           <div class="flex items-center gap-2 border-b border-base-300 ui-pad">
             <div class="flex-1 font-700 text-lg">AI chat</div>
 
+            <AIDocumentButton
+              documents={p.aiDocs.documents()}
+              onOpenSelector={p.aiDocs.openSelector}
+              onRemoveDocument={p.aiDocs.removeDocument}
+            />
+
             <Button
               onClick={handleClear}
               disabled={aiLoading()}
@@ -152,6 +164,10 @@ function ProjectWhiteboardInner(p: {
               Clear chat
             </Button>
           </div>
+          <AIDocumentList
+            documents={p.aiDocs.documents()}
+            onRemove={p.aiDocs.removeDocument}
+          />
           <div class="w-full h-0 flex-1">
             <AIChat />
           </div>
