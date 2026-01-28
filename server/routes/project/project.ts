@@ -125,11 +125,11 @@ defineRoute(
   "getProjectUserPermissions",
   getGlobalAdmin,
   log("getProjectUserPermissions"),
-  async (c, { body }) => {
+  async (c, { params }) => {
     const res = await getProjectUserPermissions(
       c.var.mainDb,
-      body.projectId,
-      body.email
+      params.projectId,
+      params.email
     );
     return c.json(res);
   }
