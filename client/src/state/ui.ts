@@ -44,3 +44,14 @@ export const [showModules, setShowModules] = createSignal<string | undefined>(
 );
 
 export const [showAi, setShowAi] = createSignal<boolean>(false);
+
+const storedHideUnreadyViz = localStorage.getItem("hideUnreadyVisualizations") === "true";
+
+export const [hideUnreadyVisualizations, setHideUnreadyVisualizationsInternal] = createSignal<boolean>(
+  storedHideUnreadyViz
+);
+
+export function setHideUnreadyVisualizations(value: boolean) {
+  localStorage.setItem("hideUnreadyVisualizations", value.toString());
+  setHideUnreadyVisualizationsInternal(value);
+}

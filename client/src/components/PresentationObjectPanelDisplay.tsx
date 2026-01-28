@@ -12,9 +12,9 @@ import {
   t2,
   T,
 } from "lib";
-import { Button, FrameLeft, FrameLeftResizable, getColor, openComponent, Select, SelectList, showMenu, timActionDelete, type MenuItem, type SelectOption } from "panther";
+import { Button, Checkbox, FrameLeftResizable, getColor, openComponent, Select, SelectList, showMenu, timActionDelete, type MenuItem, type SelectOption } from "panther";
 import { createEffect, For, Show } from "solid-js";
-import { vizGroupingMode, setVizGroupingMode, vizSelectedGroup, setVizSelectedGroup } from "~/state/ui";
+import { vizGroupingMode, setVizGroupingMode, vizSelectedGroup, setVizSelectedGroup, hideUnreadyVisualizations, setHideUnreadyVisualizations } from "~/state/ui";
 import { serverActions } from "~/server_actions";
 import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
 import { EditFolderModal } from "./project/edit_folder_modal";
@@ -51,10 +51,21 @@ type Props = {
 
 export function PresentationObjectPanelDisplay(p: Props) {
 
+  const readyMetricIds = () => new Set(
+    p.projectDetail.metrics.filter(m => m.status === "ready").map(m => m.id)
+  );
+
   const filteredBySearch = () => {
-    if (p.searchText.length < 3) return p.projectDetail.visualizations;
+    let vizs = p.projectDetail.visualizations;
+
+    if (hideUnreadyVisualizations()) {
+      const ready = readyMetricIds();
+      vizs = vizs.filter(po => ready.has(po.metricId));
+    }
+
+    if (p.searchText.length < 3) return vizs;
     const searchLower = p.searchText.toLowerCase();
-    return p.projectDetail.visualizations.filter((po) =>
+    return vizs.filter((po) =>
       po.label.toLowerCase().includes(searchLower)
     );
   };
@@ -297,13 +308,17 @@ export function PresentationObjectPanelDisplay(p: Props) {
       minWidth={180}
       panelChildren={
         <div class="border-base-300 flex h-full w-full flex-col border-r">
-          <div class="border-base-300 border-b p-3">
+          <div class="border-base-300 border-b p-3 flex flex-col gap-2">
             <Select
               options={GROUPING_OPTIONS}
               value={vizGroupingMode()}
               onChange={(v) => setVizGroupingMode(v as VisualizationGroupingMode)}
-              // size="sm"
               fullWidth
+            />
+            <Checkbox
+              label="Hide unavailable"
+              checked={hideUnreadyVisualizations()}
+              onChange={setHideUnreadyVisualizations}
             />
           </div>
           <div class="flex-1 overflow-auto p-2">
@@ -361,6 +376,8 @@ type VisualizationGridProps = {
 };
 
 function VisualizationGrid(p: VisualizationGridProps) {
+  const metricLookup = () => createMetricLookup(p.metrics);
+
   async function handleDuplicate(po: PresentationObjectSummary) {
     await openComponent({
       element: DuplicateVisualization,
@@ -393,6 +410,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       po={po}
       folders={p.folders}
       metrics={p.metrics}
+      metricLookup={metricLookup()}
       onClick={() => p.onClick(po)}
       onDuplicate={() => handleDuplicate(po)}
       onDelete={() => handleDelete(po)}
@@ -469,6 +487,7 @@ type VisualizationCardProps = {
   po: PresentationObjectSummary;
   folders: VisualizationFolder[];
   metrics: MetricWithStatus[];
+  metricLookup: Map<string, MetricWithStatus>;
   onClick: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -530,6 +549,8 @@ function VisualizationCard(p: VisualizationCardProps) {
     showMenu({ x: e.clientX, y: e.clientY, items });
   }
 
+  const isReady = () => p.metricLookup.get(p.po.metricId)?.status === "ready";
+
   return (
     <div
       class="bg-base-100 cursor-pointer ring-offset-[6px] grid grid-rows-subgrid row-span-3 gap-y-1"
@@ -539,15 +560,24 @@ function VisualizationCard(p: VisualizationCardProps) {
       <div class="ui-gap-sm flex items-end pb-1">
         <div class="font-400 text-base-content text-xs italic">{p.po.label}</div>
       </div>
-      <div class="border-base-300 border hover:border-primary p-2 rounded">
-        <PresentationObjectMiniDisplay
-          projectId={p.projectId}
-          presentationObjectId={p.po.id}
-          moduleId={getModuleIdForMetric(p.po.metricId)}
-          shapeType={"force-aspect-video"}
-          scalePixelResolution={0.2}
-        />
-      </div>
+      <Show
+        when={isReady()}
+        fallback={
+          <div class="border-base-300 border p-2 rounded bg-base-200 aspect-video flex items-center justify-center">
+            <span class="text-neutral text-xs">Not available</span>
+          </div>
+        }
+      >
+        <div class="border-base-300 border hover:border-primary p-2 rounded">
+          <PresentationObjectMiniDisplay
+            projectId={p.projectId}
+            presentationObjectId={p.po.id}
+            moduleId={getModuleIdForMetric(p.po.metricId)}
+            shapeType={"force-aspect-video"}
+            scalePixelResolution={0.2}
+          />
+        </div>
+      </Show>
       <div class="ui-gap-sm flex items-start justify-end pt-1">
         <Show when={p.po.replicateBy && !p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">

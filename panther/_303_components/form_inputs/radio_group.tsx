@@ -15,6 +15,7 @@ type RadioGroupProps<T extends string> = {
   horizontal?: boolean;
   convertToSelectThreshold?: number;
   fullWidthForSelect?: boolean;
+  placeholderForSelect?: string;
 };
 
 export function RadioGroup<T extends string>(p: RadioGroupProps<T>) {
@@ -31,6 +32,7 @@ export function RadioGroup<T extends string>(p: RadioGroupProps<T>) {
           onChange={p.onChange}
           label={p.label}
           fullWidth={p.fullWidthForSelect}
+          placeholder={p.placeholderForSelect}
         />
       </Match>
       <Match when={!useSelect()}>

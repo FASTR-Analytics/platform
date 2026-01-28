@@ -26,9 +26,9 @@ type AddVisualizationProps = {
   projectId: string;
   isGlobalAdmin: boolean;
 } & (
-  | { preselectedMetric: MetricWithStatus }
-  | { metrics: MetricWithStatus[] }
-);
+    | { preselectedMetric: MetricWithStatus }
+    | { metrics: MetricWithStatus[] }
+  );
 
 export function AddVisualization(
   p: AlertComponentProps<AddVisualizationProps, CreateModeVisualizationData>,
@@ -157,6 +157,7 @@ export function AddVisualization(
           }}
           convertToSelectThreshold={6}
           fullWidthForSelect
+          placeholderForSelect="Choose a metric..."
         />
         <Show when={selectedGroup() && selectedGroup()!.variants.length > 1}>
           <RadioGroup

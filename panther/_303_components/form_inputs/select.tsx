@@ -37,6 +37,9 @@ function getSelectClasses(size?: "sm") {
 
     // Mono variant
     "data-[mono=true]:font-mono",
+
+    // Placeholder state (grey text when no value selected)
+    "data-[placeholder=true]:text-neutral",
   ].join(" ");
 }
 
@@ -46,6 +49,7 @@ type Props<T extends string> = {
   onChange: (v: string) => void;
   intent?: Intent;
   label?: string | JSX.Element;
+  placeholder?: string;
   fullWidth?: boolean;
   autoFocus?: boolean;
   invalidMsg?: string;
@@ -63,15 +67,19 @@ export function Select<T extends string>(p: Props<T>) {
       </Show>
       <div class="ui-form-text relative w-full">
         <select
-          ref={(el) =>
-            useAutoFocus(el, p.autoFocus)}
-          value={p.value}
-          onChange={(e) =>
-            p.onChange(e.currentTarget.value)}
+          ref={(el) => useAutoFocus(el, p.autoFocus)}
+          value={p.value ?? ""}
+          onChange={(e) => p.onChange(e.currentTarget.value)}
           class={getSelectClasses(p.size)}
           data-mono={p.mono}
+          data-placeholder={p.placeholder && !p.value}
           autofocus={p.autoFocus}
         >
+          <Show when={p.placeholder && !p.value}>
+            <option value="" disabled>
+              {p.placeholder}
+            </option>
+          </Show>
           <For each={p.options}>
             {(opt) => {
               return <option value={opt.value}>{opt.label}</option>;

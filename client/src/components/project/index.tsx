@@ -60,7 +60,7 @@ export default function Project(p: Props) {
 
   const navigate = useNavigate();
 
-  const [tab, setTab] = createSignal<TabOption>("reports");
+  const [tab, setTab] = createSignal<TabOption>("visualizations");
 
   // Create mode state for visualization editor
   const [createModeData, setCreateModeData] = createSignal<CreateModeVisualizationData | null>(null);
