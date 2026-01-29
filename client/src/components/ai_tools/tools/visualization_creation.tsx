@@ -10,7 +10,7 @@ export function getToolForVisualizationCreationWithCallback(
   return createAITool({
     name: "create_visualization_config",
     description:
-      "Create a visualization configuration that will open in the editor. Use this after understanding what the user wants to visualize.",
+      "Create a visualization configuration that will open in the editor. IMPORTANT: Before using this tool, you MUST first use get_metric to fetch the metric details and understand available disaggregations, value properties, and time periods. Only use dimensions that are available for the specific metric. For filters, use get_metric_data to see available values for each dimension. Empty filter values will cause errors.",
     inputSchema: AiCreateVisualizationInputSchema,
     handler: async (input: AiCreateVisualizationInput): Promise<string> => {
       const buildResult = buildConfigFromMetric(input, metrics);

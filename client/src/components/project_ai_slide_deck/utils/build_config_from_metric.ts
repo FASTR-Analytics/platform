@@ -96,7 +96,12 @@ export function buildConfigFromMetric(
       valuesFilter: input.metricQuery.valuesFilter,
       disaggregateBy: [],
       filterBy: configFilters,
-      periodFilter: input.metricQuery.periodFilter,
+      periodFilter: input.metricQuery.periodFilter ? {
+        filterType: "custom",
+        periodOption: input.metricQuery.periodFilter.periodOption,
+        min: input.metricQuery.periodFilter.min,
+        max: input.metricQuery.periodFilter.max,
+      } : undefined,
       selectedReplicantValue: undefined,
       includeNationalForAdminArea2: false,
       includeNationalPosition: "bottom",

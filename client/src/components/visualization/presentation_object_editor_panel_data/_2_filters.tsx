@@ -348,17 +348,15 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
       >
         {(keyedFilter) => {
           function toggleVal(val: string) {
+            const normalized = val.toLowerCase();
             p.setTempConfig(
               "d",
               "filterBy",
               (fil) => fil.disOpt === p.disOpt.value,
               "values",
               (prev) => {
-                const existingIndex = prev?.findIndex(
-                  v => v.toLowerCase() === val.toLowerCase()
-                );
-                if (existingIndex !== undefined && existingIndex >= 0) {
-                  return prev!.filter((_, i) => i !== existingIndex);
+                if (prev?.some(v => v.toLowerCase() === normalized)) {
+                  return prev.filter(v => v.toLowerCase() !== normalized);
                 }
                 return [...(prev ?? []), val];
               },
@@ -382,14 +380,13 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                   <div class="ui-gap-sm ui-pad border-base-300 flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
                     <For each={(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "ok" }>).values}>
                       {(opt) => {
-                        const isSelected = keyedFilter.values.some(
-                          v => v.toLowerCase() === opt.toLowerCase()
-                        );
                         return (
                           <div
                             class="ui-hoverable bg-base-200 data-[selected=true]:bg-success data-[selected=true]:text-base-100 rounded px-2 py-1"
                             onClick={() => toggleVal(opt)}
-                            data-selected={isSelected}
+                            data-selected={keyedFilter.values.some(
+                              v => v.toLowerCase() === opt.toLowerCase()
+                            )}
                           >
                             <span class="relative">
                               {keyedFilter.disOpt === "indicator_common_id"

@@ -2,7 +2,7 @@ import { getToolsForModules } from "./tools/modules";
 import { getToolsForMetrics } from "./tools/metrics";
 import { getToolsForSlides as getSlideTools } from "./tools/slides";
 import { getWhiteboardTools, type WhiteboardContent } from "./tools/whiteboard";
-import { getToolsForReadingVisualizations, getToolForVisualizationData, getToolForShowingVisualizations } from "./tools/visualization_reading";
+import { getToolsForReadingVisualizations, getToolForVisualizationData, } from "./tools/visualization_reading";
 // import { getToolsForWritingVisualizations } from "./tools/visualization_writing";
 import { getToolsForConfiguringVisualizations } from "./tools/visualization_config";
 import { getToolsForMethodologyDocs } from "./tools/methodology_docs";
@@ -82,13 +82,13 @@ export function getToolsForSlides(
 // Tools for the visualization pane AI (editing a single viz)
 export function getToolsForVizPane(
   projectId: string,
-  presentationObjectId: string,
+  getPresentationObjectId: () => string,
   getTempConfig: () => PresentationObjectConfig,
   setTempConfig: SetStoreFunction<PresentationObjectConfig>,
   getResultsValue: () => ResultsValue,
 ) {
   return [
-    getToolForVisualizationData(projectId, presentationObjectId),
-    ...getToolsForConfiguringVisualizations(getTempConfig, setTempConfig, getResultsValue),
+    ...getToolForVisualizationData(projectId, getPresentationObjectId, getTempConfig, getResultsValue),
+    ...getToolsForConfiguringVisualizations(getTempConfig, setTempConfig),
   ];
 }

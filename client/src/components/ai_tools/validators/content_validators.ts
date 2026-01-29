@@ -51,6 +51,18 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
         `Invalid disaggregation option(s): ${invalid.join(", ")}. Valid options are: ${ALL_DISAGGREGATION_OPTIONS.join(", ")}`
       );
     }
+
+    if (metric) {
+      const availableDims = metric.disaggregationOptions.map(opt => opt.value);
+      const unavailable = query.disaggregations.filter(
+        d => !availableDims.includes(d as any)
+      );
+      if (unavailable.length > 0) {
+        throw new Error(
+          `Disaggregation(s) not available for metric "${query.metricId}": ${unavailable.join(", ")}. Available dimensions: ${availableDims.join(", ")}`
+        );
+      }
+    }
   }
 
   if (query.filters) {
@@ -60,6 +72,25 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
     if (invalidCols.length > 0) {
       throw new Error(
         `Invalid filter column(s): ${invalidCols.map(f => f.col).join(", ")}. Valid columns are: ${ALL_DISAGGREGATION_OPTIONS.join(", ")}`
+      );
+    }
+
+    if (metric) {
+      const availableDims = metric.disaggregationOptions.map(opt => opt.value);
+      const unavailable = query.filters.filter(
+        f => !availableDims.includes(f.col as any)
+      );
+      if (unavailable.length > 0) {
+        throw new Error(
+          `Filter dimension(s) not available for metric "${query.metricId}": ${unavailable.map(f => f.col).join(", ")}. Available dimensions: ${availableDims.join(", ")}`
+        );
+      }
+    }
+
+    const emptyFilters = query.filters.filter(f => !f.vals || f.vals.length === 0);
+    if (emptyFilters.length > 0) {
+      throw new Error(
+        `Filter values cannot be empty for dimension(s): ${emptyFilters.map(f => f.col).join(", ")}. You must specify at least one value to filter by. Use get_metric_data to see available values.`
       );
     }
   }

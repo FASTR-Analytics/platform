@@ -188,16 +188,26 @@ export function buildWhereClause(
 ): string[] {
   const whereStatements: string[] = [];
 
-  // Add filter conditions (case-insensitive)
+  // Add filter conditions (case-insensitive for text, direct for integers)
+  const INTEGER_COLUMNS = new Set(["year", "month", "quarter_id", "period_id", "time_point"]);
+
   for (const filter of fetchConfig.filters) {
     if (filter.vals.length === 0) continue;
 
-    const quotedValues = filter.vals
-      .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
-      .join(", ");
-
     const columnName = columnPrefixes?.get(filter.col) || filter.col;
-    whereStatements.push(`UPPER(${columnName}) IN (${quotedValues})`);
+    const isIntegerColumn = INTEGER_COLUMNS.has(filter.col);
+
+    if (isIntegerColumn) {
+      // Direct comparison for integer columns
+      const values = filter.vals.map((v) => Number(v)).join(", ");
+      whereStatements.push(`${columnName} IN (${values})`);
+    } else {
+      // Case-insensitive comparison for text columns
+      const quotedValues = filter.vals
+        .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
+        .join(", ");
+      whereStatements.push(`UPPER(${columnName}) IN (${quotedValues})`);
+    }
   }
 
   // Add period bounds if specified

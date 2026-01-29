@@ -22,12 +22,14 @@ export const ToolErrorRenderer: Component<{
       <button
         type="button"
         onClick={() => setExpanded(!expanded())}
-        class="flex w-full cursor-pointer items-start gap-1 text-sm text-danger/80 hover:text-danger transition-colors"
+        class="hover:text-danger flex w-full cursor-pointer items-start gap-1 text-sm transition-colors"
       >
         <div class="mt-0.5">
-          {expanded()
-            ? <ChevronDownIcon class="size-4" />
-            : <ChevronRightIcon class="size-4" />}
+          {expanded() ? (
+            <ChevronDownIcon class="size-4" />
+          ) : (
+            <ChevronRightIcon class="size-4" />
+          )}
         </div>
         <span class="font-medium">{props.item.errorMessage}</span>
       </button>
@@ -35,16 +37,16 @@ export const ToolErrorRenderer: Component<{
       <Show when={expanded()}>
         <div class="ml-5 mt-1 space-y-2">
           <div>
-            <div class="text-xs font-medium text-danger/60 mb-1">Error:</div>
-            <div class="text-xs text-danger/80">{props.item.errorDetails}</div>
+            <div class="mb-1 text-xs font-medium">Error:</div>
+            <div class="text-xs">{props.item.errorDetails}</div>
           </div>
 
           <Show when={props.item.errorStack}>
-            <div class="pt-2 border-t border-danger/20">
-              <div class="text-xs font-medium text-danger/60 mb-1">
+            <div class="border-danger/20 border-t pt-2">
+              <div class="text-danger/60 mb-1 text-xs font-medium">
                 Stack trace:
               </div>
-              <pre class="font-mono text-[10px] text-danger/80 whitespace-pre-wrap bg-danger/5 rounded p-2 overflow-x-auto">
+              <pre class="text-danger/80 bg-danger/5 overflow-x-auto whitespace-pre-wrap rounded p-2 font-mono text-[10px]">
                 {props.item.errorStack}
               </pre>
             </div>

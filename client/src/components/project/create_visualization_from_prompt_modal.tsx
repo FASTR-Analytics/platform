@@ -34,11 +34,6 @@ export function CreateVisualizationFromPromptModal(p: Props) {
         class="ui-modal-content w-[700px] max-w-[90vw] h-[600px] max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div class="flex items-center justify-between border-b border-base-300 ui-pad">
-          <h2 class="text-lg font-700">{t("Create visualization with AI")}</h2>
-          <Button onClick={() => p.close(undefined)} iconName="x" size="sm" outline />
-        </div>
-
         <AIChatProvider
           config={{
             sdkClient,
@@ -63,7 +58,7 @@ function CreateVisualizationFromPromptInner(props: {
   result: CreateModeVisualizationData | null;
   onClose: (data: CreateModeVisualizationData | undefined) => void;
 }) {
-  const { isLoading } = createAIChat();
+  const { clearConversation, isLoading } = createAIChat();
 
   const handleResultReady = () => {
     if (props.result) {
@@ -72,7 +67,23 @@ function CreateVisualizationFromPromptInner(props: {
   };
 
   return (
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex flex-col h-full">
+      <div class="flex items-center justify-between border-b border-base-300 ui-pad">
+        <h2 class="text-lg font-700">{t("Create visualization with AI")}</h2>
+        <div class="flex items-center ui-gap-sm">
+          <Button
+            onClick={clearConversation}
+            disabled={isLoading()}
+            outline
+            iconName="trash"
+            size="sm"
+          >
+            {t("Clear chat")}
+          </Button>
+          <Button onClick={() => props.onClose(undefined)} iconName="x" size="sm" outline />
+        </div>
+      </div>
+
       <div class="flex-1 overflow-auto">
         <AIChat
           placeholder={t("Describe the visualization you want to create...")}

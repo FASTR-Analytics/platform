@@ -783,6 +783,11 @@ export function VisualizationEditorInner(p: InnerProps) {
                                         instanceDetail={p.instanceDetail}
                                         projectDetail={p.projectDetail}
                                         presentationObjectId={p.poDetail.id}
+                                        conversationId={
+                                          p.mode === "edit"
+                                            ? `viz-chat-${p.poDetail.id}`
+                                            : `viz-chat-${p.mode}-${p.poDetail.resultsValue.id}`
+                                        }
                                         figureInputs={figureInputs()}
                                         tempConfig={tempConfig}
                                         setTempConfig={setTempConfig}

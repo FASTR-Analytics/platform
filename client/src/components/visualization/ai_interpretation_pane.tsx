@@ -2,6 +2,8 @@ import { type InstanceDetail, PresentationObjectConfig, ProjectDetail, ResultsVa
 import {
   AIChat,
   AIChatProvider,
+  Button,
+  createAIChat,
   FigureInputs,
   StateHolder,
 } from "panther";
@@ -15,6 +17,7 @@ type Props = {
   instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   presentationObjectId: string;
+  conversationId: string;
   figureInputs: StateHolder<FigureInputs>;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
@@ -24,15 +27,15 @@ type Props = {
 export function AiInterpretationPane(p: Props) {
   const sdkClient = createProjectSDKClient(p.projectDetail.id);
 
-  const tools = createMemo(() =>
-    getToolsForVizPane(
+  const tools = createMemo(() => {
+    return getToolsForVizPane(
       p.projectDetail.id,
-      p.presentationObjectId,
+      () => p.presentationObjectId,
       () => p.tempConfig,
       p.setTempConfig,
       () => p.resultsValue
     )
-  );
+  });
 
   const systemPrompt = createMemo(() =>
     getVizChatSystemPrompt(p.instanceDetail, p.projectDetail, p.resultsValue)
@@ -44,18 +47,35 @@ export function AiInterpretationPane(p: Props) {
         sdkClient,
         modelConfig: VIZ_CHAT_MODEL_CONFIG,
         tools: tools(),
-        conversationId: `viz-chat-${p.presentationObjectId}`,
+        conversationId: p.conversationId,
         system: systemPrompt,
       }}
     >
-      <div class="flex h-full flex-col">
-        <div class="ui-pad border-b bg-base-200">
-          <h3 class="text-lg font-700">{t("AI Assistant")}</h3>
-        </div>
-        <div class="flex-1 overflow-hidden">
-          <AIChat placeholder={t("Ask about this visualization...")} />
-        </div>
-      </div>
+      <AiInterpretationPaneInner />
     </AIChatProvider>
+  );
+}
+
+function AiInterpretationPaneInner() {
+  const { clearConversation, isLoading } = createAIChat();
+
+  return (
+    <div class="flex h-full flex-col">
+      <div class="ui-pad border-b bg-base-200 flex items-center justify-between">
+        <h3 class="text-lg font-700">{t("AI Assistant")}</h3>
+        <Button
+          onClick={clearConversation}
+          disabled={isLoading()}
+          outline
+          iconName="trash"
+          size="sm"
+        >
+          {t("Clear chat")}
+        </Button>
+      </div>
+      <div class="flex-1 overflow-hidden">
+        <AIChat placeholder={t("Ask about this visualization...")} />
+      </div>
+    </div>
   );
 }
