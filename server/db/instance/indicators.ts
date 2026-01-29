@@ -501,6 +501,65 @@ export async function deleteAllIndicators(
   });
 }
 
+// Batch upload raw indicators from CSV file (ID and label only, no mappings)
+export async function batchUploadRawIndicators(
+  mainDb: Sql,
+  assetFileName: string,
+  replaceAllExisting = false,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    const filePath = join(_ASSETS_DIR_PATH, assetFileName);
+    let csvData: Record<string, string>[];
+    try {
+      csvData = (
+        await readCsvFile(filePath, {
+          rowHeaders: "none",
+        })
+      ).toObjects();
+    } catch (error) {
+      return {
+        success: false,
+        err: `Failed to read CSV file: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      };
+    }
+
+    const batchIndicators = csvData.map((row: Record<string, string>) => ({
+      raw_indicator_id: row.raw_indicator_id || "",
+      raw_indicator_label: row.raw_indicator_label || "",
+    }));
+
+    for (const batch of batchIndicators) {
+      if (!batch.raw_indicator_id || !batch.raw_indicator_label) {
+        return {
+          success: false,
+          err: "Each row must have raw_indicator_id and raw_indicator_label",
+        };
+      }
+    }
+
+    await mainDb.begin(async (sql) => {
+      if (replaceAllExisting) {
+        await sql`DELETE FROM indicators_raw`;
+      }
+
+      for (const batch of batchIndicators) {
+        await sql`
+          INSERT INTO indicators_raw (indicator_raw_id, indicator_raw_label, updated_at)
+          VALUES (${batch.raw_indicator_id}, ${batch.raw_indicator_label}, CURRENT_TIMESTAMP)
+          ON CONFLICT (indicator_raw_id)
+          DO UPDATE SET
+            indicator_raw_label = EXCLUDED.indicator_raw_label,
+            updated_at = CURRENT_TIMESTAMP
+        `;
+      }
+    });
+
+    return { success: true };
+  });
+}
+
 // Batch upload indicators from CSV file
 export async function batchUploadIndicators(
   mainDb: Sql,

@@ -1,6 +1,6 @@
 import { trackStore } from "@solid-primitives/deep";
-import type { Slide, CoverSlide, SectionSlide, ContentSlide } from "lib";
-import { getTextRenderingOptions } from "lib";
+import type { Slide, CoverSlide, SectionSlide, ContentSlide, InstanceDetail, ProjectDetail, FigureBlock } from "lib";
+import { getTextRenderingOptions, getMetricStaticData } from "lib";
 import {
   AlertComponentProps,
   Button,
@@ -22,6 +22,7 @@ import {
   addCol,
   deleteNodeWithCleanup,
   createItemNode,
+  openAlert,
 } from "panther";
 import type { DividerDragUpdate, LayoutNode } from "panther";
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
@@ -34,6 +35,9 @@ import { useOptimisticSetLastUpdated } from "../../project_runner/mod";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import type { ContentBlock } from "lib";
+import { VisualizationEditor } from "~/components/visualization";
+import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/po_cache";
+import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 
 function findFirstItem(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> & { type: "item" } | undefined {
   if (node.type === "item") return node;
@@ -69,12 +73,35 @@ function ensureExplicitSpans(node: LayoutNode<ContentBlock>): LayoutNode<Content
   return { ...node, children };
 }
 
+function updateBlockInLayout(
+  layout: LayoutNode<ContentBlock>,
+  targetId: string,
+  updater: (block: ContentBlock) => ContentBlock
+): LayoutNode<ContentBlock> {
+  if (layout.type === "item") {
+    if (layout.id === targetId) {
+      return { ...layout, data: updater(layout.data) };
+    }
+    return layout;
+  }
+
+  return {
+    ...layout,
+    children: layout.children.map(child =>
+      updateBlockInLayout(child as LayoutNode<ContentBlock>, targetId, updater)
+    ),
+  };
+}
+
 type SlideEditorInnerProps = {
   projectId: string;
   deckId: string;
   slideId: string;
   slide: Slide;
   lastUpdated: string;
+  instanceDetail: InstanceDetail;
+  projectDetail: ProjectDetail;
+  isGlobalAdmin: boolean;
 };
 
 type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
@@ -355,6 +382,134 @@ export function SlideEditor(p: Props) {
                       const found = findById(root, targetId);
                       const isOnlyNode = root.type === "item" && root.id === targetId;
                       const parentType = found?.parent?.type;
+
+                      // Get block data from target
+                      const blockData: ContentBlock | undefined = found?.node.type === "item"
+                        ? found.node.data
+                        : undefined;
+
+                      // Check if it's a figure block with data source
+                      const isFigureBlock = blockData?.type === "figure";
+                      const figureBlock = isFigureBlock ? (blockData as FigureBlock) : undefined;
+                      const hasDataSource = figureBlock?.source?.type === "from_data";
+
+                      // Edit visualization (only for figure blocks from data)
+                      if (hasDataSource && figureBlock && figureBlock.source?.type === "from_data") {
+                        const source = figureBlock.source;
+
+                        items.push({
+                          label: "Edit visualization",
+                          icon: "pencil",
+                          onClick: async () => {
+                            try {
+                              // Get metric metadata
+                              const metricStaticData = getMetricStaticData(source.metricId);
+                              const resultsValue = p.projectDetail.metrics.find(m => m.id === source.metricId);
+
+                              if (!resultsValue) {
+                                await openAlert({
+                                  text: "Metric not found in project",
+                                  intent: "danger",
+                                });
+                                return;
+                              }
+
+                              // Open visualization editor in ephemeral mode
+                              const result = await openEditor({
+                                element: VisualizationEditor,
+                                props: {
+                                  mode: "ephemeral" as const,
+                                  label: metricStaticData.label,
+                                  resultsValue: resultsValue,
+                                  config: source.config,
+                                  projectId: p.projectId,
+                                  instanceDetail: p.instanceDetail,
+                                  projectDetail: p.projectDetail,
+                                  isGlobalAdmin: p.isGlobalAdmin,
+                                },
+                              });
+
+                              // If user saved changes, update the figure block
+                              if (result?.updated) {
+                                const newConfig = result.updated.config;
+
+                                // Regenerate figure inputs with new config
+                                const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
+                                  p.projectId,
+                                  {
+                                    id: "",
+                                    projectId: p.projectId,
+                                    lastUpdated: "",
+                                    label: "Ephemeral",
+                                    resultsValue: resultsValue,
+                                    config: newConfig,
+                                    isDefault: false,
+                                    folderId: null,
+                                  },
+                                  newConfig,
+                                );
+
+                                if (newItemsRes.success === false || newItemsRes.data.ih.status !== "ok") {
+                                  await openAlert({
+                                    text: "Failed to regenerate visualization",
+                                    intent: "danger",
+                                  });
+                                  return;
+                                }
+
+                                const resultsValueForViz = {
+                                  formatAs: resultsValue.formatAs,
+                                  valueProps: resultsValue.valueProps,
+                                  valueLabelReplacements: resultsValue.valueLabelReplacements,
+                                };
+
+                                const newFigureInputs = getFigureInputsFromPresentationObject(
+                                  resultsValueForViz,
+                                  newItemsRes.data.ih,
+                                  newConfig,
+                                );
+
+                                if (newFigureInputs.status !== "ready") {
+                                  await openAlert({
+                                    text: "Failed to generate figure",
+                                    intent: "danger",
+                                  });
+                                  return;
+                                }
+
+                                // Update the block in the layout
+                                const updatedLayout = updateBlockInLayout(
+                                  tempSlide.layout,
+                                  targetId,
+                                  (block: ContentBlock) => {
+                                    if (block.type !== "figure") return block;
+                                    return {
+                                      type: "figure",
+                                      figureInputs: { ...newFigureInputs.data, style: undefined },
+                                      source: {
+                                        type: "from_data",
+                                        metricId: source.metricId,
+                                        config: newConfig,
+                                        snapshotAt: new Date().toISOString(),
+                                        clonedFromVisualizationId: source.clonedFromVisualizationId,
+                                      },
+                                    };
+                                  }
+                                );
+
+                                setTempSlide(reconcile({ ...unwrap(tempSlide), layout: updatedLayout }));
+                              }
+                            } catch (err) {
+                              await openAlert({
+                                text: err instanceof Error ? err.message : "Failed to edit visualization",
+                                intent: "danger",
+                              });
+                            }
+                          },
+                        });
+
+                        items.push({ type: "divider" });
+                      }
 
                       // Split options
                       if (isOnlyNode || parentType === "cols") {

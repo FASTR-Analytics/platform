@@ -9,3 +9,8 @@ export type SelectOption<T extends string> = {
   value: T;
   label: JSX.Element | string;
 };
+
+export type SelectListItem<T extends string> =
+  | SelectOption<T>
+  | { type: "divider" }
+  | { type: "header"; label: string };

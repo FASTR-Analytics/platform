@@ -59,12 +59,73 @@ export function SlideList(p: Props) {
     }
   ));
 
-  function handleItemClick(index: number, slideId: string, event: MouseEvent) {
-    // Ctrl/cmd is handled by SortableJS multiDrag - don't handle here
-    if (event.ctrlKey || event.metaKey) {
+  function handleSlideClick(index: number, slideId: string, event: MouseEvent, isCircleClick: boolean) {
+    if (isCircleClick) {
+      event.stopPropagation();
+
+      // Cmd/Ctrl + circle click: toggle this item in multi-select
+      if (event.metaKey || event.ctrlKey) {
+        const newSelected = new Set(selectedIds());
+        if (newSelected.has(slideId)) {
+          newSelected.delete(slideId);
+        } else {
+          newSelected.add(slideId);
+        }
+        setSelectedIds(newSelected);
+        p.setSelectedSlideIds(Array.from(newSelected));
+        setLastSelectedIndex(index);
+        syncSelectionWithSortableJS(newSelected);
+        return;
+      }
+
+      // Shift + circle click: range selection
+      if (event.shiftKey && lastSelectedIndex() !== null) {
+        event.preventDefault();
+        const newSelected = new Set(selectedIds());
+        const start = Math.min(lastSelectedIndex()!, index);
+        const end = Math.max(lastSelectedIndex()!, index);
+        const items = sortableSlideItems();
+        for (let i = start; i <= end; i++) {
+          newSelected.add(items[i].id);
+        }
+        setSelectedIds(newSelected);
+        p.setSelectedSlideIds(Array.from(newSelected));
+        syncSelectionWithSortableJS(newSelected);
+        return;
+      }
+
+      // Regular circle click: toggle selection (deselect if already selected, otherwise select only this)
+      const currentlySelected = selectedIds();
+      let newSelected: Set<string>;
+      if (currentlySelected.has(slideId)) {
+        newSelected = new Set(currentlySelected);
+        newSelected.delete(slideId);
+      } else {
+        newSelected = new Set([slideId]);
+      }
+      setSelectedIds(newSelected);
+      p.setSelectedSlideIds(Array.from(newSelected));
+      setLastSelectedIndex(index);
+      syncSelectionWithSortableJS(newSelected);
       return;
     }
 
+    // Cmd/Meta + click on card body toggles
+    if (event.metaKey || event.ctrlKey) {
+      const newSelected = new Set(selectedIds());
+      if (newSelected.has(slideId)) {
+        newSelected.delete(slideId);
+      } else {
+        newSelected.add(slideId);
+      }
+      setSelectedIds(newSelected);
+      p.setSelectedSlideIds(Array.from(newSelected));
+      setLastSelectedIndex(index);
+      syncSelectionWithSortableJS(newSelected);
+      return;
+    }
+
+    // Shift + click on card body does range selection
     if (event.shiftKey && lastSelectedIndex() !== null) {
       event.preventDefault();
       const newSelected = new Set(selectedIds());
@@ -76,12 +137,34 @@ export function SlideList(p: Props) {
       }
       setSelectedIds(newSelected);
       p.setSelectedSlideIds(Array.from(newSelected));
-    } else {
-      // Regular click - select only this item
-      setSelectedIds(new Set([slideId]));
-      p.setSelectedSlideIds([slideId]);
-      setLastSelectedIndex(index);
+      syncSelectionWithSortableJS(newSelected);
+      return;
     }
+
+    // Regular click - edit slide behavior
+    clearSelection();
+    p.onEditSlide(slideId);
+  }
+
+  function syncSelectionWithSortableJS(selectedSet: Set<string>) {
+    // Sync our selection state with SortableJS by manipulating the DOM
+    document.querySelectorAll('.slide-card-wrapper').forEach(el => {
+      const parent = el.parentElement;
+      if (!parent) return;
+
+      const slideId = parent.dataset.id;
+      if (!slideId) return;
+
+      if (selectedSet.has(slideId)) {
+        if (!parent.classList.contains('sortable-selected')) {
+          parent.classList.add('sortable-selected');
+        }
+      } else {
+        if (parent.classList.contains('sortable-selected')) {
+          parent.classList.remove('sortable-selected');
+        }
+      }
+    });
   }
 
   async function handleDelete(slideId: string) {
@@ -317,7 +400,6 @@ export function SlideList(p: Props) {
             }}
             class="flex flex-wrap justify-center gap-4"
             multiDrag
-            multiDragKey="META"
             avoidImplicitDeselect
             selectedClass="sortable-selected"
             animation={150}
@@ -325,23 +407,6 @@ export function SlideList(p: Props) {
             chosenClass="shadow-2xl"
             dragClass="cursor-grabbing"
             fallbackTolerance={3}
-            onSelect={(evt: any) => {
-              const itemId = evt.item.dataset.id;
-              if (itemId && !selectedIds().has(itemId)) {
-                const newSelected = new Set([...selectedIds(), itemId]);
-                setSelectedIds(newSelected);
-                p.setSelectedSlideIds(Array.from(newSelected));
-              }
-            }}
-            onDeselect={(evt: any) => {
-              const itemId = evt.item.dataset.id;
-              if (itemId && selectedIds().has(itemId)) {
-                const newSet = new Set(selectedIds());
-                newSet.delete(itemId);
-                setSelectedIds(newSet);
-                p.setSelectedSlideIds(Array.from(newSet));
-              }
-            }}
           >
             {(item: { id: string }) => {
               const index = () => sortableSlideItems().findIndex(i => i.id === item.id);
@@ -355,7 +420,7 @@ export function SlideList(p: Props) {
                   selectedCount={selectedIds().size}
                   slideSize={slideSize()}
                   fillWidth={isFillWidth()}
-                  onSelect={(e) => handleItemClick(index(), item.id, e)}
+                  onCardClick={(e, isCircleClick) => handleSlideClick(index(), item.id, e, isCircleClick)}
                   onEdit={() => {
                     clearSelection();
                     p.onEditSlide(item.id);

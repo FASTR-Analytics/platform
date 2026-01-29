@@ -354,7 +354,8 @@ export function getYearDigits(
   availableSpace: number,
   fourDigitW: number,
 ): "four" | "two" {
-  return fourDigitW + _PIXEL_PAD < availableSpace ? "four" : "two";
+  const minWidthNeeded = fourDigitW + (fourDigitW / 2);
+  return minWidthNeeded < availableSpace ? "four" : "two";
 }
 
 export function calculateYearSkipInterval(

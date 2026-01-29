@@ -194,6 +194,7 @@ export default function Project(p: Props) {
                         deckId={getFirstString(searchParams.d)!}
                         reportLabel={keyedProjectDetail.slideDecks.find(d => d.id === getFirstString(searchParams.d))?.label || "Slide Deck"}
                         backToProject={backToProject}
+                        isGlobalAdmin={p.isGlobalAdmin}
                       />
                     </Match>
                     <Match when={true}>

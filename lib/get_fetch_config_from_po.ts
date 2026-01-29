@@ -85,6 +85,14 @@ export function getPeriodFilterExactBounds(
   if (periodFilter === undefined) {
     return periodBounds;
   }
+  // Auto-migrate old "last_12_months" to "last_n_months"
+  if (periodFilter?.filterType === "last_12_months" as any) {
+    periodFilter = {
+      ...periodFilter,
+      filterType: "last_n_months",
+      nMonths: 12,
+    };
+  }
   if (
     periodFilter.filterType === undefined ||
     periodFilter.filterType === "custom"
@@ -103,19 +111,39 @@ export function getPeriodFilterExactBounds(
       max,
     };
   } else {
-    if (periodFilter.filterType === "last_12_months") {
+    if (periodFilter.filterType === "last_n_months") {
+      const nMonths = periodFilter.nMonths ?? 12;
+
+      if (nMonths < 1 || nMonths > 24) {
+        throw new Error(`nMonths must be between 1 and 24, got ${nMonths}`);
+      }
+
       const periodType =
         periodBounds.periodOption === "period_id"
           ? "year-month"
           : "year-quarter";
+
       const time = getTimeFromPeriodId(
         periodBounds.max,
         periodType,
       );
-      const min = getPeriodIdFromTime(time - 11, periodType);
+
+      const periodsToSubtract = periodBounds.periodOption === "period_id"
+        ? nMonths - 1
+        : Math.ceil(nMonths / 3) - 1;
+
+      const min = getPeriodIdFromTime(time - periodsToSubtract, periodType);
+
       return {
         periodOption: periodBounds.periodOption,
         min,
+        max: periodBounds.max,
+      };
+    }
+    if (periodFilter.filterType === "from_month") {
+      return {
+        periodOption: periodBounds.periodOption,
+        min: periodFilter.min,
         max: periodBounds.max,
       };
     }
@@ -174,6 +202,62 @@ export function getPeriodFilterExactBounds(
         max,
       };
     }
+    if (periodFilter.filterType === "last_calendar_quarter") {
+      if (getCalendar() === "ethiopian") {
+        /////////////////////
+        //                 //
+        //    Ethiopian    //
+        //                 //
+        /////////////////////
+        const maxMonth = periodBounds.max % 100;
+        const maxYear = Math.floor(periodBounds.max / 100);
+
+        let min: number, max: number;
+
+        if (maxMonth >= 11 || maxMonth <= 1) {
+          const quarterYear = maxMonth === 1 ? maxYear - 1 : maxYear - 1;
+          min = quarterYear * 100 + 8;
+          max = quarterYear * 100 + 10;
+        } else if (maxMonth >= 2 && maxMonth <= 4) {
+          min = (maxYear - 1) * 100 + 11;
+          max = maxYear * 100 + 1;
+        } else if (maxMonth >= 5 && maxMonth <= 7) {
+          min = maxYear * 100 + 2;
+          max = maxYear * 100 + 4;
+        } else {
+          min = maxYear * 100 + 5;
+          max = maxYear * 100 + 7;
+        }
+
+        return { periodOption: periodBounds.periodOption, min, max };
+      }
+
+      /////////////////////
+      //                 //
+      //    Gregorian    //
+      //                 //
+      /////////////////////
+      const maxMonth = periodBounds.max % 100;
+      const maxYear = Math.floor(periodBounds.max / 100);
+
+      let min: number, max: number;
+
+      if (maxMonth >= 1 && maxMonth <= 3) {
+        min = (maxYear - 1) * 100 + 10;
+        max = (maxYear - 1) * 100 + 12;
+      } else if (maxMonth >= 4 && maxMonth <= 6) {
+        min = maxYear * 100 + 1;
+        max = maxYear * 100 + 3;
+      } else if (maxMonth >= 7 && maxMonth <= 9) {
+        min = maxYear * 100 + 4;
+        max = maxYear * 100 + 6;
+      } else {
+        min = maxYear * 100 + 7;
+        max = maxYear * 100 + 9;
+      }
+
+      return { periodOption: periodBounds.periodOption, min, max };
+    }
   }
   throw new Error("Should not happen");
 }
@@ -190,6 +274,7 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
       )
       .join("$"),
     fc.periodFilter?.filterType ?? "",
+    fc.periodFilter?.nMonths?.toString() ?? "",
     fc.periodFilter?.periodOption ?? "",
     fc.periodFilter?.min?.toString() ?? "",
     fc.periodFilter?.max?.toString() ?? "",

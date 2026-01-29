@@ -119,6 +119,13 @@ export const indicatorRouteRegistry = {
     body: {} as { asset_file_name: string; replace_all_existing: boolean },
   }),
 
+  // Batch upload raw indicators from CSV file
+  batchUploadRawIndicators: route({
+    path: "/indicators/batch-raw",
+    method: "POST",
+    body: {} as { asset_file_name: string; replace_all_existing: boolean },
+  }),
+
   // Delete all non-default indicators and their mappings
   deleteAllIndicators: route({
     path: "/indicators/all",

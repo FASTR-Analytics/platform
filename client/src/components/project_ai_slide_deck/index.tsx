@@ -8,6 +8,7 @@ import {
   FrameTop,
   HeadingBar,
   getEditorWrapper,
+  openComponent,
 } from "panther";
 import { createEffect, createMemo, createSignal, onMount, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -18,12 +19,14 @@ import { DEFAULT_MODEL_CONFIG, DEFAULT_BUILTIN_TOOLS, createProjectSDKClient } f
 import { getSlideDeckSystemPrompt } from "~/components/ai_prompts/slide_deck";
 import { SlideEditor } from "./slide_editor";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
+import { DownloadSlideDeck } from "./download_slide_deck";
 
 type Props = {
   instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   deckId: string;
   reportLabel: string;
+  isGlobalAdmin: boolean;
   backToProject: (withUpdate: boolean) => Promise<void>;
 };
 
@@ -96,6 +99,8 @@ export function ProjectAiSlideDeck(p: Props) {
     >
       <ProjectAiSlideDeckInner
         projectDetail={p.projectDetail}
+        instanceDetail={p.instanceDetail}
+        isGlobalAdmin={p.isGlobalAdmin}
         deckId={p.deckId}
         reportLabel={p.reportLabel}
         slideIds={slideIds()}
@@ -109,6 +114,8 @@ export function ProjectAiSlideDeck(p: Props) {
 
 function ProjectAiSlideDeckInner(p: {
   projectDetail: ProjectDetail;
+  instanceDetail: InstanceDetail;
+  isGlobalAdmin: boolean;
   deckId: string;
   reportLabel: string;
   slideIds: string[];
@@ -122,6 +129,16 @@ function ProjectAiSlideDeckInner(p: {
 
   // Editor state
   const [editingSlideId, setEditingSlideId] = createSignal<string | undefined>();
+
+  async function download() {
+    const _res = await openComponent({
+      element: DownloadSlideDeck,
+      props: {
+        projectId: p.projectDetail.id,
+        deckId: p.deckId,
+      },
+    });
+  }
 
   async function handleEditSlide(slideId: string) {
     const cached = await _SLIDE_CACHE.get({ projectId: p.projectDetail.id, slideId });
@@ -148,6 +165,9 @@ function ProjectAiSlideDeckInner(p: {
         slideId: slideId,
         slide: slide,
         lastUpdated: lastUpdated,
+        instanceDetail: p.instanceDetail,
+        projectDetail: p.projectDetail,
+        isGlobalAdmin: p.isGlobalAdmin,
       },
     });
 
@@ -169,6 +189,9 @@ function ProjectAiSlideDeckInner(p: {
               <Button iconName="chevronLeft" onClick={() => p.backToProject(true)} />
             }
           >
+            <Button onClick={download} iconName="download">
+              Download
+            </Button>
           </HeadingBar>
         }
       >

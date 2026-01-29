@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import {
   batchUploadIndicators,
+  batchUploadRawIndicators,
   createIndicatorsCommon,
   createIndicatorsRaw,
   deleteAllIndicators,
@@ -238,6 +239,28 @@ defineRoute(
     }
 
     const res = await batchUploadIndicators(
+      c.var.mainDb,
+      body.asset_file_name,
+      body.replace_all_existing
+    );
+    return c.json(res);
+  }
+);
+
+// POST /indicators/batch-raw - Batch upload raw indicators from CSV file
+defineRoute(
+  routesIndicators,
+  "batchUploadRawIndicators",
+  getGlobalAdmin,
+  async (c, { body }) => {
+    if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
+      return c.json({
+        success: false,
+        err: "asset_file_name is required and must be a string",
+      });
+    }
+
+    const res = await batchUploadRawIndicators(
       c.var.mainDb,
       body.asset_file_name,
       body.replace_all_existing

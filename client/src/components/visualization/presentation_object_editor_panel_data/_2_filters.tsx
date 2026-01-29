@@ -17,6 +17,7 @@ import {
   Checkbox,
   DoubleSlider,
   RadioGroup,
+  Slider,
   StateHolderWrapper,
   formatPeriod,
   getPeriodIdFromTime,
@@ -170,7 +171,7 @@ function PeriodFilter(p: PeriodFilterProps) {
         onChange={(checked) => {
           if (checked) {
             p.setTempConfig("d", "periodFilter", {
-              filterType: "last_12_months",
+              filterType: "last_n_months",
               periodOption: p.keyedPeriodBounds.periodOption,
               min: p.keyedPeriodBounds.min,
               max: p.keyedPeriodBounds.max,
@@ -190,7 +191,7 @@ function PeriodFilter(p: PeriodFilterProps) {
                   p.resultsValueInfo.periodBounds?.periodOption === "year"
                     ? [
                       {
-                        value: "last_12_months",
+                        value: "last_n_months",
                         label: "Last year",
                       },
                       {
@@ -200,13 +201,21 @@ function PeriodFilter(p: PeriodFilterProps) {
                     ]
                     : [
                       {
-                        value: "last_12_months",
-                        label: "Last 12 months",
+                        value: "last_n_months",
+                        label: "Last N months",
+                      },
+                      {
+                        value: "from_month",
+                        label: "From specific month to present",
                       },
                       {
                         value: "last_calendar_year",
                         label: "Last full calendar year",
                       },
+                      // {
+                      //   value: "last_calendar_quarter",
+                      //   label: "Last full calendar quarter",
+                      // },
                       {
                         value: "custom",
                         label: "Custom",
@@ -218,10 +227,42 @@ function PeriodFilter(p: PeriodFilterProps) {
                     "d",
                     "periodFilter",
                     "filterType",
-                    v as "last_12_months" | "last_calendar_year" | "custom",
+                    v as "last_n_months" | "from_month" | "last_calendar_year" | "last_calendar_quarter" | "custom",
                   )
                 }
               />
+              <Show
+                when={
+                  p.tempConfig.d.periodFilter?.filterType === "last_n_months" &&
+                  p.keyedPeriodBounds.periodOption !== "year"
+                }
+              >
+                <NMonthsSelector
+                  nMonths={keyedPeriodFilter.nMonths}
+                  onUpdate={(nMonths) =>
+                    p.setTempConfig("d", "periodFilter", "nMonths", nMonths)
+                  }
+                />
+              </Show>
+              <Show
+                when={p.tempConfig.d.periodFilter?.filterType === "from_month"}
+              >
+                <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+                  {/* <label class="text-sm">Starting month:</label> */}
+                  <PeriodFilterPeriodIdSingle
+                    periodBounds={p.keyedPeriodBounds}
+                    periodFilter={keyedPeriodFilter}
+                    onUpdate={(v) =>
+                      p.setTempConfig("d", "periodFilter", {
+                        periodOption: p.keyedPeriodBounds.periodOption,
+                        filterType: "from_month",
+                        min: v.minPeriodId,
+                        max: p.keyedPeriodBounds.max,
+                      })
+                    }
+                  />
+                </div>
+              </Show>
               <Switch>
                 <Match
                   when={
@@ -229,17 +270,18 @@ function PeriodFilter(p: PeriodFilterProps) {
                     p.keyedPeriodBounds.periodOption === "period_id"
                   }
                 >
-                  <PeriodFilterPeriodId
-                    periodBounds={p.keyedPeriodBounds}
-                    periodFilter={keyedPeriodFilter}
-                    onUpdate={(v) =>
-                      p.setTempConfig("d", "periodFilter", {
-                        periodOption: p.keyedPeriodBounds.periodOption,
-                        min: v.minPeriodId,
-                        max: v.maxPeriodId,
-                      })
-                    }
-                  />
+                  <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+                    <PeriodFilterPeriodId
+                      periodBounds={p.keyedPeriodBounds}
+                      periodFilter={keyedPeriodFilter}
+                      onUpdate={(v) =>
+                        p.setTempConfig("d", "periodFilter", {
+                          periodOption: p.keyedPeriodBounds.periodOption,
+                          min: v.minPeriodId,
+                          max: v.maxPeriodId,
+                        })
+                      }
+                    /></div>
                 </Match>
                 <Match
                   when={
@@ -431,6 +473,107 @@ function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
           </div>
         </Show>
       </div>
+    </div>
+  );
+}
+
+type PeriodFilterPropsPeriodIdSingle = {
+  periodBounds: PeriodBounds;
+  periodFilter: PeriodBounds;
+  onUpdate: (v: { minPeriodId: number; maxPeriodId: number }) => void;
+};
+
+function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
+  const [tempTime, setTempTime] = createSignal<number>(
+    getTimeFromPeriodId(
+      Math.max(p.periodFilter.min, p.periodBounds.min),
+      "year-month",
+    ),
+  );
+  const [needsSave, setNeedsSave] = createSignal<boolean>(false);
+
+  function save() {
+    p.onUpdate({
+      minPeriodId: getPeriodIdFromTime(tempTime(), "year-month"),
+      maxPeriodId: p.periodBounds.max,
+    });
+    setNeedsSave(false);
+  }
+
+  return (
+    <div class="">
+      <Slider
+        value={tempTime()}
+        onChange={(v) => {
+          setTempTime(v);
+          setNeedsSave(true);
+        }}
+        min={getTimeFromPeriodId(p.periodBounds.min, "year-month")}
+        max={getTimeFromPeriodId(p.periodBounds.max, "year-month")}
+        step={1}
+        fullWidth
+      />
+      <div class="ui-gap-sm flex pt-1 text-sm">
+        <div class="flex-1 truncate">
+          From:{" "}
+          {formatPeriod(
+            getPeriodIdFromTime(tempTime(), "year-month"),
+            "year-month",
+            getCalendar(),
+          )}
+        </div>
+        <Show when={needsSave()}>
+          <div class="">
+            <Button onClick={save} intent="success">
+              {t2(T.Modules.update)}
+            </Button>
+          </div>
+        </Show>
+      </div>
+    </div>
+  );
+}
+
+type NMonthsSelectorProps = {
+  nMonths: number | undefined;
+  onUpdate: (nMonths: number) => void;
+};
+
+function NMonthsSelector(p: NMonthsSelectorProps) {
+  const [tempNMonths, setTempNMonths] = createSignal<number>(
+    p.nMonths ?? 12,
+  );
+  const [needsSave, setNeedsSave] = createSignal<boolean>(false);
+
+  function save() {
+    p.onUpdate(tempNMonths());
+    setNeedsSave(false);
+  }
+
+  return (
+    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+      <Slider
+        label="Number of months"
+        showValueInLabel
+        valueInLabelFormatter={v => String(v)}
+        value={tempNMonths()}
+        onChange={(val) => {
+          if (val >= 1 && val <= 24) {
+            setTempNMonths(val);
+            setNeedsSave(true);
+          }
+        }}
+        min={1}
+        max={24}
+        fullWidth
+      />
+      <Show when={needsSave()}>
+        <div class="flex justify-end">
+          <Button onClick={save} intent="success">
+            {t2(T.Modules.update)}
+          </Button>
+        </div>
+      </Show>
     </div>
   );
 }

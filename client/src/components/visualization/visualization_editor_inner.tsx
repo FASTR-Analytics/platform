@@ -143,6 +143,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       const _v = fil.disOpt + "-" + fil.values.join("-");
     }
     const _periodFilterFilterType = tempConfig.d.periodFilter?.filterType;
+    const _periodFilterNMonths = tempConfig.d.periodFilter?.nMonths;
     const _periodFilterOpt = tempConfig.d.periodFilter?.periodOption;
     const _periodFilterMin = tempConfig.d.periodFilter?.min;
     const _periodFilterMax = tempConfig.d.periodFilter?.max;

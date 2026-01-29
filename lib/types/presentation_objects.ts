@@ -65,7 +65,8 @@ export type PeriodBounds = {
 };
 
 export type PeriodFilter = {
-  filterType?: "last_12_months" | "last_calendar_year" | "custom";
+  filterType?: "last_n_months" | "from_month" | "last_calendar_year" | "last_calendar_quarter" | "custom";
+  nMonths?: number;
 } & PeriodBounds;
 
 // Status for disaggregation possible values (used in filter dropdowns)

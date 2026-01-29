@@ -42,6 +42,59 @@ export function IndicatorsManager(p: Props) {
     t("Loading indicators..."),
   );
 
+  function handleDownloadCommonCsv(
+    commonIndicators: CommonIndicatorWithMappings[],
+  ) {
+    const headers = [
+      "indicator_common_id",
+      "indicator_common_label",
+      "mapped_raw_indicator_ids",
+    ];
+    const rows = commonIndicators.map((indicator) => [
+      indicator.indicator_common_id,
+      indicator.indicator_common_label,
+      indicator.raw_indicator_ids.join(","),
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row: string[]) =>
+        row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "indicators_common.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleDownloadRawCsv(rawIndicators: RawIndicatorWithMappings[]) {
+    const headers = ["raw_indicator_id", "raw_indicator_label"];
+    const rows = rawIndicators.map((indicator) => [
+      indicator.raw_indicator_id,
+      indicator.raw_indicator_label,
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row: string[]) =>
+        row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "indicators_raw.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function handleBatchUpload() {
     await openEditor({
       element: BatchUploadForm,
@@ -119,6 +172,7 @@ export function IndicatorsManager(p: Props) {
                     commonIndicators={keyedIndicators.commonIndicators}
                     rawIndicators={keyedIndicators.rawIndicators}
                     isGlobalAdmin={p.isGlobalAdmin}
+                    handleDownloadCsv={handleDownloadCommonCsv}
                     silentRefreshIndicators={async () => {
                       await p.instanceDetail.silentFetch();
                       await indicators.silentFetch();
@@ -131,6 +185,7 @@ export function IndicatorsManager(p: Props) {
                     rawIndicators={keyedIndicators.rawIndicators}
                     isGlobalAdmin={p.isGlobalAdmin}
                     handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
+                    handleDownloadCsv={handleDownloadRawCsv}
                     silentRefreshIndicators={async () => {
                       await p.instanceDetail.silentFetch();
                       await indicators.silentFetch();
@@ -163,6 +218,7 @@ function CommonIndicatorsTable(p: {
   commonIndicators: CommonIndicatorWithMappings[];
   rawIndicators: RawIndicatorWithMappings[];
   isGlobalAdmin: boolean;
+  handleDownloadCsv: (commonIndicators: CommonIndicatorWithMappings[]) => void;
   silentRefreshIndicators: () => Promise<void>;
 }) {
   // Create new indicator
@@ -318,6 +374,13 @@ function CommonIndicatorsTable(p: {
         <div class="font-700 flex-1 text-xl">{t("Common Indicators")}</div>
         <Show when={p.isGlobalAdmin}>
           <Button
+            onClick={() => p.handleDownloadCsv(p.commonIndicators)}
+            iconName="download"
+            intent="neutral"
+          >
+            {t("Download CSV")}
+          </Button>
+          <Button
             onClick={handleCreateIndicator}
             iconName="plus"
             intent="primary"
@@ -360,6 +423,7 @@ function RawIndicatorsTable(p: {
   isGlobalAdmin: boolean;
   silentRefreshIndicators: () => Promise<void>;
   handleDhis2IndicatorSelect: () => Promise<void>;
+  handleDownloadCsv: (rawIndicators: RawIndicatorWithMappings[]) => void;
 }) {
   // Handlers for mapping CRUD operations
   async function handleCreateMapping() {
@@ -505,6 +569,13 @@ function RawIndicatorsTable(p: {
           {t("DHIS2 Indicators (JSON IDs)")}
         </div>
         <Show when={p.isGlobalAdmin}>
+          <Button
+            onClick={() => p.handleDownloadCsv(p.rawIndicators)}
+            iconName="download"
+            intent="neutral"
+          >
+            {t("Download CSV")}
+          </Button>
           <Button iconName="import" onClick={p.handleDhis2IndicatorSelect}>
             {t("Import DHIS2 indicator")}
           </Button>

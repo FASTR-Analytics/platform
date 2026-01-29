@@ -195,7 +195,7 @@ function ProjectWhiteboardInner(p: {
               iconName="plus"
               size="sm"
             >
-              Save as slide deck
+              Save as slide
             </Button>
           </Show>
         </div>

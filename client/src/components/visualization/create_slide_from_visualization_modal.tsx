@@ -233,7 +233,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
         isCreatingNew()
           ? !newDeckLabel().trim()
           : !selectedDeckId() ||
-            (isSingleReplicatedMode() && creationMode() === "single" && !selectedReplicant())
+          (isSingleReplicatedMode() && creationMode() === "single" && !selectedReplicant())
       }
     >
       <Show when={isLoadingDecks()}>

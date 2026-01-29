@@ -3,7 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { fa } from "zod/v4/locales";
 import {
   type AnchorPoint,
   type CalendarType,
@@ -78,9 +77,9 @@ const _DS = {
     cellBackgroundColorFormatter: "none" as
       | "none"
       | TableCellFormatterFunc<
-          string | number | null | undefined,
-          ColorKeyOrString
-        >,
+        string | number | null | undefined,
+        ColorKeyOrString
+      >,
     cellValueFormatter: ((v) => toPct1(v)) as TableCellFormatterFunc<
       string | number | null | undefined,
       string

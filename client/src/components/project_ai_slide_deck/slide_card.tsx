@@ -15,7 +15,7 @@ type Props = {
   selectedCount: number;
   slideSize: number;
   fillWidth: boolean;
-  onSelect: (event: MouseEvent) => void;
+  onCardClick: (event: MouseEvent, isCircleClick: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -40,6 +40,7 @@ export function SlideCard(p: Props) {
       const promise = serverActions.getSlide({ projectId: p.projectId, slide_id: p.slideId });
       await _SLIDE_CACHE.setPromise(promise, { projectId: p.projectId, slideId: p.slideId }, cached.version);
       const res = await promise;
+      console.log(res)
 
       if (res.success) {
         const renderRes = convertSlideToPageInputs(p.projectId, res.data.slide, p.index);
@@ -52,6 +53,7 @@ export function SlideCard(p: Props) {
         setPageInputs({ status: "error", err: res.err });
       }
     } else {
+      console.log(cached.data)
       // Cache hit - render from cached data
       const renderRes = convertSlideToPageInputs(p.projectId, cached.data.slide, p.index);
       if (renderRes.success) {
@@ -98,34 +100,40 @@ export function SlideCard(p: Props) {
 
   return (
     <div
-      class="cursor-pointer"
       classList={{ "sortable-selected": p.isSelected }}
-      onClick={p.onSelect}
       style={{ width: p.fillWidth ? "100%" : `${p.slideSize}px` }}
     >
       <div class="mb-2 text-base-content text-center text-sm font-medium">
         {p.index + 1}
       </div>
       <div
-        class="slide-card-wrapper relative overflow-clip rounded-lg border bg-white "
+        class="slide-card-wrapper group relative overflow-clip rounded-lg border bg-white cursor-pointer"
         classList={{
           "border-base-300": !p.isSelected,
           "border-primary": p.isSelected,
           "hover:border-primary": !p.isSelected,
         }}
         onContextMenu={handleContextMenu}
+        onClick={(e) => {
+          e.stopPropagation();
+          p.onCardClick(e, false);
+        }}
       >
-        <Show when={p.isSelected}>
-          <div class="bg-primary text-primary-content absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full shadow-lg">
-            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fill-rule="evenodd"
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                clip-rule="evenodd"
-              />
-            </svg>
-          </div>
-        </Show>
+        <div class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
+          classList={{
+            "bg-primary text-primary-content opacity-100": p.isSelected,
+            "border border-base-300 bg-transparent hover:bg-base-300 hover:text-white [&:not(:hover)]:text-transparent": !p.isSelected,
+          }}
+          onClick={(e) => p.onCardClick(e, true)}
+        >
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fill-rule="evenodd"
+              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </div>
         <Show when={pageInputs().status === "loading"}>
           <div
             class="bg-base-200 flex items-center justify-center"

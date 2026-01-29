@@ -14,6 +14,7 @@ import {
   FrameTop,
   HeaderBarCanGoBack,
   Checkbox,
+  RadioGroup,
 } from "panther";
 import { cleanupUppy, createUppyInstance } from "~/upload/uppy_file_upload";
 
@@ -28,6 +29,7 @@ export function BatchUploadForm(p: Props) {
   const [selectedFileName, setSelectedFileName] = createSignal<string>("");
   const [replaceAllExisting, setReplaceAllExisting] =
     createSignal<boolean>(false);
+  const [uploadType, setUploadType] = createSignal<"common" | "raw">("common");
 
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
@@ -46,10 +48,17 @@ export function BatchUploadForm(p: Props) {
         return { success: false, err: t("You must select a CSV file") };
       }
 
-      return serverActions.batchUploadIndicators({
-        asset_file_name: assetFileName,
-        replace_all_existing: replaceAllExisting(),
-      });
+      if (uploadType() === "common") {
+        return serverActions.batchUploadIndicators({
+          asset_file_name: assetFileName,
+          replace_all_existing: replaceAllExisting(),
+        });
+      } else {
+        return serverActions.batchUploadRawIndicators({
+          asset_file_name: assetFileName,
+          replace_all_existing: replaceAllExisting(),
+        });
+      }
     },
     async () => {
       await p.silentRefreshIndicators();
@@ -88,12 +97,30 @@ export function BatchUploadForm(p: Props) {
       }
     >
       <div class="ui-pad ui-spy">
+        <RadioGroup
+          label={t("Indicator Type")}
+          options={getSelectOptions(["common", "raw"])}
+          value={uploadType()}
+          onChange={(val) => setUploadType(val as "common" | "raw")}
+        />
+
         <div class="text-sm">
-          {t("Upload a CSV file with the following headers:")}
-          <span class="font-700 ml-3 font-mono">
-            indicator_common_id, indicator_common_label,
-            mapped_raw_indicator_ids
-          </span>
+          {uploadType() === "common" ? (
+            <>
+              {t("Upload a CSV file with the following headers:")}
+              <span class="font-700 ml-3 font-mono">
+                indicator_common_id, indicator_common_label,
+                mapped_raw_indicator_ids
+              </span>
+            </>
+          ) : (
+            <>
+              {t("Upload a CSV file with the following headers:")}
+              <span class="font-700 ml-3 font-mono">
+                raw_indicator_id, raw_indicator_label
+              </span>
+            </>
+          )}
         </div>
 
         <div class="">
