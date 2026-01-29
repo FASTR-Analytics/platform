@@ -22,7 +22,7 @@ export function getToolsForMetrics(projectId: string, metrics: MetricWithStatus[
     createAITool({
       name: "get_metric_data",
       description:
-        "Query data from a metric WITHOUT creating a visualization. Returns CSV data with dimension summary. Required disaggregations are automatically included. Use for: (1) answering data questions directly, (2) exploring data before visualizing, (3) analysis that doesn't need a chart.",
+        "Query data from a metric WITHOUT creating a visualization. Returns CSV data with dimension summary. Required disaggregations are automatically included. Supports valuesFilter to fetch only specific value properties. Use for: (1) answering data questions directly, (2) exploring data before visualizing, (3) checking available values for filters.",
       inputSchema: AiMetricQuerySchema,
       handler: async (input: AiMetricQuery) => {
         const metric = metrics.find(m => m.id === input.metricId);

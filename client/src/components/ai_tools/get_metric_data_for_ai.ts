@@ -14,7 +14,7 @@ export async function getMetricDataForAI(
   projectId: string,
   query: AiMetricQuery,
 ): Promise<string> {
-  const { metricId, disaggregations: inputDisaggregations, filters: inputFilters, periodFilter } = query;
+  const { metricId, disaggregations: inputDisaggregations, filters: inputFilters, periodFilter, valuesFilter } = query;
   const disaggregations = (inputDisaggregations ?? []) as DisaggregationOption[];
   const filters = (inputFilters ?? []) as { col: DisaggregationOption; vals: string[] }[];
 
@@ -28,10 +28,16 @@ export async function getMetricDataForAI(
   ];
   const uniqueDisaggregations = [...new Set(allDisaggregations)] as DisaggregationOption[];
 
+  // Determine which value properties to fetch
+  const valuePropsToFetch = valuesFilter && valuesFilter.length > 0
+    ? valuesFilter.filter(vf => staticData.valueProps.includes(vf))
+    : staticData.valueProps;
+
   // Build fetchConfig
   const fetchConfig: GenericLongFormFetchConfig = staticData.postAggregationExpression
     ? {
       // Use ingredientValues when there's a post-aggregation expression
+      // Note: post-aggregation expressions require all ingredient values, so ignore valuesFilter
       values: staticData.postAggregationExpression.ingredientValues,
       groupBys: uniqueDisaggregations,
       filters: filters,
@@ -47,8 +53,8 @@ export async function getMetricDataForAI(
       includeNationalPosition: undefined,
     }
     : {
-      // Standard query for simple metrics
-      values: staticData.valueProps.map((prop) => ({
+      // Standard query for simple metrics - apply valuesFilter here
+      values: valuePropsToFetch.map((prop) => ({
         prop,
         func: staticData.valueFunc,
       })),
@@ -341,8 +347,21 @@ function pivotToWide(
 ): string {
   const lines: string[] = [];
 
-  // Build header: rowDimensions + pivotValues (one col per pivot value)
-  const headerCols = [...rowDimensions, ...pivotValues];
+  // Build header: rowDimensions + (pivotValue_valueCol for each combination)
+  const headerCols: string[] = [...rowDimensions];
+
+  if (valueColumns.length === 1) {
+    // Single value column: just use pivot values as headers
+    headerCols.push(...pivotValues);
+  } else {
+    // Multiple value columns: create combined headers like "2023_count_adjusted", "2023_count_unadjusted"
+    for (const pivotVal of pivotValues) {
+      for (const valueCol of valueColumns) {
+        headerCols.push(`${pivotVal}_${valueCol}`);
+      }
+    }
+  }
+
   lines.push(headerCols.join(","));
 
   // Group items by row dimensions
@@ -365,12 +384,17 @@ function pivotToWide(
       // Find item matching this pivot value
       const matchingItem = rowItems.find(item => item[pivotDimension] === pivotVal);
 
-      if (matchingItem && valueColumns.length > 0) {
-        // Take first value column (assume single value per cell)
-        const val = matchingItem[valueColumns[0]];
-        pivotedValues.push(formatValue(val, decimalPlaces));
+      if (matchingItem) {
+        // Add all value columns for this pivot value
+        for (const valueCol of valueColumns) {
+          const val = matchingItem[valueCol];
+          pivotedValues.push(formatValue(val, decimalPlaces));
+        }
       } else {
-        pivotedValues.push("");
+        // No data for this pivot value - add empty cells for all value columns
+        for (let i = 0; i < valueColumns.length; i++) {
+          pivotedValues.push("");
+        }
       }
     }
 
