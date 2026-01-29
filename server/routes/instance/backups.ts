@@ -35,6 +35,7 @@ defineRoute(
     try {
       // Get the authorization header from the incoming request
       const authHeader = c.req.header('Authorization');
+      const secretKey = c.req.header("platform-secret-key");
 
       if (!authHeader) {
         return c.json({
@@ -50,6 +51,7 @@ defineRoute(
         {
           headers: {
             'Authorization': authHeader,
+            'platform-secret-key': secretKey || "",
           },
         }
       );
@@ -103,6 +105,7 @@ defineRoute(
       }
 
       const authHeader = c.req.header('Authorization');
+      const secretKey = c.req.header("platform-secret-key");
 
       if (!authHeader) {
         return c.json({
@@ -119,6 +122,7 @@ defineRoute(
         method: 'POST',
         headers: {
           'Authorization': authHeader,
+          'platform-secret-key': secretKey || "",
         },
       });
 
@@ -182,6 +186,7 @@ defineRoute(
 
       // Get the authorization header from the incoming request
       const authHeader = c.req.header('Authorization');
+      const secretKey = c.req.header("platform-secret-key");
 
       if (!authHeader) {
         return c.json({
@@ -196,6 +201,7 @@ defineRoute(
         {
           headers: {
             'Authorization': authHeader,
+            'platform-secret-key': secretKey || "",
           },
         }
       );
@@ -282,6 +288,7 @@ defineRoute(
         }
 
         const authHeader = c.req.header('Authorization');
+        const secretKey = c.req.header("platform-secret-key");
 
         if (!authHeader) {
           return c.json({
@@ -298,6 +305,7 @@ defineRoute(
           {
             headers: {
               'Authorization': authHeader,
+              'platform-secret-key': secretKey || "",
             },
           }
         );

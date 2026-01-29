@@ -68,6 +68,40 @@ Updated `getProjectUser()` function to:
 
 5. **Permission updates** via the UI create a `project_user_roles` row if one doesn't exist (upsert behavior)
 
+### 5. Project Detail API Updates
+
+**File:** `lib/types/projects.ts`
+
+Added `thisUserPermissions` object to `ProjectDetail` type containing all permission booleans for the current user.
+
+**File:** `server/db/project/projects.ts`
+
+Updated `getProjectDetail()` to include `thisUserPermissions` in the response, populated from the `projectUser` object returned by `getProjectUser()`.
+
+### 6. Client-Side UI Permission Checks
+
+**File:** `client/src/components/project/index.tsx`
+
+Added permission-based visibility for project tabs:
+- **Modules tab**: Shows if `can_configure_modules` or `can_run_modules` is true
+- **Data tab**: Shows if `can_view_data` or `can_configure_data` is true
+- **Settings tab**: Shows if `can_configure_settings` is true
+- **Logs tab**: Shows if `can_view_logs` is true
+
+Global admins always see all tabs regardless of individual permissions.
+
+### 7. Backup Routes Authentication
+
+**File:** `server/routes/instance/backups.ts`
+
+All backup routes now forward the `platform-secret-key` header to the external API (`status-api.fastr-analytics.org`). This allows non-admin users to access backup functionality when the request originates from the platform.
+
+Affected routes:
+- `getAllProjectsBackups`
+- `createBackupFile`
+- `downloadBackupFile`
+- `restoreBackup`
+
 ## Route Protection
 
 Routes use `requireProjectPermission()` middleware to check specific permissions:

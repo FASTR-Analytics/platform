@@ -385,6 +385,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    
 
     // Call your backend endpoint which will forward to the external API
     const response = await fetch('/api/all-projects-backups', { headers });
