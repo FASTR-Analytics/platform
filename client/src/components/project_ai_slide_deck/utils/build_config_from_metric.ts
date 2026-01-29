@@ -96,7 +96,9 @@ export function buildConfigFromMetric(
       valuesFilter: input.metricQuery.valuesFilter,
       disaggregateBy: [],
       filterBy: configFilters,
-      periodFilter: input.metricQuery.periodFilter ? {
+      periodFilter: input.metricQuery.periodFilter &&
+        Number.isFinite(input.metricQuery.periodFilter.min) &&
+        Number.isFinite(input.metricQuery.periodFilter.max) ? {
         filterType: "custom",
         periodOption: input.metricQuery.periodFilter.periodOption,
         min: input.metricQuery.periodFilter.min,

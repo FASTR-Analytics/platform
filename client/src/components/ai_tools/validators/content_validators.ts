@@ -98,6 +98,12 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
   if (query.periodFilter) {
     const { periodOption, min, max } = query.periodFilter;
 
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      throw new Error(
+        `Period filter min and max must be valid numbers. Got min: ${min}, max: ${max}`
+      );
+    }
+
     if (min > max) {
       throw new Error(
         `Period filter min (${min}) cannot be greater than max (${max})`
