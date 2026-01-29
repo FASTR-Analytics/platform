@@ -2,7 +2,6 @@ import type { AssetInfo } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
-  Button,
   Loading,
   MultiSelect,
   timActionForm,
@@ -102,7 +101,7 @@ export function AIDocumentSelectorModal(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      saveButtonText="Include Selected"
+      saveButtonText="Include selected"
     >
       <Show when={isLoading()}>
         <div class="flex justify-center py-4">
@@ -126,6 +125,7 @@ export function AIDocumentSelectorModal(
               values={selectedFiles()}
               options={pdfOptions()}
               onChange={setSelectedFiles}
+              showSelectAll
             />
           </div>
         </Show>

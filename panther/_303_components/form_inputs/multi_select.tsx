@@ -16,6 +16,7 @@ type MultiSelectProps<T extends string> = {
   horizontal?: boolean;
   inverted?: boolean;
   showSelectAll?: boolean;
+  onlyShowSelectAllWhenAtLeast?: number;
   intentWhenChecked?: Intent;
 };
 
@@ -70,7 +71,10 @@ export function MultiSelect<T extends string>(p: MultiSelectProps<T>) {
         class="data-[horizontal=true]:flex data-[horizontal=true]:items-center data-[horizontal=true]:gap-3 data-[horizontal=false]:space-y-1"
         data-horizontal={!!p.horizontal}
       >
-        <Show when={p.showSelectAll}>
+        <Show
+          when={p.showSelectAll &&
+            p.options.length >= (p.onlyShowSelectAllWhenAtLeast ?? 0)}
+        >
           <div class="">
             <Checkbox
               label="Select All"
