@@ -19,6 +19,7 @@ import {
   getGlobalNonAdmin,
   getProjectEditor,
   getProjectViewer,
+  requireProjectPermission,
 } from "../../project_auth.ts";
 import {
   notifyLastUpdated,
@@ -273,7 +274,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "getProjectLogs",
-  getProjectViewer,
+  requireProjectPermission(false,"can_view_logs"),
   log("getProjectLogs"),
   async (c) => {
     const res = await GetProjectLogs(c.var.ppk.projectDb, c.var.ppk.projectId);
