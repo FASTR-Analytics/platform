@@ -270,7 +270,7 @@ export default function Project(p: Props) {
                                   openProjectEditor={openProjectEditor}
                                 />
                               </Match>
-                              <Match when={tab() === "modules"}>
+                              <Match when={tab() === "modules" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_modules || keyedProjectDetail.thisUserPermissions.can_run_modules)}>
                                 <ProjectModules
                                   isGlobalAdmin={p.isGlobalAdmin}
                                   projectDetail={keyedProjectDetail}
@@ -280,7 +280,7 @@ export default function Project(p: Props) {
                                   }
                                 />
                               </Match>
-                              <Match when={tab() === "data"}>
+                              <Match when={tab() === "data" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_view_data)}>
                                 <ProjectData
                                   isGlobalAdmin={p.isGlobalAdmin}
                                   instanceDetail={keyedInstanceDetail}
@@ -292,7 +292,7 @@ export default function Project(p: Props) {
                                 />
                               </Match>
                               <Match
-                                when={tab() === "settings" && p.isGlobalAdmin}
+                                when={tab() === "settings" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_settings)}
                               >
                                 <ProjectSettings
                                   isGlobalAdmin={p.isGlobalAdmin}
@@ -308,7 +308,7 @@ export default function Project(p: Props) {
                                 />
                               </Match>
                               <Match
-                                when={tab() === "logs" && p.isGlobalAdmin}
+                                when={tab() === "logs" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_view_logs)}
                               >
                                 <Suspense fallback={<div class="text-neutral text-sm">Loading logs...</div>}>
                                   <Show

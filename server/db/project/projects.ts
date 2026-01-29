@@ -134,6 +134,19 @@ export async function getProjectDetail(
       visualizations: resVisualizations.data,
       reports: resReports.data,
       projectUsers: fullProjectUsers,
+      thisUserPermissions: {
+        can_configure_settings: projectUser?.can_configure_settings ?? false,
+        can_create_backups: projectUser?.can_create_backups ?? false,
+        can_restore_backups: projectUser?.can_restore_backups ?? false,
+        can_configure_modules: projectUser?.can_configure_modules ?? false,
+        can_run_modules: projectUser?.can_run_modules ?? false,
+        can_configure_users: projectUser?.can_configure_users ?? false,
+        can_configure_visulizations: projectUser?.can_configure_visulizations ?? false,
+        can_configure_reports: projectUser?.can_configure_reports ?? false,
+        can_configure_data: projectUser?.can_configure_data ?? false,
+        can_view_data: projectUser?.can_view_data ?? false,
+        can_view_logs: projectUser?.can_view_logs ?? false,
+      },
     };
 
     return { success: true, data: projectDetail };
