@@ -183,15 +183,15 @@ export async function addProject(
     `;
     await mainDb.begin((sql) => [
       sql`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${projectLabel}, '')`,
-      sql`INSERT INTO project_user_roles (email, project_id, role)
-       VALUES (${globalUser.email}, ${newProjectId}, 'editor')`,
+      sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visulizations, can_configure_reports, can_configure_data, can_view_data, can_view_logs)
+       VALUES (${globalUser.email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true)`,
       ...projectEditors.map((email) => {
-        return sql`INSERT INTO project_user_roles (email, project_id, role)
-       VALUES (${email}, ${newProjectId}, 'editor')`;
+        return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visulizations, can_configure_reports, can_configure_data, can_view_data, can_view_logs)
+       VALUES (${email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true)`;
       }),
       ...projectViewers.map((email) => {
-        return sql`INSERT INTO project_user_roles (email, project_id, role)
-       VALUES (${email}, ${newProjectId}, 'viewer')`;
+        return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visulizations, can_configure_reports, can_configure_data, can_view_data, can_view_logs)
+       VALUES (${email}, ${newProjectId}, 'viewer', true, true, true, true, true, true, true, true, true, true, true)`;
       }),
     ]);
     const datasetLastUpdateds: {
@@ -358,10 +358,20 @@ export async function updateProjectUserPermissions(
   return await tryCatchDatabaseAsync(async () => {
     for(const email of emails){
       await mainDb`
-        UPDATE project_user_roles
-        SET ${mainDb(permissions, ...Object.keys(permissions))}
-        WHERE email = ${email}
-        AND project_id = ${projectId}
+        INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visulizations, can_configure_reports, can_configure_data, can_view_data, can_view_logs)
+        VALUES (${email}, ${projectId}, 'viewer', ${permissions.can_configure_settings}, ${permissions.can_create_backups}, ${permissions.can_restore_backups}, ${permissions.can_configure_modules}, ${permissions.can_run_modules}, ${permissions.can_configure_users}, ${permissions.can_configure_visulizations}, ${permissions.can_configure_reports}, ${permissions.can_configure_data}, ${permissions.can_view_data}, ${permissions.can_view_logs})
+        ON CONFLICT (email, project_id) DO UPDATE SET
+          can_configure_settings = ${permissions.can_configure_settings},
+          can_create_backups = ${permissions.can_create_backups},
+          can_restore_backups = ${permissions.can_restore_backups},
+          can_configure_modules = ${permissions.can_configure_modules},
+          can_run_modules = ${permissions.can_run_modules},
+          can_configure_users = ${permissions.can_configure_users},
+          can_configure_visulizations = ${permissions.can_configure_visulizations},
+          can_configure_reports = ${permissions.can_configure_reports},
+          can_configure_data = ${permissions.can_configure_data},
+          can_view_data = ${permissions.can_view_data},
+          can_view_logs = ${permissions.can_view_logs}
       `;
     }
     return { success: true };
@@ -510,19 +520,14 @@ export async function copyProject(
       VALUES (${globalUser.email}, ${globalUser.isGlobalAdmin})
       ON CONFLICT (email) DO NOTHING
     `;
-    await mainDb.begin((sql) => [
-      sql`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${newProjectLabel}, '')`,
-      sql`INSERT INTO project_user_roles (email, project_id, role)
-        VALUES (${globalUser.email}, ${newProjectId}, 'editor')`,
-    ]);
+    await mainDb`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${newProjectLabel}, '')`;
 
-    // Copy user roles from source project (except the current user who is already added as editor)
+    // Copy all user roles and permissions from source project
     await mainDb`
-      INSERT INTO project_user_roles (email, project_id, role)
-      SELECT email, ${newProjectId}, role 
-      FROM project_user_roles 
-      WHERE project_id = ${sourceProjectId} 
-        AND email != ${globalUser.email}
+      INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visulizations, can_configure_reports, can_configure_data, can_view_data, can_view_logs)
+      SELECT email, ${newProjectId}, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visulizations, can_configure_reports, can_configure_data, can_view_data, can_view_logs
+      FROM project_user_roles
+      WHERE project_id = ${sourceProjectId}
     `;
 
     return {
