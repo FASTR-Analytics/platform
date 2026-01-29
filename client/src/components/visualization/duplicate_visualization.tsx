@@ -95,7 +95,6 @@ export function DuplicateVisualization(
         });
       } else {
         // Batch duplication with progress
-        const baseLabelInput = tempLabel().trim();
         let successCount = 0;
 
         for (let i = 0; i < vizCount; i++) {
@@ -106,10 +105,7 @@ export function DuplicateVisualization(
             `Duplicating visualization ${i + 1} of ${vizCount}...`
           );
 
-          // Generate label: if user provided base label, append number; otherwise use original + " (copy)"
-          const label = baseLabelInput
-            ? `${baseLabelInput} ${i + 1}`
-            : `${po.label} (copy)`;
+          const label = `${po.label} (copy)`;
 
           try {
             const dupRes = await serverActions.duplicatePresentationObject({
@@ -159,7 +155,9 @@ export function DuplicateVisualization(
       cancelFunc={() => p.close(undefined)}
       french={isFrench()}
       disableSaveButton={
-        isCreatingFolder() ? !newFolderLabel().trim() : (p.poDetails.length === 1 && !tempLabel().trim())
+        isCreatingFolder()
+          ? !newFolderLabel().trim()
+          : (!isBatchMode() && !tempLabel().trim())
       }
     >
       <div class="space-y-4">
@@ -172,19 +170,16 @@ export function DuplicateVisualization(
           />
         </Show>
 
-        {/* Label input: optional for batch, required for single */}
-        <Input
-          label={
-            p.poDetails.length > 1
-              ? "Base label (optional - will add numbers)"
-              : t2(T.FRENCH_UI_STRINGS.new_visualization_name)
-          }
-          value={tempLabel()}
-          onChange={setTempLabel}
-          placeholder={p.poDetails.length > 1 ? "Leave empty to use original names" : undefined}
-          fullWidth
-          autoFocus
-        />
+        {/* Label input: only for single viz */}
+        <Show when={!isBatchMode()}>
+          <Input
+            label={t2(T.FRENCH_UI_STRINGS.new_visualization_name)}
+            value={tempLabel()}
+            onChange={setTempLabel}
+            fullWidth
+            autoFocus
+          />
+        </Show>
 
         {/* Folder selection or creation */}
         <Show

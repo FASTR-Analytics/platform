@@ -83,9 +83,14 @@ export function SlideEditor(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
 
+  // Normalize slide on open: ensure all cols have explicit spans for divider drag
+  const normalizedSlide = p.slide.type === "content"
+    ? { ...p.slide, layout: ensureExplicitSpans(p.slide.layout) }
+    : p.slide;
+
   const [needsSave, setNeedsSave] = createSignal(false);
   const [isSaving, setIsSaving] = createSignal(false);
-  const [tempSlide, setTempSlide] = createStore<Slide>(structuredClone(p.slide));
+  const [tempSlide, setTempSlide] = createStore<Slide>(structuredClone(normalizedSlide));
 
   // Cache each type's state for restoration when switching back
   const typeCache = {

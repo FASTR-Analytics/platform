@@ -336,18 +336,13 @@ export function VisualizationEditorInner(p: InnerProps) {
       element: DuplicateVisualization,
       props: {
         projectId: p.projectDetail.id,
-        poDetail: { id: p.poDetail.id, label: p.poDetail.label, folderId: p.poDetail.folderId },
+        poDetails: [{ id: p.poDetail.id, label: p.poDetail.label, folderId: p.poDetail.folderId }],
         folders: p.projectDetail.visualizationFolders,
       },
     });
     if (res === undefined) {
       return;
     }
-    optimisticSetLastUpdated(
-      "presentation_objects",
-      res.newPresentationObjectId,
-      res.lastUpdated,
-    );
     optimisticSetProjectLastUpdated(res.lastUpdated);
 
     (p.onClose as (result: EditModeReturn) => void)({ saved: true });

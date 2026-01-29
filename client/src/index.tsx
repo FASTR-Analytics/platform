@@ -24,6 +24,13 @@ setGlobalStyle({
       },
     },
   },
+  markdown: {
+    text: {
+      code: {
+        font: { fontFamily: "Roboto Mono" }
+      }
+    }
+  }
 });
 
 render(() => <App />, document.getElementById("app")!);

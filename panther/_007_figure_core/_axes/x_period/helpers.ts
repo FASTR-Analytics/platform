@@ -371,8 +371,7 @@ export function calculateYearSkipInterval(
       Number.POSITIVE_INFINITY,
     )
     .dims.w();
-  const padding = 4;
-  const minWidthNeeded = twoDigitYearW + padding;
+  const minWidthNeeded = twoDigitYearW + (twoDigitYearW / 2);
 
   let periodsPerYear: number;
   if (periodType === "year-month") periodsPerYear = 12;
