@@ -126,6 +126,7 @@ export function AIDocumentSelectorModal(
               options={pdfOptions()}
               onChange={setSelectedFiles}
               showSelectAll
+              onlyShowSelectAllWhenAtLeast={5}
             />
           </div>
         </Show>

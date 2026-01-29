@@ -1,16 +1,22 @@
-import { PresentationObjectConfig,
+import {
+  PresentationObjectConfig,
   PresentationObjectDetail,
-  ProjectDetail, t2, T } from "lib";
+  ProjectDetail,
+  ResultsValueInfoForPresentationObject,
+  t,
+  t2,
+  T,
+} from "lib";
 import { Match, Switch, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { PresentationObjectEditorPanelData } from "./presentation_object_editor_panel_data";
 import { PresentationObjectEditorPanelStyle } from "./presentation_object_editor_panel_style";
 import { PresentationObjectEditorPanelText } from "./presentation_object_editor_panel_text";
-import { t } from "lib";
 
 type Props = {
   projectDetail: ProjectDetail;
   poDetail: PresentationObjectDetail;
+  resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   viewResultsObject: (resultsObjectId: string) => Promise<void>;
@@ -50,6 +56,7 @@ export function PresentationObjectEditorPanel(p: Props) {
             <PresentationObjectEditorPanelData
               projectDetail={p.projectDetail}
               poDetail={p.poDetail}
+              resultsValueInfo={p.resultsValueInfo}
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
               viewResultsObject={p.viewResultsObject}

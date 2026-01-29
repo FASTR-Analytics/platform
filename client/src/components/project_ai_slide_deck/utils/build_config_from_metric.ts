@@ -26,7 +26,7 @@ export function buildConfigFromMetric(
   input: AiFigureFromMetric | AiCreateVisualizationInput,
   metrics: MetricWithStatus[],
 ): BuildConfigResult {
-  console.log("AI INPUT", input);
+  // console.log("AI INPUT", input);
 
   const metricId = input.metricQuery.metricId;
   const resultsValue = metrics.find(m => m.id === metricId);
@@ -82,7 +82,6 @@ export function buildConfigFromMetric(
     s: {
       ...DEFAULT_S_CONFIG,
       content: presentationType === "timeseries" ? "lines" : "bars",
-      idealAspectRatio: "video",
     },
     t: {
       ...DEFAULT_T_CONFIG,
@@ -90,8 +89,8 @@ export function buildConfigFromMetric(
     }
   };
 
-  console.log("AI RV", resultsValueForViz);
-  console.log("AI METRIC", config);
+  // console.log("AI RV", resultsValueForViz);
+  // console.log("AI METRIC", config);
 
   assignDisaggregationsToSlots(
     resultsValueForViz,

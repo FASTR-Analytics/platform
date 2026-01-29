@@ -13,7 +13,7 @@ import { serverActions } from "~/server_actions";
 
 type Props = {
   projectId: string;
-  presentationObjectId: string;
+  presentationObjectIds: string[];
   currentFolderId: string | null;
   folders: VisualizationFolder[];
 };
@@ -56,11 +56,19 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
           return createRes;
         }
 
-        return serverActions.updatePresentationObjectFolder({
-          projectId: p.projectId,
-          po_id: p.presentationObjectId,
-          folderId: createRes.data.folderId,
-        });
+        const promises = p.presentationObjectIds.map(id =>
+          serverActions.updatePresentationObjectFolder({
+            projectId: p.projectId,
+            po_id: id,
+            folderId: createRes.data.folderId,
+          })
+        );
+        const results = await Promise.all(promises);
+        const failed = results.filter(r => !r.success);
+        if (failed.length > 0) {
+          return failed[0];
+        }
+        return results[0];
       }
 
       const folderId = selectedFolderId() === "_none" ? null : selectedFolderId();
@@ -70,21 +78,33 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
         return { success: true, data: { lastUpdated: "" } };
       }
 
-      return serverActions.updatePresentationObjectFolder({
-        projectId: p.projectId,
-        po_id: p.presentationObjectId,
-        folderId,
-      });
+      const promises = p.presentationObjectIds.map(id =>
+        serverActions.updatePresentationObjectFolder({
+          projectId: p.projectId,
+          po_id: id,
+          folderId,
+        })
+      );
+      const results = await Promise.all(promises);
+      const failed = results.filter(r => !r.success);
+      if (failed.length > 0) {
+        return failed[0];
+      }
+      return results[0];
     },
     (data) => {
       p.close({ lastUpdated: data.lastUpdated });
     }
   );
 
+  const header = p.presentationObjectIds.length > 1
+    ? `Move ${p.presentationObjectIds.length} visualizations to folder`
+    : t("Move to folder");
+
   return (
     <AlertFormHolder
       formId="move-to-folder"
-      header={t("Move to folder")}
+      header={header}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}

@@ -3,26 +3,31 @@ import {
   t2,
   _POSSIBLE_MODULES,
   groupMetricsByLabel,
+  type InstanceDetail,
   type MetricGroup,
   type MetricWithStatus,
   type ModuleId,
-  type CreateModeVisualizationData,
   type ProjectDetail,
 } from "lib";
 import {
   Button,
   FrameTop,
   HeadingBar,
+  OpenEditorProps,
   openComponent,
 } from "panther";
-import { For, Setter, Show } from "solid-js";
+import { For, Show } from "solid-js";
+import { VisualizationEditor } from "../visualization";
 import { MetricDetailsModal } from "./metric_details_modal";
 import { AddVisualization } from "./add_visualization";
 
 type Props = {
   projectDetail: ProjectDetail;
+  instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
-  onStartCreateMode: Setter<CreateModeVisualizationData | null>;
+  openProjectEditor: <TProps, TReturn>(
+    v: OpenEditorProps<TProps, TReturn>,
+  ) => Promise<TReturn | undefined>;
 };
 
 type MetricsByModule = {
@@ -77,8 +82,10 @@ export function ProjectMetrics(p: Props) {
                     <MetricGroupCard
                       metricGroup={metricGroup}
                       projectId={p.projectDetail.id}
+                      projectDetail={p.projectDetail}
+                      instanceDetail={p.instanceDetail}
                       isGlobalAdmin={p.isGlobalAdmin}
-                      onStartCreateMode={p.onStartCreateMode}
+                      openProjectEditor={p.openProjectEditor}
                     />
                   )}
                 </For>
@@ -97,8 +104,12 @@ type MetricGroupCardProps = {
     variants: MetricWithStatus[];
   };
   projectId: string;
+  projectDetail: ProjectDetail;
+  instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
-  onStartCreateMode: Setter<CreateModeVisualizationData | null>;
+  openProjectEditor: <TProps, TReturn>(
+    v: OpenEditorProps<TProps, TReturn>,
+  ) => Promise<TReturn | undefined>;
 };
 
 function MetricGroupCard(p: MetricGroupCardProps) {
@@ -121,9 +132,23 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         preselectedMetric: metric,
       },
     });
-    if (res) {
-      p.onStartCreateMode(res);
+    if (!res) {
+      return;
     }
+
+    await p.openProjectEditor({
+      element: VisualizationEditor,
+      props: {
+        mode: "create" as const,
+        projectId: p.projectId,
+        label: res.label,
+        resultsValue: res.resultsValue,
+        config: res.config,
+        instanceDetail: p.instanceDetail,
+        projectDetail: p.projectDetail,
+        isGlobalAdmin: p.isGlobalAdmin,
+      },
+    });
   }
 
   return (

@@ -1,5 +1,6 @@
 import { useNavigate, useSearchParams } from "@solidjs/router";
-import { InstanceDetail, T, t, t2, type CreateModeVisualizationData } from "lib";
+import { InstanceDetail, PresentationObjectSummary, T, t, t2 } from "lib";
+import { getPODetailFromCacheorFetch } from "~/state/po_cache";
 import {
   BadgeIcon,
   Button,
@@ -16,7 +17,8 @@ import {
   TimQuery,
   getEditorWrapper,
   getFirstString,
-  timQuery
+  openAlert,
+  timQuery,
 } from "panther";
 import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
@@ -24,7 +26,7 @@ import { ProjectRunnerProvider, useProjectDirtyStates } from "~/components/proje
 import { serverActions } from "~/server_actions";
 // import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
 import { Report } from "../report";
-import { Visualization, VisualizationCreateMode } from "../visualization";
+import { VisualizationEditor } from "../visualization";
 import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
 import { ProjectMetrics } from "./project_metrics";
@@ -62,11 +64,8 @@ export default function Project(p: Props) {
 
   const [tab, setTab] = createSignal<TabOption>("whiteboard");
 
-  // Create mode state for visualization editor
-  const [createModeData, setCreateModeData] = createSignal<CreateModeVisualizationData | null>(null);
-
   function changeTab(tab: TabOption) {
-    setSearchParams({ r: undefined, d: undefined, v: undefined });
+    setSearchParams({ r: undefined, d: undefined });
     setTab(tab);
   }
 
@@ -87,6 +86,70 @@ export default function Project(p: Props) {
       projectDetail.fetch();
     }
     navigate(`/?p=${p.projectId}`);
+  }
+
+  async function openVisualizationEditor(
+    po: PresentationObjectSummary,
+    projectDetail: any,
+    instanceDetail: any,
+  ) {
+    if (po.isDefault) {
+      const poDetailRes = await getPODetailFromCacheorFetch(
+        projectDetail.id,
+        po.id,
+      );
+      if (poDetailRes.success === false) {
+        await openAlert({
+          text: "Failed to load visualization",
+          intent: "danger",
+        });
+        return;
+      }
+
+      const result = await openProjectEditor({
+        element: VisualizationEditor,
+        props: {
+          mode: "create" as const,
+          projectId: projectDetail.id,
+          label: `Copy of ${poDetailRes.data.label}`,
+          resultsValue: poDetailRes.data.resultsValue,
+          config: structuredClone(poDetailRes.data.config),
+          instanceDetail,
+          projectDetail,
+          isGlobalAdmin: p.isGlobalAdmin,
+        },
+      });
+
+      if (result?.created) {
+        await projectDetail.fetch();
+        setTab("visualizations");
+        setVizGroupingMode("folders");
+        setVizSelectedGroup(
+          result.created.folderId === null
+            ? "_unfiled"
+            : result.created.folderId,
+        );
+      }
+      return;
+    }
+
+    const result = await openProjectEditor({
+      element: VisualizationEditor,
+      props: {
+        mode: "edit" as const,
+        projectId: projectDetail.id,
+        presentationObjectId: po.id,
+        instanceDetail,
+        projectDetail,
+        isGlobalAdmin: p.isGlobalAdmin,
+      },
+    });
+
+    if (result?.deleted) {
+      await projectDetail.fetch();
+    } else if (result?.saved) {
+      await projectDetail.silentFetch();
+    }
   }
 
   return (
@@ -130,35 +193,6 @@ export default function Project(p: Props) {
                         projectDetail={keyedProjectDetail}
                         deckId={getFirstString(searchParams.d)!}
                         reportLabel={keyedProjectDetail.slideDecks.find(d => d.id === getFirstString(searchParams.d))?.label || "Slide Deck"}
-                        backToProject={backToProject}
-                      />
-                    </Match>
-                    <Match when={createModeData()}>
-                      {(data) => (
-                        <VisualizationCreateMode
-                          isGlobalAdmin={p.isGlobalAdmin}
-                          instanceDetail={keyedInstanceDetail}
-                          projectDetail={keyedProjectDetail}
-                          createData={data()}
-                          onCreated={(folderId) => {
-                            setCreateModeData(null);
-                            projectDetail.silentFetch();
-                            setTab("visualizations");
-                            setVizGroupingMode("folders");
-                            setVizSelectedGroup(folderId === null ? "_unfiled" : folderId);
-                          }}
-                          onCancel={() => {
-                            setCreateModeData(null);
-                          }}
-                        />
-                      )}
-                    </Match>
-                    <Match when={getFirstString(searchParams.v)}>
-                      <Visualization
-                        isGlobalAdmin={p.isGlobalAdmin}
-                        instanceDetail={keyedInstanceDetail}
-                        projectDetail={keyedProjectDetail}
-                        presentationObjectId={getFirstString(searchParams.v)!}
                         backToProject={backToProject}
                       />
                     </Match>
@@ -328,14 +362,15 @@ export default function Project(p: Props) {
                                     projectDetail.silentFetch
                                   }
                                   openProjectEditor={openProjectEditor}
-                                  onStartCreateMode={setCreateModeData}
+                                  openVisualizationEditor={openVisualizationEditor}
                                 />
                               </Match>
                               <Match when={tab() === "metrics"}>
                                 <ProjectMetrics
                                   projectDetail={keyedProjectDetail}
                                   isGlobalAdmin={p.isGlobalAdmin}
-                                  onStartCreateMode={setCreateModeData}
+                                  openProjectEditor={openProjectEditor}
+                                  instanceDetail={keyedInstanceDetail}
                                 />
                               </Match>
                               <Match when={tab() === "modules"}>

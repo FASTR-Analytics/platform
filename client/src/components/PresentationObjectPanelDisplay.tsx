@@ -12,8 +12,8 @@ import {
   t2,
   T,
 } from "lib";
-import { Button, Checkbox, FrameLeftResizable, getColor, openComponent, Select, SelectList, showMenu, timActionDelete, type MenuItem, type SelectOption } from "panther";
-import { createEffect, For, Show } from "solid-js";
+import { Button, Checkbox, FrameLeftResizable, getColor, openAlert, openComponent, Select, SelectList, showMenu, timActionDelete, type MenuItem, type SelectOption } from "panther";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { vizGroupingMode, setVizGroupingMode, vizSelectedGroup, setVizSelectedGroup, hideUnreadyVisualizations, setHideUnreadyVisualizations } from "~/state/ui";
 import { serverActions } from "~/server_actions";
 import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
@@ -378,42 +378,279 @@ type VisualizationGridProps = {
 function VisualizationGrid(p: VisualizationGridProps) {
   const metricLookup = () => createMetricLookup(p.metrics);
 
+  const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
+  const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(null);
+
+  function clearSelection() {
+    setSelectedIds(new Set<string>());
+    setLastSelectedIndex(null);
+  }
+
+  // Compute visual index order for current view (flat or grouped)
+  const getVisualIndexMap = (): Map<string, number> => {
+    if (!p.subGroupConfig) {
+      // Flat view: use array order
+      const map = new Map<string, number>();
+      p.visualizations.forEach((po, idx) => {
+        map.set(po.id, idx);
+      });
+      return map;
+    }
+
+    // Grouped view: use visual display order
+    const { getGroupKey, getGroupOrder } = p.subGroupConfig;
+    const order = getGroupOrder(p.modules);
+    const groups = new Map<string, PresentationObjectSummary[]>();
+
+    for (const po of p.visualizations) {
+      const key = getGroupKey(po);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(po);
+    }
+
+    const keys = order.length > 0 ? order.filter((key) => groups.has(key)) : Array.from(groups.keys());
+
+    let visualIndex = 0;
+    const visualIndexMap = new Map<string, number>();
+    for (const key of keys) {
+      const items = groups.get(key)!;
+      for (const po of items) {
+        visualIndexMap.set(po.id, visualIndex++);
+      }
+    }
+    return visualIndexMap;
+  };
+
+  function handleVisualizationClick(
+    index: number,
+    po: PresentationObjectSummary,
+    event: MouseEvent,
+    isCircleClick: boolean
+  ) {
+    if (isCircleClick) {
+      event.stopPropagation();
+
+      // Cmd/Meta + circle click toggles
+      if (event.metaKey || event.ctrlKey) {
+        const newSelected = new Set(selectedIds());
+        if (newSelected.has(po.id)) {
+          newSelected.delete(po.id);
+        } else {
+          newSelected.add(po.id);
+        }
+        setSelectedIds(newSelected);
+        setLastSelectedIndex(index);
+        return;
+      }
+
+      // Shift + circle click does range selection
+      if (event.shiftKey && lastSelectedIndex() !== null) {
+        event.preventDefault();
+        const newSelected = new Set(selectedIds());
+        const start = Math.min(lastSelectedIndex()!, index);
+        const end = Math.max(lastSelectedIndex()!, index);
+
+        // Use visual index map to select items in display order
+        const visualIndexMap = getVisualIndexMap();
+        for (const viz of p.visualizations) {
+          const vizIndex = visualIndexMap.get(viz.id);
+          if (vizIndex !== undefined && vizIndex >= start && vizIndex <= end) {
+            newSelected.add(viz.id);
+          }
+        }
+        setSelectedIds(newSelected);
+        return;
+      }
+
+      // Regular circle click: if already selected, deselect; otherwise select only this one
+      const currentlySelected = selectedIds();
+      if (currentlySelected.has(po.id)) {
+        const newSelected = new Set(currentlySelected);
+        newSelected.delete(po.id);
+        setSelectedIds(newSelected);
+      } else {
+        setSelectedIds(new Set([po.id]));
+      }
+      setLastSelectedIndex(index);
+      return;
+    }
+
+    // Cmd/Meta + click on card body toggles
+    if (event.metaKey || event.ctrlKey) {
+      const newSelected = new Set(selectedIds());
+      if (newSelected.has(po.id)) {
+        newSelected.delete(po.id);
+      } else {
+        newSelected.add(po.id);
+      }
+      setSelectedIds(newSelected);
+      setLastSelectedIndex(index);
+      return;
+    }
+
+    // Shift + click on card body does range selection
+    if (event.shiftKey && lastSelectedIndex() !== null) {
+      event.preventDefault();
+      const newSelected = new Set(selectedIds());
+      const start = Math.min(lastSelectedIndex()!, index);
+      const end = Math.max(lastSelectedIndex()!, index);
+
+      // Use visual index map to select items in display order
+      const visualIndexMap = getVisualIndexMap();
+      for (const viz of p.visualizations) {
+        const vizIndex = visualIndexMap.get(viz.id);
+        if (vizIndex !== undefined && vizIndex >= start && vizIndex <= end) {
+          newSelected.add(viz.id);
+        }
+      }
+      setSelectedIds(newSelected);
+      return;
+    }
+
+    // Regular click - existing "edit viz" behavior
+    clearSelection();
+    p.onClick(po);
+  }
+
+  async function handleMoveToFolder(po: PresentationObjectSummary) {
+    const selected = selectedIds();
+    const isItemSelected = selected.has(po.id);
+    const shouldMoveMultiple = isItemSelected && selected.size > 1;
+
+    const idsToMove = shouldMoveMultiple ? Array.from(selected) : [po.id];
+
+    await openComponent({
+      element: MoveToFolderModal,
+      props: {
+        projectId: p.projectId,
+        presentationObjectIds: idsToMove,
+        currentFolderId: po.folderId,
+        folders: p.folders,
+      },
+    });
+
+    clearSelection();
+  }
+
+  async function handleCreateSlides(po: PresentationObjectSummary) {
+    const selected = selectedIds();
+    const isItemSelected = selected.has(po.id);
+    const shouldCreateMultiple = isItemSelected && selected.size > 1;
+
+    const idsToCreate = shouldCreateMultiple ? Array.from(selected) : [po.id];
+
+    // Get visualization details
+    const vizsToCreate = idsToCreate
+      .map(id => p.visualizations.find(v => v.id === id))
+      .filter((v): v is PresentationObjectSummary => v !== undefined);
+
+    // Check if any selected viz is replicated (when creating multiple)
+    const hasReplicated = vizsToCreate.some(v => v.replicateBy);
+
+    if (hasReplicated && vizsToCreate.length > 1) {
+      await openAlert({
+        title: "Cannot batch create slides",
+        text: "Batch slide creation is only supported for non-replicated visualizations. Please deselect replicated visualizations or create them individually.",
+        intent: "danger",
+      });
+      return;
+    }
+
+    // Open modal (works for both single replicated and batch modes)
+    const vizIds = vizsToCreate.map(v => v.id);
+    const vizLabels = vizsToCreate.map(v => v.label);
+
+    await openComponent({
+      element: CreateSlideFromVisualizationModal,
+      props: {
+        projectId: p.projectId,
+        visualizationIds: vizIds,
+        visualizationLabels: vizLabels,
+        replicateBy: vizsToCreate.length === 1 ? vizsToCreate[0].replicateBy : undefined,
+        metrics: p.metrics,
+      },
+    });
+
+    clearSelection();
+  }
+
   async function handleDuplicate(po: PresentationObjectSummary) {
+    const selected = selectedIds();
+    const isItemSelected = selected.has(po.id);
+    const shouldDuplicateMultiple = isItemSelected && selected.size > 1;
+
+    const idsToDuplicate = shouldDuplicateMultiple ? Array.from(selected) : [po.id];
+
+    const poDetails = idsToDuplicate
+      .map(id => p.visualizations.find(v => v.id === id))
+      .filter((v): v is PresentationObjectSummary => v !== undefined)
+      .map(v => ({ id: v.id, label: v.label, folderId: v.folderId }));
+
     await openComponent({
       element: DuplicateVisualization,
       props: {
         projectId: p.projectId,
-        poDetail: { id: po.id, label: po.label, folderId: po.folderId },
+        poDetails,
         folders: p.folders,
       },
     });
+
+    clearSelection();
   }
 
   async function handleDelete(po: PresentationObjectSummary) {
+    const selected = selectedIds();
+    const isItemSelected = selected.has(po.id);
+    const shouldDeleteMultiple = isItemSelected && selected.size > 1;
+
+    const idsToDelete = shouldDeleteMultiple ? Array.from(selected) : [po.id];
+    const confirmText = idsToDelete.length > 1
+      ? `Are you sure you want to delete ${idsToDelete.length} visualizations?`
+      : t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1);
+
     const deleteAction = timActionDelete(
-      t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1),
-      () =>
-        serverActions.deletePresentationObject({
-          projectId: p.projectId,
-          po_id: po.id,
-        }),
+      confirmText,
+      async () => {
+        const promises = idsToDelete.map(id =>
+          serverActions.deletePresentationObject({
+            projectId: p.projectId,
+            po_id: id,
+          })
+        );
+        const results = await Promise.all(promises);
+        const failed = results.filter(r => !r.success);
+        if (failed.length > 0) {
+          return failed[0];
+        }
+        return results[0];
+      },
       () => {
+        clearSelection();
         // SSE will handle refresh
       },
     );
     await deleteAction.click();
   }
 
-  const renderCard = (po: PresentationObjectSummary) => (
+  const renderCard = (po: PresentationObjectSummary, index: number) => (
     <VisualizationCard
       projectId={p.projectId}
       po={po}
       folders={p.folders}
       metrics={p.metrics}
       metricLookup={metricLookup()}
-      onClick={() => p.onClick(po)}
+      isSelected={selectedIds().has(po.id)}
+      selectedCount={selectedIds().size}
+      index={index}
+      onClick={() => {
+        clearSelection();
+        p.onClick(po);
+      }}
+      onCardClick={(e, isCircleClick) => handleVisualizationClick(index, po, e, isCircleClick)}
       onDuplicate={() => handleDuplicate(po)}
       onDelete={() => handleDelete(po)}
+      onMoveToFolder={() => handleMoveToFolder(po)}
+      onCreateSlides={() => handleCreateSlides(po)}
     />
   );
 
@@ -429,9 +666,12 @@ function VisualizationGrid(p: VisualizationGridProps) {
     <Show
       when={p.subGroupConfig}
       fallback={
-        <div class="ui-pad ui-gap grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto">
+        <div
+          class="ui-pad ui-gap grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+          onClick={() => clearSelection()}
+        >
           <For each={p.visualizations} fallback={emptyMessage()}>
-            {renderCard}
+            {(po, i) => renderCard(po, i())}
           </For>
         </div>
       }
@@ -451,15 +691,21 @@ function VisualizationGrid(p: VisualizationGridProps) {
           // Use provided order, or natural order from visualizations if order is empty
           const keys = order.length > 0 ? order.filter((key) => groups.has(key)) : Array.from(groups.keys());
 
+          const visualIndexMap = getVisualIndexMap();
+
           return keys.map((key) => ({
             key,
             label: getGroupLabel(key, p.modules),
             items: groups.get(key)!,
+            visualIndexMap,
           }));
         };
 
         return (
-          <div class="h-full w-full overflow-auto">
+          <div
+            class="h-full w-full overflow-auto"
+            onClick={() => clearSelection()}
+          >
             <Show when={grouped().length > 0} fallback={emptyMessage()}>
               <For each={grouped()}>
                 {(group, i) => (
@@ -469,7 +715,9 @@ function VisualizationGrid(p: VisualizationGridProps) {
                       <span class="text-neutral text-xs">({group.items.length})</span>
                     </div>
                     <div class="px-4 pt-1 pb-4 ui-gap grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start">
-                      <For each={group.items}>{renderCard}</For>
+                      <For each={group.items}>
+                        {(po) => renderCard(po, group.visualIndexMap.get(po.id)!)}
+                      </For>
                     </div>
                   </div>
                 )}
@@ -488,65 +736,64 @@ type VisualizationCardProps = {
   folders: VisualizationFolder[];
   metrics: MetricWithStatus[];
   metricLookup: Map<string, MetricWithStatus>;
+  isSelected: boolean;
+  selectedCount: number;
+  index: number;
   onClick: () => void;
+  onCardClick: (event: MouseEvent, isCircleClick: boolean) => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onMoveToFolder: () => void;
+  onCreateSlides: () => void;
 };
 
 function VisualizationCard(p: VisualizationCardProps) {
-  async function handleCreateSlide() {
-    await openComponent({
-      element: CreateSlideFromVisualizationModal,
-      props: {
-        projectId: p.projectId,
-        visualizationId: p.po.id,
-        visualizationLabel: p.po.label,
-        replicateBy: p.po.replicateBy,
-        metrics: p.metrics,
-      },
-    });
-  }
-
   async function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
 
+    const deleteLabel = p.isSelected && p.selectedCount > 1
+      ? `Delete ${p.selectedCount} visualizations`
+      : "Delete";
+
+    const createSlidesLabel = p.isSelected && p.selectedCount > 1
+      ? `Create ${p.selectedCount} slides...`
+      : "Create slide...";
+
+    const moveToFolderLabel = p.isSelected && p.selectedCount > 1
+      ? `Move ${p.selectedCount} visualizations to folder...`
+      : "Move to folder...";
+
+    const duplicateLabel = p.isSelected && p.selectedCount > 1
+      ? `Duplicate ${p.selectedCount} visualizations...`
+      : "Duplicate...";
+
     const items: MenuItem[] = [
       {
-        label: "Edit slide",
+        label: "Edit visualization",
         icon: "pencil",
         onClick: p.onClick,
       },
     ];
     if (!p.po.isDefault) {
       items.push({
-        label: "Move to folder...",
+        label: moveToFolderLabel,
         icon: "folder",
-        onClick: async () => {
-          await openComponent({
-            element: MoveToFolderModal,
-            props: {
-              projectId: p.projectId,
-              presentationObjectId: p.po.id,
-              currentFolderId: p.po.folderId,
-              folders: p.folders,
-            },
-          });
-        },
+        onClick: p.onMoveToFolder,
       });
     }
     items.push(
       {
-        label: "Create slide...",
+        label: createSlidesLabel,
         icon: "plus",
-        onClick: handleCreateSlide,
+        onClick: p.onCreateSlides,
       },
       {
-        label: "Duplicate...",
+        label: duplicateLabel,
         icon: "copy",
         onClick: p.onDuplicate,
       },
       {
-        label: "Delete",
+        label: deleteLabel,
         icon: "trash",
         intent: "danger",
         onClick: p.onDelete,
@@ -559,12 +806,11 @@ function VisualizationCard(p: VisualizationCardProps) {
 
   return (
     <div
-      class="bg-base-100 cursor-pointer ring-offset-[6px] grid grid-rows-subgrid row-span-3 gap-y-1"
-      onClick={p.onClick}
+      class="group bg-base-100 ring-offset-[6px] grid grid-rows-subgrid row-span-3 gap-y-1"
       onContextMenu={handleContextMenu}
     >
       <div class="ui-gap-sm flex items-end pb-1">
-        <div class="font-400 text-base-content text-xs italic">{p.po.label}</div>
+        <div class="font-400 text-base-content text-xs italic select-none">{p.po.label}</div>
       </div>
       <Show
         when={isReady()}
@@ -574,7 +820,34 @@ function VisualizationCard(p: VisualizationCardProps) {
           </div>
         }
       >
-        <div class="border-base-300 border hover:border-primary p-2 rounded">
+        <div class="relative border-2 p-2 rounded cursor-pointer"
+          classList={{
+            "border-base-300": !p.isSelected,
+            "border-primary": p.isSelected,
+            "hover:border-primary": !p.isSelected,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            p.onCardClick(e, false);
+          }}
+        >
+          <div class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
+            classList={{
+              "bg-primary text-primary-content opacity-100": p.isSelected,
+              "border border-base-300 bg-transparent hover:bg-base-300 hover:text-base-content": !p.isSelected,
+            }}
+            onClick={(e) => p.onCardClick(e, true)}
+          >
+            <Show when={p.isSelected}>
+              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </Show>
+          </div>
           <PresentationObjectMiniDisplay
             projectId={p.projectId}
             presentationObjectId={p.po.id}
@@ -584,7 +857,7 @@ function VisualizationCard(p: VisualizationCardProps) {
           />
         </div>
       </Show>
-      <div class="ui-gap-sm flex items-start justify-end pt-1">
+      <div class="ui-gap-sm flex items-start justify-end pt-1 select-none">
         <Show when={p.po.replicateBy && !p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
             {t2(T.FRENCH_UI_STRINGS.replicated)}:{" "}

@@ -1,5 +1,4 @@
-import { useNavigate } from "@solidjs/router";
-import { ProjectDetail, InstanceDetail, isFrench, t, t2, T, type CreateModeVisualizationData } from "lib";
+import { ProjectDetail, InstanceDetail, PresentationObjectSummary, isFrench, t, t2, T } from "lib";
 import {
   Button,
   FrameTop,
@@ -7,8 +6,9 @@ import {
   OpenEditorProps,
   openComponent,
 } from "panther";
-import { Setter, Show, createSignal } from "solid-js";
+import { Show, createSignal } from "solid-js";
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
+import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "./add_visualization";
 import { CreateVisualizationFromPromptModal } from "./create_visualization_from_prompt_modal";
 
@@ -21,12 +21,14 @@ type Props = {
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
-  onStartCreateMode: Setter<CreateModeVisualizationData | null>;
+  openVisualizationEditor: (
+    po: PresentationObjectSummary,
+    projectDetail: any,
+    instanceDetail: any,
+  ) => Promise<void>;
 };
 
 export function ProjectVisualizations(p: Props) {
-  const navigate = useNavigate();
-
   const [searchText, setSearchText] = createSignal<string>("");
 
   async function attempAddPresentationObject() {
@@ -41,7 +43,24 @@ export function ProjectVisualizations(p: Props) {
     if (res === undefined) {
       return;
     }
-    p.onStartCreateMode(res);
+
+    const result = await p.openProjectEditor({
+      element: VisualizationEditor,
+      props: {
+        mode: "create" as const,
+        projectId: p.projectDetail.id,
+        label: res.label,
+        resultsValue: res.resultsValue,
+        config: res.config,
+        instanceDetail: p.instanceDetail,
+        projectDetail: p.projectDetail,
+        isGlobalAdmin: p.isGlobalAdmin,
+      },
+    });
+
+    if (result?.created) {
+      await p.silentRefreshProject();
+    }
   }
 
   async function attemptAICreatePresentationObject() {
@@ -56,7 +75,24 @@ export function ProjectVisualizations(p: Props) {
     if (res === undefined) {
       return;
     }
-    p.onStartCreateMode(res);
+
+    const result = await p.openProjectEditor({
+      element: VisualizationEditor,
+      props: {
+        mode: "create" as const,
+        projectId: p.projectDetail.id,
+        label: res.label,
+        resultsValue: res.resultsValue,
+        config: res.config,
+        instanceDetail: p.instanceDetail,
+        projectDetail: p.projectDetail,
+        isGlobalAdmin: p.isGlobalAdmin,
+      },
+    });
+
+    if (result?.created) {
+      await p.silentRefreshProject();
+    }
   }
 
   // async function attemptBackupPresentationObjects() {
@@ -115,7 +151,7 @@ export function ProjectVisualizations(p: Props) {
           projectDetail={p.projectDetail}
           searchText={searchText().trim()}
           onClick={(po) => {
-            navigate(`/?p=${p.projectDetail.id}&v=${po.id}`);
+            p.openVisualizationEditor(po, p.projectDetail, p.instanceDetail);
           }}
         />
       </Show>

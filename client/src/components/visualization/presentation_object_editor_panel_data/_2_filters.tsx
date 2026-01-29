@@ -30,7 +30,7 @@ type FiltersProps = {
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
-  resultsValueInfo: TimQuery<ResultsValueInfoForPresentationObject>;
+  resultsValueInfo: ResultsValueInfoForPresentationObject;
   allowedFilterOptions: {
     value: DisaggregationOption;
     label: string | TranslatableString;
@@ -40,65 +40,61 @@ type FiltersProps = {
 };
 
 export function Filters(p: FiltersProps) {
+  const excludedFilters = !!p.resultsValueInfo.periodBounds
+    ? ["year", "period_id", "quarter_id", "month"]
+    : ["period_id", "quarter_id", "month"];
+  const filterOptionsExcludingPeriods = () =>
+    p.allowedFilterOptions.filter((opt) => {
+      return !excludedFilters.includes(opt.value);
+    });
+
   return (
     <div class="ui-spy-sm">
       <div class="text-md font-700">{t2(T.FRENCH_UI_STRINGS.filter)}</div>
 
-      <StateHolderWrapper state={p.resultsValueInfo.state()} noPad>
-        {(keyedResultsValueInfo) => {
-          const excludedFilters = !!keyedResultsValueInfo.periodBounds
-            ? ["year", "period_id", "quarter_id", "month"]
-            : ["period_id", "quarter_id", "month"];
-          const filterOptionsExcludingPeriods = () =>
-            p.allowedFilterOptions.filter((opt) => {
-              return !excludedFilters.includes(opt.value);
-            });
-          return (
-            <div class="ui-spy-sm">
-              <Show when={p.poDetail.resultsValue.valueProps.length > 1}>
-                <DataValuesFilter
-                  poDetail={p.poDetail}
-                  tempConfig={p.tempConfig}
-                  setTempConfig={p.setTempConfig}
-                />
-              </Show>
+      <div class="ui-spy-sm">
+        <Show when={p.poDetail.resultsValue.valueProps.length > 1}>
+          <DataValuesFilter
+            poDetail={p.poDetail}
+            tempConfig={p.tempConfig}
+            setTempConfig={p.setTempConfig}
+          />
+        </Show>
 
-              <Show when={keyedResultsValueInfo.periodBounds} keyed>
-                {(keyedPeriodBounds) => {
+        <Show when={p.resultsValueInfo.periodBounds} keyed>
+          {(keyedPeriodBounds) => {
+            return (
+              <PeriodFilter
+                tempConfig={p.tempConfig}
+                setTempConfig={p.setTempConfig}
+                keyedPeriodBounds={keyedPeriodBounds}
+                resultsValueInfo={p.resultsValueInfo}
+              />
+            );
+          }}
+        </Show>
+
+        <For each={filterOptionsExcludingPeriods()}>
+          {(disOpt) => {
+            const status = () =>
+              p.resultsValueInfo.disaggregationPossibleValues[disOpt.value];
+            return (
+              <Show when={status()} keyed>
+                {(keyedStatus) => {
                   return (
-                    <PeriodFilter
+                    <DisaggregationFilter
+                      disOpt={disOpt}
+                      keyedStatus={keyedStatus}
                       tempConfig={p.tempConfig}
                       setTempConfig={p.setTempConfig}
-                      keyedPeriodBounds={keyedPeriodBounds}
-                      keyedResultsValueInfo={keyedResultsValueInfo}
                     />
                   );
                 }}
               </Show>
-
-              <For each={filterOptionsExcludingPeriods()}>
-                {(disOpt) => {
-                  const status = () => keyedResultsValueInfo.disaggregationPossibleValues[disOpt.value];
-                  return (
-                    <Show when={status()} keyed>
-                      {(keyedStatus) => {
-                        return (
-                          <DisaggregationFilter
-                            disOpt={disOpt}
-                            keyedStatus={keyedStatus}
-                            tempConfig={p.tempConfig}
-                            setTempConfig={p.setTempConfig}
-                          />
-                        );
-                      }}
-                    </Show>
-                  );
-                }}
-              </For>
-            </div>
-          );
-        }}
-      </StateHolderWrapper>
+            );
+          }}
+        </For>
+      </div>
     </div>
   );
 }
@@ -162,7 +158,7 @@ type PeriodFilterProps = {
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   keyedPeriodBounds: PeriodBounds;
-  keyedResultsValueInfo: any;
+  resultsValueInfo: ResultsValueInfoForPresentationObject;
 };
 
 function PeriodFilter(p: PeriodFilterProps) {
@@ -191,7 +187,7 @@ function PeriodFilter(p: PeriodFilterProps) {
               <RadioGroup
                 value={p.tempConfig.d.periodFilter?.filterType}
                 options={
-                  p.keyedResultsValueInfo.periodBounds?.periodOption === "year"
+                  p.resultsValueInfo.periodBounds?.periodOption === "year"
                     ? [
                       {
                         value: "last_12_months",

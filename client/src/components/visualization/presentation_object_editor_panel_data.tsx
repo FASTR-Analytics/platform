@@ -2,12 +2,10 @@ import {
   PresentationObjectConfig,
   PresentationObjectDetail,
   ProjectDetail,
+  ResultsValueInfoForPresentationObject,
   hasOnlyOneFilteredValue,
 } from "lib";
-import { timQuery } from "panther";
 import { SetStoreFunction } from "solid-js/store";
-import { useProjectDirtyStates } from "~/components/project_runner/mod";
-import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/po_cache";
 import {
   DataValuesSummary,
   PresentationTypeSummary,
@@ -18,21 +16,13 @@ import { DisaggregationSection } from "./presentation_object_editor_panel_data/_
 type Props = {
   projectDetail: ProjectDetail;
   poDetail: PresentationObjectDetail;
+  resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   viewResultsObject: (resultsObjectId: string) => Promise<void>;
 };
 
 export function PresentationObjectEditorPanelData(p: Props) {
-  const pds = useProjectDirtyStates();
-
-  const resultsValueInfo = timQuery(() => {
-    return getResultsValueInfoForPresentationObjectFromCacheOrFetch(
-      p.poDetail.projectId,
-      p.poDetail.resultsValue.id,
-    );
-  }, "Loading...");
-
   const allowedFilterOptions = () => {
     return p.poDetail.resultsValue.disaggregationOptions.filter((disOpt) => {
       return (
@@ -56,7 +46,7 @@ export function PresentationObjectEditorPanelData(p: Props) {
         poDetail={p.poDetail}
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}
-        resultsValueInfo={resultsValueInfo}
+        resultsValueInfo={p.resultsValueInfo}
         allowedFilterOptions={allowedFilterOptions()}
       />
 

@@ -14,8 +14,16 @@ import {
   HeadingBar,
   findById,
   openComponent,
+  showMenu,
+  MenuItem,
+  splitIntoRows,
+  splitIntoColumns,
+  addRow,
+  addCol,
+  deleteNodeWithCleanup,
+  createItemNode,
 } from "panther";
-import type { DividerDragUpdate } from "panther";
+import type { DividerDragUpdate, LayoutNode } from "panther";
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { createStore, unwrap, reconcile } from "solid-js/store";
 import { convertSlideToPageInputs } from "../utils/convert_slide_to_page_inputs";
@@ -25,6 +33,41 @@ import { serverActions } from "~/server_actions";
 import { useOptimisticSetLastUpdated } from "../../project_runner/mod";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
+import type { ContentBlock } from "lib";
+
+function findFirstItem(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> & { type: "item" } | undefined {
+  if (node.type === "item") return node;
+  for (const child of node.children) {
+    const found = findFirstItem(child as LayoutNode<ContentBlock>);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+function ensureExplicitSpans(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> {
+  if (node.type === "item") {
+    return node;
+  }
+
+  // Recursively process children first
+  let children = node.children.map(ensureExplicitSpans);
+
+  // If this is a cols node and any children lack explicit spans, set equal spans
+  if (node.type === "cols") {
+    const hasAnyMissingSpans = children.some(c => c.span === undefined);
+    if (hasAnyMissingSpans) {
+      const spanPerChild = Math.floor(12 / children.length);
+      children = children.map((child, i) => ({
+        ...child,
+        span: i === children.length - 1
+          ? 12 - (spanPerChild * (children.length - 1))
+          : spanPerChild
+      }));
+    }
+  }
+
+  return { ...node, children };
+}
 
 type SlideEditorInnerProps = {
   projectId: string;
@@ -292,8 +335,122 @@ export function SlideEditor(p: Props) {
                       }
                     }}
                     onDividerDrag={handleDividerDrag}
-                    onContextMenu={(_e, _target) => {
-                      // Future: Layout manipulation menu
+                    onContextMenu={(e, target) => {
+                      if (target.type !== "layoutItem") return;
+                      if (tempSlide.type !== "content") return;
+
+                      const layout = tempSlide.layout;
+                      const root = structuredClone(unwrap(layout));
+                      const targetId = target.node.id;
+                      const items: MenuItem[] = [];
+
+                      const makeNewBlock = () =>
+                        createItemNode<ContentBlock>({ type: "placeholder" });
+
+                      const found = findById(root, targetId);
+                      const isOnlyNode = root.type === "item" && root.id === targetId;
+                      const parentType = found?.parent?.type;
+
+                      // Split options
+                      if (isOnlyNode || parentType === "cols") {
+                        items.push({
+                          label: "Split into rows",
+                          icon: "plus",
+                          onClick: () => {
+                            const newBlock = makeNewBlock();
+                            const result = splitIntoRows(root, targetId, newBlock);
+                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
+                            setSelectedBlockId(newBlock.id);
+                          },
+                        });
+                      }
+                      if (isOnlyNode || parentType === "rows") {
+                        items.push({
+                          label: "Split into columns",
+                          icon: "plus",
+                          onClick: () => {
+                            const newBlock = makeNewBlock();
+                            const result = splitIntoColumns(root, targetId, newBlock);
+                            const resultWithSpans = ensureExplicitSpans(result);
+                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: resultWithSpans }));
+                            setSelectedBlockId(newBlock.id);
+                          },
+                        });
+                      }
+
+                      items.push({ type: "divider" });
+
+                      // Add col left/right
+                      items.push({
+                        label: "Add col to left",
+                        icon: "plus",
+                        onClick: () => {
+                          const newBlock = makeNewBlock();
+                          const result = addCol(root, targetId, newBlock, "left");
+                          const resultWithSpans = ensureExplicitSpans(result);
+                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: resultWithSpans }));
+                          setSelectedBlockId(newBlock.id);
+                        },
+                      });
+                      items.push({
+                        label: "Add col to right",
+                        icon: "plus",
+                        onClick: () => {
+                          const newBlock = makeNewBlock();
+                          const result = addCol(root, targetId, newBlock, "right");
+                          const resultWithSpans = ensureExplicitSpans(result);
+                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: resultWithSpans }));
+                          setSelectedBlockId(newBlock.id);
+                        },
+                      });
+
+                      items.push({ type: "divider" });
+
+                      // Add row above/below
+                      items.push({
+                        label: "Add row above",
+                        icon: "plus",
+                        onClick: () => {
+                          const newBlock = makeNewBlock();
+                          const result = addRow(root, targetId, newBlock, "above");
+                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
+                          setSelectedBlockId(newBlock.id);
+                        },
+                      });
+                      items.push({
+                        label: "Add row below",
+                        icon: "plus",
+                        onClick: () => {
+                          const newBlock = makeNewBlock();
+                          const result = addRow(root, targetId, newBlock, "below");
+                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
+                          setSelectedBlockId(newBlock.id);
+                        },
+                      });
+
+                      // Delete (only if not the only node)
+                      if (!isOnlyNode) {
+                        items.push({ type: "divider" });
+                        items.push({
+                          label: "Delete this cell",
+                          icon: "trash",
+                          intent: "danger",
+                          onClick: () => {
+                            const result = deleteNodeWithCleanup(root, targetId);
+                            if (result) {
+                              setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
+                              const firstItem = findFirstItem(result);
+                              setSelectedBlockId(firstItem?.id);
+                            }
+                          },
+                        });
+                      }
+
+                      showMenu({
+                        x: e.clientX,
+                        y: e.clientY,
+                        items,
+                      });
                     }}
                   />
                 </div>

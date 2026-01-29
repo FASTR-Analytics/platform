@@ -9,9 +9,9 @@ import { InlineReplicantSelector } from "../report/inline_replicant_selector";
 
 type Props = {
   projectId: string;
-  visualizationId: string;
-  visualizationLabel: string;
-  replicateBy: DisaggregationOption | undefined;
+  visualizationIds: string[];
+  visualizationLabels: string[];
+  replicateBy?: DisaggregationOption;
   metrics: MetricWithStatus[];
 };
 
@@ -28,6 +28,11 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
   const [creationMode, setCreationMode] = createSignal<"single" | "all">("single");
   const [replicantOptions, setReplicantOptions] = createSignal<string[]>([]);
   const progress = getProgress();
+
+  const isSingleReplicatedMode = () =>
+    p.visualizationIds.length === 1 && p.replicateBy !== undefined;
+
+  const isBatchMode = () => !isSingleReplicatedMode();
 
   const radioOptions = (): SelectOption<string>[] =>
     decks().map(d => ({ value: d.id, label: d.label }));
@@ -66,86 +71,146 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
         deckId = selectedDeckId();
       }
 
-      if (creationMode() === "single") {
-        // EXISTING: Single slide creation
-        if (p.replicateBy && !selectedReplicant()) {
-          return { success: false as const, err: "Please select a replicant" };
+      // SINGLE REPLICATED MODE: Existing behavior preserved
+      if (isSingleReplicatedMode()) {
+        if (creationMode() === "single") {
+          if (!selectedReplicant()) {
+            return { success: false as const, err: "Please select a replicant" };
+          }
+
+          const input: AiContentSlideInput = {
+            type: "content",
+            heading: p.visualizationLabels[0],
+            blocks: [{
+              type: "from_visualization",
+              visualizationId: p.visualizationIds[0],
+              replicant: selectedReplicant(),
+            }],
+          };
+
+          const slide = await convertAiInputToSlide(p.projectId, input, p.metrics);
+          const addRes = await serverActions.createSlide({
+            projectId: p.projectId,
+            deck_id: deckId,
+            position: { toEnd: true },
+            slide,
+          });
+
+          if (!addRes.success) return addRes;
+          return { success: true as const, data: { deckId } };
+        } else {
+          // All replicants mode (existing)
+          const options = replicantOptions();
+          let successCount = 0;
+
+          for (let i = 0; i < options.length; i++) {
+            const replicantValue = options[i];
+            const replicantLabel = p.replicateBy === "indicator_common_id"
+              ? t(replicantValue).toUpperCase()
+              : replicantValue;
+
+            progress.onProgress(
+              i / options.length,
+              `Creating slide ${i + 1} of ${options.length}...`
+            );
+
+            const input: AiContentSlideInput = {
+              type: "content",
+              heading: `${p.visualizationLabels[0]} - ${replicantLabel}`,
+              blocks: [{
+                type: "from_visualization",
+                visualizationId: p.visualizationIds[0],
+                replicant: replicantValue,
+              }],
+            };
+
+            try {
+              const slide = await convertAiInputToSlide(p.projectId, input, p.metrics);
+              const addRes = await serverActions.createSlide({
+                projectId: p.projectId,
+                deck_id: deckId,
+                position: { toEnd: true },
+                slide,
+              });
+
+              if (!addRes.success) {
+                return {
+                  success: false as const,
+                  err: `Failed on slide ${i + 1} of ${options.length} (${replicantLabel}): ${addRes.err}. Created ${successCount} slides successfully.`
+                };
+              }
+              successCount++;
+            } catch (err) {
+              return {
+                success: false as const,
+                err: `Failed on slide ${i + 1} of ${options.length} (${replicantLabel}): ${err instanceof Error ? err.message : String(err)}. Created ${successCount} slides successfully.`
+              };
+            }
+          }
+
+          progress.onProgress(1, `Created ${options.length} slides`);
+          return { success: true as const, data: { deckId } };
+        }
+      }
+
+      // BATCH MODE: Single non-replicated OR multiple non-replicated
+      const vizCount = p.visualizationIds.length;
+      let successCount = 0;
+
+      for (let i = 0; i < vizCount; i++) {
+        const vizId = p.visualizationIds[i];
+        const vizLabel = p.visualizationLabels[i];
+
+        if (vizCount > 1) {
+          progress.onProgress(
+            i / vizCount,
+            `Creating slide ${i + 1} of ${vizCount}...`
+          );
         }
 
         const input: AiContentSlideInput = {
           type: "content",
-          heading: p.visualizationLabel,
+          heading: vizLabel,
           blocks: [{
             type: "from_visualization",
-            visualizationId: p.visualizationId,
-            replicant: p.replicateBy ? selectedReplicant() : undefined,
+            visualizationId: vizId,
+            replicant: undefined,
           }],
         };
 
-        const slide = await convertAiInputToSlide(p.projectId, input, p.metrics);
-        const addRes = await serverActions.createSlide({
-          projectId: p.projectId,
-          deck_id: deckId,
-          position: { toEnd: true },
-          slide,
-        });
+        try {
+          const slide = await convertAiInputToSlide(p.projectId, input, p.metrics);
+          const addRes = await serverActions.createSlide({
+            projectId: p.projectId,
+            deck_id: deckId,
+            position: { toEnd: true },
+            slide,
+          });
 
-        if (!addRes.success) return addRes;
-        return { success: true as const, data: { deckId } };
-      } else {
-        // NEW: Multiple slides creation with progress
-        const options = replicantOptions();
-        let successCount = 0;
-
-        for (let i = 0; i < options.length; i++) {
-          const replicantValue = options[i];
-          const replicantLabel = p.replicateBy === "indicator_common_id"
-            ? t(replicantValue).toUpperCase()
-            : replicantValue;
-
-          progress.onProgress(
-            i / options.length,
-            `Creating slide ${i + 1} of ${options.length}...`
-          );
-
-          const input: AiContentSlideInput = {
-            type: "content",
-            heading: `${p.visualizationLabel} - ${replicantLabel}`,
-            blocks: [{
-              type: "from_visualization",
-              visualizationId: p.visualizationId,
-              replicant: replicantValue,
-            }],
-          };
-
-          try {
-            const slide = await convertAiInputToSlide(p.projectId, input, p.metrics);
-            const addRes = await serverActions.createSlide({
-              projectId: p.projectId,
-              deck_id: deckId,
-              position: { toEnd: true },
-              slide,
-            });
-
-            if (!addRes.success) {
-              return {
-                success: false as const,
-                err: `Failed on slide ${i + 1} of ${options.length} (${replicantLabel}): ${addRes.err}. Created ${successCount} slides successfully.`
-              };
-            }
-            successCount++;
-          } catch (err) {
+          if (!addRes.success) {
             return {
               success: false as const,
-              err: `Failed on slide ${i + 1} of ${options.length} (${replicantLabel}): ${err instanceof Error ? err.message : String(err)}. Created ${successCount} slides successfully.`
+              err: vizCount > 1
+                ? `Failed on slide ${i + 1} of ${vizCount} (${vizLabel}): ${addRes.err}. Created ${successCount} slides successfully.`
+                : addRes.err
             };
           }
+          successCount++;
+        } catch (err) {
+          return {
+            success: false as const,
+            err: vizCount > 1
+              ? `Failed on slide ${i + 1} of ${vizCount} (${vizLabel}): ${err instanceof Error ? err.message : String(err)}. Created ${successCount} slides successfully.`
+              : (err instanceof Error ? err.message : String(err))
+          };
         }
-
-        progress.onProgress(1, `Created ${options.length} slides`);
-
-        return { success: true as const, data: { deckId } };
       }
+
+      if (vizCount > 1) {
+        progress.onProgress(1, `Created ${vizCount} slides`);
+      }
+
+      return { success: true as const, data: { deckId } }
     },
     (data) => {
       p.close(data);
@@ -153,10 +218,14 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
     }
   );
 
+  const header = p.visualizationIds.length > 1
+    ? `Create ${p.visualizationIds.length} slides`
+    : "Create Slide";
+
   return (
     <AlertFormHolder
       formId="create-slide-from-viz"
-      header="Create Slide"
+      header={header}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -164,7 +233,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
         isCreatingNew()
           ? !newDeckLabel().trim()
           : !selectedDeckId() ||
-            (p.replicateBy && creationMode() === "single" && !selectedReplicant())
+            (isSingleReplicatedMode() && creationMode() === "single" && !selectedReplicant())
       }
     >
       <Show when={isLoadingDecks()}>
@@ -175,7 +244,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
 
       <Show when={!isLoadingDecks()}>
         <div class="ui-spy">
-          <Show when={p.replicateBy}>
+          <Show when={isSingleReplicatedMode() ? p.replicateBy : false}>
             {(replicateBy) => (
               <>
                 <RadioGroup
@@ -191,7 +260,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
                 <Show when={creationMode() === "single"}>
                   <InlineReplicantSelector
                     projectId={p.projectId}
-                    presentationObjectId={p.visualizationId}
+                    presentationObjectId={p.visualizationIds[0]}
                     replicateBy={replicateBy()}
                     selectedValue={selectedReplicant()}
                     onChange={(value, allOptions) => {
@@ -212,6 +281,13 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
                 </Show>
               </>
             )}
+          </Show>
+          <Show when={isBatchMode() && save.state().status === "loading" && p.visualizationIds.length > 1}>
+            <ProgressBar
+              progressFrom0To100={progress.progressFrom0To100()}
+              progressMsg={progress.progressMsg()}
+              small
+            />
           </Show>
           <Show
             when={!isCreatingNew()}
