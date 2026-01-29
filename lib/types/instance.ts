@@ -254,8 +254,19 @@ export function createDevGlobalUser(
 export function createDevProjectUser(): ProjectUser {
   return {
     email: "dev@offline.local",
-    role: "editor",
+    role: "editor", // deprecated
     isGlobalAdmin: true,
+    can_configure_settings: true,
+    can_create_backups: true,
+    can_restore_backups: true,
+    can_configure_modules: true,
+    can_run_modules: true,
+    can_configure_users: true,
+    can_configure_visulizations: true,
+    can_configure_reports: true,
+    can_configure_data: true,
+    can_view_data: true,
+    can_view_logs: true,
   };
 }
 

@@ -485,8 +485,19 @@ ON CONFLICT do nothing;
         projectLabel: rawProject.label,
         projectUser: {
           email: auth.sessionClaims.email as string,
-          role: "editor",
+          role: "editor", // deprecated
           isGlobalAdmin: true,
+          can_configure_settings: true,
+          can_create_backups: true,
+          can_restore_backups: true,
+          can_configure_modules: true,
+          can_run_modules: true,
+          can_configure_users: true,
+          can_configure_visulizations: true,
+          can_configure_reports: true,
+          can_configure_data: true,
+          can_view_data: true,
+          can_view_logs: true,
         },
       };
     }
@@ -508,8 +519,19 @@ ON CONFLICT do nothing;
       projectLabel: rawProject.label,
       projectUser: {
         email: auth.sessionClaims.email as string,
-        role: rawProjectUserRole.role === "editor" ? "editor" : "viewer",
+        role: rawProjectUserRole.role === "editor" ? "editor" : "viewer", // deprecated
         isGlobalAdmin: false,
+        can_configure_settings: rawProjectUserRole.can_configure_settings,
+        can_create_backups: rawProjectUserRole.can_create_backups,
+        can_restore_backups: rawProjectUserRole.can_restore_backups,
+        can_configure_modules: rawProjectUserRole.can_configure_modules,
+        can_run_modules: rawProjectUserRole.can_run_modules,
+        can_configure_users: rawProjectUserRole.can_configure_users,
+        can_configure_visulizations: rawProjectUserRole.can_configure_visulizations,
+        can_configure_reports: rawProjectUserRole.can_configure_reports,
+        can_configure_data: rawProjectUserRole.can_configure_data,
+        can_view_data: rawProjectUserRole.can_view_data,
+        can_view_logs: rawProjectUserRole.can_view_logs,
       },
     };
   } catch (error) {
