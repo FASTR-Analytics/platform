@@ -75,12 +75,13 @@ function getMinComfortableWidth(
   const paneGapsWidth = (nGCols - 1) * mergedStyle.panes.gapX;
   const lanePaddingWidth = (sx.lanePaddingLeft + sx.lanePaddingRight) * nGCols;
 
-  // Calculate y-axis minimum width using shared helper
-  const yAxisMinWidth = estimateMinYAxisWidth(
+  // Calculate y-axis minimum width - one per pane column
+  const yAxisWidthPerPane = estimateMinYAxisWidth(
     rc,
     mergedStyle.yScaleAxis,
     mergedStyle.grid,
   );
+  const totalYAxisWidth = yAxisWidthPerPane * nGCols;
 
   // Calculate surrounds minimum width (mainly for right-positioned legends)
   const surroundsMinWidth = estimateMinSurroundsWidth(
@@ -89,7 +90,8 @@ function getMinComfortableWidth(
     item.legendItemsOrLabels,
   );
 
-  return totalSubChartsWidth + laneGapsWidth + paneGapsWidth + lanePaddingWidth + yAxisMinWidth + surroundsMinWidth;
+  return totalSubChartsWidth + laneGapsWidth + paneGapsWidth +
+    lanePaddingWidth + totalYAxisWidth + surroundsMinWidth;
 }
 
 function getIdealHeightAtScale(
@@ -112,17 +114,49 @@ function getIdealHeightAtScale(
   );
 
   // Minimum subchart height (2 tick labels + 2× spacing)
-  const minSubChartHeight = calculateMinSubChartHeight(rc, mergedStyle.yScaleAxis);
+  const minSubChartHeight = calculateMinSubChartHeight(
+    rc,
+    mergedStyle.yScaleAxis,
+  );
 
   // Total plot height = subcharts × tiers × pane rows + all gaps
   const nTiers = transformedData.yScaleAxisData.tierHeaders.length;
   const totalSubChartsHeight = minSubChartHeight * nTiers * nGRows;
-  const tierGapsHeight = (nTiers - 1) * mergedStyle.yScaleAxis.tierGapY * nGRows;
+  const tierGapsHeight = (nTiers - 1) * mergedStyle.yScaleAxis.tierGapY *
+    nGRows;
   const paneGapsHeight = (nGRows - 1) * mergedStyle.panes.gapY;
-  const tierPaddingHeight = (mergedStyle.yScaleAxis.tierPaddingTop + mergedStyle.yScaleAxis.tierPaddingBottom) * nGRows;
+  const tierPaddingHeight = (mergedStyle.yScaleAxis.tierPaddingTop +
+    mergedStyle.yScaleAxis.tierPaddingBottom) * nGRows;
 
-  // Add surrounds
-  const dummyBounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
+  // Add pane headers if shown (one per pane row)
+  let paneHeadersHeight = 0;
+  if (!mergedStyle.hideColHeaders && transformedData.paneHeaders.length > 1) {
+    const paneHeaderH = rc.mText(
+      "Region 001",
+      mergedStyle.text.paneHeaders,
+      400,
+    ).dims.h();
+    paneHeadersHeight = (paneHeaderH + mergedStyle.panes.headerGap) * nGRows;
+  }
+
+  // Add x-axis height for each pane row
+  const xAxisTickH = rc.mText(
+    "Category",
+    mergedStyle.xTextAxis.text.xTextAxisTickLabels,
+    Infinity,
+  ).dims.h();
+  const xAxisHeight = (mergedStyle.grid.axisStrokeWidth + xAxisTickH +
+    mergedStyle.xTextAxis.tickHeight + mergedStyle.xTextAxis.tickLabelGap) *
+    nGRows;
+
+  // Add surrounds - measure at comfortable width to avoid caption wrapping inflation
+  const comfortableWidth = Math.max(width, 800);
+  const dummyBounds = new RectCoordsDims({
+    x: 0,
+    y: 0,
+    w: comfortableWidth,
+    h: 9999,
+  });
   const mSurrounds = measureSurrounds(
     rc,
     dummyBounds,
@@ -133,7 +167,9 @@ function getIdealHeightAtScale(
     item.legendItemsOrLabels,
   );
 
-  return totalSubChartsHeight + tierGapsHeight + paneGapsHeight + tierPaddingHeight + mSurrounds.extraHeightDueToSurrounds;
+  return totalSubChartsHeight + tierGapsHeight + paneGapsHeight +
+    tierPaddingHeight + paneHeadersHeight + xAxisHeight +
+    mSurrounds.extraHeightDueToSurrounds;
 }
 
 function measureWithAutofit(
@@ -269,16 +305,23 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
       item.footnote,
       item.legendItemsOrLabels,
     );
-    const minHAtScale1 = mSurrounds.extraHeightDueToSurrounds + MIN_PLOT_AREA_HEIGHT;
+    const minHAtScale1 = mSurrounds.extraHeightDueToSurrounds +
+      MIN_PLOT_AREA_HEIGHT;
 
     // Width-based scaling for optimizer scoring
     const minComfortableWidth = getMinComfortableWidth(rc, item, 1.0);
-    const neededScalingToFitWidth =
-      width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
+    const neededScalingToFitWidth = width >= minComfortableWidth
+      ? 1.0
+      : width / minComfortableWidth;
 
     if (!autofitOpts) {
       // No autofit - return heights at scale 1.0
-      return { minH: minHAtScale1, idealH, maxH: Infinity, neededScalingToFitWidth };
+      return {
+        minH: minHAtScale1,
+        idealH,
+        maxH: Infinity,
+        neededScalingToFitWidth,
+      };
     }
 
     // With autofit - minH is height at minimum scale

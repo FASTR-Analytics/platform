@@ -12,7 +12,7 @@ export function AIDocumentButton(p: Props) {
   const count = () => p.documents.length;
 
   return (
-    <div class="flex items-center gap-2">
+    <div class="flex items-center ui-gap-sm">
       <Show when={count() > 0}>
         <div class="flex items-center gap-1 text-xs text-base-content/70">
           <FileIcon class="w-3 h-3" />
@@ -20,7 +20,7 @@ export function AIDocumentButton(p: Props) {
         </div>
       </Show>
       <Button size="sm" outline iconName="document" onClick={p.onOpenSelector}>
-        {count() > 0 ? "Manage PDFs" : "Include PDF"}
+        {count() > 0 ? "Manage files" : "Include file"}
       </Button>
     </div>
   );
@@ -32,7 +32,7 @@ export function AIDocumentList(p: {
 }) {
   return (
     <Show when={p.documents.length > 0}>
-      <div class="flex flex-wrap gap-1 px-2 pb-2">
+      <div class="flex flex-wrap gap-1 px-2 py-2 border-b border-base-300">
         <For each={p.documents}>
           {(doc) => (
             <div class="flex items-center gap-1 bg-base-200 rounded px-2 py-1 text-xs">
@@ -40,7 +40,7 @@ export function AIDocumentList(p: {
               <span class="max-w-[150px] truncate">{doc.assetFilename}</span>
               <button
                 type="button"
-                class="hover:text-error"
+                class="cursor-pointer"
                 onClick={() => p.onRemove(doc.assetFilename)}
               >
                 <XIcon class="w-3 h-3" />

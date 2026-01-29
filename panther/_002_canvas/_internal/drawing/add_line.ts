@@ -21,6 +21,9 @@ export function addLine(
   if (coordArray.length < 2) {
     return;
   }
+  if (s.strokeWidth <= 0) {
+    return;
+  }
   ctx.strokeStyle = getColor(s.strokeColor);
   ctx.lineWidth = s.strokeWidth;
   ctx.lineJoin = "round";

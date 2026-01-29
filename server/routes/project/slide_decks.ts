@@ -78,6 +78,8 @@ defineRoute(
       res.data.lastUpdated
     );
 
+    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+
     return c.json(res);
   }
 );

@@ -316,8 +316,10 @@ export function getStyleFromPresentationObject(
     //             //
     /////////////////
     table: {
-      colHeaderBackgroundColor: {key: "base100"},
-      gridLineColor: {key: "base300"},
+      // colHeaderBackgroundColor: {key: "base100"},
+      gridLineColor: config.s.conditionalFormatting === "none" ? undefined : {key: "base100"},
+      rowHeaderPadding: config.s.conditionalFormatting === "none" ? undefined  : [5, 10,5,0],
+      borderWidth: config.s.conditionalFormatting === "none" ? undefined  : 0,
       cellBackgroundColorFormatter: colorFuncGivenCF,
       cellValueFormatter: getFormatterFunc(
         dataFormat,

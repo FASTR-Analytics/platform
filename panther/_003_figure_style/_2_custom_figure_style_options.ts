@@ -117,18 +117,19 @@ export type CustomFigureStyleOptions = {
     cellBackgroundColorFormatter?:
       | "none"
       | TableCellFormatterFunc<
-        string | number | null | undefined,
-        ColorKeyOrString
-      >;
+          string | number | null | undefined,
+          ColorKeyOrString
+        >;
     cellValueFormatter?: TableCellFormatterFunc<
       string | number | null | undefined,
       string
     >;
-    showGridLines?: boolean;
     headerBorderWidth?: number;
     gridLineWidth?: number;
+    borderWidth?: number;
     headerBorderColor?: ColorKeyOrString;
     gridLineColor?: ColorKeyOrString;
+    borderColor?: ColorKeyOrString;
   };
   ////////////////////////////////////////////////////////
   //  __    __          ______             __            //

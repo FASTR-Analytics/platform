@@ -30,7 +30,7 @@ export type OptimizerConstraint = {
 
 export type OptimizerConfig = {
   constraint?: OptimizerConstraint;
-  minSpan?: number; // Minimum span for columns (default: 4)
+  minSpan?: number; // Minimum span for columns (default: 1)
   debug?: boolean; // Print debug info about scoring
 };
 
@@ -230,6 +230,7 @@ function scoreLayout<U>(
   measured: MeasuredLayoutNode<U>,
   bounds: RectCoordsDims,
   overflow: boolean,
+  debug: boolean = false,
 ): LayoutScore {
   let shrinkPenalty = 0;
   let stretchPenalty = 0;
@@ -238,7 +239,6 @@ function scoreLayout<U>(
   walkMeasuredItems(measured, (node) => {
     const actualH = node.rpd.h();
     const idealH = node.idealH;
-    // console.log("item", node.data, node.idealH, actualH);
     const maxH = node.maxH;
     if (actualH < idealH) {
       shrinkPenalty += idealH - actualH;
@@ -250,10 +250,40 @@ function scoreLayout<U>(
       }
     }
 
-    // Penalize width scaling (items that had to shrink to fit width)
-    const scale = node.neededScalingToFitWidth;
-    if (typeof scale === "number" && scale < 1.0) {
-      scalePenalty += (1.0 - scale) * 100;
+    // Penalize scaling (width OR height)
+    let worstScale = 1.0;
+
+    // Width-based scaling (from getIdealHeight)
+    const widthScale = node.neededScalingToFitWidth;
+    if (typeof widthScale === "number") {
+      worstScale = Math.min(worstScale, widthScale);
+    }
+
+    // Height-based scaling (estimated from allocated vs ideal)
+    let heightScale = 1.0;
+    if (actualH < idealH) {
+      heightScale = actualH / idealH;
+      worstScale = Math.min(worstScale, heightScale);
+    }
+
+    if (debug && worstScale < 1.0) {
+      console.log(
+        `  Item w=${node.rpd.w().toFixed(0)} actualH=${
+          actualH.toFixed(0)
+        } idealH=${idealH.toFixed(0)} ` +
+          `widthScale=${
+            typeof widthScale === "number" ? widthScale.toFixed(2) : "none"
+          } ` +
+          `heightScale=${heightScale.toFixed(2)} worstScale=${
+            worstScale.toFixed(2)
+          }`,
+      );
+    }
+
+    if (worstScale < 1.0) {
+      // Use squared penalty to prefer equal scaling across items
+      const scaleDiff = 1.0 - worstScale;
+      scalePenalty += scaleDiff * scaleDiff * 10000;
     }
   });
 
@@ -269,8 +299,8 @@ function scoreLayout<U>(
     shrinkPenalty * 10 +
     stretchPenalty * 5 +
     scalePenalty * 8 +
-    heightImbalance * 2 +
-    wastedSpace;
+    heightImbalance * 2;
+  // wastedSpace removed - don't penalize for having vertical breathing room
 
   // console.log("Scoring", total);
 
@@ -401,7 +431,7 @@ export function optimizeLayout<T, U>(
   }
 
   const { gapX, gapY, nColumns } = style;
-  const minSpan = config?.minSpan ?? 4;
+  const minSpan = config?.minSpan ?? 1;
   const debug = config?.debug ?? false;
   const transform = layoutTransform ?? ((l) => l);
 
@@ -467,7 +497,7 @@ export function optimizeLayout<T, U>(
       cachedMeasurer,
       nColumns,
     );
-    const score = scoreLayout(result.measured, bounds, result.overflow);
+    const score = scoreLayout(result.measured, bounds, result.overflow, debug);
 
     if (debug) {
       debugScores.push({ layout: layoutToString(transformed), score });

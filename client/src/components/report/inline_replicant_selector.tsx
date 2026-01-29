@@ -8,7 +8,7 @@ type Props = {
   presentationObjectId: string;
   replicateBy: DisaggregationOption;
   selectedValue: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, allOptions?: string[]) => void;
 };
 
 export function InlineReplicantSelector(p: Props) {

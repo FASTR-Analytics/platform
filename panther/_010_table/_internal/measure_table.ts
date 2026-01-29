@@ -68,16 +68,15 @@ export function measureTable(
       (hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0));
   const rowHeaderInfos = getRowHeaderInfos(rc, d, s, maxPossibleRowHeader);
   const hasRowHeaders = rowHeaderInfos.some((cgh) => cgh.mText);
-  const rowHeaderMaxWidth = s.rowHeaderPadding.totalPx() +
-    Math.max(
-      ...rowHeaderInfos.map((rhi) => {
-        const extraIfIndent = hasRowGroupHeaders && rhi.index !== "group-header"
-          ? s.rowHeaderIndentIfRowGroups
-          : 0;
-        return (rhi.mText?.dims.w() ?? 0) + extraIfIndent;
-      }),
-    );
-  const rowHeadersInnerX = contentRcd.x() + s.gridLineWidth;
+  const rowHeaderMaxWidth = Math.max(
+    ...rowHeaderInfos.map((rhi) => {
+      const extraIfIndent = hasRowGroupHeaders && rhi.index !== "group-header"
+        ? s.rowHeaderIndentIfRowGroups
+        : 0;
+      return (rhi.mText?.dims.w() ?? 0) + extraIfIndent;
+    }),
+  );
+  const rowHeadersInnerX = contentRcd.x() + s.borderWidth;
   const firstCellX = rowHeadersInnerX +
     (hasRowHeaders
       ? s.rowHeaderPadding.totalPx() +
@@ -86,7 +85,7 @@ export function measureTable(
       : 0);
   const colSpace = contentRcd.rightX() - firstCellX;
   const colSpaceBetweenGridLines = colSpace -
-    (s.showGridLines ? nCols : nCols - 1) * s.gridLineWidth;
+    (nCols - 1) * s.gridLineWidth - s.borderWidth;
   const colInnerWidth = colSpaceBetweenGridLines / nCols;
 
   const colGroupHeaderInfos = getColGroupHeaderInfos(rc, d, s, colInnerWidth);
@@ -101,7 +100,7 @@ export function measureTable(
     ...colHeaderInfos.map((rhi) => rhi.mText?.dims.h() ?? 0),
   );
 
-  const colGroupHeadersInnerY = contentRcd.y() + s.gridLineWidth;
+  const colGroupHeadersInnerY = contentRcd.y() + s.borderWidth;
   const colGroupHeaderAxisY = colGroupHeadersInnerY +
     (hasColGroupHeaders
       ? s.colHeaderPadding.totalPy() + colGroupHeaderMaxHeight
@@ -156,13 +155,13 @@ export function measureTable(
   const maxY = firstCellY +
     sum(
       measuredRows.map((mr, index) => {
+        const isLastRow = index === measuredRows.length - 1;
+        const lineWidth = isLastRow ? s.borderWidth : s.gridLineWidth;
         return (
           rowCellPaddingT +
           mr.rowContentHeight +
           rowCellPaddingB +
-          (s.showGridLines || index < measuredRows.length - 1
-            ? s.gridLineWidth
-            : 0)
+          lineWidth
         );
       }),
     );

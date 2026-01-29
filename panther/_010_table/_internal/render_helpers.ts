@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getColor, type RenderContext } from "../deps.ts";
+import { getColor, type RenderContext, sum } from "../deps.ts";
 import type { MeasuredTable } from "../types.ts";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -59,10 +59,12 @@ export function renderColAndColGroupHeaders(
     m.colGroupHeaderInfos.forEach((cghi) => {
       if (cghi.mText) {
         const yOffset = m.colGroupHeaderMaxHeight - cghi.mText.dims.h();
+        const colGroupContentWidth = cghi.colGroupInnerWidth -
+          s.colHeaderPadding.totalPx();
         rc.rText(
           cghi.mText,
           [
-            currentX + cghi.colGroupInnerWidth / 2,
+            currentX + s.colHeaderPadding.pl() + colGroupContentWidth / 2,
             m.colGroupHeadersInnerY +
             s.colHeaderPadding.pt() +
             m.extraTopPaddingForRowsAndAllHeaders +
@@ -110,10 +112,12 @@ export function renderColAndColGroupHeaders(
         const yOffset = chi.mText.rotation !== "horizontal"
           ? m.colHeaderMaxHeight
           : m.colHeaderMaxHeight - chi.mText.dims.h();
+        const colHeaderContentWidth = m.colInnerWidth -
+          s.colHeaderPadding.totalPx();
         rc.rText(
           chi.mText,
           [
-            currentX + m.colInnerWidth / 2,
+            currentX + s.colHeaderPadding.pl() + colHeaderContentWidth / 2,
             m.colHeadersInnerY +
             s.colHeaderPadding.pt() +
             m.extraTopPaddingForRowsAndAllHeaders +
@@ -263,53 +267,83 @@ export function renderLines(rc: RenderContext, mTable: MeasuredTable) {
   //                           //
   ///////////////////////////////
 
-  if (s.showGridLines) {
-    rc.rLine(
-      [
-        [m.contentRcd.x() + s.gridLineWidth / 2, m.contentRcd.y()],
-        [m.contentRcd.x() + s.gridLineWidth / 2, m.contentRcd.bottomY()],
-      ],
-      {
-        strokeColor: s.gridLineColor,
-        strokeWidth: s.gridLineWidth,
-        lineDash: "solid",
-      },
-    );
+  // Left outer border
+  rc.rLine(
+    [
+      [m.contentRcd.x() + s.borderWidth / 2, m.contentRcd.y()],
+      [m.contentRcd.x() + s.borderWidth / 2, m.contentRcd.bottomY()],
+    ],
+    {
+      strokeColor: s.borderColor,
+      strokeWidth: s.borderWidth,
+      lineDash: "solid",
+    },
+  );
 
-    let currentX = m.firstCellX;
-    d.colGroups.forEach((colGroup) => {
-      const nColsThisGroup = colGroup.cols.length;
-      m;
-      colGroup.cols.forEach((_, i_col) => {
-        currentX += m.colInnerWidth;
-        const topY = i_col === nColsThisGroup - 1
+  // Inner vertical grid lines and right outer border
+  let currentX = m.firstCellX;
+  const totalCols = sum(d.colGroups.map((cg) => cg.cols.length));
+  let colIndex = 0;
+  d.colGroups.forEach((colGroup, i_colGroup) => {
+    const nColsThisGroup = colGroup.cols.length;
+    colGroup.cols.forEach((_, i_col) => {
+      currentX += m.colInnerWidth;
+      colIndex++;
+      const isRightBorder = colIndex === totalCols;
+      const lineWidth = isRightBorder ? s.borderWidth : s.gridLineWidth;
+      const lineColor = isRightBorder ? s.borderColor : s.gridLineColor;
+      const topY =
+        i_col === nColsThisGroup - 1 && i_colGroup === d.colGroups.length - 1
+          ? m.contentRcd.y()
+          : i_col === nColsThisGroup - 1
           ? m.contentRcd.y()
           : m.colGroupHeaderAxisY;
-        rc.rLine(
-          [
-            [currentX + s.gridLineWidth / 2, topY],
-            [currentX + s.gridLineWidth / 2, m.contentRcd.bottomY()],
-          ],
-          {
-            strokeColor: s.gridLineColor,
-            strokeWidth: s.gridLineWidth,
-            lineDash: "solid",
-          },
-        );
-        currentX += s.gridLineWidth;
-      });
+      rc.rLine(
+        [
+          [currentX + lineWidth / 2, topY],
+          [currentX + lineWidth / 2, m.contentRcd.bottomY()],
+        ],
+        {
+          strokeColor: lineColor,
+          strokeWidth: lineWidth,
+          lineDash: "solid",
+        },
+      );
+      currentX += lineWidth;
     });
+  });
 
-    /////////////////////////////////
-    //                             //
-    //    Horizontal grid lines    //
-    //                             //
-    /////////////////////////////////
+  /////////////////////////////////
+  //                             //
+  //    Horizontal grid lines    //
+  //                             //
+  /////////////////////////////////
 
+  // Top outer border
+  rc.rLine(
+    [
+      [m.contentRcd.x(), m.contentRcd.y() + s.borderWidth / 2],
+      [m.contentRcd.rightX(), m.contentRcd.y() + s.borderWidth / 2],
+    ],
+    {
+      strokeColor: s.borderColor,
+      strokeWidth: s.borderWidth,
+      lineDash: "solid",
+    },
+  );
+
+  // Horizontal line after col group headers (inner grid line)
+  if (m.hasColGroupHeaders) {
     rc.rLine(
       [
-        [m.contentRcd.x(), m.contentRcd.y() + s.gridLineWidth / 2],
-        [m.contentRcd.rightX(), m.contentRcd.y() + s.gridLineWidth / 2],
+        [
+          m.contentRcd.x(),
+          m.colGroupHeaderAxisY + s.gridLineWidth / 2,
+        ],
+        [
+          m.contentRcd.rightX(),
+          m.colGroupHeaderAxisY + s.gridLineWidth / 2,
+        ],
       ],
       {
         strokeColor: s.gridLineColor,
@@ -317,48 +351,32 @@ export function renderLines(rc: RenderContext, mTable: MeasuredTable) {
         lineDash: "solid",
       },
     );
-
-    if (m.hasColGroupHeaders) {
-      rc.rLine(
-        [
-          [
-            m.contentRcd.x(),
-            m.colGroupHeaderAxisY + s.gridLineWidth / 2,
-          ],
-          [
-            m.contentRcd.rightX(),
-            m.colGroupHeaderAxisY + s.gridLineWidth / 2,
-          ],
-        ],
-        {
-          strokeColor: s.gridLineColor,
-          strokeWidth: s.gridLineWidth,
-          lineDash: "solid",
-        },
-      );
-    }
-
-    let currentY = m.firstCellY;
-    m.measuredRows.forEach((mr) => {
-      currentY += m.rowCellPaddingT +
-        m.extraTopPaddingForRowsAndAllHeaders +
-        mr.rowContentHeight +
-        m.extraBottomPaddingForRowsAndAllHeaders +
-        m.rowCellPaddingB;
-      rc.rLine(
-        [
-          [m.contentRcd.x(), currentY + s.gridLineWidth / 2],
-          [m.contentRcd.rightX(), currentY + s.gridLineWidth / 2],
-        ],
-        {
-          strokeColor: s.gridLineColor,
-          strokeWidth: s.gridLineWidth,
-          lineDash: "solid",
-        },
-      );
-      currentY += s.gridLineWidth;
-    });
   }
+
+  // Inner horizontal grid lines and bottom outer border
+  let currentY = m.firstCellY;
+  m.measuredRows.forEach((mr, i_row) => {
+    currentY += m.rowCellPaddingT +
+      m.extraTopPaddingForRowsAndAllHeaders +
+      mr.rowContentHeight +
+      m.extraBottomPaddingForRowsAndAllHeaders +
+      m.rowCellPaddingB;
+    const isBottomBorder = i_row === m.measuredRows.length - 1;
+    const lineWidth = isBottomBorder ? s.borderWidth : s.gridLineWidth;
+    const lineColor = isBottomBorder ? s.borderColor : s.gridLineColor;
+    rc.rLine(
+      [
+        [m.contentRcd.x(), currentY + lineWidth / 2],
+        [m.contentRcd.rightX(), currentY + lineWidth / 2],
+      ],
+      {
+        strokeColor: lineColor,
+        strokeWidth: lineWidth,
+        lineDash: "solid",
+      },
+    );
+    currentY += lineWidth;
+  });
 
   //////////////////////////////
   //                          //

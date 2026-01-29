@@ -57,9 +57,11 @@ export function getColGroupHeaderInfos(
     const nCols = colGroup.cols.length;
     const colGroupInnerWidth = nCols * colInnerWidth +
       (nCols - 1) * s.gridLineWidth;
+    const colGroupContentWidth = colGroupInnerWidth - s.colHeaderPadding.pl() -
+      s.colHeaderPadding.pr();
     const mText = colGroup.label === undefined
       ? undefined
-      : rc.mText(colGroup.label, s.text.colHeaders, colGroupInnerWidth);
+      : rc.mText(colGroup.label, s.text.colHeaders, colGroupContentWidth);
     return { mText, colGroupInnerWidth };
   });
 }
@@ -72,11 +74,13 @@ export function getColHeaderInfos(
 ): ColHeaderInfo[] {
   if (s.verticalColHeaders === "never") {
     const colHeaderInfos: ColHeaderInfo[] = [];
+    const colHeaderContentWidth = colInnerWidth - s.colHeaderPadding.pl() -
+      s.colHeaderPadding.pr();
     for (const colGroup of d.colGroups) {
       for (const col of colGroup.cols) {
         const mText = col.label === undefined
           ? undefined
-          : rc.mText(col.label, s.text.colHeaders, colInnerWidth);
+          : rc.mText(col.label, s.text.colHeaders, colHeaderContentWidth);
         colHeaderInfos.push({
           mText,
           index: col.index,
@@ -89,12 +93,14 @@ export function getColHeaderInfos(
   if (s.verticalColHeaders === "auto") {
     let hasOverflow = false;
     const colHeaderInfos: ColHeaderInfo[] = [];
+    const colHeaderContentWidth = colInnerWidth - s.colHeaderPadding.pl() -
+      s.colHeaderPadding.pr();
     for (const colGroup of d.colGroups) {
       for (const col of colGroup.cols) {
         const mText = col.label === undefined
           ? undefined
-          : rc.mText(col.label, s.text.colHeaders, colInnerWidth);
-        if (mText && mText.dims.w() > colInnerWidth) {
+          : rc.mText(col.label, s.text.colHeaders, colHeaderContentWidth);
+        if (mText && mText.dims.w() > colHeaderContentWidth) {
           hasOverflow = true;
           break;
         }

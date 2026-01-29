@@ -12,5 +12,5 @@ export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
 export const MAX_CONTENT_BLOCKS = 3;
 
 // Autofit configuration for markdown and figures
-export const MARKDOWN_AUTOFIT = { minScale: 0, maxScale: 1 } as const;
-export const FIGURE_AUTOFIT = { minScale: 0.1, maxScale: 1 } as const;
+export const MARKDOWN_AUTOFIT = { minScale: 0.2, maxScale: 1 } as const;
+export const FIGURE_AUTOFIT = { minScale: 0.3, maxScale: 1 } as const;

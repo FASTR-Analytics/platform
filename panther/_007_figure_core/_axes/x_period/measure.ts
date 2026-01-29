@@ -9,10 +9,7 @@ import type {
   RenderContext,
 } from "../../deps.ts";
 import type { YScaleAxisWidthInfo } from "../../types.ts";
-import {
-  calculateYearSkipInterval,
-  getPeriodAxisInfo,
-} from "./helpers.ts";
+import { calculateYearSkipInterval, getPeriodAxisInfo } from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
 
 // NOTE: This function depends on TimeseriesDataTransformed from _010_timeseries

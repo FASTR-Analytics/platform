@@ -178,20 +178,21 @@ export type MergedTableStyle = {
   cellBackgroundColorFormatter:
     | "none"
     | TableCellFormatterFunc<
-      string | number | null | undefined,
-      ColorKeyOrString
-    >;
+        string | number | null | undefined,
+        ColorKeyOrString
+      >;
   colHeaderPadding: Padding;
   rowHeaderPadding: Padding;
   cellPadding: Padding;
   cellVerticalAlign: "top" | "middle" | "bottom";
   colHeaderBackgroundColor: string | "none";
   colGroupHeaderBackgroundColor: string | "none";
-  showGridLines: boolean;
   headerBorderWidth: number;
   gridLineWidth: number;
+  borderWidth: number;
   headerBorderColor: string;
   gridLineColor: string;
+  borderColor: string;
 };
 
 ////////////////////////////////////////

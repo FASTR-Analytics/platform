@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {  RectCoordsDims as RCD } from "./deps.ts";
+import { RectCoordsDims as RCD } from "./deps.ts";
 import type { LayoutGap, MeasuredLayoutNode, RectCoordsDims } from "./deps.ts";
 import type {
   MeasuredFreeformPage,

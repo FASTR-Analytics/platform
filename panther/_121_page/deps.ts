@@ -6,11 +6,38 @@
 export { sum } from "../_000_utils/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
-export type { LineStyle, Measured, MeasuredText, RenderContext } from "../_001_render_system/mod.ts";
+export type {
+  LineStyle,
+  Measured,
+  MeasuredText,
+  RenderContext,
+} from "../_001_render_system/mod.ts";
 export { CustomPageStyle } from "../_005_page_style/mod.ts";
-export type { CustomPageStyleOptions, MergedPageStyle } from "../_005_page_style/mod.ts";
-export { createColsNode, createItemNode, createRowsNode, measureLayout, optimizeLayout, renderContainerStyle, walkLayout } from "../_008_layouter/mod.ts";
-export type { ContainerStyleOptions, HeightConstraints, ItemHeightMeasurer, ItemLayoutNode, LayoutGap, LayoutNode, MeasuredLayoutNode, OptimizeResult, OptimizerConstraint } from "../_008_layouter/mod.ts";
+export type {
+  CustomPageStyleOptions,
+  MergedPageStyle,
+} from "../_005_page_style/mod.ts";
+export {
+  createColsNode,
+  createItemNode,
+  createRowsNode,
+  measureLayout,
+  optimizeLayout,
+  renderContainerStyle,
+  walkLayout,
+} from "../_008_layouter/mod.ts";
+export type {
+  ContainerStyleOptions,
+  HeightConstraints,
+  ItemHeightMeasurer,
+  ItemLayoutNode,
+  LayoutGap,
+  LayoutNode,
+  MeasuredLayoutNode,
+  OptimizerConfig,
+  OptimizerConstraint,
+  OptimizeResult,
+} from "../_008_layouter/mod.ts";
 export { FigureRenderer } from "../_011_figure_renderer/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { ImageRenderer } from "../_012_image_renderer/mod.ts";

@@ -154,8 +154,7 @@ export function ColorPicker(props: ColorPickerProps) {
 
   const colors = () => props.colors ?? COLOR_SETS[props.colorSet ?? "standard"];
   const position = () => props.position ?? "bottom-start";
-  const padClass = () =>
-    props.size === "sm" ? "ui-form-pad-sm" : "ui-form-pad";
+  const padClass = () => props.size === "sm" ? "ui-form-pad-sm" : "ui-form-pad";
   const textSizeClass = () =>
     props.size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size";
 
@@ -168,13 +167,11 @@ export function ColorPicker(props: ColorPickerProps) {
         type="button"
         class={`ui-hoverable rounded border ${padClass()}`}
         classList={{ "w-full": props.fullWidth, block: !!props.label }}
-        style={
-          {
-            "anchor-name": anchorName,
-            "background-color": props.value,
-            "border-color": props.value,
-          } as JSX.CSSProperties
-        }
+        style={{
+          "anchor-name": anchorName,
+          "background-color": props.value,
+          "border-color": props.value,
+        } as JSX.CSSProperties}
         disabled={props.disabled}
         title={props.value}
         // @ts-ignore - popovertarget is valid HTML
@@ -193,17 +190,15 @@ export function ColorPicker(props: ColorPickerProps) {
         id={popoverId}
         // @ts-ignore - popover is valid HTML
         popover
-        style={
-          {
-            position: "absolute",
-            "position-anchor": anchorName,
-            margin: "6px",
-            background: "transparent",
-            border: "none",
-            padding: "0",
-            ...POSITION_STYLE[position()],
-          } as JSX.CSSProperties
-        }
+        style={{
+          position: "absolute",
+          "position-anchor": anchorName,
+          margin: "6px",
+          background: "transparent",
+          border: "none",
+          padding: "0",
+          ...POSITION_STYLE[position()],
+        } as JSX.CSSProperties}
       >
         <div class="bg-base-100 grid grid-cols-6 gap-1 overflow-hidden rounded-md border p-2 shadow-lg">
           <For each={colors()}>

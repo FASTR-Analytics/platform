@@ -62,7 +62,8 @@ export class CustomFigureStyle {
     this._d = getDefaultFigureStyle();
     this._g = getGlobalFigureStyle();
     this._c = customStyle ?? {};
-    this._sf = (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
+    this._sf =
+      (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
       (responsiveScale ?? 1);
     this._baseText = getBaseTextInfo(
       this._c.text?.base,
@@ -455,11 +456,6 @@ export class CustomFigureStyle {
           d.table.colGroupHeaderBackgroundColor,
         ),
       ),
-      showGridLines: m(
-        c.table?.showGridLines,
-        g.table?.showGridLines,
-        d.table.showGridLines,
-      ),
       headerBorderWidth: ms(
         sf,
         c.table?.headerBorderWidth,
@@ -471,6 +467,12 @@ export class CustomFigureStyle {
         c.table?.gridLineWidth,
         g.table?.gridLineWidth,
         d.table.gridLineWidth,
+      ),
+      borderWidth: ms(
+        sf,
+        c.table?.borderWidth,
+        g.table?.borderWidth,
+        d.table.borderWidth,
       ),
       headerBorderColor: getColor(
         m(
@@ -485,6 +487,9 @@ export class CustomFigureStyle {
           g.table?.gridLineColor,
           d.table.gridLineColor,
         ),
+      ),
+      borderColor: getColor(
+        m(c.table?.borderColor, g.table?.borderColor, d.table.borderColor),
       ),
     };
   }
@@ -1110,14 +1115,9 @@ export class CustomFigureStyle {
         g.sankey?.nodeWidth,
         d.sankey.nodeWidth,
       ),
-      nodeGap: ms(
-        sf,
-        c.sankey?.nodeGap,
-        g.sankey?.nodeGap,
-        d.sankey.nodeGap,
-      ),
-      columnGap: c.sankey?.columnGap ?? g.sankey?.columnGap ??
-        d.sankey.columnGap,
+      nodeGap: ms(sf, c.sankey?.nodeGap, g.sankey?.nodeGap, d.sankey.nodeGap),
+      columnGap:
+        c.sankey?.columnGap ?? g.sankey?.columnGap ?? d.sankey.columnGap,
       labelGap: ms(
         sf,
         c.sankey?.labelGap,

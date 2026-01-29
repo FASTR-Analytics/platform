@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { fa } from "zod/v4/locales";
 import {
   type AnchorPoint,
   type CalendarType,
@@ -67,10 +68,10 @@ const _DS = {
     verticalColHeaders: "auto" as "never" | "always" | "auto",
     maxHeightForVerticalColHeaders: 180,
     colHeaderPadding: 5 as PaddingOptions,
-    rowHeaderPadding: 5 as PaddingOptions,
+    rowHeaderPadding: [5, 10] as PaddingOptions,
     cellPadding: 5 as PaddingOptions,
     cellVerticalAlign: "top" as "top" | "middle" | "bottom",
-    colHeaderBackgroundColor: { key: "base200" } as ColorKeyOrString | "none",
+    colHeaderBackgroundColor: { key: "base100" } as ColorKeyOrString | "none",
     colGroupHeaderBackgroundColor: { key: "base200" } as
       | ColorKeyOrString
       | "none",
@@ -84,11 +85,12 @@ const _DS = {
       string | number | null | undefined,
       string
     >,
-    showGridLines: true,
     headerBorderWidth: 1,
     gridLineWidth: 1,
+    borderWidth: 1,
     headerBorderColor: { key: "baseContent" } as ColorKeyOrString,
     gridLineColor: { key: "base300" } as ColorKeyOrString,
+    borderColor: { key: "base300" } as ColorKeyOrString,
   },
   // X Axis
   xTextAxis: {

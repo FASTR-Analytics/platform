@@ -9,6 +9,7 @@ import {
   type ItemLayoutNode,
   type LayoutNode,
   optimizeLayout,
+  type OptimizerConfig,
   type OptimizerConstraint,
   type OptimizeResult,
   Padding,
@@ -27,7 +28,7 @@ export function optimizePageLayout(
   itemNodes: ItemLayoutNode<PageContentItem>[],
   style?: CustomPageStyleOptions,
   responsiveScale?: number,
-  constraint?: OptimizerConstraint,
+  config?: OptimizerConfig,
 ): OptimizePageLayoutResult {
   const s = new CustomPageStyle(style, responsiveScale).getMergedPageStyle();
 
@@ -44,6 +45,6 @@ export function optimizePageLayout(
     itemMeasurer,
     (layout: LayoutNode<PageContentItem>) =>
       applyContainerDefaults(layout, s.layoutContainers),
-    { constraint },
+    config,
   );
 }

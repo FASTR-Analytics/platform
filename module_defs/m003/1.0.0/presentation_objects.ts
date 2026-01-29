@@ -21,7 +21,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
       },
       s: {
         content: "lines",
-        decimalPlaces: 1,
+        decimalPlaces: 0,
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
         specialBarChartDiffThreshold: 0.1,
@@ -58,7 +58,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         },
       },
       s: {
-        decimalPlaces: 1,
+        decimalPlaces: 0,
         customSeriesStyles: [],
         specialBarChart: true,
         specialBarChartDataLabels: "all-values",
@@ -90,7 +90,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         valuesFilter: ["count_final_outliers"],
       },
       s: {
-        decimalPlaces: 1,
+        decimalPlaces: 0,
         customSeriesStyles: [],
         specialBarChart: true,
         specialBarChartDataLabels: "all-values",
@@ -127,7 +127,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
       },
       s: {
         scale: 1.7,
-        decimalPlaces: 1,
+        decimalPlaces: 0,
         customSeriesStyles: [],
         specialBarChart: true,
         specialBarChartDataLabels: "all-values",
@@ -160,7 +160,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
       s: {
         scale: 2.5,
         content: "areas",
-        decimalPlaces: 1,
+        decimalPlaces: 0,
         diffAreas: true,
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
@@ -203,7 +203,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
       s: {
         scale: 1.6,
         content: "areas",
-        decimalPlaces: 1,
+        decimalPlaces: 0,
         diffAreas: true,
         customSeriesStyles: [],
         specialBarChartDataLabels: "all-values",
@@ -248,7 +248,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
       s: {
         scale: 1.8,
         colorScale: "custom",
-        decimalPlaces: 1,
+        decimalPlaces: 0,
         showDataLabels: false,
         specialBarChartDataLabels: "all-values",
         specialBarChartDiffThreshold: 0.1,

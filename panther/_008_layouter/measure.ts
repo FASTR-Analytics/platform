@@ -59,7 +59,13 @@ export function measureLayout<T, U>(
     overflowTracker,
     nColumns,
   );
-  const gaps = extractGaps(measured, gapX, gapY, options?.gapOverlap ?? 10, nColumns);
+  const gaps = extractGaps(
+    measured,
+    gapX,
+    gapY,
+    options?.gapOverlap ?? 10,
+    nColumns,
+  );
   return { measured, overflow: overflowTracker.overflow, gaps };
 }
 
@@ -534,7 +540,16 @@ function extractGapsRecursive<U>(
       const child = children[i];
 
       // Recurse into child
-      extractGapsRecursive(child, gapX, gapY, overlap, nColumns, gaps, rowIndex, i);
+      extractGapsRecursive(
+        child,
+        gapX,
+        gapY,
+        overlap,
+        nColumns,
+        gaps,
+        rowIndex,
+        i,
+      );
 
       // Add column gap and divider after each child except the last
       if (i < children.length - 1) {
@@ -566,7 +581,12 @@ function extractGapsRecursive<U>(
         const combinedWidth = child.rpd.w() + nextChild.rpd.w();
         const snapPositions: number[] = [];
         for (let span = 1; span < combinedSpan; span++) {
-          const leftWidth = getWidthForSpan(span, combinedWidth, gapX, combinedSpan);
+          const leftWidth = getWidthForSpan(
+            span,
+            combinedWidth,
+            gapX,
+            combinedSpan,
+          );
           snapPositions.push(leftStartX + leftWidth + gapX / 2);
         }
 

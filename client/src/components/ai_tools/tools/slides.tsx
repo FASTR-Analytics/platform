@@ -7,7 +7,6 @@ import {
   AiContentSlideSchema,
   AiContentBlockInputSchema,
   getSlideTitle,
-  MAX_CONTENT_BLOCKS,
   type Slide,
   type MetricWithStatus,
 } from "lib";
@@ -16,6 +15,7 @@ import { simplifySlideForAI } from "~/components/project_ai_slide_deck/utils/ext
 import { getSlideWithUpdatedBlocks } from "~/components/project_ai_slide_deck/utils/get_slide_with_updated_blocks";
 import { getDeckSummaryForAI } from "~/components/project_ai_slide_deck/utils/get_deck_summary";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
+import { validateMaxContentBlocks, validateNoMarkdownTables } from "~/components/ai_tools/validators/content_validators";
 
 export function getToolsForSlides(
   projectId: string,
@@ -68,7 +68,7 @@ export function getToolsForSlides(
     createAITool({
       name: "create_slide",
       description:
-        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures).\n\nFor content blocks, you have three figure source options:\n- from_visualization: Clone an existing saved visualization (created via Presentations section). Use 'replicant' to show different indicator variants from the same viz config (e.g., 'anc1', 'penta3').\n- from_metric: Create a new chart directly from metric data. Requires metricId, optional chartType (bar/line/table), disaggregations, filters, and periodFilter (format: 202001=Jan 2020, 20241=Q1 2024, 2024=year).\n- text: Markdown text content with autofit.",
+        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures).\n\nFor content blocks, you have three figure source options:\n- from_visualization: Clone an existing saved visualization (created via Presentations section). Use 'replicant' to show different indicator variants from the same viz config (e.g., 'anc1', 'penta3').\n- from_metric: Create a new chart directly from metric data. Requires metricId, optional chartType (bar/line/table), disaggregations, filters, and periodFilter (format: 202001=Jan 2020, 20241=Q1 2024, 2024=year).\n- text: Markdown text content with autofit. IMPORTANT: Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
       inputSchema: z.object({
         position: z
           .union([
@@ -87,9 +87,16 @@ export function getToolsForSlides(
           .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with heading and blocks array containing text and/or figures)."),
       }),
       handler: async (input) => {
-        if (input.slide.type === "content" && input.slide.blocks.length > MAX_CONTENT_BLOCKS) {
-          return `Error: Too many blocks (${input.slide.blocks.length}). Maximum is ${MAX_CONTENT_BLOCKS} blocks per slide. Please reduce the number of blocks and try again.`;
+        if (input.slide.type === "content") {
+          validateMaxContentBlocks(input.slide.blocks.length);
+
+          for (const block of input.slide.blocks) {
+            if (block.type === "text") {
+              validateNoMarkdownTables(block.markdown);
+            }
+          }
         }
+
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics);
 
         const res = await serverActions.createSlide({
@@ -114,7 +121,7 @@ export function getToolsForSlides(
     createAITool({
       name: "replace_slide",
       description:
-        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n- Adding/removing blocks from content slides\n\nFor content slides with existing layout, prefer update_slide_content (preserves layout) or update_slide_heading (preserves content and layout).",
+        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n- Adding/removing blocks from content slides\n\nFor content slides with existing layout, prefer update_slide_content (preserves layout) or update_slide_heading (preserves content and layout).\n\nIMPORTANT: Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         slide: z
@@ -126,9 +133,16 @@ export function getToolsForSlides(
           .describe("The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized."),
       }),
       handler: async (input) => {
-        if (input.slide.type === "content" && input.slide.blocks.length > MAX_CONTENT_BLOCKS) {
-          return `Error: Too many blocks (${input.slide.blocks.length}). Maximum is ${MAX_CONTENT_BLOCKS} blocks per slide. Please reduce the number of blocks and try again.`;
+        if (input.slide.type === "content") {
+          validateMaxContentBlocks(input.slide.blocks.length);
+
+          for (const block of input.slide.blocks) {
+            if (block.type === "text") {
+              validateNoMarkdownTables(block.markdown);
+            }
+          }
         }
+
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics);
 
         const res = await serverActions.updateSlide({
@@ -150,7 +164,7 @@ export function getToolsForSlides(
     createAITool({
       name: "update_slide_content",
       description:
-        "Update specific content blocks within a slide while preserving the layout structure. This is the PREFERRED way to modify content slides as it maintains custom layout arrangements. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. This is much safer than replace_slide for targeted content updates. Use block IDs from get_slide to target specific text or figure blocks for replacement.",
+        "Update specific content blocks within a slide while preserving the layout structure. This is the PREFERRED way to modify content slides as it maintains custom layout arrangements. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. This is much safer than replace_slide for targeted content updates. Use block IDs from get_slide to target specific text or figure blocks for replacement. IMPORTANT: Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         updates: z.array(z.object({
@@ -159,6 +173,12 @@ export function getToolsForSlides(
         })).min(1).describe("Array of updates to apply. Each update specifies a block ID and the new content for that block."),
       }),
       handler: async (input) => {
+        for (const update of input.updates) {
+          if (update.newContent.type === "text") {
+            validateNoMarkdownTables(update.newContent.markdown);
+          }
+        }
+
         const currentRes = await serverActions.getSlide({
           projectId,
           slide_id: input.slideId,

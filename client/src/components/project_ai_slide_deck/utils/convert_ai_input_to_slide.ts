@@ -105,13 +105,15 @@ export async function convertAiInputToSlide(
   const rc = createCanvasRenderContextBrowser();
   const bounds = new RectCoordsDims([0, 0, 1920, 1080]);
 
+  console.log("Optimising")
   const optimized = optimizePageLayout(
     rc,
     bounds,
     itemNodes,
     slideDeckStyle,
     undefined,
-    undefined  // No constraint - let optimizer decide
+    {debug: true}
+    // undefined  // No constraint - let optimizer decide
   );
 
   // Restore metadata into layout (IDs are preserved by optimizer)

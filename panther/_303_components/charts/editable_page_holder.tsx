@@ -209,7 +209,12 @@ export function EditablePageHolder(p: Props) {
       const layoutItems = regions.filter((r) => r.type === "layoutItem");
       const hitLayoutId = hit?.type === "layoutItem" ? hit.node.id : undefined;
       for (const region of layoutItems) {
-        renderBoundary(ctx, region, hitLayoutId === region.node.id, screenPixelSize);
+        renderBoundary(
+          ctx,
+          region,
+          hitLayoutId === region.node.id,
+          screenPixelSize,
+        );
       }
 
       // Text items - dotted rect boundaries
@@ -224,8 +229,7 @@ export function EditablePageHolder(p: Props) {
         (r): r is PageHitTargetColDivider => r.type === "colDivider",
       );
       for (const region of dividers) {
-        const isThisHovered =
-          hit?.type === "colDivider" &&
+        const isThisHovered = hit?.type === "colDivider" &&
           hit.gap.colsNodeId === region.gap.colsNodeId &&
           hit.gap.afterColIndex === region.gap.afterColIndex;
         if (!isThisHovered) {
@@ -597,7 +601,10 @@ function renderDividerLine(
   ctx.stroke();
 }
 
-function calculateSnappedDividerX(drag: DragStateValue, deltaX: number): number {
+function calculateSnappedDividerX(
+  drag: DragStateValue,
+  deltaX: number,
+): number {
   const { target } = drag;
   const snapPositions = target.gap.snapPositions;
 

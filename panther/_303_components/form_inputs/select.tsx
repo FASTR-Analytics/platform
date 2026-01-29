@@ -67,9 +67,11 @@ export function Select<T extends string>(p: Props<T>) {
       </Show>
       <div class="ui-form-text relative w-full">
         <select
-          ref={(el) => useAutoFocus(el, p.autoFocus)}
+          ref={(el) =>
+            useAutoFocus(el, p.autoFocus)}
           value={p.value ?? ""}
-          onChange={(e) => p.onChange(e.currentTarget.value)}
+          onChange={(e) =>
+            p.onChange(e.currentTarget.value)}
           class={getSelectClasses(p.size)}
           data-mono={p.mono}
           data-placeholder={p.placeholder && !p.value}

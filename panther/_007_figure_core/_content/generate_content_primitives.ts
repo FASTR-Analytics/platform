@@ -392,8 +392,7 @@ export function generateContentPrimitives(
               // Position left edge of label at: right edge of error bar cap + 8px gap
               // Since rendering uses "center" alignment, shift position right by half label width
               const horizontalOffset = barRcd.w() / 2 + errorBarCapHalfWidth +
-                8 +
-                mText.dims.w() / 2;
+                8 + mText.dims.w() / 2;
 
               dataLabel = {
                 text: labelStr,
@@ -737,14 +736,15 @@ export function generateContentPrimitives(
           mappedValThisSeries_2.coords,
         );
         if (interception === false) {
-          throw new Error("Bad interception when diffing areas");
+          // throw new Error("Bad interception when diffing areas");
+        } else {
+          currentCoords.push(new Coordinates(interception));
+          areas.push({ coords: currentCoords, order: prevOrderOfSeries_1 });
+          currentCoords = [];
+          currentCoords.push(new Coordinates(interception));
+          currentCoords.unshift(mappedValThisSeries_1.coords);
+          currentCoords.push(mappedValThisSeries_2.coords);
         }
-        currentCoords.push(new Coordinates(interception));
-        areas.push({ coords: currentCoords, order: prevOrderOfSeries_1 });
-        currentCoords = [];
-        currentCoords.push(new Coordinates(interception));
-        currentCoords.unshift(mappedValThisSeries_1.coords);
-        currentCoords.push(mappedValThisSeries_2.coords);
       }
       prevOrderOfSeries_1 = thisOrder;
       prevMappedVal_1 = mappedValThisSeries_1;

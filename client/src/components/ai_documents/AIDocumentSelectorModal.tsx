@@ -2,16 +2,18 @@ import type { AssetInfo } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
-  Checkbox,
+  Button,
   Loading,
+  MultiSelect,
   timActionForm,
 } from "panther";
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createMemo, createSignal, onMount, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { uploadAssetToAnthropic } from "~/server_actions/ai_files";
 import {
   addDocumentToConversation,
   getDocumentsForConversation,
+  removeDocumentFromConversation,
   type ConversationDocument,
 } from "~/state/ai_documents";
 
@@ -27,15 +29,20 @@ export function AIDocumentSelectorModal(
 ) {
   const [assets, setAssets] = createSignal<AssetInfo[]>([]);
   const [isLoading, setIsLoading] = createSignal(true);
-  const [selectedFiles, setSelectedFiles] = createSignal<Set<string>>(
-    new Set()
-  );
+  const [selectedFiles, setSelectedFiles] = createSignal<string[]>([]);
   const [existingDocs, setExistingDocs] = createSignal<ConversationDocument[]>(
     []
   );
 
   const pdfAssets = () =>
     assets().filter((a) => a.fileName.toLowerCase().endsWith(".pdf"));
+
+  const pdfOptions = createMemo(() =>
+    pdfAssets().map((asset) => ({
+      value: asset.fileName,
+      label: asset.fileName,
+    }))
+  );
 
   onMount(async () => {
     const [assetsRes, existing] = await Promise.all([
@@ -48,22 +55,11 @@ export function AIDocumentSelectorModal(
     }
     setExistingDocs(existing);
 
-    const alreadySelected = new Set(existing.map((d) => d.assetFilename));
+    const alreadySelected = existing.map((d) => d.assetFilename);
     setSelectedFiles(alreadySelected);
 
     setIsLoading(false);
   });
-
-  function toggleFile(fileName: string) {
-    const current = selectedFiles();
-    const next = new Set(current);
-    if (next.has(fileName)) {
-      next.delete(fileName);
-    } else {
-      next.add(fileName);
-    }
-    setSelectedFiles(next);
-  }
 
   const save = timActionForm(
     async (e: MouseEvent) => {
@@ -71,9 +67,14 @@ export function AIDocumentSelectorModal(
 
       const selected = selectedFiles();
       const existing = existingDocs();
-      const existingFilenames = new Set(existing.map((d) => d.assetFilename));
+      const existingFilenames = existing.map((d) => d.assetFilename);
 
-      const toAdd = [...selected].filter((f) => !existingFilenames.has(f));
+      const toAdd = selected.filter((f) => !existingFilenames.includes(f));
+      const toRemove = existingFilenames.filter((f) => !selected.includes(f));
+
+      for (const filename of toRemove) {
+        await removeDocumentFromConversation(p.conversationId, filename);
+      }
 
       for (const filename of toAdd) {
         const result = await uploadAssetToAnthropic(p.projectId, filename);
@@ -97,7 +98,7 @@ export function AIDocumentSelectorModal(
   return (
     <AlertFormHolder
       formId="ai-document-selector"
-      header="Include PDF Documents"
+      header="Include PDF documents for the AI to consider"
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -120,25 +121,12 @@ export function AIDocumentSelectorModal(
             </div>
           }
         >
-          <div class="space-y-2 max-h-[400px] overflow-y-auto">
-            <For each={pdfAssets()}>
-              {(asset) => (
-                <div class="p-2 rounded hover:bg-base-200">
-                  <Checkbox
-                    checked={selectedFiles().has(asset.fileName)}
-                    onChange={() => toggleFile(asset.fileName)}
-                    label={
-                      <div class="flex-1 min-w-0">
-                        <div class="truncate font-medium">{asset.fileName}</div>
-                        <div class="text-xs text-base-content/60">
-                          {formatFileSize(asset.size)}
-                        </div>
-                      </div>
-                    }
-                  />
-                </div>
-              )}
-            </For>
+          <div class="max-h-[400px] overflow-y-auto">
+            <MultiSelect
+              values={selectedFiles()}
+              options={pdfOptions()}
+              onChange={setSelectedFiles}
+            />
           </div>
         </Show>
       </Show>

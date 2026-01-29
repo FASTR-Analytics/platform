@@ -36,7 +36,7 @@ type ReplicateByOptionsPresentationObjectProps = {
   config: PresentationObjectConfig;
   poDetail: PresentationObjectDetail;
   selectedReplicantValue: string | undefined;
-  setSelectedReplicant: (v: string) => void;
+  setSelectedReplicant: (v: string, allOptions?: string[]) => void;
   fullWidth?: boolean;
 };
 export function ReplicateByOptionsPresentationObject(
@@ -131,6 +131,13 @@ export function ReplicateByOptionsPresentationObjectSelect(
     replicantOptions.fetch();
   });
 
+  createEffect(() => {
+    const state = replicantOptions.state();
+    if (state.status === "ready" && state.data.status === "ok") {
+      p.setSelectedReplicant(p.selectedReplicantValue || "", state.data.possibleValues);
+    }
+  });
+
   return (
     <StateHolderWrapper state={replicantOptions.state()}>
       {(keyedReplicantOptions) => {
@@ -147,23 +154,29 @@ export function ReplicateByOptionsPresentationObjectSelect(
               </div>
             </Match>
             <Match when={keyedReplicantOptions.status === "ok"}>
-              <Select
-                options={(keyedReplicantOptions as Extract<typeof keyedReplicantOptions, { status: "ok" }>).possibleValues.map((pv: string) => {
-                  return {
-                    value: pv,
-                    label:
-                      p.replicateBy === "indicator_common_id"
-                        ? t(pv).toUpperCase()
-                        : pv,
-                  };
-                })}
-                value={p.selectedReplicantValue}
-                onChange={(v) => p.setSelectedReplicant(v)}
-                fullWidth={p.fullWidth}
-                invalidMsg={
-                  !p.selectedReplicantValue ? t2(T.FRENCH_UI_STRINGS.needs_selection) : undefined
-                }
-              />
+              {(() => {
+                const possibleValues = (keyedReplicantOptions as Extract<typeof keyedReplicantOptions, { status: "ok" }>).possibleValues;
+
+                return (
+                  <Select
+                    options={possibleValues.map((pv: string) => {
+                      return {
+                        value: pv,
+                        label:
+                          p.replicateBy === "indicator_common_id"
+                            ? t(pv).toUpperCase()
+                            : pv,
+                      };
+                    })}
+                    value={p.selectedReplicantValue}
+                    onChange={(v) => p.setSelectedReplicant(v, possibleValues)}
+                    fullWidth={p.fullWidth}
+                    invalidMsg={
+                      !p.selectedReplicantValue ? t2(T.FRENCH_UI_STRINGS.needs_selection) : undefined
+                    }
+                  />
+                );
+              })()}
             </Match>
           </Switch>
         );

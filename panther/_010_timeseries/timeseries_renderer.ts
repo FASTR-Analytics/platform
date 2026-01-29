@@ -23,7 +23,6 @@ import { getTimeseriesDataTransformed } from "./get_timeseries_data.ts";
 import type { MeasuredTimeseries, TimeseriesInputs } from "./types.ts";
 
 const MIN_PLOT_AREA_HEIGHT = 50;
-const MIN_PLOT_AREA_WIDTH = 50;
 
 function getMinComfortableWidth(
   rc: RenderContext,
@@ -46,8 +45,17 @@ function getMinComfortableWidth(
   const nLanes = transformedData.laneHeaders.length;
   const sx = mergedStyle.xPeriodAxis;
 
-  // Minimum plot area width per subchart (time axis is adaptive)
-  const minSubChartWidth = MIN_PLOT_AREA_WIDTH;
+  // Minimum width: each time point needs at least the height of a tick label
+  const tickLabelHeight = rc
+    .mText("2024", sx.text.xPeriodAxisTickLabels, Infinity)
+    .dims.h();
+  const minSubChartWidth = transformedData.nTimePoints > 30
+    ? transformedData.nTimePoints * tickLabelHeight * 0.1
+    : transformedData.nTimePoints > 20
+    ? transformedData.nTimePoints * tickLabelHeight * 0.2
+    : transformedData.nTimePoints > 5
+    ? transformedData.nTimePoints * tickLabelHeight * 0.5
+    : transformedData.nTimePoints * tickLabelHeight;
 
   // Total width = subcharts × lanes × pane columns + all gaps + y-axis + surrounds
   const totalSubChartsWidth = minSubChartWidth * nLanes * nGCols;
@@ -55,12 +63,13 @@ function getMinComfortableWidth(
   const paneGapsWidth = (nGCols - 1) * mergedStyle.panes.gapX;
   const lanePaddingWidth = (sx.lanePaddingLeft + sx.lanePaddingRight) * nGCols;
 
-  // Y-axis needs space for tick labels using shared helper
-  const yAxisWidth = estimateMinYAxisWidth(
+  // Y-axis needs space for tick labels - one per pane column
+  const yAxisWidthPerPane = estimateMinYAxisWidth(
     rc,
     mergedStyle.yScaleAxis,
     mergedStyle.grid,
   );
+  const totalYAxisWidth = yAxisWidthPerPane * nGCols;
 
   // Calculate surrounds minimum width (mainly for right-positioned legends)
   const surroundsMinWidth = estimateMinSurroundsWidth(
@@ -69,7 +78,14 @@ function getMinComfortableWidth(
     item.legendItemsOrLabels,
   );
 
-  return totalSubChartsWidth + laneGapsWidth + paneGapsWidth + lanePaddingWidth + yAxisWidth + surroundsMinWidth;
+  return (
+    totalSubChartsWidth +
+    laneGapsWidth +
+    paneGapsWidth +
+    lanePaddingWidth +
+    totalYAxisWidth +
+    surroundsMinWidth
+  );
 }
 
 function getIdealHeightAtScale(
@@ -92,17 +108,49 @@ function getIdealHeightAtScale(
   );
 
   // Minimum subchart height (2 tick labels + 2× spacing)
-  const minSubChartHeight = calculateMinSubChartHeight(rc, mergedStyle.yScaleAxis);
+  const minSubChartHeight = calculateMinSubChartHeight(
+    rc,
+    mergedStyle.yScaleAxis,
+  );
 
   // Total plot height = subcharts × tiers × pane rows + all gaps
   const nTiers = transformedData.yScaleAxisData.tierHeaders.length;
   const totalSubChartsHeight = minSubChartHeight * nTiers * nGRows;
-  const tierGapsHeight = (nTiers - 1) * mergedStyle.yScaleAxis.tierGapY * nGRows;
+  const tierGapsHeight = (nTiers - 1) * mergedStyle.yScaleAxis.tierGapY *
+    nGRows;
   const paneGapsHeight = (nGRows - 1) * mergedStyle.panes.gapY;
-  const tierPaddingHeight = (mergedStyle.yScaleAxis.tierPaddingTop + mergedStyle.yScaleAxis.tierPaddingBottom) * nGRows;
+  const tierPaddingHeight = (mergedStyle.yScaleAxis.tierPaddingTop +
+    mergedStyle.yScaleAxis.tierPaddingBottom) *
+    nGRows;
 
-  // Add surrounds
-  const dummyBounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
+  // Add pane headers if shown (one per pane row)
+  let paneHeadersHeight = 0;
+  if (!mergedStyle.hideColHeaders && transformedData.paneHeaders.length > 1) {
+    const paneHeaderH = rc.mText(
+      "Region 001",
+      mergedStyle.text.paneHeaders,
+      400,
+    ).dims.h();
+    paneHeadersHeight = (paneHeaderH + mergedStyle.panes.headerGap) * nGRows;
+  }
+
+  // Add x-axis height for each pane row
+  const xAxisTickH = rc.mText(
+    "2024",
+    mergedStyle.xPeriodAxis.text.xPeriodAxisTickLabels,
+    Infinity,
+  ).dims.h();
+  const xAxisHeight = (mergedStyle.grid.axisStrokeWidth + xAxisTickH +
+    mergedStyle.xPeriodAxis.periodLabelLargeTopPadding) * nGRows;
+
+  // Add surrounds - measure at comfortable width to avoid caption wrapping inflation
+  const comfortableWidth = Math.max(width, 800);
+  const dummyBounds = new RectCoordsDims({
+    x: 0,
+    y: 0,
+    w: comfortableWidth,
+    h: 9999,
+  });
   const mSurrounds = measureSurrounds(
     rc,
     dummyBounds,
@@ -113,7 +161,37 @@ function getIdealHeightAtScale(
     item.legendItemsOrLabels,
   );
 
-  return totalSubChartsHeight + tierGapsHeight + paneGapsHeight + tierPaddingHeight + mSurrounds.extraHeightDueToSurrounds;
+  const total = totalSubChartsHeight +
+    tierGapsHeight +
+    paneGapsHeight +
+    tierPaddingHeight +
+    paneHeadersHeight +
+    xAxisHeight +
+    mSurrounds.extraHeightDueToSurrounds;
+
+  if (total > 2000) {
+    console.log(
+      `[TS getIdealHeightAtScale] width=${width.toFixed(0)} scale=${
+        scale.toFixed(2)
+      } ` +
+        `nPanes=${transformedData.paneHeaders.length} nGRows=${nGRows} nTiers=${nTiers} ` +
+        `minSubH=${minSubChartHeight.toFixed(0)} totalSubH=${
+          totalSubChartsHeight.toFixed(0)
+        } ` +
+        `tierGaps=${tierGapsHeight.toFixed(0)} paneGaps=${
+          paneGapsHeight.toFixed(0)
+        } ` +
+        `tierPad=${tierPaddingHeight.toFixed(0)} paneHeaders=${
+          paneHeadersHeight.toFixed(0)
+        } ` +
+        `xAxis=${xAxisHeight.toFixed(0)} surrounds=${
+          mSurrounds.extraHeightDueToSurrounds.toFixed(0)
+        } ` +
+        `TOTAL=${total.toFixed(0)}`,
+    );
+  }
+
+  return total;
 }
 
 function measureWithAutofit(
@@ -252,16 +330,23 @@ export const TimeseriesRenderer: Renderer<
       item.footnote,
       item.legendItemsOrLabels,
     );
-    const minHAtScale1 = mSurrounds.extraHeightDueToSurrounds + MIN_PLOT_AREA_HEIGHT;
+    const minHAtScale1 = mSurrounds.extraHeightDueToSurrounds +
+      MIN_PLOT_AREA_HEIGHT;
 
     // Width-based scaling for optimizer scoring
     const minComfortableWidth = getMinComfortableWidth(rc, item, 1.0);
-    const neededScalingToFitWidth =
-      width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
+    const neededScalingToFitWidth = width >= minComfortableWidth
+      ? 1.0
+      : width / minComfortableWidth;
 
     if (!autofitOpts) {
       // No autofit - return heights at scale 1.0
-      return { minH: minHAtScale1, idealH, maxH: Infinity, neededScalingToFitWidth };
+      return {
+        minH: minHAtScale1,
+        idealH,
+        maxH: Infinity,
+        neededScalingToFitWidth,
+      };
     }
 
     // With autofit - minH is height at minimum scale

@@ -82,8 +82,19 @@ export function getHeightAtScale(
     style: { ...input.style, scale: (input.style?.scale ?? 1) * scale },
   };
   const bounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 99999 });
-  const measured = measureMarkdown(rc, bounds, scaledInput);
-  return measured.bounds.h();
+
+  try {
+    const measured = measureMarkdown(rc, bounds, scaledInput);
+    return measured.bounds.h();
+  } catch (_err) {
+    // Markdown contains tables/images which aren't supported in MarkdownRenderer
+    // Return a conservative height estimate based on line count
+    const lineCount = scaledInput.markdown.split("\n").length;
+    const baseFontSize = scaledInput.style?.text?.base?.fontSize ?? 14;
+    const scaledFontSize = baseFontSize * scale;
+    const lineHeight = scaledFontSize * 1.5;
+    return lineCount * lineHeight;
+  }
 }
 
 export function findOptimalScale(

@@ -510,7 +510,13 @@ function VisualizationCard(p: VisualizationCardProps) {
   async function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
 
-    const items: MenuItem[] = [];
+    const items: MenuItem[] = [
+      {
+        label: "Edit slide",
+        icon: "pencil",
+        onClick: p.onClick,
+      },
+    ];
     if (!p.po.isDefault) {
       items.push({
         label: "Move to folder...",

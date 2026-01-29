@@ -90,7 +90,7 @@ export type AiCreateVisualizationInput = z.infer<
 export const AiTextBlockSchema = z.object({
   type: z.literal("text").describe("Block type identifier for text content"),
   markdown: z.string().max(5000).describe(
-    "The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. Maximum 5000 characters.",
+    "The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. Maximum 5000 characters. IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, you must create a table figure using the 'from_metric' or 'from_visualization' block types with chartType='table', not markdown tables.",
   ),
 });
 

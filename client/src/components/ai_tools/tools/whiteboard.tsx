@@ -1,8 +1,9 @@
 import { createAITool, type PageInputs } from "panther";
 import { z } from "zod";
-import { AiContentBlockInputSchema, MAX_CONTENT_BLOCKS, type AiContentSlideInput, type MetricWithStatus } from "lib";
+import { AiContentBlockInputSchema, type AiContentSlideInput, type MetricWithStatus } from "lib";
 import { convertWhiteboardInputToPageInputs } from "~/components/project_whiteboard/convert_whiteboard_input";
 import { saveWhiteboard, clearWhiteboard as clearWhiteboardStore } from "~/components/project_whiteboard/whiteboard_store";
+import { validateMaxContentBlocks, validateNoMarkdownTables } from "~/components/ai_tools/validators/content_validators";
 
 export type WhiteboardContent = {
   input: AiContentSlideInput;
@@ -19,19 +20,24 @@ export function getWhiteboardTools(
     createAITool({
       name: "update_whiteboard",
       description:
-        "Update the whiteboard content. The whiteboard is a single canvas that displays text and figures to visually demonstrate your analysis. This replaces all existing whiteboard content. Use this to show charts, data summaries, or key findings as you discuss them.",
+        "Update the whiteboard content. The whiteboard is a single canvas that displays text and figures to visually demonstrate your analysis. This replaces all existing whiteboard content. Use this to show charts, data summaries, or key findings as you discuss them. IMPORTANT: Markdown tables are NOT allowed - use from_metric with chartType='table' to display tabular data.",
       inputSchema: z.object({
         heading: z.string().max(200).optional().describe(
           "Optional heading displayed at the top of the whiteboard. Use to label what's being shown, e.g., 'ANC Coverage Trends' or 'Regional Comparison'.",
         ),
         blocks: z.array(AiContentBlockInputSchema).min(1).describe(
-          `Content blocks to display on the whiteboard. MAXIMUM ${MAX_CONTENT_BLOCKS} BLOCKS. Can include text (markdown), figures from existing visualizations, or figures from metric data.`,
+          "Content blocks to display on the whiteboard. Can include text (markdown), figures from existing visualizations, or figures from metric data.",
         ),
       }),
       handler: async (input) => {
-        if (input.blocks.length > MAX_CONTENT_BLOCKS) {
-          return `Error: Too many blocks (${input.blocks.length}). Maximum is ${MAX_CONTENT_BLOCKS} blocks per whiteboard update. Please reduce the number of blocks and try again. Consider combining text into a single block or showing fewer charts.`;
+        validateMaxContentBlocks(input.blocks.length);
+
+        for (const block of input.blocks) {
+          if (block.type === "text") {
+            validateNoMarkdownTables(block.markdown);
+          }
         }
+
         const slideInput: AiContentSlideInput = {
           type: "content",
           heading: input.heading || "",

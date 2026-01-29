@@ -42,12 +42,16 @@ export function getTimeFromPeriodId(
   if (periodType === "year-month") {
     const y = Number(str.slice(0, 4));
     const m = Number(str.slice(4, 6));
-    assert(!isNaN(y));
+    assert(!isNaN(y), `Invalid year in period ID "${str}"`);
     assert(
       y >= _GLOBAL_MIN_YEAR_FOR_PERIODS && y <= _GLOBAL_MAX_YEAR_FOR_PERIODS,
+      `Year ${y} in period ID "${str}" is outside valid range ${_GLOBAL_MIN_YEAR_FOR_PERIODS}-${_GLOBAL_MAX_YEAR_FOR_PERIODS}`,
     );
-    assert(!isNaN(m));
-    assert(m >= 1 && m <= 12);
+    assert(!isNaN(m), `Invalid month in period ID "${str}"`);
+    assert(
+      m >= 1 && m <= 12,
+      `Month ${m} in period ID "${str}" must be between 1 and 12`,
+    );
     const yearsSince2000 = y - _GLOBAL_MIN_YEAR_FOR_PERIODS;
     const monthsSinceJan = m - 1;
     return yearsSince2000 * 12 + monthsSinceJan;
@@ -55,21 +59,26 @@ export function getTimeFromPeriodId(
   if (periodType === "year-quarter") {
     const y = Number(str.slice(0, 4));
     const q = Number(str.slice(4, 6));
-    assert(!isNaN(y));
+    assert(!isNaN(y), `Invalid year in period ID "${str}"`);
     assert(
       y >= _GLOBAL_MIN_YEAR_FOR_PERIODS && y <= _GLOBAL_MAX_YEAR_FOR_PERIODS,
+      `Year ${y} in period ID "${str}" is outside valid range ${_GLOBAL_MIN_YEAR_FOR_PERIODS}-${_GLOBAL_MAX_YEAR_FOR_PERIODS}`,
     );
-    assert(!isNaN(q));
-    assert(q >= 1 && q <= 4);
+    assert(!isNaN(q), `Invalid quarter in period ID "${str}"`);
+    assert(
+      q >= 1 && q <= 4,
+      `Quarter ${q} in period ID "${str}" must be between 1 and 4`,
+    );
     const yearsSince2000 = y - _GLOBAL_MIN_YEAR_FOR_PERIODS;
     const quartersSinceQ1 = q - 1;
     return yearsSince2000 * 4 + quartersSinceQ1;
   }
   if (periodType === "year") {
     const y = Number(str.slice(0, 4));
-    assert(!isNaN(y));
+    assert(!isNaN(y), `Invalid year in period ID "${str}"`);
     assert(
       y >= _GLOBAL_MIN_YEAR_FOR_PERIODS && y <= _GLOBAL_MAX_YEAR_FOR_PERIODS,
+      `Year ${y} in period ID "${str}" is outside valid range ${_GLOBAL_MIN_YEAR_FOR_PERIODS}-${_GLOBAL_MAX_YEAR_FOR_PERIODS}`,
     );
     const yearsSince2000 = y - _GLOBAL_MIN_YEAR_FOR_PERIODS;
     return yearsSince2000;

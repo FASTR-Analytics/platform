@@ -60,9 +60,25 @@ export function estimateMinSurroundsWidth(
       }),
     }));
 
-  const mLegend = measureLegend(rc, legendItems, sLegend);
-  return sSurrounds.padding.totalPx() + mLegend.dimensions.w() +
-    sSurrounds.legendGap;
+  // Calculate minimum width based on widest single legend item
+  const anyPoints = legendItems.some(
+    (li) =>
+      li.pointStyle !== undefined &&
+      li.pointStyle !== "as-block" &&
+      li.pointStyle !== "as-line",
+  );
+  const colorBoxWidthOrPointWidth = anyPoints
+    ? sLegend.legendPointRadius * 2 + sLegend.legendPointStrokeWidth
+    : sLegend.legendColorBoxWidth;
+
+  let maxLabelWidth = 0;
+  for (const item of legendItems) {
+    const mText = rc.mText(item.label, sLegend.text, Number.POSITIVE_INFINITY);
+    maxLabelWidth = Math.max(maxLabelWidth, mText.dims.w());
+  }
+
+  return sSurrounds.padding.totalPx() + colorBoxWidthOrPointWidth +
+    sLegend.legendLabelGap + maxLabelWidth + sSurrounds.legendGap;
 }
 
 export type MeasuredSurrounds = {
@@ -203,13 +219,18 @@ export function measureSurrounds(
         };
       });
 
-    mLegend = measureLegend(rc, legendItems, sLegend);
-
     const isBottom = ["bottom-left", "bottom-center", "bottom-right"].includes(
       sSurrounds.legendPosition,
     );
     const isRight = ["right-top", "right-center", "right-bottom"].includes(
       sSurrounds.legendPosition,
+    );
+
+    mLegend = measureLegend(
+      rc,
+      legendItems,
+      sLegend,
+      isBottom ? chartAndLegendRcd.w() : undefined,
     );
 
     legendAndLegendGapH = isBottom

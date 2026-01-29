@@ -1,6 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckSummary } from "lib";
-import { AlertComponentProps, AlertFormHolder, Button, Input, Loading, RadioGroup, timActionForm, type SelectOption } from "panther";
+import { t } from "lib";
+import { AlertComponentProps, AlertFormHolder, Button, Input, Loading, RadioGroup, timActionForm, type SelectOption, ProgressBar, getProgress } from "panther";
 import { createSignal, Show, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { convertAiInputToSlide } from "../project_ai_slide_deck/utils/convert_ai_input_to_slide";
@@ -24,6 +25,9 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
   const [isCreatingNew, setIsCreatingNew] = createSignal(false);
   const [newDeckLabel, setNewDeckLabel] = createSignal("");
   const [selectedReplicant, setSelectedReplicant] = createSignal<string>("");
+  const [creationMode, setCreationMode] = createSignal<"single" | "all">("single");
+  const [replicantOptions, setReplicantOptions] = createSignal<string[]>([]);
+  const progress = getProgress();
 
   const radioOptions = (): SelectOption<string>[] =>
     decks().map(d => ({ value: d.id, label: d.label }));
@@ -42,10 +46,6 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
   const save = timActionForm(
     async (e: MouseEvent) => {
       e.preventDefault();
-
-      if (p.replicateBy && !selectedReplicant()) {
-        return { success: false as const, err: "Please select a replicant" };
-      }
 
       let deckId: string;
 
@@ -66,30 +66,86 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
         deckId = selectedDeckId();
       }
 
-      const input: AiContentSlideInput = {
-        type: "content",
-        heading: p.visualizationLabel,
-        blocks: [{
-          type: "from_visualization",
-          visualizationId: p.visualizationId,
-          replicant: p.replicateBy ? selectedReplicant() : undefined,
-        }],
-      };
+      if (creationMode() === "single") {
+        // EXISTING: Single slide creation
+        if (p.replicateBy && !selectedReplicant()) {
+          return { success: false as const, err: "Please select a replicant" };
+        }
 
-      const slide = await convertAiInputToSlide(p.projectId, input, p.metrics);
+        const input: AiContentSlideInput = {
+          type: "content",
+          heading: p.visualizationLabel,
+          blocks: [{
+            type: "from_visualization",
+            visualizationId: p.visualizationId,
+            replicant: p.replicateBy ? selectedReplicant() : undefined,
+          }],
+        };
 
-      const addRes = await serverActions.createSlide({
-        projectId: p.projectId,
-        deck_id: deckId,
-        position: { toEnd: true },
-        slide,
-      });
+        const slide = await convertAiInputToSlide(p.projectId, input, p.metrics);
+        const addRes = await serverActions.createSlide({
+          projectId: p.projectId,
+          deck_id: deckId,
+          position: { toEnd: true },
+          slide,
+        });
 
-      if (!addRes.success) {
-        return addRes;
+        if (!addRes.success) return addRes;
+        return { success: true as const, data: { deckId } };
+      } else {
+        // NEW: Multiple slides creation with progress
+        const options = replicantOptions();
+        let successCount = 0;
+
+        for (let i = 0; i < options.length; i++) {
+          const replicantValue = options[i];
+          const replicantLabel = p.replicateBy === "indicator_common_id"
+            ? t(replicantValue).toUpperCase()
+            : replicantValue;
+
+          progress.onProgress(
+            i / options.length,
+            `Creating slide ${i + 1} of ${options.length}...`
+          );
+
+          const input: AiContentSlideInput = {
+            type: "content",
+            heading: `${p.visualizationLabel} - ${replicantLabel}`,
+            blocks: [{
+              type: "from_visualization",
+              visualizationId: p.visualizationId,
+              replicant: replicantValue,
+            }],
+          };
+
+          try {
+            const slide = await convertAiInputToSlide(p.projectId, input, p.metrics);
+            const addRes = await serverActions.createSlide({
+              projectId: p.projectId,
+              deck_id: deckId,
+              position: { toEnd: true },
+              slide,
+            });
+
+            if (!addRes.success) {
+              return {
+                success: false as const,
+                err: `Failed on slide ${i + 1} of ${options.length} (${replicantLabel}): ${addRes.err}. Created ${successCount} slides successfully.`
+              };
+            }
+            successCount++;
+          } catch (err) {
+            return {
+              success: false as const,
+              err: `Failed on slide ${i + 1} of ${options.length} (${replicantLabel}): ${err instanceof Error ? err.message : String(err)}. Created ${successCount} slides successfully.`
+            };
+          }
+        }
+
+        progress.onProgress(1, `Created ${options.length} slides`);
+
+        return { success: true as const, data: { deckId } };
       }
-
-      return { success: true as const, data: { deckId } };
     },
     (data) => {
       p.close(data);
@@ -104,7 +160,12 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      disableSaveButton={isCreatingNew() ? !newDeckLabel().trim() : !selectedDeckId()}
+      disableSaveButton={
+        isCreatingNew()
+          ? !newDeckLabel().trim()
+          : !selectedDeckId() ||
+            (p.replicateBy && creationMode() === "single" && !selectedReplicant())
+      }
     >
       <Show when={isLoadingDecks()}>
         <div class="py-2 flex justify-center">
@@ -116,13 +177,40 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
         <div class="ui-spy">
           <Show when={p.replicateBy}>
             {(replicateBy) => (
-              <InlineReplicantSelector
-                projectId={p.projectId}
-                presentationObjectId={p.visualizationId}
-                replicateBy={replicateBy()}
-                selectedValue={selectedReplicant()}
-                onChange={setSelectedReplicant}
-              />
+              <>
+                <RadioGroup
+                  label="Create slides for"
+                  value={creationMode()}
+                  options={[
+                    { value: "single", label: "Selected replicant" },
+                    { value: "all", label: `All replicants (${replicantOptions().length})` }
+                  ]}
+                  onChange={(v) => setCreationMode(v as "single" | "all")}
+                />
+
+                <Show when={creationMode() === "single"}>
+                  <InlineReplicantSelector
+                    projectId={p.projectId}
+                    presentationObjectId={p.visualizationId}
+                    replicateBy={replicateBy()}
+                    selectedValue={selectedReplicant()}
+                    onChange={(value, allOptions) => {
+                      setSelectedReplicant(value);
+                      if (allOptions) {
+                        setReplicantOptions(allOptions);
+                      }
+                    }}
+                  />
+                </Show>
+
+                <Show when={save.state().status === "loading"}>
+                  <ProgressBar
+                    progressFrom0To100={progress.progressFrom0To100()}
+                    progressMsg={progress.progressMsg()}
+                    small
+                  />
+                </Show>
+              </>
             )}
           </Show>
           <Show

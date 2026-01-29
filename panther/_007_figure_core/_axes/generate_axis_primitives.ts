@@ -183,7 +183,8 @@ export function generateXPeriodAxisPrimitive(
     const time = timeMin + i_val;
     const period = getPeriodIdFromTime(time, periodType);
     const isLargeTick = mx.periodAxisType !== "year-centered" &&
-      (i_val === 0 || shouldShowYearBoundary(period, periodType, mx.yearSkipInterval));
+      (i_val === 0 ||
+        shouldShowYearBoundary(period, periodType, mx.yearSkipInterval));
 
     if (isLargeTick) {
       // Large tick (year boundary) - full height

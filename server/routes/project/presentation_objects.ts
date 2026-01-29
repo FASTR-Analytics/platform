@@ -192,6 +192,7 @@ defineRoute(
       [params.po_id],
       res.data.lastUpdated,
     );
+    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     return c.json(res);
   },
 );
@@ -223,6 +224,7 @@ defineRoute(
       res.data.reportItemsThatDependOnPresentationObjects,
       res.data.lastUpdated,
     );
+    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     return c.json(res);
   },
 );
@@ -658,6 +660,7 @@ defineRoute(
       res.data.reportItemsThatDependOnPresentationObjects,
       res.data.lastUpdated,
     );
+    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     return c.json(res);
   },
 );

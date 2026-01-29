@@ -78,14 +78,12 @@ function getMinComfortableWidth(
       // Check cell values for this column
       for (const row of d.aoa) {
         const val = row[col.index];
-        const valStr = typeof val === "number"
-          ? s.cellValueFormatter(val, {
-            colHeader: col.label ?? "",
-            colIndex: col.index,
-            rowHeader: "",
-            rowIndex: 0,
-          })
-          : val;
+        const valStr = s.cellValueFormatter(val, {
+          colHeader: col.label ?? "",
+          colIndex: col.index,
+          rowHeader: "",
+          rowIndex: 0,
+        });
         minColWidth = Math.max(
           minColWidth,
           getWidestWord(rc, valStr, s.text.cells),
@@ -102,8 +100,10 @@ function getMinComfortableWidth(
       s.headerBorderWidth
     : 0;
 
-  const colsTotalWidth = nCols * (s.cellPadding.totalPx() + minColWidth) +
-    (s.showGridLines ? nCols : nCols - 1) * s.gridLineWidth;
+  const colsTotalWidth = nCols *
+      (Math.max(s.cellPadding.totalPx(), s.colHeaderPadding.totalPx()) +
+        minColWidth) +
+    (nCols - 1) * s.gridLineWidth;
 
   // Calculate surrounds minimum width (mainly for right-positioned legends)
   const surroundsMinWidth = estimateMinSurroundsWidth(
@@ -111,11 +111,10 @@ function getMinComfortableWidth(
     customFigureStyle,
     item.legendItemsOrLabels,
   );
-
   return (
     rowHeaderTotalWidth +
     colsTotalWidth +
-    s.gridLineWidth * 2 +
+    s.borderWidth * 2 +
     surroundsMinWidth
   );
 }
@@ -261,12 +260,18 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
 
     // Width-based scaling for optimizer scoring
     const minComfortableWidth = getMinComfortableWidth(rc, item, 1.0);
-    const neededScalingToFitWidth =
-      width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
+    const neededScalingToFitWidth = width >= minComfortableWidth
+      ? 1.0
+      : width / minComfortableWidth;
 
     if (!autofitOpts) {
       // No autofit - return heights at scale 1.0
-      return { minH: minHAtScale1, idealH, maxH: Infinity, neededScalingToFitWidth };
+      return {
+        minH: minHAtScale1,
+        idealH,
+        maxH: Infinity,
+        neededScalingToFitWidth,
+      };
     }
 
     // With autofit - minH is height at minimum scale
