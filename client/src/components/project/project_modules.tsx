@@ -318,7 +318,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                     ).toLocaleString()}
                     {" "}{p.thisInstalledModule.commitSha ? (
                       <span>
-                        (Commit: {p.thisInstalledModule.commitSha})
+                        (Commit: {p.thisInstalledModule.commitSha.slice(0, 6)})
                       </span>
                     ) : "No SHA"}
                   </div>
@@ -329,7 +329,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                     ).toLocaleString()}
                     {" "}{p.thisInstalledModule.latestRanCommitSha ? (
                       <span>
-                        (Latest run commit: {p.thisInstalledModule.latestRanCommitSha})
+                        (Latest run commit: {p.thisInstalledModule.latestRanCommitSha.slice(0, 6)})
                       </span>
                     ) : "No SHA"}
                   </div>

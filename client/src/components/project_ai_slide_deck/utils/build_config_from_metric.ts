@@ -15,6 +15,7 @@ import {
   getMetricStaticData,
   getNextAvailableDisaggregationDisplayOption,
 } from "lib";
+import { validateAiMetricQuery } from "~/components/ai_tools/validators/content_validators";
 
 type BuildConfigResult =
   | { success: true; resultsValue: MetricWithStatus; resultsValueForViz: ResultsValueForVisualization; config: PresentationObjectConfig }
@@ -22,11 +23,30 @@ type BuildConfigResult =
 
 const TIME_BASED_DISAGGREGATIONS = ["year", "month", "quarter_id", "period_id", "time_point"];
 
+function transformInput(rawInput: AiFigureFromMetric | AiCreateVisualizationInput): AiFigureFromMetric | AiCreateVisualizationInput {
+  const { metricQuery } = rawInput;
+
+  // Special handling for m3-01-01: default to count_final_both if no valuesFilter specified
+  if (metricQuery.metricId === "m3-01-01" && (!metricQuery.valuesFilter || metricQuery.valuesFilter.length === 0)) {
+    return {
+      ...rawInput,
+      metricQuery: {
+        ...metricQuery,
+        valuesFilter: ["count_final_both"]
+      }
+    };
+  }
+
+  return rawInput;
+}
+
 export function buildConfigFromMetric(
-  input: AiFigureFromMetric | AiCreateVisualizationInput,
+  rawInput: AiFigureFromMetric | AiCreateVisualizationInput,
   metrics: MetricWithStatus[],
 ): BuildConfigResult {
   // console.log("AI INPUT", input);
+
+  const input = transformInput(rawInput)
 
   const metricId = input.metricQuery.metricId;
   const resultsValue = metrics.find(m => m.id === metricId);
@@ -37,6 +57,8 @@ export function buildConfigFromMetric(
       error: `Metric "${metricId}" not found`,
     };
   }
+
+  validateAiMetricQuery(input.metricQuery, resultsValue);
 
   const staticData = getMetricStaticData(metricId);
   const presentationType = determinePresentationType(input.chartType);
@@ -71,7 +93,7 @@ export function buildConfigFromMetric(
         : presentationType === "table"
           ? "col"
           : "indicator",
-      valuesFilter: undefined,
+      valuesFilter: input.metricQuery.valuesFilter,
       disaggregateBy: [],
       filterBy: configFilters,
       periodFilter: input.metricQuery.periodFilter,

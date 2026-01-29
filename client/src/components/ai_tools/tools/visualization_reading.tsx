@@ -5,15 +5,15 @@ import { For } from "solid-js";
 import { VisualizationPreview } from "../VisualizationPreview";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
 import { getMetricDataForAI } from "../get_metric_data_for_ai";
+import { validateAiMetricQuery } from "../validators/content_validators";
+import type { PresentationObjectConfig } from "lib";
 
-// Shared helper to get visualization CSV data
-async function getVisualizationDataAsCSV(projectId: string, presentationObjectId: string): Promise<string> {
-  const resPoDetail = await getPODetailFromCacheorFetch(projectId, presentationObjectId);
-  if (!resPoDetail.success) throw new Error(resPoDetail.err);
-
-  const poDetail = resPoDetail.data;
-  const config = poDetail.config;
-
+// Shared helper to convert config to CSV data
+export async function getDataFromConfig(
+  projectId: string,
+  metricId: string,
+  config: PresentationObjectConfig
+): Promise<string> {
   const disaggregations = config.d.disaggregateBy.map(d => d.disOpt);
   if (config.d.type === "timeseries") {
     disaggregations.push(config.d.periodOpt);
@@ -32,12 +32,26 @@ async function getVisualizationDataAsCSV(projectId: string, presentationObjectId
     }
     : undefined;
 
-  const dataOutput = await getMetricDataForAI(projectId, {
-    metricId: poDetail.resultsValue.id,
+  const query = {
+    metricId,
     disaggregations,
     filters,
     periodFilter,
-  });
+    valuesFilter: config.d.valuesFilter,
+  };
+  validateAiMetricQuery(query);
+  return await getMetricDataForAI(projectId, query);
+}
+
+// Shared helper to get visualization CSV data
+async function getVisualizationDataAsCSV(projectId: string, presentationObjectId: string): Promise<string> {
+  const resPoDetail = await getPODetailFromCacheorFetch(projectId, presentationObjectId);
+  if (!resPoDetail.success) throw new Error(resPoDetail.err);
+
+  const poDetail = resPoDetail.data;
+  const config = poDetail.config;
+
+  const dataOutput = await getDataFromConfig(projectId, poDetail.resultsValue.id, config);
 
   const contextLines = [
     "# VISUALIZATION DATA",
@@ -68,6 +82,7 @@ export function getToolForVisualizationData(projectId: string, presentationObjec
       return await getVisualizationDataAsCSV(projectId, presentationObjectId);
     },
     inProgressLabel: "Getting visualization data...",
+    completionMessage: "Retrieved visualization data",
   });
 }
 
@@ -83,6 +98,7 @@ export function getToolsForReadingVisualizations(projectId: string) {
         return res.data;
       },
       inProgressLabel: "Getting available visualizations...",
+      completionMessage: "Retrieved visualizations list",
     }),
 
     createAITool({
@@ -92,7 +108,8 @@ export function getToolsForReadingVisualizations(projectId: string) {
       handler: async (input) => {
         return await getVisualizationDataAsCSV(projectId, input.id);
       },
-      inProgressLabel: "Getting visualization data...",
+      inProgressLabel: (input) => `Getting data for viz ${input.id}...`,
+      completionMessage: (input) => `Retrieved data for viz ${input.id}`,
     }),
   ];
 }
@@ -117,10 +134,14 @@ export function getToolForShowingVisualizations(projectId: string) {
         )
         .describe("Array of visualizations to show. Can include the same ID multiple times with different replicantValue."),
     }),
-    handler: async () => {
-      return "User has seen these visualizations";
+    handler: async (input) => {
+      const vizList = input.visualizations.map(v =>
+        v.replicantValue ? `${v.id} (${v.replicantValue})` : v.id
+      ).join(", ");
+      return `Displayed ${input.visualizations.length} visualization(s): ${vizList}`;
     },
-    inProgressLabel: "Showing visualizations...",
+    inProgressLabel: (input) => `Showing ${input.visualizations.length} visualization(s)...`,
+    completionMessage: (input) => `Showed ${input.visualizations.length} visualization(s)`,
     displayComponent: (props: {
       input: { visualizations: { id: string; replicantValue?: string }[] };
     }) => {

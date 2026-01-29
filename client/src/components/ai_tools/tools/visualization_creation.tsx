@@ -29,7 +29,7 @@ export function getToolForVisualizationCreationWithCallback(
 
       return `Created visualization configuration: "${input.chartTitle}". The user can now click "Open in editor" to start editing.`;
     },
-    inProgressLabel: "Creating visualization configuration...",
+    inProgressLabel: (input: AiCreateVisualizationInput) => `Creating "${input.chartTitle}"...`,
     completionMessage: (input: AiCreateVisualizationInput) =>
       `Created visualization: ${input.chartTitle}`,
   });

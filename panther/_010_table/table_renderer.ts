@@ -78,12 +78,15 @@ function getMinComfortableWidth(
       // Check cell values for this column
       for (const row of d.aoa) {
         const val = row[col.index];
-        const valStr = s.cellValueFormatter(val, {
-          colHeader: col.label ?? "",
-          colIndex: col.index,
-          rowHeader: "",
-          rowIndex: 0,
-        });
+        const valAsNum = Number(val);
+        const valStr = isNaN(valAsNum)
+          ? String(val)
+          : s.cellValueFormatter(valAsNum, {
+            colHeader: col.label ?? "",
+            colIndex: col.index,
+            rowHeader: "",
+            rowIndex: 0,
+          });
         minColWidth = Math.max(
           minColWidth,
           getWidestWord(rc, valStr, s.text.cells),

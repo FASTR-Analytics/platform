@@ -5,6 +5,7 @@ import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideCard } from "./slide_card";
+import { trackSlideChange } from "./pending_changes_store";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -190,6 +191,10 @@ export function SlideList(p: Props) {
         clearSelection();
         // Trigger SSE refetch which will sync the real state
         optimisticSetLastUpdated("slide_decks", p.deckId, data.lastUpdated);
+        // Track changes
+        for (const id of slideIdsToDelete) {
+          trackSlideChange("deleted", id);
+        }
       },
     );
     await deleteAction.click();
@@ -233,6 +238,11 @@ export function SlideList(p: Props) {
         optimisticSetLastUpdated("slides", slideId, res.data.lastUpdated);
       }
       optimisticSetLastUpdated("slide_decks", p.deckId, res.data.lastUpdated);
+
+      // Track changes
+      for (const id of res.data.newSlideIds) {
+        trackSlideChange("duplicated", id);
+      }
     }
   }
 
@@ -268,12 +278,19 @@ export function SlideList(p: Props) {
 
     if (movedIds.length === 0 || !targetPosition) return;
 
-    await serverActions.moveSlides({
+    const res = await serverActions.moveSlides({
       projectId: p.projectDetail.id,
       deck_id: p.deckId,
       slideIds: movedIds,
       position: targetPosition,
     });
+
+    if (res.success) {
+      // Track changes
+      for (const id of movedIds) {
+        trackSlideChange("moved", id);
+      }
+    }
   }
 
   const addSlide = timActionButton(
@@ -340,6 +357,8 @@ export function SlideList(p: Props) {
       // Trigger SSE refetch which will sync the real state
       optimisticSetLastUpdated("slides", data.slideId, data.lastUpdated);
       optimisticSetLastUpdated("slide_decks", p.deckId, data.lastUpdated);
+      // Track change
+      trackSlideChange("added", data.slideId);
     }
   );
 

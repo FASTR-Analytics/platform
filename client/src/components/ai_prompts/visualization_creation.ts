@@ -38,11 +38,11 @@ Then:
 - Default: If user asks to "show" data without specifics, use bar chart for comparisons or line chart for trends
 
 ## Time Interpretation
-- "last 12 months" → periodFilter with periodOption: "period_id", calculate min/max from current month
-- "2023" → periodFilter with periodOption: "year", min: 2023, max: 2023
-- "Q1 2024" → periodFilter with periodOption: "quarter_id", min: 20241, max: 20241
+- "last 12 months" or "last 6 months" → periodFilter with filterType: "last_n_months", nMonths: 12 (or 6), periodOption: "period_id" (system calculates min/max)
+- "2023" → periodFilter with filterType: "custom", periodOption: "year", min: 2023, max: 2023
+- "Q1 2024" → periodFilter with filterType: "custom", periodOption: "quarter_id", min: 202401, max: 202401
 - "quarterly" → use periodOption: "quarter_id" for the chart
-- If no time specified: use a reasonable default (e.g., last 12 months for trends, last year for comparisons)
+- If no time specified: use a reasonable default (e.g., filterType: "last_n_months", nMonths: 12 for trends, or last_calendar_year for comparisons)
 
 ## Disaggregation Interpretation
 User phrase → disaggregation → display option:

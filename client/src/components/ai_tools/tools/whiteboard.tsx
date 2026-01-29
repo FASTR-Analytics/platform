@@ -46,10 +46,11 @@ export function getWhiteboardTools(
         const pageInputs = await convertWhiteboardInputToPageInputs(projectId, slideInput, metrics);
         onUpdate({ input: slideInput, pageInputs });
         await saveWhiteboard(conversationId, slideInput);
-        return "Whiteboard updated";
+        const headingPart = input.heading ? ` with heading "${input.heading}"` : "";
+        return `Whiteboard updated${headingPart} with ${input.blocks.length} block(s)`;
       },
-      inProgressLabel: "Updating whiteboard...",
-      completionMessage: "Updated whiteboard",
+      inProgressLabel: (input) => input.heading ? `Updating whiteboard: ${input.heading}` : "Updating whiteboard...",
+      completionMessage: (input) => input.heading ? `Updated whiteboard: ${input.heading}` : "Updated whiteboard",
     }),
 
     createAITool({

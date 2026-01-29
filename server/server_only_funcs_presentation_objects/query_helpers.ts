@@ -188,16 +188,16 @@ export function buildWhereClause(
 ): string[] {
   const whereStatements: string[] = [];
 
-  // Add filter conditions
+  // Add filter conditions (case-insensitive)
   for (const filter of fetchConfig.filters) {
     if (filter.vals.length === 0) continue;
 
     const quotedValues = filter.vals
-      .map((v) => `'${String(v).replace(/'/g, "''")}'`)
+      .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
       .join(", ");
 
     const columnName = columnPrefixes?.get(filter.col) || filter.col;
-    whereStatements.push(`${columnName} IN (${quotedValues})`);
+    whereStatements.push(`UPPER(${columnName}) IN (${quotedValues})`);
   }
 
   // Add period bounds if specified

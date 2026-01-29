@@ -39,6 +39,7 @@ type Props = {
   showCost?: boolean;
   model?: AnthropicModel;
   markdownStyle?: CustomMarkdownStyleOptions;
+  onBeforeSubmit?: (userMessage: string) => string;
 };
 
 export const AIChat: Component<Props> = (props) => {
@@ -93,10 +94,15 @@ export const AIChat: Component<Props> = (props) => {
   });
 
   const handleSubmit = async () => {
-    const message = inputValue().trim();
+    let message = inputValue().trim();
     if (!message) return;
 
     setInputValue("");
+
+    // Call onBeforeSubmit if provided (allows prepending context)
+    if (props.onBeforeSubmit) {
+      message = props.onBeforeSubmit(message);
+    }
 
     // Check if we should queue (loading, processing tools, or unresolved tools)
     const msgs = messages();

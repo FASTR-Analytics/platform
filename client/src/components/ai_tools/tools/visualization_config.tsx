@@ -131,6 +131,7 @@ export function getToolsForConfiguringVisualizations(
         return lines.join("\n");
       },
       inProgressLabel: "Getting configuration...",
+      completionMessage: "Retrieved configuration",
     }),
 
     createAITool({
@@ -262,6 +263,10 @@ export function getToolsForConfiguringVisualizations(
         return `Updated ${changes.join(", ")}. The preview will update automatically. User must click "Save" to persist changes.`;
       },
       inProgressLabel: "Updating configuration...",
+      completionMessage: (input) => {
+        const changeCount = Object.keys(input).filter(k => input[k as keyof typeof input] !== undefined).length;
+        return `Updated ${changeCount} setting(s)`;
+      },
     }),
   ];
 }

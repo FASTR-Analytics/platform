@@ -34,6 +34,7 @@ export function getToolsForSlides(
         return await getDeckSummaryForAI(projectId, getSlideIds());
       },
       inProgressLabel: "Getting deck state...",
+      completionMessage: () => `Retrieved deck with ${getSlideIds().length} slide(s)`,
     }),
 
     createAITool({
@@ -59,16 +60,17 @@ export function getToolsForSlides(
           slide = cached.data.slide;
         }
 
-        const simplified = simplifySlideForAI(slide);
+        const simplified = await simplifySlideForAI(projectId, slide);
         return simplified;
       },
       inProgressLabel: (input) => `Getting slide ${input.slideId}...`,
+      completionMessage: (input) => `Retrieved slide ${input.slideId}`,
     }),
 
     createAITool({
       name: "create_slide",
       description:
-        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures).\n\nFor content blocks, you have three figure source options:\n- from_visualization: Clone an existing saved visualization (created via Presentations section). Use 'replicant' to show different indicator variants from the same viz config (e.g., 'anc1', 'penta3').\n- from_metric: Create a new chart directly from metric data. Requires metricId, optional chartType (bar/line/table), disaggregations, filters, and periodFilter (format: 202001=Jan 2020, 20241=Q1 2024, 2024=year).\n- text: Markdown text content with autofit. IMPORTANT: Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
+        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures).\n\nFor content blocks, you have three figure source options:\n- from_visualization: Clone an existing saved visualization (created via Presentations section). Use 'replicant' to show different indicator variants from the same viz config (e.g., 'anc1', 'penta3').\n- from_metric: Create a new chart directly from metric data. IMPORTANT: Always call get_metric_data FIRST to see available disaggregations, filters, and time ranges before creating from_metric blocks. The output provides exact parameter guidance.\n- text: Markdown text content with autofit. IMPORTANT: Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
       inputSchema: z.object({
         position: z
           .union([
@@ -121,7 +123,7 @@ export function getToolsForSlides(
     createAITool({
       name: "replace_slide",
       description:
-        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n- Adding/removing blocks from content slides\n\nFor content slides with existing layout, prefer update_slide_content (preserves layout) or update_slide_heading (preserves content and layout).\n\nIMPORTANT: Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
+        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n- Adding/removing blocks from content slides\n\nFor content slides with existing layout, prefer update_slide_content (preserves layout) or update_slide_heading (preserves content and layout).\n\nIMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         slide: z
@@ -164,7 +166,7 @@ export function getToolsForSlides(
     createAITool({
       name: "update_slide_content",
       description:
-        "Update specific content blocks within a slide while preserving the layout structure. This is the PREFERRED way to modify content slides as it maintains custom layout arrangements. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. This is much safer than replace_slide for targeted content updates. Use block IDs from get_slide to target specific text or figure blocks for replacement. IMPORTANT: Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
+        "Update specific content blocks within a slide while preserving the layout structure. This is the PREFERRED way to modify content slides as it maintains custom layout arrangements. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. This is much safer than replace_slide for targeted content updates. Use block IDs from get_slide to target specific text or figure blocks for replacement. IMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         updates: z.array(z.object({
@@ -201,7 +203,8 @@ export function getToolsForSlides(
 
         optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
 
-        return `Updated ${input.updates.length} block(s) in slide ${input.slideId}`;
+        const blockIds = input.updates.map(u => u.blockId).join(", ");
+        return `Updated ${input.updates.length} block(s) in slide ${input.slideId}: ${blockIds}`;
       },
       inProgressLabel: (input) => `Updating ${input.updates.length} block(s)...`,
       completionMessage: (input) => `Updated ${input.updates.length} block(s)`,
@@ -243,8 +246,8 @@ export function getToolsForSlides(
 
         return `Updated heading for slide ${input.slideId}: "${input.newHeading}"`;
       },
-      inProgressLabel: () => `Updating slide heading...`,
-      completionMessage: () => `Updated slide heading`,
+      inProgressLabel: (input) => `Updating heading for slide ${input.slideId}...`,
+      completionMessage: (input) => `Updated heading for slide ${input.slideId}`,
     }),
 
     createAITool({

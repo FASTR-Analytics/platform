@@ -596,7 +596,7 @@ export async function getMetricsListForAI(
       "",
       "PERIOD OPTIONS (for disaggregation and filtering):",
       "  - period_id (YYYYMM): By specific month. Examples: 202301 (Jan 2023), 202412 (Dec 2024)",
-      "  - quarter_id (YYYYQ): By specific quarter. Examples: 20231 (Q1 2023), 20244 (Q4 2024)",
+      "  - quarter_id (YYYYQQ): By specific quarter. Examples: 202301 (Q1 2023), 202404 (Q4 2024)",
       "  - year (YYYY): By year. Examples: 2023, 2024",
       "  - month (1-12): By month-of-year for seasonal patterns. Examples: 1 (all Januaries), 12 (all Decembers)",
       "",

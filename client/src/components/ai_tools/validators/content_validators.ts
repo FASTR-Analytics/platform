@@ -1,4 +1,4 @@
-import { MAX_CONTENT_BLOCKS } from "lib";
+import { ALL_DISAGGREGATION_OPTIONS, type AiMetricQuery, type MetricWithStatus, MAX_CONTENT_BLOCKS } from "lib";
 
 const MARKDOWN_TABLE_PATTERNS = [
   /\|.*\|.*\|/m, // Lines with multiple pipes (table rows)
@@ -22,5 +22,86 @@ export function validateMaxContentBlocks(blocksCount: number): void {
     throw new Error(
       `Too many blocks (${blocksCount}). Maximum is ${MAX_CONTENT_BLOCKS} blocks per slide. Please reduce the number of blocks and try again.`
     );
+  }
+}
+
+function isPeriodIdValid(val: number): boolean {
+  const str = String(val);
+  if (str.length !== 6) return false;
+  const year = Math.floor(val / 100);
+  const month = val % 100;
+  return year >= 1900 && year <= 2100 && month >= 1 && month <= 12;
+}
+
+function isQuarterIdValid(val: number): boolean {
+  const str = String(val);
+  if (str.length !== 6) return false;
+  const year = Math.floor(val / 100);
+  const quarter = val % 100;
+  return year >= 1900 && year <= 2100 && quarter >= 1 && quarter <= 4;
+}
+
+export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithStatus): void {
+  if (query.disaggregations) {
+    const invalid = query.disaggregations.filter(
+      d => !ALL_DISAGGREGATION_OPTIONS.includes(d)
+    );
+    if (invalid.length > 0) {
+      throw new Error(
+        `Invalid disaggregation option(s): ${invalid.join(", ")}. Valid options are: ${ALL_DISAGGREGATION_OPTIONS.join(", ")}`
+      );
+    }
+  }
+
+  if (query.filters) {
+    const invalidCols = query.filters.filter(
+      f => !ALL_DISAGGREGATION_OPTIONS.includes(f.col)
+    );
+    if (invalidCols.length > 0) {
+      throw new Error(
+        `Invalid filter column(s): ${invalidCols.map(f => f.col).join(", ")}. Valid columns are: ${ALL_DISAGGREGATION_OPTIONS.join(", ")}`
+      );
+    }
+  }
+
+  if (query.periodFilter) {
+    const { periodOption, min, max } = query.periodFilter;
+
+    if (min > max) {
+      throw new Error(
+        `Period filter min (${min}) cannot be greater than max (${max})`
+      );
+    }
+
+    if (periodOption === "period_id") {
+      if (!isPeriodIdValid(min) || !isPeriodIdValid(max)) {
+        throw new Error(
+          `Invalid period_id format. Must be YYYYMM (e.g., 202301 for Jan 2023). Got min: ${min}, max: ${max}`
+        );
+      }
+    } else if (periodOption === "quarter_id") {
+      if (!isQuarterIdValid(min) || !isQuarterIdValid(max)) {
+        throw new Error(
+          `Invalid quarter_id format. Must be YYYYQQ where QQ is 01-04 (e.g., 202301 for Q1 2023). Got min: ${min}, max: ${max}`
+        );
+      }
+    } else if (periodOption === "year") {
+      if (min < 1900 || max > 2100) {
+        throw new Error(
+          `Year must be between 1900 and 2100. Got min: ${min}, max: ${max}`
+        );
+      }
+    }
+  }
+
+  if (query.valuesFilter && metric) {
+    const invalidValues = query.valuesFilter.filter(
+      v => !metric.valueProps.includes(v)
+    );
+    if (invalidValues.length > 0) {
+      throw new Error(
+        `Invalid valuesFilter value(s): ${invalidValues.join(", ")}. Valid values for metric "${query.metricId}" are: ${metric.valueProps.join(", ")}`
+      );
+    }
   }
 }

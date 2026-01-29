@@ -354,8 +354,11 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
               (fil) => fil.disOpt === p.disOpt.value,
               "values",
               (prev) => {
-                if (prev?.includes(val)) {
-                  return prev.filter((v) => v !== val);
+                const existingIndex = prev?.findIndex(
+                  v => v.toLowerCase() === val.toLowerCase()
+                );
+                if (existingIndex !== undefined && existingIndex >= 0) {
+                  return prev!.filter((_, i) => i !== existingIndex);
                 }
                 return [...(prev ?? []), val];
               },
@@ -379,11 +382,14 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                   <div class="ui-gap-sm ui-pad border-base-300 flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
                     <For each={(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "ok" }>).values}>
                       {(opt) => {
+                        const isSelected = keyedFilter.values.some(
+                          v => v.toLowerCase() === opt.toLowerCase()
+                        );
                         return (
                           <div
                             class="ui-hoverable bg-base-200 data-[selected=true]:bg-success data-[selected=true]:text-base-100 rounded px-2 py-1"
                             onClick={() => toggleVal(opt)}
-                            data-selected={keyedFilter.values.includes(opt)}
+                            data-selected={isSelected}
                           >
                             <span class="relative">
                               {keyedFilter.disOpt === "indicator_common_id"

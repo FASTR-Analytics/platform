@@ -22,16 +22,19 @@ export const AiMetricQuerySchema = z.object({
   ),
   periodFilter: z.object({
     periodOption: z.enum(["period_id", "quarter_id", "year"]).describe(
-      "Time granularity: 'period_id' = YYYYMM format (202301 = Jan 2023), 'quarter_id' = YYYYQ format (20231 = Q1 2023), 'year' = YYYY format (2023)",
+      "Time granularity: 'period_id' = YYYYMM format (202301 = Jan 2023), 'quarter_id' = YYYYQQ format (202301 = Q1 2023), 'year' = YYYY format (2023)",
     ),
     min: z.number().describe(
-      "Start of time range (inclusive). Examples: period_id 202301 (Jan 2023), quarter_id 20231 (Q1 2023), year 2023",
+      "Start of time range (inclusive). Examples: period_id 202301 (Jan 2023), quarter_id 202301 (Q1 2023), year 2023",
     ),
     max: z.number().describe(
-      "End of time range (inclusive). Examples: period_id 202412 (Dec 2024), quarter_id 20244 (Q4 2024), year 2024",
+      "End of time range (inclusive). Examples: period_id 202412 (Dec 2024), quarter_id 202404 (Q4 2024), year 2024",
     ),
   }).optional().describe(
-    "Optional: Filter to limit the time range. Format depends on periodOption: period_id=YYYYMM (202301-202412), quarter_id=YYYYQ (20231-20244), year=YYYY (2023-2024).",
+    "Optional: Filter to limit the time range. Format depends on periodOption: period_id=YYYYMM (202301-202412), quarter_id=YYYYQQ (202301-202404), year=YYYY (2023-2024).",
+  ),
+  valuesFilter: z.array(z.string()).optional().describe(
+    "Optional: Array of value property names to display. For metrics with multiple value properties (shown in 'Value properties' section from get_metric_data), specify which ones to include. E.g., ['count_final_both'] to show only the combined count.",
   ),
 });
 

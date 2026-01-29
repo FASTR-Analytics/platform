@@ -20,6 +20,9 @@ import { getSlideDeckSystemPrompt } from "~/components/ai_prompts/slide_deck";
 import { SlideEditor } from "./slide_editor";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { DownloadSlideDeck } from "./download_slide_deck";
+import { useAIDocuments, AIDocumentButton, AIDocumentList } from "../ai_documents";
+import { EditLabelForm } from "../forms_editors/edit_label";
+import { trackSlideChange, getPendingChangesMessage, clearPendingChanges } from "./pending_changes_store";
 
 type Props = {
   instanceDetail: InstanceDetail;
@@ -40,6 +43,13 @@ export function ProjectAiSlideDeck(p: Props) {
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedSlideIds, setSelectedSlideIds] = createSignal<string[]>([]);
 
+  const aiDocs = useAIDocuments({
+    projectId,
+    conversationId: `ai-slide-deck-${p.deckId}`
+  });
+
+  const [deckLabel, setDeckLabel] = createSignal(p.reportLabel);
+
   // Load deck metadata on mount (not full slide data)
   onMount(async () => {
     const deckRes = await serverActions.getSlideDeckDetail({ projectId, deck_id: p.deckId });
@@ -54,10 +64,11 @@ export function ProjectAiSlideDeck(p: Props) {
   createEffect(() => {
     const deckUpdate = pds.lastUpdated.slide_decks[p.deckId];
     if (deckUpdate) {
-      // Deck metadata changed - refetch slideIds
+      // Deck metadata changed - refetch deck details
       serverActions.getSlideDeckDetail({ projectId, deck_id: p.deckId }).then((res) => {
         if (res.success) {
           setSlideIds(res.data.slideIds);
+          setDeckLabel(res.data.label);
         }
       });
     }
@@ -95,6 +106,7 @@ export function ProjectAiSlideDeck(p: Props) {
         builtInTools: DEFAULT_BUILTIN_TOOLS,
         conversationId: `ai-slide-deck-${p.deckId}`,
         system: systemPrompt,
+        getDocumentRefs: aiDocs.getDocumentRefs,
       }}
     >
       <ProjectAiSlideDeckInner
@@ -102,11 +114,13 @@ export function ProjectAiSlideDeck(p: Props) {
         instanceDetail={p.instanceDetail}
         isGlobalAdmin={p.isGlobalAdmin}
         deckId={p.deckId}
-        reportLabel={p.reportLabel}
+        deckLabel={deckLabel()}
+        optimisticSetLastUpdated={optimisticSetLastUpdated}
         slideIds={slideIds()}
         isLoading={isLoading()}
         setSelectedSlideIds={setSelectedSlideIds}
         backToProject={p.backToProject}
+        aiDocs={aiDocs}
       />
     </AIChatProvider>
   );
@@ -117,18 +131,50 @@ function ProjectAiSlideDeckInner(p: {
   instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
   deckId: string;
-  reportLabel: string;
+  deckLabel: string;
+  optimisticSetLastUpdated: ReturnType<typeof useOptimisticSetLastUpdated>;
   slideIds: string[];
   isLoading: boolean;
   setSelectedSlideIds: (ids: string[]) => void;
   backToProject: (withUpdate: boolean) => Promise<void>;
+  aiDocs: ReturnType<typeof useAIDocuments>;
 }) {
   const { clearConversation, isLoading: aiLoading } = createAIChat();
-  const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const { openEditor, EditorWrapper } = getEditorWrapper();
+
+  // Consolidate pending changes into user message
+  const handleBeforeSubmit = (userMessage: string): string => {
+    const changesMessage = getPendingChangesMessage();
+    if (changesMessage) {
+      clearPendingChanges();
+      return `${changesMessage}\n\n${userMessage}`;
+    }
+    return userMessage;
+  };
 
   // Editor state
   const [editingSlideId, setEditingSlideId] = createSignal<string | undefined>();
+
+  async function handleEditLabel() {
+    await openComponent({
+      element: EditLabelForm,
+      props: {
+        headerText: "Edit slide deck name",
+        existingLabel: p.deckLabel,
+        mutateFunc: async (newLabel) => {
+          const res = await serverActions.updateSlideDeckLabel({
+            projectId: p.projectDetail.id,
+            deck_id: p.deckId,
+            label: newLabel,
+          });
+          if (res.success) {
+            p.optimisticSetLastUpdated("slide_decks", p.deckId, res.data.lastUpdated);
+          }
+          return res;
+        },
+      },
+    });
+  }
 
   async function download() {
     const _res = await openComponent({
@@ -174,7 +220,8 @@ function ProjectAiSlideDeckInner(p: {
     setEditingSlideId(undefined);
 
     if (saved) {
-      optimisticSetLastUpdated("slides", slideId, Date.now().toString());
+      p.optimisticSetLastUpdated("slides", slideId, Date.now().toString());
+      trackSlideChange("edited", slideId);
     }
   }
 
@@ -183,15 +230,21 @@ function ProjectAiSlideDeckInner(p: {
       <FrameTop
         panelChildren={
           <HeadingBar
-            heading={p.reportLabel}
+            heading={p.deckLabel}
             french={false}
             leftChildren={
               <Button iconName="chevronLeft" onClick={() => p.backToProject(true)} />
             }
           >
-            <Button onClick={download} iconName="download">
-              Download
-            </Button>
+            <div class="flex items-center ui-gap-sm">
+
+              <Button onClick={handleEditLabel} iconName="pencil" outline>
+                Rename
+              </Button>
+              <Button onClick={download} iconName="download">
+                Download
+              </Button>
+            </div>
           </HeadingBar>
         }
       >
@@ -200,8 +253,15 @@ function ProjectAiSlideDeckInner(p: {
           startingWidth={600}
           maxWidth={1200}
           panelChildren={<div class="border-base-300 h-full w-full border-r flex flex-col">
-            <div class="flex items-center border-b border-base-300 ui-pad">
+            <div class="flex items-center gap-2 border-b border-base-300 ui-pad">
               <div class="flex-1 font-700 text-lg">AI chat</div>
+
+              <AIDocumentButton
+                documents={p.aiDocs.documents()}
+                onOpenSelector={p.aiDocs.openSelector}
+                onRemoveDocument={p.aiDocs.removeDocument}
+              />
+
               <Button
                 onClick={clearConversation}
                 disabled={aiLoading()}
@@ -212,8 +272,12 @@ function ProjectAiSlideDeckInner(p: {
                 Clear chat
               </Button>
             </div>
+            <AIDocumentList
+              documents={p.aiDocs.documents()}
+              onRemove={p.aiDocs.removeDocument}
+            />
             <div class="w-full h-0 flex-1">
-              <AIChat />
+              <AIChat onBeforeSubmit={handleBeforeSubmit} />
             </div>
           </div>
 

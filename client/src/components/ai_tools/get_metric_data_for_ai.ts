@@ -123,8 +123,8 @@ function formatItemsAsMarkdown(
   lines.push("# METRIC DATA");
   lines.push("=".repeat(80));
   lines.push("");
-  lines.push(`**Metric:** ${staticData.label}${staticData.variantLabel ? ` [${staticData.variantLabel}]` : ""}`);
-  lines.push(`**Metric ID:** ${metricId}`);
+  lines.push(`**Metric ID (metricId):** ${metricId}`);
+  lines.push(`**Metric Label:** ${staticData.label}${staticData.variantLabel ? ` [${staticData.variantLabel}]` : ""}`);
   lines.push(`**Format:** ${staticData.formatAs}`);
 
   if (staticData.valueProps.length > 0) {
@@ -208,6 +208,64 @@ function formatItemsAsMarkdown(
   lines.push("");
   const csvData = pivotAndFormatAsCSV(items, columns, disaggregations, staticData.formatAs);
   lines.push(csvData);
+  lines.push("");
+
+  // Add guidance for creating from_metric blocks
+  lines.push("=".repeat(80));
+  lines.push("## Creating Visualizations from this Metric");
+  lines.push("");
+  lines.push("To create a `from_metric` block in slides, use these exact parameters:");
+  lines.push("");
+  lines.push("```");
+  lines.push("{");
+  lines.push('  "type": "from_metric",');
+  lines.push('  "metricQuery": {');
+  lines.push(`    "metricId": "${metricId}",`);
+
+  if (disaggregations.length > 0) {
+    lines.push(`    "disaggregations": ${JSON.stringify(disaggregations)},`);
+  }
+
+  if (filters && filters.length > 0) {
+    lines.push(`    "filters": [`);
+    for (let i = 0; i < filters.length; i++) {
+      const f = filters[i];
+      const comma = i < filters.length - 1 ? ',' : '';
+      lines.push(`      { "col": "${f.col}", "vals": ${JSON.stringify(f.vals)} }${comma}`);
+    }
+    lines.push(`    ],`);
+  }
+
+  if (periodFilter) {
+    lines.push(`    "periodFilter": {`);
+    lines.push(`      "periodOption": "${periodFilter.periodOption}",`);
+    lines.push(`      "min": ${periodFilter.min},`);
+    lines.push(`      "max": ${periodFilter.max}`);
+    lines.push(`    },`);
+  }
+
+  if (staticData.valueProps.length > 1) {
+    lines.push(`    "valuesFilter": ${JSON.stringify(staticData.valueProps)}  // Optional: choose specific values`);
+  }
+
+  lines.push("  },");
+  lines.push('  "chartType": "bar",  // or "line" or "table"');
+  lines.push('  "chartTitle": "Your chart title here"');
+  lines.push("}");
+  lines.push("```");
+  lines.push("");
+  lines.push("**Parameter Notes:**");
+  lines.push("- `metricId`: Always use the exact ID shown above");
+  lines.push("- `disaggregations`: Array of dimension names from the Dimension Summary");
+  lines.push("- `filters`: Array of {col, vals} objects to limit data (col must be a disaggregation)");
+  lines.push("- `periodFilter`: Time range filter with periodOption (period_id/quarter_id/year), min, and max");
+
+  if (staticData.valueProps.length > 1) {
+    lines.push("- `valuesFilter`: Optional array to select specific value properties (" + staticData.valueProps.join(", ") + ")");
+  }
+
+  lines.push("- `chartType`: Choose 'bar', 'line', or 'table'");
+  lines.push("- `chartTitle`: Descriptive title for the visualization");
   lines.push("");
 
   return lines.join("\n");
