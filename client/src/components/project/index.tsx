@@ -191,27 +191,31 @@ export default function Project(p: Props) {
                                   </span>
                                   {t2(T.FRENCH_UI_STRINGS.visualizations)}
                                 </div>
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("modules")}
-                                  data-selected={tab() === "modules"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <CodeIcon />
-                                  </span>
-                                  {t2(T.FRENCH_UI_STRINGS.modules)}
-                                </div>
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("data")}
-                                  data-selected={tab() === "data"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <DatabaseIcon />
-                                  </span>
-                                  {t2(T.FRENCH_UI_STRINGS.data)}
-                                </div>
-                                <Show when={p.isGlobalAdmin}>
+                                <Show when={p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_modules || keyedProjectDetail.thisUserPermissions.can_run_modules}>
+                                  <div
+                                    class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                    onClick={() => changeTab("modules")}
+                                    data-selected={tab() === "modules"}
+                                  >
+                                    <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                      <CodeIcon />
+                                    </span>
+                                    {t2(T.FRENCH_UI_STRINGS.modules)}
+                                  </div>
+                                </Show>
+                                <Show when={p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_view_data || keyedProjectDetail.thisUserPermissions.can_configure_data}>
+                                  <div
+                                    class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                    onClick={() => changeTab("data")}
+                                    data-selected={tab() === "data"}
+                                  >
+                                    <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                      <DatabaseIcon />
+                                    </span>
+                                    {t2(T.FRENCH_UI_STRINGS.data)}
+                                  </div>
+                                </Show>
+                                <Show when={p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_settings}>
                                   <div
                                     class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                     onClick={() => changeTab("settings")}
@@ -223,7 +227,7 @@ export default function Project(p: Props) {
                                     {t2(T.FRENCH_UI_STRINGS.settings)}
                                   </div>
                                 </Show>
-                                <Show when={p.isGlobalAdmin}>
+                                <Show when={p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_view_logs}>
                                   <div
                                     class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                     onClick={() => changeTab("logs")}
@@ -280,7 +284,7 @@ export default function Project(p: Props) {
                                   }
                                 />
                               </Match>
-                              <Match when={tab() === "data" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_view_data)}>
+                              <Match when={tab() === "data" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_view_data || keyedProjectDetail.thisUserPermissions.can_configure_data)}>
                                 <ProjectData
                                   isGlobalAdmin={p.isGlobalAdmin}
                                   instanceDetail={keyedInstanceDetail}
