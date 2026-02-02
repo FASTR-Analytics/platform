@@ -19,6 +19,18 @@ CREATE TABLE user_logs (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
+CREATE TABLE user_permissions (
+  user_email text PRIMARY KEY NOT NULL,
+  can_configure_users boolean NOT NULL DEFAULT FALSE,
+  can_view_users boolean NOT NULL DEFAULT FALSE,
+  can_view_logs boolean NOT NULL DEFAULT FALSE,
+  can_configure_instance boolean NOT NULL DEFAULT FALSE,
+  can_configure_data boolean NOT NULL DEFAULT FALSE,
+  can_view_data boolean NOT NULL DEFAULT FALSE,
+  can_create_projects boolean NOT NULL DEFAULT FALSE,
+  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
+);
+
 CREATE TABLE instance_config (
   config_key text PRIMARY KEY NOT NULL,
   config_json_value text NOT NULL

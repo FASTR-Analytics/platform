@@ -26,7 +26,7 @@ export type DBProject = {
 };
 
 export type UserPermissions = {
-  email: string;
+  user_email: string;
   can_configure_users: boolean;
   can_view_users: boolean;
   can_view_logs: boolean;

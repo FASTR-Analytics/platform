@@ -6,6 +6,7 @@ import {
   OtherUser,
   type ProjectUserRole,
   type BatchUser,
+  type UserPermission,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
@@ -68,10 +69,18 @@ export async function addUsers(
     }
 
     const values = emails.map((email) => ({ email, is_admin: isGlobalAdmin }));
-    await mainDb`
-      INSERT INTO users ${mainDb(values, "email", "is_admin")}
-      ON CONFLICT (email) DO NOTHING
-    `;
+    await mainDb.begin(async (sql) => {
+      await sql`
+        INSERT INTO users ${sql(values, "email", "is_admin")}
+        ON CONFLICT (email) DO NOTHING
+      `;
+
+      const permissionValues = emails.map((email) => ({ user_email: email }));
+      await sql`
+        INSERT INTO user_permissions ${sql(permissionValues, "user_email")}
+        ON CONFLICT (user_email) DO NOTHING
+      `;
+    });
 
     return { success: true };
   });
@@ -85,6 +94,51 @@ export async function toggleAdmin(
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`UPDATE users SET is_admin = ${makeAdmin} WHERE email = ANY(${emails})`;
     return { success: true };
+  });
+}
+
+export async function updateUserPermissions(
+  mainDb: Sql,
+  email: string,
+  permissions: Partial<Record<UserPermission, boolean>>
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      UPDATE user_permissions
+      SET ${mainDb(permissions)}
+      WHERE user_email = ${email}
+    `;
+    return { success: true };
+  });
+}
+
+export async function getUserPermissions(
+  mainDb: Sql,
+  email: string
+): Promise<APIResponseWithData<{ permissions: Record<UserPermission, boolean> }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await mainDb<
+        Record<UserPermission, boolean>[]
+      >`SELECT
+        can_configure_users,
+        can_view_users,
+        can_view_logs,
+        can_configure_settings,
+        can_configure_assets,
+        can_configure_data,
+        can_view_data,
+        can_create_projects
+      FROM user_permissions
+      WHERE user_email=${email}`
+    ).at(0);
+
+    if(!row) throw new Error("User does not have a user permission table");
+
+    return {
+      success: true,
+      data: { permissions: row },
+    };
   });
 }
 
@@ -205,6 +259,13 @@ export async function batchUploadUsers(
           ON CONFLICT (email)
           DO UPDATE SET
             is_admin = EXCLUDED.is_admin
+        `;
+
+        // Insert user_permissions entry (with default permissions)
+        await sql`
+          INSERT INTO user_permissions (user_email)
+          VALUES (${batchUser.email})
+          ON CONFLICT (user_email) DO NOTHING
         `;
       }
     });

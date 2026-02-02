@@ -125,7 +125,8 @@ export function InstanceUsers(p: Props) {
                   <div class="flex-1">
                     <UserTable
                       users={keyedInstanceDetail.users}
-                      logs={userLogs()?.data ?? []}
+                      logs={userLogs.latest?.data ?? []}
+                      logsLoading={userLogs.loading}
                       onUserClick={(user) => setSelectedUser(user.email)}
                       onViewLogs={(email) => setLogFilterUser(email)}
                       showCommingSoon={showCommingSoon}
@@ -133,14 +134,16 @@ export function InstanceUsers(p: Props) {
                     />
                   </div>
                   <Suspense fallback={<div class="text-neutral text-sm">Loading activity logs...</div>}>
-                    <Show when={userLogs()?.data}>
-                      <div class="flex-1 overflow-auto">
-                        <UserLogsTable
-                          logs={userLogs()!.data}
-                          filterByUser={logFilterUser()}
-                          onFilterByUser={setLogFilterUser}
-                        />
-                      </div>
+                    <Show when={userLogs.latest?.data} keyed>
+                      {(logs: UserLog[]) => (
+                        <div class="flex-1 overflow-auto">
+                          <UserLogsTable
+                            logs={logs}
+                            filterByUser={logFilterUser()}
+                            onFilterByUser={setLogFilterUser}
+                          />
+                        </div>
+                      )}
                     </Show>
                   </Suspense>
                 </div>
@@ -179,6 +182,7 @@ function formatTimeAgo(date: Date): string {
 function UserTable(p: {
   users: UserData[];
   logs: UserLog[];
+  logsLoading: boolean;
   onUserClick: (user: UserData) => void;
   onViewLogs: (email: string) => void;
   showCommingSoon: () => Promise<boolean>;
@@ -211,9 +215,16 @@ function UserTable(p: {
       header: t("Last active"),
       sortable: true,
       render: (user) => {
-        const lastActive = lastActiveByUser().get(user.email);
-        if (!lastActive) return <span class="text-neutral text-sm">{t("Never")}</span>;
-        return <span class="text-sm">{formatTimeAgo(lastActive)}</span>;
+        if (p.logsLoading) {
+          return <span class="text-neutral text-sm">...</span>;
+        }
+        try {
+          const lastActive = lastActiveByUser().get(user.email);
+          if (!lastActive) return <span class="text-neutral text-sm">{t("Never")}</span>;
+          return <span class="text-sm">{formatTimeAgo(lastActive)}</span>;
+        } catch {
+          return <span class="text-neutral text-sm">{t("Unknown")}</span>;
+        }
       },
     },
     {

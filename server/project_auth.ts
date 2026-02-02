@@ -392,11 +392,19 @@ async function getGlobalUser(
 
     if (_OPEN_ACCESS && (!rawUser || !rawUser.is_admin)) {
       // Non-critical insert, don't wait if it fails
-      mainDb<DBUser[]>`
-INSERT INTO users (email, is_admin)
-VALUES (${auth.sessionClaims.email as string}, TRUE)
-ON CONFLICT do nothing;
-`.catch(() => {}); // Ignore errors on this insert
+      const email = auth.sessionClaims.email as string;
+      mainDb.begin(async (sql) => {
+        await sql`
+          INSERT INTO users (email, is_admin)
+          VALUES (${email}, TRUE)
+          ON CONFLICT DO NOTHING
+        `;
+        await sql`
+          INSERT INTO user_permissions (user_email)
+          VALUES (${email})
+          ON CONFLICT (user_email) DO NOTHING
+        `;
+      }).catch(() => {}); // Ignore errors on this insert
     }
 
     const globalUser: GlobalUser = {
@@ -472,11 +480,19 @@ async function getProjectUser(
 
     if (_OPEN_ACCESS && (!rawUser || !rawUser.is_admin)) {
       // Non-critical insert, don't wait if it fails
-      mainDb<DBUser[]>`
-INSERT INTO users (email, is_admin)
-VALUES (${auth.sessionClaims.email as string}, TRUE)
-ON CONFLICT do nothing;
-`.catch(() => {}); // Ignore errors on this insert
+      const email = auth.sessionClaims.email as string;
+      mainDb.begin(async (sql) => {
+        await sql`
+          INSERT INTO users (email, is_admin)
+          VALUES (${email}, TRUE)
+          ON CONFLICT DO NOTHING
+        `;
+        await sql`
+          INSERT INTO user_permissions (user_email)
+          VALUES (${email})
+          ON CONFLICT (user_email) DO NOTHING
+        `;
+      }).catch(() => {}); // Ignore errors on this insert
     }
 
     if (_OPEN_ACCESS || rawUser?.is_admin) {

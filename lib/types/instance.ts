@@ -198,6 +198,28 @@ export type OtherUser = {
   isGlobalAdmin: boolean;
 };
 
+export type UserPermission =
+  | "can_configure_users"
+  | "can_view_users"
+  | "can_view_logs"
+  | "can_configure_settings"
+  | "can_configure_assets"
+  | "can_configure_data"
+  | "can_view_data"
+  | "can_create_projects";
+
+export type UserPermissions = {
+  user_email: string;
+  can_configure_users: boolean;
+  can_view_users: boolean;
+  can_view_logs: boolean;
+  can_configure_settings: boolean;
+  can_configure_assets: boolean;
+  can_configure_data: boolean;
+  can_view_data: boolean;
+  can_create_projects: boolean;
+};
+
 export type ProjectPermission = Extract<keyof ProjectUser,
   | "can_configure_settings"
   | "can_create_backups"
