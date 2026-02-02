@@ -117,6 +117,13 @@ export async function getUserPermissions(
   email: string
 ): Promise<APIResponseWithData<{ permissions: Record<UserPermission, boolean> }>> {
   return await tryCatchDatabaseAsync(async () => {
+    // Create user_permissions row if it doesn't exist (for existing users)
+    await mainDb`
+      INSERT INTO user_permissions (user_email)
+      VALUES (${email})
+      ON CONFLICT (user_email) DO NOTHING
+    `;
+
     const row = (
       await mainDb<
         Record<UserPermission, boolean>[]
