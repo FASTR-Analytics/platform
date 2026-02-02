@@ -98,7 +98,7 @@ defineRoute(
     console.log("projectId:", body.projectId, "type:", typeof body.projectId);
     const res = await updateProjectUserRole(
       c.var.mainDb,
-      body.projectId,
+      c.var.ppk.projectId,
       body.emails,
       body.role
     );
@@ -115,7 +115,7 @@ defineRoute(
   async (c, { body }) => {
     const res = await updateProjectUserPermissions(
       c.var.mainDb,
-      body.projectId,
+      c.var.ppk.projectId,
       body.emails,
       body.permissions
     );

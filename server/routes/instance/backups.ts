@@ -269,7 +269,8 @@ defineRoute(
       const folder = body.folder;
       const fileName = body.fileName;
       const fileData = body.fileData;
-      const projectId = body.projectId;
+      const projectId = c.var.ppk.projectId;
+
 
       console.log('Parsed request - folder:', folder, 'fileName:', fileName, 'hasFileData:', !!fileData);
 

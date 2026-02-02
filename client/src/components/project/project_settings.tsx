@@ -552,7 +552,9 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
         projectId: props.projectId,
         createBackupFunc: async(backupName: string) => {
           const token = await clerk.session?.getToken();
-          const headers: HeadersInit = {};
+          const headers: HeadersInit = {
+            'Project-Id': props.projectId,
+          };
           if (token) {
             headers['Authorization'] = `Bearer ${token}`;
           }
