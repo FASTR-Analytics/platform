@@ -8,16 +8,6 @@ CREATE TABLE datasets (
   last_updated text NOT NULL
 );
 
-CREATE TABLE project_logs (
-  id SERIAL PRIMARY KEY,
-  user_email text NOT NULL,
-  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  endpoint text NOT NULL,
-  endpoint_result text NOT NULL,
-  project_id text NOT NULL,
-  details text
-);
-
 CREATE TABLE indicators (
   indicator_common_id text PRIMARY KEY NOT NULL,
   indicator_common_label text NOT NULL

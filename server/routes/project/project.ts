@@ -28,8 +28,9 @@ import {
 } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
-import { GetProjectLogs } from "../../db/project/project_user_logs.ts";
+import { GetLogsByProject } from "../../db/instance/user_logs.ts";
 import { log } from "../../middleware/logging.ts";
+import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 
 export const routesProject = new Hono();
 
@@ -279,7 +280,8 @@ defineRoute(
   requireProjectPermission(false,"can_view_logs"),
   log("getProjectLogs"),
   async (c) => {
-    const res = await GetProjectLogs(c.var.ppk.projectDb, c.var.ppk.projectId);
+    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+    const res = await GetLogsByProject(mainDb, c.var.ppk.projectId);
     if (!res.success) return c.json(res, 500);
     return c.json(res.data);
   }

@@ -1,4 +1,4 @@
-import { ProjectLog } from "../../../server/db/mod.ts";
+import { UserLog } from "../../../server/db/mod.ts";
 import { ProjectPermission } from "lib";
 import type {
   ProjectDetail,
@@ -113,7 +113,7 @@ export const projectRouteRegistry = {
   getProjectLogs: route({
     path: "/project-logs",
     method: "GET",
-    response: {} as ProjectLog[],
+    response: {} as UserLog[],
     requiresProject: true,
   }),
 

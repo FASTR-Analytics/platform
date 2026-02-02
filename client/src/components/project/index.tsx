@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import { InstanceDetail, t2, T } from "lib";
-import { ProjectLog } from "../../../../server/db/mod.ts";
+import { UserLog } from "../../../../server/db/mod.ts";
 import {
   Button,
   ChartIcon,
@@ -320,7 +320,7 @@ export default function Project(p: Props) {
                                     fallback={<div class="text-neutral text-sm">{t("No logs available")}</div>}
                                   >
                                     <ProjectLogs
-                                      logs={projectLogs() as ProjectLog[]}
+                                      logs={projectLogs() as UserLog[]}
                                       filterByUser={logFilterUser()}
                                       onFilterByUser={setLogFilterUser}
                                     />

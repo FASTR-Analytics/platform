@@ -13,7 +13,10 @@ CREATE TABLE user_logs (
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   endpoint text NOT NULL,
   endpoint_result text NOT NULL,
+  details text,
+  project_id text,
   FOREIGN KEY (user_email) REFERENCES users(email)
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
 CREATE TABLE instance_config (

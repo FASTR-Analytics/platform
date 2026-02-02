@@ -1,10 +1,10 @@
 import { Table, TableColumn, Button, openAlert } from "panther";
 import { t } from "lib";
 import { Show } from "solid-js";
-import { ProjectLog } from "../../../../server/db/mod.ts";
+import { UserLog } from "../../../../server/db/mod.ts";
 
 type Props = {
-  logs: ProjectLog[];
+  logs: UserLog[];
   filterByUser?: string;
   onFilterByUser: (email: string | undefined) => void;
 };
@@ -17,7 +17,7 @@ export function ProjectLogs(p: Props) {
     };
 
 
-    const columns: TableColumn<ProjectLog>[] = [
+    const columns: TableColumn<UserLog>[] = [
     {
         key: "timestamp",
         header: t("Timestamp"),

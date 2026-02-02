@@ -10,6 +10,7 @@ export type UserLog = {
   endpoint: string;
   endpoint_result: string;
   details?: string;
+  project_id?: string;
 }
 
 export type DBInstanceConfig = {

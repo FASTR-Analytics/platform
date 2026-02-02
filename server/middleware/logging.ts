@@ -1,6 +1,5 @@
 import { createMiddleware } from "hono/factory";
 import { AddLog } from "../db/instance/user_logs.ts";
-import { AddProjectLog } from "../db/project/project_user_logs.ts";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 
 export const log = (routeName: string) =>  
@@ -43,11 +42,7 @@ export const log = (routeName: string) =>
             const details = JSON.stringify({ params, body, headers, error: error ? String(error) : undefined });
 
             const projectId = c.var.ppk?.projectId as string | undefined;
-            if (projectId) {
-                const projectDb = c.var.ppk.projectDb;
-                AddProjectLog(projectDb, userEmail, routeName, status, projectId, details).catch(() => {});
-            }
-            AddLog(mainDb, userEmail, routeName, status, details).catch(() => {});
+            AddLog(mainDb, userEmail, routeName, status, details, projectId).catch(() => {});
         } catch {
             // Don't let logging errors break the response
         }

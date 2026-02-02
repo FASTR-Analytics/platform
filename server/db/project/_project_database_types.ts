@@ -5,16 +5,6 @@ export type DBDataset_IN_PROJECT = {
   last_updated: string;
 };
 
-export type ProjectUserLog = {
-  id: number;
-  user_email: string;
-  timestamp: Date;
-  endpoint: string;
-  endpoint_result: string;
-  project_id: string;
-  details?: string;
-}
-
 export type DBIndicator_IN_PROJECT = {
   indicator_common_id: string;
   indicator_common_label: string;
