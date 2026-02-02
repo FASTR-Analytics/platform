@@ -1,4 +1,4 @@
-import type { GlobalUser } from "../../types/mod.ts";
+import type { GlobalUser, UserPermission } from "../../types/mod.ts";
 import type { UserLog } from "../../../server/db/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -40,5 +40,16 @@ export const userRouteRegistry = {
     path: "/all-user-logs",
     method: "GET",
     response: {} as UserLog[],
-  })
+  }),
+  getUserPermissions: route({
+    path: "/user/:email/permissions",
+    method: "GET",
+    params: {} as { email: string },
+    response: {} as { permissions: Record<UserPermission, boolean> },
+  }),
+  updateUserPermissions: route({
+    path: "/user/permissions",
+    method: "POST",
+    body: {} as { email: string; permissions: Partial<Record<UserPermission, boolean>> },
+  }),
 } as const;

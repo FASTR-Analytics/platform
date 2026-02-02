@@ -5,6 +5,8 @@ import {
   deleteUser,
   getOtherUser,
   toggleAdmin,
+  getUserPermissions,
+  updateUserPermissions,
 } from "../../db/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { getGlobalAdmin, getGlobalNonAdmin } from "../../project_auth.ts";
@@ -100,6 +102,28 @@ defineRoute(
   log("getAllUserLogs"),
   async(c) => {
     const res = await GetLogs(c.var.mainDb);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesUsers,
+  "getUserPermissions",
+  getGlobalAdmin,
+  log("getUserPermissions"),
+  async (c, { params }) => {
+    const res = await getUserPermissions(c.var.mainDb, params.email);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesUsers,
+  "updateUserPermissions",
+  getGlobalAdmin,
+  log("updateUserPermissions"),
+  async (c, { body }) => {
+    const res = await updateUserPermissions(c.var.mainDb, body.email, body.permissions);
     return c.json(res);
   }
 );
