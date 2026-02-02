@@ -74,6 +74,7 @@ defineRoute(
   routesProject,
   "getProjectDetail",
   getGlobalNonAdmin,
+  getProjectViewer,
   log("getProjectDetail"),
   async (c) => {
     const res = await getProjectDetail(
