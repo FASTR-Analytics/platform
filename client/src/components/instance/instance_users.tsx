@@ -159,6 +159,10 @@ type UserData = {
 };
 
 function formatTimeAgo(date: Date): string {
+  if (!date || isNaN(date.getTime())) {
+    return t("Unknown");
+  }
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -183,10 +187,15 @@ function UserTable(p: {
   const lastActiveByUser = () => {
     const map = new Map<string, Date>();
     for (const log of p.logs) {
-      const existing = map.get(log.user_email);
-      const logDate = new Date(log.timestamp);
-      if (!existing || logDate > existing) {
-        map.set(log.user_email, logDate);
+      try {
+        const existing = map.get(log.user_email);
+        const logDate = new Date(log.timestamp);
+        if (isNaN(logDate.getTime())) continue;
+        if (!existing || logDate > existing) {
+          map.set(log.user_email, logDate);
+        }
+      } catch {
+        // Skip invalid log entries
       }
     }
     return map;
