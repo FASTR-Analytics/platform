@@ -21,6 +21,7 @@ import {
   getGlobalNonAdmin,
   getProjectEditor,
   getProjectViewer,
+  requireProjectPermission,
 } from "../../project_auth.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
@@ -43,6 +44,7 @@ defineRoute(
   routesModules,
   "installModule",
   getProjectEditor,
+  requireProjectPermission(true,"can_configure_modules"),
   log("installModule"),
   async (c, { params }) => {
     const res = await installModule(c.var.ppk.projectDb, params.module_id);
@@ -71,6 +73,7 @@ defineRoute(
   routesModules,
   "uninstallModule",
   getProjectEditor,
+  requireProjectPermission(true,"can_configure_modules"),
   log("uninstallModule"),
   async (c, { params }) => {
     const res = await uninstallModule(c.var.ppk.projectDb, params.module_id);
@@ -86,6 +89,7 @@ defineRoute(
   routesModules,
   "updateModuleDefinition",
   getProjectEditor,
+  requireProjectPermission(true,"can_configure_modules"),
   log("updateModuleDefinition"),
   async (c, { params, body }) => {
     const res = await updateModuleDefinition(
@@ -130,6 +134,7 @@ defineRoute(
   routesModules,
   "updateModuleParameters",
   getProjectEditor,
+  requireProjectPermission(true,"can_configure_modules"),
   log("updateModuleParameters"),
   async (c, { params, body }) => {
     const res = await updateModuleParameters(
@@ -161,6 +166,7 @@ defineRoute(
   routesModules,
   "rerunModule",
   getProjectEditor,
+  requireProjectPermission(true,"can_run_modules"),
   log("rerunModule"),
   async (c, { params }) => {
     const res = await getModuleDetail(c.var.ppk.projectDb, params.module_id);
@@ -204,6 +210,7 @@ defineRoute(
   "getScript",
   getGlobalNonAdmin,
   getProjectViewer,
+  requireProjectPermission(false,"can_configure_modules"),
   log("getModuleScript"),
   async (c, { params }) => {
     const res = await getModuleDetail(c.var.ppk.projectDb, params.module_id);
@@ -243,6 +250,7 @@ defineRoute(
   routesModules,
   "getLogs",
   getProjectViewer,
+  requireProjectPermission(false,"can_configure_modules"),
   log("getModuleLogs"),
   async (c, { params }) => {
     const logFilePath = join(

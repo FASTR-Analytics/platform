@@ -74,7 +74,6 @@ defineRoute(
   routesProject,
   "getProjectDetail",
   getGlobalNonAdmin,
-  getProjectViewer,
   log("getProjectDetail"),
   async (c) => {
     const res = await getProjectDetail(
@@ -91,6 +90,7 @@ defineRoute(
   routesProject,
   "updateProjectUserRole",
   getGlobalAdmin,
+  requireProjectPermission(true,"can_configure_users"),
   log("updateProjectUserRole"),
   async (c, { body }) => {
     console.log("updateProjectUserRole body:", JSON.stringify(body));
@@ -109,6 +109,7 @@ defineRoute(
   routesProject,
   "updateProjectUserPermissions",
   getGlobalAdmin,
+  requireProjectPermission(true,"can_configure_users"),
   log("updateProjectUserPermissions"),
   async (c, { body }) => {
     const res = await updateProjectUserPermissions(
@@ -157,7 +158,7 @@ defineRoute(
   routesProject,
   "addDatasetToProject",
   getGlobalNonAdmin,
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_data"),
   log("addDatasetToProject"),
   (c, { body }) => {
     return streamResponse<{ lastUpdated: string }>(c, async (writer) => {
@@ -203,7 +204,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "removeDatasetFromProject",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_data"),
   log("removeDatasetFromProject"),
   async (c, { params }) => {
     const res = await removeDatasetFromProject(

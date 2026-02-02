@@ -14,7 +14,7 @@ import {
   updateReportConfig,
   updateReportItemConfig,
 } from "../../db/mod.ts";
-import { getProjectEditor, getProjectViewer } from "../../project_auth.ts";
+import { getProjectEditor, getProjectViewer, requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
@@ -24,7 +24,7 @@ export const routesReports = new Hono();
 defineRoute(
   routesReports,
   "createReport",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_reports"),
   log("createReport"),
   async (c, { body }) => {
     const res = await addReport(
@@ -48,7 +48,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "duplicateReport",
-  getProjectViewer,
+  requireProjectPermission(true,"can_configure_reports"),
   log("duplicateReport"),
   async (c, { params, body }) => {
     const res = await duplicateReport(
@@ -94,7 +94,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "updateReportConfig",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_reports"),
   log("updateReportConfig"),
   async (c, { params, body }) => {
     const res = await updateReportConfig(
@@ -118,7 +118,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "backupReport",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_reports"),
   log("backupReport"),
   async (c, { params }) => {
     const res = await backupReport(
@@ -133,7 +133,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "restoreReport",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_reports"),
   log("restoreReport"),
   async (c, { body }) => {
     const res = await restoreReport(
@@ -148,7 +148,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "deleteReport",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_reports"),
   log("deleteReport"),
   async (c, { params }) => {
     const res = await deleteReport(c.var.ppk.projectDb, params.report_id);
@@ -165,7 +165,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "createReportItem",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_reports"),
   log("createReportItem"),
   async (c, { params }) => {
     const res = await addReportItem(c.var.ppk.projectDb, params.report_id);
@@ -191,7 +191,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "duplicateReportItem",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_reports"),
   log("duplicateReportItem"),
   async (c, { params, body }) => {
     const res = await duplicateReportItem(
@@ -223,7 +223,6 @@ defineRoute(
 defineRoute(
   routesReports,
   "getReportItem",
-  getProjectViewer,
   log("getReportItem"),
   async (c, { params }) => {
     const res = await getReportItem(
@@ -238,7 +237,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "updateReportItemConfig",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_reports"),
   log("updateReportItemConfig"),
   async (c, { params, body }) => {
     const res = await updateReportItemConfig(
@@ -262,7 +261,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "moveAndDeleteAllReportItems",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_reports"),
   log("moveAndDeleteAllReportItems"),
   async (c, { params, body }) => {
     const res = await moveAndDeleteAllReportItems(
@@ -286,7 +285,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "deleteReportItem",
-  getProjectEditor,
+  requireProjectPermission(true,"can_configure_reports"),
   log("deleteReportItem"),
   async (c, { params }) => {
     const res = await deleteReportItem(c.var.ppk.projectDb, params.item_id);

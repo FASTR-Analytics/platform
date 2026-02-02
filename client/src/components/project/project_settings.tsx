@@ -384,10 +384,10 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     const headers: HeadersInit = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+      headers['platform-secret-key'] = import.meta.env.PLATFORM_SECRET_KEY || "";
     }
     
 
-    // Call your backend endpoint which will forward to the external API
     const response = await fetch('/api/all-projects-backups', { headers });
 
     if (!response.ok) {

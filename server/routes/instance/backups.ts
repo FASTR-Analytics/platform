@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getGlobalNonAdmin, getProjectEditor } from "../../project_auth.ts";
+import { getGlobalNonAdmin, getProjectEditor, requireProjectPermission } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { _SANDBOX_DIR_PATH, _INSTANCE_ID, _PG_HOST, _PG_PORT, _PG_PASSWORD } from "../../exposed_env_vars.ts";
 import { join } from "@std/path";
@@ -83,6 +83,7 @@ defineRoute(
   routesBackups,
   "createBackupFile",
   getGlobalNonAdmin,
+  requireProjectPermission(false,"can_create_backups"),
   log("createBackupFile"),
   async (c) => {
     try{
@@ -164,6 +165,7 @@ defineRoute(
   routesBackups,
   "downloadBackupFile",
   getGlobalNonAdmin,
+  requireProjectPermission(false,"can_restore_backups"),
   log("downloadBackupFile"),
   async (c) => {
     try {
@@ -252,6 +254,7 @@ defineRoute(
   routesBackups,
   "restoreBackup",
   getGlobalNonAdmin,
+  requireProjectPermission(true,"can_restore_backups"),
   log("restoreBackup"),
   async (c) => {
     try {

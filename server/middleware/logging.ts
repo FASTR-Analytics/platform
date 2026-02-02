@@ -15,27 +15,42 @@ export const log = (routeName: string) =>
                 // No body or invalid json
             }
         }
-
-        await next();
-
-        // Log after route completes
-        const userEmail = c.var.globalUser?.email ?? c.var.projectUser?.email;
-        if(!userEmail) return;
-
-        const mainDb = c.var.mainDb ?? getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-        
-        const params: Record<string, string> = {};
-        for (const [key, value] of Object.entries(c.req.param())) {
-            params[key] = value;
+        let error: unknown;
+        try {
+            await next();
+        } catch (e) {
+            error = e;
         }
 
-        const details = JSON.stringify({ params, body });
-        const status = c.res.status.toString();
+        try {
+            const userEmail = c.var.globalUser?.email ?? c.var.projectUser?.email ?? "unknown";
 
-        const projectId = c.var.ppk?.projectId as string | undefined;
-        if (projectId) {
-            const projectDb = c.var.ppk.projectDb;
-            AddProjectLog(projectDb, userEmail, routeName, status, projectId, details).catch(() => {});
+            const mainDb = c.var.mainDb ?? getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+
+            const params: Record<string, string> = {};
+            for (const [key, value] of Object.entries(c.req.param())) {
+                params[key] = value;
+            }
+
+            const status = error ? "500" : c.res.status.toString();
+
+            // Exclude sensitive headers from logs
+            const headers = Object.fromEntries(
+                [...c.req.raw.headers.entries()].filter(
+                    ([key]) => !["authorization", "cookie"].includes(key.toLowerCase())
+                )
+            );
+            const details = JSON.stringify({ params, body, headers, error: error ? String(error) : undefined });
+
+            const projectId = c.var.ppk?.projectId as string | undefined;
+            if (projectId) {
+                const projectDb = c.var.ppk.projectDb;
+                AddProjectLog(projectDb, userEmail, routeName, status, projectId, details).catch(() => {});
+            }
+            AddLog(mainDb, userEmail, routeName, status, details).catch(() => {});
+        } catch {
+            // Don't let logging errors break the response
         }
-        AddLog(mainDb, userEmail, routeName, status, details).catch(() => {});
+
+        if (error) throw error;
     });
