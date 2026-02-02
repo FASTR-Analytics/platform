@@ -65,6 +65,7 @@ export const projectRouteRegistry = {
       emails: string[];
       role: ProjectUserRoleType;
     },
+    requiresProject: true,
   }),
 
   // Project-scoped routes
@@ -124,6 +125,7 @@ export const projectRouteRegistry = {
       emails: string[];
       permissions: Record<ProjectPermission, boolean>;
     },
+    requiresProject: true,
   }),
 
   getProjectUserPermissions: route({
@@ -132,6 +134,7 @@ export const projectRouteRegistry = {
     params: {} as {
       projectId: string;
       email: string;
-    }
+    },
+    requiresProject: true,
   })
 } as const;
