@@ -143,7 +143,7 @@ export const getProjectViewer = createMiddleware<{
   }
 });
 
-export const requireProjectPermission = (checkLock: boolean = false,...perms: ProjectPermission[]) => createMiddleware<{
+export const requireProjectPermission = (preventAccessToLockedProjects: boolean = false,...perms: ProjectPermission[]) => createMiddleware<{
   Variables: {
     ppk: ProjectPk;
     projectUser: ProjectUser;
@@ -173,7 +173,7 @@ export const requireProjectPermission = (checkLock: boolean = false,...perms: Pr
       }
     }
 
-    if(checkLock){
+    if(preventAccessToLockedProjects){
       // Check if project is locked
       const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
       try {

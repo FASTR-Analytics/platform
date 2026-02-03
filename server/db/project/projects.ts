@@ -111,6 +111,17 @@ export async function getProjectDetail(
           email: u.email,
           role: "editor",
           isGlobalAdmin: true,
+          can_configure_settings: true,
+          can_create_backups: true,
+          can_restore_backups: true,
+          can_configure_modules: true,
+          can_run_modules: true,
+          can_configure_users: true,
+          can_configure_visulizations: true,
+          can_configure_reports: true,
+          can_configure_data: true,
+          can_view_data: true,
+          can_view_logs: true,
         };
       }
       const pur = rawAllUserRolesForProject.find(
@@ -120,6 +131,17 @@ export async function getProjectDetail(
         email: u.email,
         role: !pur ? "none" : pur.role === "editor" ? "editor" : "viewer",
         isGlobalAdmin: false,
+        can_configure_settings: pur?.can_configure_settings ?? false,
+        can_create_backups: pur?.can_create_backups ?? false,
+        can_restore_backups: pur?.can_restore_backups ?? false,
+        can_configure_modules: pur?.can_configure_modules ?? false,
+        can_run_modules: pur?.can_run_modules ?? false,
+        can_configure_users: pur?.can_configure_users ?? false,
+        can_configure_visulizations: pur?.can_configure_visulizations ?? false,
+        can_configure_reports: pur?.can_configure_reports ?? false,
+        can_configure_data: pur?.can_configure_data ?? false,
+        can_view_data: pur?.can_view_data ?? false,
+        can_view_logs: pur?.can_view_logs ?? false,
       };
     });
 

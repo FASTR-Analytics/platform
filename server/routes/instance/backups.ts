@@ -133,7 +133,7 @@ defineRoute(
         return c.json({
           success: false,
           error: `Failed to create backup: ${response.status} ${response.statusText}`
-        }, response.status);
+        }, response.status as 400 | 401 | 403 | 404 | 500 | 502 | 503);
       }
 
       const data = await response.json();

@@ -28,7 +28,7 @@ export const log = (routeName: string) =>
 
             const params: Record<string, string> = {};
             for (const [key, value] of Object.entries(c.req.param())) {
-                params[key] = value;
+                params[key] = value as string;
             }
 
             const status = error ? "500" : c.res.status.toString();

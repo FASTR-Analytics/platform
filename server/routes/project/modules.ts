@@ -288,7 +288,7 @@ defineRoute(
   routesModules,
   "getAllModulesWithResultsValues",
   getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission(),
   log("getAllModulesWithResultsValues"),
   async (c) => {
     const res = await getAllModulesWithResultsValues(c.var.mainDb, c.var.ppk.projectDb);
