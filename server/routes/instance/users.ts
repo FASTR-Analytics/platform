@@ -13,6 +13,7 @@ import { getGlobalAdmin, getGlobalNonAdmin } from "../../project_auth.ts";
 import { _IS_PRODUCTION } from "../../exposed_env_vars.ts";
 import { GetLogs } from "../../db/instance/user_logs.ts";
 import { log } from "../../middleware/logging.ts";
+import { requireUserPermission } from "../../middleware/userPermission.ts";
 
 export const routesUsers = new Hono();
 
@@ -98,7 +99,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getAllUserLogs",
-  getGlobalAdmin,
+  requireUserPermission(false,"can_view_logs"),
   log("getAllUserLogs"),
   async(c) => {
     const res = await GetLogs(c.var.mainDb);
@@ -120,7 +121,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "updateUserPermissions",
-  getGlobalAdmin,
+  requireUserPermission(false,"can_configure_users"),
   log("updateUserPermissions"),
   async (c, { body }) => {
     const res = await updateUserPermissions(c.var.mainDb, body.email, body.permissions);
