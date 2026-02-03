@@ -61,7 +61,7 @@ export function InstanceProjects(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBarMainRibbon heading={t2(T.FRENCH_UI_STRINGS.projects)}>
-            <Show when={p.isGlobalAdmin}>
+            <Show when={p.isGlobalAdmin || p.instanceDetail.state().data.thisUserPermissions.can_create_projects}>
               <Button onClick={attemptAddProject} iconName="plus">
                 {t2(T.FRENCH_UI_STRINGS.create_project)}
               </Button>
