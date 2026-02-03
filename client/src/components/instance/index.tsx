@@ -156,16 +156,24 @@ export default function Instance(p: Props) {
                           label: t2(T.FRENCH_UI_STRINGS.projects),
                           iconName: "folder",
                         },
-                        {
-                          value: "data",
-                          label: t2(T.FRENCH_UI_STRINGS.data),
-                          iconName: "database",
-                        },
-                        {
-                          value: "assets",
-                          label: t2(T.FRENCH_UI_STRINGS.assets),
-                          iconName: "package",
-                        },
+                        ...(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_view_data || p.globalUser.thisUserPermissions.can_configure_data
+                        ? [
+                          {
+                            value: "data",
+                            label: t2(T.FRENCH_UI_STRINGS.data),
+                            iconName: "database",
+                          },
+                        ]
+                        : ([] as any)),
+                        ...(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_configure_assets
+                        ?  [
+                          {
+                            value: "assets",
+                            label: t2(T.FRENCH_UI_STRINGS.assets),
+                            iconName: "package",
+                          },
+                        ]
+                        : ([] as any)),
                         ...(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_configure_users || p.globalUser.thisUserPermissions.can_view_users
                           ? [
                             {
