@@ -31,13 +31,14 @@ import { streamResponse } from "../streaming.ts";
 import { GetLogsByProject } from "../../db/instance/user_logs.ts";
 import { log } from "../../middleware/logging.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
+import { requireUserPermission } from "../../middleware/mod.ts";
 
 export const routesProject = new Hono();
 
 defineRoute(
   routesProject,
   "createProject",
-  getGlobalAdmin,
+  requireUserPermission(false,"can_create_projects"),
   log("createProject"),
   async (c, { body }) => {
     const res = await addProject(

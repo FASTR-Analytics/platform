@@ -407,16 +407,59 @@ export async function getGlobalUser(
       }).catch(() => {}); // Ignore errors on this insert
     }
 
+    const email = auth.sessionClaims.email as string;
+    const isGlobalAdmin = _OPEN_ACCESS || (!!rawUser && rawUser.is_admin);
+
+    // Fetch user permissions - admins get all permissions
+    let thisUserPermissions: GlobalUser["thisUserPermissions"];
+    if (isGlobalAdmin) {
+      thisUserPermissions = {
+        can_configure_users: true,
+        can_view_users: true,
+        can_view_logs: true,
+        can_configure_settings: true,
+        can_configure_assets: true,
+        can_configure_data: true,
+        can_view_data: true,
+        can_create_projects: true,
+      };
+    } else {
+      const permissionsResult = await mainDb<GlobalUser["thisUserPermissions"][]>`
+        SELECT
+          can_configure_users,
+          can_view_users,
+          can_view_logs,
+          can_configure_settings,
+          can_configure_assets,
+          can_configure_data,
+          can_view_data,
+          can_create_projects
+        FROM user_permissions
+        WHERE user_email = ${email}
+      `;
+      thisUserPermissions = permissionsResult.at(0) ?? {
+        can_configure_users: false,
+        can_view_users: false,
+        can_view_logs: false,
+        can_configure_settings: false,
+        can_configure_assets: false,
+        can_configure_data: false,
+        can_view_data: false,
+        can_create_projects: false,
+      };
+    }
+
     const globalUser: GlobalUser = {
       instanceName: _INSTANCE_NAME,
       instanceLanguage: _INSTANCE_LANGUAGE,
       instanceCalendar: _INSTANCE_CALENDAR,
       openAccess: _OPEN_ACCESS,
-      email: auth.sessionClaims.email as string,
+      email,
       firstName: auth.sessionClaims.firstName as string,
       lastName: auth.sessionClaims.lastName as string,
       approved: _OPEN_ACCESS || !!rawUser,
-      isGlobalAdmin: _OPEN_ACCESS || (!!rawUser && rawUser.is_admin),
+      isGlobalAdmin,
+      thisUserPermissions,
     };
     return globalUser;
   } catch (error) {

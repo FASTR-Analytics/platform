@@ -19,11 +19,11 @@ import {
 import { InstanceMeta } from "lib";
 import { defineRoute } from "../route-helpers.ts";
 import { getGlobalAdmin, getGlobalNonAdmin } from "../../project_auth.ts";
-import { log, requireUserPermission } from "../../middleware/mod.ts";
+import { log } from "../../middleware/mod.ts";
 
 export const routesInstance = new Hono();
 
-defineRoute(routesInstance, "getInstanceMeta", requireUserPermission(false,"can_view_logs"), async (c) => {
+defineRoute(routesInstance, "getInstanceMeta", async (c) => {
   const currentTime = new Date().toISOString();
   const startTime = new Date(_START_TIME);
   const uptimeMs = Date.now() - startTime.getTime();

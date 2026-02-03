@@ -191,6 +191,16 @@ export type GlobalUser = {
   lastName: string;
   approved: boolean;
   isGlobalAdmin: boolean;
+  thisUserPermissions: {
+    can_configure_users: boolean;
+    can_view_users: boolean;
+    can_view_logs: boolean;
+    can_configure_settings: boolean;
+    can_configure_assets: boolean;
+    can_configure_data: boolean;
+    can_view_data: boolean;
+    can_create_projects: boolean;
+  };
 };
 
 export type OtherUser = {
@@ -270,6 +280,16 @@ export function createDevGlobalUser(
     lastName: "User",
     approved: true,
     isGlobalAdmin: true,
+    thisUserPermissions: {
+      can_configure_users: true,
+      can_view_users: true,
+      can_view_logs: true,
+      can_configure_settings: true,
+      can_configure_assets: true,
+      can_configure_data: true,
+      can_view_data: true,
+      can_create_projects: true,
+    },
   };
 }
 

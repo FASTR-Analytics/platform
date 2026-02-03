@@ -32,15 +32,21 @@ defineRoute(
   }
 );
 
-defineRoute(routesUsers, "addUsers", getGlobalAdmin, log("addUsers"), async (c, { body }) => {
-  const resUser = await addUsers(c.var.mainDb, body.emails, body.isGlobalAdmin);
-  return c.json(resUser);
-});
+defineRoute(
+  routesUsers, 
+  "addUsers", 
+  requireUserPermission(false,"can_configure_users"), 
+  log("addUsers"), 
+  async (c, { body }) => {
+    const resUser = await addUsers(c.var.mainDb, body.emails, body.isGlobalAdmin);
+    return c.json(resUser);
+  }
+);
 
 defineRoute(
   routesUsers,
   "toggleUserAdmin",
-  getGlobalAdmin,
+  requireUserPermission(true), 
   log("toggleUserAdmin"),
   async (c, { body }) => {
     if (!body.emails || !Array.isArray(body.emails)) {
@@ -60,23 +66,29 @@ defineRoute(
   }
 );
 
-defineRoute(routesUsers, "deleteUser", getGlobalAdmin, log("deleteUser"), async (c, { body }) => {
-  if (!body.emails || !Array.isArray(body.emails)) {
-    throw new Error("Invalid request: emails array is required");
+defineRoute(
+  routesUsers, 
+  "deleteUser", 
+  requireUserPermission(false,"can_configure_users"), 
+  log("deleteUser"), 
+  async (c, { body }) => {
+    if (!body.emails || !Array.isArray(body.emails)) {
+      throw new Error("Invalid request: emails array is required");
+    }
+    if (body.emails.includes(c.var.globalUser.email)) {
+      throw new Error(
+        "You cannot remove yourself as a user. Ask another admin to do this."
+      );
+    }
+    const res = await deleteUser(c.var.mainDb, body.emails);
+    return c.json(res);
   }
-  if (body.emails.includes(c.var.globalUser.email)) {
-    throw new Error(
-      "You cannot remove yourself as a user. Ask another admin to do this."
-    );
-  }
-  const res = await deleteUser(c.var.mainDb, body.emails);
-  return c.json(res);
-});
+);
 
 defineRoute(
   routesUsers,
   "batchUploadUsers",
-  getGlobalAdmin,
+  requireUserPermission(false,"can_configure_users"), 
   log("batchUploadUsers"),
   async (c, { body }) => {
     if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
@@ -110,7 +122,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getUserPermissions",
-  getGlobalAdmin,
+  requireUserPermission(false,"can_configure_users"),
   log("getUserPermissions"),
   async (c, { params }) => {
     const res = await getUserPermissions(c.var.mainDb, params.email);
