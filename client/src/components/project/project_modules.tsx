@@ -36,6 +36,8 @@ import { UpdateModule } from "./update_module";
 type Props = {
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
+  canConfigureModules: boolean;
+  canRunModules: boolean;
   attemptGetProjectDetail: () => Promise<void>;
   silentRefreshProject: () => Promise<void>;
 };
@@ -65,6 +67,8 @@ export function ProjectModules(p: Props) {
                           projectDetail={p.projectDetail}
                           projectId={p.projectDetail.id}
                           isGlobalAdmin={p.isGlobalAdmin}
+                          canConfigureModules={p.canConfigureModules}
+                          canRunModules={p.canRunModules}
                           thisInstalledModule={keyedInstalledModule}
                           allInstalledModules={p.projectDetail.projectModules}
                           silentRefreshProject={p.silentRefreshProject}
@@ -78,6 +82,7 @@ export function ProjectModules(p: Props) {
                       projectDetail={p.projectDetail}
                       projectId={p.projectDetail.id}
                       isGlobalAdmin={p.isGlobalAdmin}
+                      canConfigureModules={p.canConfigureModules}
                       thisUninstalledModuleId={possibleModuleDef.id}
                       thisUninstalledModuleLabel={possibleModuleDef.label}
                       thisUninstalledModulePrerequisiteModules={
@@ -110,6 +115,8 @@ type InstalledModuleProps = {
   projectId: string;
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
+  canConfigureModules: boolean;
+  canRunModules: boolean;
   thisInstalledModule: InstalledModuleSummary;
   allInstalledModules: InstalledModuleSummary[];
   silentRefreshProject: () => Promise<void>;
@@ -259,22 +266,24 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
             {t2(T.Modules.files)}
           </Button>
         </Show>
-        <Show when={p.isGlobalAdmin}>
-          <Show when={!p.projectDetail.isLocked}>
-            <Show
-              when={
-                pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready" ||
-                pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"
-              }
+        <Show when={!p.projectDetail.isLocked && (p.isGlobalAdmin || p.canRunModules)}>
+          <Show
+            when={
+              pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready" ||
+              pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"
+            }
+          >
+            <Button
+              onClick={attemptRerunModule.click}
+              state={attemptRerunModule.state()}
+              outline
             >
-              <Button
-                onClick={attemptRerunModule.click}
-                state={attemptRerunModule.state()}
-                outline
-              >
-                {t2(T.FRENCH_UI_STRINGS.rerun)}
-              </Button>
-            </Show>
+              {t2(T.FRENCH_UI_STRINGS.rerun)}
+            </Button>
+          </Show>
+        </Show>
+        <Show when={p.isGlobalAdmin || p.canConfigureModules}>
+          <Show when={!p.projectDetail.isLocked}>
             <Button
               onClick={disableModule.click}
               state={disableModule.state()}
@@ -289,7 +298,6 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
           <Button onClick={editSettings} iconName="settings">
             {t2(T.FRENCH_UI_STRINGS.settings)}
           </Button>
-          {/* </div> */}
         </Show>
       </div>
       <Show
@@ -372,6 +380,7 @@ type UninstalledModuleProps = {
   projectId: string;
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
+  canConfigureModules: boolean;
   thisUninstalledModuleId: ModuleId;
   thisUninstalledModuleLabel: string;
   thisUninstalledModulePrerequisiteModules: string[];
@@ -415,7 +424,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
     <div class="ui-pad border-base-300 col-span-1 flex items-center rounded border">
       <div class="font-700 flex-1 text-lg">{p.thisUninstalledModuleLabel}</div>
       <Show
-        when={!p.projectDetail.isLocked && p.isGlobalAdmin}
+        when={!p.projectDetail.isLocked && (p.isGlobalAdmin || p.canConfigureModules)}
         fallback={
           <div class="font-400 text-neutral text-sm">{t("Deactivated")}</div>
         }

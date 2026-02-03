@@ -277,6 +277,8 @@ export default function Project(p: Props) {
                               <Match when={tab() === "modules" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_modules || keyedProjectDetail.thisUserPermissions.can_run_modules)}>
                                 <ProjectModules
                                   isGlobalAdmin={p.isGlobalAdmin}
+                                  canConfigureModules={keyedProjectDetail.thisUserPermissions.can_configure_modules}
+                                  canRunModules={keyedProjectDetail.thisUserPermissions.can_run_modules}
                                   projectDetail={keyedProjectDetail}
                                   attemptGetProjectDetail={projectDetail.fetch}
                                   silentRefreshProject={
