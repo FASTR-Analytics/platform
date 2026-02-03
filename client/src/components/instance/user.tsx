@@ -40,32 +40,46 @@ function makeDefaultPermissions(): Record<UserPermission, boolean> {
 
 export function User(p: Props) {
   const [permissions, setPermissions] = createSignal<Record<UserPermission, boolean> | null>(null);
+  const [originalPermissions, setOriginalPermissions] = createSignal<Record<UserPermission, boolean> | null>(null);
 
   // get user permissions
   (async () => {
     const res = await serverActions.getUserPermissions({ email: p.user.email });
     if (res.success) {
       setPermissions(res.data.permissions);
+      setOriginalPermissions(res.data.permissions);
     } else {
       setPermissions(makeDefaultPermissions());
+      setOriginalPermissions(makeDefaultPermissions());
     }
   })();
+
+  const hasChanges = () => {
+    const current = permissions();
+    const original = originalPermissions();
+    if (!current || !original) return false;
+    return USER_PERMISSIONS.some((key) => current[key] !== original[key]);
+  };
 
   const togglePermission = async (key: UserPermission) => {
     const current = permissions();
     if (!current) return;
     setPermissions({ ...current, [key]: !current[key]});
-    await savePermissions();
   };
 
-  const savePermissions = async () => {
-    const perms = permissions();
-    if (!perms) return;
-    return serverActions.updateUserPermissions({
-      email: p.user.email,
-      permissions: perms
-    })
-  }
+  const savePermissions = timActionButton(
+    () => {
+      const perms = permissions();
+      if (!perms) return Promise.resolve({ success: false, err: "No permissions" });
+      return serverActions.updateUserPermissions({
+        email: p.user.email,
+        permissions: perms
+      });
+    },
+    () => {
+      setOriginalPermissions(permissions());
+    }
+  );
 
   const attemptMakeAdmin = timActionButton(
     () =>
@@ -151,6 +165,15 @@ export function User(p: Props) {
         <Show when={p.user.isGlobalAdmin === false}>
           <SettingsSection
             header={t2("User Permissions")}
+            rightChildren={
+              <Show when={hasChanges()}>
+                <Button
+                  onClick={savePermissions.click}
+                  state={savePermissions.state()}>
+                  {t2("Save Changes")}
+                </Button>
+              </Show>
+            }
           >
             <Show when={permissions()} fallback={<div>Loading...</div>}>
               {(perms) => (

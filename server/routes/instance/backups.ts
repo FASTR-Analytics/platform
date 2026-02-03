@@ -83,7 +83,7 @@ defineRoute(
   routesBackups,
   "createBackupFile",
   getGlobalNonAdmin,
-  requireProjectPermission(false,"can_create_backups"),
+  requireProjectPermission("can_create_backups"),
   log("createBackupFile"),
   async (c) => {
     try{
@@ -165,7 +165,7 @@ defineRoute(
   routesBackups,
   "downloadBackupFile",
   getGlobalNonAdmin,
-  requireProjectPermission(false,"can_restore_backups"),
+  requireProjectPermission("can_restore_backups"),
   log("downloadBackupFile"),
   async (c) => {
     try {
@@ -254,7 +254,7 @@ defineRoute(
   routesBackups,
   "restoreBackup",
   getGlobalNonAdmin,
-  requireProjectPermission(true,"can_restore_backups"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_restore_backups"),
   log("restoreBackup"),
   async (c) => {
     try {

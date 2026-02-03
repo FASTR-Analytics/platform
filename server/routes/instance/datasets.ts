@@ -36,7 +36,7 @@ import {
 } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireUserPermission } from "../../middleware/mod.ts";
+import { requireGlobalPermission } from "../../middleware/mod.ts";
 
 export const routesDatasets = new Hono();
 
@@ -49,7 +49,7 @@ export const routesDatasets = new Hono();
 defineRoute(
   routesDatasets,
   "getDatasetHmisDetail",
-  requireUserPermission(false,"can_view_data"),
+  requireGlobalPermission("can_view_data"),
   log("getDatasetHmisDetail"),
   async (c) => {
     const res = await getDatasetHmisDetail(c.var.mainDb);
@@ -60,7 +60,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisVersions",
-  requireUserPermission(false,"can_view_data"),
+  requireGlobalPermission("can_view_data"),
   log("getDatasetHmisVersions"),
   async (c) => {
     const res = await getVersionsForDatasetHmis(c.var.mainDb);
@@ -77,7 +77,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisDisplayInfo",
-  requireUserPermission(false,"can_view_data"),
+  requireGlobalPermission("can_view_data"),
   log("getDatasetHmisDisplayInfo"),
   async (c, { body }) => {
     const existing = await _FETCH_CACHE_DATASET_HMIS_ITEMS.get(
@@ -124,7 +124,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteAllDatasetHmisData",
-  requireUserPermission(false,"can_configure_data"),
+  requireGlobalPermission("can_configure_data"),
   log("deleteAllDatasetHmisData"),
   async (c, { body }) => {
     const res = await deleteAllDatasetHmisData(c.var.mainDb, body.windowing);
@@ -141,7 +141,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "createDatasetUploadAttempt",
-  requireUserPermission(false,"can_configure_data"),
+  requireGlobalPermission("can_configure_data"),
   log("createDatasetUploadAttempt"),
   async (c) => {
     const res = await addDatasetHmisUploadAttempt(c.var.mainDb);
@@ -152,7 +152,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "setDatasetUploadSourceType",
-  requireUserPermission(false,"can_configure_data"),
+  requireGlobalPermission("can_configure_data"),
   log("setDatasetUploadSourceType"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step0SourceType(
@@ -166,7 +166,7 @@ defineRoute(
 defineRoute(
   routesDatasets, 
   "getDatasetUpload", 
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("getDatasetUpload"), 
   async (c) => {
     const res = await getDatasetHmisUploadAttemptDetail(c.var.mainDb);
@@ -177,7 +177,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetUploadStatus",
-  requireUserPermission(false,"can_configure_data"),
+  requireGlobalPermission("can_configure_data"),
   log("getDatasetUploadStatus"),
   async (c) => {
     const res = await getDatasetHmisUploadStatus(c.var.mainDb);
@@ -188,7 +188,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteDatasetUploadAttempt",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("deleteDatasetUploadAttempt"),
   async (c) => {
     const res = await deleteDatasetHmisUploadAttempt(c.var.mainDb);
@@ -203,7 +203,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "uploadDatasetCsv",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("uploadDatasetCsv"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step1CsvUpload(
@@ -217,7 +217,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "updateDatasetMappings",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("updateDatasetMappings"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step2Mappings(
@@ -231,7 +231,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "updateDatasetStaging",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("updateDatasetStaging"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step3Staging(
@@ -246,7 +246,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "finalizeDatasetIntegration",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("finalizeDatasetIntegration"),
   async (c) => {
     const res = await updateDatasetUploadAttempt_Step4Integrate(c.var.mainDb);
@@ -258,7 +258,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "dhis2ConfirmCredentials",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("dhis2ConfirmCredentials"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step1Dhis2Confirm(
@@ -272,7 +272,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "dhis2SetSelection",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("dhis2SetSelection"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step2Dhis2Selection(
@@ -296,7 +296,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaDetail",
-  requireUserPermission(false,"can_view_data"), 
+  requireGlobalPermission("can_view_data"), 
   log("getDatasetHfaDetail"),
   async (c) => {
     const res = await getDatasetHfaDetail(c.var.mainDb);
@@ -307,7 +307,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaVersions",
-  requireUserPermission(false,"can_view_data"), 
+  requireGlobalPermission("can_view_data"), 
   log("getDatasetHfaVersions"),
   async (c) => {
     const res = await getVersionsForDatasetHfa(c.var.mainDb);
@@ -324,7 +324,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaDisplayInfo",
-  requireUserPermission(false,"can_view_data"), 
+  requireGlobalPermission("can_view_data"), 
   log("getDatasetHfaDisplayInfo"),
   async (c, { body }) => {
     const existing = await _FETCH_CACHE_DATASET_HFA_ITEMS.get(
@@ -357,7 +357,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteAllDatasetHfaData",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("deleteAllDatasetHfaData"),
   async (c) => {
     const res = await deleteAllDatasetHfaData(c.var.mainDb);
@@ -374,7 +374,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "createDatasetHfaUploadAttempt",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("createDatasetHfaUploadAttempt"),
   async (c) => {
     const res = await addDatasetHfaUploadAttempt(c.var.mainDb);
@@ -385,7 +385,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaUpload",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("getDatasetHfaUpload"),
   async (c) => {
     const res = await getDatasetHfaUploadAttemptDetail(c.var.mainDb);
@@ -396,7 +396,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaUploadStatus",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("getDatasetHfaUploadStatus"),
   async (c) => {
     const res = await getDatasetHfaUploadStatus(c.var.mainDb);
@@ -407,7 +407,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteDatasetHfaUploadAttempt",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("deleteDatasetHfaUploadAttempt"),
   async (c) => {
     const res = await deleteDatasetHfaUploadAttempt(c.var.mainDb);
@@ -422,7 +422,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "uploadDatasetHfaCsv",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("uploadDatasetHfaCsv"),
   async (c, { body }) => {
     const res = await updateDatasetHfaUploadAttempt_Step1CsvUpload(
@@ -436,7 +436,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "updateDatasetHfaMappings",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("updateDatasetHfaMappings"),
   async (c, { body }) => {
     const res = await updateDatasetHfaUploadAttempt_Step2Mappings(
@@ -450,7 +450,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "updateDatasetHfaStaging",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("updateDatasetHfaStaging"),
   async (c) => {
     const res = await updateDatasetHfaUploadAttempt_Step3Staging(
@@ -464,7 +464,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "finalizeDatasetHfaIntegration",
-  requireUserPermission(false,"can_configure_data"), 
+  requireGlobalPermission("can_configure_data"), 
   log("finalizeDatasetHfaIntegration"),
   async (c) => {
     const res = await updateDatasetHfaUploadAttempt_Step4Integrate(

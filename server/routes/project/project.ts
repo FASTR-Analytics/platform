@@ -31,14 +31,14 @@ import { streamResponse } from "../streaming.ts";
 import { GetLogsByProject } from "../../db/instance/user_logs.ts";
 import { log } from "../../middleware/logging.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
-import { requireUserPermission } from "../../middleware/mod.ts";
+import { requireGlobalPermission } from "../../middleware/mod.ts";
 
 export const routesProject = new Hono();
 
 defineRoute(
   routesProject,
   "createProject",
-  requireUserPermission(false,"can_create_projects"),
+  requireGlobalPermission("can_create_projects"),
   log("createProject"),
   async (c, { body }) => {
     const res = await addProject(
@@ -75,8 +75,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "getProjectDetail",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission(),
   log("getProjectDetail"),
   async (c) => {
     const res = await getProjectDetail(
@@ -92,8 +91,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "updateProjectUserRole",
-  getGlobalAdmin,
-  requireProjectPermission(true,"can_configure_users"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_users"),
   log("updateProjectUserRole"),
   async (c, { body }) => {
     console.log("updateProjectUserRole body:", JSON.stringify(body));
@@ -111,8 +109,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "updateProjectUserPermissions",
-  getGlobalAdmin,
-  requireProjectPermission(true,"can_configure_users"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_users"),
   log("updateProjectUserPermissions"),
   async (c, { body }) => {
     const res = await updateProjectUserPermissions(
@@ -128,7 +125,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "getProjectUserPermissions",
-  getGlobalAdmin,
+  requireProjectPermission("can_configure_users"),
   log("getProjectUserPermissions"),
   async (c, { params }) => {
     const res = await getProjectUserPermissions(
@@ -143,8 +140,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "updateProject",
-  getGlobalAdmin,
-  checkProjectNotLocked,
+  requireProjectPermission({preventAccessToLockedProjects: true, requireAdmin: true}),
   log("updateProject"),
   async (c, { params, body }) => {
     const res = await updateProject(
@@ -160,8 +156,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "addDatasetToProject",
-  getGlobalNonAdmin,
-  requireProjectPermission(true,"can_configure_data"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_data"),
   log("addDatasetToProject"),
   (c, { body }) => {
     return streamResponse<{ lastUpdated: string }>(c, async (writer) => {
@@ -207,7 +202,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "removeDatasetFromProject",
-  requireProjectPermission(true,"can_configure_data"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_data"),
   log("removeDatasetFromProject"),
   async (c, { params }) => {
     const res = await removeDatasetFromProject(
@@ -223,8 +218,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "deleteProject",
-  getGlobalAdmin,
-  checkProjectNotLocked,
+  requireProjectPermission({preventAccessToLockedProjects: true, requireAdmin: true}),
   log("deleteProject"),
   async (c, { params }) => {
     const res = await deleteProject(c.var.mainDb, params.project_id);
@@ -235,7 +229,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "setProjectLockStatus",
-  getGlobalAdmin,
+  requireProjectPermission({requireAdmin: true}),
   log("setProjectLockStatus"),
   async (c, { params, body }) => {
     const res = await setProjectLockStatus(
@@ -250,8 +244,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "setAllModulesDirty",
-  getGlobalAdmin,
-  getProjectEditor,
+  requireProjectPermission({requireAdmin: true}),
   log("setAllModulesDirty"),
   async (c) => {
     await setAllModulesDirty(c.var.ppk);
@@ -262,7 +255,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "copyProject",
-  getGlobalAdmin,
+  requireProjectPermission({requireAdmin: true}),
   log("copyProject"),
   async (c, { params, body }) => {
     const res = await copyProject(
@@ -278,7 +271,7 @@ defineRoute(
 defineRoute(
   routesProject,
   "getProjectLogs",
-  requireProjectPermission(false,"can_view_logs"),
+  requireProjectPermission("can_view_logs"),
   log("getProjectLogs"),
   async (c) => {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");

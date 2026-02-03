@@ -46,7 +46,7 @@ const resultsValueInfoQueue = new RequestQueue(15);
 defineRoute(
   routesPresentationObjects,
   "createPresentationObject",
-  requireProjectPermission(true,"can_configure_visulizations"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visulizations"),
   log("createPresentationObject"),
   async (c, { body }) => {
     const res = await addPresentationObject(
@@ -75,7 +75,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "duplicatePresentationObject",
-  requireProjectPermission(true,"can_configure_visulizations"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visulizations"),
   log("duplicatePresentationObject"),
   async (c, { params, body }) => {
     const res = await duplicatePresentationObject(
@@ -178,7 +178,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "updatePresentationObjectLabel",
-  requireProjectPermission(true,"can_configure_visulizations"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visulizations"),
   log("updatePresentationObjectLabel"),
   async (c, { params, body }) => {
     const res = await updatePresentationObjectLabel(
@@ -202,7 +202,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "updatePresentationObjectConfig",
-  requireProjectPermission(true,"can_configure_visulizations"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visulizations"),
   log("updatePresentationObjectConfig"),
   async (c, { params, body }) => {
     const res = await updatePresentationObjectConfig(
@@ -232,7 +232,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "deletePresentationObject",
-  requireProjectPermission(true,"can_configure_visulizations"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visulizations"),
   log("deletePresentationObject"),
   async (c, { params }) => {
     const res = await deletePresentationObject(

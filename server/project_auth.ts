@@ -143,76 +143,133 @@ export const getProjectViewer = createMiddleware<{
   }
 });
 
-export const requireProjectPermission = (preventAccessToLockedProjects: boolean = false,...perms: ProjectPermission[]) => createMiddleware<{
-  Variables: {
-    ppk: ProjectPk;
-    projectUser: ProjectUser;
-    projectLabel: string;
-  };
-}>(async (c: Context, next: any) => {
-  try{
-    // check if project roles entry exists for the user
-    const res = await getProjectUser(c);
-    if (res === "NOT_AUTHENTICATED") {
-      c.status(401);
-      return c.json({
-        success: false,
-        err: "Authentication required",
-        authError: true,
-      });
+type RequireProjectPermissionOptions = {
+  requireAdmin?: boolean;
+  preventAccessToLockedProjects?: boolean;
+};
+
+export function requireProjectPermission(
+  firstArg?: RequireProjectPermissionOptions | ProjectPermission,
+  ...restArgs: ProjectPermission[]
+) {
+  // Determine if first arg is options object or permission
+  const isOptions = typeof firstArg === "object" && firstArg !== null;
+  const options: RequireProjectPermissionOptions = isOptions ? firstArg : {};
+  const perms: ProjectPermission[] = isOptions
+    ? restArgs
+    : (firstArg ? [firstArg as ProjectPermission, ...restArgs] : restArgs);
+
+  const { requireAdmin = false, preventAccessToLockedProjects = false } = options;
+
+  return createMiddleware<{
+    Variables: {
+      ppk: ProjectPk;
+      projectUser: ProjectUser;
+      projectLabel: string;
+      globalUser: GlobalUser;
+      mainDb: Sql;
+    };
+  }>(async (c: Context, next: any) => {
+    // Skip auth for OPTIONS requests (CORS preflight)
+    if (c.req.method === "OPTIONS") {
+      await next();
+      return;
     }
-    // check all permisions
-    for(const perm of perms){
-      if(!res.projectUser[perm]){
-        c.status(403);
+
+    try {
+      // Get global user first (like getGlobalAdmin/getGlobalNonAdmin)
+      const globalUser = await getGlobalUser(c);
+      if (globalUser === "NOT_AUTHENTICATED") {
+        c.status(401);
         return c.json({
           success: false,
-          err: `User does not have ${perm} permissions for this project`,
+          err: "Authentication required",
           authError: true,
         });
       }
-    }
 
-    if(preventAccessToLockedProjects){
-      // Check if project is locked
-      const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-      try {
-        const rawProjectResult = await mainDb<
-          { is_locked: boolean }[]
-        >`SELECT is_locked FROM projects WHERE id = ${res.projectId}`;
-        const rawProject = rawProjectResult.at(0);
+      // Get mainDb connection
+      const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
 
-        if (!rawProject) {
-          c.status(404);
-          return c.json({ success: false, err: "Project not found" });
-        }
-
-        if (rawProject.is_locked) {
-          c.status(403);
-          return c.json({
-            success: false,
-            err: "This project is locked and cannot be edited",
-          });
-        }
-      } catch (dbError) {
-        console.error("Database error checking project lock:", dbError);
-        c.status(503);
-        return c.json({ success: false, err: "Service temporarily unavailable" });
+      // If requireAdmin is true, only allow global admins
+      if (requireAdmin && !globalUser.isGlobalAdmin) {
+        c.status(403);
+        return c.json({
+          success: false,
+          err: "Admin access required",
+          authError: true,
+        });
       }
-    }
 
-    const projectDb = getPgConnectionFromCacheOrNew(
-      res.projectId,
-      "READ_AND_WRITE"
-    );
-    const ppk: ProjectPk = {
-      projectDb,
-      projectId: res.projectId,
-    };
-    c.set("ppk", ppk);
-    c.set("projectUser", res.projectUser);
-    c.set("projectLabel", res.projectLabel);
-    await next();
+      // Check if project roles entry exists for the user
+      const res = await getProjectUser(c);
+      if (res === "NOT_AUTHENTICATED") {
+        c.status(401);
+        return c.json({
+          success: false,
+          err: "Authentication required",
+          authError: true,
+        });
+      }
+
+      // Global admins bypass permission checks
+      if (!res.projectUser.isGlobalAdmin) {
+        // check all permissions for non-admins
+        for (const perm of perms) {
+          if (!res.projectUser[perm]) {
+            c.status(403);
+            return c.json({
+              success: false,
+              err: `User does not have ${perm} permissions for this project`,
+              authError: true,
+            });
+          }
+        }
+      }
+
+      if (preventAccessToLockedProjects) {
+        // Check if project is locked
+        try {
+          const rawProjectResult = await mainDb<
+            { is_locked: boolean }[]
+          >`SELECT is_locked FROM projects WHERE id = ${res.projectId}`;
+          const rawProject = rawProjectResult.at(0);
+
+          if (!rawProject) {
+            c.status(404);
+            return c.json({ success: false, err: "Project not found" });
+          }
+
+          if (rawProject.is_locked) {
+            c.status(403);
+            return c.json({
+              success: false,
+              err: "This project is locked and cannot be edited",
+            });
+          }
+        } catch (dbError) {
+          console.error("Database error checking project lock:", dbError);
+          c.status(503);
+          return c.json({ success: false, err: "Service temporarily unavailable" });
+        }
+      }
+
+      const projectDb = getPgConnectionFromCacheOrNew(
+        res.projectId,
+        "READ_AND_WRITE"
+      );
+      const ppk: ProjectPk = {
+        projectDb,
+        projectId: res.projectId,
+      };
+
+      // Set all context variables (project + global)
+      c.set("ppk", ppk);
+      c.set("projectUser", res.projectUser);
+      c.set("projectLabel", res.projectLabel);
+      c.set("globalUser", globalUser);
+      c.set("mainDb", mainDb);
+      await next();
   } catch (error) {
     if (error instanceof Error) {
       if (error.message === "SERVICE_UNAVAILABLE") {
@@ -233,7 +290,8 @@ export const requireProjectPermission = (preventAccessToLockedProjects: boolean 
     }
     throw error;
   }
-});
+  });
+}
 
 export const getProjectEditor = createMiddleware<{
   Variables: {

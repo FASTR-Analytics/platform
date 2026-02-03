@@ -13,7 +13,7 @@ import { getGlobalAdmin, getGlobalNonAdmin } from "../../project_auth.ts";
 import { _IS_PRODUCTION } from "../../exposed_env_vars.ts";
 import { GetLogs } from "../../db/instance/user_logs.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireUserPermission } from "../../middleware/userPermission.ts";
+import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 
 export const routesUsers = new Hono();
 
@@ -35,7 +35,7 @@ defineRoute(
 defineRoute(
   routesUsers, 
   "addUsers", 
-  requireUserPermission(false,"can_configure_users"), 
+  requireGlobalPermission("can_configure_users"), 
   log("addUsers"), 
   async (c, { body }) => {
     const resUser = await addUsers(c.var.mainDb, body.emails, body.isGlobalAdmin);
@@ -46,7 +46,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "toggleUserAdmin",
-  requireUserPermission(true), 
+  requireGlobalPermission({requireAdmin: true}),
   log("toggleUserAdmin"),
   async (c, { body }) => {
     if (!body.emails || !Array.isArray(body.emails)) {
@@ -69,7 +69,7 @@ defineRoute(
 defineRoute(
   routesUsers, 
   "deleteUser", 
-  requireUserPermission(false,"can_configure_users"), 
+  requireGlobalPermission("can_configure_users"), 
   log("deleteUser"), 
   async (c, { body }) => {
     if (!body.emails || !Array.isArray(body.emails)) {
@@ -88,7 +88,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "batchUploadUsers",
-  requireUserPermission(false,"can_configure_users"), 
+  requireGlobalPermission("can_configure_users"), 
   log("batchUploadUsers"),
   async (c, { body }) => {
     if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
@@ -111,7 +111,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getAllUserLogs",
-  requireUserPermission(false,"can_view_logs"),
+  requireGlobalPermission("can_view_logs"),
   log("getAllUserLogs"),
   async(c) => {
     const res = await GetLogs(c.var.mainDb);
@@ -122,7 +122,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getUserPermissions",
-  requireUserPermission(false,"can_configure_users"),
+  requireGlobalPermission("can_configure_users"),
   log("getUserPermissions"),
   async (c, { params }) => {
     const res = await getUserPermissions(c.var.mainDb, params.email);
@@ -133,7 +133,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "updateUserPermissions",
-  requireUserPermission(false,"can_configure_users"),
+  requireGlobalPermission("can_configure_users"),
   log("updateUserPermissions"),
   async (c, { body }) => {
     const res = await updateUserPermissions(c.var.mainDb, body.email, body.permissions);

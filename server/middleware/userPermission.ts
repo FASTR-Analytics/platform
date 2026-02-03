@@ -5,11 +5,24 @@ import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { getGlobalUser } from "../project_auth.ts";
 
-export const requireUserPermission = (
-  requireAdmin: boolean,
-  ...perms: UserPermission[]
-) =>
-  createMiddleware<{
+type RequireGlobalPermissionOptions = {
+  requireAdmin?: boolean;
+};
+
+export function requireGlobalPermission(
+  firstArg?: RequireGlobalPermissionOptions | UserPermission,
+  ...restArgs: UserPermission[]
+) {
+  // Determine if first arg is options object or permission
+  const isOptions = typeof firstArg === "object" && firstArg !== null;
+  const options: RequireGlobalPermissionOptions = isOptions ? firstArg : {};
+  const perms: UserPermission[] = isOptions
+    ? restArgs
+    : (firstArg ? [firstArg as UserPermission, ...restArgs] : restArgs);
+
+  const { requireAdmin = false } = options;
+
+  return createMiddleware<{
     Variables: {
       globalUser: GlobalUser;
       mainDb: Sql;
@@ -107,7 +120,8 @@ export const requireUserPermission = (
           err: "Service temporarily unavailable",
         });
       }
-      console.error("Database error in requireUserPermission:", error);
+      console.error("Database error in requireGlobalPermission:", error);
       throw new Error("SERVICE_UNAVAILABLE");
     }
   });
+}
