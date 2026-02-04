@@ -19,7 +19,8 @@ import { serverActions } from "~/server_actions";
 import { CopyProjectForm } from "./copy_project";
 import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
 import { CreateBackupForm } from "./create_backup_form";
-import { CreateRestoreFromFileForm } from "./restore_from_file_form"
+import { CreateRestoreFromFileForm } from "./restore_from_file_form";
+import { useRefetchProjectDetail } from "~/components/project_runner/mod"
 
 // Backup types
 interface BackupFileInfo {
@@ -53,13 +54,14 @@ interface BackupInfo {
 type Props = {
   isGlobalAdmin: boolean;
   projectDetail: ProjectDetail;
-  silentRefreshProject: () => Promise<void>;
   silentRefreshInstance: () => Promise<void>;
   backToHome: () => void;
   instanceDetail: InstanceDetail;
 };
 
 export function ProjectSettings(p: Props) {
+  const refetchProjectDetail = useRefetchProjectDetail();
+
   // Actions
 
   async function attemptCopyProject() {
@@ -87,7 +89,7 @@ export function ProjectSettings(p: Props) {
             label: newLabel,
             aiContext: p.projectDetail.aiContext,
           }),
-        silentFetch: p.silentRefreshProject,
+        silentFetch: refetchProjectDetail,
       },
     });
   }
@@ -104,7 +106,7 @@ export function ProjectSettings(p: Props) {
             label: p.projectDetail.label,
             aiContext: newAiContext,
           }),
-        silentFetch: p.silentRefreshProject,
+        silentFetch: refetchProjectDetail,
         textArea: true,
       },
     });
@@ -117,7 +119,7 @@ export function ProjectSettings(p: Props) {
         projectId: p.projectDetail.id,
         projectLabel: p.projectDetail.label,
         users,
-        silentFetch: p.silentRefreshProject,
+        silentFetch: refetchProjectDetail,
       },
     });
   }
@@ -129,7 +131,7 @@ export function ProjectSettings(p: Props) {
         lockAction: "lock",
       }),
     async () => {
-      await p.silentRefreshProject();
+      await refetchProjectDetail();
       await p.silentRefreshInstance();
     },
   );
@@ -141,7 +143,7 @@ export function ProjectSettings(p: Props) {
         lockAction: "unlock",
       }),
     async () => {
-      await p.silentRefreshProject();
+      await refetchProjectDetail();
       await p.silentRefreshInstance();
     },
   );

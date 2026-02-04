@@ -1,8 +1,10 @@
-import { LastUpdateTableName, ProjectDirtyStates } from "lib";
+import { LastUpdateTableName, ProjectDetail, ProjectDirtyStates } from "lib";
 import { createContext } from "solid-js";
 import { Store } from "solid-js/store";
 
 export const ProjectDirtyStateContext = createContext<{
+  projectDetail: ProjectDetail;
+  refetchProjectDetail: () => Promise<void>;
   projectDirtyStates: ProjectDirtyStates;
   optimisticSetProjectLastUpdated: (lastUpdated: string) => void;
   optimisticSetLastUpdated: (

@@ -11,13 +11,12 @@ import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectP
 import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "./add_visualization";
 import { CreateVisualizationFromPromptModal } from "./create_visualization_from_prompt_modal";
+import { useRefetchProjectDetail } from "~/components/project_runner/mod";
 
 type Props = {
   projectDetail: ProjectDetail;
   instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
-  attemptGetProjectDetail: () => Promise<void>;
-  silentRefreshProject: () => Promise<void>;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -30,6 +29,7 @@ type Props = {
 
 export function ProjectVisualizations(p: Props) {
   const [searchText, setSearchText] = createSignal<string>("");
+  const refetchProjectDetail = useRefetchProjectDetail();
 
   async function attempAddPresentationObject() {
     const res = await openComponent({
@@ -59,7 +59,7 @@ export function ProjectVisualizations(p: Props) {
     });
 
     if (result?.created) {
-      await p.silentRefreshProject();
+      await refetchProjectDetail();
     }
   }
 
@@ -91,7 +91,7 @@ export function ProjectVisualizations(p: Props) {
     });
 
     if (result?.created) {
-      await p.silentRefreshProject();
+      await refetchProjectDetail();
     }
   }
 

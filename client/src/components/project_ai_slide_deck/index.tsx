@@ -11,9 +11,10 @@ import {
   openComponent,
 } from "panther";
 import { createEffect, createMemo, createSignal, onMount, Show } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import { serverActions } from "~/server_actions";
 import { getToolsForSlides } from "../ai_tools/ai_tool_definitions";
-import { useProjectDirtyStates, useOptimisticSetLastUpdated } from "../project_runner/mod";
+import { useProjectDirtyStates, useOptimisticSetLastUpdated, useRefetchProjectDetail } from "../project_runner/mod";
 import { SlideList } from "./slide_list";
 import { DEFAULT_MODEL_CONFIG, DEFAULT_BUILTIN_TOOLS, createProjectSDKClient } from "~/components/ai_configs/defaults";
 import { getSlideDeckSystemPrompt } from "~/components/ai_prompts/slide_deck";
@@ -27,16 +28,23 @@ import { trackSlideChange, getPendingChangesMessage, clearPendingChanges } from 
 type Props = {
   instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
+  projectId: string;
   deckId: string;
   reportLabel: string;
   isGlobalAdmin: boolean;
-  backToProject: (withUpdate: boolean) => Promise<void>;
 };
 
 export function ProjectAiSlideDeck(p: Props) {
   const projectId = p.projectDetail.id;
   const pds = useProjectDirtyStates();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
+  const refetchProjectDetail = useRefetchProjectDetail();
+  const navigate = useNavigate();
+
+  async function backToProject() {
+    await refetchProjectDetail();
+    navigate(`/?p=${p.projectId}`);
+  }
 
   // State - just track slide IDs, not full slide data
   const [slideIds, setSlideIds] = createSignal<string[]>([]);
@@ -119,7 +127,7 @@ export function ProjectAiSlideDeck(p: Props) {
         slideIds={slideIds()}
         isLoading={isLoading()}
         setSelectedSlideIds={setSelectedSlideIds}
-        backToProject={p.backToProject}
+        backToProject={backToProject}
         aiDocs={aiDocs}
       />
     </AIChatProvider>
@@ -136,7 +144,7 @@ function ProjectAiSlideDeckInner(p: {
   slideIds: string[];
   isLoading: boolean;
   setSelectedSlideIds: (ids: string[]) => void;
-  backToProject: (withUpdate: boolean) => Promise<void>;
+  backToProject: () => Promise<void>;
   aiDocs: ReturnType<typeof useAIDocuments>;
 }) {
   const { clearConversation, isLoading: aiLoading } = createAIChat();
@@ -233,7 +241,7 @@ function ProjectAiSlideDeckInner(p: {
             heading={p.deckLabel}
             french={false}
             leftChildren={
-              <Button iconName="chevronLeft" onClick={() => p.backToProject(true)} />
+              <Button iconName="chevronLeft" onClick={() => p.backToProject()} />
             }
           >
             <div class="flex items-center ui-gap-sm">

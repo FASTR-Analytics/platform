@@ -199,7 +199,9 @@ export function SlideEditor(p: Props) {
       // Show modal with options
       const userChoice = await openComponent({
         element: ConflictResolutionModal,
-        props: {},
+        props: {
+          itemName: "slide"
+        },
       });
 
       if (userChoice === "view_theirs") {
@@ -211,6 +213,26 @@ export function SlideEditor(p: Props) {
       if (userChoice === "overwrite") {
         // Retry with overwrite flag
         return handleSave(true);
+      }
+
+      if (userChoice === "save_as_new") {
+        // Create new slide with user's edited content
+        const createRes = await serverActions.createSlide({
+          projectId: p.projectId,
+          deck_id: p.deckId,
+          position: { after: p.slideId },
+          slide: unwrap(tempSlide),
+        });
+
+        if (createRes.success === false) {
+          setIsSaving(false);
+          return;
+        }
+
+        optimisticSetLastUpdated("slides", createRes.data.slideId, createRes.data.lastUpdated);
+
+        p.close(true);
+        return;
       }
 
       // userChoice === "cancel" - stay in editor

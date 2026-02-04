@@ -6,6 +6,8 @@ export { ProjectDirtyStateContext } from "./context";
 
 // Hooks
 export {
+  useProjectDetail,
+  useRefetchProjectDetail,
   useAnyRunning,
   useProjectDirtyStates,
   useOptimisticSetProjectLastUpdated,

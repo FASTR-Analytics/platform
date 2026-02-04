@@ -25,7 +25,6 @@ export function SettingsForProjectModuleGeneric(
       projectIsLocked: boolean;
       installedModuleId: ModuleId;
       installedModuleLabel: string;
-      silentRefreshProject: () => Promise<void>;
     },
     undefined
   >,
@@ -66,7 +65,7 @@ export function SettingsForProjectModuleGeneric(
       module_id: p.installedModuleId,
       newParams: newParameters,
     });
-  }, p.silentRefreshProject);
+  });
 
   return (
     <FrameTop

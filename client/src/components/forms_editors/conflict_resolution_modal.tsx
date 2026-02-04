@@ -2,7 +2,9 @@ import { AlertComponentProps, Button } from "panther";
 import { t } from "lib";
 
 export function ConflictResolutionModal(
-  p: AlertComponentProps<{}, "view_theirs" | "overwrite" | "cancel">
+  p: AlertComponentProps<{
+    itemName?: string
+  }, "view_theirs" | "overwrite" | "save_as_new" | "cancel">
 ) {
   return (
     <div class="ui-pad ui-spy-sm">
@@ -13,6 +15,9 @@ export function ConflictResolutionModal(
       <div class="ui-gap-sm flex flex-col pt-2">
         <Button onClick={() => p.close("overwrite")} intent="danger">
           {t("Save anyway (overwrite their changes)")}
+        </Button>
+        <Button onClick={() => p.close("save_as_new")} intent="primary">
+          {p.itemName ? `Save as a new ${p.itemName}` : "Save as new"}
         </Button>
         <Button onClick={() => p.close("view_theirs")} intent="neutral">
           {t("Discard my changes and close")}

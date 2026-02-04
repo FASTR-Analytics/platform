@@ -10,7 +10,7 @@ import { serverActions } from "~/server_actions";
 
 export function AddDeckForm(
   p: AlertComponentProps<
-    { projectId: string; silentRefreshProject: () => Promise<void> },
+    { projectId: string },
     { newDeckId: string }
   >,
 ) {
@@ -27,7 +27,6 @@ export function AddDeckForm(
         label: tempLabel().trim(),
       });
     },
-    p.silentRefreshProject,
     (data) => p.close({ newDeckId: data.deckId }),
   );
 

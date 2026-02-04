@@ -20,10 +20,10 @@ import {
   openAlert,
   timQuery,
 } from "panther";
-import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
+import { Match, Show, Switch, createSignal } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
-import { ProjectRunnerProvider, useProjectDirtyStates } from "~/components/project_runner/mod";
-import { serverActions } from "~/server_actions";
+import { ProjectRunnerProvider, useProjectDetail, useRefetchProjectDetail } from "~/components/project_runner/mod";
+
 // import { ProjectChatbotV3 as ProjectChatbot } from "../project_chatbot_v3";
 import { Report } from "../report";
 import { VisualizationEditor } from "../visualization";
@@ -72,86 +72,6 @@ export default function Project(p: Props) {
   const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
     getEditorWrapper();
 
-  // Query state
-
-  const projectDetail = timQuery(
-    () => serverActions.getProjectDetail({ projectId: p.projectId }),
-    t2(T.FRENCH_UI_STRINGS.loading_project_details),
-  );
-
-  // Back funcs
-
-  async function backToProject(withUpdate: boolean) {
-    if (withUpdate) {
-      projectDetail.fetch();
-    }
-    navigate(`/?p=${p.projectId}`);
-  }
-
-  async function openVisualizationEditor(
-    po: PresentationObjectSummary,
-    projectDetail: any,
-    instanceDetail: any,
-  ) {
-    if (po.isDefault) {
-      const poDetailRes = await getPODetailFromCacheorFetch(
-        projectDetail.id,
-        po.id,
-      );
-      if (poDetailRes.success === false) {
-        await openAlert({
-          text: "Failed to load visualization",
-          intent: "danger",
-        });
-        return;
-      }
-
-      const result = await openProjectEditor({
-        element: VisualizationEditor,
-        props: {
-          mode: "create" as const,
-          projectId: projectDetail.id,
-          label: `Copy of ${poDetailRes.data.label}`,
-          resultsValue: poDetailRes.data.resultsValue,
-          config: structuredClone(poDetailRes.data.config),
-          instanceDetail,
-          projectDetail,
-          isGlobalAdmin: p.isGlobalAdmin,
-        },
-      });
-
-      if (result?.created) {
-        await projectDetail.fetch();
-        setTab("visualizations");
-        setVizGroupingMode("folders");
-        setVizSelectedGroup(
-          result.created.folderId === null
-            ? "_unfiled"
-            : result.created.folderId,
-        );
-      }
-      return;
-    }
-
-    const result = await openProjectEditor({
-      element: VisualizationEditor,
-      props: {
-        mode: "edit" as const,
-        projectId: projectDetail.id,
-        presentationObjectId: po.id,
-        instanceDetail,
-        projectDetail,
-        isGlobalAdmin: p.isGlobalAdmin,
-      },
-    });
-
-    if (result?.deleted) {
-      await projectDetail.fetch();
-    } else if (result?.saved) {
-      await projectDetail.silentFetch();
-    }
-  }
-
   return (
     <ProjectRunnerProvider projectId={p.projectId}>
       <StateHolderWrapper
@@ -159,68 +79,113 @@ export default function Project(p: Props) {
         onErrorButton={{ label: t("Go home"), link: "/" }}
       >
         {(keyedInstanceDetail) => {
-          return (
-            <StateHolderWrapper
-              state={projectDetail.state()}
-              onErrorButton={{ label: t("Go home"), link: "/" }}
-            >
-              {(keyedProjectDetail) => {
-                const pds = useProjectDirtyStates();
-                let firstRun = true;
-                createEffect(() => {
-                  const _v = pds.projectLastUpdated;
-                  if (firstRun) {
-                    firstRun = false;
-                    return;
-                  }
-                  projectDetail.silentFetch();
-                });
+          const projectDetail = useProjectDetail();
+          // const refetchProjectDetail = useRefetchProjectDetail();
 
-                return (
-                  <Switch>
-                    <Match when={getFirstString(searchParams.r)}>
-                      <Report
-                        isGlobalAdmin={p.isGlobalAdmin}
-                        projectDetail={keyedProjectDetail}
-                        reportId={getFirstString(searchParams.r)!}
-                        backToProject={backToProject}
-                        instanceDetail={keyedInstanceDetail}
-                      />
-                    </Match>
-                    <Match when={getFirstString(searchParams.d)}>
-                      <ProjectAiSlideDeck
-                        instanceDetail={keyedInstanceDetail}
-                        projectDetail={keyedProjectDetail}
-                        deckId={getFirstString(searchParams.d)!}
-                        reportLabel={keyedProjectDetail.slideDecks.find(d => d.id === getFirstString(searchParams.d))?.label || "Slide Deck"}
-                        backToProject={backToProject}
-                        isGlobalAdmin={p.isGlobalAdmin}
-                      />
-                    </Match>
-                    <Match when={true}>
-                      <ProjectEditorWrapper>
-                        <FrameTop
-                          panelChildren={
-                            <div class="ui-gap ui-pad bg-base-content text-base-100 flex h-full w-full items-center">
-                              <Button
-                                iconName="chevronLeft"
-                                onClick={() => navigate("/")}
-                              />
-                              <div class="font-700 flex-1 truncate text-xl">
-                                <span class="font-400">
-                                  {keyedProjectDetail.label}
-                                </span>
-                              </div>
-                              <div class="ui-gap-sm flex items-center">
-                                <ProjectRunStatus />
-                              </div>
-                            </div>
-                          }
-                        >
-                          <FrameLeft
-                            panelChildren={
-                              <div class="font-700 h-full border-r text-sm">
-                                {/* <div
+          async function openVisualizationEditor(
+            po: PresentationObjectSummary,
+            projectDetail: any,
+            instanceDetail: any,
+          ) {
+            if (po.isDefault) {
+              const poDetailRes = await getPODetailFromCacheorFetch(
+                projectDetail.id,
+                po.id,
+              );
+              if (poDetailRes.success === false) {
+                await openAlert({
+                  text: "Failed to load visualization",
+                  intent: "danger",
+                });
+                return;
+              }
+
+              const result = await openProjectEditor({
+                element: VisualizationEditor,
+                props: {
+                  mode: "create" as const,
+                  projectId: projectDetail.id,
+                  label: `Copy of ${poDetailRes.data.label}`,
+                  resultsValue: poDetailRes.data.resultsValue,
+                  config: structuredClone(poDetailRes.data.config),
+                  instanceDetail,
+                  projectDetail,
+                  isGlobalAdmin: p.isGlobalAdmin,
+                },
+              });
+
+              if (result?.created) {
+                // SSE will update projectDetail automatically
+                setTab("visualizations");
+                setVizGroupingMode("folders");
+                setVizSelectedGroup(
+                  result.created.folderId === null
+                    ? "_unfiled"
+                    : result.created.folderId,
+                );
+              }
+              return;
+            }
+
+            await openProjectEditor({
+              element: VisualizationEditor,
+              props: {
+                mode: "edit" as const,
+                projectId: projectDetail.id,
+                presentationObjectId: po.id,
+                instanceDetail,
+                projectDetail,
+                isGlobalAdmin: p.isGlobalAdmin,
+              },
+            });
+            // SSE will update projectDetail automatically
+          }
+
+          return (
+            <Switch>
+              <Match when={getFirstString(searchParams.r)}>
+                <Report
+                  isGlobalAdmin={p.isGlobalAdmin}
+                  projectDetail={projectDetail}
+                  reportId={getFirstString(searchParams.r)!}
+                  projectId={p.projectId}
+                  instanceDetail={keyedInstanceDetail}
+                />
+              </Match>
+              <Match when={getFirstString(searchParams.d)}>
+                <ProjectAiSlideDeck
+                  instanceDetail={keyedInstanceDetail}
+                  projectDetail={projectDetail}
+                  projectId={p.projectId}
+                  deckId={getFirstString(searchParams.d)!}
+                  reportLabel={projectDetail.slideDecks.find(d => d.id === getFirstString(searchParams.d))?.label || "Slide Deck"}
+                  isGlobalAdmin={p.isGlobalAdmin}
+                />
+              </Match>
+              <Match when={true}>
+                <ProjectEditorWrapper>
+                  <FrameTop
+                    panelChildren={
+                      <div class="ui-gap ui-pad bg-base-content text-base-100 flex h-full w-full items-center">
+                        <Button
+                          iconName="chevronLeft"
+                          onClick={() => navigate("/")}
+                        />
+                        <div class="font-700 flex-1 truncate text-xl">
+                          <span class="font-400">
+                            {projectDetail.label}
+                          </span>
+                        </div>
+                        <div class="ui-gap-sm flex items-center">
+                          <ProjectRunStatus />
+                        </div>
+                      </div>
+                    }
+                  >
+                    <FrameLeft
+                      panelChildren={
+                        <div class="font-700 h-full border-r text-sm">
+                          {/* <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                   onClick={() => changeTab("chatbot")}
                                   data-selected={tab() === "chatbot"}
@@ -230,17 +195,17 @@ export default function Project(p: Props) {
                                   </span>
                                   {t2("AI Assistant")}
                                 </div> */}
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("whiteboard")}
-                                  data-selected={tab() === "whiteboard"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <PencilIcon />
-                                  </span>
-                                  {t2("Whiteboard")}
-                                </div>
-                                {/* <div
+                          <div
+                            class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                            onClick={() => changeTab("whiteboard")}
+                            data-selected={tab() === "whiteboard"}
+                          >
+                            <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                              <PencilIcon />
+                            </span>
+                            {t2("Whiteboard")}
+                          </div>
+                          {/* <div
                                   class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                                   onClick={() => changeTab("reports")}
                                   data-selected={tab() === "reports"}
@@ -250,76 +215,76 @@ export default function Project(p: Props) {
                                   </span>
                                   {t2(T.FRENCH_UI_STRINGS.reports)}
                                 </div> */}
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("decks")}
-                                  data-selected={tab() === "decks"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <SparklesIcon />
-                                  </span>
-                                  Slide decks
-                                </div>
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("visualizations")}
-                                  data-selected={tab() === "visualizations"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <ChartIcon />
-                                  </span>
-                                  {t2(T.FRENCH_UI_STRINGS.visualizations)}
-                                </div>
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("metrics")}
-                                  data-selected={tab() === "metrics"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <BadgeIcon />
-                                  </span>
-                                  {t2("Metrics")}
-                                </div>
-                                <Show when={p.isGlobalAdmin}>
-                                  <div
-                                    class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                    onClick={() => changeTab("modules")}
-                                    data-selected={tab() === "modules"}
-                                  >
-                                    <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                      <CodeIcon />
-                                    </span>
-                                    {t2(T.FRENCH_UI_STRINGS.modules)}
-                                  </div>
-                                  <div
-                                    class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                    onClick={() => changeTab("data")}
-                                    data-selected={tab() === "data"}
-                                  >
-                                    <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                      <DatabaseIcon />
-                                    </span>
-                                    {t2(T.FRENCH_UI_STRINGS.data)}
-                                  </div>
-                                  <div
-                                    class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                    onClick={() => changeTab("settings")}
-                                    data-selected={tab() === "settings"}
-                                  >
-                                    <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                      <SettingsIcon />
-                                    </span>
-                                    {t2(T.FRENCH_UI_STRINGS.settings)}
-                                  </div>
-                                </Show>
-                              </div>
-                            }
+                          <div
+                            class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                            onClick={() => changeTab("decks")}
+                            data-selected={tab() === "decks"}
                           >
-                            <Switch>
-                              {/* <Match when={tab() === "chatbot"}>
+                            <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                              <SparklesIcon />
+                            </span>
+                            Slide decks
+                          </div>
+                          <div
+                            class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                            onClick={() => changeTab("visualizations")}
+                            data-selected={tab() === "visualizations"}
+                          >
+                            <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                              <ChartIcon />
+                            </span>
+                            {t2(T.FRENCH_UI_STRINGS.visualizations)}
+                          </div>
+                          <div
+                            class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                            onClick={() => changeTab("metrics")}
+                            data-selected={tab() === "metrics"}
+                          >
+                            <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                              <BadgeIcon />
+                            </span>
+                            {t2("Metrics")}
+                          </div>
+                          <Show when={p.isGlobalAdmin}>
+                            <div
+                              class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                              onClick={() => changeTab("modules")}
+                              data-selected={tab() === "modules"}
+                            >
+                              <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                <CodeIcon />
+                              </span>
+                              {t2(T.FRENCH_UI_STRINGS.modules)}
+                            </div>
+                            <div
+                              class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                              onClick={() => changeTab("data")}
+                              data-selected={tab() === "data"}
+                            >
+                              <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                <DatabaseIcon />
+                              </span>
+                              {t2(T.FRENCH_UI_STRINGS.data)}
+                            </div>
+                            <div
+                              class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                              onClick={() => changeTab("settings")}
+                              data-selected={tab() === "settings"}
+                            >
+                              <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                <SettingsIcon />
+                              </span>
+                              {t2(T.FRENCH_UI_STRINGS.settings)}
+                            </div>
+                          </Show>
+                        </div>
+                      }
+                    >
+                      <Switch>
+                        {/* <Match when={tab() === "chatbot"}>
                                 <ProjectChatbot
                                   instanceDetail={keyedInstanceDetail}
-                                  projectDetail={keyedProjectDetail}
+                                  projectDetail={projectDetail}
                                   attemptGetProjectDetail={projectDetail.fetch}
                                   silentRefreshProject={
                                     projectDetail.silentFetch
@@ -327,99 +292,73 @@ export default function Project(p: Props) {
                                   openProjectEditor={openProjectEditor}
                                 />
                               </Match> */}
-                              <Match when={tab() === "whiteboard"}>
-                                <ProjectWhiteboard
-                                  instanceDetail={keyedInstanceDetail}
-                                  projectDetail={keyedProjectDetail}
-                                />
-                              </Match>
-                              <Match when={tab() === "reports"}>
-                                <ProjectReports
-                                  projectDetail={keyedProjectDetail}
-                                  attemptGetProjectDetail={projectDetail.fetch}
-                                  silentRefreshProject={
-                                    projectDetail.silentFetch
-                                  }
-                                  openProjectEditor={openProjectEditor}
-                                />
-                              </Match>
-                              <Match when={tab() === "decks"}>
-                                <ProjectDecks
-                                  projectDetail={keyedProjectDetail}
-                                  attemptGetProjectDetail={projectDetail.fetch}
-                                  silentRefreshProject={
-                                    projectDetail.silentFetch
-                                  }
-                                  openProjectEditor={openProjectEditor}
-                                />
-                              </Match>
-                              <Match when={tab() === "visualizations"}>
-                                <ProjectVisualizations
-                                  isGlobalAdmin={p.isGlobalAdmin}
-                                  instanceDetail={keyedInstanceDetail}
-                                  projectDetail={keyedProjectDetail}
-                                  attemptGetProjectDetail={projectDetail.fetch}
-                                  silentRefreshProject={
-                                    projectDetail.silentFetch
-                                  }
-                                  openProjectEditor={openProjectEditor}
-                                  openVisualizationEditor={openVisualizationEditor}
-                                />
-                              </Match>
-                              <Match when={tab() === "metrics"}>
-                                <ProjectMetrics
-                                  projectDetail={keyedProjectDetail}
-                                  isGlobalAdmin={p.isGlobalAdmin}
-                                  openProjectEditor={openProjectEditor}
-                                  instanceDetail={keyedInstanceDetail}
-                                />
-                              </Match>
-                              <Match when={tab() === "modules"}>
-                                <ProjectModules
-                                  isGlobalAdmin={p.isGlobalAdmin}
-                                  projectDetail={keyedProjectDetail}
-                                  attemptGetProjectDetail={projectDetail.fetch}
-                                  silentRefreshProject={
-                                    projectDetail.silentFetch
-                                  }
-                                />
-                              </Match>
-                              <Match when={tab() === "data"}>
-                                <ProjectData
-                                  isGlobalAdmin={p.isGlobalAdmin}
-                                  instanceDetail={keyedInstanceDetail}
-                                  projectDetail={keyedProjectDetail}
-                                  attemptGetProjectDetail={projectDetail.fetch}
-                                  silentRefreshProject={
-                                    projectDetail.silentFetch
-                                  }
-                                />
-                              </Match>
-                              <Match
-                                when={tab() === "settings" && p.isGlobalAdmin}
-                              >
-                                <ProjectSettings
-                                  isGlobalAdmin={p.isGlobalAdmin}
-                                  projectDetail={keyedProjectDetail}
-                                  silentRefreshProject={
-                                    projectDetail.silentFetch
-                                  }
-                                  silentRefreshInstance={
-                                    p.instanceDetail.silentFetch
-                                  }
-                                  backToHome={() => navigate("/")}
-                                  instanceDetail={keyedInstanceDetail}
-                                />
-                              </Match>
-                            </Switch>
-                          </FrameLeft>
-                        </FrameTop>
-                      </ProjectEditorWrapper>
-                    </Match>
-                  </Switch>
-                );
-              }}
-            </StateHolderWrapper>
+                        <Match when={tab() === "whiteboard"}>
+                          <ProjectWhiteboard
+                            instanceDetail={keyedInstanceDetail}
+                            projectDetail={projectDetail}
+                          />
+                        </Match>
+                        <Match when={tab() === "reports"}>
+                          <ProjectReports
+                            projectDetail={projectDetail}
+                            openProjectEditor={openProjectEditor}
+                          />
+                        </Match>
+                        <Match when={tab() === "decks"}>
+                          <ProjectDecks
+                            projectDetail={projectDetail}
+                            openProjectEditor={openProjectEditor}
+                          />
+                        </Match>
+                        <Match when={tab() === "visualizations"}>
+                          <ProjectVisualizations
+                            isGlobalAdmin={p.isGlobalAdmin}
+                            instanceDetail={keyedInstanceDetail}
+                            projectDetail={projectDetail}
+                            openProjectEditor={openProjectEditor}
+                            openVisualizationEditor={openVisualizationEditor}
+                          />
+                        </Match>
+                        <Match when={tab() === "metrics"}>
+                          <ProjectMetrics
+                            projectDetail={projectDetail}
+                            isGlobalAdmin={p.isGlobalAdmin}
+                            openProjectEditor={openProjectEditor}
+                            instanceDetail={keyedInstanceDetail}
+                          />
+                        </Match>
+                        <Match when={tab() === "modules"}>
+                          <ProjectModules
+                            isGlobalAdmin={p.isGlobalAdmin}
+                            projectDetail={projectDetail}
+                          />
+                        </Match>
+                        <Match when={tab() === "data"}>
+                          <ProjectData
+                            isGlobalAdmin={p.isGlobalAdmin}
+                            instanceDetail={keyedInstanceDetail}
+                            projectDetail={projectDetail}
+                          />
+                        </Match>
+                        <Match
+                          when={tab() === "settings" && p.isGlobalAdmin}
+                        >
+                          <ProjectSettings
+                            isGlobalAdmin={p.isGlobalAdmin}
+                            projectDetail={projectDetail}
+                            silentRefreshInstance={
+                              p.instanceDetail.silentFetch
+                            }
+                            backToHome={() => navigate("/")}
+                            instanceDetail={keyedInstanceDetail}
+                          />
+                        </Match>
+                      </Switch>
+                    </FrameLeft>
+                  </FrameTop>
+                </ProjectEditorWrapper>
+              </Match>
+            </Switch>
           );
         }}
       </StateHolderWrapper>

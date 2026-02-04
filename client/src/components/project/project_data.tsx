@@ -23,17 +23,17 @@ import { For, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { SettingsForProjectDatasetHmis } from "./settings_for_project_dataset_hmis";
+import { useRefetchProjectDetail } from "~/components/project_runner/mod";
 
 type Props = {
   instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
-  attemptGetProjectDetail: () => Promise<void>;
-  silentRefreshProject: () => Promise<void>;
 };
 
 export function ProjectData(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
+  const refetchProjectDetail = useRefetchProjectDetail();
   return (
     <EditorWrapper>
       <FrameTop panelChildren={<HeadingBar heading={"Data"}></HeadingBar>}>
@@ -111,7 +111,6 @@ export function ProjectData(p: Props) {
                             indicatorMappingsVersion:
                               p.instanceDetail.cacheVersions.indicatorMappings,
                             hmisInfo: keyedProjectDatasetHmis.info,
-                            silentRefreshProject: p.silentRefreshProject,
                             autoTriggerSave: autoTriggerSave,
                           },
                         });
@@ -123,7 +122,7 @@ export function ProjectData(p: Props) {
                             projectId: p.projectDetail.id,
                             dataset_type: "hmis",
                           }),
-                        p.silentRefreshProject,
+                        refetchProjectDetail,
                       );
 
                       return (
@@ -326,7 +325,7 @@ export function ProjectData(p: Props) {
                       //       indicatorMappingsVersion:
                       //         p.instanceDetail.cacheVersions.indicatorMappings,
                       //       hmisInfo: keyedProjectDatasetHmis.info,
-                      //       silentRefreshProject: p.silentRefreshProject,
+                      //       silentRefreshProject: refetchProjectDetail,
                       //     },
                       //   });
                       // }
@@ -337,7 +336,7 @@ export function ProjectData(p: Props) {
                             projectId: p.projectDetail.id,
                             dataset_type: "hfa",
                           }),
-                        p.silentRefreshProject,
+                        refetchProjectDetail,
                       );
 
                       const updateData = timActionButton(
@@ -347,7 +346,7 @@ export function ProjectData(p: Props) {
                             datasetType: "hfa",
                             windowing: undefined,
                           }),
-                        p.silentRefreshProject,
+                        refetchProjectDetail,
                       );
 
                       return (
@@ -443,7 +442,6 @@ export function ProjectData(p: Props) {
                             indicatorMappingsVersion:
                               p.instanceDetail.cacheVersions.indicatorMappings,
                             hmisInfo: undefined,
-                            silentRefreshProject: p.silentRefreshProject,
                           },
                         });
                       }
@@ -467,7 +465,7 @@ export function ProjectData(p: Props) {
                           datasetType: possibleDataset.datasetType,
                           windowing: undefined,
                         });
-                      }, p.silentRefreshProject);
+                      }, refetchProjectDetail);
 
                       return (
                         <div class="ui-pad border-base-300 ui-spy rounded border">

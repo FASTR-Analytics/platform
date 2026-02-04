@@ -13,8 +13,6 @@ import { AddDeckForm } from "./add_deck";
 
 type Props = {
   projectDetail: ProjectDetail;
-  attemptGetProjectDetail: () => Promise<void>;
-  silentRefreshProject: () => Promise<void>;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -49,7 +47,6 @@ export function ProjectDecks(p: Props) {
       element: AddDeckForm,
       props: {
         projectId: p.projectDetail.id,
-        silentRefreshProject: p.silentRefreshProject,
       },
     });
     if (res === undefined) {

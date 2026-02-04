@@ -34,7 +34,6 @@ export function SettingsForProjectModuleHFA(
       projectIsLocked: boolean;
       installedModuleId: ModuleId;
       installedModuleLabel: string;
-      silentRefreshProject: () => Promise<void>;
     },
     undefined
   >,
@@ -83,7 +82,7 @@ export function SettingsForProjectModuleHFA(
         useSampleWeights: false,
       },
     }); // This needs fixing!!!!
-  }, p.silentRefreshProject);
+  });
 
   async function editIndicator(indicator: HfaIndicator) {
     const res = await openEditor({

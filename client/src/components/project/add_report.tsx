@@ -12,7 +12,7 @@ import { t } from "lib";
 
 export function AddReportForm(
   p: AlertComponentProps<
-    { projectId: string; silentRefreshProject: () => Promise<void> },
+    { projectId: string },
     { newReportId: string }
   >,
 ) {
@@ -36,7 +36,6 @@ export function AddReportForm(
         reportType: tempReportType(),
       });
     },
-    p.silentRefreshProject,
     (data) => p.close({ newReportId: data.newReportId }),
   );
 

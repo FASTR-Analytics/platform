@@ -241,7 +241,9 @@ export function VisualizationEditorInner(p: InnerProps) {
       // Show modal with options
       const userChoice = await openComponent({
         element: ConflictResolutionModal,
-        props: {},
+        props: {
+          itemName: "visualization"
+        },
       });
 
       if (userChoice === "view_theirs") {
@@ -252,6 +254,32 @@ export function VisualizationEditorInner(p: InnerProps) {
       if (userChoice === "overwrite") {
         // Retry with overwrite flag
         return saveFunc(true);
+      }
+
+      if (userChoice === "save_as_new") {
+        // Create new visualization with user's edited config
+        const createRes = await serverActions.createPresentationObject({
+          projectId: p.projectDetail.id,
+          label: `${p.poDetail.label} (copy)`,
+          resultsValue: p.poDetail.resultsValue,
+          config: unwrappedTempConfig,
+          makeDefault: false,
+          folderId: p.poDetail.folderId,
+        });
+
+        if (createRes.success === false) {
+          return createRes;
+        }
+
+        optimisticSetLastUpdated(
+          "presentation_objects",
+          createRes.data.newPresentationObjectId,
+          createRes.data.lastUpdated,
+        );
+        optimisticSetProjectLastUpdated(createRes.data.lastUpdated);
+
+        (p.onClose as (result: EditModeReturn) => void)({ saved: true });
+        return createRes;
       }
 
       // userChoice === "cancel" - stay in editor

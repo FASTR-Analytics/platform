@@ -38,7 +38,6 @@ export function SettingsForProjectDatasetHmis(
       facilityColumns: InstanceConfigFacilityColumns;
       hmisInfo: DatasetHmisInfoInProject | undefined;
       indicatorMappingsVersion: string;
-      silentRefreshProject: () => Promise<void>;
       autoTriggerSave?: boolean;
     },
     undefined
@@ -183,7 +182,6 @@ export function SettingsForProjectDatasetHmis(
         onProgress,
       );
     },
-    p.silentRefreshProject,
     () => p.close(undefined),
   );
 

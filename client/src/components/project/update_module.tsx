@@ -13,7 +13,6 @@ export function UpdateModule(
     {
       projectId: string;
       moduleId: ModuleId;
-      silentRefreshProject: () => Promise<void>;
     },
     undefined
   >,
@@ -31,7 +30,6 @@ export function UpdateModule(
         rerunModule: rerunModule(),
       });
     },
-    p.silentRefreshProject,
     () => p.close(undefined),
   );
 

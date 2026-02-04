@@ -19,6 +19,7 @@ import {
   useOptimisticSetLastUpdated,
   useOptimisticSetProjectLastUpdated,
   useProjectDirtyStates,
+  useRefetchProjectDetail,
 } from "~/components/project_runner/mod";
 import { serverActions } from "~/server_actions";
 import { getReportDetailFromCacheOrFetch } from "~/state/ri_cache";
@@ -27,12 +28,13 @@ import { DuplicateReport } from "./duplicate_report";
 import { ReportItemEditor } from "./report_item";
 import { ReportSettings } from "./report_settings";
 import { ReorderPages } from "./reorder_pages";
+import { useNavigate } from "@solidjs/router";
 
 type Props = {
   isGlobalAdmin: boolean;
   projectDetail: ProjectDetail;
   reportId: string;
-  backToProject: (withUpdate: boolean) => Promise<void>;
+  projectId: string;
   instanceDetail: InstanceDetail;
 };
 
@@ -41,8 +43,17 @@ export function Report(p: Props) {
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
   const smartNavigate = useSmartNavigate();
+  const refetchProjectDetail = useRefetchProjectDetail();
+  const navigate = useNavigate();
 
   let needToUpdateProject = false;
+
+  async function backToProject() {
+    if (needToUpdateProject) {
+      await refetchProjectDetail();
+    }
+    navigate(`/?p=${p.projectId}`);
+  }
 
   const {
     openEditor: openEditorForSettings,
@@ -136,7 +147,7 @@ export function Report(p: Props) {
       },
     });
     if (res === "AFTER_DELETE_BACK_TO_PROJECT_WITH_PROJECT_UPDATE") {
-      p.backToProject(true);
+      backToProject();
     }
   }
 
@@ -232,7 +243,7 @@ export function Report(p: Props) {
             reportId={p.reportId}
             initialMarkdown={data.markdown}
             reportLabel={data.label}
-            backToProject={p.backToProject}
+            backToProject={backToProject}
           />
         )}
       </Match> */}
@@ -243,7 +254,7 @@ export function Report(p: Props) {
               <div class="ui-pad ui-gap border-base-200 bg-base-100 flex h-full w-full items-center border-b">
                 <Button
                   iconName="chevronLeft"
-                  onClick={() => p.backToProject(needToUpdateProject)}
+                  onClick={() => backToProject()}
                 />
                 <div class="font-700 flex-1 truncate text-xl">
                   <span class="font-400">{reportLabel()}</span>
@@ -283,7 +294,7 @@ export function Report(p: Props) {
               state={reportDetail()}
               onErrorButton={{
                 label: "Go back",
-                onClick: () => p.backToProject(needToUpdateProject),
+                onClick: () => backToProject(),
               }}
             >
               {(keyedReportDetail) => {

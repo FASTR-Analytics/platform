@@ -1,5 +1,22 @@
 import { useContext } from "solid-js";
 import { ProjectDirtyStateContext } from "./context";
+import type { ProjectDetail } from "lib";
+
+export function useProjectDetail(): ProjectDetail {
+  const context = useContext(ProjectDirtyStateContext);
+  if (!context) {
+    throw new Error("can't find ProjectDirtyStateContext");
+  }
+  return context.projectDetail;
+}
+
+export function useRefetchProjectDetail(): () => Promise<void> {
+  const context = useContext(ProjectDirtyStateContext);
+  if (!context) {
+    throw new Error("can't find ProjectDirtyStateContext");
+  }
+  return context.refetchProjectDetail;
+}
 
 export function useAnyRunning() {
   const context = useContext(ProjectDirtyStateContext);

@@ -24,6 +24,7 @@ import {
   useOptimisticSetProjectLastUpdated,
   useProjectDirtyStates,
   useRLogs,
+  useRefetchProjectDetail,
 } from "~/components/project_runner/mod";
 import { serverActions } from "~/server_actions";
 import { SettingsForProjectModuleGeneric } from "../project_module_settings/settings_generic";
@@ -36,12 +37,11 @@ import { UpdateModule } from "./update_module";
 type Props = {
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
-  attemptGetProjectDetail: () => Promise<void>;
-  silentRefreshProject: () => Promise<void>;
 };
 
 export function ProjectModules(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
+  const refetchProjectDetail = useRefetchProjectDetail();
 
   return (
     <EditorWrapper>
@@ -67,7 +67,7 @@ export function ProjectModules(p: Props) {
                           isGlobalAdmin={p.isGlobalAdmin}
                           thisInstalledModule={keyedInstalledModule}
                           allInstalledModules={p.projectDetail.projectModules}
-                          silentRefreshProject={p.silentRefreshProject}
+                          refetchProjectDetail={refetchProjectDetail}
                           openEditor={openEditor}
                         />
                       );
@@ -84,7 +84,7 @@ export function ProjectModules(p: Props) {
                         possibleModuleDef.prerequisiteModules
                       }
                       currentModules={p.projectDetail.projectModules}
-                      silentRefreshProject={p.silentRefreshProject}
+                      refetchProjectDetail={refetchProjectDetail}
                     />
                   </Match>
                 </Switch>
@@ -112,7 +112,7 @@ type InstalledModuleProps = {
   isGlobalAdmin: boolean;
   thisInstalledModule: InstalledModuleSummary;
   allInstalledModules: InstalledModuleSummary[];
-  silentRefreshProject: () => Promise<void>;
+  refetchProjectDetail: () => Promise<void>;
   openEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -137,7 +137,6 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
           projectIsLocked: p.projectDetail.isLocked,
           installedModuleId: p.thisInstalledModule.id,
           installedModuleLabel: p.thisInstalledModule.label,
-          silentRefreshProject: p.silentRefreshProject,
         },
       });
       return;
@@ -150,7 +149,6 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
         installedModuleId: p.thisInstalledModule.id,
         installedModuleLabel: p.thisInstalledModule.label,
         moduleLabel: p.thisInstalledModule.label,
-        silentRefreshProject: p.silentRefreshProject,
       },
     });
   }
@@ -170,7 +168,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
       projectId: p.projectId,
       module_id: p.thisInstalledModule.id,
     });
-  }, p.silentRefreshProject);
+  }, p.refetchProjectDetail);
 
   async function updateModule() {
     const _res = await openComponent({
@@ -178,7 +176,6 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
       props: {
         projectId: p.projectDetail.id,
         moduleId: p.thisInstalledModule.id,
-        silentRefreshProject: p.silentRefreshProject,
       },
     });
   }
@@ -376,7 +373,7 @@ type UninstalledModuleProps = {
   thisUninstalledModuleLabel: string;
   thisUninstalledModulePrerequisiteModules: string[];
   currentModules: InstalledModuleSummary[];
-  silentRefreshProject: () => Promise<void>;
+  refetchProjectDetail: () => Promise<void>;
 };
 
 function UninstalledModulePresentation(p: UninstalledModuleProps) {

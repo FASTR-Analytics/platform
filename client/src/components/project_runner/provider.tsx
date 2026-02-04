@@ -1,5 +1,6 @@
 import {
   LastUpdateTableName,
+  ProjectDetail,
   ProjectDirtyStates,
   ProjectSseUpdateMessage,
   parseJsonOrThrow,
@@ -8,7 +9,7 @@ import {
   T,
 } from "lib";
 import { Show, createSignal, onCleanup, onMount } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore, reconcile, type Store } from "solid-js/store";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { Button } from "panther";
 import { ProjectDirtyStateContext } from "./context";
@@ -20,11 +21,38 @@ import {
   getRetryDelay,
   validateTimestamp,
 } from "./utils";
+import { serverActions } from "~/server_actions";
 
 export function ProjectRunnerProvider(p: Props) {
   const [connectAttempts, setConnectionAttempts] = createSignal<number>(0);
   const [connectionState, setConnectionState] =
     createSignal<ConnectionState>("disconnected");
+
+  // Project detail store - all properties initialized for proper reactivity
+  const [projectDetail, setProjectDetail] = createStore<ProjectDetail>({
+    id: "",
+    label: "",
+    aiContext: "",
+    thisUserRole: "viewer",
+    isLocked: false,
+    projectDatasets: [],
+    projectModules: [],
+    metrics: [],
+    visualizations: [],
+    visualizationFolders: [],
+    reports: [],
+    slideDecks: [],
+    projectUsers: [],
+  });
+  const [isProjectReady, setIsProjectReady] = createSignal(false);
+
+  async function fetchProjectDetail() {
+    const res = await serverActions.getProjectDetail({ projectId: p.projectId });
+    if (res.success) {
+      setProjectDetail(reconcile(res.data));  // Efficiently diffs and updates only changed properties
+    }
+    // TODO: Handle error case
+  }
 
   // Context
 
@@ -112,9 +140,14 @@ export function ProjectRunnerProvider(p: Props) {
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
     // Set global PDS reference for cache system (async contexts)
     setGlobalPDS(projectDirtyStates);
+
+    // Fetch initial project detail
+    await fetchProjectDetail();
+    setIsProjectReady(true);
+
     setUpEventSource();
   });
 
@@ -199,6 +232,8 @@ export function ProjectRunnerProvider(p: Props) {
         }
       } else if (bm.type === "project_updated") {
         safeSet("projectLastUpdated", bm.lastUpdated);
+        // Refetch project detail when project metadata changes
+        fetchProjectDetail();
       }
     };
     evtSource.onerror = () => {
@@ -267,44 +302,46 @@ export function ProjectRunnerProvider(p: Props) {
   });
 
   return (
-    <ProjectDirtyStateContext.Provider
-      value={{
-        projectDirtyStates,
-        optimisticSetProjectLastUpdated,
-        optimisticSetLastUpdated,
-        rLogs,
-      }}
+    <Show
+      when={connectAttempts() <= _MAX_CONNECTION_ATTEMPTS}
+      fallback={
+        <div class="ui-pad ui-spy-sm">
+          <div class="">{t("Cannot connect to project.")}</div>
+          <div class="">
+            <Button href="/">{t("Go home")}</Button>
+          </div>
+        </div>
+      }
     >
       <Show
-        when={connectAttempts() <= _MAX_CONNECTION_ATTEMPTS}
+        when={projectDirtyStates.isReady && isProjectReady()}
         fallback={
-          <div class="ui-pad ui-spy-sm">
-            <div class="">{t("Cannot connect to project.")}</div>
-            <div class="">
-              <Button href="/">{t("Go home")}</Button>
-            </div>
+          <div class="ui-pad">
+            {connectionState() === "connecting"
+              ? t2(T.FRENCH_UI_STRINGS.connecting_to_project)
+              : connectionState() === "failed"
+                ? t2(T.FRENCH_UI_STRINGS.connection_failed)
+                : t2(T.FRENCH_UI_STRINGS.connecting_to_project)}
+            {connectAttempts() > 1
+              ? ` (${t2(T.FRENCH_UI_STRINGS.retrying)} ${connectAttempts() - 1})`
+              : ""}
+            ...
           </div>
         }
       >
-        <Show
-          when={projectDirtyStates.isReady}
-          fallback={
-            <div class="ui-pad">
-              {connectionState() === "connecting"
-                ? t2(T.FRENCH_UI_STRINGS.connecting_to_project)
-                : connectionState() === "failed"
-                  ? t2(T.FRENCH_UI_STRINGS.connection_failed)
-                  : t2(T.FRENCH_UI_STRINGS.connecting_to_project)}
-              {connectAttempts() > 1
-                ? ` (${t2(T.FRENCH_UI_STRINGS.retrying)} ${connectAttempts() - 1})`
-                : ""}
-              ...
-            </div>
-          }
+        <ProjectDirtyStateContext.Provider
+          value={{
+            projectDetail,
+            refetchProjectDetail: fetchProjectDetail,
+            projectDirtyStates,
+            optimisticSetProjectLastUpdated,
+            optimisticSetLastUpdated,
+            rLogs,
+          }}
         >
           {p.children}
-        </Show>
+        </ProjectDirtyStateContext.Provider>
       </Show>
-    </ProjectDirtyStateContext.Provider>
+    </Show>
   );
 }
