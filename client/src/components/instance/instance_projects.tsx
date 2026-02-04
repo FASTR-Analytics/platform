@@ -17,7 +17,6 @@ import { t } from "lib";
 
 type Props = {
   isGlobalAdmin: boolean;
-  canCreateProjects: boolean;
   instanceDetail: TimQuery<InstanceDetail>;
 };
 
@@ -62,7 +61,7 @@ export function InstanceProjects(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBarMainRibbon heading={t2(T.FRENCH_UI_STRINGS.projects)}>
-            <Show when={p.isGlobalAdmin || p.canCreateProjects}>
+            <Show when={p.isGlobalAdmin}>
               <Button onClick={attemptAddProject} iconName="plus">
                 {t2(T.FRENCH_UI_STRINGS.create_project)}
               </Button>
