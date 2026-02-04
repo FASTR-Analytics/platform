@@ -250,6 +250,7 @@ export default function Instance(p: Props) {
                   <Match when={tab() === "projects"}>
                     <InstanceProjects
                       isGlobalAdmin={p.globalUser.isGlobalAdmin}
+                      canCreateProjects={p.globalUser.thisUserPermissions.can_create_projects}
                       instanceDetail={instanceDetail}
                     />
                   </Match>
