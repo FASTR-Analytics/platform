@@ -1,5 +1,4 @@
-import { useNavigate } from "@solidjs/router";
-import { ProjectDetail, SlideDeckSummary, isFrench, t, t2 } from "lib";
+import { InstanceDetail, ProjectDetail, SlideDeckSummary, isFrench, t, t2 } from "lib";
 import {
   Button,
   FrameTop,
@@ -10,16 +9,30 @@ import {
 } from "panther";
 import { For, Show, createEffect, createSignal } from "solid-js";
 import { AddDeckForm } from "./add_deck";
+import { ProjectAiSlideDeck } from "../project_ai_slide_deck";
 
-type Props = {
+type ExtendedProps = {
   projectDetail: ProjectDetail;
+  instanceDetail: InstanceDetail;
+  isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
 };
 
-export function ProjectDecks(p: Props) {
-  const navigate = useNavigate();
+export function ProjectDecks(p: ExtendedProps) {
+  async function openDeck(deckId: string, deckLabel: string) {
+    await p.openProjectEditor({
+      element: ProjectAiSlideDeck,
+      props: {
+        deckId,
+        reportLabel: deckLabel,
+        projectDetail: p.projectDetail,
+        instanceDetail: p.instanceDetail,
+        isGlobalAdmin: p.isGlobalAdmin,
+      },
+    });
+  }
 
   const [searchText, setSearchText] = createSignal<string>("");
   const [deckListing, setDeckListing] = createSignal<SlideDeckSummary[]>(
@@ -52,7 +65,8 @@ export function ProjectDecks(p: Props) {
     if (res === undefined) {
       return;
     }
-    navigate(`/?p=${p.projectDetail.id}&d=${res.newDeckId}`);
+    const deck = p.projectDetail.slideDecks.find(d => d.id === res.newDeckId);
+    await openDeck(res.newDeckId, deck?.label || "Slide Deck");
   }
 
   return (
@@ -100,9 +114,7 @@ export function ProjectDecks(p: Props) {
               return (
                 <div
                   class="ui-pad ui-hoverable border-base-300 min-h-[150px] rounded border"
-                  onClick={() => {
-                    navigate(`/?p=${p.projectDetail.id}&d=${deck.id}`);
-                  }}
+                  onClick={() => openDeck(deck.id, deck.label)}
                 >
                   <div class="ui-spy-sm col-span-1">
                     <div class="font-700">{deck.label}</div>

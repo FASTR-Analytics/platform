@@ -17,7 +17,7 @@ export function SelectProjectUserRole(
       projectId: string;
       projectLabel: string;
       users: ProjectUser[];
-      silentFetch: () => Promise<void>;
+      silentFetch?: () => Promise<void>;
     },
     undefined
   >,
@@ -26,18 +26,30 @@ export function SelectProjectUserRole(
     p.users.at(0)?.role ?? "viewer",
   );
 
-  const save = timActionForm(
-    async () => {
-      const role = tempRole();
-      return serverActions.updateProjectUserRole({
-        projectId: p.projectId,
-        emails: p.users.map((u) => u.email),
-        role,
-      });
-    },
-    p.silentFetch,
-    () => p.close(undefined),
-  );
+  const save = p.silentFetch
+    ? timActionForm(
+        async () => {
+          const role = tempRole();
+          return serverActions.updateProjectUserRole({
+            projectId: p.projectId,
+            emails: p.users.map((u) => u.email),
+            role,
+          });
+        },
+        p.silentFetch,
+        () => p.close(undefined),
+      )
+    : timActionForm(
+        async () => {
+          const role = tempRole();
+          return serverActions.updateProjectUserRole({
+            projectId: p.projectId,
+            emails: p.users.map((u) => u.email),
+            role,
+          });
+        },
+        () => p.close(undefined),
+      );
 
   return (
     <div class="ui-pad ui-spy w-[400px]">

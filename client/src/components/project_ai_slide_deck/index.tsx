@@ -4,6 +4,7 @@ import {
   AIChatProvider,
   Button,
   createAIChat,
+  EditorComponentProps,
   FrameLeftResizable,
   FrameTop,
   HeadingBar,
@@ -11,10 +12,9 @@ import {
   openComponent,
 } from "panther";
 import { createEffect, createMemo, createSignal, onMount, Show } from "solid-js";
-import { useNavigate } from "@solidjs/router";
 import { serverActions } from "~/server_actions";
 import { getToolsForSlides } from "../ai_tools/ai_tool_definitions";
-import { useProjectDirtyStates, useOptimisticSetLastUpdated, useRefetchProjectDetail } from "../project_runner/mod";
+import { useProjectDirtyStates, useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideList } from "./slide_list";
 import { DEFAULT_MODEL_CONFIG, DEFAULT_BUILTIN_TOOLS, createProjectSDKClient } from "~/components/ai_configs/defaults";
 import { getSlideDeckSystemPrompt } from "~/components/ai_prompts/slide_deck";
@@ -25,25 +25,26 @@ import { useAIDocuments, AIDocumentButton, AIDocumentList } from "../ai_document
 import { EditLabelForm } from "../forms_editors/edit_label";
 import { trackSlideChange, getPendingChangesMessage, clearPendingChanges } from "./pending_changes_store";
 
-type Props = {
-  instanceDetail: InstanceDetail;
-  projectDetail: ProjectDetail;
-  projectId: string;
-  deckId: string;
-  reportLabel: string;
-  isGlobalAdmin: boolean;
-};
+type SlideDeckModalReturn = undefined;
+
+type Props = EditorComponentProps<
+  {
+    instanceDetail: InstanceDetail;
+    projectDetail: ProjectDetail;
+    deckId: string;
+    reportLabel: string;
+    isGlobalAdmin: boolean;
+  },
+  SlideDeckModalReturn
+>;
 
 export function ProjectAiSlideDeck(p: Props) {
   const projectId = p.projectDetail.id;
   const pds = useProjectDirtyStates();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
-  const refetchProjectDetail = useRefetchProjectDetail();
-  const navigate = useNavigate();
 
-  async function backToProject() {
-    await refetchProjectDetail();
-    navigate(`/?p=${p.projectId}`);
+  async function handleClose() {
+    p.close(undefined);
   }
 
   // State - just track slide IDs, not full slide data
@@ -127,7 +128,7 @@ export function ProjectAiSlideDeck(p: Props) {
         slideIds={slideIds()}
         isLoading={isLoading()}
         setSelectedSlideIds={setSelectedSlideIds}
-        backToProject={backToProject}
+        handleClose={handleClose}
         aiDocs={aiDocs}
       />
     </AIChatProvider>
@@ -144,7 +145,7 @@ function ProjectAiSlideDeckInner(p: {
   slideIds: string[];
   isLoading: boolean;
   setSelectedSlideIds: (ids: string[]) => void;
-  backToProject: () => Promise<void>;
+  handleClose: () => Promise<void>;
   aiDocs: ReturnType<typeof useAIDocuments>;
 }) {
   const { clearConversation, isLoading: aiLoading } = createAIChat();
@@ -241,7 +242,7 @@ function ProjectAiSlideDeckInner(p: {
             heading={p.deckLabel}
             french={false}
             leftChildren={
-              <Button iconName="chevronLeft" onClick={() => p.backToProject()} />
+              <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
             }
           >
             <div class="flex items-center ui-gap-sm">

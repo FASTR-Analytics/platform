@@ -1,6 +1,7 @@
 import { InstanceDetail, LongFormReportConfig, ProjectDetail, ReportDetail, t, t2, T } from "lib";
 import {
   Button,
+  EditorComponentProps,
   FrameLeft,
   FrameTop,
   RadioGroup,
@@ -19,7 +20,6 @@ import {
   useOptimisticSetLastUpdated,
   useOptimisticSetProjectLastUpdated,
   useProjectDirtyStates,
-  useRefetchProjectDetail,
 } from "~/components/project_runner/mod";
 import { serverActions } from "~/server_actions";
 import { getReportDetailFromCacheOrFetch } from "~/state/ri_cache";
@@ -28,31 +28,27 @@ import { DuplicateReport } from "./duplicate_report";
 import { ReportItemEditor } from "./report_item";
 import { ReportSettings } from "./report_settings";
 import { ReorderPages } from "./reorder_pages";
-import { useNavigate } from "@solidjs/router";
 
-type Props = {
-  isGlobalAdmin: boolean;
-  projectDetail: ProjectDetail;
-  reportId: string;
-  projectId: string;
-  instanceDetail: InstanceDetail;
-};
+type ReportModalReturn = { deleted?: boolean } | undefined;
+
+type Props = EditorComponentProps<
+  {
+    isGlobalAdmin: boolean;
+    projectDetail: ProjectDetail;
+    reportId: string;
+    instanceDetail: InstanceDetail;
+  },
+  ReportModalReturn
+>;
 
 export function Report(p: Props) {
   // Utils
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
   const smartNavigate = useSmartNavigate();
-  const refetchProjectDetail = useRefetchProjectDetail();
-  const navigate = useNavigate();
 
-  let needToUpdateProject = false;
-
-  async function backToProject() {
-    if (needToUpdateProject) {
-      await refetchProjectDetail();
-    }
-    navigate(`/?p=${p.projectId}`);
+  function handleClose(result: ReportModalReturn = undefined) {
+    p.close(result);
   }
 
   const {
@@ -135,7 +131,6 @@ export function Report(p: Props) {
     if (rd.status !== "ready") {
       return;
     }
-    needToUpdateProject = true;
     const res = await openEditorForSettings({
       element: ReportSettings,
       props: {
@@ -147,7 +142,7 @@ export function Report(p: Props) {
       },
     });
     if (res === "AFTER_DELETE_BACK_TO_PROJECT_WITH_PROJECT_UPDATE") {
-      backToProject();
+      handleClose({ deleted: true });
     }
   }
 
@@ -254,7 +249,7 @@ export function Report(p: Props) {
               <div class="ui-pad ui-gap border-base-200 bg-base-100 flex h-full w-full items-center border-b">
                 <Button
                   iconName="chevronLeft"
-                  onClick={() => backToProject()}
+                  onClick={() => handleClose()}
                 />
                 <div class="font-700 flex-1 truncate text-xl">
                   <span class="font-400">{reportLabel()}</span>
@@ -294,7 +289,7 @@ export function Report(p: Props) {
               state={reportDetail()}
               onErrorButton={{
                 label: "Go back",
-                onClick: () => backToProject(),
+                onClick: () => handleClose(),
               }}
             >
               {(keyedReportDetail) => {

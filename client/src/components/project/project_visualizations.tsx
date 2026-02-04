@@ -4,6 +4,7 @@ import {
   FrameTop,
   HeadingBar,
   OpenEditorProps,
+  openAlert,
   openComponent,
 } from "panther";
 import { Show, createSignal } from "solid-js";
@@ -11,7 +12,8 @@ import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectP
 import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "./add_visualization";
 import { CreateVisualizationFromPromptModal } from "./create_visualization_from_prompt_modal";
-import { useRefetchProjectDetail } from "~/components/project_runner/mod";
+import { getPODetailFromCacheorFetch } from "~/state/po_cache";
+import { setVizGroupingMode, setVizSelectedGroup } from "~/state/ui";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -20,16 +22,62 @@ type Props = {
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
-  openVisualizationEditor: (
-    po: PresentationObjectSummary,
-    projectDetail: any,
-    instanceDetail: any,
-  ) => Promise<void>;
 };
 
 export function ProjectVisualizations(p: Props) {
   const [searchText, setSearchText] = createSignal<string>("");
-  const refetchProjectDetail = useRefetchProjectDetail();
+
+  async function openVisualizationEditor(po: PresentationObjectSummary) {
+    if (po.isDefault) {
+      const poDetailRes = await getPODetailFromCacheorFetch(
+        p.projectDetail.id,
+        po.id,
+      );
+      if (poDetailRes.success === false) {
+        await openAlert({
+          text: "Failed to load visualization",
+          intent: "danger",
+        });
+        return;
+      }
+
+      const result = await p.openProjectEditor({
+        element: VisualizationEditor,
+        props: {
+          mode: "create" as const,
+          projectId: p.projectDetail.id,
+          label: `Copy of ${poDetailRes.data.label}`,
+          resultsValue: poDetailRes.data.resultsValue,
+          config: structuredClone(poDetailRes.data.config),
+          instanceDetail: p.instanceDetail,
+          projectDetail: p.projectDetail,
+          isGlobalAdmin: p.isGlobalAdmin,
+        },
+      });
+
+      if (result?.created) {
+        // SSE will update projectDetail automatically
+        setVizGroupingMode("folders");
+        setVizSelectedGroup(
+          result.created.folderId === null ? "_unfiled" : result.created.folderId,
+        );
+      }
+      return;
+    }
+
+    await p.openProjectEditor({
+      element: VisualizationEditor,
+      props: {
+        mode: "edit" as const,
+        projectId: p.projectDetail.id,
+        presentationObjectId: po.id,
+        instanceDetail: p.instanceDetail,
+        projectDetail: p.projectDetail,
+        isGlobalAdmin: p.isGlobalAdmin,
+      },
+    });
+    // SSE will update projectDetail automatically
+  }
 
   async function attempAddPresentationObject() {
     const res = await openComponent({
@@ -44,7 +92,7 @@ export function ProjectVisualizations(p: Props) {
       return;
     }
 
-    const result = await p.openProjectEditor({
+    await p.openProjectEditor({
       element: VisualizationEditor,
       props: {
         mode: "create" as const,
@@ -57,10 +105,6 @@ export function ProjectVisualizations(p: Props) {
         isGlobalAdmin: p.isGlobalAdmin,
       },
     });
-
-    if (result?.created) {
-      await refetchProjectDetail();
-    }
   }
 
   async function attemptAICreatePresentationObject() {
@@ -76,7 +120,7 @@ export function ProjectVisualizations(p: Props) {
       return;
     }
 
-    const result = await p.openProjectEditor({
+    await p.openProjectEditor({
       element: VisualizationEditor,
       props: {
         mode: "create" as const,
@@ -89,10 +133,6 @@ export function ProjectVisualizations(p: Props) {
         isGlobalAdmin: p.isGlobalAdmin,
       },
     });
-
-    if (result?.created) {
-      await refetchProjectDetail();
-    }
   }
 
   // async function attemptBackupPresentationObjects() {
@@ -150,9 +190,7 @@ export function ProjectVisualizations(p: Props) {
         <PresentationObjectPanelDisplay
           projectDetail={p.projectDetail}
           searchText={searchText().trim()}
-          onClick={(po) => {
-            p.openVisualizationEditor(po, p.projectDetail, p.instanceDetail);
-          }}
+          onClick={openVisualizationEditor}
         />
       </Show>
     </FrameTop>

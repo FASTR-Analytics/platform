@@ -20,7 +20,6 @@ import { CopyProjectForm } from "./copy_project";
 import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
 import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
-import { useRefetchProjectDetail } from "~/components/project_runner/mod"
 
 // Backup types
 interface BackupFileInfo {
@@ -60,8 +59,6 @@ type Props = {
 };
 
 export function ProjectSettings(p: Props) {
-  const refetchProjectDetail = useRefetchProjectDetail();
-
   // Actions
 
   async function attemptCopyProject() {
@@ -89,7 +86,6 @@ export function ProjectSettings(p: Props) {
             label: newLabel,
             aiContext: p.projectDetail.aiContext,
           }),
-        silentFetch: refetchProjectDetail,
       },
     });
   }
@@ -106,7 +102,6 @@ export function ProjectSettings(p: Props) {
             label: p.projectDetail.label,
             aiContext: newAiContext,
           }),
-        silentFetch: refetchProjectDetail,
         textArea: true,
       },
     });
@@ -119,7 +114,6 @@ export function ProjectSettings(p: Props) {
         projectId: p.projectDetail.id,
         projectLabel: p.projectDetail.label,
         users,
-        silentFetch: refetchProjectDetail,
       },
     });
   }
@@ -131,7 +125,6 @@ export function ProjectSettings(p: Props) {
         lockAction: "lock",
       }),
     async () => {
-      await refetchProjectDetail();
       await p.silentRefreshInstance();
     },
   );
@@ -143,7 +136,6 @@ export function ProjectSettings(p: Props) {
         lockAction: "unlock",
       }),
     async () => {
-      await refetchProjectDetail();
       await p.silentRefreshInstance();
     },
   );

@@ -1,5 +1,5 @@
-import { useNavigate } from "@solidjs/router";
 import {
+  InstanceDetail,
   ProjectDetail,
   ReportDetail,
   ReportItem,
@@ -35,6 +35,7 @@ import {
   useOptimisticSetLastUpdated,
   useOptimisticSetProjectLastUpdated,
 } from "~/components/project_runner/mod";
+import { Report } from "../report";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -43,10 +44,26 @@ type Props = {
   ) => Promise<TReturn | undefined>;
 };
 
-export function ProjectReports(p: Props) {
+type ExtendedProps = Props & {
+  instanceDetail: InstanceDetail;
+  isGlobalAdmin: boolean;
+};
+
+export function ProjectReports(p: ExtendedProps) {
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
-  const navigate = useNavigate();
+
+  async function openReport(reportId: string) {
+    await p.openProjectEditor({
+      element: Report,
+      props: {
+        reportId,
+        projectDetail: p.projectDetail,
+        instanceDetail: p.instanceDetail,
+        isGlobalAdmin: p.isGlobalAdmin,
+      },
+    });
+  }
 
   const [searchText, setSearchText] = createSignal<string>("");
   const [reportListing, setReportListing] = createSignal<ReportSummary[]>(
@@ -79,7 +96,7 @@ export function ProjectReports(p: Props) {
     if (res === undefined) {
       return;
     }
-    navigate(`/?p=${p.projectDetail.id}&r=${res.newReportId}`);
+    await openReport(res.newReportId);
   }
 
   async function attemptImportReport(file: File) {
@@ -126,7 +143,7 @@ export function ProjectReports(p: Props) {
       );
     }
     optimisticSetProjectLastUpdated(res.data.lastUpdated);
-    navigate(`/?p=${p.projectDetail.id}&r=${res.data.newReportId}`);
+    await openReport(res.data.newReportId);
   }
 
   let uppy: Uppy | undefined = undefined;
@@ -205,7 +222,7 @@ export function ProjectReports(p: Props) {
                 <div
                   class="ui-pad ui-hoverable border-base-300 min-h-[150px] rounded border"
                   onClick={() => {
-                    navigate(`/?p=${p.projectDetail.id}&r=${report.id}`);
+                    openReport(report.id);
                   }}
                 >
                   <div class="ui-spy-sm col-span-1">
