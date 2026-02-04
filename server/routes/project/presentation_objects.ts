@@ -101,7 +101,6 @@ defineRoute(
   routesPresentationObjects,
   "getAllPresentationObjects",
   requireProjectPermission(),
-  log("getAllPresentationObjects"),
   async (c) => {
     const res = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
     return c.json(res);
@@ -112,7 +111,6 @@ defineRoute(
   routesPresentationObjects,
   "getPresentationObjectDetail",
   requireProjectPermission(),
-  log("getPresentationObjectDetail"),
   async (c, { params }) => {
     const t0 = performance.now();
 
@@ -250,7 +248,6 @@ defineRoute(
   routesPresentationObjects,
   "getPresentationObjectItems",
   requireProjectPermission(),
-  log("getPresentationObjectItems"),
   async (c, { body }) => {
     const t0 = performance.now();
     console.log(
@@ -359,7 +356,6 @@ defineRoute(
   routesPresentationObjects,
   "getResultsValueInfoForPresentationObject",
   requireProjectPermission(),
-  log("getResultsValueInfoForPresentationObject"),
   async (c, { body }) => {
     const t0 = performance.now();
 

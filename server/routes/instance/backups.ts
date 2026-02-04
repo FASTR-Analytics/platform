@@ -29,8 +29,7 @@ interface ProjectBackupInfo {
 defineRoute(
   routesBackups,
   "getAllProjectsBackups",
-  getGlobalNonAdmin,
-  log("getAllProjectBackups"),
+  requireProjectPermission(),
   async (c) => {
     try {
       // Get the authorization header from the incoming request
