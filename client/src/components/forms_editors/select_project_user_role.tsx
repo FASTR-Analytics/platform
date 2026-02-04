@@ -8,7 +8,7 @@ import {
   timActionForm,
   Checkbox
 } from "panther";
-import { Match, Show, Switch, createSignal, For } from "solid-js";
+import { Match, Show, Switch, createSignal, For, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { t } from "lib";
 import { ProjectPermission } from "../../../../lib/types/mod.ts";
@@ -51,12 +51,13 @@ export function SelectProjectUserRole(
   const [userRoleExists, setUserRoleExists] = createSignal<boolean | null>(null);
 
   // only fetch the existing permissions if modifying a single users permissions
-  if (p.users.length === 1) {
-    (async () => {
+  onMount(async () => {
+    if (p.users.length === 1) {
       const res = await serverActions.getProjectUserPermissions({
         projectId: p.projectId,
         email: p.users[0].email,
       });
+      console.log("getProjectUserPermissions response:", res);
       if (res.success) {
         setPermissions(res.data.permissions);
         setUserRoleExists(true);
@@ -64,11 +65,11 @@ export function SelectProjectUserRole(
         setPermissions(makeDefaultPermissions());
         setUserRoleExists(false);
       }
-    })();
-  } else {
-    setPermissions(makeDefaultPermissions());
-    setUserRoleExists(true); // For multiple users, assume they have roles
-  }
+    } else {
+      setPermissions(makeDefaultPermissions());
+      setUserRoleExists(true); // For multiple users, assume they have roles
+    }
+  });
 
   const togglePermission = (key: ProjectPermission) => {
     const current = permissions();
@@ -158,14 +159,19 @@ export function SelectProjectUserRole(
         </div>
         <Show when={permissions() && userRoleExists() !== null} fallback={<div>Loading...</div>}>
           {() => (
-            <div class="space-y-2">
+            <div
+              class="space-y-2"
+              classList={{
+                "opacity-50 pointer-events-none": userRoleExists() === false,
+              }}
+            >
               <For each={PROJECT_PERMISSIONS}>
-                {(key) => (
+                {(key: ProjectPermission) => (
                   <Checkbox
                     label={key.replaceAll("_", " ")}
                     checked={permissions()![key]}
                     onChange={() => togglePermission(key)}
-                    disabled={!userRoleExists()}
+                    disabled={userRoleExists() === false}
                   />
                 )}
               </For>

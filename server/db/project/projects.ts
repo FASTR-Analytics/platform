@@ -398,12 +398,12 @@ export async function addProjectUserRole(
         can_configure_modules, can_run_modules, can_configure_users,
         can_configure_visulizations, can_configure_reports, can_configure_data,
         can_view_data, can_view_logs
-        VALUES (${email}, ${projectId}, 'viewer',
+      ) VALUES (
+        ${email}, ${projectId}, 'viewer',
         false, false, false,
         false, false, false,
         false, false, false,
         false, false
-        )
       )
     `;
     return { success: true };
