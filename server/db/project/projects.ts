@@ -384,6 +384,46 @@ export async function updateProjectUserRole( // delete this after implementing n
   });
 }
 
+export async function addProjectUserRole(
+  mainDb: Sql,
+  projectId: string,
+  email: string,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    // current the role is set to viewer but I want to remove this when make the role system completely obselete
+    await mainDb`
+      INSERT INTO project_user_roles (
+        email, project_id, role,
+        can_configure_settings, can_create_backups, can_restore_backups,
+        can_configure_modules, can_run_modules, can_configure_users,
+        can_configure_visulizations, can_configure_reports, can_configure_data,
+        can_view_data, can_view_logs
+        VALUES (${email}, ${projectId}, 'viewer',
+        false, false, false,
+        false, false, false,
+        false, false, false,
+        false, false
+        )
+      )
+    `;
+    return { success: true };
+  });
+}
+
+export async function removeProjectUserRole(
+  mainDb: Sql,
+  projectId: string,
+  email: string
+) : Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      DELETE FROM project_user_roles
+      WHERE email = ${email} ANd project_id = ${projectId}
+    `;
+    return { success: true };
+  });
+}
+
 export async function updateProjectUserPermissions(
   mainDb: Sql,
   projectId: string,
@@ -440,7 +480,7 @@ export async function getProjectUserPermissions(
     ).at(0);
 
     if (!row) {
-      throw new Error("User does not have a role in this project");
+      return { success: false, err: "User does not have a role in this project" };
     }
 
     return {

@@ -43,7 +43,6 @@ export const routesModules = new Hono();
 defineRoute(
   routesModules,
   "installModule",
-  getProjectEditor,
   requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_modules"),
   log("installModule"),
   async (c, { params }) => {
@@ -72,7 +71,6 @@ defineRoute(
 defineRoute(
   routesModules,
   "uninstallModule",
-  getProjectEditor,
   requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_modules"),
   log("uninstallModule"),
   async (c, { params }) => {
@@ -88,7 +86,6 @@ defineRoute(
 defineRoute(
   routesModules,
   "updateModuleDefinition",
-  getProjectEditor,
   requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_modules"),
   log("updateModuleDefinition"),
   async (c, { params, body }) => {
@@ -133,7 +130,6 @@ defineRoute(
 defineRoute(
   routesModules,
   "updateModuleParameters",
-  getProjectEditor,
   requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_modules"),
   log("updateModuleParameters"),
   async (c, { params, body }) => {
@@ -165,7 +161,6 @@ defineRoute(
 defineRoute(
   routesModules,
   "rerunModule",
-  getProjectEditor,
   requireProjectPermission({preventAccessToLockedProjects: true},"can_run_modules"),
   log("rerunModule"),
   async (c, { params }) => {
@@ -187,7 +182,7 @@ defineRoute(
 defineRoute(
   routesModules,
   "getResultsObjectItems",
-  getProjectViewer,
+  requireProjectPermission(),
   log("getResultsObjectItems"),
   async (c, { params }) => {
     const res = await getResultsObjectItems(
@@ -208,8 +203,6 @@ defineRoute(
 defineRoute(
   routesModules,
   "getScript",
-  getGlobalNonAdmin,
-  getProjectViewer,
   requireProjectPermission("can_configure_modules"),
   log("getModuleScript"),
   async (c, { params }) => {
@@ -249,7 +242,6 @@ defineRoute(
 defineRoute(
   routesModules,
   "getLogs",
-  getProjectViewer,
   requireProjectPermission("can_configure_modules"),
   log("getModuleLogs"),
   async (c, { params }) => {
@@ -287,7 +279,6 @@ defineRoute(
 defineRoute(
   routesModules,
   "getAllModulesWithResultsValues",
-  getGlobalNonAdmin,
   requireProjectPermission(),
   log("getAllModulesWithResultsValues"),
   async (c) => {
@@ -299,7 +290,7 @@ defineRoute(
 defineRoute(
   routesModules,
   "getModuleWithConfigSelections",
-  getProjectViewer,
+  requireProjectPermission(),
   log("getModuleWithConfigSelections"),
   async (c, { params }) => {
     const res = await getModuleWithConfigSelections(

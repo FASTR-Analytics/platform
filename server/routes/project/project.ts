@@ -3,11 +3,13 @@ import {
   addDatasetHfaToProject,
   addDatasetHmisToProject,
   addProject,
+  addProjectUserRole,
   copyProject,
   deleteProject,
   getProjectDetail,
   getProjectUserPermissions,
   removeDatasetFromProject,
+  removeProjectUserRole,
   setProjectLockStatus,
   updateProject,
   updateProjectUserPermissions,
@@ -278,5 +280,35 @@ defineRoute(
     const res = await GetLogsByProject(mainDb, c.var.ppk.projectId);
     if (!res.success) return c.json(res, 500);
     return c.json(res.data);
+  }
+);
+
+defineRoute(
+  routesProject,
+  "addProjectUserRole",
+  requireProjectPermission({preventAccessToLockedProjects: true}, "can_configure_users"),
+  log("addProjectUserRole"),
+  async (c, { body }) => {
+    const res = await addProjectUserRole(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      body.email
+    );
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesProject,
+  "removeProjectUserRole",
+  requireProjectPermission({preventAccessToLockedProjects: true}, "can_configure_users"),
+  log("removeProjectUserRole"),
+  async (c, { body }) => {
+    const res = await removeProjectUserRole(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      body.email
+    );
+    return c.json(res);
   }
 );

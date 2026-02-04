@@ -24,7 +24,7 @@ defineRoute(routesUsers, "getCurrentUser", getGlobalNonAdmin, log("getCurrentUse
 defineRoute(
   routesUsers,
   "getOtherUser",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_users"), 
   log("getOtherUser"),
   async (c, { params }) => {
     const res = await getOtherUser(c.var.mainDb, params.email);

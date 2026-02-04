@@ -85,6 +85,7 @@ export function ProjectSettings(p: Props) {
         mutateFunc: (newLabel) =>
           serverActions.updateProject({
             project_id: p.projectDetail.id,
+            projectId: p.projectDetail.id,
             label: newLabel,
             aiContext: p.projectDetail.aiContext,
           }),
@@ -102,6 +103,7 @@ export function ProjectSettings(p: Props) {
         mutateFunc: (newAiContext) =>
           serverActions.updateProject({
             project_id: p.projectDetail.id,
+            projectId: p.projectDetail.id,
             label: p.projectDetail.label,
             aiContext: newAiContext,
           }),
@@ -127,6 +129,7 @@ export function ProjectSettings(p: Props) {
     () =>
       serverActions.setProjectLockStatus({
         project_id: p.projectDetail.id,
+        projectId: p.projectDetail.id,
         lockAction: "lock",
       }),
     async () => {
@@ -139,6 +142,7 @@ export function ProjectSettings(p: Props) {
     () =>
       serverActions.setProjectLockStatus({
         project_id: p.projectDetail.id,
+        projectId: p.projectDetail.id,
         lockAction: "unlock",
       }),
     async () => {
@@ -153,7 +157,7 @@ export function ProjectSettings(p: Props) {
         text: t("Are you sure you want to delete this project?"),
         itemList: [p.projectDetail.label],
       },
-      () => serverActions.deleteProject({ project_id: p.projectDetail.id }),
+      () => serverActions.deleteProject({ project_id: p.projectDetail.id, projectId: p.projectDetail.id }),
       p.silentRefreshInstance,
       p.backToHome,
     );

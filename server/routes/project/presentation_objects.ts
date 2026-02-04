@@ -100,7 +100,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "getAllPresentationObjects",
-  getProjectViewer,
+  requireProjectPermission(),
   log("getAllPresentationObjects"),
   async (c) => {
     const res = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
@@ -111,8 +111,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "getPresentationObjectDetail",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission(),
   log("getPresentationObjectDetail"),
   async (c, { params }) => {
     const t0 = performance.now();
@@ -250,8 +249,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "getPresentationObjectItems",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission(),
   log("getPresentationObjectItems"),
   async (c, { body }) => {
     const t0 = performance.now();
@@ -360,8 +358,7 @@ SELECT last_run FROM modules WHERE id = ${poData.module_id}
 defineRoute(
   routesPresentationObjects,
   "getResultsValueInfoForPresentationObject",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission(),
   log("getResultsValueInfoForPresentationObject"),
   async (c, { body }) => {
     const t0 = performance.now();
@@ -460,8 +457,7 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
 defineRoute(
   routesPresentationObjects,
   "getReplicantOptions",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission(),
   log("getReplicantOptions"),
   async (c, { body }) => {
     const t0 = performance.now();

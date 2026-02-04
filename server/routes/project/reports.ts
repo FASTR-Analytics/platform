@@ -79,7 +79,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "getReportDetail",
-  getProjectViewer,
+  requireProjectPermission(),
   log("getReportDetail"),
   async (c, { params }) => {
     const res = await getReportDetail(

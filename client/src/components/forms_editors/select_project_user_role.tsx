@@ -48,9 +48,10 @@ export function SelectProjectUserRole(
   >,
 ) {
   const [permissions, setPermissions] = createSignal<Record<ProjectPermission, boolean> | null>(null);
-  
+  const [userRoleExists, setUserRoleExists] = createSignal<boolean | null>(null);
+
   // only fetch the existing permissions if modifying a single users permissions
-  if(!(p.users.length > 1)){
+  if (p.users.length === 1) {
     (async () => {
       const res = await serverActions.getProjectUserPermissions({
         projectId: p.projectId,
@@ -58,12 +59,15 @@ export function SelectProjectUserRole(
       });
       if (res.success) {
         setPermissions(res.data.permissions);
+        setUserRoleExists(true);
       } else {
         setPermissions(makeDefaultPermissions());
+        setUserRoleExists(false);
       }
     })();
-  }else {
+  } else {
     setPermissions(makeDefaultPermissions());
+    setUserRoleExists(true); // For multiple users, assume they have roles
   }
 
   const togglePermission = (key: ProjectPermission) => {
@@ -88,24 +92,80 @@ export function SelectProjectUserRole(
     () => p.close(undefined),
   );
 
+  const addUserRole = timActionForm(
+    async () => {
+      return serverActions.addProjectUserRole({
+        projectId: p.projectId,
+        email: p.users[0].email,
+      });
+    },
+    async () => {
+      setUserRoleExists(true);
+      await p.silentFetch();
+    },
+  );
+
+  const removeUserRole = timActionForm(
+    async () => {
+      return serverActions.removeProjectUserRole({
+        projectId: p.projectId,
+        email: p.users[0].email,
+      });
+    },
+    async () => {
+      setUserRoleExists(false);
+      setPermissions(makeDefaultPermissions());
+      await p.silentFetch();
+    },
+  );
+
   return (
     <div class="ui-pad ui-spy w-[400px]">
       <div class="space-y-3">
-        <div class="font-700 text-lg leading-6">
-          {t2(T.FRENCH_UI_STRINGS.update_project_permissions)}
+        <div class="flex items-center justify-between">
+          <div class="font-700 text-lg leading-6">
+            {t2(T.FRENCH_UI_STRINGS.update_project_permissions)}
+          </div>
+          <Show when={p.users.length === 1}>
+            <Show
+              when={userRoleExists()}
+              fallback={
+                <Button
+                  onClick={addUserRole.click}
+                  intent="success"
+                  state={addUserRole.state()}
+                  iconName="user-plus"
+                  size="sm"
+                >
+                  Add to project
+                </Button>
+              }
+            >
+              <Button
+                onClick={removeUserRole.click}
+                intent="danger"
+                state={removeUserRole.state()}
+                iconName="user-minus"
+                size="sm"
+              >
+                Remove from project
+              </Button>
+            </Show>
+          </Show>
         </div>
         <div class="font-700 text-sm">
           {p.users.map((u) => u.email).join(", ")}
         </div>
-        <Show when={permissions()} fallback={<div>Loading...</div>}>
-          {(perms) => (
+        <Show when={permissions() && userRoleExists() !== null} fallback={<div>Loading...</div>}>
+          {() => (
             <div class="space-y-2">
-              <For each={Object.keys(perms()) as ProjectPermission[]}>
+              <For each={PROJECT_PERMISSIONS}>
                 {(key) => (
                   <Checkbox
                     label={key.replaceAll("_", " ")}
-                    checked={perms()[key]}
+                    checked={permissions()![key]}
                     onChange={() => togglePermission(key)}
+                    disabled={!userRoleExists()}
                   />
                 )}
               </For>

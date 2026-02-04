@@ -40,12 +40,14 @@ export const projectRouteRegistry = {
       label: string;
       aiContext: string;
     },
+    requiresProject: true,
   }),
 
   deleteProject: route({
     path: "/project/:project_id",
     method: "DELETE",
     params: {} as { project_id: string },
+    requiresProject: true,
   }),
 
   setProjectLockStatus: route({
@@ -55,6 +57,7 @@ export const projectRouteRegistry = {
     body: {} as {
       lockAction: "lock" | "unlock";
     },
+    requiresProject: true,
   }),
 
   updateProjectUserRole: route({
@@ -108,6 +111,7 @@ export const projectRouteRegistry = {
     params: {} as { project_id: string },
     body: {} as { newProjectLabel: string },
     response: {} as { newProjectId: string },
+    requiresProject: true,
   }),
 
   getProjectLogs: route({
@@ -136,5 +140,26 @@ export const projectRouteRegistry = {
       email: string;
     },
     requiresProject: true,
-  })
+  }),
+
+  addProjectUserRole: route({
+    path: "/add_project_user_role",
+    method: "POST",
+    body: {} as {
+      projectId: string;
+      email: string;
+    },
+    requiresProject: true,
+  }),
+
+  removeProjectUserRole: route({
+    path: "/remove_project_user_role",
+    method: "POST",
+    body: {} as {
+      projectId: string;
+      email: string;
+    },
+    requiresProject: true,
+  }),
+
 } as const;
