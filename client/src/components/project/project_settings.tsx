@@ -20,6 +20,7 @@ import { CopyProjectForm } from "./copy_project";
 import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
 import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
+import { useProjectDetail } from "~/components/project_runner/mod";
 
 // Backup types
 interface BackupFileInfo {
@@ -52,20 +53,20 @@ interface BackupInfo {
 
 type Props = {
   isGlobalAdmin: boolean;
-  projectDetail: ProjectDetail;
   silentRefreshInstance: () => Promise<void>;
   backToHome: () => void;
   instanceDetail: InstanceDetail;
 };
 
 export function ProjectSettings(p: Props) {
+  const projectDetail = useProjectDetail();
   // Actions
 
   async function attemptCopyProject() {
     const res = await openComponent({
       element: CopyProjectForm,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: projectDetail.id,
         silentFetch: p.silentRefreshInstance,
       },
     });
@@ -79,12 +80,12 @@ export function ProjectSettings(p: Props) {
       element: EditLabelForm,
       props: {
         headerText: t2(T.FRENCH_UI_STRINGS.edit_project_name),
-        existingLabel: p.projectDetail.label,
+        existingLabel: projectDetail.label,
         mutateFunc: (newLabel) =>
           serverActions.updateProject({
-            project_id: p.projectDetail.id,
+            project_id: projectDetail.id,
             label: newLabel,
-            aiContext: p.projectDetail.aiContext,
+            aiContext: projectDetail.aiContext,
           }),
       },
     });
@@ -95,11 +96,11 @@ export function ProjectSettings(p: Props) {
       element: EditLabelForm,
       props: {
         headerText: t("Edit project context"),
-        existingLabel: p.projectDetail.aiContext,
+        existingLabel: projectDetail.aiContext,
         mutateFunc: (newAiContext) =>
           serverActions.updateProject({
-            project_id: p.projectDetail.id,
-            label: p.projectDetail.label,
+            project_id: projectDetail.id,
+            label: projectDetail.label,
             aiContext: newAiContext,
           }),
         textArea: true,
@@ -111,8 +112,8 @@ export function ProjectSettings(p: Props) {
     await openComponent({
       element: SelectProjectUserRole,
       props: {
-        projectId: p.projectDetail.id,
-        projectLabel: p.projectDetail.label,
+        projectId: projectDetail.id,
+        projectLabel: projectDetail.label,
         users,
       },
     });
@@ -121,7 +122,7 @@ export function ProjectSettings(p: Props) {
   const lockProject = timActionButton(
     () =>
       serverActions.setProjectLockStatus({
-        project_id: p.projectDetail.id,
+        project_id: projectDetail.id,
         lockAction: "lock",
       }),
     async () => {
@@ -132,7 +133,7 @@ export function ProjectSettings(p: Props) {
   const unlockProject = timActionButton(
     () =>
       serverActions.setProjectLockStatus({
-        project_id: p.projectDetail.id,
+        project_id: projectDetail.id,
         lockAction: "unlock",
       }),
     async () => {
@@ -144,9 +145,9 @@ export function ProjectSettings(p: Props) {
     const deleteAction = timActionDelete(
       {
         text: t("Are you sure you want to delete this project?"),
-        itemList: [p.projectDetail.label],
+        itemList: [projectDetail.label],
       },
-      () => serverActions.deleteProject({ project_id: p.projectDetail.id }),
+      () => serverActions.deleteProject({ project_id: projectDetail.id }),
       p.silentRefreshInstance,
       p.backToHome,
     );
@@ -156,30 +157,31 @@ export function ProjectSettings(p: Props) {
 
 
   return (
-    <FrameTop panelChildren={<HeadingBar heading={t2(T.FRENCH_UI_STRINGS.settings)}></HeadingBar>}>
+    <FrameTop panelChildren={<HeadingBar heading={t2(T.FRENCH_UI_STRINGS.settings)}
+      class="border-base-300"></HeadingBar>}>
       <div class="ui-pad ui-spy">
         <SettingsSection
           header={t2(T.FRENCH_UI_STRINGS.project_name)}
           rightChildren={
-            <Show when={!p.projectDetail.isLocked}>
+            <Show when={!projectDetail.isLocked}>
               <Button onClick={attemptUpdateProjectLabel} iconName="settings">
                 {t2(T.FRENCH_UI_STRINGS.edit)}
               </Button>
             </Show>
           }
         >
-          <div class="">{p.projectDetail.label}</div>
+          <div class="">{projectDetail.label}</div>
         </SettingsSection>
         <SettingsSection header={t2(T.FRENCH_UI_STRINGS.project_users)}>
           <ProjectUserTable
-            users={p.projectDetail.projectUsers}
+            users={projectDetail.projectUsers}
             onUserClick={attemptSelectUserRole}
           />
         </SettingsSection>
         <SettingsSection
           header={t2(T.Paramètres.project_context_ai)}
           rightChildren={
-            <Show when={!p.projectDetail.isLocked}>
+            <Show when={!projectDetail.isLocked}>
               <Button
                 onClick={attemptUpdateProjectAiContext}
                 iconName="settings"
@@ -189,11 +191,11 @@ export function ProjectSettings(p: Props) {
             </Show>
           }
         >
-          <div class="">{p.projectDetail.aiContext || "No context set"}</div>
+          <div class="">{projectDetail.aiContext || "No context set"}</div>
         </SettingsSection>
 
         <Switch>
-          <Match when={p.projectDetail.isLocked}>
+          <Match when={projectDetail.isLocked}>
             <SettingsSection
               header={t2(T.Paramètres.project_lock_status)}
               rightChildren={
@@ -213,7 +215,7 @@ export function ProjectSettings(p: Props) {
               </div>
             </SettingsSection>
           </Match>
-          <Match when={!p.projectDetail.isLocked}>
+          <Match when={!projectDetail.isLocked}>
             <SettingsSection
               header={t2(T.Paramètres.project_lock_status)}
               rightChildren={
@@ -236,11 +238,11 @@ export function ProjectSettings(p: Props) {
         <SettingsSection
           header={t2("Backups")}
         >
-          <ProjectBackups projectId={p.projectDetail.id} instanceDetail={p.instanceDetail} />
+          <ProjectBackups projectId={projectDetail.id} instanceDetail={p.instanceDetail} />
         </SettingsSection>
 
         <div class="ui-gap flex">
-          <Show when={!p.projectDetail.isLocked}>
+          <Show when={!projectDetail.isLocked}>
             <Button
               onClick={attemptDeleteProject}
               intent="danger"
@@ -506,7 +508,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
   const restoreBackup = async (folder: string, fileName: string) => {
     try {
       const token = await clerk.session?.getToken();
-      const headers: HeadersInit={};
+      const headers: HeadersInit = {};
       const projectId = props.projectId;
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -531,7 +533,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       // Force full page reload after successful restore to clear all cached data
       window.location.reload();
 
-      return { success: true};
+      return { success: true };
     } catch (error) {
       console.error("Backup restore failed", error);
     }
@@ -542,7 +544,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       element: CreateBackupForm,
       props: {
         projectId: props.projectId,
-        createBackupFunc: async(backupName: string): Promise<APIResponseNoData> => {
+        createBackupFunc: async (backupName: string): Promise<APIResponseNoData> => {
           const token = await clerk.session?.getToken();
           const headers: HeadersInit = {};
           if (token) {
@@ -574,7 +576,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     await openComponent({
       element: CreateRestoreFromFileForm,
       props: {
-        restoreBackupFunc: async(file: File): Promise<APIResponseNoData> => {
+        restoreBackupFunc: async (file: File): Promise<APIResponseNoData> => {
           // Read file as base64 (handle large files properly)
           const arrayBuffer = await file.arrayBuffer();
           const bytes = new Uint8Array(arrayBuffer);
@@ -616,7 +618,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
           // Force full page reload after successful restore to clear all cached data
           window.location.reload();
 
-          return { success: true};
+          return { success: true };
         }
       }
     })
@@ -639,7 +641,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
           <Button onClick={attemptCreateBackup} size="sm">
             {t("Create backup")}
           </Button>
-          <Button onClick={attemptRestoreBackup}size="sm">
+          <Button onClick={attemptRestoreBackup} size="sm">
             {t("Restore from file")}
           </Button>
           <Button onClick={() => refetchBackups()} iconName="refresh" size="sm" outline>

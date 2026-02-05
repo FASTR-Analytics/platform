@@ -14,18 +14,21 @@ type Props = {
   setSearchText?: (v: string) => void;
   searchText?: string;
   french?: boolean;
+  class?: string;
 };
 
 export function HeadingBar(p: Props) {
   return (
-    <div class="ui-pad ui-gap flex w-full flex-none items-center overflow-hidden border-b">
+    <div
+      class={`ui-pad ui-gap flex w-full flex-none items-center overflow-hidden border-b${p.class ? ` ${p.class}` : ""}`}
+    >
       <div class="ui-gap flex flex-1 basis-1 items-center">
         <Show when={p.leftChildren} keyed>
           {(keyedLeftChildren) => {
             return <div class="flex-none">{keyedLeftChildren}</div>;
           }}
         </Show>
-        <div class="font-700 truncate py-1.5 text-xl">{p.heading}</div>
+        <div class="font-700 truncate text-xl">{p.heading}</div>
       </div>
       <div class="ui-gap-sm flex flex-1 items-center justify-center">
         <Show when={p.setSearchText}>

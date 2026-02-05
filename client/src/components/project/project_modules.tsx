@@ -24,7 +24,7 @@ import {
   useOptimisticSetProjectLastUpdated,
   useProjectDirtyStates,
   useRLogs,
-  useRefetchProjectDetail,
+  useProjectDetail,
 } from "~/components/project_runner/mod";
 import { serverActions } from "~/server_actions";
 import { SettingsForProjectModuleGeneric } from "../project_module_settings/settings_generic";
@@ -35,25 +35,25 @@ import { ViewScript } from "./view_script";
 import { UpdateModule } from "./update_module";
 
 type Props = {
-  projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
 };
 
 export function ProjectModules(p: Props) {
+  const projectDetail = useProjectDetail();
   const { openEditor, EditorWrapper } = getEditorWrapper();
-  const refetchProjectDetail = useRefetchProjectDetail();
 
   return (
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBar heading={t2(T.FRENCH_UI_STRINGS.modules)}></HeadingBar>
+          <HeadingBar heading={t2(T.FRENCH_UI_STRINGS.modules)}
+            class="border-base-300"></HeadingBar>
         }
       >
         <div class="ui-pad ui-spy">
           <For each={_POSSIBLE_MODULES}>
             {(possibleModuleDef) => {
-              const installedModule = p.projectDetail.projectModules.find(
+              const installedModule = projectDetail.projectModules.find(
                 (m) => m.id === possibleModuleDef.id,
               );
               return (
@@ -62,12 +62,11 @@ export function ProjectModules(p: Props) {
                     {(keyedInstalledModule) => {
                       return (
                         <InstalledModulePresentation
-                          projectDetail={p.projectDetail}
-                          projectId={p.projectDetail.id}
+                          projectDetail={projectDetail}
+                          projectId={projectDetail.id}
                           isGlobalAdmin={p.isGlobalAdmin}
                           thisInstalledModule={keyedInstalledModule}
-                          allInstalledModules={p.projectDetail.projectModules}
-                          refetchProjectDetail={refetchProjectDetail}
+                          allInstalledModules={projectDetail.projectModules}
                           openEditor={openEditor}
                         />
                       );
@@ -75,16 +74,15 @@ export function ProjectModules(p: Props) {
                   </Match>
                   <Match when={true}>
                     <UninstalledModulePresentation
-                      projectDetail={p.projectDetail}
-                      projectId={p.projectDetail.id}
+                      projectDetail={projectDetail}
+                      projectId={projectDetail.id}
                       isGlobalAdmin={p.isGlobalAdmin}
                       thisUninstalledModuleId={possibleModuleDef.id}
                       thisUninstalledModuleLabel={possibleModuleDef.label}
                       thisUninstalledModulePrerequisiteModules={
                         possibleModuleDef.prerequisiteModules
                       }
-                      currentModules={p.projectDetail.projectModules}
-                      refetchProjectDetail={refetchProjectDetail}
+                      currentModules={projectDetail.projectModules}
                     />
                   </Match>
                 </Switch>
@@ -112,7 +110,6 @@ type InstalledModuleProps = {
   isGlobalAdmin: boolean;
   thisInstalledModule: InstalledModuleSummary;
   allInstalledModules: InstalledModuleSummary[];
-  refetchProjectDetail: () => Promise<void>;
   openEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -168,7 +165,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
       projectId: p.projectId,
       module_id: p.thisInstalledModule.id,
     });
-  }, p.refetchProjectDetail);
+  });
 
   async function updateModule() {
     const _res = await openComponent({
@@ -373,7 +370,6 @@ type UninstalledModuleProps = {
   thisUninstalledModuleLabel: string;
   thisUninstalledModulePrerequisiteModules: string[];
   currentModules: InstalledModuleSummary[];
-  refetchProjectDetail: () => Promise<void>;
 };
 
 function UninstalledModulePresentation(p: UninstalledModuleProps) {

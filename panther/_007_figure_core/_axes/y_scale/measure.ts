@@ -33,6 +33,7 @@ export function measureYScaleAxisWidthInfo(
   sg: MergedGridStyle,
   contentRcd: RectCoordsDims,
   i_pane: number,
+  barStacking?: "none" | "stacked" | "imposed" | "uncertainty" | "uncertainty-tiers",
 ): YScaleAxisWidthInfo {
   ///////////////////////
   //                   //
@@ -42,7 +43,8 @@ export function measureYScaleAxisWidthInfo(
 
   let maxTierHeaderWidth = 0;
   let tierHeaderAndLabelGapWidth = 0;
-  if (dy.tierHeaders.length > 1) {
+  // Don't allocate space for tier headers in uncertainty-tiers mode (only 1 visible tier)
+  if (dy.tierHeaders.length > 1 && barStacking !== "uncertainty-tiers") {
     for (let i_tier = 0; i_tier < dy.tierHeaders.length; i_tier++) {
       const mText = rc.mText(dy.tierHeaders[i_tier], sy.text.tierHeaders, 9999);
       maxTierHeaderWidth = Math.max(maxTierHeaderWidth, mText.dims.w());
@@ -144,6 +146,7 @@ export function measureYScaleAxis(
   dy: YScaleAxisData,
   sy: MergedYScaleAxisStyle,
   contentRcd: RectCoordsDims,
+  barStacking?: "none" | "stacked" | "imposed" | "uncertainty" | "uncertainty-tiers",
 ): {
   yAxisRcd: RectCoordsDims;
   subChartAreaHeight: number;
@@ -156,11 +159,16 @@ export function measureYScaleAxis(
     h: prev.h() - (topHeightForLaneHeaders + xAxisAreaHeightIncludingStroke),
   }));
 
+  // For uncertainty-tiers, only 1 tier is rendered (tier 1)
+  const effectiveTierCount = barStacking === "uncertainty-tiers"
+    ? 1
+    : dy.tierHeaders.length;
+
   const subChartAreaHeight = (yAxisRcd.h() -
     (sy.tierPaddingTop +
-      (dy.tierHeaders.length - 1) * sy.tierGapY +
+      (effectiveTierCount - 1) * sy.tierGapY +
       sy.tierPaddingBottom)) /
-    dy.tierHeaders.length;
+    effectiveTierCount;
 
   return { yAxisRcd, subChartAreaHeight };
 }

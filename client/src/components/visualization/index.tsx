@@ -5,21 +5,17 @@ import {
   ProjectDetail,
   ResultsValue,
   ResultsValueInfoForPresentationObject,
-  T,
-  t2,
   type InstanceDetail
 } from "lib";
 import {
   AlertComponentProps,
   StateHolderWrapper,
-  timActionDelete,
   timQuery
 } from "panther";
 import {
   Match,
   Switch
 } from "solid-js";
-import { serverActions } from "~/server_actions";
 import {
   getPODetailFromCacheorFetch,
   getResultsValueInfoForPresentationObjectFromCacheOrFetch
@@ -76,6 +72,7 @@ export type VisualizationEditorProps =
 export function VisualizationEditor(
   p: AlertComponentProps<VisualizationEditorProps, any>,
 ) {
+  console.log("open")
   return (
     <Switch>
       <Match when={p.mode === "edit" && p}>
@@ -110,6 +107,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
   };
 
   const combinedData = timQuery<CombinedData>(async () => {
+    console.log("[VIZ EDIT] timQuery starting for:", p.presentationObjectId);
     const [poDetailRes, resultsValueInfoRes] = await Promise.all([
       getPODetailFromCacheorFetch(p.projectId, p.presentationObjectId),
       (async () => {
@@ -134,6 +132,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
       return resultsValueInfoRes;
     }
 
+    console.log("[VIZ EDIT] timQuery completed successfully");
     return {
       success: true,
       data: {
@@ -141,34 +140,27 @@ function VisualizationEditorEdit(p: EditModeProps) {
         resultsValueInfo: resultsValueInfoRes.data,
       },
     } as const;
-  }, t2(T.FRENCH_UI_STRINGS.loading_visualization));
+  },
+    "Loading...");
 
-  async function attemptDeleteFromError() {
-    const deleteAction = timActionDelete(
-      t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1),
-      () =>
-        serverActions.deletePresentationObject({
-          projectId: p.projectId,
-          po_id: p.presentationObjectId,
-        }),
-      () => p.close({ deleted: true }),
-    );
-    await deleteAction.click();
-  }
+  // async function attemptDeleteFromError() {
+  //   const deleteAction = timActionDelete(
+  //     t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1),
+  //     () =>
+  //       serverActions.deletePresentationObject({
+  //         projectId: p.projectId,
+  //         po_id: p.presentationObjectId,
+  //       }),
+  //     () => p.close({ deleted: true }),
+  //   );
+  //   await deleteAction.click();
+  // }
 
+  console.log("[VIZ EDIT] Rendering with state:", combinedData.state());
   return (
-    <StateHolderWrapper
-      state={combinedData.state()}
-      onErrorButton={{
-        label: t2(T.Platform.go_back),
-        onClick: () => p.close(undefined),
-      }}
-      onErrorSecondaryButton={{
-        label: t2(T.FRENCH_UI_STRINGS.delete),
-        onClick: attemptDeleteFromError,
-      }}
-    >
+    <StateHolderWrapper state={combinedData.state()}>
       {(keyedCombinedData: CombinedData) => {
+        console.log("[VIZ EDIT] StateHolderWrapper rendering children with data:", keyedCombinedData);
         return (
           <VisualizationEditorInner
             mode="edit"
@@ -207,7 +199,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
   };
 
   return (
-    <StateHolderWrapper state={resultsValueInfo.state()} noPad>
+    <StateHolderWrapper state={resultsValueInfo.state()} >
       {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => {
         return (
           <VisualizationEditorInner
@@ -247,7 +239,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
   };
 
   return (
-    <StateHolderWrapper state={resultsValueInfo.state()} noPad>
+    <StateHolderWrapper state={resultsValueInfo.state()} >
       {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => {
         return (
           <VisualizationEditorInner

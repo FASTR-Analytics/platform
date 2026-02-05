@@ -1,21 +1,38 @@
 import { createContext, useContext, createSignal, type ParentProps } from "solid-js";
-import type { InstanceDetail, ProjectDetail } from "lib";
+import type { InstanceDetail } from "lib";
 import type { AIContext, AIProjectContextValue, AIUserInteraction, DraftContent } from "./types";
 
 const AIProjectContext = createContext<AIProjectContextValue>();
 
 type AIProjectContextProviderProps = ParentProps<{
   instanceDetail: InstanceDetail;
-  projectDetail: ProjectDetail;
 }>;
 
 export function AIProjectContextProvider(props: AIProjectContextProviderProps) {
-  const [aiContext, setAIContext] = createSignal<AIContext>({ mode: "default" });
+  const [aiContext, setAIContextInternal] = createSignal<AIContext>({ mode: "default" });
   const [draftContent, setDraftContent] = createSignal<DraftContent>(null);
   const [pendingInteractions, setPendingInteractions] = createSignal<AIUserInteraction[]>([]);
 
   const notifyAI = (interaction: AIUserInteraction) => {
     setPendingInteractions((prev) => [...prev, interaction]);
+  };
+
+  const setAIContext = (ctx: AIContext) => {
+    const prev = aiContext();
+    setAIContextInternal(ctx);
+
+    // Auto-notify on mode changes
+    if (ctx.mode !== prev.mode) {
+      if (ctx.mode === "deck") {
+        notifyAI({ type: "switched_to_deck", deckId: ctx.deckId, deckLabel: ctx.deckLabel });
+      } else if (ctx.mode === "viz-editor") {
+        notifyAI({ type: "switched_to_viz_editor", vizId: ctx.vizId ?? "temp", vizLabel: ctx.vizLabel });
+      } else if (ctx.mode === "report") {
+        notifyAI({ type: "custom", message: `Opened report editor "${ctx.reportLabel}"` });
+      } else if (ctx.mode === "default") {
+        notifyAI({ type: "switched_to_default" });
+      }
+    }
   };
 
   const getPendingInteractionsMessage = (): string | null => {
@@ -39,7 +56,6 @@ export function AIProjectContextProvider(props: AIProjectContextProviderProps) {
     getPendingInteractionsMessage,
     clearPendingInteractions,
     instanceDetail: props.instanceDetail,
-    projectDetail: props.projectDetail,
   };
 
   return (

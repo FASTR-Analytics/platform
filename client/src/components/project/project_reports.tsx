@@ -34,11 +34,11 @@ import { serverActions } from "~/server_actions";
 import {
   useOptimisticSetLastUpdated,
   useOptimisticSetProjectLastUpdated,
+  useProjectDetail,
 } from "~/components/project_runner/mod";
 import { Report } from "../report";
 
 type Props = {
-  projectDetail: ProjectDetail;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -50,6 +50,7 @@ type ExtendedProps = Props & {
 };
 
 export function ProjectReports(p: ExtendedProps) {
+  const projectDetail = useProjectDetail();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
 
@@ -58,7 +59,7 @@ export function ProjectReports(p: ExtendedProps) {
       element: Report,
       props: {
         reportId,
-        projectDetail: p.projectDetail,
+        projectDetail: projectDetail,
         instanceDetail: p.instanceDetail,
         isGlobalAdmin: p.isGlobalAdmin,
       },
@@ -67,7 +68,7 @@ export function ProjectReports(p: ExtendedProps) {
 
   const [searchText, setSearchText] = createSignal<string>("");
   const [reportListing, setReportListing] = createSignal<ReportSummary[]>(
-    p.projectDetail.reports,
+    projectDetail.reports,
   );
 
   createEffect(() => {
@@ -79,10 +80,10 @@ export function ProjectReports(p: ExtendedProps) {
     const searchTextLowerCase = searchText.toLowerCase();
     const newReports =
       searchText.length >= 3
-        ? p.projectDetail.reports.filter((reportSummary) =>
-            reportSummary.label.toLowerCase().includes(searchTextLowerCase),
-          )
-        : p.projectDetail.reports;
+        ? projectDetail.reports.filter((reportSummary) =>
+          reportSummary.label.toLowerCase().includes(searchTextLowerCase),
+        )
+        : projectDetail.reports;
     setReportListing(newReports);
   }
 
@@ -90,7 +91,7 @@ export function ProjectReports(p: ExtendedProps) {
     const res = await openComponent({
       element: AddReportForm,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: projectDetail.id,
       },
     });
     if (res === undefined) {
@@ -119,7 +120,7 @@ export function ProjectReports(p: ExtendedProps) {
       return;
     }
     const res = await serverActions.restoreReport({
-      projectId: p.projectDetail.id,
+      projectId: projectDetail.id,
       report: data.report,
       reportItems: data.reportItems,
     });
@@ -179,11 +180,12 @@ export function ProjectReports(p: ExtendedProps) {
           searchText={searchText()}
           setSearchText={setSearchText}
           french={isFrench()}
+          class="border-base-300"
         >
           <Show
             when={
-              !p.projectDetail.isLocked &&
-              p.projectDetail.projectModules.length > 0
+              !projectDetail.isLocked &&
+              projectDetail.projectModules.length > 0
             }
           >
             <div class="ui-gap-sm flex items-center">
@@ -199,7 +201,7 @@ export function ProjectReports(p: ExtendedProps) {
       }
     >
       <Show
-        when={p.projectDetail.projectModules.length > 0}
+        when={projectDetail.projectModules.length > 0}
         fallback={
           <div class="ui-pad text-neutral text-sm">
             {t("You need to enable at least one module to create reports")}

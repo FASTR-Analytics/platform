@@ -80,6 +80,36 @@ export function buildAISystemContext(
     }
   }
 
+  // Available visualizations
+  sections.push("");
+  sections.push(`**Available visualizations:** ${projectDetail.visualizations.length}`);
+  if (projectDetail.visualizations.length > 0) {
+    for (const viz of projectDetail.visualizations.slice(0, 10)) {
+      sections.push(`  - ${viz.label} (${viz.id})`);
+    }
+    if (projectDetail.visualizations.length > 10) {
+      sections.push(`  ... and ${projectDetail.visualizations.length - 10} more`);
+    }
+  }
+
+  // Available slide decks
+  sections.push("");
+  sections.push(`**Available slide decks:** ${projectDetail.slideDecks.length}`);
+  if (projectDetail.slideDecks.length > 0) {
+    for (const deck of projectDetail.slideDecks) {
+      sections.push(`  - ${deck.label} (${deck.id})`);
+    }
+  }
+
+  // Available reports
+  sections.push("");
+  sections.push(`**Available reports:** ${projectDetail.reports.length}`);
+  if (projectDetail.reports.length > 0) {
+    for (const report of projectDetail.reports) {
+      sections.push(`  - ${report.label} (${report.id})`);
+    }
+  }
+
   // User-provided custom context
   if (projectDetail.aiContext.trim()) {
     sections.push("");

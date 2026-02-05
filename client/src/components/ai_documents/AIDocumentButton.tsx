@@ -9,20 +9,20 @@ type Props = {
 };
 
 export function AIDocumentButton(p: Props) {
-  const count = () => p.documents.length;
+  // const count = () => p.documents.length;
 
   return (
-    <div class="flex items-center ui-gap-sm">
-      <Show when={count() > 0}>
-        <div class="flex items-center gap-1 text-xs text-base-content/70">
-          <FileIcon class="w-3 h-3" />
-          <span>{count()} PDF{count() > 1 ? "s" : ""}</span>
-        </div>
-      </Show>
-      <Button size="sm" outline iconName="document" onClick={p.onOpenSelector}>
-        {count() > 0 ? "Manage files" : "Include file"}
-      </Button>
-    </div>
+    <Button outline iconName="document" intent="base-100" onClick={p.onOpenSelector} />
+
+    //   // <div class="flex items-center ui-gap-sm">
+    //  <Show when={count() > 0}>
+    //       <div class="flex items-center gap-1 text-xs text-white">
+    //         <FileIcon class="w-3 h-3" />
+    //         <span>{count()} PDF{count() > 1 ? "s" : ""}</span>
+    //       </div>
+    //     </Show> */}
+    // {/* {count() > 0 ? "Manage files" : "Include file"} */ }
+    //   // </div>
   );
 }
 

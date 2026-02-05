@@ -258,7 +258,7 @@ export type MergedContentStyle = {
   };
   bars: {
     getStyle: ChartValueInfoFunc<RectStyle>;
-    stacking: "none" | "stacked" | "imposed" | "uncertainty";
+    stacking: "none" | "stacked" | "imposed" | "uncertainty" | "uncertainty-tiers";
     maxBarWidth: number;
   };
   lines: {

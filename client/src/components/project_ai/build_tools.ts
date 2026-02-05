@@ -16,63 +16,33 @@ type BuildToolsParams = {
   projectId: string;
   modules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
-  aiContext: AIContext;
+  aiContext: () => AIContext;
   setDraftContent: (content: DraftContent) => void;
 };
 
 export function buildToolsForContext(params: BuildToolsParams) {
   const { projectId, modules, metrics, aiContext, setDraftContent } = params;
 
-  const baseDataTools = [
+  return [
+    // Base data tools - always available
     ...getToolsForMetrics(projectId, metrics),
     ...getToolsForModules(projectId, modules, metrics),
     ...getToolsForReadingVisualizations(projectId),
     ...getToolsForMethodologyDocs(),
+
+    // Mode-specific tools - check mode in handler
+    ...getToolsForSlides(projectId, aiContext, metrics),
+    ...getToolForVisualizationData(projectId, aiContext),
+    ...getToolsForConfiguringVisualizations(aiContext),
+    ...getDraftTools(projectId, metrics, setDraftContent, aiContext),
   ];
-
-  switch (aiContext.mode) {
-    case "deck":
-      return [
-        ...baseDataTools,
-        ...getToolsForSlides(
-          projectId,
-          aiContext.deckId,
-          aiContext.getSlideIds,
-          aiContext.optimisticSetLastUpdated,
-          metrics
-        ),
-      ];
-
-    case "viz-editor":
-      return [
-        ...getToolForVisualizationData(
-          projectId,
-          () => aiContext.vizId,
-          aiContext.getTempConfig,
-          aiContext.getResultsValue
-        ),
-        ...getToolsForConfiguringVisualizations(
-          aiContext.getTempConfig,
-          aiContext.setTempConfig
-        ),
-      ];
-
-    case "report":
-      return baseDataTools;
-
-    case "default":
-    default:
-      return [
-        ...baseDataTools,
-        ...getDraftTools(projectId, metrics, setDraftContent),
-      ];
-  }
 }
 
 function getDraftTools(
   projectId: string,
   metrics: MetricWithStatus[],
-  setDraftContent: (content: DraftContent) => void
+  setDraftContent: (content: DraftContent) => void,
+  getAIContext: () => AIContext
 ) {
   return [
     createAITool({
@@ -86,6 +56,11 @@ function getDraftTools(
           .describe("Content blocks for the slide (max 6)"),
       }),
       handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "default") {
+          throw new Error("Draft tools are only available in default mode. Switch to a specific deck to add slides directly.");
+        }
+
         validateMaxContentBlocks(input.blocks.length);
         for (const block of input.blocks) {
           if (block.type === "text") {
@@ -119,6 +94,11 @@ function getDraftTools(
           .describe("Single content block for the visualization"),
       }),
       handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "default") {
+          throw new Error("Draft tools are only available in default mode.");
+        }
+
         if (input.blocks.length !== 1) {
           throw new Error("Draft viz must have exactly one content block");
         }
@@ -142,6 +122,11 @@ function getDraftTools(
       description: "Clear the current draft preview from the chat.",
       inputSchema: z.object({}),
       handler: async () => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "default") {
+          throw new Error("Draft tools are only available in default mode.");
+        }
+
         setDraftContent(null);
         return { success: true };
       },

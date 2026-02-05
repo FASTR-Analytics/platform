@@ -18,7 +18,7 @@ type Props = {
 
 export function SlideEditorPanel(p: Props) {
   return (
-    <div class="flex h-full flex-col overflow-auto">
+    <div class="flex h-full flex-col overflow-auto border-r border-base-content">
       {/* Type selector */}
       <div class="ui-pad border-b border-base-300">
         <Select

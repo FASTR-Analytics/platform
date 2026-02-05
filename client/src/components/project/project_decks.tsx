@@ -10,9 +10,9 @@ import {
 import { For, Show, createEffect, createSignal } from "solid-js";
 import { AddDeckForm } from "./add_deck";
 import { ProjectAiSlideDeck } from "../project_ai_slide_deck";
+import { useProjectDetail } from "~/components/project_runner/mod";
 
 type ExtendedProps = {
-  projectDetail: ProjectDetail;
   instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
@@ -21,13 +21,15 @@ type ExtendedProps = {
 };
 
 export function ProjectDecks(p: ExtendedProps) {
+  const projectDetail = useProjectDetail();
+
   async function openDeck(deckId: string, deckLabel: string) {
     await p.openProjectEditor({
       element: ProjectAiSlideDeck,
       props: {
         deckId,
         reportLabel: deckLabel,
-        projectDetail: p.projectDetail,
+        projectDetail,
         instanceDetail: p.instanceDetail,
         isGlobalAdmin: p.isGlobalAdmin,
       },
@@ -36,7 +38,7 @@ export function ProjectDecks(p: ExtendedProps) {
 
   const [searchText, setSearchText] = createSignal<string>("");
   const [deckListing, setDeckListing] = createSignal<SlideDeckSummary[]>(
-    p.projectDetail.slideDecks,
+    projectDetail.slideDecks,
   );
 
   createEffect(() => {
@@ -48,10 +50,10 @@ export function ProjectDecks(p: ExtendedProps) {
     const searchTextLowerCase = searchText.toLowerCase();
     const newDecks =
       searchText.length >= 3
-        ? p.projectDetail.slideDecks.filter((deck) =>
+        ? projectDetail.slideDecks.filter((deck) =>
           deck.label.toLowerCase().includes(searchTextLowerCase),
         )
-        : p.projectDetail.slideDecks;
+        : projectDetail.slideDecks;
     setDeckListing(newDecks);
   }
 
@@ -59,13 +61,13 @@ export function ProjectDecks(p: ExtendedProps) {
     const res = await openComponent({
       element: AddDeckForm,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: projectDetail.id,
       },
     });
     if (res === undefined) {
       return;
     }
-    const deck = p.projectDetail.slideDecks.find(d => d.id === res.newDeckId);
+    const deck = projectDetail.slideDecks.find(d => d.id === res.newDeckId);
     await openDeck(res.newDeckId, deck?.label || "Slide Deck");
   }
 
@@ -77,11 +79,12 @@ export function ProjectDecks(p: ExtendedProps) {
           searchText={searchText()}
           setSearchText={setSearchText}
           french={isFrench()}
+          class="border-base-300"
         >
           <Show
             when={
-              !p.projectDetail.isLocked &&
-              p.projectDetail.projectModules.length > 0
+              !projectDetail.isLocked &&
+              projectDetail.projectModules.length > 0
             }
           >
             <Button onClick={attemptAddDeck} iconName="plus">
@@ -92,7 +95,7 @@ export function ProjectDecks(p: ExtendedProps) {
       }
     >
       <Show
-        when={p.projectDetail.projectModules.length > 0}
+        when={projectDetail.projectModules.length > 0}
         fallback={
           <div class="ui-pad text-neutral text-sm">
             {t("You need to enable at least one module to create slide decks")}

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { getModuleIdForMetric, getModuleIdForResultsObject, validateFetchConfig } from "lib";
 import {
   addPresentationObject,
+  batchUpdatePresentationObjectsPeriodFilter,
   deleteAIPresentationObject,
   deletePresentationObject,
   duplicatePresentationObject,
@@ -225,6 +226,41 @@ defineRoute(
       res.data.lastUpdated,
     );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesPresentationObjects,
+  "batchUpdatePresentationObjectsPeriodFilter",
+  getProjectEditor,
+  async (c, { body }) => {
+    const res = await batchUpdatePresentationObjectsPeriodFilter(
+      c.var.ppk.projectDb,
+      body.presentationObjectIds,
+      body.periodFilter,
+    );
+
+    if (res.success) {
+      notifyLastUpdated(
+        c.var.ppk.projectId,
+        "presentation_objects",
+        body.presentationObjectIds,
+        res.data.lastUpdated,
+      );
+
+      if (res.data.reportItemsAffected.length > 0) {
+        notifyLastUpdated(
+          c.var.ppk.projectId,
+          "report_items",
+          res.data.reportItemsAffected,
+          res.data.lastUpdated,
+        );
+      }
+
+      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    }
+
     return c.json(res);
   },
 );

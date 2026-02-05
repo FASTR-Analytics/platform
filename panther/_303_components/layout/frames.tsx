@@ -27,6 +27,8 @@ type ResizableFrameProps = FrameProps & {
   minWidth?: number;
   maxWidth?: number;
   preventPanelResizeOnParentResize?: boolean;
+  isShown?: boolean;
+  onToggleShow?: () => void;
 };
 
 type ThreeColumnResizableProps = {
@@ -239,8 +241,11 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
 export function FrameRightResizable(p: ResizableFrameProps) {
   const minWidth = p.minWidth ?? 100;
   const maxWidth = p.maxWidth ?? 600;
-  const [width, setWidth] = createSignal(
+  const [actualWidth, setActualWidth] = createSignal(
     Math.max(minWidth, Math.min(maxWidth, p.startingWidth)),
+  );
+  const displayWidth = createMemo(() =>
+    p.isShown === false ? 0 : actualWidth()
   );
   const [targetPercentage, setTargetPercentage] = createSignal<number>(0);
   const [containerWidth, setContainerWidth] = createSignal<number>(0);
@@ -255,7 +260,7 @@ export function FrameRightResizable(p: ResizableFrameProps) {
     if (!p.preventPanelResizeOnParentResize && containerRef) {
       const initialWidth = containerRef.offsetWidth;
       setContainerWidth(initialWidth);
-      setTargetPercentage(width() / initialWidth);
+      setTargetPercentage(actualWidth() / initialWidth);
 
       resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
@@ -265,7 +270,7 @@ export function FrameRightResizable(p: ResizableFrameProps) {
             minWidth,
             Math.min(maxWidth, targetPercentage() * newContainerWidth),
           );
-          setWidth(newWidth);
+          setActualWidth(newWidth);
         }
       });
 
@@ -278,7 +283,7 @@ export function FrameRightResizable(p: ResizableFrameProps) {
     e.preventDefault();
 
     const startX = e.clientX;
-    const startWidth = width();
+    const startWidth = actualWidth();
 
     handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
@@ -288,7 +293,7 @@ export function FrameRightResizable(p: ResizableFrameProps) {
         minWidth,
         Math.min(maxWidth, startWidth + deltaX),
       );
-      setWidth(newWidth);
+      setActualWidth(newWidth);
 
       if (!p.preventPanelResizeOnParentResize && containerWidth() > 0) {
         setTargetPercentage(newWidth / containerWidth());
@@ -332,13 +337,19 @@ export function FrameRightResizable(p: ResizableFrameProps) {
         <div class="h-full w-0 flex-1 overflow-auto">{p.children}</div>
         <div
           class="relative h-full flex-none"
-          style={{ width: `${width()}px` }}
+          style={{ width: `${displayWidth()}px` }}
         >
           <div
             class="hover:bg-primary/20 active:bg-primary/20 absolute -left-1 top-0 z-50 h-full w-2 cursor-col-resize"
             onMouseDown={handleMouseDown}
+            style={{ display: p.isShown === false ? 'none' : 'block' }}
           />
-          <div class="h-full overflow-auto">{p.panelChildren}</div>
+          <div
+            class="h-full overflow-auto"
+            style={{ display: p.isShown === false ? 'none' : 'block' }}
+          >
+            {p.panelChildren}
+          </div>
         </div>
       </div>
     </Show>

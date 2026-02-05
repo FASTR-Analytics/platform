@@ -6,14 +6,14 @@ import {
 import { createAITool } from "panther";
 import { SetStoreFunction } from "solid-js/store";
 import { z } from "zod";
+import type { AIContext } from "~/components/project_ai/types";
 
 /**
  * Tools for configuring a visualization (editing tempConfig).
  * These operate on local state only - changes are NOT persisted until user clicks Save.
  */
 export function getToolsForConfiguringVisualizations(
-  getTempConfig: () => PresentationObjectConfig,
-  setTempConfig: SetStoreFunction<PresentationObjectConfig>,
+  getAIContext: () => AIContext,
 ) {
   return [
     createAITool({
@@ -53,7 +53,13 @@ export function getToolsForConfiguringVisualizations(
         footnote: z.string().optional().describe("Footnote text at bottom (t.footnote)"),
       }),
       handler: async (input) => {
-        const tempConfig = getTempConfig();
+        const ctx = getAIContext();
+        if (ctx.mode !== "viz-editor") {
+          throw new Error("This tool is only available when editing a visualization");
+        }
+
+        const tempConfig = ctx.getTempConfig();
+        const setTempConfig = ctx.setTempConfig;
         const changes: string[] = [];
 
         if (input.type) {

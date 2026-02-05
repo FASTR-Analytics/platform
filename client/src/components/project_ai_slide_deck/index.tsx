@@ -1,7 +1,7 @@
 import { type InstanceDetail, type ProjectDetail, type Slide } from "lib";
 import {
   AIChat,
-  AIChatProvider,
+  // AIChatProvider,
   Button,
   createAIChat,
   EditorComponentProps,
@@ -11,9 +11,9 @@ import {
   getEditorWrapper,
   openComponent,
 } from "panther";
-import { createEffect, createMemo, createSignal, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { getToolsForSlides } from "../ai_tools/ai_tool_definitions";
+// import { getToolsForSlides } from "../ai_tools/ai_tool_definitions";
 import { useProjectDirtyStates, useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideList } from "./slide_list";
 import { DEFAULT_MODEL_CONFIG, DEFAULT_BUILTIN_TOOLS, createProjectSDKClient } from "~/components/ai_configs/defaults";
@@ -24,6 +24,7 @@ import { DownloadSlideDeck } from "./download_slide_deck";
 import { useAIDocuments, AIDocumentButton, AIDocumentList } from "../ai_documents";
 import { EditLabelForm } from "../forms_editors/edit_label";
 import { trackSlideChange, getPendingChangesMessage, clearPendingChanges } from "./pending_changes_store";
+import { useAIProjectContext } from "~/components/project_ai";
 
 type SlideDeckModalReturn = undefined;
 
@@ -42,6 +43,7 @@ export function ProjectAiSlideDeck(p: Props) {
   const projectId = p.projectDetail.id;
   const pds = useProjectDirtyStates();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
+  const { setAIContext } = useAIProjectContext();
 
   async function handleClose() {
     p.close(undefined);
@@ -59,14 +61,29 @@ export function ProjectAiSlideDeck(p: Props) {
 
   const [deckLabel, setDeckLabel] = createSignal(p.reportLabel);
 
-  // Load deck metadata on mount (not full slide data)
+  // Load deck metadata and set AI context on mount
   onMount(async () => {
     const deckRes = await serverActions.getSlideDeckDetail({ projectId, deck_id: p.deckId });
 
     if (deckRes.success) {
       setSlideIds(deckRes.data.slideIds);
+      setDeckLabel(deckRes.data.label);
     }
     setIsLoading(false);
+
+    // Set AI context now that deck data is loaded
+    setAIContext({
+      mode: "deck",
+      deckId: p.deckId,
+      deckLabel: deckLabel(),
+      getSlideIds: () => slideIds(),
+      getSelectedSlideIds: () => selectedSlideIds(),
+      optimisticSetLastUpdated,
+    });
+  });
+
+  onCleanup(() => {
+    setAIContext({ mode: "default" });
   });
 
   // SSE handling - watch for deck updates
@@ -83,55 +100,55 @@ export function ProjectAiSlideDeck(p: Props) {
     }
   });
 
-  // AI setup
-  const sdkClient = createProjectSDKClient(projectId);
+  // // AI setup
+  // const sdkClient = createProjectSDKClient(projectId);
 
-  const tools = createMemo(() =>
-    getToolsForSlides(
-      projectId,
-      p.deckId,
-      slideIds,
-      optimisticSetLastUpdated,
-      p.projectDetail.projectModules,
-      p.projectDetail.metrics
-    )
-  );
+  // const tools = createMemo(() =>
+  //   getToolsForSlides(
+  //     projectId,
+  //     p.deckId,
+  //     slideIds,
+  //     optimisticSetLastUpdated,
+  //     p.projectDetail.projectModules,
+  //     p.projectDetail.metrics
+  //   )
+  // );
 
-  const systemPrompt = createMemo(() =>
-    getSlideDeckSystemPrompt(
-      p.instanceDetail,
-      p.projectDetail,
-      slideIds().length,
-      selectedSlideIds()
-    )
-  );
+  // const systemPrompt = createMemo(() =>
+  //   getSlideDeckSystemPrompt(
+  //     p.instanceDetail,
+  //     p.projectDetail,
+  //     slideIds().length,
+  //     selectedSlideIds()
+  //   )
+  // );
 
   return (
-    <AIChatProvider
-      config={{
-        sdkClient,
-        modelConfig: DEFAULT_MODEL_CONFIG,
-        tools: tools(),
-        builtInTools: DEFAULT_BUILTIN_TOOLS,
-        conversationId: `ai-slide-deck-${p.deckId}`,
-        system: systemPrompt,
-        getDocumentRefs: aiDocs.getDocumentRefs,
-      }}
-    >
-      <ProjectAiSlideDeckInner
-        projectDetail={p.projectDetail}
-        instanceDetail={p.instanceDetail}
-        isGlobalAdmin={p.isGlobalAdmin}
-        deckId={p.deckId}
-        deckLabel={deckLabel()}
-        optimisticSetLastUpdated={optimisticSetLastUpdated}
-        slideIds={slideIds()}
-        isLoading={isLoading()}
-        setSelectedSlideIds={setSelectedSlideIds}
-        handleClose={handleClose}
-        aiDocs={aiDocs}
-      />
-    </AIChatProvider>
+    // <AIChatProvider
+    //   config={{
+    //     sdkClient,
+    //     modelConfig: DEFAULT_MODEL_CONFIG,
+    //     tools: tools(),
+    //     builtInTools: DEFAULT_BUILTIN_TOOLS,
+    //     conversationId: `ai-slide-deck-${p.deckId}`,
+    //     system: systemPrompt,
+    //     getDocumentRefs: aiDocs.getDocumentRefs,
+    //   }}
+    // >
+    <ProjectAiSlideDeckInner
+      projectDetail={p.projectDetail}
+      instanceDetail={p.instanceDetail}
+      isGlobalAdmin={p.isGlobalAdmin}
+      deckId={p.deckId}
+      deckLabel={deckLabel()}
+      optimisticSetLastUpdated={optimisticSetLastUpdated}
+      slideIds={slideIds()}
+      isLoading={isLoading()}
+      setSelectedSlideIds={setSelectedSlideIds}
+      handleClose={handleClose}
+      aiDocs={aiDocs}
+    />
+    // </AIChatProvider>
   );
 }
 
@@ -236,28 +253,7 @@ function ProjectAiSlideDeckInner(p: {
 
   return (
     <EditorWrapper>
-      <FrameTop
-        panelChildren={
-          <HeadingBar
-            heading={p.deckLabel}
-            french={false}
-            leftChildren={
-              <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
-            }
-          >
-            <div class="flex items-center ui-gap-sm">
-
-              <Button onClick={handleEditLabel} iconName="pencil" outline>
-                Rename
-              </Button>
-              <Button onClick={download} iconName="download">
-                Download
-              </Button>
-            </div>
-          </HeadingBar>
-        }
-      >
-        <FrameLeftResizable
+      {/* <FrameLeftResizable
           minWidth={300}
           startingWidth={600}
           maxWidth={1200}
@@ -290,17 +286,20 @@ function ProjectAiSlideDeckInner(p: {
             </div>
           </div>
 
-          }>
-          <SlideList
-            projectDetail={p.projectDetail}
-            deckId={p.deckId}
-            slideIds={p.slideIds}
-            isLoading={p.isLoading}
-            setSelectedSlideIds={p.setSelectedSlideIds}
-            onEditSlide={handleEditSlide}
-          />
-        </FrameLeftResizable>
-      </FrameTop>
-    </EditorWrapper>
+          }> */}
+      <SlideList
+        projectDetail={p.projectDetail}
+        deckId={p.deckId}
+        slideIds={p.slideIds}
+        isLoading={p.isLoading}
+        setSelectedSlideIds={p.setSelectedSlideIds}
+        onEditSlide={handleEditSlide}
+        deckLabel={p.deckLabel}
+        handleClose={p.handleClose}
+        handleEditLabel={handleEditLabel}
+        download={download}
+      />
+      {/* </FrameLeftResizable> */}
+    </EditorWrapper >
   );
 }

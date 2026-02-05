@@ -18,6 +18,7 @@ import {
   Z_INDEX,
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
+import type { YScaleAxisWidthInfo } from "../types.ts";
 
 // Helper function for line intersection (from old render_chart_content.ts)
 function getLineIntersection(
@@ -72,6 +73,9 @@ export type ContentPrimitiveGenerationParams = {
   transformedData: { seriesHeaders: string[] };
   contentStyle: MergedContentStyle;
   dataLabelsTextStyle: TextInfoUnkeyed;
+  allTiersSeriesVals?: (number | undefined)[][][]; // [tier][series][val]
+  allTiersMappedCoordinates?: MappedValueCoordinate[][][]; // [tier][series][val]
+  yScaleAxisWidthInfo?: YScaleAxisWidthInfo; // For uncertainty-tiers Y mapping
 };
 
 const _PROP_INDICATOR = 0.8;
@@ -336,6 +340,74 @@ export function generateContentPrimitives(
                 value: valueInfo,
               },
               centerX: mappedVal.coords.x(),
+              ubY,
+              lbY,
+              strokeColor: getColor({ key: "baseContent" }),
+              strokeWidth: 3,
+              capWidth: seriesColWidth * 0.4,
+            });
+          }
+        } else if (s.bars.stacking === "uncertainty-tiers") {
+          // Only render tier 0 (estimates), skip tiers 1 & 2 (bounds) - mirrors series uncertainty
+          if (
+            subChartInfo.i_tier !== 0 ||
+            !params.allTiersMappedCoordinates ||
+            subChartInfo.nTiers < 3
+          ) {
+            continue;
+          }
+
+          // Grouped bar layout
+          const seriesOuterAreaWidth = indicatorColWidth / nSeries;
+          const seriesOuterAreaX = indicatorColAreaX +
+            seriesOuterAreaWidth * i_series;
+          const seriesColWidth = Math.min(
+            seriesOuterAreaWidth * _PROP_SERIES,
+            s.bars.maxBarWidth,
+          );
+          const seriesColX = seriesOuterAreaX +
+            (seriesOuterAreaWidth - seriesColWidth) / 2;
+
+          barRcd = new RectCoordsDims({
+            x: seriesColX,
+            y: mappedVal.coords.y(),
+            w: seriesColWidth,
+            h: subChartRcd.bottomY() +
+              gridStrokeWidth / 2 -
+              mappedVal.coords.y(),
+          });
+
+          // Get bounds from tiers 1 & 2 (same series, same indicator)
+          // Mirrors series uncertainty: series 0 rendered, series 1 & 2 are bounds
+          const bound1 = params.allTiersMappedCoordinates?.[1]?.[i_series]?.[i_val];
+          const bound2 = params.allTiersMappedCoordinates?.[2]?.[i_series]?.[i_val];
+
+          if (bound1 && bound2) {
+            // Auto-detect which is upper/lower by comparing values (same as series uncertainty)
+            const ubY = bound1.val > bound2.val
+              ? bound1.coords.y()
+              : bound2.coords.y();
+            const lbY = bound1.val < bound2.val
+              ? bound1.coords.y()
+              : bound2.coords.y();
+
+            const errorBarBounds = new RectCoordsDims({
+              x: barRcd.centerX() - seriesColWidth * 0.2,
+              y: Math.min(ubY, lbY),
+              w: seriesColWidth * 0.4,
+              h: Math.abs(ubY - lbY),
+            });
+
+            allPrimitives.push({
+              type: "chart-error-bar",
+              key:
+                `errorbar-tiers-${subChartInfo.i_pane}-${subChartInfo.i_lane}-${i_series}-${i_val}`,
+              bounds: errorBarBounds,
+              zIndex: Z_INDEX.CONTENT_BAR + 1,
+              meta: {
+                value: valueInfo,
+              },
+              centerX: barRcd.centerX(),
               ubY,
               lbY,
               strokeColor: getColor({ key: "baseContent" }),

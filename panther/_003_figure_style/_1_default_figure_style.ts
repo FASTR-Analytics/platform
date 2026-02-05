@@ -159,7 +159,12 @@ const _DS = {
         fillColor: 666,
       } as GenericBarStyle,
       func: "none" as ChartValueInfoFunc<GenericBarStyleOptions> | "none",
-      stacking: "none" as "none" | "stacked" | "imposed" | "uncertainty",
+      stacking: "none" as
+        | "none"
+        | "stacked"
+        | "imposed"
+        | "uncertainty"
+        | "uncertainty-tiers",
       maxBarWidth: 200,
     },
     lines: {

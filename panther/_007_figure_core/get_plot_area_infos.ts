@@ -31,6 +31,9 @@ export type PlotAreaInfoParams = {
   tierGapY: number;
   lanePaddingLeft: number;
   laneGapX: number;
+
+  // Stacking mode (for uncertainty-tiers)
+  barStacking?: "none" | "stacked" | "imposed" | "uncertainty" | "uncertainty-tiers";
 };
 
 export function getPlotAreaInfos(params: PlotAreaInfoParams): PlotAreaInfo[] {
@@ -52,6 +55,10 @@ export function getPlotAreaInfos(params: PlotAreaInfoParams): PlotAreaInfo[] {
   let currentPlotAreaY = yAxisRcd.y() + tierPaddingTop;
 
   for (let i_tier = 0; i_tier < tierHeaders.length; i_tier++) {
+    // Skip tiers 1 and 2 when in uncertainty-tiers mode (mirror series uncertainty)
+    if (params.barStacking === "uncertainty-tiers" && i_tier !== 0) {
+      continue;
+    }
     let currentPlotAreaX = yAxisRcd.rightX() + lanePaddingLeft;
 
     for (let i_lane = 0; i_lane < laneHeaders.length; i_lane++) {

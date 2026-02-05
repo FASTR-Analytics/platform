@@ -231,7 +231,7 @@ export type CustomFigureStyleOptions = {
     bars?: {
       defaults?: GenericBarStyleOptions;
       func?: ChartValueInfoFunc<GenericBarStyleOptions> | "none";
-      stacking?: "none" | "stacked" | "imposed" | "uncertainty";
+      stacking?: "none" | "stacked" | "imposed" | "uncertainty" | "uncertainty-tiers";
       maxBarWidth?: number;
     };
     lines?: {

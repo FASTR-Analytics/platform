@@ -20,9 +20,9 @@ import { For, Show } from "solid-js";
 import { VisualizationEditor } from "../visualization";
 import { MetricDetailsModal } from "./metric_details_modal";
 import { AddVisualization } from "./add_visualization";
+import { useProjectDetail } from "~/components/project_runner/mod";
 
 type Props = {
-  projectDetail: ProjectDetail;
   instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
@@ -37,6 +37,7 @@ type MetricsByModule = {
 };
 
 export function ProjectMetrics(p: Props) {
+  const projectDetail = useProjectDetail();
   function organizeMetrics(metrics: MetricWithStatus[]): MetricsByModule[] {
     const moduleMap = new Map<ModuleId, MetricWithStatus[]>();
     for (const metric of metrics) {
@@ -60,12 +61,13 @@ export function ProjectMetrics(p: Props) {
     return result;
   }
 
-  const organized = () => organizeMetrics(p.projectDetail.metrics);
+  const organized = () => organizeMetrics(projectDetail.metrics);
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={t2("Metrics")}></HeadingBar>
+        <HeadingBar heading={t2("Metrics")}
+          class="border-base-300"></HeadingBar>
       }
     >
       <div class="ui-pad ui-spy">
@@ -81,8 +83,8 @@ export function ProjectMetrics(p: Props) {
                   {(metricGroup) => (
                     <MetricGroupCard
                       metricGroup={metricGroup}
-                      projectId={p.projectDetail.id}
-                      projectDetail={p.projectDetail}
+                      projectId={projectDetail.id}
+                      projectDetail={projectDetail}
                       instanceDetail={p.instanceDetail}
                       isGlobalAdmin={p.isGlobalAdmin}
                       openProjectEditor={p.openProjectEditor}

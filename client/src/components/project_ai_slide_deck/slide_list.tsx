@@ -1,19 +1,24 @@
 import { t, type ProjectDetail, type Slide } from "lib";
-import { Button, FrameTop, Loading, Slider, timActionButton, timActionDelete } from "panther";
+import { Button, FrameTop, HeadingBar, Loading, openAlert, Slider, timActionButton, timActionDelete } from "panther";
 import SortableVendor, { SortableJs } from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideCard } from "./slide_card";
 import { trackSlideChange } from "./pending_changes_store";
+import { setShowAi, showAi } from "~/state/ui.ts";
 
 type Props = {
   projectDetail: ProjectDetail;
   deckId: string;
   slideIds: string[];
   isLoading: boolean;
+  deckLabel: string;
   setSelectedSlideIds: (ids: string[]) => void;
   onEditSlide: (slideId: string) => Promise<void>;
+  handleClose: () => Promise<void>;
+  handleEditLabel: () => Promise<void>;
+  download: () => Promise<void>;
 };
 
 export function SlideList(p: Props) {
@@ -363,34 +368,74 @@ export function SlideList(p: Props) {
   );
 
   return (
-    <FrameTop panelChildren={<div class="flex items-center border-b border-base-300 ui-pad">
-      <div class="flex-1 font-700 text-lg">Slides</div>
-      <div class="flex items-center gap-4">
-        <div class="w-32">
-          <Slider
-            value={slideSize()}
-            onChange={setSlideSize}
-            min={200}
-            max={800}
-            step={50}
-            fullWidth
-            disabled={isFillWidth()}
-          />
+    <FrameTop
+      panelChildren={
+        <HeadingBar
+          heading={p.deckLabel}
+          french={false}
+          leftChildren={
+            <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
+          }
+        >
+          <div class="flex items-center ui-gap-sm">
+            <Button iconName="pencil"
+              onClick={async () => {
+                await openAlert({
+                  title: "Coming soon...",
+                  text: <ul class=" list-inside list-disc">
+                    <li class="">Update all visualization data</li>
+                    <li class="">Edit common properties in all visualizations</li>
+                  </ul>
+                })
+              }}
+            >Batch edit visualizations</Button>
+            <div class="w-32">
+              <Slider
+                value={slideSize()}
+                onChange={setSlideSize}
+                min={200}
+                max={800}
+                step={50}
+                fullWidth
+                disabled={isFillWidth()}
+              />
+            </div>
+            <Button
+              iconName={isFillWidth() ? "minimize" : "maximize"}
+              // size="sm"
+              outline
+              onClick={() => setIsFillWidth(!isFillWidth())}
+            />
+            <Button iconName="plus" onClick={addSlide.click} state={addSlide.state()}>
+              Add slide
+            </Button>
+            <Button onClick={p.handleEditLabel} iconName="pencil" outline>
+              Rename
+            </Button>
+            <Button onClick={p.download} iconName="download">
+              Download
+            </Button>
+            <Show when={!showAi()}>
+              <Button
+                onClick={() => setShowAi(true)}
+                iconName="chevronLeft"
+                outline
+              >
+                {t("AI")}
+              </Button>
+            </Show>
+          </div>
+        </HeadingBar>
+      }
+    >
+      {/* <FrameTop panelChildren={<div class="flex items-center border-b border-base-300 ui-pad">
+        <div class="flex-1 font-700 text-lg">Slides</div>
+        <div class="flex items-center gap-4">
         </div>
-        <Button
-          iconName={isFillWidth() ? "minimize" : "maximize"}
-          size="sm"
-          outline
-          onClick={() => setIsFillWidth(!isFillWidth())}
-        />
-        <Button iconName="plus" size="sm" onClick={addSlide.click} state={addSlide.state()}>
-          Add slide
-        </Button>
-      </div>
-    </div>}>
+      </div>}> */}
 
       <div
-        class="h-full w-full overflow-auto p-4"
+        class="h-full w-full overflow-auto ui-pad bg-base-200"
         onClick={(e) => {
           // Clear selection when clicking outside slide cards
           const target = e.target as HTMLElement;
@@ -401,7 +446,7 @@ export function SlideList(p: Props) {
         }}
       >
         <Show when={p.isLoading}>
-          <Loading msg="Loading slides..." />
+          <Loading msg="Loading slides..." noPad />
         </Show>
         <Show when={!p.isLoading && p.slideIds.length === 0}>
           <div class="text-neutral w-full py-16 text-center">
@@ -452,6 +497,7 @@ export function SlideList(p: Props) {
           </SortableVendor>
         </Show>
       </div>
-    </FrameTop>
+      {/* </FrameTop> */}
+    </FrameTop >
   );
 }

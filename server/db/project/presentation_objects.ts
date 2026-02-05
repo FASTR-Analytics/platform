@@ -2,6 +2,7 @@ import { Sql } from "postgres";
 import {
   DisaggregationDisplayOption,
   DisaggregationOption,
+  PeriodFilter,
   PresentationOption,
   ProjectUser,
   ResultsValue,
@@ -346,6 +347,70 @@ export async function getReportItemsThatDependOnPresentationObjects(
     )}
   `;
   return rows.map((r) => r.id);
+}
+
+export async function batchUpdatePresentationObjectsPeriodFilter(
+  projectDb: Sql,
+  presentationObjectIds: string[],
+  periodFilter: PeriodFilter | undefined,
+): Promise<APIResponseWithData<{
+  lastUpdated: string;
+  updatedCount: number;
+  reportItemsAffected: string[];
+}>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const reportItemsSet = new Set<string>();
+
+    await projectDb.begin(async (sql: Sql) => {
+      for (const id of presentationObjectIds) {
+        const result = await sql<DBPresentationObject[]>`
+          SELECT config FROM presentation_objects WHERE id = ${id}
+        `;
+
+        if (result.length === 0) {
+          throw new Error(`Presentation object ${id} not found`);
+        }
+
+        const config: PresentationObjectConfig = parseJsonOrThrow(result[0].config);
+
+        config.d.periodFilter = periodFilter;
+
+        await sql`
+          UPDATE presentation_objects
+          SET config = ${JSON.stringify(config)},
+              last_updated = ${lastUpdated}
+          WHERE id = ${id}
+        `;
+
+        const reportItems = await getReportItemsThatDependOnPresentationObjects(
+          sql,
+          [id],
+        );
+        reportItems.forEach(itemId => reportItemsSet.add(itemId));
+      }
+
+      if (reportItemsSet.size > 0) {
+        const reportItemIds = Array.from(reportItemsSet);
+        for (const reportItemId of reportItemIds) {
+          await sql`
+            UPDATE report_items
+            SET last_updated = ${lastUpdated}
+            WHERE id = ${reportItemId}
+          `;
+        }
+      }
+    });
+
+    return {
+      success: true,
+      data: {
+        lastUpdated,
+        updatedCount: presentationObjectIds.length,
+        reportItemsAffected: Array.from(reportItemsSet),
+      },
+    };
+  });
 }
 
 export async function deletePresentationObject(

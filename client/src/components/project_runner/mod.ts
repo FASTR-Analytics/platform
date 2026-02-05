@@ -13,6 +13,7 @@ export {
   useOptimisticSetProjectLastUpdated,
   useOptimisticSetLastUpdated,
   useRLogs,
+  useLastUpdatedListener,
 } from "./hooks";
 
 // Global PDS (for cache system only - do not use in components)

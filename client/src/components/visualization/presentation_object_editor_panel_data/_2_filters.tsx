@@ -408,13 +408,13 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
   );
 }
 
-type PeriodFilterPropsPeriodId = {
+export type PeriodFilterPropsPeriodId = {
   periodBounds: PeriodBounds;
   periodFilter: PeriodBounds;
   onUpdate: (v: { minPeriodId: number; maxPeriodId: number }) => void;
 };
 
-function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
+export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
   const [tempMinTime, setTempMinTime] = createSignal<number>(
     getTimeFromPeriodId(
       Math.max(p.periodFilter.min, p.periodBounds.min),
@@ -480,13 +480,13 @@ function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
   );
 }
 
-type PeriodFilterPropsPeriodIdSingle = {
+export type PeriodFilterPropsPeriodIdSingle = {
   periodBounds: PeriodBounds;
   periodFilter: PeriodBounds;
   onUpdate: (v: { minPeriodId: number; maxPeriodId: number }) => void;
 };
 
-function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
+export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
   const [tempTime, setTempTime] = createSignal<number>(
     getTimeFromPeriodId(
       Math.max(p.periodFilter.min, p.periodBounds.min),
@@ -537,12 +537,12 @@ function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
   );
 }
 
-type NMonthsSelectorProps = {
+export type NMonthsSelectorProps = {
   nMonths: number | undefined;
   onUpdate: (nMonths: number) => void;
 };
 
-function NMonthsSelector(p: NMonthsSelectorProps) {
+export function NMonthsSelector(p: NMonthsSelectorProps) {
   const [tempNMonths, setTempNMonths] = createSignal<number>(
     p.nMonths ?? 12,
   );
@@ -581,13 +581,13 @@ function NMonthsSelector(p: NMonthsSelectorProps) {
   );
 }
 
-type PeriodFilterPropsYear = {
+export type PeriodFilterPropsYear = {
   periodBounds: PeriodBounds;
   periodFilter: PeriodBounds;
   onUpdate: (v: { minYear: number; maxYear: number }) => void;
 };
 
-function PeriodFilterYear(p: PeriodFilterPropsYear) {
+export function PeriodFilterYear(p: PeriodFilterPropsYear) {
   const [tempMinTime, setTempMinTime] = createSignal<number>(
     p.periodFilter.min,
   );

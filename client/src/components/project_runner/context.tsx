@@ -13,4 +13,7 @@ export const ProjectDirtyStateContext = createContext<{
     lastUpdated: string,
   ) => void;
   rLogs: Store<Record<string, { latest: string }>>;
+  addLastUpdatedListener: (
+    listener: (tableName: LastUpdateTableName, ids: string[], timestamp: string) => void
+  ) => () => void;
 }>();

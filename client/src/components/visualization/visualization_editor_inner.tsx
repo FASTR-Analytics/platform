@@ -42,6 +42,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  onCleanup,
   onMount,
 } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -53,6 +54,7 @@ import {
   useOptimisticSetLastUpdated,
   useOptimisticSetProjectLastUpdated,
 } from "~/components/project_runner/mod";
+import { useAIProjectContext } from "~/components/project_ai";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
 import {
@@ -61,7 +63,7 @@ import {
 } from "~/state/po_cache";
 import { setShowAi, showAi } from "~/state/ui";
 import type { CreateModeReturn, EditModeReturn, EphemeralModeReturn } from ".";
-import { AiInterpretationPane } from "./ai_interpretation_pane";
+// import { AiInterpretationPane } from "./ai_interpretation_pane";
 import { CreateVisualizationModal } from "./create_visualization_modal";
 import { DuplicateVisualization } from "./duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
@@ -81,9 +83,18 @@ type InnerProps = {
 };
 
 export function VisualizationEditorInner(p: InnerProps) {
+  console.log("HERe")
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
+  const { setAIContext } = useAIProjectContext();
 
+  console.log("HERe 21")
+  // Extract static values from stores to prevent external reactivity
+  const projectId = p.projectDetail.id;
+  // const visualizationFolders = structuredClone(p.projectDetail.visualizationFolders);
+  // const isLocked = p.projectDetail.isLocked;
+
+  console.log("HERe 22")
   const {
     openEditor: openEditorForResultsObject,
     EditorWrapper: EditorWrapperForResultsObject,
@@ -91,6 +102,7 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   // Temp state
 
+  console.log("HERe 2")
   const [tempConfig, setTempConfig] = createStore<PresentationObjectConfig>(
     structuredClone(p.poDetail.config),
   );
@@ -107,11 +119,12 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   // Sub-state updater
 
+  console.log("HERe 2b")
   async function attemptGetPresentationObjectItems(
     config: PresentationObjectConfig,
   ) {
     const iter = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
-      p.projectDetail.id,
+      projectId,
       p.poDetail,
       config,
     );
@@ -120,11 +133,31 @@ export function VisualizationEditorInner(p: InnerProps) {
     }
   }
 
+  console.log("HERe 3")
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
   onMount(() => {
+    console.log("[VIZ] onMount - mode:", p.mode, "label:", p.poDetail.label);
     const unwrappedTempConfig = unwrap(tempConfig);
+
+    console.log("[VIZ] calling attemptGetPresentationObjectItems");
     attemptGetPresentationObjectItems(unwrappedTempConfig);
+
+    // Set AI context now that editor is mounted (all modes)
+    console.log("[VIZ] calling setAIContext");
+    setAIContext({
+      mode: "viz-editor",
+      vizId: p.mode === "edit" ? p.poDetail.id : null, // null for create/ephemeral
+      vizLabel: p.poDetail.label,
+      resultsValue: p.poDetail.resultsValue,
+      getTempConfig: () => tempConfig,
+      setTempConfig,
+    });
+    console.log("[VIZ] setAIContext completed");
+  });
+
+  onCleanup(() => {
+    setAIContext({ mode: "default" });
   });
 
   let firstRunConfigChange = true;
@@ -160,6 +193,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     attemptGetPresentationObjectItems(unwrappedTempConfig);
   });
 
+  console.log("HERe 4")
   let firstRunNeedsSave = true;
   createEffect(() => {
     trackStore(tempConfig);
@@ -206,7 +240,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     const modalRes = await openComponent({
       element: CreateVisualizationModal,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: projectId,
         existingLabel: p.poDetail.label,
         resultsValue: p.poDetail.resultsValue,
         config: unwrappedTempConfig,
@@ -230,7 +264,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     const unwrappedTempConfig = unwrap(tempConfig);
 
     const res = await serverActions.updatePresentationObjectConfig({
-      projectId: p.projectDetail.id,
+      projectId: projectId,
       po_id: p.poDetail.id,
       config: unwrappedTempConfig,
       expectedLastUpdated: p.poDetail.lastUpdated,
@@ -259,7 +293,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       if (userChoice === "save_as_new") {
         // Create new visualization with user's edited config
         const createRes = await serverActions.createPresentationObject({
-          projectId: p.projectDetail.id,
+          projectId: projectId,
           label: `${p.poDetail.label} (copy)`,
           resultsValue: p.poDetail.resultsValue,
           config: unwrappedTempConfig,
@@ -333,7 +367,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     await openComponent({
       element: VisualizationSettings,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: projectId,
         presentationObjectId: p.poDetail.id,
         resultsObjectId: p.poDetail.resultsValue.resultsObjectId,
         moduleId: getModuleIdForMetric(p.poDetail.resultsValue.id),
@@ -344,7 +378,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         silentFetchPoDetail: async () => { },
         mutateFunc: async (newLabel) =>
           serverActions.updatePresentationObjectLabel({
-            projectId: p.projectDetail.id,
+            projectId: projectId,
             po_id: p.poDetail.id,
             label: newLabel,
           }),
@@ -364,7 +398,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     const res = await openComponent({
       element: DuplicateVisualization,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: projectId,
         poDetails: [{ id: p.poDetail.id, label: p.poDetail.label, folderId: p.poDetail.folderId }],
         folders: p.projectDetail.visualizationFolders,
       },
@@ -429,7 +463,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     }
     if (res.format === "data-visualization") {
       const res = await getPresentationObjectItemsFromCacheOrFetch(
-        p.projectDetail.id,
+        projectId,
         p.poDetail,
         tempConfig,
       );
@@ -571,7 +605,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1),
       () =>
         serverActions.deletePresentationObject({
-          projectId: p.projectDetail.id,
+          projectId: projectId,
           po_id: p.poDetail.id,
         }),
       () => (p.onClose as (result: EditModeReturn) => void)({ deleted: true }),
@@ -584,7 +618,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     const _res = await openEditorForResultsObject({
       element: ViewResultsObject,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: projectId,
         moduleId: getModuleIdForMetric(p.poDetail.resultsValue.id),
         resultsObjectId,
       },
@@ -592,7 +626,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   }
 
   const isEditable = p.mode !== "ephemeral";
-
+  console.log("Here 3")
   return (
     <EditorWrapperForResultsObject>
       <FrameTop
@@ -667,18 +701,6 @@ export function VisualizationEditorInner(p: InnerProps) {
               </Show>
             </div>
             <div class="ui-gap-sm flex items-center">
-              {/* <Show when={p.isGlobalAdmin}>
-                <div class="truncate rounded border border-success bg-base-100 px-2 py-1 text-xs text-success">
-                  Instance admin!
-                </div>
-              </Show> */}
-              <div class="pr-2">
-                <Checkbox
-                  label="Show AI"
-                  checked={showAi()}
-                  onChange={setShowAi}
-                />
-              </div>
               <Show when={!p.projectDetail.isLocked && p.mode === "edit"}>
                 <Button
                   onClick={attemptUpdateLabel}
@@ -700,6 +722,15 @@ export function VisualizationEditorInner(p: InnerProps) {
               <Button onClick={download} iconName="download">
                 {t2(T.FRENCH_UI_STRINGS.download)}
               </Button>
+              <Show when={!showAi()}>
+                <Button
+                  onClick={() => setShowAi(true)}
+                  iconName="chevronLeft"
+                  outline
+                >
+                  {t("AI")}
+                </Button>
+              </Show>
             </div>
           </div>
         }
@@ -801,50 +832,50 @@ export function VisualizationEditorInner(p: InnerProps) {
                             );
 
                             return (
-                              <FrameRightResizable
-                                startingWidth={300}
-                                minWidth={260}
-                                panelChildren={
-                                  showAi() && (
-                                    <div class="bg-base-100 h-full border-l">
-                                      <AiInterpretationPane
-                                        instanceDetail={p.instanceDetail}
-                                        projectDetail={p.projectDetail}
-                                        presentationObjectId={p.poDetail.id}
-                                        conversationId={
-                                          p.mode === "edit"
-                                            ? `viz-chat-${p.poDetail.id}`
-                                            : `viz-chat-${p.mode}-${p.poDetail.resultsValue.id}`
+                              // <FrameRightResizable
+                              //   startingWidth={300}
+                              //   minWidth={260}
+                              //   panelChildren={
+                              //     showAi() && (
+                              //       <div class="bg-base-100 h-full border-l">
+                              //         <AiInterpretationPane
+                              //           instanceDetail={p.instanceDetail}
+                              //           projectDetail={p.projectDetail}
+                              //           presentationObjectId={p.poDetail.id}
+                              //           conversationId={
+                              //             p.mode === "edit"
+                              //               ? `viz-chat-${p.poDetail.id}`
+                              //               : `viz-chat-${p.mode}-${p.poDetail.resultsValue.id}`
+                              //           }
+                              //           figureInputs={figureInputs()}
+                              //           tempConfig={tempConfig}
+                              //           setTempConfig={setTempConfig}
+                              //           resultsValue={p.poDetail.resultsValue}
+                              //         />
+                              //       </div>
+                              //     )
+                              //   }
+                              // >
+                              <div class="ui-pad h-full w-full overflow-auto">
+                                <StateHolderWrapper state={figureInputs()}>
+                                  {(keyedFigureInputs) => {
+                                    return (
+                                      <ChartHolder
+                                        canvasElementId="CANVAS_FOR_DOWNLOADING"
+                                        chartInputs={keyedFigureInputs}
+                                        height={
+                                          tempConfig.s.idealAspectRatio === "none"
+                                            ? "flex"
+                                            : "ideal"
                                         }
-                                        figureInputs={figureInputs()}
-                                        tempConfig={tempConfig}
-                                        setTempConfig={setTempConfig}
-                                        resultsValue={p.poDetail.resultsValue}
+                                        noRescaleWithWidthChange
+                                        textRenderingOptions={getTextRenderingOptions()}
                                       />
-                                    </div>
-                                  )
-                                }
-                              >
-                                <div class="ui-pad h-full w-full overflow-auto">
-                                  <StateHolderWrapper state={figureInputs()}>
-                                    {(keyedFigureInputs) => {
-                                      return (
-                                        <ChartHolder
-                                          canvasElementId="CANVAS_FOR_DOWNLOADING"
-                                          chartInputs={keyedFigureInputs}
-                                          height={
-                                            tempConfig.s.idealAspectRatio === "none"
-                                              ? "flex"
-                                              : "ideal"
-                                          }
-                                          noRescaleWithWidthChange
-                                          textRenderingOptions={getTextRenderingOptions()}
-                                        />
-                                      );
-                                    }}
-                                  </StateHolderWrapper>
-                                </div>
-                              </FrameRightResizable>
+                                    );
+                                  }}
+                                </StateHolderWrapper>
+                              </div>
+                              // </FrameRightResizable>
                             );
                           })()}
                         </Match>

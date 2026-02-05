@@ -11,12 +11,11 @@ import { Show, createSignal } from "solid-js";
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
 import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "./add_visualization";
-import { CreateVisualizationFromPromptModal } from "./create_visualization_from_prompt_modal";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
-import { setVizGroupingMode, setVizSelectedGroup } from "~/state/ui";
+import { updateProjectView } from "~/state/ui";
+import { useProjectDetail } from "~/components/project_runner/mod";
 
 type Props = {
-  projectDetail: ProjectDetail;
   instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
@@ -25,12 +24,13 @@ type Props = {
 };
 
 export function ProjectVisualizations(p: Props) {
+  const projectDetail = useProjectDetail();
   const [searchText, setSearchText] = createSignal<string>("");
 
   async function openVisualizationEditor(po: PresentationObjectSummary) {
     if (po.isDefault) {
       const poDetailRes = await getPODetailFromCacheorFetch(
-        p.projectDetail.id,
+        projectDetail.id,
         po.id,
       );
       if (poDetailRes.success === false) {
@@ -45,22 +45,22 @@ export function ProjectVisualizations(p: Props) {
         element: VisualizationEditor,
         props: {
           mode: "create" as const,
-          projectId: p.projectDetail.id,
+          projectId: projectDetail.id,
           label: `Copy of ${poDetailRes.data.label}`,
           resultsValue: poDetailRes.data.resultsValue,
           config: structuredClone(poDetailRes.data.config),
           instanceDetail: p.instanceDetail,
-          projectDetail: p.projectDetail,
+          projectDetail: projectDetail,
           isGlobalAdmin: p.isGlobalAdmin,
         },
       });
 
       if (result?.created) {
         // SSE will update projectDetail automatically
-        setVizGroupingMode("folders");
-        setVizSelectedGroup(
-          result.created.folderId === null ? "_unfiled" : result.created.folderId,
-        );
+        updateProjectView({
+          vizGroupingMode: "folders",
+          vizSelectedGroup: result.created.folderId === null ? "_unfiled" : result.created.folderId,
+        });
       }
       return;
     }
@@ -69,10 +69,10 @@ export function ProjectVisualizations(p: Props) {
       element: VisualizationEditor,
       props: {
         mode: "edit" as const,
-        projectId: p.projectDetail.id,
+        projectId: projectDetail.id,
         presentationObjectId: po.id,
         instanceDetail: p.instanceDetail,
-        projectDetail: p.projectDetail,
+        projectDetail: projectDetail,
         isGlobalAdmin: p.isGlobalAdmin,
       },
     });
@@ -83,9 +83,9 @@ export function ProjectVisualizations(p: Props) {
     const res = await openComponent({
       element: AddVisualization,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: projectDetail.id,
         isGlobalAdmin: p.isGlobalAdmin,
-        metrics: p.projectDetail.metrics,
+        metrics: projectDetail.metrics,
       },
     });
     if (res === undefined) {
@@ -96,44 +96,44 @@ export function ProjectVisualizations(p: Props) {
       element: VisualizationEditor,
       props: {
         mode: "create" as const,
-        projectId: p.projectDetail.id,
+        projectId: projectDetail.id,
         label: res.label,
         resultsValue: res.resultsValue,
         config: res.config,
         instanceDetail: p.instanceDetail,
-        projectDetail: p.projectDetail,
+        projectDetail: projectDetail,
         isGlobalAdmin: p.isGlobalAdmin,
       },
     });
   }
 
-  async function attemptAICreatePresentationObject() {
-    const res = await openComponent({
-      element: CreateVisualizationFromPromptModal,
-      props: {
-        projectId: p.projectDetail.id,
-        instanceDetail: p.instanceDetail,
-        projectDetail: p.projectDetail,
-      },
-    });
-    if (res === undefined) {
-      return;
-    }
+  // async function attemptAICreatePresentationObject() {
+  //   const res = await openComponent({
+  //     element: CreateVisualizationFromPromptModal,
+  //     props: {
+  //       projectId: projectDetail.id,
+  //       instanceDetail: p.instanceDetail,
+  //       projectDetail: projectDetail,
+  //     },
+  //   });
+  //   if (res === undefined) {
+  //     return;
+  //   }
 
-    await p.openProjectEditor({
-      element: VisualizationEditor,
-      props: {
-        mode: "create" as const,
-        projectId: p.projectDetail.id,
-        label: res.label,
-        resultsValue: res.resultsValue,
-        config: res.config,
-        instanceDetail: p.instanceDetail,
-        projectDetail: p.projectDetail,
-        isGlobalAdmin: p.isGlobalAdmin,
-      },
-    });
-  }
+  //   await p.openProjectEditor({
+  //     element: VisualizationEditor,
+  //     props: {
+  //       mode: "create" as const,
+  //       projectId: projectDetail.id,
+  //       label: res.label,
+  //       resultsValue: res.resultsValue,
+  //       config: res.config,
+  //       instanceDetail: p.instanceDetail,
+  //       projectDetail: projectDetail,
+  //       isGlobalAdmin: p.isGlobalAdmin,
+  //     },
+  //   });
+  // }
 
   // async function attemptBackupPresentationObjects() {
   //   const res = await serverActions.backupPresentationObjects({
@@ -158,17 +158,18 @@ export function ProjectVisualizations(p: Props) {
           searchText={searchText()}
           setSearchText={setSearchText}
           french={isFrench()}
+          class="border-base-300"
         >
           <Show
             when={
-              !p.projectDetail.isLocked &&
-              p.projectDetail.projectModules.length > 0
+              !projectDetail.isLocked &&
+              projectDetail.projectModules.length > 0
             }
           >
             <div class="flex items-center ui-gap-sm">
-              <Button onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
+              {/* <Button onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
                 {t("Create with AI")}
-              </Button>
+              </Button> */}
               <Button onClick={attempAddPresentationObject} iconName="plus">
                 {t2(T.FRENCH_UI_STRINGS.create_visualization)}
               </Button>
@@ -178,7 +179,7 @@ export function ProjectVisualizations(p: Props) {
       }
     >
       <Show
-        when={p.projectDetail.projectModules.length > 0}
+        when={projectDetail.projectModules.length > 0}
         fallback={
           <div class="ui-pad text-neutral text-sm">
             {t(
@@ -188,7 +189,7 @@ export function ProjectVisualizations(p: Props) {
         }
       >
         <PresentationObjectPanelDisplay
-          projectDetail={p.projectDetail}
+          projectDetail={projectDetail}
           searchText={searchText().trim()}
           onClick={openVisualizationEditor}
         />

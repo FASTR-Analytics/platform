@@ -161,6 +161,36 @@ wb-fastr/
 - Background worker coordination
 - Live dirty state synchronization
 
+## State Management
+
+**Three-tier pattern for client state:**
+
+1. **Global UI State** (`client/src/state/ui.ts`)
+   - UI preferences that persist across components
+   - Examples: `vizGroupingMode`, `fitWithin`, `showAi`
+   - Access: Direct import and use
+   - Updates: Use `updateProjectView()` for batch updates
+   - Persisted to localStorage where appropriate
+
+2. **Server Data** (Providers/Context)
+   - Data from server (projects, modules, metrics, etc.)
+   - Examples: `projectDetail`, `projectDirtyStates`
+   - Access: Via hooks (`useProjectDetail()`, `useProjectDirtyStates()`)
+   - Updates: SSE triggers automatic refetch via `reconcile()`
+   - Location: `client/src/components/project_runner/provider.tsx`
+
+3. **Component-Local State**
+   - Temporary UI state scoped to single component
+   - Examples: `searchText`, `isLoading`, `selectedItems`
+   - Access: `createSignal()` within component
+   - Does not need to be shared
+
+**Rules:**
+- NEVER pass server data as props - use hooks
+- NEVER put UI preferences in component state - use global state
+- NEVER manually trigger refetch - rely on SSE (provider handles it)
+- Use `updateProjectView()` for UI state changes, not individual setters
+
 ## API Routes
 
 **Instance Routes** (cross-project)

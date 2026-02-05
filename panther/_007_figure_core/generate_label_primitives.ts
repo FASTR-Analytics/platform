@@ -69,10 +69,12 @@ export function generateTierHeaderLabelPrimitives(
   yScaleAxisData: YScaleAxisData,
   yScaleAxisStyle: MergedYScaleAxisStyle,
   i_pane: number,
+  barStacking?: "none" | "stacked" | "imposed" | "uncertainty" | "uncertainty-tiers",
 ): ChartLabelPrimitive[] {
   const primitives: ChartLabelPrimitive[] = [];
 
-  if (yScaleAxisData.tierHeaders.length < 2) {
+  // Don't show tier headers if less than 2 tiers, or if uncertainty-tiers (only 1 visible tier)
+  if (yScaleAxisData.tierHeaders.length < 2 || barStacking === "uncertainty-tiers") {
     return primitives;
   }
 

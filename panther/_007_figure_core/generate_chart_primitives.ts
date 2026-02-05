@@ -150,6 +150,13 @@ export function generateChartPrimitives<
           .yScaleAxisData as import("./types.ts").YScaleAxisData,
         (config.mergedStyle as any).yScaleAxis,
         mPane.i_pane,
+        config.contentStyle.bars.stacking as
+          | "none"
+          | "stacked"
+          | "imposed"
+          | "uncertainty"
+          | "uncertainty-tiers"
+          | undefined,
       );
       allPrimitives.push(...tierLabelPrimitives);
       generatedTierLabels.add(`${mPane.i_pane}`);
@@ -284,6 +291,28 @@ export function generateChartPrimitives<
         plotAreaInfo.i_tier,
       );
 
+      // Get ALL tiers' data from source (not from filtered plotAreaInfos)
+      const transformedDataWithValues = config.transformedData as TData & {
+        values: (number | undefined)[][][][][];
+      };
+      const allTiersSeriesVals = transformedDataWithValues.values[mPane.i_pane].map(
+        (tierData) => tierData[plotAreaInfo.i_lane]
+      );
+
+      // Pre-calculate mapped coordinates for ALL tiers (mirrors series uncertainty)
+      const allTiersMappedCoordinates = allTiersSeriesVals.map(
+        (tierSeriesVals, i_tier) =>
+          calculateMappedCoordinates(
+            tierSeriesVals,
+            plotAreaInfo.rcd,
+            xAxisConfig.incrementWidth,
+            xAxisConfig.isCentered,
+            config.gridStyle.gridStrokeWidth,
+            mPane.yScaleAxisWidthInfo,
+            i_tier,
+          )
+      );
+
       // Generate all content primitives (bars, lines, areas, points, data labels)
       const contentPrimitives = generateContentPrimitives({
         rc,
@@ -305,6 +334,9 @@ export function generateChartPrimitives<
         transformedData: config.transformedData,
         contentStyle: config.contentStyle,
         dataLabelsTextStyle: config.dataLabelsTextStyle,
+        allTiersSeriesVals,
+        allTiersMappedCoordinates,
+        yScaleAxisWidthInfo: mPane.yScaleAxisWidthInfo,
       });
 
       allPrimitives.push(...contentPrimitives);

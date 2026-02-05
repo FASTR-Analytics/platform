@@ -70,12 +70,12 @@ async function getVisualizationDataAsCSV(projectId: string, presentationObjectId
   return contextLines.join("\n") + dataOutput;
 }
 
+import type { AIContext } from "~/components/project_ai/types";
+
 // Helper to get visualization data tool for viz pane (uses local state, works in all modes)
 export function getToolForVisualizationData(
   projectId: string,
-  getPresentationObjectId: () => string,
-  getTempConfig: () => PresentationObjectConfig,
-  getResultsValue: () => ResultsValue,
+  getAIContext: () => AIContext,
 ) {
   return [
     createAITool({
@@ -83,9 +83,14 @@ export function getToolForVisualizationData(
       description: "Get current configuration, available options, and underlying CSV data for the visualization being edited. Shows live state from the editor (including unsaved changes). Call this to understand current settings and see the data.",
       inputSchema: z.object({}),
       handler: async () => {
-        const config = getTempConfig();
-        const resultsValue = getResultsValue();
-        const presentationObjectId = getPresentationObjectId();
+        const ctx = getAIContext();
+        if (ctx.mode !== "viz-editor") {
+          throw new Error("This tool is only available when editing a visualization");
+        }
+
+        const config = ctx.getTempConfig();
+        const resultsValue = ctx.resultsValue;
+        const presentationObjectId = ctx.vizId;
 
         const dataOutput = await getDataFromConfig(projectId, resultsValue.id, config);
 

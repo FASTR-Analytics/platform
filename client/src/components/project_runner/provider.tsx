@@ -23,6 +23,13 @@ import {
 } from "./utils";
 import { serverActions } from "~/server_actions";
 
+// Listener type for SSE last_updated events
+type LastUpdatedListener = (
+  tableName: LastUpdateTableName,
+  ids: string[],
+  timestamp: string
+) => void;
+
 export function ProjectRunnerProvider(p: Props) {
   const [connectAttempts, setConnectionAttempts] = createSignal<number>(0);
   const [connectionState, setConnectionState] =
@@ -45,6 +52,14 @@ export function ProjectRunnerProvider(p: Props) {
     projectUsers: [],
   });
   const [isProjectReady, setIsProjectReady] = createSignal(false);
+
+  // Listener management for SSE last_updated events
+  const listeners = new Set<LastUpdatedListener>();
+
+  function addLastUpdatedListener(listener: LastUpdatedListener): () => void {
+    listeners.add(listener);
+    return () => listeners.delete(listener); // Cleanup function
+  }
 
   async function fetchProjectDetail() {
     const res = await serverActions.getProjectDetail({ projectId: p.projectId });
@@ -230,6 +245,11 @@ export function ProjectRunnerProvider(p: Props) {
           console.log("PDS", "lastUpdated", bm);
           safeSetLastUpdated(bm.tableName, id, bm.lastUpdated);
         }
+
+        // Fire listeners with the change
+        for (const listener of listeners) {
+          listener(bm.tableName, bm.ids, bm.lastUpdated);
+        }
       } else if (bm.type === "project_updated") {
         safeSet("projectLastUpdated", bm.lastUpdated);
         // Refetch project detail when project metadata changes
@@ -337,6 +357,7 @@ export function ProjectRunnerProvider(p: Props) {
             optimisticSetProjectLastUpdated,
             optimisticSetLastUpdated,
             rLogs,
+            addLastUpdatedListener,
           }}
         >
           {p.children}

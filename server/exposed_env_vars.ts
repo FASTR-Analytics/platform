@@ -25,8 +25,8 @@ if (_INSTANCE_NAME === undefined) {
 
 export const _INSTANCE_ID = Deno.env
   .get("INSTANCE_ID")
-  ?.replaceAll("'","")
-  .replaceAll(`"`,"")!;
+  ?.replaceAll("'", "")
+  .replaceAll(`"`, "")!;
 if (_INSTANCE_ID === undefined) {
   throw new Error("Could not get INSTANCE_ID env variable");
 }
@@ -36,11 +36,10 @@ if (_INSTANCE_REDIRECT_URL === undefined) {
   throw new Error("Could not get INSTANCE_REDIRECT_URL env variable");
 }
 
-export const _INSTANCE_LANGUAGE =
-  (Deno.env
-    .get("INSTANCE_LANGUAGE")
-    ?.replaceAll("'", "")
-    .replaceAll(`"`, "") as InstanceLanguage) ?? "en";
+export const _INSTANCE_LANGUAGE = (Deno.env
+  .get("INSTANCE_LANGUAGE")
+  ?.replaceAll("'", "")
+  .replaceAll(`"`, "") as InstanceLanguage) ?? "en";
 if (
   _INSTANCE_LANGUAGE === undefined ||
   !["en", "fr"].includes(_INSTANCE_LANGUAGE)
@@ -49,11 +48,10 @@ if (
 }
 setLanguage(_INSTANCE_LANGUAGE);
 
-export const _INSTANCE_CALENDAR =
-  (Deno.env
-    .get("INSTANCE_CALENDAR")
-    ?.replaceAll("'", "")
-    .replaceAll(`"`, "") as InstanceCalendar) ?? "gregorian";
+export const _INSTANCE_CALENDAR = (Deno.env
+  .get("INSTANCE_CALENDAR")
+  ?.replaceAll("'", "")
+  .replaceAll(`"`, "") as InstanceCalendar) ?? "gregorian";
 if (
   _INSTANCE_CALENDAR === undefined ||
   !["gregorian", "ethiopian"].includes(_INSTANCE_CALENDAR)
@@ -123,6 +121,11 @@ if (_ANTHROPIC_API_URL === undefined) {
 export const _ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 if (_ANTHROPIC_API_KEY === undefined) {
   throw new Error("Could not get ANTHROPIC_API_KEY env variable");
+}
+
+export const _STATUS_API_KEY = Deno.env.get("STATUS_API_KEY")!;
+if (_STATUS_API_KEY === undefined) {
+  throw new Error("Could not get STATUS_API_KEY env variable");
 }
 
 ///////////////////////////////////////////////////////////////////////////////

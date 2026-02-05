@@ -23,24 +23,24 @@ import { For, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { SettingsForProjectDatasetHmis } from "./settings_for_project_dataset_hmis";
-import { useRefetchProjectDetail } from "~/components/project_runner/mod";
+import { useProjectDetail } from "~/components/project_runner/mod";
 
 type Props = {
   instanceDetail: InstanceDetail;
-  projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
 };
 
 export function ProjectData(p: Props) {
+  const projectDetail = useProjectDetail();
   const { openEditor, EditorWrapper } = getEditorWrapper();
-  const refetchProjectDetail = useRefetchProjectDetail();
   return (
     <EditorWrapper>
-      <FrameTop panelChildren={<HeadingBar heading={"Data"}></HeadingBar>}>
+      <FrameTop panelChildren={<HeadingBar heading={"Data"}
+        class="border-base-300"></HeadingBar>}>
         <div class="ui-pad ui-spy">
           <For each={_POSSIBLE_DATASETS}>
             {(possibleDataset) => {
-              const projectDataset = p.projectDetail.projectDatasets.find(
+              const projectDataset = projectDetail.projectDatasets.find(
                 (d) => d.datasetType === possibleDataset.datasetType,
               );
               return (
@@ -106,7 +106,7 @@ export function ProjectData(p: Props) {
                         const _res = await openEditor({
                           element: SettingsForProjectDatasetHmis,
                           props: {
-                            projectDetail: p.projectDetail,
+                            projectDetail: projectDetail,
                             facilityColumns: p.instanceDetail.facilityColumns,
                             indicatorMappingsVersion:
                               p.instanceDetail.cacheVersions.indicatorMappings,
@@ -119,10 +119,9 @@ export function ProjectData(p: Props) {
                       const disableDataset = timActionButton(
                         () =>
                           serverActions.removeDatasetFromProject({
-                            projectId: p.projectDetail.id,
+                            projectId: projectDetail.id,
                             dataset_type: "hmis",
                           }),
-                        refetchProjectDetail,
                       );
 
                       return (
@@ -138,12 +137,12 @@ export function ProjectData(p: Props) {
                             </div>
                             <Show
                               when={
-                                !p.projectDetail.isLocked && p.isGlobalAdmin
+                                !projectDetail.isLocked && p.isGlobalAdmin
                               }
                             >
                               <div class="ui-gap-sm flex">
                                 <Button
-                                  href={`${_SERVER_HOST}/${p.projectDetail.id}/datasets/hmis.csv?t=${Date.now()}`}
+                                  href={`${_SERVER_HOST}/${projectDetail.id}/datasets/hmis.csv?t=${Date.now()}`}
                                   download={`hmis.csv`}
                                   outline
                                 >
@@ -317,36 +316,21 @@ export function ProjectData(p: Props) {
                         return inst !== undefined && proj !== undefined && proj < inst;
                       };
 
-                      // async function editSettings() {
-                      //   const _res = await openEditor({
-                      //     element: SettingsForProjectDatasetHmis,
-                      //     props: {
-                      //       projectDetail: p.projectDetail,
-                      //       indicatorMappingsVersion:
-                      //         p.instanceDetail.cacheVersions.indicatorMappings,
-                      //       hmisInfo: keyedProjectDatasetHmis.info,
-                      //       silentRefreshProject: refetchProjectDetail,
-                      //     },
-                      //   });
-                      // }
-
                       const disableDataset = timActionButton(
                         () =>
                           serverActions.removeDatasetFromProject({
-                            projectId: p.projectDetail.id,
+                            projectId: projectDetail.id,
                             dataset_type: "hfa",
                           }),
-                        refetchProjectDetail,
                       );
 
                       const updateData = timActionButton(
                         () =>
                           serverActions.addDatasetToProject({
-                            projectId: p.projectDetail.id,
+                            projectId: projectDetail.id,
                             datasetType: "hfa",
                             windowing: undefined,
                           }),
-                        refetchProjectDetail,
                       );
 
                       return (
@@ -362,7 +346,7 @@ export function ProjectData(p: Props) {
                             </div>
                             <Show
                               when={
-                                !p.projectDetail.isLocked && p.isGlobalAdmin
+                                !projectDetail.isLocked && p.isGlobalAdmin
                               }
                             >
                               <div class="ui-gap-sm flex">
@@ -437,7 +421,7 @@ export function ProjectData(p: Props) {
                         await openEditor({
                           element: SettingsForProjectDatasetHmis,
                           props: {
-                            projectDetail: p.projectDetail,
+                            projectDetail: projectDetail,
                             facilityColumns: p.instanceDetail.facilityColumns,
                             indicatorMappingsVersion:
                               p.instanceDetail.cacheVersions.indicatorMappings,
@@ -461,11 +445,11 @@ export function ProjectData(p: Props) {
                         }
 
                         return await serverActions.addDatasetToProject({
-                          projectId: p.projectDetail.id,
+                          projectId: projectDetail.id,
                           datasetType: possibleDataset.datasetType,
                           windowing: undefined,
                         });
-                      }, refetchProjectDetail);
+                      });
 
                       return (
                         <div class="ui-pad border-base-300 ui-spy rounded border">
@@ -476,7 +460,7 @@ export function ProjectData(p: Props) {
                             <div class="">
                               <Show
                                 when={
-                                  !p.projectDetail.isLocked && p.isGlobalAdmin
+                                  !projectDetail.isLocked && p.isGlobalAdmin
                                 }
                                 fallback={
                                   <div class="font-400 text-neutral text-sm">

@@ -57,3 +57,11 @@ export function useRLogs() {
   }
   return context.rLogs;
 }
+
+export function useLastUpdatedListener() {
+  const context = useContext(ProjectDirtyStateContext);
+  if (!context) {
+    throw new Error("can't find ProjectDirtyStateContext");
+  }
+  return context.addLastUpdatedListener;
+}

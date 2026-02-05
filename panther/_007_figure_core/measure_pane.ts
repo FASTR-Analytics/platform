@@ -75,6 +75,7 @@ export function measurePane<
     config.styleProps.grid,
     config.geometry.contentRcd,
     config.indices.pane,
+    (config.style as any).content?.bars?.stacking,
   );
 
   // Type narrowing: TStyle is constrained to MergedChartOVStyle | MergedTimeseriesStyle
@@ -101,6 +102,7 @@ export function measurePane<
     config.dataProps.yScaleAxisData,
     config.styleProps.yScaleAxis,
     config.geometry.contentRcd,
+    (config.style as any).content?.bars?.stacking,
   );
 
   // Cast data to access values property - we know chart data has this structure
@@ -125,6 +127,9 @@ export function measurePane<
     tierGapY: config.styleProps.yScaleAxis.tierGapY,
     lanePaddingLeft: config.styleProps.xAxisStyle.lanePaddingLeft,
     laneGapX: config.styleProps.xAxisStyle.laneGapX,
+
+    // Stacking mode
+    barStacking: (config.style as any).content?.bars?.stacking,
   });
 
   const mPane = {

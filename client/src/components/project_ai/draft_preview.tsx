@@ -3,7 +3,7 @@ import { Show } from "solid-js";
 import { useAIProjectContext } from "./context";
 
 export function DraftPreview() {
-  const { draftContent, setDraftContent, projectDetail } = useAIProjectContext();
+  const { draftContent, setDraftContent } = useAIProjectContext();
 
   const content = () => draftContent();
 

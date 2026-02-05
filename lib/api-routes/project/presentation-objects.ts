@@ -92,6 +92,21 @@ export const presentationObjectRouteRegistry = {
     requiresProject: true,
   }),
 
+  batchUpdatePresentationObjectsPeriodFilter: route({
+    path: "/presentation_objects/batch_period_filter",
+    method: "POST",
+    body: {} as {
+      presentationObjectIds: string[];
+      periodFilter: PeriodFilter | undefined;
+    },
+    response: {} as {
+      lastUpdated: string;
+      updatedCount: number;
+      reportItemsAffected: string[];
+    },
+    requiresProject: true,
+  }),
+
   deletePresentationObject: route({
     path: "/presentation_objects/:po_id",
     method: "DELETE",

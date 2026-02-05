@@ -16,12 +16,11 @@ import { getSlideWithUpdatedBlocks } from "~/components/project_ai_slide_deck/ut
 import { getDeckSummaryForAI } from "~/components/project_ai_slide_deck/utils/get_deck_summary";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { validateMaxContentBlocks, validateNoMarkdownTables } from "~/components/ai_tools/validators/content_validators";
+import type { AIContext } from "~/components/project_ai/types";
 
 export function getToolsForSlides(
   projectId: string,
-  deckId: string,
-  getSlideIds: () => string[],
-  optimisticSetLastUpdated: (tableName: "slides" | "slide_decks", id: string, lastUpdated: string) => void,
+  getAIContext: () => AIContext,
   metrics: MetricWithStatus[],
 ) {
   return [
@@ -31,10 +30,18 @@ export function getToolsForSlides(
         "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck.",
       inputSchema: z.object({}),
       handler: async () => {
-        return await getDeckSummaryForAI(projectId, getSlideIds());
+        const ctx = getAIContext();
+        if (ctx.mode !== "deck") {
+          throw new Error("This tool is only available when working with a slide deck");
+        }
+        return await getDeckSummaryForAI(projectId, ctx.getSlideIds());
       },
       inProgressLabel: "Getting deck state...",
-      completionMessage: () => `Retrieved deck with ${getSlideIds().length} slide(s)`,
+      completionMessage: () => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "deck") return "Retrieved deck";
+        return `Retrieved deck with ${ctx.getSlideIds().length} slide(s)`;
+      },
     }),
 
     createAITool({
@@ -89,6 +96,11 @@ export function getToolsForSlides(
           .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with heading and blocks array containing text and/or figures)."),
       }),
       handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "deck") {
+          throw new Error("This tool is only available when working with a slide deck");
+        }
+
         if (input.slide.type === "content") {
           validateMaxContentBlocks(input.slide.blocks.length);
 
@@ -103,14 +115,14 @@ export function getToolsForSlides(
 
         const res = await serverActions.createSlide({
           projectId,
-          deck_id: deckId,
+          deck_id: ctx.deckId,
           position: input.position,
           slide: convertedSlide,
         });
         if (!res.success) throw new Error(res.err);
 
-        optimisticSetLastUpdated("slides", res.data.slideId, res.data.lastUpdated);
-        optimisticSetLastUpdated("slide_decks", deckId, res.data.lastUpdated);
+        ctx.optimisticSetLastUpdated("slides", res.data.slideId, res.data.lastUpdated);
+        ctx.optimisticSetLastUpdated("slide_decks", ctx.deckId, res.data.lastUpdated);
 
         return `Created slide ${res.data.slideId}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
@@ -135,6 +147,11 @@ export function getToolsForSlides(
           .describe("The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized."),
       }),
       handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "deck") {
+          throw new Error("This tool is only available when working with a slide deck");
+        }
+
         if (input.slide.type === "content") {
           validateMaxContentBlocks(input.slide.blocks.length);
 
@@ -154,7 +171,7 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
+        ctx.optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
 
         return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
       },
@@ -175,6 +192,11 @@ export function getToolsForSlides(
         })).min(1).describe("Array of updates to apply. Each update specifies a block ID and the new content for that block."),
       }),
       handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "deck") {
+          throw new Error("This tool is only available when working with a slide deck");
+        }
+
         for (const update of input.updates) {
           if (update.newContent.type === "text") {
             validateNoMarkdownTables(update.newContent.markdown);
@@ -201,7 +223,7 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
+        ctx.optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
 
         const blockIds = input.updates.map(u => u.blockId).join(", ");
         return `Updated ${input.updates.length} block(s) in slide ${input.slideId}: ${blockIds}`;
@@ -219,6 +241,11 @@ export function getToolsForSlides(
         newHeading: z.string().describe("The new heading text for the content slide"),
       }),
       handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "deck") {
+          throw new Error("This tool is only available when working with a slide deck");
+        }
+
         const currentRes = await serverActions.getSlide({
           projectId,
           slide_id: input.slideId,
@@ -242,7 +269,7 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
+        ctx.optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
 
         return `Updated heading for slide ${input.slideId}: "${input.newHeading}"`;
       },
@@ -260,18 +287,23 @@ export function getToolsForSlides(
           .describe("Array of slide IDs to delete (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
       }),
       handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "deck") {
+          throw new Error("This tool is only available when working with a slide deck");
+        }
+
         const res = await serverActions.deleteSlides({
           projectId,
-          deck_id: deckId,
+          deck_id: ctx.deckId,
           slideIds: input.slideIds,
         });
         if (!res.success) throw new Error(res.err);
 
         const lastUpdated = new Date().toISOString();
         for (const slideId of input.slideIds) {
-          optimisticSetLastUpdated("slides", slideId, lastUpdated);
+          ctx.optimisticSetLastUpdated("slides", slideId, lastUpdated);
         }
-        optimisticSetLastUpdated("slide_decks", deckId, lastUpdated);
+        ctx.optimisticSetLastUpdated("slide_decks", ctx.deckId, lastUpdated);
 
         return `Deleted ${res.data.deletedCount} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
@@ -291,17 +323,22 @@ export function getToolsForSlides(
           .describe("Array of slide IDs to duplicate (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
       }),
       handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "deck") {
+          throw new Error("This tool is only available when working with a slide deck");
+        }
+
         const res = await serverActions.duplicateSlides({
           projectId,
-          deck_id: deckId,
+          deck_id: ctx.deckId,
           slideIds: input.slideIds,
         });
         if (!res.success) throw new Error(res.err);
 
         for (const slideId of res.data.newSlideIds) {
-          optimisticSetLastUpdated("slides", slideId, res.data.lastUpdated);
+          ctx.optimisticSetLastUpdated("slides", slideId, res.data.lastUpdated);
         }
-        optimisticSetLastUpdated("slide_decks", deckId, res.data.lastUpdated);
+        ctx.optimisticSetLastUpdated("slide_decks", ctx.deckId, res.data.lastUpdated);
 
         return `Duplicated ${input.slideIds.length} slide(s). Created ${res.data.newSlideIds.length} new slide(s) with IDs: ${res.data.newSlideIds.join(', ')}. Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
@@ -329,9 +366,14 @@ export function getToolsForSlides(
           .describe("The destination position for the slides."),
       }),
       handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "deck") {
+          throw new Error("This tool is only available when working with a slide deck");
+        }
+
         const res = await serverActions.moveSlides({
           projectId,
-          deck_id: deckId,
+          deck_id: ctx.deckId,
           slideIds: input.slideIds,
           position: input.position,
         });
@@ -339,9 +381,9 @@ export function getToolsForSlides(
 
         const lastUpdated = res.data.slides[0]?.lastUpdated || new Date().toISOString();
         for (const slide of res.data.slides) {
-          optimisticSetLastUpdated("slides", slide.id, slide.lastUpdated);
+          ctx.optimisticSetLastUpdated("slides", slide.id, slide.lastUpdated);
         }
-        optimisticSetLastUpdated("slide_decks", deckId, lastUpdated);
+        ctx.optimisticSetLastUpdated("slide_decks", ctx.deckId, lastUpdated);
 
         return `Moved ${input.slideIds.length} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },

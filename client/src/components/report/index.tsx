@@ -12,7 +12,7 @@ import {
   timActionButton,
   useSmartNavigate,
 } from "panther";
-import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
+import { For, Match, Show, Switch, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { unwrap } from "solid-js/store";
 import { ReportItemMiniDisplay } from "~/components/ReportItemMiniDisplay";
 import { DownloadReport } from "./download_report";
@@ -21,6 +21,7 @@ import {
   useOptimisticSetProjectLastUpdated,
   useProjectDirtyStates,
 } from "~/components/project_runner/mod";
+import { useAIProjectContext } from "~/components/project_ai";
 import { serverActions } from "~/server_actions";
 import { getReportDetailFromCacheOrFetch } from "~/state/ri_cache";
 import { fitWithin, setFitWithin } from "~/state/ui";
@@ -46,6 +47,7 @@ export function Report(p: Props) {
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
   const smartNavigate = useSmartNavigate();
+  const { setAIContext } = useAIProjectContext();
 
   function handleClose(result: ReportModalReturn = undefined) {
     p.close(result);
@@ -94,7 +96,21 @@ export function Report(p: Props) {
       return res.data.itemIdsInOrder.at(0);
     });
     setReportDetail({ status: "ready", data: res.data });
+
+    // Set AI context once report data is loaded
+    const report = p.projectDetail.reports.find(r => r.id === p.reportId);
+    if (report) {
+      setAIContext({
+        mode: "report",
+        reportId: p.reportId,
+        reportLabel: report.label,
+      });
+    }
   }
+
+  onCleanup(() => {
+    setAIContext({ mode: "default" });
+  });
 
   createEffect(() => {
     // Track pds.lastUpdated.reports[p.reportId] for reactivity

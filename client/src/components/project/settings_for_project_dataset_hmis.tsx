@@ -53,7 +53,7 @@ export function SettingsForProjectDatasetHmis(
     createStore<DatasetHmisWindowingCommon>(
       p.hmisInfo
         ? {
-          ...structuredClone(p.hmisInfo.windowing),
+          ...unwrap(p.hmisInfo.windowing),
           indicatorType: "common",
         }
         : {

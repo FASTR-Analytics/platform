@@ -6,7 +6,6 @@ import type {
   AiContentSlideInput,
 } from "lib";
 import type { SetStoreFunction } from "solid-js/store";
-import type { FigureInputs, StateHolder } from "panther";
 
 // User interactions that should be communicated to AI
 export type AIUserInteraction =
@@ -43,12 +42,11 @@ export type AIContextDeck = {
 
 export type AIContextVizEditor = {
   mode: "viz-editor";
-  vizId: string;
+  vizId: string | null; // null for create/ephemeral modes without persistent ID
   vizLabel: string;
+  resultsValue: ResultsValue;
   getTempConfig: () => PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
-  getResultsValue: () => ResultsValue;
-  getFigureInputs: () => StateHolder<FigureInputs>;
 };
 
 export type AIContextReport = {
@@ -80,5 +78,4 @@ export type AIProjectContextValue = {
   getPendingInteractionsMessage: () => string | null;
   clearPendingInteractions: () => void;
   instanceDetail: InstanceDetail;
-  projectDetail: ProjectDetail;
 };

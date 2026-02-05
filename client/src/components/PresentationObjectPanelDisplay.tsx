@@ -21,6 +21,7 @@ import { EditFolderModal } from "./project/edit_folder_modal";
 import { MoveToFolderModal } from "./project/move_to_folder_modal";
 import { DuplicateVisualization } from "./visualization/duplicate_visualization";
 import { CreateSlideFromVisualizationModal } from "./visualization/create_slide_from_visualization_modal";
+import { EditCommonPropertiesModal } from "./visualization/edit_common_properties_modal";
 
 const GROUPING_OPTIONS: { value: VisualizationGroupingMode; label: string }[] = [
   { value: "folders", label: "By folder" },
@@ -532,6 +533,38 @@ function VisualizationGrid(p: VisualizationGridProps) {
     clearSelection();
   }
 
+  async function handleEditCommonProperties(po: PresentationObjectSummary) {
+    const selected = selectedIds();
+    const isItemSelected = selected.has(po.id);
+    const shouldEditMultiple = isItemSelected && selected.size > 1;
+
+    if (!shouldEditMultiple) {
+      p.onClick(po);
+      return;
+    }
+
+    const idsToEdit = Array.from(selected);
+
+    const firstViz = p.visualizations.find(v => v.id === idsToEdit[0]);
+    if (!firstViz) return;
+
+    const metricInfoRes = await serverActions.getResultsValueInfoForPresentationObject({
+      projectId: p.projectId,
+      metricId: firstViz.metricId,
+    });
+
+    await openComponent({
+      element: EditCommonPropertiesModal,
+      props: {
+        projectId: p.projectId,
+        visualizationIds: idsToEdit,
+        periodBounds: metricInfoRes.success ? metricInfoRes.data.periodBounds : undefined,
+      },
+    });
+
+    clearSelection();
+  }
+
   async function handleCreateSlides(po: PresentationObjectSummary) {
     const selected = selectedIds();
     const isItemSelected = selected.has(po.id);
@@ -650,6 +683,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       onDuplicate={() => handleDuplicate(po)}
       onDelete={() => handleDelete(po)}
       onMoveToFolder={() => handleMoveToFolder(po)}
+      onEditCommonProperties={() => handleEditCommonProperties(po)}
       onCreateSlides={() => handleCreateSlides(po)}
     />
   );
@@ -744,6 +778,7 @@ type VisualizationCardProps = {
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveToFolder: () => void;
+  onEditCommonProperties: () => void;
   onCreateSlides: () => void;
 };
 
@@ -751,29 +786,39 @@ function VisualizationCard(p: VisualizationCardProps) {
   async function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
 
-    const deleteLabel = p.isSelected && p.selectedCount > 1
+    const isMultiSelect = p.isSelected && p.selectedCount > 1;
+
+    const deleteLabel = isMultiSelect
       ? `Delete ${p.selectedCount} visualizations`
       : "Delete";
 
-    const createSlidesLabel = p.isSelected && p.selectedCount > 1
+    const createSlidesLabel = isMultiSelect
       ? `Create ${p.selectedCount} slides...`
       : "Create slide...";
 
-    const moveToFolderLabel = p.isSelected && p.selectedCount > 1
+    const moveToFolderLabel = isMultiSelect
       ? `Move ${p.selectedCount} visualizations to folder...`
       : "Move to folder...";
 
-    const duplicateLabel = p.isSelected && p.selectedCount > 1
+    const duplicateLabel = isMultiSelect
       ? `Duplicate ${p.selectedCount} visualizations...`
       : "Duplicate...";
 
-    const items: MenuItem[] = [
-      {
+    const items: MenuItem[] = [];
+
+    if (isMultiSelect) {
+      items.push({
+        label: "Edit common properties...",
+        icon: "pencil",
+        onClick: p.onEditCommonProperties,
+      });
+    } else {
+      items.push({
         label: "Edit visualization",
         icon: "pencil",
         onClick: p.onClick,
-      },
-    ];
+      });
+    }
     if (!p.po.isDefault) {
       items.push({
         label: moveToFolderLabel,

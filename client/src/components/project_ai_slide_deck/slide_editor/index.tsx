@@ -1,6 +1,6 @@
 import { trackStore } from "@solid-primitives/deep";
 import type { Slide, CoverSlide, SectionSlide, ContentSlide, InstanceDetail, ProjectDetail, FigureBlock } from "lib";
-import { getTextRenderingOptions, getMetricStaticData } from "lib";
+import { getTextRenderingOptions, getMetricStaticData, t } from "lib";
 import {
   AlertComponentProps,
   Button,
@@ -23,6 +23,7 @@ import {
   deleteNodeWithCleanup,
   createItemNode,
   openAlert,
+  FrameLeftResizable,
 } from "panther";
 import type { DividerDragUpdate, LayoutNode } from "panther";
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
@@ -38,6 +39,7 @@ import type { ContentBlock } from "lib";
 import { VisualizationEditor } from "~/components/visualization";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/po_cache";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
+import { setShowAi, showAi } from "~/state/ui";
 
 function findFirstItem(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> & { type: "item" } | undefined {
   if (node.type === "item") return node;
@@ -338,10 +340,19 @@ export function SlideEditor(p: Props) {
               </div>
             </Show>}
           >
+            <Show when={!showAi()}>
+              <Button
+                onClick={() => setShowAi(true)}
+                iconName="chevronLeft"
+                outline
+              >
+                {t("AI")}
+              </Button>
+            </Show>
           </HeadingBar>
         }
       >
-        <FrameRightResizable
+        <FrameLeftResizable
           startingWidth={400}
           minWidth={300}
           maxWidth={600}
@@ -639,7 +650,7 @@ export function SlideEditor(p: Props) {
               )}
             </Show>
           </div>
-        </FrameRightResizable>
+        </FrameLeftResizable>
       </FrameTop>
     </EditorWrapper>
   );
