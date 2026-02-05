@@ -50,6 +50,9 @@ export function DisplayProjectUserRole(
           <div class="font-700 text-lg leading-6">
               {t2("Permissions")}
             </div>
+            <div class="font-700 text-sm">
+              {p.user.email}
+            </div>
             <Show
               when={userRoleExists()}
               fallback={<div>This user does not have access to this project</div>}

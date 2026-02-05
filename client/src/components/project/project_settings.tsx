@@ -301,9 +301,12 @@ function ProjectUserTable(p: {
         <Show
           when={user.isGlobalAdmin}
           fallback={
-            <Button onClick={() => p.onDisplayUserRole?.(user)}>
+            <span
+              class="text-primary cursor-pointer hover:underline"
+              onClick={() => p.onDisplayUserRole?.(user)}
+            >
               See Permissions
-            </Button>
+            </span>
           }
         >
           <span class="text-primary">{t2(T.Paramètres.instance_admin)}</span>
