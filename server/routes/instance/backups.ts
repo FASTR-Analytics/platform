@@ -45,6 +45,7 @@ defineRoute(
       }
 
       // Forward the request to the external API with the same auth token
+      console.log("DEBUG: status-api-key length:", secretKey?.length, "first 4 chars:", secretKey?.slice(0, 4));
       const response = await fetch(
         `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/backups`,
         {
@@ -81,7 +82,6 @@ defineRoute(
 defineRoute(
   routesBackups,
   "createBackupFile",
-
   requireProjectPermission("can_create_backups"),
   log("createBackupFile"),
   async (c) => {
