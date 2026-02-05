@@ -183,7 +183,7 @@ export default function Instance(p: Props) {
                             },
                           ]
                           : ([] as any)),
-                        ...(p.globalUser.isGlobalAdmin
+                        ...(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_configure_settings
                           ? [
                             {
                               value: "settings",
