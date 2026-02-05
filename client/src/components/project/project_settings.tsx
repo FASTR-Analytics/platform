@@ -493,7 +493,9 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
   const downloadFile = async (folder: string, fileName: string) => {
     try {
       const token = await clerk.session?.getToken();
-      const headers: HeadersInit = {};
+      const headers: HeadersInit = {
+        'Project-Id': props.projectId,
+      };
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }

@@ -81,7 +81,7 @@ defineRoute(
 defineRoute(
   routesBackups,
   "createBackupFile",
-  getGlobalNonAdmin,
+
   requireProjectPermission("can_create_backups"),
   log("createBackupFile"),
   async (c) => {
@@ -163,7 +163,6 @@ defineRoute(
 defineRoute(
   routesBackups,
   "downloadBackupFile",
-  getGlobalNonAdmin,
   requireProjectPermission("can_restore_backups"),
   log("downloadBackupFile"),
   async (c) => {
