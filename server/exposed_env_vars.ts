@@ -125,6 +125,11 @@ if (_ANTHROPIC_API_KEY === undefined) {
   throw new Error("Could not get ANTHROPIC_API_KEY env variable");
 }
 
+export const _STATUS_API_KEY = Deno.env.get("STATUS_API_KEY")!;
+if (_STATUS_API_KEY === undefined) {
+  throw new Error("Could not get STATUS_API_KEY env variable");
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Authentication (Optional)
 ///////////////////////////////////////////////////////////////////////////////

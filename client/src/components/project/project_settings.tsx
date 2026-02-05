@@ -21,6 +21,7 @@ import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
 import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form"
 import { getInstanceDetail, updateDatasetUploadAttempt_Step1Dhis2Confirm } from "../../../../server/db/mod.ts";
+import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
 
 // Backup types
 interface BackupFileInfo {
@@ -125,6 +126,16 @@ export function ProjectSettings(p: Props) {
     });
   }
 
+  async function attemptDisplayUserRole(user: ProjectUser) {
+    await openComponent({
+      element: DisplayProjectUserRole,
+      props: {
+        projectId: p.projectDetail.id,
+        user,
+      }
+    })
+  }
+
   const lockProject = timActionButton(
     () =>
       serverActions.setProjectLockStatus({
@@ -185,6 +196,7 @@ export function ProjectSettings(p: Props) {
           <ProjectUserTable
             users={p.projectDetail.projectUsers}
             onUserClick={attemptSelectUserRole}
+            onDisplayUserRole={attemptDisplayUserRole}
           />
         </SettingsSection>
         <SettingsSection
@@ -273,6 +285,7 @@ export function ProjectSettings(p: Props) {
 function ProjectUserTable(p: {
   users: ProjectUser[];
   onUserClick?: (users: ProjectUser[]) => void;
+  onDisplayUserRole?: (user: ProjectUser) => void;
 }) {
   const columns: TableColumn<ProjectUser>[] = [
     {
@@ -288,19 +301,9 @@ function ProjectUserTable(p: {
         <Show
           when={user.isGlobalAdmin}
           fallback={
-            <Switch>
-              <Match when={user.role === "editor"}>
-                <span class="text-primary">{t("Project editor")}</span>
-              </Match>
-              <Match when={user.role === "viewer"}>
-                <span>{t("Project viewer")}</span>
-              </Match>
-              <Match when={user.role === "none"}>
-                <span class="text-neutral">
-                  {t2(T.FRENCH_UI_STRINGS.no_permissions_for_this_projec)}
-                </span>
-              </Match>
-            </Switch>
+            <Button onClick={() => p.onDisplayUserRole?.(user)}>
+              See Permissions
+            </Button>
           }
         >
           <span class="text-primary">{t2(T.Paramètres.instance_admin)}</span>
@@ -388,7 +391,6 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     const headers: HeadersInit = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-      headers['platform-secret-key'] = import.meta.env.PLATFORM_SECRET_KEY || "";
     }
     
 

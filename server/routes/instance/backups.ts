@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getGlobalNonAdmin, getProjectEditor, requireProjectPermission } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { _SANDBOX_DIR_PATH, _INSTANCE_ID, _PG_HOST, _PG_PORT, _PG_PASSWORD } from "../../exposed_env_vars.ts";
+import { _SANDBOX_DIR_PATH, _INSTANCE_ID, _PG_HOST, _PG_PORT, _PG_PASSWORD, _STATUS_API_KEY } from "../../exposed_env_vars.ts";
 import { join } from "@std/path";
 import { getPgConnection, closePgConnection } from "../../db/postgres/connection_manager.ts";
 import { log } from "../../middleware/mod.ts";
@@ -34,7 +34,7 @@ defineRoute(
     try {
       // Get the authorization header from the incoming request
       const authHeader = c.req.header('Authorization');
-      const secretKey = c.req.header("platform-secret-key");
+      const secretKey = _STATUS_API_KEY;
 
       if (!authHeader) {
         return c.json({
@@ -50,7 +50,7 @@ defineRoute(
         {
           headers: {
             'Authorization': authHeader,
-            'platform-secret-key': secretKey || "",
+            'status-api-key': secretKey || "",
           },
         }
       );
@@ -105,7 +105,7 @@ defineRoute(
       }
 
       const authHeader = c.req.header('Authorization');
-      const secretKey = c.req.header("platform-secret-key");
+      const secretKey = _STATUS_API_KEY;
 
       if (!authHeader) {
         return c.json({
@@ -122,7 +122,7 @@ defineRoute(
         method: 'POST',
         headers: {
           'Authorization': authHeader,
-          'platform-secret-key': secretKey || "",
+          'status-api-key': secretKey || "",
         },
       });
 
@@ -187,7 +187,7 @@ defineRoute(
 
       // Get the authorization header from the incoming request
       const authHeader = c.req.header('Authorization');
-      const secretKey = c.req.header("platform-secret-key");
+      const secretKey = _STATUS_API_KEY;
 
       if (!authHeader) {
         return c.json({
@@ -202,7 +202,7 @@ defineRoute(
         {
           headers: {
             'Authorization': authHeader,
-            'platform-secret-key': secretKey || "",
+            'status-api-key': secretKey || "",
           },
         }
       );
@@ -291,7 +291,7 @@ defineRoute(
         }
 
         const authHeader = c.req.header('Authorization');
-        const secretKey = c.req.header("platform-secret-key");
+        const secretKey = _STATUS_API_KEY;
 
         if (!authHeader) {
           return c.json({

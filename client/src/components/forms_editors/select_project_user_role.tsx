@@ -187,6 +187,7 @@ export function SelectProjectUserRole(
           intent="success"
           state={save.state()}
           iconName="save"
+          disabled={userRoleExists() === false}
         >
           {t2(T.FRENCH_UI_STRINGS.save)}
         </Button>
