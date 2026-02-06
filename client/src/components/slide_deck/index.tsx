@@ -7,13 +7,11 @@ import {
 } from "panther";
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
-// import { getToolsForSlides } from "../ai_tools/ai_tool_definitions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { useOptimisticSetLastUpdated, useProjectDirtyStates } from "../project_runner/mod";
 import { DownloadSlideDeck } from "./download_slide_deck";
 import { SlideEditor } from "./slide_editor";
 import { SlideList } from "./slide_list";
-// import { useAIDocuments } from "../ai_documents";
 import { EditLabelForm } from "../forms_editors/edit_label";
 import { useAIProjectContext } from "../project_ai/context";
 

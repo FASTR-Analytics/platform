@@ -6,7 +6,7 @@ import { DraftPreview } from "./draft_preview";
 import { setShowAi } from "~/state/ui";
 import { useAIDocuments, AIDocumentButton, AIDocumentList } from "./ai_documents";
 import { ConversationSelectorModal } from "./ConversationSelectorModal";
-import { usePromptLibrary } from "./prompt_library";
+import { usePromptLibrary } from "./ai_prompt_library";
 
 type ConsolidatedChatPaneProps = {
   aiDocs: ReturnType<typeof useAIDocuments>;
