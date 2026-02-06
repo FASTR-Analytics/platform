@@ -257,7 +257,7 @@ export default function Project(p: Props) {
                                   openProjectEditor={openProjectEditor}
                                 />
                               </Match>
-                              <Match when={tab() === "reports" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_reports || keyedProjectDetail.thisUserPermisisons.can_view_reports)}>
+                              <Match when={tab() === "reports" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_reports || keyedProjectDetail.thisUserPermissions.can_view_reports)}>
                                 <ProjectReports
                                   projectDetail={keyedProjectDetail}
                                   attemptGetProjectDetail={projectDetail.fetch}
@@ -267,7 +267,7 @@ export default function Project(p: Props) {
                                   openProjectEditor={openProjectEditor}
                                 />
                               </Match>
-                              <Match when={tab() === "visualizations" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_visualization || keyedProjectDetail.thisUserPermissions.can_view_visualization)}>
+                              <Match when={tab() === "visualizations" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_visualizations || keyedProjectDetail.thisUserPermissions.can_view_visualizations)}>
                                 <ProjectVisualizations
                                   isGlobalAdmin={p.isGlobalAdmin}
                                   projectDetail={keyedProjectDetail}
