@@ -90,6 +90,7 @@ export const slideRouteRegistry = {
     },
     response: {} as {
       slides: SlideWithMeta[];
+      lastUpdated: string;
     },
     requiresProject: true,
   }),

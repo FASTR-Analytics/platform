@@ -3,12 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createContext, useContext } from "solid-js";
+import { createContext, createMemo, useContext } from "solid-js";
 import type {
   Anthropic,
   ContentBlock,
   DocumentContentBlock,
   MessageParam,
+  Usage,
 } from "../deps.ts";
 import { getBetaHeaders, hasWebFetchTool } from "../_core/beta_headers.ts";
 import { resolveBuiltInTools } from "../_core/builtin_tools.ts";
@@ -26,6 +27,7 @@ import {
   type ToolResult,
 } from "../_core/tool_engine.ts";
 import type { AIChatConfig, DisplayItem } from "../_core/types.ts";
+import { ConversationsContext } from "./use_conversations.ts";
 
 // SDK tool union type for API calls
 type SDKToolUnion = Anthropic.Messages.ToolUnion;
@@ -58,23 +60,42 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     >
     & AIChatConfig;
 
-  const conversationId = config.conversationId ?? "default";
-  const store = getOrCreateConversationStore(
-    conversationId,
-    config.enablePersistence ?? true,
+  const conversationsContext = useContext(ConversationsContext);
+
+  const conversationId = createMemo(() => {
+    if (conversationsContext) {
+      return conversationsContext.activeConversationId() ?? "default";
+    }
+    return config.conversationId ?? "default";
+  });
+
+  const store = createMemo(() =>
+    getOrCreateConversationStore(
+      conversationId(),
+      config.enablePersistence ?? true,
+    )
   );
 
-  const [messages, setMessages] = store.messages;
-  const [displayItems, setDisplayItems] = store.displayItems;
-  const [isLoading, setIsLoading] = store.isLoading;
-  const [isStreaming, setIsStreaming] = store.isStreaming;
-  const [isProcessingTools, setIsProcessingTools] = store.isProcessingTools;
-  const [error, setError] = store.error;
-  const [usage, setUsage] = store.usage;
-  const [currentStreamingText, setCurrentStreamingText] =
-    store.currentStreamingText;
-  const [usageHistory, setUsageHistory] = store.usageHistory;
-  const [serverToolLabel, setServerToolLabel] = store.serverToolLabel;
+  const messages = () => store().messages[0]();
+  const setMessages = (m: MessageParam[]) => store().messages[1](m);
+  const displayItems = () => store().displayItems[0]();
+  const setDisplayItems = (d: DisplayItem[]) => store().displayItems[1](d);
+  const isLoading = () => store().isLoading[0]();
+  const setIsLoading = (v: boolean) => store().isLoading[1](v);
+  const isStreaming = () => store().isStreaming[0]();
+  const setIsStreaming = (v: boolean) => store().isStreaming[1](v);
+  const isProcessingTools = () => store().isProcessingTools[0]();
+  const setIsProcessingTools = (v: boolean) => store().isProcessingTools[1](v);
+  const error = () => store().error[0]();
+  const setError = (e: string | null) => store().error[1](e);
+  const usage = () => store().usage[0]();
+  const setUsage = (u: Usage | null) => store().usage[1](u);
+  const currentStreamingText = () => store().currentStreamingText[0]();
+  const setCurrentStreamingText = (t: string | undefined) => store().currentStreamingText[1](t);
+  const usageHistory = () => store().usageHistory[0]();
+  const setUsageHistory = (h: Usage[]) => store().usageHistory[1](h);
+  const serverToolLabel = () => store().serverToolLabel[0]();
+  const setServerToolLabel = (l: string | undefined) => store().serverToolLabel[1](l);
 
   const toolRegistry = new ToolRegistry();
   if (config.tools) {
@@ -145,10 +166,16 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // Only add user message if provided (undefined means messages already in state)
     if (userMessage !== undefined) {
       const userMsg = createUserMessage(userMessage);
+      const isFirstMessage = messages().length === 0;
       setMessages([...messages(), userMsg]);
 
       if (userMessage.trim()) {
         processMessageForDisplay(userMsg);
+
+        // Update title from first message
+        if (isFirstMessage && conversationsContext) {
+          conversationsContext.updateTitleFromFirstMessage(conversationId(), userMessage);
+        }
       }
     }
 
@@ -181,7 +208,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
       // Save conversation state after turn completes
       if (config.enablePersistence ?? true) {
-        saveConversation(conversationId, messages(), displayItems());
+        saveConversation(conversationId(), messages(), displayItems());
+      }
+
+      // Update conversation metadata
+      if (conversationsContext) {
+        conversationsContext.updateLastMessageTime(conversationId());
       }
     }
   }
@@ -209,7 +241,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     stream.on("text", (text) => {
       // Clear server tool label when text starts streaming
       setServerToolLabel(undefined);
-      setCurrentStreamingText((prev) => (prev ?? "") + text);
+      const prev = currentStreamingText();
+      setCurrentStreamingText((prev ?? "") + text);
     });
 
     // Subscribe to stream events to detect server tool usage and text block boundaries
@@ -372,7 +405,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   }
 
   function clearConversation() {
-    clearConversationStore(conversationId);
+    clearConversationStore(conversationId());
   }
 
   return {
@@ -391,6 +424,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     clearConversation,
     toolRegistry,
     processMessageForDisplay,
+    conversationId,
   };
 }
 

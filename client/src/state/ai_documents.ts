@@ -1,60 +1,60 @@
 import { get, set, del } from "idb-keyval";
 
-export type ConversationDocument = {
+export type ProjectDocument = {
   assetFilename: string;
   anthropicFileId: string;
 };
 
-type ConversationDocumentsData = {
-  documents: ConversationDocument[];
+type ProjectDocumentsData = {
+  documents: ProjectDocument[];
   lastUpdated: string;
 };
 
-function getKey(conversationId: string): string {
-  return `ai-documents/${conversationId}`;
+function getKey(projectId: string): string {
+  return `ai-documents/${projectId}`;
 }
 
-export async function getDocumentsForConversation(
-  conversationId: string
-): Promise<ConversationDocument[]> {
-  const data = await get<ConversationDocumentsData>(getKey(conversationId));
+export async function getDocumentsForProject(
+  projectId: string
+): Promise<ProjectDocument[]> {
+  const data = await get<ProjectDocumentsData>(getKey(projectId));
   return data?.documents ?? [];
 }
 
-export async function setDocumentsForConversation(
-  conversationId: string,
-  documents: ConversationDocument[]
+export async function setDocumentsForProject(
+  projectId: string,
+  documents: ProjectDocument[]
 ): Promise<void> {
-  await set(getKey(conversationId), {
+  await set(getKey(projectId), {
     documents,
     lastUpdated: new Date().toISOString(),
-  } satisfies ConversationDocumentsData);
+  } satisfies ProjectDocumentsData);
 }
 
-export async function clearDocumentsForConversation(
-  conversationId: string
+export async function clearDocumentsForProject(
+  projectId: string
 ): Promise<void> {
-  await del(getKey(conversationId));
+  await del(getKey(projectId));
 }
 
-export async function addDocumentToConversation(
-  conversationId: string,
-  document: ConversationDocument
+export async function addDocumentToProject(
+  projectId: string,
+  document: ProjectDocument
 ): Promise<void> {
-  const existing = await getDocumentsForConversation(conversationId);
+  const existing = await getDocumentsForProject(projectId);
   const alreadyExists = existing.some(
     (d) => d.assetFilename === document.assetFilename
   );
   if (!alreadyExists) {
-    await setDocumentsForConversation(conversationId, [...existing, document]);
+    await setDocumentsForProject(projectId, [...existing, document]);
   }
 }
 
-export async function removeDocumentFromConversation(
-  conversationId: string,
+export async function removeDocumentFromProject(
+  projectId: string,
   assetFilename: string
 ): Promise<void> {
-  const existing = await getDocumentsForConversation(conversationId);
+  const existing = await getDocumentsForProject(projectId);
   const filtered = existing.filter((d) => d.assetFilename !== assetFilename);
-  await setDocumentsForConversation(conversationId, filtered);
+  await setDocumentsForProject(projectId, filtered);
 }

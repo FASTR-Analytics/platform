@@ -26,7 +26,7 @@ export const MessageInput: Component<Props> = (props) => {
 
   return (
     <div class="ui-pad ui-gap bg-primary/10 flex w-full flex-none">
-      <div class="w-0 flex-1">
+      <div class="w-0 flex-1" data-ai-input-wrapper>
         <TextArea
           value={props.value}
           onChange={props.onChange}
@@ -38,7 +38,7 @@ export const MessageInput: Component<Props> = (props) => {
           fullWidth
         />
       </div>
-      <div class="flex-none">
+      <div class="flex-none" data-ai-submit-wrapper>
         <Button
           onClick={props.onSubmit}
           disabled={props.disabled}

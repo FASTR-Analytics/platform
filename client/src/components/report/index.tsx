@@ -21,7 +21,7 @@ import {
   useOptimisticSetProjectLastUpdated,
   useProjectDirtyStates,
 } from "~/components/project_runner/mod";
-import { useAIProjectContext } from "~/components/project_ai";
+import { useAIProjectContext } from "~/components/project_ai/context";
 import { serverActions } from "~/server_actions";
 import { getReportDetailFromCacheOrFetch } from "~/state/ri_cache";
 import { fitWithin, setFitWithin } from "~/state/ui";
@@ -101,7 +101,7 @@ export function Report(p: Props) {
     const report = p.projectDetail.reports.find(r => r.id === p.reportId);
     if (report) {
       setAIContext({
-        mode: "report",
+        mode: "editing_report",
         reportId: p.reportId,
         reportLabel: report.label,
       });
@@ -109,7 +109,7 @@ export function Report(p: Props) {
   }
 
   onCleanup(() => {
-    setAIContext({ mode: "default" });
+    setAIContext({ mode: "viewing_reports" });
   });
 
   createEffect(() => {

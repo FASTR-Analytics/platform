@@ -159,6 +159,8 @@ export type AIChatConfig = {
 
   conversationId?: string;
 
+  scope?: string;
+
   enablePersistence?: boolean;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

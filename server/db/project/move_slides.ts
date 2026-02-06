@@ -15,7 +15,7 @@ export async function moveSlides(
   deckId: string,
   slideIds: string[],
   position: MovePosition
-): Promise<APIResponseWithData<{ slides: SlideWithMeta[] }>> {
+): Promise<APIResponseWithData<{ slides: SlideWithMeta[]; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
 
@@ -84,6 +84,6 @@ export async function moveSlides(
       throw new Error("Failed to fetch reordered slides");
     }
 
-    return { success: true, data: { slides: result.data } };
+    return { success: true, data: { slides: result.data, lastUpdated } };
   });
 }

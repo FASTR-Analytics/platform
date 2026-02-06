@@ -9,7 +9,7 @@ import {
 } from "panther";
 import { For, Show, createEffect, createSignal } from "solid-js";
 import { AddDeckForm } from "./add_deck";
-import { ProjectAiSlideDeck } from "../project_ai_slide_deck";
+import { ProjectAiSlideDeck } from "../slide_deck";
 import { useProjectDetail } from "~/components/project_runner/mod";
 
 type ExtendedProps = {

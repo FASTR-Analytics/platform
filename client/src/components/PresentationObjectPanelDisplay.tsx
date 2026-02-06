@@ -22,6 +22,7 @@ import { MoveToFolderModal } from "./project/move_to_folder_modal";
 import { DuplicateVisualization } from "./visualization/duplicate_visualization";
 import { CreateSlideFromVisualizationModal } from "./visualization/create_slide_from_visualization_modal";
 import { EditCommonPropertiesModal } from "./visualization/edit_common_properties_modal";
+import { useAIProjectContext } from "~/components/project_ai";
 
 const GROUPING_OPTIONS: { value: VisualizationGroupingMode; label: string }[] = [
   { value: "folders", label: "By folder" },
@@ -378,13 +379,20 @@ type VisualizationGridProps = {
 
 function VisualizationGrid(p: VisualizationGridProps) {
   const metricLookup = () => createMetricLookup(p.metrics);
+  const { notifyAI } = useAIProjectContext();
 
   const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(null);
 
+  function updateSelection(newSelected: Set<string>) {
+    setSelectedIds(newSelected);
+    notifyAI({ type: "selected_visualizations", vizIds: Array.from(newSelected) });
+  }
+
   function clearSelection() {
     setSelectedIds(new Set<string>());
     setLastSelectedIndex(null);
+    notifyAI({ type: "selected_visualizations", vizIds: [] });
   }
 
   // Compute visual index order for current view (flat or grouped)
@@ -439,7 +447,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
         } else {
           newSelected.add(po.id);
         }
-        setSelectedIds(newSelected);
+        updateSelection(newSelected);
         setLastSelectedIndex(index);
         return;
       }
@@ -459,7 +467,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
             newSelected.add(viz.id);
           }
         }
-        setSelectedIds(newSelected);
+        updateSelection(newSelected);
         return;
       }
 
@@ -468,9 +476,9 @@ function VisualizationGrid(p: VisualizationGridProps) {
       if (currentlySelected.has(po.id)) {
         const newSelected = new Set(currentlySelected);
         newSelected.delete(po.id);
-        setSelectedIds(newSelected);
+        updateSelection(newSelected);
       } else {
-        setSelectedIds(new Set([po.id]));
+        updateSelection(new Set([po.id]));
       }
       setLastSelectedIndex(index);
       return;
@@ -484,7 +492,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       } else {
         newSelected.add(po.id);
       }
-      setSelectedIds(newSelected);
+      updateSelection(newSelected);
       setLastSelectedIndex(index);
       return;
     }
@@ -504,7 +512,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
           newSelected.add(viz.id);
         }
       }
-      setSelectedIds(newSelected);
+      updateSelection(newSelected);
       return;
     }
 

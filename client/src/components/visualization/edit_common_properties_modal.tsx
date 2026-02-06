@@ -105,33 +105,33 @@ export function EditCommonPropertiesModal(
                     options={
                       p.periodBounds?.periodOption === "year"
                         ? [
-                            {
-                              value: "last_n_months",
-                              label: "Last year",
-                            },
-                            {
-                              value: "custom",
-                              label: "Custom",
-                            },
-                          ]
+                          {
+                            value: "last_n_months",
+                            label: "Last year",
+                          },
+                          {
+                            value: "custom",
+                            label: "Custom",
+                          },
+                        ]
                         : [
-                            {
-                              value: "last_n_months",
-                              label: "Last N months",
-                            },
-                            {
-                              value: "from_month",
-                              label: "From specific month to present",
-                            },
-                            {
-                              value: "last_calendar_year",
-                              label: "Last full calendar year",
-                            },
-                            {
-                              value: "custom",
-                              label: "Custom",
-                            },
-                          ]
+                          {
+                            value: "last_n_months",
+                            label: "Last N months",
+                          },
+                          {
+                            value: "from_month",
+                            label: "From specific month to present",
+                          },
+                          {
+                            value: "last_calendar_year",
+                            label: "Last full calendar year",
+                          },
+                          {
+                            value: "custom",
+                            label: "Custom",
+                          },
+                        ]
                     }
                     onChange={(v) => {
                       setTempPeriodFilter("filterType", v as "last_n_months" | "from_month" | "last_calendar_year" | "custom");

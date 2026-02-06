@@ -1,5 +1,5 @@
 import { MAX_CONTENT_BLOCKS, type InstanceDetail, type ProjectDetail } from "lib";
-import { buildAISystemContext } from "../ai_prompts/build_context";
+import { buildAISystemContext } from "./ai_prompts/build_context";
 import type { AIContext } from "./types";
 
 export function buildSystemPromptForContext(
@@ -14,20 +14,22 @@ export function buildSystemPromptForContext(
   return `${contextSection}${baseInstructions}\n\n${modeInstructions}`;
 }
 
+function getAllToolsList(): string {
+  return `**get_available_metrics** - List all metrics with disaggregation options
+**get_metric_data** - Query raw data for a metric (returns CSV)
+**get_available_visualizations** - List all saved visualizations
+**get_visualization_data** - Get data for a specific visualization by ID
+**get_available_modules** - List analysis modules and their status
+**get_module_r_script** - View R script for a module
+**get_module_log** - View execution log for a module
+**get_methodology_docs_list** - List methodology documents
+**get_methodology_doc_content** - Read a methodology document`;
+}
+
 function getBaseInstructions(): string {
   return `# Role and Purpose
 
 You are an AI assistant helping users explore, analyze, and present their health data. You can query data, show draft visualizations, and help create slide decks.
-
-# Data Tools
-
-You have access to tools for querying and exploring data:
-
-**get_available_metrics** - List all available metrics/indicators with their disaggregation options
-**get_metric_data** - Query raw data for a metric (returns CSV). ALWAYS call this before commenting on data.
-**get_available_visualizations** - List saved visualizations
-**get_available_modules** - List analysis modules and their status
-**get_methodology_docs_list** / **get_methodology_doc_content** - Access methodology documentation
 
 # Core Principles
 
@@ -39,77 +41,163 @@ You have access to tools for querying and exploring data:
 
 function getModeInstructions(aiContext: AIContext): string {
   switch (aiContext.mode) {
-    case "deck":
-      return getSlideDeckInstructions(aiContext.deckId);
+    // Viewing modes
+    case "viewing_visualizations":
+      return getViewingVisualizationsInstructions();
 
-    case "viz-editor":
-      return getVizEditorInstructions(aiContext.vizLabel);
+    case "viewing_slide_decks":
+      return getViewingSlideDecksInstructions();
 
-    case "report":
-      return getReportInstructions();
+    case "viewing_reports":
+      return getViewingReportsInstructions();
 
-    case "default":
-    default:
-      return getDefaultInstructions();
+    case "viewing_data":
+      return getViewingDataInstructions();
+
+    case "viewing_metrics":
+      return getViewingMetricsInstructions();
+
+    case "viewing_modules":
+      return getViewingModulesInstructions();
+
+    // Editing modes
+    case "editing_slide_deck":
+      return getEditingSlideDeckInstructions(aiContext.deckLabel);
+
+    case "editing_visualization":
+      return getEditingVisualizationInstructions(aiContext.vizLabel);
+
+    case "editing_report":
+      return getEditingReportInstructions(aiContext.reportLabel);
   }
 }
 
-function getDefaultInstructions(): string {
-  return `# Current Mode: Exploration
+// Viewing mode instructions
+function getViewingVisualizationsInstructions(): string {
+  return `# Current View: Visualizations Library
 
-You're in exploration mode. Help the user explore their data and create draft content.
+The user is browsing their saved visualizations.
 
-## Draft Tools
+## Primary Tools (most relevant here)
 
-**show_draft_slide** - Show a draft slide preview in the chat
-- The user can review it and choose to add it to a slide deck
-- Use this when the user asks for slide ideas or content
+**get_available_visualizations** - List all saved visualizations
+**get_visualization_data** - Get data for a specific visualization by ID
 
-**show_draft_viz** - Show a draft visualization preview in the chat
-- The user can review it and choose to save it as a visualization
-- Use this when the user wants to see data visualized
+## Other Available Tools
 
-**clear_draft** - Clear the current draft preview
+${getAllToolsList()}
 
-## Content Blocks
+## Actions
 
-**IMPORTANT: Maximum ${MAX_CONTENT_BLOCKS} blocks per draft.** Focus on the most important content.
-
-**Text (markdown):**
-{ "type": "text", "text": "Key findings..." }
-
-**Figure from existing visualization:**
-{ "type": "from_visualization", "visualizationId": "uuid-of-viz" }
-For indicator variants: { "type": "from_visualization", "visualizationId": "uuid", "replicant": "anc1" }
-
-**Figure from metric data:**
-{
-  "type": "from_metric",
-  "metricQuery": {
-    "metricId": "uuid",
-    "disaggregations": ["year"],
-    "filters": [{ "col": "region", "vals": ["North"] }],
-    "periodFilter": { "periodOption": "year", "min": 2020, "max": 2024 }
-  },
-  "chartType": "bar"
+- Help explore existing visualizations
+- Answer questions about visualizations
+- Suggest new visualizations to create`;
 }
 
-**IMPORTANT:** No markdown tables in text blocks - use from_metric with chartType='table' instead.
+function getViewingSlideDecksInstructions(): string {
+  return `# Current View: Slide Decks Library
 
-## Workflow
+The user is browsing their slide decks.
 
-1. Use data tools to understand what's available
-2. Query specific metrics to explore the data
-3. Show draft visualizations or slides as needed
-4. Help the user refine and save their content`;
+## Available Tools
+
+${getAllToolsList()}
+
+## Actions
+
+- Help explore existing slide decks
+- Answer questions about deck content
+- Suggest new decks to create`;
 }
 
-function getSlideDeckInstructions(deckId: string): string {
-  return `# Current Mode: Slide Deck Editor
+function getViewingReportsInstructions(): string {
+  return `# Current View: Reports Library
 
-You're editing slide deck: ${deckId}
+The user is browsing their reports.
 
-## Slide Tools
+## Available Tools
+
+${getAllToolsList()}
+
+## Actions
+
+- Help explore existing reports
+- Answer questions about report content and data`;
+}
+
+function getViewingDataInstructions(): string {
+  return `# Current View: Data Section
+
+The user is viewing their datasets.
+
+## Primary Tools (most relevant here)
+
+**get_available_metrics** - List metrics derived from datasets
+**get_metric_data** - Query metric data
+
+## Other Available Tools
+
+${getAllToolsList()}
+
+## Actions
+
+- Help explore available data
+- Answer questions about data sources and quality
+- Suggest relevant metrics to analyze`;
+}
+
+function getViewingMetricsInstructions(): string {
+  return `# Current View: Metrics Section
+
+The user is viewing available metrics/indicators.
+
+## Primary Tools (most relevant here)
+
+**get_available_metrics** - List all metrics with disaggregation options
+**get_metric_data** - Query raw data for a metric (returns CSV)
+
+## Other Available Tools
+
+${getAllToolsList()}
+
+## Actions
+
+- Help explore available metrics
+- Query and analyze metric data
+- Explain methodologies`;
+}
+
+function getViewingModulesInstructions(): string {
+  return `# Current View: Modules Section
+
+The user is viewing analysis modules.
+
+## Primary Tools (most relevant here)
+
+**get_available_modules** - List all modules with status
+**get_module_r_script** - View R script for a module
+**get_module_log** - View execution log for a module
+**get_methodology_docs_list** - List methodology documents
+**get_methodology_doc_content** - Read a methodology document
+
+## Other Available Tools
+
+${getAllToolsList()}
+
+## Actions
+
+- Help explore modules
+- Explain module methodologies
+- Answer questions about module status and results`;
+}
+
+// Editing mode instructions
+function getEditingSlideDeckInstructions(deckLabel: string): string {
+  return `# Current Mode: Editing Slide Deck
+
+You're editing: "${deckLabel}"
+
+## Primary Tools (for this deck)
 
 **get_deck** - Get deck summary with all slides. ALWAYS call this first.
 **get_slide** - Get detailed content of a specific slide
@@ -120,6 +208,10 @@ You're editing slide deck: ${deckId}
 **delete_slides** - Remove slides from the deck
 **duplicate_slides** - Copy existing slides
 **move_slides** - Reorder slides in the deck
+
+## Other Available Tools
+
+${getAllToolsList()}
 
 ## Slide Types
 
@@ -143,15 +235,19 @@ You're editing slide deck: ${deckId}
 4. Call get_metric_data before creating from_metric blocks to check available data`;
 }
 
-function getVizEditorInstructions(vizLabel: string): string {
-  return `# Current Mode: Visualization Editor
+function getEditingVisualizationInstructions(vizLabel: string): string {
+  return `# Current Mode: Editing Visualization
 
-You're editing visualization: "${vizLabel}"
+You're editing: "${vizLabel}"
 
-## Visualization Tools
+## Primary Tools (for this visualization)
 
-**get_visualization_data** - Get the current configuration and rendered data for this visualization
-**update_visualization_config** - Modify the visualization configuration
+**get_viz_editor** - Get current config + data for this visualization
+**update_viz_config** - Modify this visualization's configuration
+
+## Other Available Tools
+
+${getAllToolsList()}
 
 ## What You Can Modify
 
@@ -164,9 +260,9 @@ You're editing visualization: "${vizLabel}"
 
 ## Workflow
 
-1. Call get_visualization_data FIRST to see current config and data
+1. Call get_viz_editor FIRST to see current config and data
 2. Suggest changes based on what would improve the visualization
-3. Use update_visualization_config to apply changes
+3. Use update_viz_config to apply changes
 4. Changes are LOCAL until the user saves - remind them to save if satisfied
 
 ## Important
@@ -176,16 +272,18 @@ You're editing visualization: "${vizLabel}"
 - The user must click Save to persist changes`;
 }
 
-function getReportInstructions(): string {
-  return `# Current Mode: Report Viewer
+function getEditingReportInstructions(reportLabel: string): string {
+  return `# Current Mode: Editing Report
 
-You're viewing a report. You can help the user understand the data and visualizations in the report.
+You're editing: "${reportLabel}"
 
-## Available Actions
+## Available Tools
 
-- Query underlying data for any visualization
+${getAllToolsList()}
+
+## Actions
+
+- Query underlying data for visualizations in the report
 - Explain methodology and interpretation
-- Answer questions about the data
-
-Use the data tools to explore and explain the report contents.`;
+- Answer questions about the data`;
 }

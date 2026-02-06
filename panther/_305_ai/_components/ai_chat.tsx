@@ -40,6 +40,7 @@ type Props = {
   model?: AnthropicModel;
   markdownStyle?: CustomMarkdownStyleOptions;
   onBeforeSubmit?: (userMessage: string) => string;
+  onScrollReady?: (scrollToBottom: (force?: boolean) => void) => void;
 };
 
 export const AIChat: Component<Props> = (props) => {
@@ -68,6 +69,10 @@ export const AIChat: Component<Props> = (props) => {
     () => [displayItems(), isLoading(), currentStreamingText()],
     { enabled: props.autoScroll ?? true },
   );
+
+  if (props.onScrollReady) {
+    props.onScrollReady(scrollToBottom);
+  }
 
   // Auto-send queued messages when loading completes (but not during tool processing)
   createEffect(() => {
@@ -137,6 +142,7 @@ export const AIChat: Component<Props> = (props) => {
       {props.headerContent}
       <div
         ref={scrollContainer}
+        data-ai-messages-container
         class={props.messagesClass ??
           "ui-pad h-0 w-full flex-1 overflow-y-auto"}
         onScroll={checkScrollPosition}

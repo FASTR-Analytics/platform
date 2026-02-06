@@ -14,7 +14,7 @@ import {
 
 // Strip AI context markers from display (but they're still sent to API)
 function stripAIContext(text: string): string {
-  return text.replace(/<<<.*?>>>/gs, '').trim();
+  return text.replace(/<<<.*?>>>/gs, "").trim();
 }
 
 export const UserTextRenderer: Component<{
@@ -29,7 +29,7 @@ export const UserTextRenderer: Component<{
   return (
     <div class="ml-auto max-w-[80%]">
       <div
-        class={`py-4 rounded text-right text-sm ${bg} ${text} ${MARKDOWN_BASE_STYLES}`}
+        class={`rounded py-4 text-left text-sm ${bg} ${text} ${MARKDOWN_BASE_STYLES}`}
         style={deriveMarkdownCssVars(props.markdownStyle)}
         innerHTML={md.render(displayText)}
       />

@@ -110,7 +110,7 @@ export const [fitWithin, setFitWithin] = createSignal<"fit-within" | "fit-width"
 // AI Settings
 // ============================================================================
 
-export const [showAi, setShowAi] = createSignal<boolean>(false);
+export const [showAi, setShowAi] = createSignal<boolean>(true);
 
 // ============================================================================
 // Slide/Report Editor State

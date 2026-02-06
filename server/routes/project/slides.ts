@@ -189,20 +189,18 @@ defineRoute(
       return c.json(res);
     }
 
-    const lastUpdated = new Date().toISOString();
-
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slides",
       body.slideIds,
-      lastUpdated
+      res.data.lastUpdated
     );
 
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slide_decks",
       [params.deck_id],
-      lastUpdated
+      res.data.lastUpdated
     );
 
     return c.json(res);

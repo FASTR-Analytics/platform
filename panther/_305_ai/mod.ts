@@ -11,10 +11,11 @@ export { AIChat } from "./_components/ai_chat.tsx";
 export { AIChatProvider } from "./context.tsx";
 
 ////////////////////////////////////////////////////////////////////////////////
-// SIGNALS
+// SIGNALS & HOOKS
 ////////////////////////////////////////////////////////////////////////////////
 
 export { createAIChat } from "./_components/_create_ai_chat.ts";
+export { useConversations } from "./_components/use_conversations.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // CORE FUNCTIONS
@@ -30,6 +31,8 @@ export { BETA_HEADERS, getBetaHeaders } from "./_core/beta_headers.ts";
 ////////////////////////////////////////////////////////////////////////////////
 
 export type { AIChatConfig } from "./_core/types.ts";
+export type { ConversationMetadata } from "./_core/conversations_persistence.ts";
+export type { ConversationsContextValue } from "./_components/use_conversations.ts";
 
 export type { CallAIConfig, CallAIResult } from "./_core/one_shot.ts";
 export type {

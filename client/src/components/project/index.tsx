@@ -16,7 +16,7 @@ import {
   TimQuery,
   getEditorWrapper,
 } from "panther";
-import { Match, Show, Switch } from "solid-js";
+import { createEffect, Match, Show, Switch } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
 import { ProjectRunnerProvider, useProjectDetail } from "~/components/project_runner/mod";
 
@@ -30,13 +30,48 @@ import { ProjectVisualizations } from "./project_visualizations";
 // import { ProjectWhiteboard } from "../project_whiteboard";
 import { projectTab, updateProjectView, showAi, setShowAi } from "~/state/ui";
 import type { TabOption } from "~/state/ui";
-import { AIProjectWrapper } from "../project_ai";
+import { AIProjectWrapper, useAIProjectContext } from "../project_ai";
 
 type Props = {
   instanceDetail: TimQuery<InstanceDetail>;
   isGlobalAdmin: boolean;
   projectId: string;
 };
+
+function AIContextSync() {
+  const { setAIContext } = useAIProjectContext();
+
+  createEffect(() => {
+    const tab = projectTab();
+    console.log("[AIContextSync] Tab changed:", tab);
+    switch (tab) {
+      case "visualizations":
+        setAIContext({ mode: "viewing_visualizations" });
+        break;
+      case "decks":
+        setAIContext({ mode: "viewing_slide_decks" });
+        break;
+      case "reports":
+        setAIContext({ mode: "viewing_reports" });
+        break;
+      case "data":
+        setAIContext({ mode: "viewing_data" });
+        break;
+      case "metrics":
+        setAIContext({ mode: "viewing_metrics" });
+        break;
+      case "modules":
+        setAIContext({ mode: "viewing_modules" });
+        break;
+      case "settings":
+      case "whiteboard":
+        setAIContext({ mode: "viewing_visualizations" });
+        break;
+    }
+  });
+
+  return null;
+}
 
 export default function Project(p: Props) {
   // Utils
@@ -57,6 +92,7 @@ export default function Project(p: Props) {
 
           return (
             <AIProjectWrapper instanceDetail={keyedInstanceDetail}>
+              <AIContextSync />
               <ProjectEditorWrapper>
                 <FrameTop
                   panelChildren={

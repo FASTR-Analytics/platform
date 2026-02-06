@@ -19,10 +19,8 @@ import {
   APIResponseWithData,
   Button,
   ChartHolder,
-  Checkbox,
   Csv,
   FigureInputs,
-  FrameRightResizable,
   FrameTop,
   StateHolder,
   StateHolderWrapper,
@@ -54,7 +52,6 @@ import {
   useOptimisticSetLastUpdated,
   useOptimisticSetProjectLastUpdated,
 } from "~/components/project_runner/mod";
-import { useAIProjectContext } from "~/components/project_ai";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
 import {
@@ -63,11 +60,11 @@ import {
 } from "~/state/po_cache";
 import { setShowAi, showAi } from "~/state/ui";
 import type { CreateModeReturn, EditModeReturn, EphemeralModeReturn } from ".";
-// import { AiInterpretationPane } from "./ai_interpretation_pane";
-import { CreateVisualizationModal } from "./create_visualization_modal";
 import { DuplicateVisualization } from "./duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
+import { SaveAsNewVisualizationModal } from "./save_as_new_visualization_modal";
 import { VisualizationSettings } from "./visualization_settings";
+import { useAIProjectContext } from "../project_ai/context";
 
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
@@ -83,18 +80,15 @@ type InnerProps = {
 };
 
 export function VisualizationEditorInner(p: InnerProps) {
-  console.log("HERe")
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
   const { setAIContext } = useAIProjectContext();
 
-  console.log("HERe 21")
   // Extract static values from stores to prevent external reactivity
   const projectId = p.projectDetail.id;
   // const visualizationFolders = structuredClone(p.projectDetail.visualizationFolders);
   // const isLocked = p.projectDetail.isLocked;
 
-  console.log("HERe 22")
   const {
     openEditor: openEditorForResultsObject,
     EditorWrapper: EditorWrapperForResultsObject,
@@ -102,7 +96,6 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   // Temp state
 
-  console.log("HERe 2")
   const [tempConfig, setTempConfig] = createStore<PresentationObjectConfig>(
     structuredClone(p.poDetail.config),
   );
@@ -119,7 +112,6 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   // Sub-state updater
 
-  console.log("HERe 2b")
   async function attemptGetPresentationObjectItems(
     config: PresentationObjectConfig,
   ) {
@@ -133,7 +125,6 @@ export function VisualizationEditorInner(p: InnerProps) {
     }
   }
 
-  console.log("HERe 3")
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
   onMount(() => {
@@ -146,7 +137,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     // Set AI context now that editor is mounted (all modes)
     console.log("[VIZ] calling setAIContext");
     setAIContext({
-      mode: "viz-editor",
+      mode: "editing_visualization",
       vizId: p.mode === "edit" ? p.poDetail.id : null, // null for create/ephemeral
       vizLabel: p.poDetail.label,
       resultsValue: p.poDetail.resultsValue,
@@ -157,7 +148,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   });
 
   onCleanup(() => {
-    setAIContext({ mode: "default" });
+    setAIContext({ mode: "viewing_visualizations" });
   });
 
   let firstRunConfigChange = true;
@@ -193,37 +184,10 @@ export function VisualizationEditorInner(p: InnerProps) {
     attemptGetPresentationObjectItems(unwrappedTempConfig);
   });
 
-  console.log("HERe 4")
   let firstRunNeedsSave = true;
   createEffect(() => {
     trackStore(tempConfig);
-    // // Access all possible properties in tempConfig
-    // // ddddddddddddddddddddddddddddd
-    // for (const k in tempConfig.d) {
-    //   //@ts-ignore
-    //   const _v = tempConfig.d[k];
-    // }
-    // for (const dis of tempConfig.d.disaggregateBy) {
-    //   const _v = dis.disOpt + "-" + dis.disDisplayOpt;
-    // }
-    // for (const fil of tempConfig.d.filterBy) {
-    //   const _v = fil.disOpt + "-" + fil.values.join("-");
-    // }
-    // const _periodFilterOpt = tempConfig.d.periodFilter?.periodOption;
-    // const _periodFilterMin = tempConfig.d.periodFilter?.min;
-    // const _periodFilterMax = tempConfig.d.periodFilter?.max;
-    // const _valuesFilter = tempConfig.d.valuesFilter?.join("-");
 
-    // // sssssssssssssssssssssssssssss
-    // for (const k in tempConfig.s) {
-    //   //@ts-ignore
-    //   const _v = tempConfig.s[k];
-    // }
-    // // ttttttttttttttttttttttttttttt
-    // for (const k in tempConfig.t) {
-    //   //@ts-ignore
-    //   const _v = tempConfig.t[k];
-    // }
     if (firstRunNeedsSave) {
       firstRunNeedsSave = false;
       return;
@@ -235,10 +199,10 @@ export function VisualizationEditorInner(p: InnerProps) {
   // Actions
 
   // Create mode: open modal to get name and folder, then create
-  async function createVisualization() {
+  async function saveAsNewVisualization() {
     const unwrappedTempConfig = unwrap(tempConfig);
     const modalRes = await openComponent({
-      element: CreateVisualizationModal,
+      element: SaveAsNewVisualizationModal,
       props: {
         projectId: projectId,
         existingLabel: p.poDetail.label,
@@ -342,20 +306,6 @@ export function VisualizationEditorInner(p: InnerProps) {
   );
 
   const save = timActionButton(() => saveFunc());
-
-  // function revert() {
-  //   if (!p.poDetail.defaultDefinitionConfig) {
-  //     return;
-  //   }
-  //   const startingConfig = structuredClone(_STARTING_PRES_OBJ_CONFIG);
-  //   const defaultDefConfig = structuredClone(
-  //     p.poDetail.defaultDefinitionConfig,
-  //   );
-  //   setTempConfig({
-  //     ...startingConfig,
-  //     ...defaultDefConfig,
-  //   });
-  // }
 
   async function attemptUpdateLabel() {
     if (needsSave()) {
@@ -517,86 +467,6 @@ export function VisualizationEditorInner(p: InnerProps) {
     saveAs(blob, `${p.poDetail.label.replaceAll(" ", "_").trim()}.png`);
   }
 
-  // async function downloadMultiple(
-  //   _PX: number,
-  //   _PY: number,
-  //   existingCanvasWidth: number,
-  //   existingCanvasHeight: number,
-  //   transparent: boolean,
-  //   replicateBy: "admin_area_2" | "admin_area_3" | "indicator_common_id",
-  // ) {
-  //   const lastUpdated = lus[p.poDetail.id] ?? "unknown";
-  //   const lastModified = new Date();
-  //   const replicants = await getReplicantOptions(
-  //     p.projectId,
-  //     p.poDetail.resultsObjectId,
-  //     replicateBy,
-  //   );
-  //   if (replicants.success === false) {
-  //     return;
-  //   }
-  //   const poDetailsRes = await Promise.all(
-  //     replicants.data.map(async (opt) => {
-  //       const figureInputs = await getPOFigureInputsFromCacheOrFetch(
-  //         p.projectId,
-  //         p.poDetail.id,
-  //         lastUpdated,
-  //         [
-  //           {
-  //             replicateBy,
-  //             selectedReplicantValue: opt.value,
-  //           },
-  //         ],
-  //       );
-  //       const dummyCanvas = new OffscreenCanvas(100, 100);
-  //       const dummyCanvasCtx = dummyCanvas.getContext("2d")!;
-  //       //@ts-ignore
-  //       const dummyCrc = new CanvasRenderContext(dummyCanvasCtx);
-  //       const fig = new Figure(figureInputs.data);
-  //       const idealH =
-  //         figureInputs.data.style?.idealAspectRatio === "none"
-  //           ? existingCanvasHeight
-  //           : fig.getIdealHeight(dummyCrc, existingCanvasWidth);
-  //       const newW = existingCanvasWidth + 2 * _PX;
-  //       const newH = idealH + 2 * _PY;
-
-  //       const canvas = new OffscreenCanvas(newW, newH);
-  //       const canvasCtx = canvas.getContext("2d")!;
-  //       if (!transparent) {
-  //         canvasCtx.fillStyle = "#ffffff";
-  //         canvasCtx.fillRect(0, 0, newW, newH);
-  //       }
-  //       //@ts-ignore
-  //       const crc = new CanvasRenderContext(canvasCtx);
-  //       const rcd = new RectCoordsDims([
-  //         _PX,
-  //         _PY,
-  //         newW - 2 * _PX,
-  //         newH - 2 * _PX,
-  //       ]);
-  //       fig.measure(crc, rcd).render(crc);
-  //       const blob = await canvas.convertToBlob({ type: "png", quality: 1 });
-  //       return {
-  //         name: `${p.poDetail.label.replaceAll(" ", "_").trim()}_${opt.value.replaceAll(" ", "_").trim()}.png`,
-  //         lastModified,
-  //         input: blob,
-  //       };
-  //     }),
-  //   );
-  //   const goodBlobs = poDetailsRes.filter(
-  //     (
-  //       b,
-  //     ): b is {
-  //       name: string;
-  //       lastModified: Date;
-  //       input: Blob;
-  //     } => b !== undefined,
-  //   );
-
-  //   const blob = await downloadZip(goodBlobs).blob();
-  //   saveAs(blob, `${p.poDetail.label.replaceAll(" ", "_").trim()}.zip`);
-  // }
-
   async function attemptDeletePresentationObjectDetail() {
     if (p.poDetail.isDefault) {
       return;
@@ -626,7 +496,6 @@ export function VisualizationEditorInner(p: InnerProps) {
   }
 
   const isEditable = p.mode !== "ephemeral";
-  console.log("Here 3")
   return (
     <EditorWrapperForResultsObject>
       <FrameTop
@@ -647,9 +516,19 @@ export function VisualizationEditorInner(p: InnerProps) {
                   />
                 }
               >
-                <Show
-                  when={p.mode === "create"}
-                  fallback={
+                <Switch>
+                  <Match
+                    when={p.mode === "create"}
+                  >
+                    <Button
+                      intent="success"
+                      onClick={saveAsNewVisualization}
+                      iconName="save"
+                    >
+                      {t("Save as new visualization")}
+                    </Button>
+                  </Match>
+                  <Match when={true}>
                     <>
                       <Button
                         intent="success"
@@ -668,16 +547,9 @@ export function VisualizationEditorInner(p: InnerProps) {
                         {t2(T.FRENCH_UI_STRINGS.save)}
                       </Button>
                     </>
-                  }
-                >
-                  <Button
-                    intent="success"
-                    onClick={createVisualization}
-                    iconName="plus"
-                  >
-                    {t("Save as new visualization")}
-                  </Button>
-                </Show>
+
+                  </Match>
+                </Switch>
                 <Button
                   intent="neutral"
                   onClick={() => (p.onClose as any)(undefined)}
@@ -736,7 +608,6 @@ export function VisualizationEditorInner(p: InnerProps) {
         }
       >
         <div class="flex h-full w-full">
-          {/* <Show when={!p.poDetail.isDefault}> */}
           <div class="h-full w-96 flex-none border-r">
             <PresentationObjectEditorPanel
               projectDetail={p.projectDetail}
@@ -747,7 +618,6 @@ export function VisualizationEditorInner(p: InnerProps) {
               viewResultsObject={viewResultsObject}
             />
           </div>
-          {/* </Show> */}
           <Show when={getReplicateByProp(tempConfig)} keyed>
             {(keyedReplicateBy) => {
               return (
@@ -832,30 +702,6 @@ export function VisualizationEditorInner(p: InnerProps) {
                             );
 
                             return (
-                              // <FrameRightResizable
-                              //   startingWidth={300}
-                              //   minWidth={260}
-                              //   panelChildren={
-                              //     showAi() && (
-                              //       <div class="bg-base-100 h-full border-l">
-                              //         <AiInterpretationPane
-                              //           instanceDetail={p.instanceDetail}
-                              //           projectDetail={p.projectDetail}
-                              //           presentationObjectId={p.poDetail.id}
-                              //           conversationId={
-                              //             p.mode === "edit"
-                              //               ? `viz-chat-${p.poDetail.id}`
-                              //               : `viz-chat-${p.mode}-${p.poDetail.resultsValue.id}`
-                              //           }
-                              //           figureInputs={figureInputs()}
-                              //           tempConfig={tempConfig}
-                              //           setTempConfig={setTempConfig}
-                              //           resultsValue={p.poDetail.resultsValue}
-                              //         />
-                              //       </div>
-                              //     )
-                              //   }
-                              // >
                               <div class="ui-pad h-full w-full overflow-auto">
                                 <StateHolderWrapper state={figureInputs()}>
                                   {(keyedFigureInputs) => {
@@ -875,7 +721,6 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   }}
                                 </StateHolderWrapper>
                               </div>
-                              // </FrameRightResizable>
                             );
                           })()}
                         </Match>

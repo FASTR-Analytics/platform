@@ -4,7 +4,7 @@ import { t } from "lib";
 import { AlertComponentProps, AlertFormHolder, Button, Input, Loading, RadioGroup, timActionForm, type SelectOption, ProgressBar, getProgress } from "panther";
 import { createSignal, Show, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { convertAiInputToSlide } from "../project_ai_slide_deck/utils/convert_ai_input_to_slide";
+import { convertAiInputToSlide } from "../slide_deck/utils/convert_ai_input_to_slide";
 import { InlineReplicantSelector } from "../report/inline_replicant_selector";
 
 type Props = {
