@@ -9,7 +9,7 @@ import { PresentationObjectInReportInfo } from "./presentation_objects.ts";
 export type ReportType =
   | "slide_deck"
   | "policy_brief";
-  // | "long_form";  // TODO: Re-enable later
+// | "long_form";  // TODO: Re-enable later
 
 export type ReportSummary = {
   id: string;
@@ -21,7 +21,7 @@ export type ReportDetail = {
   id: string;
   projectId: string;
   reportType: ReportType;
-  config: ReportConfig;  // | LongFormReportConfig - disabled for now
+  config: ReportConfig; // | LongFormReportConfig - disabled for now
   itemIdsInOrder: string[];
   // anyModuleLastRun: string;
   lastUpdated: string;
@@ -353,4 +353,3 @@ export function getStartingReportItemPlaceholder() {
   };
   return startingPlaceholder;
 }
-

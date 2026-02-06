@@ -9,6 +9,7 @@ import {
   FrameLeft,
   FrameTop,
   PencilIcon,
+  ReportIcon,
   SettingsIcon,
   SparklesIcon,
   StateHolderWrapper,
@@ -98,16 +99,6 @@ export default function Project(p: Props) {
                         </span>
                         {t2("Whiteboard")}
                       </div> */}
-                        {/* <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => updateProjectView({ tab: "reports" })}
-                                  data-selected={projectTab() === "reports"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <ReportIcon />
-                                  </span>
-                                  {t2(T.FRENCH_UI_STRINGS.reports)}
-                                </div> */}
                         <div
                           class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
                           onClick={() => updateProjectView({ tab: "decks" })}
@@ -117,6 +108,16 @@ export default function Project(p: Props) {
                             <SparklesIcon />
                           </span>
                           Slide decks
+                        </div>
+                        <div
+                          class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                          onClick={() => updateProjectView({ tab: "reports" })}
+                          data-selected={projectTab() === "reports"}
+                        >
+                          <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                            <ReportIcon />
+                          </span>
+                          {t2(T.FRENCH_UI_STRINGS.reports)}
                         </div>
                         <div
                           class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"

@@ -46,112 +46,10 @@ ${userInserts}
       "READ_AND_WRITE"
     );
     await runProjectMigrations(projectDb);
-    await migrateReportItemsToNestedLayout(projectDb);
     await migrateToMetricsTables(projectDb);
   }
 }
 
-// =============================================================================
-// TEMPORARY MIGRATION - Remove after all instances have run
-// Added: 2025-01-16
-//
-// This migrates report item content from 2D array format to nested layout tree.
-// Safe to remove once all servers have started at least once with this code.
-//
-// To check if migration is complete, run against each project database:
-//   SELECT COUNT(*) FROM report_items WHERE config LIKE '%"content":[[%';
-// If count is 0, this migration can be deleted.
-//
-// NOTE: When completing this migration, also consider migrating to the new
-// format where content is wrapped in { layoutType: "explicit", layout: ... }
-// to support the optimizer. Current format is:
-//   freeform.content: LayoutNode<ReportItemContentItem>
-// New format should be:
-//   freeform.content: { layoutType: "explicit", layout: LayoutNode<...> }
-// This will enable AI slide deck generation to use { layoutType: "optimize", items: [...] }
-// =============================================================================
-async function migrateReportItemsToNestedLayout(
-  sql: ReturnType<typeof getPgConnectionFromCacheOrNew>
-) {
-  const rows = await sql<
-    { id: string; config: string }[]
-  >`SELECT id, config FROM report_items`;
-
-  let migrated = 0;
-  let fixed = 0;
-  for (const row of rows) {
-    const config = JSON.parse(row.config);
-
-    // Migrate from 2D array format
-    if (Array.isArray(config.freeform?.content)) {
-      // Transform 2D array to panther LayoutNode structure
-      // In panther: "rows" = children stacked vertically, "cols" = children side by side
-      // So root is "rows" (stack visual rows vertically), each visual row is "cols" (items side by side)
-      config.freeform.content = {
-        type: "rows",
-        id: crypto.randomUUID(),
-        children: config.freeform.content.map((r: unknown[]) => ({
-          type: "cols",
-          id: crypto.randomUUID(),
-          children: r.map((item: unknown) => ({
-            type: "item",
-            id: crypto.randomUUID(),
-            data: item,
-            span: (item as { span?: number }).span,
-          })),
-        })),
-      };
-      await sql`UPDATE report_items SET config = ${JSON.stringify(config)} WHERE id = ${row.id}`;
-      migrated++;
-      continue;
-    }
-
-    // Fix items that were incorrectly swapped (root is "cols" instead of "rows")
-    const content = config.freeform?.content;
-    if (
-      content?.type === "cols" &&
-      content?.id === "root" &&
-      content?.children?.every(
-        (c: { type: string }) => c.type === "rows" || c.type === "item"
-      )
-    ) {
-      swapRowColTypes(content);
-      await sql`UPDATE report_items SET config = ${JSON.stringify(config)} WHERE id = ${row.id}`;
-      fixed++;
-    }
-  }
-
-  if (migrated > 0) {
-    console.log(
-      `[MIGRATION] Migrated ${migrated} report items to nested layout`
-    );
-  }
-  if (fixed > 0) {
-    console.log(
-      `[MIGRATION] Fixed ${fixed} report items with swapped row/col types`
-    );
-  }
-}
-
-function swapRowColTypes(node: { type: string; children?: unknown[] }) {
-  if (node.type === "rows") {
-    node.type = "cols";
-  } else if (node.type === "cols") {
-    node.type = "rows";
-  }
-  if (node.children) {
-    for (const child of node.children) {
-      if (
-        typeof child === "object" &&
-        child !== null &&
-        "type" in child &&
-        (child as { type: string }).type !== "item"
-      ) {
-        swapRowColTypes(child as { type: string; children?: unknown[] });
-      }
-    }
-  }
-}
 
 async function getInitialUsersInsertStatements(): Promise<string> {
   try {
@@ -217,16 +115,16 @@ ON CONFLICT (indicator_common_id) DO NOTHING;
 }
 
 // =============================================================================
-// MIGRATION: Migrate to metrics tables
-// Added: 2025-01-21
+// DATA MIGRATION: Populate metrics and link presentation_objects
+// Added: 2025-02-06
 //
-// This migrates from resultsValues nested in module_definition JSON to the
-// metrics table, and populates presentation_objects.metric_id from results_value.
+// This populates the metrics table from module definitions and links existing
+// presentation_objects to their metrics via metric_id.
 // =============================================================================
 async function migrateToMetricsTables(
   sql: ReturnType<typeof getPgConnectionFromCacheOrNew>
 ) {
-  const MIGRATION_ID = "js_migrate_to_metrics_tables";
+  const MIGRATION_ID = "js_migrate_to_metrics_2025_02";
 
   // Check if already migrated
   const applied = await sql<{ migration_id: string }[]>`
@@ -236,116 +134,123 @@ async function migrateToMetricsTables(
     return;
   }
 
-  console.log("[MIGRATION] Migrating to metrics tables...");
+  console.log("[MIGRATION] Populating metrics and linking presentation objects...");
 
-  // 1. Populate results_objects and metrics tables from module_definition JSON
-  const modules = await sql<{ id: string; module_definition: string }[]>`
-    SELECT id, module_definition FROM modules
-  `;
+  // Run entire migration in a transaction for atomicity
+  await sql.begin(async (tx) => {
+    // 1. Populate metrics from module definitions
+    const modules = await tx<{ id: string; module_definition: string }[]>`
+      SELECT id, module_definition FROM modules
+    `;
 
-  let resultsObjectsInserted = 0;
-  let metricsInserted = 0;
-  for (const mod of modules) {
-    const modDef = JSON.parse(mod.module_definition);
+    let metricsInserted = 0;
+    for (const mod of modules) {
+      const modDef = JSON.parse(mod.module_definition);
 
-    // Extract results_objects and metrics from resultsObjects
-    for (const ro of modDef.resultsObjects ?? []) {
-      // Insert results_object
-      await sql`
-        INSERT INTO results_objects (id, module_id, description, column_definitions)
-        VALUES (
-          ${ro.id},
-          ${mod.id},
-          ${ro.description ?? ""},
-          ${ro.createTableStatementPossibleColumns ? JSON.stringify(ro.createTableStatementPossibleColumns) : null}
-        )
-        ON CONFLICT (id) DO NOTHING
-      `;
-      resultsObjectsInserted++;
-
-      // Insert metrics from resultsValues
-      for (const rv of ro.resultsValues ?? []) {
-        await sql`
-          INSERT INTO metrics (
-            id,
-            module_id,
-            label,
-            value_func,
-            format_as,
-            value_props,
-            period_options,
-            required_disaggregation_options,
-            value_label_replacements,
-            post_aggregation_expression,
-            auto_include_facility_columns,
-            results_object_id,
-            ai_description
-          ) VALUES (
-            ${rv.id},
-            ${mod.id},
-            ${rv.label},
-            ${rv.valueFunc},
-            ${rv.formatAs},
-            ${JSON.stringify(rv.valueProps)},
-            ${JSON.stringify(rv.periodOptions)},
-            ${JSON.stringify(rv.requiredDisaggregationOptions ?? [])},
-            ${rv.valueLabelReplacements ? JSON.stringify(rv.valueLabelReplacements) : null},
-            ${rv.postAggregationExpression ? JSON.stringify(rv.postAggregationExpression) : null},
-            ${rv.autoIncludeFacilityColumns ?? false},
+      for (const ro of modDef.resultsObjects ?? []) {
+        // Ensure results_object exists
+        await tx`
+          INSERT INTO results_objects (id, module_id, description, column_definitions)
+          VALUES (
             ${ro.id},
-            ${rv.aiDescription ? JSON.stringify(rv.aiDescription) : null}
+            ${mod.id},
+            ${ro.description ?? ""},
+            ${ro.createTableStatementPossibleColumns ? JSON.stringify(ro.createTableStatementPossibleColumns) : null}
           )
           ON CONFLICT (id) DO NOTHING
         `;
-        metricsInserted++;
+
+        // Insert metrics from resultsValues
+        for (const rv of ro.resultsValues ?? []) {
+          await tx`
+            INSERT INTO metrics (
+              id, module_id, label, variant_label, value_func, format_as, value_props,
+              period_options, required_disaggregation_options, value_label_replacements,
+              post_aggregation_expression, auto_include_facility_columns, results_object_id, ai_description
+            ) VALUES (
+              ${rv.id},
+              ${mod.id},
+              ${rv.label},
+              ${rv.variantLabel ?? null},
+              ${rv.valueFunc},
+              ${rv.formatAs},
+              ${JSON.stringify(rv.valueProps)},
+              ${JSON.stringify(rv.periodOptions)},
+              ${JSON.stringify(
+                rv.requiredDisaggregationOptions ??
+                rv.disaggregationOptions?.filter((d: {isRequired?: boolean}) => d.isRequired).map((d: {value: string}) => d.value) ??
+                []
+              )},
+              ${rv.valueLabelReplacements ? JSON.stringify(rv.valueLabelReplacements) : null},
+              ${rv.postAggregationExpression ? JSON.stringify(rv.postAggregationExpression) : null},
+              ${rv.autoIncludeFacilityColumns ?? false},
+              ${ro.id},
+              ${rv.aiDescription ? JSON.stringify(rv.aiDescription) : null}
+            )
+            ON CONFLICT (id) DO NOTHING
+          `;
+          metricsInserted++;
+        }
       }
     }
-  }
 
-  // 2. Populate presentation_objects.metric_id from results_value JSON (if column still exists)
-  let presObjsUpdated = 0;
-  const hasResultsValueColumn = await sql<{ exists: boolean }[]>`
-    SELECT EXISTS (
-      SELECT 1 FROM information_schema.columns
-      WHERE table_schema = 'public'
-      AND table_name = 'presentation_objects'
-      AND column_name = 'results_value'
-    ) as exists
-  `;
-
-  if (hasResultsValueColumn[0]?.exists) {
-    const presObjs = await sql<{ id: string; results_value: string }[]>`
-      SELECT id, results_value FROM presentation_objects WHERE metric_id IS NULL
+    // 2. Link presentation_objects to metrics
+    const hasResultsValueColumn = await tx<{ exists: boolean }[]>`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'presentation_objects'
+        AND column_name = 'results_value'
+      ) as exists
     `;
 
-    for (const po of presObjs) {
-      try {
-        const resultsValue = JSON.parse(po.results_value);
-        if (resultsValue?.id) {
-          await sql`
-            UPDATE presentation_objects
-            SET metric_id = ${resultsValue.id}
-            WHERE id = ${po.id}
-          `;
-          presObjsUpdated++;
+    let presObjsLinked = 0;
+    if (hasResultsValueColumn[0]?.exists) {
+      const presObjs = await tx<{ id: string; results_value: string; label: string }[]>`
+        SELECT id, results_value, label FROM presentation_objects WHERE metric_id IS NULL
+      `;
+
+      for (const po of presObjs) {
+        try {
+          const parsed = JSON.parse(po.results_value);
+          if (parsed?.id) {
+            await tx`UPDATE presentation_objects SET metric_id = ${parsed.id} WHERE id = ${po.id}`;
+            presObjsLinked++;
+          }
+        } catch {
+          // Invalid JSON - will be caught below
         }
-      } catch {
-        // Skip if results_value is not valid JSON
       }
+
+      // Check for orphaned presentation_objects (fail loudly)
+      const orphaned = await tx<{ id: string; label: string }[]>`
+        SELECT id, label FROM presentation_objects WHERE metric_id IS NULL
+      `;
+      if (orphaned.length > 0) {
+        console.error(`[MIGRATION ERROR] ${orphaned.length} presentation objects couldn't be linked:`);
+        for (const po of orphaned) {
+          console.error(`  - ${po.id}: ${po.label}`);
+        }
+        throw new Error("Migration failed: orphaned presentation objects found");
+      }
+
+      // Enforce NOT NULL constraint
+      await tx`ALTER TABLE presentation_objects ALTER COLUMN metric_id SET NOT NULL`;
     }
-  }
 
-  // 3. Drop old columns from presentation_objects (now that we've read from them)
-  await sql`ALTER TABLE presentation_objects DROP COLUMN IF EXISTS module_id`;
-  await sql`ALTER TABLE presentation_objects DROP COLUMN IF EXISTS results_object_id`;
-  await sql`ALTER TABLE presentation_objects DROP COLUMN IF EXISTS results_value`;
+    // 3. Drop old columns and indexes (must happen after reading old data)
+    await tx`DROP INDEX IF EXISTS idx_presentation_objects_module_id`;
+    await tx`DROP INDEX IF EXISTS idx_presentation_objects_results_object_id`;
+    await tx`ALTER TABLE presentation_objects DROP COLUMN IF EXISTS module_id`;
+    await tx`ALTER TABLE presentation_objects DROP COLUMN IF EXISTS results_object_id`;
+    await tx`ALTER TABLE presentation_objects DROP COLUMN IF EXISTS results_value`;
 
-  // 4. Mark migration as complete
-  await sql`
-    INSERT INTO schema_migrations (migration_id) VALUES (${MIGRATION_ID})
-  `;
+    // 4. Drop unused results_values table
+    await tx`DROP TABLE IF EXISTS results_values`;
 
-  console.log(
-    `[MIGRATION] Migrated to metrics tables: ${resultsObjectsInserted} results objects, ${metricsInserted} metrics, ${presObjsUpdated} presentation objects`
-  );
+    // 5. Mark migration complete
+    await tx`INSERT INTO schema_migrations (migration_id) VALUES (${MIGRATION_ID})`;
+
+    console.log(`[MIGRATION] Complete: ${metricsInserted} metrics, ${presObjsLinked} presentation objects linked`);
+  });
 }
