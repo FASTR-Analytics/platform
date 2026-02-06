@@ -171,26 +171,30 @@ export default function Project(p: Props) {
                                   </span>
                                   {t2("AI Assistant")}
                                 </div>
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("reports")}
-                                  data-selected={tab() === "reports"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <ReportIcon />
-                                  </span>
-                                  {t2(T.FRENCH_UI_STRINGS.reports)}
-                                </div>
-                                <div
-                                  class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                                  onClick={() => changeTab("visualizations")}
-                                  data-selected={tab() === "visualizations"}
-                                >
-                                  <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                                    <ChartIcon />
-                                  </span>
-                                  {t2(T.FRENCH_UI_STRINGS.visualizations)}
-                                </div>
+                                <Show when={p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_reports || keyedProjectDetail.thisUserPermissions.can_view_reports}>
+                                  <div
+                                    class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                    onClick={() => changeTab("reports")}
+                                    data-selected={tab() === "reports"}
+                                  >
+                                    <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                      <ReportIcon />
+                                    </span>
+                                    {t2(T.FRENCH_UI_STRINGS.reports)}
+                                  </div>
+                                </Show>
+                                <Show when={p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_visualizations || keyedProjectDetail.thisUserPermissions.can_view_visualizations}>
+                                  <div
+                                    class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
+                                    onClick={() => changeTab("visualizations")}
+                                    data-selected={tab() === "visualizations"}
+                                  >
+                                    <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
+                                      <ChartIcon />
+                                    </span>
+                                    {t2(T.FRENCH_UI_STRINGS.visualizations)}
+                                  </div>
+                                </Show>
                                 <Show when={p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_modules || keyedProjectDetail.thisUserPermissions.can_run_modules}>
                                   <div
                                     class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
@@ -253,7 +257,7 @@ export default function Project(p: Props) {
                                   openProjectEditor={openProjectEditor}
                                 />
                               </Match>
-                              <Match when={tab() === "reports"}>
+                              <Match when={tab() === "reports" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_reports || keyedProjectDetail.thisUserPermisisons.can_view_reports)}>
                                 <ProjectReports
                                   projectDetail={keyedProjectDetail}
                                   attemptGetProjectDetail={projectDetail.fetch}
@@ -263,7 +267,7 @@ export default function Project(p: Props) {
                                   openProjectEditor={openProjectEditor}
                                 />
                               </Match>
-                              <Match when={tab() === "visualizations"}>
+                              <Match when={tab() === "visualizations" && (p.isGlobalAdmin || keyedProjectDetail.thisUserPermissions.can_configure_visualization || keyedProjectDetail.thisUserPermissions.can_view_visualization)}>
                                 <ProjectVisualizations
                                   isGlobalAdmin={p.isGlobalAdmin}
                                   projectDetail={keyedProjectDetail}

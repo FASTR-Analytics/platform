@@ -79,7 +79,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "getReportDetail",
-  requireProjectPermission(),
+  requireProjectPermission("can_view_reports"),
   log("getReportDetail"),
   async (c, { params }) => {
     const res = await getReportDetail(
@@ -118,7 +118,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "backupReport",
-  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_reports"),
+  requireProjectPermission({preventAccessToLockedProjects: false},"can_configure_reports"),
   log("backupReport"),
   async (c, { params }) => {
     const res = await backupReport(
@@ -223,6 +223,7 @@ defineRoute(
 defineRoute(
   routesReports,
   "getReportItem",
+  requireProjectPermission("can_view_reports"),
   log("getReportItem"),
   async (c, { params }) => {
     const res = await getReportItem(

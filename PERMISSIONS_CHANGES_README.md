@@ -17,7 +17,7 @@ Added permission fields to `DBProjectUserRole` type:
 - `can_configure_modules`
 - `can_run_modules`
 - `can_configure_users`
-- `can_configure_visulizations`
+- `can_configure_visualizations`
 - `can_configure_reports`
 - `can_configure_data`
 - `can_view_data`

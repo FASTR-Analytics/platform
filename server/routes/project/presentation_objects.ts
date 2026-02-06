@@ -46,7 +46,7 @@ const resultsValueInfoQueue = new RequestQueue(15);
 defineRoute(
   routesPresentationObjects,
   "createPresentationObject",
-  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visulizations"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visualizations"),
   log("createPresentationObject"),
   async (c, { body }) => {
     const res = await addPresentationObject(
@@ -75,7 +75,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "duplicatePresentationObject",
-  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visulizations"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visualizations"),
   log("duplicatePresentationObject"),
   async (c, { params, body }) => {
     const res = await duplicatePresentationObject(
@@ -100,7 +100,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "getAllPresentationObjects",
-  requireProjectPermission(),
+  requireProjectPermission("can_view_visualizations"),
   async (c) => {
     const res = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
     return c.json(res);
@@ -110,7 +110,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "getPresentationObjectDetail",
-  requireProjectPermission(),
+  requireProjectPermission("can_view_visualizations"),
   async (c, { params }) => {
     const t0 = performance.now();
 
@@ -175,7 +175,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "updatePresentationObjectLabel",
-  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visulizations"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visualizations"),
   log("updatePresentationObjectLabel"),
   async (c, { params, body }) => {
     const res = await updatePresentationObjectLabel(
@@ -199,7 +199,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "updatePresentationObjectConfig",
-  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visulizations"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visualizations"),
   log("updatePresentationObjectConfig"),
   async (c, { params, body }) => {
     const res = await updatePresentationObjectConfig(
@@ -229,7 +229,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "deletePresentationObject",
-  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visulizations"),
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visualizations"),
   log("deletePresentationObject"),
   async (c, { params }) => {
     const res = await deletePresentationObject(
@@ -247,7 +247,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "getPresentationObjectItems",
-  requireProjectPermission(),
+  requireProjectPermission("can_view_visualizations"),
   async (c, { body }) => {
     const t0 = performance.now();
     console.log(
@@ -355,7 +355,7 @@ SELECT last_run FROM modules WHERE id = ${poData.module_id}
 defineRoute(
   routesPresentationObjects,
   "getResultsValueInfoForPresentationObject",
-  requireProjectPermission(),
+  requireProjectPermission("can_view_visualizations"),
   async (c, { body }) => {
     const t0 = performance.now();
 
@@ -453,7 +453,7 @@ SELECT last_run FROM modules WHERE id = ${body.moduleId}
 defineRoute(
   routesPresentationObjects,
   "getReplicantOptions",
-  requireProjectPermission(),
+  requireProjectPermission("can_view_visualizations"),
   log("getReplicantOptions"),
   async (c, { body }) => {
     const t0 = performance.now();

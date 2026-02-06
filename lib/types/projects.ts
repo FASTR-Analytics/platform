@@ -33,8 +33,12 @@ export type ProjectDetail = {
     can_configure_modules: boolean;
     can_run_modules: boolean;
     can_configure_users: boolean;
-    can_configure_visulizations: boolean;
+    can_configure_visualizations: boolean;
+    can_view_visualizations: boolean;
     can_configure_reports: boolean;
+    can_view_reports: boolean;
+    can_configure_slide_decks: boolean;
+    can_view_slide_decks: boolean;
     can_configure_data: boolean;
     can_view_data: boolean;
     can_view_logs: boolean;

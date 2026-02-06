@@ -1,6 +1,8 @@
 import { ProjectDetail, InstanceDetail, ProjectUser, t, t2, T } from "lib";
 import {
   Button,
+  ChevronDownIcon,
+  ChevronRightIcon,
   FrameTop,
   HeadingBar,
   LockIcon,
@@ -688,9 +690,9 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
                       class="flex items-center justify-between rounded border border-neutral-200 bg-neutral-50 p-3 text-left hover:bg-neutral-100 transition-colors"
                     >
                       <div class="flex items-center gap-2">
-                        <span class="text-lg">
-                          {isExpanded() ? '▼' : '▶'}
-                        </span>
+                        <Show when={isExpanded()} fallback={<ChevronRightIcon />}>
+                          <ChevronDownIcon />
+                        </Show>
                         <span class="font-medium">
                           {group.isCustom ? 'Custom Backups' : group.date}
                         </span>
