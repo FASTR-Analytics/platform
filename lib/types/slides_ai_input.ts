@@ -179,8 +179,8 @@ export const AiContentSlideSchema = z.object({
   type: z.literal("content").describe(
     "Slide type identifier for content slides with text and/or figures",
   ),
-  heading: z.string().min(1).max(200).describe(
-    "Required: The slide heading/title that appears at the top of the slide. Should clearly describe what this slide is about. Minimum 1 character, maximum 200 characters.",
+  header: z.string().max(200).optional().describe(
+    "Optional: The slide header/title that appears at the top of the slide. Should clearly describe what this slide is about. Maximum 200 characters.",
   ),
   blocks: z.array(AiContentBlockInputSchema).describe(
     `Required: Array of content blocks (text and/or figures) to display on this slide. Blocks can be text (markdown), figures from existing visualizations, or figures from metrics with custom config. The layout will be automatically optimized. Maximum ${MAX_CONTENT_BLOCKS} blocks per slide.`,

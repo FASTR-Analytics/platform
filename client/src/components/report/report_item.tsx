@@ -11,21 +11,14 @@ import {
   T,
 } from "lib";
 import {
-  addCol,
-  addRow,
   APIResponseWithData,
   createItemNode,
-  deleteNodeWithCleanup,
   EditablePageHolder,
-  findById,
   FrameRightResizable,
   LayoutNode,
-  MenuItem,
   PageHitTarget,
   PageInputs,
   showMenu,
-  splitIntoColumns,
-  splitIntoRows,
   StateHolder,
   StateHolderWrapper,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
@@ -45,6 +38,8 @@ import { useProjectDirtyStates } from "~/components/project_runner/mod";
 import { getPageInputsFromReportItem } from "~/generate_report/mod";
 import { serverActions } from "~/server_actions";
 import { getReportItemFromCacheOrFetch } from "~/state/ri_cache";
+import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
+import { convertReportItemType } from "./utils/convert_report_item_type";
 import {
   fitWithin,
   setHeaderOrContent,
@@ -412,116 +407,62 @@ export function ReportItemEditorInner(p: Props) {
                   onContextMenu={(e, target) => {
                     if (target.type !== "layoutItem") return;
 
-                    const content = tempReportItemConfig.freeform.content;
-                    const root = structuredClone(unwrap(content));
-                    const targetId = target.node.id;
-                    const items: MenuItem[] = [];
-
-                    const makeNewItem = () =>
-                      createItemNode<ReportItemContentItem>(getStartingReportItemPlaceholder());
-
-                    const found = findById(root, targetId);
-                    const isOnlyNode = root.type === "item" && root.id === targetId;
-                    const parentType = found?.parent?.type;
-
-                    // Split options depend on context
-                    if (isOnlyNode || parentType === "cols") {
-                      items.push({
-                        label: "Split into rows",
-                        icon: "plus",
-                        onClick: () => {
-                          const newItem = makeNewItem();
-                          const result = splitIntoRows(root, targetId, newItem);
-                          setTempReportItemConfig("freeform", "content", result);
-                          setSelectedItemId(newItem.id);
+                    const items = buildLayoutContextMenu(
+                      tempReportItemConfig.freeform.content,
+                      target.node.id,
+                      {
+                        onLayoutChange: (newLayout) => {
+                          setTempReportItemConfig("freeform", "content", newLayout);
                         },
-                      });
-                    }
-                    if (isOnlyNode || parentType === "rows") {
-                      items.push({
-                        label: "Split into columns",
-                        icon: "plus",
-                        onClick: () => {
-                          const newItem = makeNewItem();
-                          const result = splitIntoColumns(root, targetId, newItem);
-                          setTempReportItemConfig("freeform", "content", result);
-                          setSelectedItemId(newItem.id);
+                        onSelectionChange: setSelectedItemId,
+                        createNewBlock: () =>
+                          createItemNode<ReportItemContentItem>(getStartingReportItemPlaceholder()),
+
+                        getBlockType: (item) => item.type,
+                        isFigureWithSource: (item) =>
+                          item.type === "figure" && !!item.presentationObjectInReportInfo,
+
+                        onConvertToText: (itemId) => {
+                          const newLayout = convertReportItemType(
+                            tempReportItemConfig.freeform.content,
+                            itemId,
+                            "text"
+                          );
+                          setTempReportItemConfig("freeform", "content", newLayout);
                         },
-                      });
-                    }
 
-                    items.push({ type: "divider" });
-
-                    // Add col left/right - ALWAYS available (addCol handles wrapping if needed)
-                    items.push({
-                      label: "Add col to left",
-                      icon: "plus",
-                      onClick: () => {
-                        const newItem = makeNewItem();
-                        const result = addCol(root, targetId, newItem, "left");
-                        setTempReportItemConfig("freeform", "content", result);
-                        setSelectedItemId(newItem.id);
-                      },
-                    });
-                    items.push({
-                      label: "Add col to right",
-                      icon: "plus",
-                      onClick: () => {
-                        const newItem = makeNewItem();
-                        const result = addCol(root, targetId, newItem, "right");
-                        setTempReportItemConfig("freeform", "content", result);
-                        setSelectedItemId(newItem.id);
-                      },
-                    });
-
-                    items.push({ type: "divider" });
-
-                    // Add row above/below - ALWAYS available (addRow handles wrapping if needed)
-                    items.push({
-                      label: "Add row above",
-                      icon: "plus",
-                      onClick: () => {
-                        const newItem = makeNewItem();
-                        const result = addRow(root, targetId, newItem, "above");
-                        setTempReportItemConfig("freeform", "content", result);
-                        setSelectedItemId(newItem.id);
-                      },
-                    });
-                    items.push({
-                      label: "Add row below",
-                      icon: "plus",
-                      onClick: () => {
-                        const newItem = makeNewItem();
-                        const result = addRow(root, targetId, newItem, "below");
-                        setTempReportItemConfig("freeform", "content", result);
-                        setSelectedItemId(newItem.id);
-                      },
-                    });
-
-                    // Delete (only if not the only node)
-                    if (!isOnlyNode) {
-                      items.push({ type: "divider" });
-                      items.push({
-                        label: "Delete this cell",
-                        icon: "trash",
-                        intent: "danger",
-                        onClick: () => {
-                          const result = deleteNodeWithCleanup(root, targetId);
-                          if (result) {
-                            setTempReportItemConfig("freeform", "content", result);
-                            // Select first item in the result
-                            const firstItem = findFirstItem(result);
-                            setSelectedItemId(firstItem?.id);
-                          }
+                        onConvertToFigure: (itemId) => {
+                          const newLayout = convertReportItemType(
+                            tempReportItemConfig.freeform.content,
+                            itemId,
+                            "figure"
+                          );
+                          setTempReportItemConfig("freeform", "content", newLayout);
                         },
-                      });
-                    }
 
-                    showMenu({
-                      x: e.clientX,
-                      y: e.clientY,
-                      items,
-                    });
+                        onConvertToPlaceholder: (itemId) => {
+                          const newLayout = convertReportItemType(
+                            tempReportItemConfig.freeform.content,
+                            itemId,
+                            "placeholder"
+                          );
+                          setTempReportItemConfig("freeform", "content", newLayout);
+                        },
+
+                        onConvertToImage: (itemId) => {
+                          const newLayout = convertReportItemType(
+                            tempReportItemConfig.freeform.content,
+                            itemId,
+                            "image"
+                          );
+                          setTempReportItemConfig("freeform", "content", newLayout);
+                        },
+
+                        findFirstItem,
+                      },
+                    );
+
+                    showMenu({ x: e.clientX, y: e.clientY, items });
                   }}
                 />
               </div>

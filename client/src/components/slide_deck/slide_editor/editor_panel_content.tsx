@@ -39,13 +39,40 @@ export function SlideEditorPanelContent(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      {/* Heading */}
+      {/* Header */}
       <TextArea
-        label="Slide Heading"
-        value={p.tempSlide.heading}
-        onChange={(v: string) => p.setTempSlide("heading", v)}
+        label="Header"
+        value={p.tempSlide.header ?? ""}
+        onChange={(v: string) => p.setTempSlide("header", v || undefined)}
         fullWidth
         height="60px"
+      />
+
+      {/* Sub Header */}
+      <TextArea
+        label="Sub Header"
+        value={p.tempSlide.subHeader ?? ""}
+        onChange={(v: string) => p.setTempSlide("subHeader", v || undefined)}
+        fullWidth
+        height="40px"
+      />
+
+      {/* Date */}
+      <TextArea
+        label="Date"
+        value={p.tempSlide.date ?? ""}
+        onChange={(v: string) => p.setTempSlide("date", v || undefined)}
+        fullWidth
+        height="40px"
+      />
+
+      {/* Footer */}
+      <TextArea
+        label="Footer"
+        value={p.tempSlide.footer ?? ""}
+        onChange={(v: string) => p.setTempSlide("footer", v || undefined)}
+        fullWidth
+        height="40px"
       />
 
       {/* Selected block editor */}
@@ -73,6 +100,12 @@ export function SlideEditorPanelContent(p: Props) {
             <Match when={getCurrentBlock()?.type === "figure"}>
               <div class="text-sm text-base-content/70">
                 Figure block - editing not yet implemented
+              </div>
+            </Match>
+
+            <Match when={getCurrentBlock()?.type === "image"}>
+              <div class="text-sm text-base-content/70">
+                Image block - editing not yet implemented
               </div>
             </Match>
           </Switch>

@@ -83,6 +83,9 @@ export async function convertAiInputToSlide(
       pageItem = { markdown: block.markdown, autofit: MARKDOWN_AUTOFIT };
     } else if (block.type === "placeholder") {
       pageItem = { spacer: true };
+    } else if (block.type === "image") {
+      // ImageBlock not supported in AI input - return spacer
+      pageItem = { spacer: true };
     } else {
       pageItem = { ...block.figureInputs, autofit: FIGURE_AUTOFIT };
     }
@@ -121,7 +124,7 @@ export async function convertAiInputToSlide(
 
   return {
     type: "content",
-    heading: slideInput.heading,
+    header: slideInput.header,
     layout: layoutWithMeta,
   };
 }

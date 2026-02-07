@@ -31,7 +31,6 @@ export async function resolveFigureFromVisualization(
       metricId: poDetailRes.data.resultsValue.id,
       config: poDetailRes.data.config,
       snapshotAt: new Date().toISOString(),
-      clonedFromVisualizationId: block.visualizationId,
     },
   };
 }

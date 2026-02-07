@@ -321,7 +321,7 @@ export function SlideList(p: Props) {
 
       const newSlide: Slide = {
         type: "content",
-        heading: "New slide",
+        header: "New slide",
         layout: {
           type: "item",
           id: "a1a",

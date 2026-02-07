@@ -29,14 +29,14 @@ export function measureLayout<T, U>(
   gapX: number,
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
-  nColumns: number,
+  availableColumns: number,
   options?: MeasureLayoutOptions,
 ): MeasureLayoutResult<U> {
   const overflowTracker = { overflow: false };
   if (PANTHER_DEBUG) {
     console.log(`\n=== measureLayout DEBUG ===`);
     console.log(`bounds: ${bounds.w().toFixed(1)} x ${bounds.h().toFixed(1)}`);
-    console.log(`gapX: ${gapX}, gapY: ${gapY}, nColumns: ${nColumns}`);
+    console.log(`gapX: ${gapX}, gapY: ${gapY}, availableColumns: ${availableColumns}`);
     console.log(`--- getHeightConstraints pass ---`);
     getHeightConstraints(
       ctx,
@@ -45,7 +45,7 @@ export function measureLayout<T, U>(
       gapX,
       gapY,
       itemMeasurer,
-      nColumns,
+      availableColumns,
     );
     console.log(`--- end getHeightConstraints ---\n`);
   }
@@ -57,14 +57,14 @@ export function measureLayout<T, U>(
     gapY,
     itemMeasurer,
     overflowTracker,
-    nColumns,
+    availableColumns,
   );
   const gaps = extractGaps(
     measured,
     gapX,
     gapY,
     options?.gapOverlap ?? 10,
-    nColumns,
+    availableColumns,
   );
   return { measured, overflow: overflowTracker.overflow, gaps };
 }
@@ -80,7 +80,7 @@ function getHeightConstraints<T, U>(
   gapX: number,
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
-  nColumns: number,
+  availableColumns: number,
 ): HeightConstraints {
   const pad = new Padding(node.style?.padding ?? 0);
   const borderWidth = node.style?.borderWidth ?? 0;
@@ -114,7 +114,7 @@ function getHeightConstraints<T, U>(
         gapX,
         gapY,
         itemMeasurer,
-        nColumns,
+        availableColumns,
       )
     );
     const totalGaps = (node.children.length - 1) * gapY;
@@ -132,7 +132,7 @@ function getHeightConstraints<T, U>(
     }
   } else {
     // cols
-    const colWidths = getColWidths(node.children, innerW, nColumns, gapX);
+    const colWidths = getColWidths(node.children, innerW, availableColumns, gapX);
     const childResults = node.children.map((child, i) =>
       getHeightConstraints(
         ctx,
@@ -141,7 +141,7 @@ function getHeightConstraints<T, U>(
         gapX,
         gapY,
         itemMeasurer,
-        nColumns,
+        colWidths[i].span,  // Child inherits its span as availableColumns
       )
     );
     // Cols: both use max - need space for tallest, can grow to tallest
@@ -185,7 +185,7 @@ function measureNode<T, U>(
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
   overflowTracker: { overflow: boolean },
-  nColumns: number,
+  availableColumns: number,
 ): MeasuredLayoutNode<U> {
   if (node.type === "rows") {
     return measureRowNode(
@@ -196,7 +196,7 @@ function measureNode<T, U>(
       gapY,
       itemMeasurer,
       overflowTracker,
-      nColumns,
+      availableColumns,
     );
   }
   if (node.type === "cols") {
@@ -208,7 +208,7 @@ function measureNode<T, U>(
       gapY,
       itemMeasurer,
       overflowTracker,
-      nColumns,
+      availableColumns,
     );
   }
   return measureItemNode(ctx, node, bounds, itemMeasurer);
@@ -222,7 +222,7 @@ function measureRowNode<T, U>(
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
   overflowTracker: { overflow: boolean },
-  nColumns: number,
+  availableColumns: number,
 ): MeasuredRowsLayoutNode<U> {
   const innerBounds = getInnerBounds(bounds, node.style);
   const pad = new Padding(node.style?.padding ?? 0);
@@ -238,7 +238,7 @@ function measureRowNode<T, U>(
       gapX,
       gapY,
       itemMeasurer,
-      nColumns,
+      availableColumns,
     )
   );
 
@@ -312,7 +312,7 @@ function measureRowNode<T, U>(
       gapY,
       itemMeasurer,
       overflowTracker,
-      nColumns,
+      availableColumns,
     );
 
     measuredChildren.push(measuredChild);
@@ -338,7 +338,7 @@ function measureColNode<T, U>(
   gapY: number,
   itemMeasurer: ItemHeightMeasurer<T, U>,
   overflowTracker: { overflow: boolean },
-  nColumns: number,
+  availableColumns: number,
 ): MeasuredColsLayoutNode<U> {
   const innerBounds = getInnerBounds(bounds, node.style);
   const pad = new Padding(node.style?.padding ?? 0);
@@ -348,7 +348,7 @@ function measureColNode<T, U>(
   const colWidths = getColWidths(
     node.children,
     innerBounds.w(),
-    nColumns,
+    availableColumns,
     gapX,
   );
 
@@ -361,7 +361,7 @@ function measureColNode<T, U>(
       gapX,
       gapY,
       itemMeasurer,
-      nColumns,
+      availableColumns,
     )
   );
 
@@ -405,7 +405,7 @@ function measureColNode<T, U>(
       gapY,
       itemMeasurer,
       overflowTracker,
-      nColumns,
+      colWidths[i].span,  // Child inherits its span as availableColumns
     );
 
     measuredChildren.push(measuredChild);
@@ -490,10 +490,10 @@ function extractGaps<U>(
   gapX: number,
   gapY: number,
   overlap: number,
-  nColumns: number,
+  availableColumns: number,
 ): LayoutGap[] {
   const gaps: LayoutGap[] = [];
-  extractGapsRecursive(node, gapX, gapY, overlap, nColumns, gaps, 0, 0);
+  extractGapsRecursive(node, gapX, gapY, overlap, availableColumns, gaps, 0, 0);
   return gaps;
 }
 
@@ -502,7 +502,7 @@ function extractGapsRecursive<U>(
   gapX: number,
   gapY: number,
   overlap: number,
-  nColumns: number,
+  availableColumns: number,
   gaps: LayoutGap[],
   rowIndex: number,
   _colIndex: number,
@@ -513,7 +513,7 @@ function extractGapsRecursive<U>(
       const child = children[i];
 
       // Recurse into child
-      extractGapsRecursive(child, gapX, gapY, overlap, nColumns, gaps, i, 0);
+      extractGapsRecursive(child, gapX, gapY, overlap, availableColumns, gaps, i, 0);
 
       // Add row gap after each child except the last
       if (i < children.length - 1) {
@@ -545,7 +545,7 @@ function extractGapsRecursive<U>(
         gapX,
         gapY,
         overlap,
-        nColumns,
+        availableColumns,
         gaps,
         rowIndex,
         i,
@@ -598,8 +598,8 @@ function extractGapsRecursive<U>(
           afterColIndex: i,
           line: {
             x: dividerX,
-            y1: child.rpd.y(),
-            y2: child.rpd.y() + child.rpd.h(),
+            y1: node.rpd.y(),
+            y2: node.rpd.y() + node.rpd.h(),
           },
           snapPositions,
         });

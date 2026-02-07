@@ -93,7 +93,7 @@ export function getToolsForSlides(
             AiSectionSlideSchema,
             AiContentSlideSchema,
           ])
-          .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with heading and blocks array containing text and/or figures)."),
+          .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array containing text and/or figures)."),
       }),
       handler: async (input) => {
         const ctx = getAIContext();
@@ -233,12 +233,12 @@ export function getToolsForSlides(
     }),
 
     createAITool({
-      name: "update_slide_heading",
+      name: "update_slide_header",
       description:
-        "Update just the heading of a content slide without modifying its content or layout. Use this for simple heading changes like fixing typos or rewording. Much faster and safer than replace_slide for heading-only changes. For cover slides, use replace_slide to update the title.",
+        "Update just the header of a content slide without modifying its content or layout. Use this for simple header changes like fixing typos or rewording. Much faster and safer than replace_slide for header-only changes. For cover slides, use replace_slide to update the title.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
-        newHeading: z.string().describe("The new heading text for the content slide"),
+        newHeader: z.string().describe("The new header text for the content slide"),
       }),
       handler: async (input) => {
         const ctx = getAIContext();
@@ -256,11 +256,11 @@ export function getToolsForSlides(
 
         if (slide.type !== "content") {
           throw new Error(
-            `Cannot update heading on ${slide.type} slide. Use replace_slide for cover/section slides.`
+            `Cannot update header on ${slide.type} slide. Use replace_slide for cover/section slides.`
           );
         }
 
-        const updatedSlide = { ...slide, heading: input.newHeading };
+        const updatedSlide = { ...slide, header: input.newHeader };
 
         const res = await serverActions.updateSlide({
           projectId,
@@ -271,10 +271,10 @@ export function getToolsForSlides(
 
         ctx.optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
 
-        return `Updated heading for slide ${input.slideId}: "${input.newHeading}"`;
+        return `Updated header for slide ${input.slideId}: "${input.newHeader}"`;
       },
-      inProgressLabel: (input) => `Updating heading for slide ${input.slideId}...`,
-      completionMessage: (input) => `Updated heading for slide ${input.slideId}`,
+      inProgressLabel: (input) => `Updating header for slide ${input.slideId}...`,
+      completionMessage: (input) => `Updated header for slide ${input.slideId}`,
     }),
 
     createAITool({

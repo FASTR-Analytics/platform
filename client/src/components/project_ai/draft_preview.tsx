@@ -31,7 +31,7 @@ export function DraftPreview() {
 
           {/* TODO: Render preview using whiteboard canvas rendering */}
           <div class="mb-3 rounded border bg-base-200 p-4 text-sm">
-            <div class="font-600">{c().input.heading}</div>
+            <div class="font-600">{c().input.header || "Content"}</div>
             <div class="text-xs text-base-content/60">
               {c().input.blocks.length} block(s)
             </div>

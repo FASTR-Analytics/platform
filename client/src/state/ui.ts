@@ -6,17 +6,29 @@ import type { VisualizationGroupingMode } from "lib";
 // ============================================================================
 
 // Active tab selection
-export type TabOption = "chatbot" | "whiteboard" | "reports" | "decks" | "visualizations" | "metrics" | "modules" | "data" | "settings";
+export type TabOption = "reports" | "decks" | "visualizations" | "metrics" | "modules" | "data" | "settings";
 
 const storedTab = localStorage.getItem("projectTab") as TabOption | null;
 
 export const [projectTab, setProjectTabInternal] = createSignal<TabOption>(
-  storedTab ?? "whiteboard"
+  storedTab ?? "visualizations"
 );
 
 export function setProjectTab(tab: TabOption) {
   localStorage.setItem("projectTab", tab);
   setProjectTabInternal(tab);
+}
+
+// Project navigation collapsed state
+const storedNavCollapsed = localStorage.getItem("navCollapsed") === "true";
+
+export const [navCollapsed, setNavCollapsedInternal] = createSignal<boolean>(
+  storedNavCollapsed ?? true
+);
+
+export function setNavCollapsed(collapsed: boolean) {
+  localStorage.setItem("navCollapsed", String(collapsed));
+  setNavCollapsedInternal(collapsed);
 }
 
 // Visualization grouping/filtering

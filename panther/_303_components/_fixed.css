@@ -589,4 +589,66 @@
   .ui-menu-item-with-submenu {
     position: relative;
   }
+
+  /* ============================================= */
+  /* Pure CSS Tooltips                             */
+  /* ============================================= */
+
+  .ui-tooltip-wrapper {
+    position: relative;
+  }
+
+  .ui-tooltip-wrapper[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 50;
+    background-color: var(--color-base-content);
+    color: var(--color-base-100);
+    white-space: nowrap;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  .ui-tooltip-wrapper[data-tooltip]:hover::after {
+    opacity: 1;
+  }
+
+  /* Position: right (default) */
+  .ui-tooltip-wrapper[data-tooltip-position="right"]::after,
+  .ui-tooltip-wrapper[data-tooltip]:not([data-tooltip-position])::after {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0.5rem;
+  }
+
+  /* Position: left */
+  .ui-tooltip-wrapper[data-tooltip-position="left"]::after {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 0.5rem;
+  }
+
+  /* Position: top */
+  .ui-tooltip-wrapper[data-tooltip-position="top"]::after {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 0.5rem;
+  }
+
+  /* Position: bottom */
+  .ui-tooltip-wrapper[data-tooltip-position="bottom"]::after {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 0.5rem;
+  }
 }

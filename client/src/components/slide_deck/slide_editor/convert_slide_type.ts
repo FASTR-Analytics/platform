@@ -13,7 +13,7 @@ export function convertSlideType(
     const title = slide.type === "section"
       ? slide.sectionTitle
       : slide.type === "content"
-      ? slide.heading
+      ? slide.header || ""
       : "";
     return {
       type: "cover",
@@ -29,7 +29,7 @@ export function convertSlideType(
     const title = slide.type === "cover"
       ? slide.title || ""
       : slide.type === "content"
-      ? slide.heading
+      ? slide.header || ""
       : "";
     return {
       type: "section",
@@ -39,7 +39,7 @@ export function convertSlideType(
   }
 
   // Convert TO content
-  const heading = slide.type === "cover"
+  const header = slide.type === "cover"
     ? slide.title || ""
     : slide.type === "section"
     ? slide.sectionTitle
@@ -47,7 +47,7 @@ export function convertSlideType(
 
   return {
     type: "content",
-    heading: heading,
+    header: header || undefined,
     layout: {
       type: "item",
       id: crypto.randomUUID(),

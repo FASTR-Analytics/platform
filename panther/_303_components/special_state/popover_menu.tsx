@@ -149,7 +149,7 @@ export function _resetMenuState(): void {
 // =============================================================================
 
 export function PopoverMenuProvider() {
-  let closeSubMenuTimeout: number | undefined;
+  let closeSubMenuTimeout: ReturnType<typeof setTimeout> | undefined;
 
   function handleItemClick(item: MenuItemClickable) {
     hideMenu();
@@ -318,11 +318,14 @@ export function PopoverMenuProvider() {
         popover="manual"
         class="ui-popover-submenu"
         data-position="right"
-        style={{
-          "position-anchor": subMenuState()
-            ? `--submenu-anchor-${subMenuState()!.parentItemIndex}`
-            : undefined,
-        }}
+        style={
+          subMenuState()
+            ? ({
+                "position-anchor": `--submenu-anchor-${subMenuState()!
+                  .parentItemIndex}`,
+              } as JSX.CSSProperties)
+            : undefined
+        }
         onMouseEnter={handleSubMenuMouseEnter}
         onMouseLeave={handleSubMenuMouseLeave}
       >

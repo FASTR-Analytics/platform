@@ -61,7 +61,10 @@ export function PromptLibraryModal(
 
   onMount(async () => {
     try {
-      const response = await fetch("/prompts.md");
+      const url = `https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main/prompts.md?t=${Date.now()}`;
+      const response = await fetch(url, {
+        cache: "no-store"
+      });
       if (!response.ok) throw new Error("Failed to load prompts");
       const markdown = await response.text();
       setCategories(parsePromptsMarkdown(markdown));
@@ -91,13 +94,13 @@ export function PromptLibraryModal(
   };
 
   return (
-    <div class="ui-pad-lg max-h-[80vh] w-[min(700px,90vw)] overflow-hidden flex flex-col">
+    <div class="ui-pad-lg ui-spy max-h-[80vh] w-[min(700px,90vw)] overflow-hidden flex flex-col">
       <div class="font-700 text-lg mb-4">
         {selectedPrompt() ? t("Edit Prompt") : t("Prompt Library")}
       </div>
 
       <Show when={isLoading()}>
-        <div class="flex justify-center py-8">
+        <div class="">
           <Loading msg={t("Loading prompts...")} noPad />
         </div>
       </Show>

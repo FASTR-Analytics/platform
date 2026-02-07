@@ -73,7 +73,10 @@ export function convertSlideToPageInputs(
     success: true,
     data: {
       type: "freeform",
-      header: slide.heading,
+      header: slide.header,
+      subHeader: slide.subHeader,
+      date: slide.date,
+      footer: slide.footer,
       content: {
         layoutType: "explicit",
         layout: convertedLayout,
@@ -106,20 +109,29 @@ function convertLayoutNode(node: LayoutNode<ContentBlock>): LayoutNode<PageConte
 
 function convertBlockToPageContentItem(block: ContentBlock): PageContentItem {
   if (block.type === "text") {
+    const baseFontSize = block.style?.textSize
+      ? 60 * block.style.textSize
+      : 60;
     return {
       markdown: block.markdown,
       autofit: MARKDOWN_AUTOFIT,
       style: {
         text: {
           base: {
-            fontSize: 60
+            fontSize: baseFontSize,
           },
-        }
-      }
+        },
+      },
     };
   }
 
   if (block.type === "placeholder") {
+    return { spacer: true };
+  }
+
+  if (block.type === "image") {
+    // TODO: Image blocks need async loading via getImgFromCacheOrFetch
+    // For now, return a spacer - image support requires making this function async
     return { spacer: true };
   }
 

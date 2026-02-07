@@ -10,3 +10,4 @@ export { default as AlertProvider } from "./alert.tsx";
 export * from "./generic_editor_wrapper.tsx";
 export * from "./state_holder_wrapper.tsx";
 export * from "./popover_menu.tsx";
+export * from "./tooltip.tsx";

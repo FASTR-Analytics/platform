@@ -1,5 +1,5 @@
 import { trackStore } from "@solid-primitives/deep";
-import type { Slide, CoverSlide, SectionSlide, ContentSlide, InstanceDetail, ProjectDetail, FigureBlock } from "lib";
+import type { Slide, CoverSlide, SectionSlide, ContentSlide, InstanceDetail, ProjectDetail } from "lib";
 import { getTextRenderingOptions, getMetricStaticData, t } from "lib";
 import {
   AlertComponentProps,
@@ -15,12 +15,6 @@ import {
   findById,
   openComponent,
   showMenu,
-  MenuItem,
-  splitIntoRows,
-  splitIntoColumns,
-  addRow,
-  addCol,
-  deleteNodeWithCleanup,
   createItemNode,
   openAlert,
   FrameLeftResizable,
@@ -41,6 +35,8 @@ import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/po_cache";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { setShowAi, showAi } from "~/state/ui";
 import { useAIProjectContext } from "~/components/project_ai/context";
+import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
+import { convertBlockType } from "../utils/convert_block_type";
 
 function findFirstItem(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> & { type: "item" } | undefined {
   if (node.type === "item") return node;
@@ -402,42 +398,34 @@ export function SlideEditor(p: Props) {
                       }
                     }}
                     onDividerDrag={handleDividerDrag}
-                    onContextMenu={(e, target) => {
+                    onContextMenu={async (e, target) => {
                       if (target.type !== "layoutItem") return;
                       if (tempSlide.type !== "content") return;
 
-                      const layout = tempSlide.layout;
-                      const root = structuredClone(unwrap(layout));
-                      const targetId = target.node.id;
-                      const items: MenuItem[] = [];
+                      const items = buildLayoutContextMenu(
+                        tempSlide.layout,
+                        target.node.id,
+                        {
+                          onLayoutChange: (newLayout) => {
+                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+                          },
+                          onSelectionChange: setSelectedBlockId,
+                          createNewBlock: () => createItemNode<ContentBlock>({ type: "placeholder" }),
 
-                      const makeNewBlock = () =>
-                        createItemNode<ContentBlock>({ type: "placeholder" });
+                          getBlockType: (block) => block.type,
+                          isFigureWithSource: (block) =>
+                            block.type === "figure" && block.source?.type === "from_data",
 
-                      const found = findById(root, targetId);
-                      const isOnlyNode = root.type === "item" && root.id === targetId;
-                      const parentType = found?.parent?.type;
+                          onEditVisualization: async (blockId) => {
+                            const found = findById(tempSlide.layout, blockId);
+                            if (!found || found.node.type !== "item") return;
 
-                      // Get block data from target
-                      const blockData: ContentBlock | undefined = found?.node.type === "item"
-                        ? found.node.data
-                        : undefined;
+                            const block = found.node.data;
+                            if (block.type !== "figure" || block.source?.type !== "from_data") return;
 
-                      // Check if it's a figure block with data source
-                      const isFigureBlock = blockData?.type === "figure";
-                      const figureBlock = isFigureBlock ? (blockData as FigureBlock) : undefined;
-                      const hasDataSource = figureBlock?.source?.type === "from_data";
+                            const source = block.source;
 
-                      // Edit visualization (only for figure blocks from data)
-                      if (hasDataSource && figureBlock && figureBlock.source?.type === "from_data") {
-                        const source = figureBlock.source;
-
-                        items.push({
-                          label: "Edit visualization",
-                          icon: "pencil",
-                          onClick: async () => {
                             try {
-                              // Get metric metadata
                               const metricStaticData = getMetricStaticData(source.metricId);
                               const resultsValue = p.projectDetail.metrics.find(m => m.id === source.metricId);
 
@@ -449,7 +437,6 @@ export function SlideEditor(p: Props) {
                                 return;
                               }
 
-                              // Open visualization editor in ephemeral mode
                               const result = await openEditor({
                                 element: VisualizationEditor,
                                 props: {
@@ -465,11 +452,9 @@ export function SlideEditor(p: Props) {
                                 },
                               });
 
-                              // If user saved changes, update the figure block
                               if (result?.updated) {
                                 const newConfig = result.updated.config;
 
-                                // Regenerate figure inputs with new config
                                 const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
                                   p.projectId,
                                   {
@@ -513,12 +498,11 @@ export function SlideEditor(p: Props) {
                                   return;
                                 }
 
-                                // Update the block in the layout
                                 const updatedLayout = updateBlockInLayout(
                                   tempSlide.layout,
-                                  targetId,
-                                  (block: ContentBlock) => {
-                                    if (block.type !== "figure") return block;
+                                  blockId,
+                                  (b: ContentBlock) => {
+                                    if (b.type !== "figure") return b;
                                     return {
                                       type: "figure",
                                       figureInputs: { ...newFigureInputs.data, style: undefined },
@@ -527,7 +511,6 @@ export function SlideEditor(p: Props) {
                                         metricId: source.metricId,
                                         config: newConfig,
                                         snapshotAt: new Date().toISOString(),
-                                        clonedFromVisualizationId: source.clonedFromVisualizationId,
                                       },
                                     };
                                   }
@@ -542,131 +525,33 @@ export function SlideEditor(p: Props) {
                               });
                             }
                           },
-                        });
 
-                        items.push({ type: "divider" });
-                      }
+                          onConvertToText: (blockId) => {
+                            const newLayout = convertBlockType(tempSlide.layout, blockId, "text");
+                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+                          },
 
-                      // Split options (as sub-menu)
-                      const splitItems: MenuItem[] = [];
-                      if (isOnlyNode || parentType === "cols") {
-                        splitItems.push({
-                          label: "Into rows",
-                          icon: "plus",
-                          onClick: () => {
-                            const newBlock = makeNewBlock();
-                            const result = splitIntoRows(root, targetId, newBlock);
-                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
-                            setSelectedBlockId(newBlock.id);
+                          onConvertToFigure: (blockId) => {
+                            const newLayout = convertBlockType(tempSlide.layout, blockId, "figure");
+                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
                           },
-                        });
-                      }
-                      if (isOnlyNode || parentType === "rows") {
-                        splitItems.push({
-                          label: "Into columns",
-                          icon: "plus",
-                          onClick: () => {
-                            const newBlock = makeNewBlock();
-                            const result = splitIntoColumns(root, targetId, newBlock);
-                            const resultWithSpans = ensureExplicitSpans(result);
-                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: resultWithSpans }));
-                            setSelectedBlockId(newBlock.id);
-                          },
-                        });
-                      }
 
-                      if (splitItems.length > 0) {
-                        items.push({
-                          type: "sub-item",
-                          label: "Split",
-                          icon: "plus",
-                          subMenu: splitItems,
-                        });
-                      }
+                          onConvertToPlaceholder: (blockId) => {
+                            const newLayout = convertBlockType(tempSlide.layout, blockId, "placeholder");
+                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+                          },
 
-                      // Add column (as sub-menu)
-                      items.push({
-                        type: "sub-item",
-                        label: "Add column",
-                        icon: "plus",
-                        subMenu: [
-                          {
-                            label: "To left",
-                            icon: "plus",
-                            onClick: () => {
-                              const newBlock = makeNewBlock();
-                              const result = addCol(root, targetId, newBlock, "left");
-                              const resultWithSpans = ensureExplicitSpans(result);
-                              setTempSlide(reconcile({ ...unwrap(tempSlide), layout: resultWithSpans }));
-                              setSelectedBlockId(newBlock.id);
-                            },
+                          onConvertToImage: (blockId) => {
+                            const newLayout = convertBlockType(tempSlide.layout, blockId, "image");
+                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
                           },
-                          {
-                            label: "To right",
-                            icon: "plus",
-                            onClick: () => {
-                              const newBlock = makeNewBlock();
-                              const result = addCol(root, targetId, newBlock, "right");
-                              const resultWithSpans = ensureExplicitSpans(result);
-                              setTempSlide(reconcile({ ...unwrap(tempSlide), layout: resultWithSpans }));
-                              setSelectedBlockId(newBlock.id);
-                            },
-                          },
-                        ],
-                      });
 
-                      // Add row (as sub-menu)
-                      items.push({
-                        type: "sub-item",
-                        label: "Add row",
-                        icon: "plus",
-                        subMenu: [
-                          {
-                            label: "Above",
-                            icon: "plus",
-                            onClick: () => {
-                              const newBlock = makeNewBlock();
-                              const result = addRow(root, targetId, newBlock, "above");
-                              setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
-                              setSelectedBlockId(newBlock.id);
-                            },
-                          },
-                          {
-                            label: "Below",
-                            icon: "plus",
-                            onClick: () => {
-                              const newBlock = makeNewBlock();
-                              const result = addRow(root, targetId, newBlock, "below");
-                              setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
-                              setSelectedBlockId(newBlock.id);
-                            },
-                          },
-                        ],
-                      });
+                          ensureExplicitSpans,
+                          findFirstItem,
+                        },
+                      );
 
-                      // Delete (only if not the only node)
-                      if (!isOnlyNode) {
-                        items.push({ type: "divider" });
-                        items.push({
-                          label: "Delete this cell",
-                          icon: "trash",
-                          intent: "danger",
-                          onClick: () => {
-                            const result = deleteNodeWithCleanup(root, targetId);
-                            if (result) {
-                              setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
-                              const firstItem = findFirstItem(result);
-                              setSelectedBlockId(firstItem?.id);
-                            }
-                          },
-                        });
-                      }
-
-                      showMenu({
-                        x: e.clientX,
-                        y: e.clientY,
-                        items,
-                      });
+                      showMenu({ x: e.clientX, y: e.clientY, items });
                     }}
                   />
                 </div>

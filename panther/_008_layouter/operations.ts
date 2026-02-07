@@ -140,16 +140,14 @@ export function splitIntoColumns<U>(
   newNode: LayoutNode<U>,
   position: "before" | "after" = "after",
 ): LayoutNode<U> {
-  const cloned = structuredClone(layout);
-
-  if (cloned.id === targetId) {
+  if (layout.id === targetId) {
     const children = position === "before"
-      ? [newNode, cloned]
-      : [cloned, newNode];
+      ? [newNode, layout]
+      : [layout, newNode];
     return createColsNode(children);
   }
 
-  return updateLayout(cloned, (draft) => {
+  return updateLayout(layout, (draft) => {
     const parentInfo = findParentInDraft(draft, targetId);
     if (!parentInfo) return;
 
@@ -175,16 +173,14 @@ export function splitIntoRows<U>(
   newNode: LayoutNode<U>,
   position: "before" | "after" = "after",
 ): LayoutNode<U> {
-  const cloned = structuredClone(layout);
-
-  if (cloned.id === targetId) {
+  if (layout.id === targetId) {
     const children = position === "before"
-      ? [newNode, cloned]
-      : [cloned, newNode];
+      ? [newNode, layout]
+      : [layout, newNode];
     return createRowsNode(children);
   }
 
-  return updateLayout(cloned, (draft) => {
+  return updateLayout(layout, (draft) => {
     const parentInfo = findParentInDraft(draft, targetId);
     if (!parentInfo) return;
 
@@ -205,8 +201,7 @@ export function splitIntoRows<U>(
 }
 
 export function simplifyLayout<U>(layout: LayoutNode<U>): LayoutNode<U> {
-  const cloned = structuredClone(layout);
-  return simplifyNode(cloned);
+  return simplifyNode(layout);
 }
 
 function simplifyNode<U>(node: LayoutNode<U>): LayoutNode<U> {
@@ -214,19 +209,23 @@ function simplifyNode<U>(node: LayoutNode<U>): LayoutNode<U> {
     return node;
   }
 
-  node.children = node.children.map((child) =>
+  // Recursively simplify children (immutable)
+  const simplifiedChildren = node.children.map((child) =>
     simplifyNode(child as LayoutNode<U>)
-  ) as typeof node.children;
+  );
 
-  if (node.children.length === 1) {
-    const child = node.children[0];
+  // Single child - unwrap and remove span
+  if (simplifiedChildren.length === 1) {
+    const child = simplifiedChildren[0] as LayoutNode<U>;
     if (child.span !== undefined) {
-      delete child.span;
+      const { span, ...childWithoutSpan } = child;
+      return childWithoutSpan as LayoutNode<U>;
     }
-    return child as LayoutNode<U>;
+    return child;
   }
 
-  return node;
+  // Multiple children - return new node with simplified children
+  return { ...node, children: simplifiedChildren as typeof node.children };
 }
 
 export function deleteNodeWithCleanup<U>(
@@ -247,38 +246,46 @@ export function addRow<U>(
   newNode: LayoutNode<U>,
   position: "above" | "below",
 ): LayoutNode<U> {
-  const cloned = structuredClone(layout);
-
   // If root is the target or just an item, wrap in a row with both items
-  if (cloned.id === targetId || cloned.type === "item") {
+  if (layout.id === targetId || layout.type === "item") {
     const children = position === "above"
-      ? [newNode, cloned]
-      : [cloned, newNode];
+      ? [newNode, layout]
+      : [layout, newNode];
     return createRowsNode(children);
   }
 
   // Check if direct parent is a row - if so, just insert as sibling
-  const parentInfo = findParentInDraft(cloned, targetId);
+  const parentInfo = findParentInDraft(layout, targetId);
   if (parentInfo && parentInfo.parent.type === "rows") {
     const insertIndex = position === "above"
       ? parentInfo.index
       : parentInfo.index + 1;
-    parentInfo.parent.children.splice(insertIndex, 0, newNode);
-    return cloned;
+
+    return updateLayout(layout, (draft) => {
+      const info = findParentInDraft(draft, targetId);
+      if (info && info.parent.type === "rows") {
+        info.parent.children.splice(insertIndex, 0, newNode);
+      }
+    });
   }
 
   // Find a row ancestor and insert there
-  const rowAncestor = findRowAncestor(cloned, targetId);
+  const rowAncestor = findRowAncestor(layout, targetId);
 
   if (rowAncestor) {
     const { rowParent, colIndex } = rowAncestor;
     const insertIndex = position === "above" ? colIndex : colIndex + 1;
-    rowParent.children.splice(insertIndex, 0, newNode);
-    return cloned;
+
+    return updateLayout(layout, (draft) => {
+      const ancestor = findRowAncestor(draft, targetId);
+      if (ancestor) {
+        ancestor.rowParent.children.splice(insertIndex, 0, newNode);
+      }
+    });
   }
 
   // No row ancestor - wrap entire layout in a row
-  const children = position === "above" ? [newNode, cloned] : [cloned, newNode];
+  const children = position === "above" ? [newNode, layout] : [layout, newNode];
   return createRowsNode(children);
 }
 
@@ -319,38 +326,47 @@ export function addCol<U>(
   newNode: LayoutNode<U>,
   position: "left" | "right",
 ): LayoutNode<U> {
-  const cloned = structuredClone(layout);
-
   // If root is the target or just an item, wrap in a cols with both items
-  if (cloned.id === targetId || cloned.type === "item") {
+  if (layout.id === targetId || layout.type === "item") {
     const children = position === "left"
-      ? [newNode, cloned]
-      : [cloned, newNode];
+      ? [newNode, layout]
+      : [layout, newNode];
     return createColsNode(children);
   }
 
   // Check if direct parent is cols - if so, just insert as sibling
-  const parentInfo = findParentInDraft(cloned, targetId);
+  const parentInfo = findParentInDraft(layout, targetId);
   if (parentInfo && parentInfo.parent.type === "cols") {
     const insertIndex = position === "left"
       ? parentInfo.index
       : parentInfo.index + 1;
-    parentInfo.parent.children.splice(insertIndex, 0, newNode);
-    return cloned;
+
+    return updateLayout(layout, (draft) => {
+      const info = findParentInDraft(draft, targetId);
+      if (info && info.parent.type === "cols") {
+        info.parent.children.splice(insertIndex, 0, newNode);
+      }
+    });
   }
 
   // Find a cols ancestor and insert there
-  const colsAncestor = findColsAncestor(cloned, targetId);
+  const colsAncestor = findColsAncestor(layout, targetId);
 
   if (colsAncestor) {
-    const { colsParent, rowIndex } = colsAncestor;
-    const insertIndex = position === "left" ? rowIndex : rowIndex + 1;
-    colsParent.children.splice(insertIndex, 0, newNode);
-    return cloned;
+    const insertIndex = position === "left"
+      ? colsAncestor.rowIndex
+      : colsAncestor.rowIndex + 1;
+
+    return updateLayout(layout, (draft) => {
+      const ancestor = findColsAncestor(draft, targetId);
+      if (ancestor) {
+        ancestor.colsParent.children.splice(insertIndex, 0, newNode);
+      }
+    });
   }
 
   // No cols ancestor - wrap entire layout in cols
-  const children = position === "left" ? [newNode, cloned] : [cloned, newNode];
+  const children = position === "left" ? [newNode, layout] : [layout, newNode];
   return createColsNode(children);
 }
 
@@ -375,4 +391,102 @@ function findColsAncestor<U>(
   }
 
   return null;
+}
+
+/**
+ * Move node left by swapping with left sibling in nearest cols ancestor
+ * Returns null if no cols ancestor or already leftmost
+ */
+export function moveNodeLeft<U>(
+  layout: LayoutNode<U>,
+  nodeId: LayoutNodeId,
+): LayoutNode<U> | null {
+  const colsAncestor = findColsAncestor(layout, nodeId);
+  if (!colsAncestor || colsAncestor.rowIndex === 0) return null;
+
+  const swapIndex = colsAncestor.rowIndex;
+
+  return updateLayout(layout, (draft) => {
+    const ancestor = findColsAncestor(draft, nodeId);
+    if (ancestor && ancestor.rowIndex > 0) {
+      const siblings = ancestor.colsParent.children;
+      [siblings[swapIndex - 1], siblings[swapIndex]] =
+        [siblings[swapIndex], siblings[swapIndex - 1]];
+    }
+  });
+}
+
+/**
+ * Move node right by swapping with right sibling in nearest cols ancestor
+ * Returns null if no cols ancestor or already rightmost
+ */
+export function moveNodeRight<U>(
+  layout: LayoutNode<U>,
+  nodeId: LayoutNodeId,
+): LayoutNode<U> | null {
+  const colsAncestor = findColsAncestor(layout, nodeId);
+  if (!colsAncestor) return null;
+
+  const maxIndex = colsAncestor.colsParent.children.length - 1;
+  if (colsAncestor.rowIndex >= maxIndex) return null;
+
+  const swapIndex = colsAncestor.rowIndex;
+
+  return updateLayout(layout, (draft) => {
+    const ancestor = findColsAncestor(draft, nodeId);
+    if (ancestor && ancestor.rowIndex < ancestor.colsParent.children.length - 1) {
+      const siblings = ancestor.colsParent.children;
+      [siblings[swapIndex], siblings[swapIndex + 1]] =
+        [siblings[swapIndex + 1], siblings[swapIndex]];
+    }
+  });
+}
+
+/**
+ * Move node up by swapping with upper sibling in nearest rows ancestor
+ * Returns null if no rows ancestor or already topmost
+ */
+export function moveNodeUp<U>(
+  layout: LayoutNode<U>,
+  nodeId: LayoutNodeId,
+): LayoutNode<U> | null {
+  const rowAncestor = findRowAncestor(layout, nodeId);
+  if (!rowAncestor || rowAncestor.colIndex === 0) return null;
+
+  const swapIndex = rowAncestor.colIndex;
+
+  return updateLayout(layout, (draft) => {
+    const ancestor = findRowAncestor(draft, nodeId);
+    if (ancestor && ancestor.colIndex > 0) {
+      const siblings = ancestor.rowParent.children;
+      [siblings[swapIndex - 1], siblings[swapIndex]] =
+        [siblings[swapIndex], siblings[swapIndex - 1]];
+    }
+  });
+}
+
+/**
+ * Move node down by swapping with lower sibling in nearest rows ancestor
+ * Returns null if no rows ancestor or already bottommost
+ */
+export function moveNodeDown<U>(
+  layout: LayoutNode<U>,
+  nodeId: LayoutNodeId,
+): LayoutNode<U> | null {
+  const rowAncestor = findRowAncestor(layout, nodeId);
+  if (!rowAncestor) return null;
+
+  const maxIndex = rowAncestor.rowParent.children.length - 1;
+  if (rowAncestor.colIndex >= maxIndex) return null;
+
+  const swapIndex = rowAncestor.colIndex;
+
+  return updateLayout(layout, (draft) => {
+    const ancestor = findRowAncestor(draft, nodeId);
+    if (ancestor && ancestor.colIndex < ancestor.rowParent.children.length - 1) {
+      const siblings = ancestor.rowParent.children;
+      [siblings[swapIndex], siblings[swapIndex + 1]] =
+        [siblings[swapIndex + 1], siblings[swapIndex]];
+    }
+  });
 }

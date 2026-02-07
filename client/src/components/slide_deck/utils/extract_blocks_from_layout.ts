@@ -51,7 +51,7 @@ function describeLayout(layout: LayoutNode<ContentBlock>): string {
 export type SimplifiedSlide =
   | { type: "cover"; title?: string; subtitle?: string; presenter?: string; date?: string }
   | { type: "section"; sectionTitle: string; sectionSubtitle?: string }
-  | { type: "content"; heading: string; blocks: Array<{ id: string; summary: string }>; _layout_info: string };
+  | { type: "content"; header?: string; blocks: Array<{ id: string; summary: string }>; _layout_info: string };
 
 export async function simplifySlideForAI(projectId: string, slide: Slide): Promise<SimplifiedSlide> {
   if (slide.type === "cover") {
@@ -83,6 +83,8 @@ export async function simplifySlideForAI(projectId: string, slide: Slide): Promi
         };
       } else if (block.type === "placeholder") {
         return { id, summary: "Placeholder" };
+      } else if (block.type === "image") {
+        return { id, summary: `Image: ${block.imgFile}` };
       } else {
         // Figure block
         if (block.source?.type === "from_data") {
@@ -122,7 +124,7 @@ export async function simplifySlideForAI(projectId: string, slide: Slide): Promi
 
   return {
     type: "content",
-    heading: slide.heading,
+    header: slide.header,
     blocks: simplifiedBlocks,
     _layout_info: describeLayout(slide.layout),
   };

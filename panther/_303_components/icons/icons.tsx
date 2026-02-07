@@ -543,8 +543,84 @@ export function RedoIcon(p: { class?: string }) {
   );
 }
 
+export function ArrowRightIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M5 12l14 0" />
+      <path d="M15 16l4 -4" />
+      <path d="M15 8l4 4" />
+    </IconWrapper>
+  );
+}
+
+export function ArrowUpIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M12 5l0 14" />
+      <path d="M16 9l-4 -4" />
+      <path d="M8 9l4 -4" />
+    </IconWrapper>
+  );
+}
+
+export function ArrowDownIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M12 5l0 14" />
+      <path d="M16 15l-4 4" />
+      <path d="M8 15l4 4" />
+    </IconWrapper>
+  );
+}
+
+export function PhotoIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M15 8h.01" />
+      <path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z" />
+      <path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5" />
+      <path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3" />
+    </IconWrapper>
+  );
+}
+
+export function TextIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M5 4h14" />
+      <path d="M12 4v16" />
+      <path d="M9 20h6" />
+    </IconWrapper>
+  );
+}
+
+export function SwitchHorizontalIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M16 3l4 4l-4 4" />
+      <path d="M10 7l10 0" />
+      <path d="M8 13l-4 4l4 4" />
+      <path d="M4 17l9 0" />
+    </IconWrapper>
+  );
+}
+
+export function TransformIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M3 7v4a1 1 0 0 0 1 1h4" />
+      <path d="M7 3l4 4l-4 4" />
+      <path d="M21 17v-4a1 1 0 0 0 -1 -1h-4" />
+      <path d="M17 21l-4 -4l4 -4" />
+    </IconWrapper>
+  );
+}
+
 export const _ICON_MAP = {
+  arrowDown: ArrowDownIcon,
   arrowLeft: ArrowLeftIcon,
+  arrowRight: ArrowRightIcon,
+  arrowUp: ArrowUpIcon,
   badge: BadgeIcon,
   box: BoxIcon,
   chart: ChartIcon,
@@ -575,6 +651,7 @@ export const _ICON_MAP = {
   move: MoveIcon,
   package: PackageIcon,
   pencil: PencilIcon,
+  photo: PhotoIcon,
   plus: PlusIcon,
   print: PrintIcon,
   redo: RedoIcon,
@@ -586,6 +663,9 @@ export const _ICON_MAP = {
   settings: SettingsIcon,
   settingsCog: SettingsCogIcon,
   sparkles: SparklesIcon,
+  switchHorizontal: SwitchHorizontalIcon,
+  text: TextIcon,
+  transform: TransformIcon,
   trash: TrashIcon,
   undo: UndoIcon,
   unlock: UnlockIcon,

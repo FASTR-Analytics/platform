@@ -4,10 +4,17 @@ import type { PresentationObjectConfig } from "./presentation_objects.ts";
 // Slide types
 export type SlideType = "cover" | "section" | "content";
 
+// Text block styling
+export type TextBlockStyle = {
+  textSize?: number;
+  textBackground?: string;
+};
+
 // Text block
 export type TextBlock = {
   type: "text";
   markdown: string;
+  style?: TextBlockStyle;
 };
 
 // Figure source - enables refresh
@@ -17,7 +24,6 @@ export type FigureSource =
       metricId: string;
       config: PresentationObjectConfig;
       snapshotAt: string;
-      clonedFromVisualizationId?: string; // Provenance
     }
   | {
       type: "custom";
@@ -36,7 +42,20 @@ export type PlaceholderBlock = {
   type: "placeholder";
 };
 
-export type ContentBlock = TextBlock | FigureBlock | PlaceholderBlock;
+// Image block styling
+export type ImageBlockStyle = {
+  imgHeight?: number;
+  imgFit?: "cover" | "contain";
+};
+
+// Image block
+export type ImageBlock = {
+  type: "image";
+  imgFile: string;
+  style?: ImageBlockStyle;
+};
+
+export type ContentBlock = TextBlock | FigureBlock | PlaceholderBlock | ImageBlock;
 
 // Cover slide
 export type CoverSlide = {
@@ -57,7 +76,12 @@ export type SectionSlide = {
 // Content slide - uses explicit layout for user editing
 export type ContentSlide = {
   type: "content";
-  heading: string;
+  header?: string;
+  subHeader?: string;
+  date?: string;
+  headerLogos?: string[];
+  footer?: string;
+  footerLogos?: string[];
   layout: LayoutNode<ContentBlock>;
 };
 
@@ -117,6 +141,6 @@ export function getSlideTitle(slide: Slide): string {
     case "section":
       return slide.sectionTitle;
     case "content":
-      return slide.heading;
+      return slide.header || "Content";
   }
 }

@@ -1,20 +1,14 @@
 import { useNavigate } from "@solidjs/router";
 import { InstanceDetail, T, t, t2 } from "lib";
 import {
-  BadgeIcon,
   Button,
-  ChartIcon,
-  CodeIcon,
-  DatabaseIcon,
   FrameLeft,
   FrameTop,
-  PencilIcon,
-  ReportIcon,
-  SettingsIcon,
-  SparklesIcon,
   StateHolderWrapper,
+  TabsNavigation,
   TimQuery,
   getEditorWrapper,
+  getTabs,
 } from "panther";
 import { createEffect, Match, Show, Switch } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
@@ -27,8 +21,7 @@ import { ProjectModules } from "./project_modules";
 import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
-// import { ProjectWhiteboard } from "../project_whiteboard";
-import { projectTab, updateProjectView, showAi, setShowAi } from "~/state/ui";
+import { projectTab, updateProjectView, showAi, setShowAi, navCollapsed, setNavCollapsed } from "~/state/ui";
 import type { TabOption } from "~/state/ui";
 import { AIProjectWrapper, useAIProjectContext } from "../project_ai";
 
@@ -64,7 +57,6 @@ function AIContextSync() {
         setAIContext({ mode: "viewing_modules" });
         break;
       case "settings":
-      case "whiteboard":
         setAIContext({ mode: "viewing_visualizations" });
         break;
     }
@@ -80,6 +72,44 @@ export default function Project(p: Props) {
 
   const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
     getEditorWrapper();
+
+  // Define base tabs (always visible)
+  const baseTabs = [
+    { value: "decks" as const, label: "Slide decks" },
+    { value: "reports" as const, label: t2(T.FRENCH_UI_STRINGS.reports) },
+    {
+      value: "visualizations" as const,
+      label: t2(T.FRENCH_UI_STRINGS.visualizations),
+    },
+    { value: "metrics" as const, label: t2("Metrics") },
+  ];
+
+  // Admin-only tabs
+  const adminTabs = [
+    { value: "modules" as const, label: t2(T.FRENCH_UI_STRINGS.modules) },
+    { value: "data" as const, label: t2(T.FRENCH_UI_STRINGS.data) },
+    { value: "settings" as const, label: t2(T.FRENCH_UI_STRINGS.settings) },
+  ];
+
+  // Combine tabs based on admin status
+  const allTabs = p.isGlobalAdmin ? [...baseTabs, ...adminTabs] : baseTabs;
+
+  // Create tabs controller
+  const tabs = getTabs(allTabs, {
+    initialTab: projectTab(),
+    onTabChange: (tab) => updateProjectView({ tab: tab as TabOption }),
+  });
+
+  // Icon mapping
+  const tabIcons = {
+    decks: "sparkles" as const,
+    reports: "report" as const,
+    visualizations: "chart" as const,
+    metrics: "badge" as const,
+    modules: "code" as const,
+    data: "database" as const,
+    settings: "settings" as const,
+  };
 
   return (
     <ProjectRunnerProvider projectId={p.projectId}>
@@ -124,89 +154,15 @@ export default function Project(p: Props) {
                 >
                   <FrameLeft
                     panelChildren={
-                      <div class="font-700 h-full border-r text-sm">
-                        {/* <div
-                        class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                        onClick={() => updateProjectView({ tab: "whiteboard" })}
-                        data-selected={projectTab() === "whiteboard"}
-                      >
-                        <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                          <PencilIcon />
-                        </span>
-                        {t2("Whiteboard")}
-                      </div> */}
-                        <div
-                          class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                          onClick={() => updateProjectView({ tab: "decks" })}
-                          data-selected={projectTab() === "decks"}
-                        >
-                          <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                            <SparklesIcon />
-                          </span>
-                          Slide decks
-                        </div>
-                        <div
-                          class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                          onClick={() => updateProjectView({ tab: "reports" })}
-                          data-selected={projectTab() === "reports"}
-                        >
-                          <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                            <ReportIcon />
-                          </span>
-                          {t2(T.FRENCH_UI_STRINGS.reports)}
-                        </div>
-                        <div
-                          class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                          onClick={() => updateProjectView({ tab: "visualizations" })}
-                          data-selected={projectTab() === "visualizations"}
-                        >
-                          <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                            <ChartIcon />
-                          </span>
-                          {t2(T.FRENCH_UI_STRINGS.visualizations)}
-                        </div>
-                        <div
-                          class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                          onClick={() => updateProjectView({ tab: "metrics" })}
-                          data-selected={projectTab() === "metrics"}
-                        >
-                          <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                            <BadgeIcon />
-                          </span>
-                          {t2("Metrics")}
-                        </div>
-                        <Show when={p.isGlobalAdmin}>
-                          <div
-                            class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                            onClick={() => updateProjectView({ tab: "modules" })}
-                            data-selected={projectTab() === "modules"}
-                          >
-                            <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                              <CodeIcon />
-                            </span>
-                            {t2(T.FRENCH_UI_STRINGS.modules)}
-                          </div>
-                          <div
-                            class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                            onClick={() => updateProjectView({ tab: "data" })}
-                            data-selected={projectTab() === "data"}
-                          >
-                            <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                              <DatabaseIcon />
-                            </span>
-                            {t2(T.FRENCH_UI_STRINGS.data)}
-                          </div>
-                          <div
-                            class="ui-hoverable data-[selected=true]:border-primary data-[selected=true]:bg-base-200 flex items-center gap-[0.75em] border-l-4 py-4 pl-6 pr-8 data-[selected=false]:border-transparent data-[selected=false]:hover:border-0 data-[selected=false]:hover:pl-7"
-                            onClick={() => updateProjectView({ tab: "settings" })}
-                            data-selected={projectTab() === "settings"}
-                          >
-                            <span class="text-primary h-[1.25em] w-[1.25em] flex-none">
-                              <SettingsIcon />
-                            </span>
-                            {t2(T.FRENCH_UI_STRINGS.settings)}
-                          </div>
-                        </Show>
+                      <div class="h-full border-r">
+                        <TabsNavigation
+                          tabs={tabs}
+                          vertical
+                          collapsible
+                          collapsed={navCollapsed()}
+                          onCollapsedChange={setNavCollapsed}
+                          icons={tabIcons}
+                        />
                       </div>
                     }
                   >

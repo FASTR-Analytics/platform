@@ -36,7 +36,19 @@ export function measureFooter(
   const padFooter = new Padding(s.footer.padding);
   let mFooter: MeasuredText | undefined;
   let totalInnerFooterHeight = 0;
-  const maxWidthForFooterText = rcdOuter.w() - padFooter.totalPx();
+  let maxWidthForFooterText = rcdOuter.w() - padFooter.totalPx();
+
+  // Reduce maxWidth if footer logos are present (they're right-aligned)
+  if (inputs.footerLogos && inputs.footerLogos.length > 0) {
+    let logoWidth = 0;
+    for (const logo of inputs.footerLogos) {
+      logoWidth += (s.footer.logoHeight * logo.width) / logo.height;
+      logoWidth += s.footer.logoGapX;
+    }
+    if (logoWidth > 0) {
+      maxWidthForFooterText -= logoWidth + s.footer.logoGapX;
+    }
+  }
 
   if (inputs.footer?.trim()) {
     mFooter = rc.mText(

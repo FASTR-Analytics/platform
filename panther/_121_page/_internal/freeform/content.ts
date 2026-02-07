@@ -103,11 +103,8 @@ export function renderContent(
 ): void {
   const padContent = new Padding(s.content.padding);
 
-  if (s.content.backgroundColor !== "none") {
-    rc.rRect(measured.rcdContentOuter, {
-      fillColor: s.content.backgroundColor,
-    });
-  }
+  // Note: Content background is painted once on the entire slide in render_freeform.ts
+  // No need to paint it again here
 
   walkLayout(measured.mLayout, (node) => {
     renderContainerStyle(rc, node);

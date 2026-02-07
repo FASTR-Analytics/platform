@@ -80,7 +80,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
 
           const input: AiContentSlideInput = {
             type: "content",
-            heading: p.visualizationLabels[0],
+            header: p.visualizationLabels[0],
             blocks: [{
               type: "from_visualization",
               visualizationId: p.visualizationIds[0],
@@ -116,7 +116,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
 
             const input: AiContentSlideInput = {
               type: "content",
-              heading: `${p.visualizationLabels[0]} - ${replicantLabel}`,
+              header: `${p.visualizationLabels[0]} - ${replicantLabel}`,
               blocks: [{
                 type: "from_visualization",
                 visualizationId: p.visualizationIds[0],
@@ -170,7 +170,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
 
         const input: AiContentSlideInput = {
           type: "content",
-          heading: vizLabel,
+          header: vizLabel,
           blocks: [{
             type: "from_visualization",
             visualizationId: vizId,
