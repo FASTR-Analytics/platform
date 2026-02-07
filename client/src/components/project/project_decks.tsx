@@ -11,6 +11,7 @@ import { For, Show, createEffect, createSignal } from "solid-js";
 import { AddDeckForm } from "./add_deck";
 import { ProjectAiSlideDeck } from "../slide_deck";
 import { useProjectDetail } from "~/components/project_runner/mod";
+import { useAIProjectContext } from "~/components/project_ai/context";
 
 type ExtendedProps = {
   instanceDetail: InstanceDetail;
@@ -22,6 +23,7 @@ type ExtendedProps = {
 
 export function ProjectDecks(p: ExtendedProps) {
   const projectDetail = useProjectDetail();
+  const { aiContext } = useAIProjectContext();
 
   async function openDeck(deckId: string, deckLabel: string) {
     await p.openProjectEditor({
@@ -32,6 +34,7 @@ export function ProjectDecks(p: ExtendedProps) {
         projectDetail,
         instanceDetail: p.instanceDetail,
         isGlobalAdmin: p.isGlobalAdmin,
+        returnToContext: aiContext(),
       },
     });
   }

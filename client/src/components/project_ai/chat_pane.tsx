@@ -1,10 +1,10 @@
-import { AIChat, Button, createAIChat, openComponent, useConversations } from "panther";
+import { AIChat, Button, createAIChat, MenuTriggerWrapper, openComponent, openConfirm, useConversations, type MenuItem } from "panther";
 import { Show } from "solid-js";
 import { t } from "lib";
 import { useAIProjectContext } from "./context";
 import { DraftPreview } from "./draft_preview";
 import { setShowAi } from "~/state/ui";
-import { useAIDocuments, AIDocumentButton, AIDocumentList } from "./ai_documents";
+import { useAIDocuments, AIDocumentList } from "./ai_documents";
 import { ConversationSelectorModal } from "./ConversationSelectorModal";
 import { usePromptLibrary } from "./ai_prompt_library";
 
@@ -14,7 +14,7 @@ type ConsolidatedChatPaneProps = {
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   const { aiContext, draftContent, getPendingInteractionsMessage, clearPendingInteractions } = useAIProjectContext();
-  const { clearConversation, isLoading, sendMessage } = createAIChat();
+  const { conversationId, isLoading, sendMessage } = createAIChat();
   const conversations = useConversations();
 
   let scrollToBottom: ((force?: boolean) => void) | null = null;
@@ -42,6 +42,58 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   const { openPromptLibrary } = usePromptLibrary({
     onRunPrompt: handlePromptRun,
   });
+
+  const handleDeleteConversation = async () => {
+    const confirmed = await openConfirm({
+      title: "Delete conversation",
+      text: "Are you sure you want to delete this conversation? This action cannot be undone.",
+      intent: "danger",
+      confirmButtonLabel: "Delete",
+    });
+    if (confirmed) {
+      await conversations.deleteConversation(conversationId());
+    }
+  };
+
+  const menuItems = (): MenuItem[] => [
+    {
+      label: "New conversation",
+      icon: "plus",
+      onClick: () => conversations.createConversation(),
+      disabled: isLoading(),
+    },
+    {
+      label: "Switch conversation",
+      icon: "versions",
+      onClick: openConversationSelector,
+      disabled: isLoading(),
+    },
+    {
+      type: "divider",
+    },
+    {
+      label: "Prompt library",
+      icon: "sparkles",
+      onClick: openPromptLibrary,
+      disabled: isLoading(),
+    },
+    {
+      label: "Include file",
+      icon: "document",
+      onClick: p.aiDocs.openSelector,
+      disabled: isLoading(),
+    },
+    {
+      type: "divider",
+    },
+    {
+      label: "Delete conversation",
+      icon: "trash",
+      intent: "danger",
+      onClick: handleDeleteConversation,
+      disabled: isLoading(),
+    },
+  ];
 
   const handleBeforeSubmit = (userMessage: string): string => {
     const interactionsMessage = getPendingInteractionsMessage();
@@ -100,35 +152,14 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       <div class="ui-pad ui-gap flex items-center justify-between border-b border-base-content bg-primary text-white">
         <h3 class="truncate text-base font-700">{title()}</h3>
         <div class="flex ui-gap-sm">
-          <Button
-            onClick={openConversationSelector}
-            disabled={isLoading()}
-            outline
-            intent="base-100"
-            iconName="moreVertical"
-            ariaLabel="Switch conversation"
-          />
-          <Button
-            onClick={openPromptLibrary}
-            disabled={isLoading()}
-            outline
-            intent="base-100"
-            iconName="sparkles"
-            ariaLabel="Prompt library"
-          />
-          <AIDocumentButton
-            documents={p.aiDocs.documents()}
-            onOpenSelector={p.aiDocs.openSelector}
-            onRemoveDocument={p.aiDocs.removeDocument}
-          />
-          <Button
-            onClick={clearConversation}
-            disabled={isLoading()}
-            outline
-            intent="base-100"
-            iconName="trash"
-            ariaLabel="Clear conversation"
-          />
+          <MenuTriggerWrapper items={menuItems} position="bottom-end">
+            <Button
+              outline
+              intent="base-100"
+              iconName="moreVertical"
+              ariaLabel="Menu"
+            />
+          </MenuTriggerWrapper>
           <Button
             onClick={() => setShowAi(false)}
             outline

@@ -1,9 +1,6 @@
-import type { CreateModeVisualizationData, MetricWithStatus, PresentationObjectConfig } from "lib";
-import { AiCreateVisualizationInputSchema, type AiCreateVisualizationInput } from "lib";
+import type { PresentationObjectConfig } from "lib";
 import { createAITool } from "panther";
-import type { Setter } from "solid-js";
 import { z } from "zod";
-import { buildConfigFromMetric } from "~/components/slide_deck/utils/build_config_from_metric";
 import { serverActions } from "~/server_actions";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
 import { getMetricDataForAI } from "./_internal/get_metric_data_for_ai";

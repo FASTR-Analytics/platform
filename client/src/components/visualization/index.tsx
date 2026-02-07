@@ -21,6 +21,7 @@ import {
   getResultsValueInfoForPresentationObjectFromCacheOrFetch
 } from "~/state/po_cache";
 import { VisualizationEditorInner } from "./visualization_editor_inner";
+import type { AIContext } from "~/components/project_ai/types";
 
 export type EditModeReturn = undefined | { deleted: true } | { saved: true };
 export type CreateModeReturn =
@@ -37,6 +38,7 @@ type EditModeProps = {
   instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
+  returnToContext?: AIContext;
   close: (result: EditModeReturn) => void;
 };
 
@@ -49,6 +51,7 @@ type CreateModeProps = {
   instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
+  returnToContext?: AIContext;
   close: (result: CreateModeReturn) => void;
 };
 
@@ -61,6 +64,7 @@ type EphemeralModeProps = {
   instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
+  returnToContext?: AIContext;
   close: (result: EphemeralModeReturn) => void;
 };
 
@@ -169,6 +173,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={keyedCombinedData.poDetail}
             resultsValueInfo={keyedCombinedData.resultsValueInfo}
+            returnToContext={p.returnToContext}
             onClose={p.close}
           />
         );
@@ -209,6 +214,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={syntheticPoDetail}
             resultsValueInfo={keyedResultsValueInfo}
+            returnToContext={p.returnToContext}
             onClose={p.close}
           />
         );
@@ -249,6 +255,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={syntheticPoDetail}
             resultsValueInfo={keyedResultsValueInfo}
+            returnToContext={p.returnToContext}
             onClose={p.close}
           />
         );

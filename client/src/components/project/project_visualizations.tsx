@@ -14,6 +14,7 @@ import { AddVisualization } from "./add_visualization";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
 import { updateProjectView } from "~/state/ui";
 import { useProjectDetail } from "~/components/project_runner/mod";
+import { useAIProjectContext } from "~/components/project_ai/context";
 
 type Props = {
   instanceDetail: InstanceDetail;
@@ -26,6 +27,7 @@ type Props = {
 export function ProjectVisualizations(p: Props) {
   const projectDetail = useProjectDetail();
   const [searchText, setSearchText] = createSignal<string>("");
+  const { aiContext } = useAIProjectContext();
 
   async function openVisualizationEditor(po: PresentationObjectSummary) {
     if (po.isDefault) {
@@ -52,6 +54,7 @@ export function ProjectVisualizations(p: Props) {
           instanceDetail: p.instanceDetail,
           projectDetail: projectDetail,
           isGlobalAdmin: p.isGlobalAdmin,
+          returnToContext: aiContext(),
         },
       });
 
@@ -74,6 +77,7 @@ export function ProjectVisualizations(p: Props) {
         instanceDetail: p.instanceDetail,
         projectDetail: projectDetail,
         isGlobalAdmin: p.isGlobalAdmin,
+        returnToContext: aiContext(),
       },
     });
     // SSE will update projectDetail automatically
@@ -103,6 +107,7 @@ export function ProjectVisualizations(p: Props) {
         instanceDetail: p.instanceDetail,
         projectDetail: projectDetail,
         isGlobalAdmin: p.isGlobalAdmin,
+        returnToContext: aiContext(),
       },
     });
   }

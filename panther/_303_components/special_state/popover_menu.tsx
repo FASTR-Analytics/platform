@@ -20,13 +20,23 @@ export type MenuItemClickable = {
   intent?: "default" | "danger";
   disabled?: boolean;
   onClick: () => void;
+  subMenu?: never;
+};
+
+export type MenuItemWithSubmenu = {
+  type?: "sub-item";
+  label: string;
+  icon?: IconName;
+  disabled?: boolean;
+  subMenu: MenuItem[];
+  onClick?: never;
 };
 
 export type MenuItemDivider = {
   type: "divider";
 };
 
-export type MenuItem = MenuItemClickable | MenuItemDivider;
+export type MenuItem = MenuItemClickable | MenuItemWithSubmenu | MenuItemDivider;
 
 export type PopoverPosition =
   | "bottom"
@@ -63,12 +73,19 @@ type MenuState = {
   items: MenuItem[];
 };
 
+type SubMenuState = {
+  parentItemIndex: number;
+  items: MenuItem[];
+};
+
 // =============================================================================
 // Module-level state
 // =============================================================================
 
 const [menuState, setMenuState] = createSignal<MenuState | undefined>();
+const [subMenuState, setSubMenuState] = createSignal<SubMenuState | undefined>();
 let popoverRef: HTMLDivElement | undefined;
+let subMenuPopoverRef: HTMLDivElement | undefined;
 let virtualAnchorRef: HTMLDivElement | undefined;
 
 const POPOVER_GAP = 6;
@@ -115,6 +132,8 @@ export function showMenu(opts: ShowMenuOptions): void {
 }
 
 export function hideMenu(): void {
+  subMenuPopoverRef?.hidePopover();
+  setSubMenuState(undefined);
   popoverRef?.hidePopover();
   setMenuState(undefined);
 }
@@ -122,6 +141,7 @@ export function hideMenu(): void {
 // For testing
 export function _resetMenuState(): void {
   setMenuState(undefined);
+  setSubMenuState(undefined);
 }
 
 // =============================================================================
@@ -129,14 +149,76 @@ export function _resetMenuState(): void {
 // =============================================================================
 
 export function PopoverMenuProvider() {
+  let closeSubMenuTimeout: number | undefined;
+
   function handleItemClick(item: MenuItemClickable) {
     hideMenu();
     item.onClick();
   }
 
+  function handleItemMouseEnter(
+    item: MenuItem,
+    index: number,
+    element: HTMLElement,
+  ) {
+    // Clear any pending close timeout
+    if (closeSubMenuTimeout !== undefined) {
+      clearTimeout(closeSubMenuTimeout);
+      closeSubMenuTimeout = undefined;
+    }
+
+    // Check if item has submenu
+    if (item.type !== "divider" && "subMenu" in item && item.subMenu) {
+      // Set anchor on this element
+      element.style.setProperty("anchor-name", `--submenu-anchor-${index}`);
+
+      // Show sub-menu
+      setSubMenuState({
+        parentItemIndex: index,
+        items: item.subMenu,
+      });
+
+      // Show the sub-menu popover
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          subMenuPopoverRef?.showPopover();
+        });
+      });
+    } else {
+      // Close any open sub-menu
+      subMenuPopoverRef?.hidePopover();
+      setSubMenuState(undefined);
+    }
+  }
+
+  function handleItemMouseLeave() {
+    // Delay closing to allow mouse to move to sub-menu
+    closeSubMenuTimeout = setTimeout(() => {
+      subMenuPopoverRef?.hidePopover();
+      setSubMenuState(undefined);
+    }, 100);
+  }
+
+  function handleSubMenuMouseEnter() {
+    // Cancel close timeout when entering sub-menu
+    if (closeSubMenuTimeout !== undefined) {
+      clearTimeout(closeSubMenuTimeout);
+      closeSubMenuTimeout = undefined;
+    }
+  }
+
+  function handleSubMenuMouseLeave() {
+    // Close sub-menu when leaving
+    subMenuPopoverRef?.hidePopover();
+    setSubMenuState(undefined);
+  }
+
   function handleClickOutside(e: MouseEvent) {
     if (!menuState()) return;
-    if (popoverRef && !popoverRef.contains(e.target as Node)) {
+    const target = e.target as Node;
+    const clickedInMenu = popoverRef?.contains(target);
+    const clickedInSubMenu = subMenuPopoverRef?.contains(target);
+    if (!clickedInMenu && !clickedInSubMenu) {
       hideMenu();
     }
   }
@@ -173,6 +255,81 @@ export function PopoverMenuProvider() {
           {(state) => (
             <div class="bg-base-100 min-w-[160px] overflow-hidden rounded-md border shadow-lg">
               <For each={state.items}>
+                {(item, index) => (
+                  <Show
+                    when={item.type !== "divider"}
+                    fallback={<div class="bg-base-300 my-1 h-px" />}
+                  >
+                    {(() => {
+                      let buttonRef: HTMLButtonElement | undefined;
+                      const hasSubMenu = "subMenu" in item && !!item.subMenu;
+                      return (
+                        <button
+                          ref={buttonRef}
+                          type="button"
+                          class="ui-hoverable flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-50"
+                          classList={{
+                            "text-danger": (item as MenuItemClickable).intent ===
+                              "danger",
+                            "ui-menu-item-with-submenu": hasSubMenu,
+                          }}
+                          disabled={(item as MenuItemClickable).disabled}
+                          onClick={() => {
+                            if (!hasSubMenu) {
+                              handleItemClick(item as MenuItemClickable);
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            if (buttonRef) {
+                              handleItemMouseEnter(item, index(), buttonRef);
+                            }
+                          }}
+                          onMouseLeave={handleItemMouseLeave}
+                        >
+                          <Show when={(item as MenuItemClickable).icon}>
+                            {(icon) => (
+                              <span class="w-4">
+                                <IconRenderer iconName={icon()} />
+                              </span>
+                            )}
+                          </Show>
+                          <span class="flex-1">
+                            {(item as MenuItemClickable).label}
+                          </span>
+                          <Show when={hasSubMenu}>
+                            <span class="w-4 opacity-60">
+                              <IconRenderer iconName="chevronRight" />
+                            </span>
+                          </Show>
+                        </button>
+                      );
+                    })()}
+                  </Show>
+                )}
+              </For>
+            </div>
+          )}
+        </Show>
+      </div>
+
+      {/* Sub-menu popover */}
+      <div
+        ref={subMenuPopoverRef}
+        popover="manual"
+        class="ui-popover-submenu"
+        data-position="right"
+        style={{
+          "position-anchor": subMenuState()
+            ? `--submenu-anchor-${subMenuState()!.parentItemIndex}`
+            : undefined,
+        }}
+        onMouseEnter={handleSubMenuMouseEnter}
+        onMouseLeave={handleSubMenuMouseLeave}
+      >
+        <Show when={subMenuState()} keyed>
+          {(state) => (
+            <div class="bg-base-100 min-w-[160px] overflow-hidden rounded-md border shadow-lg">
+              <For each={state.items}>
                 {(item) => (
                   <Show
                     when={item.type !== "divider"}
@@ -182,8 +339,8 @@ export function PopoverMenuProvider() {
                       type="button"
                       class="ui-hoverable flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-50"
                       classList={{
-                        "text-danger":
-                          (item as MenuItemClickable).intent === "danger",
+                        "text-danger": (item as MenuItemClickable).intent ===
+                          "danger",
                       }}
                       disabled={(item as MenuItemClickable).disabled}
                       onClick={() => handleItemClick(item as MenuItemClickable)}

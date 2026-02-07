@@ -21,6 +21,7 @@ import { VisualizationEditor } from "../visualization";
 import { MetricDetailsModal } from "./metric_details_modal";
 import { AddVisualization } from "./add_visualization";
 import { useProjectDetail } from "~/components/project_runner/mod";
+import { useAIProjectContext } from "~/components/project_ai/context";
 
 type Props = {
   instanceDetail: InstanceDetail;
@@ -117,6 +118,7 @@ type MetricGroupCardProps = {
 function MetricGroupCard(p: MetricGroupCardProps) {
   const firstMetric = p.metricGroup.variants[0];
   const hasVariants = p.metricGroup.variants.length > 1;
+  const { aiContext } = useAIProjectContext();
 
   async function showDetails(metric: MetricWithStatus) {
     await openComponent({
@@ -149,6 +151,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         instanceDetail: p.instanceDetail,
         projectDetail: p.projectDetail,
         isGlobalAdmin: p.isGlobalAdmin,
+        returnToContext: aiContext(),
       },
     });
   }

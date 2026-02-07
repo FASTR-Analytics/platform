@@ -65,6 +65,7 @@ import { PresentationObjectEditorPanel } from "./presentation_object_editor_pane
 import { SaveAsNewVisualizationModal } from "./save_as_new_visualization_modal";
 import { VisualizationSettings } from "./visualization_settings";
 import { useAIProjectContext } from "../project_ai/context";
+import type { AIContext } from "../project_ai/types";
 
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
@@ -73,6 +74,7 @@ type InnerProps = {
   isGlobalAdmin: boolean;
   poDetail: PresentationObjectDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
+  returnToContext?: AIContext;
   onClose:
   | ((result: EditModeReturn) => void)
   | ((result: CreateModeReturn) => void)
@@ -148,7 +150,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   });
 
   onCleanup(() => {
-    setAIContext({ mode: "viewing_visualizations" });
+    setAIContext(p.returnToContext ?? { mode: "viewing_visualizations" });
   });
 
   let firstRunConfigChange = true;

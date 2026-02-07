@@ -14,6 +14,7 @@ import { SlideEditor } from "./slide_editor";
 import { SlideList } from "./slide_list";
 import { EditLabelForm } from "../forms_editors/edit_label";
 import { useAIProjectContext } from "../project_ai/context";
+import type { AIContext } from "../project_ai/types";
 
 type SlideDeckModalReturn = undefined;
 
@@ -24,6 +25,7 @@ type Props = EditorComponentProps<
     deckId: string;
     reportLabel: string;
     isGlobalAdmin: boolean;
+    returnToContext?: AIContext;
   },
   SlideDeckModalReturn
 >;
@@ -72,7 +74,7 @@ export function ProjectAiSlideDeck(p: Props) {
   });
 
   onCleanup(() => {
-    setAIContext({ mode: "viewing_slide_decks" });
+    setAIContext(p.returnToContext ?? { mode: "viewing_slide_decks" });
   });
 
   // SSE handling - watch for deck updates

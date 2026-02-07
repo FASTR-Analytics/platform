@@ -40,6 +40,7 @@ import { VisualizationEditor } from "~/components/visualization";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/po_cache";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { setShowAi, showAi } from "~/state/ui";
+import { useAIProjectContext } from "~/components/project_ai/context";
 
 function findFirstItem(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> & { type: "item" } | undefined {
   if (node.type === "item") return node;
@@ -111,6 +112,7 @@ type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
 export function SlideEditor(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
+  const { aiContext } = useAIProjectContext();
 
   // Normalize slide on open: ensure all cols have explicit spans for divider drag
   const normalizedSlide = p.slide.type === "content"
@@ -459,6 +461,7 @@ export function SlideEditor(p: Props) {
                                   instanceDetail: p.instanceDetail,
                                   projectDetail: p.projectDetail,
                                   isGlobalAdmin: p.isGlobalAdmin,
+                                  returnToContext: aiContext(),
                                 },
                               });
 
@@ -544,10 +547,11 @@ export function SlideEditor(p: Props) {
                         items.push({ type: "divider" });
                       }
 
-                      // Split options
+                      // Split options (as sub-menu)
+                      const splitItems: MenuItem[] = [];
                       if (isOnlyNode || parentType === "cols") {
-                        items.push({
-                          label: "Split into rows",
+                        splitItems.push({
+                          label: "Into rows",
                           icon: "plus",
                           onClick: () => {
                             const newBlock = makeNewBlock();
@@ -558,8 +562,8 @@ export function SlideEditor(p: Props) {
                         });
                       }
                       if (isOnlyNode || parentType === "rows") {
-                        items.push({
-                          label: "Split into columns",
+                        splitItems.push({
+                          label: "Into columns",
                           icon: "plus",
                           onClick: () => {
                             const newBlock = makeNewBlock();
@@ -571,54 +575,73 @@ export function SlideEditor(p: Props) {
                         });
                       }
 
-                      items.push({ type: "divider" });
+                      if (splitItems.length > 0) {
+                        items.push({
+                          type: "sub-item",
+                          label: "Split",
+                          icon: "plus",
+                          subMenu: splitItems,
+                        });
+                      }
 
-                      // Add col left/right
+                      // Add column (as sub-menu)
                       items.push({
-                        label: "Add col to left",
+                        type: "sub-item",
+                        label: "Add column",
                         icon: "plus",
-                        onClick: () => {
-                          const newBlock = makeNewBlock();
-                          const result = addCol(root, targetId, newBlock, "left");
-                          const resultWithSpans = ensureExplicitSpans(result);
-                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: resultWithSpans }));
-                          setSelectedBlockId(newBlock.id);
-                        },
-                      });
-                      items.push({
-                        label: "Add col to right",
-                        icon: "plus",
-                        onClick: () => {
-                          const newBlock = makeNewBlock();
-                          const result = addCol(root, targetId, newBlock, "right");
-                          const resultWithSpans = ensureExplicitSpans(result);
-                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: resultWithSpans }));
-                          setSelectedBlockId(newBlock.id);
-                        },
+                        subMenu: [
+                          {
+                            label: "To left",
+                            icon: "plus",
+                            onClick: () => {
+                              const newBlock = makeNewBlock();
+                              const result = addCol(root, targetId, newBlock, "left");
+                              const resultWithSpans = ensureExplicitSpans(result);
+                              setTempSlide(reconcile({ ...unwrap(tempSlide), layout: resultWithSpans }));
+                              setSelectedBlockId(newBlock.id);
+                            },
+                          },
+                          {
+                            label: "To right",
+                            icon: "plus",
+                            onClick: () => {
+                              const newBlock = makeNewBlock();
+                              const result = addCol(root, targetId, newBlock, "right");
+                              const resultWithSpans = ensureExplicitSpans(result);
+                              setTempSlide(reconcile({ ...unwrap(tempSlide), layout: resultWithSpans }));
+                              setSelectedBlockId(newBlock.id);
+                            },
+                          },
+                        ],
                       });
 
-                      items.push({ type: "divider" });
-
-                      // Add row above/below
+                      // Add row (as sub-menu)
                       items.push({
-                        label: "Add row above",
+                        type: "sub-item",
+                        label: "Add row",
                         icon: "plus",
-                        onClick: () => {
-                          const newBlock = makeNewBlock();
-                          const result = addRow(root, targetId, newBlock, "above");
-                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
-                          setSelectedBlockId(newBlock.id);
-                        },
-                      });
-                      items.push({
-                        label: "Add row below",
-                        icon: "plus",
-                        onClick: () => {
-                          const newBlock = makeNewBlock();
-                          const result = addRow(root, targetId, newBlock, "below");
-                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
-                          setSelectedBlockId(newBlock.id);
-                        },
+                        subMenu: [
+                          {
+                            label: "Above",
+                            icon: "plus",
+                            onClick: () => {
+                              const newBlock = makeNewBlock();
+                              const result = addRow(root, targetId, newBlock, "above");
+                              setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
+                              setSelectedBlockId(newBlock.id);
+                            },
+                          },
+                          {
+                            label: "Below",
+                            icon: "plus",
+                            onClick: () => {
+                              const newBlock = makeNewBlock();
+                              const result = addRow(root, targetId, newBlock, "below");
+                              setTempSlide(reconcile({ ...unwrap(tempSlide), layout: result }));
+                              setSelectedBlockId(newBlock.id);
+                            },
+                          },
+                        ],
                       });
 
                       // Delete (only if not the only node)

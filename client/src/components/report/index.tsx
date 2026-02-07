@@ -29,6 +29,7 @@ import { DuplicateReport } from "./duplicate_report";
 import { ReportItemEditor } from "./report_item";
 import { ReportSettings } from "./report_settings";
 import { ReorderPages } from "./reorder_pages";
+import type { AIContext } from "../project_ai/types";
 
 type ReportModalReturn = { deleted?: boolean } | undefined;
 
@@ -38,6 +39,7 @@ type Props = EditorComponentProps<
     projectDetail: ProjectDetail;
     reportId: string;
     instanceDetail: InstanceDetail;
+    returnToContext?: AIContext;
   },
   ReportModalReturn
 >;
@@ -109,7 +111,7 @@ export function Report(p: Props) {
   }
 
   onCleanup(() => {
-    setAIContext({ mode: "viewing_reports" });
+    setAIContext(p.returnToContext ?? { mode: "viewing_reports" });
   });
 
   createEffect(() => {

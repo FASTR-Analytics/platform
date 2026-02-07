@@ -37,6 +37,7 @@ import {
   useProjectDetail,
 } from "~/components/project_runner/mod";
 import { Report } from "../report";
+import { useAIProjectContext } from "~/components/project_ai/context";
 
 type Props = {
   openProjectEditor: <TProps, TReturn>(
@@ -53,6 +54,7 @@ export function ProjectReports(p: ExtendedProps) {
   const projectDetail = useProjectDetail();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
+  const { aiContext } = useAIProjectContext();
 
   async function openReport(reportId: string) {
     await p.openProjectEditor({
@@ -62,6 +64,7 @@ export function ProjectReports(p: ExtendedProps) {
         projectDetail: projectDetail,
         instanceDetail: p.instanceDetail,
         isGlobalAdmin: p.isGlobalAdmin,
+        returnToContext: aiContext(),
       },
     });
   }

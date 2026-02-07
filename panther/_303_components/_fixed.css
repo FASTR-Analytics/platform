@@ -559,4 +559,34 @@
     position-area: right;
     position-try-fallbacks: --pm-left, --pm-bottom-end, --pm-top-end;
   }
+
+  /* Sub-menu popover */
+  .ui-popover-submenu {
+    position: absolute;
+    position-try-order: normal;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  .ui-popover-submenu[data-position="right"] {
+    top: anchor(top);
+    left: anchor(right);
+    margin-left: 4px;
+    position-try-fallbacks: --submenu-left;
+  }
+
+  @position-try --submenu-left {
+    top: anchor(top);
+    right: anchor(left);
+    left: auto;
+    margin-left: 0;
+    margin-right: 4px;
+  }
+
+  /* Sub-menu parent items get an arrow indicator */
+  .ui-menu-item-with-submenu {
+    position: relative;
+  }
 }
