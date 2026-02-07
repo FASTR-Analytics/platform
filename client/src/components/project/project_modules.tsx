@@ -47,7 +47,7 @@ export function ProjectModules(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar heading={t2(T.FRENCH_UI_STRINGS.modules)}
-            class="border-base-300"></HeadingBar>
+            class="border-base-300" ensureHeightAsIfButton></HeadingBar>
         }
       >
         <div class="ui-pad ui-spy">

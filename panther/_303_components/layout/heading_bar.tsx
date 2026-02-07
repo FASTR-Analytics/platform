@@ -15,6 +15,7 @@ type Props = {
   searchText?: string;
   french?: boolean;
   class?: string;
+  ensureHeightAsIfButton?: boolean;
 };
 
 export function HeadingBar(p: Props) {
@@ -56,6 +57,11 @@ export function HeadingBar(p: Props) {
           {(keyedRightChildren) => {
             return <div class="flex-none">{keyedRightChildren}</div>;
           }}
+        </Show>
+        <Show when={p.ensureHeightAsIfButton && !p.children && !p.leftChildren}>
+          <div class="pointer-events-none invisible w-0 overflow-hidden">
+            <Button>X</Button>
+          </div>
         </Show>
       </div>
     </div>

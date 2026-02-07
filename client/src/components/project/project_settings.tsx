@@ -158,7 +158,7 @@ export function ProjectSettings(p: Props) {
 
   return (
     <FrameTop panelChildren={<HeadingBar heading={t2(T.FRENCH_UI_STRINGS.settings)}
-      class="border-base-300"></HeadingBar>}>
+      class="border-base-300" ensureHeightAsIfButton></HeadingBar>}>
       <div class="ui-pad ui-spy">
         <SettingsSection
           header={t2(T.FRENCH_UI_STRINGS.project_name)}

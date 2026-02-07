@@ -36,7 +36,7 @@ export function ProjectData(p: Props) {
   return (
     <EditorWrapper>
       <FrameTop panelChildren={<HeadingBar heading={"Data"}
-        class="border-base-300"></HeadingBar>}>
+        class="border-base-300" ensureHeightAsIfButton></HeadingBar>}>
         <div class="ui-pad ui-spy">
           <For each={_POSSIBLE_DATASETS}>
             {(possibleDataset) => {

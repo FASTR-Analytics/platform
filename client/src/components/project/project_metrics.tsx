@@ -68,7 +68,8 @@ export function ProjectMetrics(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar heading={t2("Metrics")}
-          class="border-base-300"></HeadingBar>
+          class="border-base-300"
+          ensureHeightAsIfButton></HeadingBar>
       }
     >
       <div class="ui-pad ui-spy">
