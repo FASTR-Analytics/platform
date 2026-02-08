@@ -7,6 +7,7 @@ import { del, get, set } from "../deps.ts";
 import { clearConversationPersistence } from "./persistence.ts";
 
 const CONVERSATION_LIST_KEY = "ai-conv-list";
+const LAST_ACTIVE_KEY_PREFIX = "ai-conv-last-active";
 
 export type ConversationMetadata = {
   id: string;
@@ -80,4 +81,32 @@ export function generateTitleFromMessage(message: string): string {
     return trimmed;
   }
   return trimmed.slice(0, 47) + "...";
+}
+
+function lastActiveKey(scope: string | undefined): string {
+  return scope
+    ? `${LAST_ACTIVE_KEY_PREFIX}-${scope}`
+    : LAST_ACTIVE_KEY_PREFIX;
+}
+
+export async function loadLastActiveConversationId(
+  scope: string | undefined,
+): Promise<string | null> {
+  try {
+    const id = await get<string>(lastActiveKey(scope));
+    return id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveLastActiveConversationId(
+  scope: string | undefined,
+  id: string,
+): Promise<void> {
+  try {
+    await set(lastActiveKey(scope), id);
+  } catch {
+    // ignore
+  }
 }

@@ -171,9 +171,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
                     value={p.selectedReplicantValue}
                     onChange={(v) => p.setSelectedReplicant(v, possibleValues)}
                     fullWidth={p.fullWidth}
-                    invalidMsg={
-                      !p.selectedReplicantValue ? t2(T.FRENCH_UI_STRINGS.needs_selection) : undefined
-                    }
+                    placeholder={t2(T.FRENCH_UI_STRINGS.needs_selection)}
                   />
                 );
               })()}

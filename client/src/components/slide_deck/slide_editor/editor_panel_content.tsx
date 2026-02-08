@@ -1,5 +1,5 @@
 import { ContentSlide, ContentBlock, FigureBlock, TextBlock, ImageBlock, t2, T, t } from "lib";
-import { TextArea, OpenEditorProps, findById, LayoutNode, Select, Button, LabelHolder, MultiSelect, Checkbox, Slider, RadioGroup, StateHolderWrapper, getSelectOptions, timQuery } from "panther";
+import { TextArea, OpenEditorProps, findById, LayoutNode, Select, Button, LabelHolder, MultiSelect, RadioGroup, StateHolderWrapper, getSelectOptions, timQuery } from "panther";
 import { Match, Setter, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { SetStoreFunction } from "solid-js/store";
@@ -326,39 +326,6 @@ function ImageBlockEditor(p: {
         )}
       </StateHolderWrapper>
       <Show when={p.block().imgFile}>
-        <Checkbox
-          label={t2(T.Reports.stretch_to_fit)}
-          checked={!p.block().style?.imgHeight}
-          onChange={(stretch: boolean) =>
-            p.updateSelectedBlock((b) => {
-              const ib = b as ImageBlock;
-              return {
-                ...ib,
-                style: {
-                  ...ib.style,
-                  imgHeight: stretch ? undefined : (ib.style?.imgHeight ?? 300),
-                },
-              };
-            })
-          }
-        />
-        <Show when={p.block().style?.imgHeight}>
-          <Slider
-            label={t("Height")}
-            min={50}
-            max={1500}
-            step={50}
-            value={p.block().style?.imgHeight ?? 300}
-            onChange={(v: number) =>
-              p.updateSelectedBlock((b) => {
-                const ib = b as ImageBlock;
-                return { ...ib, style: { ...ib.style, imgHeight: v } };
-              })
-            }
-            fullWidth
-            showValueInLabel
-          />
-        </Show>
         <RadioGroup
           label={t2(T.FRENCH_UI_STRINGS.image_fit)}
           value={p.block().style?.imgFit ?? "contain"}

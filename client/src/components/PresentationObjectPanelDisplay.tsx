@@ -7,6 +7,8 @@ import {
   MetricWithStatus,
   PresentationObjectSummary,
   ProjectDetail,
+  SlideDeckFolder,
+  SlideDeckSummary,
   VisualizationFolder,
   VisualizationGroupingMode,
   t2,
@@ -359,6 +361,8 @@ export function PresentationObjectPanelDisplay(p: Props) {
         folders={p.projectDetail.visualizationFolders}
         modules={p.projectDetail.projectModules}
         metrics={p.projectDetail.metrics}
+        slideDecks={p.projectDetail.slideDecks}
+        slideDeckFolders={p.projectDetail.slideDeckFolders}
         subGroupConfig={subGroupConfig()}
         onClick={p.onClick}
         searchText={p.searchText}
@@ -373,6 +377,8 @@ type VisualizationGridProps = {
   folders: VisualizationFolder[];
   modules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
+  slideDecks: SlideDeckSummary[];
+  slideDeckFolders: SlideDeckFolder[];
   subGroupConfig: SubGroupConfig | null;
   onClick: (po: PresentationObjectSummary) => void;
   searchText: string;
@@ -610,6 +616,8 @@ function VisualizationGrid(p: VisualizationGridProps) {
         visualizationLabels: vizLabels,
         replicateBy: vizsToCreate.length === 1 ? vizsToCreate[0].replicateBy : undefined,
         metrics: p.metrics,
+        slideDecks: p.slideDecks,
+        slideDeckFolders: p.slideDeckFolders,
       },
     });
 

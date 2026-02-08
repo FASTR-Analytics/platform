@@ -12,6 +12,7 @@ import { createSignal, Match, onMount, Switch } from "solid-js";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/components/slide_deck/slide_rendering/convert_slide_to_page_inputs";
 import { useAIProjectContext } from "~/components/project_ai/context";
+import { useProjectDetail } from "~/components/project_runner/mod";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
 
@@ -30,6 +31,7 @@ type Props = {
 
 export function DraftSlidePreview(p: Props) {
   const { aiContext } = useAIProjectContext();
+  const projectDetail = useProjectDetail();
 
   const [slideState, setSlideState] = createSignal<StateHolder<SlideState>>({
     status: "loading",
@@ -101,12 +103,14 @@ export function DraftSlidePreview(p: Props) {
     if (ctx.mode === "editing_slide_deck") {
       await addSlideDirectlyToDeck(p.projectId, state.data.convertedSlide, ctx);
     } else {
-      await openComponent<
-        { projectId: string; slide: Slide },
-        { deckId: string } | undefined
-      >({
+      await openComponent({
         element: AddToDeckModal,
-        props: { projectId: p.projectId, slide: state.data.convertedSlide },
+        props: {
+          projectId: p.projectId,
+          slide: state.data.convertedSlide,
+          slideDecks: projectDetail.slideDecks,
+          slideDeckFolders: projectDetail.slideDeckFolders,
+        },
       });
     }
   }
@@ -120,6 +124,7 @@ export function DraftSlidePreview(p: Props) {
         <SlideStateWrapper state={slideState()} scalePixelResolution={0.2} />
       </div>
       <div class="flex gap-1.5 border-t border-base-300 p-1.5">
+        <Button size="sm" outline iconName="maximize" onClick={openExpandedView} />
         <Button size="sm" outline onClick={handleAddToDeck}>
           {aiContext().mode === "editing_slide_deck"
             ? "Add to this deck"

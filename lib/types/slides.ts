@@ -42,7 +42,6 @@ export type FigureBlock = {
 
 // Image block styling
 export type ImageBlockStyle = {
-  imgHeight?: number;
   imgFit?: "cover" | "contain";
   imgAlign?: "center" | "top" | "bottom" | "left" | "right";
 };

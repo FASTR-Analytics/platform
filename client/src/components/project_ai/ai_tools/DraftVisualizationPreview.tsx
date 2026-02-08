@@ -22,10 +22,9 @@ import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolv
 import { buildConfigFromMetric } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { getStyleFromPresentationObject } from "~/generate_visualization/get_style_from_po";
-import { VisualizationEditor } from "~/components/visualization";
+import { SaveAsNewVisualizationModal } from "~/components/visualization/save_as_new_visualization_modal";
 import { useProjectDetail } from "~/components/project_runner/mod";
 import { useAIProjectContext } from "~/components/project_ai/context";
-import { snapshotForVizEditor } from "~/utils/snapshot";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
 
@@ -42,7 +41,7 @@ type Props = {
 
 export function DraftVisualizationPreview(p: Props) {
   const projectDetail = useProjectDetail();
-  const { aiContext, instanceDetail } = useAIProjectContext();
+  const { aiContext } = useAIProjectContext();
 
   const [figureState, setFigureState] = createSignal<StateHolder<FigureInputs>>(
     {
@@ -94,7 +93,7 @@ export function DraftVisualizationPreview(p: Props) {
       element: ExpandedVizModal,
       props: {
         figureInputs,
-        onEditSave: handleEditSave,
+        onEditSave: handleSave,
         onAddToDeck: handleAddToDeck,
         addToDeckLabel: aiContext().mode === "editing_slide_deck"
           ? "Add to this deck"
@@ -129,7 +128,7 @@ export function DraftVisualizationPreview(p: Props) {
     }
   }
 
-  async function handleEditSave() {
+  async function handleSave() {
     if (p.figure.type === "from_visualization") {
       const poDetailRes = await getPODetailFromCacheorFetch(
         p.projectId,
@@ -137,21 +136,14 @@ export function DraftVisualizationPreview(p: Props) {
       );
       if (!poDetailRes.success) return;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await openComponent<any, any>({
-        element: VisualizationEditor,
+      await openComponent({
+        element: SaveAsNewVisualizationModal,
         props: {
-          mode: "create" as const,
           projectId: p.projectId,
-          label: p.title || poDetailRes.data.label,
-          isGlobalAdmin: false,
-          returnToContext: aiContext(),
-          ...snapshotForVizEditor({
-            projectDetail,
-            instanceDetail,
-            resultsValue: poDetailRes.data.resultsValue,
-            config: poDetailRes.data.config,
-          }),
+          existingLabel: p.title || poDetailRes.data.label,
+          resultsValue: poDetailRes.data.resultsValue,
+          config: poDetailRes.data.config,
+          folders: projectDetail.visualizationFolders,
         },
       });
     } else {
@@ -161,21 +153,14 @@ export function DraftVisualizationPreview(p: Props) {
       const { resultsValue, config } = buildResult;
       config.t.caption = p.title;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await openComponent<any, any>({
-        element: VisualizationEditor,
+      await openComponent({
+        element: SaveAsNewVisualizationModal,
         props: {
-          mode: "create" as const,
           projectId: p.projectId,
-          label: p.title || "New Visualization",
-          isGlobalAdmin: false,
-          returnToContext: aiContext(),
-          ...snapshotForVizEditor({
-            projectDetail,
-            instanceDetail,
-            resultsValue,
-            config,
-          }),
+          existingLabel: p.title || "New Visualization",
+          resultsValue,
+          config,
+          folders: projectDetail.visualizationFolders,
         },
       });
     }
@@ -200,9 +185,14 @@ export function DraftVisualizationPreview(p: Props) {
     if (ctx.mode === "editing_slide_deck") {
       await addSlideDirectlyToDeck(p.projectId, slide, ctx);
     } else {
-      await openComponent<{ projectId: string; slide: Slide }, { deckId: string } | undefined>({
+      await openComponent({
         element: AddToDeckModal,
-        props: { projectId: p.projectId, slide },
+        props: {
+          projectId: p.projectId,
+          slide,
+          slideDecks: projectDetail.slideDecks,
+          slideDeckFolders: projectDetail.slideDeckFolders,
+        },
       });
     }
   }
@@ -241,9 +231,11 @@ export function DraftVisualizationPreview(p: Props) {
         </Show>
       </div>
       <div class="flex gap-1.5 border-t border-base-300 p-1.5">
-        <Button size="sm" outline onClick={handleEditSave}>
-          Edit / Save
-        </Button>
+        <Button size="sm" outline iconName="maximize" onClick={() => {
+          if (p.figure.type === "from_visualization") openExpandedViewForViz();
+          else openExpandedViewForMetric();
+        }} />
+        <Button size="sm" outline onClick={handleSave}>Save as new visualization</Button>
         <Button size="sm" outline onClick={handleAddToDeck}>
           {aiContext().mode === "editing_slide_deck"
             ? "Add to this deck"
@@ -327,7 +319,7 @@ function ExpandedVizModal(
       </div>
       <div class="flex shrink-0 justify-end ui-gap-sm">
         <Button outline onClick={() => { p.close(undefined); p.onEditSave(); }}>
-          Edit / Save
+          Save as new visualization
         </Button>
         <Button outline onClick={() => { p.close(undefined); p.onAddToDeck(); }}>
           {p.addToDeckLabel}

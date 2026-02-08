@@ -1,46 +1,24 @@
-import type { SlideDeckSummary, Slide } from "lib";
-import {
-  AlertComponentProps,
-  AlertFormHolder,
-  Button,
-  Input,
-  Loading,
-  RadioGroup,
-  timActionForm,
-  type SelectOption,
-} from "panther";
-import { createSignal, Show, onMount } from "solid-js";
+import type { Slide, SlideDeckFolder, SlideDeckSummary } from "lib";
+import { AlertComponentProps, AlertFormHolder, timActionForm } from "panther";
+import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { DeckSelector } from "./DeckSelector";
 
 type Props = {
   projectId: string;
   slide: Slide;
+  slideDecks: SlideDeckSummary[];
+  slideDeckFolders: SlideDeckFolder[];
 };
 
 type ReturnType = { deckId: string } | undefined;
 
 export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
-  const [decks, setDecks] = createSignal<SlideDeckSummary[]>([]);
-  const [isLoadingDecks, setIsLoadingDecks] = createSignal(true);
-  const [selectedDeckId, setSelectedDeckId] = createSignal<string>("");
+  const [selectedDeckId, setSelectedDeckId] = createSignal<string>(
+    p.slideDecks.length > 0 ? p.slideDecks[0].id : "",
+  );
   const [isCreatingNew, setIsCreatingNew] = createSignal(false);
   const [newDeckLabel, setNewDeckLabel] = createSignal("");
-
-  const radioOptions = (): SelectOption<string>[] =>
-    decks().map((d) => ({ value: d.id, label: d.label }));
-
-  onMount(async () => {
-    const res = await serverActions.getAllSlideDecks({
-      projectId: p.projectId,
-    });
-    if (res.success) {
-      setDecks(res.data);
-      if (res.data.length > 0) {
-        setSelectedDeckId(res.data[0].id);
-      }
-    }
-    setIsLoadingDecks(false);
-  });
 
   const save = timActionForm(
     async (e: MouseEvent) => {
@@ -94,55 +72,16 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
         isCreatingNew() ? !newDeckLabel().trim() : !selectedDeckId()
       }
     >
-      <Show when={isLoadingDecks()}>
-        <div class="flex justify-center py-2">
-          <Loading msg="Loading decks..." noPad />
-        </div>
-      </Show>
-
-      <Show when={!isLoadingDecks()}>
-        <Show
-          when={!isCreatingNew()}
-          fallback={
-            <div class="space-y-4">
-              <Input
-                label="New deck name"
-                value={newDeckLabel()}
-                onChange={setNewDeckLabel}
-                placeholder="Deck name..."
-                autoFocus
-                fullWidth
-              />
-              <Button
-                size="sm"
-                outline
-                onClick={() => setIsCreatingNew(false)}
-              >
-                Back to deck list
-              </Button>
-            </div>
-          }
-        >
-          <div class="space-y-4">
-            <RadioGroup
-              label="Slide deck"
-              value={selectedDeckId()}
-              options={radioOptions()}
-              onChange={setSelectedDeckId}
-              convertToSelectThreshold={6}
-              fullWidthForSelect
-            />
-            <Button
-              size="sm"
-              outline
-              iconName="plus"
-              onClick={() => setIsCreatingNew(true)}
-            >
-              Create new deck
-            </Button>
-          </div>
-        </Show>
-      </Show>
+      <DeckSelector
+        decks={p.slideDecks}
+        folders={p.slideDeckFolders}
+        selectedDeckId={selectedDeckId()}
+        onSelectDeck={setSelectedDeckId}
+        isCreatingNew={isCreatingNew()}
+        onSetCreatingNew={setIsCreatingNew}
+        newDeckLabel={newDeckLabel()}
+        onSetNewDeckLabel={setNewDeckLabel}
+      />
     </AlertFormHolder>
   );
 }

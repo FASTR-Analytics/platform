@@ -311,7 +311,6 @@ async function convertBlockToPageContentItem(block: ContentBlock, textColor?: st
     }
     const imageItem: ImageInputs = {
       image: resImg.data,
-      height: block.style?.imgHeight,
       fit: block.style?.imgFit ?? "contain",
       align: block.style?.imgAlign,
     };

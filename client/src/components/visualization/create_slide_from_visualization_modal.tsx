@@ -1,9 +1,10 @@
 import { useNavigate } from "@solidjs/router";
-import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckConfig, SlideDeckSummary } from "lib";
+import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckConfig, SlideDeckFolder, SlideDeckSummary } from "lib";
 import { getStartingConfigForReport, t } from "lib";
-import { AlertComponentProps, AlertFormHolder, Button, Input, Loading, RadioGroup, timActionForm, type SelectOption, ProgressBar, getProgress } from "panther";
-import { createSignal, Show, onMount } from "solid-js";
+import { AlertComponentProps, AlertFormHolder, RadioGroup, ProgressBar, getProgress, timActionForm } from "panther";
+import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { DeckSelector } from "~/components/project_ai/ai_tools/DeckSelector";
 import { convertAiInputToSlide } from "../slide_deck/slide_ai/convert_ai_input_to_slide";
 import { InlineReplicantSelector } from "../report/inline_replicant_selector";
 
@@ -13,15 +14,17 @@ type Props = {
   visualizationLabels: string[];
   replicateBy?: DisaggregationOption;
   metrics: MetricWithStatus[];
+  slideDecks: SlideDeckSummary[];
+  slideDeckFolders: SlideDeckFolder[];
 };
 
 type ReturnType = { deckId: string } | undefined;
 
 export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, ReturnType>) {
   const navigate = useNavigate();
-  const [decks, setDecks] = createSignal<SlideDeckSummary[]>([]);
-  const [isLoadingDecks, setIsLoadingDecks] = createSignal(true);
-  const [selectedDeckId, setSelectedDeckId] = createSignal<string>("");
+  const [selectedDeckId, setSelectedDeckId] = createSignal<string>(
+    p.slideDecks.length > 0 ? p.slideDecks[0].id : "",
+  );
   const [isCreatingNew, setIsCreatingNew] = createSignal(false);
   const [newDeckLabel, setNewDeckLabel] = createSignal("");
   const [selectedReplicant, setSelectedReplicant] = createSignal<string>("");
@@ -33,20 +36,6 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
     p.visualizationIds.length === 1 && p.replicateBy !== undefined;
 
   const isBatchMode = () => !isSingleReplicatedMode();
-
-  const radioOptions = (): SelectOption<string>[] =>
-    decks().map(d => ({ value: d.id, label: d.label }));
-
-  onMount(async () => {
-    const res = await serverActions.getAllSlideDecks({ projectId: p.projectId });
-    if (res.success) {
-      setDecks(res.data);
-      if (res.data.length > 0) {
-        setSelectedDeckId(res.data[0].id);
-      }
-    }
-    setIsLoadingDecks(false);
-  });
 
   const save = timActionForm(
     async (e: MouseEvent) => {
@@ -246,102 +235,63 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
           (isSingleReplicatedMode() && creationMode() === "single" && !selectedReplicant())
       }
     >
-      <Show when={isLoadingDecks()}>
-        <div class="py-2 flex justify-center">
-          <Loading msg="Loading decks..." noPad />
-        </div>
-      </Show>
-
-      <Show when={!isLoadingDecks()}>
-        <div class="ui-spy">
-          <Show when={isSingleReplicatedMode() ? p.replicateBy : false}>
-            {(replicateBy) => (
-              <>
-                <RadioGroup
-                  label="Create slides for"
-                  value={creationMode()}
-                  options={[
-                    { value: "single", label: "Selected replicant" },
-                    { value: "all", label: `All replicants (${replicantOptions().length})` }
-                  ]}
-                  onChange={(v) => setCreationMode(v as "single" | "all")}
-                />
-
-                <Show when={creationMode() === "single"}>
-                  <InlineReplicantSelector
-                    projectId={p.projectId}
-                    presentationObjectId={p.visualizationIds[0]}
-                    replicateBy={replicateBy()}
-                    selectedValue={selectedReplicant()}
-                    onChange={(value, allOptions) => {
-                      setSelectedReplicant(value);
-                      if (allOptions) {
-                        setReplicantOptions(allOptions);
-                      }
-                    }}
-                  />
-                </Show>
-
-                <Show when={save.state().status === "loading"}>
-                  <ProgressBar
-                    progressFrom0To100={progress.progressFrom0To100()}
-                    progressMsg={progress.progressMsg()}
-                    small
-                  />
-                </Show>
-              </>
-            )}
-          </Show>
-          <Show when={isBatchMode() && save.state().status === "loading" && p.visualizationIds.length > 1}>
-            <ProgressBar
-              progressFrom0To100={progress.progressFrom0To100()}
-              progressMsg={progress.progressMsg()}
-              small
-            />
-          </Show>
-          <Show
-            when={!isCreatingNew()}
-            fallback={
-              <div class="space-y-4">
-                <Input
-                  label="New deck name"
-                  value={newDeckLabel()}
-                  onChange={setNewDeckLabel}
-                  placeholder="Deck name..."
-                  autoFocus
-                  fullWidth
-                />
-                <Button
-                  size="sm"
-                  outline
-                  onClick={() => setIsCreatingNew(false)}
-                >
-                  Back to deck list
-                </Button>
-              </div>
-            }
-          >
-            <div class="space-y-4">
+      <div class="ui-spy">
+        <Show when={isSingleReplicatedMode() ? p.replicateBy : false}>
+          {(replicateBy) => (
+            <>
               <RadioGroup
-                label="Slide deck"
-                value={selectedDeckId()}
-                options={radioOptions()}
-                onChange={setSelectedDeckId}
-                convertToSelectThreshold={6}
-                fullWidthForSelect
+                label="Create slides for"
+                value={creationMode()}
+                options={[
+                  { value: "single", label: "Selected replicant" },
+                  { value: "all", label: `All replicants (${replicantOptions().length})` }
+                ]}
+                onChange={(v) => setCreationMode(v as "single" | "all")}
               />
-              <Button
-                size="sm"
-                outline
-                iconName="plus"
-                onClick={() => setIsCreatingNew(true)}
-              >
-                Create new deck
-              </Button>
-            </div>
-          </Show>
-        </div>
-      </Show>
+
+              <Show when={creationMode() === "single"}>
+                <InlineReplicantSelector
+                  projectId={p.projectId}
+                  presentationObjectId={p.visualizationIds[0]}
+                  replicateBy={replicateBy()}
+                  selectedValue={selectedReplicant()}
+                  onChange={(value, allOptions) => {
+                    setSelectedReplicant(value);
+                    if (allOptions) {
+                      setReplicantOptions(allOptions);
+                    }
+                  }}
+                />
+              </Show>
+
+              <Show when={save.state().status === "loading"}>
+                <ProgressBar
+                  progressFrom0To100={progress.progressFrom0To100()}
+                  progressMsg={progress.progressMsg()}
+                  small
+                />
+              </Show>
+            </>
+          )}
+        </Show>
+        <Show when={isBatchMode() && save.state().status === "loading" && p.visualizationIds.length > 1}>
+          <ProgressBar
+            progressFrom0To100={progress.progressFrom0To100()}
+            progressMsg={progress.progressMsg()}
+            small
+          />
+        </Show>
+        <DeckSelector
+          decks={p.slideDecks}
+          folders={p.slideDeckFolders}
+          selectedDeckId={selectedDeckId()}
+          onSelectDeck={setSelectedDeckId}
+          isCreatingNew={isCreatingNew()}
+          onSetCreatingNew={setIsCreatingNew}
+          newDeckLabel={newDeckLabel()}
+          onSetNewDeckLabel={setNewDeckLabel}
+        />
+      </div>
     </AlertFormHolder>
   );
 }

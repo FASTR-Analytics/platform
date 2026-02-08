@@ -12,7 +12,9 @@ import {
   generateDefaultTitle,
   generateTitleFromMessage,
   loadConversationList,
+  loadLastActiveConversationId,
   removeConversationFromList,
+  saveLastActiveConversationId,
   updateConversationInList,
 } from "../_core/conversations_persistence.ts";
 import {
@@ -65,7 +67,10 @@ export function createConversationsManager(
   };
 
   onMount(async () => {
-    const list = await loadConversationList();
+    const [list, lastActiveId] = await Promise.all([
+      loadConversationList(),
+      loadLastActiveConversationId(scope),
+    ]);
     setAllConversations(list);
 
     const scopedConversations = scope === undefined
@@ -73,7 +78,12 @@ export function createConversationsManager(
       : list.filter((c) => c.scope === scope);
 
     if (scopedConversations.length > 0) {
-      setActiveConversationId(scopedConversations[0].id);
+      const lastActive = lastActiveId
+        ? scopedConversations.find((c) => c.id === lastActiveId)
+        : undefined;
+      setActiveConversationId(
+        lastActive ? lastActive.id : scopedConversations[0].id,
+      );
     } else {
       const newId = await createConversation();
       setActiveConversationId(newId);
@@ -94,6 +104,7 @@ export function createConversationsManager(
     await addConversationToList(metadata);
     setAllConversations((prev) => [metadata, ...prev]);
     setActiveConversationId(id);
+    saveLastActiveConversationId(scope, id);
 
     return id;
   }
@@ -102,6 +113,7 @@ export function createConversationsManager(
     const exists = allConversations().find((c) => c.id === id);
     if (exists) {
       setActiveConversationId(id);
+      saveLastActiveConversationId(scope, id);
     }
   }
 
