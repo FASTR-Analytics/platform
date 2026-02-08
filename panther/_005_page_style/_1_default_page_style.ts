@@ -43,14 +43,12 @@ const _DS = {
     backgroundColor: { key: "base100" } as ColorKeyOrString,
     gapX: 40,
     gapY: 40,
-    nColumns: 12,
   },
   layoutContainers: {
     padding: 0 as PaddingOptions,
     backgroundColor: "none" as ColorKeyOrString,
     borderColor: "none" as ColorKeyOrString,
     borderWidth: 0,
-    borderRadius: 0,
   },
 };
 

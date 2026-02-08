@@ -1,4 +1,5 @@
 import { Slide } from "lib";
+import { generateUniqueBlockId } from "~/utils/id_generation";
 
 export function convertSlideType(
   slide: Slide,
@@ -50,8 +51,8 @@ export function convertSlideType(
     header: header || undefined,
     layout: {
       type: "item",
-      id: crypto.randomUUID(),
-      data: { type: "placeholder" }
+      id: generateUniqueBlockId(),
+      data: { type: "text", markdown: "" }
     }
   };
 }

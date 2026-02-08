@@ -189,9 +189,14 @@ export function getAutofitHeightConstraints(
   const minH = minScale < 1
     ? getHeightAtScale(rc, width, input, minScale)
     : idealH;
-  const maxH = effectiveMaxScale > 1
+  let maxH = effectiveMaxScale > 1
     ? getHeightAtScale(rc, width, input, effectiveMaxScale)
     : idealH;
+
+  // Empty markdown should be growable (like placeholder)
+  if (input.markdown.trim() === "") {
+    maxH = Infinity;
+  }
 
   return { minH, idealH, maxH };
 }

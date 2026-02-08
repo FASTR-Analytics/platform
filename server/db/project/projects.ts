@@ -29,6 +29,7 @@ import { getAllModulesForProject, getMetricsWithStatus, installModule } from "./
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
 import { getAllReportsForProject } from "./reports.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
+import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllVisualizationFolders } from "./visualization_folders.ts";
 import { addDatasetHfaToProject } from "./datasets_in_project_hfa.ts";
 import { runProjectMigrations } from "../migrations/runner.ts";
@@ -94,6 +95,9 @@ export async function getProjectDetail(
     const resSlideDecks = await getAllSlideDecks(projectDb);
     throwIfErrWithData(resSlideDecks);
 
+    const resSlideDeckFolders = await getAllSlideDeckFolders(projectDb);
+    throwIfErrWithData(resSlideDeckFolders);
+
     const resVisualizations = await getAllPresentationObjectsForProject(
       projectDb
     );
@@ -146,6 +150,7 @@ export async function getProjectDetail(
       visualizationFolders: resFolders.data,
       reports: resReports.data,
       slideDecks: resSlideDecks.data,
+      slideDeckFolders: resSlideDeckFolders.data,
       projectUsers: fullProjectUsers,
     };
 

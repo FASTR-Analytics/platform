@@ -78,7 +78,7 @@ export function buildHitRegions(mPage: MeasuredPage): PageHitTarget[] {
 
   // For freeform pages, add layout and gap regions
   if (mPage.type === "freeform") {
-    walkMeasuredLayoutForItems(mPage.mLayout, regions);
+    collectItemHitRegions(mPage.mLayout, regions);
     addGapHitRegions(mPage, regions);
   }
 
@@ -128,15 +128,29 @@ function addGapHitRegions(
   }
 }
 
-function walkMeasuredLayoutForItems(
+function collectItemHitRegions(
   node: MeasuredLayoutNode<PageContentItem>,
   regions: PageHitTarget[],
 ): void {
   if (node.type === "item") {
     regions.push({ type: "layoutItem", rcd: node.rpd, node });
+  } else if (node.type === "cols") {
+    for (const child of node.children) {
+      if (child.type === "item") {
+        const rcd = new RCD([
+          child.rpd.x(),
+          child.rpd.y(),
+          child.rpd.w(),
+          node.rpd.h(),
+        ]);
+        regions.push({ type: "layoutItem", rcd, node: child });
+      } else {
+        collectItemHitRegions(child, regions);
+      }
+    }
   } else {
     for (const child of node.children) {
-      walkMeasuredLayoutForItems(child, regions);
+      collectItemHitRegions(child, regions);
     }
   }
 }

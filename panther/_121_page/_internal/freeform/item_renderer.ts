@@ -17,7 +17,7 @@ export function renderItem(
   node: MeasuredLayoutNode<PageContentItem> & { type: "item" },
 ): void {
   const item = node.data;
-  const rcd = node.rpd;
+  const rcd = node.contentRpd;
 
   if (MarkdownRenderer.isType(item)) {
     MarkdownRenderer.measureAndRender(rc, rcd, item);

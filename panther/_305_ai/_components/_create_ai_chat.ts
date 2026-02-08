@@ -91,11 +91,13 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   const usage = () => store().usage[0]();
   const setUsage = (u: Usage | null) => store().usage[1](u);
   const currentStreamingText = () => store().currentStreamingText[0]();
-  const setCurrentStreamingText = (t: string | undefined) => store().currentStreamingText[1](t);
+  const setCurrentStreamingText = (t: string | undefined) =>
+    store().currentStreamingText[1](t);
   const usageHistory = () => store().usageHistory[0]();
   const setUsageHistory = (h: Usage[]) => store().usageHistory[1](h);
   const serverToolLabel = () => store().serverToolLabel[0]();
-  const setServerToolLabel = (l: string | undefined) => store().serverToolLabel[1](l);
+  const setServerToolLabel = (l: string | undefined) =>
+    store().serverToolLabel[1](l);
 
   const toolRegistry = new ToolRegistry();
   if (config.tools) {
@@ -174,7 +176,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
         // Update title from first message
         if (isFirstMessage && conversationsContext) {
-          conversationsContext.updateTitleFromFirstMessage(conversationId(), userMessage);
+          conversationsContext.updateTitleFromFirstMessage(
+            conversationId(),
+            userMessage,
+          );
         }
       }
     }
@@ -258,13 +263,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           const label = toolName ? SERVER_TOOL_LABELS[toolName] : undefined;
           if (label) {
             setServerToolLabel(label);
-          }
-        }
-        // Handle new text block - add paragraph break if we already have text
-        if (streamEvent.content_block?.type === "text") {
-          const current = currentStreamingText();
-          if (current && current.length > 0) {
-            setCurrentStreamingText(current + "\n\n");
           }
         }
       }

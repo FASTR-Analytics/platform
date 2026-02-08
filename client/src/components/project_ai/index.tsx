@@ -27,7 +27,7 @@ export function AIProjectWrapper(props: AIProjectWrapperProps) {
 }
 
 function AIProjectWrapperInner(props: AIProjectWrapperProps) {
-  const { aiContext, setDraftContent, notifyAI } = useAIProjectContext();
+  const { aiContext, notifyAI } = useAIProjectContext();
   const projectDetail = useProjectDetail();
   const addListener = useLastUpdatedListener();
   const projectId = projectDetail.id;
@@ -82,7 +82,6 @@ function AIProjectWrapperInner(props: AIProjectWrapperProps) {
       modules: projectDetail.projectModules,
       metrics: projectDetail.metrics,
       aiContext: aiContext,
-      setDraftContent,
     });
   });
 

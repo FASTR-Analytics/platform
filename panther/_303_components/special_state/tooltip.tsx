@@ -103,15 +103,13 @@ export function Tooltip(props: TooltipProps): JSX.Element {
       <Show when={isVisible()}>
         <div
           class="bg-base-content text-base-100 fixed z-50 whitespace-nowrap rounded px-2 py-1 text-sm shadow-lg"
-          style={
-            {
-              left: `${position().x}px`,
-              top: `${position().y}px`,
-              transform: getTransform(),
-              "transform-origin": getTransformOrigin(),
-              "pointer-events": "none",
-            } as JSX.CSSProperties
-          }
+          style={{
+            left: `${position().x}px`,
+            top: `${position().y}px`,
+            transform: getTransform(),
+            "transform-origin": getTransformOrigin(),
+            "pointer-events": "none",
+          } as JSX.CSSProperties}
         >
           {props.content}
         </div>

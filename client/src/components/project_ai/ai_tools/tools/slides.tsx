@@ -10,10 +10,10 @@ import {
   type Slide,
   type MetricWithStatus,
 } from "lib";
-import { convertAiInputToSlide } from "~/components/slide_deck/utils/convert_ai_input_to_slide";
-import { simplifySlideForAI } from "~/components/slide_deck/utils/extract_blocks_from_layout";
-import { getSlideWithUpdatedBlocks } from "~/components/slide_deck/utils/get_slide_with_updated_blocks";
-import { getDeckSummaryForAI } from "~/components/slide_deck/utils/get_deck_summary";
+import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
+import { simplifySlideForAI } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
+import { getSlideWithUpdatedBlocks } from "~/components/slide_deck/slide_ai/get_slide_with_updated_blocks";
+import { getDeckSummaryForAI } from "~/components/slide_deck/slide_ai/get_deck_summary";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { validateMaxContentBlocks, validateNoMarkdownTables } from "../validators/content_validators";
 import type { AIContext } from "~/components/project_ai/types";
@@ -111,7 +111,7 @@ export function getToolsForSlides(
           }
         }
 
-        const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics);
+        const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, ctx.getDeckConfig());
 
         const res = await serverActions.createSlide({
           projectId,
@@ -162,7 +162,7 @@ export function getToolsForSlides(
           }
         }
 
-        const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics);
+        const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, ctx.getDeckConfig());
 
         const res = await serverActions.updateSlide({
           projectId,

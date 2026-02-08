@@ -8,14 +8,11 @@ setGlobalStyle({
   scale: 1,
   baseText: {
     font: { fontFamily: "Inter", weight: 400, italic: false },
-    fontSize: 40,
+    fontSize: 24,
     lineHeight: 1.4,
   },
   page: {
     text: {
-      header: {
-        relFontSize: 0.5
-      },
       watermark: {
         font: { fontFamily: "Inter", weight: 800, italic: false },
         color: _COLOR_WATERMARK_GREY,

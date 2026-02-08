@@ -44,14 +44,12 @@ export type CustomPageStyleOptions = {
     backgroundColor?: ColorKeyOrString;
     gapX?: number;
     gapY?: number;
-    nColumns?: number;
   };
   layoutContainers?: {
     padding?: PaddingOptions;
     backgroundColor?: ColorKeyOrString;
     borderColor?: ColorKeyOrString;
     borderWidth?: number;
-    borderRadius?: number;
   };
 };
 

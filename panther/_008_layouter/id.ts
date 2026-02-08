@@ -5,6 +5,7 @@
 
 import type {
   ColsLayoutNode,
+  IdGenerator,
   ItemLayoutNode,
   LayoutNode,
   LayoutNodeId,
@@ -18,9 +19,10 @@ export function generateLayoutId(): LayoutNodeId {
 export function createRowsNode<U>(
   children: LayoutNode<U>[],
   options?: Partial<Omit<RowsLayoutNode<U>, "type" | "children">>,
+  idGenerator?: IdGenerator,
 ): RowsLayoutNode<U> {
   return {
-    id: generateLayoutId(),
+    id: (idGenerator ?? generateLayoutId)(),
     type: "rows",
     children,
     ...options,
@@ -30,9 +32,10 @@ export function createRowsNode<U>(
 export function createColsNode<U>(
   children: LayoutNode<U>[],
   options?: Partial<Omit<ColsLayoutNode<U>, "type" | "children">>,
+  idGenerator?: IdGenerator,
 ): ColsLayoutNode<U> {
   return {
-    id: generateLayoutId(),
+    id: (idGenerator ?? generateLayoutId)(),
     type: "cols",
     children,
     ...options,
@@ -42,9 +45,10 @@ export function createColsNode<U>(
 export function createItemNode<U>(
   data: U,
   options?: Partial<Omit<ItemLayoutNode<U>, "type" | "data">>,
+  idGenerator?: IdGenerator,
 ): ItemLayoutNode<U> {
   return {
-    id: generateLayoutId(),
+    id: (idGenerator ?? generateLayoutId)(),
     type: "item",
     data,
     ...options,

@@ -12,6 +12,7 @@ import { presentationObjectRouteRegistry } from "./project/presentation-objects.
 import { projectRouteRegistry } from "./project/projects.ts";
 import { reportRouteRegistry } from "./project/reports.ts";
 import { slideDeckRouteRegistry } from "./project/slide-decks.ts";
+import { slideDeckFolderRouteRegistry } from "./project/slide-deck-folders.ts";
 import { slideRouteRegistry } from "./project/slides.ts";
 import { visualizationFolderRouteRegistry } from "./project/visualization-folders.ts";
 
@@ -31,6 +32,7 @@ export const routeRegistry = {
   ...presentationObjectRouteRegistry,
   ...reportRouteRegistry,
   ...slideDeckRouteRegistry,
+  ...slideDeckFolderRouteRegistry,
   ...slideRouteRegistry,
   ...visualizationFolderRouteRegistry,
 } as const;

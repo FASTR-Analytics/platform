@@ -379,8 +379,10 @@ export function generateContentPrimitives(
 
           // Get bounds from tiers 1 & 2 (same series, same indicator)
           // Mirrors series uncertainty: series 0 rendered, series 1 & 2 are bounds
-          const bound1 = params.allTiersMappedCoordinates?.[1]?.[i_series]?.[i_val];
-          const bound2 = params.allTiersMappedCoordinates?.[2]?.[i_series]?.[i_val];
+          const bound1 = params.allTiersMappedCoordinates?.[1]?.[i_series]
+            ?.[i_val];
+          const bound2 = params.allTiersMappedCoordinates?.[2]?.[i_series]
+            ?.[i_val];
 
           if (bound1 && bound2) {
             // Auto-detect which is upper/lower by comparing values (same as series uncertainty)

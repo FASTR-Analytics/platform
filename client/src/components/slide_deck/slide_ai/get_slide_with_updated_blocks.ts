@@ -53,6 +53,7 @@ export async function getSlideWithUpdatedBlocks(
       return {
         type: "item",
         id: node.id,
+        span: node.span,
         data: updatedBlock || node.data,
       };
     }
@@ -61,6 +62,7 @@ export async function getSlideWithUpdatedBlocks(
     return {
       type: node.type,
       id: node.id,
+      span: node.span,
       children: node.children.map(updateLayoutNode),
     };
   }

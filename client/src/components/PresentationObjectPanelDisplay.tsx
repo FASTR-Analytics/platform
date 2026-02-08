@@ -306,8 +306,9 @@ export function PresentationObjectPanelDisplay(p: Props) {
 
   return (
     <FrameLeftResizable
-      startingWidth={250}
-      minWidth={180}
+      startingWidth={180}
+      minWidth={170}
+      maxWidth={300}
       panelChildren={
         <div class="border-base-300 flex h-full w-full flex-col border-r">
           <div class="border-base-300 border-b p-3 flex flex-col gap-2">
@@ -860,10 +861,9 @@ function VisualizationCard(p: VisualizationCardProps) {
   return (
     <div
       class="group bg-base-100 ring-offset-[6px] grid grid-rows-subgrid row-span-3 gap-y-1"
-      onContextMenu={handleContextMenu}
     >
       <div class="ui-gap-sm flex items-end pb-1">
-        <div class="font-400 text-base-content text-xs italic select-none">{p.po.label}</div>
+        <div class="font-400 text-base-content text-xs italic select-none pointer-events-none">{p.po.label}</div>
       </div>
       <Show
         when={isReady()}
@@ -873,7 +873,7 @@ function VisualizationCard(p: VisualizationCardProps) {
           </div>
         }
       >
-        <div class="relative border-2 p-2 rounded cursor-pointer"
+        <div class="relative border p-2 rounded cursor-pointer"
           classList={{
             "border-base-300": !p.isSelected,
             "border-primary": p.isSelected,
@@ -883,6 +883,7 @@ function VisualizationCard(p: VisualizationCardProps) {
             e.stopPropagation();
             p.onCardClick(e, false);
           }}
+          onContextMenu={handleContextMenu}
         >
           <div class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
             classList={{

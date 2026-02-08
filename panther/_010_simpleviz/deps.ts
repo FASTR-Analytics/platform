@@ -6,41 +6,12 @@
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { getAdjustedFont } from "../_001_font/mod.ts";
-export type {
-  CustomStyleTextOptions,
-  TextInfo,
-  TextInfoUnkeyed,
-} from "../_001_font/mod.ts";
-export {
-  Coordinates,
-  getAnchorCoords,
-  Padding,
-  RectCoordsDims,
-} from "../_001_geometry/mod.ts";
-export type {
-  AnchorPoint,
-  CoordinatesOptions,
-  PaddingOptions,
-} from "../_001_geometry/mod.ts";
-export { computeBoundsForPath, Z_INDEX } from "../_001_render_system/mod.ts";
-export type {
-  BoxPrimitive,
-  HeightConstraints,
-  LineStyle,
-  Measured,
-  MeasuredText,
-  Primitive,
-  RenderContext,
-  Renderer,
-} from "../_001_render_system/mod.ts";
+export type { CustomStyleTextOptions, TextInfo, TextInfoUnkeyed } from "../_001_font/mod.ts";
+export { Coordinates, Padding, RectCoordsDims, getAnchorCoords } from "../_001_geometry/mod.ts";
+export type { AnchorPoint, CoordinatesOptions, PaddingOptions } from "../_001_geometry/mod.ts";
+export { Z_INDEX, computeBoundsForPath } from "../_001_render_system/mod.ts";
+export type { BoxPrimitive, HeightConstraints, LineStyle, Measured, MeasuredText, Primitive, RenderContext, Renderer } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedSimpleVizStyle } from "../_003_figure_style/mod.ts";
-export {
-  generateSurroundsPrimitives,
-  measureSurrounds,
-  renderFigurePrimitives,
-} from "../_007_figure_core/mod.ts";
-export type {
-  FigureInputsBase,
-  MeasuredSurrounds,
-} from "../_007_figure_core/mod.ts";
+export { generateSurroundsPrimitives, measureSurrounds, renderFigurePrimitives } from "../_007_figure_core/mod.ts";
+export type { FigureInputsBase, MeasuredSurrounds } from "../_007_figure_core/mod.ts";

@@ -145,16 +145,8 @@ function assignDisaggregationsToSlots(
   config: PresentationObjectConfig,
   displayDisaggregations: DisaggregationOption[],
 ): void {
-  const displayMap = new Map(
-    // Could put explicit disaggregations here
-  );
-
   for (const dis of displayDisaggregations) {
-    const explicitDisplay = displayMap.get(dis);
-    const disDisplayOpt = explicitDisplay
-      ? explicitDisplay as PresentationObjectConfig["d"]["disaggregateBy"][number]["disDisplayOpt"]
-      : getNextAvailableDisaggregationDisplayOption(resultsValueForViz, config, dis);
-
+    const disDisplayOpt = getNextAvailableDisaggregationDisplayOption(resultsValueForViz, config, dis);
     config.d.disaggregateBy.push({
       disOpt: dis,
       disDisplayOpt,

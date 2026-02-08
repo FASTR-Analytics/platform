@@ -69,7 +69,9 @@ export function generateConversationId(): string {
 
 export function generateDefaultTitle(): string {
   const now = new Date();
-  return `Chat ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  return `Chat ${now.toLocaleDateString()} ${
+    now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  }`;
 }
 
 export function generateTitleFromMessage(message: string): string {

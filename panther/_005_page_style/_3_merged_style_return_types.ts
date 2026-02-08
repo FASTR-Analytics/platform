@@ -58,13 +58,11 @@ export type MergedPageStyle = {
     backgroundColor: string;
     gapX: number;
     gapY: number;
-    nColumns: number;
   };
   layoutContainers: {
     padding: Padding;
     backgroundColor: string;
     borderColor: string;
     borderWidth: number;
-    borderRadius: number;
   };
 };

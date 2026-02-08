@@ -1,8 +1,6 @@
 import { AIChat, Button, createAIChat, MenuTriggerWrapper, openComponent, openConfirm, useConversations, type MenuItem } from "panther";
-import { Show } from "solid-js";
 import { t } from "lib";
 import { useAIProjectContext } from "./context";
-import { DraftPreview } from "./draft_preview";
 import { setShowAi } from "~/state/ui";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
 import { ConversationSelectorModal } from "./ConversationSelectorModal";
@@ -13,7 +11,7 @@ type ConsolidatedChatPaneProps = {
 };
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
-  const { aiContext, draftContent, getPendingInteractionsMessage, clearPendingInteractions } = useAIProjectContext();
+  const { aiContext, getPendingInteractionsMessage, clearPendingInteractions } = useAIProjectContext();
   const { conversationId, isLoading, sendMessage } = createAIChat();
   const conversations = useConversations();
 
@@ -170,9 +168,6 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         </div>
       </div>
 
-      <Show when={draftContent()}>
-        <DraftPreview />
-      </Show>
 
       <AIDocumentList
         documents={p.aiDocs.documents()}

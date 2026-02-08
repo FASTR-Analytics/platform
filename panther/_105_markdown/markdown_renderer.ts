@@ -234,6 +234,10 @@ export const MarkdownRenderer: Renderer<
     const bounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 99999 });
     const measured = measureMarkdown(rc, bounds, input);
     const h = measured.bounds.h();
-    return { minH: h, idealH: h, maxH: h, neededScalingToFitWidth };
+
+    // Empty markdown should be growable (like placeholder)
+    const maxH = input.markdown.trim() === "" ? Infinity : h;
+
+    return { minH: h, idealH: h, maxH, neededScalingToFitWidth };
   },
 };

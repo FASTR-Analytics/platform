@@ -51,7 +51,15 @@ export async function adaptLegacyReportItemConfig(
   }
 
   // Adapter 2: Convert moduleId → metricId (if needed)
+  // Adapter 3: Convert placeholder → text (2026-02-07)
   await walkLayoutTreeAsync(content, async (item: ReportItemContentItem) => {
+    // Adapter 3: Convert placeholder to empty text
+    if ((item as any).type === "placeholder") {
+      item.type = "text";
+      item.markdown = "";
+    }
+
+    // Adapter 2: moduleId → metricId
     const poInfo = item.presentationObjectInReportInfo as
       | { id: string; moduleId: string; metricId?: string }
       | { id: string; metricId: string; moduleId?: string }

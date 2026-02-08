@@ -12,12 +12,13 @@ import type {
   FigureSource,
   AiSlideInput,
   MetricWithStatus,
+  SlideDeckConfig,
 } from "lib";
 import { FIGURE_AUTOFIT, MARKDOWN_AUTOFIT } from "lib";
-import { slideDeckStyle } from "./convert_slide_to_page_inputs";
+import { buildStyleForSlide } from "../slide_rendering/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
-import { generateUniqueBlockId } from "~/utils/id_generation";
+import { createIdGeneratorForLayout } from "~/utils/id_generation";
 
 /**
  * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>)
@@ -26,6 +27,7 @@ export async function convertAiInputToSlide(
   projectId: string,
   slideInput: AiSlideInput,
   metrics: MetricWithStatus[],
+  deckConfig: SlideDeckConfig,
 ): Promise<Slide> {
   // Cover and section pass through unchanged
   if (slideInput.type === "cover" || slideInput.type === "section") {
@@ -77,26 +79,24 @@ export async function convertAiInputToSlide(
 
   // Extract PageContentItems and build ID → source map
   const sourceMap = new Map<string, FigureSource>();
+  const generateId = createIdGeneratorForLayout();
   const itemNodes = resolvedBlocks.map((block) => {
     let pageItem: PageContentItem;
     if (block.type === "text") {
       pageItem = { markdown: block.markdown, autofit: MARKDOWN_AUTOFIT };
-    } else if (block.type === "placeholder") {
-      pageItem = { spacer: true };
     } else if (block.type === "image") {
-      // ImageBlock not supported in AI input - return spacer
       pageItem = { spacer: true };
-    } else {
+    } else if (block.figureInputs) {
       pageItem = { ...block.figureInputs, autofit: FIGURE_AUTOFIT };
+    } else {
+      pageItem = { spacer: true };
     }
 
     const node = createItemNode(pageItem);
 
-    // Override panther UUID with short ID
-    const shortId = generateUniqueBlockId();
+    const shortId = generateId();
     const nodeWithShortId = { ...node, id: shortId };
 
-    // Store figure source metadata by short ID
     if (block.type === "figure" && block.source) {
       sourceMap.set(shortId, block.source);
     }
@@ -108,15 +108,13 @@ export async function convertAiInputToSlide(
   const rc = createCanvasRenderContextBrowser();
   const bounds = new RectCoordsDims([0, 0, 1920, 1080]);
 
-  console.log("Optimising")
   const optimized = optimizePageLayout(
     rc,
     bounds,
     itemNodes,
-    slideDeckStyle,
+    buildStyleForSlide({ type: "content", header: slideInput.header, layout: { type: "item", id: "tmp", data: { type: "text", markdown: "" } } }, deckConfig),
     undefined,
-    {debug: true}
-    // undefined  // No constraint - let optimizer decide
+    undefined,
   );
 
   // Restore metadata into layout (IDs are preserved by optimizer)
@@ -143,9 +141,13 @@ function restoreMetadata(
     // Determine if text or figure
     const isText = "markdown" in pageItem;
 
-    const contentBlock: ContentBlock = isText
-      ? { type: "text", markdown: pageItem.markdown }
-      : { type: "figure", figureInputs: pageItem as any, source };
+    let contentBlock: ContentBlock;
+    if (isText) {
+      contentBlock = { type: "text", markdown: pageItem.markdown };
+    } else {
+      const { autofit, ...figureInputs } = pageItem as any;
+      contentBlock = { type: "figure", figureInputs, source };
+    }
 
     return { type: "item", id: node.id, span: node.span, data: contentBlock };
   }

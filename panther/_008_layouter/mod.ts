@@ -8,6 +8,7 @@ export type {
   ContainerLayoutNode,
   ContainerStyleOptions,
   HeightConstraints,
+  IdGenerator,
   ItemHeightMeasurer,
   ItemLayoutNode,
   LayoutGap,
@@ -37,7 +38,7 @@ export {
 export { measureLayout } from "./measure.ts";
 export type { MeasureLayoutOptions } from "./measure.ts";
 
-export { walkLayout } from "./walk.ts";
+export { findFirstItem, walkLayout } from "./walk.ts";
 export type { LayoutVisitor } from "./walk.ts";
 
 export { renderContainerStyle } from "./render.ts";
@@ -63,15 +64,16 @@ export { updateLayout } from "./update.ts";
 export {
   addCol,
   addRow,
+  applyDividerDragUpdate,
+  canSplitIntoColumns,
   deleteNode,
   deleteNodeWithCleanup,
+  getMinimumSpan,
   insertSibling,
-  moveNode,
   moveNodeDown,
   moveNodeLeft,
   moveNodeRight,
   moveNodeUp,
-  reorderNode,
   setColumnSpan,
   simplifyLayout,
   splitIntoColumns,
@@ -79,9 +81,6 @@ export {
   updateNodeData,
   updateNodeStyle,
 } from "./operations.ts";
-
-export { getColWidths, getWidthForSpan } from "./col_widths.ts";
-export type { ColWidthInfo } from "./col_widths.ts";
 
 export { optimizeLayout } from "./optimizer.ts";
 export type {
@@ -91,3 +90,5 @@ export type {
   OptimizerConstraint,
   OptimizeResult,
 } from "./optimizer.ts";
+
+export { normalizeLayout, validateLayout } from "./_internal/normalize.ts";

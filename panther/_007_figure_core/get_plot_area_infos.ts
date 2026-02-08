@@ -33,7 +33,12 @@ export type PlotAreaInfoParams = {
   laneGapX: number;
 
   // Stacking mode (for uncertainty-tiers)
-  barStacking?: "none" | "stacked" | "imposed" | "uncertainty" | "uncertainty-tiers";
+  barStacking?:
+    | "none"
+    | "stacked"
+    | "imposed"
+    | "uncertainty"
+    | "uncertainty-tiers";
 };
 
 export function getPlotAreaInfos(params: PlotAreaInfoParams): PlotAreaInfo[] {

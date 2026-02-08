@@ -33,7 +33,12 @@ export function measureYScaleAxisWidthInfo(
   sg: MergedGridStyle,
   contentRcd: RectCoordsDims,
   i_pane: number,
-  barStacking?: "none" | "stacked" | "imposed" | "uncertainty" | "uncertainty-tiers",
+  barStacking?:
+    | "none"
+    | "stacked"
+    | "imposed"
+    | "uncertainty"
+    | "uncertainty-tiers",
 ): YScaleAxisWidthInfo {
   ///////////////////////
   //                   //
@@ -146,7 +151,12 @@ export function measureYScaleAxis(
   dy: YScaleAxisData,
   sy: MergedYScaleAxisStyle,
   contentRcd: RectCoordsDims,
-  barStacking?: "none" | "stacked" | "imposed" | "uncertainty" | "uncertainty-tiers",
+  barStacking?:
+    | "none"
+    | "stacked"
+    | "imposed"
+    | "uncertainty"
+    | "uncertainty-tiers",
 ): {
   yAxisRcd: RectCoordsDims;
   subChartAreaHeight: number;

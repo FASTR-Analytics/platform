@@ -49,6 +49,7 @@ export function ProjectRunnerProvider(p: Props) {
     visualizationFolders: [],
     reports: [],
     slideDecks: [],
+    slideDeckFolders: [],
     projectUsers: [],
   });
   const [isProjectReady, setIsProjectReady] = createSignal(false);

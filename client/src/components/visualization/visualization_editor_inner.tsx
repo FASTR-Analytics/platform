@@ -497,77 +497,95 @@ export function VisualizationEditorInner(p: InnerProps) {
     });
   }
 
-  const isEditable = p.mode !== "ephemeral";
   return (
     <EditorWrapperForResultsObject>
       <FrameTop
         panelChildren={
           <div class="ui-pad ui-gap flex items-center border-b">
             <div class="ui-gap-sm flex items-center">
-              <Show
-                when={
-                  (needsSave() || p.mode === "create") &&
-                  !p.projectDetail.isLocked &&
-                  !p.poDetail.isDefault &&
-                  isEditable
-                }
-                fallback={
+              <Switch>
+                <Match when={p.mode === "ephemeral"}>
+                  <Show
+                    when={needsSave()}
+                    fallback={
+                      <Button
+                        iconName="chevronLeft"
+                        onClick={() => (p.onClose as any)(undefined)}
+                      />
+                    }
+                  >
+                    <Button
+                      intent="success"
+                      onClick={() => (p.onClose as (result: EphemeralModeReturn) => void)({ updated: { config: unwrap(tempConfig) } })}
+                      iconName="check"
+                    >
+                      {t("Apply")}
+                    </Button>
+                    <Button
+                      outline
+                      onClick={() => (p.onClose as any)(undefined)}
+                      iconName="x"
+                    >
+                      {t2(T.FRENCH_UI_STRINGS.cancel)}
+                    </Button>
+                  </Show>
+                </Match>
+                <Match
+                  when={
+                    (needsSave() || p.mode === "create") &&
+                    !p.projectDetail.isLocked &&
+                    !p.poDetail.isDefault
+                  }
+                >
+                  <Switch>
+                    <Match when={p.mode === "create"}>
+                      <Button
+                        intent="success"
+                        onClick={saveAsNewVisualization}
+                        iconName="save"
+                      >
+                        {t("Save as new visualization")}
+                      </Button>
+                    </Match>
+                    <Match when={true}>
+                      <>
+                        <Button
+                          intent="success"
+                          onClick={saveAndClose.click}
+                          state={saveAndClose.state()}
+                          iconName="save"
+                        >
+                          {t2(T.FRENCH_UI_STRINGS.save_and_close)}
+                        </Button>
+                        <Button
+                          intent="success"
+                          onClick={save.click}
+                          state={save.state()}
+                          iconName="save"
+                        >
+                          {t2(T.FRENCH_UI_STRINGS.save)}
+                        </Button>
+                      </>
+                    </Match>
+                  </Switch>
+                  <Button
+                    outline
+                    onClick={() => (p.onClose as any)(undefined)}
+                    iconName="x"
+                  >
+                    {t2(T.FRENCH_UI_STRINGS.cancel)}
+                  </Button>
+                </Match>
+                <Match when={true}>
                   <Button
                     iconName="chevronLeft"
                     onClick={() => (p.onClose as any)(undefined)}
                   />
-                }
-              >
-                <Switch>
-                  <Match
-                    when={p.mode === "create"}
-                  >
-                    <Button
-                      intent="success"
-                      onClick={saveAsNewVisualization}
-                      iconName="save"
-                    >
-                      {t("Save as new visualization")}
-                    </Button>
-                  </Match>
-                  <Match when={true}>
-                    <>
-                      <Button
-                        intent="success"
-                        onClick={saveAndClose.click}
-                        state={saveAndClose.state()}
-                        iconName="save"
-                      >
-                        {t2(T.FRENCH_UI_STRINGS.save_and_close)}
-                      </Button>
-                      <Button
-                        intent="success"
-                        onClick={save.click}
-                        state={save.state()}
-                        iconName="save"
-                      >
-                        {t2(T.FRENCH_UI_STRINGS.save)}
-                      </Button>
-                    </>
-
-                  </Match>
-                </Switch>
-                <Button
-                  intent="neutral"
-                  onClick={() => (p.onClose as any)(undefined)}
-                  iconName="x"
-                >
-                  {t2(T.FRENCH_UI_STRINGS.cancel)}
-                </Button>
-              </Show>
+                </Match>
+              </Switch>
             </div>
             <div class="font-700 flex flex-1 items-center truncate text-xl">
               <span class="font-400">{p.poDetail.label}</span>
-              <Show when={p.mode === "ephemeral"}>
-                <span class="border-warning bg-base-100 font-400 text-warning ml-4 truncate rounded border px-2 py-1 text-xs">
-                  {t("View Only")}
-                </span>
-              </Show>
               <Show when={p.poDetail.isDefault}>
                 <span class="border-primary bg-base-100 font-400 text-primary ml-4 truncate rounded border px-2 py-1 text-xs">
                   {t2(T.FRENCH_UI_STRINGS.default)}

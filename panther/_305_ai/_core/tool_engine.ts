@@ -215,7 +215,3 @@ export async function processToolUses(
     successItems,
   };
 }
-
-export function getInProgressLabel(toolName: string, _input: unknown): string {
-  return `Processing ${toolName}...`;
-}

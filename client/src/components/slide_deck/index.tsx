@@ -1,4 +1,4 @@
-import { type InstanceDetail, type ProjectDetail, type Slide } from "lib";
+import { type InstanceDetail, type ProjectDetail, type Slide, type SlideDeckConfig, getStartingConfigForReport, t, t2, T } from "lib";
 import {
   createAIChat,
   EditorComponentProps,
@@ -12,9 +12,10 @@ import { useOptimisticSetLastUpdated, useProjectDirtyStates } from "../project_r
 import { DownloadSlideDeck } from "./download_slide_deck";
 import { SlideEditor } from "./slide_editor";
 import { SlideList } from "./slide_list";
-import { EditLabelForm } from "../forms_editors/edit_label";
+import { ReportSettings, type ReportSettingsProps } from "../report/report_settings";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext } from "../project_ai/types";
+import { snapshotForSlideEditor } from "~/utils/snapshot";
 
 type SlideDeckModalReturn = undefined;
 
@@ -44,13 +45,8 @@ export function ProjectAiSlideDeck(p: Props) {
   const [slideIds, setSlideIds] = createSignal<string[]>([]);
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedSlideIds, setSelectedSlideIds] = createSignal<string[]>([]);
-
-  // const aiDocs = useAIDocuments({
-  //   projectId,
-  //   conversationId: `ai-slide-deck-${p.deckId}`
-  // });
-
   const [deckLabel, setDeckLabel] = createSignal(p.reportLabel);
+  const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(getStartingConfigForReport(p.reportLabel));
 
   // Load deck metadata and set AI context on mount
   onMount(async () => {
@@ -59,6 +55,7 @@ export function ProjectAiSlideDeck(p: Props) {
     if (deckRes.success) {
       setSlideIds(deckRes.data.slideIds);
       setDeckLabel(deckRes.data.label);
+      setDeckConfig(deckRes.data.config);
     }
     setIsLoading(false);
 
@@ -67,6 +64,7 @@ export function ProjectAiSlideDeck(p: Props) {
       mode: "editing_slide_deck",
       deckId: p.deckId,
       deckLabel: deckLabel(),
+      getDeckConfig: () => deckConfig(),
       getSlideIds: () => slideIds(),
       getSelectedSlideIds: () => selectedSlideIds(),
       optimisticSetLastUpdated,
@@ -86,6 +84,7 @@ export function ProjectAiSlideDeck(p: Props) {
         if (res.success) {
           setSlideIds(res.data.slideIds);
           setDeckLabel(res.data.label);
+          setDeckConfig(res.data.config);
         }
       });
     }
@@ -98,6 +97,7 @@ export function ProjectAiSlideDeck(p: Props) {
       isGlobalAdmin={p.isGlobalAdmin}
       deckId={p.deckId}
       deckLabel={deckLabel()}
+      deckConfig={deckConfig()}
       optimisticSetLastUpdated={optimisticSetLastUpdated}
       slideIds={slideIds()}
       isLoading={isLoading()}
@@ -113,35 +113,36 @@ function ProjectAiSlideDeckInner(p: {
   isGlobalAdmin: boolean;
   deckId: string;
   deckLabel: string;
+  deckConfig: SlideDeckConfig;
   optimisticSetLastUpdated: ReturnType<typeof useOptimisticSetLastUpdated>;
   slideIds: string[];
   isLoading: boolean;
   setSelectedSlideIds: (ids: string[]) => void;
   handleClose: () => Promise<void>;
-  // aiDocs: ReturnType<typeof useAIDocuments>;
 }) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
-
+  const { openEditor: openSettingsEditor, EditorWrapper: SettingsEditorWrapper } = getEditorWrapper();
 
   // Editor state
   const [editingSlideId, setEditingSlideId] = createSignal<string | undefined>();
 
-  async function handleEditLabel() {
-    await openComponent({
-      element: EditLabelForm,
+  async function handleOpenSettings() {
+    await openSettingsEditor<ReportSettingsProps, "AFTER_DELETE">({
+      element: ReportSettings,
       props: {
-        headerText: "Edit slide deck name",
-        existingLabel: p.deckLabel,
-        mutateFunc: async (newLabel) => {
-          const res = await serverActions.updateSlideDeckLabel({
+        projectId: p.projectDetail.id,
+        config: p.deckConfig,
+        heading: t("Slide deck settings"),
+        nameLabel: t("Slide deck name"),
+        showPageNumbersSuffix: t2(T.FRENCH_UI_STRINGS.except_on_cover_and_section_sl),
+        saveConfig: (config) =>
+          serverActions.updateSlideDeckConfig({
             projectId: p.projectDetail.id,
             deck_id: p.deckId,
-            label: newLabel,
-          });
-          if (res.success) {
-            p.optimisticSetLastUpdated("slide_decks", p.deckId, res.data.lastUpdated);
-          }
-          return res;
+            config,
+          }),
+        onSaved: async (lastUpdated) => {
+          p.optimisticSetLastUpdated("slide_decks", p.deckId, lastUpdated);
         },
       },
     });
@@ -180,11 +181,14 @@ function ProjectAiSlideDeckInner(p: {
         projectId: p.projectDetail.id,
         deckId: p.deckId,
         slideId: slideId,
-        slide: slide,
         lastUpdated: lastUpdated,
-        instanceDetail: p.instanceDetail,
-        projectDetail: p.projectDetail,
         isGlobalAdmin: p.isGlobalAdmin,
+        slide,
+        ...snapshotForSlideEditor({
+          projectDetail: p.projectDetail,
+          instanceDetail: p.instanceDetail,
+          deckConfig: p.deckConfig,
+        }),
       },
     });
 
@@ -196,19 +200,22 @@ function ProjectAiSlideDeckInner(p: {
   }
 
   return (
-    <EditorWrapper>
-      <SlideList
-        projectDetail={p.projectDetail}
-        deckId={p.deckId}
-        slideIds={p.slideIds}
-        isLoading={p.isLoading}
-        setSelectedSlideIds={p.setSelectedSlideIds}
-        onEditSlide={handleEditSlide}
-        deckLabel={p.deckLabel}
-        handleClose={p.handleClose}
-        handleEditLabel={handleEditLabel}
-        download={download}
-      />
-    </EditorWrapper >
+    <SettingsEditorWrapper>
+      <EditorWrapper>
+        <SlideList
+          projectDetail={p.projectDetail}
+          deckId={p.deckId}
+          slideIds={p.slideIds}
+          isLoading={p.isLoading}
+          setSelectedSlideIds={p.setSelectedSlideIds}
+          onEditSlide={handleEditSlide}
+          deckLabel={p.deckLabel}
+          handleClose={p.handleClose}
+          handleOpenSettings={handleOpenSettings}
+          download={download}
+          deckConfig={p.deckConfig}
+        />
+      </EditorWrapper>
+    </SettingsEditorWrapper>
   );
 }

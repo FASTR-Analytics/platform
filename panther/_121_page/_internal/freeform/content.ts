@@ -79,7 +79,6 @@ export function measureContent(
       s.content.gapX,
       s.content.gapY,
       itemMeasurer,
-      s.content.nColumns,
     );
     measured = result.measured;
     overflow = result.overflow;

@@ -1,6 +1,6 @@
 import { customAlphabet } from "nanoid";
 import type { ContentBlock } from "lib";
-import type { LayoutNode } from "panther";
+import type { IdGenerator, LayoutNode } from "panther";
 
 const alphabet = "23456789abcdefghjkmnpqrstuvwxyz";
 const generateId = customAlphabet(alphabet, 3);
@@ -28,4 +28,21 @@ export function generateUniqueBlockId(existingLayout?: LayoutNode<ContentBlock>)
     if (!existingIds.has(id)) return id;
   }
   throw new Error("Failed to generate unique block ID after 20 attempts");
+}
+
+export function createIdGeneratorForLayout(existingLayout?: LayoutNode<ContentBlock>): IdGenerator {
+  const existingIds = existingLayout ? getAllIdsInLayout(existingLayout) : new Set<string>();
+  const generatedIds = new Set<string>();
+
+  return () => {
+    const maxAttempts = 20;
+    for (let i = 0; i < maxAttempts; i++) {
+      const id = generateId();
+      if (!existingIds.has(id) && !generatedIds.has(id)) {
+        generatedIds.add(id);
+        return id;
+      }
+    }
+    throw new Error("Failed to generate unique block ID after 20 attempts");
+  };
 }

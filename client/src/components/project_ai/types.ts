@@ -2,7 +2,8 @@ import type {
   AiContentSlideInput,
   InstanceDetail,
   PresentationObjectConfig,
-  ResultsValue
+  ResultsValue,
+  SlideDeckConfig,
 } from "lib";
 import type { SetStoreFunction } from "solid-js/store";
 
@@ -48,6 +49,7 @@ export type AIContextEditingSlideDeck = {
   mode: "editing_slide_deck";
   deckId: string;
   deckLabel: string;
+  getDeckConfig: () => SlideDeckConfig;
   getSlideIds: () => string[];
   getSelectedSlideIds: () => string[];
   optimisticSetLastUpdated: (

@@ -143,10 +143,6 @@ export function ReportItemEditorContent(p: Props) {
                     label={t2(T.FRENCH_UI_STRINGS.content_type)}
                     options={[
                       {
-                        value: "placeholder",
-                        label: t2(T.FRENCH_UI_STRINGS.placeholder),
-                      },
-                      {
                         value: "figure",
                         label: t2(T.FRENCH_UI_STRINGS.visualization_1),
                       },
@@ -156,7 +152,7 @@ export function ReportItemEditorContent(p: Props) {
                     value={keyedItem.type}
                     onChange={(v) =>
                       updateItemType(
-                        v as "figure" | "placeholder" | "image" | "text",
+                        v as "figure" | "image" | "text",
                       )
                     }
                     fullWidth
@@ -442,38 +438,6 @@ export function ReportItemEditorContent(p: Props) {
                           onChange={(v) => updateContentProperty("imgFit", v as "cover" | "inside")}
                         />
                         {/* </Show> */}
-                      </Show>
-                    </div>
-                  </Match>
-                  <Match when={keyedItem.type === "placeholder"}>
-                    <div class="space-y-4">
-                      <Checkbox
-                        label={t2(T.FRENCH_UI_STRINGS.hide_placeholder_shading)}
-                        checked={keyedItem.placeholderInvisible}
-                        onChange={(ch) =>
-                          updateContentProperty("placeholderInvisible", ch)
-                        }
-                      />
-                      <Checkbox
-                        label={t2(T.Reports.stretch_to_fit)}
-                        checked={keyedItem.placeholderStretch}
-                        onChange={(ch) =>
-                          updateContentProperty("placeholderStretch", ch)
-                        }
-                      />
-                      <Show when={!keyedItem.placeholderStretch}>
-                        <Slider
-                          label={t("Height")}
-                          min={50}
-                          max={1500}
-                          step={50}
-                          value={keyedItem.placeholderHeight ?? 100}
-                          onChange={(v) =>
-                            updateContentProperty("placeholderHeight", v)
-                          }
-                          fullWidth
-                          showValueInLabel
-                        />
                       </Show>
                     </div>
                   </Match>

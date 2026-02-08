@@ -3,12 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { RectCoordsDims } from "./deps.ts";
+import { _GLOBAL_LAYOUT_COLUMNS, type RectCoordsDims } from "./deps.ts";
 import { createColsNode, createRowsNode } from "./id.ts";
-import { measureLayout } from "./measure.ts";
+import { createCachedMeasurer, measureLayout } from "./measure.ts";
 import { isMeasuredColsLayoutNode, isMeasuredRowsLayoutNode } from "./types.ts";
 import type {
-  HeightConstraints,
   ItemHeightMeasurer,
   ItemLayoutNode,
   LayoutNode,
@@ -20,7 +19,6 @@ const MAX_OPTIMIZER_ITEMS = 4;
 export type LayoutStyleConfig = {
   gapX: number;
   gapY: number;
-  nColumns: number;
 };
 
 export type OptimizerConstraint = {
@@ -30,8 +28,8 @@ export type OptimizerConstraint = {
 
 export type OptimizerConfig = {
   constraint?: OptimizerConstraint;
-  minSpan?: number; // Minimum span for columns (default: 1)
-  debug?: boolean; // Print debug info about scoring
+  minSpan?: number;
+  debug?: boolean;
 };
 
 export type LayoutScore = {
@@ -56,8 +54,8 @@ export type OptimizeResult<U> = {
 
 function generateSpanCombinations(
   n: number,
-  total: number = 12,
-  minSpan: number = 2,
+  total: number,
+  minSpan: number,
 ): number[][] {
   if (n === 1) return [[total]];
 
@@ -79,7 +77,6 @@ function generateSpanCombinations(
 
   recurse(total, n, []);
 
-  // Sort by balance (most balanced first)
   const mean = total / n;
   results.sort((a, b) => {
     const balanceA = a.reduce((sum, s) => sum + (s - mean) ** 2, 0);
@@ -94,7 +91,6 @@ function generateSpanCombinations(
 // Exhaustive Layout Generation
 // =============================================================================
 
-// Generate all contiguous partitions of items into 2+ groups
 function generatePartitions<T>(items: T[]): T[][][] {
   const n = items.length;
   if (n <= 1) return [];
@@ -102,8 +98,6 @@ function generatePartitions<T>(items: T[]): T[][][] {
   const results: T[][][] = [];
   const numDividers = n - 1;
 
-  // Each bit pattern represents where to place dividers
-  // Skip 0 (no dividers = would be single group)
   for (let mask = 1; mask < 1 << numDividers; mask++) {
     const partition: T[][] = [];
     let start = 0;
@@ -122,7 +116,6 @@ function generatePartitions<T>(items: T[]): T[][][] {
   return results;
 }
 
-// Cartesian product of arrays
 function cartesianProduct<T>(arrays: T[][]): T[][] {
   if (arrays.length === 0) return [[]];
   if (arrays.length === 1) return arrays[0].map((x) => [x]);
@@ -145,12 +138,9 @@ function cartesianProduct<T>(arrays: T[][]): T[][] {
   return result;
 }
 
-// Recursively generate all possible layouts for a set of items
-// insideCols: if true, we're generating children for a cols container
-//   - cols children must be single items wrapped in rows (no nested containers)
-//   - this prevents both nested cols AND rows-inside-cols that compress items
 function generateCandidatesExhaustive<U>(
   items: ItemLayoutNode<U>[],
+  nColumns: number,
   minSpan: number,
   constraint?: OptimizerConstraint,
   insideCols: boolean = false,
@@ -159,18 +149,11 @@ function generateCandidatesExhaustive<U>(
 
   if (n === 0) return [];
 
-  // Base case: single item - wrap in rows
   if (n === 1) {
     return [createRowsNode([items[0]])];
   }
 
-  // If we're inside cols, each "group" must be a single item
-  // This prevents stacking items inside a column (which compresses them)
   if (insideCols) {
-    // Only valid layout: all items as separate cols children
-    // Return a single rows node containing all items (will be cols children)
-    // Actually, for cols children, each child should be a single item
-    // The caller will handle wrapping in cols
     return [];
   }
 
@@ -178,18 +161,15 @@ function generateCandidatesExhaustive<U>(
   const allowRows = !constraint?.type || constraint.type === "rows";
   const allowCols = !constraint?.type || constraint.type === "cols";
 
-  // Get all partitions (splits into 2+ groups)
   const partitions = generatePartitions(items);
 
   for (const partition of partitions) {
     const k = partition.length;
 
-    // For rows: children can have any structure
     const groupLayoutsForRows: LayoutNode<U>[][] = partition.map((group) =>
-      generateCandidatesExhaustive(group, minSpan, undefined, false)
+      generateCandidatesExhaustive(group, nColumns, minSpan, undefined, false)
     );
 
-    // Generate rows combinations
     if (allowRows) {
       const combinations = cartesianProduct(groupLayoutsForRows);
       for (const combo of combinations) {
@@ -197,18 +177,15 @@ function generateCandidatesExhaustive<U>(
       }
     }
 
-    // For cols: each partition group must be exactly 1 item
-    // This means cols can only directly contain items, not nested structures
-    if (allowCols && k * minSpan <= 12) {
+    if (allowCols && k * minSpan <= nColumns) {
       const allSingleItems = partition.every((group) => group.length === 1);
       if (!allSingleItems) continue;
 
-      // Check if constraint specifies colCount
       if (constraint?.colCount && constraint.colCount !== k) {
         continue;
       }
 
-      const spanCombinations = generateSpanCombinations(k, 12, minSpan);
+      const spanCombinations = generateSpanCombinations(k, nColumns, minSpan);
       for (const spans of spanCombinations) {
         const colsChildren = partition.map((group, i) => ({
           ...createRowsNode([group[0]]),
@@ -243,23 +220,18 @@ function scoreLayout<U>(
     if (actualH < idealH) {
       shrinkPenalty += idealH - actualH;
     } else if (actualH > idealH) {
-      // Only penalize stretch for items with bounded maxH (can't visually fill)
-      // Items with very large maxH (like charts) look fine when stretched
       if (maxH < 10000) {
         stretchPenalty += actualH - idealH;
       }
     }
 
-    // Penalize scaling (width OR height)
     let worstScale = 1.0;
 
-    // Width-based scaling (from getIdealHeight)
     const widthScale = node.neededScalingToFitWidth;
     if (typeof widthScale === "number") {
       worstScale = Math.min(worstScale, widthScale);
     }
 
-    // Height-based scaling (estimated from allocated vs ideal)
     let heightScale = 1.0;
     if (actualH < idealH) {
       heightScale = actualH / idealH;
@@ -269,40 +241,38 @@ function scoreLayout<U>(
     if (debug && worstScale < 1.0) {
       console.log(
         `  Item w=${node.rpd.w().toFixed(0)} actualH=${
-          actualH.toFixed(0)
+          actualH.toFixed(
+            0,
+          )
         } idealH=${idealH.toFixed(0)} ` +
           `widthScale=${
             typeof widthScale === "number" ? widthScale.toFixed(2) : "none"
           } ` +
           `heightScale=${heightScale.toFixed(2)} worstScale=${
-            worstScale.toFixed(2)
+            worstScale.toFixed(
+              2,
+            )
           }`,
       );
     }
 
     if (worstScale < 1.0) {
-      // Use squared penalty to prefer equal scaling across items
       const scaleDiff = 1.0 - worstScale;
       scalePenalty += scaleDiff * scaleDiff * 10000;
     }
   });
 
   const heightImbalance = calculateHeightImbalance(measured);
-  // console.log("heightImbalance", heightImbalance);
 
   const overflowPenalty = overflow ? 100 : 0;
   const totalIdealHeight = sumIdealHeights(measured);
   const wastedSpace = Math.max(0, bounds.h() - totalIdealHeight);
-  // console.log("wastedSpace", wastedSpace);
 
   const total = overflowPenalty * 1000 +
     shrinkPenalty * 10 +
     stretchPenalty * 5 +
     scalePenalty * 8 +
     heightImbalance * 2;
-  // wastedSpace removed - don't penalize for having vertical breathing room
-
-  // console.log("Scoring", total);
 
   return {
     overflow: overflowPenalty,
@@ -321,7 +291,6 @@ function calculateHeightImbalance<U>(node: MeasuredLayoutNode<U>): number {
   if (isMeasuredColsLayoutNode(node)) {
     const children = node.children as MeasuredLayoutNode<U>[];
     const heights = children.map((child) => child.rpd.h());
-    // console.log(heights);
     if (heights.length >= 2) {
       const maxH = Math.max(...heights);
       const minH = Math.min(...heights);
@@ -369,31 +338,6 @@ function sumIdealHeights<U>(node: MeasuredLayoutNode<U>): number {
 }
 
 // =============================================================================
-// Measurement Cache
-// =============================================================================
-
-function createCachedMeasurer<T, U>(
-  itemMeasurer: ItemHeightMeasurer<T, U>,
-): ItemHeightMeasurer<T, U> {
-  const cache = new Map<string, HeightConstraints>();
-
-  return (
-    ctx: T,
-    node: ItemLayoutNode<U>,
-    width: number,
-  ): HeightConstraints => {
-    const key = `${node.id}:${width.toFixed(1)}`;
-    const cached = cache.get(key);
-    if (cached) {
-      return cached;
-    }
-    const result = itemMeasurer(ctx, node, width);
-    cache.set(key, result);
-    return result;
-  };
-}
-
-// =============================================================================
 // Debug Helpers
 // =============================================================================
 
@@ -404,7 +348,6 @@ function layoutToString<U>(node: LayoutNode<U>): string {
   if (node.type === "rows") {
     return `rows([${node.children.map(layoutToString).join(", ")}])`;
   }
-  // cols
   const spans = node.children.map((c) => c.span ?? "?").join(",");
   return `cols[${spans}]([${node.children.map(layoutToString).join(", ")}])`;
 }
@@ -422,7 +365,6 @@ export function optimizeLayout<T, U>(
   layoutTransform?: (layout: LayoutNode<U>) => LayoutNode<U>,
   config?: OptimizerConfig,
 ): OptimizeResult<U> {
-  // Error if too many items
   if (items.length > MAX_OPTIMIZER_ITEMS) {
     throw new Error(
       `Optimizer supports at most ${MAX_OPTIMIZER_ITEMS} items, got ${items.length}. ` +
@@ -430,23 +372,22 @@ export function optimizeLayout<T, U>(
     );
   }
 
-  const { gapX, gapY, nColumns } = style;
+  const nColumns = _GLOBAL_LAYOUT_COLUMNS;
+  const { gapX, gapY } = style;
   const minSpan = config?.minSpan ?? 1;
   const debug = config?.debug ?? false;
   const transform = layoutTransform ?? ((l) => l);
 
-  // Create cached measurer
   const cachedMeasurer = createCachedMeasurer(itemMeasurer);
 
-  // Generate all candidate layouts
   const candidates = generateCandidatesExhaustive(
     items,
+    nColumns,
     minSpan,
     config?.constraint,
   );
 
   if (candidates.length === 0) {
-    // Fallback: single rows node with no children
     const fallback = transform(createRowsNode<U>([]));
     const result = measureLayout(
       ctx,
@@ -455,7 +396,6 @@ export function optimizeLayout<T, U>(
       gapX,
       gapY,
       cachedMeasurer,
-      nColumns,
     );
     return {
       layout: fallback,
@@ -495,7 +435,6 @@ export function optimizeLayout<T, U>(
       gapX,
       gapY,
       cachedMeasurer,
-      nColumns,
     );
     const score = scoreLayout(result.measured, bounds, result.overflow, debug);
 
@@ -509,7 +448,6 @@ export function optimizeLayout<T, U>(
       bestScore = score;
     }
 
-    // Early exit on perfect score
     if (score.total === 0) break;
   }
 

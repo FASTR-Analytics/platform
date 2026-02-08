@@ -36,7 +36,10 @@ export type MenuItemDivider = {
   type: "divider";
 };
 
-export type MenuItem = MenuItemClickable | MenuItemWithSubmenu | MenuItemDivider;
+export type MenuItem =
+  | MenuItemClickable
+  | MenuItemWithSubmenu
+  | MenuItemDivider;
 
 export type PopoverPosition =
   | "bottom"
@@ -83,7 +86,9 @@ type SubMenuState = {
 // =============================================================================
 
 const [menuState, setMenuState] = createSignal<MenuState | undefined>();
-const [subMenuState, setSubMenuState] = createSignal<SubMenuState | undefined>();
+const [subMenuState, setSubMenuState] = createSignal<
+  SubMenuState | undefined
+>();
 let popoverRef: HTMLDivElement | undefined;
 let subMenuPopoverRef: HTMLDivElement | undefined;
 let virtualAnchorRef: HTMLDivElement | undefined;
@@ -269,8 +274,9 @@ export function PopoverMenuProvider() {
                           type="button"
                           class="ui-hoverable flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-50"
                           classList={{
-                            "text-danger": (item as MenuItemClickable).intent ===
-                              "danger",
+                            "text-danger":
+                              (item as MenuItemClickable).intent ===
+                                "danger",
                             "ui-menu-item-with-submenu": hasSubMenu,
                           }}
                           disabled={(item as MenuItemClickable).disabled}
@@ -318,14 +324,14 @@ export function PopoverMenuProvider() {
         popover="manual"
         class="ui-popover-submenu"
         data-position="right"
-        style={
-          subMenuState()
-            ? ({
-                "position-anchor": `--submenu-anchor-${subMenuState()!
-                  .parentItemIndex}`,
-              } as JSX.CSSProperties)
-            : undefined
-        }
+        style={subMenuState()
+          ? ({
+            "position-anchor": `--submenu-anchor-${
+              subMenuState()!
+                .parentItemIndex
+            }`,
+          } as JSX.CSSProperties)
+          : undefined}
         onMouseEnter={handleSubMenuMouseEnter}
         onMouseLeave={handleSubMenuMouseLeave}
       >

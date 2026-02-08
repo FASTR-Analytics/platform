@@ -20,9 +20,6 @@ function getContentSummary(slide: Slide): string {
   const textCount = blockCounts.get("text") || 0;
   if (textCount > 0) parts.push(`${textCount} text`);
 
-  const placeholderCount = blockCounts.get("placeholder") || 0;
-  if (placeholderCount > 0) parts.push(`${placeholderCount} placeholder`);
-
   return parts.length > 0 ? ` [${parts.join(", ")}]` : "";
 }
 

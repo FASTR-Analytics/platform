@@ -1,6 +1,6 @@
-import { getTextRenderingOptions } from "lib";
+import { getTextRenderingOptions, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
-import { convertSlideToPageInputs } from "./utils/convert_slide_to_page_inputs";
+import { convertSlideToPageInputs } from "./slide_rendering/convert_slide_to_page_inputs";
 import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH, showMenu, type MenuItem } from "panther";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { serverActions } from "~/server_actions";
@@ -19,6 +19,7 @@ type Props = {
   onEdit: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  deckConfig: SlideDeckConfig;
 };
 
 export function SlideCard(p: Props) {
@@ -32,18 +33,17 @@ export function SlideCard(p: Props) {
   // Fetch slide from cache, reactive to PDS updates
   createEffect(async () => {
     pds.lastUpdated.slides[p.slideId]; // Track for reactivity
+    const config = p.deckConfig; // Track synchronously before first await
 
     const cached = await _SLIDE_CACHE.get({ projectId: p.projectId, slideId: p.slideId });
 
     if (!cached.data) {
-      // Cache miss - fetch and cache
       const promise = serverActions.getSlide({ projectId: p.projectId, slide_id: p.slideId });
       await _SLIDE_CACHE.setPromise(promise, { projectId: p.projectId, slideId: p.slideId }, cached.version);
       const res = await promise;
-      console.log(res)
 
       if (res.success) {
-        const renderRes = convertSlideToPageInputs(p.projectId, res.data.slide, p.index);
+        const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, p.index, config);
         if (renderRes.success) {
           setPageInputs({ status: "ready", data: renderRes.data });
         } else {
@@ -53,9 +53,7 @@ export function SlideCard(p: Props) {
         setPageInputs({ status: "error", err: res.err });
       }
     } else {
-      console.log(cached.data)
-      // Cache hit - render from cached data
-      const renderRes = convertSlideToPageInputs(p.projectId, cached.data.slide, p.index);
+      const renderRes = await convertSlideToPageInputs(p.projectId, cached.data.slide, p.index, config);
       if (renderRes.success) {
         setPageInputs({ status: "ready", data: renderRes.data });
       } else {

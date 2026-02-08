@@ -25,11 +25,9 @@ export const ToolErrorRenderer: Component<{
         class="hover:text-danger flex w-full cursor-pointer items-start gap-1 text-sm transition-colors"
       >
         <div class="mt-0.5">
-          {expanded() ? (
-            <ChevronDownIcon class="size-4" />
-          ) : (
-            <ChevronRightIcon class="size-4" />
-          )}
+          {expanded()
+            ? <ChevronDownIcon class="size-4" />
+            : <ChevronRightIcon class="size-4" />}
         </div>
         <span class="font-medium">{props.item.errorMessage}</span>
       </button>

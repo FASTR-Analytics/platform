@@ -165,12 +165,11 @@ VALUES
                 !databasePO?.isDefault &&
                 !item.presentationObjectInReportInfo?.isDefault
               ) {
-                item.type = "placeholder";
+                item.type = "text";
                 item.presentationObjectInReportInfo = undefined;
-                item.markdown = undefined;
+                item.markdown = "";
                 item.textSize = 1;
                 item.textBackground = "none";
-                item.placeholderInvisible = false;
                 item.useFigureAdditionalScale = false;
                 item.figureAdditionalScale = 1;
                 item.imgFile = undefined;
@@ -211,7 +210,7 @@ export async function getAllReportsForProject(
   return await tryCatchDatabaseAsync(async () => {
     const reports = (
       await projectDb<DBReport[]>`
-SELECT * FROM reports WHERE is_deleted = FALSE ORDER BY last_updated DESC
+SELECT * FROM reports WHERE is_deleted = FALSE AND report_type != 'long_form' ORDER BY last_updated DESC
 `
     ).map<ReportSummary>((rawReport) => {
       const reportConfig: { label: string } = parseJsonOrThrow(rawReport.config);

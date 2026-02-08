@@ -22,6 +22,7 @@ import { MetricDetailsModal } from "./metric_details_modal";
 import { AddVisualization } from "./add_visualization";
 import { useProjectDetail } from "~/components/project_runner/mod";
 import { useAIProjectContext } from "~/components/project_ai/context";
+import { snapshotForVizEditor } from "~/utils/snapshot";
 
 type Props = {
   instanceDetail: InstanceDetail;
@@ -147,12 +148,14 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         mode: "create" as const,
         projectId: p.projectId,
         label: res.label,
-        resultsValue: res.resultsValue,
-        config: res.config,
-        instanceDetail: p.instanceDetail,
-        projectDetail: p.projectDetail,
         isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
+        ...snapshotForVizEditor({
+          projectDetail: p.projectDetail,
+          instanceDetail: p.instanceDetail,
+          resultsValue: res.resultsValue,
+          config: res.config,
+        }),
       },
     });
   }

@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import type { VisualizationGroupingMode } from "lib";
+import type { SlideDeckGroupingMode, VisualizationGroupingMode } from "lib";
 
 // ============================================================================
 // Project View State
@@ -69,12 +69,41 @@ export function setHideUnreadyVisualizations(value: boolean) {
   setHideUnreadyVisualizationsInternal(value);
 }
 
+// Slide deck grouping/filtering
+const storedDeckGroupingMode = localStorage.getItem("deckGroupingMode") as SlideDeckGroupingMode | null;
+
+export const [deckGroupingMode, setDeckGroupingModeInternal] = createSignal<SlideDeckGroupingMode>(
+  storedDeckGroupingMode ?? "folders"
+);
+
+export function setDeckGroupingMode(mode: SlideDeckGroupingMode) {
+  localStorage.setItem("deckGroupingMode", mode);
+  setDeckGroupingModeInternal(mode);
+}
+
+const storedDeckSelectedGroup = localStorage.getItem("deckSelectedGroup");
+
+export const [deckSelectedGroup, setDeckSelectedGroupInternal] = createSignal<string | null>(
+  storedDeckSelectedGroup
+);
+
+export function setDeckSelectedGroup(group: string | null) {
+  if (group === null) {
+    localStorage.removeItem("deckSelectedGroup");
+  } else {
+    localStorage.setItem("deckSelectedGroup", group);
+  }
+  setDeckSelectedGroupInternal(group);
+}
+
 // Consolidated updater for project view state
 export type ProjectViewStateUpdates = {
   tab?: TabOption;
   vizGroupingMode?: VisualizationGroupingMode;
   vizSelectedGroup?: string | null;
   hideUnreadyVisualizations?: boolean;
+  deckGroupingMode?: SlideDeckGroupingMode;
+  deckSelectedGroup?: string | null;
   fitWithin?: "fit-within" | "fit-width";
   showAi?: boolean;
   headerOrContent?: "slideHeader" | "content";
@@ -94,6 +123,12 @@ export function updateProjectView(updates: ProjectViewStateUpdates) {
   }
   if (updates.hideUnreadyVisualizations !== undefined) {
     setHideUnreadyVisualizations(updates.hideUnreadyVisualizations);
+  }
+  if (updates.deckGroupingMode !== undefined) {
+    setDeckGroupingMode(updates.deckGroupingMode);
+  }
+  if (updates.deckSelectedGroup !== undefined) {
+    setDeckSelectedGroup(updates.deckSelectedGroup);
   }
   if (updates.fitWithin !== undefined) {
     setFitWithin(updates.fitWithin);

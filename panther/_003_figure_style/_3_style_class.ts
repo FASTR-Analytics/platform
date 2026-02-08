@@ -62,8 +62,7 @@ export class CustomFigureStyle {
     this._d = getDefaultFigureStyle();
     this._g = getGlobalFigureStyle();
     this._c = customStyle ?? {};
-    this._sf =
-      (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
+    this._sf = (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
       (responsiveScale ?? 1);
     this._baseText = getBaseTextInfo(
       this._c.text?.base,
@@ -1116,8 +1115,8 @@ export class CustomFigureStyle {
         d.sankey.nodeWidth,
       ),
       nodeGap: ms(sf, c.sankey?.nodeGap, g.sankey?.nodeGap, d.sankey.nodeGap),
-      columnGap:
-        c.sankey?.columnGap ?? g.sankey?.columnGap ?? d.sankey.columnGap,
+      columnGap: c.sankey?.columnGap ?? g.sankey?.columnGap ??
+        d.sankey.columnGap,
       labelGap: ms(
         sf,
         c.sankey?.labelGap,

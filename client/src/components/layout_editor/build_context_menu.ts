@@ -1,4 +1,4 @@
-import type { LayoutNode, MenuItem } from "panther";
+import type { IdGenerator, LayoutNode, MenuItem } from "panther";
 import {
   addRow,
   addCol,
@@ -10,12 +10,13 @@ import {
   moveNodeUp,
   moveNodeDown,
   findById,
+  findFirstItem,
 } from "panther";
 
 export type BlockType =
   | "text"
   | "figure"
-  | "placeholder"
+  | "placeholder"  // Reports only (slides removed)
   | "image"
   | "unknown";
 
@@ -24,27 +25,28 @@ export type LayoutMenuCallbacks<T> = {
   onLayoutChange: (newLayout: LayoutNode<T>) => void;
   onSelectionChange: (id: string | undefined) => void;
   createNewBlock: () => LayoutNode<T> & { type: "item" };
+  idGenerator?: IdGenerator;
 
   // Block introspection
   getBlockType: (block: T) => BlockType;
   isFigureWithSource: (block: T) => boolean;
+  isEmptyFigure?: (block: T) => boolean;
 
   // Visualization operations (optional)
   onEditVisualization?: (blockId: string) => Promise<void>;
+  onSelectVisualization?: (blockId: string) => Promise<void>;
   onReplaceVisualization?: (blockId: string) => Promise<void>;
 
   // Block type conversion (optional)
   onConvertToText?: (blockId: string) => void;
   onConvertToFigure?: (blockId: string) => void;
-  onConvertToPlaceholder?: (blockId: string) => void;
   onConvertToImage?: (blockId: string) => void;
-
-  // Post-operation helpers (optional)
-  ensureExplicitSpans?: (layout: LayoutNode<T>) => LayoutNode<T>;
-  findFirstItem?: (
-    layout: LayoutNode<T>,
-  ) => (LayoutNode<T> & { type: "item" }) | undefined;
 };
+
+function countItems<T>(node: LayoutNode<T>): number {
+  if (node.type === "item") return 1;
+  return node.children.reduce((sum, child) => sum + countItems(child as LayoutNode<T>), 0);
+}
 
 export function buildLayoutContextMenu<T>(
   layout: LayoutNode<T>,
@@ -56,7 +58,7 @@ export function buildLayoutContextMenu<T>(
   const found = findById(layout, targetId);
   if (!found) return items;
 
-  const isOnlyNode = layout.type === "item" && layout.id === targetId;
+  const isOnlyNode = countItems(layout) === 1;
   const parentType = found.parent?.type;
   const blockData = found.node.type === "item" ? found.node.data : undefined;
 
@@ -66,7 +68,22 @@ export function buildLayoutContextMenu<T>(
     : false;
 
   // === VISUALIZATION OPERATIONS ===
+  const isEmptyFigure = blockData && callbacks.isEmptyFigure
+    ? callbacks.isEmptyFigure(blockData)
+    : false;
+
+  if (isEmptyFigure && callbacks.onSelectVisualization) {
+    items.push({
+      label: "Select visualization",
+      icon: "chart",
+      onClick: () => callbacks.onSelectVisualization!(targetId),
+    });
+    items.push({ type: "divider" });
+  }
+
   if (isFigureWithSource) {
+    const beforeViz = items.length;
+
     if (callbacks.onEditVisualization) {
       items.push({
         label: "Edit visualization",
@@ -77,20 +94,21 @@ export function buildLayoutContextMenu<T>(
 
     if (callbacks.onReplaceVisualization) {
       items.push({
-        label: "Replace visualization",
+        label: "Switch visualization",
         icon: "switchHorizontal",
         onClick: () => callbacks.onReplaceVisualization!(targetId),
       });
     }
 
-    items.push({ type: "divider" });
+    if (items.length > beforeViz) {
+      items.push({ type: "divider" });
+    }
   }
 
   // === BLOCK TYPE CONVERSION ===
   const conversionCallbacks = [
     callbacks.onConvertToText,
     callbacks.onConvertToFigure,
-    callbacks.onConvertToPlaceholder,
     callbacks.onConvertToImage,
   ];
   const hasConversion = conversionCallbacks.some((c) => !!c);
@@ -108,17 +126,9 @@ export function buildLayoutContextMenu<T>(
 
     if (blockType !== "figure" && callbacks.onConvertToFigure) {
       conversionItems.push({
-        label: "Figure",
+        label: "Visualization",
         icon: "chart",
         onClick: () => callbacks.onConvertToFigure!(targetId),
-      });
-    }
-
-    if (blockType !== "placeholder" && callbacks.onConvertToPlaceholder) {
-      conversionItems.push({
-        label: "Placeholder",
-        icon: "box",
-        onClick: () => callbacks.onConvertToPlaceholder!(targetId),
       });
     }
 
@@ -134,7 +144,7 @@ export function buildLayoutContextMenu<T>(
       items.push({
         type: "sub-item",
         label: "Change to",
-        icon: "transform",
+        icon: "switchHorizontal",
         subMenu: conversionItems,
       });
       items.push({ type: "divider" });
@@ -150,7 +160,7 @@ export function buildLayoutContextMenu<T>(
       icon: "plus",
       onClick: () => {
         const newBlock = callbacks.createNewBlock();
-        const result = splitIntoRows(layout, targetId, newBlock);
+        const result = splitIntoRows(layout, targetId, newBlock, "after", callbacks.idGenerator);
         callbacks.onLayoutChange(result);
         callbacks.onSelectionChange(newBlock.id);
       },
@@ -163,10 +173,7 @@ export function buildLayoutContextMenu<T>(
       icon: "plus",
       onClick: () => {
         const newBlock = callbacks.createNewBlock();
-        let result = splitIntoColumns(layout, targetId, newBlock);
-        if (callbacks.ensureExplicitSpans) {
-          result = callbacks.ensureExplicitSpans(result);
-        }
+        const result = splitIntoColumns(layout, targetId, newBlock, "after", callbacks.idGenerator);
         callbacks.onLayoutChange(result);
         callbacks.onSelectionChange(newBlock.id);
       },
@@ -193,10 +200,7 @@ export function buildLayoutContextMenu<T>(
         icon: "plus",
         onClick: () => {
           const newBlock = callbacks.createNewBlock();
-          let result = addCol(layout, targetId, newBlock, "left");
-          if (callbacks.ensureExplicitSpans) {
-            result = callbacks.ensureExplicitSpans(result);
-          }
+          const result = addCol(layout, targetId, newBlock, "left", callbacks.idGenerator);
           callbacks.onLayoutChange(result);
           callbacks.onSelectionChange(newBlock.id);
         },
@@ -206,10 +210,7 @@ export function buildLayoutContextMenu<T>(
         icon: "plus",
         onClick: () => {
           const newBlock = callbacks.createNewBlock();
-          let result = addCol(layout, targetId, newBlock, "right");
-          if (callbacks.ensureExplicitSpans) {
-            result = callbacks.ensureExplicitSpans(result);
-          }
+          const result = addCol(layout, targetId, newBlock, "right", callbacks.idGenerator);
           callbacks.onLayoutChange(result);
           callbacks.onSelectionChange(newBlock.id);
         },
@@ -219,7 +220,7 @@ export function buildLayoutContextMenu<T>(
         icon: "plus",
         onClick: () => {
           const newBlock = callbacks.createNewBlock();
-          const result = addRow(layout, targetId, newBlock, "above");
+          const result = addRow(layout, targetId, newBlock, "above", callbacks.idGenerator);
           callbacks.onLayoutChange(result);
           callbacks.onSelectionChange(newBlock.id);
         },
@@ -229,7 +230,7 @@ export function buildLayoutContextMenu<T>(
         icon: "plus",
         onClick: () => {
           const newBlock = callbacks.createNewBlock();
-          const result = addRow(layout, targetId, newBlock, "below");
+          const result = addRow(layout, targetId, newBlock, "below", callbacks.idGenerator);
           callbacks.onLayoutChange(result);
           callbacks.onSelectionChange(newBlock.id);
         },
@@ -310,7 +311,7 @@ export function buildLayoutContextMenu<T>(
         const result = deleteNodeWithCleanup(layout, targetId);
         if (result) {
           callbacks.onLayoutChange(result);
-          const firstItem = callbacks.findFirstItem?.(result);
+          const firstItem = findFirstItem(result);
           callbacks.onSelectionChange(firstItem?.id);
         }
       },

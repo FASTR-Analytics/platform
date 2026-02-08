@@ -196,8 +196,6 @@ export class CustomPageStyle {
         ),
         gapX: ms(sf, c.content?.gapX, g.content?.gapX, d.content.gapX),
         gapY: ms(sf, c.content?.gapY, g.content?.gapY, d.content.gapY),
-        nColumns: c.content?.nColumns ?? g.content?.nColumns ??
-          d.content.nColumns,
       },
       cover: {
         padding: new Padding(
@@ -264,12 +262,6 @@ export class CustomPageStyle {
           c.layoutContainers?.borderWidth,
           g.layoutContainers?.borderWidth,
           d.layoutContainers.borderWidth,
-        ),
-        borderRadius: ms(
-          sf,
-          c.layoutContainers?.borderRadius,
-          g.layoutContainers?.borderRadius,
-          d.layoutContainers.borderRadius,
         ),
       },
     };

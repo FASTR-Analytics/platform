@@ -17,20 +17,10 @@ export function applyContainerDefaults<U>(
   node: LayoutNode<U>,
   defaults: ContainerStyleOptions,
 ): LayoutNode<U> {
-  // Property-level merge: each property checked independently
-  const mergedStyle: ContainerStyleOptions = {
-    padding: node.style?.padding ?? defaults.padding,
-    backgroundColor: node.style?.backgroundColor ?? defaults.backgroundColor,
-    borderColor: node.style?.borderColor ?? defaults.borderColor,
-    borderWidth: node.style?.borderWidth ?? defaults.borderWidth,
-    borderRadius: node.style?.borderRadius ?? defaults.borderRadius,
-  };
-
   // Recursively apply to children
   if (node.type === "rows") {
     return {
       ...node,
-      style: mergedStyle,
       children: node.children.map((child) =>
         applyContainerDefaults(child, defaults)
       ),
@@ -40,12 +30,19 @@ export function applyContainerDefaults<U>(
   if (node.type === "cols") {
     return {
       ...node,
-      style: mergedStyle,
       children: node.children.map((child) =>
         applyContainerDefaults(child, defaults)
       ),
     };
   }
+
+  // Items: apply merged style
+  const mergedStyle: ContainerStyleOptions = {
+    padding: node.style?.padding ?? defaults.padding,
+    backgroundColor: node.style?.backgroundColor ?? defaults.backgroundColor,
+    borderColor: node.style?.borderColor ?? defaults.borderColor,
+    borderWidth: node.style?.borderWidth ?? defaults.borderWidth,
+  };
 
   return {
     ...node,

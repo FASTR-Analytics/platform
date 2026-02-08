@@ -22,7 +22,9 @@ function getAllToolsList(): string {
 **get_module_r_script** - View R script for a module
 **get_module_log** - View execution log for a module
 **get_methodology_docs_list** - List methodology documents
-**get_methodology_doc_content** - Read a methodology document`;
+**get_methodology_doc_content** - Read a methodology document
+**show_draft_visualization_to_user** - Show an ad-hoc chart preview inline (from existing viz or metric data)
+**show_draft_slide_to_user** - Show an ad-hoc slide preview inline (cover/section/content)`;
 }
 
 function getBaseInstructions(): string {
@@ -225,6 +227,10 @@ ${getAllToolsList()}
 **From metric:** { "type": "from_metric", "metricQuery": {...}, "chartType": "bar|line|table" }
 
 **IMPORTANT:** No markdown tables - use from_metric with chartType='table' instead.
+
+## Communication Style
+
+When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a3k', 't2n') — these are meaningless to the user. Instead, refer to slides by their position (e.g. "slide 3"), title (e.g. "the ANC Coverage slide"), or type (e.g. "the cover slide"). Refer to blocks by their content (e.g. "the bar chart showing immunization rates", "the text block on the left"). Use IDs only in tool calls, never in your messages to the user.
 
 ## Workflow
 

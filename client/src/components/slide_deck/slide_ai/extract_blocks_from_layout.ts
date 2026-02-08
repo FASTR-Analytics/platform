@@ -81,8 +81,6 @@ export async function simplifySlideForAI(projectId: string, slide: Slide): Promi
           id,
           summary: `Text: ${block.markdown}`,
         };
-      } else if (block.type === "placeholder") {
-        return { id, summary: "Placeholder" };
       } else if (block.type === "image") {
         return { id, summary: `Image: ${block.imgFile}` };
       } else {

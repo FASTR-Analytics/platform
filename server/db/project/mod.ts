@@ -7,5 +7,6 @@ export * from "./projects.ts";
 export * from "./reports.ts";
 export * from "./results_objects.ts";
 export * from "./slide_decks.ts";
+export * from "./slide_deck_folders.ts";
 export * from "./slides.ts";
 export * from "./move_slides.ts";

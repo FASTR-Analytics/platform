@@ -1,10 +1,10 @@
 import { trackStore } from "@solid-primitives/deep";
-import type { Slide, CoverSlide, SectionSlide, ContentSlide, InstanceDetail, ProjectDetail } from "lib";
+import type { Slide, CoverSlide, SectionSlide, ContentSlide, InstanceDetail, ProjectDetail, SlideDeckConfig } from "lib";
 import { getTextRenderingOptions, getMetricStaticData, t } from "lib";
 import {
   AlertComponentProps,
   Button,
-  EditablePageHolder,
+  PageHolder,
   FrameRightResizable,
   FrameTop,
   getEditorWrapper,
@@ -13,18 +13,21 @@ import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   HeadingBar,
   findById,
+  findFirstItem,
   openComponent,
   showMenu,
   createItemNode,
   openAlert,
   FrameLeftResizable,
+  Select,
 } from "panther";
+import { applyDividerDragUpdate } from "panther";
 import type { DividerDragUpdate, LayoutNode } from "panther";
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { createStore, unwrap, reconcile } from "solid-js/store";
-import { convertSlideToPageInputs } from "../utils/convert_slide_to_page_inputs";
+import { convertSlideToPageInputs } from "../slide_rendering/convert_slide_to_page_inputs";
 import { SlideEditorPanel } from "./editor_panel";
-import { convertSlideType } from "./convert_slide_type";
+import { convertSlideType } from "../slide_transforms/convert_slide_type";
 import { serverActions } from "~/server_actions";
 import { useOptimisticSetLastUpdated } from "../../project_runner/mod";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
@@ -36,41 +39,11 @@ import { getFigureInputsFromPresentationObject } from "~/generate_visualization/
 import { setShowAi, showAi } from "~/state/ui";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
-import { convertBlockType } from "../utils/convert_block_type";
-
-function findFirstItem(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> & { type: "item" } | undefined {
-  if (node.type === "item") return node;
-  for (const child of node.children) {
-    const found = findFirstItem(child as LayoutNode<ContentBlock>);
-    if (found) return found;
-  }
-  return undefined;
-}
-
-function ensureExplicitSpans(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> {
-  if (node.type === "item") {
-    return node;
-  }
-
-  // Recursively process children first
-  let children = node.children.map(ensureExplicitSpans);
-
-  // If this is a cols node and any children lack explicit spans, set equal spans
-  if (node.type === "cols") {
-    const hasAnyMissingSpans = children.some(c => c.span === undefined);
-    if (hasAnyMissingSpans) {
-      const spanPerChild = Math.floor(12 / children.length);
-      children = children.map((child, i) => ({
-        ...child,
-        span: i === children.length - 1
-          ? 12 - (spanPerChild * (children.length - 1))
-          : spanPerChild
-      }));
-    }
-  }
-
-  return { ...node, children };
-}
+import { convertBlockType } from "../slide_transforms/convert_block_type";
+import { createIdGeneratorForLayout } from "~/utils/id_generation";
+import { snapshotForVizEditor } from "~/utils/snapshot";
+import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
+import { getPODetailFromCacheorFetch, getPOFigureInputsFromCacheOrFetch } from "~/state/po_cache";
 
 function updateBlockInLayout(
   layout: LayoutNode<ContentBlock>,
@@ -101,6 +74,7 @@ type SlideEditorInnerProps = {
   instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
+  deckConfig: SlideDeckConfig;
 };
 
 type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
@@ -110,34 +84,29 @@ export function SlideEditor(p: Props) {
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const { aiContext } = useAIProjectContext();
 
-  // Normalize slide on open: ensure all cols have explicit spans for divider drag
-  const normalizedSlide = p.slide.type === "content"
-    ? { ...p.slide, layout: ensureExplicitSpans(p.slide.layout) }
-    : p.slide;
+  // No normalization needed - panther operations produce valid output
+  const normalizedSlide = p.slide;
 
   const [needsSave, setNeedsSave] = createSignal(false);
   const [isSaving, setIsSaving] = createSignal(false);
   const [tempSlide, setTempSlide] = createStore<Slide>(structuredClone(normalizedSlide));
 
   // Cache each type's state for restoration when switching back
-  const typeCache = {
-    cover: p.slide.type === "cover" ? structuredClone(p.slide) : undefined,
-    section: p.slide.type === "section" ? structuredClone(p.slide) : undefined,
-    content: p.slide.type === "content" ? structuredClone(p.slide) : undefined,
-  } as {
+  const typeCache: {
     cover?: CoverSlide;
     section?: SectionSlide;
     content?: ContentSlide;
-  };
+  } = {};
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
     msg: "Rendering...",
   });
   const [selectedBlockId, setSelectedBlockId] = createSignal<string | undefined>();
+  const [contentTab, setContentTab] = createSignal<"slide" | "block">("slide");
 
   // Render slide preview
-  function attemptGetPageInputs(slide: Slide) {
-    const res = convertSlideToPageInputs(p.projectId, slide);
+  async function attemptGetPageInputs(slide: Slide) {
+    const res = await convertSlideToPageInputs(p.projectId, slide, undefined, p.deckConfig);
     if (res.success) {
       setPageInputs({ status: "ready", data: res.data });
     } else {
@@ -261,19 +230,10 @@ export function SlideEditor(p: Props) {
   function handleDividerDrag(update: DividerDragUpdate) {
     if (tempSlide.type !== "content") return;
 
-    const slide = structuredClone(unwrap(tempSlide)) as ContentSlide;
+    const currentSlide = unwrap(tempSlide) as ContentSlide;
+    const updatedLayout = applyDividerDragUpdate(currentSlide.layout, update);
 
-    const leftResult = findById(slide.layout, update.leftNodeId);
-    if (leftResult) {
-      leftResult.node.span = update.suggestedSpans.left;
-    }
-
-    const rightResult = findById(slide.layout, update.rightNodeId);
-    if (rightResult) {
-      rightResult.node.span = update.suggestedSpans.right;
-    }
-
-    setTempSlide(reconcile(slide));
+    setTempSlide(reconcile({ ...currentSlide, layout: updatedLayout }));
   }
 
   function handleTypeChange(newType: "cover" | "section" | "content") {
@@ -305,6 +265,196 @@ export function SlideEditor(p: Props) {
     setNeedsSave(true);
   }
 
+  function getLayoutCallbacks() {
+    if (tempSlide.type !== "content") return undefined;
+    const contentSlide = unwrap(tempSlide) as ContentSlide;
+    const idGenerator = createIdGeneratorForLayout(contentSlide.layout);
+    return {
+      onLayoutChange: (newLayout: LayoutNode<ContentBlock>) => {
+        setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+      },
+      onSelectionChange: setSelectedBlockId,
+      createNewBlock: () => createItemNode<ContentBlock>({ type: "text", markdown: "" }, undefined, idGenerator),
+      idGenerator,
+      getBlockType: (block: ContentBlock) => block.type,
+      isFigureWithSource: (block: ContentBlock) =>
+        block.type === "figure" && block.source?.type === "from_data",
+      isEmptyFigure: (block: ContentBlock) =>
+        block.type === "figure" && !block.figureInputs,
+    };
+  }
+
+  function handleShowLayoutMenu(x: number, y: number) {
+    const blockId = selectedBlockId();
+    if (!blockId || tempSlide.type !== "content") return;
+    const callbacks = getLayoutCallbacks();
+    if (!callbacks) return;
+    const items = buildLayoutContextMenu(tempSlide.layout, blockId, callbacks);
+    showMenu({ x, y, items });
+  }
+
+  async function handleEditVisualization() {
+    const blockId = selectedBlockId();
+    if (!blockId || tempSlide.type !== "content") return;
+
+    const found = findById(tempSlide.layout, blockId);
+    if (!found || found.node.type !== "item") return;
+
+    const block = found.node.data;
+    if (block.type !== "figure" || block.source?.type !== "from_data") return;
+
+    const source = block.source;
+
+    try {
+      const metricStaticData = getMetricStaticData(source.metricId);
+      const resultsValue = p.projectDetail.metrics.find(m => m.id === source.metricId);
+
+      if (!resultsValue) {
+        await openAlert({ text: "Metric not found in project", intent: "danger" });
+        return;
+      }
+
+      const result = await openEditor({
+        element: VisualizationEditor,
+        props: {
+          mode: "ephemeral" as const,
+          label: metricStaticData.label,
+          projectId: p.projectId,
+          isGlobalAdmin: p.isGlobalAdmin,
+          returnToContext: aiContext(),
+          ...snapshotForVizEditor({
+            projectDetail: p.projectDetail,
+            instanceDetail: p.instanceDetail,
+            resultsValue,
+            config: source.config,
+          }),
+        },
+      });
+
+      if (result?.updated) {
+        const newConfig = result.updated.config;
+
+        const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
+          p.projectId,
+          {
+            id: "",
+            projectId: p.projectId,
+            lastUpdated: "",
+            label: "Ephemeral",
+            resultsValue: resultsValue,
+            config: newConfig,
+            isDefault: false,
+            folderId: null,
+          },
+          newConfig,
+        );
+
+        if (newItemsRes.success === false || newItemsRes.data.ih.status !== "ok") {
+          await openAlert({ text: "Failed to regenerate visualization", intent: "danger" });
+          return;
+        }
+
+        const resultsValueForViz = {
+          formatAs: resultsValue.formatAs,
+          valueProps: resultsValue.valueProps,
+          valueLabelReplacements: resultsValue.valueLabelReplacements,
+        };
+
+        const newFigureInputs = getFigureInputsFromPresentationObject(
+          resultsValueForViz,
+          newItemsRes.data.ih,
+          newConfig,
+        );
+
+        if (newFigureInputs.status !== "ready") {
+          await openAlert({ text: "Failed to generate figure", intent: "danger" });
+          return;
+        }
+
+        const updatedLayout = updateBlockInLayout(
+          tempSlide.layout,
+          blockId,
+          (b: ContentBlock) => {
+            if (b.type !== "figure") return b;
+            return {
+              type: "figure",
+              figureInputs: { ...newFigureInputs.data, style: undefined },
+              source: {
+                type: "from_data",
+                metricId: source.metricId,
+                config: newConfig,
+                snapshotAt: new Date().toISOString(),
+              },
+            };
+          }
+        );
+
+        setTempSlide(reconcile({ ...unwrap(tempSlide), layout: updatedLayout }));
+      }
+    } catch (err) {
+      await openAlert({
+        text: err instanceof Error ? err.message : "Failed to edit visualization",
+        intent: "danger",
+      });
+    }
+  }
+
+  async function handleSelectVisualization(blockIdOverride?: string) {
+    const blockId = blockIdOverride ?? selectedBlockId();
+    if (!blockId || tempSlide.type !== "content") return;
+
+    const result = await openEditor({
+      element: SelectVisualizationForSlide,
+      props: { projectDetail: p.projectDetail },
+    });
+
+    if (!result) return;
+
+    try {
+      const replicateOverride = result.replicant
+        ? { selectedReplicantValue: result.replicant, _forOptimizer: true }
+        : { _forOptimizer: true };
+
+      const poDetailRes = await getPODetailFromCacheorFetch(p.projectId, result.visualizationId);
+      if (!poDetailRes.success) {
+        await openAlert({ text: poDetailRes.err, intent: "danger" });
+        return;
+      }
+
+      const figureInputsRes = await getPOFigureInputsFromCacheOrFetch(
+        p.projectId,
+        result.visualizationId,
+        replicateOverride as any,
+      );
+      if (!figureInputsRes.success) {
+        await openAlert({ text: figureInputsRes.err, intent: "danger" });
+        return;
+      }
+
+      const updatedLayout = updateBlockInLayout(
+        tempSlide.layout,
+        blockId,
+        () => ({
+          type: "figure" as const,
+          figureInputs: { ...figureInputsRes.data, style: undefined },
+          source: {
+            type: "from_data" as const,
+            metricId: poDetailRes.data.resultsValue.id,
+            config: poDetailRes.data.config,
+            snapshotAt: new Date().toISOString(),
+          },
+        }),
+      );
+
+      setTempSlide(reconcile({ ...unwrap(tempSlide), layout: updatedLayout }));
+    } catch (err) {
+      await openAlert({
+        text: err instanceof Error ? err.message : "Failed to select visualization",
+        intent: "danger",
+      });
+    }
+  }
+
   return (
     <EditorWrapper>
       <FrameTop
@@ -326,27 +476,40 @@ export function SlideEditor(p: Props) {
                   onClick={() => handleSave()}
                   disabled={isSaving()}
                   loading={isSaving()}
+                  iconName="save"
                 >
                   Save
                 </Button>
                 <Button
                   outline
                   onClick={handleCancel}
+                  iconName="x"
                 >
                   Cancel
                 </Button>
               </div>
             </Show>}
           >
-            <Show when={!showAi()}>
-              <Button
-                onClick={() => setShowAi(true)}
-                iconName="chevronLeft"
-                outline
-              >
-                {t("AI")}
-              </Button>
-            </Show>
+            <div class="flex items-center ui-gap-sm">
+              <Select
+                options={[
+                  { value: "cover", label: "Cover" },
+                  { value: "section", label: "Section" },
+                  { value: "content", label: "Content" },
+                ]}
+                value={tempSlide.type}
+                onChange={(v: string) => handleTypeChange(v as "cover" | "section" | "content")}
+              />
+              <Show when={!showAi()}>
+                <Button
+                  onClick={() => setShowAi(true)}
+                  iconName="chevronLeft"
+                  outline
+                >
+                  {t("AI")}
+                </Button>
+              </Show>
+            </div>
           </HeadingBar>
         }
       >
@@ -362,7 +525,12 @@ export function SlideEditor(p: Props) {
               selectedBlockId={selectedBlockId()}
               setSelectedBlockId={setSelectedBlockId}
               openEditor={openEditor}
-              onTypeChange={handleTypeChange}
+              contentTab={contentTab()}
+              setContentTab={setContentTab}
+              onShowLayoutMenu={handleShowLayoutMenu}
+              onEditVisualization={handleEditVisualization}
+              onSelectVisualization={() => handleSelectVisualization()}
+              deckLogos={p.deckConfig.logos ?? []}
             />
           }
         >
@@ -380,7 +548,7 @@ export function SlideEditor(p: Props) {
             <Show when={pageInputs().status === "ready" ? (pageInputs() as { status: "ready"; data: PageInputs }).data : undefined} keyed>
               {(keyedPageInputs) => (
                 <div class="h-full w-full overflow-auto ui-pad bg-base-200">
-                  <EditablePageHolder
+                  <PageHolder
                     pageInputs={keyedPageInputs}
                     canvasElementId="SLIDE_EDITOR_CANVAS"
                     fixedCanvasH={Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16)}
@@ -395,162 +563,80 @@ export function SlideEditor(p: Props) {
                     onClick={(target) => {
                       if (target.type === "layoutItem") {
                         setSelectedBlockId(target.node.id);
+                        setContentTab("block");
+                      } else if (
+                        target.type === "headerText" ||
+                        target.type === "subHeaderText" ||
+                        target.type === "dateText" ||
+                        target.type === "footerText" ||
+                        target.type === "coverTitle" ||
+                        target.type === "coverSubTitle" ||
+                        target.type === "coverAuthor" ||
+                        target.type === "coverDate" ||
+                        target.type === "sectionTitle" ||
+                        target.type === "sectionSubTitle"
+                      ) {
+                        setSelectedBlockId(undefined);
+                        setContentTab("slide");
+                      }
+                    }}
+                    onMeasured={(mPage) => {
+                      const mLayout = (mPage as any).mLayout;
+                      if (!mLayout) return;
+                      console.log('=== LAYOUT TREE ===');
+                      const printNode = (node: any, depth = 0) => {
+                        const indent = '  '.repeat(depth);
+                        console.log(`${indent}${node.type} id=${node.id} absCol=${node.absoluteStartColumn} span=${node.span ?? 'none'}`);
+                        if (node.children) {
+                          node.children.forEach((child: any) => printNode(child, depth + 1));
+                        }
+                      };
+                      printNode(mLayout);
+
+                      const dividerGaps = (mPage as any).gaps?.filter((g: any) => g.type === 'col-divider') || [];
+                      if (dividerGaps.length > 0) {
+                        console.log('=== COL DIVIDER GAPS ===');
+                        dividerGaps.forEach((gap: any, i: number) => {
+                          console.log(`Divider ${i}:`, gap);
+                        });
                       }
                     }}
                     onDividerDrag={handleDividerDrag}
-                    onContextMenu={async (e, target) => {
+                    onContextMenu={(e, target) => {
                       if (target.type !== "layoutItem") return;
-                      if (tempSlide.type !== "content") return;
-
-                      const items = buildLayoutContextMenu(
-                        tempSlide.layout,
-                        target.node.id,
-                        {
-                          onLayoutChange: (newLayout) => {
-                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
-                          },
-                          onSelectionChange: setSelectedBlockId,
-                          createNewBlock: () => createItemNode<ContentBlock>({ type: "placeholder" }),
-
-                          getBlockType: (block) => block.type,
-                          isFigureWithSource: (block) =>
-                            block.type === "figure" && block.source?.type === "from_data",
-
-                          onEditVisualization: async (blockId) => {
-                            const found = findById(tempSlide.layout, blockId);
-                            if (!found || found.node.type !== "item") return;
-
-                            const block = found.node.data;
-                            if (block.type !== "figure" || block.source?.type !== "from_data") return;
-
-                            const source = block.source;
-
-                            try {
-                              const metricStaticData = getMetricStaticData(source.metricId);
-                              const resultsValue = p.projectDetail.metrics.find(m => m.id === source.metricId);
-
-                              if (!resultsValue) {
-                                await openAlert({
-                                  text: "Metric not found in project",
-                                  intent: "danger",
-                                });
-                                return;
-                              }
-
-                              const result = await openEditor({
-                                element: VisualizationEditor,
-                                props: {
-                                  mode: "ephemeral" as const,
-                                  label: metricStaticData.label,
-                                  resultsValue: resultsValue,
-                                  config: source.config,
-                                  projectId: p.projectId,
-                                  instanceDetail: p.instanceDetail,
-                                  projectDetail: p.projectDetail,
-                                  isGlobalAdmin: p.isGlobalAdmin,
-                                  returnToContext: aiContext(),
-                                },
-                              });
-
-                              if (result?.updated) {
-                                const newConfig = result.updated.config;
-
-                                const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
-                                  p.projectId,
-                                  {
-                                    id: "",
-                                    projectId: p.projectId,
-                                    lastUpdated: "",
-                                    label: "Ephemeral",
-                                    resultsValue: resultsValue,
-                                    config: newConfig,
-                                    isDefault: false,
-                                    folderId: null,
-                                  },
-                                  newConfig,
-                                );
-
-                                if (newItemsRes.success === false || newItemsRes.data.ih.status !== "ok") {
-                                  await openAlert({
-                                    text: "Failed to regenerate visualization",
-                                    intent: "danger",
-                                  });
-                                  return;
-                                }
-
-                                const resultsValueForViz = {
-                                  formatAs: resultsValue.formatAs,
-                                  valueProps: resultsValue.valueProps,
-                                  valueLabelReplacements: resultsValue.valueLabelReplacements,
-                                };
-
-                                const newFigureInputs = getFigureInputsFromPresentationObject(
-                                  resultsValueForViz,
-                                  newItemsRes.data.ih,
-                                  newConfig,
-                                );
-
-                                if (newFigureInputs.status !== "ready") {
-                                  await openAlert({
-                                    text: "Failed to generate figure",
-                                    intent: "danger",
-                                  });
-                                  return;
-                                }
-
-                                const updatedLayout = updateBlockInLayout(
-                                  tempSlide.layout,
-                                  blockId,
-                                  (b: ContentBlock) => {
-                                    if (b.type !== "figure") return b;
-                                    return {
-                                      type: "figure",
-                                      figureInputs: { ...newFigureInputs.data, style: undefined },
-                                      source: {
-                                        type: "from_data",
-                                        metricId: source.metricId,
-                                        config: newConfig,
-                                        snapshotAt: new Date().toISOString(),
-                                      },
-                                    };
-                                  }
-                                );
-
-                                setTempSlide(reconcile({ ...unwrap(tempSlide), layout: updatedLayout }));
-                              }
-                            } catch (err) {
-                              await openAlert({
-                                text: err instanceof Error ? err.message : "Failed to edit visualization",
-                                intent: "danger",
-                              });
-                            }
-                          },
-
-                          onConvertToText: (blockId) => {
-                            const newLayout = convertBlockType(tempSlide.layout, blockId, "text");
-                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
-                          },
-
-                          onConvertToFigure: (blockId) => {
-                            const newLayout = convertBlockType(tempSlide.layout, blockId, "figure");
-                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
-                          },
-
-                          onConvertToPlaceholder: (blockId) => {
-                            const newLayout = convertBlockType(tempSlide.layout, blockId, "placeholder");
-                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
-                          },
-
-                          onConvertToImage: (blockId) => {
-                            const newLayout = convertBlockType(tempSlide.layout, blockId, "image");
-                            setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
-                          },
-
-                          ensureExplicitSpans,
-                          findFirstItem,
+                      const callbacks = getLayoutCallbacks();
+                      if (!callbacks) return;
+                      const items = buildLayoutContextMenu((tempSlide as ContentSlide).layout, target.node.id, {
+                        ...callbacks,
+                        onEditVisualization: async (blockId) => {
+                          setSelectedBlockId(blockId);
+                          await handleEditVisualization();
                         },
-                      );
-
+                        onSelectVisualization: async (blockId) => {
+                          await handleSelectVisualization(blockId);
+                        },
+                        onReplaceVisualization: async (blockId) => {
+                          await handleSelectVisualization(blockId);
+                        },
+                        onConvertToText: (blockId) => {
+                          const newLayout = convertBlockType((tempSlide as ContentSlide).layout, blockId, "text");
+                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+                          setSelectedBlockId(blockId);
+                          setContentTab("block");
+                        },
+                        onConvertToFigure: (blockId) => {
+                          const newLayout = convertBlockType((tempSlide as ContentSlide).layout, blockId, "figure");
+                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+                          setSelectedBlockId(blockId);
+                          setContentTab("block");
+                        },
+                        onConvertToImage: (blockId) => {
+                          const newLayout = convertBlockType((tempSlide as ContentSlide).layout, blockId, "image");
+                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+                          setSelectedBlockId(blockId);
+                          setContentTab("block");
+                        },
+                      });
                       showMenu({ x: e.clientX, y: e.clientY, items });
                     }}
                   />

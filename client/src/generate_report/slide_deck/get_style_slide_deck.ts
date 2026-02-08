@@ -93,14 +93,14 @@ export function getStyle_SlideDeck(
       //
       header: {
         font: _Inter_800,
-        relFontSize: 4,
+        relFontSize: 5.5,
         color: cDetails.baseTextColor,
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       footer: {
         font: _Inter_400,
-        relFontSize: 1.4,
+        relFontSize: 2,
         color: cDetails.primaryTextColor,
         letterSpacing: "-0.02em",
       },

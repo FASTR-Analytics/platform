@@ -5,6 +5,9 @@ import {
   createSlideDeck,
   updateSlideDeckLabel,
   updateSlideDeckPlan,
+  updateSlideDeckConfig,
+  moveSlideDeckToFolder,
+  duplicateSlideDeck,
   deleteSlideDeck,
 } from "../../db/mod.ts";
 import { getProjectEditor, getProjectViewer } from "../../project_auth.ts";
@@ -39,7 +42,7 @@ defineRoute(
   "createSlideDeck",
   getProjectEditor,
   async (c, { body }) => {
-    const res = await createSlideDeck(c.var.ppk.projectDb, body.label);
+    const res = await createSlideDeck(c.var.ppk.projectDb, body.label, body.folderId);
     if (!res.success) {
       return c.json(res);
     }
@@ -105,6 +108,66 @@ defineRoute(
       res.data.lastUpdated
     );
 
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesSlideDecks,
+  "updateSlideDeckConfig",
+  getProjectEditor,
+  async (c, { params, body }) => {
+    const res = await updateSlideDeckConfig(
+      c.var.ppk.projectDb,
+      params.deck_id,
+      body.config
+    );
+    if (!res.success) {
+      return c.json(res);
+    }
+
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "slide_decks",
+      [params.deck_id],
+      res.data.lastUpdated
+    );
+
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesSlideDecks,
+  "moveSlideDeckToFolder",
+  getProjectEditor,
+  async (c, { params, body }) => {
+    const res = await moveSlideDeckToFolder(
+      c.var.ppk.projectDb,
+      params.deck_id,
+      body.folderId,
+    );
+    if (res.success) {
+      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    }
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesSlideDecks,
+  "duplicateSlideDeck",
+  getProjectEditor,
+  async (c, { params, body }) => {
+    const res = await duplicateSlideDeck(
+      c.var.ppk.projectDb,
+      params.deck_id,
+      body.label,
+      body.folderId,
+    );
+    if (res.success) {
+      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    }
     return c.json(res);
   }
 );

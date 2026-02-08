@@ -1,5 +1,5 @@
-import { t, type ProjectDetail, type Slide } from "lib";
-import { Button, FrameTop, HeadingBar, Loading, openAlert, Slider, timActionButton, timActionDelete } from "panther";
+import { t, type ProjectDetail, type Slide, type SlideDeckConfig } from "lib";
+import { Button, FrameTop, HeadingBar, Loading, type MenuItem, MenuTriggerWrapper, Slider, timActionDelete } from "panther";
 import SortableVendor, { SortableJs } from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -17,8 +17,9 @@ type Props = {
   setSelectedSlideIds: (ids: string[]) => void;
   onEditSlide: (slideId: string) => Promise<void>;
   handleClose: () => Promise<void>;
-  handleEditLabel: () => Promise<void>;
+  handleOpenSettings: () => Promise<void>;
   download: () => Promise<void>;
+  deckConfig: SlideDeckConfig;
 };
 
 export function SlideList(p: Props) {
@@ -300,73 +301,93 @@ export function SlideList(p: Props) {
     }
   }
 
-  const addSlide = timActionButton(
-    async () => {
-      const items = sortableSlideItems();
-      const selected = selectedIds();
-
-      // Insert after last selected slide, or at end if none selected
-      let afterSlideId: string | null = null;
-
-      if (selected.size > 0) {
-        let maxIndex = -1;
-        for (const id of selected) {
-          const idx = items.findIndex(i => i.id === id);
-          if (idx > maxIndex) {
-            maxIndex = idx;
-            afterSlideId = id;
-          }
+  function getInsertPosition(): { after: string } | { toEnd: true } {
+    const items = sortableSlideItems();
+    const selected = selectedIds();
+    if (selected.size > 0) {
+      let maxIndex = -1;
+      let afterSlideId = "";
+      for (const id of selected) {
+        const idx = items.findIndex(i => i.id === id);
+        if (idx > maxIndex) {
+          maxIndex = idx;
+          afterSlideId = id;
         }
       }
+      if (afterSlideId) return { after: afterSlideId };
+    }
+    return { toEnd: true };
+  }
 
-      const newSlide: Slide = {
+  async function addSlide(slide: Slide) {
+    const position = getInsertPosition();
+    const afterSlideId = "after" in position ? position.after : null;
+
+    const res = await serverActions.createSlide({
+      projectId: p.projectDetail.id,
+      deck_id: p.deckId,
+      position,
+      slide,
+    });
+
+    if (res.success) {
+      setSortableSlideItems(currentItems => {
+        if (afterSlideId === null) {
+          return [...currentItems, { id: res.data.slideId }];
+        }
+        const afterIndex = currentItems.findIndex(i => i.id === afterSlideId);
+        if (afterIndex === -1) {
+          return [...currentItems, { id: res.data.slideId }];
+        }
+        const newItems = [...currentItems];
+        newItems.splice(afterIndex + 1, 0, { id: res.data.slideId });
+        return newItems;
+      });
+      optimisticSetLastUpdated("slides", res.data.slideId, res.data.lastUpdated);
+      optimisticSetLastUpdated("slide_decks", p.deckId, res.data.lastUpdated);
+    }
+  }
+
+  const addSlideMenuItems = (): MenuItem[] => [
+    {
+      label: "Cover slide",
+      icon: "plus",
+      onClick: () => addSlide({ type: "cover", title: "Title", subtitle: "Subtitle" }),
+    },
+    {
+      label: "Section slide",
+      icon: "plus",
+      onClick: () => addSlide({ type: "section", sectionTitle: "Section" }),
+    },
+    {
+      label: "Content slide",
+      icon: "plus",
+      onClick: () => addSlide({
         type: "content",
         header: "New slide",
-        layout: {
-          type: "item",
-          id: "a1a",
-          data: { type: "placeholder" },
-        },
-      };
-
-      const res = await serverActions.createSlide({
-        projectId: p.projectDetail.id,
-        deck_id: p.deckId,
-        position: afterSlideId ? { after: afterSlideId } : { toEnd: true },
-        slide: newSlide,
-      });
-
-      if (res.success) {
-        // Optimistic: insert new slide at correct position
-        setSortableSlideItems(currentItems => {
-          if (afterSlideId === null) {
-            // toEnd - add at end
-            return [...currentItems, { id: res.data.slideId }];
-          }
-
-          // Find where to insert based on afterSlideId
-          const afterIndex = currentItems.findIndex(i => i.id === afterSlideId);
-          if (afterIndex === -1) {
-            // afterSlideId not found - add at end
-            return [...currentItems, { id: res.data.slideId }];
-          }
-
-          // Insert after the found position
-          const newItems = [...currentItems];
-          newItems.splice(afterIndex + 1, 0, { id: res.data.slideId });
-          return newItems;
-        });
-      }
-
-      return res;
+        layout: { type: "item", id: "a1a", data: { type: "text", markdown: "" } },
+      }),
     },
-    (data) => {
-      // Trigger SSE refetch which will sync the real state
-      optimisticSetLastUpdated("slides", data.slideId, data.lastUpdated);
-      optimisticSetLastUpdated("slide_decks", p.deckId, data.lastUpdated);
+  ];
 
-    }
-  );
+  const menuItems = (): MenuItem[] => [
+    {
+      label: "Settings",
+      icon: "settings",
+      onClick: () => p.handleOpenSettings(),
+    },
+    {
+      label: "Download",
+      icon: "download",
+      onClick: () => p.download(),
+    },
+    // { type: "divider" },
+    // {
+    //   label: "Batch edit visualizations",
+    //   icon: "pencil",
+    //   onClick: () => {},
+    // },
+  ];
 
   return (
     <FrameTop
@@ -379,43 +400,36 @@ export function SlideList(p: Props) {
           }
         >
           <div class="flex items-center ui-gap-sm">
-            <Button iconName="pencil"
-              onClick={async () => {
-                await openAlert({
-                  title: "Coming soon...",
-                  text: <ul class=" list-inside list-disc">
-                    <li class="">Update all visualization data</li>
-                    <li class="">Edit common properties in all visualizations</li>
-                  </ul>
-                })
-              }}
-            >Batch edit visualizations</Button>
-            <div class="w-32">
-              <Slider
-                value={slideSize()}
-                onChange={setSlideSize}
-                min={200}
-                max={800}
-                step={50}
-                fullWidth
-                disabled={isFillWidth()}
+            <Show when={p.slideIds.length > 0}>
+              <div class="w-32">
+                <Slider
+                  value={slideSize()}
+                  onChange={setSlideSize}
+                  min={200}
+                  max={800}
+                  step={50}
+                  fullWidth
+                  disabled={isFillWidth()}
+                />
+              </div>
+              <Button
+                iconName={isFillWidth() ? "minimize" : "maximize"}
+                outline
+                onClick={() => setIsFillWidth(!isFillWidth())}
               />
-            </div>
-            <Button
-              iconName={isFillWidth() ? "minimize" : "maximize"}
-              // size="sm"
-              outline
-              onClick={() => setIsFillWidth(!isFillWidth())}
-            />
-            <Button iconName="plus" onClick={addSlide.click} state={addSlide.state()}>
-              Add slide
-            </Button>
-            <Button onClick={p.handleEditLabel} iconName="pencil" outline>
-              Rename
-            </Button>
-            <Button onClick={p.download} iconName="download">
-              Download
-            </Button>
+            </Show>
+            <MenuTriggerWrapper
+              position="bottom-end"
+              items={addSlideMenuItems}
+            >
+              <Button iconName="plus">Add slide</Button>
+            </MenuTriggerWrapper>
+            <MenuTriggerWrapper
+              position="bottom-end"
+              items={menuItems}
+            >
+              <Button iconName="moreVertical" outline />
+            </MenuTriggerWrapper>
             <Show when={!showAi()}>
               <Button
                 onClick={() => setShowAi(true)}
@@ -446,7 +460,7 @@ export function SlideList(p: Props) {
         </Show>
         <Show when={!p.isLoading && p.slideIds.length === 0}>
           <div class="text-neutral w-full py-16 text-center">
-            No slides yet. Ask the AI to create some slides.
+            No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own
           </div>
         </Show>
         <Show when={!p.isLoading && p.slideIds.length > 0}>
@@ -487,6 +501,7 @@ export function SlideList(p: Props) {
                   }}
                   onDelete={() => handleDelete(item.id)}
                   onDuplicate={() => handleDuplicate(item.id)}
+                  deckConfig={p.deckConfig}
                 />
               );
             }}

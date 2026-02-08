@@ -2,7 +2,11 @@ import {
   ReportConfig,
   ReportItemConfig,
   ReportItemContentItem,
+  getColorDetailsForColorTheme,
+  _SLIDE_BACKGROUND_COLOR,
+  _CF_RED,
 } from "lib";
+import type { ColorDetails } from "lib";
 import {
   APIResponseWithData,
   CustomMarkdownStyleOptions,
@@ -13,6 +17,7 @@ import {
   PageContentItem,
   PageSpacerInputs,
 } from "panther";
+import type { ContainerStyleOptions } from "panther";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
 import { getPOFigureInputsFromCacheOrFetch } from "~/state/po_cache";
@@ -36,6 +41,7 @@ export async function getRowsForFreeform(
   try {
     const extraScale = pdfScaleFactor ?? 1;
     const content = reportItemConfig.freeform.content;
+    const cDetails = getColorDetailsForColorTheme(_reportConfig.colorTheme);
 
     // Content is now always a LayoutNode (explicit layout)
     const result = await convertLayoutNode(
@@ -43,6 +49,7 @@ export async function getRowsForFreeform(
       projectId,
       extraScale,
       pdfScaleFactor,
+      cDetails,
     );
     if (result.success === false) return result;
     return {
@@ -59,25 +66,63 @@ export async function getRowsForFreeform(
   }
 }
 
+function resolveTextBackground(bg: string | undefined, cDetails: ColorDetails, extraScale: number): { containerStyle: ContainerStyleOptions; textColor: string } | undefined {
+  if (!bg || bg === "none") return undefined;
+  const pad: [number, number] = [50 * extraScale, 60 * extraScale];
+  if (bg === "grey") {
+    return {
+      containerStyle: { backgroundColor: { key: "base200" }, padding: pad },
+      textColor: cDetails.baseTextColor,
+    };
+  }
+  if (bg === "primary") {
+    return {
+      containerStyle: { backgroundColor: cDetails.primaryBackgroundColor, padding: pad },
+      textColor: cDetails.lightOrDark === "dark" ? "#FFFFFF" : cDetails.baseTextColor,
+    };
+  }
+  if (bg === "success") {
+    return {
+      containerStyle: { backgroundColor: _SLIDE_BACKGROUND_COLOR, padding: pad },
+      textColor: "#FFFFFF",
+    };
+  }
+  if (bg === "danger") {
+    return {
+      containerStyle: { backgroundColor: _CF_RED, padding: pad },
+      textColor: "#FFFFFF",
+    };
+  }
+  return undefined;
+}
+
 async function convertLayoutNode(
   node: LayoutNode<ReportItemContentItem>,
   projectId: string,
   extraScale: number,
-  pdfScaleFactor?: number,
+  pdfScaleFactor: number | undefined,
+  cDetails: ColorDetails,
 ): Promise<APIResponseWithData<ConvertResult>> {
   if (node.type === "item") {
+    const resolved = node.data.type === "text"
+      ? resolveTextBackground(node.data.textBackground, cDetails, extraScale)
+      : undefined;
+
     const result = await convertContentItem(
       node.data,
       node.id,
       projectId,
       extraScale,
       pdfScaleFactor,
+      false,
+      resolved?.textColor,
     );
     if (result.success === false) return result;
 
     const convertedNode: LayoutNode<PageContentItem> = {
       ...node,
       data: result.data,
+      ...(resolved ? { style: resolved.containerStyle } : {}),
     };
 
     return { success: true, data: { node: convertedNode } };
@@ -91,6 +136,7 @@ async function convertLayoutNode(
       projectId,
       extraScale,
       pdfScaleFactor,
+      cDetails,
     );
     if (result.success === false) return result;
 
@@ -115,12 +161,8 @@ async function convertContentItem(
   extraScale: number,
   pdfScaleFactor?: number,
   isForOptimizer: boolean = false,
+  textColor?: string,
 ): Promise<APIResponseWithData<PageContentItem>> {
-  if (item.type === "placeholder") {
-    const spacerItem: PageSpacerInputs = { spacer: true };
-    return { success: true, data: spacerItem };
-  }
-
   if (item.type === "text") {
     if (!item.markdown?.trim()) {
       const spacerItem: PageSpacerInputs = { spacer: true };
@@ -129,6 +171,7 @@ async function convertContentItem(
 
     const markdownStyle: CustomMarkdownStyleOptions = {
       scale: (item.textSize ?? 1) * extraScale,
+      ...(textColor ? { text: { base: { color: textColor } } } : {}),
     };
 
     const markdownItem: MarkdownRendererInput = {

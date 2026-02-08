@@ -11,7 +11,7 @@ import {
 import { getTextRenderingOptions, type Slide } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
-import { convertSlideToPageInputs } from "~/components/slide_deck/utils/convert_slide_to_page_inputs";
+import { convertSlideToPageInputs } from "~/components/slide_deck/slide_rendering/convert_slide_to_page_inputs";
 import fontMap from "~/font-map.json";
 
 export async function exportSlideDeckAsPdfVector(
@@ -114,7 +114,7 @@ export async function exportSlideDeckAsPdfVector(
         slide = cached.data.slide;
       }
 
-      const resPageInputs = convertSlideToPageInputs(projectId, slide, i);
+      const resPageInputs = await convertSlideToPageInputs(projectId, slide, i, resDeckDetail.data.config);
 
       if (resPageInputs.success === false) {
         return resPageInputs;

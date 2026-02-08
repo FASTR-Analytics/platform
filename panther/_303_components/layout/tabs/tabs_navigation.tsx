@@ -67,7 +67,8 @@ export function TabsNavigation(p: TabsNavigationProps) {
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
       const paddingClass = isCollapsed() ? "px-4 py-4" : "py-4 pl-6 pr-8";
-      const baseClasses = `ui-hoverable ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer border-l-4`;
+      const baseClasses =
+        `ui-hoverable ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer border-l-4`;
 
       if (isActive) {
         return `${baseClasses} border-primary text-primary bg-base-200`;
@@ -76,8 +77,7 @@ export function TabsNavigation(p: TabsNavigationProps) {
     }
   };
 
-  const formatter =
-    p.tabLabelFormatter ??
+  const formatter = p.tabLabelFormatter ??
     ((option: SelectOption<string>) =>
       typeof option.label === "string" ? option.label : String(option.value));
 
@@ -127,10 +127,9 @@ export function TabsNavigation(p: TabsNavigationProps) {
       <div class="flex-1 overflow-y-auto">
         <For each={p.tabs.tabs}>
           {(option) => {
-            const tooltipContent =
-              typeof option.label === "string"
-                ? option.label
-                : String(option.value);
+            const tooltipContent = typeof option.label === "string"
+              ? option.label
+              : String(option.value);
 
             // Wrap with tooltip when collapsed - use Show for reactivity
             return (
@@ -141,9 +140,9 @@ export function TabsNavigation(p: TabsNavigationProps) {
                     type="button"
                     class={getTabClasses(option.value)}
                     onClick={() => handleTabClick(option.value)}
-                    aria-current={
-                      p.tabs.isTabActive(option.value) ? "page" : undefined
-                    }
+                    aria-current={p.tabs.isTabActive(option.value)
+                      ? "page"
+                      : undefined}
                     role="tab"
                   >
                     {renderTabContent(option)}
@@ -155,9 +154,9 @@ export function TabsNavigation(p: TabsNavigationProps) {
                     type="button"
                     class={getTabClasses(option.value)}
                     onClick={() => handleTabClick(option.value)}
-                    aria-current={
-                      p.tabs.isTabActive(option.value) ? "page" : undefined
-                    }
+                    aria-current={p.tabs.isTabActive(option.value)
+                      ? "page"
+                      : undefined}
                     role="tab"
                   >
                     {renderTabContent(option)}
@@ -180,13 +179,14 @@ export function TabsNavigation(p: TabsNavigationProps) {
         >
           <Button
             onClick={handleToggleCollapse}
-            aria-label={
-              isCollapsed() ? "Expand navigation" : "Collapse navigation"
-            }
+            aria-label={isCollapsed()
+              ? "Expand navigation"
+              : "Collapse navigation"}
             outline
             iconName={isCollapsed() ? "chevronRight" : "chevronLeft"}
             intent="neutral"
-          ></Button>
+          >
+          </Button>
         </div>
       </Show>
     </div>

@@ -300,7 +300,6 @@ export function getStartingConfigForReportItem() {
 // ============================================================================
 
 export type ReportItemContentItemType =
-  | "placeholder"
   | "text"
   | "figure"
   | "image";
@@ -314,9 +313,6 @@ export type ReportItemContentItem = {
   fillArea: boolean;
   textSize: number;
   textBackground: string;
-  placeholderInvisible: boolean;
-  placeholderStretch: boolean;
-  placeholderHeight: number | undefined;
   useFigureAdditionalScale: boolean;
   figureAdditionalScale: number | undefined;
   imgFile: string | undefined;
@@ -329,18 +325,15 @@ export type ReportItemContentItem = {
 };
 
 export function getStartingReportItemPlaceholder() {
-  const startingPlaceholder: ReportItemContentItem = {
-    type: "placeholder",
+  const startingItem: ReportItemContentItem = {
+    type: "text",
     span: undefined,
     presentationObjectInReportInfo: undefined,
-    markdown: undefined,
+    markdown: "",
     stretch: true,
     fillArea: false,
     textSize: 1,
     textBackground: "none",
-    placeholderInvisible: false,
-    placeholderStretch: true,
-    placeholderHeight: 50,
     useFigureAdditionalScale: false,
     figureAdditionalScale: 1,
     imgFile: undefined,
@@ -351,5 +344,5 @@ export function getStartingReportItemPlaceholder() {
     hideFigureSubCaption: false,
     hideFigureFootnote: false,
   };
-  return startingPlaceholder;
+  return startingItem;
 }

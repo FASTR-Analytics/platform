@@ -102,8 +102,8 @@ export class PdfRenderContext implements RenderContext {
       // The "internal.scaleFactor" const is the scaling between POINT and PIXEL units
       // This is needed to convert the font size to POINTs
       // Should always equal 1.33333 but using the internal const just in case
-      const fontSizeInPoints =
-        mText.ti.fontSize * this._jsPdf.internal.scaleFactor;
+      const fontSizeInPoints = mText.ti.fontSize *
+        this._jsPdf.internal.scaleFactor;
       this._jsPdf.setFontSize(fontSizeInPoints);
 
       // Only set color if it's not "none" (matching Canvas behavior)
@@ -181,8 +181,8 @@ export class PdfRenderContext implements RenderContext {
     // jsPDF expects setFont(fontFamily, fontStyle, fontWeight)
     this._jsPdf.setFont(fontFamily, fontStyle, fontWeight);
 
-    const fontSizeInPoints =
-      mText.ti.fontSize * this._jsPdf.internal.scaleFactor;
+    const fontSizeInPoints = mText.ti.fontSize *
+      this._jsPdf.internal.scaleFactor;
     this._jsPdf.setFontSize(fontSizeInPoints);
 
     // Only set color if it's not "none" (matching Canvas behavior)
@@ -213,31 +213,25 @@ export class PdfRenderContext implements RenderContext {
     // Note: "0px" results in undefined charSpace, which is correct (default spacing)
 
     // Match Canvas implementation exactly
-    const align2 =
-      rotation === "anticlockwise"
-        ? vAlign === "top"
-          ? "right"
-          : vAlign === "bottom"
-            ? "left"
-            : "center"
-        : vAlign === "top"
-          ? "left"
-          : vAlign === "bottom"
-            ? "right"
-            : "center";
+    const align2 = rotation === "anticlockwise"
+      ? vAlign === "top" ? "right" : vAlign === "bottom" ? "left" : "center"
+      : vAlign === "top"
+      ? "left"
+      : vAlign === "bottom"
+      ? "right"
+      : "center";
 
-    const y2 =
-      rotation === "anticlockwise"
-        ? hAlign === "left"
-          ? 0
-          : hAlign === "center"
-            ? (0 - mText.dims.w()) / 2
-            : 0 - mText.dims.w()
-        : hAlign === "left"
-          ? 0 - mText.dims.w()
-          : hAlign === "center"
-            ? (0 - mText.dims.w()) / 2
-            : 0;
+    const y2 = rotation === "anticlockwise"
+      ? hAlign === "left"
+        ? 0
+        : hAlign === "center"
+        ? (0 - mText.dims.w()) / 2
+        : 0 - mText.dims.w()
+      : hAlign === "left"
+      ? 0 - mText.dims.w()
+      : hAlign === "center"
+      ? (0 - mText.dims.w()) / 2
+      : 0;
 
     // Save context
     this._jsPdf.saveGraphicsState();
@@ -392,8 +386,7 @@ export class PdfRenderContext implements RenderContext {
 
       // Determine if we have fill and/or stroke
       const hasFill = f !== "transparent" && f !== "none";
-      const hasStroke =
-        s.strokeColor &&
+      const hasStroke = s.strokeColor &&
         s.strokeColor !== "none" &&
         s.strokeWidth &&
         s.strokeWidth > 0;

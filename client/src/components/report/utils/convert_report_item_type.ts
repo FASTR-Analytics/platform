@@ -4,7 +4,7 @@ import type { LayoutNode } from "panther";
 export function convertReportItemType(
   layout: LayoutNode<ReportItemContentItem>,
   targetId: string,
-  newType: "text" | "figure" | "placeholder" | "image",
+  newType: "text" | "figure" | "image",
 ): LayoutNode<ReportItemContentItem> {
   function walk(
     node: LayoutNode<ReportItemContentItem>,

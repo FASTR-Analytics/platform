@@ -3,17 +3,17 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createContext, createEffect, createSignal, onMount, useContext } from "solid-js";
+import { createContext, createSignal, onMount, useContext } from "solid-js";
 import type { Accessor } from "solid-js";
 import {
   addConversationToList,
+  type ConversationMetadata,
   generateConversationId,
   generateDefaultTitle,
   generateTitleFromMessage,
   loadConversationList,
   removeConversationFromList,
   updateConversationInList,
-  type ConversationMetadata,
 } from "../_core/conversations_persistence.ts";
 import {
   clearConversationStore,
@@ -44,8 +44,12 @@ export function createConversationsManager(
 ): ConversationsContextValue {
   const scope = options?.scope;
 
-  const [allConversations, setAllConversations] = createSignal<ConversationMetadata[]>([]);
-  const [activeConversationId, setActiveConversationId] = createSignal<string | null>(null);
+  const [allConversations, setAllConversations] = createSignal<
+    ConversationMetadata[]
+  >([]);
+  const [activeConversationId, setActiveConversationId] = createSignal<
+    string | null
+  >(null);
 
   const conversations = () => {
     if (scope === undefined) {

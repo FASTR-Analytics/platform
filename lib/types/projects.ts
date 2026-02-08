@@ -4,7 +4,7 @@ import { type MetricWithStatus } from "./module_definitions.ts";
 import { type InstalledModuleSummary } from "./modules.ts";
 import { PresentationObjectSummary } from "./presentation_objects.ts";
 import { ReportSummary } from "./reports.ts";
-import { SlideDeckSummary } from "./slides.ts";
+import { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import { VisualizationFolder } from "./visualization_folders.ts";
 
 // ============================================================================
@@ -31,6 +31,7 @@ export type ProjectDetail = {
   visualizationFolders: VisualizationFolder[];
   reports: ReportSummary[];
   slideDecks: SlideDeckSummary[];
+  slideDeckFolders: SlideDeckFolder[];
   projectUsers: ProjectUser[];
 };
 

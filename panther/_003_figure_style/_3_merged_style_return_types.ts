@@ -178,9 +178,9 @@ export type MergedTableStyle = {
   cellBackgroundColorFormatter:
     | "none"
     | TableCellFormatterFunc<
-        string | number | null | undefined,
-        ColorKeyOrString
-      >;
+      string | number | null | undefined,
+      ColorKeyOrString
+    >;
   colHeaderPadding: Padding;
   rowHeaderPadding: Padding;
   cellPadding: Padding;
@@ -258,7 +258,12 @@ export type MergedContentStyle = {
   };
   bars: {
     getStyle: ChartValueInfoFunc<RectStyle>;
-    stacking: "none" | "stacked" | "imposed" | "uncertainty" | "uncertainty-tiers";
+    stacking:
+      | "none"
+      | "stacked"
+      | "imposed"
+      | "uncertainty"
+      | "uncertainty-tiers";
     maxBarWidth: number;
   };
   lines: {

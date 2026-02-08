@@ -4,7 +4,7 @@ import type { LayoutNode } from "panther";
 export function convertBlockType(
   layout: LayoutNode<ContentBlock>,
   targetId: string,
-  newType: "text" | "figure" | "placeholder" | "image",
+  newType: "text" | "figure" | "image",
 ): LayoutNode<ContentBlock> {
   function walk(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> {
     if (node.id === targetId && node.type === "item") {
@@ -19,14 +19,7 @@ export function convertBlockType(
           };
           break;
         case "figure":
-          // Empty figure - user will add via "Replace visualization"
-          newBlock = {
-            type: "figure",
-            figureInputs: { type: "empty" } as any,
-          };
-          break;
-        case "placeholder":
-          newBlock = { type: "placeholder" };
+          newBlock = { type: "figure" };
           break;
         case "image":
           newBlock = {

@@ -27,7 +27,7 @@ import { getReportDetailFromCacheOrFetch } from "~/state/ri_cache";
 import { fitWithin, setFitWithin } from "~/state/ui";
 import { DuplicateReport } from "./duplicate_report";
 import { ReportItemEditor } from "./report_item";
-import { ReportSettings } from "./report_settings";
+import { ReportSettings, type ReportSettingsProps } from "./report_settings";
 import { ReorderPages } from "./reorder_pages";
 import type { AIContext } from "../project_ai/types";
 
@@ -149,17 +149,34 @@ export function Report(p: Props) {
     if (rd.status !== "ready") {
       return;
     }
-    const res = await openEditorForSettings({
+    const res = await openEditorForSettings<ReportSettingsProps, "AFTER_DELETE">({
       element: ReportSettings,
       props: {
         projectId: p.projectDetail.id,
-        reportId: p.reportId,
-        reportType: rd.data.reportType,
-        reportConfig: rd.data.config,
-        silentGetReportDetail: silentGetReportDetail,
+        config: rd.data.config,
+        heading: t2(T.FRENCH_UI_STRINGS.report_settings),
+        nameLabel: t2(T.FRENCH_UI_STRINGS.report_name),
+        showPageNumbersSuffix: rd.data.reportType === "slide_deck" ? t2(T.FRENCH_UI_STRINGS.except_on_cover_and_section_sl) : undefined,
+        saveConfig: (config) =>
+          serverActions.updateReportConfig({
+            projectId: p.projectDetail.id,
+            report_id: p.reportId,
+            config,
+          }),
+        onSaved: () => silentGetReportDetail(),
+        deleteAction: {
+          confirmText: t("Are you sure you want to delete this report?"),
+          itemLabel: rd.data.config.label,
+          deleteButtonLabel: t2(T.FRENCH_UI_STRINGS.delete_report),
+          onDelete: () =>
+            serverActions.deleteReport({
+              projectId: p.projectDetail.id,
+              report_id: p.reportId,
+            }),
+        },
       },
     });
-    if (res === "AFTER_DELETE_BACK_TO_PROJECT_WITH_PROJECT_UPDATE") {
+    if (res === "AFTER_DELETE") {
       handleClose({ deleted: true });
     }
   }

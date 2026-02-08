@@ -295,9 +295,10 @@ export function generateChartPrimitives<
       const transformedDataWithValues = config.transformedData as TData & {
         values: (number | undefined)[][][][][];
       };
-      const allTiersSeriesVals = transformedDataWithValues.values[mPane.i_pane].map(
-        (tierData) => tierData[plotAreaInfo.i_lane]
-      );
+      const allTiersSeriesVals = transformedDataWithValues.values[mPane.i_pane]
+        .map(
+          (tierData) => tierData[plotAreaInfo.i_lane],
+        );
 
       // Pre-calculate mapped coordinates for ALL tiers (mirrors series uncertainty)
       const allTiersMappedCoordinates = allTiersSeriesVals.map(
@@ -310,7 +311,7 @@ export function generateChartPrimitives<
             config.gridStyle.gridStrokeWidth,
             mPane.yScaleAxisWidthInfo,
             i_tier,
-          )
+          ),
       );
 
       // Generate all content primitives (bars, lines, areas, points, data labels)

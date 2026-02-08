@@ -31,6 +31,9 @@ export function addMeasuredTextToSlide(
 
   const ti = mText.ti;
 
+  const charSpacing = getCharSpacingPts(ti.letterSpacing, ti.fontSize);
+  const lineSpacingMultiple = ti.lineHeight / 1.2;
+
   slide.addText(text, {
     ...rcdToSlidePosition(bounds),
     fontFace: ti.font.fontFamily,
@@ -40,6 +43,8 @@ export function addMeasuredTextToSlide(
     italic: ti.font.italic ?? false,
     valign: "top",
     margin: 0,
+    lineSpacingMultiple,
+    ...(charSpacing !== undefined ? { charSpacing } : {}),
   });
 }
 
@@ -183,7 +188,7 @@ function addBlockquoteToSlide(
     h: pixelsToInches(item.border.line.end.y() - item.border.line.start.y()),
     line: {
       color: Color.toHexNoHash(item.border.style.strokeColor),
-      width: item.border.style.strokeWidth,
+      width: pixelsToPoints(item.border.style.strokeWidth),
     },
   });
 
@@ -268,7 +273,7 @@ function addHorizontalRuleToSlide(
     h: 0,
     line: {
       color: Color.toHexNoHash(color),
-      width: item.style.strokeWidth,
+      width: pixelsToPoints(item.style.strokeWidth),
     },
   });
 }
@@ -279,6 +284,11 @@ function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
   const baseFontFamily = baseStyle.font.fontFamily;
   const baseFontSize = pixelsToPoints(baseStyle.fontSize);
   const baseColor = baseStyle.color;
+  const baseCharSpacing = getCharSpacingPts(
+    baseStyle.letterSpacing,
+    baseStyle.fontSize,
+  );
+  const baseLineSpacingMultiple = baseStyle.lineHeight / 1.2;
 
   // Preserve measured line breaks to match PDF layout
   for (let lineIdx = 0; lineIdx < mFormattedText.lines.length; lineIdx++) {
@@ -309,6 +319,8 @@ function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
         color: Color.toHexNoHash(runColor),
         bold: isBold,
         italic: isItalic,
+        lineSpacingMultiple: baseLineSpacingMultiple,
+        ...(baseCharSpacing !== undefined ? { charSpacing: baseCharSpacing } : {}),
       };
 
       // Add soft break before first run of each line (except first line)
@@ -335,4 +347,17 @@ function getRunStyle(weight: number, italic: boolean): FormattedRunStyle {
   if (isBold) return "bold";
   if (italic) return "italic";
   return "normal";
+}
+
+function getCharSpacingPts(
+  letterSpacing: string,
+  fontSize: number,
+): number | undefined {
+  if (letterSpacing.includes("em")) {
+    const multiplier = Number(letterSpacing.replaceAll("em", ""));
+    if (!isNaN(multiplier) && multiplier !== 0) {
+      return pixelsToPoints(fontSize * multiplier);
+    }
+  }
+  return undefined;
 }

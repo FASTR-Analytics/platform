@@ -13,7 +13,8 @@ import {
 import {
   APIResponseWithData,
   createItemNode,
-  EditablePageHolder,
+  findFirstItem,
+  PageHolder,
   FrameRightResizable,
   LayoutNode,
   PageHitTarget,
@@ -46,15 +47,6 @@ import {
   setPolicyHeaderOrContent,
 } from "~/state/ui";
 import { ReportItemEditorPanel } from "./report_item_editor_panel";
-
-function findFirstItem<U>(node: LayoutNode<U>): LayoutNode<U> & { type: "item" } | undefined {
-  if (node.type === "item") return node;
-  for (const child of node.children) {
-    const found = findFirstItem(child as LayoutNode<U>);
-    if (found) return found;
-  }
-  return undefined;
-}
 
 type ReportItemEditorProps = {
   projectDetail: ProjectDetail;
@@ -357,10 +349,10 @@ export function ReportItemEditorInner(p: Props) {
       >
         <Show when={pageInputs().status === "ready" ? (pageInputs() as { status: "ready"; data: PageInputs }).data : undefined} keyed>
           {(keyedPageInputs) => {
-            console.log("Show re-rendering, creating NEW EditablePageHolder, content type:", (keyedPageInputs as any).content?.type);
+            console.log("Show re-rendering, creating NEW PageHolder, content type:", (keyedPageInputs as any).content?.type);
             return (
               <div class="ui-pad bg-[pink] h-full w-full overflow-auto">
-                <EditablePageHolder
+                <PageHolder
                   pageInputs={keyedPageInputs}
                   onMeasured={(m) => {
                     console.log("mLayout type:", (m as any).mLayout?.type, "children:", (m as any).mLayout?.children?.length);
@@ -440,15 +432,6 @@ export function ReportItemEditorInner(p: Props) {
                           setTempReportItemConfig("freeform", "content", newLayout);
                         },
 
-                        onConvertToPlaceholder: (itemId) => {
-                          const newLayout = convertReportItemType(
-                            tempReportItemConfig.freeform.content,
-                            itemId,
-                            "placeholder"
-                          );
-                          setTempReportItemConfig("freeform", "content", newLayout);
-                        },
-
                         onConvertToImage: (itemId) => {
                           const newLayout = convertReportItemType(
                             tempReportItemConfig.freeform.content,
@@ -457,8 +440,6 @@ export function ReportItemEditorInner(p: Props) {
                           );
                           setTempReportItemConfig("freeform", "content", newLayout);
                         },
-
-                        findFirstItem,
                       },
                     );
 

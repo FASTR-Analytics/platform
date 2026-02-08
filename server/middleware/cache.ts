@@ -12,6 +12,11 @@ export const cacheMiddleware = async (c: Context, next: Next) => {
     return;
   }
 
+  // Only cache successful responses
+  if (c.res.status < 200 || c.res.status >= 400 || c.res.status === 302) {
+    return;
+  }
+
   // Cache logo.png for 1 year
   if (path.endsWith("/logo.png")) {
     c.header("Cache-Control", "public, max-age=31536000, immutable");

@@ -4,5 +4,4 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./chart_holder.tsx";
-export * from "./editable_page_holder.tsx";
 export * from "./page_holder.tsx";

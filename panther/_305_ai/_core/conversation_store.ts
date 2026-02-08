@@ -50,7 +50,11 @@ export function getOrCreateConversationStore(
     // Hydrate from IndexedDB asynchronously (non-blocking)
     if (enablePersistence) {
       loadConversation(conversationId).then((persisted) => {
-        if (persisted && persisted.messages.length > 0) {
+        const [currentMessages] = store.messages;
+        if (
+          persisted && persisted.messages.length > 0 &&
+          currentMessages().length === 0
+        ) {
           const [, setMessages] = store.messages;
           const [, setDisplayItems] = store.displayItems;
           setMessages(persisted.messages);

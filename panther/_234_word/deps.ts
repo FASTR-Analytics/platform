@@ -5,10 +5,7 @@
 
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
 export type { FigureMap, ImageMap } from "../_105_markdown/mod.ts";
-export {
-  coreMarkdownToWord,
-  DEFAULT_WORD_SPECIFIC_CONFIG,
-} from "../_106_markdown_to_word/mod.ts";
+export { DEFAULT_WORD_SPECIFIC_CONFIG, coreMarkdownToWord } from "../_106_markdown_to_word/mod.ts";
 export type { WordSpecificConfig } from "../_106_markdown_to_word/mod.ts";
 export { getFigureAsDataUrl } from "../_232_skia_canvas/mod.ts";
 export { Document, Packer } from "docx";

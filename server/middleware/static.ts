@@ -1,15 +1,13 @@
 import { serveStatic } from "hono/deno";
 import type { Hono } from "hono";
 import { getGlobalNonAdmin } from "../project_auth.ts";
+import { _ASSETS_DIR_PATH, _SANDBOX_DIR_PATH } from "../exposed_env_vars.ts";
 
 export function setupStaticServing(app: Hono) {
   // Public static files (no auth required)
   app.use("*", serveStatic({ root: "./client_dist" }));
 
   // Protected static files (require global user auth)
-  // Apply auth middleware before serving sandbox files
-  app.use("*", getGlobalNonAdmin, serveStatic({ root: "./sandbox" }));
-
-  // Apply auth middleware before serving assets files
-  app.use("*", getGlobalNonAdmin, serveStatic({ root: "./assets" }));
+  app.use("*", getGlobalNonAdmin, serveStatic({ root: _SANDBOX_DIR_PATH }));
+  app.use("*", getGlobalNonAdmin, serveStatic({ root: _ASSETS_DIR_PATH }));
 }

@@ -1,5 +1,8 @@
 import type { FigureInputs, LayoutNode } from "@timroberton/panther";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
+import type { ReportConfig } from "./reports.ts";
+
+export type SlideDeckConfig = ReportConfig;
 
 // Slide types
 export type SlideType = "cover" | "section" | "content";
@@ -33,19 +36,15 @@ export type FigureSource =
 // Figure block - contains rendered data + optional source for refresh
 export type FigureBlock = {
   type: "figure";
-  figureInputs: FigureInputs;
+  figureInputs?: FigureInputs;
   source?: FigureSource;
-};
-
-// Placeholder block - empty space for user to fill
-export type PlaceholderBlock = {
-  type: "placeholder";
 };
 
 // Image block styling
 export type ImageBlockStyle = {
   imgHeight?: number;
   imgFit?: "cover" | "contain";
+  imgAlign?: "center" | "top" | "bottom" | "left" | "right";
 };
 
 // Image block
@@ -55,7 +54,7 @@ export type ImageBlock = {
   style?: ImageBlockStyle;
 };
 
-export type ContentBlock = TextBlock | FigureBlock | PlaceholderBlock | ImageBlock;
+export type ContentBlock = TextBlock | FigureBlock | ImageBlock;
 
 // Cover slide
 export type CoverSlide = {
@@ -64,6 +63,11 @@ export type CoverSlide = {
   subtitle?: string;
   presenter?: string;
   date?: string;
+  logos?: string[];
+  titleTextRelFontSize?: number;
+  subTitleTextRelFontSize?: number;
+  presenterTextRelFontSize?: number;
+  dateTextRelFontSize?: number;
 };
 
 // Section slide
@@ -71,6 +75,8 @@ export type SectionSlide = {
   type: "section";
   sectionTitle: string;
   sectionSubtitle?: string;
+  sectionTextRelFontSize?: number;
+  smallerSectionTextRelFontSize?: number;
 };
 
 // Content slide - uses explicit layout for user editing
@@ -95,10 +101,24 @@ export type SlidePosition =
   | { toStart: true }
   | { toEnd: true };
 
+// Slide deck folders
+export type SlideDeckFolder = {
+  id: string;
+  label: string;
+  color: string | null;
+  description: string | null;
+  sortOrder: number;
+};
+
+export type SlideDeckGroupingMode = "folders" | "flat";
+
 // Slide deck summary (list view)
 export type SlideDeckSummary = {
   id: string;
   label: string;
+  folderId: string | null;
+  firstSlideId: string | null;
+  config: SlideDeckConfig;
 };
 
 // Slide deck detail (for rendering)
@@ -106,6 +126,7 @@ export type SlideDeckDetail = {
   id: string;
   label: string;
   plan: string;
+  config: SlideDeckConfig;
   slideIds: string[];
   lastUpdated: string;
 };

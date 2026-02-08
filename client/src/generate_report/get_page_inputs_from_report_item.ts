@@ -60,5 +60,5 @@ export async function getPageInputsFromReportItem(
       pdfScaleFactor,
     );
   }
-  throw new Error("Bad slide input type");
+  throw new Error(`Bad slide input type: reportType=${reportType}, itemType=${reportItemConfig.type}`);
 }

@@ -31,34 +31,6 @@ export function getToolsForVisualizations(projectId: string) {
       inProgressLabel: (input) => `Getting data for viz ${input.id}...`,
       completionMessage: (input) => `Retrieved data for viz ${input.id}`,
     }),
-
-
-    // createAITool({
-    //   name: "show_draft_visualization_to_user",
-    //   description:
-    //     "Create a visualization configuration that will open in the editor. IMPORTANT: Before using this tool, you MUST first use get_metric to fetch the metric details and understand available disaggregations, value properties, and time periods. Only use dimensions that are available for the specific metric. For filters, use get_metric_data to see available values for each dimension. Empty filter values will cause errors.",
-    //   inputSchema: AiCreateVisualizationInputSchema,
-    //   handler: async (input: AiCreateVisualizationInput): Promise<string> => {
-    //     const buildResult = buildConfigFromMetric(input, metrics);
-
-    //     if (!buildResult.success) {
-    //       return `Error: ${buildResult.error}. Please use a valid metric ID from the available metrics list.`;
-    //     }
-
-    //     const result: CreateModeVisualizationData = {
-    //       label: input.chartTitle,
-    //       resultsValue: buildResult.resultsValue,
-    //       config: buildResult.config,
-    //     };
-
-    //     setResult(result);
-
-    //     return `Created visualization configuration: "${input.chartTitle}". The user can now click "Open in editor" to start editing.`;
-    //   },
-    //   inProgressLabel: (input: AiCreateVisualizationInput) => `Creating "${input.chartTitle}"...`,
-    //   completionMessage: (input: AiCreateVisualizationInput) =>
-    //     `Created visualization: ${input.chartTitle}`,
-    // })
   ];
 }
 

@@ -234,7 +234,7 @@ function renderHeader(
       h: 0,
       line: {
         color: Color.toHexNoHash(getColor(s.header.bottomBorderColor)),
-        width: s.header.bottomBorderStrokeWidth,
+        width: pixelsToPoints(s.header.bottomBorderStrokeWidth),
       },
     });
   }
@@ -347,6 +347,7 @@ function renderContainerStyle(
   slide: PptxSlide,
   node: MeasuredLayoutNode<PageContentItem>,
 ): void {
+  if (node.type !== "item") return;
   const style = node.style;
   if (!style) return;
 
@@ -367,13 +368,15 @@ function renderContainerStyle(
 
   const pos = rcdToSlidePosition(renderBounds);
 
+  const borderWidthPts = pixelsToPoints(borderWidth);
+
   if (hasBackground && hasBorder) {
     slide.addShape("rect", {
       ...pos,
       fill: { color: Color.toHexNoHash(getColor(style.backgroundColor!)) },
       line: {
         color: Color.toHexNoHash(getColor(style.borderColor!)),
-        width: borderWidth,
+        width: borderWidthPts,
       },
     });
   } else if (hasBackground) {
@@ -388,7 +391,7 @@ function renderContainerStyle(
       fill: { type: "none" },
       line: {
         color: Color.toHexNoHash(getColor(style.borderColor!)),
-        width: borderWidth,
+        width: borderWidthPts,
       },
     });
   }
@@ -401,7 +404,7 @@ function addContentItem(
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const item = node.data;
-  const bounds = node.rpd;
+  const bounds = node.contentRpd;
 
   // Markdown: measure and convert to PPTX
   if (MarkdownRenderer.isType(item)) {
@@ -459,6 +462,15 @@ function addMeasuredTextToSlide(
   const ti = mText.ti;
   const h = mText.dims.h();
 
+  let charSpacing: number | undefined;
+  if (ti.letterSpacing.includes("em")) {
+    const multiplier = Number(ti.letterSpacing.replaceAll("em", ""));
+    if (!isNaN(multiplier) && multiplier !== 0) {
+      charSpacing = pixelsToPoints(ti.fontSize * multiplier);
+    }
+  }
+  const lineSpacingMultiple = ti.lineHeight / 1.2;
+
   // Use container width to avoid font metric differences causing unwanted wrapping
   slide.addText(text, {
     x: pixelsToInches(x),
@@ -473,5 +485,7 @@ function addMeasuredTextToSlide(
     align,
     valign: "top",
     margin: 0,
+    lineSpacingMultiple,
+    ...(charSpacing !== undefined ? { charSpacing } : {}),
   });
 }

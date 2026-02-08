@@ -114,6 +114,15 @@ function addMeasuredTextToSlide(
   const ti = mText.ti;
   const h = mText.dims.h();
 
+  let charSpacing: number | undefined;
+  if (ti.letterSpacing.includes("em")) {
+    const multiplier = Number(ti.letterSpacing.replaceAll("em", ""));
+    if (!isNaN(multiplier) && multiplier !== 0) {
+      charSpacing = pixelsToPoints(ti.fontSize * multiplier);
+    }
+  }
+  const lineSpacingMultiple = ti.lineHeight / 1.2;
+
   // Use full bounds width with center alignment to avoid font metric differences
   slide.addText(text, {
     x: pixelsToInches(boundsX),
@@ -128,5 +137,7 @@ function addMeasuredTextToSlide(
     align: "center",
     valign: "top",
     margin: 0,
+    lineSpacingMultiple,
+    ...(charSpacing !== undefined ? { charSpacing } : {}),
   });
 }

@@ -80,10 +80,21 @@ export type DBReportItem = {
   last_updated: string;
 };
 
+export type DBSlideDeckFolder = {
+  id: string;
+  label: string;
+  color: string | null;
+  description: string | null;
+  sort_order: number;
+  last_updated: string;
+};
+
 export type DBSlideDeck = {
   id: string;
   label: string;
   plan: string | null;
+  config: string | null;
+  folder_id: string | null;
   last_updated: string;
 };
 

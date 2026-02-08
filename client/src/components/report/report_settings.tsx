@@ -1,9 +1,8 @@
 import { ColorTheme,
   ReportConfig,
-  ReportType,
   _COLOR_THEMES,
   getColorDetailsForColorTheme,
-  isFrench, t2, T } from "lib";
+  t2, T } from "lib";
 import {
   Button,
   Checkbox,
@@ -18,24 +17,30 @@ import {
   timActionDelete,
   timActionButton,
   timQuery,
+  APIResponseWithData,
 } from "panther";
 import { For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { t } from "lib";
 
-const __U = "__UNDEFINED";
+export type ReportSettingsProps = {
+  projectId: string;
+  config: ReportConfig;
+  heading: string;
+  nameLabel: string;
+  showPageNumbersSuffix?: string;
+  saveConfig: (config: ReportConfig) => Promise<APIResponseWithData<{ lastUpdated: string }>>;
+  onSaved: (lastUpdated: string) => Promise<void>;
+  deleteAction?: {
+    confirmText: string;
+    itemLabel: string;
+    deleteButtonLabel: string;
+    onDelete: () => Promise<APIResponseWithData<never> | { success: true }>;
+  };
+};
 
-type Props = EditorComponentProps<
-  {
-    projectId: string;
-    reportId: string;
-    reportType: ReportType;
-    reportConfig: ReportConfig;
-    silentGetReportDetail: (lastUpdate: string) => Promise<void>;
-  },
-  "AFTER_DELETE_BACK_TO_PROJECT_WITH_PROJECT_UPDATE"
->;
+type Props = EditorComponentProps<ReportSettingsProps, "AFTER_DELETE">;
 
 export function ReportSettings(p: Props) {
   const assetListing = timQuery(
@@ -44,7 +49,7 @@ export function ReportSettings(p: Props) {
   );
 
   const [tempConfig, setTempConfig] = createStore<ReportConfig>(
-    structuredClone(p.reportConfig),
+    structuredClone(p.config),
   );
 
   function addLogo() {
@@ -63,35 +68,27 @@ export function ReportSettings(p: Props) {
     async () => {
       const newConfig = unwrap(tempConfig);
       newConfig.logos = newConfig.logos?.filter(Boolean) ?? [];
-      const res = await serverActions.updateReportConfig({
-        projectId: p.projectId,
-        report_id: p.reportId,
-        config: newConfig,
-      });
+      const res = await p.saveConfig(newConfig);
       if (res.success === false) {
         return res;
       }
-      await p.silentGetReportDetail(res.data.lastUpdated);
-      // optimisticSetLastUpdated(p.reportId, res.data.lastUpdated);
+      await p.onSaved(res.data.lastUpdated);
       return res;
     },
     () => p.close(undefined),
   );
 
-  async function attemptDeleteReport() {
+  async function attemptDelete() {
+    if (!p.deleteAction) return;
+    const da = p.deleteAction;
     const deleteAction = timActionDelete(
       {
-        text: t("Are you sure you want to delete this report?"),
-        itemList: [p.reportConfig.label],
+        text: da.confirmText,
+        itemList: [da.itemLabel],
       },
-      () =>
-        serverActions.deleteReport({
-          projectId: p.projectId,
-          report_id: p.reportId,
-        }),
-      () => p.close("AFTER_DELETE_BACK_TO_PROJECT_WITH_PROJECT_UPDATE"),
+      da.onDelete,
+      () => p.close("AFTER_DELETE"),
     );
-
     await deleteAction.click();
   }
 
@@ -100,14 +97,13 @@ export function ReportSettings(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={t2(T.FRENCH_UI_STRINGS.report_settings)}>
+        <HeadingBar heading={p.heading}>
           <div class="ui-gap-sm flex">
             <Button
               onClick={save.click}
               state={save.state()}
               intent="success"
               iconName="save"
-              // disabled={!paramsNeedSaving()}
             >
               {t2(T.FRENCH_UI_STRINGS.save)}
             </Button>
@@ -127,7 +123,7 @@ export function ReportSettings(p: Props) {
           <SettingsSection header={t2(T.FRENCH_UI_STRINGS.general)}>
             <div class="w-96">
               <Input
-                label={t2(T.FRENCH_UI_STRINGS.report_name)}
+                label={p.nameLabel}
                 value={tempConfig.label}
                 onChange={(v) => setTempConfig("label", v)}
                 fullWidth
@@ -243,7 +239,7 @@ export function ReportSettings(p: Props) {
           <SettingsSection header={t("Page details")}>
             <div class="max-w-96">
               <Checkbox
-                label={`${t2(T.FRENCH_UI_STRINGS.show_page_numbers)}${p.reportType === "slide_deck" ? ` ${t2(T.FRENCH_UI_STRINGS.except_on_cover_and_section_sl)}` : ""}`}
+                label={`${t2(T.FRENCH_UI_STRINGS.show_page_numbers)}${p.showPageNumbersSuffix ? ` ${p.showPageNumbersSuffix}` : ""}`}
                 checked={tempConfig.showPageNumbers}
                 onChange={(v) => setTempConfig("showPageNumbers", v)}
               />
@@ -265,16 +261,18 @@ export function ReportSettings(p: Props) {
             </div>
           </SettingsSection>
         </div>
-        <div class="">
-          <Button
-            onClick={attemptDeleteReport}
-            intent="danger"
-            outline
-            iconName="trash"
-          >
-            {t2(T.FRENCH_UI_STRINGS.delete_report)}
-          </Button>
-        </div>
+        <Show when={p.deleteAction}>
+          <div class="">
+            <Button
+              onClick={attemptDelete}
+              intent="danger"
+              outline
+              iconName="trash"
+            >
+              {p.deleteAction!.deleteButtonLabel}
+            </Button>
+          </div>
+        </Show>
       </div>
     </FrameTop>
   );

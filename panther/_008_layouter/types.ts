@@ -14,19 +14,19 @@ export type { HeightConstraints };
 
 export type LayoutNodeId = string;
 
+export type IdGenerator = () => LayoutNodeId;
+
 export type ContainerStyleOptions = {
   padding?: PaddingOptions;
   backgroundColor?: ColorKeyOrString;
   borderColor?: ColorKeyOrString;
   borderWidth?: number;
-  borderRadius?: number;
 };
 
 export type LayoutNodeBase = {
   id: LayoutNodeId;
   minH?: number; // Override minimum height
   maxH?: number; // Override maximum height
-  style?: ContainerStyleOptions;
   span?: number;
 };
 
@@ -43,6 +43,7 @@ export type ColsLayoutNode<U> = LayoutNodeBase & {
 export type ItemLayoutNode<U> = LayoutNodeBase & {
   type: "item";
   data: U;
+  style?: ContainerStyleOptions;
 };
 
 export type LayoutNode<U> =
@@ -55,18 +56,31 @@ export type ContainerLayoutNode<U> = RowsLayoutNode<U> | ColsLayoutNode<U>;
 export type MeasuredRowsLayoutNode<U> = RowsLayoutNode<U> & {
   rpd: RectCoordsDims;
   children: MeasuredLayoutNode<U>[];
+  absoluteStartColumn: number;
+  absoluteEndColumn: number;
+  span: number;
+  minimumSpanIfAllChildrenWere1: number;
 };
 
 export type MeasuredColsLayoutNode<U> = ColsLayoutNode<U> & {
   rpd: RectCoordsDims;
   children: MeasuredLayoutNode<U>[];
+  absoluteStartColumn: number;
+  absoluteEndColumn: number;
+  span: number;
+  minimumSpanIfAllChildrenWere1: number;
 };
 
 export type MeasuredItemLayoutNode<U> = ItemLayoutNode<U> & {
   rpd: RectCoordsDims;
+  contentRpd: RectCoordsDims;
   idealH: number;
   maxH: number;
   neededScalingToFitWidth?: "none" | number;
+  absoluteStartColumn: number;
+  absoluteEndColumn: number;
+  span: number;
+  minimumSpanIfAllChildrenWere1: number;
 };
 
 export type MeasuredLayoutNode<U> =
@@ -105,7 +119,10 @@ export type LayoutGapColDivider = {
   rowIndex: number;
   afterColIndex: number;
   line: { x: number; y1: number; y2: number };
-  snapPositions: number[]; // Valid x positions for snapping (index 0 = span 1, index n-2 = span n-1)
+  snapPositions: number[]; // Global column grid positions (11 positions for 12-column grid)
+  leftStartColumn: number; // Which column (0-11) the left node starts at in the global grid
+  leftSpan: number; // Current span of left node
+  rightSpan: number; // Current span of right node
 };
 
 export type LayoutGap = LayoutGapRowGap | LayoutGapColGap | LayoutGapColDivider;

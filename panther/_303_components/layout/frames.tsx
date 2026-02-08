@@ -342,11 +342,11 @@ export function FrameRightResizable(p: ResizableFrameProps) {
           <div
             class="hover:bg-primary/20 active:bg-primary/20 absolute -left-1 top-0 z-50 h-full w-2 cursor-col-resize"
             onMouseDown={handleMouseDown}
-            style={{ display: p.isShown === false ? 'none' : 'block' }}
+            style={{ display: p.isShown === false ? "none" : "block" }}
           />
           <div
             class="h-full overflow-auto"
-            style={{ display: p.isShown === false ? 'none' : 'block' }}
+            style={{ display: p.isShown === false ? "none" : "block" }}
           >
             {p.panelChildren}
           </div>

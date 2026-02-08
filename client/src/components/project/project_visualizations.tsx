@@ -1,4 +1,4 @@
-import { ProjectDetail, InstanceDetail, PresentationObjectSummary, isFrench, t, t2, T } from "lib";
+import { InstanceDetail, PresentationObjectSummary, isFrench, t, t2, T } from "lib";
 import {
   Button,
   FrameTop,
@@ -15,6 +15,7 @@ import { getPODetailFromCacheorFetch } from "~/state/po_cache";
 import { updateProjectView } from "~/state/ui";
 import { useProjectDetail } from "~/components/project_runner/mod";
 import { useAIProjectContext } from "~/components/project_ai/context";
+import { snapshotForVizEditor } from "~/utils/snapshot";
 
 type Props = {
   instanceDetail: InstanceDetail;
@@ -49,12 +50,14 @@ export function ProjectVisualizations(p: Props) {
           mode: "create" as const,
           projectId: projectDetail.id,
           label: `Copy of ${poDetailRes.data.label}`,
-          resultsValue: poDetailRes.data.resultsValue,
-          config: structuredClone(poDetailRes.data.config),
-          instanceDetail: p.instanceDetail,
-          projectDetail: projectDetail,
           isGlobalAdmin: p.isGlobalAdmin,
           returnToContext: aiContext(),
+          ...snapshotForVizEditor({
+            projectDetail,
+            instanceDetail: p.instanceDetail,
+            resultsValue: poDetailRes.data.resultsValue,
+            config: poDetailRes.data.config,
+          }),
         },
       });
 
@@ -74,10 +77,12 @@ export function ProjectVisualizations(p: Props) {
         mode: "edit" as const,
         projectId: projectDetail.id,
         presentationObjectId: po.id,
-        instanceDetail: p.instanceDetail,
-        projectDetail: projectDetail,
         isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
+        ...snapshotForVizEditor({
+          projectDetail,
+          instanceDetail: p.instanceDetail,
+        }),
       },
     });
     // SSE will update projectDetail automatically
@@ -102,12 +107,14 @@ export function ProjectVisualizations(p: Props) {
         mode: "create" as const,
         projectId: projectDetail.id,
         label: res.label,
-        resultsValue: res.resultsValue,
-        config: res.config,
-        instanceDetail: p.instanceDetail,
-        projectDetail: projectDetail,
         isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
+        ...snapshotForVizEditor({
+          projectDetail,
+          instanceDetail: p.instanceDetail,
+          resultsValue: res.resultsValue,
+          config: res.config,
+        }),
       },
     });
   }
