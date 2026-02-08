@@ -20,10 +20,10 @@ export function setProjectTab(tab: TabOption) {
 }
 
 // Project navigation collapsed state
-const storedNavCollapsed = localStorage.getItem("navCollapsed") === "true";
+const storedNavCollapsed = localStorage.getItem("navCollapsed");
 
 export const [navCollapsed, setNavCollapsedInternal] = createSignal<boolean>(
-  storedNavCollapsed ?? true
+  storedNavCollapsed === null ? true : storedNavCollapsed === "true"
 );
 
 export function setNavCollapsed(collapsed: boolean) {

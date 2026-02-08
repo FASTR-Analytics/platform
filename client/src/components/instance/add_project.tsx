@@ -77,7 +77,7 @@ export function AddProjectForm(
   return (
     <AlertFormHolder
       formId="add-project"
-      header={t("Create new project")}
+      header={t2(T.FRENCH_UI_STRINGS.create_project)}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}

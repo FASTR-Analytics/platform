@@ -44,7 +44,7 @@ export function AddDeckForm(
   return (
     <AlertFormHolder
       formId="add-deck"
-      header="Create Slide Deck"
+      header="Create slide deck"
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}

@@ -469,7 +469,7 @@ export function ProjectDecks(p: ExtendedProps) {
             }
           >
             <Button onClick={attemptAddDeck} iconName="plus">
-              New slide deck
+              Create slide deck
             </Button>
           </Show>
         </HeadingBar>

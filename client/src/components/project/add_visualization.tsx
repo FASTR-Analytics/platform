@@ -115,7 +115,7 @@ export function AddVisualization(
   return (
     <AlertFormHolder
       formId="add-presentation-object"
-      header={t2(T.FRENCH_UI_STRINGS.create_new_visualization)}
+      header={t2(T.FRENCH_UI_STRINGS.create_visualization)}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}

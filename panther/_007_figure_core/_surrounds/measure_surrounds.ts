@@ -34,7 +34,8 @@ export function estimateMinSurroundsWidth(
   }
 
   if (
-    !legendLabels || legendLabels.length === 0 ||
+    !legendLabels || !Array.isArray(legendLabels) ||
+    legendLabels.length === 0 ||
     (legendLabels.length === 1 && legendLabels[0] === "default")
   ) {
     return sSurrounds.padding.totalPx();
@@ -192,6 +193,7 @@ export function measureSurrounds(
 
   if (
     legendLabels &&
+    Array.isArray(legendLabels) &&
     legendLabels.length > 0 &&
     !(legendLabels.length === 1 && legendLabels[0] === "default") &&
     sSurrounds.legendPosition !== "none"
