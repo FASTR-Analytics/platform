@@ -108,7 +108,7 @@ function getTextPrimitiveRcd(prim: PagePrimitiveText): RectCoordsDims {
   return new RCD([x, y, w, h]);
 }
 
-const COL_DIVIDER_HIT_WIDTH = 10;
+const COL_DIVIDER_HIT_WIDTH = 30;
 
 function addGapHitRegions(
   mPage: MeasuredFreeformPage,

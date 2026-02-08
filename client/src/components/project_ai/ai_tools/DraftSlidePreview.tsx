@@ -121,7 +121,9 @@ export function DraftSlidePreview(p: Props) {
         class="cursor-pointer p-1.5 transition-opacity hover:opacity-80"
         onClick={openExpandedView}
       >
-        <SlideStateWrapper state={slideState()} scalePixelResolution={0.2} />
+        <div class="pointer-events-none">
+          <SlideStateWrapper state={slideState()} scalePixelResolution={0.2} />
+        </div>
       </div>
       <div class="flex gap-1.5 border-t border-base-300 p-1.5">
         <Button size="sm" outline iconName="maximize" onClick={openExpandedView} />

@@ -202,19 +202,20 @@ export function DraftVisualizationPreview(p: Props) {
       <div class="p-1.5">
         <Show when={p.figure.type === "from_visualization" ? p.figure as AiFigureFromVisualization : undefined}>
           {(vizFigure) => (
-            <div class="cursor-pointer transition-opacity hover:opacity-80">
-              <PresentationObjectMiniDisplay
-                projectId={p.projectId}
-                presentationObjectId={vizFigure().visualizationId}
-                shapeType="force-aspect-video"
-                onClick={openExpandedViewForViz}
-                scalePixelResolution={0.2}
-                repliantOverride={
-                  vizFigure().replicant
-                    ? { selectedReplicantValue: vizFigure().replicant! }
-                    : undefined
-                }
-              />
+            <div class="cursor-pointer transition-opacity hover:opacity-80" onClick={openExpandedViewForViz}>
+              <div class="pointer-events-none">
+                <PresentationObjectMiniDisplay
+                  projectId={p.projectId}
+                  presentationObjectId={vizFigure().visualizationId}
+                  shapeType="force-aspect-video"
+                  scalePixelResolution={0.2}
+                  repliantOverride={
+                    vizFigure().replicant
+                      ? { selectedReplicantValue: vizFigure().replicant! }
+                      : undefined
+                  }
+                />
+              </div>
             </div>
           )}
         </Show>
@@ -223,10 +224,12 @@ export function DraftVisualizationPreview(p: Props) {
             class="cursor-pointer transition-opacity hover:opacity-80"
             onClick={openExpandedViewForMetric}
           >
-            <FigureStateWrapper
-              state={figureState()}
-              scalePixelResolution={0.2}
-            />
+            <div class="pointer-events-none">
+              <FigureStateWrapper
+                state={figureState()}
+                scalePixelResolution={0.2}
+              />
+            </div>
           </div>
         </Show>
       </div>
