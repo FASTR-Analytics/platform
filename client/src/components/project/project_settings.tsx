@@ -30,10 +30,6 @@ import { CopyProjectForm } from "./copy_project";
 import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
 import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
-import {
-  getInstanceDetail,
-  updateDatasetUploadAttempt_Step1Dhis2Confirm,
-} from "../../../../server/db/mod.ts";
 import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
 import { useProjectDetail } from "~/components/project_runner/mod";
 
@@ -98,8 +94,8 @@ export function ProjectSettings(p: Props) {
         existingLabel: projectDetail.label,
         mutateFunc: (newLabel) =>
           serverActions.updateProject({
-            project_id: p.projectDetail.id,
-            projectId: p.projectDetail.id,
+            project_id: projectDetail.id,
+            projectId: projectDetail.id,
             label: newLabel,
             aiContext: projectDetail.aiContext,
           }),
@@ -115,9 +111,9 @@ export function ProjectSettings(p: Props) {
         existingLabel: projectDetail.aiContext,
         mutateFunc: (newAiContext) =>
           serverActions.updateProject({
-            project_id: p.projectDetail.id,
-            projectId: p.projectDetail.id,
-            label: p.projectDetail.label,
+            project_id: projectDetail.id,
+            projectId: projectDetail.id,
+            label: projectDetail.label,
             aiContext: newAiContext,
           }),
         textArea: true,
@@ -140,7 +136,7 @@ export function ProjectSettings(p: Props) {
     await openComponent({
       element: DisplayProjectUserRole,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: projectDetail.id,
         user,
       },
     });
@@ -149,8 +145,8 @@ export function ProjectSettings(p: Props) {
   const lockProject = timActionButton(
     () =>
       serverActions.setProjectLockStatus({
-        project_id: p.projectDetail.id,
-        projectId: p.projectDetail.id,
+        project_id: projectDetail.id,
+        projectId: projectDetail.id,
         lockAction: "lock",
       }),
     async () => {
@@ -161,8 +157,8 @@ export function ProjectSettings(p: Props) {
   const unlockProject = timActionButton(
     () =>
       serverActions.setProjectLockStatus({
-        project_id: p.projectDetail.id,
-        projectId: p.projectDetail.id,
+        project_id: projectDetail.id,
+        projectId: projectDetail.id,
         lockAction: "unlock",
       }),
     async () => {
@@ -178,8 +174,8 @@ export function ProjectSettings(p: Props) {
       },
       () =>
         serverActions.deleteProject({
-          project_id: p.projectDetail.id,
-          projectId: p.projectDetail.id,
+          project_id: projectDetail.id,
+          projectId: projectDetail.id,
         }),
       p.silentRefreshInstance,
       p.backToHome,
@@ -276,7 +272,7 @@ export function ProjectSettings(p: Props) {
 
         <SettingsSection header={t2("Backups")}>
           <ProjectBackups
-            projectId={p.projectDetail.id}
+            projectId={projectDetail.id}
             instanceDetail={p.instanceDetail}
           />
         </SettingsSection>
@@ -606,18 +602,18 @@ function ProjectBackups(props: {
           });
 
           if (!response.ok) {
-            return { success: false, err: "Failed to create backup" };
+            return { success: false as const, err: "Failed to create backup" };
           }
 
           const data = await response.json();
 
           if (!data.success) {
-            return { success: false, err: data.error || "Backup failed" };
+            return { success: false as const, err: data.error || "Backup failed" };
           }
 
-          return { success: true };
+          return { success: true as const };
         },
-        silentFetch: refetchBackups,
+        silentFetch: async () => { refetchBackups(); },
       },
     });
   };
@@ -660,18 +656,18 @@ function ProjectBackups(props: {
 
           if (!response.ok) {
             const data = await response.json();
-            return { success: false, err: data.error || "Failed to restore" };
+            return { success: false as const, err: data.error || "Failed to restore" };
           }
 
           const data = await response.json();
           if (!data.success) {
-            return { success: false, err: data.error || "Restore failed" };
+            return { success: false as const, err: data.error || "Restore failed" };
           }
 
           // Force full page reload after successful restore to clear all cached data
           window.location.reload();
 
-          return { success: true };
+          return { success: true as const };
         },
       },
     });

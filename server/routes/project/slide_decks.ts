@@ -10,7 +10,7 @@ import {
   duplicateSlideDeck,
   deleteSlideDeck,
 } from "../../db/mod.ts";
-import { getProjectEditor, getProjectViewer } from "../../project_auth.ts";
+import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -20,29 +20,36 @@ export const routesSlideDecks = new Hono();
 defineRoute(
   routesSlideDecks,
   "getAllSlideDecks",
-  getProjectViewer,
+  requireProjectPermission("can_view_slide_decks"),
   async (c) => {
     const res = await getAllSlideDecks(c.var.ppk.projectDb);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesSlideDecks,
   "getSlideDeckDetail",
-  getProjectViewer,
+  requireProjectPermission("can_view_slide_decks"),
   async (c, { params }) => {
     const res = await getSlideDeckDetail(c.var.ppk.projectDb, params.deck_id);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesSlideDecks,
   "createSlideDeck",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
   async (c, { body }) => {
-    const res = await createSlideDeck(c.var.ppk.projectDb, body.label, body.folderId);
+    const res = await createSlideDeck(
+      c.var.ppk.projectDb,
+      body.label,
+      body.folderId,
+    );
     if (!res.success) {
       return c.json(res);
     }
@@ -51,24 +58,27 @@ defineRoute(
       c.var.ppk.projectId,
       "slide_decks",
       [res.data.deckId],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
 
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
 
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesSlideDecks,
   "updateSlideDeckLabel",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
   async (c, { params, body }) => {
     const res = await updateSlideDeckLabel(
       c.var.ppk.projectDb,
       params.deck_id,
-      body.label
+      body.label,
     );
     if (!res.success) {
       return c.json(res);
@@ -78,24 +88,27 @@ defineRoute(
       c.var.ppk.projectId,
       "slide_decks",
       [params.deck_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
 
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
 
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesSlideDecks,
   "updateSlideDeckPlan",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
   async (c, { params, body }) => {
     const res = await updateSlideDeckPlan(
       c.var.ppk.projectDb,
       params.deck_id,
-      body.plan
+      body.plan,
     );
     if (!res.success) {
       return c.json(res);
@@ -105,22 +118,25 @@ defineRoute(
       c.var.ppk.projectId,
       "slide_decks",
       [params.deck_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
 
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesSlideDecks,
   "updateSlideDeckConfig",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
   async (c, { params, body }) => {
     const res = await updateSlideDeckConfig(
       c.var.ppk.projectDb,
       params.deck_id,
-      body.config
+      body.config,
     );
     if (!res.success) {
       return c.json(res);
@@ -130,17 +146,20 @@ defineRoute(
       c.var.ppk.projectId,
       "slide_decks",
       [params.deck_id],
-      res.data.lastUpdated
+      res.data.lastUpdated,
     );
 
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesSlideDecks,
   "moveSlideDeckToFolder",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
   async (c, { params, body }) => {
     const res = await moveSlideDeckToFolder(
       c.var.ppk.projectDb,
@@ -151,13 +170,16 @@ defineRoute(
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     }
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesSlideDecks,
   "duplicateSlideDeck",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
   async (c, { params, body }) => {
     const res = await duplicateSlideDeck(
       c.var.ppk.projectDb,
@@ -169,18 +191,21 @@ defineRoute(
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     }
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesSlideDecks,
   "deleteSlideDeck",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
   async (c, { params }) => {
     const res = await deleteSlideDeck(c.var.ppk.projectDb, params.deck_id);
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, new Date().toISOString());
     }
     return c.json(res);
-  }
+  },
 );

@@ -1,5 +1,4 @@
-import { permission } from "node:process";
-import { ProjectPermission, ProjectUser } from "../../../../lib/types/mod.ts";
+import type { ProjectPermission, ProjectUser } from "lib";
 import { AlertComponentProps, Button } from "panther";
 import { createSignal, onMount, Show, For }  from "solid-js";
 import { serverActions } from "~/server_actions";

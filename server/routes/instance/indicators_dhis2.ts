@@ -1,14 +1,13 @@
 import { Hono } from "hono";
 import {
-  searchIndicatorsFromDHIS2,
-  searchDataElementsFromDHIS2,
   searchAllIndicatorsAndDataElements,
+  searchDataElementsFromDHIS2,
+  searchIndicatorsFromDHIS2,
   testIndicatorsConnection,
 } from "../../dhis2/mod.ts";
-import { defineRoute } from "../route-helpers.ts";
-import { getGlobalAdmin } from "../../project_auth.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { defineRoute } from "../route-helpers.ts";
 
 export const routesIndicatorsDhis2 = new Hono();
 
@@ -35,7 +34,7 @@ defineRoute(
       const indicators = await searchIndicatorsFromDHIS2(
         options,
         body.query,
-        body.searchBy || "name"
+        body.searchBy || "name",
       );
 
       return c.json({
@@ -49,7 +48,7 @@ defineRoute(
         err: error instanceof Error ? error.message : "Unknown error occurred",
       });
     }
-  }
+  },
 );
 
 // POST /data-elements-dhis2/search - Search DHIS2 data elements
@@ -78,7 +77,7 @@ defineRoute(
         "name",
         {
           filter: body.additionalFilters,
-        }
+        },
       );
 
       return c.json({
@@ -92,7 +91,7 @@ defineRoute(
         err: error instanceof Error ? error.message : "Unknown error occurred",
       });
     }
-  }
+  },
 );
 
 // POST /indicators-dhis2/search-all - Combined search
@@ -120,7 +119,7 @@ defineRoute(
         body.query,
         body.searchBy || "name",
         body.includeDataElements ?? true,
-        body.includeIndicators ?? true
+        body.includeIndicators ?? true,
       );
 
       return c.json({
@@ -134,7 +133,7 @@ defineRoute(
         err: error instanceof Error ? error.message : "Unknown error occurred",
       });
     }
-  }
+  },
 );
 
 // POST /indicators-dhis2/test-connection - Test DHIS2 connection
@@ -168,5 +167,5 @@ defineRoute(
         err: error instanceof Error ? error.message : "Unknown error occurred",
       });
     }
-  }
+  },
 );

@@ -1,26 +1,25 @@
 import { Hono } from "hono";
+import { InstanceMeta } from "lib";
 import {
+  getInstanceDetail,
+  updateCountryIso3Config,
+  updateFacilityColumnsConfig,
+  updateMaxAdminArea,
+} from "../../db/mod.ts";
+import {
+  _DATABASE_FOLDER,
   _INSTANCE_CALENDAR,
   _INSTANCE_LANGUAGE,
   _INSTANCE_NAME,
   _INSTANCE_REDIRECT_URL,
+  _IS_PRODUCTION,
   _OPEN_ACCESS,
   _SERVER_VERSION,
   _START_TIME,
-  _DATABASE_FOLDER,
-  _IS_PRODUCTION,
 } from "../../exposed_env_vars.ts";
-import {
-  getInstanceDetail,
-  updateMaxAdminArea,
-  updateFacilityColumnsConfig,
-  updateCountryIso3Config,
-} from "../../db/mod.ts";
-import { InstanceMeta } from "lib";
-import { defineRoute } from "../route-helpers.ts";
-import { getGlobalAdmin, getGlobalNonAdmin } from "../../project_auth.ts";
 import { log } from "../../middleware/mod.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import { defineRoute } from "../route-helpers.ts";
 
 export const routesInstance = new Hono();
 
@@ -58,7 +57,7 @@ defineRoute(
   async (c) => {
     const res = await getInstanceDetail(c.var.mainDb, c.var.globalUser);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -69,7 +68,7 @@ defineRoute(
   async (c, { body }) => {
     const res = await updateMaxAdminArea(c.var.mainDb, body.maxAdminArea);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -80,7 +79,7 @@ defineRoute(
   async (c, { body }) => {
     const res = await updateFacilityColumnsConfig(c.var.mainDb, body);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -89,10 +88,7 @@ defineRoute(
   requireGlobalPermission("can_configure_settings"),
   log("updateCountryIso3"),
   async (c, { body }) => {
-    const res = await updateCountryIso3Config(
-      c.var.mainDb,
-      body.countryIso3
-    );
+    const res = await updateCountryIso3Config(c.var.mainDb, body.countryIso3);
     return c.json(res);
-  }
+  },
 );

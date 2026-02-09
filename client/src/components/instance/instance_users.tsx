@@ -19,7 +19,7 @@ import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { User } from "./user";
 import { Table, TableColumn, BulkAction } from "panther";
 import { serverActions } from "~/server_actions";
-import { UserLog } from "../../../../server/db/mod.ts";
+import type { UserLog } from "lib";
 
 type Props = {
   thisLoggedInUserEmail: string;
@@ -29,7 +29,7 @@ type Props = {
 export function InstanceUsers(p: Props) {
   // Temp state
   const [userLogs] = createResource(
-    () => serverActions.getAllUserLogs()
+    () => serverActions.getAllUserLogs({})
   );
 
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
@@ -125,7 +125,7 @@ export function InstanceUsers(p: Props) {
                   <div class="flex-1">
                     <UserTable
                       users={keyedInstanceDetail.users}
-                      logs={userLogs.latest?.data ?? []}
+                      logs={userLogs.latest?.success ? userLogs.latest.data : []}
                       logsLoading={userLogs.loading}
                       onUserClick={(user) => setSelectedUser(user.email)}
                       onViewLogs={(email) => setLogFilterUser(email)}
@@ -134,7 +134,7 @@ export function InstanceUsers(p: Props) {
                     />
                   </div>
                   <Suspense fallback={<div class="text-neutral text-sm">Loading activity logs...</div>}>
-                    <Show when={userLogs.latest?.data} keyed>
+                    <Show when={userLogs.latest?.success ? userLogs.latest.data : undefined} keyed>
                       {(logs: UserLog[]) => (
                         <div class="flex-1 overflow-auto">
                           <UserLogsTable
@@ -255,7 +255,6 @@ function UserTable(p: {
             }}
             intent="base-100"
             iconName="document"
-            title={t("View Logs")}
           />
           <Button
             onClick={(e: MouseEvent) => {
@@ -264,7 +263,6 @@ function UserTable(p: {
             }}
             intent="base-100"
             iconName="pencil"
-            title={t("Edit User")}
           />
         </div>
       ),
@@ -415,7 +413,7 @@ function UserLogsTable(p: {
                 title: t("Request Details"),
                 text: (
                   <div class="whitespace-pre-wrap font-mono text-sm max-h-96 overflow-auto">
-                    {formatJsonDetails(log.details)}
+                    {formatJsonDetails(log.details!)}
                   </div>
                 )
               });

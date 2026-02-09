@@ -15,14 +15,7 @@ import {
   updateProjectUserPermissions,
   updateProjectUserRole,
 } from "../../db/mod.ts";
-import {
-  checkProjectNotLocked,
-  getGlobalAdmin,
-  getGlobalNonAdmin,
-  getProjectEditor,
-  getProjectViewer,
-  requireProjectPermission,
-} from "../../project_auth.ts";
+import { requireProjectPermission } from "../../project_auth.ts";
 import {
   notifyLastUpdated,
   setAllModulesDirty,
@@ -50,7 +43,7 @@ defineRoute(
       body.datasetsToEnable,
       body.modulesToEnable,
       body.projectEditors,
-      body.projectViewers
+      body.projectViewers,
     );
     if (res.success === false) {
       return c.json(res);
@@ -61,17 +54,17 @@ defineRoute(
           projectId: res.data.newProjectId,
           projectDb: res.data.projectDb,
         },
-        enabledDataset.datasetType
+        enabledDataset.datasetType,
       );
       notifyLastUpdated(
         res.data.newProjectId,
         "datasets",
         [enabledDataset.datasetType],
-        enabledDataset.lastUpdated
+        enabledDataset.lastUpdated,
       );
     }
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -84,16 +77,19 @@ defineRoute(
       c.var.projectUser,
       c.var.mainDb,
       c.var.ppk.projectDb,
-      c.var.ppk.projectId
+      c.var.ppk.projectId,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesProject,
   "updateProjectUserRole",
-  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_users"),
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_users",
+  ),
   log("updateProjectUserRole"),
   async (c, { body }) => {
     console.log("updateProjectUserRole body:", JSON.stringify(body));
@@ -102,26 +98,29 @@ defineRoute(
       c.var.mainDb,
       c.var.ppk.projectId,
       body.emails,
-      body.role
+      body.role,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesProject,
   "updateProjectUserPermissions",
-  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_users"),
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_users",
+  ),
   log("updateProjectUserPermissions"),
   async (c, { body }) => {
     const res = await updateProjectUserPermissions(
       c.var.mainDb,
       c.var.ppk.projectId,
       body.emails,
-      body.permissions
+      body.permissions,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -133,32 +132,38 @@ defineRoute(
     const res = await getProjectUserPermissions(
       c.var.mainDb,
       params.projectId,
-      params.email
+      params.email,
     );
     return c.json(res);
-  }
-)
+  },
+);
 
 defineRoute(
   routesProject,
   "updateProject",
-  requireProjectPermission({preventAccessToLockedProjects: true, requireAdmin: true}),
+  requireProjectPermission({
+    preventAccessToLockedProjects: true,
+    requireAdmin: true,
+  }),
   log("updateProject"),
   async (c, { params, body }) => {
     const res = await updateProject(
       c.var.mainDb,
       params.project_id,
       body.label,
-      body.aiContext
+      body.aiContext,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesProject,
   "addDatasetToProject",
-  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_data"),
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_data",
+  ),
   log("addDatasetToProject"),
   (c, { body }) => {
     return streamResponse<{ lastUpdated: string }>(c, async (writer) => {
@@ -171,16 +176,16 @@ defineRoute(
               c.var.ppk.projectDb,
               c.var.ppk.projectId,
               body.windowing,
-              writer.progress.bind(writer)
+              writer.progress.bind(writer),
             )
           : body.datasetType === "hfa"
-          ? await addDatasetHfaToProject(
-              c.var.mainDb,
-              c.var.ppk.projectDb,
-              c.var.ppk.projectId,
-              writer.progress.bind(writer)
-            )
-          : { success: false as const, err: "Can only do hmis and hfa" };
+            ? await addDatasetHfaToProject(
+                c.var.mainDb,
+                c.var.ppk.projectDb,
+                c.var.ppk.projectId,
+                writer.progress.bind(writer),
+              )
+            : { success: false as const, err: "Can only do hmis and hfa" };
 
       if (res.success === false) {
         await writer.error(res.err);
@@ -193,81 +198,87 @@ defineRoute(
         c.var.ppk.projectId,
         "datasets",
         [body.datasetType],
-        res.data.lastUpdated
+        res.data.lastUpdated,
       );
 
       await writer.complete(res.data);
     });
-  }
+  },
 );
 
 defineRoute(
   routesProject,
   "removeDatasetFromProject",
-  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_data"),
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_data",
+  ),
   log("removeDatasetFromProject"),
   async (c, { params }) => {
     const res = await removeDatasetFromProject(
       c.var.ppk.projectDb,
       c.var.ppk.projectId,
-      params.dataset_type
+      params.dataset_type,
     );
     await setModulesDirtyForDataset(c.var.ppk, params.dataset_type);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesProject,
   "deleteProject",
-  requireProjectPermission({preventAccessToLockedProjects: true, requireAdmin: true}),
+  requireProjectPermission({
+    preventAccessToLockedProjects: true,
+    requireAdmin: true,
+  }),
   log("deleteProject"),
   async (c, { params }) => {
     const res = await deleteProject(c.var.mainDb, params.project_id);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesProject,
   "setProjectLockStatus",
-  requireProjectPermission({requireAdmin: true}),
+  requireProjectPermission({ requireAdmin: true }),
   log("setProjectLockStatus"),
   async (c, { params, body }) => {
     const res = await setProjectLockStatus(
       c.var.mainDb,
       params.project_id,
-      body.lockAction
+      body.lockAction,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesProject,
   "setAllModulesDirty",
-  requireProjectPermission({requireAdmin: true}),
+  requireProjectPermission({ requireAdmin: true }),
   log("setAllModulesDirty"),
   async (c) => {
     await setAllModulesDirty(c.var.ppk);
     return c.json({ success: true });
-  }
+  },
 );
 
 defineRoute(
   routesProject,
   "copyProject",
-  requireProjectPermission({requireAdmin: true}),
+  requireProjectPermission({ requireAdmin: true }),
   log("copyProject"),
   async (c, { params, body }) => {
     const res = await copyProject(
       c.var.mainDb,
       params.project_id,
       body.newProjectLabel,
-      c.var.globalUser
+      c.var.globalUser,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -280,35 +291,41 @@ defineRoute(
     const res = await GetLogsByProject(mainDb, c.var.ppk.projectId);
     if (!res.success) return c.json(res, 500);
     return c.json(res.data);
-  }
+  },
 );
 
 defineRoute(
   routesProject,
   "addProjectUserRole",
-  requireProjectPermission({preventAccessToLockedProjects: true}, "can_configure_users"),
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_users",
+  ),
   log("addProjectUserRole"),
   async (c, { body }) => {
     const res = await addProjectUserRole(
       c.var.mainDb,
       c.var.ppk.projectId,
-      body.email
+      body.email,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesProject,
   "removeProjectUserRole",
-  requireProjectPermission({preventAccessToLockedProjects: true}, "can_configure_users"),
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_users",
+  ),
   log("removeProjectUserRole"),
   async (c, { body }) => {
     const res = await removeProjectUserRole(
       c.var.mainDb,
       c.var.ppk.projectId,
-      body.email
+      body.email,
     );
     return c.json(res);
-  }
+  },
 );

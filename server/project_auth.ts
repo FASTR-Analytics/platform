@@ -20,128 +20,128 @@ import type { GlobalUser, ProjectUser, ProjectPermission } from "lib";
 import { createDevGlobalUser, createDevProjectUser } from "lib";
 import { ProjectPk } from "./server_only_types/mod.ts";
 
-export const getGlobalNonAdmin = createMiddleware<{
-  Variables: {
-    globalUser: GlobalUser;
-    mainDb: Sql;
-  };
-}>(async (c: Context, next: any) => {
-  try {
-    const globalUser = await getGlobalUser(c);
-    if (globalUser === "NOT_AUTHENTICATED") {
-      c.status(401);
-      return c.json({
-        success: false,
-        err: "Authentication required",
-        authError: true,
-      });
-    }
-    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-    c.set("globalUser", globalUser);
-    c.set("mainDb", mainDb);
-    await next();
-  } catch (error) {
-    if (error instanceof Error && error.message === "SERVICE_UNAVAILABLE") {
-      c.status(503);
-      return c.json({ success: false, err: "Service temporarily unavailable" });
-    }
-    throw error;
-  }
-});
+// export const getGlobalNonAdmin = createMiddleware<{
+//   Variables: {
+//     globalUser: GlobalUser;
+//     mainDb: Sql;
+//   };
+// }>(async (c: Context, next: any) => {
+//   try {
+//     const globalUser = await getGlobalUser(c);
+//     if (globalUser === "NOT_AUTHENTICATED") {
+//       c.status(401);
+//       return c.json({
+//         success: false,
+//         err: "Authentication required",
+//         authError: true,
+//       });
+//     }
+//     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+//     c.set("globalUser", globalUser);
+//     c.set("mainDb", mainDb);
+//     await next();
+//   } catch (error) {
+//     if (error instanceof Error && error.message === "SERVICE_UNAVAILABLE") {
+//       c.status(503);
+//       return c.json({ success: false, err: "Service temporarily unavailable" });
+//     }
+//     throw error;
+//   }
+// });
 
-export const getGlobalAdmin = createMiddleware<{
-  Variables: {
-    globalUser: GlobalUser;
-    mainDb: Sql;
-  };
-}>(async (c: Context, next: any) => {
-  // Skip auth for OPTIONS requests (CORS preflight)
-  if (c.req.method === "OPTIONS") {
-    await next();
-    return;
-  }
+// export const getGlobalAdmin = createMiddleware<{
+//   Variables: {
+//     globalUser: GlobalUser;
+//     mainDb: Sql;
+//   };
+// }>(async (c: Context, next: any) => {
+//   // Skip auth for OPTIONS requests (CORS preflight)
+//   if (c.req.method === "OPTIONS") {
+//     await next();
+//     return;
+//   }
 
-  try {
-    const globalUser = await getGlobalUser(c);
-    if (globalUser === "NOT_AUTHENTICATED") {
-      c.status(401);
-      return c.json({
-        success: false,
-        err: "Authentication required",
-        authError: true,
-      });
-    }
-    if (!globalUser.isGlobalAdmin) {
-      c.status(403);
-      return c.json({
-        success: false,
-        err: "Admin access required",
-        authError: true,
-      });
-    }
-    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-    c.set("globalUser", globalUser);
-    c.set("mainDb", mainDb);
-    await next();
-  } catch (error) {
-    if (error instanceof Error && error.message === "SERVICE_UNAVAILABLE") {
-      c.status(503);
-      return c.json({ success: false, err: "Service temporarily unavailable" });
-    }
-    throw error;
-  }
-});
+//   try {
+//     const globalUser = await getGlobalUser(c);
+//     if (globalUser === "NOT_AUTHENTICATED") {
+//       c.status(401);
+//       return c.json({
+//         success: false,
+//         err: "Authentication required",
+//         authError: true,
+//       });
+//     }
+//     if (!globalUser.isGlobalAdmin) {
+//       c.status(403);
+//       return c.json({
+//         success: false,
+//         err: "Admin access required",
+//         authError: true,
+//       });
+//     }
+//     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+//     c.set("globalUser", globalUser);
+//     c.set("mainDb", mainDb);
+//     await next();
+//   } catch (error) {
+//     if (error instanceof Error && error.message === "SERVICE_UNAVAILABLE") {
+//       c.status(503);
+//       return c.json({ success: false, err: "Service temporarily unavailable" });
+//     }
+//     throw error;
+//   }
+// });
 
-export const getProjectViewer = createMiddleware<{
-  Variables: {
-    ppk: ProjectPk;
-    projectUser: ProjectUser;
-    projectLabel: string;
-  };
-}>(async (c: Context, next: any) => {
-  try {
-    const res = await getProjectUser(c);
-    if (res === "NOT_AUTHENTICATED") {
-      c.status(401);
-      return c.json({
-        success: false,
-        err: "Authentication required",
-        authError: true,
-      });
-    }
-    const projectDb = getPgConnectionFromCacheOrNew(
-      res.projectId,
-      "READ_AND_WRITE"
-    );
-    const ppk: ProjectPk = {
-      projectDb,
-      projectId: res.projectId,
-    };
-    c.set("ppk", ppk);
-    c.set("projectUser", res.projectUser);
-    c.set("projectLabel", res.projectLabel);
-    await next();
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "SERVICE_UNAVAILABLE") {
-        c.status(503);
-        return c.json({
-          success: false,
-          err: "Service temporarily unavailable",
-        });
-      }
-      if (error.message.startsWith("Middleware error:")) {
-        c.status(403);
-        return c.json({
-          success: false,
-          err: error.message.replace("Middleware error: ", ""),
-          authError: true,
-        });
-      }
-    }
-    throw error;
-  }
-});
+// export const getProjectViewer = createMiddleware<{
+//   Variables: {
+//     ppk: ProjectPk;
+//     projectUser: ProjectUser;
+//     projectLabel: string;
+//   };
+// }>(async (c: Context, next: any) => {
+//   try {
+//     const res = await getProjectUser(c);
+//     if (res === "NOT_AUTHENTICATED") {
+//       c.status(401);
+//       return c.json({
+//         success: false,
+//         err: "Authentication required",
+//         authError: true,
+//       });
+//     }
+//     const projectDb = getPgConnectionFromCacheOrNew(
+//       res.projectId,
+//       "READ_AND_WRITE",
+//     );
+//     const ppk: ProjectPk = {
+//       projectDb,
+//       projectId: res.projectId,
+//     };
+//     c.set("ppk", ppk);
+//     c.set("projectUser", res.projectUser);
+//     c.set("projectLabel", res.projectLabel);
+//     await next();
+//   } catch (error) {
+//     if (error instanceof Error) {
+//       if (error.message === "SERVICE_UNAVAILABLE") {
+//         c.status(503);
+//         return c.json({
+//           success: false,
+//           err: "Service temporarily unavailable",
+//         });
+//       }
+//       if (error.message.startsWith("Middleware error:")) {
+//         c.status(403);
+//         return c.json({
+//           success: false,
+//           err: error.message.replace("Middleware error: ", ""),
+//           authError: true,
+//         });
+//       }
+//     }
+//     throw error;
+//   }
+// });
 
 type RequireProjectPermissionOptions = {
   requireAdmin?: boolean;
@@ -157,9 +157,12 @@ export function requireProjectPermission(
   const options: RequireProjectPermissionOptions = isOptions ? firstArg : {};
   const perms: ProjectPermission[] = isOptions
     ? restArgs
-    : (firstArg ? [firstArg as ProjectPermission, ...restArgs] : restArgs);
+    : firstArg
+      ? [firstArg as ProjectPermission, ...restArgs]
+      : restArgs;
 
-  const { requireAdmin = false, preventAccessToLockedProjects = false } = options;
+  const { requireAdmin = false, preventAccessToLockedProjects = false } =
+    options;
 
   return createMiddleware<{
     Variables: {
@@ -250,13 +253,16 @@ export function requireProjectPermission(
         } catch (dbError) {
           console.error("Database error checking project lock:", dbError);
           c.status(503);
-          return c.json({ success: false, err: "Service temporarily unavailable" });
+          return c.json({
+            success: false,
+            err: "Service temporarily unavailable",
+          });
         }
       }
 
       const projectDb = getPgConnectionFromCacheOrNew(
         res.projectId,
-        "READ_AND_WRITE"
+        "READ_AND_WRITE",
       );
       const ppk: ProjectPk = {
         projectDb,
@@ -270,143 +276,143 @@ export function requireProjectPermission(
       c.set("globalUser", globalUser);
       c.set("mainDb", mainDb);
       await next();
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "SERVICE_UNAVAILABLE") {
-        c.status(503);
-        return c.json({
-          success: false,
-          err: "Service temporarily unavailable",
-        });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === "SERVICE_UNAVAILABLE") {
+          c.status(503);
+          return c.json({
+            success: false,
+            err: "Service temporarily unavailable",
+          });
+        }
+        if (error.message.startsWith("Middleware error:")) {
+          c.status(403);
+          return c.json({
+            success: false,
+            err: error.message.replace("Middleware error: ", ""),
+            authError: true,
+          });
+        }
       }
-      if (error.message.startsWith("Middleware error:")) {
-        c.status(403);
-        return c.json({
-          success: false,
-          err: error.message.replace("Middleware error: ", ""),
-          authError: true,
-        });
-      }
+      throw error;
     }
-    throw error;
-  }
   });
 }
 
-export const getProjectEditor = createMiddleware<{
-  Variables: {
-    ppk: ProjectPk;
-    projectUser: ProjectUser;
-    projectLabel: string;
-  };
-}>(async (c: Context, next: any) => {
-  try {
-    const res = await getProjectUser(c);
-    if (res === "NOT_AUTHENTICATED") {
-      c.status(401);
-      return c.json({
-        success: false,
-        err: "Authentication required",
-        authError: true,
-      });
-    }
-    if (res.projectUser.role !== "editor") {
-      c.status(403);
-      return c.json({
-        success: false,
-        err: "Editor access required for this project",
-        authError: true,
-      });
-    }
+// export const getProjectEditor = createMiddleware<{
+//   Variables: {
+//     ppk: ProjectPk;
+//     projectUser: ProjectUser;
+//     projectLabel: string;
+//   };
+// }>(async (c: Context, next: any) => {
+//   try {
+//     const res = await getProjectUser(c);
+//     if (res === "NOT_AUTHENTICATED") {
+//       c.status(401);
+//       return c.json({
+//         success: false,
+//         err: "Authentication required",
+//         authError: true,
+//       });
+//     }
+//     if (res.projectUser.role !== "editor") {
+//       c.status(403);
+//       return c.json({
+//         success: false,
+//         err: "Editor access required for this project",
+//         authError: true,
+//       });
+//     }
 
-    // Check if project is locked
-    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+//     // Check if project is locked
+//     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
 
-    try {
-      const rawProjectResult = await mainDb<
-        { is_locked: boolean }[]
-      >`SELECT is_locked FROM projects WHERE id = ${res.projectId}`;
-      const rawProject = rawProjectResult.at(0);
+//     try {
+//       const rawProjectResult = await mainDb<
+//         { is_locked: boolean }[]
+//       >`SELECT is_locked FROM projects WHERE id = ${res.projectId}`;
+//       const rawProject = rawProjectResult.at(0);
 
-      if (!rawProject) {
-        c.status(404);
-        return c.json({ success: false, err: "Project not found" });
-      }
+//       if (!rawProject) {
+//         c.status(404);
+//         return c.json({ success: false, err: "Project not found" });
+//       }
 
-      if (rawProject.is_locked) {
-        c.status(403);
-        return c.json({
-          success: false,
-          err: "This project is locked and cannot be edited",
-        });
-      }
-    } catch (dbError) {
-      console.error("Database error checking project lock:", dbError);
-      c.status(503);
-      return c.json({ success: false, err: "Service temporarily unavailable" });
-    }
+//       if (rawProject.is_locked) {
+//         c.status(403);
+//         return c.json({
+//           success: false,
+//           err: "This project is locked and cannot be edited",
+//         });
+//       }
+//     } catch (dbError) {
+//       console.error("Database error checking project lock:", dbError);
+//       c.status(503);
+//       return c.json({ success: false, err: "Service temporarily unavailable" });
+//     }
 
-    const projectDb = getPgConnectionFromCacheOrNew(
-      res.projectId,
-      "READ_AND_WRITE"
-    );
-    const ppk: ProjectPk = {
-      projectDb,
-      projectId: res.projectId,
-    };
-    c.set("ppk", ppk);
-    c.set("projectUser", res.projectUser);
-    c.set("projectLabel", res.projectLabel);
-    await next();
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "SERVICE_UNAVAILABLE") {
-        c.status(503);
-        return c.json({
-          success: false,
-          err: "Service temporarily unavailable",
-        });
-      }
-      if (error.message.startsWith("Middleware error:")) {
-        c.status(403);
-        return c.json({
-          success: false,
-          err: error.message.replace("Middleware error: ", ""),
-          authError: true,
-        });
-      }
-    }
-    throw error;
-  }
-});
+//     const projectDb = getPgConnectionFromCacheOrNew(
+//       res.projectId,
+//       "READ_AND_WRITE"
+//     );
+//     const ppk: ProjectPk = {
+//       projectDb,
+//       projectId: res.projectId,
+//     };
+//     c.set("ppk", ppk);
+//     c.set("projectUser", res.projectUser);
+//     c.set("projectLabel", res.projectLabel);
+//     await next();
+//   } catch (error) {
+//     if (error instanceof Error) {
+//       if (error.message === "SERVICE_UNAVAILABLE") {
+//         c.status(503);
+//         return c.json({
+//           success: false,
+//           err: "Service temporarily unavailable",
+//         });
+//       }
+//       if (error.message.startsWith("Middleware error:")) {
+//         c.status(403);
+//         return c.json({
+//           success: false,
+//           err: error.message.replace("Middleware error: ", ""),
+//           authError: true,
+//         });
+//       }
+//     }
+//     throw error;
+//   }
+// });
 
-export const checkProjectNotLocked = createMiddleware(
-  async (c: Context, next: any) => {
-    const projectId = c.req.param("project_id");
-    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+// export const checkProjectNotLocked = createMiddleware(
+//   async (c: Context, next: any) => {
+//     const projectId = c.req.param("project_id");
+//     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
 
-    const rawProject = (
-      await mainDb<
-        { is_locked: boolean }[]
-      >`SELECT is_locked FROM projects WHERE id = ${projectId}`
-    ).at(0);
+//     const rawProject = (
+//       await mainDb<
+//         { is_locked: boolean }[]
+//       >`SELECT is_locked FROM projects WHERE id = ${projectId}`
+//     ).at(0);
 
-    if (!rawProject) {
-      c.status(404);
-      return c.json({ success: false, err: "Project not found" });
-    }
+//     if (!rawProject) {
+//       c.status(404);
+//       return c.json({ success: false, err: "Project not found" });
+//     }
 
-    if (rawProject.is_locked) {
-      c.status(403);
-      return c.json({
-        success: false,
-        err: "This project is locked and cannot be edited",
-      });
-    }
+//     if (rawProject.is_locked) {
+//       c.status(403);
+//       return c.json({
+//         success: false,
+//         err: "This project is locked and cannot be edited",
+//       });
+//     }
 
-    await next();
-  }
-);
+//     await next();
+//   }
+// );
 
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
@@ -424,13 +430,13 @@ export const checkProjectNotLocked = createMiddleware(
 ///////////////////////////////////////////////////////////////////////////////////
 
 export async function getGlobalUser(
-  c: Context
+  c: Context,
 ): Promise<GlobalUser | "NOT_AUTHENTICATED"> {
   if (_BYPASS_AUTH) {
     return createDevGlobalUser(
       _INSTANCE_NAME,
       _INSTANCE_LANGUAGE,
-      _INSTANCE_CALENDAR
+      _INSTANCE_CALENDAR,
     );
   }
 
@@ -466,18 +472,20 @@ export async function getGlobalUser(
 
     if (_OPEN_ACCESS && (!rawUser || !rawUser.is_admin)) {
       // Non-critical insert, don't wait if it fails
-      mainDb.begin(async (sql) => {
-        await sql`
+      mainDb
+        .begin(async (sql) => {
+          await sql`
           INSERT INTO users (email, is_admin)
           VALUES (${email}, TRUE)
           ON CONFLICT DO NOTHING
         `;
-        await sql`
+          await sql`
           INSERT INTO user_permissions (user_email)
           VALUES (${email})
           ON CONFLICT (user_email) DO NOTHING
         `;
-      }).catch(() => {}); // Ignore errors on this insert
+        })
+        .catch(() => {}); // Ignore errors on this insert
     }
 
     const isGlobalAdmin = _OPEN_ACCESS || (!!rawUser && rawUser.is_admin);
@@ -494,7 +502,7 @@ export async function getGlobalUser(
           can_view_data: true,
           can_create_projects: true,
         }
-      : permissionsResult.at(0) ?? {
+      : (permissionsResult.at(0) ?? {
           can_configure_users: false,
           can_view_users: false,
           can_view_logs: false,
@@ -503,7 +511,7 @@ export async function getGlobalUser(
           can_configure_data: false,
           can_view_data: false,
           can_create_projects: false,
-        };
+        });
 
     const globalUser: GlobalUser = {
       instanceName: _INSTANCE_NAME,
@@ -526,7 +534,7 @@ export async function getGlobalUser(
 }
 
 async function getProjectUser(
-  c: Context
+  c: Context,
 ): Promise<
   | "NOT_AUTHENTICATED"
   | { projectId: string; projectLabel: string; projectUser: ProjectUser }
@@ -580,18 +588,20 @@ async function getProjectUser(
     if (_OPEN_ACCESS && (!rawUser || !rawUser.is_admin)) {
       // Non-critical insert, don't wait if it fails
       const email = auth.sessionClaims.email as string;
-      mainDb.begin(async (sql) => {
-        await sql`
+      mainDb
+        .begin(async (sql) => {
+          await sql`
           INSERT INTO users (email, is_admin)
           VALUES (${email}, TRUE)
           ON CONFLICT DO NOTHING
         `;
-        await sql`
+          await sql`
           INSERT INTO user_permissions (user_email)
           VALUES (${email})
           ON CONFLICT (user_email) DO NOTHING
         `;
-      }).catch(() => {}); // Ignore errors on this insert
+        })
+        .catch(() => {}); // Ignore errors on this insert
     }
 
     if (_OPEN_ACCESS || rawUser?.is_admin) {
@@ -630,7 +640,7 @@ async function getProjectUser(
 
     if (!rawProjectUserRole) {
       throw new Error(
-        "Middleware error: User does not have access to this project"
+        "Middleware error: User does not have access to this project",
       );
     }
     return {
@@ -646,7 +656,8 @@ async function getProjectUser(
         can_configure_modules: rawProjectUserRole.can_configure_modules,
         can_run_modules: rawProjectUserRole.can_run_modules,
         can_configure_users: rawProjectUserRole.can_configure_users,
-        can_configure_visualizations: rawProjectUserRole.can_configure_visualizations,
+        can_configure_visualizations:
+          rawProjectUserRole.can_configure_visualizations,
         can_view_visualizations: rawProjectUserRole.can_view_visualizations,
         can_configure_reports: rawProjectUserRole.can_configure_reports,
         can_view_reports: rawProjectUserRole.can_view_reports,

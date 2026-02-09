@@ -11,8 +11,7 @@ import {
 import { Match, Show, Switch, createSignal, For, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { t } from "lib";
-import { ProjectPermission } from "../../../../lib/types/mod.ts";
-import { userRouteRegistry } from "../../../../lib/api-routes/instance/users.ts";
+import type { ProjectPermission } from "lib";
 
 export const PROJECT_PERMISSIONS = [
   "can_configure_settings",
@@ -202,15 +201,17 @@ export function SelectProjectUserRole(
   const save = timActionForm(
     async () => {
       const perms = permissions();
-      if (!perms) return;
+      if (!perms) return { success: true as const };
       return serverActions.updateProjectUserPermissions({
         projectId: p.projectId,
         emails: p.users.map((u) => u.email),
         permissions: perms,
       });
     },
-    p.silentFetch,
-    () => p.close(undefined),
+    async () => {
+      await p.silentFetch?.();
+      p.close(undefined);
+    },
   );
 
   const addUserRole = timActionForm(
@@ -222,7 +223,7 @@ export function SelectProjectUserRole(
     },
     async () => {
       setUserRoleExists(true);
-      await p.silentFetch();
+      await p.silentFetch?.();
     },
   );
 
@@ -236,7 +237,7 @@ export function SelectProjectUserRole(
     async () => {
       setUserRoleExists(false);
       setPermissions(makeDefaultPermissions());
-      await p.silentFetch();
+      await p.silentFetch?.();
     },
   );
 
@@ -255,7 +256,7 @@ export function SelectProjectUserRole(
                   onClick={addUserRole.click}
                   intent="success"
                   state={addUserRole.state()}
-                  iconName="user-plus"
+                  iconName="userPlus"
                   size="sm"
                 >
                   Add to project
@@ -266,7 +267,7 @@ export function SelectProjectUserRole(
                 onClick={removeUserRole.click}
                 intent="danger"
                 state={removeUserRole.state()}
-                iconName="user-minus"
+                iconName="user"
                 size="sm"
               >
                 Remove from project
@@ -281,8 +282,6 @@ export function SelectProjectUserRole(
           when={permissions() && userRoleExists() !== null}
           fallback={<div>Loading...</div>}
         >
-          {() => (
-            <>
               <div
                 class="flex gap-2"
                 classList={{
@@ -331,8 +330,6 @@ export function SelectProjectUserRole(
                   )}
                 </For>
               </div>
-            </>
-          )}
         </Show>
       </div>
       <StateHolderFormError state={save.state()} />

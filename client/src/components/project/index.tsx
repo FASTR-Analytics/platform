@@ -209,7 +209,11 @@ export default function Project(p: Props) {
                         />
                       </Match>
                       <Match when={projectTab() === "modules"}>
-                        <ProjectModules isGlobalAdmin={p.isGlobalAdmin} />
+                        <ProjectModules
+                          isGlobalAdmin={p.isGlobalAdmin}
+                          canConfigureModules={projectDetail.thisUserPermissions.can_configure_modules}
+                          canRunModules={projectDetail.thisUserPermissions.can_run_modules}
+                        />
                       </Match>
                       <Match when={projectTab() === "data"}>
                         <ProjectData

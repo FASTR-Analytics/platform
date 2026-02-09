@@ -1,13 +1,10 @@
 import { stringifyCsvWithHeaders } from "@timroberton/panther";
 import { Hono } from "hono";
+import { _DATASET_LIMIT, type Dhis2Credentials } from "lib";
 import {
   addStructureUploadAttempt,
   deleteAllStructureData,
   deleteStructureUploadAttempt,
-  structureStep3Csv_StageData,
-  structureStep3Csv_StageDataStreaming,
-  structureStep3Dhis2_StageData,
-  structureStep4_ImportData,
   getStructureItems,
   getStructureUploadAttempt,
   getStructureUploadStatus,
@@ -16,17 +13,19 @@ import {
   structureStep1Dhis2_SetCredentials,
   structureStep2Csv_SetColumnMappings,
   structureStep2Dhis2_SetOrgUnitSelection,
+  structureStep3Csv_StageData,
+  structureStep3Csv_StageDataStreaming,
+  structureStep3Dhis2_StageData,
+  structureStep4_ImportData,
 } from "../../db/mod.ts";
 import {
   getOrgUnitMetadata,
   testDHIS2Connection,
 } from "../../dhis2/goal1_org_units_v2/mod.ts";
-import { _DATASET_LIMIT, type Dhis2Credentials } from "lib";
-import { getGlobalAdmin, getGlobalNonAdmin } from "../../project_auth.ts";
-import { defineRoute } from "../route-helpers.ts";
-import { streamResponse } from "../streaming.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import { defineRoute } from "../route-helpers.ts";
+import { streamResponse } from "../streaming.ts";
 
 export const routesStructure = new Hono();
 
@@ -44,7 +43,7 @@ defineRoute(
   async (c) => {
     const res = await getStructureItems(c.var.mainDb, _DATASET_LIMIT);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -55,7 +54,7 @@ defineRoute(
   async (c) => {
     const res = await deleteAllStructureData(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );
 
 //////////////////////////////////////
@@ -72,7 +71,7 @@ defineRoute(
   async (c) => {
     const res = await addStructureUploadAttempt(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -83,7 +82,7 @@ defineRoute(
   async (c) => {
     const res = await getStructureUploadAttempt(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -94,7 +93,7 @@ defineRoute(
   async (c) => {
     const res = await deleteStructureUploadAttempt(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );
 
 /////////////////
@@ -111,10 +110,10 @@ defineRoute(
   async (c, { body }) => {
     const res = await structureStep1Csv_UploadFile(
       c.var.mainDb,
-      body.assetFileName
+      body.assetFileName,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -125,10 +124,10 @@ defineRoute(
   async (c, { body }) => {
     const res = await structureStep2Csv_SetColumnMappings(
       c.var.mainDb,
-      body.columnMappings
+      body.columnMappings,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -139,7 +138,7 @@ defineRoute(
   async (c) => {
     const res = await structureStep3Csv_StageData(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -154,7 +153,7 @@ defineRoute(
       // Call the streaming version with progress callback
       const res = await structureStep3Csv_StageDataStreaming(
         c.var.mainDb,
-        writer.progress.bind(writer)
+        writer.progress.bind(writer),
       );
 
       // Handle result
@@ -168,7 +167,7 @@ defineRoute(
         await writer.error(res.err);
       }
     });
-  }
+  },
 );
 
 defineRoute(
@@ -179,7 +178,7 @@ defineRoute(
   async (c) => {
     const res = await structureStep3Dhis2_StageData(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -194,7 +193,7 @@ defineRoute(
       // Call the function with progress callback
       const res = await structureStep3Dhis2_StageData(
         c.var.mainDb,
-        writer.progress.bind(writer)
+        writer.progress.bind(writer),
       );
 
       // Handle result
@@ -208,7 +207,7 @@ defineRoute(
         await writer.error(res.err);
       }
     });
-  }
+  },
 );
 
 defineRoute(
@@ -219,7 +218,7 @@ defineRoute(
   async (c, { body }) => {
     const res = await structureStep4_ImportData(c.var.mainDb, body.strategy);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -230,10 +229,10 @@ defineRoute(
   async (c, { body }) => {
     const res = await structureStep0_SetSourceType(
       c.var.mainDb,
-      body.sourceType
+      body.sourceType,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -256,7 +255,7 @@ defineRoute(
     // No caching needed in v2 - metadata will be fetched on demand
 
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -267,10 +266,10 @@ defineRoute(
   async (c, { body }) => {
     const res = await structureStep2Dhis2_SetOrgUnitSelection(
       c.var.mainDb,
-      body
+      body,
     );
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -281,7 +280,7 @@ defineRoute(
   async (c) => {
     const res = await getStructureUploadStatus(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -326,7 +325,7 @@ defineRoute(
         }`,
       });
     }
-  }
+  },
 );
 
 // CSV export endpoint - uses getStructureItems without limit for all rows
@@ -350,5 +349,5 @@ routesStructure.get(
         "Content-Disposition": 'attachment; filename="facilities.csv"',
       },
     });
-  }
+  },
 );

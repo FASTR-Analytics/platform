@@ -1,7 +1,7 @@
 import { Sql } from "postgres";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { APIResponseNoData } from "lib";
-import { UserLog } from "../mod.ts";
+import type { UserLog } from "lib";
 
 export async function AddLog(
     mainDb: Sql,

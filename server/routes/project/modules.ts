@@ -17,12 +17,7 @@ import {
   updateModuleParameters,
 } from "../../db/mod.ts";
 import { _DATASET_LIMIT, throwIfErrWithData } from "lib";
-import {
-  getGlobalNonAdmin,
-  getProjectEditor,
-  getProjectViewer,
-  requireProjectPermission,
-} from "../../project_auth.ts";
+import { requireProjectPermission } from "../../project_auth.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
   notifyLastUpdated,
@@ -125,16 +120,6 @@ defineRoute(
     return c.json(res);
   },
 );
-
-// routesModules.get(
-//   "/module_parameters/:module_id",
-//   getProjectViewer,
-//   async (c) => {
-//     const moduleId = c.req.param("module_id");
-//     const res = await getModuleParameters(c.var.ppk.projectDb, moduleId);
-//     return c.json(res);
-//   }
-// );
 
 defineRoute(
   routesModules,
@@ -293,20 +278,6 @@ defineRoute(
 
 defineRoute(
   routesModules,
-  "getAllModulesWithResultsValues",
-  requireProjectPermission(),
-  log("getAllModulesWithResultsValues"),
-  async (c) => {
-    const res = await getAllModulesWithResultsValues(
-      c.var.mainDb,
-      c.var.ppk.projectDb,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesModules,
   "getModuleWithConfigSelections",
   requireProjectPermission(),
   log("getModuleWithConfigSelections"),
@@ -322,8 +293,7 @@ defineRoute(
 defineRoute(
   routesModules,
   "getAllMetrics",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission(),
   async (c) => {
     const res = await getAllMetrics(c.var.mainDb, c.var.ppk.projectDb);
     return c.json(res);

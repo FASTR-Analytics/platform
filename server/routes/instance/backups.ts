@@ -1,9 +1,5 @@
 import { Hono } from "hono";
-import {
-  getGlobalNonAdmin,
-  getProjectEditor,
-  requireProjectPermission,
-} from "../../project_auth.ts";
+import { requireProjectPermission } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
 import {
   _SANDBOX_DIR_PATH,
@@ -301,7 +297,6 @@ defineRoute(
 defineRoute(
   routesBackups,
   "restoreBackup",
-  getGlobalNonAdmin,
   requireProjectPermission(
     { preventAccessToLockedProjects: true },
     "can_restore_backups",

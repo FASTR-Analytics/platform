@@ -1,5 +1,4 @@
-import { UserLog } from "../../../server/db/mod.ts";
-import { ProjectPermission } from "lib";
+import type { ProjectPermission, UserLog } from "../../types/mod.ts";
 import type {
   ProjectDetail,
   ProjectUserRoleType,
@@ -139,6 +138,7 @@ export const projectRouteRegistry = {
       projectId: string;
       email: string;
     },
+    response: {} as { permissions: Record<ProjectPermission, boolean> },
     requiresProject: true,
   }),
 

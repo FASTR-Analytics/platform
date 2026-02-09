@@ -11,18 +11,23 @@ import {
   updateIndicatorCommon,
   updateIndicatorRaw,
 } from "../../db/mod.ts";
-import { getGlobalAdmin } from "../../project_auth.ts";
-import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { defineRoute } from "../route-helpers.ts";
 
 export const routesIndicators = new Hono();
 
 // GET /indicators - Get all indicators with their mappings
-defineRoute(routesIndicators, "getIndicators", requireGlobalPermission("can_configure_data"), log("getIndicators"), async (c) => {
-  const res = await getIndicatorsWithMappings(c.var.mainDb);
-  return c.json(res);
-});
+defineRoute(
+  routesIndicators,
+  "getIndicators",
+  requireGlobalPermission("can_configure_data"),
+  log("getIndicators"),
+  async (c) => {
+    const res = await getIndicatorsWithMappings(c.var.mainDb);
+    return c.json(res);
+  },
+);
 
 //////////////////////////////////////////////////////////////////////////
 //   ______                                                             //
@@ -68,7 +73,7 @@ defineRoute(
 
     const res = await createIndicatorsCommon(c.var.mainDb, body.indicators);
     return c.json(res);
-  }
+  },
 );
 
 // POST /indicators/update - Update indicator
@@ -95,10 +100,10 @@ defineRoute(
       body.old_indicator_common_id,
       body.new_indicator_common_id,
       body.indicator_common_label,
-      body.mapped_raw_ids
+      body.mapped_raw_ids,
     );
     return c.json(res);
-  }
+  },
 );
 
 // POST /indicators/delete - Delete indicators (cascades to mappings)
@@ -117,10 +122,10 @@ defineRoute(
 
     const res = await deleteIndicatorCommon(
       c.var.mainDb,
-      body.indicator_common_ids
+      body.indicator_common_ids,
     );
     return c.json(res);
-  }
+  },
 );
 
 ////////////////////////////////////////
@@ -167,7 +172,7 @@ defineRoute(
 
     const res = await createIndicatorsRaw(c.var.mainDb, body.indicators);
     return c.json(res);
-  }
+  },
 );
 
 // POST /indicators-raw/update - Update raw indicator
@@ -194,10 +199,10 @@ defineRoute(
       body.old_indicator_raw_id,
       body.new_indicator_raw_id,
       body.indicator_raw_label,
-      body.mapped_common_ids
+      body.mapped_common_ids,
     );
     return c.json(res);
-  }
+  },
 );
 
 // POST /indicators-raw/delete - Delete raw indicators
@@ -216,7 +221,7 @@ defineRoute(
 
     const res = await deleteIndicatorRaw(c.var.mainDb, body.indicator_raw_ids);
     return c.json(res);
-  }
+  },
 );
 
 ////////////////////////////////////////////////////////
@@ -250,17 +255,17 @@ defineRoute(
     const res = await batchUploadIndicators(
       c.var.mainDb,
       body.asset_file_name,
-      body.replace_all_existing
+      body.replace_all_existing,
     );
     return c.json(res);
-  }
+  },
 );
 
 // POST /indicators/batch-raw - Batch upload raw indicators from CSV file
 defineRoute(
   routesIndicators,
   "batchUploadRawIndicators",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
     if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
       return c.json({
@@ -272,10 +277,10 @@ defineRoute(
     const res = await batchUploadRawIndicators(
       c.var.mainDb,
       body.asset_file_name,
-      body.replace_all_existing
+      body.replace_all_existing,
     );
     return c.json(res);
-  }
+  },
 );
 
 // DELETE /indicators/all - Delete all non-default indicators and their mappings
@@ -287,5 +292,5 @@ defineRoute(
   async (c) => {
     const res = await deleteAllIndicators(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );

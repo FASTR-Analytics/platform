@@ -1,5 +1,4 @@
-import type { GlobalUser, UserPermission } from "../../types/mod.ts";
-import type { UserLog } from "../../../server/db/mod.ts";
+import type { GlobalUser, UserLog, UserPermission } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 // Route registry for users

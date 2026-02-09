@@ -15,11 +15,7 @@ import {
   updateReportConfig,
   updateReportItemConfig,
 } from "../../db/mod.ts";
-import {
-  getProjectEditor,
-  getProjectViewer,
-  requireProjectPermission,
-} from "../../project_auth.ts";
+import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
@@ -178,29 +174,6 @@ defineRoute(
     return c.json(res);
   },
 );
-
-// defineRoute(
-//   routesReports,
-//   "updateLongFormContent",
-//   getProjectEditor,
-//   async (c, { params, body }) => {
-//     const res = await updateLongFormContent(
-//       c.var.ppk.projectDb,
-//       params.report_id,
-//       body.markdown,
-//     );
-//     if (res.success === false) {
-//       return c.json(res);
-//     }
-//     notifyLastUpdated(
-//       c.var.ppk.projectId,
-//       "reports",
-//       [params.report_id],
-//       res.data.lastUpdated,
-//     );
-//     return c.json(res);
-//   },
-// );
 
 ////////////////////////
 //                    //

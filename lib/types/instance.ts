@@ -208,6 +208,16 @@ export type OtherUser = {
   isGlobalAdmin: boolean;
 };
 
+export type UserLog = {
+  id: number;
+  user_email: string;
+  timestamp: Date;
+  endpoint: string;
+  endpoint_result: string;
+  details?: string;
+  project_id?: string;
+};
+
 export type UserPermission =
   | "can_configure_users"
   | "can_view_users"

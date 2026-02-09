@@ -51,6 +51,23 @@ export function ProjectRunnerProvider(p: Props) {
     slideDecks: [],
     slideDeckFolders: [],
     projectUsers: [],
+    thisUserPermissions: {
+      can_configure_settings: false,
+      can_create_backups: false,
+      can_restore_backups: false,
+      can_configure_modules: false,
+      can_run_modules: false,
+      can_configure_users: false,
+      can_configure_visualizations: false,
+      can_view_visualizations: false,
+      can_configure_reports: false,
+      can_view_reports: false,
+      can_configure_slide_decks: false,
+      can_view_slide_decks: false,
+      can_configure_data: false,
+      can_view_data: false,
+      can_view_logs: false,
+    },
   });
   const [isProjectReady, setIsProjectReady] = createSignal(false);
 

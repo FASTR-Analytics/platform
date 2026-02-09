@@ -1,7 +1,7 @@
 import { Table, TableColumn, Button, openAlert } from "panther";
 import { t } from "lib";
 import { Show } from "solid-js";
-import { UserLog } from "../../../../server/db/mod.ts";
+import type { UserLog } from "lib";
 
 type Props = {
   logs: UserLog[];
@@ -68,7 +68,7 @@ export function ProjectLogs(p: Props) {
                 title: t("Request Details"),
                 text: (
                     <div class="whitespace-pre-wrap font-mono text-sm max-h-96 overflow-auto">
-                    {formatJsonDetails(log.details)}
+                    {formatJsonDetails(log.details!)}
                     </div>
                 )
                 });

@@ -9,34 +9,26 @@ export const definition = {
     owner: "FASTR-Analytics",
     repo: "modules",
     path: "06_module_coverage_estimates_part2.R",
-    path: "06_module_coverage_estimates_part2.R",
     commit: "main",
   },
   defaultPresentationObjects: presentationObjects,
   assetsToImport: [],
-  assetsToImport: [],
   dataSources: [
     {
       replacementString: "M5_combined_results_national.csv",
-      replacementString: "M5_combined_results_national.csv",
       sourceType: "results_object",
-      resultsObjectId: "M5_combined_results_national.csv",
       resultsObjectId: "M5_combined_results_national.csv",
       moduleId: "m005",
     },
     {
       replacementString: "M5_combined_results_admin2.csv",
-      replacementString: "M5_combined_results_admin2.csv",
       sourceType: "results_object",
-      resultsObjectId: "M5_combined_results_admin2.csv",
       resultsObjectId: "M5_combined_results_admin2.csv",
       moduleId: "m005",
     },
     {
       replacementString: "M5_combined_results_admin3.csv",
-      replacementString: "M5_combined_results_admin3.csv",
       sourceType: "results_object",
-      resultsObjectId: "M5_combined_results_admin3.csv",
       resultsObjectId: "M5_combined_results_admin3.csv",
       moduleId: "m005",
     },
@@ -59,7 +51,6 @@ export const definition = {
   resultsObjects: [
     {
       id: "M6_coverage_estimation_national.csv",
-      id: "M6_coverage_estimation_national.csv",
       description: "Coverage estimates (National)",
       createTableStatementPossibleColumns: {
         admin_area_1: "TEXT NOT NULL",
@@ -74,7 +65,6 @@ export const definition = {
       },
     },
     {
-      id: "M6_coverage_estimation_admin2.csv",
       id: "M6_coverage_estimation_admin2.csv",
       description: "Coverage results (Admin area 2)",
       createTableStatementPossibleColumns: {
@@ -91,7 +81,6 @@ export const definition = {
       },
     },
     {
-      id: "M6_coverage_estimation_admin3.csv",
       id: "M6_coverage_estimation_admin3.csv",
       description: "Coverage results (Admin area 3)",
       createTableStatementPossibleColumns: {

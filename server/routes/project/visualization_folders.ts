@@ -9,7 +9,7 @@ import {
   updatePresentationObjectFolder,
   reorderPresentationObjects,
 } from "../../db/project/presentation_objects.ts";
-import { getProjectEditor } from "../../project_auth.ts";
+import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
@@ -18,101 +18,119 @@ export const routesVisualizationFolders = new Hono();
 defineRoute(
   routesVisualizationFolders,
   "createVisualizationFolder",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_visualizations",
+  ),
   async (c, { body }) => {
     const res = await createVisualizationFolder(
       c.var.ppk.projectDb,
       body.label,
       body.color,
-      body.description
+      body.description,
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     }
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesVisualizationFolders,
   "updateVisualizationFolder",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_visualizations",
+  ),
   async (c, { params, body }) => {
     const res = await updateVisualizationFolder(
       c.var.ppk.projectDb,
       params.folder_id,
       body.label,
       body.color,
-      body.description
+      body.description,
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     }
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesVisualizationFolders,
   "deleteVisualizationFolder",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_visualizations",
+  ),
   async (c, { params }) => {
     const res = await deleteVisualizationFolder(
       c.var.ppk.projectDb,
-      params.folder_id
+      params.folder_id,
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     }
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesVisualizationFolders,
   "reorderVisualizationFolders",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_visualizations",
+  ),
   async (c, { body }) => {
     const res = await reorderVisualizationFolders(
       c.var.ppk.projectDb,
-      body.folderIds
+      body.folderIds,
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     }
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesVisualizationFolders,
   "updatePresentationObjectFolder",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_visualizations",
+  ),
   async (c, { params, body }) => {
     const res = await updatePresentationObjectFolder(
       c.var.ppk.projectDb,
       params.po_id,
-      body.folderId
+      body.folderId,
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     }
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
   routesVisualizationFolders,
   "reorderPresentationObjects",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_visualizations",
+  ),
   async (c, { body }) => {
     const res = await reorderPresentationObjects(
       c.var.ppk.projectDb,
-      body.orderUpdates
+      body.orderUpdates,
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     }
     return c.json(res);
-  }
+  },
 );
