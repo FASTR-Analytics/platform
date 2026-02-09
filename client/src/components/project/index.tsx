@@ -76,51 +76,6 @@ function AIContextSync() {
 }
 
 export default function Project(p: Props) {
-  // Utils
-
-  const navigate = useNavigate();
-
-  const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
-    getEditorWrapper();
-
-  // Define base tabs (always visible)
-  const baseTabs = [
-    { value: "decks" as const, label: "Slide decks" },
-    { value: "reports" as const, label: t2(T.FRENCH_UI_STRINGS.reports) },
-    {
-      value: "visualizations" as const,
-      label: t2(T.FRENCH_UI_STRINGS.visualizations),
-    },
-    { value: "metrics" as const, label: t2("Metrics") },
-  ];
-
-  // Admin-only tabs
-  const adminTabs = [
-    { value: "modules" as const, label: t2(T.FRENCH_UI_STRINGS.modules) },
-    { value: "data" as const, label: t2(T.FRENCH_UI_STRINGS.data) },
-    { value: "settings" as const, label: t2(T.FRENCH_UI_STRINGS.settings) },
-  ];
-
-  // Combine tabs based on admin status
-  const allTabs = p.isGlobalAdmin ? [...baseTabs, ...adminTabs] : baseTabs;
-
-  // Create tabs controller
-  const tabs = getTabs(allTabs, {
-    initialTab: projectTab(),
-    onTabChange: (tab) => updateProjectView({ tab: tab as TabOption }),
-  });
-
-  // Icon mapping
-  const tabIcons = {
-    decks: "sparkles" as const,
-    reports: "report" as const,
-    visualizations: "chart" as const,
-    metrics: "badge" as const,
-    modules: "code" as const,
-    data: "database" as const,
-    settings: "settings" as const,
-  };
-
   return (
     <ProjectRunnerProvider projectId={p.projectId}>
       <StateHolderWrapper
@@ -129,6 +84,64 @@ export default function Project(p: Props) {
       >
         {(keyedInstanceDetail) => {
           const projectDetail = useProjectDetail();
+
+          // Utils
+
+          const navigate = useNavigate();
+
+          const {
+            openEditor: openProjectEditor,
+            EditorWrapper: ProjectEditorWrapper,
+          } = getEditorWrapper();
+
+          // Define base tabs (always visible)
+          const baseTabs = [
+            { value: "decks" as const, label: "Slide decks" },
+            {
+              value: "reports" as const,
+              label: t2(T.FRENCH_UI_STRINGS.reports),
+            },
+            {
+              value: "visualizations" as const,
+              label: t2(T.FRENCH_UI_STRINGS.visualizations),
+            },
+            { value: "metrics" as const, label: t2("Metrics") },
+          ];
+
+          // Admin-only tabs
+          const adminTabs = [
+            {
+              value: "modules" as const,
+              label: t2(T.FRENCH_UI_STRINGS.modules),
+            },
+            { value: "data" as const, label: t2(T.FRENCH_UI_STRINGS.data) },
+            {
+              value: "settings" as const,
+              label: t2(T.FRENCH_UI_STRINGS.settings),
+            },
+          ];
+
+          // Combine tabs based on admin status
+          const allTabs = p.isGlobalAdmin
+            ? [...baseTabs, ...adminTabs]
+            : baseTabs;
+
+          // Create tabs controller
+          const tabs = getTabs(allTabs, {
+            initialTab: projectTab(),
+            onTabChange: (tab) => updateProjectView({ tab: tab as TabOption }),
+          });
+
+          // Icon mapping
+          const tabIcons = {
+            decks: "sparkles" as const,
+            reports: "report" as const,
+            visualizations: "chart" as const,
+            metrics: "badge" as const,
+            modules: "code" as const,
+            data: "database" as const,
+            settings: "settings" as const,
+          };
 
           return (
             <AIProjectWrapper instanceDetail={keyedInstanceDetail}>
@@ -211,8 +224,13 @@ export default function Project(p: Props) {
                       <Match when={projectTab() === "modules"}>
                         <ProjectModules
                           isGlobalAdmin={p.isGlobalAdmin}
-                          canConfigureModules={projectDetail.thisUserPermissions.can_configure_modules}
-                          canRunModules={projectDetail.thisUserPermissions.can_run_modules}
+                          canConfigureModules={
+                            projectDetail.thisUserPermissions
+                              .can_configure_modules
+                          }
+                          canRunModules={
+                            projectDetail.thisUserPermissions.can_run_modules
+                          }
                         />
                       </Match>
                       <Match when={projectTab() === "data"}>
