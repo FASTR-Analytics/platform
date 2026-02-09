@@ -50,14 +50,16 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
     const method = route.method as string;
     if (method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE") {
       try {
-        body = await c.req.json();
+        body = c.var.cachedBody ?? await c.req.json();
       } catch {
         // No body or invalid JSON
       }
     }
 
     // Call the handler with typed args
-    return handler(c, { params, body });
+    const response = await handler(c, { params, body });
+
+    return response;
   };
 
   // Register the route with Hono

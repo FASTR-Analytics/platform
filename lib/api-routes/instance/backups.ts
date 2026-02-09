@@ -38,6 +38,7 @@ export const backupRouteRegistry = {
       logs?: string;
       error?: string;
     },
+    requiresProject: true,
   }),
   downloadBackupFile: route({
     path: "/api/backups/:folder/:file",
@@ -46,6 +47,7 @@ export const backupRouteRegistry = {
       folder: string;
       file: string;
     },
+    requiresProject: true,
   }),
   restoreBackup: route({
     path: "/api/restore-backup",
@@ -60,5 +62,6 @@ export const backupRouteRegistry = {
       success: boolean;
       error?: string;
     },
+    requiresProject: true,
   }),
 } as const;

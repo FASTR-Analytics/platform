@@ -7,6 +7,31 @@ CREATE TABLE users (
   is_admin boolean NOT NULL
 );
 
+CREATE TABLE user_logs (
+  id SERIAL PRIMARY KEY,
+  user_email text NOT NULL,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  endpoint text NOT NULL,
+  endpoint_result text NOT NULL,
+  details text,
+  project_id text,
+  FOREIGN KEY (user_email) REFERENCES users(email)
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+CREATE TABLE user_permissions (
+  user_email text PRIMARY KEY NOT NULL,
+  can_configure_users boolean NOT NULL DEFAULT FALSE,
+  can_view_users boolean NOT NULL DEFAULT FALSE,
+  can_view_logs boolean NOT NULL DEFAULT FALSE,
+  can_configure_settings boolean NOT NULL DEFAULT FALSE,
+  can_configure_assets boolean NOT NULL DEFAULT FALSE,
+  can_configure_data boolean NOT NULL DEFAULT FALSE,
+  can_view_data boolean NOT NULL DEFAULT FALSE,
+  can_create_projects boolean NOT NULL DEFAULT FALSE,
+  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
+);
+
 CREATE TABLE instance_config (
   config_key text PRIMARY KEY NOT NULL,
   config_json_value text NOT NULL
@@ -23,6 +48,21 @@ CREATE TABLE project_user_roles (
   email text NOT NULL,
   project_id text NOT NULL,
   role text NOT NULL,
+  can_configure_settings boolean NOT NULL DEFAULT FALSE,
+  can_create_backups boolean NOT NULL DEFAULT FALSE,
+  can_restore_backups boolean NOT NULL DEFAULT FALSE,
+  can_configure_modules boolean NOT NULL DEFAULT FALSE,
+  can_run_modules boolean NOT NULL DEFAULT FALSE,
+  can_configure_users boolean NOT NULL DEFAULT FALSE,
+  can_configure_visualizations boolean NOT NULL DEFAULT FALSE,
+  can_view_visualizations boolean NOT NULL DEFAULT FALSE,
+  can_configure_reports boolean NOT NULL DEFAULT FALSE,
+  can_view_reports boolean NOT NULL DEFAULT FALSE,
+  can_configure_slide_decks boolean NOT NULL DEFAULT FALSE,
+  can_view_slide_decks boolean NOT NULL DEFAULT FALSE,
+  can_configure_data boolean NOT NULL DEFAULT FALSE,
+  can_view_data boolean NOT NULL DEFAULT FALSE,
+  can_view_logs boolean NOT NULL DEFAULT FALSE,
   PRIMARY KEY (email, project_id),
   FOREIGN KEY (email) REFERENCES users (email) ON DELETE CASCADE,
   FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE

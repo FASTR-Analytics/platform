@@ -25,6 +25,8 @@ import { _DATASET_LIMIT, type Dhis2Credentials } from "lib";
 import { getGlobalAdmin, getGlobalNonAdmin } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
+import { log } from "../../middleware/logging.ts";
+import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 
 export const routesStructure = new Hono();
 
@@ -37,7 +39,8 @@ export const routesStructure = new Hono();
 defineRoute(
   routesStructure,
   "getStructureItems",
-  getGlobalNonAdmin,
+  requireGlobalPermission("can_view_data"),
+  log("getStructureItems"),
   async (c) => {
     const res = await getStructureItems(c.var.mainDb, _DATASET_LIMIT);
     return c.json(res);
@@ -47,7 +50,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "deleteAllStructureData",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("deleteAllStructureData"),
   async (c) => {
     const res = await deleteAllStructureData(c.var.mainDb);
     return c.json(res);
@@ -63,7 +67,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "addStructureUploadAttempt",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("addStructureUploadAttempt"),
   async (c) => {
     const res = await addStructureUploadAttempt(c.var.mainDb);
     return c.json(res);
@@ -73,7 +78,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "getStructureUploadAttempt",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("getStructureUploadAttempt"),
   async (c) => {
     const res = await getStructureUploadAttempt(c.var.mainDb);
     return c.json(res);
@@ -83,7 +89,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "deleteStructureUploadAttempt",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("deleteStructureUploadAttempt"),
   async (c) => {
     const res = await deleteStructureUploadAttempt(c.var.mainDb);
     return c.json(res);
@@ -99,7 +106,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep1Csv_UploadFile",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep1Csv_UploadFile"),
   async (c, { body }) => {
     const res = await structureStep1Csv_UploadFile(
       c.var.mainDb,
@@ -112,7 +120,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep2Csv_SetColumnMappings",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep2Csv_SetColumnMappings"),
   async (c, { body }) => {
     const res = await structureStep2Csv_SetColumnMappings(
       c.var.mainDb,
@@ -125,7 +134,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep3Csv_StageData",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep3Csv_StageData"),
   async (c) => {
     const res = await structureStep3Csv_StageData(c.var.mainDb);
     return c.json(res);
@@ -135,7 +145,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep3Csv_StageDataStreaming",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep3Csv_StageDataStreaming"),
   (c) => {
     return streamResponse(c, async (writer) => {
       await writer.progress(0, "Starting CSV staging...");
@@ -163,7 +174,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep3Dhis2_StageData",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep3Dhis2_StageData"),
   async (c) => {
     const res = await structureStep3Dhis2_StageData(c.var.mainDb);
     return c.json(res);
@@ -173,7 +185,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep3Dhis2_StageDataStreaming",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep3Dhis2_StageDataStreaming"),
   (c) => {
     return streamResponse(c, async (writer) => {
       await writer.progress(0, "Starting DHIS2 staging...");
@@ -201,7 +214,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep4_ImportData",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep4_ImportData"),
   async (c, { body }) => {
     const res = await structureStep4_ImportData(c.var.mainDb, body.strategy);
     return c.json(res);
@@ -211,7 +225,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep0_SetSourceType",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep0_SetSourceType"),
   async (c, { body }) => {
     const res = await structureStep0_SetSourceType(
       c.var.mainDb,
@@ -224,7 +239,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep1Dhis2_SetCredentials",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep1Dhis2_SetCredentials"),
   async (c, { body }) => {
     // Validate credentials with DHIS2 first
     const fetchOptions = { dhis2Credentials: body };
@@ -246,7 +262,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep2Dhis2_SetOrgUnitSelection",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep2Dhis2_SetOrgUnitSelection"),
   async (c, { body }) => {
     const res = await structureStep2Dhis2_SetOrgUnitSelection(
       c.var.mainDb,
@@ -259,7 +276,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "getStructureUploadStatus",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("getStructureUploadStatus"),
   async (c) => {
     const res = await getStructureUploadStatus(c.var.mainDb);
     return c.json(res);
@@ -269,7 +287,8 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep2Dhis2_GetOrgUnitsMetadata",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("structureStep2Dhis2_GetOrgUnitsMetadata"),
   async (c) => {
     // Get the current upload attempt
     const attemptRes = await getStructureUploadAttempt(c.var.mainDb);
@@ -313,7 +332,8 @@ defineRoute(
 // CSV export endpoint - uses getStructureItems without limit for all rows
 routesStructure.get(
   "/structure/facilities/export/csv",
-  getGlobalNonAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("exportStructureItemsCsv"),
   async (c) => {
     // Get all facilities with proper column selection based on maxAdminArea
     const res = await getStructureItems(c.var.mainDb); // No limit = all rows

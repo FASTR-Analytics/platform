@@ -1,6 +1,8 @@
-import { ProjectDetail, InstanceDetail, ProjectUser, t, t2, T, APIResponseNoData } from "lib";
+import { ProjectDetail, InstanceDetail, ProjectUser, t, t2, T } from "lib";
 import {
   Button,
+  ChevronDownIcon,
+  ChevronRightIcon,
   FrameTop,
   HeadingBar,
   LockIcon,
@@ -10,7 +12,15 @@ import {
   timActionDelete,
   timActionButton,
 } from "panther";
-import { Match, Show, Switch, onMount, For, createResource, createSignal } from "solid-js";
+import {
+  Match,
+  Show,
+  Switch,
+  onMount,
+  For,
+  createResource,
+  createSignal,
+} from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { Table, TableColumn, type BulkAction } from "panther";
 import { EditLabelForm } from "~/components/forms_editors/edit_label";
@@ -20,6 +30,11 @@ import { CopyProjectForm } from "./copy_project";
 import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
 import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
+import {
+  getInstanceDetail,
+  updateDatasetUploadAttempt_Step1Dhis2Confirm,
+} from "../../../../server/db/mod.ts";
+import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
 import { useProjectDetail } from "~/components/project_runner/mod";
 
 // Backup types
@@ -83,7 +98,8 @@ export function ProjectSettings(p: Props) {
         existingLabel: projectDetail.label,
         mutateFunc: (newLabel) =>
           serverActions.updateProject({
-            project_id: projectDetail.id,
+            project_id: p.projectDetail.id,
+            projectId: p.projectDetail.id,
             label: newLabel,
             aiContext: projectDetail.aiContext,
           }),
@@ -99,8 +115,9 @@ export function ProjectSettings(p: Props) {
         existingLabel: projectDetail.aiContext,
         mutateFunc: (newAiContext) =>
           serverActions.updateProject({
-            project_id: projectDetail.id,
-            label: projectDetail.label,
+            project_id: p.projectDetail.id,
+            projectId: p.projectDetail.id,
+            label: p.projectDetail.label,
             aiContext: newAiContext,
           }),
         textArea: true,
@@ -119,10 +136,21 @@ export function ProjectSettings(p: Props) {
     });
   }
 
+  async function attemptDisplayUserRole(user: ProjectUser) {
+    await openComponent({
+      element: DisplayProjectUserRole,
+      props: {
+        projectId: p.projectDetail.id,
+        user,
+      },
+    });
+  }
+
   const lockProject = timActionButton(
     () =>
       serverActions.setProjectLockStatus({
-        project_id: projectDetail.id,
+        project_id: p.projectDetail.id,
+        projectId: p.projectDetail.id,
         lockAction: "lock",
       }),
     async () => {
@@ -133,7 +161,8 @@ export function ProjectSettings(p: Props) {
   const unlockProject = timActionButton(
     () =>
       serverActions.setProjectLockStatus({
-        project_id: projectDetail.id,
+        project_id: p.projectDetail.id,
+        projectId: p.projectDetail.id,
         lockAction: "unlock",
       }),
     async () => {
@@ -147,7 +176,11 @@ export function ProjectSettings(p: Props) {
         text: t("Are you sure you want to delete this project?"),
         itemList: [projectDetail.label],
       },
-      () => serverActions.deleteProject({ project_id: projectDetail.id }),
+      () =>
+        serverActions.deleteProject({
+          project_id: p.projectDetail.id,
+          projectId: p.projectDetail.id,
+        }),
       p.silentRefreshInstance,
       p.backToHome,
     );
@@ -155,10 +188,16 @@ export function ProjectSettings(p: Props) {
     await deleteAction.click();
   }
 
-
   return (
-    <FrameTop panelChildren={<HeadingBar heading={t2(T.FRENCH_UI_STRINGS.settings)}
-      class="border-base-300" ensureHeightAsIfButton></HeadingBar>}>
+    <FrameTop
+      panelChildren={
+        <HeadingBar
+          heading={t2(T.FRENCH_UI_STRINGS.settings)}
+          class="border-base-300"
+          ensureHeightAsIfButton
+        ></HeadingBar>
+      }
+    >
       <div class="ui-pad ui-spy">
         <SettingsSection
           header={t2(T.FRENCH_UI_STRINGS.project_name)}
@@ -176,6 +215,7 @@ export function ProjectSettings(p: Props) {
           <ProjectUserTable
             users={projectDetail.projectUsers}
             onUserClick={attemptSelectUserRole}
+            onDisplayUserRole={attemptDisplayUserRole}
           />
         </SettingsSection>
         <SettingsSection
@@ -234,11 +274,11 @@ export function ProjectSettings(p: Props) {
           </Match>
         </Switch>
 
-
-        <SettingsSection
-          header={t2("Backups")}
-        >
-          <ProjectBackups projectId={projectDetail.id} instanceDetail={p.instanceDetail} />
+        <SettingsSection header={t2("Backups")}>
+          <ProjectBackups
+            projectId={p.projectDetail.id}
+            instanceDetail={p.instanceDetail}
+          />
         </SettingsSection>
 
         <div class="ui-gap flex">
@@ -264,6 +304,7 @@ export function ProjectSettings(p: Props) {
 function ProjectUserTable(p: {
   users: ProjectUser[];
   onUserClick?: (users: ProjectUser[]) => void;
+  onDisplayUserRole?: (user: ProjectUser) => void;
 }) {
   const columns: TableColumn<ProjectUser>[] = [
     {
@@ -279,19 +320,12 @@ function ProjectUserTable(p: {
         <Show
           when={user.isGlobalAdmin}
           fallback={
-            <Switch>
-              <Match when={user.role === "editor"}>
-                <span class="text-primary">{t("Project editor")}</span>
-              </Match>
-              <Match when={user.role === "viewer"}>
-                <span>{t("Project viewer")}</span>
-              </Match>
-              <Match when={user.role === "none"}>
-                <span class="text-neutral">
-                  {t2(T.FRENCH_UI_STRINGS.no_permissions_for_this_projec)}
-                </span>
-              </Match>
-            </Switch>
+            <span
+              class="text-primary cursor-pointer hover:underline"
+              onClick={() => p.onDisplayUserRole?.(user)}
+            >
+              See Permissions
+            </span>
           }
         >
           <span class="text-primary">{t2(T.Paramètres.instance_admin)}</span>
@@ -338,9 +372,6 @@ function ProjectUserTable(p: {
   );
 }
 
-
-
-
 // Helper to check if a backup name matches the automatic date format
 const isAutomaticBackup = (folderName: string): boolean => {
   // Match format: YYYY-MM-DD_HH-MM-SS
@@ -350,7 +381,7 @@ const isAutomaticBackup = (folderName: string): boolean => {
 
 // Helper to extract date from automatic backup folder name
 const extractDate = (folderName: string): string => {
-  return folderName.split('_')[0]; // Returns "YYYY-MM-DD"
+  return folderName.split("_")[0]; // Returns "YYYY-MM-DD"
 };
 
 interface GroupedBackups {
@@ -359,8 +390,13 @@ interface GroupedBackups {
   backups: ProjectBackupInfo[];
 }
 
-function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDetail }) {
-  const [expandedGroups, setExpandedGroups] = createSignal<Set<string>>(new Set());
+function ProjectBackups(props: {
+  projectId: string;
+  instanceDetail: InstanceDetail;
+}) {
+  const [expandedGroups, setExpandedGroups] = createSignal<Set<string>>(
+    new Set(),
+  );
 
   const toggleGroup = (groupKey: string) => {
     setExpandedGroups((prev: Set<string>) => {
@@ -374,15 +410,16 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     });
   };
 
-  const [backupsList, { refetch: refetchBackups }] = createResource<ProjectBackupInfo[]>(async () => {
+  const [backupsList, { refetch: refetchBackups }] = createResource<
+    ProjectBackupInfo[]
+  >(async () => {
     const token = await clerk.session?.getToken();
     const headers: HeadersInit = {};
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
-    // Call your backend endpoint which will forward to the external API
-    const response = await fetch('/api/all-projects-backups', { headers });
+    const response = await fetch("/api/all-projects-backups", { headers });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch backups: ${response.status}`);
@@ -391,7 +428,7 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     const data = await response.json();
 
     if (!data.success) {
-      throw new Error(data.error || 'Failed to fetch backups');
+      throw new Error(data.error || "Failed to fetch backups");
     }
 
     const allBackups = data.backups || [];
@@ -400,8 +437,9 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     const projectBackups = allBackups
       .map((backup: any) => {
         // Filter files to only include the project backups
-        const projectFiles = backup.files.filter((file: BackupFileInfo) =>
-          file.type === 'project' && file.name.includes(props.projectId)
+        const projectFiles = backup.files.filter(
+          (file: BackupFileInfo) =>
+            file.type === "project" && file.name.includes(props.projectId),
         );
 
         // Only include this backup if it has project files
@@ -410,7 +448,10 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
         }
 
         // Calculate size of just the project files
-        const projectSize = projectFiles.reduce((sum: number, file: BackupFileInfo) => sum + file.size, 0);
+        const projectSize = projectFiles.reduce(
+          (sum: number, file: BackupFileInfo) => sum + file.size,
+          0,
+        );
 
         return {
           ...backup,
@@ -447,7 +488,9 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
     const groups: GroupedBackups[] = [];
 
     // Add date groups (sorted newest first)
-    const sortedDates = Array.from(dateGroups.keys()).sort((a, b) => b.localeCompare(a));
+    const sortedDates = Array.from(dateGroups.keys()).sort((a, b) =>
+      b.localeCompare(a),
+    );
     sortedDates.forEach((date) => {
       const backupsInGroup = dateGroups.get(date)!;
       // Sort backups within the group by time (newest first)
@@ -481,12 +524,16 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
   const downloadFile = async (folder: string, fileName: string) => {
     try {
       const token = await clerk.session?.getToken();
-      const headers: HeadersInit = {};
+      const headers: HeadersInit = {
+        "Project-Id": props.projectId,
+      };
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
       console.log("Downloading file:", folder, fileName);
-      const response = await fetch(`/api/backups/${folder}/${fileName}`, { headers });
+      const response = await fetch(`/api/backups/${folder}/${fileName}`, {
+        headers,
+      });
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -511,13 +558,14 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       const headers: HeadersInit = {};
       const projectId = props.projectId;
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
-      headers['Content-Type'] = 'application/json';
+      headers["Content-Type"] = "application/json";
+      headers["Project-Id"] = projectId;
       const response = await fetch(`/api/restore-backup`, {
-        method: 'POST',
+        method: "POST",
         headers,
-        body: JSON.stringify({ folder, fileName, projectId })
+        body: JSON.stringify({ folder, fileName, projectId }),
       });
 
       if (!response.ok) {
@@ -544,15 +592,17 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
       element: CreateBackupForm,
       props: {
         projectId: props.projectId,
-        createBackupFunc: async (backupName: string): Promise<APIResponseNoData> => {
+        createBackupFunc: async (backupName: string) => {
           const token = await clerk.session?.getToken();
-          const headers: HeadersInit = {};
+          const headers: HeadersInit = {
+            "Project-Id": props.projectId,
+          };
           if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
+            headers["Authorization"] = `Bearer ${token}`;
           }
           const response = await fetch(`/api/create-backup/${backupName}`, {
-            method: 'POST',
-            headers
+            method: "POST",
+            headers,
           });
 
           if (!response.ok) {
@@ -567,42 +617,45 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
 
           return { success: true };
         },
-        silentFetch: async () => { refetchBackups(); },
-      }
-    })
+        silentFetch: refetchBackups,
+      },
+    });
   };
 
   const attemptRestoreBackup = async () => {
     await openComponent({
       element: CreateRestoreFromFileForm,
       props: {
-        restoreBackupFunc: async (file: File): Promise<APIResponseNoData> => {
+        restoreBackupFunc: async (file: File) => {
           // Read file as base64 (handle large files properly)
           const arrayBuffer = await file.arrayBuffer();
           const bytes = new Uint8Array(arrayBuffer);
-          let binary = '';
+          let binary = "";
           const chunkSize = 0x8000; // 32KB chunks to avoid stack overflow
           for (let i = 0; i < bytes.length; i += chunkSize) {
-            binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+            binary += String.fromCharCode.apply(
+              null,
+              Array.from(bytes.subarray(i, i + chunkSize)),
+            );
           }
           const base64 = btoa(binary);
 
           const token = await clerk.session?.getToken();
           const headers: HeadersInit = {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           };
           if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
+            headers["Authorization"] = `Bearer ${token}`;
           }
 
           const response = await fetch(`/api/restore-backup`, {
-            method: 'POST',
+            method: "POST",
             headers,
             body: JSON.stringify({
               projectId: props.projectId,
               fileData: base64,
-              fileName: file.name
-            })
+              fileName: file.name,
+            }),
           });
 
           if (!response.ok) {
@@ -619,23 +672,25 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
           window.location.reload();
 
           return { success: true };
-        }
-      }
-    })
-  }
+        },
+      },
+    });
+  };
 
   const formatTime = (folderName: string): string => {
     // Extract time from YYYY-MM-DD_HH-MM-SS format
-    const timePart = folderName.split('_')[1];
+    const timePart = folderName.split("_")[1];
     if (!timePart) return folderName;
-    return timePart.replace(/-/g, ':');
+    return timePart.replace(/-/g, ":");
   };
 
   return (
     <div>
       <div class="mb-3 flex items-center justify-between">
-        <div class="text-sm text-neutral">
-          {backupsList.loading ? "" : `${backupsList()?.length || 0} backup(s) available`}
+        <div class="text-neutral text-sm">
+          {backupsList.loading
+            ? ""
+            : `${backupsList()?.length || 0} backup(s) available`}
         </div>
         <div class="flex gap-2">
           <Button onClick={attemptCreateBackup} size="sm">
@@ -644,20 +699,32 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
           <Button onClick={attemptRestoreBackup} size="sm">
             {t("Restore from file")}
           </Button>
-          <Button onClick={() => refetchBackups()} iconName="refresh" size="sm" outline>
+          <Button
+            onClick={() => refetchBackups()}
+            iconName="refresh"
+            size="sm"
+            outline
+          >
             {t("Refresh")}
           </Button>
         </div>
       </div>
-      <Show when={!backupsList.loading} fallback={<div>Loading backups...</div>}>
+      <Show
+        when={!backupsList.loading}
+        fallback={<div>Loading backups...</div>}
+      >
         <Show
           when={backupsList() && backupsList()!.length > 0}
-          fallback={<div class="text-neutral">No backups available for this project</div>}
+          fallback={
+            <div class="text-neutral">
+              No backups available for this project
+            </div>
+          }
         >
           <div class="flex flex-col gap-2">
             <For each={groupedBackups()}>
               {(group: GroupedBackups) => {
-                const groupKey = group.isCustom ? 'custom' : group.date!;
+                const groupKey = group.isCustom ? "custom" : group.date!;
                 const isExpanded = () => expandedGroups().has(groupKey);
 
                 return (
@@ -665,38 +732,49 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
                     {/* Group Header */}
                     <button
                       onClick={() => toggleGroup(groupKey)}
-                      class="flex items-center justify-between rounded border border-neutral-200 bg-neutral-50 p-3 text-left hover:bg-neutral-100 transition-colors"
+                      class="flex items-center justify-between rounded border border-neutral-200 bg-neutral-50 p-3 text-left transition-colors hover:bg-neutral-100"
                     >
                       <div class="flex items-center gap-2">
-                        <span class="text-lg">
-                          {isExpanded() ? '▼' : '▶'}
-                        </span>
+                        <Show
+                          when={isExpanded()}
+                          fallback={<ChevronRightIcon />}
+                        >
+                          <ChevronDownIcon />
+                        </Show>
                         <span class="font-medium">
-                          {group.isCustom ? 'Custom Backups' : group.date}
+                          {group.isCustom ? "Custom Backups" : group.date}
                         </span>
-                        <span class="text-sm text-neutral">
-                          ({group.backups.length} backup{group.backups.length !== 1 ? 's' : ''})
+                        <span class="text-neutral text-sm">
+                          ({group.backups.length} backup
+                          {group.backups.length !== 1 ? "s" : ""})
                         </span>
                       </div>
                     </button>
 
                     {/* Expanded Backups */}
                     <Show when={isExpanded()}>
-                      <div class="ml-6 mt-2 flex flex-col gap-2">
+                      <div class="mt-2 ml-6 flex flex-col gap-2">
                         <For each={group.backups}>
                           {(backup: ProjectBackupInfo) => (
-                            <div class="flex items-center justify-between rounded border border-neutral-200 p-3 bg-white">
+                            <div class="flex items-center justify-between rounded border border-neutral-200 bg-white p-3">
                               <div class="flex flex-col gap-1">
                                 <span class="font-medium">
-                                  {group.isCustom ? backup.folder : formatTime(backup.folder)}
+                                  {group.isCustom
+                                    ? backup.folder
+                                    : formatTime(backup.folder)}
                                 </span>
-                                <span class="text-sm text-neutral">
+                                <span class="text-neutral text-sm">
                                   {formatBytes(backup.size)}
                                 </span>
                               </div>
                               <div class="flex gap-2">
                                 <Button
-                                  onClick={() => downloadFile(backup.folder, backup.files[0].name)}
+                                  onClick={() =>
+                                    downloadFile(
+                                      backup.folder,
+                                      backup.files[0].name,
+                                    )
+                                  }
                                   iconName="download"
                                   intent="primary"
                                   size="sm"
@@ -704,7 +782,12 @@ function ProjectBackups(props: { projectId: string; instanceDetail: InstanceDeta
                                   Download
                                 </Button>
                                 <Button
-                                  onClick={() => restoreBackup(backup.folder, backup.files[0].name)}
+                                  onClick={() =>
+                                    restoreBackup(
+                                      backup.folder,
+                                      backup.files[0].name,
+                                    )
+                                  }
                                   size="sm"
                                   outline
                                 >

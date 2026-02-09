@@ -12,7 +12,10 @@ import {
 } from "panther";
 import { createEffect, Match, Show, Switch } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
-import { ProjectRunnerProvider, useProjectDetail } from "~/components/project_runner/mod";
+import {
+  ProjectRunnerProvider,
+  useProjectDetail,
+} from "~/components/project_runner/mod";
 
 import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
@@ -21,7 +24,14 @@ import { ProjectModules } from "./project_modules";
 import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
-import { projectTab, updateProjectView, showAi, setShowAi, navCollapsed, setNavCollapsed } from "~/state/ui";
+import {
+  projectTab,
+  updateProjectView,
+  showAi,
+  setShowAi,
+  navCollapsed,
+  setNavCollapsed,
+} from "~/state/ui";
 import type { TabOption } from "~/state/ui";
 import { AIProjectWrapper, useAIProjectContext } from "../project_ai";
 
@@ -126,15 +136,13 @@ export default function Project(p: Props) {
               <ProjectEditorWrapper>
                 <FrameTop
                   panelChildren={
-                    <div class="ui-gap ui-pad bg-base-content border-b border-base-content text-base-100 flex h-full w-full items-center">
+                    <div class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b">
                       <Button
                         iconName="chevronLeft"
                         onClick={() => navigate("/")}
                       />
                       <div class="font-700 flex-1 truncate text-xl">
-                        <span class="font-400">
-                          {projectDetail.label}
-                        </span>
+                        <span class="font-400">{projectDetail.label}</span>
                       </div>
                       <div class="ui-gap-sm flex items-center">
                         <Show when={!showAi()}>
@@ -201,9 +209,7 @@ export default function Project(p: Props) {
                         />
                       </Match>
                       <Match when={projectTab() === "modules"}>
-                        <ProjectModules
-                          isGlobalAdmin={p.isGlobalAdmin}
-                        />
+                        <ProjectModules isGlobalAdmin={p.isGlobalAdmin} />
                       </Match>
                       <Match when={projectTab() === "data"}>
                         <ProjectData
@@ -216,9 +222,7 @@ export default function Project(p: Props) {
                       >
                         <ProjectSettings
                           isGlobalAdmin={p.isGlobalAdmin}
-                          silentRefreshInstance={
-                            p.instanceDetail.silentFetch
-                          }
+                          silentRefreshInstance={p.instanceDetail.silentFetch}
                           backToHome={() => navigate("/")}
                           instanceDetail={keyedInstanceDetail}
                         />

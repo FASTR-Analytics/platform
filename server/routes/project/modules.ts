@@ -21,6 +21,7 @@ import {
   getGlobalNonAdmin,
   getProjectEditor,
   getProjectViewer,
+  requireProjectPermission,
 } from "../../project_auth.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
@@ -29,6 +30,7 @@ import {
 } from "../../task_management/mod.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { log } from "../../middleware/logging.ts";
 
 export const routesModules = new Hono();
 
@@ -41,7 +43,11 @@ export const routesModules = new Hono();
 defineRoute(
   routesModules,
   "installModule",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_modules",
+  ),
+  log("installModule"),
   async (c, { params }) => {
     const res = await installModule(c.var.ppk.projectDb, params.module_id);
     if (res.success === false) {
@@ -68,7 +74,11 @@ defineRoute(
 defineRoute(
   routesModules,
   "uninstallModule",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_modules",
+  ),
+  log("uninstallModule"),
   async (c, { params }) => {
     const res = await uninstallModule(c.var.ppk.projectDb, params.module_id);
     if (res.success === false) {
@@ -82,7 +92,11 @@ defineRoute(
 defineRoute(
   routesModules,
   "updateModuleDefinition",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_modules",
+  ),
+  log("updateModuleDefinition"),
   async (c, { params, body }) => {
     const res = await updateModuleDefinition(
       c.var.ppk.projectDb,
@@ -125,7 +139,11 @@ defineRoute(
 defineRoute(
   routesModules,
   "updateModuleParameters",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_modules",
+  ),
+  log("updateModuleParameters"),
   async (c, { params, body }) => {
     const res = await updateModuleParameters(
       c.var.ppk.projectDb,
@@ -155,7 +173,11 @@ defineRoute(
 defineRoute(
   routesModules,
   "rerunModule",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_run_modules",
+  ),
+  log("rerunModule"),
   async (c, { params }) => {
     const res = await getModuleDetail(c.var.ppk.projectDb, params.module_id);
     if (res.success === false) {
@@ -175,7 +197,8 @@ defineRoute(
 defineRoute(
   routesModules,
   "getResultsObjectItems",
-  getProjectViewer,
+  requireProjectPermission(),
+  log("getResultsObjectItems"),
   async (c, { params }) => {
     const res = await getResultsObjectItems(
       c.var.ppk.projectDb,
@@ -195,8 +218,8 @@ defineRoute(
 defineRoute(
   routesModules,
   "getScript",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission("can_configure_modules"),
+  log("getModuleScript"),
   async (c, { params }) => {
     const res = await getModuleDetail(c.var.ppk.projectDb, params.module_id);
     if (res.success === false) {
@@ -234,7 +257,8 @@ defineRoute(
 defineRoute(
   routesModules,
   "getLogs",
-  getProjectViewer,
+  requireProjectPermission("can_configure_modules"),
+  log("getModuleLogs"),
   async (c, { params }) => {
     const logFilePath = join(
       _SANDBOX_DIR_PATH,
@@ -269,8 +293,23 @@ defineRoute(
 
 defineRoute(
   routesModules,
+  "getAllModulesWithResultsValues",
+  requireProjectPermission(),
+  log("getAllModulesWithResultsValues"),
+  async (c) => {
+    const res = await getAllModulesWithResultsValues(
+      c.var.mainDb,
+      c.var.ppk.projectDb,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesModules,
   "getModuleWithConfigSelections",
-  getProjectViewer,
+  requireProjectPermission(),
+  log("getModuleWithConfigSelections"),
   async (c, { params }) => {
     const res = await getModuleWithConfigSelections(
       c.var.ppk.projectDb,

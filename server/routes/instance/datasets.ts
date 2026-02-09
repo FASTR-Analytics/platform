@@ -35,6 +35,8 @@ import {
   _FETCH_CACHE_DATASET_HMIS_ITEMS,
 } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { log } from "../../middleware/logging.ts";
+import { requireGlobalPermission } from "../../middleware/mod.ts";
 
 export const routesDatasets = new Hono();
 
@@ -47,7 +49,8 @@ export const routesDatasets = new Hono();
 defineRoute(
   routesDatasets,
   "getDatasetHmisDetail",
-  getGlobalNonAdmin,
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisDetail"),
   async (c) => {
     const res = await getDatasetHmisDetail(c.var.mainDb);
     return c.json(res);
@@ -57,7 +60,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisVersions",
-  getGlobalNonAdmin,
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisVersions"),
   async (c) => {
     const res = await getVersionsForDatasetHmis(c.var.mainDb);
     return c.json(res);
@@ -73,7 +77,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisDisplayInfo",
-  getGlobalNonAdmin,
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisDisplayInfo"),
   async (c, { body }) => {
     const existing = await _FETCH_CACHE_DATASET_HMIS_ITEMS.get(
       {
@@ -119,7 +124,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteAllDatasetHmisData",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("deleteAllDatasetHmisData"),
   async (c, { body }) => {
     const res = await deleteAllDatasetHmisData(c.var.mainDb, body.windowing);
     return c.json(res);
@@ -135,7 +141,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "createDatasetUploadAttempt",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("createDatasetUploadAttempt"),
   async (c) => {
     const res = await addDatasetHmisUploadAttempt(c.var.mainDb);
     return c.json(res);
@@ -145,7 +152,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "setDatasetUploadSourceType",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("setDatasetUploadSourceType"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step0SourceType(
       c.var.mainDb,
@@ -155,15 +163,22 @@ defineRoute(
   }
 );
 
-defineRoute(routesDatasets, "getDatasetUpload", getGlobalAdmin, async (c) => {
-  const res = await getDatasetHmisUploadAttemptDetail(c.var.mainDb);
-  return c.json(res);
-});
+defineRoute(
+  routesDatasets, 
+  "getDatasetUpload", 
+  requireGlobalPermission("can_configure_data"), 
+  log("getDatasetUpload"), 
+  async (c) => {
+    const res = await getDatasetHmisUploadAttemptDetail(c.var.mainDb);
+    return c.json(res);
+  }
+);
 
 defineRoute(
   routesDatasets,
   "getDatasetUploadStatus",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("getDatasetUploadStatus"),
   async (c) => {
     const res = await getDatasetHmisUploadStatus(c.var.mainDb);
     return c.json(res);
@@ -173,7 +188,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteDatasetUploadAttempt",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("deleteDatasetUploadAttempt"),
   async (c) => {
     const res = await deleteDatasetHmisUploadAttempt(c.var.mainDb);
     return c.json(res);
@@ -187,7 +203,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "uploadDatasetCsv",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("uploadDatasetCsv"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step1CsvUpload(
       c.var.mainDb,
@@ -200,7 +217,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "updateDatasetMappings",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("updateDatasetMappings"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step2Mappings(
       c.var.mainDb,
@@ -213,7 +231,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "updateDatasetStaging",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("updateDatasetStaging"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step3Staging(
       c.var.mainDb,
@@ -227,7 +246,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "finalizeDatasetIntegration",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("finalizeDatasetIntegration"),
   async (c) => {
     const res = await updateDatasetUploadAttempt_Step4Integrate(c.var.mainDb);
     return c.json(res);
@@ -238,7 +258,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "dhis2ConfirmCredentials",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("dhis2ConfirmCredentials"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step1Dhis2Confirm(
       c.var.mainDb,
@@ -251,7 +272,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "dhis2SetSelection",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("dhis2SetSelection"),
   async (c, { body }) => {
     const res = await updateDatasetUploadAttempt_Step2Dhis2Selection(
       c.var.mainDb,
@@ -274,7 +296,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaDetail",
-  getGlobalNonAdmin,
+  requireGlobalPermission("can_view_data"), 
+  log("getDatasetHfaDetail"),
   async (c) => {
     const res = await getDatasetHfaDetail(c.var.mainDb);
     return c.json(res);
@@ -284,7 +307,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaVersions",
-  getGlobalNonAdmin,
+  requireGlobalPermission("can_view_data"), 
+  log("getDatasetHfaVersions"),
   async (c) => {
     const res = await getVersionsForDatasetHfa(c.var.mainDb);
     return c.json(res);
@@ -300,7 +324,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaDisplayInfo",
-  getGlobalNonAdmin,
+  requireGlobalPermission("can_view_data"), 
+  log("getDatasetHfaDisplayInfo"),
   async (c, { body }) => {
     const existing = await _FETCH_CACHE_DATASET_HFA_ITEMS.get(
       {},
@@ -332,7 +357,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteAllDatasetHfaData",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("deleteAllDatasetHfaData"),
   async (c) => {
     const res = await deleteAllDatasetHfaData(c.var.mainDb);
     return c.json(res);
@@ -348,7 +374,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "createDatasetHfaUploadAttempt",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("createDatasetHfaUploadAttempt"),
   async (c) => {
     const res = await addDatasetHfaUploadAttempt(c.var.mainDb);
     return c.json(res);
@@ -358,7 +385,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaUpload",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("getDatasetHfaUpload"),
   async (c) => {
     const res = await getDatasetHfaUploadAttemptDetail(c.var.mainDb);
     return c.json(res);
@@ -368,7 +396,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaUploadStatus",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("getDatasetHfaUploadStatus"),
   async (c) => {
     const res = await getDatasetHfaUploadStatus(c.var.mainDb);
     return c.json(res);
@@ -378,7 +407,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteDatasetHfaUploadAttempt",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("deleteDatasetHfaUploadAttempt"),
   async (c) => {
     const res = await deleteDatasetHfaUploadAttempt(c.var.mainDb);
     return c.json(res);
@@ -392,7 +422,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "uploadDatasetHfaCsv",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("uploadDatasetHfaCsv"),
   async (c, { body }) => {
     const res = await updateDatasetHfaUploadAttempt_Step1CsvUpload(
       c.var.mainDb,
@@ -405,7 +436,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "updateDatasetHfaMappings",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("updateDatasetHfaMappings"),
   async (c, { body }) => {
     const res = await updateDatasetHfaUploadAttempt_Step2Mappings(
       c.var.mainDb,
@@ -418,7 +450,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "updateDatasetHfaStaging",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("updateDatasetHfaStaging"),
   async (c) => {
     const res = await updateDatasetHfaUploadAttempt_Step3Staging(
       c.var.mainDb,
@@ -431,7 +464,8 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "finalizeDatasetHfaIntegration",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"), 
+  log("finalizeDatasetHfaIntegration"),
   async (c) => {
     const res = await updateDatasetHfaUploadAttempt_Step4Integrate(
       c.var.mainDb

@@ -15,16 +15,25 @@ import {
   updateReportConfig,
   updateReportItemConfig,
 } from "../../db/mod.ts";
-import { getProjectEditor, getProjectViewer } from "../../project_auth.ts";
+import {
+  getProjectEditor,
+  getProjectViewer,
+  requireProjectPermission,
+} from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { log } from "../../middleware/logging.ts";
 
 export const routesReports = new Hono();
 
 defineRoute(
   routesReports,
   "createReport",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("createReport"),
   async (c, { body }) => {
     const res = await addReport(
       c.var.ppk.projectDb,
@@ -47,7 +56,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "duplicateReport",
-  getProjectViewer,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("duplicateReport"),
   async (c, { params, body }) => {
     const res = await duplicateReport(
       c.var.ppk.projectDb,
@@ -77,7 +90,8 @@ defineRoute(
 defineRoute(
   routesReports,
   "getReportDetail",
-  getProjectViewer,
+  requireProjectPermission("can_view_reports"),
+  log("getReportDetail"),
   async (c, { params }) => {
     const res = await getReportDetail(
       c.var.ppk.projectId,
@@ -91,7 +105,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "updateReportConfig",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("updateReportConfig"),
   async (c, { params, body }) => {
     const res = await updateReportConfig(
       c.var.ppk.projectDb,
@@ -114,7 +132,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "backupReport",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: false },
+    "can_configure_reports",
+  ),
+  log("backupReport"),
   async (c, { params }) => {
     const res = await backupReport(
       c.var.ppk.projectId,
@@ -128,7 +150,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "restoreReport",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("restoreReport"),
   async (c, { body }) => {
     const res = await restoreReport(
       c.var.ppk.projectDb,
@@ -142,7 +168,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "deleteReport",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("deleteReport"),
   async (c, { params }) => {
     const res = await deleteReport(c.var.ppk.projectDb, params.report_id);
     return c.json(res);
@@ -181,7 +211,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "createReportItem",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("createReportItem"),
   async (c, { params, body }) => {
     const res = await addReportItem(
       c.var.ppk.projectDb,
@@ -210,7 +244,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "duplicateReportItem",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("duplicateReportItem"),
   async (c, { params, body }) => {
     const res = await duplicateReportItem(
       c.var.ppk.projectDb,
@@ -241,7 +279,8 @@ defineRoute(
 defineRoute(
   routesReports,
   "getReportItem",
-  getProjectViewer,
+  requireProjectPermission("can_view_reports"),
+  log("getReportItem"),
   async (c, { params }) => {
     const res = await getReportItem(
       c.var.ppk.projectId,
@@ -255,7 +294,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "updateReportItemConfig",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("updateReportItemConfig"),
   async (c, { params, body }) => {
     const res = await updateReportItemConfig(
       c.var.ppk.projectDb,
@@ -278,7 +321,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "moveAndDeleteAllReportItems",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("moveAndDeleteAllReportItems"),
   async (c, { params, body }) => {
     const res = await moveAndDeleteAllReportItems(
       c.var.ppk.projectDb,
@@ -301,7 +348,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "deleteReportItem",
-  getProjectEditor,
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("deleteReportItem"),
   async (c, { params }) => {
     const res = await deleteReportItem(c.var.ppk.projectDb, params.item_id);
     if (res.success === false) {

@@ -16,7 +16,7 @@ import type {
   DBUser,
 } from "./db/mod.ts";
 import { getPgConnectionFromCacheOrNew } from "./db/mod.ts";
-import type { GlobalUser, ProjectUser } from "lib";
+import type { GlobalUser, ProjectUser, ProjectPermission } from "lib";
 import { createDevGlobalUser, createDevProjectUser } from "lib";
 import { ProjectPk } from "./server_only_types/mod.ts";
 
@@ -142,6 +142,156 @@ export const getProjectViewer = createMiddleware<{
     throw error;
   }
 });
+
+type RequireProjectPermissionOptions = {
+  requireAdmin?: boolean;
+  preventAccessToLockedProjects?: boolean;
+};
+
+export function requireProjectPermission(
+  firstArg?: RequireProjectPermissionOptions | ProjectPermission,
+  ...restArgs: ProjectPermission[]
+) {
+  // Determine if first arg is options object or permission
+  const isOptions = typeof firstArg === "object" && firstArg !== null;
+  const options: RequireProjectPermissionOptions = isOptions ? firstArg : {};
+  const perms: ProjectPermission[] = isOptions
+    ? restArgs
+    : (firstArg ? [firstArg as ProjectPermission, ...restArgs] : restArgs);
+
+  const { requireAdmin = false, preventAccessToLockedProjects = false } = options;
+
+  return createMiddleware<{
+    Variables: {
+      ppk: ProjectPk;
+      projectUser: ProjectUser;
+      projectLabel: string;
+      globalUser: GlobalUser;
+      mainDb: Sql;
+    };
+  }>(async (c: Context, next: any) => {
+    // Skip auth for OPTIONS requests (CORS preflight)
+    if (c.req.method === "OPTIONS") {
+      await next();
+      return;
+    }
+
+    try {
+      // Get global user first (like getGlobalAdmin/getGlobalNonAdmin)
+      const globalUser = await getGlobalUser(c);
+      if (globalUser === "NOT_AUTHENTICATED") {
+        c.status(401);
+        return c.json({
+          success: false,
+          err: "Authentication required",
+          authError: true,
+        });
+      }
+
+      // Get mainDb connection
+      const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+
+      // If requireAdmin is true, only allow global admins
+      if (requireAdmin && !globalUser.isGlobalAdmin) {
+        c.status(403);
+        return c.json({
+          success: false,
+          err: "Admin access required",
+          authError: true,
+        });
+      }
+
+      // Check if project roles entry exists for the user
+      const res = await getProjectUser(c);
+      if (res === "NOT_AUTHENTICATED") {
+        c.status(401);
+        return c.json({
+          success: false,
+          err: "Authentication required",
+          authError: true,
+        });
+      }
+
+      // Global admins bypass permission checks
+      if (!res.projectUser.isGlobalAdmin) {
+        // check all permissions for non-admins
+        for (const perm of perms) {
+          if (!res.projectUser[perm]) {
+            c.status(403);
+            return c.json({
+              success: false,
+              err: `User does not have ${perm} permissions for this project`,
+              authError: true,
+            });
+          }
+        }
+      }
+
+      if (preventAccessToLockedProjects) {
+        // Check if project is locked
+        try {
+          const rawProjectResult = await mainDb<
+            { is_locked: boolean }[]
+          >`SELECT is_locked FROM projects WHERE id = ${res.projectId}`;
+          const rawProject = rawProjectResult.at(0);
+
+          if (!rawProject) {
+            c.status(404);
+            return c.json({ success: false, err: "Project not found" });
+          }
+
+          if (rawProject.is_locked) {
+            c.status(403);
+            return c.json({
+              success: false,
+              err: "This project is locked and cannot be edited",
+            });
+          }
+        } catch (dbError) {
+          console.error("Database error checking project lock:", dbError);
+          c.status(503);
+          return c.json({ success: false, err: "Service temporarily unavailable" });
+        }
+      }
+
+      const projectDb = getPgConnectionFromCacheOrNew(
+        res.projectId,
+        "READ_AND_WRITE"
+      );
+      const ppk: ProjectPk = {
+        projectDb,
+        projectId: res.projectId,
+      };
+
+      // Set all context variables (project + global)
+      c.set("ppk", ppk);
+      c.set("projectUser", res.projectUser);
+      c.set("projectLabel", res.projectLabel);
+      c.set("globalUser", globalUser);
+      c.set("mainDb", mainDb);
+      await next();
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "SERVICE_UNAVAILABLE") {
+        c.status(503);
+        return c.json({
+          success: false,
+          err: "Service temporarily unavailable",
+        });
+      }
+      if (error.message.startsWith("Middleware error:")) {
+        c.status(403);
+        return c.json({
+          success: false,
+          err: error.message.replace("Middleware error: ", ""),
+          authError: true,
+        });
+      }
+    }
+    throw error;
+  }
+  });
+}
 
 export const getProjectEditor = createMiddleware<{
   Variables: {
@@ -273,7 +423,7 @@ export const checkProjectNotLocked = createMiddleware(
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-async function getGlobalUser(
+export async function getGlobalUser(
   c: Context
 ): Promise<GlobalUser | "NOT_AUTHENTICATED"> {
   if (_BYPASS_AUTH) {
@@ -292,31 +442,80 @@ async function getGlobalUser(
 
   try {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+    const email = auth.sessionClaims.email as string;
 
-    const rawUserResult = await mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${
-      auth.sessionClaims.email as string
-    }`;
+    // Fetch user and permissions in parallel
+    const [rawUserResult, permissionsResult] = await Promise.all([
+      mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${email}`,
+      mainDb<GlobalUser["thisUserPermissions"][]>`
+        SELECT
+          can_configure_users,
+          can_view_users,
+          can_view_logs,
+          can_configure_settings,
+          can_configure_assets,
+          can_configure_data,
+          can_view_data,
+          can_create_projects
+        FROM user_permissions
+        WHERE user_email = ${email}
+      `,
+    ]);
+
     const rawUser = rawUserResult.at(0);
 
     if (_OPEN_ACCESS && (!rawUser || !rawUser.is_admin)) {
       // Non-critical insert, don't wait if it fails
-      mainDb<DBUser[]>`
-INSERT INTO users (email, is_admin)
-VALUES (${auth.sessionClaims.email as string}, TRUE)
-ON CONFLICT do nothing;
-`.catch(() => {}); // Ignore errors on this insert
+      mainDb.begin(async (sql) => {
+        await sql`
+          INSERT INTO users (email, is_admin)
+          VALUES (${email}, TRUE)
+          ON CONFLICT DO NOTHING
+        `;
+        await sql`
+          INSERT INTO user_permissions (user_email)
+          VALUES (${email})
+          ON CONFLICT (user_email) DO NOTHING
+        `;
+      }).catch(() => {}); // Ignore errors on this insert
     }
+
+    const isGlobalAdmin = _OPEN_ACCESS || (!!rawUser && rawUser.is_admin);
+
+    // Admins get all permissions, others get their configured permissions
+    const thisUserPermissions: GlobalUser["thisUserPermissions"] = isGlobalAdmin
+      ? {
+          can_configure_users: true,
+          can_view_users: true,
+          can_view_logs: true,
+          can_configure_settings: true,
+          can_configure_assets: true,
+          can_configure_data: true,
+          can_view_data: true,
+          can_create_projects: true,
+        }
+      : permissionsResult.at(0) ?? {
+          can_configure_users: false,
+          can_view_users: false,
+          can_view_logs: false,
+          can_configure_settings: false,
+          can_configure_assets: false,
+          can_configure_data: false,
+          can_view_data: false,
+          can_create_projects: false,
+        };
 
     const globalUser: GlobalUser = {
       instanceName: _INSTANCE_NAME,
       instanceLanguage: _INSTANCE_LANGUAGE,
       instanceCalendar: _INSTANCE_CALENDAR,
       openAccess: _OPEN_ACCESS,
-      email: auth.sessionClaims.email as string,
+      email,
       firstName: auth.sessionClaims.firstName as string,
       lastName: auth.sessionClaims.lastName as string,
       approved: _OPEN_ACCESS || !!rawUser,
-      isGlobalAdmin: _OPEN_ACCESS || (!!rawUser && rawUser.is_admin),
+      isGlobalAdmin,
+      thisUserPermissions,
     };
     return globalUser;
   } catch (error) {
@@ -380,11 +579,19 @@ async function getProjectUser(
 
     if (_OPEN_ACCESS && (!rawUser || !rawUser.is_admin)) {
       // Non-critical insert, don't wait if it fails
-      mainDb<DBUser[]>`
-INSERT INTO users (email, is_admin)
-VALUES (${auth.sessionClaims.email as string}, TRUE)
-ON CONFLICT do nothing;
-`.catch(() => {}); // Ignore errors on this insert
+      const email = auth.sessionClaims.email as string;
+      mainDb.begin(async (sql) => {
+        await sql`
+          INSERT INTO users (email, is_admin)
+          VALUES (${email}, TRUE)
+          ON CONFLICT DO NOTHING
+        `;
+        await sql`
+          INSERT INTO user_permissions (user_email)
+          VALUES (${email})
+          ON CONFLICT (user_email) DO NOTHING
+        `;
+      }).catch(() => {}); // Ignore errors on this insert
     }
 
     if (_OPEN_ACCESS || rawUser?.is_admin) {
@@ -393,8 +600,23 @@ ON CONFLICT do nothing;
         projectLabel: rawProject.label,
         projectUser: {
           email: auth.sessionClaims.email as string,
-          role: "editor",
+          role: "editor", // deprecated
           isGlobalAdmin: true,
+          can_configure_settings: true,
+          can_create_backups: true,
+          can_restore_backups: true,
+          can_configure_modules: true,
+          can_run_modules: true,
+          can_configure_users: true,
+          can_configure_visualizations: true,
+          can_view_visualizations: true,
+          can_configure_reports: true,
+          can_view_reports: true,
+          can_configure_slide_decks: true,
+          can_view_slide_decks: true,
+          can_configure_data: true,
+          can_view_data: true,
+          can_view_logs: true,
         },
       };
     }
@@ -416,8 +638,23 @@ ON CONFLICT do nothing;
       projectLabel: rawProject.label,
       projectUser: {
         email: auth.sessionClaims.email as string,
-        role: rawProjectUserRole.role === "editor" ? "editor" : "viewer",
+        role: rawProjectUserRole.role === "editor" ? "editor" : "viewer", // deprecated
         isGlobalAdmin: false,
+        can_configure_settings: rawProjectUserRole.can_configure_settings,
+        can_create_backups: rawProjectUserRole.can_create_backups,
+        can_restore_backups: rawProjectUserRole.can_restore_backups,
+        can_configure_modules: rawProjectUserRole.can_configure_modules,
+        can_run_modules: rawProjectUserRole.can_run_modules,
+        can_configure_users: rawProjectUserRole.can_configure_users,
+        can_configure_visualizations: rawProjectUserRole.can_configure_visualizations,
+        can_view_visualizations: rawProjectUserRole.can_view_visualizations,
+        can_configure_reports: rawProjectUserRole.can_configure_reports,
+        can_view_reports: rawProjectUserRole.can_view_reports,
+        can_configure_slide_decks: rawProjectUserRole.can_configure_slide_decks,
+        can_view_slide_decks: rawProjectUserRole.can_view_slide_decks,
+        can_configure_data: rawProjectUserRole.can_configure_data,
+        can_view_data: rawProjectUserRole.can_view_data,
+        can_view_logs: rawProjectUserRole.can_view_logs,
       },
     };
   } catch (error) {

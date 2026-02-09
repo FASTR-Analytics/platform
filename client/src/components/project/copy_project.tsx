@@ -31,6 +31,7 @@ export function CopyProjectForm(
       }
       return await serverActions.copyProject({
         project_id: p.projectId,
+        projectId: p.projectId,
         newProjectLabel: goodLabel,
       });
     },

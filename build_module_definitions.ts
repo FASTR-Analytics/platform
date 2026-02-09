@@ -6,11 +6,16 @@ import type {
   ScriptSource,
   PartialDefaultPresentationObjectJSON,
 } from "./lib/types/module_definitions.ts";
-import { DEFAULT_S_CONFIG, DEFAULT_T_CONFIG } from "./lib/types/presentation_object_defaults.ts";
+import {
+  DEFAULT_S_CONFIG,
+  DEFAULT_T_CONFIG,
+} from "./lib/types/presentation_object_defaults.ts";
 
 function stripFrontmatter(script: string): string {
   const lines = script.split("\n");
-  const markerIndex = lines.findIndex((line) => line.trimStart().startsWith("#---"));
+  const markerIndex = lines.findIndex((line) =>
+    line.trimStart().startsWith("#---"),
+  );
 
   if (markerIndex === -1) {
     return script;
@@ -20,8 +25,8 @@ function stripFrontmatter(script: string): string {
 }
 
 async function fetchGitHubScript(
-  source: Extract<ScriptSource, { type: "github" }>
-): Promise<{ script: string, sha: string }> {
+  source: Extract<ScriptSource, { type: "github" }>,
+): Promise<{ script: string; sha: string }> {
   const url = `https://raw.githubusercontent.com/${source.owner}/${source.repo}/${source.commit}/${source.path}`;
 
   console.log(`  Fetching from GitHub: ${url}`);
@@ -29,7 +34,7 @@ async function fetchGitHubScript(
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch from GitHub: ${response.status} ${response.statusText}`
+      `Failed to fetch from GitHub: ${response.status} ${response.statusText}`,
     );
   }
 
@@ -39,7 +44,9 @@ async function fetchGitHubScript(
   const shaResponse = await fetch(shaUrl);
 
   if (!shaResponse.ok) {
-    throw new Error(`Failed to fetch commit SHA: ${shaResponse.status} ${shaResponse.statusText}`);
+    throw new Error(
+      `Failed to fetch commit SHA: ${shaResponse.status} ${shaResponse.statusText}`,
+    );
   }
 
   const commitInfo = await shaResponse.json();
@@ -110,17 +117,21 @@ async function scanModuleDefinitions(): Promise<
         if (definition.scriptSource.type === "local") {
           const scriptSourcePath = join(
             entry.path,
-            definition.scriptSource.filename
+            definition.scriptSource.filename,
           );
           script = await Deno.readTextFile(scriptSourcePath);
         } else if (definition.scriptSource.type === "github") {
-          const githubResponse = await fetchGitHubScript(definition.scriptSource);
+          const githubResponse = await fetchGitHubScript(
+            definition.scriptSource,
+          );
           script = githubResponse.script;
           sha = githubResponse.sha;
-          console.log(`  Fetched script for ${moduleId} v${version} (SHA: ${sha})`);
+          console.log(
+            `  Fetched script for ${moduleId} v${version} (SHA: ${sha})`,
+          );
         } else {
           console.error(
-            `✗ Skipping ${moduleId} v${version}: Unknown script source type`
+            `✗ Skipping ${moduleId} v${version}: Unknown script source type`,
           );
           continue;
         }
@@ -162,7 +173,7 @@ function generateManifest(
   modules: Map<
     ModuleId,
     Map<string, { definition: ModuleDefinitionJSON; script: string }>
-  >
+  >,
 ): ModuleManifest {
   const manifest: ModuleManifest = {
     modules: {} as ModuleManifest["modules"],
@@ -188,7 +199,7 @@ function generateModuleMetadata(
   modules: Map<
     ModuleId,
     Map<string, { definition: ModuleDefinitionJSON; script: string }>
-  >
+  >,
 ): string {
   // Collect module metadata from latest versions
   const moduleMetadata: Array<{
@@ -200,17 +211,20 @@ function generateModuleMetadata(
   // Collect mappings
   const metricToModule: Record<string, ModuleId> = {};
   const resultsObjectToModule: Record<string, ModuleId> = {};
-  const metricStaticData: Record<string, {
-    label: string;
-    variantLabel?: string;
-    resultsObjectId: string;
-    valueProps: string[];
-    valueFunc: string;
-    formatAs: string;
-    valueLabelReplacements?: Record<string, string>;
-    requiredDisaggregationOptions: string[];
-    postAggregationExpression?: any;
-  }> = {};
+  const metricStaticData: Record<
+    string,
+    {
+      label: string;
+      variantLabel?: string;
+      resultsObjectId: string;
+      valueProps: string[];
+      valueFunc: string;
+      formatAs: string;
+      valueLabelReplacements?: Record<string, string>;
+      requiredDisaggregationOptions: string[];
+      postAggregationExpression?: any;
+    }
+  > = {};
 
   for (const [moduleId, versions] of modules.entries()) {
     const versionList = Array.from(versions.keys()).sort();
@@ -263,7 +277,7 @@ function generateModuleMetadata(
           m.label
         }", prerequisiteModules: [${m.prerequisites
           .map((p) => `"${p}"`)
-          .join(", ")}] }`
+          .join(", ")}] }`,
     )
     .join(",\n");
 
@@ -284,9 +298,15 @@ function generateModuleMetadata(
   const metricStaticDataCode = sortedMetricStaticIds
     .map((metricId) => {
       const d = metricStaticData[metricId];
-      const variant = d.variantLabel ? `, variantLabel: "${d.variantLabel}"` : "";
-      const replacements = d.valueLabelReplacements ? `, valueLabelReplacements: ${JSON.stringify(d.valueLabelReplacements)}` : "";
-      const postAgg = d.postAggregationExpression ? `, postAggregationExpression: ${JSON.stringify(d.postAggregationExpression)}` : "";
+      const variant = d.variantLabel
+        ? `, variantLabel: "${d.variantLabel}"`
+        : "";
+      const replacements = d.valueLabelReplacements
+        ? `, valueLabelReplacements: ${JSON.stringify(d.valueLabelReplacements)}`
+        : "";
+      const postAgg = d.postAggregationExpression
+        ? `, postAggregationExpression: ${JSON.stringify(d.postAggregationExpression)}`
+        : "";
       return `  "${metricId}": { label: "${d.label}"${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)}${postAgg} }`;
     })
     .join(",\n");
@@ -371,9 +391,12 @@ function validateResultsObjects(
   modules: Map<
     ModuleId,
     Map<string, { definition: ModuleDefinitionJSON; script: string }>
-  >
+  >,
 ): void {
-  const resultsObjectIds = new Map<string, { moduleId: ModuleId; version: string }>();
+  const resultsObjectIds = new Map<
+    string,
+    { moduleId: ModuleId; version: string }
+  >();
   const duplicates: string[] = [];
 
   for (const [moduleId, versions] of modules.entries()) {
@@ -382,7 +405,7 @@ function validateResultsObjects(
         const existing = resultsObjectIds.get(ro.id);
         if (existing) {
           duplicates.push(
-            `  "${ro.id}" in ${moduleId}@${version} conflicts with ${existing.moduleId}@${existing.version}`
+            `  "${ro.id}" in ${moduleId}@${version} conflicts with ${existing.moduleId}@${existing.version}`,
           );
         } else {
           resultsObjectIds.set(ro.id, { moduleId, version });
@@ -406,7 +429,7 @@ function validateMetrics(
   modules: Map<
     ModuleId,
     Map<string, { definition: ModuleDefinitionJSON; script: string }>
-  >
+  >,
 ): void {
   const metricIds = new Map<string, { moduleId: ModuleId; version: string }>();
   const duplicates: string[] = [];
@@ -416,7 +439,7 @@ function validateMetrics(
   for (const [moduleId, versions] of modules.entries()) {
     for (const [version, { definition }] of versions.entries()) {
       const validResultsObjectIds = new Set(
-        definition.resultsObjects.map((ro) => ro.id)
+        definition.resultsObjects.map((ro) => ro.id),
       );
 
       // Group metrics by label to validate variantLabel consistency
@@ -431,16 +454,21 @@ function validateMetrics(
       for (const [label, metricsWithLabel] of metricsByLabel.entries()) {
         if (metricsWithLabel.length > 1) {
           // Multiple metrics share this label - ALL must have variantLabel
-          const missingVariant = metricsWithLabel.filter((m) => !m.variantLabel);
+          const missingVariant = metricsWithLabel.filter(
+            (m) => !m.variantLabel,
+          );
           if (missingVariant.length > 0) {
             variantErrors.push(
-              `  ${moduleId}@${version}: Metrics with label "${label}" have ${metricsWithLabel.length} entries but ${missingVariant.length} are missing variantLabel: ${missingVariant.map((m) => m.id).join(", ")}`
+              `  ${moduleId}@${version}: Metrics with label "${label}" have ${metricsWithLabel.length} entries but ${missingVariant.length} are missing variantLabel: ${missingVariant.map((m) => m.id).join(", ")}`,
             );
           }
-        } else if (metricsWithLabel.length === 1 && metricsWithLabel[0].variantLabel) {
+        } else if (
+          metricsWithLabel.length === 1 &&
+          metricsWithLabel[0].variantLabel
+        ) {
           // Single metric with variantLabel but no siblings - warn
           variantErrors.push(
-            `  ${moduleId}@${version}: Metric "${metricsWithLabel[0].id}" has variantLabel "${metricsWithLabel[0].variantLabel}" but no other metrics share its label "${label}"`
+            `  ${moduleId}@${version}: Metric "${metricsWithLabel[0].id}" has variantLabel "${metricsWithLabel[0].variantLabel}" but no other metrics share its label "${label}"`,
           );
         }
       }
@@ -450,7 +478,7 @@ function validateMetrics(
         const existing = metricIds.get(metric.id);
         if (existing) {
           duplicates.push(
-            `  "${metric.id}" in ${moduleId}@${version} conflicts with ${existing.moduleId}@${existing.version}`
+            `  "${metric.id}" in ${moduleId}@${version} conflicts with ${existing.moduleId}@${existing.version}`,
           );
         } else {
           metricIds.set(metric.id, { moduleId, version });
@@ -459,7 +487,7 @@ function validateMetrics(
         // Check resultsObjectId points to valid resultsObject
         if (!validResultsObjectIds.has(metric.resultsObjectId)) {
           invalidRoutes.push(
-            `  "${metric.id}" in ${moduleId}@${version}: resultsObjectId "${metric.resultsObjectId}" not found in resultsObjects`
+            `  "${metric.id}" in ${moduleId}@${version}: resultsObjectId "${metric.resultsObjectId}" not found in resultsObjects`,
           );
         }
       }
@@ -487,11 +515,17 @@ function validateMetrics(
     }
   }
 
-  if (duplicates.length > 0 || invalidRoutes.length > 0 || variantErrors.length > 0) {
+  if (
+    duplicates.length > 0 ||
+    invalidRoutes.length > 0 ||
+    variantErrors.length > 0
+  ) {
     throw new Error("Metric validation failed");
   }
 
-  console.log(`✓ Validated ${metricIds.size} unique metric IDs with valid resultsObjectId`);
+  console.log(
+    `✓ Validated ${metricIds.size} unique metric IDs with valid resultsObjectId`,
+  );
 }
 
 async function buildModules() {
@@ -510,25 +544,27 @@ async function buildModules() {
     for (const [_version, { definition, script }] of versions.entries()) {
       // At this point, all scriptSources have been converted to local during scanning
       if (definition.scriptSource.type !== "local") {
-        throw new Error("Unexpected: scriptSource should be local at build output stage");
+        throw new Error(
+          "Unexpected: scriptSource should be local at build output stage",
+        );
       }
 
       // Write JSON definition (without script)
       const jsonFilename = definition.scriptSource.filename.replace(
         ".R",
-        ".json"
+        ".json",
       );
       const jsonFilepath = join(outDir, "modules", jsonFilename);
       await Deno.writeTextFile(
         jsonFilepath,
-        JSON.stringify(definition, null, 2)
+        JSON.stringify(definition, null, 2),
       );
 
       // Write script file
       const scriptFilepath = join(
         outDir,
         "modules",
-        definition.scriptSource.filename
+        definition.scriptSource.filename,
       );
       await Deno.writeTextFile(scriptFilepath, script);
     }
@@ -537,7 +573,7 @@ async function buildModules() {
   const manifest = generateManifest(modules);
   await Deno.writeTextFile(
     join(outDir, "manifest.json"),
-    JSON.stringify(manifest, null, 2)
+    JSON.stringify(manifest, null, 2),
   );
 
   // Generate module metadata TypeScript file
@@ -561,8 +597,8 @@ async function buildModules() {
   console.log(
     `  - ${Array.from(modules.values()).reduce(
       (acc, v) => acc + v.size,
-      0
-    )} total versions`
+      0,
+    )} total versions`,
   );
   console.log(`  - Output: ${outDir}/`);
   console.log(`  - Generated: ${metadataPath}`);
@@ -583,7 +619,8 @@ function cleanPresentationObjectJSON(
   if (obj.config.s) {
     const cleanedS: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj.config.s)) {
-      const defaultValue = DEFAULT_S_CONFIG[key as keyof typeof DEFAULT_S_CONFIG];
+      const defaultValue =
+        DEFAULT_S_CONFIG[key as keyof typeof DEFAULT_S_CONFIG];
       if (JSON.stringify(value) !== JSON.stringify(defaultValue)) {
         cleanedS[key] = value;
       }
@@ -596,7 +633,8 @@ function cleanPresentationObjectJSON(
   if (obj.config.t) {
     const cleanedT: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj.config.t)) {
-      const defaultValue = DEFAULT_T_CONFIG[key as keyof typeof DEFAULT_T_CONFIG];
+      const defaultValue =
+        DEFAULT_T_CONFIG[key as keyof typeof DEFAULT_T_CONFIG];
       if (JSON.stringify(value) !== JSON.stringify(defaultValue)) {
         cleanedT[key] = value;
       }

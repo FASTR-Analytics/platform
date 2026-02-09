@@ -7,6 +7,8 @@ import {
 } from "../../dhis2/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { getGlobalAdmin } from "../../project_auth.ts";
+import { log } from "../../middleware/logging.ts";
+import { requireGlobalPermission } from "../../middleware/mod.ts";
 
 export const routesIndicatorsDhis2 = new Hono();
 
@@ -14,7 +16,8 @@ export const routesIndicatorsDhis2 = new Hono();
 defineRoute(
   routesIndicatorsDhis2,
   "searchDhis2Indicators",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("searchDhis2Indicators"),
   async (c, { body }) => {
     try {
       // Validate required fields
@@ -53,7 +56,8 @@ defineRoute(
 defineRoute(
   routesIndicatorsDhis2,
   "searchDhis2DataElements",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("searchDhis2DataElements"),
   async (c, { body }) => {
     try {
       // Validate required fields
@@ -95,7 +99,8 @@ defineRoute(
 defineRoute(
   routesIndicatorsDhis2,
   "searchDhis2All",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("searchDhis2All"),
   async (c, { body }) => {
     try {
       // Validate required fields
@@ -136,7 +141,8 @@ defineRoute(
 defineRoute(
   routesIndicatorsDhis2,
   "testDhis2IndicatorsConnection",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("testDhis2IndicatorsConnection"),
   async (c, { body }) => {
     try {
       // Validate required fields

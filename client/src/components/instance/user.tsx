@@ -1,4 +1,4 @@
-import { OtherUser, t, t2, T } from "lib";
+import { OtherUser, t, t2, T, UserPermission } from "lib";
 import {
   Button,
   FrameTop,
@@ -6,9 +6,23 @@ import {
   SettingsSection,
   timActionDelete,
   timActionButton,
+  Checkbox
 } from "panther";
-import { Match, Switch } from "solid-js";
+import { Match, Switch, Show, createSignal, For } from "solid-js";
 import { serverActions } from "~/server_actions";
+
+
+export const USER_PERMISSIONS = [
+  "can_configure_users",
+  "can_view_users",
+  "can_view_logs",
+  "can_configure_settings",
+  "can_configure_assets",
+  "can_configure_data",
+  "can_view_data",
+  "can_create_projects"
+] as const satisfies readonly UserPermission[];
+
 
 type Props = {
   user: OtherUser;
@@ -17,7 +31,56 @@ type Props = {
   silentFetch: () => Promise<void>;
 };
 
+function makeDefaultPermissions(): Record<UserPermission, boolean> {
+  return Object.fromEntries(USER_PERMISSIONS.map((k) => [k, false])) as Record<
+    UserPermission,
+    boolean
+  >;
+}
+
 export function User(p: Props) {
+  const [permissions, setPermissions] = createSignal<Record<UserPermission, boolean> | null>(null);
+  const [originalPermissions, setOriginalPermissions] = createSignal<Record<UserPermission, boolean> | null>(null);
+
+  // get user permissions
+  (async () => {
+    const res = await serverActions.getUserPermissions({ email: p.user.email });
+    if (res.success) {
+      setPermissions(res.data.permissions);
+      setOriginalPermissions(res.data.permissions);
+    } else {
+      setPermissions(makeDefaultPermissions());
+      setOriginalPermissions(makeDefaultPermissions());
+    }
+  })();
+
+  const hasChanges = () => {
+    const current = permissions();
+    const original = originalPermissions();
+    if (!current || !original) return false;
+    return USER_PERMISSIONS.some((key) => current[key] !== original[key]);
+  };
+
+  const togglePermission = async (key: UserPermission) => {
+    const current = permissions();
+    if (!current) return;
+    setPermissions({ ...current, [key]: !current[key]});
+  };
+
+  const savePermissions = timActionButton(
+    () => {
+      const perms = permissions();
+      if (!perms) return Promise.resolve({ success: false, err: "No permissions" });
+      return serverActions.updateUserPermissions({
+        email: p.user.email,
+        permissions: perms
+      });
+    },
+    () => {
+      setOriginalPermissions(permissions());
+    }
+  );
+
   const attemptMakeAdmin = timActionButton(
     () =>
       serverActions.toggleUserAdmin({
@@ -99,6 +162,36 @@ export function User(p: Props) {
             </div>
           </div>
         </SettingsSection>
+        <Show when={p.user.isGlobalAdmin === false}>
+          <SettingsSection
+            header={t2("User Permissions")}
+            rightChildren={
+              <Show when={hasChanges()}>
+                <Button
+                  onClick={savePermissions.click}
+                  state={savePermissions.state()}>
+                  {t2("Save Changes")}
+                </Button>
+              </Show>
+            }
+          >
+            <Show when={permissions()} fallback={<div>Loading...</div>}>
+              {(perms) => (
+                <div class="space-y-2">
+                  <For each={Object.keys(perms()) as UserPermission[]}>
+                    {(key) =>(
+                      <Checkbox
+                        label={key.replaceAll("_", " ")}
+                        checked={perms()[key]}
+                        onChange={() => togglePermission(key)}
+                      />
+                    )}
+                  </For>
+                </div>
+              )}
+            </Show>
+          </SettingsSection>
+        </Show>
         <Button
           onClick={attemptDeleteUser}
           intent="danger"

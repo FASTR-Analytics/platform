@@ -1,3 +1,5 @@
+import { UserLog } from "../../../server/db/mod.ts";
+import { ProjectPermission } from "lib";
 import type {
   ProjectDetail,
   ProjectUserRoleType,
@@ -38,12 +40,14 @@ export const projectRouteRegistry = {
       label: string;
       aiContext: string;
     },
+    requiresProject: true,
   }),
 
   deleteProject: route({
     path: "/project/:project_id",
     method: "DELETE",
     params: {} as { project_id: string },
+    requiresProject: true,
   }),
 
   setProjectLockStatus: route({
@@ -53,6 +57,7 @@ export const projectRouteRegistry = {
     body: {} as {
       lockAction: "lock" | "unlock";
     },
+    requiresProject: true,
   }),
 
   updateProjectUserRole: route({
@@ -63,6 +68,7 @@ export const projectRouteRegistry = {
       emails: string[];
       role: ProjectUserRoleType;
     },
+    requiresProject: true,
   }),
 
   // Project-scoped routes
@@ -105,5 +111,55 @@ export const projectRouteRegistry = {
     params: {} as { project_id: string },
     body: {} as { newProjectLabel: string },
     response: {} as { newProjectId: string },
+    requiresProject: true,
   }),
+
+  getProjectLogs: route({
+    path: "/project-logs",
+    method: "GET",
+    response: {} as UserLog[],
+    requiresProject: true,
+  }),
+
+  updateProjectUserPermissions: route({
+    path: "/update_project_user_permissions",
+    method: "POST",
+    body: {} as {
+      projectId: string;
+      emails: string[];
+      permissions: Record<ProjectPermission, boolean>;
+    },
+    requiresProject: true,
+  }),
+
+  getProjectUserPermissions: route({
+    path: "/get_project_user_permissions/:projectId/:email",
+    method: "GET",
+    params: {} as {
+      projectId: string;
+      email: string;
+    },
+    requiresProject: true,
+  }),
+
+  addProjectUserRole: route({
+    path: "/add_project_user_role",
+    method: "POST",
+    body: {} as {
+      projectId: string;
+      email: string;
+    },
+    requiresProject: true,
+  }),
+
+  removeProjectUserRole: route({
+    path: "/remove_project_user_role",
+    method: "POST",
+    body: {} as {
+      projectId: string;
+      email: string;
+    },
+    requiresProject: true,
+  }),
+
 } as const;

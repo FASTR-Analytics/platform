@@ -36,10 +36,11 @@ if (_INSTANCE_REDIRECT_URL === undefined) {
   throw new Error("Could not get INSTANCE_REDIRECT_URL env variable");
 }
 
-export const _INSTANCE_LANGUAGE = (Deno.env
-  .get("INSTANCE_LANGUAGE")
-  ?.replaceAll("'", "")
-  .replaceAll(`"`, "") as InstanceLanguage) ?? "en";
+export const _INSTANCE_LANGUAGE =
+  (Deno.env
+    .get("INSTANCE_LANGUAGE")
+    ?.replaceAll("'", "")
+    .replaceAll(`"`, "") as InstanceLanguage) ?? "en";
 if (
   _INSTANCE_LANGUAGE === undefined ||
   !["en", "fr"].includes(_INSTANCE_LANGUAGE)
@@ -48,10 +49,11 @@ if (
 }
 setLanguage(_INSTANCE_LANGUAGE);
 
-export const _INSTANCE_CALENDAR = (Deno.env
-  .get("INSTANCE_CALENDAR")
-  ?.replaceAll("'", "")
-  .replaceAll(`"`, "") as InstanceCalendar) ?? "gregorian";
+export const _INSTANCE_CALENDAR =
+  (Deno.env
+    .get("INSTANCE_CALENDAR")
+    ?.replaceAll("'", "")
+    .replaceAll(`"`, "") as InstanceCalendar) ?? "gregorian";
 if (
   _INSTANCE_CALENDAR === undefined ||
   !["gregorian", "ethiopian"].includes(_INSTANCE_CALENDAR)

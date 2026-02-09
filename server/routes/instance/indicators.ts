@@ -13,11 +13,13 @@ import {
 } from "../../db/mod.ts";
 import { getGlobalAdmin } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { log } from "../../middleware/logging.ts";
+import { requireGlobalPermission } from "../../middleware/mod.ts";
 
 export const routesIndicators = new Hono();
 
 // GET /indicators - Get all indicators with their mappings
-defineRoute(routesIndicators, "getIndicators", getGlobalAdmin, async (c) => {
+defineRoute(routesIndicators, "getIndicators", requireGlobalPermission("can_configure_data"), log("getIndicators"), async (c) => {
   const res = await getIndicatorsWithMappings(c.var.mainDb);
   return c.json(res);
 });
@@ -39,7 +41,8 @@ defineRoute(routesIndicators, "getIndicators", getGlobalAdmin, async (c) => {
 defineRoute(
   routesIndicators,
   "createCommonIndicators",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("createCommonIndicators"),
   async (c, { body }) => {
     // Validate required fields
     if (!Array.isArray(body.indicators)) {
@@ -72,7 +75,8 @@ defineRoute(
 defineRoute(
   routesIndicators,
   "updateCommonIndicator",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("updateCommonIndicator"),
   async (c, { body }) => {
     if (
       !body.old_indicator_common_id ||
@@ -101,7 +105,8 @@ defineRoute(
 defineRoute(
   routesIndicators,
   "deleteCommonIndicators",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("deleteCommonIndicators"),
   async (c, { body }) => {
     if (!Array.isArray(body.indicator_common_ids)) {
       return c.json({
@@ -135,7 +140,8 @@ defineRoute(
 defineRoute(
   routesIndicators,
   "createRawIndicators",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("createRawIndicators"),
   async (c, { body }) => {
     // Validate required fields
     if (!Array.isArray(body.indicators)) {
@@ -168,7 +174,8 @@ defineRoute(
 defineRoute(
   routesIndicators,
   "updateRawIndicator",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("updateRawIndicator"),
   async (c, { body }) => {
     if (
       !body.old_indicator_raw_id ||
@@ -197,7 +204,8 @@ defineRoute(
 defineRoute(
   routesIndicators,
   "deleteRawIndicators",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("deleteRawIndicators"),
   async (c, { body }) => {
     if (!Array.isArray(body.indicator_raw_ids)) {
       return c.json({
@@ -228,7 +236,8 @@ defineRoute(
 defineRoute(
   routesIndicators,
   "batchUploadIndicators",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("batchUploadIndicators"),
   async (c, { body }) => {
     // Validate that asset_file_name is provided
     if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
@@ -273,7 +282,8 @@ defineRoute(
 defineRoute(
   routesIndicators,
   "deleteAllIndicators",
-  getGlobalAdmin,
+  requireGlobalPermission("can_configure_data"),
+  log("deleteAllIndicators"),
   async (c) => {
     const res = await deleteAllIndicators(c.var.mainDb);
     return c.json(res);

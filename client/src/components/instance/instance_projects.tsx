@@ -17,6 +17,7 @@ import { t } from "lib";
 
 type Props = {
   isGlobalAdmin: boolean;
+  canCreateProjects: boolean;
   instanceDetail: TimQuery<InstanceDetail>;
 };
 
@@ -61,7 +62,7 @@ export function InstanceProjects(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBarMainRibbon heading={t2(T.FRENCH_UI_STRINGS.projects)}>
-            <Show when={p.isGlobalAdmin}>
+            <Show when={p.isGlobalAdmin || p.canCreateProjects}>
               <Button onClick={attemptAddProject} iconName="plus">
                 {t2(T.FRENCH_UI_STRINGS.create_project)}
               </Button>
@@ -87,14 +88,6 @@ export function InstanceProjects(p: Props) {
                       >
                         <div class="ui-spy-sm col-span-1">
                           <div class="font-700">{project.label}</div>
-                          <Show when={!p.isGlobalAdmin}>
-                            <div class="text-sm">
-                              {t("Your role:")}{" "}
-                              {project.thisUserRole === "editor"
-                                ? t("Report editor")
-                                : t("Viewer")}
-                            </div>
-                          </Show>
                           <Show when={project.isLocked}>
                             <div class="ui-gap-sm text-primary flex text-sm">
                               <span class="relative inline-flex h-[1.25em] w-[1.25em]">

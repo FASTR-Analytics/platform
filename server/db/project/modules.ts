@@ -49,7 +49,7 @@ import { enrichMetric } from "./metric_enricher.ts";
 
 export async function installModule(
   projectDb: Sql,
-  moduleDefinitionId: ModuleId
+  moduleDefinitionId: ModuleId,
   // scriptOnly: boolean
 ): Promise<
   APIResponseWithData<{
@@ -60,13 +60,13 @@ export async function installModule(
   return await tryCatchDatabaseAsync(async () => {
     const modDef = await getModuleDefinitionDetail(
       moduleDefinitionId,
-      _INSTANCE_LANGUAGE
+      _INSTANCE_LANGUAGE,
     );
     throwIfErrWithData(modDef);
     const lastUpdated = new Date().toISOString();
 
     const startingConfigSelections = getStartingModuleConfigSelections(
-      modDef.data.configRequirements
+      modDef.data.configRequirements,
     );
 
     const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
@@ -201,7 +201,7 @@ SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})
 
 export async function uninstallModule(
   projectDb: Sql,
-  moduleId: string
+  moduleId: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawModule = (
@@ -213,7 +213,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
       return { success: true };
     }
     const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-      rawModule.module_definition
+      rawModule.module_definition,
     );
     await projectDb.begin(async (sql: Sql) => {
       await sql`DELETE FROM modules WHERE id = ${moduleId}`;
@@ -245,7 +245,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
 export async function updateModuleDefinition(
   projectDb: Sql,
   moduleDefinitionId: ModuleId,
-  preserveSettings: boolean
+  preserveSettings: boolean,
 ): Promise<
   APIResponseWithData<{
     lastUpdated: string;
@@ -267,7 +267,7 @@ export async function updateModuleDefinition(
     // Get the latest module definition
     const modDef = await getModuleDefinitionDetail(
       moduleDefinitionId,
-      _INSTANCE_LANGUAGE
+      _INSTANCE_LANGUAGE,
     );
     throwIfErrWithData(modDef);
 
@@ -284,11 +284,11 @@ export async function updateModuleDefinition(
       if (preserveSettings) {
         // Merge existing selections with new config requirements
         const oldConfigSelections = parseJsonOrThrow<ModuleConfigSelections>(
-          rawModule.config_selections
+          rawModule.config_selections,
         );
         const mergedConfigSelections = getMergedModuleConfigSelections(
           oldConfigSelections,
-          modDef.data.configRequirements
+          modDef.data.configRequirements,
         );
 
         await sql`
@@ -303,7 +303,7 @@ export async function updateModuleDefinition(
       } else {
         // Reset config_selections to default
         const startingConfigSelections = getStartingModuleConfigSelections(
-          modDef.data.configRequirements
+          modDef.data.configRequirements,
         );
 
         await sql`
@@ -424,13 +424,15 @@ SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})
 ////////////////////////////////////////////////////////////
 
 export async function getAllModulesForProject(
-  projectDb: Sql
+  projectDb: Sql,
 ): Promise<APIResponseWithData<InstalledModuleSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawModules = await projectDb<DBModule[]>`SELECT * FROM modules`;
 
     // Get results object IDs per module from results_objects table
-    const resultsObjectRows = await projectDb<{ module_id: string; id: string }[]>`
+    const resultsObjectRows = await projectDb<
+      { module_id: string; id: string }[]
+    >`
       SELECT module_id, id FROM results_objects ORDER BY module_id, id
     `;
     const resultsObjectIdsByModule = new Map<string, string[]>();
@@ -442,7 +444,7 @@ export async function getAllModulesForProject(
 
     const modules = rawModules.map<InstalledModuleSummary>((rawModule) => {
       const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-        rawModule.module_definition
+        rawModule.module_definition,
       );
 
       return {
@@ -455,7 +457,8 @@ export async function getAllModulesForProject(
         dirty: rawModule.dirty as DirtyOrRunStatus,
         commitSha: moduleDefinition.commitSha,
         latestRanCommitSha: rawModule.latest_ran_commit_sha ?? undefined,
-        moduleDefinitionResultsObjectIds: resultsObjectIdsByModule.get(rawModule.id) ?? [],
+        moduleDefinitionResultsObjectIds:
+          resultsObjectIdsByModule.get(rawModule.id) ?? [],
         configType: rawModule.config_type,
       };
     });
@@ -481,7 +484,7 @@ export async function getAllModulesForProject(
 
 export async function getModuleDetail(
   projectDb: Sql,
-  moduleId: string
+  moduleId: string,
 ): Promise<APIResponseWithData<ModuleDetailForRunningScript>> {
   return await tryCatchDatabaseAsync(async () => {
     // //////////////////////////
@@ -512,7 +515,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
       throw new Error("No module with this definition id");
     }
     const moduleDefinition: ModuleDefinition = parseJsonOrThrow(
-      rawModule.module_definition
+      rawModule.module_definition,
     );
     const module: ModuleDetailForRunningScript = {
       id: getValidatedModuleId(rawModule.id),
@@ -547,7 +550,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
 
 export async function getModuleLastRun(
   projectDb: Sql,
-  moduleId: string
+  moduleId: string,
 ): Promise<APIResponseWithData<string>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawModule = (
@@ -564,7 +567,7 @@ SELECT last_run FROM modules WHERE id = ${moduleId}
 
 export async function getMetricsListForAI(
   mainDb: Sql,
-  projectDb: Sql
+  projectDb: Sql,
 ): Promise<APIResponseWithData<string>> {
   return await tryCatchDatabaseAsync(async () => {
     const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
@@ -604,7 +607,7 @@ export async function getMetricsListForAI(
 
     for (const rawModule of rawModules) {
       const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-        rawModule.module_definition
+        rawModule.module_definition,
       );
       const moduleMetrics = metricsByModule.get(rawModule.id) ?? [];
 
@@ -644,35 +647,54 @@ export async function getMetricsListForAI(
           if (firstVariant.valueProps.length > 0) {
             lines.push(`    Value properties:`);
             for (const prop of firstVariant.valueProps) {
-              const propLabel = firstVariant.valueLabelReplacements?.[prop] || prop;
+              const propLabel =
+                firstVariant.valueLabelReplacements?.[prop] || prop;
               lines.push(`      - ${prop}: ${propLabel}`);
             }
           }
 
           if (firstVariant.aiDescription?.summary) {
-            lines.push(`    Summary: ${getAIStr(firstVariant.aiDescription.summary)}`);
+            lines.push(
+              `    Summary: ${getAIStr(firstVariant.aiDescription.summary)}`,
+            );
           }
           if (firstVariant.aiDescription?.methodology) {
-            lines.push(`    Methodology: ${getAIStr(firstVariant.aiDescription.methodology)}`);
+            lines.push(
+              `    Methodology: ${getAIStr(firstVariant.aiDescription.methodology)}`,
+            );
           }
           if (firstVariant.aiDescription?.interpretation) {
-            lines.push(`    Interpretation: ${getAIStr(firstVariant.aiDescription.interpretation)}`);
+            lines.push(
+              `    Interpretation: ${getAIStr(firstVariant.aiDescription.interpretation)}`,
+            );
           }
           if (firstVariant.aiDescription?.typicalRange) {
-            lines.push(`    Typical range: ${getAIStr(firstVariant.aiDescription.typicalRange)}`);
+            lines.push(
+              `    Typical range: ${getAIStr(firstVariant.aiDescription.typicalRange)}`,
+            );
           }
           if (firstVariant.aiDescription?.caveats) {
-            lines.push(`    Caveats: ${getAIStr(firstVariant.aiDescription.caveats)}`);
+            lines.push(
+              `    Caveats: ${getAIStr(firstVariant.aiDescription.caveats)}`,
+            );
           }
           if (firstVariant.aiDescription?.disaggregationGuidance) {
-            lines.push(`    Disaggregation guidance: ${getAIStr(firstVariant.aiDescription.disaggregationGuidance)}`);
+            lines.push(
+              `    Disaggregation guidance: ${getAIStr(firstVariant.aiDescription.disaggregationGuidance)}`,
+            );
           }
 
-          const required = firstVariant.disaggregationOptions.filter(opt => opt.isRequired);
-          const optional = firstVariant.disaggregationOptions.filter(opt => !opt.isRequired);
+          const required = firstVariant.disaggregationOptions.filter(
+            (opt) => opt.isRequired,
+          );
+          const optional = firstVariant.disaggregationOptions.filter(
+            (opt) => !opt.isRequired,
+          );
 
           if (required.length > 0) {
-            lines.push(`    Automatically disaggregated by: ${required.map(opt => opt.value).join(", ")}`);
+            lines.push(
+              `    Automatically disaggregated by: ${required.map((opt) => opt.value).join(", ")}`,
+            );
           }
 
           if (optional.length > 0) {
@@ -682,7 +704,9 @@ export async function getMetricsListForAI(
             }
           }
 
-          lines.push(`    Period options: ${firstVariant.periodOptions.join(", ")}`);
+          lines.push(
+            `    Period options: ${firstVariant.periodOptions.join(", ")}`,
+          );
           lines.push("");
         } else {
           // Multiple variants or has variantLabel - use grouped format
@@ -692,31 +716,46 @@ export async function getMetricsListForAI(
           if (firstVariant.valueProps.length > 0) {
             lines.push(`    Value properties:`);
             for (const prop of firstVariant.valueProps) {
-              const propLabel = firstVariant.valueLabelReplacements?.[prop] || prop;
+              const propLabel =
+                firstVariant.valueLabelReplacements?.[prop] || prop;
               lines.push(`      - ${prop}: ${propLabel}`);
             }
           }
 
           if (firstVariant.aiDescription?.summary) {
-            lines.push(`    Summary: ${getAIStr(firstVariant.aiDescription.summary)}`);
+            lines.push(
+              `    Summary: ${getAIStr(firstVariant.aiDescription.summary)}`,
+            );
           }
           if (firstVariant.aiDescription?.methodology) {
-            lines.push(`    Methodology: ${getAIStr(firstVariant.aiDescription.methodology)}`);
+            lines.push(
+              `    Methodology: ${getAIStr(firstVariant.aiDescription.methodology)}`,
+            );
           }
           if (firstVariant.aiDescription?.interpretation) {
-            lines.push(`    Interpretation: ${getAIStr(firstVariant.aiDescription.interpretation)}`);
+            lines.push(
+              `    Interpretation: ${getAIStr(firstVariant.aiDescription.interpretation)}`,
+            );
           }
           if (firstVariant.aiDescription?.typicalRange) {
-            lines.push(`    Typical range: ${getAIStr(firstVariant.aiDescription.typicalRange)}`);
+            lines.push(
+              `    Typical range: ${getAIStr(firstVariant.aiDescription.typicalRange)}`,
+            );
           }
           if (firstVariant.aiDescription?.caveats) {
-            lines.push(`    Caveats: ${getAIStr(firstVariant.aiDescription.caveats)}`);
+            lines.push(
+              `    Caveats: ${getAIStr(firstVariant.aiDescription.caveats)}`,
+            );
           }
           if (firstVariant.aiDescription?.disaggregationGuidance) {
-            lines.push(`    Disaggregation guidance: ${getAIStr(firstVariant.aiDescription.disaggregationGuidance)}`);
+            lines.push(
+              `    Disaggregation guidance: ${getAIStr(firstVariant.aiDescription.disaggregationGuidance)}`,
+            );
           }
 
-          lines.push(`    Period options: ${firstVariant.periodOptions.join(", ")}`);
+          lines.push(
+            `    Period options: ${firstVariant.periodOptions.join(", ")}`,
+          );
           lines.push("");
           lines.push(`    Available at:`);
 
@@ -724,15 +763,23 @@ export async function getMetricsListForAI(
             const variantName = variant.variantLabel || "Default";
             lines.push(`      - ${variantName} (ID: ${variant.id})`);
 
-            const required = variant.disaggregationOptions.filter(opt => opt.isRequired);
-            const optional = variant.disaggregationOptions.filter(opt => !opt.isRequired);
+            const required = variant.disaggregationOptions.filter(
+              (opt) => opt.isRequired,
+            );
+            const optional = variant.disaggregationOptions.filter(
+              (opt) => !opt.isRequired,
+            );
 
             if (required.length > 0) {
-              lines.push(`        Automatically disaggregated by: ${required.map(opt => opt.value).join(", ")}`);
+              lines.push(
+                `        Automatically disaggregated by: ${required.map((opt) => opt.value).join(", ")}`,
+              );
             }
 
             if (optional.length > 0) {
-              lines.push(`        Optional: ${optional.map(opt => opt.value).join(", ")}`);
+              lines.push(
+                `        Optional: ${optional.map((opt) => opt.value).join(", ")}`,
+              );
             }
 
             lines.push("");
@@ -753,7 +800,7 @@ function getAIStr(val: string | { en: string; fr?: string }): string {
 
 export async function getAllMetrics(
   mainDb: Sql,
-  projectDb: Sql
+  projectDb: Sql,
 ): Promise<APIResponseWithData<ResultsValue[]>> {
   return await tryCatchDatabaseAsync(async () => {
     // Get facility config once for all modules
@@ -773,7 +820,7 @@ export async function getAllMetrics(
       const enrichedMetric = await enrichMetric(
         dbMetric,
         projectDb,
-        facilityConfig
+        facilityConfig,
       );
       metrics.push(enrichedMetric);
     }
@@ -784,7 +831,7 @@ export async function getAllMetrics(
 
 export async function getMetricsWithStatus(
   mainDb: Sql,
-  projectDb: Sql
+  projectDb: Sql,
 ): Promise<APIResponseWithData<MetricWithStatus[]>> {
   return await tryCatchDatabaseAsync(async () => {
     // Get facility config once for all modules
@@ -813,7 +860,7 @@ export async function getMetricsWithStatus(
       const enrichedMetric = await enrichMetric(
         dbMetric,
         projectDb,
-        facilityConfig
+        facilityConfig,
       );
 
       const moduleId = dbMetric.module_id as ModuleId;
@@ -847,7 +894,7 @@ export async function getMetricsWithStatus(
 }
 
 export async function getModulesListForAI(
-  projectDb: Sql
+  projectDb: Sql,
 ): Promise<APIResponseWithData<string>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawModules = await projectDb<DBModule[]>`
@@ -855,16 +902,20 @@ export async function getModulesListForAI(
     `;
 
     // Get metric counts per module
-    const metricCounts = await projectDb<{ module_id: string; count: string }[]>`
+    const metricCounts = await projectDb<
+      { module_id: string; count: string }[]
+    >`
       SELECT module_id, COUNT(*) as count FROM metrics GROUP BY module_id
     `;
-    const metricCountMap = new Map(metricCounts.map((m) => [m.module_id, parseInt(m.count)]));
+    const metricCountMap = new Map(
+      metricCounts.map((m) => [m.module_id, parseInt(m.count)]),
+    );
 
     const lines = ["AVAILABLE MODULES", "=".repeat(80), ""];
 
     for (const rawModule of rawModules) {
       const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-        rawModule.module_definition
+        rawModule.module_definition,
       );
 
       lines.push(`ID: ${rawModule.id}`);
@@ -873,7 +924,7 @@ export async function getModulesListForAI(
       lines.push(`Installed: ${rawModule.date_installed}`);
       lines.push(`Last Run: ${rawModule.last_run}`);
       lines.push(
-        `Status: ${rawModule.dirty === "true" ? "Needs update" : "Up to date"}`
+        `Status: ${rawModule.dirty === "true" ? "Needs update" : "Up to date"}`,
       );
 
       const metricCount = metricCountMap.get(rawModule.id) ?? 0;
@@ -889,7 +940,7 @@ export async function getModulesListForAI(
 
 export async function getModuleWithConfigSelections(
   projectDb: Sql,
-  moduleId: string
+  moduleId: string,
 ): Promise<APIResponseWithData<InstalledModuleWithConfigSelections>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawModule = (
@@ -902,10 +953,10 @@ SELECT * FROM modules WHERE id = ${moduleId}
     }
 
     const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-      rawModule.module_definition
+      rawModule.module_definition,
     );
     const configSelections = parseJsonOrThrow<ModuleConfigSelections>(
-      rawModule.config_selections
+      rawModule.config_selections,
     );
 
     // Get HFA indicators if this is HFA module
@@ -953,7 +1004,7 @@ export async function updateModuleParameters(
   moduleId: string,
   newParams:
     | Record<string, string>
-    | { indicators?: HfaIndicator[]; useSampleWeights?: boolean }
+    | { indicators?: HfaIndicator[]; useSampleWeights?: boolean },
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawModule = (
@@ -966,7 +1017,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
     }
     const lastUpdated = new Date().toISOString();
     const currentConfigSelections = parseJsonOrThrow<ModuleConfigSelections>(
-      rawModule.config_selections
+      rawModule.config_selections,
     );
 
     let updatedConfigSelections: ModuleConfigSelections;
@@ -996,7 +1047,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
 
       // Also update module_definition to keep indicators in sync
       const currentModuleDefinition = parseJsonOrThrow<ModuleDefinition>(
-        rawModule.module_definition
+        rawModule.module_definition,
       );
       updatedModuleDefinition = {
         ...currentModuleDefinition,
@@ -1007,7 +1058,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
       };
     } else {
       throw new Error(
-        "Module configuration type does not support parameter updates"
+        "Module configuration type does not support parameter updates",
       );
     }
 

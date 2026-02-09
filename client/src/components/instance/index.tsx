@@ -128,12 +128,16 @@ export default function Instance(p: Props) {
                           value: "assets",
                           iconName: "package",
                         },
-                        ...(p.globalUser.isGlobalAdmin
+                        ...(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_configure_users || p.globalUser.thisUserPermissions.can_view_users
                           ? [
                             {
                               value: "users",
                               iconName: "users",
                             },
+                          ]
+                          : ([] as any)),
+                        ...(p.globalUser.isGlobalAdmin
+                          ? [
                             {
                               value: "settings",
                               iconName: "settings",
@@ -154,23 +158,35 @@ export default function Instance(p: Props) {
                           label: t2(T.FRENCH_UI_STRINGS.projects),
                           iconName: "folder",
                         },
-                        {
-                          value: "data",
-                          label: t2(T.FRENCH_UI_STRINGS.data),
-                          iconName: "database",
-                        },
-                        {
-                          value: "assets",
-                          label: t2(T.FRENCH_UI_STRINGS.assets),
-                          iconName: "package",
-                        },
-                        ...(p.globalUser.isGlobalAdmin
+                        ...(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_view_data || p.globalUser.thisUserPermissions.can_configure_data
+                        ? [
+                          {
+                            value: "data",
+                            label: t2(T.FRENCH_UI_STRINGS.data),
+                            iconName: "database",
+                          },
+                        ]
+                        : ([] as any)),
+                        ...(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_configure_assets
+                        ?  [
+                          {
+                            value: "assets",
+                            label: t2(T.FRENCH_UI_STRINGS.assets),
+                            iconName: "package",
+                          },
+                        ]
+                        : ([] as any)),
+                        ...(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_configure_users || p.globalUser.thisUserPermissions.can_view_users
                           ? [
                             {
                               value: "users",
                               label: t2(T.FRENCH_UI_STRINGS.users),
                               iconName: "users",
                             },
+                          ]
+                          : ([] as any)),
+                        ...(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_configure_settings
+                          ? [
                             {
                               value: "settings",
                               label: t2(T.FRENCH_UI_STRINGS.settings),
@@ -236,29 +252,30 @@ export default function Instance(p: Props) {
                   <Match when={tab() === "projects"}>
                     <InstanceProjects
                       isGlobalAdmin={p.globalUser.isGlobalAdmin}
+                      canCreateProjects={p.globalUser.thisUserPermissions.can_create_projects}
                       instanceDetail={instanceDetail}
                     />
                   </Match>
-                  <Match when={tab() === "data"}>
+                  <Match when={tab() === "data" && (p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_view_data || p.globalUser.thisUserPermissions.can_configure_data)}>
                     <InstanceData
                       isGlobalAdmin={p.globalUser.isGlobalAdmin}
                       instanceDetail={instanceDetail}
                     />
                   </Match>
-                  <Match when={tab() === "assets"}>
+                  <Match when={tab() === "assets" && (p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_configure_assets)}>
                     <InstanceAssets
                       isGlobalAdmin={p.globalUser.isGlobalAdmin}
                       instanceDetail={instanceDetail}
                     />
                   </Match>
-                  <Match when={p.globalUser.isGlobalAdmin && tab() === "users"}>
+                  <Match when={(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_configure_users || p.globalUser.thisUserPermissions.can_view_users) && tab() === "users"}>
                     <InstanceUsers
                       thisLoggedInUserEmail={p.globalUser.email}
                       instanceDetail={instanceDetail}
                     />
                   </Match>
                   <Match
-                    when={p.globalUser.isGlobalAdmin && tab() === "settings"}
+                    when={(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_configure_settings) && tab() === "settings"}
                   >
                     <InstanceSettings
                       thisLoggedInUserEmail={p.globalUser.email}

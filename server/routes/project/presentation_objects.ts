@@ -14,8 +14,8 @@ import {
 } from "../../db/mod.ts";
 import {
   getGlobalNonAdmin,
-  getProjectEditor,
   getProjectViewer,
+  requireProjectPermission,
 } from "../../project_auth.ts";
 import {
   getPossibleValues,
@@ -33,6 +33,7 @@ import {
 } from "../caches/visualizations.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { RequestQueue } from "../../utils/request_queue.ts";
+import { log } from "../../middleware/mod.ts";
 
 export const routesPresentationObjects = new Hono();
 
@@ -48,7 +49,8 @@ const resultsValueInfoQueue = new RequestQueue(15);
 defineRoute(
   routesPresentationObjects,
   "createPresentationObject",
-  getProjectEditor,
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visualizations"),
+  log("createPresentationObject"),
   async (c, { body }) => {
     const res = await addPresentationObject({
       projectDb: c.var.ppk.projectDb,
@@ -76,7 +78,8 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "duplicatePresentationObject",
-  getProjectEditor,
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visualizations"),
+  log("duplicatePresentationObject"),
   async (c, { params, body }) => {
     const res = await duplicatePresentationObject(
       c.var.ppk.projectDb,
@@ -101,7 +104,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "getAllPresentationObjects",
-  getProjectViewer,
+  requireProjectPermission("can_view_visualizations"),
   async (c) => {
     const res = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
     return c.json(res);
@@ -111,8 +114,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "getPresentationObjectDetail",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission("can_view_visualizations"),
   async (c, { params }) => {
     const t0 = performance.now();
 
@@ -177,7 +179,8 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "updatePresentationObjectLabel",
-  getProjectEditor,
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visualizations"),
+  log("updatePresentationObjectLabel"),
   async (c, { params, body }) => {
     const res = await updatePresentationObjectLabel(
       c.var.ppk.projectDb,
@@ -201,7 +204,8 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "updatePresentationObjectConfig",
-  getProjectEditor,
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visualizations"),
+  log("updatePresentationObjectConfig"),
   async (c, { params, body }) => {
     const res = await updatePresentationObjectConfig(
       c.var.ppk.projectDb,
@@ -268,7 +272,8 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "deletePresentationObject",
-  getProjectEditor,
+  requireProjectPermission({preventAccessToLockedProjects: true},"can_configure_visualizations"),
+  log("deletePresentationObject"),
   async (c, { params }) => {
     const res = await deletePresentationObject(
       c.var.ppk.projectDb,
@@ -285,8 +290,7 @@ defineRoute(
 defineRoute(
   routesPresentationObjects,
   "getPresentationObjectItems",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission("can_view_visualizations"),
   async (c, { body }) => {
     const t0 = performance.now();
     console.log(
@@ -382,8 +386,7 @@ SELECT last_run FROM modules WHERE id = ${moduleId}
 defineRoute(
   routesPresentationObjects,
   "getResultsValueInfoForPresentationObject",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission("can_view_visualizations"),
   async (c, { body }) => {
     const t0 = performance.now();
 
@@ -483,8 +486,8 @@ SELECT last_run FROM modules WHERE id = ${moduleId}
 defineRoute(
   routesPresentationObjects,
   "getReplicantOptions",
-  getGlobalNonAdmin,
-  getProjectViewer,
+  requireProjectPermission("can_view_visualizations"),
+  log("getReplicantOptions"),
   async (c, { body }) => {
     const t0 = performance.now();
     const filterSummary = body.fetchConfig.filters.length > 0
