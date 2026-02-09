@@ -261,6 +261,9 @@ function resolveTextBackground(bg: string | undefined, cDetails: ColorDetails): 
 // Convert LayoutNode<ContentBlock> to LayoutNode<PageContentItem>
 async function convertLayoutNode(node: LayoutNode<ContentBlock>, cDetails: ColorDetails): Promise<LayoutNode<PageContentItem>> {
   if (node.type === "item") {
+    if (!node.data) {
+      return { type: "item", id: node.id, span: node.span, data: { spacer: true } };
+    }
     const resolved = node.data.type === "text"
       ? resolveTextBackground(node.data.style?.textBackground, cDetails)
       : undefined;
@@ -278,7 +281,9 @@ async function convertLayoutNode(node: LayoutNode<ContentBlock>, cDetails: Color
     type: node.type,
     id: node.id,
     span: node.span,
-    children: await Promise.all(node.children.map((c) => convertLayoutNode(c, cDetails))),
+    children: Array.isArray(node.children)
+      ? await Promise.all(node.children.map((c) => convertLayoutNode(c, cDetails)))
+      : [],
   };
 }
 
@@ -317,7 +322,16 @@ async function convertBlockToPageContentItem(block: ContentBlock, textColor?: st
     return imageItem;
   }
 
-  if (!block.figureInputs) {
+  const fi = block.figureInputs;
+  if (
+    !fi ||
+    !(
+      "tableData" in fi ||
+      "chartData" in fi ||
+      "timeseriesData" in fi ||
+      "simpleVizData" in fi
+    )
+  ) {
     return { spacer: true };
   }
 
@@ -325,11 +339,11 @@ async function convertBlockToPageContentItem(block: ContentBlock, textColor?: st
     try {
       const { formatAs } = getMetricStaticData(block.source.metricId);
       const style = getStyleFromPresentationObject(block.source.config, formatAs);
-      return { ...block.figureInputs, autofit: FIGURE_AUTOFIT, style };
+      return { ...fi, autofit: FIGURE_AUTOFIT, style } as PageContentItem;
     } catch {
-      return { ...block.figureInputs, autofit: FIGURE_AUTOFIT };
+      return { ...fi, autofit: FIGURE_AUTOFIT } as PageContentItem;
     }
   }
 
-  return { ...block.figureInputs, autofit: FIGURE_AUTOFIT };
+  return { ...fi, autofit: FIGURE_AUTOFIT } as PageContentItem;
 }

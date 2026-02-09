@@ -46,5 +46,6 @@ export const itemMeasurer: ItemHeightMeasurer<
     return { minH, idealH, maxH, neededScalingToFitWidth: "none" };
   }
 
+  console.error("[itemMeasurer] No measurer for item type. Item:", JSON.stringify(item, null, 2));
   throw new Error("No measurer for item type");
 };

@@ -94,7 +94,7 @@ async function walkLayoutTreeAsync<T>(
 ): Promise<void> {
   if (node.type === "item") {
     await fn(node.data);
-  } else {
+  } else if (Array.isArray(node.children)) {
     for (const child of node.children) {
       await walkLayoutTreeAsync(child, fn);
     }
