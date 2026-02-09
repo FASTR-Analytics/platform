@@ -27,3 +27,4 @@ server/initial_users.txt
 CLAUDE.local.md
 
 .playwright-mcp
+.vscode
