@@ -88,14 +88,6 @@ export function InstanceProjects(p: Props) {
                       >
                         <div class="ui-spy-sm col-span-1">
                           <div class="font-700">{project.label}</div>
-                          <Show when={!p.isGlobalAdmin}>
-                            <div class="text-sm">
-                              {t("Your role:")}{" "}
-                              {project.thisUserRole === "editor"
-                                ? t("Report editor")
-                                : t("Viewer")}
-                            </div>
-                          </Show>
                           <Show when={project.isLocked}>
                             <div class="ui-gap-sm text-primary flex text-sm">
                               <span class="relative inline-flex h-[1.25em] w-[1.25em]">

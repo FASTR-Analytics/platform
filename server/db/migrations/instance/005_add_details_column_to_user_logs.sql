@@ -1,1 +1,0 @@
-ALTER TABLE user_logs ADD COLUMN details text;
