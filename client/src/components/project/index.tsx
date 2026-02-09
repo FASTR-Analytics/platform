@@ -94,37 +94,15 @@ export default function Project(p: Props) {
             EditorWrapper: ProjectEditorWrapper,
           } = getEditorWrapper();
 
-          // Define base tabs (always visible)
-          const baseTabs = [
-            { value: "decks" as const, label: "Slide decks" },
-            {
-              value: "reports" as const,
-              label: t2(T.FRENCH_UI_STRINGS.reports),
-            },
-            {
-              value: "visualizations" as const,
-              label: t2(T.FRENCH_UI_STRINGS.visualizations),
-            },
+          const allTabs = [
+            ...(projectDetail.thisUserPermissions.can_view_slide_decks ? [{ value: "decks" as const, label: "Slide decks" }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_reports ? [{ value: "reports" as const, label: t2(T.FRENCH_UI_STRINGS.reports) }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_visualizations ? [{ value: "visualizations" as const, label: t2(T.FRENCH_UI_STRINGS.visualizations) }] : []),
             { value: "metrics" as const, label: t2("Metrics") },
+            ...(projectDetail.thisUserPermissions.can_configure_modules || projectDetail.thisUserPermissions.can_run_modules ? [{ value: "modules" as const, label: t2(T.FRENCH_UI_STRINGS.modules) }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_data ? [{ value: "data" as const, label: t2(T.FRENCH_UI_STRINGS.data) }] : []),
+            ...(projectDetail.thisUserPermissions.can_configure_settings ? [{ value: "settings" as const, label: t2(T.FRENCH_UI_STRINGS.settings) }] : []),
           ];
-
-          // Admin-only tabs
-          const adminTabs = [
-            {
-              value: "modules" as const,
-              label: t2(T.FRENCH_UI_STRINGS.modules),
-            },
-            { value: "data" as const, label: t2(T.FRENCH_UI_STRINGS.data) },
-            {
-              value: "settings" as const,
-              label: t2(T.FRENCH_UI_STRINGS.settings),
-            },
-          ];
-
-          // Combine tabs based on admin status
-          const allTabs = p.isGlobalAdmin
-            ? [...baseTabs, ...adminTabs]
-            : baseTabs;
 
           // Create tabs controller
           const tabs = getTabs(allTabs, {
