@@ -25,3 +25,5 @@ server/initial_users.txt
 # Claude Code personal settings
 .claude/
 CLAUDE.local.md
+
+.playwright-mcp
