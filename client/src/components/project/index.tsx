@@ -67,7 +67,7 @@ function AIContextSync() {
         setAIContext({ mode: "viewing_modules" });
         break;
       case "settings":
-        setAIContext({ mode: "viewing_visualizations" });
+        setAIContext({ mode: "viewing_settings" });
         break;
     }
   });

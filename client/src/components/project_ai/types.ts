@@ -3,7 +3,9 @@ import type {
   InstanceDetail,
   PresentationObjectConfig,
   ResultsValue,
+  Slide,
   SlideDeckConfig,
+  SlideType,
 } from "lib";
 import type { SetStoreFunction } from "solid-js/store";
 
@@ -44,6 +46,10 @@ export type AIContextViewingModules = {
   mode: "viewing_modules";
 };
 
+export type AIContextViewingSettings = {
+  mode: "viewing_settings";
+};
+
 // Editing contexts (working on specific items)
 export type AIContextEditingSlideDeck = {
   mode: "editing_slide_deck";
@@ -68,6 +74,17 @@ export type AIContextEditingVisualization = {
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
 };
 
+export type AIContextEditingSlide = {
+  mode: "editing_slide";
+  slideId: string;
+  slideLabel: string;
+  slideType: SlideType;
+  deckId: string;
+  deckLabel: string;
+  getTempSlide: () => Slide;
+  setTempSlide: SetStoreFunction<Slide>;
+};
+
 export type AIContextEditingReport = {
   mode: "editing_report";
   reportId: string;
@@ -81,7 +98,9 @@ export type AIContext =
   | AIContextViewingData
   | AIContextViewingMetrics
   | AIContextViewingModules
+  | AIContextViewingSettings
   | AIContextEditingSlideDeck
+  | AIContextEditingSlide
   | AIContextEditingVisualization
   | AIContextEditingReport;
 

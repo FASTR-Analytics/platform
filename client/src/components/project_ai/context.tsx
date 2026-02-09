@@ -130,6 +130,13 @@ function reduceInteractions(interactions: AIUserInteraction[], currentContext: A
     }
   }
 
+  // In editing_slide mode: only include edits for the current slide
+  if (currentContext.mode === "editing_slide") {
+    if (editedSlides.has(currentContext.slideId)) {
+      reduced.push({ type: "edited_slide", slideId: currentContext.slideId });
+    }
+  }
+
   // In editing_visualization mode: include viz operations (for current viz only)
   if (currentContext.mode === "editing_visualization") {
     const currentVizId = currentContext.vizId;

@@ -54,8 +54,9 @@ export function createUppyInstance(config: UppyFileUploadConfig): Uppy {
       endpoint,
       chunkSize: 5 * 1024 * 1024, // 5MB chunks
       retryDelays: [0, 1000, 3000, 5000],
-      parallelUploads: 1, // Upload one file at a time for predictable streaming
+      parallelUploads: 1,
       withCredentials: true,
+      storeFingerprintForResuming: false,
       headers,
       onBeforeRequest: async (req: any) => {
         // Add any custom headers before each request

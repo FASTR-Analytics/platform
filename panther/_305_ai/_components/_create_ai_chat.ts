@@ -6,6 +6,7 @@
 import { createContext, createMemo, useContext } from "solid-js";
 import type {
   Anthropic,
+  AnthropicModelConfig,
   ContentBlock,
   DocumentContentBlock,
   MessageParam,
@@ -27,7 +28,28 @@ import {
   type ToolResult,
 } from "../_core/tool_engine.ts";
 import type { AIChatConfig, DisplayItem } from "../_core/types.ts";
+import type { AIChatSettingsValues } from "./ai_chat_settings_panel.tsx";
 import { ConversationsContext } from "./use_conversations.ts";
+
+const SETTINGS_KEY_PREFIX = "panther-ai-settings";
+
+function loadSettings(key: string): AIChatSettingsValues | undefined {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return undefined;
+    return JSON.parse(raw) as AIChatSettingsValues;
+  } catch {
+    return undefined;
+  }
+}
+
+function saveSettings(key: string, values: AIChatSettingsValues) {
+  try {
+    localStorage.setItem(key, JSON.stringify(values));
+  } catch {
+    // storage full or unavailable
+  }
+}
 
 // SDK tool union type for API calls
 type SDKToolUnion = Anthropic.Messages.ToolUnion;
@@ -59,6 +81,14 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       Pick<AIChatConfig, "sdkClient" | "modelConfig">
     >
     & AIChatConfig;
+
+  const settingsKey = config.scope
+    ? `${SETTINGS_KEY_PREFIX}-${config.scope}`
+    : SETTINGS_KEY_PREFIX;
+  const persisted = loadSettings(settingsKey);
+  if (persisted) {
+    Object.assign(config.modelConfig, persisted);
+  }
 
   const conversationsContext = useContext(ConversationsContext);
 
@@ -191,8 +221,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     try {
       await streamWithToolLoop(messages());
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
+      const errorDetails = err instanceof Error ? err.message : String(err);
+      setError(errorDetails);
       setIsStreaming(false);
       setCurrentStreamingText(undefined);
       setServerToolLabel(undefined);
@@ -200,8 +230,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         {
           type: "tool_error",
           toolName: "system",
-          errorMessage: "System error",
-          errorDetails: errorMessage,
+          errorMessage: getUserFacingErrorMessage(err),
+          errorDetails,
         },
       ]);
     } finally {
@@ -231,6 +261,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       allTools.length > 0,
       hasWebFetchTool(config.builtInTools),
       messagesContainDocuments(),
+      config.modelConfig.context1M,
     );
     const stream = config.sdkClient.beta.messages.stream({
       model: config.modelConfig.model,
@@ -406,7 +437,24 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     clearConversationStore(conversationId());
   }
 
+  function updateConfig(updates: Partial<AnthropicModelConfig>) {
+    Object.assign(config.modelConfig, updates);
+    const mc = config.modelConfig;
+    saveSettings(settingsKey, {
+      model: mc.model,
+      max_tokens: mc.max_tokens,
+      temperature: mc.temperature,
+      context1M: mc.context1M,
+    });
+  }
+
+  function getConfig(): AnthropicModelConfig {
+    return { ...config.modelConfig };
+  }
+
   return {
+    updateConfig,
+    getConfig,
     messages,
     displayItems,
     isLoading,
@@ -426,12 +474,39 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   };
 }
 
+function getUserFacingErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const lower = msg.toLowerCase();
+  if (lower.includes("context") && lower.includes("exceed")) {
+    return "Conversation too long — context window exceeded";
+  }
+  if (lower.includes("overloaded")) {
+    return "Anthropic API is overloaded — try again in a moment";
+  }
+  if (lower.includes("rate_limit") || lower.includes("rate limit")) {
+    return "Rate limit reached — try again in a moment";
+  }
+  if (lower.includes("authentication") || lower.includes("unauthorized")) {
+    return "Authentication failed — check your API key";
+  }
+  if (lower.includes("insufficient") && lower.includes("credit")) {
+    return "Insufficient credits — check your Anthropic billing";
+  }
+  return "System error";
+}
+
 function getBetasArray(
   hasTools: boolean,
   hasWebFetch: boolean,
   hasDocuments: boolean,
+  context1M?: boolean,
 ): string[] | undefined {
-  const headers = getBetaHeaders({ hasTools, hasWebFetch, hasDocuments });
+  const headers = getBetaHeaders({
+    hasTools,
+    hasWebFetch,
+    hasDocuments,
+    context1M,
+  });
   if (!headers) return undefined;
   return headers["anthropic-beta"].split(",");
 }

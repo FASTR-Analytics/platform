@@ -7,11 +7,14 @@ export const log = (routeName: string) =>
         let body: unknown = {};
         const method = c.req.method;
         if (method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE"){
-            try{
-                body = await c.req.json();
-                c.set("cachedBody", body);
-            } catch {
-                // No body or invalid json
+            const contentType = c.req.header("Content-Type") ?? "";
+            if (contentType.includes("application/json") || contentType === "") {
+                try{
+                    body = await c.req.json();
+                    c.set("cachedBody", body);
+                } catch {
+                    // No body or invalid json
+                }
             }
         }
         let error: unknown;

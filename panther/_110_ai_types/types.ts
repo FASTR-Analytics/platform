@@ -108,6 +108,8 @@ export type ToolDefinition = {
 ////////////////////////////////////////////////////////////////////////////////
 
 export type AnthropicModel =
+  // Claude 4.6 family (latest)
+  | "claude-opus-4-6"
   // Claude 4.5 family
   | "claude-opus-4-5-20251101"
   | "claude-haiku-4-5-20251001"
@@ -132,6 +134,7 @@ export type AnthropicModelConfig = {
   top_k?: number;
   stop_sequences?: string[];
   thinking?: ThinkingConfig;
+  context1M?: boolean;
   metadata?: {
     user_id?: string;
     [key: string]: unknown;

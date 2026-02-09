@@ -18,6 +18,16 @@ import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { validateMaxContentBlocks, validateNoMarkdownTables } from "../validators/content_validators";
 import type { AIContext } from "~/components/project_ai/types";
 
+function requireDeckContext(ctx: AIContext) {
+  if (ctx.mode !== "editing_slide_deck") {
+    if (ctx.mode === "editing_slide") {
+      throw new Error("This tool modifies the deck. Close the slide editor first to make deck-level changes.");
+    }
+    throw new Error("This tool is only available when working with a slide deck");
+  }
+  return ctx;
+}
+
 export function getToolsForSlides(
   projectId: string,
   getAIContext: () => AIContext,
@@ -30,10 +40,7 @@ export function getToolsForSlides(
         "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck.",
       inputSchema: z.object({}),
       handler: async () => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_slide_deck") {
-          throw new Error("This tool is only available when working with a slide deck");
-        }
+        const ctx = requireDeckContext(getAIContext());
         return await getDeckSummaryForAI(projectId, ctx.getSlideIds());
       },
       inProgressLabel: "Getting deck state...",
@@ -96,10 +103,7 @@ export function getToolsForSlides(
           .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array containing text and/or figures)."),
       }),
       handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_slide_deck") {
-          throw new Error("This tool is only available when working with a slide deck");
-        }
+        const ctx = requireDeckContext(getAIContext());
 
         if (input.slide.type === "content") {
           validateMaxContentBlocks(input.slide.blocks.length);
@@ -147,10 +151,7 @@ export function getToolsForSlides(
           .describe("The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized."),
       }),
       handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_slide_deck") {
-          throw new Error("This tool is only available when working with a slide deck");
-        }
+        const ctx = requireDeckContext(getAIContext());
 
         if (input.slide.type === "content") {
           validateMaxContentBlocks(input.slide.blocks.length);
@@ -192,10 +193,7 @@ export function getToolsForSlides(
         })).min(1).describe("Array of updates to apply. Each update specifies a block ID and the new content for that block."),
       }),
       handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_slide_deck") {
-          throw new Error("This tool is only available when working with a slide deck");
-        }
+        const ctx = requireDeckContext(getAIContext());
 
         for (const update of input.updates) {
           if (update.newContent.type === "text") {
@@ -241,10 +239,7 @@ export function getToolsForSlides(
         newHeader: z.string().describe("The new header text for the content slide"),
       }),
       handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_slide_deck") {
-          throw new Error("This tool is only available when working with a slide deck");
-        }
+        const ctx = requireDeckContext(getAIContext());
 
         const currentRes = await serverActions.getSlide({
           projectId,
@@ -287,10 +282,7 @@ export function getToolsForSlides(
           .describe("Array of slide IDs to delete (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
       }),
       handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_slide_deck") {
-          throw new Error("This tool is only available when working with a slide deck");
-        }
+        const ctx = requireDeckContext(getAIContext());
 
         const res = await serverActions.deleteSlides({
           projectId,
@@ -323,10 +315,7 @@ export function getToolsForSlides(
           .describe("Array of slide IDs to duplicate (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
       }),
       handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_slide_deck") {
-          throw new Error("This tool is only available when working with a slide deck");
-        }
+        const ctx = requireDeckContext(getAIContext());
 
         const res = await serverActions.duplicateSlides({
           projectId,
@@ -366,10 +355,7 @@ export function getToolsForSlides(
           .describe("The destination position for the slides."),
       }),
       handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_slide_deck") {
-          throw new Error("This tool is only available when working with a slide deck");
-        }
+        const ctx = requireDeckContext(getAIContext());
 
         const res = await serverActions.moveSlides({
           projectId,

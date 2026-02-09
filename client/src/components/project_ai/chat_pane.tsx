@@ -1,4 +1,4 @@
-import { AIChat, Button, createAIChat, MenuTriggerWrapper, openComponent, openConfirm, useConversations, type MenuItem } from "panther";
+import { AIChat, AIChatSettingsPanel, type AIChatSettingsPanelProps, type AIChatSettingsValues, Button, createAIChat, MenuTriggerWrapper, openComponent, openConfirm, useConversations, type MenuItem } from "panther";
 import { t } from "lib";
 import { useAIProjectContext } from "./context";
 import { setShowAi } from "~/state/ui";
@@ -12,7 +12,7 @@ type ConsolidatedChatPaneProps = {
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   const { aiContext, getPendingInteractionsMessage, clearPendingInteractions } = useAIProjectContext();
-  const { conversationId, isLoading, sendMessage } = createAIChat();
+  const { updateConfig, getConfig, conversationId, isLoading, sendMessage } = createAIChat();
   const conversations = useConversations();
 
   let scrollToBottom: ((force?: boolean) => void) | null = null;
@@ -40,6 +40,23 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   const { openPromptLibrary } = usePromptLibrary({
     onRunPrompt: handlePromptRun,
   });
+
+  const openSettings = async () => {
+    const current = getConfig();
+    const result = await openComponent<
+      AIChatSettingsPanelProps,
+      AIChatSettingsValues
+    >({
+      element: AIChatSettingsPanel,
+      props: {
+        initialValues: current,
+        allowedModels: ["claude-opus-4-6", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"],
+      },
+    });
+    if (result) {
+      updateConfig(result);
+    }
+  };
 
   const handleDeleteConversation = async () => {
     const confirmed = await openConfirm({
@@ -85,6 +102,14 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       type: "divider",
     },
     {
+      label: "AI settings",
+      icon: "settings",
+      onClick: openSettings,
+    },
+    {
+      type: "divider",
+    },
+    {
       label: "Delete conversation",
       icon: "trash",
       intent: "danger",
@@ -107,6 +132,8 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     switch (ctx.mode) {
       case "editing_slide_deck":
         return t("Ask about this slide deck...");
+      case "editing_slide":
+        return t("Ask about this slide...");
       case "editing_visualization":
         return t("Ask about this visualization...");
       case "editing_report":
@@ -117,19 +144,22 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       case "viewing_data":
       case "viewing_metrics":
       case "viewing_modules":
+      case "viewing_settings":
         return t("Explore your data...");
     }
   };
 
-  const title = () => {
+  const titleSubtext = () => {
     const ctx = aiContext();
     switch (ctx.mode) {
       case "editing_slide_deck":
-        return `Deck: ${ctx.deckLabel}`;
+        return ctx.deckLabel;
+      case "editing_slide":
+        return ctx.slideLabel;
       case "editing_visualization":
-        return `Viz: ${ctx.vizLabel}`;
+        return ctx.vizLabel;
       case "editing_report":
-        return `Report: ${ctx.reportLabel}`;
+        return ctx.reportLabel;
       case "viewing_visualizations":
         return "Visualizations";
       case "viewing_slide_decks":
@@ -142,13 +172,18 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         return "Metrics";
       case "viewing_modules":
         return "Modules";
+      case "viewing_settings":
+        return "Settings";
     }
   };
 
   return (
     <div class="flex h-full w-full flex-col border-l">
       <div class="ui-pad ui-gap flex items-center justify-between border-b border-base-content bg-primary text-white">
-        <h3 class="truncate text-base font-700">{title()}</h3>
+        <h3 class="flex items-baseline gap-2 truncate text-base">
+          <span class="font-700">AI</span>
+          <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
+        </h3>
         <div class="flex ui-gap-sm">
           <MenuTriggerWrapper items={menuItems} position="bottom-end">
             <Button

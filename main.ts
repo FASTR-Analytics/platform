@@ -41,27 +41,6 @@ await warmAllCaches();
 
 const app = new Hono();
 
-// Debug ALL requests
-app.use("*", async (c, next) => {
-  // Intercept HEAD requests to /upload/:id
-  if (c.req.method === "HEAD" && c.req.path.startsWith("/upload/")) {
-    console.log("[INTERCEPTED HEAD REQUEST]");
-    const clientOrigin = Deno.env.get("CLIENT_ORIGIN") ||
-      "http://localhost:3000";
-    c.status(404);
-    c.header("Tus-Resumable", "1.0.0");
-    c.header("Access-Control-Allow-Origin", clientOrigin);
-    c.header("Access-Control-Allow-Credentials", "true");
-    c.header(
-      "Access-Control-Expose-Headers",
-      "Upload-Offset, Upload-Length, Tus-Resumable",
-    );
-    return c.text("");
-  }
-
-  await next();
-});
-
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
 // LOCAL_DEVELOPMENT_TOGGLE
 app.use("*", authMiddleware);
@@ -111,7 +90,9 @@ try {
   app.get("/claire", (c) => c.html(indexHtml));
 } catch {
   // In development, these routes are handled by the Vite dev server
-  console.log("Skipping /docs and /claire routes (client_dist not found - running in dev mode)");
+  console.log(
+    "Skipping /docs and /claire routes (client_dist not found - running in dev mode)",
+  );
 }
 
 app.get("*", (c) => {
