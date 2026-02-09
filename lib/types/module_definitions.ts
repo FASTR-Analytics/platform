@@ -210,10 +210,23 @@ export type MetricDefinition = {
   autoIncludeFacilityColumns?: boolean;
   resultsObjectId: string;
   aiDescription?: MetricAIDescription;
+  vizPresets?: VizPreset[];
 };
 
 // Alias for backwards compatibility
 export type TranslatableAIString = TranslatableString;
+
+export type VizPreset = {
+  id: string;
+  label: TranslatableString;
+  description: TranslatableString;
+  needsReplicant?: boolean;
+  config: {
+    d: PresentationObjectConfig["d"];
+    s?: Partial<PresentationObjectConfig["s"]>;
+    t?: Partial<PresentationObjectConfig["t"]>;
+  };
+};
 
 export type MetricAIDescription = {
   summary: TranslatableString;

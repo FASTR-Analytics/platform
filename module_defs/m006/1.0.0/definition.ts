@@ -202,6 +202,25 @@ export const definition = {
           fr: "Toujours désagréger par indicator_common_id et year (tous deux requis). Comparer les trois types de couverture pour évaluer la qualité des données.",
         },
       },
+      vizPresets: [{
+        id: "coverage-timeseries",
+        label: { en: "Coverage timeseries (national)", fr: "Coverage timeseries (national)" },
+        description: { en: "National coverage timeseries with survey benchmarks", fr: "National coverage timeseries with survey benchmarks" },
+        needsReplicant: true,
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [
+              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+            ],
+            filterBy: [],
+            selectedReplicantValue: "anc1",
+          },
+          s: { scale: 2.7, content: "lines", showDataLabels: true, specialCoverageChart: true },
+        },
+      }],
     },
     {
       id: "m6-02-01",
@@ -260,6 +279,47 @@ export const definition = {
           fr: "Toujours désagréger par indicator_common_id, admin_area_2 et year (tous requis). Comparer trois types de couverture pour la validation de la qualité des données régionales.",
         },
       },
+      vizPresets: [{
+        id: "coverage-timeseries",
+        label: { en: "Coverage timeseries by region", fr: "Coverage timeseries by region" },
+        description: { en: "Coverage trends over time by admin area 2", fr: "Coverage trends over time by admin area 2" },
+        needsReplicant: true,
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [
+              { disOpt: "admin_area_2", disDisplayOpt: "cell" },
+              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+            ],
+            filterBy: [],
+            includeNationalForAdminArea2: true,
+            selectedReplicantValue: "anc1",
+          },
+          s: { scale: 1.7, content: "lines", showDataLabels: true, specialCoverageChart: true },
+        },
+      }, {
+        id: "coverage-bar",
+        label: { en: "Coverage bar chart by region", fr: "Coverage bar chart by region" },
+        description: { en: "Bar chart comparing coverage across regions", fr: "Bar chart comparing coverage across regions" },
+        needsReplicant: true,
+        config: {
+          d: {
+            type: "chart",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [
+              { disOpt: "admin_area_2", disDisplayOpt: "indicator" },
+              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+            ],
+            filterBy: [],
+            selectedReplicantValue: "anc4",
+            valuesFilter: ["coverage_cov"],
+          },
+          s: { showDataLabels: true, colorScale: "single-grey", sortIndicatorValues: "descending" },
+        },
+      }],
     },
     {
       id: "m6-02-02",
@@ -361,6 +421,47 @@ export const definition = {
           fr: "Toujours désagréger par indicator_common_id, admin_area_3 et year (tous requis). Comparer avec la zone administrative 2 pour le contexte.",
         },
       },
+      vizPresets: [{
+        id: "coverage-timeseries",
+        label: { en: "Coverage timeseries by district", fr: "Coverage timeseries by district" },
+        description: { en: "Coverage trends over time by admin area 3", fr: "Coverage trends over time by admin area 3" },
+        needsReplicant: true,
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [
+              { disOpt: "admin_area_3", disDisplayOpt: "cell" },
+              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+            ],
+            filterBy: [],
+            includeNationalForAdminArea2: true,
+            selectedReplicantValue: "anc1",
+          },
+          s: { scale: 1.7, content: "lines", showDataLabels: true, specialCoverageChart: true },
+        },
+      }, {
+        id: "coverage-bar",
+        label: { en: "Coverage bar chart by district", fr: "Coverage bar chart by district" },
+        description: { en: "Bar chart comparing coverage across districts", fr: "Bar chart comparing coverage across districts" },
+        needsReplicant: true,
+        config: {
+          d: {
+            type: "chart",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [
+              { disOpt: "admin_area_3", disDisplayOpt: "indicator" },
+              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+            ],
+            filterBy: [],
+            selectedReplicantValue: "anc4",
+            valuesFilter: ["coverage_cov"],
+          },
+          s: { showDataLabels: true, colorScale: "single-grey", sortIndicatorValues: "descending" },
+        },
+      }],
     },
     {
       id: "m6-03-02",

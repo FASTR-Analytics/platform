@@ -1,8 +1,11 @@
 import {
+  DEFAULT_S_CONFIG,
+  DEFAULT_T_CONFIG,
   DisaggregationOption,
   PresentationOption,
   get_PRESENTATION_SELECT_OPTIONS,
   getMetricDisplayLabel,
+  getMetricStaticData,
   getStartingConfigForPresentationObject,
   groupMetricsByLabel,
   isFrench,
@@ -11,6 +14,7 @@ import {
   T,
   type CreateModeVisualizationData,
   type MetricWithStatus,
+  type PresentationObjectConfig,
 } from "lib";
 import {
   AlertComponentProps,
@@ -30,6 +34,8 @@ type AddVisualizationProps = {
     | { metrics: MetricWithStatus[] }
   );
 
+const CUSTOM_OPTION = "__custom__";
+
 export function AddVisualization(
   p: AlertComponentProps<AddVisualizationProps, CreateModeVisualizationData>,
 ) {
@@ -42,6 +48,7 @@ export function AddVisualization(
   const [selectedMetricId, setSelectedMetricId] = createSignal<string>(
     preselectedMetric?.id ?? ""
   );
+  const [selectedVizPresetId, setSelectedVizPresetId] = createSignal<string | undefined>(undefined);
   const [tempPresentationOption, setTempPresentationOption] = createSignal<
     PresentationOption | undefined
   >(undefined);
@@ -59,25 +66,64 @@ export function AddVisualization(
     return group.variants.find((m) => m.id === selectedMetricId());
   };
 
-  const readyToSave = () => selectedMetricId() && tempPresentationOption();
+  const vizPresets = () => {
+    const id = selectedMetricId();
+    if (!id) return [];
+    try {
+      return getMetricStaticData(id).vizPresets ?? [];
+    } catch {
+      return [];
+    }
+  };
+
+  const isPresetSelected = () => {
+    const id = selectedVizPresetId();
+    return id !== undefined && id !== CUSTOM_OPTION;
+  };
+
+  const readyToSave = () => selectedMetricId() && (isPresetSelected() || tempPresentationOption());
+
+  const resetSelections = () => {
+    setSelectedVizPresetId(undefined);
+    setTempPresentationOption(undefined);
+    setTempDisaggregations([]);
+  };
 
   const save = timActionForm(
     async (e: MouseEvent) => {
       e.preventDefault();
       const metric = selectedMetric();
       if (!metric) {
+        return { success: false, err: t("You must select a metric") };
+      }
+
+      const presetId = selectedVizPresetId();
+      if (presetId && presetId !== CUSTOM_OPTION) {
+        const presets = vizPresets();
+        const preset = presets.find(p => p.id === presetId);
+        if (!preset) {
+          return { success: false, err: "Invalid preset" };
+        }
+
+        const config: PresentationObjectConfig = {
+          d: { ...preset.config.d },
+          s: { ...DEFAULT_S_CONFIG, ...preset.config.s },
+          t: { ...DEFAULT_T_CONFIG, ...preset.config.t },
+        };
+
         return {
-          success: false,
-          err: t("You must select a metric"),
+          success: true,
+          data: {
+            label: metric.label.trim(),
+            resultsValue: metric,
+            config,
+          } satisfies CreateModeVisualizationData,
         };
       }
 
       const presentationOption = tempPresentationOption();
       if (!presentationOption) {
-        return {
-          success: false,
-          err: t("You must select a presentation option"),
-        };
+        return { success: false, err: t("You must select a presentation option") };
       }
 
       const disaggregations = metric.disaggregationOptions
@@ -152,8 +198,7 @@ export function AddVisualization(
             } else {
               setSelectedMetricId("");
             }
-            setTempDisaggregations([]);
-            setTempPresentationOption(undefined);
+            resetSelections();
           }}
           convertToSelectThreshold={6}
           fullWidthForSelect
@@ -169,90 +214,118 @@ export function AddVisualization(
             value={selectedMetricId()}
             onChange={(v) => {
               setSelectedMetricId(v);
-              setTempDisaggregations([]);
-              setTempPresentationOption(undefined);
+              resetSelections();
             }}
           />
         </Show>
       </Show>
       <Show when={selectedMetric()} keyed>
         {(metric) => {
+          const presets = vizPresets();
+          const hasPresets = presets.length > 0;
+
           return (
             <>
-              <RadioGroup
-                label={t2(T.FRENCH_UI_STRINGS.present_as)}
-                options={get_PRESENTATION_SELECT_OPTIONS()}
-                value={tempPresentationOption()}
-                onChange={setTempPresentationOption}
-              />
-              <Show when={tempPresentationOption()} keyed>
-                {(selectedPresentationOption) => {
-                  return (
-                    <LabelHolder
-                      label={t2(T.FRENCH_UI_STRINGS.disaggregate_by)}
-                    >
-                      <div class="space-y-1">
-                        <For
-                          each={metric.disaggregationOptions.filter(
-                            (disOpt) =>
-                              !disOpt.allowedPresentationOptions ||
-                              disOpt.allowedPresentationOptions.includes(
-                                selectedPresentationOption,
-                              ),
-                          )}
-                        >
-                          {(disOpt) => {
-                            return (
-                              <Switch>
-                                <Match when={!disOpt.isRequired}>
-                                  <Checkbox
-                                    label={t2(disOpt.label)}
-                                    checked={tempDisaggregations().includes(
-                                      disOpt.value,
-                                    )}
-                                    onChange={(checked) => {
-                                      setTempDisaggregations((prev) => {
-                                        if (checked) {
-                                          return [
-                                            ...prev,
-                                            disOpt.value,
-                                          ];
-                                        } else {
-                                          return prev.filter(
-                                            (d) => d !== disOpt.value,
-                                          );
-                                        }
-                                      });
-                                    }}
-                                  />
-                                </Match>
-                                <Match when={disOpt.isRequired}>
-                                  <Checkbox
-                                    label={
-                                      <>
-                                        {t2(disOpt.label)}
-                                        <span class="ml-1 text-xs">
-                                          (
-                                          {t(
-                                            "Required for this visualization",
-                                          )}
-                                          )
-                                        </span>
-                                      </>
-                                    }
-                                    checked={true}
-                                    onChange={() => { }}
-                                    disabled={true}
-                                  />
-                                </Match>
-                              </Switch>
-                            );
-                          }}
-                        </For>
-                      </div>
-                    </LabelHolder>
-                  );
-                }}
+              <Show when={hasPresets}>
+                <RadioGroup
+                  label={t("Visualization type")}
+                  options={[
+                    ...presets.map(preset => ({
+                      value: preset.id,
+                      label: t2(preset.label),
+                      description: t2(preset.description),
+                    })),
+                    {
+                      value: CUSTOM_OPTION,
+                      label: t("Custom"),
+                      description: t("Configure chart type and disaggregations manually"),
+                    },
+                  ]}
+                  value={selectedVizPresetId()}
+                  onChange={(v) => {
+                    setSelectedVizPresetId(v);
+                    setTempPresentationOption(undefined);
+                    setTempDisaggregations([]);
+                  }}
+                />
+              </Show>
+
+              <Show when={!hasPresets || selectedVizPresetId() === CUSTOM_OPTION}>
+                <RadioGroup
+                  label={t2(T.FRENCH_UI_STRINGS.present_as)}
+                  options={get_PRESENTATION_SELECT_OPTIONS()}
+                  value={tempPresentationOption()}
+                  onChange={setTempPresentationOption}
+                />
+                <Show when={tempPresentationOption()} keyed>
+                  {(selectedPresentationOption) => {
+                    return (
+                      <LabelHolder
+                        label={t2(T.FRENCH_UI_STRINGS.disaggregate_by)}
+                      >
+                        <div class="space-y-1">
+                          <For
+                            each={metric.disaggregationOptions.filter(
+                              (disOpt) =>
+                                !disOpt.allowedPresentationOptions ||
+                                disOpt.allowedPresentationOptions.includes(
+                                  selectedPresentationOption,
+                                ),
+                            )}
+                          >
+                            {(disOpt) => {
+                              return (
+                                <Switch>
+                                  <Match when={!disOpt.isRequired}>
+                                    <Checkbox
+                                      label={t2(disOpt.label)}
+                                      checked={tempDisaggregations().includes(
+                                        disOpt.value,
+                                      )}
+                                      onChange={(checked) => {
+                                        setTempDisaggregations((prev) => {
+                                          if (checked) {
+                                            return [
+                                              ...prev,
+                                              disOpt.value,
+                                            ];
+                                          } else {
+                                            return prev.filter(
+                                              (d) => d !== disOpt.value,
+                                            );
+                                          }
+                                        });
+                                      }}
+                                    />
+                                  </Match>
+                                  <Match when={disOpt.isRequired}>
+                                    <Checkbox
+                                      label={
+                                        <>
+                                          {t2(disOpt.label)}
+                                          <span class="ml-1 text-xs">
+                                            (
+                                            {t(
+                                              "Required for this visualization",
+                                            )}
+                                            )
+                                          </span>
+                                        </>
+                                      }
+                                      checked={true}
+                                      onChange={() => { }}
+                                      disabled={true}
+                                    />
+                                  </Match>
+                                </Switch>
+                              );
+                            }}
+                          </For>
+                        </div>
+                      </LabelHolder>
+                    );
+                  }}
+                </Show>
               </Show>
             </>
           );

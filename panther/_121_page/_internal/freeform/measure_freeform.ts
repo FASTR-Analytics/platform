@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  MeasuredText,
   MergedPageStyle,
   RectCoordsDims,
   RenderContext,
@@ -40,8 +41,18 @@ export function measureFreeform(
     footer?.rcdFooterOuter.h() ?? 0,
   );
 
-  // Build primitives from header and footer
-  const primitives = buildFreeformPrimitives(header, footer, inputs, s);
+  const mWatermark = inputs.watermark?.trim()
+    ? rc.mText(inputs.watermark.trim(), s.text.watermark, rcdOuter.w())
+    : undefined;
+
+  const primitives = buildFreeformPrimitives(
+    header,
+    footer,
+    inputs,
+    s,
+    rcdOuter,
+    mWatermark,
+  );
 
   return {
     type: "freeform",
@@ -64,18 +75,30 @@ function buildFreeformPrimitives(
   header: ReturnType<typeof measureHeader>,
   footer: ReturnType<typeof measureFooter>,
   inputs: FreeformPageInputs,
-  s: import("../../deps.ts").MergedPageStyle,
+  s: MergedPageStyle,
+  bounds: RectCoordsDims,
+  mWatermark?: MeasuredText,
 ): PagePrimitive[] {
   const primitives: PagePrimitive[] = [];
 
-  // Add header primitives
   if (header) {
     primitives.push(...buildHeaderPrimitives(header, inputs, s));
   }
 
-  // Add footer primitives
   if (footer) {
     primitives.push(...buildFooterPrimitives(footer, inputs, s));
+  }
+
+  if (mWatermark) {
+    primitives.push({
+      type: "text",
+      id: "freeformWatermark",
+      mText: mWatermark,
+      x: bounds.centerX(),
+      y: bounds.centerY(),
+      hAlign: "center",
+      vAlign: "center",
+    });
   }
 
   return primitives;

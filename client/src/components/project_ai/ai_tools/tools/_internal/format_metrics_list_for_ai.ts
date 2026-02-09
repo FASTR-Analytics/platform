@@ -1,4 +1,5 @@
 import type { MetricWithStatus } from "lib";
+import { getMetricStaticData } from "lib";
 
 export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
   const lines: string[] = [
@@ -95,6 +96,7 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
         }
 
         lines.push(`    Period options: ${firstVariant.periodOptions.join(", ")}`);
+        appendVizPresetLines(lines, firstVariant.id, "    ");
         lines.push("");
       } else {
         // Multiple variants or has variantLabel - use grouped format
@@ -147,6 +149,7 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
             lines.push(`        Optional: ${optional.map(opt => opt.value).join(", ")}`);
           }
 
+          appendVizPresetLines(lines, variant.id, "        ");
           lines.push("");
         }
       }
@@ -155,6 +158,16 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
   }
 
   return lines.join("\n");
+}
+
+function appendVizPresetLines(lines: string[], metricId: string, indent: string): void {
+  const staticData = getMetricStaticData(metricId);
+  if (!staticData.vizPresets || staticData.vizPresets.length === 0) return;
+  lines.push(`${indent}Visualization presets (use vizPresetId with from_metric):`);
+  for (const preset of staticData.vizPresets) {
+    const replicantNote = preset.needsReplicant ? " [requires selectedReplicant]" : "";
+    lines.push(`${indent}  - ${preset.id}: ${preset.label.en} — ${preset.description.en}${replicantNote}`);
+  }
 }
 
 function getAIStr(val: string | { en: string; fr?: string }): string {

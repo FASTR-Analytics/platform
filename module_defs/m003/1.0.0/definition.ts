@@ -246,6 +246,94 @@ export const definition = {
             "Toujours désagréger par indicator_common_id (requis) pour voir l'impact de l'ajustement par service. Les séries temporelles révèlent si la qualité s'améliore.",
         },
       },
+      vizPresets: [{
+        id: "volume-monthly",
+        label: { en: "Service volume over time (monthly)", fr: "Service volume over time (monthly)" },
+        description: { en: "Line chart showing monthly service volume by indicator", fr: "Line chart showing monthly service volume by indicator" },
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "period_id",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [{ disOpt: "indicator_common_id", disDisplayOpt: "cell" }],
+            filterBy: [],
+            valuesFilter: ["count_final_outliers"],
+          },
+          s: { content: "lines" },
+        },
+      }, {
+        id: "volume-quarterly",
+        label: { en: "Volume quarterly change", fr: "Volume quarterly change" },
+        description: { en: "Bar chart showing quarterly volume with quarter-on-quarter change", fr: "Bar chart showing quarterly volume with quarter-on-quarter change" },
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "quarter_id",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [{ disOpt: "indicator_common_id", disDisplayOpt: "row" }],
+            filterBy: [],
+            valuesFilter: ["count_final_outliers"],
+          },
+          s: { specialBarChart: true },
+        },
+      }, {
+        id: "volume-annual",
+        label: { en: "Volume annual change", fr: "Volume annual change" },
+        description: { en: "Bar chart showing annual volume with year-on-year change", fr: "Bar chart showing annual volume with year-on-year change" },
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [{ disOpt: "indicator_common_id", disDisplayOpt: "row" }],
+            filterBy: [],
+            valuesFilter: ["count_final_outliers"],
+          },
+          s: { specialBarChart: true },
+        },
+      }, {
+        id: "volume-subnational",
+        label: { en: "Volume annual change by region", fr: "Volume annual change by region" },
+        description: { en: "Bar chart showing annual volume change by indicator and admin area", fr: "Bar chart showing annual volume change by indicator and admin area" },
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [
+              { disOpt: "indicator_common_id", disDisplayOpt: "row" },
+              { disOpt: "admin_area_2", disDisplayOpt: "col" },
+            ],
+            filterBy: [],
+            valuesFilter: ["count_final_outliers"],
+          },
+          s: { scale: 1.7, specialBarChart: true },
+        },
+      }, {
+        id: "dq-comparison",
+        label: { en: "Data quality adjustment comparison", fr: "Data quality adjustment comparison" },
+        description: { en: "Line chart comparing volume under different adjustment scenarios", fr: "Line chart comparing volume under different adjustment scenarios" },
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [{ disOpt: "indicator_common_id", disDisplayOpt: "col" }],
+            filterBy: [{ disOpt: "indicator_common_id", values: ["anc1", "anc4", "bcg", "delivery", "penta1", "penta3"] }],
+            valuesFilter: ["count_final_outliers", "count_final_none", "count_final_completeness", "count_final_both"],
+          },
+          s: {
+            scale: 1.8,
+            colorScale: "custom",
+            customSeriesStyles: [
+              { color: "#00897b", lineStyle: "solid", strokeWidth: 5 },
+              { color: "#757575", lineStyle: "solid", strokeWidth: 5 },
+              { color: "#8e24aa", lineStyle: "solid", strokeWidth: 5 },
+              { color: "#7cb342", lineStyle: "solid", strokeWidth: 5 },
+            ],
+          },
+        },
+      }],
     },
     {
       id: "m3-02-01",
@@ -314,6 +402,21 @@ export const definition = {
             "Toujours désagréger par indicator_common_id (requis) pour voir les modèles spécifiques au service. La visualisation en séries temporelles est essentielle.",
         },
       },
+      vizPresets: [{
+        id: "disruption-chart",
+        label: { en: "Disruptions and surpluses (national)", fr: "Disruptions and surpluses (national)" },
+        description: { en: "Area chart showing actual vs expected service volume nationally", fr: "Area chart showing actual vs expected service volume nationally" },
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "period_id",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [{ disOpt: "indicator_common_id", disDisplayOpt: "cell" }],
+            filterBy: [],
+          },
+          s: { scale: 2.5, content: "areas", diffAreas: true },
+        },
+      }],
     },
     {
       id: "m3-02-02",
@@ -461,6 +564,24 @@ export const definition = {
             "Toujours désagréger par indicator_common_id et admin_area_2 (tous deux requis). Les séries temporelles révèlent quand et où les perturbations se sont produites.",
         },
       },
+      vizPresets: [{
+        id: "disruption-chart",
+        label: { en: "Disruptions and surpluses (subnational)", fr: "Disruptions and surpluses (subnational)" },
+        description: { en: "Area chart showing actual vs expected service volume by region", fr: "Area chart showing actual vs expected service volume by region" },
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "period_id",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [
+              { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+              { disOpt: "admin_area_2", disDisplayOpt: "row" },
+            ],
+            filterBy: [{ disOpt: "indicator_common_id", values: ["anc1", "anc4", "bcg", "delivery", "penta3", "penta1"] }],
+          },
+          s: { scale: 1.6, content: "areas", diffAreas: true },
+        },
+      }],
     },
     {
       id: "m3-03-02",

@@ -46,7 +46,7 @@ export function measureCover(
     ? rc.mText(item.watermark.trim(), s.text.watermark, bounds.w())
     : undefined;
 
-  const primitives = buildCoverPrimitives(
+  const { primitives, totalH } = buildCoverPrimitives(
     bounds,
     item,
     s,
@@ -63,7 +63,7 @@ export function measureCover(
     bounds,
     mergedPageStyle: s,
     responsiveScale,
-    overflow: false,
+    overflow: totalH > bounds.h(),
     primitives,
     mTitle,
     mSubTitle,
@@ -81,7 +81,7 @@ function buildCoverPrimitives(
   mAuthor?: import("../../deps.ts").MeasuredText,
   mDate?: import("../../deps.ts").MeasuredText,
   mWatermark?: import("../../deps.ts").MeasuredText,
-): PagePrimitive[] {
+): { primitives: PagePrimitive[]; totalH: number } {
   const primitives: PagePrimitive[] = [];
 
   // Background
@@ -129,7 +129,9 @@ function buildCoverPrimitives(
   if (mDate && dateH > 0) {
     totalH += dateH + s.cover.gapY;
   }
-  totalH -= s.cover.gapY;
+  if (totalH > 0) {
+    totalH -= s.cover.gapY;
+  }
 
   let currentY = bounds.y() + (bounds.h() - totalH) / 2;
 
@@ -230,5 +232,5 @@ function buildCoverPrimitives(
     });
   }
 
-  return primitives;
+  return { primitives, totalH };
 }
