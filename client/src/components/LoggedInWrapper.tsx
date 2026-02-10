@@ -125,7 +125,7 @@ function ClerkNewLogin() {
   return (
     <div class="h-full w-full overflow-y-auto">
       <div class="flex min-h-full w-full items-center justify-center">
-        <div class="w-full pb-72 pt-12">
+        <div class="w-full pt-12 pb-72">
           <StateHolderWrapper state={instanceMeta.state()} spinner>
             {(keyedInstanceMeta) => {
               return (
