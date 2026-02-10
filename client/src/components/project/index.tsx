@@ -98,7 +98,7 @@ export default function Project(p: Props) {
             ...(projectDetail.thisUserPermissions.can_view_slide_decks ? [{ value: "decks" as const, label: "Slide decks" }] : []),
             ...(projectDetail.thisUserPermissions.can_view_reports ? [{ value: "reports" as const, label: t2(T.FRENCH_UI_STRINGS.reports) }] : []),
             ...(projectDetail.thisUserPermissions.can_view_visualizations ? [{ value: "visualizations" as const, label: t2(T.FRENCH_UI_STRINGS.visualizations) }] : []),
-            { value: "metrics" as const, label: t2("Metrics") },
+            ...(projectDetail.thisUserPermissions.can_view_metrics ? [{ value: "metrics" as const, label: t2("Metrics") }] : []),
             ...(projectDetail.thisUserPermissions.can_configure_modules || projectDetail.thisUserPermissions.can_run_modules ? [{ value: "modules" as const, label: t2(T.FRENCH_UI_STRINGS.modules) }] : []),
             ...(projectDetail.thisUserPermissions.can_view_data ? [{ value: "data" as const, label: t2(T.FRENCH_UI_STRINGS.data) }] : []),
             ...(projectDetail.thisUserPermissions.can_configure_settings ? [{ value: "settings" as const, label: t2(T.FRENCH_UI_STRINGS.settings) }] : []),
@@ -192,7 +192,7 @@ export default function Project(p: Props) {
                           openProjectEditor={openProjectEditor}
                         />
                       </Match>
-                      <Match when={projectTab() === "metrics"}>
+                      <Match when={projectTab() === "metrics" && (projectDetail.thisUserPermissions.can_view_metrics)}>
                         <ProjectMetrics
                           isGlobalAdmin={p.isGlobalAdmin}
                           openProjectEditor={openProjectEditor}
