@@ -295,6 +295,25 @@ export const definition = {
             "Toujours désagréger par denominator et year (tous deux requis). Désagréger par source_indicator pour voir les sources dérivées du HMIS vs UNWPP vs enquête.",
         },
       },
+      vizPresets: [{
+        id: "values-table",
+        label: { en: "Denominator values table", fr: "Denominator values table" },
+        description: { en: "Table of denominator values by source and year", fr: "Table of denominator values by source and year" },
+        config: {
+          d: {
+            type: "table",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "col",
+            disaggregateBy: [
+              { disOpt: "denominator", disDisplayOpt: "row" },
+              { disOpt: "year", disDisplayOpt: "col" },
+              { disOpt: "source_indicator", disDisplayOpt: "rowGroup" },
+            ],
+            filterBy: [],
+          },
+          s: { showDataLabels: true, idealAspectRatio: "ideal" },
+        },
+      }],
     },
     {
       id: "m4a-01-02",
@@ -479,6 +498,26 @@ export const definition = {
             "Toujours désagréger par denominator_best_or_survey, indicator_common_id et year (tous requis). Comparer 'meilleur' vs 'enquête' pour valider la sélection du dénominateur.",
         },
       },
+      vizPresets: [{
+        id: "coverage-timeseries",
+        label: { en: "Coverage by denominator type", fr: "Coverage by denominator type" },
+        description: { en: "Timeseries comparing coverage across denominator sources", fr: "Timeseries comparing coverage across denominator sources" },
+        needsReplicant: true,
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [
+              { disOpt: "denominator_best_or_survey", disDisplayOpt: "series" },
+              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+            ],
+            filterBy: [],
+            selectedReplicantValue: "anc4",
+          },
+          s: { content: "lines", showDataLabels: true },
+        },
+      }],
     },
     {
       id: "m4a-02-02",

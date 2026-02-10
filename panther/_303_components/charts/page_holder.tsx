@@ -602,12 +602,15 @@ function isTextHitTarget(target: PageHitTarget): boolean {
     "coverSubTitle",
     "coverAuthor",
     "coverDate",
+    "coverWatermark",
     "sectionTitle",
     "sectionSubTitle",
+    "sectionWatermark",
     "headerText",
     "subHeaderText",
     "dateText",
     "footerText",
+    "freeformWatermark",
   ].includes(target.type);
 }
 

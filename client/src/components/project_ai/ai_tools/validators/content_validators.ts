@@ -41,6 +41,42 @@ function isQuarterIdValid(val: number): boolean {
   return year >= 1900 && year <= 2100 && quarter >= 1 && quarter <= 4;
 }
 
+function validateFilters(
+  filters: { col: string; vals: string[] }[] | undefined,
+  metricId: string,
+  metric?: MetricWithStatus
+): void {
+  if (!filters) return;
+
+  const invalidCols = filters.filter(
+    f => !ALL_DISAGGREGATION_OPTIONS.includes(f.col)
+  );
+  if (invalidCols.length > 0) {
+    throw new Error(
+      `Invalid filter column(s): ${invalidCols.map(f => f.col).join(", ")}. Valid columns are: ${ALL_DISAGGREGATION_OPTIONS.join(", ")}`
+    );
+  }
+
+  if (metric) {
+    const availableDims = metric.disaggregationOptions.map(opt => opt.value);
+    const unavailable = filters.filter(
+      f => !availableDims.includes(f.col as any)
+    );
+    if (unavailable.length > 0) {
+      throw new Error(
+        `Filter dimension(s) not available for metric "${metricId}": ${unavailable.map(f => f.col).join(", ")}. Available dimensions: ${availableDims.join(", ")}`
+      );
+    }
+  }
+
+  const emptyFilters = filters.filter(f => !f.vals || f.vals.length === 0);
+  if (emptyFilters.length > 0) {
+    throw new Error(
+      `Filter values cannot be empty for dimension(s): ${emptyFilters.map(f => f.col).join(", ")}. You must specify at least one value to filter by. Use get_metric_data to see available values.`
+    );
+  }
+}
+
 export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithStatus): void {
   if (query.disaggregations) {
     const invalid = query.disaggregations.filter(
@@ -65,35 +101,7 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
     }
   }
 
-  if (query.filters) {
-    const invalidCols = query.filters.filter(
-      f => !ALL_DISAGGREGATION_OPTIONS.includes(f.col)
-    );
-    if (invalidCols.length > 0) {
-      throw new Error(
-        `Invalid filter column(s): ${invalidCols.map(f => f.col).join(", ")}. Valid columns are: ${ALL_DISAGGREGATION_OPTIONS.join(", ")}`
-      );
-    }
-
-    if (metric) {
-      const availableDims = metric.disaggregationOptions.map(opt => opt.value);
-      const unavailable = query.filters.filter(
-        f => !availableDims.includes(f.col as any)
-      );
-      if (unavailable.length > 0) {
-        throw new Error(
-          `Filter dimension(s) not available for metric "${query.metricId}": ${unavailable.map(f => f.col).join(", ")}. Available dimensions: ${availableDims.join(", ")}`
-        );
-      }
-    }
-
-    const emptyFilters = query.filters.filter(f => !f.vals || f.vals.length === 0);
-    if (emptyFilters.length > 0) {
-      throw new Error(
-        `Filter values cannot be empty for dimension(s): ${emptyFilters.map(f => f.col).join(", ")}. You must specify at least one value to filter by. Use get_metric_data to see available values.`
-      );
-    }
-  }
+  validateFilters(query.filters, query.metricId, metric);
 
   if (query.periodFilter) {
     const { periodOption, min, max } = query.periodFilter;
@@ -139,6 +147,51 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
       throw new Error(
         `Invalid valuesFilter value(s): ${invalidValues.join(", ")}. Valid values for metric "${query.metricId}" are: ${metric.valueProps.join(", ")}`
       );
+    }
+  }
+}
+
+export function validatePresetOverrides(
+  metricId: string,
+  filterOverrides: { col: string; vals: string[] }[] | undefined,
+  periodFilterOverride: { periodOption: "period_id" | "quarter_id" | "year"; min: number; max: number } | undefined,
+  metric?: MetricWithStatus
+): void {
+  validateFilters(filterOverrides, metricId, metric);
+
+  if (periodFilterOverride) {
+    const { periodOption, min, max } = periodFilterOverride;
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      throw new Error(
+        `Period filter min and max must be valid numbers. Got min: ${min}, max: ${max}`
+      );
+    }
+
+    if (min > max) {
+      throw new Error(
+        `Period filter min (${min}) cannot be greater than max (${max})`
+      );
+    }
+
+    if (periodOption === "period_id") {
+      if (!isPeriodIdValid(min) || !isPeriodIdValid(max)) {
+        throw new Error(
+          `Invalid period_id format. Must be YYYYMM (e.g., 202301 for Jan 2023). Got min: ${min}, max: ${max}`
+        );
+      }
+    } else if (periodOption === "quarter_id") {
+      if (!isQuarterIdValid(min) || !isQuarterIdValid(max)) {
+        throw new Error(
+          `Invalid quarter_id format. Must be YYYYQQ where QQ is 01-04 (e.g., 202301 for Q1 2023). Got min: ${min}, max: ${max}`
+        );
+      }
+    } else if (periodOption === "year") {
+      if (min < 1900 || max > 2100) {
+        throw new Error(
+          `Year must be between 1900 and 2100. Got min: ${min}, max: ${max}`
+        );
+      }
     }
   }
 }

@@ -19,12 +19,15 @@ export type PageHitTargetText = {
     | "coverSubTitle"
     | "coverAuthor"
     | "coverDate"
+    | "coverWatermark"
     | "sectionTitle"
     | "sectionSubTitle"
+    | "sectionWatermark"
     | "headerText"
     | "subHeaderText"
     | "dateText"
-    | "footerText";
+    | "footerText"
+    | "freeformWatermark";
   rcd: RectCoordsDims;
 };
 

@@ -8,7 +8,7 @@ export const log = (routeName: string) =>
         const method = c.req.method;
         if (method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE"){
             const contentType = c.req.header("Content-Type") ?? "";
-            if (contentType.includes("application/json")) {
+            if (contentType.includes("application/json") || contentType === "") {
                 try{
                     body = await c.req.json();
                     c.set("cachedBody", body);

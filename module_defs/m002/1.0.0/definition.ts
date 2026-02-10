@@ -175,6 +175,24 @@ export const definition = {
           "Désagréger par indicator_common_id pour identifier quels services sont les plus affectés. Utiliser admin_area pour trouver les régions où l'impact est plus important.",
       },
     },
+    vizPresets: [{
+      id: "adjustment-table",
+      label: { en: "Outlier adjustment impact table", fr: "Outlier adjustment impact table" },
+      description: { en: "Table showing percent change due to outlier adjustment by indicator and region", fr: "Table showing percent change due to outlier adjustment by indicator and region" },
+      config: {
+        d: {
+          type: "table",
+          periodOpt: "period_id",
+          valuesDisDisplayOpt: "col",
+          disaggregateBy: [
+            { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+            { disOpt: "admin_area_2", disDisplayOpt: "row" },
+          ],
+          filterBy: [],
+        },
+        s: { content: "lines", conditionalFormatting: "fmt-01-03", decimalPlaces: 1, idealAspectRatio: "ideal" },
+      },
+    }],
   }, {
     id: "m2-01-02",
     resultsObjectId: "M2_adjusted_data.csv",
@@ -250,6 +268,24 @@ export const definition = {
           "Désagréger par indicator_common_id pour voir quels services ont le plus de données manquantes. Utiliser les périodes pour identifier quand la complétude s'est détériorée.",
       },
     },
+    vizPresets: [{
+      id: "adjustment-table",
+      label: { en: "Completeness adjustment impact table", fr: "Completeness adjustment impact table" },
+      description: { en: "Table showing percent change due to completeness adjustment by indicator and region", fr: "Table showing percent change due to completeness adjustment by indicator and region" },
+      config: {
+        d: {
+          type: "table",
+          periodOpt: "period_id",
+          valuesDisDisplayOpt: "col",
+          disaggregateBy: [
+            { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+            { disOpt: "admin_area_2", disDisplayOpt: "row" },
+          ],
+          filterBy: [],
+        },
+        s: { content: "lines", conditionalFormatting: "fmt-01-03", decimalPlaces: 1, idealAspectRatio: "ideal" },
+      },
+    }],
   }, {
     id: "m2-01-03",
     resultsObjectId: "M2_adjusted_data.csv",
@@ -326,6 +362,24 @@ export const definition = {
           "Désagréger par indicator_common_id pour identifier les indicateurs nécessitant le plus d'ajustement. Les séries temporelles montrent si la qualité s'améliore.",
       },
     },
+    vizPresets: [{
+      id: "adjustment-table",
+      label: { en: "Combined adjustment impact table", fr: "Combined adjustment impact table" },
+      description: { en: "Table showing percent change due to combined outlier and completeness adjustment by indicator and region", fr: "Table showing percent change due to combined outlier and completeness adjustment by indicator and region" },
+      config: {
+        d: {
+          type: "table",
+          periodOpt: "period_id",
+          valuesDisDisplayOpt: "col",
+          disaggregateBy: [
+            { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+            { disOpt: "admin_area_2", disDisplayOpt: "row" },
+          ],
+          filterBy: [],
+        },
+        s: { content: "lines", conditionalFormatting: "fmt-01-03", decimalPlaces: 1, idealAspectRatio: "ideal" },
+      },
+    }],
   }],
   ////////////////////////////////////////////////////////////////////
   //  _______                                                       //

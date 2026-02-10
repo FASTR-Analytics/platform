@@ -179,6 +179,25 @@ export const definition = {
             "Toujours désagréger par indicator_common_id et year (tous deux requis). Comparer les trois types de couverture pour évaluer la concordance HMIS-enquête.",
         },
       },
+      vizPresets: [{
+        id: "coverage-timeseries",
+        label: { en: "Coverage timeseries (national)", fr: "Coverage timeseries (national)" },
+        description: { en: "National coverage timeseries with survey benchmarks", fr: "National coverage timeseries with survey benchmarks" },
+        needsReplicant: true,
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [
+              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+            ],
+            filterBy: [],
+            selectedReplicantValue: "anc1",
+          },
+          s: { content: "lines", specialCoverageChart: true },
+        },
+      }],
     },
     {
       id: "m4-02-01",
@@ -250,6 +269,44 @@ export const definition = {
             "Toujours désagréger par indicator_common_id, admin_area_2 et year (tous requis). La visualisation cartographique montre efficacement les modèles de couverture géographique.",
         },
       },
+      vizPresets: [{
+        id: "coverage-timeseries",
+        label: { en: "Coverage timeseries by region", fr: "Coverage timeseries by region" },
+        description: { en: "Coverage trends over time by admin area 2", fr: "Coverage trends over time by admin area 2" },
+        config: {
+          d: {
+            type: "timeseries",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "series",
+            disaggregateBy: [
+              { disOpt: "indicator_common_id", disDisplayOpt: "series" },
+              { disOpt: "admin_area_2", disDisplayOpt: "cell" },
+            ],
+            filterBy: [],
+          },
+          s: { scale: 1.9, content: "lines", decimalPlaces: 1 },
+        },
+      }, {
+        id: "coverage-bar",
+        label: { en: "Coverage bar chart by region", fr: "Coverage bar chart by region" },
+        description: { en: "Bar chart comparing coverage across regions", fr: "Bar chart comparing coverage across regions" },
+        needsReplicant: true,
+        config: {
+          d: {
+            type: "chart",
+            periodOpt: "year",
+            valuesDisDisplayOpt: "indicator",
+            disaggregateBy: [
+              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+              { disOpt: "admin_area_2", disDisplayOpt: "indicator" },
+              { disOpt: "year", disDisplayOpt: "cell" },
+            ],
+            filterBy: [],
+            selectedReplicantValue: "anc1",
+          },
+          s: { colorScale: "single-grey", decimalPlaces: 1, sortIndicatorValues: "descending" },
+        },
+      }],
     },
     {
       id: "m4-03-01",

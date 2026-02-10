@@ -61,9 +61,15 @@ function getModeInstructions(aiContext: AIContext): string {
     case "viewing_modules":
       return getViewingModulesInstructions();
 
+    case "viewing_settings":
+      return getViewingSettingsInstructions();
+
     // Editing modes
     case "editing_slide_deck":
       return getEditingSlideDeckInstructions(aiContext.deckLabel);
+
+    case "editing_slide":
+      return getEditingSlideInstructions(aiContext.slideLabel, aiContext.deckLabel);
 
     case "editing_visualization":
       return getEditingVisualizationInstructions(aiContext.vizLabel);
@@ -190,6 +196,56 @@ ${getAllToolsList()}
 - Help explore modules
 - Explain module methodologies
 - Answer questions about module status and results`;
+}
+
+function getViewingSettingsInstructions(): string {
+  return `# Current View: Project Settings
+
+The user is viewing project settings (users, roles, configuration).
+
+## Available Tools
+
+${getAllToolsList()}
+
+## Actions
+
+- Answer questions about the project
+- Help with data exploration or analysis`;
+}
+
+function getEditingSlideInstructions(slideLabel: string, deckLabel: string): string {
+  return `# Current Mode: Editing Slide
+
+You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
+
+## Primary Tools (for this slide)
+
+**get_slide_editor** - Get the current content and structure of this slide. Shows live state from the editor (including unsaved changes). ALWAYS call this first.
+**update_slide_editor** - Modify this slide's content. For cover/section slides you can update text fields. For content slides you can update the header and individual blocks by ID.
+
+## Other Available Tools
+
+${getAllToolsList()}
+
+## What You Can Modify
+
+- **Cover slides:** title, subtitle, presenter, date
+- **Section slides:** sectionTitle, sectionSubtitle
+- **Content slides:** header, individual content blocks (text, figures)
+
+## Workflow
+
+1. Call get_slide_editor FIRST to see current content and block IDs
+2. Suggest changes based on what would improve the slide
+3. Use update_slide_editor to apply changes
+4. Changes are LOCAL until the user saves - remind them to save if satisfied
+
+## Important
+
+- Changes are previewed immediately but NOT saved automatically
+- The user must click Save to persist changes
+- For content slides, use block IDs from get_slide_editor to target specific blocks
+- IMPORTANT: Markdown tables are NOT allowed in text blocks - use from_metric with chartType='table' instead`;
 }
 
 // Editing mode instructions

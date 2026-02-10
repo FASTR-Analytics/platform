@@ -12,6 +12,7 @@ export const BETA_HEADERS = {
   STRUCTURED_OUTPUTS: "structured-outputs-2025-11-13",
   INTERLEAVED_THINKING: "interleaved-thinking-2025-05-14",
   FILES_API: "files-api-2025-04-14",
+  CONTEXT_1M: "context-1m-2025-08-07",
 } as const;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,6 +24,7 @@ export type BetaHeaderConfig = {
   hasWebFetch?: boolean;
   interleavedThinking?: boolean;
   hasDocuments?: boolean;
+  context1M?: boolean;
 };
 
 export function getBetaHeaders(
@@ -48,6 +50,11 @@ export function getBetaHeaders(
   // Files API for document uploads
   if (config.hasDocuments) {
     headers.push(BETA_HEADERS.FILES_API);
+  }
+
+  // 1M token context window (Opus 4.6, Sonnet 4.5, Sonnet 4)
+  if (config.context1M) {
+    headers.push(BETA_HEADERS.CONTEXT_1M);
   }
 
   if (headers.length === 0) {

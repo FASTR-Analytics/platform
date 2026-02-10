@@ -17,8 +17,7 @@ export async function resolveFigureFromMetric(
   block: AiFigureFromMetric,
   metrics: MetricWithStatus[],
 ): Promise<FigureBlock> {
-  const { metricQuery } = block;
-  const { metricId, disaggregations: inputDisaggregations, filters: inputFilters, periodFilter } = metricQuery;
+  const { metricId } = block;
 
   const buildResult = buildConfigFromMetric(block, metrics);
   if (!buildResult.success) {
@@ -27,30 +26,33 @@ export async function resolveFigureFromMetric(
 
   const { resultsValue, resultsValueForViz, config } = buildResult;
 
-  // Validate metric is ready
   if (resultsValue.status !== "ready") {
     throw new Error(`Metric "${metricId}" is not ready (status: ${resultsValue.status})`);
   }
 
   const staticData = getMetricStaticData(metricId);
 
+  const disaggregations = config.d.disaggregateBy.map(d => d.disOpt);
   const allDisaggregations = [
     ...staticData.requiredDisaggregationOptions,
-    ...(inputDisaggregations || []),
+    ...disaggregations,
   ];
   const uniqueDisaggregations = [...new Set(allDisaggregations)] as DisaggregationOption[];
 
-  const fetchConfigFilters = (inputFilters || []).map(f => ({
-    col: f.col as DisaggregationOption,
-    vals: f.vals,
+  const fetchConfigFilters = config.d.filterBy.map(f => ({
+    col: f.disOpt,
+    vals: f.values,
   }));
 
   const fetchConfig: GenericLongFormFetchConfig = buildFetchConfigFromMetric(
     metricId,
     uniqueDisaggregations,
     fetchConfigFilters,
-    periodFilter,
+    config.d.periodFilter,
   );
+
+  fetchConfig.includeNationalForAdminArea2 = config.d.includeNationalForAdminArea2 ?? false;
+  fetchConfig.includeNationalPosition = config.d.includeNationalPosition;
 
   const { data, version } = await _PO_ITEMS_CACHE.get({
     projectId,

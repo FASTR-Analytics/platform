@@ -42,7 +42,7 @@ export function measureSection(
     ? rc.mText(item.watermark.trim(), s.text.watermark, bounds.w())
     : undefined;
 
-  const primitives = buildSectionPrimitives(
+  const { primitives, totalH } = buildSectionPrimitives(
     bounds,
     item,
     s,
@@ -57,7 +57,7 @@ export function measureSection(
     bounds,
     mergedPageStyle: s,
     responsiveScale,
-    overflow: false,
+    overflow: totalH > bounds.h(),
     primitives,
     mSectionTitle,
     mSectionSubTitle,
@@ -71,7 +71,7 @@ function buildSectionPrimitives(
   mSectionTitle?: import("../../deps.ts").MeasuredText,
   mSectionSubTitle?: import("../../deps.ts").MeasuredText,
   mWatermark?: import("../../deps.ts").MeasuredText,
-): PagePrimitive[] {
+): { primitives: PagePrimitive[]; totalH: number } {
   const primitives: PagePrimitive[] = [];
 
   // Background
@@ -146,5 +146,5 @@ function buildSectionPrimitives(
     });
   }
 
-  return primitives;
+  return { primitives, totalH };
 }

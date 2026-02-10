@@ -18,42 +18,57 @@ type ModelPricing = {
 };
 
 const PRICING: Record<string, ModelPricing> = {
-  // Claude 4.x models (2025)
-  "claude-sonnet-4.5-20250929": {
+  // Claude 4.6 models (2026 - latest)
+  "claude-opus-4-6": {
+    inputPer1M: 5.00,
+    outputPer1M: 25.00,
+    cacheWritePer1M: 6.25,
+    cacheReadPer1M: 0.50,
+  },
+  // Claude 4.5 models
+  "claude-opus-4-5-20251101": {
+    inputPer1M: 5.00,
+    outputPer1M: 25.00,
+    cacheWritePer1M: 6.25,
+    cacheReadPer1M: 0.50,
+  },
+  "claude-sonnet-4-5-20250929": {
     inputPer1M: 3.00,
     outputPer1M: 15.00,
     cacheWritePer1M: 3.75,
     cacheReadPer1M: 0.30,
   },
-  "claude-sonnet-4-20250522": {
-    inputPer1M: 3.00,
-    outputPer1M: 15.00,
-    cacheWritePer1M: 3.75,
-    cacheReadPer1M: 0.30,
+  "claude-haiku-4-5-20251001": {
+    inputPer1M: 1.00,
+    outputPer1M: 5.00,
+    cacheWritePer1M: 1.25,
+    cacheReadPer1M: 0.10,
   },
-  "claude-opus-4.1-20250522": {
-    inputPer1M: 20.00,
-    outputPer1M: 80.00,
-    cacheWritePer1M: 25.00,
-    cacheReadPer1M: 2.00,
-  },
-  "claude-opus-4-20250522": {
+  // Claude 4.x models
+  "claude-opus-4-1-20250805": {
     inputPer1M: 15.00,
     outputPer1M: 75.00,
     cacheWritePer1M: 18.75,
     cacheReadPer1M: 1.50,
   },
-  "claude-3.7-sonnet-20250224": {
+  "claude-opus-4-20250514": {
+    inputPer1M: 15.00,
+    outputPer1M: 75.00,
+    cacheWritePer1M: 18.75,
+    cacheReadPer1M: 1.50,
+  },
+  "claude-sonnet-4-20250514": {
     inputPer1M: 3.00,
     outputPer1M: 15.00,
     cacheWritePer1M: 3.75,
     cacheReadPer1M: 0.30,
   },
-  "claude-haiku-4.5-20250122": {
-    inputPer1M: 1.00,
-    outputPer1M: 5.00,
-    cacheWritePer1M: 1.25,
-    cacheReadPer1M: 0.10,
+  // Claude 3.7
+  "claude-3-7-sonnet-20250219": {
+    inputPer1M: 3.00,
+    outputPer1M: 15.00,
+    cacheWritePer1M: 3.75,
+    cacheReadPer1M: 0.30,
   },
   // Claude 3.x models (2024)
   "claude-3-5-sonnet-20241022": {

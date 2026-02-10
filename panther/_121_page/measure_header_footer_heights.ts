@@ -37,7 +37,8 @@ function measureHeaderHeight(
   inputs: HeaderFooterInputs,
   s: MergedPageStyle,
 ): number {
-  const hasText = inputs.header || inputs.subHeader || inputs.date;
+  const hasText = inputs.header?.trim() || inputs.subHeader?.trim() ||
+    inputs.date?.trim();
   const hasLogos = inputs.headerLogos && inputs.headerLogos.length > 0;
 
   if (!hasText && !hasLogos) {
@@ -68,9 +69,9 @@ function measureHeaderHeight(
     lastExtraToChop = s.header.logoBottomPadding;
   }
 
-  if (inputs.header) {
+  if (inputs.header?.trim()) {
     const mHeader = rc.mText(
-      inputs.header,
+      inputs.header.trim(),
       s.text.header,
       maxHeaderTextWidth,
     );
@@ -78,9 +79,9 @@ function measureHeaderHeight(
     lastExtraToChop = s.header.headerBottomPadding;
   }
 
-  if (inputs.subHeader) {
+  if (inputs.subHeader?.trim()) {
     const mSubHeader = rc.mText(
-      inputs.subHeader,
+      inputs.subHeader.trim(),
       s.text.subHeader,
       maxHeaderTextWidth,
     );
@@ -88,9 +89,9 @@ function measureHeaderHeight(
     lastExtraToChop = s.header.subHeaderBottomPadding;
   }
 
-  if (inputs.date) {
+  if (inputs.date?.trim()) {
     const mDate = rc.mText(
-      inputs.date,
+      inputs.date.trim(),
       s.text.date,
       maxHeaderTextWidth,
     );
@@ -114,7 +115,7 @@ function measureFooterHeight(
   inputs: HeaderFooterInputs,
   s: MergedPageStyle,
 ): number {
-  const hasText = !!inputs.footer;
+  const hasText = !!inputs.footer?.trim();
   const hasLogos = inputs.footerLogos && inputs.footerLogos.length > 0;
 
   if (!hasText && !hasLogos) {
@@ -124,9 +125,9 @@ function measureFooterHeight(
   const footerPadding = new Padding(s.footer.padding);
   let totalInnerHeight = 0;
 
-  if (inputs.footer) {
+  if (inputs.footer?.trim()) {
     const mFooter = rc.mText(
-      inputs.footer,
+      inputs.footer.trim(),
       s.text.footer,
       pageWidth - footerPadding.totalPx(),
     );

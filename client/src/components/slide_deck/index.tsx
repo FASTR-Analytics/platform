@@ -35,7 +35,7 @@ export function ProjectAiSlideDeck(p: Props) {
   const projectId = p.projectDetail.id;
   const pds = useProjectDirtyStates();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
-  const { setAIContext } = useAIProjectContext();
+  const { aiContext, setAIContext } = useAIProjectContext();
 
   async function handleClose() {
     p.close(undefined);
@@ -122,6 +122,7 @@ function ProjectAiSlideDeckInner(p: {
 }) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   const { openEditor: openSettingsEditor, EditorWrapper: SettingsEditorWrapper } = getEditorWrapper();
+  const { aiContext } = useAIProjectContext();
 
   // Editor state
   const [editingSlideId, setEditingSlideId] = createSignal<string | undefined>();
@@ -180,10 +181,12 @@ function ProjectAiSlideDeckInner(p: {
       props: {
         projectId: p.projectDetail.id,
         deckId: p.deckId,
+        deckLabel: p.deckLabel,
         slideId: slideId,
         lastUpdated: lastUpdated,
         isGlobalAdmin: p.isGlobalAdmin,
         slide,
+        returnToContext: aiContext(),
         ...snapshotForSlideEditor({
           projectDetail: p.projectDetail,
           instanceDetail: p.instanceDetail,

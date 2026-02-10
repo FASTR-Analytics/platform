@@ -68,7 +68,7 @@ export async function convertAiInputToSlide(
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `Failed to create figure from metric "${block.metricQuery.metricId}". Check that the metric exists and parameters are valid. Original error: ${errMsg}`
+          `Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`
         );
       }
     // } else if (block.type === "custom") {

@@ -246,6 +246,24 @@ export const definition = {
           "Désagréger par indicator_common_id pour identifier les indicateurs problématiques. Utiliser admin_area_2 pour les tendances régionales.",
       },
     },
+    vizPresets: [{
+      id: "outlier-table",
+      label: { en: "Outlier proportion table", fr: "Outlier proportion table" },
+      description: { en: "Table showing proportion of outliers by indicator and region", fr: "Table showing proportion of outliers by indicator and region" },
+      config: {
+        d: {
+          type: "table",
+          periodOpt: "period_id",
+          valuesDisDisplayOpt: "col",
+          disaggregateBy: [
+            { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+            { disOpt: "admin_area_2", disDisplayOpt: "row" },
+          ],
+          filterBy: [],
+        },
+        s: { content: "lines", conditionalFormatting: "fmt-01-03", decimalPlaces: 1, idealAspectRatio: "ideal" },
+      },
+    }],
   }, {
     id: "m1-02-02",
     resultsObjectId: "M1_output_completeness.csv",
@@ -312,6 +330,40 @@ export const definition = {
           "Désagréger par zone administrative pour identifier les régions avec des défis de déclaration.",
       },
     },
+    vizPresets: [{
+      id: "completeness-table",
+      label: { en: "Completeness table by region", fr: "Completeness table by region" },
+      description: { en: "Table showing completeness by indicator and region", fr: "Table showing completeness by indicator and region" },
+      config: {
+        d: {
+          type: "table",
+          periodOpt: "period_id",
+          valuesDisDisplayOpt: "col",
+          disaggregateBy: [
+            { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+            { disOpt: "admin_area_2", disDisplayOpt: "row" },
+          ],
+          filterBy: [],
+        },
+        s: { content: "lines", conditionalFormatting: "fmt-90-80", decimalPlaces: 1, idealAspectRatio: "ideal" },
+      },
+    }, {
+      id: "completeness-timeseries",
+      label: { en: "Completeness over time", fr: "Completeness over time" },
+      description: { en: "Area chart showing completeness trends over time by indicator", fr: "Area chart showing completeness trends over time by indicator" },
+      config: {
+        d: {
+          type: "timeseries",
+          periodOpt: "period_id",
+          valuesDisDisplayOpt: "series",
+          disaggregateBy: [
+            { disOpt: "indicator_common_id", disDisplayOpt: "row" },
+          ],
+          filterBy: [],
+        },
+        s: { content: "areas", decimalPlaces: 1, idealAspectRatio: "video" },
+      },
+    }],
   }, {
     id: "m1-03-01",
     resultsObjectId: "M1_output_consistency_geo.csv",
@@ -380,6 +432,24 @@ export const definition = {
           "Toujours désagréger par ratio_type car chaque contrôle de cohérence a des implications différentes.",
       },
     },
+    vizPresets: [{
+      id: "consistency-table",
+      label: { en: "Internal consistency table", fr: "Internal consistency table" },
+      description: { en: "Table showing consistency by ratio type and region", fr: "Table showing consistency by ratio type and region" },
+      config: {
+        d: {
+          type: "table",
+          periodOpt: "period_id",
+          valuesDisDisplayOpt: "col",
+          disaggregateBy: [
+            { disOpt: "ratio_type", disDisplayOpt: "col" },
+            { disOpt: "admin_area_2", disDisplayOpt: "row" },
+          ],
+          filterBy: [],
+        },
+        s: { content: "lines", conditionalFormatting: "fmt-90-80", decimalPlaces: 1, idealAspectRatio: "ideal" },
+      },
+    }],
   }, {
     id: "m1-04-01",
     resultsObjectId: "M1_output_dqa.csv",
@@ -445,6 +515,24 @@ export const definition = {
           "Désagréger par zone administrative pour identifier les régions nécessitant un soutien.",
       },
     },
+    vizPresets: [{
+      id: "dqa-score-table",
+      label: { en: "Overall DQA score table", fr: "Overall DQA score table" },
+      description: { en: "Table showing DQA scores by region and year", fr: "Table showing DQA scores by region and year" },
+      config: {
+        d: {
+          type: "table",
+          periodOpt: "period_id",
+          valuesDisDisplayOpt: "col",
+          disaggregateBy: [
+            { disOpt: "admin_area_2", disDisplayOpt: "row" },
+            { disOpt: "year", disDisplayOpt: "col" },
+          ],
+          filterBy: [],
+        },
+        s: { content: "lines", conditionalFormatting: "fmt-80-70", decimalPlaces: 1, idealAspectRatio: "ideal" },
+      },
+    }],
   }, {
     id: "m1-04-02",
     resultsObjectId: "M1_output_dqa.csv",
@@ -503,6 +591,24 @@ export const definition = {
         fr: "Désagréger par zone administrative pour comparaison régionale.",
       },
     },
+    vizPresets: [{
+      id: "mean-dqa-table",
+      label: { en: "Mean DQA score table", fr: "Mean DQA score table" },
+      description: { en: "Table showing mean DQA scores by region and year", fr: "Table showing mean DQA scores by region and year" },
+      config: {
+        d: {
+          type: "table",
+          periodOpt: "period_id",
+          valuesDisDisplayOpt: "col",
+          disaggregateBy: [
+            { disOpt: "admin_area_2", disDisplayOpt: "row" },
+            { disOpt: "year", disDisplayOpt: "col" },
+          ],
+          filterBy: [],
+        },
+        s: { content: "lines", conditionalFormatting: "fmt-80-70", decimalPlaces: 1, idealAspectRatio: "ideal" },
+      },
+    }],
   }, {
     id: "m1-05-01",
     resultsObjectId: "M1_output_outlier_list.csv",

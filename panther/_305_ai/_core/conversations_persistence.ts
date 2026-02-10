@@ -84,9 +84,7 @@ export function generateTitleFromMessage(message: string): string {
 }
 
 function lastActiveKey(scope: string | undefined): string {
-  return scope
-    ? `${LAST_ACTIVE_KEY_PREFIX}-${scope}`
-    : LAST_ACTIVE_KEY_PREFIX;
+  return scope ? `${LAST_ACTIVE_KEY_PREFIX}-${scope}` : LAST_ACTIVE_KEY_PREFIX;
 }
 
 export async function loadLastActiveConversationId(

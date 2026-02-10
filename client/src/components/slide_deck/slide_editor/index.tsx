@@ -1,6 +1,6 @@
 import { trackStore } from "@solid-primitives/deep";
-import type { Slide, CoverSlide, SectionSlide, ContentSlide, InstanceDetail, ProjectDetail, SlideDeckConfig } from "lib";
-import { getTextRenderingOptions, getMetricStaticData, t } from "lib";
+import type { Slide, CoverSlide, SectionSlide, ContentSlide, InstanceDetail, ProjectDetail, SlideDeckConfig, SlideType } from "lib";
+import { getTextRenderingOptions, getMetricStaticData, getSlideTitle, t } from "lib";
 import {
   AlertComponentProps,
   Button,
@@ -38,6 +38,7 @@ import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/po_cache";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { setShowAi, showAi } from "~/state/ui";
 import { useAIProjectContext } from "~/components/project_ai/context";
+import type { AIContext } from "~/components/project_ai/types";
 import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
 import { createIdGeneratorForLayout } from "~/utils/id_generation";
@@ -68,6 +69,7 @@ function updateBlockInLayout(
 type SlideEditorInnerProps = {
   projectId: string;
   deckId: string;
+  deckLabel: string;
   slideId: string;
   slide: Slide;
   lastUpdated: string;
@@ -75,6 +77,7 @@ type SlideEditorInnerProps = {
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
   deckConfig: SlideDeckConfig;
+  returnToContext?: AIContext;
 };
 
 type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
@@ -82,7 +85,7 @@ type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
 export function SlideEditor(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
-  const { aiContext } = useAIProjectContext();
+  const { aiContext, setAIContext } = useAIProjectContext();
 
   // No normalization needed - panther operations produce valid output
   const normalizedSlide = p.slide;
@@ -138,11 +141,24 @@ export function SlideEditor(p: Props) {
 
   onMount(() => {
     attemptGetPageInputs(unwrap(tempSlide));
+    setAIContext({
+      mode: "editing_slide",
+      slideId: p.slideId,
+      slideLabel: getSlideTitle(normalizedSlide),
+      slideType: normalizedSlide.type as SlideType,
+      deckId: p.deckId,
+      deckLabel: p.deckLabel,
+      getTempSlide: () => tempSlide,
+      setTempSlide,
+    });
   });
 
   onCleanup(() => {
     if (renderTimeout) {
       clearTimeout(renderTimeout);
+    }
+    if (p.returnToContext) {
+      setAIContext(p.returnToContext);
     }
   });
 

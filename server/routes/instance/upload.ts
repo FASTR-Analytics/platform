@@ -150,30 +150,33 @@ routesUpload.post(
   },
 );
 
-// HEAD /upload/:id - Get upload status
-// Note: Removing auth middleware temporarily to debug
-routesUpload.on("HEAD", "/upload/:id", async (c) => {
+// HEAD /upload/:id - Get upload status (TUS protocol resume check)
+//
+// IMPORTANT: This MUST be registered with .get(), NOT .on("HEAD", ...).
+//
+// Hono's internal dispatch converts all HEAD requests to GET before route matching
+// (see hono-base.js #dispatch method). This means:
+//   1. .on("HEAD", ...) routes NEVER match — the router never sees method "HEAD"
+//   2. .get() routes DO match HEAD requests — Hono dispatches HEAD as GET internally
+//   3. Hono automatically wraps the response with a null body for HEAD responses
+//   4. If no .get() handler exists, the request falls through to the catch-all
+//      app.get("*") redirect in main.ts, causing the TUS client to receive a 200
+//      with no Upload-Offset header, which breaks the TUS resume protocol
+//
+// No auth middleware is needed here — the TUS client sends HEAD to check upload
+// status before sending data, and this must work without authentication.
+// The CORS Access-Control-Expose-Headers for Upload-Offset etc. are handled
+// by the global CORS middleware in server/middleware/cors.ts.
+routesUpload.get("/upload/:id", async (c) => {
   const uploadId = c.req.param("id");
   const upload = uploads.get(uploadId);
-
-  console.log(`[HEAD] Upload ID: ${uploadId}, exists: ${!!upload}`);
-
-  const clientOrigin = Deno.env.get("CLIENT_ORIGIN") || "http://localhost:3000";
 
   if (!upload) {
     c.status(404);
     c.header("Tus-Resumable", "1.0.0");
-    // Also set CORS headers for 404 response
-    c.header("Access-Control-Allow-Origin", clientOrigin);
-    c.header("Access-Control-Allow-Credentials", "true");
-    c.header(
-      "Access-Control-Expose-Headers",
-      "Upload-Offset, Upload-Length, Tus-Resumable, Cache-Control",
-    );
-    return c.text("");
+    return c.body(null);
   }
 
-  // Get actual file size to determine offset
   const filePath = join(TUS_UPLOAD_DIR, uploadId);
   try {
     const fileInfo = await Deno.stat(filePath);
@@ -182,25 +185,12 @@ routesUpload.on("HEAD", "/upload/:id", async (c) => {
     upload.offset = 0;
   }
 
-  // Set status first
   c.status(200);
-
-  // Then set headers
   c.header("Upload-Offset", upload.offset.toString());
   c.header("Upload-Length", upload.size.toString());
   c.header("Tus-Resumable", "1.0.0");
   c.header("Cache-Control", "no-store");
-
-  // IMPORTANT: Explicitly set CORS headers for this response
-  c.header("Access-Control-Allow-Origin", clientOrigin);
-  c.header("Access-Control-Allow-Credentials", "true");
-  c.header(
-    "Access-Control-Expose-Headers",
-    "Upload-Offset, Upload-Length, Tus-Resumable, Cache-Control",
-  );
-
-  // Use c.text with empty string instead of c.body(null) for HEAD requests
-  return c.text("");
+  return c.body(null);
 });
 
 // PATCH /upload/:id - Upload chunk

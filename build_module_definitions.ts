@@ -223,6 +223,7 @@ function generateModuleMetadata(
       valueLabelReplacements?: Record<string, string>;
       requiredDisaggregationOptions: string[];
       postAggregationExpression?: any;
+      vizPresets?: any[];
     }
   > = {};
 
@@ -251,6 +252,7 @@ function generateModuleMetadata(
         valueLabelReplacements: metric.valueLabelReplacements,
         requiredDisaggregationOptions: metric.requiredDisaggregationOptions,
         postAggregationExpression: metric.postAggregationExpression,
+        vizPresets: metric.vizPresets,
       };
     }
 
@@ -307,7 +309,10 @@ function generateModuleMetadata(
       const postAgg = d.postAggregationExpression
         ? `, postAggregationExpression: ${JSON.stringify(d.postAggregationExpression)}`
         : "";
-      return `  "${metricId}": { label: "${d.label}"${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)}${postAgg} }`;
+      const vizPresets = d.vizPresets
+        ? `, vizPresets: ${JSON.stringify(d.vizPresets)}`
+        : "";
+      return `  "${metricId}": { label: "${d.label}"${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)}${postAgg}${vizPresets} }`;
     })
     .join(",\n");
 
@@ -372,6 +377,7 @@ export const METRIC_STATIC_DATA: Record<string, {
   valueLabelReplacements?: Record<string, string>;
   requiredDisaggregationOptions: string[];
   postAggregationExpression?: any;
+  vizPresets?: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; needsReplicant?: boolean; config: { d: any; s?: any; t?: any } }[];
 }> = {
 ${metricStaticDataCode},
 };

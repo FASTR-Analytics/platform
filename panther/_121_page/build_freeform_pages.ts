@@ -32,7 +32,9 @@ export function buildFreeformPages<T extends PageContentItem>(
       ? config.firstPageHeader
       : config.header;
 
-    const subHeader = isFirstPage && config.firstPageSubHeader
+    const subHeader = isFirstPage && config.skipHeaderOnFirstPage
+      ? undefined
+      : isFirstPage && config.firstPageSubHeader
       ? config.firstPageSubHeader
       : config.subHeader;
 

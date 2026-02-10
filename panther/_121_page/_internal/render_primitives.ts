@@ -30,6 +30,12 @@ export function renderPagePrimitives(
       case "line":
         rc.rLine(prim.points, prim.style);
         break;
+      default: {
+        const _exhaustive: never = prim;
+        throw new Error(
+          `Unknown primitive type: ${(_exhaustive as PagePrimitive).type}`,
+        );
+      }
     }
   }
 }

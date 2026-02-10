@@ -41,7 +41,12 @@ export function getToolsForDrafts(
       handler: async (input) => {
         const fig = input.figure;
         if (fig.type === "from_metric") {
-          await resolveFigureFromMetric(projectId, fig, metrics);
+          try {
+            await resolveFigureFromMetric(projectId, fig, metrics);
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            throw new Error(`Failed to create visualization from metric "${fig.metricId}" with preset "${fig.vizPresetId}": ${errMsg}`);
+          }
         }
         return "Visualization preview displayed to user.";
       },
@@ -79,7 +84,12 @@ export function getToolsForDrafts(
             if (block.type === "text") {
               validateNoMarkdownTables(block.markdown);
             } else if (block.type === "from_metric") {
-              await resolveFigureFromMetric(projectId, block, metrics);
+              try {
+                await resolveFigureFromMetric(projectId, block, metrics);
+              } catch (err) {
+                const errMsg = err instanceof Error ? err.message : String(err);
+                throw new Error(`Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`);
+              }
             }
           }
         }

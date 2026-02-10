@@ -22,10 +22,11 @@ export function renderFreeform(
     });
   }
 
-  // Render header/footer primitives
-  renderPagePrimitives(rc, measured.primitives);
+  renderPagePrimitives(
+    rc,
+    measured.primitives.filter((p) => p.id !== "freeformWatermark"),
+  );
 
-  // Render content
   renderContent(
     rc,
     {
@@ -39,12 +40,15 @@ export function renderFreeform(
     s,
   );
 
-  if (inputs.watermark) {
-    const mText = rc.mText(
-      inputs.watermark,
-      s.text.watermark,
-      measured.bounds.w(),
+  const watermarkPrim = measured.primitives.find(
+    (p) => p.id === "freeformWatermark",
+  );
+  if (watermarkPrim && watermarkPrim.type === "text") {
+    rc.rText(
+      watermarkPrim.mText,
+      [watermarkPrim.x, watermarkPrim.y],
+      watermarkPrim.hAlign,
+      watermarkPrim.vAlign,
     );
-    rc.rText(mText, measured.bounds.centerCoords(), "center", "center");
   }
 }

@@ -15,7 +15,7 @@ import {
   getMetricStaticData,
   getNextAvailableDisaggregationDisplayOption,
 } from "lib";
-import { validateAiMetricQuery } from "~/components/project_ai/ai_tools/validators/content_validators";
+import { validateAiMetricQuery, validatePresetOverrides } from "~/components/project_ai/ai_tools/validators/content_validators";
 
 type BuildConfigResult =
   | { success: true; resultsValue: MetricWithStatus; resultsValueForViz: ResultsValueForVisualization; config: PresentationObjectConfig }
@@ -23,10 +23,76 @@ type BuildConfigResult =
 
 const TIME_BASED_DISAGGREGATIONS = ["year", "month", "quarter_id", "period_id", "time_point"];
 
-function transformInput(rawInput: AiFigureFromMetric | AiCreateVisualizationInput): AiFigureFromMetric | AiCreateVisualizationInput {
+export function buildConfigFromMetric(
+  input: AiFigureFromMetric | AiCreateVisualizationInput,
+  metrics: MetricWithStatus[],
+): BuildConfigResult {
+  if ("vizPresetId" in input) {
+    return buildConfigFromPreset(input, metrics);
+  }
+  return buildConfigFromQuery(input, metrics);
+}
+
+function buildConfigFromPreset(
+  input: AiFigureFromMetric,
+  metrics: MetricWithStatus[],
+): BuildConfigResult {
+  const { metricId, vizPresetId } = input;
+  const resultsValue = metrics.find(m => m.id === metricId);
+
+  if (!resultsValue) {
+    return { success: false, error: `Metric "${metricId}" not found` };
+  }
+
+  const staticData = getMetricStaticData(metricId);
+  const preset = staticData.vizPresets?.find(p => p.id === vizPresetId);
+
+  if (!preset) {
+    const available = staticData.vizPresets?.map(p => p.id).join(", ") || "none";
+    return { success: false, error: `Viz preset "${vizPresetId}" not found for metric "${metricId}". Available presets: ${available}` };
+  }
+
+  // Validate overrides before applying
+  validatePresetOverrides(metricId, input.filterOverrides, input.periodFilterOverride, resultsValue);
+
+  const resultsValueForViz: ResultsValueForVisualization = {
+    formatAs: resultsValue.formatAs,
+    valueProps: resultsValue.valueProps,
+    valueLabelReplacements: resultsValue.valueLabelReplacements,
+  };
+
+  const config: PresentationObjectConfig = {
+    d: { ...preset.config.d },
+    s: { ...DEFAULT_S_CONFIG, ...preset.config.s },
+    t: { ...DEFAULT_T_CONFIG, ...preset.config.t, caption: input.chartTitle },
+  };
+
+  if (input.selectedReplicant) {
+    config.d.selectedReplicantValue = input.selectedReplicant;
+  }
+
+  if (input.filterOverrides) {
+    config.d.filterBy = input.filterOverrides.map(f => ({
+      disOpt: f.col as DisaggregationOption,
+      values: f.vals,
+    }));
+  }
+
+  if (input.periodFilterOverride) {
+    config.d.periodFilter = {
+      filterType: "custom",
+      periodOption: input.periodFilterOverride.periodOption,
+      min: input.periodFilterOverride.min,
+      max: input.periodFilterOverride.max,
+    };
+  }
+
+  return { success: true, resultsValue, resultsValueForViz, config };
+}
+
+function transformQueryInput(rawInput: AiCreateVisualizationInput): AiCreateVisualizationInput {
   const { metricQuery } = rawInput;
 
-  // Special handling for m3-01-01: default to count_final_both if no valuesFilter specified
   if (metricQuery.metricId === "m3-01-01" && (!metricQuery.valuesFilter || metricQuery.valuesFilter.length === 0)) {
     return {
       ...rawInput,
@@ -40,22 +106,17 @@ function transformInput(rawInput: AiFigureFromMetric | AiCreateVisualizationInpu
   return rawInput;
 }
 
-export function buildConfigFromMetric(
-  rawInput: AiFigureFromMetric | AiCreateVisualizationInput,
+function buildConfigFromQuery(
+  rawInput: AiCreateVisualizationInput,
   metrics: MetricWithStatus[],
 ): BuildConfigResult {
-  // console.log("AI INPUT", input);
-
-  const input = transformInput(rawInput)
+  const input = transformQueryInput(rawInput);
 
   const metricId = input.metricQuery.metricId;
   const resultsValue = metrics.find(m => m.id === metricId);
 
   if (!resultsValue) {
-    return {
-      success: false,
-      error: `Metric "${metricId}" not found`,
-    };
+    return { success: false, error: `Metric "${metricId}" not found` };
   }
 
   validateAiMetricQuery(input.metricQuery, resultsValue);
@@ -117,9 +178,6 @@ export function buildConfigFromMetric(
       caption: input.chartTitle
     }
   };
-
-  // console.log("AI RV", resultsValueForViz);
-  // console.log("AI METRIC", config);
 
   assignDisaggregationsToSlots(
     resultsValueForViz,
