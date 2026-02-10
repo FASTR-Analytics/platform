@@ -1,4 +1,4 @@
-import type { AssetInfo } from "lib";
+import { t3, type AssetInfo } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -96,15 +96,15 @@ export function AIDocumentSelectorModal(
   return (
     <AlertFormHolder
       formId="ai-document-selector"
-      header="Include PDF documents for the AI to consider"
+      header={t3({ en: "Include PDF documents for the AI to consider", fr: "Inclure des documents PDF pour l'IA" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      saveButtonText="Include selected"
+      saveButtonText={t3({ en: "Include selected", fr: "Inclure la sélection" })}
     >
       <Show when={isLoading()}>
         <div class="flex justify-center py-4">
-          <Loading msg="Loading assets..." noPad />
+          <Loading msg={t3({ en: "Loading assets...", fr: "Chargement des ressources..." })} noPad />
         </div>
       </Show>
 
@@ -113,9 +113,9 @@ export function AIDocumentSelectorModal(
           when={pdfAssets().length > 0}
           fallback={
             <div class="py-4 text-center text-base-content/60">
-              No PDF files found in assets.
+              {t3({ en: "No PDF files found in assets.", fr: "Aucun fichier PDF trouvé dans les ressources." })}
               <br />
-              Upload PDFs to the assets folder first.
+              {t3({ en: "Upload PDFs to the assets folder first.", fr: "Téléversez d'abord des PDF dans le dossier des ressources." })}
             </div>
           }
         >

@@ -214,6 +214,11 @@ export type MetricDefinition = {
   hide?: boolean;
 };
 
+export type MetricDefinitionJSON = Omit<MetricDefinition, "label" | "variantLabel"> & {
+  label: TranslatableString;
+  variantLabel?: TranslatableString;
+};
+
 // Alias for backwards compatibility
 export type TranslatableAIString = TranslatableString;
 
@@ -273,6 +278,7 @@ export type DefaultPresentationObject = {
   label: string;
   moduleId: string;
   metricId: string;
+  sortOrder: number;
   config: PresentationObjectConfig;
 };
 
@@ -296,8 +302,10 @@ export type ResultsObjectDefinitionJSON = Omit<ResultsObjectDefinition, "moduleI
 // id and lastScriptUpdate are inferred/added during build
 export type ModuleDefinitionJSON = Omit<
   ModuleDefinition,
-  "id" | "script" | "lastScriptUpdate" | "resultsObjects" | "defaultPresentationObjects" | "commitSha"
+  "id" | "script" | "lastScriptUpdate" | "resultsObjects" | "defaultPresentationObjects" | "commitSha" | "label" | "metrics"
 > & {
+  label: TranslatableString;
+  metrics: MetricDefinitionJSON[];
   resultsObjects: ResultsObjectDefinitionJSON[];
 };
 

@@ -6,7 +6,7 @@ import {
 } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { isFrench, t, t2, T } from "lib";
+import { isFrench, t3, TC } from "lib";
 
 export function AddUserForm(
   p: AlertComponentProps<{ silentFetch: () => Promise<void> }, undefined>,
@@ -31,7 +31,7 @@ export function AddUserForm(
       e.preventDefault();
       const goodEmails = goodEmailList().map((str) => str.toLowerCase());
       if (goodEmails.length === 0) {
-        return { success: false, err: t("You must enter at least one email") };
+        return { success: false, err: t3({ en: "You must enter at least one email", fr: "Vous devez saisir au moins un e-mail" }) };
       }
       return serverActions.addUsers({
         emails: goodEmails,
@@ -45,14 +45,14 @@ export function AddUserForm(
   return (
     <AlertFormHolder
       formId="add-user"
-      header={t2(T.FRENCH_UI_STRINGS.add_new_user)}
+      header={t3({ en: "Add new user", fr: "Ajouter un utilisateur" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
       french={isFrench()}
     >
       <TextArea
-        label={t2(T.FRENCH_UI_STRINGS.email)}
+        label={t3(TC.email)}
         value={tempEmail()}
         onChange={setTempEmail}
         fullWidth
@@ -60,9 +60,7 @@ export function AddUserForm(
         height="150px"
       />
       <div class="text-xs">
-        {t(
-          "Add multiple emails, separated by a comma, semicolon, or line break.",
-        )}
+        {t3({ en: "Add multiple emails, separated by a comma, semicolon, or line break.", fr: "Ajouter plusieurs e-mails (séparés par virgule, point-virgule ou saut de ligne)" })}
       </div>
       <Show when={goodEmailList().length > 0}>
         <div class="">

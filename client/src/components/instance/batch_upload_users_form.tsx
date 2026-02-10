@@ -1,6 +1,6 @@
 import type Uppy from "@uppy/core";
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { t, t2, T } from "lib";
+import { t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import {
   Button,
@@ -31,7 +31,7 @@ export function BatchUploadUsersForm(p: Props) {
 
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
-    t2(T.FRENCH_UI_STRINGS.loading_asset_files),
+    t3(TC.loadingAssets),
   );
 
   function updateSelectedFileName(fileName: string) {
@@ -43,7 +43,7 @@ export function BatchUploadUsersForm(p: Props) {
       const assetFileName = selectedFileName();
 
       if (!assetFileName) {
-        return { success: false, err: t("You must select a CSV file") };
+        return { success: false, err: t3({ en: "You must select a CSV file", fr: "Vous devez sélectionner un fichier CSV" }) };
       }
 
       return serverActions.batchUploadUsers({
@@ -82,24 +82,24 @@ export function BatchUploadUsersForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeaderBarCanGoBack
-          heading={t("Batch import users")}
+          heading={t3({ en: "Batch import users", fr: "Importation groupée d'utilisateurs" })}
           back={() => p.close(undefined)}
         />
       }
     >
       <div class="ui-pad ui-spy">
         <div class="text-sm">
-          {t("Upload a CSV file with the following headers:")}
+          {t3({ en: "Upload a CSV file with the following headers:", fr: "Téléversez un fichier CSV avec les en-têtes suivants :" })}
           <span class="font-700 ml-3 font-mono">email, is_global_admin</span>
         </div>
 
         <div class="text-sm text-gray-600">
-          {t("Example:")} <span class="font-mono">user@example.com,false</span>
+          {t3({ en: "Example:", fr: "Exemple :" })} <span class="font-mono">user@example.com,false</span>
         </div>
 
         <div class="">
           <Button id="select-csv-file-button" iconName="upload">
-            {t("Upload new CSV file")}
+            {t3({ en: "Upload new CSV file", fr: "Téléverser un nouveau fichier CSV" })}
           </Button>
         </div>
 
@@ -108,7 +108,7 @@ export function BatchUploadUsersForm(p: Props) {
             {(keyedAssets) => {
               return (
                 <Select
-                  label={t("Or select existing CSV file")}
+                  label={t3({ en: "Or select existing CSV file", fr: "Ou sélectionner un fichier CSV existant" })}
                   options={getSelectOptions(
                     keyedAssets.filter((a) => a.isCsv).map((a) => a.fileName),
                   )}
@@ -123,7 +123,7 @@ export function BatchUploadUsersForm(p: Props) {
 
         <div class="">
           <Checkbox
-            label={t("Replace all existing users (DANGEROUS)")}
+            label={t3({ en: "Replace all existing users (DANGEROUS)", fr: "Remplacer tous les utilisateurs existants (DANGEREUX)" })}
             checked={replaceAllExisting()}
             onChange={setReplaceAllExisting}
           />
@@ -139,10 +139,10 @@ export function BatchUploadUsersForm(p: Props) {
             disabled={!selectedFileName()}
             iconName="upload"
           >
-            {t("Process CSV")}
+            {t3({ en: "Process CSV", fr: "Traiter le CSV" })}
           </Button>
           <Button onClick={() => p.close(undefined)} intent="neutral">
-            {t2(T.FRENCH_UI_STRINGS.cancel)}
+            {t3(TC.cancel)}
           </Button>
         </div>
       </div>

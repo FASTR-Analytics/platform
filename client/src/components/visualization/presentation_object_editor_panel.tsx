@@ -3,9 +3,7 @@ import {
   PresentationObjectDetail,
   ProjectDetail,
   ResultsValueInfoForPresentationObject,
-  t,
-  t2,
-  T,
+  t3,
 } from "lib";
 import { Match, Switch, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
@@ -33,21 +31,21 @@ export function PresentationObjectEditorPanel(p: Props) {
           onClick={() => setTab("data")}
           data-selected={tab() === "data"}
         >
-          {t2(T.FRENCH_UI_STRINGS.data)}
+          {t3({ en: "Data", fr: "Données" })}
         </div>
         <div
           class="ui-hoverable flex-1 border-r py-2 text-center data-[selected=true]:bg-base-200"
           onClick={() => setTab("style")}
           data-selected={tab() === "style"}
         >
-          {t2(T.FRENCH_UI_STRINGS.presentation)}
+          {t3({ en: "Presentation", fr: "Présentation" })}
         </div>
         <div
           class="ui-hoverable flex-1 py-2 text-center data-[selected=true]:bg-base-200"
           onClick={() => setTab("text")}
           data-selected={tab() === "text"}
         >
-          {t2(T.FRENCH_UI_STRINGS.text)}
+          {t3({ en: "Text", fr: "Texte" })}
         </div>
       </div>
       <div class="h-0 w-full flex-1">

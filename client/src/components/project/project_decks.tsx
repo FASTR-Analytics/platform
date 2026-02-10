@@ -3,7 +3,8 @@ import {
   SlideDeckGroupingMode,
   SlideDeckSummary,
   isFrench,
-  t,
+  t3,
+  TC,
 } from "lib";
 import {
   Button,
@@ -37,10 +38,12 @@ import {
 } from "~/state/ui";
 import { serverActions } from "~/server_actions";
 
-const GROUPING_OPTIONS: { value: SlideDeckGroupingMode; label: string }[] = [
-  { value: "folders", label: "By folder" },
-  { value: "flat", label: "Flat list" },
-];
+function getGroupingOptions(): { value: SlideDeckGroupingMode; label: string }[] {
+  return [
+    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier" }) },
+    { value: "flat", label: t3({ en: "Flat list", fr: "Liste simple" }) },
+  ];
+}
 
 type GroupOption = {
   value: string;
@@ -104,7 +107,7 @@ export function ProjectDecks(p: ExtendedProps) {
       case "folders": {
         const generalCount = decks.filter((d) => d.folderId === null).length;
         const groups: GroupOption[] = [
-          { value: "_unfiled", label: "General", count: generalCount },
+          { value: "_unfiled", label: t3(TC.general), count: generalCount },
         ];
         groups.push(
           ...projectDetail.slideDeckFolders.map((f) => ({
@@ -118,7 +121,7 @@ export function ProjectDecks(p: ExtendedProps) {
       }
       case "flat":
         return [
-          { value: "_all", label: "All Slide Decks", count: decks.length },
+          { value: "_all", label: t3({ en: "All slide decks", fr: "Toutes les présentations" }), count: decks.length },
         ];
       default:
         return [];
@@ -291,8 +294,8 @@ export function ProjectDecks(p: ExtendedProps) {
 
     const confirmText =
       idsToDelete.length > 1
-        ? `Are you sure you want to delete ${idsToDelete.length} slide decks?`
-        : "Are you sure you want to delete this slide deck?";
+        ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} slide decks?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} présentations ?` })
+        : t3({ en: "Are you sure you want to delete this slide deck?", fr: "Êtes-vous sûr de vouloir supprimer cette présentation ?" });
 
     const deleteAction = timActionDelete(
       confirmText,
@@ -327,22 +330,22 @@ export function ProjectDecks(p: ExtendedProps) {
     const items: MenuItem[] = [
       {
         label: isMultiSelect
-          ? `Move ${count} decks to folder...`
-          : "Move to folder...",
+          ? t3({ en: `Move ${count} decks to folder...`, fr: `Déplacer ${count} présentations vers un dossier...` })
+          : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier..." }),
         icon: "folder",
         onClick: () => handleMoveToFolder(deck),
       },
       {
         label: isMultiSelect
-          ? `Duplicate ${count} decks...`
-          : "Duplicate...",
+          ? t3({ en: `Duplicate ${count} decks...`, fr: `Dupliquer ${count} présentations...` })
+          : t3({ en: "Duplicate...", fr: "Dupliquer..." }),
         icon: "copy",
         onClick: () => handleDuplicate(deck),
       },
       {
         label: isMultiSelect
-          ? `Delete ${count} decks`
-          : "Delete",
+          ? t3({ en: `Delete ${count} decks`, fr: `Supprimer ${count} présentations` })
+          : t3(TC.delete),
         icon: "trash",
         intent: "danger",
         onClick: () => handleDelete(deck),
@@ -363,7 +366,7 @@ export function ProjectDecks(p: ExtendedProps) {
 
     const items: MenuItem[] = [
       {
-        label: "Rename / Change color...",
+        label: t3({ en: "Rename / Change color...", fr: "Renommer / Changer la couleur..." }),
         icon: "pencil",
         onClick: async () => {
           await openComponent({
@@ -376,12 +379,12 @@ export function ProjectDecks(p: ExtendedProps) {
         },
       },
       {
-        label: "Delete folder",
+        label: t3({ en: "Delete folder", fr: "Supprimer le dossier" }),
         icon: "trash",
         intent: "danger",
         onClick: async () => {
           const deleteAction = timActionDelete(
-            "Are you sure you want to delete this folder? Slide decks will be moved to General.",
+            t3({ en: "Are you sure you want to delete this folder? Slide decks will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les présentations seront déplacées dans Général." }),
             () =>
               serverActions.deleteSlideDeckFolder({
                 projectId: projectDetail.id,
@@ -449,14 +452,14 @@ export function ProjectDecks(p: ExtendedProps) {
       return;
     }
     const deck = projectDetail.slideDecks.find((d) => d.id === res.newDeckId);
-    await openDeck(res.newDeckId, deck?.label || "Slide Deck");
+    await openDeck(res.newDeckId, deck?.label || t3({ en: "Slide deck", fr: "Présentation" }));
   }
 
   return (
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading="Slide decks"
+          heading={t3({ en: "Slide decks", fr: "Présentations" })}
           searchText={searchText()}
           setSearchText={setSearchText}
           french={isFrench()}
@@ -469,7 +472,7 @@ export function ProjectDecks(p: ExtendedProps) {
             }
           >
             <Button onClick={attemptAddDeck} iconName="plus">
-              Create slide deck
+              {t3({ en: "Create slide deck", fr: "Créer une présentation" })}
             </Button>
           </Show>
         </HeadingBar>
@@ -479,9 +482,7 @@ export function ProjectDecks(p: ExtendedProps) {
         when={projectDetail.projectModules.length > 0}
         fallback={
           <div class="ui-pad text-neutral text-sm">
-            {t(
-              "You need to enable at least one module to create slide decks",
-            )}
+            {t3({ en: "You need to enable at least one module to create slide decks", fr: "Vous devez activer au moins un module pour créer des présentations" })}
           </div>
         }
       >
@@ -493,7 +494,7 @@ export function ProjectDecks(p: ExtendedProps) {
             <div class="border-base-300 flex h-full w-full flex-col border-r">
               <div class="border-base-300 border-b p-3">
                 <Select
-                  options={GROUPING_OPTIONS}
+                  options={getGroupingOptions()}
                   value={deckGroupingMode()}
                   onChange={(v) =>
                     setDeckGroupingMode(v as SlideDeckGroupingMode)
@@ -522,7 +523,7 @@ export function ProjectDecks(p: ExtendedProps) {
                         });
                       }}
                     >
-                      New folder
+                      {t3({ en: "New folder", fr: "Nouveau dossier" })}
                     </Button>
                   </div>
                 </Show>
@@ -539,8 +540,8 @@ export function ProjectDecks(p: ExtendedProps) {
               fallback={
                 <div class="text-neutral text-sm">
                   {searchText().length >= 3
-                    ? "No matching decks"
-                    : "No slide decks yet"}
+                    ? t3({ en: "No matching decks", fr: "Aucune présentation correspondante" })
+                    : t3({ en: "No slide decks yet", fr: "Aucune présentation pour le moment" })}
                 </div>
               }
             >
@@ -593,7 +594,7 @@ export function ProjectDecks(p: ExtendedProps) {
                             class="bg-base-200 flex items-center justify-center"
                             style={{ "aspect-ratio": "16/9" }}
                           >
-                            <span class="text-neutral text-xs">No slides</span>
+                            <span class="text-neutral text-xs">{t3({ en: "No slides", fr: "Aucune diapositive" })}</span>
                           </div>
                         }
                       >

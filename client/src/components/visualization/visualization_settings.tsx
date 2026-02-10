@@ -1,4 +1,4 @@
-import { APIResponseNoData, isFrench, t, t2, T, VisualizationFolder } from "lib";
+import { APIResponseNoData, isFrench, t3, TC, VisualizationFolder } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -33,7 +33,7 @@ export function VisualizationSettings(
   const [tempFolderId, setTempFolderId] = createSignal<string>(p.currentFolderId ?? "_none");
 
   const folderOptions = () => [
-    { value: "_none", label: t("General") },
+    { value: "_none", label: t3(TC.general) },
     ...p.folders.map((f) => ({ value: f.id, label: f.label })),
   ];
 
@@ -42,7 +42,7 @@ export function VisualizationSettings(
       e.preventDefault();
       const goodLabel = tempLabel().trim();
       if (!goodLabel) {
-        return { success: false, err: t("You must enter a name") };
+        return { success: false, err: t3(TC.mustEnterName) };
       }
       const newFolderId = tempFolderId() === "_none" ? null : tempFolderId();
       const folderChanged = newFolderId !== p.currentFolderId;
@@ -96,24 +96,24 @@ export function VisualizationSettings(
   return (
     <AlertFormHolder
       formId="visualization-settings"
-      header={t2("Visualization settings")}
+      header={t3({ en: "Visualization settings", fr: "Paramètres de la visualisation" })}
       savingState={p.isDefault ? undefined : save.state()}
       saveFunc={p.isDefault ? undefined : save.click}
       cancelFunc={closeButton}
-      cancelButtonText={t2(p.isDefault ? "Close" : "Cancel")}
+      cancelButtonText={p.isDefault ? t3({ en: "Close", fr: "Fermer" }) : t3(TC.cancel)}
       french={isFrench()}
     >
       <div class="ui-spy">
         <Show when={!p.isDefault}>
           <Input
-            label={t2(T.FRENCH_UI_STRINGS.visualization_name)}
+            label={t3({ en: "Visualization name", fr: "Nom de la visualisation" })}
             value={tempLabel()}
             onChange={setTempLabel}
             fullWidth
             autoFocus
           />
           <Select
-            label={t("Folder")}
+            label={t3(TC.folder)}
             options={folderOptions()}
             value={tempFolderId()}
             onChange={setTempFolderId}
@@ -123,7 +123,7 @@ export function VisualizationSettings(
 
         <div class="border-base-300 rounded border ui-pad ui-spy-sm">
           <div class="text-xs text-base-content/70">
-            {t2("Clear cached data for this visualization. Use this if the visualization is showing stale data.")}
+            {t3({ en: "Clear cached data for this visualization. Use this if the visualization is showing stale data.", fr: "Effacer les données mises en cache pour cette visualisation. Utilisez cette option si la visualisation affiche des données obsolètes." })}
           </div>
           <div class="">
 
@@ -134,7 +134,7 @@ export function VisualizationSettings(
               outline
               type="button"
             >
-              {t2("Clear cache")}
+              {t3({ en: "Clear cache", fr: "Vider le cache" })}
             </Button>
           </div>
         </div>

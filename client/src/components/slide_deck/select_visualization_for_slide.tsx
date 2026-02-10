@@ -17,9 +17,8 @@ import {
   ProjectDetail,
   getReplicateByProp,
   isFrench,
-  t2,
-  T,
-  t,
+  t3,
+  TC,
 } from "lib";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
 
@@ -41,7 +40,7 @@ export function SelectVisualizationForSlide(
   async function save() {
     const presObjSummary = selectedPresObj();
     if (presObjSummary === undefined) {
-      await openAlert({ text: t("You must select a visualization in order to save") });
+      await openAlert({ text: t3({ en: "You must select a visualization in order to save", fr: "Vous devez sélectionner une visualisation pour sauvegarder" }) });
       return;
     }
     const resPoDetail = await getPODetailFromCacheorFetch(p.projectDetail.id, presObjSummary.id);
@@ -52,7 +51,7 @@ export function SelectVisualizationForSlide(
     const replicateBy = getReplicateByProp(resPoDetail.data.config);
     const goodSelectedReplicant = selectedReplicant();
     if (replicateBy && !goodSelectedReplicant) {
-      await openAlert({ text: t2(T.FRENCH_UI_STRINGS.you_must_select_a_replicant), intent: "danger" });
+      await openAlert({ text: t3({ en: "You must select a replicant", fr: "Un réplicant doit être sélectionné" }), intent: "danger" });
       return;
     }
     p.close({
@@ -65,17 +64,17 @@ export function SelectVisualizationForSlide(
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={t2(T.FRENCH_UI_STRINGS.select_visualization)}
+          heading={t3({ en: "Select visualization", fr: "Sélectionner la visualisation" })}
           searchText={searchText()}
           setSearchText={setSearchText}
           french={isFrench()}
         >
           <div class="ui-gap-sm flex">
             <Button onClick={save} intent="success" disabled={!selectedPresObj()} iconName="check">
-              {t2(T.FRENCH_UI_STRINGS.select)}
+              {t3({ en: "Select", fr: "Sélectionner" })}
             </Button>
             <Button onClick={() => p.close(undefined)} intent="neutral" iconName="x">
-              {t2(T.FRENCH_UI_STRINGS.cancel)}
+              {t3(TC.cancel)}
             </Button>
           </div>
         </HeadingBar>
@@ -92,7 +91,7 @@ export function SelectVisualizationForSlide(
         <div class="ui-pad bg-primary w-1/3 overflow-auto">
           <Show
             when={selectedPresObj()}
-            fallback={<div class="text-base-100">{t2(T.FRENCH_UI_STRINGS.select_a_visualization)}</div>}
+            fallback={<div class="text-base-100">{t3({ en: "Select a visualization", fr: "Sélectionner une visualisation" })}</div>}
             keyed
           >
             {(kP) => (
@@ -122,7 +121,7 @@ type SideProps = {
 function Side(p: SideProps) {
   const poDetail = timQuery(async () => {
     return await getPODetailFromCacheorFetch(p.projectId, p.presObjId);
-  }, t2(T.FRENCH_UI_STRINGS.loading_1));
+  }, t3(TC.loading));
 
   return (
     <StateHolderWrapper state={poDetail.state()}>
@@ -141,7 +140,7 @@ function Side(p: SideProps) {
           <Show when={getReplicateByProp(keyedPoDetail.config)} keyed>
             {(keyedReplicateBy) => (
               <div>
-                <div class="pb-1">{t2(T.FRENCH_UI_STRINGS.replicant)}</div>
+                <div class="pb-1">{t3({ en: "Replicant", fr: "Réplicant" })}</div>
                 <ReplicateByOptionsPresentationObjectSelect
                   replicateBy={keyedReplicateBy}
                   config={keyedPoDetail.config}

@@ -12,13 +12,13 @@ export function StructureWithCsv(p: Props) {
     StateHolder<ItemsHolderStructure>
   >({
     status: "loading",
-    msg: t2(T.FRENCH_UI_STRINGS.fetching_data),
+    msg: t3(TC.fetchingData),
   });
 
   async function attemptGeStructureItems() {
     seStructureItems({
       status: "loading",
-      msg: t2(T.FRENCH_UI_STRINGS.fetching_data),
+      msg: t3(TC.fetchingData),
     });
     const res = await serverActions.getStructureItems({});
     if (res.success === false) {

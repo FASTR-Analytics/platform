@@ -1,4 +1,4 @@
-import { ResultsValue, t, t2 } from "lib";
+import { ResultsValue, t2, t3 } from "lib";
 import { Button, ModalContainer, type AlertComponentProps } from "panther";
 import { For, Show } from "solid-js";
 
@@ -32,7 +32,7 @@ export function MetricDetailsModal(
         // eslint-disable-next-line jsx-key
         [
           <Button onClick={() => p.close(undefined)} iconName="x">
-            {t("Close")}
+            {t3({ en: "Close", fr: "Fermer" })}
           </Button>,
         ]
       }
@@ -40,24 +40,24 @@ export function MetricDetailsModal(
       <Show when={p.metric.aiDescription}>
         <div class="bg-base-200 ui-spy-sm rounded p-3">
           <div>
-            <div class="font-700 text-sm">{t("Summary")}</div>
+            <div class="font-700 text-sm">{t3({ en: "Summary", fr: "Résumé" })}</div>
             <div class="text-sm">{t2(p.metric.aiDescription!.summary)}</div>
           </div>
           <div>
-            <div class="font-700 text-sm">{t("Methodology")}</div>
+            <div class="font-700 text-sm">{t3({ en: "Methodology", fr: "Méthodologie" })}</div>
             <div class="text-sm">{t2(p.metric.aiDescription!.methodology)}</div>
           </div>
           <div>
-            <div class="font-700 text-sm">{t("Interpretation")}</div>
+            <div class="font-700 text-sm">{t3({ en: "Interpretation", fr: "Interprétation" })}</div>
             <div class="text-sm">{t2(p.metric.aiDescription!.interpretation)}</div>
           </div>
           <div>
-            <div class="font-700 text-sm">{t("Typical range")}</div>
+            <div class="font-700 text-sm">{t3({ en: "Typical range", fr: "Plage typique" })}</div>
             <div class="text-sm">{t2(p.metric.aiDescription!.typicalRange)}</div>
           </div>
           <Show when={p.metric.aiDescription!.caveats}>
             <div>
-              <div class="font-700 text-sm">{t("Caveats")}</div>
+              <div class="font-700 text-sm">{t3({ en: "Caveats", fr: "Mises en garde" })}</div>
               <div class="text-sm">{t2(p.metric.aiDescription!.caveats!)}</div>
             </div>
           </Show>
@@ -67,12 +67,12 @@ export function MetricDetailsModal(
       <div class="ui-spy-sm">
         <div class="ui-gap grid grid-cols-2">
           <div>
-            <div class="text-neutral font-700 text-xs">{t("Metric ID")}</div>
+            <div class="text-neutral font-700 text-xs">{t3({ en: "Metric ID", fr: "ID de la métrique" })}</div>
             <div class="font-mono text-sm">{p.metric.id}</div>
           </div>
           <div>
             <div class="text-neutral font-700 text-xs">
-              {t("Results object ID")}
+              {t3({ en: "Results object ID", fr: "ID de l'objet de résultats" })}
             </div>
             <div class="font-mono text-sm">{p.metric.resultsObjectId}</div>
           </div>
@@ -80,7 +80,7 @@ export function MetricDetailsModal(
 
         <div>
           <div class="text-neutral font-700 mb-1 text-xs">
-            {t("Value props")}
+            {t3({ en: "Value props", fr: "Propriétés de valeur" })}
           </div>
           <div class="ui-gap-sm flex flex-wrap">
             <For each={p.metric.valueProps}>
@@ -95,7 +95,7 @@ export function MetricDetailsModal(
 
         <div>
           <div class="text-neutral font-700 mb-1 text-xs">
-            {t("Value func")}
+            {t3({ en: "Value func", fr: "Fonction de valeur" })}
           </div>
           <div class="bg-base-200 font-mono rounded p-2 text-sm">
             {p.metric.valueFunc}
@@ -115,7 +115,7 @@ export function MetricDetailsModal(
 
         <div>
           <div class="text-neutral font-700 mb-1 text-xs">
-            {t("Period options")}
+            {t3({ en: "Period options", fr: "Options de période" })}
           </div>
           <div class="ui-gap-sm flex flex-wrap">
             <For each={p.metric.periodOptions}>
@@ -131,14 +131,14 @@ export function MetricDetailsModal(
         <Show when={p.metric.autoIncludeFacilityColumns}>
           <div class="bg-primary/10 text-primary ui-pad-sm rounded">
             <div class="font-700 text-sm">
-              {t("Auto include facility columns")}
+              {t3({ en: "Auto include facility columns", fr: "Inclure automatiquement les colonnes d'établissements" })}
             </div>
           </div>
         </Show>
 
         <div>
           <div class="text-neutral font-700 mb-1 text-xs">
-            {t("Disaggregation options")}
+            {t3({ en: "Disaggregation options", fr: "Options de désagrégation" })}
           </div>
           <div class="ui-gap-sm grid grid-cols-2">
             <For each={p.metric.disaggregationOptions}>
@@ -155,14 +155,14 @@ export function MetricDetailsModal(
                     </div>
                     <Show when={disOpt.allowedPresentationOptions}>
                       <div class="text-neutral mt-1 text-xs">
-                        {t("Allowed for")}:{" "}
+                        {t3({ en: "Allowed for", fr: "Autorisé pour" })}:{" "}
                         {disOpt.allowedPresentationOptions!.join(", ")}
                       </div>
                     </Show>
                   </div>
                   <Show when={disOpt.isRequired}>
                     <span class="bg-primary/10 text-primary rounded px-2 py-1 text-xs">
-                      {t("Required")}
+                      {t3({ en: "Required", fr: "Requis" })}
                     </span>
                   </Show>
                 </div>
@@ -174,7 +174,7 @@ export function MetricDetailsModal(
         <Show when={p.metric.valueLabelReplacements}>
           <div>
             <div class="text-neutral font-700 mb-1 text-xs">
-              {t("Value label replacements")}
+              {t3({ en: "Value label replacements", fr: "Remplacements des libellés de valeur" })}
             </div>
             <div class="ui-spy-sm">
               <For each={Object.entries(p.metric.valueLabelReplacements!)}>

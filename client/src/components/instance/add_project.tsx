@@ -1,4 +1,4 @@
-import { InstanceDetail, OtherUser, isFrench, t, t2, T } from "lib";
+import { InstanceDetail, OtherUser, isFrench, t3, getPossibleModules } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -52,7 +52,7 @@ export function AddProjectForm(
       e.preventDefault();
       const goodLabel = tempLabel().trim();
       if (!goodLabel) {
-        return { success: false, err: t("You must enter a project name") };
+        return { success: false, err: t3({ en: "You must enter a project name", fr: "Vous devez saisir un nom de projet" }) };
       }
 
       // const users = structuredClone(
@@ -77,7 +77,7 @@ export function AddProjectForm(
   return (
     <AlertFormHolder
       formId="add-project"
-      header={t2(T.FRENCH_UI_STRINGS.create_project)}
+      header={t3({ en: "Create project", fr: "Créer un projet" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -94,7 +94,7 @@ export function AddProjectForm(
         <Match when={true}> */}
       <div class="ui-spy">
         <Input
-          label={t2(T.FRENCH_UI_STRINGS.project_name)}
+          label={t3({ en: "Project name", fr: "Nom du projet" })}
           value={tempLabel()}
           onChange={setTempLabel}
           fullWidth
@@ -123,7 +123,7 @@ export function AddProjectForm(
                 />
                 <MultiSelect
                   label={t("Enable modules")}
-                  options={getSelectOptionsFromIdLabel(_POSSIBLE_MODULES)}
+                  options={getSelectOptionsFromIdLabel(getPossibleModules())}
                   values={tempModulesToEnable()}
                   onChange={setTempModulesToEnable}
                 />

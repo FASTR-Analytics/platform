@@ -1,9 +1,7 @@
 import {
   PresentationObjectDetail,
   get_PRESENTATION_OPTIONS_MAP,
-  t,
-  t2,
-  T,
+  t3,
 } from "lib";
 import { For } from "solid-js";
 
@@ -15,10 +13,10 @@ export function DataValuesSummary(p: DataValuesSummaryProps) {
   return (
     <div class="">
       <div class="text-md font-700 pb-1">
-        {t2(T.FRENCH_UI_STRINGS.data_values)}
+        {t3({ en: "Metric", fr: "Indicateur" })}
       </div>
-      <div class="pb-0.5 text-sm">{t2(p.poDetail.resultsValue.label)}</div>
-      <For each={p.poDetail.resultsValue.valueProps}>
+      <div class="text-sm">{p.poDetail.resultsValue.label}</div>
+      {/* <For each={p.poDetail.resultsValue.valueProps}>
         {(vp) => {
           return (
             <div class="text-sm">
@@ -27,7 +25,7 @@ export function DataValuesSummary(p: DataValuesSummaryProps) {
             </div>
           );
         }}
-      </For>
+      </For> */}
     </div>
   );
 }
@@ -40,7 +38,7 @@ export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
   return (
     <div class="">
       <div class="text-md font-700 pb-1">
-        {t2(T.Visualizations.presentation_types)}
+        {t3({ en: "Presentation type", fr: "Type de présentation" })}
       </div>
       <div class="text-sm">
         &rarr; {get_PRESENTATION_OPTIONS_MAP()[p.poDetail.config.d.type]}

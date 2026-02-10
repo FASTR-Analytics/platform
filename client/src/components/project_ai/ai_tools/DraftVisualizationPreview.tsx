@@ -1,4 +1,5 @@
 import {
+  t3,
   getTextRenderingOptions,
   getMetricStaticData,
   getStartingConfigForSlideDeck,
@@ -50,7 +51,7 @@ export function DraftVisualizationPreview(p: Props) {
   const [figureState, setFigureState] = createSignal<StateHolder<FigureInputs>>(
     {
       status: "loading",
-      msg: "Loading...",
+      msg: t3({ en: "Loading...", fr: "Chargement..." }),
     },
   );
 
@@ -99,8 +100,8 @@ export function DraftVisualizationPreview(p: Props) {
         onAddToDeck: handleAddToDeck,
         addToDeckLabel:
           aiContext().mode === "editing_slide_deck"
-            ? "Add to this deck"
-            : "Add to slide deck",
+            ? t3({ en: "Add to this deck", fr: "Ajouter à cette présentation" })
+            : t3({ en: "Add to slide deck", fr: "Ajouter à une présentation" }),
       },
     });
   }
@@ -160,7 +161,7 @@ export function DraftVisualizationPreview(p: Props) {
         element: SaveAsNewVisualizationModal,
         props: {
           projectId: p.projectId,
-          existingLabel: p.title || "New Visualization",
+          existingLabel: p.title || t3({ en: "New Visualization", fr: "Nouvelle visualisation" }),
           resultsValue,
           config,
           folders: projectDetail.visualizationFolders,
@@ -264,12 +265,12 @@ export function DraftVisualizationPreview(p: Props) {
             }}
           />
           <Button size="sm" outline onClick={handleSave}>
-            Save as new visualization
+            {t3({ en: "Save as new visualization", fr: "Enregistrer comme nouvelle visualisation" })}
           </Button>
           <Button size="sm" outline onClick={handleAddToDeck}>
             {aiContext().mode === "editing_slide_deck"
-              ? "Add to this deck"
-              : "Add to slide deck"}
+              ? t3({ en: "Add to this deck", fr: "Ajouter à cette présentation" })
+              : t3({ en: "Add to slide deck", fr: "Ajouter à une présentation" })}
           </Button>
         </div>
       </div>
@@ -346,7 +347,7 @@ function ExpandedVizModal(p: AlertComponentProps<ExpandedVizModalProps, void>) {
               p.onEditSave();
             }}
           >
-            Save as new visualization
+            {t3({ en: "Save as new visualization", fr: "Enregistrer comme nouvelle visualisation" })}
           </Button>,
           <Button
             outline
@@ -357,7 +358,7 @@ function ExpandedVizModal(p: AlertComponentProps<ExpandedVizModalProps, void>) {
           >
             {p.addToDeckLabel}
           </Button>,
-          <Button onClick={() => p.close(undefined)}>Close</Button>,
+          <Button onClick={() => p.close(undefined)}>{t3({ en: "Close", fr: "Fermer" })}</Button>,
         ]
       }
     >

@@ -1,4 +1,4 @@
-import { t, t2, T, type ModuleId } from "lib";
+import { t3, TC, type ModuleId } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -20,20 +20,20 @@ export function ViewLogs(
   const rLogs = timQuery(
     () =>
       serverActions.getLogs({ module_id: p.moduleId, projectId: p.projectId }),
-    "Loading logs...",
+    t3({ en: "Loading logs...", fr: "Chargement des journaux..." }),
   );
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`Logs for ${p.moduleLabel}`}>
+        <HeadingBar heading={`${t3({ en: "Logs for", fr: "Journaux pour" })} ${p.moduleLabel}`}>
           <div class="ui-gap-sm flex">
             <Button
               onClick={() => p.close(undefined)}
               intent="neutral"
               iconName="x"
             >
-              {t2(T.FRENCH_UI_STRINGS.done)}
+              {t3(TC.done)}
             </Button>
           </div>
         </HeadingBar>

@@ -1,4 +1,4 @@
-import { t, t2, T, type ModuleId } from "lib";
+import { t3, TC, type ModuleId } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -27,20 +27,20 @@ export function ViewFiles(
   const rLogs = timQuery(
     () =>
       serverActions.getLogs({ module_id: p.moduleId, projectId: p.projectId }),
-    "Loading file listing...",
+    t3({ en: "Loading file listing...", fr: "Chargement de la liste des fichiers..." }),
   );
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`Files for ${p.moduleLabel}`}>
+        <HeadingBar heading={`${t3({ en: "Files for", fr: "Fichiers pour" })} ${p.moduleLabel}`}>
           <div class="ui-gap-sm flex">
             <Button
               onClick={() => p.close(undefined)}
               intent="neutral"
               iconName="x"
             >
-              {t2(T.FRENCH_UI_STRINGS.done)}
+              {t3(TC.done)}
             </Button>
           </div>
         </HeadingBar>

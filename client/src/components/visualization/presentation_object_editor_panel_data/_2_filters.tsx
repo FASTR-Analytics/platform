@@ -4,9 +4,8 @@ import {
   PresentationObjectConfig,
   PresentationObjectDetail,
   getCalendar,
-  t,
-  t2,
-  T,
+  t3,
+  TC,
   type DisaggregationOption,
   type PresentationOption,
   type ResultsValueInfoForPresentationObject,
@@ -51,7 +50,7 @@ export function Filters(p: FiltersProps) {
 
   return (
     <div class="ui-spy-sm">
-      <div class="text-md font-700">{t2(T.FRENCH_UI_STRINGS.filter)}</div>
+      <div class="text-md font-700">{t3({ en: "Filter", fr: "Filtre" })}</div>
 
       <div class="ui-spy-sm">
         <Show when={p.poDetail.resultsValue.valueProps.length > 1}>
@@ -110,7 +109,7 @@ function DataValuesFilter(p: DataValuesFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t2(T.Visualizations.filter_data_values)}
+        label={t3({ en: "Filter data values", fr: "Filtrer les valeurs des données" })}
         checked={!!p.tempConfig.d.valuesFilter}
         onChange={(checked) => {
           if (checked) {
@@ -166,7 +165,7 @@ function PeriodFilter(p: PeriodFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t2(T.FRENCH_UI_STRINGS.filter_time_period)}
+        label={t3({ en: "Filter time period", fr: "Filtrer par période" })}
         checked={!!p.tempConfig.d.periodFilter}
         onChange={(checked) => {
           if (checked) {
@@ -192,25 +191,25 @@ function PeriodFilter(p: PeriodFilterProps) {
                     ? [
                       {
                         value: "last_n_months",
-                        label: "Last year",
+                        label: t3({ en: "Last year", fr: "Dernière année" }),
                       },
                       {
                         value: "custom",
-                        label: "Custom",
+                        label: t3({ en: "Custom", fr: "Personnalisé" }),
                       },
                     ]
                     : [
                       {
                         value: "last_n_months",
-                        label: "Last N months",
+                        label: t3({ en: "Last N months", fr: "Derniers N mois" }),
                       },
                       {
                         value: "from_month",
-                        label: "From specific month to present",
+                        label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui" }),
                       },
                       {
                         value: "last_calendar_year",
-                        label: "Last full calendar year",
+                        label: t3({ en: "Last full calendar year", fr: "Dernière année civile complète" }),
                       },
                       // {
                       //   value: "last_calendar_quarter",
@@ -218,7 +217,7 @@ function PeriodFilter(p: PeriodFilterProps) {
                       // },
                       {
                         value: "custom",
-                        label: "Custom",
+                        label: t3({ en: "Custom", fr: "Personnalisé" }),
                       },
                     ]
                 }
@@ -311,7 +310,7 @@ function PeriodFilter(p: PeriodFilterProps) {
 }
 
 type DisaggregationFilterProps = {
-  disOpt: any;
+  disOpt: FiltersProps["allowedFilterOptions"][number];
   keyedStatus: DisaggregationPossibleValuesStatus;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
@@ -321,7 +320,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t2(p.disOpt.label)}
+        label={t3(p.disOpt.label as TranslatableString)}
         checked={
           !!p.tempConfig.d.filterBy.some((fil) => fil.disOpt === p.disOpt.value)
         }
@@ -368,12 +367,12 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
               <Switch>
                 <Match when={p.keyedStatus.status === "too_many_values"}>
                   <div class="ui-pad text-sm text-warning">
-                    {t("Too many values (over 500) to display as filter options.")}
+                    {t3({ en: "Too many values (over 500) to display as filter options.", fr: "Trop de valeurs (plus de 500) pour les afficher comme options de filtre." })}
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "no_values_available"}>
                   <div class="ui-pad text-sm text-info">
-                    {t("No data available for this dimension.")}
+                    {t3({ en: "No data available for this dimension.", fr: "Aucune donnée disponible pour cette dimension." })}
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "ok"}>
@@ -390,7 +389,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                           >
                             <span class="relative">
                               {keyedFilter.disOpt === "indicator_common_id"
-                                ? t(opt).toUpperCase()
+                                ? opt.toUpperCase()
                                 : opt}
                             </span>
                           </div>
@@ -461,7 +460,7 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
             "year-month",
             getCalendar(),
           )}{" "}
-          to{" "}
+          {t3({ en: "to", fr: "à" })}{" "}
           {formatPeriod(
             getPeriodIdFromTime(tempMaxTime(), "year-month"),
             "year-month",
@@ -471,7 +470,7 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
         <Show when={needsSave()}>
           <div class="">
             <Button onClick={save} intent="success">
-              {t2(T.Modules.update)}
+              {t3(TC.update)}
             </Button>
           </div>
         </Show>
@@ -518,7 +517,7 @@ export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
       />
       <div class="ui-gap-sm flex pt-1 text-sm">
         <div class="flex-1 truncate">
-          From:{" "}
+          {t3({ en: "From:", fr: "De :" })}{" "}
           {formatPeriod(
             getPeriodIdFromTime(tempTime(), "year-month"),
             "year-month",
@@ -528,7 +527,7 @@ export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
         <Show when={needsSave()}>
           <div class="">
             <Button onClick={save} intent="success">
-              {t2(T.Modules.update)}
+              {t3(TC.update)}
             </Button>
           </div>
         </Show>
@@ -556,7 +555,7 @@ export function NMonthsSelector(p: NMonthsSelectorProps) {
   return (
     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
       <Slider
-        label="Number of months"
+        label={t3({ en: "Number of months", fr: "Nombre de mois" })}
         showValueInLabel
         valueInLabelFormatter={v => String(v)}
         value={tempNMonths()}
@@ -573,7 +572,7 @@ export function NMonthsSelector(p: NMonthsSelectorProps) {
       <Show when={needsSave()}>
         <div class="flex justify-end">
           <Button onClick={save} intent="success">
-            {t2(T.Modules.update)}
+            {t3(TC.update)}
           </Button>
         </div>
       </Show>
@@ -623,12 +622,12 @@ export function PeriodFilterYear(p: PeriodFilterPropsYear) {
       />
       <div class="ui-gap-sm flex pt-3">
         <div class="flex-1 truncate">
-          {tempMinTime().toFixed(0)} to {tempMaxTime().toFixed(0)}
+          {tempMinTime().toFixed(0)} {t3({ en: "to", fr: "à" })} {tempMaxTime().toFixed(0)}
         </div>
         <Show when={needsSave()}>
           <div class="">
             <Button onClick={save} intent="success">
-              {t2(T.Modules.update)}
+              {t3(TC.update)}
             </Button>
           </div>
         </Show>

@@ -8,7 +8,7 @@ import {
   ModalContainer,
   TextArea,
 } from "panther";
-import { t } from "lib";
+import { t3 } from "lib";
 import type {
   PromptCategory,
   PromptItem,
@@ -96,7 +96,7 @@ export function PromptLibraryModal(
 
   return (
     <ModalContainer
-      title={selectedPrompt() ? t("Edit prompt") : t("Prompt library")}
+      title={selectedPrompt() ? t3({ en: "Edit prompt", fr: "Modifier le prompt" }) : t3({ en: "Prompt library", fr: "Bibliothèque de prompts" })}
       width="xl"
       scroll="content"
       rightButtons={
@@ -104,7 +104,7 @@ export function PromptLibraryModal(
           ? // eslint-disable-next-line jsx-key
             [
               <Button onClick={() => p.close(undefined)} intent="neutral">
-                {t("Cancel")}
+                {t3({ en: "Cancel", fr: "Annuler" })}
               </Button>,
             ]
           : undefined
@@ -112,7 +112,7 @@ export function PromptLibraryModal(
     >
       <Show when={isLoading()}>
         <div>
-          <Loading msg={t("Loading prompts...")} noPad />
+          <Loading msg={t3({ en: "Loading prompts...", fr: "Chargement des prompts..." })} noPad />
         </div>
       </Show>
 
@@ -162,7 +162,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
       <Input
         value={p.searchText}
         onChange={p.onSearchChange}
-        placeholder={t("Search prompts...")}
+        placeholder={t3({ en: "Search prompts...", fr: "Rechercher des prompts..." })}
         autoFocus
         fullWidth
       />
@@ -182,7 +182,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
           when={p.filteredCategories.length > 0}
           fallback={
             <div class="text-base-content/60 py-8 text-center">
-              {t("No prompts found matching your search.")}
+              {t3({ en: "No prompts found matching your search.", fr: "Aucun prompt correspondant à votre recherche." })}
             </div>
           }
         >
@@ -251,17 +251,17 @@ function EditPhase(p: EditPhaseProps) {
       />
       <div class="mt-4 flex gap-2">
         <Button outline iconName="chevronLeft" onClick={p.onBack}>
-          {t("Back")}
+          {t3({ en: "Back", fr: "Retour" })}
         </Button>
         <div class="flex-1"></div>
         <Button onClick={p.onRunCurrent} intent="primary">
-          {t("Run in current chat")}
+          {t3({ en: "Run in current chat", fr: "Exécuter dans le chat actuel" })}
         </Button>
         <Button onClick={p.onRunNew} intent="success">
-          {t("Run as new chat")}
+          {t3({ en: "Run as new chat", fr: "Exécuter dans un nouveau chat" })}
         </Button>
         <Button onClick={p.onCancel} intent="neutral">
-          {t("Cancel")}
+          {t3({ en: "Cancel", fr: "Annuler" })}
         </Button>
       </div>
     </div>

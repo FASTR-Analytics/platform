@@ -2,8 +2,8 @@ import {
   SlideDeckConfig,
   getTextColorForBackground,
   isColorLight,
-  t2,
-  T,
+  t3,
+  TC,
   _GFF_GREEN,
   _NIGERIA_GREEN,
 } from "lib";
@@ -27,7 +27,6 @@ import {
 import { For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { t } from "lib";
 
 export type SlideDeckSettingsProps = {
   projectId: string;
@@ -52,7 +51,7 @@ type Props = EditorComponentProps<SlideDeckSettingsProps, "AFTER_DELETE">;
 export function SlideDeckSettings(p: Props) {
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
-    t2(T.FRENCH_UI_STRINGS.loading_files),
+    t3(TC.loadingFiles),
   );
 
   const [tempConfig, setTempConfig] = createStore<SlideDeckConfig>(
@@ -113,14 +112,14 @@ export function SlideDeckSettings(p: Props) {
               intent="success"
               iconName="save"
             >
-              {t2(T.FRENCH_UI_STRINGS.save)}
+              {t3(TC.save)}
             </Button>
             <Button
               onClick={() => p.close(undefined)}
               intent="neutral"
               iconName="x"
             >
-              {t2(T.FRENCH_UI_STRINGS.cancel)}
+              {t3(TC.cancel)}
             </Button>
           </div>
         </HeadingBar>
@@ -128,7 +127,7 @@ export function SlideDeckSettings(p: Props) {
     >
       <div class="ui-pad ui-spy">
         <div class="ui-gap grid grid-cols-2">
-          <SettingsSection header={t2(T.FRENCH_UI_STRINGS.general)}>
+          <SettingsSection header={t3(TC.general)}>
             <Input
               label={p.nameLabel}
               value={tempConfig.label}
@@ -136,7 +135,7 @@ export function SlideDeckSettings(p: Props) {
               fullWidth
             />
           </SettingsSection>
-          <SettingsSection header={t2(T.FRENCH_UI_STRINGS.logos)}>
+          <SettingsSection header={t3({ en: "Logos", fr: "Logos" })}>
             <StateHolderWrapper state={assetListing.state()} noPad>
               {(keyedAssets) => {
                 return (
@@ -168,7 +167,7 @@ export function SlideDeckSettings(p: Props) {
                       }}
                     </For>
                     <Button onClick={addLogo} iconName="plus">
-                      {t2(T.FRENCH_UI_STRINGS.add_logo)}
+                      {t3({ en: "Add logo", fr: "Ajouter un logo" })}
                     </Button>
                   </div>
                 );
@@ -176,11 +175,11 @@ export function SlideDeckSettings(p: Props) {
             </StateHolderWrapper>
           </SettingsSection>
           <div class="col-span-2">
-            <SettingsSection header={t2(T.FRENCH_UI_STRINGS.style)}>
+            <SettingsSection header={t3({ en: "Style", fr: "Style" })}>
               <div class="ui-gap flex flex-wrap">
                 <div class="ui-spy-sm w-56">
                   <ColorPicker
-                    label={t2(T.FRENCH_UI_STRINGS.report_color_theme)}
+                    label={t3({ en: "Report color theme", fr: "Thème de couleur du rapport" })}
                     value={tempConfig.primaryColor}
                     onChange={(v) => setTempConfig("primaryColor", v)}
                     colorSet="standard"
@@ -189,14 +188,14 @@ export function SlideDeckSettings(p: Props) {
                     fullWidth
                   />
                   <Select
-                    label={t2(T.FRENCH_UI_STRINGS.background_detail)}
+                    label={t3({ en: "Background detail", fr: "Détail de l'arrière-plan" })}
                     value={tempConfig.overlay}
                     options={[
-                      { value: "none", label: "None" },
-                      { value: "dots", label: "Dots" },
-                      { value: "rivers", label: "Maze" },
-                      { value: "waves", label: "Waves" },
-                      { value: "world", label: "World" },
+                      { value: "none", label: t3({ en: "None", fr: "Aucun" }) },
+                      { value: "dots", label: t3({ en: "Dots", fr: "Points" }) },
+                      { value: "rivers", label: t3({ en: "Maze", fr: "Labyrinthe" }) },
+                      { value: "waves", label: t3({ en: "Waves", fr: "Vagues" }) },
+                      { value: "world", label: t3({ en: "World", fr: "Monde" }) },
                     ]}
                     onChange={(v) =>
                       setTempConfig(
@@ -227,8 +226,8 @@ export function SlideDeckSettings(p: Props) {
                     }}
                   >
                     <div class="space-y-1 text-center">
-                      <div class="font-700 text-2xl">Example title</div>
-                      <div class="font-400 text-base">Sub-title</div>
+                      <div class="font-700 text-2xl">{t3({ en: "Example title", fr: "Titre exemple" })}</div>
+                      <div class="font-400 text-base">{t3({ en: "Sub-title", fr: "Sous-titre" })}</div>
                     </div>
                   </div>
                 </div>

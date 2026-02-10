@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router";
-import { InstanceDetail, T, t, t2 } from "lib";
+import { InstanceDetail, t3, TC } from "lib";
 import {
   Button,
   FrameLeft,
@@ -80,7 +80,7 @@ export default function Project(p: Props) {
     <ProjectRunnerProvider projectId={p.projectId}>
       <StateHolderWrapper
         state={p.instanceDetail.state()}
-        onErrorButton={{ label: t("Go home"), link: "/" }}
+        onErrorButton={{ label: t3({ en: "Go home", fr: "Accueil" }), link: "/" }}
       >
         {(keyedInstanceDetail) => {
           const projectDetail = useProjectDetail();
@@ -96,26 +96,26 @@ export default function Project(p: Props) {
 
           const allTabs = [
             ...(projectDetail.thisUserPermissions.can_view_slide_decks
-              ? [{ value: "decks" as const, label: "Slide decks" }]
+              ? [{ value: "decks" as const, label: t3({ en: "Slide decks", fr: "Présentations" }) }]
               : []),
-            // ...(projectDetail.thisUserPermissions.can_view_reports ? [{ value: "reports" as const, label: t2(T.FRENCH_UI_STRINGS.reports) }] : []),
+            // ...(projectDetail.thisUserPermissions.can_view_reports ? [{ value: "reports" as const, label: t3({ en: "Reports", fr: "Rapports" }) }] : []),
             ...(projectDetail.thisUserPermissions.can_view_visualizations
               ? [
                   {
                     value: "visualizations" as const,
-                    label: t2(T.FRENCH_UI_STRINGS.visualizations),
+                    label: t3({ en: "Visualizations", fr: "Visualisations" }),
                   },
                 ]
               : []),
             ...(projectDetail.thisUserPermissions.can_view_metrics
-              ? [{ value: "metrics" as const, label: t2("Metrics") }]
+              ? [{ value: "metrics" as const, label: t3({ en: "Metrics", fr: "Métriques" }) }]
               : []),
             ...(projectDetail.thisUserPermissions.can_configure_modules ||
             projectDetail.thisUserPermissions.can_run_modules
               ? [
                   {
                     value: "modules" as const,
-                    label: t2(T.FRENCH_UI_STRINGS.modules),
+                    label: t3({ en: "Modules", fr: "Modules" }),
                   },
                 ]
               : []),
@@ -123,7 +123,7 @@ export default function Project(p: Props) {
               ? [
                   {
                     value: "data" as const,
-                    label: t2(T.FRENCH_UI_STRINGS.data),
+                    label: t3({ en: "Data", fr: "Données" }),
                   },
                 ]
               : []),
@@ -131,7 +131,7 @@ export default function Project(p: Props) {
               ? [
                   {
                     value: "settings" as const,
-                    label: t2(T.FRENCH_UI_STRINGS.settings),
+                    label: t3(TC.settings),
                   },
                 ]
               : []),
@@ -176,7 +176,7 @@ export default function Project(p: Props) {
                             intent="base-100"
                             outline
                           >
-                            {t("AI")}
+                            {t3({ en: "AI", fr: "IA" })}
                           </Button>
                         </Show>
                         <ProjectRunStatus />

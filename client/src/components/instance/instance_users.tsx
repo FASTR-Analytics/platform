@@ -1,4 +1,4 @@
-import { InstanceDetail, t, t2, T } from "lib";
+import { InstanceDetail, t3, TC } from "lib";
 import {
   Button,
   Csv,
@@ -62,7 +62,7 @@ export function InstanceUsers(p: Props) {
 
   async function showCommingSoon() {
     const _res = await openAlert({
-      text: "This functionality is coming soon. For now, click on the 'edit' button for individual users.",
+      text: t3({ en: "This functionality is coming soon. For now, click on the 'edit' button for individual users.", fr: "Cette fonctionnalité sera bientôt disponible. Pour l'instant, cliquez sur le bouton « modifier » pour chaque utilisateur." }),
     });
     return true;
   }
@@ -104,19 +104,19 @@ export function InstanceUsers(p: Props) {
             <Match when={true}>
               <FrameTop
                 panelChildren={
-                  <HeadingBarMainRibbon heading={t2(T.FRENCH_UI_STRINGS.users)}>
+                  <HeadingBarMainRibbon heading={t3({ en: "Users", fr: "Utilisateurs" })}>
                     <div class="ui-gap-sm flex items-center">
                       <Button onClick={downloadUsersCSV} iconName="download">
-                        {t("Download users")}
+                        {t3({ en: "Download users", fr: "Télécharger les utilisateurs" })}
                       </Button>
                       <Button
                         onClick={attemptBatchUploadUsers}
                         iconName="upload"
                       >
-                        {t("Batch import from CSV")}
+                        {t3({ en: "Batch import from CSV", fr: "Importation groupée depuis CSV" })}
                       </Button>
                       <Button onClick={attemptAddUser} iconName="plus">
-                        {t2(T.FRENCH_UI_STRINGS.add_users)}
+                        {t3({ en: "Add users", fr: "Ajouter des utilisateurs" })}
                       </Button>
                     </div>
                   </HeadingBarMainRibbon>
@@ -134,7 +134,7 @@ export function InstanceUsers(p: Props) {
                       silentFetch={p.instanceDetail.silentFetch}
                     />
                   </div>
-                  <Suspense fallback={<div class="text-neutral text-sm">Loading activity logs...</div>}>
+                  <Suspense fallback={<div class="text-neutral text-sm">{t3({ en: "Loading activity logs...", fr: "Chargement des journaux d'activité..." })}</div>}>
                     <Show when={userLogs.latest?.success ? userLogs.latest.data : undefined} keyed>
                       {(logs: UserLog[]) => (
                         <div class="flex-1 overflow-auto">
@@ -164,7 +164,7 @@ type UserData = {
 
 function formatTimeAgo(date: Date): string {
   if (!date || isNaN(date.getTime())) {
-    return t("Unknown");
+    return t3({ en: "Unknown", fr: "Inconnu" });
   }
 
   const now = new Date();
@@ -173,10 +173,10 @@ function formatTimeAgo(date: Date): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return t("Just now");
-  if (diffMins < 60) return t(`${diffMins}m ago`);
-  if (diffHours < 24) return t(`${diffHours}h ago`);
-  if (diffDays < 30) return t(`${diffDays}d ago`);
+  if (diffMins < 1) return t3({ en: "Just now", fr: "À l'instant" });
+  if (diffMins < 60) return t3({ en: `${diffMins}m ago`, fr: `il y a ${diffMins}m` });
+  if (diffHours < 24) return t3({ en: `${diffHours}h ago`, fr: `il y a ${diffHours}h` });
+  if (diffDays < 30) return t3({ en: `${diffDays}d ago`, fr: `il y a ${diffDays}j` });
   return date.toLocaleDateString();
 }
 
@@ -208,12 +208,12 @@ function UserTable(p: {
   const columns: TableColumn<UserData>[] = [
     {
       key: "email",
-      header: t2(T.FRENCH_UI_STRINGS.email),
+      header: t3(TC.email),
       sortable: true,
     },
     {
       key: "last_active",
-      header: t("Last active"),
+      header: t3({ en: "Last active", fr: "Dernière activité" }),
       sortable: true,
       render: (user) => {
         if (p.logsLoading) {
@@ -221,24 +221,24 @@ function UserTable(p: {
         }
         try {
           const lastActive = lastActiveByUser().get(user.email);
-          if (!lastActive) return <span class="text-neutral text-sm">{t("Never")}</span>;
+          if (!lastActive) return <span class="text-neutral text-sm">{t3({ en: "Never", fr: "Jamais" })}</span>;
           return <span class="text-sm">{formatTimeAgo(lastActive)}</span>;
         } catch {
-          return <span class="text-neutral text-sm">{t("Unknown")}</span>;
+          return <span class="text-neutral text-sm">{t3({ en: "Unknown", fr: "Inconnu" })}</span>;
         }
       },
     },
     {
       key: "isGlobalAdmin",
-      header: t("Status"),
+      header: t3({ en: "Status", fr: "Statut" }),
       sortable: true,
       render: (user) => (
         <Show
           when={user.isGlobalAdmin}
-          fallback={<span class="text-neutral text-sm">{t("User")}</span>}
+          fallback={<span class="text-neutral text-sm">{t3({ en: "User", fr: "Utilisateur" })}</span>}
         >
           <span class="text-primary text-sm">
-            {t2(T.Paramètres.instance_admin)}
+            {t3({ en: "Instance administrator", fr: "Administrateur d'instance" })}
           </span>
         </Show>
       ),
@@ -286,11 +286,13 @@ function UserTable(p: {
   async function handleBulkRemoveUsers(selectedUsers: UserData[]) {
     const emails = selectedUsers.map((u) => u.email);
     const userCount = emails.length;
-    const userText = userCount === 1 ? t("this user") : t("these users");
+    const userText = userCount === 1
+      ? t3({ en: "this user", fr: "cet utilisateur" })
+      : t3({ en: "these users", fr: "ces utilisateurs" });
 
     const deleteAction = timActionDelete(
       {
-        text: t(`Are you sure you want to remove ${userText}?`),
+        text: t3({ en: `Are you sure you want to remove ${userText}?`, fr: `Êtes-vous sûr de vouloir supprimer ${userText} ?` }),
         itemList: emails,
       },
       () => serverActions.deleteUser({ emails }),
@@ -320,33 +322,33 @@ function UserTable(p: {
 
   const bulkActions: BulkAction<UserData>[] = [
     {
-      label: t2(T.FRENCH_UI_STRINGS.make_admin),
+      label: t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur" }),
       intent: "primary",
       onClick: bulkMakeAdmin.click,
       state: bulkMakeAdmin.state,
       outline: true,
     },
     {
-      label: t2(T.FRENCH_UI_STRINGS.make_nonadmin),
+      label: t3({ en: "Make non-admin", fr: "Retirer le rôle d'administrateur" }),
       intent: "primary",
       onClick: bulkMakeNonAdmin.click,
       state: bulkMakeNonAdmin.state,
       outline: true,
     },
     {
-      label: t("Edit permissions"),
+      label: t3({ en: "Edit permissions", fr: "Modifier les droits d'accès" }),
       intent: "primary",
       outline: true,
       onClick: handleBulkEditPermissions,
     },
     {
-      label: t("Download users"),
+      label: t3({ en: "Download users", fr: "Télécharger les utilisateurs" }),
       intent: "primary",
       outline: true,
       onClick: handleBulkDownloadCSV,
     },
     {
-      label: t("Remove"),
+      label: t3({ en: "Remove", fr: "Supprimer" }),
       intent: "danger",
       outline: true,
       onClick: handleBulkRemoveUsers,
@@ -359,9 +361,9 @@ function UserTable(p: {
       columns={columns}
       defaultSort={{ key: "email", direction: "asc" }}
       keyField="email"
-      noRowsMessage={t("No users")}
+      noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur" })}
       bulkActions={bulkActions}
-      selectionLabel="user"
+      selectionLabel={t3({ en: "user", fr: "utilisateur" })}
       fitTableToAvailableHeight
     />
   );
@@ -380,7 +382,7 @@ function UserLogsTable(p: {
   const columns: TableColumn<UserLog>[] = [
     {
       key: "timestamp",
-      header: t("Timestamp"),
+      header: t3({ en: "Timestamp", fr: "Horodatage" }),
       sortable: true,
       render: (log) => (
         <span class="text-sm">
@@ -390,7 +392,7 @@ function UserLogsTable(p: {
     },
     {
       key: "user_email",
-      header: t("User"),
+      header: t3({ en: "User", fr: "Utilisateur" }),
       sortable: true,
       render: (log) => (
         <button
@@ -406,17 +408,17 @@ function UserLogsTable(p: {
     },
     {
       key: "endpoint",
-      header: t("Endpoint Accessed"),
+      header: t3({ en: "Endpoint Accessed", fr: "Point d'accès" }),
       sortable: true,
     },
     {
       key: "endpoint_result",
-      header: t("Status"),
+      header: t3({ en: "Status", fr: "Statut" }),
       sortable: true,
     },
     {
       key: "details",
-      header: t("Details"),
+      header: t3({ en: "Details", fr: "Détails" }),
       render: (log) => (
         <Show when={log.details}>
           <Button
@@ -425,7 +427,7 @@ function UserLogsTable(p: {
             onClick={(e) => {
               e.stopPropagation();
               openAlert({
-                title: t("Request Details"),
+                title: t3({ en: "Request Details", fr: "Détails de la requête" }),
                 text: (
                   <div class="whitespace-pre-wrap font-mono text-sm max-h-96 overflow-auto">
                     {formatJsonDetails(log.details!)}
@@ -434,7 +436,7 @@ function UserLogsTable(p: {
               });
             }}
           >
-            {t("View")}
+            {t3({ en: "View", fr: "Voir" })}
           </Button>
         </Show>
       )
@@ -445,7 +447,7 @@ function UserLogsTable(p: {
     <div class="flex flex-col h-full">
       <Show when={p.filterByUser}>
         <div class="flex items-center gap-2 mb-2 text-sm">
-          <span class="text-neutral">{t("Filtering by")}:</span>
+          <span class="text-neutral">{t3({ en: "Filtering by", fr: "Filtré par" })}:</span>
           <span class="font-medium">{p.filterByUser}</span>
           <Button
             size="sm"
@@ -460,7 +462,7 @@ function UserLogsTable(p: {
         columns={columns}
         defaultSort={{ key: "timestamp", direction: "desc" }}
         keyField="id"
-        noRowsMessage={t("No Logs")}
+        noRowsMessage={t3({ en: "No logs", fr: "Aucun journal" })}
         fitTableToAvailableHeight
       />
     </div>
@@ -472,6 +474,6 @@ function formatJsonDetails(details: string): string {
     const parsed = JSON.parse(details);
     return JSON.stringify(parsed, null, 2);
   } catch {
-    return details; 
+    return details;
   }
 }

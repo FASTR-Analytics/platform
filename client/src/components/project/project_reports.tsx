@@ -7,8 +7,7 @@ import {
   get_REPORT_TYPE_MAP,
   isFrench,
   parseJsonOrThrow,
-  t2,
-  T,
+  t3,
 } from "lib";
 import {
   Button,
@@ -27,7 +26,6 @@ import {
   onMount,
 } from "solid-js";
 import { AddReportForm } from "./add_report";
-import { t } from "lib";
 import type Uppy from "@uppy/core";
 import { createUppyInstance, cleanupUppy } from "~/upload/uppy_file_upload";
 import { serverActions } from "~/server_actions";
@@ -110,14 +108,14 @@ export function ProjectReports(p: ExtendedProps) {
       data = parseJsonOrThrow(await file.text());
     } catch {
       await openAlert({
-        text: "Could not process file",
+        text: t3({ en: "Could not process file", fr: "Impossible de traiter le fichier" }),
         intent: "danger",
       });
       return;
     }
     if (data === undefined) {
       await openAlert({
-        text: "Could not process file",
+        text: t3({ en: "Could not process file", fr: "Impossible de traiter le fichier" }),
         intent: "danger",
       });
       return;
@@ -179,7 +177,7 @@ export function ProjectReports(p: ExtendedProps) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={t2(T.FRENCH_UI_STRINGS.reports)}
+          heading={t3({ en: "Reports", fr: "Rapports" })}
           searchText={searchText()}
           setSearchText={setSearchText}
           french={isFrench()}
@@ -193,10 +191,10 @@ export function ProjectReports(p: ExtendedProps) {
           >
             <div class="ui-gap-sm flex items-center">
               <Button id="select-file-button" iconName="upload" outline>
-                {t2(T.Reports.upload_report)}
+                {t3({ en: "Upload report", fr: "Téléverser un rapport" })}
               </Button>
               <Button onClick={attemptAddReport} iconName="plus">
-                {t2(T.FRENCH_UI_STRINGS.sav)}
+                {t3({ en: "Create report", fr: "Créer un rapport" })}
               </Button>
             </div>
           </Show>
@@ -207,7 +205,7 @@ export function ProjectReports(p: ExtendedProps) {
         when={projectDetail.projectModules.length > 0}
         fallback={
           <div class="ui-pad text-neutral text-sm">
-            {t("You need to enable at least one module to create reports")}
+            {t3({ en: "You need to enable at least one module to create reports", fr: "Vous devez activer au moins un module pour créer des rapports" })}
           </div>
         }
       >
@@ -217,8 +215,8 @@ export function ProjectReports(p: ExtendedProps) {
             fallback={
               <div class="text-neutral text-sm">
                 {searchText().length >= 3
-                  ? t2(T.FRENCH_UI_STRINGS.no_matching_reports)
-                  : t2(T.FRENCH_UI_STRINGS.no_reports)}
+                  ? t3({ en: "No matching reports", fr: "Aucun rapport correspondant" })
+                  : t3({ en: "No reports", fr: "Aucun rapport" })}
               </div>
             }
           >

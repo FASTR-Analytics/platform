@@ -1,7 +1,7 @@
 import { AlertComponentProps, Button, ColorPicker, ModalContainer } from "panther";
 import { For } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
-import { CustomSeriesStyle, T, t, t2 } from "lib";
+import { CustomSeriesStyle, t3, TC } from "lib";
 
 export function CustomSeriesStyles(
   p: AlertComponentProps<
@@ -54,20 +54,20 @@ export function CustomSeriesStyles(
 
   return (
     <ModalContainer
-      title={t("Custom series colors")}
+      title={t3({ en: "Custom series colors", fr: "Couleurs de séries personnalisées" })}
       width="md"
       leftButtons={
         // eslint-disable-next-line jsx-key
         [
           <Button onClick={done} intent="success" iconName="save">
-            {t2(T.FRENCH_UI_STRINGS.save)}
+            {t3(TC.save)}
           </Button>,
           <Button
             onClick={() => p.close(undefined)}
             intent="neutral"
             iconName="x"
           >
-            {t2(T.FRENCH_UI_STRINGS.cancel)}
+            {t3(TC.cancel)}
           </Button>,
         ]
       }
@@ -102,7 +102,7 @@ export function CustomSeriesStyles(
             outline
             intent="success"
           >
-            {t2("Add")}
+            {t3({ en: "Add", fr: "Ajouter" })}
           </Button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { InstanceDetail, _POSSIBLE_DATASETS, t, t2, T } from "lib";
+import { InstanceDetail, _POSSIBLE_DATASETS, t3 } from "lib";
 import {
   Button,
   FrameTop,
@@ -56,12 +56,12 @@ export function InstanceData(p: Props) {
         />
       </Match>
       <Match when={selectedDataSource()} keyed>
-        <div class="ui-pad">No display component for this dataset</div>
+        <div class="ui-pad">{t3({ en: "No display component for this dataset", fr: "Aucun composant d'affichage pour ce jeu de données" })}</div>
       </Match>
       <Match when={true}>
         <FrameTop
           panelChildren={
-            <HeadingBarMainRibbon heading={t2(T.FRENCH_UI_STRINGS.data)}>
+            <HeadingBarMainRibbon heading={t3({ en: "Data", fr: "Données" })}>
               <Button
                 iconName="refresh"
                 onClick={() => p.instanceDetail.fetch()}
@@ -75,7 +75,7 @@ export function InstanceData(p: Props) {
                 <div class="flex h-full w-full">
                   <div class="ui-pad border-base-300 h-full w-1/2 overflow-auto border-r">
                     <div class="font-700 pb-2 text-lg">
-                      {t2(T.FRENCH_UI_STRINGS.common_structure)}
+                      {t3({ en: "Common structure", fr: "Structure commune" })}
                     </div>
                     <div class="ui-spy-sm">
                       <div
@@ -83,13 +83,13 @@ export function InstanceData(p: Props) {
                         onClick={() => setSelecteDatasource("structure")}
                       >
                         <div class="font-700 pb-2">
-                          {t("Admin areas and facilities")}
+                          {t3({ en: "Admin areas and facilities", fr: "Unités administratives et établissements" })}
                         </div>
                         <Show
                           when={keyedInstanceDetail.structure}
                           fallback={
                             <div class="text-danger text-xs">
-                              {t("No admin areas or facilities added")}
+                              {t3({ en: "No admin areas or facilities added", fr: "Aucune unité administrative ou établissement ajouté" })}
                             </div>
                           }
                           keyed
@@ -97,13 +97,13 @@ export function InstanceData(p: Props) {
                           {(keyedStructureNumbers) => (
                             <div class="ui-spy-sm text-success text-xs">
                               <div class="ui-gap flex justify-between">
-                                <span class="">{t("Admin area 1s")}:</span>
+                                <span class="">{t3({ en: "Admin area 1s", fr: "Unités administratives 1" })}:</span>
                                 <span class="font-mono">
                                   {toNum0(keyedStructureNumbers.adminArea1s)}
                                 </span>
                               </div>
                               <div class="ui-gap flex justify-between">
-                                <span class="">{t("Admin area 2s")}:</span>
+                                <span class="">{t3({ en: "Admin area 2s", fr: "Unités administratives 2" })}:</span>
                                 <span class="font-mono">
                                   {toNum0(keyedStructureNumbers.adminArea2s)}
                                 </span>
@@ -112,7 +112,7 @@ export function InstanceData(p: Props) {
                                 when={keyedInstanceDetail.maxAdminArea >= 3}
                               >
                                 <div class="ui-gap flex justify-between">
-                                  <span class="">{t("Admin area 3s")}:</span>
+                                  <span class="">{t3({ en: "Admin area 3s", fr: "Unités administratives 3" })}:</span>
                                   <span class="font-mono">
                                     {toNum0(keyedStructureNumbers.adminArea3s)}
                                   </span>
@@ -122,14 +122,14 @@ export function InstanceData(p: Props) {
                                 when={keyedInstanceDetail.maxAdminArea >= 4}
                               >
                                 <div class="ui-gap flex justify-between">
-                                  <span class="">{t("Admin area 4s")}:</span>
+                                  <span class="">{t3({ en: "Admin area 4s", fr: "Unités administratives 4" })}:</span>
                                   <span class="font-mono">
                                     {toNum0(keyedStructureNumbers.adminArea4s)}
                                   </span>
                                 </div>
                               </Show>
                               <div class="ui-gap flex justify-between">
-                                <span class="">{t("Facilities")}:</span>
+                                <span class="">{t3({ en: "Facilities", fr: "Établissements" })}:</span>
                                 <span class="font-mono">
                                   {toNum0(keyedStructureNumbers.facilities)}
                                 </span>
@@ -142,7 +142,7 @@ export function InstanceData(p: Props) {
                         class="ui-pad ui-hoverable bg-base-100 border-base-300 ui-spy-sm block rounded border"
                         onClick={() => setSelecteDatasource("indicators")}
                       >
-                        <div class="font-700 pb-2">{t2(T.FRENCH_UI_STRINGS.indicators)}</div>
+                        <div class="font-700 pb-2">{t3({ en: "Indicators", fr: "Indicateurs" })}</div>
                         <Show
                           when={
                             keyedInstanceDetail.indicators.commonIndicators >
@@ -151,7 +151,7 @@ export function InstanceData(p: Props) {
                           }
                           fallback={
                             <div class="text-danger text-xs">
-                              {t("No common indicators")}
+                              {t3({ en: "No common indicators", fr: "Aucun indicateur commun" })}
                             </div>
                           }
                           keyed
@@ -159,7 +159,7 @@ export function InstanceData(p: Props) {
                           {(keyedNumber) => (
                             <div class="ui-spy-sm text-success text-xs">
                               <div class="flex justify-between gap-4">
-                                <span class="">{t("Common indicators")}:</span>
+                                <span class="">{t3({ en: "Common indicators", fr: "Indicateurs communs" })}:</span>
                                 <span class="font-mono">
                                   {toNum0(keyedNumber)}
                                 </span>
@@ -174,7 +174,7 @@ export function InstanceData(p: Props) {
                           }
                           fallback={
                             <div class="text-danger text-xs">
-                              {t("No DHIS2 indicators")}
+                              {t3({ en: "No DHIS2 indicators", fr: "Aucun indicateur DHIS2" })}
                             </div>
                           }
                           keyed
@@ -182,7 +182,7 @@ export function InstanceData(p: Props) {
                           {(keyedNumber) => (
                             <div class="ui-spy-sm text-success text-xs">
                               <div class="flex justify-between gap-4">
-                                <span class="">{t("DHIS2 indicators")}:</span>
+                                <span class="">{t3({ en: "DHIS2 indicators", fr: "Indicateurs DHIS2" })}:</span>
                                 <span class="font-mono">
                                   {toNum0(keyedNumber)}
                                 </span>
@@ -194,7 +194,7 @@ export function InstanceData(p: Props) {
                     </div>
                   </div>
                   <div class="ui-pad h-full w-1/2 overflow-auto">
-                    <div class="font-700 pb-2 text-lg">{t2(T.FRENCH_UI_STRINGS.data_sources)}</div>
+                    <div class="font-700 pb-2 text-lg">{t3({ en: "Data sources", fr: "Sources de données" })}</div>
                     <div class="ui-spy-sm">
                       <For each={_POSSIBLE_DATASETS}>
                         {(possibleDataset) => {
@@ -216,14 +216,14 @@ export function InstanceData(p: Props) {
                                 )}
                                 fallback={
                                   <div class="text-danger text-xs">
-                                    {t2(T.FRENCH_UI_STRINGS.no_data_added)}
+                                    {t3({ en: "No data added", fr: "Aucune donnée ajoutée" })}
                                   </div>
                                 }
                                 keyed
                               >
                                 {(_keyedVersionId) => (
                                   <div class="text-success text-xs">
-                                    {t2(T.FRENCH_UI_STRINGS.has_data)}
+                                    {t3({ en: "Has data", fr: "Contient des données" })}
                                   </div>
                                 )}
                               </Show>

@@ -6,13 +6,12 @@ import {
   PresentationObjectDetail,
   ProjectDetail,
   ResultsValueInfoForPresentationObject,
-  T,
   getModuleIdForMetric,
   getReplicateByProp,
   getTextRenderingOptions,
   hasDuplicateDisaggregatorDisplayOptions,
-  t,
-  t2,
+  t3,
+  TC,
   type InstanceDetail
 } from "lib";
 import {
@@ -116,7 +115,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     }>
   >({
     status: "loading",
-    msg: t2(T.FRENCH_UI_STRINGS.fetching_data_to_be_visualized),
+    msg: t3({ en: "Fetching data to be visualized...", fr: "Récupération des données à visualiser..." }),
   });
 
   // Sub-state updater
@@ -320,7 +319,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   async function attemptUpdateLabel() {
     if (needsSave()) {
       await openAlert({
-        text: t2(T.FRENCH_UI_STRINGS.you_must_save_before_editing),
+        text: t3({ en: "You must save before editing the visualization name", fr: "Vous devez sauvegarder avant de modifier le nom de la visualisation" }),
       });
       return;
     }
@@ -349,9 +348,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   async function duplicate() {
     if (needsSave() && !p.poDetail.isDefault) {
       await openAlert({
-        text: t(
-          "In order to be duplicated, visualizations cannot have any unsaved changes",
-        ),
+        text: t3({ en: "In order to be duplicated, visualizations cannot have any unsaved changes", fr: "Pour être dupliquées, les visualisations ne doivent pas avoir de modifications non sauvegardées" }),
       });
       return;
     }
@@ -371,7 +368,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     (p.onClose as (result: EditModeReturn) => void)({ saved: true });
 
     await openAlert({
-      text: `Visualization duplicated. Opening new visualization...`,
+      text: t3({ en: "Visualization duplicated. Opening new visualization...", fr: "Visualisation dupliquée. Ouverture de la nouvelle visualisation..." }),
       intent: "success",
     });
   }
@@ -379,7 +376,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   async function download() {
     if (needsSave()) {
       await openAlert({
-        text: t2(T.FRENCH_UI_STRINGS.you_must_save_before_downloadi),
+        text: t3({ en: "You must save before downloading figures", fr: "Sauvegarde nécessaire avant téléchargement des figures" }),
       });
       return;
     }
@@ -482,7 +479,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       return;
     }
     const deleteAction = timActionDelete(
-      t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1),
+      t3({ en: "Are you sure you want to delete this visualization?", fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?" }),
       () =>
         serverActions.deletePresentationObject({
           projectId: projectId,
@@ -527,14 +524,14 @@ export function VisualizationEditorInner(p: InnerProps) {
                       onClick={() => (p.onClose as (result: EphemeralModeReturn) => void)({ updated: { config: unwrap(tempConfig) } })}
                       iconName="check"
                     >
-                      {t("Apply")}
+                      {t3({ en: "Apply", fr: "Appliquer" })}
                     </Button>
                     <Button
                       outline
                       onClick={() => (p.onClose as any)(undefined)}
                       iconName="x"
                     >
-                      {t2(T.FRENCH_UI_STRINGS.cancel)}
+                      {t3(TC.cancel)}
                     </Button>
                   </Show>
                 </Match>
@@ -552,7 +549,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                         onClick={saveAsNewVisualization}
                         iconName="save"
                       >
-                        {t("Save as new visualization")}
+                        {t3({ en: "Save as new visualization", fr: "Enregistrer comme nouvelle visualisation" })}
                       </Button>
                     </Match>
                     <Match when={true}>
@@ -563,7 +560,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                           state={saveAndClose.state()}
                           iconName="save"
                         >
-                          {t2(T.FRENCH_UI_STRINGS.save_and_close)}
+                          {t3({ en: "Save and close", fr: "Sauvegarder et quitter" })}
                         </Button>
                         <Button
                           intent="success"
@@ -571,7 +568,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                           state={save.state()}
                           iconName="save"
                         >
-                          {t2(T.FRENCH_UI_STRINGS.save)}
+                          {t3(TC.save)}
                         </Button>
                       </>
                     </Match>
@@ -581,7 +578,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                     onClick={() => (p.onClose as any)(undefined)}
                     iconName="x"
                   >
-                    {t2(T.FRENCH_UI_STRINGS.cancel)}
+                    {t3(TC.cancel)}
                   </Button>
                 </Match>
                 <Match when={true}>
@@ -596,7 +593,7 @@ export function VisualizationEditorInner(p: InnerProps) {
               <span class="font-400">{p.poDetail.label}</span>
               <Show when={p.poDetail.isDefault}>
                 <span class="border-primary bg-base-100 font-400 text-primary ml-4 truncate rounded border px-2 py-1 text-xs">
-                  {t2(T.FRENCH_UI_STRINGS.default)}
+                  {t3({ en: "Default", fr: "Par défaut" })}
                 </span>
               </Show>
             </div>
@@ -620,7 +617,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                 </Show>
               </Show>
               <Button onClick={download} iconName="download">
-                {t2(T.FRENCH_UI_STRINGS.download)}
+                {t3(TC.download)}
               </Button>
               <Show when={!showAi()}>
                 <Button
@@ -628,7 +625,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                   iconName="chevronLeft"
                   outline
                 >
-                  {t("AI")}
+                  {t3({ en: "AI", fr: "IA" })}
                 </Button>
               </Show>
             </div>
@@ -671,7 +668,7 @@ export function VisualizationEditorInner(p: InnerProps) {
               }
               fallback={
                 <div class="ui-pad">
-                  {t2(T.FRENCH_UI_STRINGS.you_have_two_disaggregators_wi)}
+                  {t3({ en: "You have two disaggregators with the same display option", fr: "Vous disposez de deux désagrégateurs avec la même option d'affichage" })}
                 </div>
               }
             >
@@ -682,7 +679,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                 }
                 fallback={
                   <div class="ui-pad">
-                    {t2(T.FRENCH_UI_STRINGS.you_must_select_a_replicant)}
+                    {t3({ en: "You must select a replicant", fr: "Un réplicant doit être sélectionné" })}
                   </div>
                 }
               >
@@ -692,12 +689,12 @@ export function VisualizationEditorInner(p: InnerProps) {
                       <Switch>
                         <Match when={keyedItemsHolder.ih.status === "too_many_items"}>
                           <div class="ui-pad">
-                            Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.
+                            {t3({ en: "Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.", fr: "Trop de points de données sélectionnés. Veuillez ajouter des filtres ou réduire les options de désagrégation pour afficher moins de 20 000 points de données." })}
                           </div>
                         </Match>
                         <Match when={keyedItemsHolder.ih.status === "no_data_available"}>
                           <div class="ui-pad">
-                            No data available with current filter selection.
+                            {t3({ en: "No data available with current filter selection.", fr: "Aucune donnée disponible avec la sélection de filtre actuelle." })}
                           </div>
                         </Match>
                         <Match when={keyedItemsHolder.ih.status === "ok"}>
@@ -708,7 +705,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                                 if (keyedItemsHolder.ih.status === "ok" && keyedItemsHolder.ih.items.length === 0) {
                                   return {
                                     status: "error",
-                                    err: t2(T.Visualizations.no_rows),
+                                    err: t3({ en: "No rows returned from database for this filter configuration", fr: "Aucune ligne retournée de la base de données pour cette configuration de filtre" }),
                                   };
                                 }
                                 // sssssssssssssssssssssssssssss

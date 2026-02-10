@@ -1,4 +1,4 @@
-import { t, t2, T,
+import { t3, TC,
   type CommonIndicatorWithMappings,
   type InstanceDetail,
   type RawIndicatorWithMappings } from "lib";
@@ -39,7 +39,7 @@ export function IndicatorsManager(p: Props) {
   // Query for indicators
   const indicators = timQuery(
     () => serverActions.getIndicators({}),
-    t("Loading indicators..."),
+    t3({ en: "Loading indicators...", fr: "Chargement des indicateurs..." }),
   );
 
   function handleDownloadCommonCsv(
@@ -151,11 +151,11 @@ export function IndicatorsManager(p: Props) {
         panelChildren={
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 flex-1 truncate text-xl">INDICATORS</div>
+            <div class="font-700 flex-1 truncate text-xl">{t3({ en: "INDICATORS", fr: "INDICATEURS" })}</div>
             <div class="ui-gap-sm flex items-center">
               <Show when={p.isGlobalAdmin}>
                 <Button iconName="upload" onClick={handleBatchUpload}>
-                  {t("Batch import from CSV")}
+                  {t3({ en: "Batch import from CSV", fr: "Importation groupée depuis CSV" })}
                 </Button>
               </Show>
               <Button iconName="refresh" onClick={indicators.fetch} />
@@ -248,7 +248,7 @@ function CommonIndicatorsTable(p: {
   async function handleDeleteIndicator(indicator: CommonIndicatorWithMappings) {
     const deleteAction = timActionDelete(
       {
-        text: t(`Are you sure you want to delete this indicator?`),
+        text: t3({ en: "Are you sure you want to delete this indicator?", fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?" }),
         itemList: [indicator.indicator_common_id],
       },
       () =>
@@ -273,12 +273,11 @@ function CommonIndicatorsTable(p: {
         `${indicator.indicator_common_id} ~ ${indicator.indicator_common_label}`,
     );
     const indicatorCount = indicatorIds.length;
-    const indicatorText =
-      indicatorCount === 1 ? t("this indicator") : t("these indicators");
-
     const deleteAction = timActionDelete(
       {
-        text: t(`Are you sure you want to delete ${indicatorText}?`),
+        text: indicatorCount === 1
+          ? t3({ en: "Are you sure you want to delete this indicator?", fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?" })
+          : t3({ en: "Are you sure you want to delete these indicators?", fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?" }),
         itemList: indicatorLabels,
       },
       () =>
@@ -294,7 +293,7 @@ function CommonIndicatorsTable(p: {
   const columns: TableColumn<CommonIndicatorWithMappings>[] = [
     {
       key: "indicator_common_id",
-      header: t("Common Indicator ID"),
+      header: t3({ en: "Common Indicator ID", fr: "ID de l'indicateur commun" }),
       sortable: true,
       render: (indicator) => (
         <span class="font-mono">{indicator.indicator_common_id}</span>
@@ -302,12 +301,12 @@ function CommonIndicatorsTable(p: {
     },
     {
       key: "indicator_common_label",
-      header: t("Label"),
+      header: t3(TC.label),
       sortable: true,
     },
     {
       key: "is_default",
-      header: t2(T.FRENCH_UI_STRINGS.default),
+      header: t3({ en: "Default", fr: "Par défaut" }),
       sortable: true,
       render: (indicator) => (
         <span class="">{indicator.is_default ? "✓" : ""}</span>
@@ -315,7 +314,7 @@ function CommonIndicatorsTable(p: {
     },
     {
       key: "raw_indicator_ids",
-      header: t("Mapped To"),
+      header: t3({ en: "Mapped To", fr: "Associé à" }),
       sortable: true,
       render: (indicator) => (
         <div class="font-mono">{indicator.raw_indicator_ids.join(", ")}</div>
@@ -360,7 +359,7 @@ function CommonIndicatorsTable(p: {
   const bulkActions: BulkAction<CommonIndicatorWithMappings>[] = p.isGlobalAdmin
     ? [
         {
-          label: t2(T.FRENCH_UI_STRINGS.delete),
+          label: t3(TC.delete),
           intent: "danger",
           outline: true,
           onClick: handleBulkDeleteIndicators,
@@ -371,21 +370,21 @@ function CommonIndicatorsTable(p: {
   return (
     <div class="flex h-full flex-col">
       <div class="ui-gap-sm flex items-center pb-4">
-        <div class="font-700 flex-1 text-xl">{t("Common Indicators")}</div>
+        <div class="font-700 flex-1 text-xl">{t3({ en: "Common Indicators", fr: "Indicateurs communs" })}</div>
         <Show when={p.isGlobalAdmin}>
           <Button
             onClick={() => p.handleDownloadCsv(p.commonIndicators)}
             iconName="download"
             intent="neutral"
           >
-            {t("Download CSV")}
+            {t3({ en: "Download CSV", fr: "Télécharger le CSV" })}
           </Button>
           <Button
             onClick={handleCreateIndicator}
             iconName="plus"
             intent="primary"
           >
-            {t("Create Common Indicator")}
+            {t3({ en: "Create Common Indicator", fr: "Créer un indicateur commun" })}
           </Button>
         </Show>
       </div>
@@ -394,9 +393,9 @@ function CommonIndicatorsTable(p: {
           data={p.commonIndicators}
           columns={columns}
           keyField="indicator_common_id"
-          noRowsMessage={t("No common indicators")}
+          noRowsMessage={t3({ en: "No common indicators", fr: "Aucun indicateur commun" })}
           bulkActions={bulkActions}
-          selectionLabel="indicator"
+          selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
           fitTableToAvailableHeight
         />
       </div>
@@ -450,7 +449,7 @@ function RawIndicatorsTable(p: {
   async function handleDeleteMapping(indicator: RawIndicatorWithMappings) {
     const deleteAction = timActionDelete(
       {
-        text: t(`Are you sure you want to delete this indicator?`),
+        text: t3({ en: "Are you sure you want to delete this indicator?", fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?" }),
         itemList: [indicator.raw_indicator_id],
       },
       () =>
@@ -475,12 +474,11 @@ function RawIndicatorsTable(p: {
         `${indicator.raw_indicator_id} ~ ${indicator.raw_indicator_label}`,
     );
     const indicatorCount = indicatorIds.length;
-    const indicatorText =
-      indicatorCount === 1 ? t("this indicator") : t("these indicators");
-
     const deleteAction = timActionDelete(
       {
-        text: t(`Are you sure you want to delete ${indicatorText}?`),
+        text: indicatorCount === 1
+          ? t3({ en: "Are you sure you want to delete this indicator?", fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?" })
+          : t3({ en: "Are you sure you want to delete these indicators?", fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?" }),
         itemList: indicatorLabels,
       },
       () =>
@@ -494,7 +492,7 @@ function RawIndicatorsTable(p: {
   const columns: TableColumn<RawIndicatorWithMappings>[] = [
     {
       key: "raw_indicator_id",
-      header: t("DHIS2 Indicator ID"),
+      header: t3({ en: "DHIS2 Indicator ID", fr: "ID de l'indicateur DHIS2" }),
       sortable: true,
       render: (mapping) => (
         <span class="font-mono">{mapping.raw_indicator_id}</span>
@@ -502,12 +500,12 @@ function RawIndicatorsTable(p: {
     },
     {
       key: "raw_indicator_label",
-      header: t("Label"),
+      header: t3(TC.label),
       sortable: true,
     },
     {
       key: "indicator_common_ids",
-      header: t("Mapped To"),
+      header: t3({ en: "Mapped To", fr: "Associé à" }),
       sortable: true,
       render: (mapping) => (
         <span class="font-mono">{mapping.indicator_common_ids.join(", ")}</span>
@@ -554,7 +552,7 @@ function RawIndicatorsTable(p: {
   const bulkActions: BulkAction<RawIndicatorWithMappings>[] = p.isGlobalAdmin
     ? [
         {
-          label: t2(T.FRENCH_UI_STRINGS.delete),
+          label: t3(TC.delete),
           intent: "danger",
           outline: true,
           onClick: handleBulkDeleteRawIndicators,
@@ -566,7 +564,7 @@ function RawIndicatorsTable(p: {
     <div class="flex h-full flex-col">
       <div class="ui-gap-sm flex flex-none items-center pb-4">
         <div class="font-700 flex-1 text-xl">
-          {t("DHIS2 Indicators (JSON IDs)")}
+          {t3({ en: "DHIS2 Indicators (JSON IDs)", fr: "Indicateurs DHIS2 (ID JSON)" })}
         </div>
         <Show when={p.isGlobalAdmin}>
           <Button
@@ -574,17 +572,17 @@ function RawIndicatorsTable(p: {
             iconName="download"
             intent="neutral"
           >
-            {t("Download CSV")}
+            {t3({ en: "Download CSV", fr: "Télécharger le CSV" })}
           </Button>
           <Button iconName="import" onClick={p.handleDhis2IndicatorSelect}>
-            {t("Import DHIS2 indicator")}
+            {t3({ en: "Import DHIS2 indicator", fr: "Importer un indicateur DHIS2" })}
           </Button>
           <Button
             onClick={handleCreateMapping}
             iconName="plus"
             intent="primary"
           >
-            {t("Create DHIS2 Indicator")}
+            {t3({ en: "Create DHIS2 Indicator", fr: "Créer un indicateur DHIS2" })}
           </Button>
         </Show>
       </div>
@@ -593,9 +591,9 @@ function RawIndicatorsTable(p: {
           data={p.rawIndicators}
           columns={columns}
           keyField="raw_indicator_id"
-          noRowsMessage={t("No DHIS2 indicators")}
+          noRowsMessage={t3({ en: "No DHIS2 indicators", fr: "Aucun indicateur DHIS2" })}
           bulkActions={bulkActions}
-          selectionLabel="indicator"
+          selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
           fitTableToAvailableHeight
         />
       </div>

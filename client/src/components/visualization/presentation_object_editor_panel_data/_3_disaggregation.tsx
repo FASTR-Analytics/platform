@@ -5,9 +5,7 @@ import {
   getFilteredValueProps,
   getNextAvailableDisaggregationDisplayOption,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
-  t,
-  t2,
-  T,
+  t3,
   type PresentationOption,
   type DisaggregationOption,
   type TranslatableString,
@@ -31,7 +29,7 @@ type DisaggregationSectionProps = {
 export function DisaggregationSection(p: DisaggregationSectionProps) {
   return (
     <div class="ui-spy-sm">
-      <div class="text-md font-700">{t2(T.FRENCH_UI_STRINGS.disaggregate)}</div>
+      <div class="text-md font-700">{t3({ en: "Disaggregate", fr: "Désagréger" })}</div>
       <Show
         when={
           getFilteredValueProps(
@@ -74,9 +72,9 @@ function DataValuesDisaggregation(p: DataValuesDisaggregationProps) {
         label={
           <>
             <div class="flex flex-wrap items-center gap-x-1">
-              <span class="">{t2(T.FRENCH_UI_STRINGS.data_values)}</span>
+              <span class="">{t3({ en: "Data values", fr: "Valeurs des données" })}</span>
               <span class="text-xs">
-                ({t2(T.FRENCH_UI_STRINGS.required_for_this_visualizatio)})
+                ({t3({ en: "Required for this visualization", fr: "Nécessaire pour cette visualisation" })})
               </span>
             </div>
           </>
@@ -104,7 +102,7 @@ function DataValuesDisaggregation(p: DataValuesDisaggregationProps) {
 }
 
 type DisaggregationOptionProps = {
-  disOpt: any;
+  disOpt: DisaggregationSectionProps["allowedDisaggregationOptions"][number];
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
@@ -116,7 +114,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
       <Match when={!p.disOpt.isRequired}>
         <div class="ui-spy-sm">
           <Checkbox
-            label={t2(p.disOpt.label)}
+            label={t3(p.disOpt.label as TranslatableString)}
             checked={p.tempConfig.d.disaggregateBy.some(
               (d) => d.disOpt === p.disOpt.value,
             )}
@@ -165,9 +163,9 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
           <Checkbox
             label={
               <div class="flex flex-wrap items-center gap-x-1">
-                <span class="">{t2(p.disOpt.label)}</span>
+                <span class="">{t3(p.disOpt.label as TranslatableString)}</span>
                 <span class="text-xs">
-                  ({t2(T.FRENCH_UI_STRINGS.required_for_this_visualizatio)})
+                  ({t3({ en: "Required for this visualization", fr: "Nécessaire pour cette visualisation" })})
                 </span>
               </div>
             }
@@ -181,7 +179,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
             )}
             fallback={
               <div class="text-danger">
-                {t("Error with required dissagregator")}
+                {t3({ en: "Error with required disaggregator", fr: "Erreur avec le désagrégateur requis" })}
               </div>
             }
             keyed
@@ -252,7 +250,7 @@ function AdminAreaOptions(p: AdminAreaOptionsProps) {
   return (
     <div class="text-right">
       <Checkbox
-        label={t2(T.FRENCH_UI_STRINGS.include_national_results)}
+        label={t3({ en: "Include National results", fr: "Inclure les résultats nationaux" })}
         checked={!!p.tempConfig.d.includeNationalForAdminArea2}
         onChange={(v) =>
           p.setTempConfig("d", "includeNationalForAdminArea2", v)
@@ -263,8 +261,8 @@ function AdminAreaOptions(p: AdminAreaOptionsProps) {
           <RadioGroup
             value={p.tempConfig.d.includeNationalPosition}
             options={[
-              { value: "top", label: t2(T.FRENCH_UI_STRINGS.top) },
-              { value: "bottom", label: t2(T.FRENCH_UI_STRINGS.bottom) },
+              { value: "top", label: t3({ en: "Top", fr: "Haut" }) },
+              { value: "bottom", label: t3({ en: "Bottom", fr: "Bas" }) },
             ]}
             horizontal
             onChange={(v) =>

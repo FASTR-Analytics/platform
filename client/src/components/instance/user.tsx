@@ -1,4 +1,4 @@
-import { OtherUser, t, t2, T, UserPermission } from "lib";
+import { OtherUser, t3, TC, UserPermission } from "lib";
 import {
   Button,
   FrameTop,
@@ -101,7 +101,7 @@ export function User(p: Props) {
   async function attemptDeleteUser() {
     const deleteAction = timActionDelete(
       {
-        text: t("Are you sure you want to remove this user?"),
+        text: t3({ en: "Are you sure you want to remove this user?", fr: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?" }),
         itemList: [p.user.email],
       },
       () => serverActions.deleteUser({ emails: [p.user.email] }),
@@ -117,19 +117,19 @@ export function User(p: Props) {
       panelChildren={
         <HeaderBarCanGoBack
           back={p.close}
-          heading={`${t2(T.FRENCH_UI_STRINGS.user_profile_for)} ${p.user.email}`}
+          heading={`${t3({ en: "User profile for", fr: "Profil utilisateur de" })} ${p.user.email}`}
         />
       }
     >
       <div class="ui-pad ui-spy">
-        <SettingsSection header={t2(T.FRENCH_UI_STRINGS.login_details)}>
+        <SettingsSection header={t3({ en: "Login details", fr: "Identifiants" })}>
           <div class="flex">
-            <div class="w-48 flex-none">{t2(T.FRENCH_UI_STRINGS.email)}:</div>
+            <div class="w-48 flex-none">{t3(TC.email)}:</div>
             <div class="flex-1">{p.user.email}</div>
           </div>
         </SettingsSection>
         <SettingsSection
-          header={t2(T.FRENCH_UI_STRINGS.instance_permissions)}
+          header={t3({ en: "Instance permissions", fr: "Droits d'accès à l'instance" })}
           rightChildren={
             <div class="ui-gap-sm flex">
               <Switch>
@@ -139,7 +139,7 @@ export function User(p: Props) {
                     state={attemptMakeNonAdmin.state()}
                     outline
                   >
-                    {t2(T.FRENCH_UI_STRINGS.make_nonadmin)}
+                    {t3({ en: "Make non-admin", fr: "Retirer le rôle d'administrateur" })}
                   </Button>
                 </Match>
                 <Match when={true}>
@@ -148,7 +148,7 @@ export function User(p: Props) {
                     state={attemptMakeAdmin.state()}
                     outline
                   >
-                    {t2(T.FRENCH_UI_STRINGS.make_admin)}
+                    {t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur" })}
                   </Button>
                 </Match>
               </Switch>
@@ -156,26 +156,26 @@ export function User(p: Props) {
           }
         >
           <div class="flex">
-            <div class="w-48 flex-none">{t2(T.FRENCH_UI_STRINGS.instance_admin)}:</div>
+            <div class="w-48 flex-none">{t3({ en: "Instance admin", fr: "Administrateur de l'instance" })}:</div>
             <div class="flex-1">
-              {p.user.isGlobalAdmin ? t2(T.FRENCH_UI_STRINGS.yes) : t2(T.FRENCH_UI_STRINGS.no)}
+              {p.user.isGlobalAdmin ? t3({ en: "Yes", fr: "Oui" }) : t3({ en: "No", fr: "Non" })}
             </div>
           </div>
         </SettingsSection>
         <Show when={p.user.isGlobalAdmin === false}>
           <SettingsSection
-            header={t2("User Permissions")}
+            header={t3({ en: "User Permissions", fr: "Droits d'accès de l'utilisateur" })}
             rightChildren={
               <Show when={hasChanges()}>
                 <Button
                   onClick={savePermissions.click}
                   state={savePermissions.state()}>
-                  {t2("Save Changes")}
+                  {t3({ en: "Save Changes", fr: "Sauvegarder les modifications" })}
                 </Button>
               </Show>
             }
           >
-            <Show when={permissions()} fallback={<div>Loading...</div>}>
+            <Show when={permissions()} fallback={<div>{t3(TC.loading)}</div>}>
               {(perms) => (
                 <div class="space-y-2">
                   <For each={Object.keys(perms()) as UserPermission[]}>
@@ -198,7 +198,7 @@ export function User(p: Props) {
           outline
           iconName="trash"
         >
-          {t2(T.FRENCH_UI_STRINGS.remove_this_user)}
+          {t3({ en: "Remove this user", fr: "Supprimer cet utilisateur" })}
         </Button>
       </div>
     </FrameTop>

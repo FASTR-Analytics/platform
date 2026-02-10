@@ -9,9 +9,7 @@ import {
   getStartingConfigForPresentationObject,
   groupMetricsByLabel,
   isFrench,
-  t,
-  t2,
-  T,
+  t3,
   type CreateModeVisualizationData,
   type MetricWithStatus,
   type PresentationObjectConfig,
@@ -95,7 +93,7 @@ export function AddVisualization(
       e.preventDefault();
       const metric = selectedMetric();
       if (!metric) {
-        return { success: false, err: t("You must select a metric") };
+        return { success: false, err: t3({ en: "You must select a metric", fr: "Vous devez sélectionner une métrique" }) };
       }
 
       const presetId = selectedVizPresetId();
@@ -124,7 +122,7 @@ export function AddVisualization(
 
       const presentationOption = tempPresentationOption();
       if (!presentationOption) {
-        return { success: false, err: t("You must select a presentation option") };
+        return { success: false, err: t3({ en: "You must select a presentation option", fr: "Vous devez sélectionner une option de présentation" }) };
       }
 
       const disaggregations = metric.disaggregationOptions
@@ -162,7 +160,7 @@ export function AddVisualization(
   return (
     <AlertFormHolder
       formId="add-presentation-object"
-      header={t2(T.FRENCH_UI_STRINGS.create_visualization)}
+      header={t3({ en: "Create visualization", fr: "Créer une visualisation" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -172,7 +170,7 @@ export function AddVisualization(
     >
       <Show when={preselectedMetric}>
         <div class="text-sm">
-          <span class="text-neutral">{t("Metric")}:</span>{" "}
+          <span class="text-neutral">{t3({ en: "Metric", fr: "Métrique" })}:</span>{" "}
           <span class="font-700">{getMetricDisplayLabel(preselectedMetric!)}</span>
         </div>
       </Show>
@@ -180,12 +178,12 @@ export function AddVisualization(
         when={!preselectedMetric && metricGroups().length > 0}
         fallback={
           !preselectedMetric
-            ? t("You need to enable at least one module in order to create visualizations")
+            ? t3({ en: "You need to enable at least one module in order to create visualizations", fr: "Vous devez activer au moins un module pour créer des visualisations" })
             : null
         }
       >
         <RadioGroup
-          label={t("Metric")}
+          label={t3({ en: "Metric", fr: "Métrique" })}
           options={metricGroups().map((g) => ({
             value: g.label,
             label: g.label,
@@ -203,14 +201,14 @@ export function AddVisualization(
           }}
           convertToSelectThreshold={6}
           fullWidthForSelect
-          placeholderForSelect="Choose a metric..."
+          placeholderForSelect={t3({ en: "Choose a metric...", fr: "Choisir une métrique..." })}
         />
         <Show when={selectedGroup() && selectedGroup()!.variants.length > 1}>
           <RadioGroup
-            label={t("Variant")}
+            label={t3({ en: "Variant", fr: "Variante" })}
             options={selectedGroup()!.variants.map((m) => ({
               value: m.id,
-              label: m.variantLabel || t("Default"),
+              label: m.variantLabel || t3({ en: "Default", fr: "Par défaut" }),
             }))}
             value={selectedMetricId()}
             onChange={(v) => {
@@ -243,7 +241,7 @@ export function AddVisualization(
 
               <Show when={!hasPresets || selectedVizPresetId() === CUSTOM_OPTION}>
                 <RadioGroup
-                  label={t2(T.FRENCH_UI_STRINGS.present_as)}
+                  label={t3({ en: "Present as", fr: "Afficher sous forme de" })}
                   options={get_PRESENTATION_SELECT_OPTIONS()}
                   value={tempPresentationOption()}
                   onChange={setTempPresentationOption}
@@ -252,7 +250,7 @@ export function AddVisualization(
                   {(selectedPresentationOption) => {
                     return (
                       <LabelHolder
-                        label={t2(T.FRENCH_UI_STRINGS.disaggregate_by)}
+                        label={t3({ en: "Disaggregate by", fr: "Désagréger par" })}
                       >
                         <div class="space-y-1">
                           <For
@@ -269,7 +267,7 @@ export function AddVisualization(
                                 <Switch>
                                   <Match when={!disOpt.isRequired}>
                                     <Checkbox
-                                      label={t2(disOpt.label)}
+                                      label={typeof disOpt.label === "string" ? disOpt.label : t3(disOpt.label)}
                                       checked={tempDisaggregations().includes(
                                         disOpt.value,
                                       )}
@@ -293,12 +291,10 @@ export function AddVisualization(
                                     <Checkbox
                                       label={
                                         <>
-                                          {t2(disOpt.label)}
+                                          {typeof disOpt.label === "string" ? disOpt.label : t3(disOpt.label)}
                                           <span class="ml-1 text-xs">
                                             (
-                                            {t(
-                                              "Required for this visualization",
-                                            )}
+                                            {t3({ en: "Required for this visualization", fr: "Nécessaire pour cette visualisation" })}
                                             )
                                           </span>
                                         </>

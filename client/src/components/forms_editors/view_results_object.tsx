@@ -1,4 +1,4 @@
-import { ItemsHolderResultsObject, t, t2, T } from "lib";
+import { ItemsHolderResultsObject, t3, TC } from "lib";
 import {
   Button,
   Csv,
@@ -29,7 +29,7 @@ export function ViewResultsObject(
       projectId: p.projectId,
       results_object_id: p.resultsObjectId,
     });
-  }, "Loading results file...");
+  }, t3({ en: "Loading results file...", fr: "Chargement du fichier de résultats..." }));
 
   return (
     <FrameTop
@@ -37,7 +37,7 @@ export function ViewResultsObject(
         <div class="ui-pad ui-gap flex h-full w-full items-center border-b bg-base-200">
           <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
           <div class="flex-1 truncate text-xl font-700">
-            {t("RESULTS FILE")}
+            {t3({ en: "RESULTS FILE", fr: "FICHIER DE RÉSULTATS" })}
             <span class="ml-4 font-400">{p.resultsObjectId}</span>
           </div>
           <div class="ui-gap-sm flex items-center">
@@ -47,7 +47,7 @@ export function ViewResultsObject(
               download={p.resultsObjectId}
               iconName="download"
             >
-              {t2(T.FRENCH_UI_STRINGS.download)}
+              {t3(TC.download)}
             </Button>
             <Button iconName="refresh" onClick={items.fetch} />
           </div>
@@ -58,13 +58,13 @@ export function ViewResultsObject(
         state={items.state()}
         onErrorButton={{
           onClick: () => p.close(undefined),
-          label: t("Back to module"),
+          label: t3({ en: "Back to module", fr: "Retour au module" }),
         }}
       >
         {(keyedItems) => (
           <Switch>
             <Match when={keyedItems.status === "no_data_available"}>
-              <div class="ui-pad">No data available</div>
+              <div class="ui-pad">{t3({ en: "No data available", fr: "Aucune donnée disponible" })}</div>
             </Match>
             <Match when={keyedItems.status === "ok"}>
               {(() => {

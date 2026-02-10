@@ -1,4 +1,4 @@
-import { getTextRenderingOptions, type SlideDeckConfig } from "lib";
+import { getTextRenderingOptions, t3, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "./slide_rendering/convert_slide_to_page_inputs";
 import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH, showMenu, type MenuItem } from "panther";
@@ -27,7 +27,7 @@ export function SlideCard(p: Props) {
 
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
-    msg: "Loading...",
+    msg: t3({ en: "Loading...", fr: "Chargement..." }),
   });
 
   // Fetch slide from cache, reactive to PDS updates
@@ -68,16 +68,16 @@ export function SlideCard(p: Props) {
     e.preventDefault();
 
     const deleteLabel = p.isSelected && p.selectedCount > 1
-      ? `Delete ${p.selectedCount} slides`
-      : "Delete slide";
+      ? t3({ en: `Delete ${p.selectedCount} slides`, fr: `Supprimer ${p.selectedCount} diapositives` })
+      : t3({ en: "Delete slide", fr: "Supprimer la diapositive" });
 
     const duplicateLabel = p.isSelected && p.selectedCount > 1
-      ? `Duplicate ${p.selectedCount} slides`
-      : "Duplicate slide";
+      ? t3({ en: `Duplicate ${p.selectedCount} slides`, fr: `Dupliquer ${p.selectedCount} diapositives` })
+      : t3({ en: "Duplicate slide", fr: "Dupliquer la diapositive" });
 
     const items: MenuItem[] = [
       {
-        label: "Edit slide",
+        label: t3({ en: "Edit slide", fr: "Modifier la diapositive" }),
         icon: "pencil",
         onClick: p.onEdit,
       },
@@ -137,7 +137,7 @@ export function SlideCard(p: Props) {
             class="bg-base-200 flex items-center justify-center"
             style={{ "aspect-ratio": "16/9" }}
           >
-            <div class="text-sm">Loading...</div>
+            <div class="text-sm">{t3({ en: "Loading...", fr: "Chargement..." })}</div>
           </div>
         </Show>
         <Show when={pageInputs().status === "error"}>

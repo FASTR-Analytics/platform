@@ -62,7 +62,7 @@ type ModuleManifest = {
   modules: Record<
     ModuleId,
     {
-      label: string;
+      label: { en: string; fr: string };
       versions: string[];
       latest: string;
       prerequisites?: ModuleId[];
@@ -199,7 +199,7 @@ function generateModuleMetadata(
   // Collect module metadata from latest versions
   const moduleMetadata: Array<{
     id: ModuleId;
-    label: string;
+    label: { en: string; fr: string };
     prerequisites: ModuleId[];
   }> = [];
 
@@ -209,8 +209,8 @@ function generateModuleMetadata(
   const metricStaticData: Record<
     string,
     {
-      label: string;
-      variantLabel?: string;
+      label: { en: string; fr: string };
+      variantLabel?: { en: string; fr: string };
       resultsObjectId: string;
       valueProps: string[];
       valueFunc: string;
@@ -274,9 +274,7 @@ function generateModuleMetadata(
   const possibleModules = moduleMetadata
     .map(
       (m) =>
-        `  { id: "${m.id}", label: "${
-          m.label
-        }", prerequisiteModules: [${m.prerequisites
+        `  { id: "${m.id}", label: ${JSON.stringify(m.label)}, prerequisiteModules: [${m.prerequisites
           .map((p) => `"${p}"`)
           .join(", ")}] }`,
     )
@@ -300,7 +298,7 @@ function generateModuleMetadata(
     .map((metricId) => {
       const d = metricStaticData[metricId];
       const variant = d.variantLabel
-        ? `, variantLabel: "${d.variantLabel}"`
+        ? `, variantLabel: ${JSON.stringify(d.variantLabel)}`
         : "";
       const replacements = d.valueLabelReplacements
         ? `, valueLabelReplacements: ${JSON.stringify(d.valueLabelReplacements)}`
@@ -312,7 +310,7 @@ function generateModuleMetadata(
         ? `, vizPresets: ${JSON.stringify(d.vizPresets)}`
         : "";
       const hide = d.hide ? `, hide: true` : "";
-      return `  "${metricId}": { label: "${d.label}"${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)}, periodOptions: ${JSON.stringify(d.periodOptions)}${postAgg}${vizPresets}${hide} }`;
+      return `  "${metricId}": { label: ${JSON.stringify(d.label)}${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)}, periodOptions: ${JSON.stringify(d.periodOptions)}${postAgg}${vizPresets}${hide} }`;
     })
     .join(",\n");
 
@@ -321,6 +319,7 @@ function generateModuleMetadata(
 // Last generated: ${new Date().toISOString()}
 
 import type { PeriodOption } from "./module_definitions.ts";
+import { t3 } from "../translate/t-func.ts";
 
 // Define module IDs as a const array first
 const MODULE_IDS = [${moduleIds}] as const;
@@ -334,13 +333,17 @@ export function getValidatedModuleId(id: string): ModuleId {
 }
 
 // Now use ModuleId type in the module definitions
-export const _POSSIBLE_MODULES: {
+const _POSSIBLE_MODULES: {
   id: ModuleId;
-  label: string;
+  label: { en: string; fr: string };
   prerequisiteModules: ModuleId[];
 }[] = [
 ${possibleModules},
 ];
+
+export function getPossibleModules(): { id: ModuleId; label: string; prerequisiteModules: ModuleId[] }[] {
+  return _POSSIBLE_MODULES.map((m) => ({ ...m, label: t3(m.label) }));
+}
 
 // Metric ID to Module ID mapping
 export const METRIC_TO_MODULE: Record<string, ModuleId> = {
@@ -370,8 +373,8 @@ export function getModuleIdForResultsObject(resultsObjectId: string): ModuleId {
 
 // Static metric data for building fetchConfig client-side
 export const METRIC_STATIC_DATA: Record<string, {
-  label: string;
-  variantLabel?: string;
+  label: { en: string; fr: string };
+  variantLabel?: { en: string; fr: string };
   resultsObjectId: string;
   valueProps: string[];
   valueFunc: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
@@ -391,7 +394,7 @@ export function getMetricStaticData(metricId: string) {
   if (!data) {
     throw new Error(\`Unknown metricId: \${metricId}. This may indicate a migration issue.\`);
   }
-  return data;
+  return { ...data, label: t3(data.label), variantLabel: data.variantLabel ? t3(data.variantLabel) : undefined };
 }
 
 `;
@@ -452,12 +455,13 @@ function validateMetrics(
         definition.resultsObjects.map((ro) => ro.id),
       );
 
-      // Group metrics by label to validate variantLabel consistency
+      // Group metrics by label (using .en for comparison) to validate variantLabel consistency
       const metricsByLabel = new Map<string, typeof definition.metrics>();
       for (const metric of definition.metrics) {
-        const existing = metricsByLabel.get(metric.label) ?? [];
+        const labelKey = metric.label.en;
+        const existing = metricsByLabel.get(labelKey) ?? [];
         existing.push(metric);
-        metricsByLabel.set(metric.label, existing);
+        metricsByLabel.set(labelKey, existing);
       }
 
       // Validate variantLabel consistency
@@ -478,7 +482,7 @@ function validateMetrics(
         ) {
           // Single metric with variantLabel but no siblings - warn
           variantErrors.push(
-            `  ${moduleId}@${version}: Metric "${metricsWithLabel[0].id}" has variantLabel "${metricsWithLabel[0].variantLabel}" but no other metrics share its label "${label}"`,
+            `  ${moduleId}@${version}: Metric "${metricsWithLabel[0].id}" has variantLabel "${metricsWithLabel[0].variantLabel.en}" but no other metrics share its label "${label}"`,
           );
         }
       }

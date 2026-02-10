@@ -1,7 +1,7 @@
 import type { ModuleDefinitionJSON } from "lib";
 
 export const definition = {
-  label: "M3. Service utilization",
+  label: { en: "M3. Service utilization", fr: "M3. Utilisation des services" },
   prerequisites: ["m001", "m002"],
   scriptSource: {
     type: "github",
@@ -186,7 +186,7 @@ export const definition = {
         count_final_both:
           "Number of services after both outlier and completeness adjustment",
       },
-      label: "Number of services reported, by adjustment type",
+      label: { en: "Number of services reported, by adjustment type", fr: "Nombre de services déclarés, par type d'ajustement" },
       requiredDisaggregationOptions: ["indicator_common_id"],
       formatAs: "number",
       periodOptions: ["period_id", "quarter_id", "year"],
@@ -246,8 +246,8 @@ export const definition = {
       },
       vizPresets: [{
         id: "volume-monthly",
-        label: { en: "Service volume over time (monthly)", fr: "Service volume over time (monthly)" },
-        description: { en: "Line chart showing monthly service volume by indicator", fr: "Line chart showing monthly service volume by indicator" },
+        label: { en: "Service volume over time (monthly)", fr: "Volume de services dans le temps (mensuel)" },
+        description: { en: "Line chart showing monthly service volume by indicator", fr: "Graphique linéaire montrant le volume de services mensuel par indicateur" },
         createDefaultVisualizationOnInstall: "45f2bcd8-879d-4423-a4b0-a84127e168bf",
         allowedFilters: ["indicator_common_id"],
         config: {
@@ -261,15 +261,15 @@ export const definition = {
           },
           s: { content: "lines" },
           t: {
-            caption: { en: "Service utilization over time", fr: "Service utilization over time" },
+            caption: { en: "Service utilization over time", fr: "Utilisation des services dans le temps" },
             subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
-            footnote: { en: "Yearly volume is adjusted for outliers.", fr: "Yearly volume is adjusted for outliers." },
+            footnote: { en: "Yearly volume is adjusted for outliers.", fr: "Le volume annuel est ajusté pour les valeurs aberrantes." },
           },
         },
       }, {
         id: "volume-quarterly",
-        label: { en: "Volume quarterly change", fr: "Volume quarterly change" },
-        description: { en: "Bar chart showing quarterly volume with quarter-on-quarter change", fr: "Bar chart showing quarterly volume with quarter-on-quarter change" },
+        label: { en: "Volume quarterly change", fr: "Variation trimestrielle du volume" },
+        description: { en: "Bar chart showing quarterly volume with quarter-on-quarter change", fr: "Diagramme à barres montrant le volume trimestriel avec variation trimestre par trimestre" },
         createDefaultVisualizationOnInstall: "7196a784-8665-41ad-b563-965c59937def",
         defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
         allowedFilters: ["indicator_common_id"],
@@ -284,15 +284,15 @@ export const definition = {
           },
           s: { specialBarChart: true, specialBarChartDataLabels: "all-values" },
           t: {
-            caption: { en: "Service volume by quarter & quarter-on-quarter change", fr: "Service volume by quarter & quarter-on-quarter change" },
+            caption: { en: "Service volume by quarter & quarter-on-quarter change", fr: "Volume de services par trimestre et variation trimestre par trimestre" },
             subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
-            footnote: { en: "Service volume is adjusted for outliers.", fr: "Service volume is adjusted for outliers." },
+            footnote: { en: "Service volume is adjusted for outliers.", fr: "Le volume de services est ajusté pour les valeurs aberrantes." },
           },
         },
       }, {
         id: "volume-annual",
-        label: { en: "Volume annual change", fr: "Volume annual change" },
-        description: { en: "Bar chart showing annual volume with year-on-year change", fr: "Bar chart showing annual volume with year-on-year change" },
+        label: { en: "Volume annual change", fr: "Variation annuelle du volume" },
+        description: { en: "Bar chart showing annual volume with year-on-year change", fr: "Diagramme à barres montrant le volume annuel avec variation d'une année sur l'autre" },
         createDefaultVisualizationOnInstall: "cfc11e32-5102-484c-b242-892bb132c410",
         allowedFilters: ["indicator_common_id"],
         config: {
@@ -306,15 +306,15 @@ export const definition = {
           },
           s: { specialBarChart: true, specialBarChartDataLabels: "all-values" },
           t: {
-            caption: { en: "Service volume by year & year-on-year change", fr: "Service volume by year & year-on-year change" },
+            caption: { en: "Service volume by year & year-on-year change", fr: "Volume de services par année et variation d'une année sur l'autre" },
             subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
-            footnote: { en: "Service volume is adjusted for outliers.", fr: "Service volume is adjusted for outliers." },
+            footnote: { en: "Service volume is adjusted for outliers.", fr: "Le volume de services est ajusté pour les valeurs aberrantes." },
           },
         },
       }, {
         id: "volume-subnational",
-        label: { en: "Volume annual change by region", fr: "Volume annual change by region" },
-        description: { en: "Bar chart showing annual volume change by indicator and admin area", fr: "Bar chart showing annual volume change by indicator and admin area" },
+        label: { en: "Volume annual change by region", fr: "Variation annuelle du volume par région" },
+        description: { en: "Bar chart showing annual volume change by indicator and admin area", fr: "Diagramme à barres montrant la variation annuelle du volume par indicateur et zone administrative" },
         createDefaultVisualizationOnInstall: "20658bc8-2b24-4adc-8090-407c6e34f22a",
         allowedFilters: ["indicator_common_id", "admin_area_2"],
         config: {
@@ -331,15 +331,15 @@ export const definition = {
           },
           s: { scale: 1.7, specialBarChart: true, specialBarChartDataLabels: "all-values" },
           t: {
-            caption: { en: "Service volume by year & year-on-year change", fr: "Service volume by year & year-on-year change" },
+            caption: { en: "Service volume by year & year-on-year change", fr: "Volume de services par année et variation d'une année sur l'autre" },
             subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
-            footnote: { en: "Yearly volume is adjusted for outliers.", fr: "Yearly volume is adjusted for outliers." },
+            footnote: { en: "Yearly volume is adjusted for outliers.", fr: "Le volume annuel est ajusté pour les valeurs aberrantes." },
           },
         },
       }, {
         id: "dq-comparison",
-        label: { en: "Data quality adjustment comparison", fr: "Data quality adjustment comparison" },
-        description: { en: "Line chart comparing volume under different adjustment scenarios", fr: "Line chart comparing volume under different adjustment scenarios" },
+        label: { en: "Data quality adjustment comparison", fr: "Comparaison des ajustements de qualité des données" },
+        description: { en: "Line chart comparing volume under different adjustment scenarios", fr: "Graphique linéaire comparant le volume selon différents scénarios d'ajustement" },
         createDefaultVisualizationOnInstall: "508f17cc-fbfd-4585-a2e8-8242234898c3",
         allowedFilters: ["indicator_common_id"],
         config: {
@@ -362,7 +362,7 @@ export const definition = {
             ],
           },
           t: {
-            caption: { en: "Change in volume due to data quality adjustments", fr: "Change in volume due to data quality adjustments" },
+            caption: { en: "Change in volume due to data quality adjustments", fr: "Variation du volume due aux ajustements de qualité des données" },
             subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
           },
         },
@@ -371,8 +371,8 @@ export const definition = {
     {
       id: "m3-02-01",
       resultsObjectId: "M3_disruptions_analysis_admin_area_1.csv",
-      label: "Actual vs expected service volume",
-      variantLabel: "National",
+      label: { en: "Actual vs expected service volume", fr: "Volume de services réel vs attendu" },
+      variantLabel: { en: "National", fr: "National" },
       valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
       valueFunc: "SUM",
       valueLabelReplacements: {
@@ -437,8 +437,8 @@ export const definition = {
       },
       vizPresets: [{
         id: "disruption-chart",
-        label: { en: "Disruptions and surpluses (national)", fr: "Disruptions and surpluses (national)" },
-        description: { en: "Area chart showing actual vs expected service volume nationally", fr: "Area chart showing actual vs expected service volume nationally" },
+        label: { en: "Disruptions and surpluses (national)", fr: "Perturbations et excédents (national)" },
+        description: { en: "Area chart showing actual vs expected service volume nationally", fr: "Graphique en aires montrant le volume de services réel vs attendu au niveau national" },
         createDefaultVisualizationOnInstall: "e51a15fd-acfc-4da9-8797-b462b9626cff",
         allowedFilters: ["indicator_common_id"],
         config: {
@@ -451,9 +451,9 @@ export const definition = {
           },
           s: { scale: 2.5, content: "areas", diffAreas: true },
           t: {
-            caption: { en: "Disruptions and surpluses in service volume, nationally", fr: "Disruptions and surpluses in service volume, nationally" },
+            caption: { en: "Disruptions and surpluses in service volume, nationally", fr: "Perturbations et excédents du volume de services, au niveau national" },
             subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
-            footnote: { en: "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects.", fr: "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects." },
+            footnote: { en: "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects.", fr: "Ce graphique quantifie les changements du volume de services par rapport aux tendances historiques et en tenant compte de la saisonnalité. Ces signaux doivent être triangulés avec d'autres données et connaissances contextuelles pour déterminer si les résultats sont un artefact de la qualité des données. Les changements de volume inattendus sont estimés en comparant le volume observé au volume attendu basé sur les tendances historiques et la saisonnalité. Les grands changements inattendus précédents dans les données historiques sont supprimés. Cette analyse est une régression de séries temporelles interrompues avec effets fixes au niveau de l'établissement." },
           },
         },
       }],
@@ -461,8 +461,8 @@ export const definition = {
     {
       id: "m3-02-02",
       resultsObjectId: "M3_disruptions_analysis_admin_area_1.csv",
-      label: "Difference between actual and expected service volume",
-      variantLabel: "National",
+      label: { en: "Difference between actual and expected service volume", fr: "Différence entre le volume de services réel et attendu" },
+      variantLabel: { en: "National", fr: "National" },
       valueProps: ["pct_diff"],
       valueFunc: "identity",
       valueLabelReplacements: {
@@ -536,8 +536,8 @@ export const definition = {
     {
       id: "m3-03-01",
       resultsObjectId: "M3_disruptions_analysis_admin_area_2.csv",
-      label: "Actual vs expected service volume",
-      variantLabel: "Admin area 2",
+      label: { en: "Actual vs expected service volume", fr: "Volume de services réel vs attendu" },
+      variantLabel: { en: "Admin area 2", fr: "Zone administrative 2" },
       valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
       valueFunc: "SUM",
       valueLabelReplacements: {
@@ -606,8 +606,8 @@ export const definition = {
       },
       vizPresets: [{
         id: "disruption-chart",
-        label: { en: "Disruptions and surpluses (subnational)", fr: "Disruptions and surpluses (subnational)" },
-        description: { en: "Area chart showing actual vs expected service volume by region", fr: "Area chart showing actual vs expected service volume by region" },
+        label: { en: "Disruptions and surpluses (subnational)", fr: "Perturbations et excédents (sous-national)" },
+        description: { en: "Area chart showing actual vs expected service volume by region", fr: "Graphique en aires montrant le volume de services réel vs attendu par région" },
         createDefaultVisualizationOnInstall: "e1916b10-433a-4b19-b376-491a66b81f11",
         allowedFilters: ["indicator_common_id", "admin_area_2"],
         config: {
@@ -623,9 +623,9 @@ export const definition = {
           },
           s: { scale: 1.6, content: "areas", diffAreas: true },
           t: {
-            caption: { en: "Disruptions and surpluses in service volume, sub-nationally", fr: "Disruptions and surpluses in service volume, sub-nationally" },
+            caption: { en: "Disruptions and surpluses in service volume, sub-nationally", fr: "Perturbations et excédents du volume de services, au niveau sous-national" },
             subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
-            footnote: { en: "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects.", fr: "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects." },
+            footnote: { en: "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects.", fr: "Ce graphique quantifie les changements du volume de services par rapport aux tendances historiques et en tenant compte de la saisonnalité. Ces signaux doivent être triangulés avec d'autres données et connaissances contextuelles pour déterminer si les résultats sont un artefact de la qualité des données. Les changements de volume inattendus sont estimés en comparant le volume observé au volume attendu basé sur les tendances historiques et la saisonnalité. Les grands changements inattendus précédents dans les données historiques sont supprimés. Cette analyse est une régression de séries temporelles interrompues avec effets fixes au niveau de l'établissement." },
           },
         },
       }],
@@ -633,8 +633,8 @@ export const definition = {
     {
       id: "m3-03-02",
       resultsObjectId: "M3_disruptions_analysis_admin_area_2.csv",
-      label: "Difference between actual and expected service volume",
-      variantLabel: "Admin area 2",
+      label: { en: "Difference between actual and expected service volume", fr: "Différence entre le volume de services réel et attendu" },
+      variantLabel: { en: "Admin area 2", fr: "Zone administrative 2" },
       valueProps: ["pct_diff"],
       valueFunc: "identity",
       valueLabelReplacements: {
@@ -699,8 +699,8 @@ export const definition = {
     {
       id: "m3-04-01",
       resultsObjectId: "M3_disruptions_analysis_admin_area_3.csv",
-      label: "Actual vs expected service volume",
-      variantLabel: "Admin area 3",
+      label: { en: "Actual vs expected service volume", fr: "Volume de services réel vs attendu" },
+      variantLabel: { en: "Admin area 3", fr: "Zone administrative 3" },
       valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
       valueFunc: "SUM",
       valueLabelReplacements: {
@@ -756,8 +756,8 @@ export const definition = {
     {
       id: "m3-04-02",
       resultsObjectId: "M3_disruptions_analysis_admin_area_3.csv",
-      label: "Difference between actual and expected service volume",
-      variantLabel: "Admin area 3",
+      label: { en: "Difference between actual and expected service volume", fr: "Différence entre le volume de services réel et attendu" },
+      variantLabel: { en: "Admin area 3", fr: "Zone administrative 3" },
       valueProps: ["pct_diff"],
       valueFunc: "identity",
       valueLabelReplacements: {
@@ -820,8 +820,8 @@ export const definition = {
     {
       id: "m3-05-01",
       resultsObjectId: "M3_disruptions_analysis_admin_area_4.csv",
-      label: "Actual vs expected service volume",
-      variantLabel: "Admin area 4",
+      label: { en: "Actual vs expected service volume", fr: "Volume de services réel vs attendu" },
+      variantLabel: { en: "Admin area 4", fr: "Zone administrative 4" },
       valueProps: ["count_sum", "count_expected_if_above_diff_threshold"],
       valueFunc: "SUM",
       valueLabelReplacements: {
@@ -877,8 +877,8 @@ export const definition = {
     {
       id: "m3-05-02",
       resultsObjectId: "M3_disruptions_analysis_admin_area_4.csv",
-      label: "Difference between actual and expected service volume",
-      variantLabel: "Admin area 4",
+      label: { en: "Difference between actual and expected service volume", fr: "Différence entre le volume de services réel et attendu" },
+      variantLabel: { en: "Admin area 4", fr: "Zone administrative 4" },
       valueProps: ["pct_diff"],
       valueFunc: "identity",
       valueLabelReplacements: {

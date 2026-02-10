@@ -3,7 +3,7 @@ import { presentationObjects } from "./presentation_objects.ts";
 import { convertToHfaIndicators, indicators } from "./hfa_indicators.ts";
 
 export const definition = {
-  label: "HFA001. Health facility assessment",
+  label: { en: "HFA001. Health facility assessment", fr: "HFA001. Évaluation des établissements de santé" },
   prerequisites: [],
   scriptSource: { type: "local", filename: "./script.R" },
   defaultPresentationObjects: presentationObjects,
@@ -73,8 +73,7 @@ export const definition = {
       valueProps: ["value"],
       valueFunc: "AVG",
       valueLabelReplacements: {},
-      label:
-        "HFA indicators (percentage/proportion) - use for binary indicators",
+      label: { en: "HFA indicators (percentage/proportion) - use for binary indicators", fr: "Indicateurs HFA (pourcentage/proportion) - utiliser pour les indicateurs binaires" },
       requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
       formatAs: "percent",
       periodOptions: [],
@@ -141,8 +140,7 @@ export const definition = {
       valueProps: ["value"],
       valueFunc: "AVG",
       valueLabelReplacements: {},
-      label:
-        "HFA indicators (mean/average value) - use for averaging numeric indicators",
+      label: { en: "HFA indicators (mean/average value) - use for averaging numeric indicators", fr: "Indicateurs HFA (valeur moyenne) - utiliser pour les indicateurs numériques moyens" },
       requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
       formatAs: "number",
       periodOptions: [],
@@ -207,7 +205,7 @@ export const definition = {
       valueProps: ["value"],
       valueFunc: "SUM",
       valueLabelReplacements: {},
-      label: "HFA indicators (total/sum) - use for summing numeric values",
+      label: { en: "HFA indicators (total/sum) - use for summing numeric values", fr: "Indicateurs HFA (total/somme) - utiliser pour additionner les valeurs numériques" },
       requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
       formatAs: "number",
       periodOptions: [],
@@ -272,7 +270,7 @@ export const definition = {
       valueProps: ["value"],
       valueFunc: "COUNT",
       valueLabelReplacements: {},
-      label: "HFA indicators (record count) - useful for data quality checks",
+      label: { en: "HFA indicators (record count) - useful for data quality checks", fr: "Indicateurs HFA (nombre d'enregistrements) - utile pour les contrôles de qualité des données" },
       requiredDisaggregationOptions: ["hfa_indicator", "time_point"],
       formatAs: "number",
       periodOptions: [],

@@ -1,4 +1,4 @@
-import { isFrench, t, t2, T, VisualizationFolder } from "lib";
+import { isFrench, t3, TC, VisualizationFolder } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -43,7 +43,7 @@ export function DuplicateVisualization(
   const progress = getProgress();
 
   const folderOptions = () => [
-    { value: "_none", label: t("General") },
+    { value: "_none", label: t3(TC.general) },
     ...p.folders.map((f) => ({ value: f.id, label: f.label })),
   ];
 
@@ -84,7 +84,7 @@ export function DuplicateVisualization(
         // Single duplication
         const label = tempLabel().trim();
         if (!label) {
-          return { success: false, err: t("You must enter a name") };
+          return { success: false, err: t3(TC.mustEnterName) };
         }
 
         return serverActions.duplicatePresentationObject({
@@ -143,8 +143,8 @@ export function DuplicateVisualization(
   );
 
   const header = p.poDetails.length > 1
-    ? `Duplicate ${p.poDetails.length} visualizations`
-    : t2(T.FRENCH_UI_STRINGS.duplicate_visualization);
+    ? t3({ en: `Duplicate ${p.poDetails.length} visualizations`, fr: `Dupliquer ${p.poDetails.length} visualisations` })
+    : t3({ en: "Duplicate visualization", fr: "Dupliquer la visualisation" });
 
   return (
     <AlertFormHolder
@@ -173,7 +173,7 @@ export function DuplicateVisualization(
         {/* Label input: only for single viz */}
         <Show when={!isBatchMode()}>
           <Input
-            label={t2(T.FRENCH_UI_STRINGS.new_visualization_name)}
+            label={t3({ en: "New visualization name", fr: "Nom de la nouvelle visualisation" })}
             value={tempLabel()}
             onChange={setTempLabel}
             fullWidth
@@ -188,14 +188,14 @@ export function DuplicateVisualization(
             <div class="space-y-4">
               <div class="flex ui-gap">
                 <Input
-                  label="Folder name"
+                  label={t3({ en: "Folder name", fr: "Nom du dossier" })}
                   value={newFolderLabel()}
                   onChange={setNewFolderLabel}
                   autoFocus
                   fullWidth
                 />
                 <ColorPicker
-                  label="Color"
+                  label={t3({ en: "Color", fr: "Couleur" })}
                   value={newFolderColor()}
                   onChange={(c) => setNewFolderColor(c)}
                   position="right"
@@ -206,14 +206,14 @@ export function DuplicateVisualization(
                 outline
                 onClick={() => setIsCreatingFolder(false)}
               >
-                Back to folder list
+                {t3({ en: "Back to folder list", fr: "Retour à la liste des dossiers" })}
               </Button>
             </div>
           }
         >
           <div class="space-y-4">
             <Select
-              label={t("Folder")}
+              label={t3(TC.folder)}
               options={folderOptions()}
               value={tempFolderId()}
               onChange={setTempFolderId}
@@ -225,7 +225,7 @@ export function DuplicateVisualization(
               iconName="plus"
               onClick={() => setIsCreatingFolder(true)}
             >
-              Create new folder
+              {t3({ en: "Create new folder", fr: "Créer un nouveau dossier" })}
             </Button>
           </div>
         </Show>

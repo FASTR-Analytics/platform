@@ -84,7 +84,7 @@ const _VALUE_LABELS = {
 };
 
 export const definition = {
-  label: "M5. Coverage estimates ~ new, part 1",
+  label: { en: "M5. Coverage estimates ~ new, part 1", fr: "M5. Estimations de couverture ~ nouveau, partie 1" },
   prerequisites: ["m002"],
   scriptSource: {
     type: "github",
@@ -234,8 +234,8 @@ export const definition = {
       valueProps: ["value"],
       valueFunc: "AVG",
       valueLabelReplacements: _VALUE_LABELS,
-      label: "Denominator values",
-      variantLabel: "National",
+      label: { en: "Denominator values", fr: "Valeurs de dénominateur" },
+      variantLabel: { en: "National", fr: "National" },
       requiredDisaggregationOptions: ["denominator", "year"],
       formatAs: "number",
       periodOptions: ["year"],
@@ -295,8 +295,8 @@ export const definition = {
       },
       vizPresets: [{
         id: "values-table",
-        label: { en: "Denominator values table", fr: "Denominator values table" },
-        description: { en: "Table of denominator values by source and year", fr: "Table of denominator values by source and year" },
+        label: { en: "Denominator values table", fr: "Tableau des valeurs de dénominateur" },
+        description: { en: "Table of denominator values by source and year", fr: "Tableau des valeurs de dénominateur par source et année" },
         createDefaultVisualizationOnInstall: "1f8d2940-803c-43f0-b17b-278b271d34a7",
         allowedFilters: ["denominator", "source_indicator"],
         config: {
@@ -321,8 +321,8 @@ export const definition = {
       valueProps: ["value"],
       valueFunc: "AVG",
       valueLabelReplacements: _VALUE_LABELS,
-      label: "Denominator values",
-      variantLabel: "Admin area 2",
+      label: { en: "Denominator values", fr: "Valeurs de dénominateur" },
+      variantLabel: { en: "Admin area 2", fr: "Zone administrative 2" },
       requiredDisaggregationOptions: [
         "denominator",
         "admin_area_2",
@@ -380,8 +380,8 @@ export const definition = {
       valueProps: ["value"],
       valueFunc: "AVG",
       valueLabelReplacements: _VALUE_LABELS,
-      label: "Denominator values",
-      variantLabel: "Admin area 3",
+      label: { en: "Denominator values", fr: "Valeurs de dénominateur" },
+      variantLabel: { en: "Admin area 3", fr: "Zone administrative 3" },
       requiredDisaggregationOptions: [
         "denominator",
         "admin_area_3",
@@ -435,8 +435,8 @@ export const definition = {
       valueProps: ["value"],
       valueFunc: "AVG",
       valueLabelReplacements: _VALUE_LABELS,
-      label: "Coverage estimated with different denominators",
-      variantLabel: "National",
+      label: { en: "Coverage estimated with different denominators", fr: "Couverture estimée avec différents dénominateurs" },
+      variantLabel: { en: "National", fr: "National" },
       requiredDisaggregationOptions: [
         "denominator_best_or_survey",
         "indicator_common_id",
@@ -500,8 +500,8 @@ export const definition = {
       },
       vizPresets: [{
         id: "coverage-timeseries",
-        label: { en: "Coverage by denominator type", fr: "Coverage by denominator type" },
-        description: { en: "Timeseries comparing coverage across denominator sources", fr: "Timeseries comparing coverage across denominator sources" },
+        label: { en: "Coverage by denominator type", fr: "Couverture par type de dénominateur" },
+        description: { en: "Timeseries comparing coverage across denominator sources", fr: "Séries temporelles comparant la couverture entre sources de dénominateur" },
         createDefaultVisualizationOnInstall: "15ca88bd-6183-4e71-bb26-3277dd8eb02f",
         needsReplicant: true,
         allowedFilters: ["denominator_best_or_survey"],
@@ -519,7 +519,7 @@ export const definition = {
           },
           s: { content: "lines", showDataLabels: true },
           t: {
-            caption: { en: "Coverage based of different denominators, REPLICANT", fr: "Coverage based of different denominators, REPLICANT" },
+            caption: { en: "Coverage based of different denominators, REPLICANT", fr: "Couverture selon différents dénominateurs, REPLICANT" },
             subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
           },
         },
@@ -531,8 +531,8 @@ export const definition = {
       valueProps: ["value"],
       valueFunc: "AVG",
       valueLabelReplacements: _VALUE_LABELS,
-      label: "Coverage estimated with different denominators",
-      variantLabel: "Admin area 2",
+      label: { en: "Coverage estimated with different denominators", fr: "Couverture estimée avec différents dénominateurs" },
+      variantLabel: { en: "Admin area 2", fr: "Zone administrative 2" },
       requiredDisaggregationOptions: [
         "denominator_best_or_survey",
         "admin_area_2",
@@ -587,8 +587,8 @@ export const definition = {
       valueProps: ["value"],
       valueFunc: "AVG",
       valueLabelReplacements: _VALUE_LABELS,
-      label: "Coverage estimated with different denominators",
-      variantLabel: "Admin area 3",
+      label: { en: "Coverage estimated with different denominators", fr: "Couverture estimée avec différents dénominateurs" },
+      variantLabel: { en: "Admin area 3", fr: "Zone administrative 3" },
       requiredDisaggregationOptions: [
         "denominator_best_or_survey",
         "admin_area_3",

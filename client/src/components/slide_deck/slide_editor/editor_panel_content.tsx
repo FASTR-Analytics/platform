@@ -4,9 +4,8 @@ import {
   FigureBlock,
   TextBlock,
   ImageBlock,
-  t2,
-  T,
-  t,
+  t3,
+  TC,
 } from "lib";
 import {
   TextArea,
@@ -110,14 +109,14 @@ export function SlideEditorPanelContent(p: Props) {
           onClick={() => p.setContentTab("slide")}
           data-selected={p.contentTab === "slide"}
         >
-          Header / Footer
+          {t3({ en: "Header / Footer", fr: "En-tête / Pied de page" })}
         </div>
         <div
           class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 py-2 text-center"
           onClick={() => p.setContentTab("block")}
           data-selected={p.contentTab === "block"}
         >
-          Content
+          {t3({ en: "Content", fr: "Contenu" })}
         </div>
       </div>
 
@@ -127,7 +126,7 @@ export function SlideEditorPanelContent(p: Props) {
             <div class="h-full overflow-auto">
               <div class="ui-pad ui-spy">
                 <TextArea
-                  label="Header"
+                  label={t3({ en: "Header", fr: "En-tête" })}
                   value={p.tempSlide.header ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("header", v || undefined)
@@ -136,7 +135,7 @@ export function SlideEditorPanelContent(p: Props) {
                   height="60px"
                 />
                 <TextArea
-                  label="Sub Header"
+                  label={t3({ en: "Sub Header", fr: "Sous-en-tête" })}
                   value={p.tempSlide.subHeader ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("subHeader", v || undefined)
@@ -145,7 +144,7 @@ export function SlideEditorPanelContent(p: Props) {
                   height="40px"
                 />
                 <TextArea
-                  label="Date"
+                  label={t3({ en: "Date", fr: "Date" })}
                   value={p.tempSlide.date ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("date", v || undefined)
@@ -154,7 +153,7 @@ export function SlideEditorPanelContent(p: Props) {
                   height="40px"
                 />
                 <TextArea
-                  label="Footer"
+                  label={t3({ en: "Footer", fr: "Pied de page" })}
                   value={p.tempSlide.footer ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("footer", v || undefined)
@@ -162,12 +161,12 @@ export function SlideEditorPanelContent(p: Props) {
                   fullWidth
                   height="40px"
                 />
-                <LabelHolder label={t2(T.FRENCH_UI_STRINGS.header_logos)}>
+                <LabelHolder label={t3({ en: "Header logos", fr: "Logos d'en-tête" })}>
                   <Show
                     when={p.deckLogos.length > 0}
                     fallback={
                       <div class="text-neutral text-xs">
-                        {t2(T.FRENCH_UI_STRINGS.no_logos_set_in_report_setting)}
+                        {t3({ en: "No logos set in report settings", fr: "Aucun logo défini dans les paramètres du rapport" })}
                       </div>
                     }
                   >
@@ -183,12 +182,12 @@ export function SlideEditorPanelContent(p: Props) {
                     />
                   </Show>
                 </LabelHolder>
-                <LabelHolder label={t2(T.FRENCH_UI_STRINGS.footer_logos)}>
+                <LabelHolder label={t3({ en: "Footer logos", fr: "Logos de pied de page" })}>
                   <Show
                     when={p.deckLogos.length > 0}
                     fallback={
                       <div class="text-neutral text-xs">
-                        {t2(T.FRENCH_UI_STRINGS.no_logos_set_in_report_setting)}
+                        {t3({ en: "No logos set in report settings", fr: "Aucun logo défini dans les paramètres du rapport" })}
                       </div>
                     }
                   >
@@ -214,18 +213,18 @@ export function SlideEditorPanelContent(p: Props) {
                 when={getCurrentBlock()}
                 fallback={
                   <div class="ui-pad text-base-content/70 text-sm">
-                    Click a block on the canvas to edit it
+                    {t3({ en: "Click a block on the canvas to edit it", fr: "Cliquez sur un bloc du canevas pour le modifier" })}
                   </div>
                 }
               >
                 <div class="ui-pad ui-spy">
                   <div class="ui-gap-sm flex items-end">
                     <Select
-                      label="Content type"
+                      label={t3({ en: "Content type", fr: "Type de contenu" })}
                       options={[
-                        { value: "text", label: "Text" },
-                        { value: "figure", label: "Visualization" },
-                        { value: "image", label: "Image" },
+                        { value: "text", label: t3({ en: "Text", fr: "Texte" }) },
+                        { value: "figure", label: t3({ en: "Visualization", fr: "Visualisation" }) },
+                        { value: "image", label: t3({ en: "Image", fr: "Image" }) },
                       ]}
                       value={getCurrentBlock()?.type}
                       onChange={handleBlockTypeChange}
@@ -240,13 +239,13 @@ export function SlideEditorPanelContent(p: Props) {
                         p.onShowLayoutMenu(rect.left, rect.bottom);
                       }}
                     >
-                      Layout
+                      {t3({ en: "Layout", fr: "Mise en page" })}
                     </Button>
                   </div>
                   <Switch>
                     <Match when={getCurrentBlock()?.type === "text"}>
                       <TextArea
-                        label="Text"
+                        label={t3({ en: "Text", fr: "Texte" })}
                         value={(getCurrentBlock() as TextBlock).markdown}
                         onChange={(v: string) =>
                           updateSelectedBlock((b: any) => ({
@@ -258,13 +257,13 @@ export function SlideEditorPanelContent(p: Props) {
                         height="300px"
                       />{" "}
                       <Select
-                        label={t2(T.FRENCH_UI_STRINGS.text_background)}
+                        label={t3({ en: "Text background", fr: "Arrière-plan du texte" })}
                         options={[
-                          { value: "none", label: "None" },
-                          { value: "primary", label: "Theme color" },
-                          { value: "grey", label: "Light grey" },
-                          { value: "success", label: "Green" },
-                          { value: "danger", label: "Red" },
+                          { value: "none", label: t3({ en: "None", fr: "Aucun" }) },
+                          { value: "primary", label: t3({ en: "Theme color", fr: "Couleur du thème" }) },
+                          { value: "grey", label: t3({ en: "Light grey", fr: "Gris clair" }) },
+                          { value: "success", label: t3({ en: "Green", fr: "Vert" }) },
+                          { value: "danger", label: t3({ en: "Red", fr: "Rouge" }) },
                         ]}
                         value={
                           (getCurrentBlock() as TextBlock).style
@@ -326,7 +325,7 @@ export function SlideEditorPanelContent(p: Props) {
                         return (
                           <div class="ui-gap-sm flex items-center">
                             <Slider
-                              label={t2(T.FRENCH_UI_STRINGS.text_size)}
+                              label={t3({ en: "Text size", fr: "Taille du texte" })}
                               value={displayIndex()}
                               onChange={(i) => setDragIndex(i)}
                               onRelease={(i) => {
@@ -387,16 +386,16 @@ export function SlideEditorPanelContent(p: Props) {
                           <div class="ui-gap-sm flex flex-col">
                             <Show when={hasFigure() && hasSource()}>
                               <Button onClick={() => p.onEditVisualization()}>
-                                Edit Visualization
+                                {t3({ en: "Edit Visualization", fr: "Modifier la visualisation" })}
                               </Button>
                             </Show>
                             <Button onClick={() => p.onSelectVisualization()}>
                               {hasFigure()
-                                ? "Switch Visualization"
-                                : "Select Visualization"}
+                                ? t3({ en: "Switch Visualization", fr: "Changer de visualisation" })
+                                : t3({ en: "Select Visualization", fr: "Sélectionner la visualisation" })}
                             </Button>
                             <Button onClick={() => p.onCreateVisualization()}>
-                              Create New Visualization
+                              {t3({ en: "Create New Visualization", fr: "Créer une nouvelle visualisation" })}
                             </Button>
                             <Show when={hasFigure()}>
                               <Button
@@ -408,7 +407,7 @@ export function SlideEditorPanelContent(p: Props) {
                                   }))
                                 }
                               >
-                                Remove Visualization
+                                {t3({ en: "Remove Visualization", fr: "Supprimer la visualisation" })}
                               </Button>
                             </Show>
                           </div>
@@ -438,7 +437,7 @@ function ImageBlockEditor(p: {
 }) {
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
-    t2(T.FRENCH_UI_STRINGS.loading_files),
+    t3(TC.loadingFiles),
   );
 
   return (
@@ -446,7 +445,7 @@ function ImageBlockEditor(p: {
       <StateHolderWrapper state={assetListing.state()} noPad>
         {(keyedAssets) => (
           <Select
-            label={t2(T.FRENCH_UI_STRINGS.image_file)}
+            label={t3({ en: "Image file", fr: "Fichier image" })}
             options={getSelectOptions(
               keyedAssets.filter((f) => f.isImage).map((f) => f.fileName),
             )}
@@ -460,13 +459,13 @@ function ImageBlockEditor(p: {
       </StateHolderWrapper>
       <Show when={p.block().imgFile}>
         <RadioGroup
-          label={t2(T.FRENCH_UI_STRINGS.image_fit)}
+          label={t3({ en: "Image fit", fr: "Ajustement de l'image" })}
           value={p.block().style?.imgFit ?? "contain"}
           options={[
-            { value: "cover", label: t2(T.FRENCH_UI_STRINGS.cover_whole_area) },
+            { value: "cover", label: t3({ en: "Cover whole area", fr: "Couvrir toute la zone" }) },
             {
               value: "contain",
-              label: t2(T.FRENCH_UI_STRINGS.fit_inside_area),
+              label: t3({ en: "Fit inside area", fr: "Adapter à l'intérieur de la zone" }),
             },
           ]}
           onChange={(v: string) =>
@@ -481,13 +480,13 @@ function ImageBlockEditor(p: {
         />
         <Show when={(p.block().style?.imgFit ?? "contain") === "contain"}>
           <Select
-            label={t("Alignment")}
+            label={t3({ en: "Alignment", fr: "Alignement" })}
             options={[
-              { value: "center", label: "Center" },
-              { value: "top", label: "Top" },
-              { value: "bottom", label: "Bottom" },
-              { value: "left", label: "Left" },
-              { value: "right", label: "Right" },
+              { value: "center", label: t3({ en: "Center", fr: "Centre" }) },
+              { value: "top", label: t3({ en: "Top", fr: "Haut" }) },
+              { value: "bottom", label: t3({ en: "Bottom", fr: "Bas" }) },
+              { value: "left", label: t3({ en: "Left", fr: "Gauche" }) },
+              { value: "right", label: t3({ en: "Right", fr: "Droite" }) },
             ]}
             value={p.block().style?.imgAlign ?? "center"}
             onChange={(v: string) =>

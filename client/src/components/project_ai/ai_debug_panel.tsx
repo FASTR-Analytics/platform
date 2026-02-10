@@ -6,7 +6,7 @@ import {
   ModalContainer,
   Select,
 } from "panther";
-import type { MetricWithStatus, PresentationObjectSummary } from "lib";
+import { t3, type MetricWithStatus, type PresentationObjectSummary } from "lib";
 import { formatMetricsListForAI } from "./ai_tools/tools/_internal/format_metrics_list_for_ai";
 import { formatVisualizationsListForAI } from "./ai_tools/tools/_internal/format_visualizations_list_for_ai";
 
@@ -38,12 +38,12 @@ export function AIDebugPanel(p: Props) {
 
   return (
     <ModalContainer
-      title="AI debug — tool output preview"
+      title={t3({ en: "AI debug — tool output preview", fr: "Débogage IA — aperçu de la sortie des outils" })}
       width="lg"
       scroll="content"
       rightButtons={
         <Button intent="neutral" onClick={() => p.close(undefined)}>
-          Close
+          {t3({ en: "Close", fr: "Fermer" })}
         </Button>
       }
     >

@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router";
-import { InstanceDetail, t2, T } from "lib";
+import { InstanceDetail, t3 } from "lib";
 import {
   Button,
   FrameTop,
@@ -13,7 +13,6 @@ import {
 } from "panther";
 import { For, Show } from "solid-js";
 import { AddProjectForm } from "./add_project";
-import { t } from "lib";
 
 type Props = {
   isGlobalAdmin: boolean;
@@ -30,16 +29,14 @@ export function InstanceProjects(p: Props) {
     const instState = p.instanceDetail.state();
     if (instState.status !== "ready") {
       await openAlert({
-        text: t(" Instance is not ready yet. Try refreshing the web page."),
+        text: t3({ en: "Instance is not ready yet. Try refreshing the web page.", fr: "L'instance n'est pas encore prête. Essayez de rafraîchir la page." }),
         intent: "danger",
       });
       return;
     }
     if (instState.data.datasetsWithData.length === 0) {
       await openAlert({
-        text: t(
-          "You need to add data to the instance before you can create a project",
-        ),
+        text: t3({ en: "You need to add data to the instance before you can create a project", fr: "Vous devez ajouter des données à l'instance avant de pouvoir créer un projet" }),
         intent: "danger",
       });
       return;
@@ -61,10 +58,10 @@ export function InstanceProjects(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBarMainRibbon heading={t2(T.FRENCH_UI_STRINGS.projects)}>
+          <HeadingBarMainRibbon heading={t3({ en: "Projects", fr: "Projets" })}>
             <Show when={p.isGlobalAdmin || p.canCreateProjects}>
               <Button onClick={attemptAddProject} iconName="plus">
-                {t2(T.FRENCH_UI_STRINGS.create_project)}
+                {t3({ en: "Create project", fr: "Créer un projet" })}
               </Button>
             </Show>
           </HeadingBarMainRibbon>
@@ -77,7 +74,7 @@ export function InstanceProjects(p: Props) {
                 <For
                   each={keyedInstanceDetail.projects}
                   fallback={
-                    <div class="text-neutral text-sm">{t("No projects")}</div>
+                    <div class="text-neutral text-sm">{t3({ en: "No projects", fr: "Aucun projet" })}</div>
                   }
                 >
                   {(project) => {
@@ -93,7 +90,7 @@ export function InstanceProjects(p: Props) {
                               <span class="relative inline-flex h-[1.25em] w-[1.25em]">
                                 <LockIcon />
                               </span>
-                              Project locked
+                              {t3({ en: "Project locked", fr: "Projet verrouillé" })}
                             </div>
                           </Show>
                         </div>

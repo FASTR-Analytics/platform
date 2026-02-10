@@ -1,4 +1,4 @@
-import { t, t2, T } from "lib";
+import { t3, TC } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -57,7 +57,7 @@ export function DownloadSlideDeck(
 
   return (
     <ModalContainer
-      title={t("Download slide deck")}
+      title={t3({ en: "Download slide deck", fr: "Télécharger la présentation" })}
       width="sm"
       leftButtons={
         pct() > 0
@@ -69,31 +69,31 @@ export function DownloadSlideDeck(
                 intent="success"
                 iconName="download"
               >
-                {t2(T.FRENCH_UI_STRINGS.download)}
+                {t3(TC.download)}
               </Button>,
               <Button
                 onClick={() => p.close(undefined)}
                 intent="neutral"
                 iconName="x"
               >
-                {t2(T.FRENCH_UI_STRINGS.done)}
+                {t3(TC.done)}
               </Button>,
             ]
       }
     >
       <div class="ui-spy-sm">
-        <div class="">{t("PDF")}</div>
+        <div class="">PDF</div>
         <RadioGroup
-          options={[{ value: "vector", label: "Native PDF (Recommended)" }]}
+          options={[{ value: "vector", label: t3({ en: "Native PDF (Recommended)", fr: "PDF natif (recommandé)" }) }]}
           value={exportFormat()}
           onChange={setExportFormat}
         />
       </div>
       <div class="ui-spy-sm">
-        <div class="">{t("PPTX")}</div>
+        <div class="">PPTX</div>
         <RadioGroup
           options={[
-            { value: "pptx", label: "Native PPTX with raster figures" },
+            { value: "pptx", label: t3({ en: "Native PPTX with raster figures", fr: "PPTX natif avec figures matricielles" }) },
           ]}
           value={exportFormat()}
           onChange={setExportFormat}

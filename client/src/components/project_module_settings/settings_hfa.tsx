@@ -1,5 +1,5 @@
 import {
-  t, t2, T,
+  t3, TC,
   type HfaIndicator,
   type ModuleConfigSelectionsHfa,
   type ModuleId
@@ -71,7 +71,7 @@ export function SettingsForProjectModuleHFA(
       }
     }
     return res as APIResponseWithData<ModuleConfigSelectionsHfa>;
-  }, "Loading module config selections...");
+  }, t3({ en: "Loading module config selections...", fr: "Chargement des configurations du module..." }));
 
   const save = timActionButton(async () => {
     return await serverActions.updateModuleParameters({
@@ -116,7 +116,7 @@ export function SettingsForProjectModuleHFA(
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${p.installedModuleLabel} ${t2(T.FRENCH_UI_STRINGS.settings_1)}`}>
+        <HeadingBar heading={`${p.installedModuleLabel} ${t3({ en: "settings", fr: "paramètres" })}`}>
           <div class="ui-gap-sm flex">
             <Show when={!p.projectIsLocked}>
               <Button
@@ -124,7 +124,7 @@ export function SettingsForProjectModuleHFA(
                 intent="primary"
                 iconName="plus"
               >
-                {t("Add Indicator")}
+                {t3({ en: "Add Indicator", fr: "Ajouter un indicateur" })}
               </Button>
             </Show>
             <Show when={!p.projectIsLocked}>
@@ -135,7 +135,7 @@ export function SettingsForProjectModuleHFA(
                 // disabled={!needsSaving()}
                 iconName="save"
               >
-                {t2(T.FRENCH_UI_STRINGS.save)}
+                {t3(TC.save)}
               </Button>
             </Show>
             <Button
@@ -143,7 +143,7 @@ export function SettingsForProjectModuleHFA(
               intent="neutral"
               iconName="x"
             >
-              {t2(T.FRENCH_UI_STRINGS.cancel)}
+              {t3(TC.cancel)}
             </Button>
           </div>
         </HeadingBar>
@@ -160,7 +160,7 @@ export function SettingsForProjectModuleHFA(
                     <Input
                       value={varSearch()}
                       onChange={setVarSearch}
-                      placeholder={t("Search variables...")}
+                      placeholder={t3({ en: "Search variables...", fr: "Rechercher des variables..." })}
                       fullWidth
                     />
                   </div>
@@ -172,7 +172,7 @@ export function SettingsForProjectModuleHFA(
                       columns={[
                         {
                           key: "var_name",
-                          header: "Variable",
+                          header: t3({ en: "Variable", fr: "Variable" }),
                           sortable: true,
                           render: (v) => (
                             <div class="font-mono">{v.var_name}</div>
@@ -180,7 +180,7 @@ export function SettingsForProjectModuleHFA(
                         },
                         {
                           key: "example_values",
-                          header: "Example Values",
+                          header: t3({ en: "Example Values", fr: "Exemples de valeurs" }),
                           render: (v) => (
                             <div class="truncate font-mono">
                               {v.example_values}
@@ -200,10 +200,10 @@ export function SettingsForProjectModuleHFA(
                     keyField="varName"
                     onRowClick={(indicator) => editIndicator(indicator)}
                     fitTableToAvailableHeight
-                    selectionLabel="indicator"
+                    selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
                     bulkActions={[
                       {
-                        label: t("Delete"),
+                        label: t3(TC.delete),
                         intent: "danger",
                         onClick: (selectedIndicators) => {
                           const selectedVarNames = new Set(
@@ -220,36 +220,36 @@ export function SettingsForProjectModuleHFA(
                     columns={[
                       {
                         key: "category",
-                        header: t("Category"),
+                        header: t3({ en: "Category", fr: "Catégorie" }),
                         // sortable: true,
                       },
                       {
                         key: "definition",
-                        header: t("Definition"),
+                        header: t3({ en: "Definition", fr: "Définition" }),
                         // sortable: true,
                       },
                       {
                         key: "varName",
-                        header: t("Variable Name"),
+                        header: t3({ en: "Variable Name", fr: "Nom de la variable" }),
                         // sortable: true,
                       },
                       {
                         key: "type",
-                        header: t("Type"),
+                        header: t3({ en: "Type", fr: "Type" }),
                         render: (indicator) => (
-                          <code class="font-mono text-xs">{indicator.type === "binary" ? "Boolean" : "Numeric"}</code>
+                          <code class="font-mono text-xs">{indicator.type === "binary" ? t3({ en: "Boolean", fr: "Booléen" }) : t3({ en: "Numeric", fr: "Numérique" })}</code>
                         ),
                       },
                       {
                         key: "rCode",
-                        header: t("R Code"),
+                        header: t3({ en: "R Code", fr: "Code R" }),
                         render: (indicator) => (
                           <code class="font-mono text-xs">{indicator.rCode}</code>
                         ),
                       },
                       {
                         key: "rFilterCode",
-                        header: t("R Filter Code"),
+                        header: t3({ en: "R Filter Code", fr: "Code de filtre R" }),
                         render: (indicator) => (
                           <code class="font-mono text-xs">{indicator.rFilterCode}</code>
                         ),
@@ -259,12 +259,12 @@ export function SettingsForProjectModuleHFA(
                       {
                         key: "category",
                         label: (items) =>
-                          `${items[0].category} (${items.length} indicators)`,
+                          `${items[0].category} (${items.length} ${t3({ en: "indicators", fr: "indicateurs" })})`,
                         groupBy: (item) => item.category,
                       },
                     ]}
                     currentGroup="category"
-                    noRowsMessage={t("No indicators configured")}
+                    noRowsMessage={t3({ en: "No indicators configured", fr: "Aucun indicateur configuré" })}
                   /></EditorWrapper>
               </div>
             </FrameRightResizable>

@@ -1,4 +1,4 @@
-import { ReportType, get_REPORT_TYPE_SELECT_OPTIONS, isFrench, t2, T } from "lib";
+import { ReportType, get_REPORT_TYPE_SELECT_OPTIONS, isFrench, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -8,7 +8,6 @@ import {
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { t } from "lib";
 
 export function AddReportForm(
   p: AlertComponentProps<
@@ -28,7 +27,7 @@ export function AddReportForm(
     async (e: MouseEvent) => {
       e.preventDefault();
       if (!tempLabel().trim()) {
-        return { success: false, err: t("You must enter a label") };
+        return { success: false, err: t3({ en: "You must enter a label", fr: "Vous devez saisir un libellé" }) };
       }
       return await serverActions.createReport({
         projectId: p.projectId,
@@ -42,21 +41,21 @@ export function AddReportForm(
   return (
     <AlertFormHolder
       formId="add-report"
-      header={t2(T.Reports.create_report)}
+      header={t3({ en: "Create new report", fr: "Créer un nouveau rapport" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
       french={isFrench()}
     >
       <Input
-        label={t2(T.FRENCH_UI_STRINGS.report_name)}
+        label={t3({ en: "Report name", fr: "Nom du rapport" })}
         value={tempLabel()}
         onChange={setTempLabel}
         fullWidth
         autoFocus
       />
       <RadioGroup
-        label={t2(T.Reports.report_type)}
+        label={t3({ en: "Report type", fr: "Type de rapport" })}
         options={get_REPORT_TYPE_SELECT_OPTIONS()}
         value={tempReportType()}
         onChange={setTempReportType}

@@ -8,20 +8,20 @@ import {
 import { For } from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { isFrench, t, type UserPermission } from "lib";
+import { t3, TC, type UserPermission } from "lib";
 import { USER_PERMISSIONS } from "./user";
 
 type TriState = true | false | "unchanged";
 
-const PERMISSION_LABELS: Record<UserPermission, string> = {
-  can_configure_users: "Configure users",
-  can_view_users: "View users",
-  can_view_logs: "View logs",
-  can_configure_settings: "Configure settings",
-  can_configure_assets: "Configure assets",
-  can_configure_data: "Configure data",
-  can_view_data: "View data",
-  can_create_projects: "Create projects",
+const PERMISSION_LABELS: Record<UserPermission, () => string> = {
+  can_configure_users: () => t3({ en: "Configure users", fr: "Configurer les utilisateurs" }),
+  can_view_users: () => t3({ en: "View users", fr: "Voir les utilisateurs" }),
+  can_view_logs: () => t3({ en: "View logs", fr: "Voir les journaux" }),
+  can_configure_settings: () => t3({ en: "Configure settings", fr: "Configurer les paramètres" }),
+  can_configure_assets: () => t3({ en: "Configure assets", fr: "Configurer les ressources" }),
+  can_configure_data: () => t3({ en: "Configure data", fr: "Configurer les données" }),
+  can_view_data: () => t3({ en: "View data", fr: "Voir les données" }),
+  can_create_projects: () => t3({ en: "Create projects", fr: "Créer des projets" }),
 };
 
 function cycleTriState(current: TriState): TriState {
@@ -68,7 +68,7 @@ export function BulkEditPermissionsForm(
   return (
     <ModalContainer
       width="sm"
-      title={t(`Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`)}
+      title={t3({ en: `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}` })}
       leftButtons={[
         <Button
           onClick={save.click}
@@ -76,7 +76,7 @@ export function BulkEditPermissionsForm(
           state={save.state()}
           iconName="save"
         >
-          {isFrench() ? "Sauvegarder" : "Save"}
+          {t3(TC.save)}
         </Button>,
         <Button
           onClick={() => p.close(undefined)}
@@ -84,18 +84,18 @@ export function BulkEditPermissionsForm(
           iconName="x"
           outline
         >
-          {isFrench() ? "Annuler" : "Cancel"}
+          {t3(TC.cancel)}
         </Button>,
       ]}
     >
       <div class="space-y-1">
         <div class="text-xs text-neutral mb-2">
-          {t("Click to cycle: unchanged → true → false")}
+          {t3({ en: "Click to cycle: unchanged \u2192 true \u2192 false", fr: "Cliquer pour alterner : inchangé \u2192 vrai \u2192 faux" })}
         </div>
         <For each={USER_PERMISSIONS}>
           {(key: UserPermission) => (
             <TriStateCheckbox
-              label={PERMISSION_LABELS[key]}
+              label={PERMISSION_LABELS[key]()}
               value={state[key]}
               onChange={() => setState(key, cycleTriState(state[key]))}
             />

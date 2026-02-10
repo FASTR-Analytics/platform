@@ -1,4 +1,4 @@
-import { isFrench, SlideDeckFolder, t } from "lib";
+import { isFrench, SlideDeckFolder, t3, TC } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -21,7 +21,7 @@ export function AddDeckForm(
   );
 
   const folderOptions = () => [
-    { value: "_none", label: t("General") },
+    { value: "_none", label: t3(TC.general) },
     ...p.folders.map((f) => ({ value: f.id, label: f.label })),
   ];
 
@@ -29,7 +29,7 @@ export function AddDeckForm(
     async (e: MouseEvent) => {
       e.preventDefault();
       if (!tempLabel().trim()) {
-        return { success: false, err: t("You must enter a label") };
+        return { success: false, err: t3({ en: "You must enter a label", fr: "Vous devez saisir un libellé" }) };
       }
       const folderId = tempFolderId() === "_none" ? null : tempFolderId();
       return await serverActions.createSlideDeck({
@@ -44,7 +44,7 @@ export function AddDeckForm(
   return (
     <AlertFormHolder
       formId="add-deck"
-      header="Create slide deck"
+      header={t3({ en: "Create slide deck", fr: "Créer une présentation" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -52,14 +52,14 @@ export function AddDeckForm(
     >
       <div class="ui-spy">
         <Input
-          label="Deck Name"
+          label={t3({ en: "Deck name", fr: "Nom de la présentation" })}
           value={tempLabel()}
           onChange={setTempLabel}
           fullWidth
           autoFocus
         />
         <Select
-          label={t("Folder")}
+          label={t3(TC.folder)}
           options={folderOptions()}
           value={tempFolderId()}
           onChange={setTempFolderId}

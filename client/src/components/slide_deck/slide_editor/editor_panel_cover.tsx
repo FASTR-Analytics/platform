@@ -1,4 +1,4 @@
-import { CoverSlide, t, t2, T } from "lib";
+import { CoverSlide, t3 } from "lib";
 import { LabelHolder, MultiSelect, Slider, TextArea } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
@@ -12,12 +12,12 @@ type Props = {
 export function SlideEditorPanelCover(p: Props) {
   return (
     <div class="ui-pad ui-spy">
-      <LabelHolder label={t2(T.FRENCH_UI_STRINGS.logos_to_use)}>
+      <LabelHolder label={t3({ en: "Logos to use", fr: "Logos à utiliser" })}>
         <Show
           when={p.deckLogos.length > 0}
           fallback={
             <div class="text-xs text-neutral">
-              {t2(T.FRENCH_UI_STRINGS.no_logos_set_in_report_setting)}
+              {t3({ en: "No logos set in report settings", fr: "Aucun logo défini dans les paramètres du rapport" })}
             </div>
           }
         >
@@ -35,14 +35,14 @@ export function SlideEditorPanelCover(p: Props) {
       </LabelHolder>
       <div class="ui-spy-sm">
         <TextArea
-          label="Title"
+          label={t3({ en: "Title", fr: "Titre" })}
           value={p.tempSlide.title}
           onChange={(v: string) => p.setTempSlide("title", v)}
           fullWidth
           height="80px"
         />
         <Slider
-          label={t("Title font size")}
+          label={t3({ en: "Title font size", fr: "Taille de police du titre" })}
           min={5}
           max={20}
           step={1}
@@ -52,14 +52,14 @@ export function SlideEditorPanelCover(p: Props) {
           showValueInLabel
         />
         <TextArea
-          label="Subtitle"
+          label={t3({ en: "Subtitle", fr: "Sous-titre" })}
           value={p.tempSlide.subtitle ?? ""}
           onChange={(v: string) => p.setTempSlide("subtitle", v || undefined)}
           fullWidth
           height="60px"
         />
         <Slider
-          label={t("Subtitle font size")}
+          label={t3({ en: "Subtitle font size", fr: "Taille de police du sous-titre" })}
           min={3}
           max={12}
           step={1}
@@ -69,14 +69,14 @@ export function SlideEditorPanelCover(p: Props) {
           showValueInLabel
         />
         <TextArea
-          label="Presenter"
+          label={t3({ en: "Presenter", fr: "Présentateur" })}
           value={p.tempSlide.presenter ?? ""}
           onChange={(v: string) => p.setTempSlide("presenter", v || undefined)}
           fullWidth
           height="80px"
         />
         <Slider
-          label={t("Presenter font size")}
+          label={t3({ en: "Presenter font size", fr: "Taille de police du présentateur" })}
           min={2}
           max={12}
           step={1}
@@ -86,14 +86,14 @@ export function SlideEditorPanelCover(p: Props) {
           showValueInLabel
         />
         <TextArea
-          label="Date"
+          label={t3({ en: "Date", fr: "Date" })}
           value={p.tempSlide.date ?? ""}
           onChange={(v: string) => p.setTempSlide("date", v || undefined)}
           fullWidth
           height="60px"
         />
         <Slider
-          label={t("Date font size")}
+          label={t3({ en: "Date font size", fr: "Taille de police de la date" })}
           min={2}
           max={10}
           step={1}

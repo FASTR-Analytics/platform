@@ -1,4 +1,4 @@
-import { t, t2, T, type ModuleId } from "lib";
+import { t3, TC, type ModuleId } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -23,20 +23,20 @@ export function ViewScript(
         module_id: p.moduleId,
         projectId: p.projectId,
       }),
-    "Loading script...",
+    t3({ en: "Loading script...", fr: "Chargement du script..." }),
   );
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`Script for ${p.moduleLabel}`}>
+        <HeadingBar heading={`${t3({ en: "Script for", fr: "Script pour" })} ${p.moduleLabel}`}>
           <div class="ui-gap-sm flex">
             <Button
               onClick={() => p.close(undefined)}
               intent="neutral"
               iconName="x"
             >
-              {t2(T.FRENCH_UI_STRINGS.done)}
+              {t3(TC.done)}
             </Button>
           </div>
         </HeadingBar>

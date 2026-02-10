@@ -2,9 +2,8 @@ import {
   isFrench,
   PresentationObjectConfig,
   PresentationObjectDetail,
-  t,
-  T,
-  t2,
+  t3,
+  TC,
   VisualizationFolder,
 } from "lib";
 import {
@@ -33,7 +32,7 @@ export function SaveAsNewVisualizationModal(
   const [tempFolderId, setTempFolderId] = createSignal<string>("_none");
 
   const folderOptions = () => [
-    { value: "_none", label: t("General") },
+    { value: "_none", label: t3(TC.general) },
     ...p.folders.map((f) => ({ value: f.id, label: f.label })),
   ];
 
@@ -42,7 +41,7 @@ export function SaveAsNewVisualizationModal(
       e.preventDefault();
       const goodLabel = tempLabel().trim();
       if (!goodLabel) {
-        return { success: false, err: t("You must enter a name") };
+        return { success: false, err: t3(TC.mustEnterName) };
       }
       const folderId = tempFolderId() === "_none" ? null : tempFolderId();
 
@@ -74,7 +73,7 @@ export function SaveAsNewVisualizationModal(
   return (
     <AlertFormHolder
       formId="create-visualization"
-      header={t2(T.FRENCH_UI_STRINGS.create_visualization)}
+      header={t3({ en: "Create visualization", fr: "Créer une visualisation" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -82,14 +81,14 @@ export function SaveAsNewVisualizationModal(
     >
       <div class="ui-spy">
         <Input
-          label={t2(T.FRENCH_UI_STRINGS.visualization_name)}
+          label={t3({ en: "Visualization name", fr: "Nom de la visualisation" })}
           value={tempLabel()}
           onChange={setTempLabel}
           fullWidth
           autoFocus
         />
         <Select
-          label={t("Folder")}
+          label={t3(TC.folder)}
           options={folderOptions()}
           value={tempFolderId()}
           onChange={setTempFolderId}

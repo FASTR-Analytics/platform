@@ -1,4 +1,4 @@
-import { APIResponseNoData, APIResponseWithData, isFrench } from "lib";
+import { APIResponseNoData, APIResponseWithData, isFrench, t3, TC } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -7,7 +7,6 @@ import {
   TextArea,
 } from "panther";
 import { Match, Switch, createSignal } from "solid-js";
-import { t } from "lib";
 
 export function EditLabelForm(
   p: AlertComponentProps<
@@ -32,7 +31,7 @@ export function EditLabelForm(
           e.preventDefault();
           const goodLabel = tempLabel().trim();
           if (!goodLabel) {
-            return { success: false, err: t("You must enter a name") };
+            return { success: false, err: t3(TC.mustEnterName) };
           }
           return p.mutateFunc(goodLabel);
         },
@@ -44,7 +43,7 @@ export function EditLabelForm(
           e.preventDefault();
           const goodLabel = tempLabel().trim();
           if (!goodLabel) {
-            return { success: false, err: t("You must enter a name") };
+            return { success: false, err: t3(TC.mustEnterName) };
           }
           return p.mutateFunc(goodLabel);
         },

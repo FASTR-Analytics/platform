@@ -1,4 +1,4 @@
-import { VisualizationFolder, t } from "lib";
+import { VisualizationFolder, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -26,7 +26,7 @@ export function EditFolderModal(p: AlertComponentProps<Props, ReturnType>) {
       e.preventDefault();
       const label = tempLabel().trim();
       if (!label) {
-        return { success: false, err: t("Folder name is required") };
+        return { success: false, err: t3({ en: "Folder name is required", fr: "Le nom du dossier est requis" }) };
       }
       if (isCreate) {
         return serverActions.createVisualizationFolder({
@@ -50,21 +50,21 @@ export function EditFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   return (
     <AlertFormHolder
       formId="edit-folder"
-      header={isCreate ? t("New folder") : t("Edit folder")}
+      header={isCreate ? t3({ en: "New folder", fr: "Nouveau dossier" }) : t3({ en: "Edit folder", fr: "Modifier le dossier" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
     >
       <div class="flex ui-gap">
         <Input
-          label={t("Folder name")}
+          label={t3({ en: "Folder name", fr: "Nom du dossier" })}
           value={tempLabel()}
           onChange={setTempLabel}
           autoFocus
           fullWidth
         />
         <ColorPicker
-          label="Color"
+          label={t3({ en: "Color", fr: "Couleur" })}
           value={tempColor()}
           onChange={(c) => setTempColor(c)}
           position="right"

@@ -3,9 +3,8 @@ import {
   ProjectDetail,
   _POSSIBLE_DATASETS,
   getCalendar,
-  t,
-  t2,
-  T,
+  t3,
+  TC,
 } from "lib";
 import {
   Button,
@@ -35,7 +34,7 @@ export function ProjectData(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   return (
     <EditorWrapper>
-      <FrameTop panelChildren={<HeadingBar heading={"Data"}
+      <FrameTop panelChildren={<HeadingBar heading={t3({ en: "Data", fr: "Données" })}
         class="border-base-300" ensureHeightAsIfButton></HeadingBar>}>
         <div class="ui-pad ui-spy">
           <For each={_POSSIBLE_DATASETS}>
@@ -62,7 +61,7 @@ export function ProjectData(p: Props) {
                         const inst = instanceVersion();
                         const proj = projectVersion();
                         if (inst !== undefined && proj < inst) {
-                          reasons.push(`Dataset updated (v${proj} → v${inst})`);
+                          reasons.push(t3({ en: `Dataset updated (v${proj} → v${inst})`, fr: `Données mises à jour (v${proj} → v${inst})` }));
                         }
 
                         // Structure (facilities/admin areas)
@@ -71,14 +70,14 @@ export function ProjectData(p: Props) {
                           keyedProjectDatasetHmis.info.structureLastUpdated &&
                           p.instanceDetail.structureLastUpdated > keyedProjectDatasetHmis.info.structureLastUpdated
                         ) {
-                          reasons.push("Facilities or admin areas changed");
+                          reasons.push(t3({ en: "Facilities or admin areas changed", fr: "Établissements ou unités administratives modifiés" }));
                         }
 
                         // Indicators
                         if (
                           p.instanceDetail.cacheVersions.indicatorMappings !== keyedProjectDatasetHmis.info.indicatorMappingsVersion
                         ) {
-                          reasons.push("Indicators or mappings changed");
+                          reasons.push(t3({ en: "Indicators or mappings changed", fr: "Indicateurs ou correspondances modifiés" }));
                         }
 
                         // Facility config
@@ -86,7 +85,7 @@ export function ProjectData(p: Props) {
                           keyedProjectDatasetHmis.info.facilityColumnsConfig &&
                           JSON.stringify(p.instanceDetail.facilityColumns) !== JSON.stringify(keyedProjectDatasetHmis.info.facilityColumnsConfig)
                         ) {
-                          reasons.push("Facility configuration changed");
+                          reasons.push(t3({ en: "Facility configuration changed", fr: "Configuration des établissements modifiée" }));
                         }
 
                         // Max admin area
@@ -94,7 +93,7 @@ export function ProjectData(p: Props) {
                           keyedProjectDatasetHmis.info.maxAdminArea !== undefined &&
                           p.instanceDetail.maxAdminArea !== keyedProjectDatasetHmis.info.maxAdminArea
                         ) {
-                          reasons.push("Admin area structure changed");
+                          reasons.push(t3({ en: "Admin area structure changed", fr: "Structure des unités administratives modifiée" }));
                         }
 
                         return { isStale: reasons.length > 0, reasons };
@@ -131,7 +130,7 @@ export function ProjectData(p: Props) {
                               {possibleDataset.label}
                               <Show when={isStale()}>
                                 <span class="ml-2 bg-warning text-warning-content rounded px-2 py-1 text-xs font-500">
-                                  {t("Instance data updated")}
+                                  {t3({ en: "Instance data updated", fr: "Données de l'instance mises à jour" })}
                                 </span>
                               </Show>
                             </div>
@@ -146,7 +145,7 @@ export function ProjectData(p: Props) {
                                   download={`hmis.csv`}
                                   outline
                                 >
-                                  {t2(T.FRENCH_UI_STRINGS.download)}
+                                  {t3(TC.download)}
                                 </Button>
                                 <Button
                                   onClick={disableDataset.click}
@@ -154,13 +153,13 @@ export function ProjectData(p: Props) {
                                   // iconName="x"
                                   outline
                                 >
-                                  {t2(T.FRENCH_UI_STRINGS.disable)}
+                                  {t3({ en: "Disable", fr: "Désactiver" })}
                                 </Button>
                                 <Button
                                   onClick={() => editSettings(undefined)}
                                   iconName="settings"
                                 >
-                                  {t2(T.FRENCH_UI_STRINGS.settings)}
+                                  {t3(TC.settings)}
                                 </Button>
                               </div>
                             </Show>
@@ -169,7 +168,7 @@ export function ProjectData(p: Props) {
                             <Show when={isStale()}>
                               <div class="ui-spy-sm mb-4 inline-block ui-pad border rounded">
                                 <div class="font-700">
-                                  {t("Project data is out of date")}
+                                  {t3({ en: "Project data is out of date", fr: "Les données du projet ne sont plus à jour" })}
                                 </div>
                                 <ul class="list-disc pl-5 text-xs space-y-1">
                                   <For each={stalenessCheck().reasons}>
@@ -182,13 +181,13 @@ export function ProjectData(p: Props) {
                                     intent="primary"
                                     iconName="refresh"
                                   >
-                                    {t("Update data")}
+                                    {t3({ en: "Update data", fr: "Mettre à jour les données" })}
                                   </Button>
                                 </div>
                               </div>
                             </Show>
                             <div class={`text-xs ${isStale() ? "text-warning" : "text-success"}`}>
-                              {t2(T.Données.last_exported)}:{" "}
+                              {t3({ en: "Last exported from instance into project", fr: "Dernière exportation de l'instance vers le projet" })}:{" "}
                               {new Date(
                                 keyedProjectDatasetHmis.dateExported,
                               ).toLocaleString()}
@@ -196,7 +195,7 @@ export function ProjectData(p: Props) {
                             <div class="ui-spy-sm py-4">
                               <div class="grid grid-cols-12 text-sm">
                                 <div class="col-span-4">
-                                  {t2(T.FRENCH_UI_STRINGS.time_period)}
+                                  {t3({ en: "Time period", fr: "Période" })}
                                 </div>
                                 <div class="col-span-8">
                                   {formatPeriod(
@@ -215,32 +214,32 @@ export function ProjectData(p: Props) {
                               </div>
                               <div class="grid grid-cols-12 text-sm">
                                 <div class="col-span-4">
-                                  {t2(T.FRENCH_UI_STRINGS.indicators)}
+                                  {t3({ en: "Indicators", fr: "Indicateurs" })}
                                 </div>
                                 <div class="col-span-8">
                                   {keyedProjectDatasetHmis.info.windowing
                                     .takeAllIndicators
-                                    ? t2(T.FRENCH_UI_STRINGS.all_indicators)
+                                    ? t3({ en: "All indicators", fr: "Tous les indicateurs" })
                                     : (keyedProjectDatasetHmis.info.windowing.commonIndicatorsToInclude
                                       ?.map((ind) => {
                                         return ind.toUpperCase();
                                       })
                                       .join(", ") ??
-                                      t2(T.FRENCH_UI_STRINGS.all_indicators))}
+                                      t3({ en: "All indicators", fr: "Tous les indicateurs" }))}
                                 </div>
                               </div>
                               <div class="grid grid-cols-12 text-sm">
                                 <div class="col-span-4">
-                                  {t2(T.FRENCH_UI_STRINGS.admin_areas)}
+                                  {t3({ en: "Admin areas", fr: "Unités administratives" })}
                                 </div>
                                 <div class="col-span-8">
                                   {keyedProjectDatasetHmis.info.windowing
                                     .takeAllAdminArea2s
-                                    ? t2(T.FRENCH_UI_STRINGS.all_admin_areas)
+                                    ? t3({ en: "All admin areas", fr: "Toutes les unités administratives" })
                                     : (keyedProjectDatasetHmis.info.windowing.adminArea2sToInclude?.join(
                                       ", ",
                                     ) ??
-                                      t2(T.FRENCH_UI_STRINGS.all_admin_areas))}
+                                      t3({ en: "All admin areas", fr: "Toutes les unités administratives" }))}
                                 </div>
                               </div>
                               <Show
@@ -251,16 +250,16 @@ export function ProjectData(p: Props) {
                               >
                                 <div class="grid grid-cols-12 text-sm">
                                   <div class="col-span-4">
-                                    {t("Facility ownership categories")}
+                                    {t3({ en: "Facility ownership categories", fr: "Catégories de propriété des établissements" })}
                                   </div>
                                   <div class="col-span-8">
                                     {keyedProjectDatasetHmis.info.windowing
                                       .takeAllFacilityOwnerships !== false
-                                      ? t("All facility ownership categories")
+                                      ? t3({ en: "All facility ownership categories", fr: "Toutes les catégories de propriété" })
                                       : (keyedProjectDatasetHmis.info.windowing.facilityOwnwershipsToInclude?.join(
                                         ", ",
                                       ) ??
-                                        t("All facility ownership categories"))}
+                                        t3({ en: "All facility ownership categories", fr: "Toutes les catégories de propriété" }))}
                                   </div>
                                 </div>
                               </Show>
@@ -271,15 +270,15 @@ export function ProjectData(p: Props) {
                               >
                                 <div class="grid grid-cols-12 text-sm">
                                   <div class="col-span-4">
-                                    {t("Facility types")}
+                                    {t3({ en: "Facility types", fr: "Types d'établissements" })}
                                   </div>
                                   <div class="col-span-8">
                                     {keyedProjectDatasetHmis.info.windowing
                                       .takeAllFacilityTypes !== false
-                                      ? t("All facility types")
+                                      ? t3({ en: "All facility types", fr: "Tous les types d'établissements" })
                                       : (keyedProjectDatasetHmis.info.windowing.facilityTypesToInclude?.join(
                                         ", ",
-                                      ) ?? t("All facility types"))}
+                                      ) ?? t3({ en: "All facility types", fr: "Tous les types d'établissements" }))}
                                   </div>
                                 </div>
                               </Show>
@@ -287,7 +286,7 @@ export function ProjectData(p: Props) {
                             <Show when={keyedProjectDatasetHmis.info.totalRows}>
                               <div class="font-700 grid grid-cols-12 text-sm">
                                 <div class="col-span-4">
-                                  {t2(T.Données.total_rows)}
+                                  {t3({ en: "Total rows", fr: "Nombre total de lignes" })}
                                 </div>
                                 <div class="col-span-8">
                                   {toNum0(
@@ -340,7 +339,7 @@ export function ProjectData(p: Props) {
                               {possibleDataset.label}
                               <Show when={isStale()}>
                                 <span class="ml-2 bg-warning text-warning-content rounded px-2 py-1 text-xs font-500">
-                                  {t("Instance data updated")}
+                                  {t3({ en: "Instance data updated", fr: "Données de l'instance mises à jour" })}
                                 </span>
                               </Show>
                             </div>
@@ -354,7 +353,7 @@ export function ProjectData(p: Props) {
                                   onClick={editSettings}
                                   iconName="settings"
                                 >
-                                  {t2(T.FRENCH_UI_STRINGS.settings)}
+                                  {t3(TC.settings)}
                                 </Button> */}
                                 <Button
                                   onClick={disableDataset.click}
@@ -362,7 +361,7 @@ export function ProjectData(p: Props) {
                                   // iconName="x"
                                   outline
                                 >
-                                  {t2(T.FRENCH_UI_STRINGS.disable)}
+                                  {t3({ en: "Disable", fr: "Désactiver" })}
                                 </Button>
                               </div>
                             </Show>
@@ -371,12 +370,12 @@ export function ProjectData(p: Props) {
                             <Show when={isStale()}>
                               <div class="bg-warning/10 border-warning mb-3 rounded border p-3 text-sm">
                                 <div class="font-600 mb-1">
-                                  {t("Project data is out of date")}
+                                  {t3({ en: "Project data is out of date", fr: "Les données du projet ne sont plus à jour" })}
                                 </div>
                                 <div class="text-xs">
-                                  {t("Project version")}: {projectVersion()}
+                                  {t3({ en: "Project version", fr: "Version du projet" })}: {projectVersion()}
                                   {" | "}
-                                  {t("Instance version")}: {instanceVersion()}
+                                  {t3({ en: "Instance version", fr: "Version de l'instance" })}: {instanceVersion()}
                                 </div>
                                 <div class="mt-3">
                                   <Button
@@ -385,13 +384,13 @@ export function ProjectData(p: Props) {
                                     intent="primary"
                                     iconName="refresh"
                                   >
-                                    {t("Update data")}
+                                    {t3({ en: "Update data", fr: "Mettre à jour les données" })}
                                   </Button>
                                 </div>
                               </div>
                             </Show>
                             <div class={`text-xs ${isStale() ? "text-warning" : "text-success"}`}>
-                              {t2(T.Données.last_exported)}:{" "}
+                              {t3({ en: "Last exported from instance into project", fr: "Dernière exportation de l'instance vers le projet" })}:{" "}
                               {new Date(
                                 keyedProjectDatasetHfa.dateExported,
                               ).toLocaleString()}
@@ -410,9 +409,7 @@ export function ProjectData(p: Props) {
                           )
                         ) {
                           await openAlert({
-                            text: t(
-                              "This dataset has no data at the instance level",
-                            ),
+                            text: t3({ en: "This dataset has no data at the instance level", fr: "Ce jeu de données ne contient aucune donnée au niveau de l'instance" }),
                             intent: 'danger'
                           });
                           return;
@@ -438,9 +435,7 @@ export function ProjectData(p: Props) {
                         ) {
                           return {
                             success: false,
-                            err: t(
-                              "This dataset has no data at the instance level",
-                            ),
+                            err: t3({ en: "This dataset has no data at the instance level", fr: "Ce jeu de données ne contient aucune donnée au niveau de l'instance" }),
                           };
                         }
 
@@ -464,7 +459,7 @@ export function ProjectData(p: Props) {
                                 }
                                 fallback={
                                   <div class="font-400 text-neutral text-sm">
-                                    {t("Deactivated")}
+                                    {t3({ en: "Deactivated", fr: "Désactivé" })}
                                   </div>
                                 }
                               >
@@ -481,7 +476,7 @@ export function ProjectData(p: Props) {
                                   }
                                   outline
                                 >
-                                  {t2(T.FRENCH_UI_STRINGS.enable)}
+                                  {t3({ en: "Enable", fr: "Activer" })}
                                 </Button>
                               </Show>
                             </div>

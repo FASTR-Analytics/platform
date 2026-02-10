@@ -1,10 +1,9 @@
 import {
   InstalledModuleSummary,
   ProjectDetail,
-  _POSSIBLE_MODULES,
-  t,
-  t2,
-  T,
+  getPossibleModules,
+  t3,
+  TC,
   type ModuleId,
 } from "lib";
 import {
@@ -32,6 +31,7 @@ import { SettingsForProjectModuleHFA } from "../project_module_settings/settings
 import { ViewFiles } from "./view_files";
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
+import { UpdateAllModules } from "./update_all_modules";
 import { UpdateModule } from "./update_module";
 
 type Props = {
@@ -44,19 +44,35 @@ export function ProjectModules(p: Props) {
   const projectDetail = useProjectDetail();
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
+  async function updateAllModules() {
+    await openComponent({
+      element: UpdateAllModules,
+      props: {
+        projectId: projectDetail.id,
+        modules: projectDetail.projectModules,
+      },
+    });
+  }
+
   return (
     <EditorWrapper>
       <FrameTop
         panelChildren={
           <HeadingBar
-            heading={t2(T.FRENCH_UI_STRINGS.modules)}
+            heading={t3({ en: "Modules", fr: "Modules" })}
             class="border-base-300"
             ensureHeightAsIfButton
-          ></HeadingBar>
+          >
+            <Show when={!projectDetail.isLocked && projectDetail.projectModules.length > 0 && (p.isGlobalAdmin || p.canConfigureModules)}>
+              <Button onClick={updateAllModules} iconName="refresh" outline>
+                {t3({ en: "Update all", fr: "Tout mettre à jour" })}
+              </Button>
+            </Show>
+          </HeadingBar>
         }
       >
         <div class="ui-pad ui-spy">
-          <For each={_POSSIBLE_MODULES}>
+          <For each={getPossibleModules()}>
             {(possibleModuleDef) => {
               const installedModule = projectDetail.projectModules.find(
                 (m) => m.id === possibleModuleDef.id,
@@ -132,7 +148,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
   async function editSettings() {
     if (p.thisInstalledModule.configType === "none") {
       const _res = await openAlert({
-        text: "There are no settings for this module!",
+        text: t3({ en: "There are no settings for this module!", fr: "Ce module n'a aucun paramètre !" }),
       });
       return;
     }
@@ -161,12 +177,12 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
   }
 
   const disableModule = timActionButton(async () => {
-    for (const otherMod of _POSSIBLE_MODULES) {
+    for (const otherMod of getPossibleModules()) {
       if (otherMod.prerequisiteModules.includes(p.thisInstalledModule.id)) {
         if (p.allInstalledModules.some((m) => m.id === otherMod.id)) {
           return {
             success: false,
-            err: `${t2(T.FRENCH_UI_STRINGS.in_order_to_disable_this_modul)} ${otherMod.label}`,
+            err: `${t3({ en: "In order to disable this module you must first disable the modules that depend on it, including", fr: "Pour désactiver ce module, les modules qui en dépendent doivent d'abord être désactivés, y compris :" })} ${otherMod.label}`,
           };
         }
       }
@@ -250,17 +266,17 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
           }
         >
           <Button onClick={showScript} outline>
-            {t("Script")}
+            {t3({ en: "Script", fr: "Script" })}
           </Button>
           <Button onClick={showLogs} outline>
-            {t2(T.FRENCH_UI_STRINGS.logs)}
+            {t3({ en: "Logs", fr: "Journaux des données" })}
           </Button>
         </Show>
         <Show
           when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready"}
         >
           <Button onClick={showFiles} outline>
-            {t2(T.Modules.files)}
+            {t3({ en: "Files", fr: "Fichiers" })}
           </Button>
         </Show>
         <Show
@@ -279,7 +295,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
               state={attemptRerunModule.state()}
               outline
             >
-              {t2(T.FRENCH_UI_STRINGS.rerun)}
+              {t3({ en: "Re-run", fr: "Relancer" })}
             </Button>
           </Show>
         </Show>
@@ -290,14 +306,14 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
               state={disableModule.state()}
               outline
             >
-              {t2(T.FRENCH_UI_STRINGS.disable)}
+              {t3({ en: "Disable", fr: "Désactiver" })}
             </Button>
             <Button onClick={updateModule} iconName="refresh">
-              {t2(T.Modules.update)}
+              {t3(TC.update)}
             </Button>
           </Show>
           <Button onClick={editSettings} iconName="settings">
-            {t2(T.FRENCH_UI_STRINGS.settings)}
+            {t3(TC.settings)}
           </Button>
         </Show>
       </div>
@@ -309,7 +325,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
         }
         fallback={
           <div class="ui-pad text-neutral text-xs">
-            Waiting for data or upstream modules
+            {t3({ en: "Waiting for data or upstream modules", fr: "En attente des données ou des modules en amont" })}
           </div>
         }
       >
@@ -321,30 +337,30 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
               <div class="flex">
                 <div class="ui-spy-sm flex-1">
                   <div class="text-success text-xs">
-                    {t2("Last module install/update")}:{" "}
+                    {t3({ en: "Last module install/update", fr: "Dernière installation/mise à jour du module" })}:{" "}
                     {new Date(
                       p.thisInstalledModule.dateInstalled,
                     ).toLocaleString()}{" "}
                     {p.thisInstalledModule.commitSha ? (
                       <span>
-                        (Commit: {p.thisInstalledModule.commitSha.slice(0, 6)})
+                        ({t3({ en: "Commit", fr: "Commit" })}: {p.thisInstalledModule.commitSha.slice(0, 6)})
                       </span>
                     ) : (
-                      "No SHA"
+                      t3({ en: "No SHA", fr: "Pas de SHA" })
                     )}
                   </div>
                   <div class="text-success text-xs">
-                    {t2(T.FRENCH_UI_STRINGS.last_run)}:{" "}
+                    {t3({ en: "Last run", fr: "Dernière exécution" })}:{" "}
                     {new Date(
                       pds.moduleLastRun[p.thisInstalledModule.id],
                     ).toLocaleString()}{" "}
                     {p.thisInstalledModule.latestRanCommitSha ? (
                       <span>
-                        (Latest run commit:{" "}
+                        ({t3({ en: "Latest run commit", fr: "Dernier commit exécuté" })}:{" "}
                         {p.thisInstalledModule.latestRanCommitSha.slice(0, 6)})
                       </span>
                     ) : (
-                      "No SHA"
+                      t3({ en: "No SHA", fr: "Pas de SHA" })
                     )}
                   </div>
                 </div>
@@ -363,7 +379,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
               when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"}
             >
               <div class="text-danger truncate text-xs">
-                View logs to determine the error
+                {t3({ en: "View logs to determine the error", fr: "Consultez les journaux pour déterminer l'erreur" })}
               </div>
             </Match>
           </Switch>
@@ -401,10 +417,10 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
     for (const prereq of p.thisUninstalledModulePrerequisiteModules) {
       if (!p.currentModules.some((m) => m.id === prereq)) {
         const missingModLabel =
-          _POSSIBLE_MODULES.find((m) => m.id === prereq)?.label ?? prereq;
+          getPossibleModules().find((m) => m.id === prereq)?.label ?? prereq;
         return {
           success: false,
-          err: `${t("In order to install this module you must first install the module")} ${missingModLabel}`,
+          err: `${t3({ en: "In order to install this module you must first install the module", fr: "Pour installer ce module, vous devez d'abord installer le module" })} ${missingModLabel}`,
         };
       }
     }
@@ -434,7 +450,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
           (p.isGlobalAdmin || p.canConfigureModules)
         }
         fallback={
-          <div class="font-400 text-neutral text-sm">{t("Deactivated")}</div>
+          <div class="font-400 text-neutral text-sm">{t3({ en: "Deactivated", fr: "Désactivé" })}</div>
         }
       >
         <div class="">
@@ -443,7 +459,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
             state={enableModule.state()}
             outline
           >
-            {t2(T.FRENCH_UI_STRINGS.enable)}
+            {t3({ en: "Enable", fr: "Activer" })}
           </Button>
         </div>
       </Show>

@@ -14,7 +14,7 @@ import {
   useConversations,
   type MenuItem,
 } from "panther";
-import { t } from "lib";
+import { t3, TC } from "lib";
 import type { Accessor } from "solid-js";
 import { useAIProjectContext } from "./context";
 import { setShowAi } from "~/state/ui";
@@ -84,10 +84,10 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   const handleDeleteConversation = async () => {
     const confirmed = await openConfirm({
-      title: "Delete conversation",
-      text: "Are you sure you want to delete this conversation? This action cannot be undone.",
+      title: t3({ en: "Delete conversation", fr: "Supprimer la conversation" }),
+      text: t3({ en: "Are you sure you want to delete this conversation? This action cannot be undone.", fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible." }),
       intent: "danger",
-      confirmButtonLabel: "Delete",
+      confirmButtonLabel: t3(TC.delete),
     });
     if (confirmed) {
       await conversations.deleteConversation(conversationId());
@@ -96,13 +96,13 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   const menuItems = (): MenuItem[] => [
     {
-      label: "New conversation",
+      label: t3({ en: "New conversation", fr: "Nouvelle conversation" }),
       icon: "plus",
       onClick: () => conversations.createConversation(),
       disabled: isLoading(),
     },
     {
-      label: "Switch conversation",
+      label: t3({ en: "Switch conversation", fr: "Changer de conversation" }),
       icon: "versions",
       onClick: openConversationSelector,
       disabled: isLoading(),
@@ -111,13 +111,13 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       type: "divider",
     },
     {
-      label: "Prompt library",
+      label: t3({ en: "Prompt library", fr: "Bibliothèque de prompts" }),
       icon: "sparkles",
       onClick: openPromptLibrary,
       disabled: isLoading(),
     },
     {
-      label: "Include file",
+      label: t3({ en: "Include file", fr: "Inclure un fichier" }),
       icon: "document",
       onClick: p.aiDocs.openSelector,
       disabled: isLoading(),
@@ -126,12 +126,12 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       type: "divider",
     },
     {
-      label: "AI settings",
+      label: t3({ en: "AI settings", fr: "Paramètres IA" }),
       icon: "settings",
       onClick: openSettings,
     },
     {
-      label: "View system prompt",
+      label: t3({ en: "View system prompt", fr: "Voir le prompt système" }),
       icon: "code",
       onClick: () =>
         openComponent<AIChatSystemPromptPanelProps, void>({
@@ -140,7 +140,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         }),
     },
     {
-      label: "View AI tool output",
+      label: t3({ en: "View AI tool output", fr: "Voir la sortie des outils IA" }),
       icon: "search",
       onClick: () =>
         openComponent<AIDebugPanelProps, void>({
@@ -155,7 +155,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       type: "divider",
     },
     {
-      label: "Delete conversation",
+      label: t3({ en: "Delete conversation", fr: "Supprimer la conversation" }),
       icon: "trash",
       intent: "danger",
       onClick: handleDeleteConversation,
@@ -167,13 +167,13 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     const ctx = aiContext();
     switch (ctx.mode) {
       case "editing_slide_deck":
-        return t("Ask about this slide deck...");
+        return t3({ en: "Ask about this slide deck...", fr: "Posez une question sur cette présentation..." });
       case "editing_slide":
-        return t("Ask about this slide...");
+        return t3({ en: "Ask about this slide...", fr: "Posez une question sur cette diapositive..." });
       case "editing_visualization":
-        return t("Ask about this visualization...");
+        return t3({ en: "Ask about this visualization...", fr: "Posez une question sur cette visualisation..." });
       // case "editing_report":
-      //   return t("Ask about this report...");
+      //   return t3({ en: "Ask about this report...", fr: "Posez une question sur ce rapport..." });
       case "viewing_visualizations":
       case "viewing_slide_decks":
       // case "viewing_reports":
@@ -181,7 +181,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       case "viewing_metrics":
       case "viewing_modules":
       case "viewing_settings":
-        return t("Explore your data...");
+        return t3({ en: "Explore your data...", fr: "Explorez vos données..." });
       default: {
         const _exhaustive: never = ctx;
         return _exhaustive;
@@ -201,19 +201,19 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       // case "editing_report":
       //   return ctx.reportLabel;
       case "viewing_visualizations":
-        return "Visualizations";
+        return t3({ en: "Visualizations", fr: "Visualisations" });
       case "viewing_slide_decks":
-        return "Slide Decks";
+        return t3({ en: "Slide Decks", fr: "Présentations" });
       // case "viewing_reports":
-      //   return "Reports";
+      //   return t3({ en: "Reports", fr: "Rapports" });
       case "viewing_data":
-        return "Data";
+        return t3({ en: "Data", fr: "Données" });
       case "viewing_metrics":
-        return "Metrics";
+        return t3({ en: "Metrics", fr: "Indicateurs" });
       case "viewing_modules":
-        return "Modules";
+        return t3({ en: "Modules", fr: "Modules" });
       case "viewing_settings":
-        return "Settings";
+        return t3(TC.settings);
       default: {
         const _exhaustive: never = ctx;
         return _exhaustive;

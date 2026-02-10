@@ -1,7 +1,6 @@
 import {
-  t,
-  t2,
-  _POSSIBLE_MODULES,
+  t3,
+  getPossibleModules,
   groupMetricsByLabel,
   type InstanceDetail,
   type MetricGroup,
@@ -50,7 +49,7 @@ export function ProjectMetrics(p: Props) {
     }
 
     const result: MetricsByModule[] = [];
-    for (const possibleModule of _POSSIBLE_MODULES) {
+    for (const possibleModule of getPossibleModules()) {
       const moduleMetrics = moduleMap.get(possibleModule.id);
       if (moduleMetrics) {
         result.push({
@@ -68,7 +67,7 @@ export function ProjectMetrics(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={t2("Metrics")}
+        <HeadingBar heading={t3({ en: "Metrics", fr: "Métriques" })}
           class="border-base-300"
           ensureHeightAsIfButton></HeadingBar>
       }
@@ -166,12 +165,12 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         <div class="font-700">{p.metricGroup.label}</div>
         <Show when={firstMetric.aiDescription}>
           <div class="text-neutral mt-1 text-xs">
-            {t2(firstMetric.aiDescription!.summary)}
+            {t3(firstMetric.aiDescription!.summary)}
           </div>
         </Show>
         <Show when={hasVariants}>
           <div class="text-neutral mt-1 text-xs">
-            {p.metricGroup.variants.length} variants
+            {p.metricGroup.variants.length} {t3({ en: "variants", fr: "variantes" })}
           </div>
         </Show>
       </div>
@@ -181,10 +180,10 @@ function MetricGroupCard(p: MetricGroupCardProps) {
             {firstMetric.formatAs}
           </div>
           <div class="text-neutral text-xs">
-            {firstMetric.periodOptions.length} period{firstMetric.periodOptions.length !== 1 ? "s" : ""}
+            {firstMetric.periodOptions.length} {t3({ en: firstMetric.periodOptions.length !== 1 ? "periods" : "period", fr: firstMetric.periodOptions.length !== 1 ? "périodes" : "période" })}
           </div>
           <div class="text-neutral text-xs">
-            {firstMetric.disaggregationOptions.length} disagg{firstMetric.disaggregationOptions.length !== 1 ? "s" : ""}
+            {firstMetric.disaggregationOptions.length} {t3({ en: firstMetric.disaggregationOptions.length !== 1 ? "disaggs" : "disagg", fr: firstMetric.disaggregationOptions.length !== 1 ? "désagrég." : "désagrég." })}
           </div>
         </div>
         <Show when={hasVariants}>
@@ -194,7 +193,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
                 <div class="border-base-300 ui-pad-sm ui-gap-sm flex items-start justify-between rounded border">
                   <div class="flex-1">
                     <div class="font-700 text-sm">
-                      {variant.variantLabel || t("Default")}
+                      {variant.variantLabel || t3({ en: "Default", fr: "Par défaut" })}
                     </div>
                     <div class="font-mono text-neutral text-xs">{variant.id}</div>
                   </div>
@@ -203,7 +202,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
                       onClick={() => visualize(variant)}
                       size="sm"
                       outline
-                    >Visualize</Button>
+                    >{t3({ en: "Visualize", fr: "Visualiser" })}</Button>
                     <Button
                       onClick={() => showDetails(variant)}
                       size="sm"

@@ -1,4 +1,4 @@
-import type { Slide, SlideDeckFolder, SlideDeckSummary } from "lib";
+import { t3, type Slide, type SlideDeckFolder, type SlideDeckSummary } from "lib";
 import { AlertComponentProps, AlertFormHolder, timActionForm } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -64,7 +64,7 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
   return (
     <AlertFormHolder
       formId="add-to-deck"
-      header="Add to Slide Deck"
+      header={t3({ en: "Add to Slide Deck", fr: "Ajouter à une présentation" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}

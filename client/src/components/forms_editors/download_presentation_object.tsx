@@ -1,6 +1,6 @@
 import { Button, EditorComponentProps, ModalContainer, RadioGroup } from "panther";
 import { Show, createSignal } from "solid-js";
-import { t2, T, PresentationObjectDetail } from "lib";
+import { t3, TC, PresentationObjectDetail } from "lib";
 
 export function DownloadPresentationObject(
   p: EditorComponentProps<
@@ -35,35 +35,35 @@ export function DownloadPresentationObject(
 
   return (
     <ModalContainer
-      title={t2(T.FRENCH_UI_STRINGS.download)}
+      title={t3(TC.download)}
       width="sm"
       leftButtons={
         // eslint-disable-next-line jsx-key
         [
           <Button onClick={done} intent="success" iconName="download">
-            {t2(T.FRENCH_UI_STRINGS.download)}
+            {t3(TC.download)}
           </Button>,
           <Button
             onClick={() => p.close(undefined)}
             intent="neutral"
             iconName="x"
           >
-            {t2(T.FRENCH_UI_STRINGS.cancel)}
+            {t3(TC.cancel)}
           </Button>,
         ]
       }
     >
       <div class="">
         <RadioGroup
-          label={t2(T.FRENCH_UI_STRINGS.format)}
+          label={t3({ en: "Format", fr: "Format" })}
           options={[
-            { value: "image", label: t2(T.FRENCH_UI_STRINGS.visualization_1) },
+            { value: "image", label: t3({ en: "Visualization", fr: "Visualisation" }) },
             {
               value: "data-visualization",
-              label: t2(T.FRENCH_UI_STRINGS.aggregated_data_for_the_visual),
+              label: t3({ en: "Aggregated data for the visualization", fr: "Données agrégées pour la visualisation" }),
             },
-            { value: "data-results-file", label: t2(T.FRENCH_UI_STRINGS.results_file_data) },
-            { value: "json-definition", label: "JSON definition" },
+            { value: "data-results-file", label: t3({ en: "Results file data", fr: "Données du fichier de résultats" }) },
+            { value: "json-definition", label: t3({ en: "JSON definition", fr: "Définition JSON" }) },
           ]}
           value={format()}
           onChange={setFormat}
@@ -72,19 +72,19 @@ export function DownloadPresentationObject(
       <Show when={format() === "image"}>
         <div class="flex ui-gap">
           <RadioGroup
-            label={t2(T.FRENCH_UI_STRINGS.background)}
+            label={t3({ en: "Background", fr: "Arrière-plan" })}
             options={[
-              { value: "white", label: t2(T.FRENCH_UI_STRINGS.white) },
-              { value: "transparent", label: t2(T.FRENCH_UI_STRINGS.transparent) },
+              { value: "white", label: t3({ en: "White", fr: "Blanc" }) },
+              { value: "transparent", label: t3({ en: "Transparent", fr: "Transparent" }) },
             ]}
             value={transparent()}
             onChange={setTransparent}
           />
           <RadioGroup
-            label={t2(T.FRENCH_UI_STRINGS.margin)}
+            label={t3({ en: "Margin", fr: "Marge" })}
             options={[
-              { value: "padding", label: t2(T.FRENCH_UI_STRINGS.with_margins) },
-              { value: "no-padding", label: t2(T.FRENCH_UI_STRINGS.no_margins) },
+              { value: "padding", label: t3({ en: "With margins", fr: "Avec marges" }) },
+              { value: "no-padding", label: t3({ en: "No margins", fr: "Sans marges" }) },
             ]}
             value={padding()}
             onChange={setPadding}

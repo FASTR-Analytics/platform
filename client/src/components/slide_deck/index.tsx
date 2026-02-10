@@ -1,4 +1,4 @@
-import { type InstanceDetail, type ProjectDetail, type Slide, type SlideDeckConfig, getStartingConfigForSlideDeck, t, t2, T } from "lib";
+import { type InstanceDetail, type ProjectDetail, type Slide, type SlideDeckConfig, getStartingConfigForSlideDeck, t3 } from "lib";
 import {
   createAIChat,
   EditorComponentProps,
@@ -133,9 +133,9 @@ function ProjectAiSlideDeckInner(p: {
       props: {
         projectId: p.projectDetail.id,
         config: p.deckConfig,
-        heading: t("Slide deck settings"),
-        nameLabel: t("Slide deck name"),
-        showPageNumbersSuffix: t2(T.FRENCH_UI_STRINGS.except_on_cover_and_section_sl),
+        heading: t3({ en: "Slide deck settings", fr: "Paramètres de la présentation" }),
+        nameLabel: t3({ en: "Slide deck name", fr: "Nom de la présentation" }),
+        showPageNumbersSuffix: t3({ en: "(except on cover and section slides)", fr: "(sauf sur les diapositives de couverture et de section)" }),
         saveConfig: (config) =>
           serverActions.updateSlideDeckConfig({
             projectId: p.projectDetail.id,

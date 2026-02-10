@@ -1,4 +1,4 @@
-import type { SlideDeckFolder, SlideDeckSummary } from "lib";
+import { t3, TC, type SlideDeckFolder, type SlideDeckSummary } from "lib";
 import { Button, Input, RadioGroup, Select, type SelectOption } from "panther";
 import { createMemo, createSignal, Show } from "solid-js";
 
@@ -19,8 +19,8 @@ export function DeckSelector(p: Props) {
   const folderOptions = createMemo((): SelectOption<string>[] => {
     if (p.folders.length === 0) return [];
     return [
-      { value: "_all", label: "All folders" },
-      { value: "_unfiled", label: "General" },
+      { value: "_all", label: t3({ en: "All folders", fr: "Tous les dossiers" }) },
+      { value: "_unfiled", label: t3(TC.general) },
       ...p.folders.map((f) => ({ value: f.id, label: f.label })),
     ];
   });
@@ -42,10 +42,10 @@ export function DeckSelector(p: Props) {
       fallback={
         <div class="ui-spy">
           <Input
-            label="New deck name"
+            label={t3({ en: "New deck name", fr: "Nom de la nouvelle présentation" })}
             value={p.newDeckLabel}
             onChange={p.onSetNewDeckLabel}
-            placeholder="Deck name..."
+            placeholder={t3({ en: "Deck name...", fr: "Nom de la présentation..." })}
             autoFocus
             fullWidth
           />
@@ -54,7 +54,7 @@ export function DeckSelector(p: Props) {
             outline
             onClick={() => p.onSetCreatingNew(false)}
           >
-            Back to deck list
+            {t3({ en: "Back to deck list", fr: "Retour à la liste" })}
           </Button>
         </div>
       }
@@ -62,7 +62,7 @@ export function DeckSelector(p: Props) {
       <div class="ui-spy-sm">
         <Show when={folderOptions().length > 0}>
           <Select
-            label="Slide deck folder"
+            label={t3({ en: "Slide deck folder", fr: "Dossier de présentation" })}
             value={selectedFolderId()}
             options={folderOptions()}
             onChange={setSelectedFolderId}
@@ -70,7 +70,7 @@ export function DeckSelector(p: Props) {
           />
         </Show>
         <RadioGroup
-          label="Slide deck"
+          label={t3({ en: "Slide deck", fr: "Présentation" })}
           value={p.selectedDeckId}
           options={filteredDecks()}
           onChange={p.onSelectDeck}
@@ -83,7 +83,7 @@ export function DeckSelector(p: Props) {
           iconName="plus"
           onClick={() => p.onSetCreatingNew(true)}
         >
-          Create new deck
+          {t3({ en: "Create new deck", fr: "Créer une nouvelle présentation" })}
         </Button>
       </div>
     </Show>

@@ -1,4 +1,4 @@
-import { isFrench, t, type ModuleId } from "lib";
+import { isFrench, t3, type ModuleId } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -36,19 +36,19 @@ export function UpdateModule(
   return (
     <AlertFormHolder
       formId="update-module"
-      header={t("Update module")}
+      header={t3({ en: "Update module", fr: "Mettre à jour le module" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
       french={isFrench()}
     >
       <Checkbox
-        label="Preserve settings"
+        label={t3({ en: "Preserve settings", fr: "Conserver les paramètres" })}
         checked={preserveSettings()}
         onChange={setPreserveSettings}
       />
       <Checkbox
-        label="Re-run module after update"
+        label={t3({ en: "Re-run module after update", fr: "Relancer le module après la mise à jour" })}
         checked={rerunModule()}
         onChange={setRerunModule}
       />

@@ -1,4 +1,4 @@
-import { t, t2, T, type Dhis2Credentials } from "lib";
+import { t3, TC, type Dhis2Credentials } from "lib";
 import {
   AlertComponentProps,
   Button,
@@ -36,13 +36,13 @@ export function Dhis2CredentialsForm(
   const saveAction = timActionForm(async () => {
     // Validate required fields
     if (!tempCredentials.url.trim()) {
-      return { success: false, err: t("DHIS2 URL is required") };
+      return { success: false, err: t3({ en: "DHIS2 URL is required", fr: "L'URL DHIS2 est requise" }) };
     }
     if (!tempCredentials.username.trim()) {
-      return { success: false, err: t("Username is required") };
+      return { success: false, err: t3({ en: "Username is required", fr: "Le nom d'utilisateur est requis" }) };
     }
     if (!tempCredentials.password.trim()) {
-      return { success: false, err: t("Password is required") };
+      return { success: false, err: t3({ en: "Password is required", fr: "Le mot de passe est requis" }) };
     }
 
     // Add 300ms delay for loading effect
@@ -76,7 +76,7 @@ export function Dhis2CredentialsForm(
 
   return (
     <ModalContainer
-      title={t("DHIS2 Connection Credentials")}
+      title={t3({ en: "DHIS2 Connection Credentials", fr: "Identifiants de connexion DHIS2" })}
       width="md"
       leftButtons={
         // eslint-disable-next-line jsx-key
@@ -87,10 +87,10 @@ export function Dhis2CredentialsForm(
             disabled={!isValid()}
             state={saveAction.state()}
           >
-            {t("Set Credentials")}
+            {t3({ en: "Set Credentials", fr: "Définir les identifiants" })}
           </Button>,
           <Button onClick={handleCancel} intent="neutral" outline>
-            {t2(T.FRENCH_UI_STRINGS.cancel)}
+            {t3(TC.cancel)}
           </Button>,
         ]
       }
@@ -99,16 +99,14 @@ export function Dhis2CredentialsForm(
           ? // eslint-disable-next-line jsx-key
             [
               <Button onClick={handleClear} intent="danger" outline>
-                {t("Clear Credentials")}
+                {t3({ en: "Clear Credentials", fr: "Effacer les identifiants" })}
               </Button>,
             ]
           : undefined
       }
     >
       <div class="text-base-content text-sm">
-        {t(
-          "Enter your DHIS2 instance credentials. These will be stored only for this session.",
-        )}
+        {t3({ en: "Enter your DHIS2 instance credentials. These will be stored only for this session.", fr: "Saisissez vos identifiants DHIS2. Ils ne seront conservés que pour cette session." })}
       </div>
 
       <div class="ui-spy-sm">

@@ -1,4 +1,4 @@
-import { t, type ProjectDetail, type Slide, type SlideDeckConfig } from "lib";
+import { t3, TC, type ProjectDetail, type Slide, type SlideDeckConfig } from "lib";
 import { Button, FrameTop, HeadingBar, Loading, type MenuItem, MenuTriggerWrapper, Slider, timActionDelete } from "panther";
 import SortableVendor, { SortableJs } from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
@@ -187,8 +187,8 @@ export function SlideList(p: Props) {
 
     const slideIdsToDelete = shouldDeleteMultiple ? Array.from(selected) : [slideId];
     const confirmText = slideIdsToDelete.length > 1
-      ? t(`Are you sure you want to delete ${slideIdsToDelete.length} slides?`)
-      : t("Are you sure you want to delete this slide?");
+      ? t3({ en: `Are you sure you want to delete ${slideIdsToDelete.length} slides?`, fr: `Êtes-vous sûr de vouloir supprimer ${slideIdsToDelete.length} diapositives ?` })
+      : t3({ en: "Are you sure you want to delete this slide?", fr: "Êtes-vous sûr de vouloir supprimer cette diapositive ?" });
 
     const deleteAction = timActionDelete(
       confirmText,
@@ -350,17 +350,17 @@ export function SlideList(p: Props) {
 
   const addSlideMenuItems = (): MenuItem[] => [
     {
-      label: "Cover slide",
+      label: t3({ en: "Cover slide", fr: "Diapositive de couverture" }),
       icon: "plus",
       onClick: () => addSlide({ type: "cover", title: "Title", subtitle: "Subtitle" }),
     },
     {
-      label: "Section slide",
+      label: t3({ en: "Section slide", fr: "Diapositive de section" }),
       icon: "plus",
       onClick: () => addSlide({ type: "section", sectionTitle: "Section" }),
     },
     {
-      label: "Content slide",
+      label: t3({ en: "Content slide", fr: "Diapositive de contenu" }),
       icon: "plus",
       onClick: () => addSlide({
         type: "content",
@@ -372,12 +372,12 @@ export function SlideList(p: Props) {
 
   const menuItems = (): MenuItem[] => [
     {
-      label: "Settings",
+      label: t3(TC.settings),
       icon: "settings",
       onClick: () => p.handleOpenSettings(),
     },
     {
-      label: "Download",
+      label: t3(TC.download),
       icon: "download",
       onClick: () => p.download(),
     },
@@ -422,7 +422,7 @@ export function SlideList(p: Props) {
               position="bottom-end"
               items={addSlideMenuItems}
             >
-              <Button iconName="plus">Add slide</Button>
+              <Button iconName="plus">{t3({ en: "Add slide", fr: "Ajouter une diapositive" })}</Button>
             </MenuTriggerWrapper>
             <MenuTriggerWrapper
               position="bottom-end"
@@ -436,7 +436,7 @@ export function SlideList(p: Props) {
                 iconName="chevronLeft"
                 outline
               >
-                {t("AI")}
+                {t3({ en: "AI", fr: "IA" })}
               </Button>
             </Show>
           </div>
@@ -456,11 +456,11 @@ export function SlideList(p: Props) {
         }}
       >
         <Show when={p.isLoading}>
-          <Loading msg="Loading slides..." noPad />
+          <Loading msg={t3({ en: "Loading slides...", fr: "Chargement des diapositives..." })} noPad />
         </Show>
         <Show when={!p.isLoading && p.slideIds.length === 0}>
           <div class="text-neutral w-full py-16 text-center">
-            No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own
+            {t3({ en: "No slides yet. Ask the AI to create some slides, or click \"+ Add slide\" to create your own", fr: "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même" })}
           </div>
         </Show>
         <Show when={!p.isLoading && p.slideIds.length > 0}>

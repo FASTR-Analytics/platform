@@ -1,4 +1,4 @@
-import { isFrench, t, t2, T } from "lib";
+import { isFrench, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -27,7 +27,7 @@ export function CopyProjectForm(
       e.preventDefault();
       const goodLabel = tempLabel().trim();
       if (!goodLabel) {
-        return { success: false, err: t("You must enter a project name") };
+        return { success: false, err: t3({ en: "You must enter a project name", fr: "Vous devez saisir un nom de projet" }) };
       }
       return await serverActions.copyProject({
         project_id: p.projectId,
@@ -42,7 +42,7 @@ export function CopyProjectForm(
   return (
     <AlertFormHolder
       formId="add-project"
-      header={t2(T.Paramètres.copy_project)}
+      header={t3({ en: "Copy project", fr: "Copier le projet" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -50,18 +50,14 @@ export function CopyProjectForm(
     >
       <div class="ui-spy">
         <Input
-          label={t("New project name")}
+          label={t3({ en: "New project name", fr: "Nouveau nom du projet" })}
           value={tempLabel()}
           onChange={setTempLabel}
           fullWidth
           autoFocus
         />
         <div class="max-w-[500px] text-sm">
-          NOTE: Copying a project will be disruptive to other users. If they are
-          in the middle of an action, they will get an error. It is not
-          catastrophic, it may just confuse other users. For this reason, only
-          copy projects when others aren't likely to be using the platform, and
-          only copy infrequently. It could take several minutes.
+          {t3({ en: "NOTE: Copying a project will be disruptive to other users. If they are in the middle of an action, they will get an error. It is not catastrophic, it may just confuse other users. For this reason, only copy projects when others aren't likely to be using the platform, and only copy infrequently. It could take several minutes.", fr: "NOTE : La copie d'un projet peut perturber les autres utilisateurs. S'ils sont en cours d'action, ils recevront une erreur. Ce n'est pas catastrophique, mais cela peut prêter à confusion. Pour cette raison, ne copiez les projets que lorsque les autres utilisateurs ne sont pas susceptibles d'utiliser la plateforme, et ne le faites que rarement. L'opération peut prendre plusieurs minutes." })}
         </div>
       </div>
     </AlertFormHolder>

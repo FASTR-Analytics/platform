@@ -1,5 +1,5 @@
 import { AlertComponentProps, AlertFormHolder, timActionForm } from "panther";
-import { APIResponseNoData, t, isFrench } from "lib";
+import { APIResponseNoData, t3, isFrench } from "lib";
 import { createSignal } from "solid-js";
 
 export function CreateRestoreFromFileForm(
@@ -25,11 +25,11 @@ export function CreateRestoreFromFileForm(
             const file = selectedFile();
 
             if (!file) {
-                return { success: false, err: t("You must select a .sql.gz file") };
+                return { success: false, err: t3({ en: "You must select a .sql.gz file", fr: "Vous devez sélectionner un fichier .sql.gz" }) };
             }
 
             if (!file.name.endsWith('.sql.gz')) {
-                return { success: false, err: t("Only .sql.gz files are allowed") };
+                return { success: false, err: t3({ en: "Only .sql.gz files are allowed", fr: "Seuls les fichiers .sql.gz sont autorisés" }) };
             }
 
             return p.restoreBackupFunc(file);
@@ -40,7 +40,7 @@ export function CreateRestoreFromFileForm(
     return (
         <AlertFormHolder
             formId="restore-from-file"
-            header={t("Restore from file")}
+            header={t3({ en: "Restore from file", fr: "Restaurer depuis un fichier" })}
             savingState={save.state()}
             saveFunc={save.click}
             cancelFunc={() => p.close(undefined)}
@@ -48,7 +48,7 @@ export function CreateRestoreFromFileForm(
         >
             <div class="flex flex-col gap-2">
                 <label class="text-sm font-medium">
-                    {t("Select gzipped SQL file (.sql.gz)")}
+                    {t3({ en: "Select gzipped SQL file (.sql.gz)", fr: "Sélectionner un fichier SQL compressé (.sql.gz)" })}
                 </label>
                 <input
                     type="file"
@@ -58,7 +58,7 @@ export function CreateRestoreFromFileForm(
                 />
                 {selectedFile() && (
                     <div class="text-sm text-neutral">
-                        Selected: {selectedFile()!.name}
+                        {t3({ en: "Selected:", fr: "Sélectionné :" })} {selectedFile()!.name}
                     </div>
                 )}
             </div>

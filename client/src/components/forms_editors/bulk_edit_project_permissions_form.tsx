@@ -7,27 +7,27 @@ import {
 import { For } from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { t, t2, T, type ProjectPermission, PROJECT_PERMISSIONS } from "lib";
+import { t3, TC, type ProjectPermission, PROJECT_PERMISSIONS } from "lib";
 
 type TriState = true | false | "unchanged";
 
 const PERMISSION_LABELS: Record<ProjectPermission, string> = {
-  can_view_visualizations: "can view visualizations",
-  can_configure_visualizations: "can create and edit visualizations",
-  can_view_reports: "can view reports",
-  can_configure_reports: "can create and edit reports",
-  can_view_slide_decks: "can view slide decks",
-  can_configure_slide_decks: "can create and edit slide decks",
-  can_configure_data: "can configure data",
-  can_view_data: "can view data",
-  can_view_metrics: "can view metrics",
-  can_configure_modules: "can configure modules",
-  can_run_modules: "can run modules",
-  can_configure_settings: "can configure settings",
-  can_configure_users: "can configure users",
-  can_view_logs: "can view logs",
-  can_create_backups: "can create backups",
-  can_restore_backups: "can restore backups",
+  can_view_visualizations: t3({ en: "can view visualizations", fr: "peut voir les visualisations" }),
+  can_configure_visualizations: t3({ en: "can create and edit visualizations", fr: "peut créer et modifier les visualisations" }),
+  can_view_reports: t3({ en: "can view reports", fr: "peut voir les rapports" }),
+  can_configure_reports: t3({ en: "can create and edit reports", fr: "peut créer et modifier les rapports" }),
+  can_view_slide_decks: t3({ en: "can view slide decks", fr: "peut voir les présentations" }),
+  can_configure_slide_decks: t3({ en: "can create and edit slide decks", fr: "peut créer et modifier les présentations" }),
+  can_configure_data: t3({ en: "can configure data", fr: "peut configurer les données" }),
+  can_view_data: t3({ en: "can view data", fr: "peut voir les données" }),
+  can_view_metrics: t3({ en: "can view metrics", fr: "peut voir les métriques" }),
+  can_configure_modules: t3({ en: "can configure modules", fr: "peut configurer les modules" }),
+  can_run_modules: t3({ en: "can run modules", fr: "peut exécuter les modules" }),
+  can_configure_settings: t3({ en: "can configure settings", fr: "peut configurer les paramètres" }),
+  can_configure_users: t3({ en: "can configure users", fr: "peut configurer les utilisateurs" }),
+  can_view_logs: t3({ en: "can view logs", fr: "peut voir les journaux" }),
+  can_create_backups: t3({ en: "can create backups", fr: "peut créer des sauvegardes" }),
+  can_restore_backups: t3({ en: "can restore backups", fr: "peut restaurer des sauvegardes" }),
 };
 
 const PERMISSION_CATEGORIES: {
@@ -35,7 +35,7 @@ const PERMISSION_CATEGORIES: {
   permissions: readonly ProjectPermission[];
 }[] = [
   {
-    label: "Analytical Products",
+    label: t3({ en: "Analytical Products", fr: "Produits analytiques" }),
     permissions: [
       "can_view_visualizations",
       "can_configure_visualizations",
@@ -46,7 +46,7 @@ const PERMISSION_CATEGORIES: {
     ],
   },
   {
-    label: "Data & Modules",
+    label: t3({ en: "Data & Modules", fr: "Données et modules" }),
     permissions: [
       "can_configure_data",
       "can_view_data",
@@ -56,7 +56,7 @@ const PERMISSION_CATEGORIES: {
     ],
   },
   {
-    label: "Project Administration",
+    label: t3({ en: "Project Administration", fr: "Administration du projet" }),
     permissions: [
       "can_configure_settings",
       "can_configure_users",
@@ -113,13 +113,13 @@ export function BulkEditProjectPermissionsForm(
     <div class="ui-pad ui-spy w-[600px]">
       <div class="space-y-3">
         <div class="font-700 text-lg leading-6">
-          {t(`Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`)}
+          {t3({ en: `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}` })}
         </div>
         <div class="font-700 text-sm">
           {p.emails.join(", ")}
         </div>
         <div class="text-xs text-neutral">
-          {t("Click to cycle: unchanged → true → false")}
+          {t3({ en: "Click to cycle: unchanged → true → false", fr: "Cliquez pour alterner : inchangé → vrai → faux" })}
         </div>
         <div class="grid grid-cols-2 gap-4">
           <For each={PERMISSION_CATEGORIES}>
@@ -148,14 +148,14 @@ export function BulkEditProjectPermissionsForm(
           state={save.state()}
           iconName="save"
         >
-          {t2(T.FRENCH_UI_STRINGS.save)}
+          {t3(TC.save)}
         </Button>
         <Button
           onClick={() => p.close(undefined)}
           intent="neutral"
           iconName="x"
         >
-          {t2(T.FRENCH_UI_STRINGS.cancel)}
+          {t3(TC.cancel)}
         </Button>
       </div>
     </div>

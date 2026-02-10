@@ -5,7 +5,7 @@ import {
   timActionForm,
 } from "panther";
 import { createSignal } from "solid-js";
-import { t, isFrench, APIResponseNoData } from "lib";
+import { t3, isFrench, APIResponseNoData } from "lib";
 
 function getTimestamp() {
   const now = new Date();
@@ -38,7 +38,7 @@ export function CreateBackupForm(
           const validName = backupName().trim();
 
           if (!validName) {
-            return { success: false, err: t("You must enter a backup name") };
+            return { success: false, err: t3({ en: "You must enter a backup name", fr: "Vous devez saisir un nom de sauvegarde" }) };
           }
           return p.createBackupFunc(validName);
         },
@@ -51,7 +51,7 @@ export function CreateBackupForm(
           const validName = backupName().trim();
 
           if (!validName) {
-            return { success: false, err: t("You must enter a backup name") };
+            return { success: false, err: t3({ en: "You must enter a backup name", fr: "Vous devez saisir un nom de sauvegarde" }) };
           }
           return p.createBackupFunc(validName);
         },
@@ -61,14 +61,14 @@ export function CreateBackupForm(
   return (
     <AlertFormHolder
       formId="create-backup"
-      header={t("Create Backup")}
+      header={t3({ en: "Create Backup", fr: "Créer une sauvegarde" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
       french={isFrench()}
     >
       <Input
-        label={t("Backup name")}
+        label={t3({ en: "Backup name", fr: "Nom de la sauvegarde" })}
         value={backupName()}
         onChange={setBackupName}
         fullWidth

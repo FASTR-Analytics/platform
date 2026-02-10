@@ -1,4 +1,4 @@
-import { InstanceDetail, PresentationObjectSummary, isFrench, t, t2, T } from "lib";
+import { InstanceDetail, PresentationObjectSummary, isFrench, t3 } from "lib";
 import {
   Button,
   FrameTop,
@@ -38,7 +38,7 @@ export function ProjectVisualizations(p: Props) {
       );
       if (poDetailRes.success === false) {
         await openAlert({
-          text: "Failed to load visualization",
+          text: t3({ en: "Failed to load visualization", fr: "Échec du chargement de la visualisation" }),
           intent: "danger",
         });
         return;
@@ -166,7 +166,7 @@ export function ProjectVisualizations(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={t2(T.FRENCH_UI_STRINGS.visualizations)}
+          heading={t3({ en: "Visualizations", fr: "Visualisations" })}
           searchText={searchText()}
           setSearchText={setSearchText}
           french={isFrench()}
@@ -183,7 +183,7 @@ export function ProjectVisualizations(p: Props) {
                 {t("Create with AI")}
               </Button> */}
               <Button onClick={attempAddPresentationObject} iconName="plus">
-                {t2(T.FRENCH_UI_STRINGS.create_visualization)}
+                {t3({ en: "Create visualization", fr: "Créer une visualisation" })}
               </Button>
             </div>
           </Show>
@@ -194,9 +194,7 @@ export function ProjectVisualizations(p: Props) {
         when={projectDetail.projectModules.length > 0}
         fallback={
           <div class="ui-pad text-neutral text-sm">
-            {t(
-              "You need to enable at least one module to create visualizations",
-            )}
+            {t3({ en: "You need to enable at least one module to create visualizations", fr: "Vous devez activer au moins un module pour créer des visualisations" })}
           </div>
         }
       >

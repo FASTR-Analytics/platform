@@ -1,4 +1,4 @@
-import { getStartingConfigForSlideDeck, getTextRenderingOptions, type SlideDeckConfig } from "lib";
+import { getStartingConfigForSlideDeck, getTextRenderingOptions, t3, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "./slide_rendering/convert_slide_to_page_inputs";
 import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
@@ -19,7 +19,7 @@ export function SlideDeckThumbnail(p: Props) {
 
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
-    msg: "Loading...",
+    msg: t3({ en: "Loading...", fr: "Chargement..." }),
   });
 
   createEffect(async () => {
@@ -61,7 +61,7 @@ export function SlideDeckThumbnail(p: Props) {
           class="bg-base-200 flex items-center justify-center"
           style={{ "aspect-ratio": "16/9" }}
         >
-          <div class="text-neutral text-xs">Loading...</div>
+          <div class="text-neutral text-xs">{t3({ en: "Loading...", fr: "Chargement..." })}</div>
         </div>
       </Show>
       <Show when={pageInputs().status === "error"}>

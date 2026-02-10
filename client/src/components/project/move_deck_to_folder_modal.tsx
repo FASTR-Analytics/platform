@@ -1,4 +1,4 @@
-import { SlideDeckFolder } from "lib";
+import { SlideDeckFolder, t3, TC } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -31,7 +31,7 @@ export function MoveDeckToFolderModal(
   const [newFolderColor, setNewFolderColor] = createSignal("#3b82f6");
 
   const folderOptions = () => [
-    { value: "_none", label: "General" },
+    { value: "_none", label: t3(TC.general) },
     ...p.folders.map((f) => ({
       value: f.id,
       label: f.label,
@@ -45,7 +45,7 @@ export function MoveDeckToFolderModal(
       if (isCreatingFolder()) {
         const label = newFolderLabel().trim();
         if (!label) {
-          return { success: false, err: "Folder name is required" };
+          return { success: false, err: t3({ en: "Folder name is required", fr: "Le nom du dossier est requis" }) };
         }
 
         const createRes = await serverActions.createSlideDeckFolder({
@@ -102,8 +102,8 @@ export function MoveDeckToFolderModal(
 
   const header =
     p.deckIds.length > 1
-      ? `Move ${p.deckIds.length} decks to folder`
-      : "Move to folder";
+      ? `${t3({ en: "Move", fr: "Déplacer" })} ${p.deckIds.length} ${t3({ en: "decks to folder", fr: "présentations vers le dossier" })}`
+      : t3({ en: "Move to folder", fr: "Déplacer vers le dossier" });
 
   return (
     <AlertFormHolder
@@ -120,14 +120,14 @@ export function MoveDeckToFolderModal(
           <div class="space-y-4">
             <div class="flex ui-gap">
               <Input
-                label="Folder name"
+                label={t3({ en: "Folder name", fr: "Nom du dossier" })}
                 value={newFolderLabel()}
                 onChange={setNewFolderLabel}
                 autoFocus
                 fullWidth
               />
               <ColorPicker
-                label="Color"
+                label={t3({ en: "Color", fr: "Couleur" })}
                 value={newFolderColor()}
                 onChange={(c) => setNewFolderColor(c)}
                 position="right"
@@ -138,14 +138,14 @@ export function MoveDeckToFolderModal(
               outline
               onClick={() => setIsCreatingFolder(false)}
             >
-              Back to folder list
+              {t3({ en: "Back to folder list", fr: "Retour à la liste des dossiers" })}
             </Button>
           </div>
         }
       >
         <div class="space-y-4">
           <RadioGroup
-            label="Select folder"
+            label={t3({ en: "Select folder", fr: "Sélectionner le dossier" })}
             options={folderOptions()}
             value={selectedFolderId() ?? "_none"}
             onChange={(v) => setSelectedFolderId(v === "_none" ? null : v)}
@@ -158,7 +158,7 @@ export function MoveDeckToFolderModal(
             iconName="plus"
             onClick={() => setIsCreatingFolder(true)}
           >
-            Create new folder
+            {t3({ en: "Create new folder", fr: "Créer un nouveau dossier" })}
           </Button>
         </div>
       </Show>

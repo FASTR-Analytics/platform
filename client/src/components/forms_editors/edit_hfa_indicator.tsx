@@ -1,4 +1,4 @@
-import { type HfaIndicator, t, t2, T } from "lib";
+import { type HfaIndicator, t3, TC } from "lib";
 import { AlertComponentProps, Button, Input, ModalContainer, RadioGroup, TextArea } from "panther";
 import { createStore } from "solid-js/store";
 
@@ -14,7 +14,7 @@ export function EditHfaIndicator(
 
   return (
     <ModalContainer
-      title={t("Edit Indicator")}
+      title={t3({ en: "Edit Indicator", fr: "Modifier l'indicateur" })}
       width="xl"
       leftButtons={
         // eslint-disable-next-line jsx-key
@@ -24,14 +24,14 @@ export function EditHfaIndicator(
             iconName="save"
             intent="success"
           >
-            {t2(T.FRENCH_UI_STRINGS.save)}
+            {t3(TC.save)}
           </Button>,
           <Button
             onClick={() => p.close(undefined)}
             intent="neutral"
             iconName="x"
           >
-            {t2(T.FRENCH_UI_STRINGS.cancel)}
+            {t3(TC.cancel)}
           </Button>,
         ]
       }
@@ -40,19 +40,19 @@ export function EditHfaIndicator(
         <div class="ui-spy">
 
           <Input
-            label={t("Variable Name")}
+            label={t3({ en: "Variable Name", fr: "Nom de la variable" })}
             value={tempIndicator.varName}
             onChange={(v) => setTempIndicator("varName", v)}
             fullWidth
           />
           <Input
-            label={t("Category")}
+            label={t3({ en: "Category", fr: "Catégorie" })}
             value={tempIndicator.category}
             onChange={(v) => setTempIndicator("category", v)}
             fullWidth
           />
           <TextArea
-            label={t("Definition")}
+            label={t3({ en: "Definition", fr: "Définition" })}
             value={tempIndicator.definition}
             onChange={(v) => setTempIndicator("definition", v)}
             fullWidth
@@ -65,17 +65,17 @@ export function EditHfaIndicator(
         <div class="ui-spy">
 
           <RadioGroup
-            label={t("Type")}
+            label={t3({ en: "Type", fr: "Type" })}
             value={tempIndicator.type}
             onChange={(v) => setTempIndicator("type", v as "binary" | "numeric")}
             options={[
-              { value: "binary", label: "Boolean (for percentages)" },
-              { value: "numeric", label: "Numeric (for averages/sums)" },
+              { value: "binary", label: t3({ en: "Boolean (for percentages)", fr: "Booléen (pour les pourcentages)" }) },
+              { value: "numeric", label: t3({ en: "Numeric (for averages/sums)", fr: "Numérique (pour les moyennes/sommes)" }) },
             ]}
           />
           <div class="">
             <TextArea
-              label={t("R Code")}
+              label={t3({ en: "R Code", fr: "Code R" })}
               value={tempIndicator.rCode}
               onChange={(v) => setTempIndicator("rCode", v)}
               fullWidth
@@ -84,20 +84,20 @@ export function EditHfaIndicator(
             />
             <div class="text-xs">{
               tempIndicator.type === "binary"
-                ? t("Should evaluate to boolean TRUE/FALSE")
-                : t("Should evaluate to a numeric value")
+                ? t3({ en: "Should evaluate to boolean TRUE/FALSE", fr: "Doit évaluer à TRUE/FALSE (booléen)" })
+                : t3({ en: "Should evaluate to a numeric value", fr: "Doit évaluer à une valeur numérique" })
             }</div></div>
           <div class="text-xs">
             <TextArea
-              label={t("Filter Code (should evaluate to boolean TRUE/FALSE)")}
+              label={t3({ en: "Filter Code (should evaluate to boolean TRUE/FALSE)", fr: "Code de filtre (doit évaluer à TRUE/FALSE booléen)" })}
               value={tempIndicator.rFilterCode ?? ""}
               onChange={(v) => setTempIndicator("rFilterCode", v)}
               fullWidth
               mono
               height="80px"
-              placeholder="R expression to filter facilities (e.g., facility_type == 'urban')"
+              placeholder={t3({ en: "R expression to filter facilities (e.g., facility_type == 'urban')", fr: "Expression R pour filtrer les établissements (ex. facility_type == 'urban')" })}
             />
-            <div class="text-xs">{t("Should evaluate to boolean TRUE/FALSE")}</div></div>
+            <div class="text-xs">{t3({ en: "Should evaluate to boolean TRUE/FALSE", fr: "Doit évaluer à TRUE/FALSE (booléen)" })}</div></div>
         </div>
       </div>
     </ModalContainer>

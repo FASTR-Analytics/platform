@@ -1,5 +1,5 @@
 import { useSearchParams } from "@solidjs/router";
-import { GlobalUser, isFrench, t, t2, T } from "lib";
+import { GlobalUser, isFrench, t3, TC } from "lib";
 import {
   AlertProvider,
   Button,
@@ -82,7 +82,7 @@ export default function Instance(p: Props) {
 
   const instanceDetail = timQuery(
     () => serverActions.getInstanceDetail({}),
-    t2(T.FRENCH_UI_STRINGS.loading_instance_info),
+    t3({ en: "Loading instance info...", fr: "Chargement des informations de l'instance..." }),
   );
 
   return (
@@ -155,14 +155,14 @@ export default function Instance(p: Props) {
                       options={[
                         {
                           value: "projects",
-                          label: t2(T.FRENCH_UI_STRINGS.projects),
+                          label: t3({ en: "Projects", fr: "Projets" }),
                           iconName: "folder",
                         },
                         ...(p.globalUser.isGlobalAdmin || p.globalUser.thisUserPermissions.can_view_data || p.globalUser.thisUserPermissions.can_configure_data
                         ? [
                           {
                             value: "data",
-                            label: t2(T.FRENCH_UI_STRINGS.data),
+                            label: t3({ en: "Data", fr: "Données" }),
                             iconName: "database",
                           },
                         ]
@@ -171,7 +171,7 @@ export default function Instance(p: Props) {
                         ?  [
                           {
                             value: "assets",
-                            label: t2(T.FRENCH_UI_STRINGS.assets),
+                            label: t3({ en: "Assets", fr: "Ressources" }),
                             iconName: "package",
                           },
                         ]
@@ -180,7 +180,7 @@ export default function Instance(p: Props) {
                           ? [
                             {
                               value: "users",
-                              label: t2(T.FRENCH_UI_STRINGS.users),
+                              label: t3({ en: "Users", fr: "Utilisateurs" }),
                               iconName: "users",
                             },
                           ]
@@ -189,7 +189,7 @@ export default function Instance(p: Props) {
                           ? [
                             {
                               value: "settings",
-                              label: t2(T.FRENCH_UI_STRINGS.settings),
+                              label: t3(TC.settings),
                               iconName: "settings",
                             },
                           ]
@@ -229,7 +229,7 @@ export default function Instance(p: Props) {
                       </span>
                       <Show when={p.globalUser.isGlobalAdmin}>
                         {" "}
-                        ({t2(T.FRENCH_UI_STRINGS.admin_1)})
+                        ({t3({ en: "Admin", fr: "Admin" })})
                       </Show>
                     </span>
                   </div>
@@ -242,13 +242,11 @@ export default function Instance(p: Props) {
                 when={p.globalUser.approved}
                 fallback={
                   <div class="ui-pad">
-                    {t(
-                      "You are not yet approved. Wait for an administrator to add you to the platform.",
-                    )}
+                    {t3({ en: "You are not yet approved. Wait for an administrator to add you to the platform.", fr: "Vous n'êtes pas encore approuvé. Veuillez attendre qu'un administrateur vous ajoute à la plateforme." })}
                   </div>
                 }
               >
-                <Switch fallback="Bad tab">
+                <Switch fallback={t3({ en: "Bad tab", fr: "Onglet invalide" })}>
                   <Match when={tab() === "projects"}>
                     <InstanceProjects
                       isGlobalAdmin={p.globalUser.isGlobalAdmin}

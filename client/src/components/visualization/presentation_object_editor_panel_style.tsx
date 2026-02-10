@@ -4,8 +4,7 @@ import {
   PresentationObjectDetail,
   get_PERIOD_OPTION_MAP,
   getDisaggregatorDisplayProp,
-  t2,
-  T,
+  t3,
 } from "lib";
 import {
   AspectRatio,
@@ -24,7 +23,6 @@ import {
 import { Show } from "solid-js";
 import { SetStoreFunction, unwrap } from "solid-js/store";
 import { CustomSeriesStyles } from "~/components/forms_editors/custom_series_styles";
-import { t } from "lib";
 
 type Props = {
   projectId: string;
@@ -60,7 +58,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
     <div class="ui-pad ui-spy h-full w-full overflow-auto">
       <Show when={p.tempConfig.d.type === "timeseries"}>
         <RadioGroup
-          label={t2(T.FRENCH_UI_STRINGS.period)}
+          label={t3({ en: "Period", fr: "Période" })}
           options={p.poDetail.resultsValue.periodOptions.map((value) => {
             return { value, label: get_PERIOD_OPTION_MAP()[value] };
           })}
@@ -69,7 +67,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         />
       </Show>
       <Slider
-        label={t2(T.FRENCH_UI_STRINGS.scale)}
+        label={t3({ en: "Scale", fr: "Échelle" })}
         min={0.1}
         max={5}
         step={0.1}
@@ -85,9 +83,9 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       />
       <Show when={p.tempConfig.d.type !== "table"}>
         <RadioGroup
-          label={t2(T.FRENCH_UI_STRINGS.aspect_ratio)}
+          label={t3({ en: "Aspect ratio", fr: "Rapport hauteur/largeur" })}
           options={[
-            { value: "none", label: "Fit to area" },
+            { value: "none", label: t3({ en: "Fit to area", fr: "Ajuster à la zone" }) },
             { value: "video", label: "16 x 9" },
             { value: "square", label: "1 x 1" },
           ]}
@@ -103,10 +101,10 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       </Show>
       <Show when={p.tempConfig.d.type === "table"}>
         <RadioGroup
-          label={t2(T.FRENCH_UI_STRINGS.aspect_ratio)}
+          label={t3({ en: "Aspect ratio", fr: "Rapport hauteur/largeur" })}
           options={[
-            { value: "none", label: "Fit to area" },
-            { value: "ideal", label: "Ideal for table" },
+            { value: "none", label: t3({ en: "Fit to area", fr: "Ajuster à la zone" }) },
+            { value: "ideal", label: t3({ en: "Ideal for table", fr: "Idéal pour un tableau" }) },
           ]}
           value={p.tempConfig.s.idealAspectRatio}
           onChange={(v) =>
@@ -120,16 +118,16 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       </Show>
       <Show when={p.tempConfig.d.type === "table"}>
         <Checkbox
-          label={t2(T.FRENCH_UI_STRINGS.allow_vertical_column_headers)}
+          label={t3({ en: "Allow vertical column headers", fr: "Autoriser les en-têtes de colonnes verticales" })}
           checked={p.tempConfig.s.allowVerticalColHeaders}
           onChange={(v) => p.setTempConfig("s", "allowVerticalColHeaders", v)}
         />
       </Show>
       <Show when={usingCells()}>
-        <LabelHolder label={t2(T.Visualizations.number_grid_columns)}>
+        <LabelHolder label={t3({ en: "Number of grid columns", fr: "Nombre de colonnes de grille" })}>
           <div class="ui-spy-sm">
             <Checkbox
-              label={t("Auto")}
+              label={t3({ en: "Auto", fr: "Auto" })}
               checked={p.tempConfig.s.nColsInCellDisplay === "auto"}
               onChange={(v) => {
                 if (v) {
@@ -141,7 +139,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             />
             <Show when={p.tempConfig.s.nColsInCellDisplay !== "auto"}>
               <Slider
-                label={t2(T.FRENCH_UI_STRINGS.columns)}
+                label={t3({ en: "Columns", fr: "Colonnes" })}
                 min={1}
                 max={10}
                 step={1}
@@ -156,11 +154,11 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       </Show>
       <Show when={p.tempConfig.d.type === "timeseries"}>
         <RadioGroup
-          label={t2(T.FRENCH_UI_STRINGS.display_format)}
+          label={t3({ en: "Display format", fr: "Format d'affichage" })}
           options={[
-            { value: "lines", label: t2(T.FRENCH_UI_STRINGS.lines) },
-            { value: "areas", label: t2(T.FRENCH_UI_STRINGS.areas) },
-            { value: "bars", label: t2(T.FRENCH_UI_STRINGS.bars) },
+            { value: "lines", label: t3({ en: "Lines", fr: "Lignes" }) },
+            { value: "areas", label: t3({ en: "Areas", fr: "Zones" }) },
+            { value: "bars", label: t3({ en: "Bars", fr: "Barres" }) },
           ]}
           value={p.tempConfig.s.content}
           onChange={(v) =>
@@ -168,28 +166,28 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           }
         />
         <Checkbox
-          label={t2(T.FRENCH_UI_STRINGS.special_coverage_chart)}
+          label={t3({ en: "Special coverage chart", fr: "Graphique de couverture spéciale" })}
           checked={p.tempConfig.s.specialCoverageChart}
           onChange={(v) => p.setTempConfig("s", "specialCoverageChart", v)}
         />
       </Show>
       <Show when={p.tempConfig.d.type === "chart"}>
         <RadioGroup
-          label={t2(T.FRENCH_UI_STRINGS.display_format)}
+          label={t3({ en: "Display format", fr: "Format d'affichage" })}
           options={[
-            { value: "bars", label: t2(T.FRENCH_UI_STRINGS.bars) },
-            { value: "points", label: t("Points") },
-            { value: "lines", label: t2(T.FRENCH_UI_STRINGS.lines) },
+            { value: "bars", label: t3({ en: "Bars", fr: "Barres" }) },
+            { value: "points", label: t3({ en: "Points", fr: "Points" }) },
+            { value: "lines", label: t3({ en: "Lines", fr: "Lignes" }) },
           ]}
           value={p.tempConfig.s.content}
           onChange={(v) =>
             p.setTempConfig("s", "content", v as "bars" | "points")
           }
         />
-        <LabelHolder label={t2(T.FRENCH_UI_STRINGS.sort_indicator_values)}>
+        <LabelHolder label={t3({ en: "Sort indicator values", fr: "Trier les valeurs des indicateurs" })}>
           <div class="space-y-1">
             <Checkbox
-              label={t2(T.FRENCH_UI_STRINGS.descending)}
+              label={t3({ en: "Descending", fr: "Décroissant" })}
               checked={p.tempConfig.s.sortIndicatorValues === "descending"}
               onChange={(v) =>
                 p.setTempConfig(
@@ -200,7 +198,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
               }
             />
             <Checkbox
-              label={t2(T.FRENCH_UI_STRINGS.ascending)}
+              label={t3({ en: "Ascending", fr: "Croissant" })}
               checked={p.tempConfig.s.sortIndicatorValues === "ascending"}
               onChange={(v) =>
                 p.setTempConfig(
@@ -218,14 +216,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         }
       >
         <Checkbox
-          label={t2(T.FRENCH_UI_STRINGS.stacked_bars)}
+          label={t3({ en: "Stacked bars", fr: "Histogramme empilé" })}
           checked={p.tempConfig.s.barsStacked}
           onChange={(v) => p.setTempConfig("s", "barsStacked", v)}
         />
       </Show>
       <Show when={p.tempConfig.d.type === "table"}>
         <Checkbox
-          label={t2(T.Visualizations.special_scorecard)}
+          label={t3({ en: "Special RMNCAH Scorecard table", fr: "Tableau de bord de résultats spécial RMNCAH" })}
           checked={p.tempConfig.s.specialScorecardTable}
           onChange={(v) => p.setTempConfig("s", "specialScorecardTable", v)}
         />
@@ -238,14 +236,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       >
         <div class="ui-spy-sm">
           <Checkbox
-            label={t2(T.FRENCH_UI_STRINGS.special_percent_change_chart)}
+            label={t3({ en: "Special percent change chart", fr: "Graphique de variation spéciale en pourcentage" })}
             checked={p.tempConfig.s.specialBarChart}
             onChange={(v) => p.setTempConfig("s", "specialBarChart", v)}
           />
           <Show when={p.tempConfig.s.specialBarChart}>
             <div class="ui-spy-sm border-base-300 rounded border p-4">
               <Slider
-                label={t2(T.FRENCH_UI_STRINGS.threshold)}
+                label={t3({ en: "Threshold", fr: "Seuil" })}
                 value={p.tempConfig.s.specialBarChartDiffThreshold ?? 0.1}
                 onChange={(v) =>
                   p.setTempConfig("s", "specialBarChartDiffThreshold", v)
@@ -258,13 +256,13 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
                 valueInLabelFormatter={toPct0}
               />
               <Checkbox
-                label={t("Invert red/green for higher/lower")}
+                label={t3({ en: "Invert red/green for higher/lower", fr: "Inverser rouge/vert pour plus élevé/plus bas" })}
                 checked={p.tempConfig.s.specialBarChartInverted}
                 onChange={(v) => p.setTempConfig("s", "specialBarChartInverted", v)}
               />
               <Show when={p.tempConfig.s.showDataLabels}>
                 <Checkbox
-                  label={t2(T.FRENCH_UI_STRINGS.only_show_data_labels_on_bars)}
+                  label={t3({ en: "Only show data labels on bars exceeding threshold", fr: "Afficher seulement les étiquettes de données sur les barres dépassant le seuil" })}
                   checked={
                     p.tempConfig.s.specialBarChartDataLabels === undefined ||
                     p.tempConfig.s.specialBarChartDataLabels ===
@@ -286,14 +284,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       <div class="ui-spy-sm">
         <Show when={p.tempConfig.s.content === "areas"}>
           <Checkbox
-            label={t2(T.FRENCH_UI_STRINGS.diff_areas)}
+            label={t3({ en: "Diff areas", fr: "Zones de différences" })}
             checked={p.tempConfig.s.diffAreas}
             onChange={(v) => p.setTempConfig("s", "diffAreas", v)}
           />
           <Show when={p.tempConfig.s.diffAreas}>
             <div class="ui-spy-sm border-base-300 rounded border p-4">
               <Checkbox
-                label={t("Invert red/green for surplus/disruptions")}
+                label={t3({ en: "Invert red/green for surplus/disruptions", fr: "Inverser rouge/vert pour excédents/perturbations" })}
                 checked={p.tempConfig.s.diffInverted}
                 onChange={(v) => p.setTempConfig("s", "diffInverted", v)}
               /></div>
@@ -315,7 +313,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         </Show></div>
       <Show when={p.tempConfig.d.type === "chart"}>
         <Checkbox
-          label={t2(T.FRENCH_UI_STRINGS.vertical_tick_labels)}
+          label={t3({ en: "Vertical tick labels", fr: "Étiquettes de graduation verticales" })}
           checked={p.tempConfig.s.verticalTickLabels}
           onChange={(v) => p.setTempConfig("s", "verticalTickLabels", v)}
         />
@@ -325,14 +323,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           <Checkbox
             checked={p.tempConfig.s.showDataLabels}
             onChange={(v) => p.setTempConfig("s", "showDataLabels", v)}
-            label={t2(T.FRENCH_UI_STRINGS.show_data_labels)}
+            label={t3({ en: "Show data labels", fr: "Afficher les étiquettes de données" })}
           />
         </Show>
         <Show when={p.tempConfig.s.content === "lines" || p.tempConfig.s.content === "areas"}>
           <Checkbox
             checked={p.tempConfig.s.showDataLabelsLineCharts}
             onChange={(v) => p.setTempConfig("s", "showDataLabelsLineCharts", v)}
-            label={t2(T.FRENCH_UI_STRINGS.show_data_labels) + " in line charts"}
+            label={t3({ en: "Show data labels in line charts", fr: "Afficher les étiquettes de données dans les graphiques en ligne" })}
           />
         </Show>
       </Show>
@@ -343,14 +341,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         }
       >
         <Checkbox
-          label={t2(T.FRENCH_UI_STRINGS.force_yaxis_max_of_100)}
+          label={t3({ en: "Force y-axis max of 100%", fr: "Forcer le maximum de l'axe Y à 100 %" })}
           checked={p.tempConfig.s.forceYMax1}
           onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
         />
       </Show>
       <Show when={p.tempConfig.d.type !== "table"}>
         <Checkbox
-          label={t2(T.Visualizations.allow_yaxis_min)}
+          label={t3({ en: "Allow auto y-axis min", fr: "Autoriser le minimum automatique de l'axe Y" })}
           checked={p.tempConfig.s.forceYMinAuto}
           onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
         />
@@ -362,7 +360,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         }
       >
         <RadioGroup
-          label={t2(T.FRENCH_UI_STRINGS.decimal_places)}
+          label={t3({ en: "Decimal places", fr: "Décimales" })}
           options={getSelectOptions(["0", "1", "2", "3"])}
           value={String(p.tempConfig.s.decimalPlaces)}
           onChange={(v) =>
@@ -371,7 +369,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           horizontal
         />
         <RadioGroup
-          label={t2(T.FRENCH_UI_STRINGS.conditional_formatting)}
+          label={t3({ en: "Conditional formatting", fr: "Mise en forme conditionnelle" })}
           options={getSelectOptionsWithFirstCapital([
             "none",
             "fmt-90-80",
@@ -392,7 +390,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       </Show>
       <Show when={p.tempConfig.d.type !== "table"}>
         <Checkbox
-          label={t2(T.FRENCH_UI_STRINGS.allow_individual_row_limits)}
+          label={t3({ en: "Allow individual row limits", fr: "Autoriser des limites par ligne" })}
           checked={p.tempConfig.s.allowIndividualRowLimits}
           onChange={(v) => p.setTempConfig("s", "allowIndividualRowLimits", v)}
         />
@@ -400,16 +398,16 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       <Show when={p.tempConfig.d.type !== "table"}>
         <div class="ui-spy-sm">
           <RadioGroup
-            label={t2(T.FRENCH_UI_STRINGS.color_scale)}
+            label={t3({ en: "Color scale", fr: "Échelle de couleurs" })}
             options={[
-              { value: "pastel-discrete", label: "Discrete 1" },
-              { value: "alt-discrete", label: "Discrete 2" },
-              { value: "red-green", label: "Red-green" },
-              { value: "blue-green", label: "Blue-green" },
-              { value: "single-grey", label: "Single grey" },
+              { value: "pastel-discrete", label: t3({ en: "Discrete 1", fr: "Discret 1" }) },
+              { value: "alt-discrete", label: t3({ en: "Discrete 2", fr: "Discret 2" }) },
+              { value: "red-green", label: t3({ en: "Red-green", fr: "Rouge-vert" }) },
+              { value: "blue-green", label: t3({ en: "Blue-green", fr: "Bleu-vert" }) },
+              { value: "single-grey", label: t3({ en: "Single grey", fr: "Gris simple" }) },
               {
                 value: "custom",
-                label: t2(T.FRENCH_UI_STRINGS.custom_colours),
+                label: t3({ en: "Custom colours", fr: "Couleurs personnalisées" }),
               },
             ]}
             value={p.tempConfig.s.colorScale}
@@ -430,25 +428,25 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           <Show when={p.tempConfig.s.colorScale === "custom"}>
             <div class="text-right">
               <Button onClick={editCustomSeriesStyles} iconName="settings">
-                {t2(T.FRENCH_UI_STRINGS.set_custom_colours)}
+                {t3({ en: "Set custom colours", fr: "Définir des couleurs personnalisées" })}
               </Button>
             </div>
           </Show>
           <Select
-            label={t2(T.FRENCH_UI_STRINGS.color_scale_mapping)}
+            label={t3({ en: "Color scale mapping", fr: "Correspondance de l'échelle de couleurs" })}
             options={
               p.tempConfig.d.type === "timeseries"
                 ? [
-                  { value: "series", label: "Series (lines / bars)" },
-                  { value: "cell", label: "Grid cells" },
-                  { value: "col", label: "Column groups" },
-                  { value: "row", label: "Row groups" },
+                  { value: "series", label: t3({ en: "Series (lines/bars)", fr: "Séries (lignes/barres)" }) },
+                  { value: "cell", label: t3({ en: "Grid cells", fr: "Cellules de la grille" }) },
+                  { value: "col", label: t3({ en: "Column groups", fr: "Groupes de colonnes" }) },
+                  { value: "row", label: t3({ en: "Row groups", fr: "Groupes de lignes" }) },
                 ]
                 : [
-                  { value: "series", label: "Series (sub-bars)" },
-                  { value: "cell", label: "Grid cells" },
-                  { value: "col", label: "Column groups" },
-                  { value: "row", label: "Row groups" },
+                  { value: "series", label: t3({ en: "Series (sub-bars)", fr: "Series (sub-bars)" }) },
+                  { value: "cell", label: t3({ en: "Grid cells", fr: "Cellules de la grille" }) },
+                  { value: "col", label: t3({ en: "Column groups", fr: "Groupes de colonnes" }) },
+                  { value: "row", label: t3({ en: "Row groups", fr: "Groupes de lignes" }) },
                 ]
             }
             value={p.tempConfig.s.seriesColorFuncPropToUse}
@@ -472,14 +470,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         <Checkbox
           checked={p.tempConfig.s.hideLegend}
           onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
-          label={t2(T.FRENCH_UI_STRINGS.hide_legend)}
+          label={t3({ en: "Hide legend", fr: "Masquer la légende" })}
         />
       </Show>
       <Show when={includesAdminArea3()}>
         <Checkbox
           checked={p.tempConfig.s.formatAdminArea3Labels}
           onChange={(v) => p.setTempConfig("s", "formatAdminArea3Labels", v)}
-          label={t("Format Nigeria Admin Area 3 labels (e.g., 'ab Abia State' → 'Abia')")}
+          label={t3({ en: "Format Nigeria Admin Area 3 labels (e.g., 'ab Abia State' → 'Abia')", fr: "Formater les libellés de zone administrative 3 du Nigeria (ex. : 'ab Abia State' → 'Abia')" })}
         />
       </Show>
     </div>

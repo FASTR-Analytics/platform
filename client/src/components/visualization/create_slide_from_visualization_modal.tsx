@@ -1,6 +1,6 @@
 import { useNavigate } from "@solidjs/router";
 import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckConfig, SlideDeckFolder, SlideDeckSummary } from "lib";
-import { getStartingConfigForSlideDeck, t } from "lib";
+import { getStartingConfigForSlideDeck, t3 } from "lib";
 import { AlertComponentProps, AlertFormHolder, RadioGroup, ProgressBar, getProgress, timActionForm } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -105,7 +105,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
           for (let i = 0; i < options.length; i++) {
             const replicantValue = options[i];
             const replicantLabel = p.replicateBy === "indicator_common_id"
-              ? t(replicantValue).toUpperCase()
+              ? replicantValue.toUpperCase()
               : replicantValue;
 
             progress.onProgress(
@@ -218,8 +218,8 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
   );
 
   const header = p.visualizationIds.length > 1
-    ? `Create ${p.visualizationIds.length} slides`
-    : "Create Slide";
+    ? t3({ en: `Create ${p.visualizationIds.length} slides`, fr: `Créer ${p.visualizationIds.length} diapositives` })
+    : t3({ en: "Create Slide", fr: "Créer une diapositive" });
 
   return (
     <AlertFormHolder
@@ -240,11 +240,11 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
           {(replicateBy) => (
             <>
               <RadioGroup
-                label="Create slides for"
+                label={t3({ en: "Create slides for", fr: "Créer des diapositives pour" })}
                 value={creationMode()}
                 options={[
-                  { value: "single", label: "Selected replicant" },
-                  { value: "all", label: `All replicants (${replicantOptions().length})` }
+                  { value: "single", label: t3({ en: "Selected replicant", fr: "Réplicant sélectionné" }) },
+                  { value: "all", label: t3({ en: `All replicants (${replicantOptions().length})`, fr: `Tous les réplicants (${replicantOptions().length})` }) }
                 ]}
                 onChange={(v) => setCreationMode(v as "single" | "all")}
               />

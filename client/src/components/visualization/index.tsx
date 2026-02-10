@@ -4,6 +4,8 @@ import {
   ProjectDetail,
   ResultsValue,
   ResultsValueInfoForPresentationObject,
+  t3,
+  TC,
   type InstanceDetail,
 } from "lib";
 import { AlertComponentProps, StateHolderWrapper, timQuery } from "panther";
@@ -135,7 +137,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
         resultsValueInfo: resultsValueInfoRes.data,
       },
     } as const;
-  }, "Loading...");
+  }, t3(TC.loading));
 
   // async function attemptDeleteFromError() {
   //   const deleteAction = timActionDelete(
@@ -182,7 +184,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
         p.projectId,
         p.resultsValue.id,
       ),
-    "Loading...",
+    t3(TC.loading),
   );
 
   const syntheticPoDetail: PresentationObjectDetail = {
@@ -223,7 +225,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
         p.projectId,
         p.resultsValue.id,
       ),
-    "Loading...",
+    t3(TC.loading),
   );
 
   const syntheticPoDetail: PresentationObjectDetail = {

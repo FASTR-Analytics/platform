@@ -1,5 +1,5 @@
 import { clear } from "idb-keyval";
-import { t, t2, T } from "lib";
+import { t3, TC } from "lib";
 import {
   Button,
   ModalContainer,
@@ -21,7 +21,7 @@ export function ProfileForm(
 ) {
   const userDetails = timQuery(
     () => serverActions.getCurrentUser({}),
-    t("Loading your profile..."),
+    t3({ en: "Loading your profile...", fr: "Chargement de votre profil..." }),
   );
 
   const clearCache = timActionButton(
@@ -35,16 +35,16 @@ export function ProfileForm(
 
   return (
     <ModalContainer
-      title={t("Your profile")}
+      title={t3({ en: "Your profile", fr: "Votre profil" })}
       width="lg"
       leftButtons={
         // eslint-disable-next-line jsx-key
         [
           <Button onClick={() => p.close(undefined)} iconName="x">
-            Done
+            {t3(TC.done)}
           </Button>,
           <Button onClick={p.attemptSignOut} outline iconName="arrowLeft">
-            {t("Sign out")}
+            {t3({ en: "Sign out", fr: "Se déconnecter" })}
           </Button>,
         ]
       }
@@ -55,25 +55,25 @@ export function ProfileForm(
             <>
               <div class="ui-gap flex text-sm">
                 <div class="flex-1">
-                  <SettingsSection header={t("User details")}>
+                  <SettingsSection header={t3({ en: "User details", fr: "Détails de l'utilisateur" })}>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t("First name")}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "First name", fr: "Prénom" })}:</div>
                       <div class="flex-1">{keyedUser.firstName}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t("Last name")}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Last name", fr: "Nom" })}:</div>
                       <div class="flex-1">{keyedUser.lastName}</div>
                     </div>
                   </SettingsSection>
                 </div>
                 <div class="flex-1">
-                  <SettingsSection header={t2(T.FRENCH_UI_STRINGS.login_details)}>
+                  <SettingsSection header={t3({ en: "Login details", fr: "Identifiants" })}>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t2(T.FRENCH_UI_STRINGS.email)}:</div>
+                      <div class="w-36 flex-none">{t3(TC.email)}:</div>
                       <div class="flex-1">{keyedUser.email}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t("Password")}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Password", fr: "Mot de passe" })}:</div>
                       <div class="flex-1">- - - -</div>
                     </div>
                   </SettingsSection>
@@ -81,7 +81,7 @@ export function ProfileForm(
               </div>
 
               <SettingsSection
-                header={t("Cache management")}
+                header={t3({ en: "Cache management", fr: "Gestion du cache" })}
                 rightChildren={
                   <Button
                     onClick={clearCache.click}
@@ -89,7 +89,7 @@ export function ProfileForm(
                     outline
                     iconName="trash"
                   >
-                    {t("Clear cache")}
+                    {t3({ en: "Clear cache", fr: "Vider le cache" })}
                   </Button>
                 }
               >

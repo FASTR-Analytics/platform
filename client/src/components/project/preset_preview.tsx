@@ -15,7 +15,7 @@ import {
   type FigureInputs,
   type StateHolder,
 } from "panther";
-import { t, t2 } from "lib";
+import { t3 } from "lib";
 import { LabelHolder } from "panther";
 import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
@@ -125,7 +125,7 @@ type PresetSelectorProps = {
 
 export function PresetSelector(p: PresetSelectorProps) {
   return (
-    <LabelHolder label={t("Visualization type")}>
+    <LabelHolder label={t3({ en: "Visualization type", fr: "Type de visualisation" })}>
       <div class="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] ui-gap">
         <For each={p.presets}>
           {(preset) => (
@@ -133,8 +133,8 @@ export function PresetSelector(p: PresetSelectorProps) {
               projectId={p.projectId}
               metric={p.metric}
               preset={preset}
-              label={t2(preset.label)}
-              description={t2(preset.description)}
+              label={t3(preset.label)}
+              description={t3(preset.description)}
               selected={p.selectedId === preset.id}
               onClick={() => p.onSelect(preset.id)}
             />
@@ -150,13 +150,13 @@ export function PresetSelector(p: PresetSelectorProps) {
         >
           <div class="p-2">
             <div class="aspect-video flex items-center justify-center bg-base-200 rounded">
-              <span class="text-neutral text-sm">{t("Custom")}</span>
+              <span class="text-neutral text-sm">{t3({ en: "Custom", fr: "Personnalisé" })}</span>
             </div>
           </div>
           <div class="px-2 pb-2">
-            <div class="text-xs font-700">{t("Custom")}</div>
+            <div class="text-xs font-700">{t3({ en: "Custom", fr: "Personnalisé" })}</div>
             <div class="text-xs text-neutral">
-              {t("Configure manually")}
+              {t3({ en: "Configure manually", fr: "Configurer manuellement" })}
             </div>
           </div>
         </div>
@@ -227,8 +227,8 @@ async function fetchPreview(
       status: "error",
       err:
         itemsHolder.status === "too_many_items"
-          ? "Too many data points"
-          : "No data available",
+          ? t3({ en: "Too many data points", fr: "Trop de points de données" })
+          : t3({ en: "No data available", fr: "Aucune donnée disponible" }),
     };
   }
 

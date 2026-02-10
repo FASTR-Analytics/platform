@@ -1,4 +1,4 @@
-import { SlideDeckFolder, t } from "lib";
+import { SlideDeckFolder, t3, TC } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -45,7 +45,7 @@ export function DuplicateDeckModal(
   const progress = getProgress();
 
   const folderOptions = () => [
-    { value: "_none", label: t("General") },
+    { value: "_none", label: t3(TC.general) },
     ...p.folders.map((f) => ({ value: f.id, label: f.label })),
   ];
 
@@ -58,7 +58,7 @@ export function DuplicateDeckModal(
       if (isCreatingFolder()) {
         const label = newFolderLabel().trim();
         if (!label) {
-          return { success: false, err: "Folder name is required" };
+          return { success: false, err: t3({ en: "Folder name is required", fr: "Le nom du dossier est requis" }) };
         }
 
         const createRes = await serverActions.createSlideDeckFolder({
@@ -81,7 +81,7 @@ export function DuplicateDeckModal(
       if (deckCount === 1) {
         const label = tempLabel().trim();
         if (!label) {
-          return { success: false, err: "You must enter a name" };
+          return { success: false, err: t3(TC.mustEnterName) };
         }
 
         return serverActions.duplicateSlideDeck({
@@ -143,8 +143,8 @@ export function DuplicateDeckModal(
 
   const header =
     p.deckDetails.length > 1
-      ? `Duplicate ${p.deckDetails.length} decks`
-      : "Duplicate slide deck";
+      ? `${t3({ en: "Duplicate", fr: "Dupliquer" })} ${p.deckDetails.length} ${t3({ en: "decks", fr: "présentations" })}`
+      : t3({ en: "Duplicate slide deck", fr: "Dupliquer la présentation" });
 
   return (
     <AlertFormHolder
@@ -170,7 +170,7 @@ export function DuplicateDeckModal(
 
         <Show when={!isBatchMode()}>
           <Input
-            label="New deck name"
+            label={t3({ en: "New deck name", fr: "Nom de la nouvelle présentation" })}
             value={tempLabel()}
             onChange={setTempLabel}
             fullWidth
@@ -184,14 +184,14 @@ export function DuplicateDeckModal(
             <div class="space-y-4">
               <div class="flex ui-gap">
                 <Input
-                  label="Folder name"
+                  label={t3({ en: "Folder name", fr: "Nom du dossier" })}
                   value={newFolderLabel()}
                   onChange={setNewFolderLabel}
                   autoFocus
                   fullWidth
                 />
                 <ColorPicker
-                  label="Color"
+                  label={t3({ en: "Color", fr: "Couleur" })}
                   value={newFolderColor()}
                   onChange={(c) => setNewFolderColor(c)}
                   position="right"
@@ -202,14 +202,14 @@ export function DuplicateDeckModal(
                 outline
                 onClick={() => setIsCreatingFolder(false)}
               >
-                Back to folder list
+                {t3({ en: "Back to folder list", fr: "Retour à la liste des dossiers" })}
               </Button>
             </div>
           }
         >
           <div class="space-y-4">
             <Select
-              label={t("Folder")}
+              label={t3(TC.folder)}
               options={folderOptions()}
               value={tempFolderId()}
               onChange={setTempFolderId}
@@ -221,7 +221,7 @@ export function DuplicateDeckModal(
               iconName="plus"
               onClick={() => setIsCreatingFolder(true)}
             >
-              Create new folder
+              {t3({ en: "Create new folder", fr: "Créer un nouveau dossier" })}
             </Button>
           </div>
         </Show>

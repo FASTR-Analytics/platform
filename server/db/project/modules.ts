@@ -152,7 +152,7 @@ WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE
         await sql`DELETE FROM presentation_objects WHERE id = ${presObjectDef.id}`;
         await sql`
 INSERT INTO presentation_objects
-  (id, metric_id, is_default_visualization, label, config, last_updated)
+  (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
 VALUES
   (
     ${presObjectDef.id},
@@ -160,7 +160,8 @@ VALUES
     ${true},
     ${presObjectDef.label},
     ${JSON.stringify(presObjectDef.config)},
-    ${lastUpdated}
+    ${lastUpdated},
+    ${presObjectDef.sortOrder}
   )
 `;
       }
@@ -376,7 +377,7 @@ WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE
         await sql`DELETE FROM presentation_objects WHERE id = ${presObjectDef.id}`;
         await sql`
 INSERT INTO presentation_objects
-  (id, metric_id, is_default_visualization, label, config, last_updated)
+  (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
 VALUES
   (
     ${presObjectDef.id},
@@ -384,7 +385,8 @@ VALUES
     ${true},
     ${presObjectDef.label},
     ${JSON.stringify(presObjectDef.config)},
-    ${lastUpdated}
+    ${lastUpdated},
+    ${presObjectDef.sortOrder}
   )
 `;
       }

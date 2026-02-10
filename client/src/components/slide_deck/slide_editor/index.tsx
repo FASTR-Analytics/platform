@@ -14,7 +14,8 @@ import {
   getMetricStaticData,
   getSlideTitle,
   getTextRenderingOptions,
-  t,
+  t3,
+  TC,
 } from "lib";
 import type { DividerDragUpdate, LayoutNode } from "panther";
 import {
@@ -673,7 +674,7 @@ export function SlideEditor(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
-            heading="Edit Slide"
+            heading={t3({ en: "Edit Slide", fr: "Modifier la diapositive" })}
             leftChildren={
               <Show
                 when={needsSave()}
@@ -689,10 +690,10 @@ export function SlideEditor(p: Props) {
                     loading={isSaving()}
                     iconName="save"
                   >
-                    Save
+                    {t3(TC.save)}
                   </Button>
                   <Button outline onClick={handleCancel} iconName="x">
-                    Cancel
+                    {t3(TC.cancel)}
                   </Button>
                 </div>
               </Show>
@@ -701,9 +702,9 @@ export function SlideEditor(p: Props) {
             <div class="ui-gap-sm flex items-center">
               <Select
                 options={[
-                  { value: "cover", label: "Cover" },
-                  { value: "section", label: "Section" },
-                  { value: "content", label: "Content" },
+                  { value: "cover", label: t3({ en: "Cover", fr: "Couverture" }) },
+                  { value: "section", label: t3({ en: "Section", fr: "Section" }) },
+                  { value: "content", label: t3({ en: "Content", fr: "Contenu" }) },
                 ]}
                 value={tempSlide.type}
                 onChange={(v: string) =>
@@ -716,7 +717,7 @@ export function SlideEditor(p: Props) {
                   iconName="chevronLeft"
                   outline
                 >
-                  {t("AI")}
+                  {t3({ en: "AI", fr: "IA" })}
                 </Button>
               </Show>
             </div>
@@ -748,7 +749,7 @@ export function SlideEditor(p: Props) {
           <div class="ui-pad bg-base-200 h-full w-full overflow-auto">
             <Show when={pageInputs().status === "loading"}>
               <div class="flex h-full items-center justify-center">
-                <div class="text-base-content/70">Rendering slide...</div>
+                <div class="text-base-content/70">{t3({ en: "Rendering slide...", fr: "Rendu de la diapositive..." })}</div>
               </div>
             </Show>
             <Show when={pageInputs().status === "error"}>

@@ -6,6 +6,7 @@ import {
   type DefaultPresentationObject,
   type InstanceLanguage,
   type MetricDefinition,
+  type MetricDefinitionJSON,
   type ModuleDefinition,
   type ModuleId,
   type PeriodFilter,
@@ -66,6 +67,7 @@ function deriveDefaultPresentationObjects(
   language: InstanceLanguage,
 ): DefaultPresentationObject[] {
   const results: DefaultPresentationObject[] = [];
+  let sortOrder = 0;
   for (const metric of metrics) {
     for (const preset of metric.vizPresets ?? []) {
       if (!preset.createDefaultVisualizationOnInstall) continue;
@@ -77,6 +79,7 @@ function deriveDefaultPresentationObjects(
         label: resolveTS(preset.label, language),
         moduleId,
         metricId: metric.id,
+        sortOrder: sortOrder++,
         config: {
           d: {
             ...preset.config.d,
@@ -102,7 +105,7 @@ type ModuleManifest = {
   modules: Record<
     ModuleId,
     {
-      label: string;
+      label: { en: string; fr: string };
       versions: string[];
       latest: string;
       prerequisites?: ModuleId[];
@@ -164,11 +167,11 @@ export async function getModuleDefinitionDetail(
         moduleId: rawModuleJSON.id,
       }));
 
-    const translatedMetrics = translateMetrics(rawModuleJSON.metrics, tc);
+    const translatedMetrics = translateMetrics(rawModuleJSON.metrics, tc, language);
 
     const translatedModule: ModuleDefinition = {
       id: rawModuleJSON.id,
-      label: tc(rawModuleJSON.label),
+      label: resolveTS(rawModuleJSON.label, language),
       prerequisites: rawModuleJSON.prerequisites,
       lastScriptUpdate: rawModuleJSON.lastScriptUpdate,
       commitSha: rawModuleJSON.commitSha,
@@ -207,12 +210,14 @@ function translateResultsObjects(
 }
 
 function translateMetrics(
-  metrics: MetricDefinition[],
-  tc: (v: string) => string
+  metrics: MetricDefinitionJSON[],
+  tc: (v: string) => string,
+  language: InstanceLanguage,
 ): MetricDefinition[] {
   return metrics.map((m) => ({
     ...m,
-    label: tc(m.label),
+    label: resolveTS(m.label, language),
+    variantLabel: m.variantLabel ? resolveTS(m.variantLabel, language) : undefined,
     valueLabelReplacements: m.valueLabelReplacements
       ? Object.fromEntries(
           Object.entries(m.valueLabelReplacements).map(([key, value]) => [

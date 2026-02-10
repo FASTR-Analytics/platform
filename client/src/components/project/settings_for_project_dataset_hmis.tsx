@@ -3,9 +3,8 @@ import {
   DEFAULT_PERIOD_END,
   DEFAULT_PERIOD_START,
   ProjectDetail,
-  t,
-  t2,
-  T,
+  t3,
+  TC,
   type DatasetHmisInfoInProject,
   type DatasetHmisWindowingCommon,
   type InstanceConfigFacilityColumns,
@@ -76,10 +75,10 @@ export function SettingsForProjectDatasetHmis(
           setHmisVersionId(res.data.currentVersionId);
           setNeedsSave(false);
         } else {
-          setFetchError("No HMIS version available");
+          setFetchError(t3({ en: "No HMIS version available", fr: "Aucune version HMIS disponible" }));
         }
       } catch (e: any) {
-        setFetchError(e.message || "Failed to fetch HMIS version");
+        setFetchError(e.message || t3({ en: "Failed to fetch HMIS version", fr: "Échec de récupération de la version HMIS" }));
       } finally {
         setIsLoadingVersion(false);
       }
@@ -116,7 +115,7 @@ export function SettingsForProjectDatasetHmis(
       ) {
         return {
           success: false,
-          err: "You must select at least one indicator",
+          err: t3({ en: "You must select at least one indicator", fr: "Vous devez sélectionner au moins un indicateur" }),
         };
       }
 
@@ -126,7 +125,7 @@ export function SettingsForProjectDatasetHmis(
       ) {
         return {
           success: false,
-          err: "You must select at least one admin area",
+          err: t3({ en: "You must select at least one admin area", fr: "Vous devez sélectionner au moins une zone administrative" }),
         };
       }
 
@@ -138,7 +137,7 @@ export function SettingsForProjectDatasetHmis(
       ) {
         return {
           success: false,
-          err: "You must select at least one facility ownership category",
+          err: t3({ en: "You must select at least one facility ownership category", fr: "Vous devez sélectionner au moins une catégorie de propriété d'établissement" }),
         };
       }
 
@@ -150,7 +149,7 @@ export function SettingsForProjectDatasetHmis(
       ) {
         return {
           success: false,
-          err: "You must select at least one facility ownership category",
+          err: t3({ en: "You must select at least one facility ownership category", fr: "Vous devez sélectionner au moins une catégorie de propriété d'établissement" }),
         };
       }
 
@@ -188,7 +187,7 @@ export function SettingsForProjectDatasetHmis(
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`HMIS data settings`}>
+        <HeadingBar heading={t3({ en: "HMIS data settings", fr: "Paramètres des données HMIS" })}>
           <div class="ui-gap-sm flex">
             <Button
               onClick={save.click}
@@ -198,15 +197,15 @@ export function SettingsForProjectDatasetHmis(
               iconName={needsSave() ? "save" : "refresh"}
             >
               {(needsSave() || p.hmisInfo === undefined)
-                ? t2(T.FRENCH_UI_STRINGS.save)
-                : t2("Re-window with current settings")}
+                ? t3(TC.save)
+                : t3({ en: "Re-window with current settings", fr: "Re-fenêtrer avec les paramètres actuels" })}
             </Button>
             <Button
               onClick={() => p.close(undefined)}
               intent="neutral"
               iconName="x"
             >
-              {t2(T.FRENCH_UI_STRINGS.cancel)}
+              {t3(TC.cancel)}
             </Button>
           </div>
         </HeadingBar>
@@ -221,7 +220,7 @@ export function SettingsForProjectDatasetHmis(
             />
           </Match>
           <Match when={isLoadingVersion()}>
-            <div class="">Loading HMIS version...</div>
+            <div class="">{t3({ en: "Loading HMIS version...", fr: "Chargement de la version HMIS..." })}</div>
           </Match>
           <Match when={fetchError()}>
             <div class="text-danger">{fetchError()}</div>

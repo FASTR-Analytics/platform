@@ -2,9 +2,8 @@ import {
   InstanceDetail,
   _OPTIONAL_FACILITY_COLUMNS,
   getEnabledOptionalFacilityColumns,
-  t,
-  t2,
-  T,
+  t3,
+  TC,
   type InstanceConfigFacilityColumns,
 } from "lib";
 import {
@@ -136,7 +135,7 @@ export function InstanceSettings(p: Props) {
         const facilityColumnOptions = [
           {
             key: "facility_name",
-            label: "Facility Names",
+            label: t3({ en: "Facility Names", fr: "Noms des établissements" }),
             checked: includeNames,
             setChecked: setIncludeNames,
             labelValue: labelNames,
@@ -144,7 +143,7 @@ export function InstanceSettings(p: Props) {
           },
           {
             key: "facility_type",
-            label: "Facility Types",
+            label: t3({ en: "Facility Types", fr: "Types d'établissements" }),
             checked: includeTypes,
             setChecked: setIncludeTypes,
             labelValue: labelTypes,
@@ -152,7 +151,7 @@ export function InstanceSettings(p: Props) {
           },
           {
             key: "facility_ownership",
-            label: "Facility Ownership",
+            label: t3({ en: "Facility Ownership", fr: "Propriété des établissements" }),
             checked: includeOwnership,
             setChecked: setIncludeOwnership,
             labelValue: labelOwnership,
@@ -160,7 +159,7 @@ export function InstanceSettings(p: Props) {
           },
           {
             key: "facility_custom_1",
-            label: "Custom Field 1",
+            label: t3({ en: "Custom Field 1", fr: "Champ personnalisé 1" }),
             checked: includeCustom1,
             setChecked: setIncludeCustom1,
             labelValue: labelCustom1,
@@ -168,7 +167,7 @@ export function InstanceSettings(p: Props) {
           },
           {
             key: "facility_custom_2",
-            label: "Custom Field 2",
+            label: t3({ en: "Custom Field 2", fr: "Champ personnalisé 2" }),
             checked: includeCustom2,
             setChecked: setIncludeCustom2,
             labelValue: labelCustom2,
@@ -176,7 +175,7 @@ export function InstanceSettings(p: Props) {
           },
           {
             key: "facility_custom_3",
-            label: "Custom Field 3",
+            label: t3({ en: "Custom Field 3", fr: "Champ personnalisé 3" }),
             checked: includeCustom3,
             setChecked: setIncludeCustom3,
             labelValue: labelCustom3,
@@ -184,7 +183,7 @@ export function InstanceSettings(p: Props) {
           },
           {
             key: "facility_custom_4",
-            label: "Custom Field 4",
+            label: t3({ en: "Custom Field 4", fr: "Champ personnalisé 4" }),
             checked: includeCustom4,
             setChecked: setIncludeCustom4,
             labelValue: labelCustom4,
@@ -192,7 +191,7 @@ export function InstanceSettings(p: Props) {
           },
           {
             key: "facility_custom_5",
-            label: "Custom Field 5",
+            label: t3({ en: "Custom Field 5", fr: "Champ personnalisé 5" }),
             checked: includeCustom5,
             setChecked: setIncludeCustom5,
             labelValue: labelCustom5,
@@ -226,13 +225,13 @@ export function InstanceSettings(p: Props) {
           <FrameTop
             panelChildren={
               <HeadingBarMainRibbon
-                heading={t2(T.FRENCH_UI_STRINGS.settings)}
+                heading={t3(TC.settings)}
               ></HeadingBarMainRibbon>
             }
           >
             <div class="ui-pad ui-spy h-full w-full">
               <SettingsSection
-                header="Country"
+                header={t3({ en: "Country", fr: "Pays" })}
                 rightChildren={
                   <Show when={needsSavingCountryIso3()}>
                     <Button
@@ -240,7 +239,7 @@ export function InstanceSettings(p: Props) {
                       state={updateCountryIso3.state()}
                       intent="success"
                     >
-                      Update country ISO3 code
+                      {t3({ en: "Update country ISO3 code", fr: "Mettre à jour le code ISO3 du pays" })}
                     </Button>
                   </Show>
                 }
@@ -252,7 +251,7 @@ export function InstanceSettings(p: Props) {
               </SettingsSection>
 
               <SettingsSection
-                header="Max admin area level"
+                header={t3({ en: "Max admin area level", fr: "Niveau maximal d'unité administrative" })}
                 rightChildren={
                   <Show when={needsSavingMaxAdminArea()}>
                     <Button
@@ -260,7 +259,7 @@ export function InstanceSettings(p: Props) {
                       state={updateMaxAdminArea.state()}
                       intent="success"
                     >
-                      Update max admin area level
+                      {t3({ en: "Update max admin area level", fr: "Mettre à jour le niveau maximal d'unité administrative" })}
                     </Button>
                   </Show>
                 }
@@ -276,7 +275,7 @@ export function InstanceSettings(p: Props) {
               </SettingsSection>
 
               <SettingsSection
-                header="Facility columns"
+                header={t3({ en: "Facility columns", fr: "Colonnes des établissements" })}
                 rightChildren={
                   <Show when={needsSavingFacilityCols()}>
                     <Button
@@ -284,7 +283,7 @@ export function InstanceSettings(p: Props) {
                       state={updateFacilityColumns.state()}
                       intent="success"
                     >
-                      Update facility columns
+                      {t3({ en: "Update facility columns", fr: "Mettre à jour les colonnes des établissements" })}
                     </Button>
                   </Show>
                 }
@@ -310,7 +309,7 @@ export function InstanceSettings(p: Props) {
                               onChange={(value) =>
                                 handleLabelChange(option.setLabelValue, value)
                               }
-                              placeholder={`Custom label for ${option.label.toLowerCase()}`}
+                              placeholder={t3({ en: `Custom label for ${option.label.toLowerCase()}`, fr: `Libellé personnalisé pour ${option.label.toLowerCase()}` })}
                               fullWidth
                             />
                           </div>
@@ -320,10 +319,9 @@ export function InstanceSettings(p: Props) {
                   </For>
                 </div>
               </SettingsSection>
-              <SettingsSection header="Language and calendar">
+              <SettingsSection header={t3({ en: "Language and calendar", fr: "Langue et calendrier" })}>
                 <div class="text-neutral py-2 text-sm">
-                  Will add settings for French/English language and
-                  Gregorian/Ethiopian calendar
+                  {t3({ en: "Will add settings for French/English language and Gregorian/Ethiopian calendar", fr: "Les paramètres de langue français/anglais et de calendrier grégorien/éthiopien seront ajoutés" })}
                 </div>
               </SettingsSection>
             </div>
