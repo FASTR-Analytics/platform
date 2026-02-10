@@ -86,7 +86,7 @@ export function DisplayProjectUserRole(
             </div>
             <Show
               when={userRoleExists()}
-              fallback={<div>This user does not have access to this project</div>}
+              fallback={<div>Loading...</div>}
             >
               <Show when={permissions()} fallback={<div>Loading...</div>}>
                 <div class="grid grid-cols-2 gap-4">

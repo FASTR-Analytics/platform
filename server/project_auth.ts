@@ -312,7 +312,7 @@ async function getProjectUser(
 
     const rawProjectUserRoleResult = await mainDb<
       DBProjectUserRole[]
-    >`SELECT * FROM project_user_roles WHERE email = ${globalUser.email} AND project_id = ${projectId}`;
+    >`SELECT * FROM project_user_roles WHERE email = ${globalUser.email} AND project_id = ${projectId}`; // add if all permissions are false treat as no access
     const rawProjectUserRole = rawProjectUserRoleResult.at(0);
 
     if (!rawProjectUserRole) {

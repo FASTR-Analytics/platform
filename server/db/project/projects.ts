@@ -494,6 +494,36 @@ export async function updateProjectUserPermissions(
   });
 }
 
+export async function bulkUpdateProjectUserPermissions(
+  mainDb: Sql,
+  projectId: string,
+  emails: string[],
+  permissions: Partial<Record<ProjectPermission, boolean>>,
+) {
+  return await tryCatchDatabaseAsync(async () => {
+    if (Object.keys(permissions).length === 0) {
+      return { success: true };
+    }
+    await mainDb.begin(async (sql) => {
+      for (const email of emails) {
+        // Ensure row exists with defaults, then update only specified permissions
+        await sql`
+          INSERT INTO project_user_roles (email, project_id, role)
+          VALUES (${email}, ${projectId}, 'viewer')
+          ON CONFLICT (email, project_id) DO NOTHING
+        `;
+        await sql`
+          UPDATE project_user_roles
+          SET ${sql(permissions)}
+          WHERE email = ${email}
+          AND project_id = ${projectId}
+        `;
+      }
+    });
+    return { success: true };
+  });
+}
+
 export async function getProjectUserPermissions(
   mainDb: Sql,
   projectId: string,

@@ -51,4 +51,9 @@ export const userRouteRegistry = {
     method: "POST",
     body: {} as { email: string; permissions: Partial<Record<UserPermission, boolean>> },
   }),
+  bulkUpdateUserPermissions: route({
+    path: "/user/permissions/bulk",
+    method: "POST",
+    body: {} as { emails: string[]; permissions: Partial<Record<UserPermission, boolean>> },
+  }),
 } as const;

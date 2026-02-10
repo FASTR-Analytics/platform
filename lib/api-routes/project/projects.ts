@@ -162,4 +162,15 @@ export const projectRouteRegistry = {
     requiresProject: true,
   }),
 
+  bulkUpdateProjectUserPermissions: route({
+    path: "/bulk_update_project_user_permissions",
+    method: "POST",
+    body: {} as {
+      projectId: string;
+      emails: string[];
+      permissions: Partial<Record<ProjectPermission, boolean>>;
+    },
+    requiresProject: true,
+  }),
+
 } as const;

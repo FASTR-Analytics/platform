@@ -3,6 +3,7 @@ import { GetLogs } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
   batchUploadUsers,
+  bulkUpdateUserPermissions,
   deleteUser,
   getOtherUser,
   getUserPermissions,
@@ -147,6 +148,21 @@ defineRoute(
     const res = await updateUserPermissions(
       c.var.mainDb,
       body.email,
+      body.permissions,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesUsers,
+  "bulkUpdateUserPermissions",
+  requireGlobalPermission("can_configure_users"),
+  log("bulkUpdateUserPermissions"),
+  async (c, { body }) => {
+    const res = await bulkUpdateUserPermissions(
+      c.var.mainDb,
+      body.emails,
       body.permissions,
     );
     return c.json(res);

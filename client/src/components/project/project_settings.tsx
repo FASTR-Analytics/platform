@@ -24,6 +24,7 @@ import {
 import { clerk } from "~/components/LoggedInWrapper";
 import { Table, TableColumn, type BulkAction } from "panther";
 import { EditLabelForm } from "~/components/forms_editors/edit_label";
+import { BulkEditProjectPermissionsForm } from "~/components/forms_editors/bulk_edit_project_permissions_form";
 import { SelectProjectUserRole } from "~/components/forms_editors/select_project_user_role";
 import { serverActions } from "~/server_actions";
 import { CopyProjectForm } from "./copy_project";
@@ -134,6 +135,18 @@ export function ProjectSettings(p: Props) {
     });
   }
 
+  async function attemptBulkEditPermissions(users: ProjectUser[]) {
+    const emails = users.map((u) => u.email);
+    await openComponent({
+      element: BulkEditProjectPermissionsForm,
+      props: {
+        projectId: projectDetail.id,
+        emails,
+        silentFetch: refetchProjectDetail,
+      },
+    });
+  }
+
   async function attemptDisplayUserRole(user: ProjectUser) {
     await openComponent({
       element: DisplayProjectUserRole,
@@ -213,6 +226,7 @@ export function ProjectSettings(p: Props) {
           <ProjectUserTable
             users={projectDetail.projectUsers}
             onUserClick={attemptSelectUserRole}
+            onBulkEditPermissions={attemptBulkEditPermissions}
             onDisplayUserRole={attemptDisplayUserRole}
           />
         </SettingsSection>
@@ -329,6 +343,7 @@ function getPermissionSummary(user: ProjectUser): string {
 function ProjectUserTable(p: {
   users: ProjectUser[];
   onUserClick?: (users: ProjectUser[]) => void;
+  onBulkEditPermissions?: (users: ProjectUser[]) => void;
   onDisplayUserRole?: (user: ProjectUser) => void;
 }) {
   const columns: TableColumn<ProjectUser>[] = [
@@ -382,9 +397,10 @@ function ProjectUserTable(p: {
 
   const bulkActions: BulkAction<ProjectUser>[] = [
     {
-      label: t("Edit user's project role"),
+      label: t("Edit permissions"),
       intent: "primary",
-      onClick: (users) => p.onUserClick?.(users),
+      outline: true,
+      onClick: (users) => p.onBulkEditPermissions?.(users),
     },
   ];
 
