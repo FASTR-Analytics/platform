@@ -221,6 +221,7 @@ export type VizPreset = {
   label: TranslatableString;
   description: TranslatableString;
   needsReplicant?: boolean;
+  allowedFilters?: DisaggregationOption[];
   config: {
     d: PresentationObjectConfig["d"];
     s?: Partial<PresentationObjectConfig["s"]>;

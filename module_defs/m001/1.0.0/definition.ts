@@ -250,6 +250,7 @@ export const definition = {
       id: "outlier-table",
       label: { en: "Outlier proportion table", fr: "Outlier proportion table" },
       description: { en: "Table showing proportion of outliers by indicator and region", fr: "Table showing proportion of outliers by indicator and region" },
+      allowedFilters: ["indicator_common_id", "admin_area_2"],
       config: {
         d: {
           type: "table",
@@ -334,6 +335,7 @@ export const definition = {
       id: "completeness-table",
       label: { en: "Completeness table by region", fr: "Completeness table by region" },
       description: { en: "Table showing completeness by indicator and region", fr: "Table showing completeness by indicator and region" },
+      allowedFilters: ["indicator_common_id", "admin_area_2"],
       config: {
         d: {
           type: "table",
@@ -351,6 +353,7 @@ export const definition = {
       id: "completeness-timeseries",
       label: { en: "Completeness over time", fr: "Completeness over time" },
       description: { en: "Area chart showing completeness trends over time by indicator", fr: "Area chart showing completeness trends over time by indicator" },
+      allowedFilters: ["indicator_common_id"],
       config: {
         d: {
           type: "timeseries",
@@ -436,6 +439,7 @@ export const definition = {
       id: "consistency-table",
       label: { en: "Internal consistency table", fr: "Internal consistency table" },
       description: { en: "Table showing consistency by ratio type and region", fr: "Table showing consistency by ratio type and region" },
+      allowedFilters: ["ratio_type", "admin_area_2"],
       config: {
         d: {
           type: "table",
@@ -519,6 +523,7 @@ export const definition = {
       id: "dqa-score-table",
       label: { en: "Overall DQA score table", fr: "Overall DQA score table" },
       description: { en: "Table showing DQA scores by region and year", fr: "Table showing DQA scores by region and year" },
+      allowedFilters: ["admin_area_2"],
       config: {
         d: {
           type: "table",
@@ -595,6 +600,7 @@ export const definition = {
       id: "mean-dqa-table",
       label: { en: "Mean DQA score table", fr: "Mean DQA score table" },
       description: { en: "Table showing mean DQA scores by region and year", fr: "Table showing mean DQA scores by region and year" },
+      allowedFilters: ["admin_area_2"],
       config: {
         d: {
           type: "table",

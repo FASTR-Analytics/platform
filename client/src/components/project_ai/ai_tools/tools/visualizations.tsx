@@ -1,12 +1,10 @@
 import type {
-  PresentationObjectConfig,
   PresentationObjectSummary,
   SlideDeckSummary,
 } from "lib";
 import { createAITool } from "panther";
 import { z } from "zod";
-import { getPODetailFromCacheorFetch } from "~/state/po_cache";
-import { getMetricDataForAI } from "./_internal/get_metric_data_for_ai";
+import { getVisualizationDataAsCSV } from "./_internal/format_visualization_data_for_ai";
 import { formatVisualizationsListForAI } from "./_internal/format_visualizations_list_for_ai";
 import { formatSlideDecksListForAI } from "./_internal/format_slide_decks_list_for_ai";
 
@@ -52,75 +50,4 @@ export function getToolsForVisualizations(
       completionMessage: (input) => `Retrieved data for viz ${input.id}`,
     }),
   ];
-}
-
-export async function getDataFromConfig(
-  projectId: string,
-  metricId: string,
-  config: PresentationObjectConfig,
-): Promise<string> {
-  const disaggregations = config.d.disaggregateBy.map((d) => d.disOpt);
-  if (config.d.type === "timeseries") {
-    disaggregations.push(config.d.periodOpt);
-  }
-
-  const filters = config.d.filterBy.map((f) => ({
-    col: f.disOpt,
-    vals: f.values,
-  }));
-
-  const periodFilter = config.d.periodFilter
-    ? {
-        periodOption: config.d.periodFilter.periodOption,
-        min: config.d.periodFilter.min,
-        max: config.d.periodFilter.max,
-      }
-    : undefined;
-
-  const query = {
-    metricId,
-    disaggregations,
-    filters,
-    periodFilter,
-    valuesFilter: config.d.valuesFilter,
-  };
-  return await getMetricDataForAI(projectId, query);
-}
-
-async function getVisualizationDataAsCSV(
-  projectId: string,
-  presentationObjectId: string,
-): Promise<string> {
-  const resPoDetail = await getPODetailFromCacheorFetch(
-    projectId,
-    presentationObjectId,
-  );
-  if (!resPoDetail.success) throw new Error(resPoDetail.err);
-
-  const poDetail = resPoDetail.data;
-  const config = poDetail.config;
-
-  const dataOutput = await getDataFromConfig(
-    projectId,
-    poDetail.resultsValue.id,
-    config,
-  );
-
-  const contextLines = [
-    "# VISUALIZATION DATA",
-    "=".repeat(80),
-    "",
-    `**Name:** ${poDetail.label}`,
-    `**Type:** ${config.d.type}`,
-  ];
-
-  if (config.t.caption) {
-    contextLines.push(`**Caption:** ${config.t.caption}`);
-  }
-
-  contextLines.push("");
-  contextLines.push("---");
-  contextLines.push("");
-
-  return contextLines.join("\n") + dataOutput;
 }

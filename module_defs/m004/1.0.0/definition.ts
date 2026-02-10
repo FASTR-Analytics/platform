@@ -184,6 +184,7 @@ export const definition = {
         label: { en: "Coverage timeseries (national)", fr: "Coverage timeseries (national)" },
         description: { en: "National coverage timeseries with survey benchmarks", fr: "National coverage timeseries with survey benchmarks" },
         needsReplicant: true,
+        allowedFilters: [],
         config: {
           d: {
             type: "timeseries",
@@ -273,6 +274,7 @@ export const definition = {
         id: "coverage-timeseries",
         label: { en: "Coverage timeseries by region", fr: "Coverage timeseries by region" },
         description: { en: "Coverage trends over time by admin area 2", fr: "Coverage trends over time by admin area 2" },
+        allowedFilters: ["admin_area_2"],
         config: {
           d: {
             type: "timeseries",
@@ -291,6 +293,7 @@ export const definition = {
         label: { en: "Coverage bar chart by region", fr: "Coverage bar chart by region" },
         description: { en: "Bar chart comparing coverage across regions", fr: "Bar chart comparing coverage across regions" },
         needsReplicant: true,
+        allowedFilters: ["admin_area_2"],
         config: {
           d: {
             type: "chart",

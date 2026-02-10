@@ -166,7 +166,16 @@ function appendVizPresetLines(lines: string[], metricId: string, indent: string)
   lines.push(`${indent}Visualization presets (use vizPresetId with from_metric):`);
   for (const preset of staticData.vizPresets) {
     const replicantNote = preset.needsReplicant ? " [requires selectedReplicant]" : "";
+    const dateFormat = preset.config.d.periodOpt === "year"
+      ? "YYYY (e.g., 2023)"
+      : preset.config.d.periodOpt === "quarter_id"
+        ? "YYYYQQ (e.g., 202301 for Q1 2023)"
+        : "YYYYMM (e.g., 202301 for Jan 2023)";
     lines.push(`${indent}  - ${preset.id}: ${preset.label.en} — ${preset.description.en}${replicantNote}`);
+    if (preset.allowedFilters && preset.allowedFilters.length > 0) {
+      lines.push(`${indent}      Filterable by: ${preset.allowedFilters.join(", ")}`);
+    }
+    lines.push(`${indent}      Date format: ${dateFormat}`);
   }
 }
 

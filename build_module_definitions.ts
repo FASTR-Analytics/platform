@@ -382,7 +382,7 @@ export const METRIC_STATIC_DATA: Record<string, {
   requiredDisaggregationOptions: string[];
   periodOptions: PeriodOption[];
   postAggregationExpression?: any;
-  vizPresets?: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; needsReplicant?: boolean; config: { d: any; s?: any; t?: any } }[];
+  vizPresets?: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; needsReplicant?: boolean; allowedFilters?: string[]; config: { d: any; s?: any; t?: any } }[];
 }> = {
 ${metricStaticDataCode},
 };

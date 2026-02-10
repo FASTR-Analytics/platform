@@ -64,59 +64,6 @@ export const AiMetricQuerySchema = z.object({
     ),
 });
 
-export type AiChartType = "bar" | "line" | "table";
-
-// Visualization creation schemas
-
-// const DisaggregationDisplaySchema = z.object({
-//   disOpt: z.string(),
-//   disDisplayOpt: z.enum([
-//     "row",
-//     "col",
-//     "series",
-//     "cell",
-//     "indicator",
-//     "replicant",
-//     "rowGroup",
-//     "colGroup",
-//   ]),
-// });
-
-// const StylingSchema = z.object({
-//   colorScale: z.enum([
-//     "pastel-discrete",
-//     "alt-discrete",
-//     "red-green",
-//     "blue-green",
-//     "single-grey",
-//     "custom",
-//   ]).optional(),
-//   showDataLabels: z.boolean().optional(),
-//   content: z.enum(["lines", "bars", "points", "areas"]).optional(),
-//   decimalPlaces: z.number().min(0).max(3).optional(),
-//   barsStacked: z.boolean().optional(),
-//   hideLegend: z.boolean().optional(),
-// }).optional();
-
-export const AiCreateVisualizationInputSchema = z.object({
-  metricQuery: AiMetricQuerySchema.describe(
-    "The metric query parameters specifying what data to visualize.",
-  ),
-  chartType: z
-    .enum(["bar", "line", "table"])
-    .optional()
-    .describe(
-      "Optional: The visualization type - 'bar' for bar charts, 'line' for line charts, or 'table' for data tables. If not specified, an appropriate type will be chosen automatically.",
-    ),
-  chartTitle: z.string().max(200).describe("The chart title"),
-  // disaggregationDisplay: z.array(DisaggregationDisplaySchema).optional(),
-  // styling: StylingSchema,
-});
-
-export type AiCreateVisualizationInput = z.infer<
-  typeof AiCreateVisualizationInputSchema
->;
-
 // Individual figure schemas (unnested for type inference)
 
 export const AiTextBlockSchema = z.object({
@@ -188,37 +135,25 @@ export const AiFigureFromMetricSchema = z.object({
     .number()
     .optional()
     .describe(
-      "Optional: Start of time range in YYYYMM format (e.g., 202301 for Jan 2023). Must be used together with endDate.",
+      "Optional: Start of time range. Format depends on the preset's date format " +
+      "(shown in preset listing). For YYYYMM presets: 202301 = Jan 2023. " +
+      "For YYYY presets: 2023. For YYYYQQ presets: 202301 = Q1 2023. Must be used together with endDate.",
     ),
   endDate: z
     .number()
     .optional()
     .describe(
-      "Optional: End of time range in YYYYMM format (e.g., 202312 for Dec 2023). Must be used together with startDate.",
+      "Optional: End of time range. Format depends on the preset's date format " +
+      "(shown in preset listing). For YYYYMM presets: 202312 = Dec 2023. " +
+      "For YYYY presets: 2024. For YYYYQQ presets: 202304 = Q4 2023. Must be used together with startDate.",
     ),
 });
-
-// export const AiFigureCustomSchema = z.object({
-//   type: z.literal("custom").describe(
-//     "Block type identifier for figures created from custom/arbitrary data",
-//   ),
-//   customData: z.array(z.unknown()).describe(
-//     "Array of custom data objects to visualize. The structure depends on the chartType - each object typically represents a data point or row.",
-//   ),
-//   chartType: z.enum(["bar", "line", "table"]).describe(
-//     "Required: The visualization type for the custom data - 'bar' for bar charts, 'line' for line charts, or 'table' for data tables.",
-//   ),
-//   description: z.string().optional().describe(
-//     "Optional: A description of what this custom chart shows, for documentation purposes.",
-//   ),
-// });
 
 // Union schemas
 
 export const AiFigureBlockInputSchema = z.union([
   AiFigureFromVisualizationSchema,
   AiFigureFromMetricSchema,
-  // AiFigureCustomSchema,
 ]);
 
 export const AiContentBlockInputSchema = z.union([
@@ -315,7 +250,6 @@ export type AiFigureFromVisualization = z.infer<
 >;
 export type AiMetricQuery = z.infer<typeof AiMetricQuerySchema>;
 export type AiFigureFromMetric = z.infer<typeof AiFigureFromMetricSchema>;
-// export type AiFigureCustom = z.infer<typeof AiFigureCustomSchema>;
 export type AiFigureBlockInput = z.infer<typeof AiFigureBlockInputSchema>;
 export type AiContentBlockInput = z.infer<typeof AiContentBlockInputSchema>;
 export type AiContentSlideInput = z.infer<typeof AiContentSlideSchema>;

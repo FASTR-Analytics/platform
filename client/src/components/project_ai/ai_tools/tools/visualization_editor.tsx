@@ -1,9 +1,8 @@
-import type { PresentationObjectConfig } from "lib";
 import { DisaggregationOption } from "lib";
 import { createAITool } from "panther";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
-import { getMetricDataForAI } from "./_internal/get_metric_data_for_ai";
+import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
 
 export function getToolsForVizEditor(
   projectId: string,
@@ -278,37 +277,4 @@ export function getToolsForVizEditor(
       },
     }),
   ];
-}
-
-async function getDataFromConfig(
-  projectId: string,
-  metricId: string,
-  config: PresentationObjectConfig
-): Promise<string> {
-  const disaggregations = config.d.disaggregateBy.map(d => d.disOpt);
-  if (config.d.type === "timeseries") {
-    disaggregations.push(config.d.periodOpt);
-  }
-
-  const filters = config.d.filterBy.map(f => ({
-    col: f.disOpt,
-    vals: f.values,
-  }));
-
-  const periodFilter = config.d.periodFilter
-    ? {
-      periodOption: config.d.periodFilter.periodOption,
-      min: config.d.periodFilter.min,
-      max: config.d.periodFilter.max,
-    }
-    : undefined;
-
-  const query = {
-    metricId,
-    disaggregations,
-    filters,
-    periodFilter,
-    valuesFilter: config.d.valuesFilter,
-  };
-  return await getMetricDataForAI(projectId, query);
 }

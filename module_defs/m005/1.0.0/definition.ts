@@ -299,6 +299,7 @@ export const definition = {
         id: "values-table",
         label: { en: "Denominator values table", fr: "Denominator values table" },
         description: { en: "Table of denominator values by source and year", fr: "Table of denominator values by source and year" },
+        allowedFilters: ["denominator", "source_indicator"],
         config: {
           d: {
             type: "table",
@@ -503,6 +504,7 @@ export const definition = {
         label: { en: "Coverage by denominator type", fr: "Coverage by denominator type" },
         description: { en: "Timeseries comparing coverage across denominator sources", fr: "Timeseries comparing coverage across denominator sources" },
         needsReplicant: true,
+        allowedFilters: ["denominator_best_or_survey"],
         config: {
           d: {
             type: "timeseries",

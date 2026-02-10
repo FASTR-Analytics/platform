@@ -1,4 +1,5 @@
-import { ALL_DISAGGREGATION_OPTIONS, type AiMetricQuery, type MetricWithStatus, MAX_CONTENT_BLOCKS } from "lib";
+import { ALL_DISAGGREGATION_OPTIONS, type AiMetricQuery, type DisaggregationOption, type MetricWithStatus, type PeriodOption, MAX_CONTENT_BLOCKS } from "lib";
+import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/po_cache";
 
 const MARKDOWN_TABLE_PATTERNS = [
   /\|.*\|.*\|/m, // Lines with multiple pipes (table rows)
@@ -172,15 +173,47 @@ export function validatePresetOverrides(
         `startDate (${startDate}) cannot be greater than endDate (${endDate})`
       );
     }
-
-    if (!isPeriodIdValid(startDate) || !isPeriodIdValid(endDate)) {
-      throw new Error(
-        `startDate and endDate must be in YYYYMM format (e.g., 202301 for Jan 2023). Got startDate: ${startDate}, endDate: ${endDate}`
-      );
-    }
   } else if (startDate != null || endDate != null) {
     throw new Error(
       "Both startDate and endDate must be provided together, or neither."
     );
+  }
+}
+
+export async function validateMetricInputs(
+  projectId: string,
+  metricId: string,
+  filters?: { col: string; vals: string[] }[],
+  periodFilter?: { periodOption: PeriodOption; min: number; max: number },
+): Promise<void> {
+  if (!filters?.length && !periodFilter) return;
+
+  const metricInfoRes = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+    projectId,
+    metricId,
+  );
+  if (!metricInfoRes.success) return;
+
+  for (const filter of filters ?? []) {
+    const dimValues = metricInfoRes.data.disaggregationPossibleValues[filter.col as DisaggregationOption];
+    if (dimValues?.status === "ok") {
+      const invalid = filter.vals.filter(v => !dimValues.values.includes(v));
+      if (invalid.length > 0) {
+        throw new Error(
+          `Invalid filter value(s) for "${filter.col}": ${invalid.join(", ")}. ` +
+          `Valid: ${dimValues.values.join(", ")}`
+        );
+      }
+    }
+  }
+
+  if (periodFilter && metricInfoRes.data.periodBounds) {
+    const bounds = metricInfoRes.data.periodBounds;
+    if (periodFilter.max < bounds.min || periodFilter.min > bounds.max) {
+      throw new Error(
+        `Date range ${periodFilter.min}-${periodFilter.max} is outside available data ` +
+        `${bounds.min}-${bounds.max} (${periodFilter.periodOption} format).`
+      );
+    }
   }
 }

@@ -10,7 +10,10 @@ import {
 } from "./state_holder_wrapper.tsx";
 import { Button } from "../form_inputs/button.tsx";
 import type { IconName } from "../icons/icons.tsx";
-import { ModalContainer } from "./modal_container.tsx";
+import {
+  ModalContainer,
+  type ModalContainerWidth,
+} from "./modal_container.tsx";
 
 type AlertFormHolderProps = {
   children: JSX.Element;
@@ -23,6 +26,7 @@ type AlertFormHolderProps = {
   saveButtonText?: string;
   saveButtonIconName?: IconName;
   cancelButtonText?: string;
+  width?: ModalContainerWidth;
   wider?: boolean;
   disableSaveButton?: boolean;
   french?: boolean;
@@ -57,7 +61,7 @@ export function AlertFormHolder(p: AlertFormHolderProps) {
     <form id={p.formId}>
       <ModalContainer
         title={p.header}
-        width={p.wider ? "lg" : "md"}
+        width={p.width ?? (p.wider ? "lg" : "md")}
         leftButtons={leftButtons()}
       >
         {p.children}

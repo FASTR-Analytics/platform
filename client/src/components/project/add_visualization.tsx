@@ -25,6 +25,7 @@ import {
   timActionForm,
 } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
+import { PresetSelector } from "./preset_preview";
 
 type AddVisualizationProps = {
   projectId: string;
@@ -165,7 +166,7 @@ export function AddVisualization(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      wider
+      width="lg"
       disableSaveButton={!readyToSave()}
       french={isFrench()}
     >
@@ -227,23 +228,13 @@ export function AddVisualization(
           return (
             <>
               <Show when={hasPresets}>
-                <RadioGroup
-                  label={t("Visualization type")}
-                  options={[
-                    ...presets.map(preset => ({
-                      value: preset.id,
-                      label: t2(preset.label),
-                      description: t2(preset.description),
-                    })),
-                    {
-                      value: CUSTOM_OPTION,
-                      label: t("Custom"),
-                      description: t("Configure chart type and disaggregations manually"),
-                    },
-                  ]}
-                  value={selectedVizPresetId()}
-                  onChange={(v) => {
-                    setSelectedVizPresetId(v);
+                <PresetSelector
+                  projectId={p.projectId}
+                  metric={metric}
+                  presets={presets}
+                  selectedId={selectedVizPresetId()}
+                  onSelect={(id) => {
+                    setSelectedVizPresetId(id);
                     setTempPresentationOption(undefined);
                     setTempDisaggregations([]);
                   }}

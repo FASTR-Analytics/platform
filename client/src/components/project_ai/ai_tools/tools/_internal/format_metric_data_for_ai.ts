@@ -1,5 +1,6 @@
 import {
   type AiMetricQuery,
+  type PresentationObjectConfig,
   DisaggregationOption,
   GenericLongFormFetchConfig,
   getMetricStaticData,
@@ -252,78 +253,30 @@ function formatItemsAsMarkdown(
   lines.push(csvData);
   lines.push("");
 
-  // Add guidance for creating from_metric blocks
   lines.push("=".repeat(80));
   lines.push("## Creating Visualizations from this Metric");
   lines.push("");
   lines.push(
-    "To create a `from_metric` block in slides, use these exact parameters:",
+    "To visualize this metric, use a `from_metric` block with a vizPresetId from get_available_metrics.",
   );
   lines.push("");
   lines.push("```");
   lines.push("{");
   lines.push('  "type": "from_metric",');
-  lines.push('  "metricQuery": {');
-  lines.push(`    "metricId": "${metricId}",`);
-
-  if (disaggregations.length > 0) {
-    lines.push(`    "disaggregations": ${JSON.stringify(disaggregations)},`);
-  }
-
-  if (filters && filters.length > 0) {
-    lines.push(`    "filters": [`);
-    for (let i = 0; i < filters.length; i++) {
-      const f = filters[i];
-      const comma = i < filters.length - 1 ? "," : "";
-      lines.push(
-        `      { "col": "${f.col}", "vals": ${JSON.stringify(f.vals)} }${comma}`,
-      );
-    }
-    lines.push(`    ],`);
-  }
-
-  if (periodFilter) {
-    lines.push(`    "periodFilter": {`);
-    lines.push(`      "periodOption": "${periodFilter.periodOption}",`);
-    lines.push(`      "min": ${periodFilter.min},`);
-    lines.push(`      "max": ${periodFilter.max}`);
-    lines.push(`    },`);
-  }
-
-  if (staticData.valueProps.length > 1) {
-    lines.push(
-      `    "valuesFilter": ${JSON.stringify(staticData.valueProps)}  // Optional: choose specific values`,
-    );
-  }
-
-  lines.push("  },");
-  lines.push('  "chartType": "bar",  // or "line" or "table"');
-  lines.push('  "chartTitle": "Your chart title here"');
+  lines.push(`  "metricId": "${metricId}",`);
+  lines.push('  "vizPresetId": "<preset_id>",');
+  lines.push('  "chartTitle": "Your chart title here",');
+  lines.push('  "filterOverrides": [{ "col": "<dimension>", "vals": ["<value>"] }],');
+  lines.push('  "startDate": 202301,');
+  lines.push('  "endDate": 202412');
   lines.push("}");
   lines.push("```");
   lines.push("");
-  lines.push("**Parameter Notes:**");
-  lines.push("- `metricId`: Always use the exact ID shown above");
-  lines.push(
-    "- `disaggregations`: Array of dimension names from the Dimension Summary",
-  );
-  lines.push(
-    "- `filters`: Array of {col, vals} objects to limit data (col must be a disaggregation)",
-  );
-  lines.push(
-    "- `periodFilter`: Time range filter with periodOption (period_id/quarter_id/year), min, and max",
-  );
-
-  if (staticData.valueProps.length > 1) {
-    lines.push(
-      "- `valuesFilter`: Optional array to select specific value properties (" +
-        staticData.valueProps.join(", ") +
-        ")",
-    );
-  }
-
-  lines.push("- `chartType`: Choose 'bar', 'line', or 'table'");
-  lines.push("- `chartTitle`: Descriptive title for the visualization");
+  lines.push("**Notes:**");
+  lines.push(`- Use get_available_metrics to see available vizPresetId values for metric "${metricId}"`);
+  lines.push("- filterOverrides and startDate/endDate are optional");
+  lines.push("- Date format depends on the preset (YYYY, YYYYQQ, or YYYYMM — shown in preset listing)");
+  lines.push("- Only filter on dimensions listed in the preset's allowedFilters");
   lines.push("");
 
   return lines.join("\n");
@@ -519,4 +472,37 @@ function formatValue(val: any, decimalPlaces: number): string {
   }
 
   return strVal;
+}
+
+export async function getDataFromConfig(
+  projectId: string,
+  metricId: string,
+  config: PresentationObjectConfig,
+): Promise<string> {
+  const disaggregations = config.d.disaggregateBy.map((d) => d.disOpt);
+  if (config.d.type === "timeseries") {
+    disaggregations.push(config.d.periodOpt);
+  }
+
+  const filters = config.d.filterBy.map((f) => ({
+    col: f.disOpt,
+    vals: f.values,
+  }));
+
+  const periodFilter = config.d.periodFilter
+    ? {
+        periodOption: config.d.periodFilter.periodOption,
+        min: config.d.periodFilter.min,
+        max: config.d.periodFilter.max,
+      }
+    : undefined;
+
+  const query = {
+    metricId,
+    disaggregations,
+    filters,
+    periodFilter,
+    valuesFilter: config.d.valuesFilter,
+  };
+  return await getMetricDataForAI(projectId, query);
 }

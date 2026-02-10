@@ -184,6 +184,11 @@ export async function processToolUses(
 
   const successItems: DisplayItem[] = resultsInternal
     .filter((r) => !r.is_error)
+    .filter((r) => {
+      const toolBlock = toolUseBlocks.find((b) => b.id === r.tool_use_id)!;
+      const metadata = toolRegistry.getMetadata(toolBlock.name);
+      return !metadata?.displayComponent;
+    })
     .map((result) => {
       const toolBlock = toolUseBlocks.find((b) => b.id === result.tool_use_id)!;
       const metadata = toolRegistry.getMetadata(toolBlock.name);

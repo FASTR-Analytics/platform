@@ -1,6 +1,6 @@
 import type { ContentBlock, Slide } from "lib";
 import type { LayoutNode } from "panther";
-import { getDataFromConfig } from "~/components/project_ai/ai_tools/tools/visualizations";
+import { getDataFromConfig } from "~/components/project_ai/ai_tools/tools/_internal/format_metric_data_for_ai";
 
 export type BlockWithId = {
   id: string;

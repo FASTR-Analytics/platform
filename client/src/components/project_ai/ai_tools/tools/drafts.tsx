@@ -6,6 +6,7 @@ import {
   AiCoverSlideSchema,
   AiSectionSlideSchema,
   AiContentSlideSchema,
+  getStartingConfigForSlideDeck,
   type MetricWithStatus,
 } from "lib";
 import {
@@ -13,6 +14,9 @@ import {
   validateNoMarkdownTables,
 } from "../validators/content_validators";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
+import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
+import { convertSlideToPageInputs } from "~/components/slide_deck/slide_rendering/convert_slide_to_page_inputs";
+import { getPODetailFromCacheorFetch } from "~/state/po_cache";
 import type { AIContext } from "~/components/project_ai/types";
 import { DraftVisualizationPreview } from "../DraftVisualizationPreview";
 import { DraftSlidePreview } from "../DraftSlidePreview";
@@ -46,6 +50,11 @@ export function getToolsForDrafts(
           } catch (err) {
             const errMsg = err instanceof Error ? err.message : String(err);
             throw new Error(`Failed to create visualization from metric "${fig.metricId}" with preset "${fig.vizPresetId}": ${errMsg}`);
+          }
+        } else {
+          const res = await getPODetailFromCacheorFetch(projectId, fig.visualizationId);
+          if (!res.success) {
+            throw new Error(`Failed to load visualization "${fig.visualizationId}": ${res.err}`);
           }
         }
         return "Visualization preview displayed to user.";
@@ -92,6 +101,25 @@ export function getToolsForDrafts(
               }
             }
           }
+        }
+        const ctx = getAIContext();
+        const deckConfig = ctx.mode === "editing_slide_deck"
+          ? ctx.getDeckConfig()
+          : getStartingConfigForSlideDeck("Draft");
+        const convertedSlide = await convertAiInputToSlide(
+          projectId,
+          input.slide,
+          metrics,
+          deckConfig,
+        );
+        const renderRes = await convertSlideToPageInputs(
+          projectId,
+          convertedSlide,
+          undefined,
+          deckConfig,
+        );
+        if (!renderRes.success) {
+          throw new Error(`Failed to render slide: ${renderRes.err}`);
         }
         return "Slide preview displayed to user.";
       },

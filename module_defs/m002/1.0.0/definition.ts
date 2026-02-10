@@ -172,6 +172,7 @@ export const definition = {
             en: "Table showing percent change due to outlier adjustment by indicator and region",
             fr: "Table showing percent change due to outlier adjustment by indicator and region",
           },
+          allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
             d: {
               type: "table",
@@ -271,6 +272,7 @@ export const definition = {
             en: "Table showing percent change due to completeness adjustment by indicator and region",
             fr: "Table showing percent change due to completeness adjustment by indicator and region",
           },
+          allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
             d: {
               type: "table",
@@ -365,6 +367,7 @@ export const definition = {
             en: "Table showing percent change due to combined outlier and completeness adjustment by indicator and region",
             fr: "Table showing percent change due to combined outlier and completeness adjustment by indicator and region",
           },
+          allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
             d: {
               type: "table",

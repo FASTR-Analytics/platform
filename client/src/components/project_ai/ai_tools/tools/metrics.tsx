@@ -1,9 +1,9 @@
 import { createAITool } from "panther";
 import { z } from "zod";
 import { AiMetricQuerySchema, type AiMetricQuery, type MetricWithStatus } from "lib";
-import { getMetricDataForAI } from "./_internal/get_metric_data_for_ai";
+import { getMetricDataForAI } from "./_internal/format_metric_data_for_ai";
 import { formatMetricsListForAI } from "./_internal/format_metrics_list_for_ai";
-import { validateAiMetricQuery } from "../validators/content_validators";
+import { validateAiMetricQuery, validateMetricInputs } from "../validators/content_validators";
 
 export function getToolsForMetrics(projectId: string, metrics: MetricWithStatus[]) {
   return [
@@ -27,6 +27,12 @@ export function getToolsForMetrics(projectId: string, metrics: MetricWithStatus[
       handler: async (input: AiMetricQuery) => {
         const metric = metrics.find(m => m.id === input.metricId);
         validateAiMetricQuery(input, metric);
+        await validateMetricInputs(
+          projectId,
+          input.metricId,
+          input.filters,
+          input.periodFilter,
+        );
         return await getMetricDataForAI(projectId, input);
       },
       inProgressLabel: (input: AiMetricQuery) => `Getting data for metric ${input.metricId}...`,

@@ -250,6 +250,7 @@ export const definition = {
         id: "volume-monthly",
         label: { en: "Service volume over time (monthly)", fr: "Service volume over time (monthly)" },
         description: { en: "Line chart showing monthly service volume by indicator", fr: "Line chart showing monthly service volume by indicator" },
+        allowedFilters: ["indicator_common_id"],
         config: {
           d: {
             type: "timeseries",
@@ -265,6 +266,7 @@ export const definition = {
         id: "volume-quarterly",
         label: { en: "Volume quarterly change", fr: "Volume quarterly change" },
         description: { en: "Bar chart showing quarterly volume with quarter-on-quarter change", fr: "Bar chart showing quarterly volume with quarter-on-quarter change" },
+        allowedFilters: ["indicator_common_id"],
         config: {
           d: {
             type: "timeseries",
@@ -280,6 +282,7 @@ export const definition = {
         id: "volume-annual",
         label: { en: "Volume annual change", fr: "Volume annual change" },
         description: { en: "Bar chart showing annual volume with year-on-year change", fr: "Bar chart showing annual volume with year-on-year change" },
+        allowedFilters: ["indicator_common_id"],
         config: {
           d: {
             type: "timeseries",
@@ -295,6 +298,7 @@ export const definition = {
         id: "volume-subnational",
         label: { en: "Volume annual change by region", fr: "Volume annual change by region" },
         description: { en: "Bar chart showing annual volume change by indicator and admin area", fr: "Bar chart showing annual volume change by indicator and admin area" },
+        allowedFilters: ["indicator_common_id", "admin_area_2"],
         config: {
           d: {
             type: "timeseries",
@@ -313,6 +317,7 @@ export const definition = {
         id: "dq-comparison",
         label: { en: "Data quality adjustment comparison", fr: "Data quality adjustment comparison" },
         description: { en: "Line chart comparing volume under different adjustment scenarios", fr: "Line chart comparing volume under different adjustment scenarios" },
+        allowedFilters: ["indicator_common_id"],
         config: {
           d: {
             type: "timeseries",
@@ -406,6 +411,7 @@ export const definition = {
         id: "disruption-chart",
         label: { en: "Disruptions and surpluses (national)", fr: "Disruptions and surpluses (national)" },
         description: { en: "Area chart showing actual vs expected service volume nationally", fr: "Area chart showing actual vs expected service volume nationally" },
+        allowedFilters: ["indicator_common_id"],
         config: {
           d: {
             type: "timeseries",
@@ -568,6 +574,7 @@ export const definition = {
         id: "disruption-chart",
         label: { en: "Disruptions and surpluses (subnational)", fr: "Disruptions and surpluses (subnational)" },
         description: { en: "Area chart showing actual vs expected service volume by region", fr: "Area chart showing actual vs expected service volume by region" },
+        allowedFilters: ["indicator_common_id", "admin_area_2"],
         config: {
           d: {
             type: "timeseries",

@@ -1,19 +1,16 @@
 import type {
   AiFigureFromMetric,
   FigureBlock,
-  DisaggregationOption,
-  GenericLongFormFetchConfig,
   MetricWithStatus,
 } from "lib";
-import { getMetricStaticData } from "lib";
+import { getFetchConfigFromPresentationObjectConfig, getMetricStaticData, getReplicateByProp } from "lib";
 import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/utils/request_queue";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
-import {
-  buildConfigFromPreset,
-  buildFetchConfigFromMetric,
-} from "./build_config_from_metric";
+import { getReplicantOptionsFromCacheOrFetch } from "~/state/replicant_options_cache";
+import { validateMetricInputs } from "~/components/project_ai/ai_tools/validators/content_validators";
+import { buildConfigFromPreset } from "./build_config_from_metric";
 
 export async function resolveFigureFromMetric(
   projectId: string,
@@ -37,30 +34,48 @@ export async function resolveFigureFromMetric(
 
   const staticData = getMetricStaticData(metricId);
 
-  const disaggregations = config.d.disaggregateBy.map((d) => d.disOpt);
-  const allDisaggregations = [
-    ...staticData.requiredDisaggregationOptions,
-    ...disaggregations,
-  ];
-  const uniqueDisaggregations = [
-    ...new Set(allDisaggregations),
-  ] as DisaggregationOption[];
-
-  const fetchConfigFilters = config.d.filterBy.map((f) => ({
-    col: f.disOpt,
-    vals: f.values,
-  }));
-
-  const fetchConfig: GenericLongFormFetchConfig = buildFetchConfigFromMetric(
-    metricId,
-    uniqueDisaggregations,
-    fetchConfigFilters,
-    config.d.periodFilter,
+  const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
+    resultsValue,
+    config,
   );
+  if (!resFetchConfig.success) {
+    throw new Error(resFetchConfig.err);
+  }
+  const fetchConfig = resFetchConfig.data;
 
-  fetchConfig.includeNationalForAdminArea2 =
-    config.d.includeNationalForAdminArea2 ?? false;
-  fetchConfig.includeNationalPosition = config.d.includeNationalPosition;
+  const replicateBy = getReplicateByProp(config);
+  if (replicateBy) {
+    const replicantRes = await getReplicantOptionsFromCacheOrFetch(
+      projectId,
+      staticData.resultsObjectId,
+      replicateBy,
+      fetchConfig,
+    );
+    if (replicantRes.success && replicantRes.data.status === "ok") {
+      const validValues = replicantRes.data.possibleValues;
+      const selected = config.d.selectedReplicantValue;
+      if (selected && !validValues.includes(selected)) {
+        throw new Error(
+          `Invalid replicant value "${selected}" for metric "${metricId}". ` +
+          `Valid values: ${validValues.join(", ")}`,
+        );
+      }
+      if (!selected) {
+        throw new Error(
+          `This preset requires a selectedReplicant value. ` +
+          `Valid values: ${validValues.join(", ")}`,
+        );
+      }
+    }
+  }
+
+  const filters = config.d.filterBy.length > 0
+    ? config.d.filterBy.map(f => ({ col: f.disOpt, vals: f.values }))
+    : undefined;
+  const periodFilter = config.d.periodFilter?.filterType === "custom"
+    ? { periodOption: config.d.periodFilter.periodOption, min: config.d.periodFilter.min, max: config.d.periodFilter.max }
+    : undefined;
+  await validateMetricInputs(projectId, metricId, filters, periodFilter);
 
   const { data, version } = await _PO_ITEMS_CACHE.get({
     projectId,
