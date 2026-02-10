@@ -10,6 +10,7 @@ import {
   Button,
   Checkbox,
   createSignal,
+  ModalContainer,
   Select,
   type SelectOption,
   Show,
@@ -46,7 +47,10 @@ export type AIChatSettingsPanelProps = {
   allowedModels?: AnthropicModel[];
 };
 
-type Props = AlertComponentProps<AIChatSettingsPanelProps, AIChatSettingsValues>;
+type Props = AlertComponentProps<
+  AIChatSettingsPanelProps,
+  AIChatSettingsValues
+>;
 
 export function AIChatSettingsPanel(p: Props) {
   const fields = new Set(
@@ -57,9 +61,10 @@ export function AIChatSettingsPanel(p: Props) {
     ? MODEL_OPTIONS.filter((o) => p.allowedModels!.includes(o.value))
     : MODEL_OPTIONS;
 
-  const initialModel = p.allowedModels && !p.allowedModels.includes(p.initialValues.model)
-    ? modelOptions[0].value
-    : p.initialValues.model;
+  const initialModel =
+    p.allowedModels && !p.allowedModels.includes(p.initialValues.model)
+      ? modelOptions[0].value
+      : p.initialValues.model;
 
   const [model, setModel] = createSignal<AnthropicModel>(initialModel);
   const [temperature, setTemperature] = createSignal(
@@ -73,76 +78,77 @@ export function AIChatSettingsPanel(p: Props) {
   const supportsContext1M = () => CONTEXT_1M_SUPPORTED_MODELS.has(model());
 
   return (
-    <div class="w-96">
-      <div class="ui-pad border-base-300 border-b">
-        <h2 class="text-base font-semibold">AI settings</h2>
-      </div>
-      <div class="ui-pad ui-spy">
-        <Show when={fields.has("model")}>
-          <Select
-            label="Model"
-            value={model()}
-            options={modelOptions}
-            onChange={(v) => {
-              setModel(v);
-              if (!CONTEXT_1M_SUPPORTED_MODELS.has(v)) {
-                setContext1M(false);
-              }
-            }}
-            fullWidth
-          />
-        </Show>
-        <Show when={fields.has("temperature")}>
-          <Slider
-            label="Temperature"
-            value={temperature()}
-            onChange={setTemperature}
-            min={0}
-            max={1}
-            step={0.05}
-            showValueInLabel
-            fullWidth
-          />
-        </Show>
-        <Show when={fields.has("max_tokens")}>
-          <Slider
-            label="Max tokens"
-            value={maxTokens()}
-            onChange={(v) => setMaxTokens(Math.round(v))}
-            min={256}
-            max={128000}
-            step={256}
-            showValueInLabel
-            valueInLabelFormatter={(v) =>
-              v >= 1000 ? `${(v / 1000).toFixed(1)}K` : String(v)}
-            fullWidth
-          />
-        </Show>
-        <Show when={fields.has("context1M") && supportsContext1M()}>
-          <Checkbox
-            label="Enable 1M context window (beta)"
-            checked={context1M()}
-            onChange={setContext1M}
-          />
-        </Show>
-      </div>
-      <div class="ui-pad border-base-300 flex gap-2 border-t">
-        <Button
-          intent="primary"
-          onClick={() =>
-            p.close({
-              model: model(),
-              temperature: temperature(),
-              max_tokens: maxTokens(),
-              context1M: context1M(),
-            })}
-        >
-          Apply
-        </Button>
-        <Button intent="neutral" onClick={() => p.close(undefined)}>
-          Cancel
-        </Button>
-      </div>
-    </div>
+    <ModalContainer
+      title="AI settings"
+      width="sm"
+      leftButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button
+            intent="primary"
+            onClick={() =>
+              p.close({
+                model: model(),
+                temperature: temperature(),
+                max_tokens: maxTokens(),
+                context1M: context1M(),
+              })}
+          >
+            Apply
+          </Button>,
+          <Button intent="neutral" onClick={() => p.close(undefined)}>
+            Cancel
+          </Button>,
+        ]
+      }
+    >
+      <Show when={fields.has("model")}>
+        <Select
+          label="Model"
+          value={model()}
+          options={modelOptions}
+          onChange={(v) => {
+            setModel(v);
+            if (!CONTEXT_1M_SUPPORTED_MODELS.has(v)) {
+              setContext1M(false);
+            }
+          }}
+          fullWidth
+        />
+      </Show>
+      <Show when={fields.has("temperature")}>
+        <Slider
+          label="Temperature"
+          value={temperature()}
+          onChange={setTemperature}
+          min={0}
+          max={1}
+          step={0.05}
+          showValueInLabel
+          fullWidth
+        />
+      </Show>
+      <Show when={fields.has("max_tokens")}>
+        <Slider
+          label="Max tokens"
+          value={maxTokens()}
+          onChange={(v) => setMaxTokens(Math.round(v))}
+          min={256}
+          max={128000}
+          step={256}
+          showValueInLabel
+          valueInLabelFormatter={(v) =>
+            v >= 1000 ? `${(v / 1000).toFixed(1)}K` : String(v)}
+          fullWidth
+        />
+      </Show>
+      <Show when={fields.has("context1M") && supportsContext1M()}>
+        <Checkbox
+          label="Enable 1M context window (beta)"
+          checked={context1M()}
+          onChange={setContext1M}
+        />
+      </Show>
+    </ModalContainer>
   );
 }

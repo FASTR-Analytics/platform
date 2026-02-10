@@ -1,8 +1,51 @@
 import type { FigureInputs, LayoutNode } from "@timroberton/panther";
+import { Color } from "@timroberton/panther";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
-import type { ReportConfig } from "./reports.ts";
+import { _GFF_GREEN } from "../key_colors.ts";
 
-export type SlideDeckConfig = ReportConfig;
+export type SlideDeckConfig = {
+  label: string;
+  selectedReplicantValue: undefined | string;
+  logos: string[] | undefined;
+  logoSize: number;
+  figureScale: number;
+  footer: string;
+  showPageNumbers: boolean;
+  headerSize: number;
+  useWatermark: boolean;
+  watermarkText: string;
+  primaryColor: string;
+  overlay: "dots" | "rivers" | "waves" | "world" | "none" | undefined;
+};
+
+export function getTextColorForBackground(bgColor: string): string {
+  return new Color(bgColor).isLight() ? "#1E1E1E" : "#FFFFFF";
+}
+
+export function isColorLight(color: string): boolean {
+  return new Color(color).isLight();
+}
+
+export function getPrimaryColor(primaryColor?: string): string {
+  return primaryColor || _GFF_GREEN;
+}
+
+export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
+  return {
+    label,
+    selectedReplicantValue: undefined,
+    logos: [],
+    logoSize: 300,
+    figureScale: 2,
+    footer: "",
+    showPageNumbers: true,
+    headerSize: 1,
+    useWatermark: false,
+    watermarkText: "",
+    primaryColor: _GFF_GREEN,
+    overlay: "none",
+  };
+}
 
 // Slide types
 export type SlideType = "cover" | "section" | "content";

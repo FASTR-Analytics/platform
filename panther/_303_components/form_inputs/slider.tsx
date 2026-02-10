@@ -14,6 +14,7 @@ import {
 type SliderProps = {
   value: number;
   onChange: (value: number) => void;
+  onRelease?: (value: number) => void;
   min?: number;
   max?: number;
   step?: number;
@@ -116,6 +117,7 @@ export function Slider(p: SliderProps) {
           type="range"
           value={p.value}
           onInput={(e) => p.onChange(Number(e.currentTarget.value))}
+          onChange={(e) => p.onRelease?.(Number(e.currentTarget.value))}
           min={min()}
           max={max()}
           step={p.step ?? 1}

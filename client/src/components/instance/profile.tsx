@@ -1,7 +1,8 @@
 import { clear } from "idb-keyval";
-import { GlobalUser, t, t2, T } from "lib";
+import { t, t2, T } from "lib";
 import {
   Button,
+  ModalContainer,
   SettingsSection,
   StateHolderWrapper,
   timActionButton,
@@ -33,14 +34,25 @@ export function ProfileForm(
   );
 
   return (
-    <div class="w-[800px]">
+    <ModalContainer
+      title={t("Your profile")}
+      width="lg"
+      leftButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button onClick={() => p.close(undefined)} iconName="x">
+            Done
+          </Button>,
+          <Button onClick={p.attemptSignOut} outline iconName="arrowLeft">
+            {t("Sign out")}
+          </Button>,
+        ]
+      }
+    >
       <StateHolderWrapper state={userDetails.state()}>
         {(keyedUser) => {
           return (
-            <div class="ui-pad ui-spy">
-              <div class="font-700 text-base-content text-xl">
-                {t("Your profile")}
-              </div>
+            <>
               <div class="ui-gap flex text-sm">
                 <div class="flex-1">
                   <SettingsSection header={t("User details")}>
@@ -83,18 +95,10 @@ export function ProfileForm(
               >
                 {null}
               </SettingsSection>
-              <div class="ui-gap-sm flex">
-                <Button onClick={() => p.close(undefined)} iconName="x">
-                  Done
-                </Button>
-                <Button onClick={p.attemptSignOut} outline iconName="arrowLeft">
-                  {t("Sign out")}
-                </Button>
-              </div>
-            </div>
+            </>
           );
         }}
       </StateHolderWrapper>
-    </div>
+    </ModalContainer>
   );
 }

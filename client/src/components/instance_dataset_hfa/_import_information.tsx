@@ -1,5 +1,5 @@
 import { DatasetHfaVersion, t, t2, T } from "lib";
-import { Button, EditorComponentProps, toNum0 } from "panther";
+import { Button, EditorComponentProps, ModalContainer, toNum0 } from "panther";
 import { Show } from "solid-js";
 
 export function ImportInformation(
@@ -13,8 +13,22 @@ export function ImportInformation(
   >,
 ) {
   return (
-    <div class="ui-spy px-8 py-6">
-      <div class="text-xl font-700">{t2(T.FRENCH_UI_STRINGS.import_information)}</div>
+    <ModalContainer
+      title={t2(T.FRENCH_UI_STRINGS.import_information)}
+      width="md"
+      leftButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button
+            onClick={() => p.close(undefined)}
+            intent="neutral"
+            iconName="x"
+          >
+            {t2(T.FRENCH_UI_STRINGS.done)}
+          </Button>,
+        ]
+      }
+    >
       <div class="ui-spy-sm text-sm">
         <Show when={p.version.stagingResult}>
           <div class="flex items-center">
@@ -45,25 +59,16 @@ export function ImportInformation(
           </div>
         </Show>
       </div>
-      <div class="ui-gap-sm flex justify-between">
+      {/* <Show when={p.isCurrentVersion && p.isGlobalAdmin}>
         <Button
-          onClick={() => p.close(undefined)}
-          intent="neutral"
-          iconName="x"
+          onClick={() => p.close("DELETE_THIS_IMPORT")}
+          intent="danger"
+          outline
+          iconName="trash"
         >
-          {t2(T.FRENCH_UI_STRINGS.done)}
+          {t2(T.FRENCH_UI_STRINGS.delete_this_import)}
         </Button>
-        {/* <Show when={p.isCurrentVersion && p.isGlobalAdmin}>
-          <Button
-            onClick={() => p.close("DELETE_THIS_IMPORT")}
-            intent="danger"
-            outline
-            iconName="trash"
-          >
-            {t2(T.FRENCH_UI_STRINGS.delete_this_import)}
-          </Button>
-        </Show> */}
-      </div>
-    </div>
+      </Show> */}
+    </ModalContainer>
   );
 }

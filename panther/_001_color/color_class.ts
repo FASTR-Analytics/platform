@@ -305,6 +305,26 @@ export class Color {
     return this._r === 0 && this._g === 0 && this._b === 0;
   }
 
+  luminance(): number {
+    const rsRGB = this._r / 255;
+    const gsRGB = this._g / 255;
+    const bsRGB = this._b / 255;
+    const r = rsRGB <= 0.03928
+      ? rsRGB / 12.92
+      : Math.pow((rsRGB + 0.055) / 1.055, 2.4);
+    const g = gsRGB <= 0.03928
+      ? gsRGB / 12.92
+      : Math.pow((gsRGB + 0.055) / 1.055, 2.4);
+    const b = bsRGB <= 0.03928
+      ? bsRGB / 12.92
+      : Math.pow((bsRGB + 0.055) / 1.055, 2.4);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  isLight(): boolean {
+    return this.luminance() > 0.179;
+  }
+
   validate(): void {
     assert(typeof this._r === "number" && this._r >= 0 && this._r <= 255);
     assert(typeof this._g === "number" && this._g >= 0 && this._g <= 255);

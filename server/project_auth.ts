@@ -79,7 +79,7 @@ export function requireProjectPermission(
       const res = await getProjectUser(c, globalUser);
 
       // Global admins bypass permission checks
-      if (!res.projectUser.isGlobalAdmin) {
+      if (!globalUser.isGlobalAdmin) {
         // check all permissions for non-admins
         for (const perm of perms) {
           if (!res.projectUser[perm]) {
@@ -247,7 +247,12 @@ export async function getGlobalUser(
 async function getProjectUser(
   c: Context,
   globalUser: GlobalUser,
-): Promise<{ projectId: string; projectLabel: string; projectUser: ProjectUser; isLocked: boolean }> {
+): Promise<{
+  projectId: string;
+  projectLabel: string;
+  projectUser: ProjectUser;
+  isLocked: boolean;
+}> {
   if (_BYPASS_AUTH) {
     const projectId = c.req.header("Project-Id");
     if (!projectId) {

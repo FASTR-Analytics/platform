@@ -1,5 +1,5 @@
 import { type HfaIndicator, t, t2, T } from "lib";
-import { AlertComponentProps, Button, Input, RadioGroup, TextArea } from "panther";
+import { AlertComponentProps, Button, Input, ModalContainer, RadioGroup, TextArea } from "panther";
 import { createStore } from "solid-js/store";
 
 export function EditHfaIndicator(
@@ -13,9 +13,29 @@ export function EditHfaIndicator(
   const [tempIndicator, setTempIndicator] = createStore(p.indicator);
 
   return (
-    <div class="ui-pad ui-spy-sm w-[1000px]">
-      <h2 class="mb-4 text-lg font-700">{t("Edit Indicator")}</h2>
-
+    <ModalContainer
+      title={t("Edit Indicator")}
+      width="xl"
+      leftButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button
+            onClick={() => p.close("NEEDS_UPDATE")}
+            iconName="save"
+            intent="success"
+          >
+            {t2(T.FRENCH_UI_STRINGS.save)}
+          </Button>,
+          <Button
+            onClick={() => p.close(undefined)}
+            intent="neutral"
+            iconName="x"
+          >
+            {t2(T.FRENCH_UI_STRINGS.cancel)}
+          </Button>,
+        ]
+      }
+    >
       <div class="ui-gap grid grid-cols-1 lg:grid-cols-2">
         <div class="ui-spy">
 
@@ -80,23 +100,6 @@ export function EditHfaIndicator(
             <div class="text-xs">{t("Should evaluate to boolean TRUE/FALSE")}</div></div>
         </div>
       </div>
-
-      <div class="ui-gap-sm flex pt-4">
-        <Button
-          onClick={() => p.close("NEEDS_UPDATE")}
-          iconName="save"
-          intent="success"
-        >
-          {t2(T.FRENCH_UI_STRINGS.save)}
-        </Button>
-        <Button
-          onClick={() => p.close(undefined)}
-          intent="neutral"
-          iconName="x"
-        >
-          {t2(T.FRENCH_UI_STRINGS.cancel)}
-        </Button>
-      </div>
-    </div>
+    </ModalContainer>
   );
 }

@@ -1,14 +1,14 @@
 import { Sql } from "postgres";
-import { type APIResponseNoData, APIResponseWithData, SlideDeckSummary, SlideDeckDetail, SlideDeckConfig, getStartingConfigForReport, parseJsonOrThrow } from "lib";
+import { type APIResponseNoData, APIResponseWithData, SlideDeckSummary, SlideDeckDetail, SlideDeckConfig, getStartingConfigForSlideDeck, parseJsonOrThrow } from "lib";
 import { DBSlideDeck } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { generateUniqueDeckId, generateUniqueSlideId } from "../../utils/id_generation.ts";
 
 function parseDeckConfig(deck: DBSlideDeck): SlideDeckConfig {
   if (deck.config) {
-    return parseJsonOrThrow(deck.config);
+    return parseJsonOrThrow(deck.config) as SlideDeckConfig;
   }
-  return getStartingConfigForReport(deck.label);
+  return getStartingConfigForSlideDeck(deck.label);
 }
 
 export async function getAllSlideDecks(
@@ -78,7 +78,7 @@ export async function createSlideDeck(
     const deckId = await generateUniqueDeckId(projectDb);
     const lastUpdated = new Date().toISOString();
 
-    const defaultConfig = getStartingConfigForReport(label);
+    const defaultConfig = getStartingConfigForSlideDeck(label);
     await projectDb`
       INSERT INTO slide_decks (id, label, plan, config, folder_id, last_updated)
       VALUES (${deckId}, ${label}, '', ${JSON.stringify(defaultConfig)}, ${folderId ?? null}, ${lastUpdated})

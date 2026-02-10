@@ -4,7 +4,10 @@
     "exclude": ["client/"]
   },
   "lint": {
-    "exclude": ["client/"]
+    "exclude": ["client/"],
+    "rules": {
+      "exclude": ["jsx-key"]
+    }
   },
   "test": {
     "exclude": ["client/"]

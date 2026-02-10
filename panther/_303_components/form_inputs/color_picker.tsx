@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createUniqueId, For, type JSX, Show } from "solid-js";
+import { Color } from "../deps.ts";
 import type { PopoverPosition } from "../special_state/popover_menu.tsx";
 
 export type ColorSetName = "standard" | "pastels" | "vivid" | "grays";
@@ -31,8 +32,14 @@ export const COLOR_SETS: Record<ColorSetName, string[]> = {
     "#e1bee7",
     "#ab47bc",
     "#7b1fa2",
+    "#4e342e",
+    "#e0e0e0",
+    "#bdbdbd",
     "#9e9e9e",
+    "#757575",
     "#424242",
+    "#212121",
+    "#ffffff",
     "#000000",
   ],
   pastels: [
@@ -57,9 +64,15 @@ export const COLOR_SETS: Record<ColorSetName, string[]> = {
     "#f3e5f5",
     "#e1bee7",
     "#ce93d8",
+    "#d7ccc8",
+    "#f5f5f5",
     "#e0e0e0",
+    "#d6d6d6",
+    "#c0c0c0",
     "#bdbdbd",
     "#9e9e9e",
+    "#ffffff",
+    "#000000",
   ],
   vivid: [
     "#00bcd4",
@@ -84,7 +97,13 @@ export const COLOR_SETS: Record<ColorSetName, string[]> = {
     "#7b1fa2",
     "#6a1b9a",
     "#673ab7",
+    "#9e9e9e",
+    "#757575",
+    "#546e7a",
+    "#37474f",
+    "#424242",
     "#212121",
+    "#ffffff",
     "#000000",
   ],
   grays: [
@@ -111,7 +130,13 @@ export const COLOR_SETS: Record<ColorSetName, string[]> = {
     "#212121",
     "#1a1a1a",
     "#121212",
+    "#0a0a0a",
+    "#050505",
     "#000000",
+    "#f8f0e3",
+    "#d2c4b0",
+    "#a69280",
+    "#6d5c50",
   ],
 };
 
@@ -120,11 +145,13 @@ export type ColorPickerProps = {
   onChange: (color: string) => void;
   colors?: string[];
   colorSet?: ColorSetName;
+  extraColors?: string[];
   position?: PopoverPosition;
   disabled?: boolean;
   size?: "default" | "sm";
   fullWidth?: boolean;
   label?: string;
+  showCheckeredBackground?: boolean;
 };
 
 const POSITION_STYLE: Record<
@@ -141,6 +168,39 @@ const POSITION_STYLE: Record<
   right: { top: "anchor(center)", left: "anchor(right)" },
 };
 
+function ColorSwatch(props: {
+  color: string;
+  selected: boolean;
+  onClick: (color: string) => void;
+}) {
+  const checkColor = () =>
+    new Color(props.color).isLight() ? "#000000" : "#ffffff";
+
+  return (
+    <button
+      type="button"
+      class="ui-hoverable relative h-6 w-6 rounded-sm border border-black/10"
+      style={{ "background-color": props.color }}
+      onClick={() => props.onClick(props.color)}
+      title={props.color}
+    >
+      <Show when={props.selected}>
+        <svg
+          class="absolute inset-0 m-auto h-3.5 w-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={checkColor()}
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </Show>
+    </button>
+  );
+}
+
 export function ColorPicker(props: ColorPickerProps) {
   const id = createUniqueId();
   const popoverId = `color-picker-${id}`;
@@ -154,7 +214,7 @@ export function ColorPicker(props: ColorPickerProps) {
 
   const colors = () => props.colors ?? COLOR_SETS[props.colorSet ?? "standard"];
   const position = () => props.position ?? "bottom-start";
-  const padClass = () => props.size === "sm" ? "ui-form-pad-sm" : "ui-form-pad";
+  const padClass = () => (props.size === "sm" ? "ui-form-pad-sm" : "p-1.5");
   const textSizeClass = () =>
     props.size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size";
 
@@ -165,24 +225,28 @@ export function ColorPicker(props: ColorPickerProps) {
       </Show>
       <button
         type="button"
-        class={`ui-hoverable rounded border ${padClass()}`}
+        class={`ui-hoverable border-base-300 rounded border ${padClass()}`}
         classList={{ "w-full": props.fullWidth, block: !!props.label }}
-        style={{
-          "anchor-name": anchorName,
-          "background-color": props.value,
-          "border-color": props.value,
-        } as JSX.CSSProperties}
+        style={
+          {
+            "anchor-name": anchorName,
+            "background-image":
+              "repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%)",
+            "background-size": "16px 16px",
+          } as JSX.CSSProperties
+        }
         disabled={props.disabled}
         title={props.value}
         // @ts-ignore - popovertarget is valid HTML
         popovertarget={popoverId}
       >
         <span
-          class={`block ${textSizeClass()}`}
+          class={`block rounded ${textSizeClass()}`}
           classList={{
             "h-[1.25em] w-12": !props.fullWidth,
             "h-[1.25em]": props.fullWidth,
           }}
+          style={{ "background-color": props.value }}
         />
       </button>
       <div
@@ -190,28 +254,44 @@ export function ColorPicker(props: ColorPickerProps) {
         id={popoverId}
         // @ts-ignore - popover is valid HTML
         popover
-        style={{
-          position: "absolute",
-          "position-anchor": anchorName,
-          margin: "6px",
-          background: "transparent",
-          border: "none",
-          padding: "0",
-          ...POSITION_STYLE[position()],
-        } as JSX.CSSProperties}
+        style={
+          {
+            position: "absolute",
+            "position-anchor": anchorName,
+            margin: "6px",
+            background: "transparent",
+            border: "none",
+            padding: "0",
+            ...POSITION_STYLE[position()],
+          } as JSX.CSSProperties
+        }
       >
-        <div class="bg-base-100 grid grid-cols-6 gap-1 overflow-hidden rounded-md border p-2 shadow-lg">
-          <For each={colors()}>
-            {(color) => (
-              <button
-                type="button"
-                class="ui-hoverable h-6 w-6 rounded-sm border border-black/10"
-                style={{ "background-color": color }}
-                onClick={() => handleColorSelect(color)}
-                title={color}
-              />
-            )}
-          </For>
+        <div class="bg-base-100 overflow-hidden rounded-md border p-2 shadow-lg">
+          <div class="grid grid-cols-6 gap-1">
+            <For each={colors()}>
+              {(color) => (
+                <ColorSwatch
+                  color={color}
+                  selected={props.value != null && color.toLowerCase() === props.value.toLowerCase()}
+                  onClick={handleColorSelect}
+                />
+              )}
+            </For>
+          </div>
+          <Show when={props.extraColors && props.extraColors.length > 0}>
+            <div class="border-base-300 my-1.5 border-t" />
+            <div class="grid grid-cols-6 gap-1">
+              <For each={props.extraColors}>
+                {(color) => (
+                  <ColorSwatch
+                    color={color}
+                    selected={props.value != null && color.toLowerCase() === props.value.toLowerCase()}
+                    onClick={handleColorSelect}
+                  />
+                )}
+              </For>
+            </div>
+          </Show>
         </div>
       </div>
     </div>

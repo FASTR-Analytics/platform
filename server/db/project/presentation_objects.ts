@@ -14,7 +14,10 @@ import {
   type PresentationObjectDetail,
   type PresentationObjectSummary,
 } from "lib";
-import { getResultsObjectTableName, tryCatchDatabaseAsync } from "./../utils.ts";
+import {
+  getResultsObjectTableName,
+  tryCatchDatabaseAsync,
+} from "./../utils.ts";
 import {
   type DBMetric,
   type DBPresentationObject,
@@ -36,13 +39,12 @@ export type AddPresentationObjectParams = {
 };
 
 export async function addPresentationObject(
-  params: AddPresentationObjectParams
+  params: AddPresentationObjectParams,
 ): Promise<
   APIResponseWithData<{ newPresentationObjectId: string; lastUpdated: string }>
 > {
   const {
     projectDb,
-    projectUser,
     label,
     resultsValue,
     config,
@@ -52,7 +54,8 @@ export async function addPresentationObject(
   } = params;
 
   return await tryCatchDatabaseAsync(async () => {
-    const newPresentationObjectId = await generateUniquePresentationObjectId(projectDb);
+    const newPresentationObjectId =
+      await generateUniquePresentationObjectId(projectDb);
     const lastUpdated = new Date().toISOString();
     await projectDb`
 INSERT INTO presentation_objects
@@ -61,7 +64,7 @@ VALUES
   (
     ${newPresentationObjectId},
     ${resultsValue.id},
-    ${projectUser.isGlobalAdmin && makeDefault},
+    ${makeDefault},
     ${createdByAI},
     ${label.trim()},
     ${JSON.stringify(config)},
@@ -77,7 +80,7 @@ export async function duplicatePresentationObject(
   projectDb: Sql,
   presentationObjectId: string,
   label: string,
-  folderId?: string | null
+  folderId?: string | null,
 ): Promise<
   APIResponseWithData<{ newPresentationObjectId: string; lastUpdated: string }>
 > {
@@ -90,7 +93,8 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
     if (rawPresObj === undefined) {
       throw new Error("No presentation object with this id");
     }
-    const newPresentationObjectId = await generateUniquePresentationObjectId(projectDb);
+    const newPresentationObjectId =
+      await generateUniquePresentationObjectId(projectDb);
     const lastUpdated = new Date().toISOString();
     await projectDb`
 INSERT INTO presentation_objects
@@ -112,7 +116,7 @@ VALUES
 
 export async function getAllPresentationObjectsForModule(
   projectDb: Sql,
-  moduleId: string
+  moduleId: string,
 ): Promise<APIResponseWithData<PresentationObjectSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     // Join through metrics to find presentation objects for this module
@@ -142,7 +146,7 @@ ORDER BY po.sort_order, LOWER(po.label)
 }
 
 export async function getAllPresentationObjectsForProject(
-  projectDb: Sql
+  projectDb: Sql,
 ): Promise<APIResponseWithData<PresentationObjectSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await projectDb<DBPresentationObject[]>`
@@ -172,7 +176,7 @@ export async function getPresentationObjectDetail(
   projectId: string,
   projectDb: Sql,
   presentationObjectId: string,
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseWithData<PresentationObjectDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawPresObj = (
@@ -192,7 +196,7 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
     const resResultsValue = await resolveMetricById(
       projectDb,
       rawPresObj.metric_id,
-      resFacilityConfig.data
+      resFacilityConfig.data,
     );
     throwIfErrWithData(resResultsValue);
 
@@ -212,7 +216,7 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
 
 export async function getPresentationObjectLastUpdated(
   projectDb: Sql,
-  presentationObjectId: string
+  presentationObjectId: string,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawPresObj = (
@@ -230,7 +234,7 @@ SELECT last_updated FROM presentation_objects WHERE id = ${presentationObjectId}
 export async function updatePresentationObjectLabel(
   projectDb: Sql,
   presentationObjectId: string,
-  label: string
+  label: string,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawPresObj = (
@@ -270,7 +274,7 @@ export async function updatePresentationObjectConfig(
   presentationObjectId: string,
   config: PresentationObjectConfig,
   expectedLastUpdated: string | undefined,
-  overwrite: boolean | undefined
+  overwrite: boolean | undefined,
 ): Promise<
   APIResponseWithData<{
     lastUpdated: string;
@@ -279,7 +283,9 @@ export async function updatePresentationObjectConfig(
 > {
   return await tryCatchDatabaseAsync(async () => {
     const rawPresObj = (
-      await projectDb<{ is_default_visualization: boolean; last_updated: string }[]>`
+      await projectDb<
+        { is_default_visualization: boolean; last_updated: string }[]
+      >`
 SELECT is_default_visualization, last_updated FROM presentation_objects WHERE id = ${presentationObjectId}
 `
     ).at(0);
@@ -297,7 +303,11 @@ SELECT is_default_visualization, last_updated FROM presentation_objects WHERE id
     }
 
     // Check for conflict (unless user explicitly chose to overwrite)
-    if (expectedLastUpdated && !overwrite && rawPresObj.last_updated !== expectedLastUpdated) {
+    if (
+      expectedLastUpdated &&
+      !overwrite &&
+      rawPresObj.last_updated !== expectedLastUpdated
+    ) {
       return {
         success: false,
         err: "CONFLICT",
@@ -337,27 +347,29 @@ WHERE id = ${reportItemId}`;
 
 export async function getReportItemsThatDependOnPresentationObjects(
   projectDb: Sql,
-  presentationObjectIds: string[]
+  presentationObjectIds: string[],
 ): Promise<string[]> {
   if (presentationObjectIds.length === 0) return [];
   const rows = await projectDb<{ id: string }[]>`
     SELECT id FROM report_items
     WHERE ${projectDb.unsafe(
-      presentationObjectIds.map((id) => `config LIKE '%${id}%'`).join(" OR ")
+      presentationObjectIds.map((id) => `config LIKE '%${id}%'`).join(" OR "),
     )}
   `;
-  return rows.map((r) => r.id);
+  return rows.map((r: any) => r.id);
 }
 
 export async function batchUpdatePresentationObjectsPeriodFilter(
   projectDb: Sql,
   presentationObjectIds: string[],
   periodFilter: PeriodFilter | undefined,
-): Promise<APIResponseWithData<{
-  lastUpdated: string;
-  updatedCount: number;
-  reportItemsAffected: string[];
-}>> {
+): Promise<
+  APIResponseWithData<{
+    lastUpdated: string;
+    updatedCount: number;
+    reportItemsAffected: string[];
+  }>
+> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const reportItemsSet = new Set<string>();
@@ -372,7 +384,9 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
           throw new Error(`Presentation object ${id} not found`);
         }
 
-        const config: PresentationObjectConfig = parseJsonOrThrow(result[0].config);
+        const config: PresentationObjectConfig = parseJsonOrThrow(
+          result[0].config,
+        );
 
         config.d.periodFilter = periodFilter;
 
@@ -387,7 +401,7 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
           sql,
           [id],
         );
-        reportItems.forEach(itemId => reportItemsSet.add(itemId));
+        reportItems.forEach((itemId) => reportItemsSet.add(itemId));
       }
 
       if (reportItemsSet.size > 0) {
@@ -415,7 +429,7 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
 
 export async function deletePresentationObject(
   projectDb: Sql,
-  presentationObjectId: string
+  presentationObjectId: string,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -442,12 +456,14 @@ DELETE FROM presentation_objects WHERE id = ${presentationObjectId}
 
 export async function deleteAIPresentationObject(
   projectDb: Sql,
-  presentationObjectId: string
+  presentationObjectId: string,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const rawPresObj = (
-      await projectDb<{ created_by_ai: boolean; is_default_visualization: boolean }[]>`
+      await projectDb<
+        { created_by_ai: boolean; is_default_visualization: boolean }[]
+      >`
 SELECT created_by_ai, is_default_visualization FROM presentation_objects WHERE id = ${presentationObjectId}
 `
     ).at(0);
@@ -492,7 +508,7 @@ export type UpdateAIPresentationObjectParams = {
 export async function updateAIPresentationObject(
   projectDb: Sql,
   presentationObjectId: string,
-  updates: UpdateAIPresentationObjectParams
+  updates: UpdateAIPresentationObjectParams,
 ): Promise<
   APIResponseWithData<{
     lastUpdated: string;
@@ -501,11 +517,13 @@ export async function updateAIPresentationObject(
 > {
   return await tryCatchDatabaseAsync(async () => {
     const rawPresObj = (
-      await projectDb<{
-        created_by_ai: boolean;
-        is_default_visualization: boolean;
-        config: string;
-      }[]>`
+      await projectDb<
+        {
+          created_by_ai: boolean;
+          is_default_visualization: boolean;
+          config: string;
+        }[]
+      >`
 SELECT created_by_ai, is_default_visualization, config
 FROM presentation_objects WHERE id = ${presentationObjectId}
 `
@@ -530,7 +548,9 @@ FROM presentation_objects WHERE id = ${presentationObjectId}
       };
     }
 
-    const config = parseJsonOrThrow<PresentationObjectConfig>(rawPresObj.config);
+    const config = parseJsonOrThrow<PresentationObjectConfig>(
+      rawPresObj.config,
+    );
 
     // Update presentation type
     if (updates.presentationType !== undefined) {
@@ -635,7 +655,7 @@ WHERE id = ${reportItemId}`;
 }
 
 export async function getVisualizationsListForAI(
-  projectDb: Sql
+  projectDb: Sql,
 ): Promise<APIResponseWithData<string>> {
   return await tryCatchDatabaseAsync(async () => {
     // Get all table names upfront
@@ -679,13 +699,13 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
     const visualizations = rows.map((row) => {
       const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
       const moduleDef = parseJsonOrThrow<{ name: string }>(
-        row.module_definition
+        row.module_definition,
       );
       const tableName = getResultsObjectTableName(row.results_object_id);
 
       // Find replicateBy dimension (disaggregation with disDisplayOpt === "replicant")
       const replicantDis = config.d.disaggregateBy.find(
-        (d) => d.disDisplayOpt === "replicant"
+        (d) => d.disDisplayOpt === "replicant",
       );
 
       return {
@@ -722,7 +742,7 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
       lines.push("");
       lines.push("No visualizations are currently available.");
       lines.push(
-        "Visualizations become available after their modules have successfully run."
+        "Visualizations become available after their modules have successfully run.",
       );
       lines.push("");
       return { success: true, data: lines.join("\n") };
@@ -735,7 +755,7 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
       lines.push(`Metric: ${viz.metricLabel} (ID: ${viz.metricId})`);
       lines.push(`Type: ${viz.type}`);
       lines.push(
-        `Status: ${viz.createdByAI ? "AI-created (editable)" : viz.isDefault ? "Default (read-only)" : "Custom (read-only)"}`
+        `Status: ${viz.createdByAI ? "AI-created (editable)" : viz.isDefault ? "Default (read-only)" : "Custom (read-only)"}`,
       );
       if (viz.caption) lines.push(`Caption: ${viz.caption}`);
 
@@ -759,7 +779,9 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
         if (viz.selectedReplicantValue) {
           lines.push(`  Current value: ${viz.selectedReplicantValue}`);
         }
-        lines.push(`  (Use syntax: ![Caption](${viz.id}:VALUE) to embed with different values)`);
+        lines.push(
+          `  (Use syntax: ![Caption](${viz.id}:VALUE) to embed with different values)`,
+        );
       }
 
       lines.push("-".repeat(80));
@@ -773,7 +795,7 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
 export async function updatePresentationObjectFolder(
   projectDb: Sql,
   presentationObjectId: string,
-  folderId: string | null
+  folderId: string | null,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -788,7 +810,7 @@ export async function updatePresentationObjectFolder(
 
 export async function reorderPresentationObjects(
   projectDb: Sql,
-  orderUpdates: { id: string; sortOrder: number }[]
+  orderUpdates: { id: string; sortOrder: number }[],
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();

@@ -6,9 +6,7 @@ import { PresentationObjectInReportInfo } from "./presentation_objects.ts";
 // Report Core Types
 // ============================================================================
 
-export type ReportType =
-  | "slide_deck"
-  | "policy_brief";
+export type ReportType = "slide_deck" | "policy_brief";
 // | "long_form";  // TODO: Re-enable later
 
 export type ReportSummary = {
@@ -299,10 +297,7 @@ export function getStartingConfigForReportItem() {
 // Report Item Content Types
 // ============================================================================
 
-export type ReportItemContentItemType =
-  | "text"
-  | "figure"
-  | "image";
+export type ReportItemContentItemType = "text" | "figure" | "image";
 
 export type ReportItemContentItem = {
   type: ReportItemContentItemType;

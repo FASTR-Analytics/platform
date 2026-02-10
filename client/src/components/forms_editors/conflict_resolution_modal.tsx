@@ -1,4 +1,4 @@
-import { AlertComponentProps, Button } from "panther";
+import { AlertComponentProps, Button, ModalContainer } from "panther";
 import { t } from "lib";
 
 export function ConflictResolutionModal(
@@ -7,9 +7,8 @@ export function ConflictResolutionModal(
   }, "view_theirs" | "overwrite" | "save_as_new" | "cancel">
 ) {
   return (
-    <div class="ui-pad ui-spy-sm">
-      <div class="font-700">Conflict Detected</div>
-      <div class="max-w-[400px]">
+    <ModalContainer title="Conflict Detected" width="sm">
+      <div>
         {t("Someone else saved changes while you were editing.")}
       </div>
       <div class="ui-gap-sm flex flex-col pt-2">
@@ -26,6 +25,6 @@ export function ConflictResolutionModal(
           {t("Keep editing")}
         </Button>
       </div>
-    </div>
+    </ModalContainer>
   );
 }

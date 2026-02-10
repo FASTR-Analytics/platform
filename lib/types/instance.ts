@@ -1,6 +1,7 @@
 import { AssetInfo } from "./assets.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { IndicatorType } from "./indicators.ts";
+import type { ProjectUserPermissions, UserPermissions } from "./permissions.ts";
 import {
   GenericLongFormFetchConfig,
   PeriodBounds,
@@ -29,7 +30,7 @@ export type StreamMessage = {
 export type ProgressCallback = (progress: number, message: string) => void;
 
 export function throwIfErrWithData<T>(
-  apiResponse: APIResponseWithData<T>
+  apiResponse: APIResponseWithData<T>,
 ): asserts apiResponse is { success: true; data: T } {
   if (apiResponse.success === false) {
     throw new Error(apiResponse.err);
@@ -37,7 +38,7 @@ export function throwIfErrWithData<T>(
 }
 
 export function throwIfErrNoData(
-  apiResponse: APIResponseNoData
+  apiResponse: APIResponseNoData,
 ): asserts apiResponse is { success: true } {
   if (apiResponse.success === false) {
     throw new Error(apiResponse.err);
@@ -163,7 +164,7 @@ export type AdminAreaColumn =
 
 // Helper to get list of enabled optional facility columns
 export function getEnabledOptionalFacilityColumns(
-  config: InstanceConfigFacilityColumns
+  config: InstanceConfigFacilityColumns,
 ): OptionalFacilityColumn[] {
   const columns: OptionalFacilityColumn[] = [];
   if (config.includeNames) columns.push("facility_name");
@@ -191,17 +192,14 @@ export type GlobalUser = {
   lastName: string;
   approved: boolean;
   isGlobalAdmin: boolean;
-  thisUserPermissions: {
-    can_configure_users: boolean;
-    can_view_users: boolean;
-    can_view_logs: boolean;
-    can_configure_settings: boolean;
-    can_configure_assets: boolean;
-    can_configure_data: boolean;
-    can_view_data: boolean;
-    can_create_projects: boolean;
-  };
+  thisUserPermissions: UserPermissions;
 };
+
+export type ProjectUser = {
+  email: string;
+  role: ProjectUserRoleType; // delete after implementing new system
+  isGlobalAdmin: boolean;
+} & ProjectUserPermissions;
 
 export type OtherUser = {
   email: string;
@@ -216,68 +214,6 @@ export type UserLog = {
   endpoint_result: string;
   details?: string;
   project_id?: string;
-};
-
-export type UserPermission =
-  | "can_configure_users"
-  | "can_view_users"
-  | "can_view_logs"
-  | "can_configure_settings"
-  | "can_configure_assets"
-  | "can_configure_data"
-  | "can_view_data"
-  | "can_create_projects";
-
-export type UserPermissions = {
-  user_email: string;
-  can_configure_users: boolean;
-  can_view_users: boolean;
-  can_view_logs: boolean;
-  can_configure_settings: boolean;
-  can_configure_assets: boolean;
-  can_configure_data: boolean;
-  can_view_data: boolean;
-  can_create_projects: boolean;
-};
-
-export type ProjectPermission = Extract<keyof ProjectUser,
-  | "can_configure_settings"
-  | "can_create_backups"
-  | "can_restore_backups"
-  | "can_configure_modules"
-  | "can_run_modules"
-  | "can_configure_users"
-  | "can_configure_visualizations"
-  | "can_view_visualizations"
-  | "can_configure_reports"
-  | "can_view_reports"
-  | "can_configure_slide_decks"
-  | "can_view_slide_decks"
-  | "can_configure_data"
-  | "can_view_data"
-  | "can_view_logs"
->;
-
-export type ProjectUser = {
-  email: string;
-  role: ProjectUserRoleType; // delete after implementing new system
-  can_configure_settings: boolean;
-  can_create_backups: boolean;
-  can_restore_backups: boolean;
-  can_configure_modules: boolean;
-  can_run_modules: boolean;
-  can_configure_users: boolean;
-  can_configure_visualizations: boolean;
-  can_view_visualizations: boolean;
-  can_configure_reports: boolean;
-  can_view_reports: boolean;
-  can_configure_slide_decks: boolean;
-  can_view_slide_decks: boolean;
-  can_configure_data: boolean;
-  can_view_data: boolean;
-  can_view_logs: boolean;
-  isGlobalAdmin: boolean;
-  hasProjectAccess: boolean;
 };
 
 // ============================================================================
@@ -316,7 +252,7 @@ export function createDevProjectUser(): ProjectUser {
   return {
     email: "dev@offline.local",
     role: "editor", // deprecated
-    isGlobalAdmin: true,
+    isGlobalAdmin: false,
     can_configure_settings: true,
     can_create_backups: true,
     can_restore_backups: true,

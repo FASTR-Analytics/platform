@@ -1,4 +1,4 @@
-import { AlertComponentProps, Button, capitalizeFirstLetter } from "panther";
+import { AlertComponentProps, Button, capitalizeFirstLetter, ModalContainer } from "panther";
 import { t } from "lib";
 
 export function ConfirmUpdate(
@@ -10,9 +10,8 @@ export function ConfirmUpdate(
   >,
 ) {
   return (
-    <div class="ui-pad ui-spy-sm">
-      <div class="font-700">{capitalizeFirstLetter(p.thingLabel)} updated</div>
-      <div class="max-w-[400px]">
+    <ModalContainer title={`${capitalizeFirstLetter(p.thingLabel)} updated`} width="sm">
+      <div>
         {p.thingLabel === "report item"
           ? t(
               "This report has been updated by another user. Do you want to cancel your edits and see the new version?",
@@ -29,6 +28,6 @@ export function ConfirmUpdate(
           {t("No, keep editing")}
         </Button>
       </div>
-    </div>
+    </ModalContainer>
   );
 }

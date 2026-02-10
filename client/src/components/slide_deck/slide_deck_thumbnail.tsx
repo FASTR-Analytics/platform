@@ -1,4 +1,4 @@
-import { getStartingConfigForReport, getTextRenderingOptions, type SlideDeckConfig } from "lib";
+import { getStartingConfigForSlideDeck, getTextRenderingOptions, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "./slide_rendering/convert_slide_to_page_inputs";
 import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
@@ -6,7 +6,7 @@ import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { serverActions } from "~/server_actions";
 import { useProjectDirtyStates } from "../project_runner/mod";
 
-const _defaultConfig = getStartingConfigForReport("");
+const _defaultConfig = getStartingConfigForSlideDeck("");
 
 type Props = {
   projectId: string;

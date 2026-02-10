@@ -10,6 +10,7 @@ import { Slider } from "./slider.tsx";
 type SliderWithInputProps = {
   value: number;
   onChange: (value: number) => void;
+  onRelease?: (value: number) => void;
   min?: number;
   max?: number;
   step?: number;
@@ -159,6 +160,7 @@ export function SliderWithInput(p: SliderWithInputProps) {
               <ComparisonSlider
                 value={sliderValue()}
                 onChange={p.onChange}
+                onRelease={p.onRelease}
                 comparisonValue={p.comparisonValue!}
                 min={p.min}
                 max={p.max}
@@ -173,6 +175,7 @@ export function SliderWithInput(p: SliderWithInputProps) {
               <Slider
                 value={sliderValue()}
                 onChange={p.onChange}
+                onRelease={p.onRelease}
                 min={p.min}
                 max={p.max}
                 step={p.step}

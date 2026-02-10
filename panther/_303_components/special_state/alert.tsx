@@ -8,6 +8,7 @@ import { Dynamic } from "solid-js/web";
 import { Button } from "../form_inputs/button.tsx";
 import { Input } from "../form_inputs/input.tsx";
 import { Intent } from "../types.ts";
+import { ModalContainer } from "./modal_container.tsx";
 
 ///////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// Inputs ////////////////////////////////////////
@@ -18,7 +19,6 @@ type OpenAlertInput = {
   text: string | JSX.Element;
   intent?: Intent;
   closeButtonLabel?: string;
-  maxWidth?: string;
 };
 
 type OpenConfirmInput = {
@@ -26,7 +26,6 @@ type OpenConfirmInput = {
   text: string | JSX.Element;
   intent?: Intent;
   confirmButtonLabel?: string;
-  maxWidth?: string;
 };
 
 type OpenPromptInput = {
@@ -37,7 +36,6 @@ type OpenPromptInput = {
   inputType?: JSX.InputHTMLAttributes<HTMLInputElement>["type"];
   intent?: Intent;
   saveButtonLabel?: string;
-  maxWidth?: string;
 };
 
 export type AlertComponentProps<TProps, TReturn> = TProps & {
@@ -125,15 +123,13 @@ function isComponentState(
   return alertState?.stateType === "component";
 }
 
-type ComponentStateType<TProps, TReturn> =
-  & OpenComponentInput<
-    TProps,
-    TReturn
-  >
-  & {
-    stateType: "component";
-    componentResolver(v: TReturn | undefined): void;
-  };
+type ComponentStateType<TProps, TReturn> = OpenComponentInput<
+  TProps,
+  TReturn
+> & {
+  stateType: "component";
+  componentResolver(v: TReturn | undefined): void;
+};
 
 const [alertState, setAlertState] = createSignal<
   | AlertStateType
@@ -243,123 +239,113 @@ export default function AlertProvider() {
                   >
                     {(keyedACPState) => {
                       return (
-                        <div
-                          class="ui-pad-lg ui-never-focusable bg-base-100 z-50 min-w-[360px] rounded shadow-lg"
-                          style={{
-                            "max-width": keyedACPState.maxWidth || "80%",
-                          }}
-                        >
-                          <div class="ui-spy">
-                            <Show
-                              when={keyedACPState.title || keyedACPState.text}
-                            >
-                              <div class="space-y-3">
-                                <Show when={keyedACPState.title} keyed>
-                                  {(keyedTitle) => {
-                                    return (
-                                      <h2
-                                        class="ui-text-heading data-primary:text-primary data-neutral:text-neutral data-success:text-success data-danger:text-danger leading-6"
-                                        data-intent={keyedACPState.intent}
-                                      >
-                                        {keyedTitle}
-                                      </h2>
-                                    );
-                                  }}
-                                </Show>
-                                <Show when={keyedACPState.text} keyed>
-                                  {(keyedText) => {
-                                    return (
-                                      <Switch>
-                                        <Match
-                                          when={typeof keyedText === "string"}
-                                        >
-                                          <p class="">{keyedText}</p>
-                                        </Match>
-                                        <Match when={true}>{keyedText}</Match>
-                                      </Switch>
-                                    );
-                                  }}
-                                </Show>
-                              </div>
+                        <div class="ui-never-focusable bg-base-100 z-50 mx-12 rounded shadow-lg outline-none">
+                          <ModalContainer
+                            width="sm"
+                            topPanel={
+                              <Show when={keyedACPState.title} keyed>
+                                {(keyedTitle) => (
+                                  <h2
+                                    class="ui-text-heading data-primary:text-primary data-neutral:text-neutral data-success:text-success data-danger:text-danger leading-none"
+                                    data-intent={keyedACPState.intent}
+                                  >
+                                    {keyedTitle}
+                                  </h2>
+                                )}
+                              </Show>
+                            }
+                            leftButtons={(() => {
+                              const ass = keyedACPState;
+                              if (isAlertState(ass)) {
+                                // eslint-disable-next-line jsx-key
+                                return [
+                                  <Button
+                                    onClick={() => {
+                                      ass.alertResolver();
+                                      setAlertState(undefined);
+                                    }}
+                                    intent={ass.intent}
+                                  >
+                                    {ass.closeButtonLabel ?? "Close"}
+                                  </Button>,
+                                ];
+                              }
+                              if (isConfirmState(ass)) {
+                                // eslint-disable-next-line jsx-key
+                                return [
+                                  <Button
+                                    onClick={() => {
+                                      ass.confirmResolver(true);
+                                      setAlertState(undefined);
+                                    }}
+                                    intent={ass.intent}
+                                  >
+                                    {ass.confirmButtonLabel ?? "Confirm"}
+                                  </Button>,
+                                  <Button
+                                    onClick={() => {
+                                      ass.confirmResolver(false);
+                                      setAlertState(undefined);
+                                    }}
+                                    intent="neutral"
+                                    autofocus
+                                  >
+                                    Cancel
+                                  </Button>,
+                                ];
+                              }
+                              if (isPromptState(ass)) {
+                                // eslint-disable-next-line jsx-key
+                                return [
+                                  <Button
+                                    type="submit"
+                                    form="promptForm"
+                                    intent={ass.intent}
+                                  >
+                                    {ass.saveButtonLabel ?? "Confirm"}
+                                  </Button>,
+                                  <Button
+                                    type="button"
+                                    onClick={() => {
+                                      ass.promptResolver(undefined);
+                                      setAlertState(undefined);
+                                    }}
+                                    intent="neutral"
+                                  >
+                                    Cancel
+                                  </Button>,
+                                ];
+                              }
+                              return [];
+                            })()}
+                          >
+                            <Show when={keyedACPState.text} keyed>
+                              {(keyedText) => (
+                                <Switch>
+                                  <Match when={typeof keyedText === "string"}>
+                                    <p>{keyedText}</p>
+                                  </Match>
+                                  <Match when={true}>{keyedText}</Match>
+                                </Switch>
+                              )}
                             </Show>
-                            <Switch>
-                              <Match
-                                when={isAlertState(keyedACPState) &&
-                                  keyedACPState}
-                                keyed
-                              >
-                                {(keyedAlertState) => {
-                                  return (
-                                    <div class="">
-                                      <Button
-                                        onClick={() => {
-                                          keyedAlertState.alertResolver();
-                                          setAlertState(undefined);
-                                        }}
-                                        intent={keyedAlertState.intent}
-                                      >
-                                        {keyedAlertState.closeButtonLabel ??
-                                          "Close"}
-                                      </Button>
-                                    </div>
-                                  );
-                                }}
-                              </Match>
-                              <Match
-                                when={isConfirmState(keyedACPState) &&
-                                  keyedACPState}
-                                keyed
-                              >
-                                {(keyedConfirmState) => {
-                                  return (
-                                    <div class="flex gap-2">
-                                      <Button
-                                        onClick={() => {
-                                          keyedConfirmState.confirmResolver(
-                                            true,
-                                          );
-                                          setAlertState(undefined);
-                                        }}
-                                        intent={keyedConfirmState.intent}
-                                      >
-                                        {keyedConfirmState.confirmButtonLabel ??
-                                          "Confirm"}
-                                      </Button>
-                                      <Button
-                                        onClick={() => {
-                                          keyedConfirmState.confirmResolver(
-                                            false,
-                                          );
-                                          setAlertState(undefined);
-                                        }}
-                                        intent="neutral"
-                                        autofocus
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  );
-                                }}
-                              </Match>
-                              <Match
-                                when={isPromptState(keyedACPState) &&
-                                  keyedACPState}
-                                keyed
-                              >
-                                {(keyedPromptState) => {
-                                  return (
-                                    <InnerForPrompt
-                                      pst={keyedPromptState}
-                                      close={(v: string | undefined) => {
-                                        keyedPromptState.promptResolver(v);
-                                        setAlertState(undefined);
-                                      }}
-                                    />
-                                  );
-                                }}
-                              </Match>
-                            </Switch>
-                          </div>
+                            <Show
+                              when={
+                                isPromptState(keyedACPState) && keyedACPState
+                              }
+                              keyed
+                            >
+                              {(keyedPromptState) => (
+                                <InnerForPrompt
+                                  pst={keyedPromptState}
+                                  close={(v: string | undefined) => {
+                                    keyedPromptState.promptResolver(v);
+                                    setAlertState(undefined);
+                                  }}
+                                />
+                              )}
+                            </Show>
+                          </ModalContainer>
                         </div>
                       );
                     }}
@@ -393,7 +379,13 @@ function InnerForPrompt(props: InnerForPromptProps) {
     props.pst.initialInputText,
   );
   return (
-    <form id="promptForm" class="ui-spy w-full">
+    <form
+      id="promptForm"
+      onSubmit={(evt) => {
+        evt.preventDefault();
+        props.close(promptInput());
+      }}
+    >
       <Input
         label={props.pst.inputLabel}
         value={promptInput()}
@@ -401,29 +393,6 @@ function InnerForPrompt(props: InnerForPromptProps) {
         autoFocus
         fullWidth
       />
-      <div class="flex gap-2">
-        <Button
-          type="submit"
-          form="promptForm"
-          onClick={(evt: MouseEvent) => {
-            evt.preventDefault();
-            props.close(promptInput());
-          }}
-          intent={props.pst.intent}
-        >
-          {props.pst.saveButtonLabel ?? "Confirm"}
-        </Button>
-        <Button
-          type="button"
-          onClick={(evt: MouseEvent) => {
-            evt.preventDefault();
-            props.close(undefined);
-          }}
-          intent="neutral"
-        >
-          Cancel
-        </Button>
-      </div>
     </form>
   );
 }
