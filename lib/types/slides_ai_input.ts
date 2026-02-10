@@ -7,13 +7,13 @@ export const AiMetricQuerySchema = z.object({
   metricId: z
     .string()
     .describe(
-      "The unique ID of the metric/indicator to query. This metric must exist in the project's data.",
+      "The unique ID of the metric to query. This metric must exist in the project's data.",
     ),
   disaggregations: z
     .array(z.string())
     .optional()
     .describe(
-      "Optional: Array of disaggregation dimensions to break down the data by, e.g., ['gender', 'age_group']. Time disaggregations: 'period_id' (by specific month), 'quarter_id' (by specific quarter), 'year' (by year), 'month' (1-12, by month-of-year for seasonal patterns).",
+      "Optional: Array of disaggregation dimensions to break down the data by. Use dimension names from get_available_metrics (e.g., 'admin_area_2', 'indicator_common_id'). Time disaggregations: 'period_id' (by specific month), 'year' (by year), 'month' (1-12, by month-of-year for seasonal patterns).",
     ),
   filters: z
     .array(
@@ -21,12 +21,12 @@ export const AiMetricQuerySchema = z.object({
         col: z
           .string()
           .describe(
-            "The column/dimension name to filter on, e.g., 'region' or 'facility_type'",
+            "Must be a valid disaggregation dimension for this metric (see get_available_metrics)",
           ),
         vals: z
           .array(z.string())
           .describe(
-            "Array of values to include for this filter, e.g., ['North', 'South'] to show only those regions",
+            "Values must exist in the data. Use get_metric_data first to discover valid values.",
           ),
       }),
     )
@@ -34,54 +34,34 @@ export const AiMetricQuerySchema = z.object({
     .describe(
       "Optional: Array of filters to limit which data is displayed. Each filter specifies a column and the values to include.",
     ),
-  periodFilter: z
-    .object({
-      periodOption: z
-        .enum(["period_id", "quarter_id", "year"])
-        .describe(
-          "Time granularity: 'period_id' = YYYYMM format (202301 = Jan 2023), 'quarter_id' = YYYYQQ format (202301 = Q1 2023), 'year' = YYYY format (2023)",
-        ),
-      min: z
-        .number()
-        .describe(
-          "Start of time range (inclusive). Examples: period_id 202301 (Jan 2023), quarter_id 202301 (Q1 2023), year 2023",
-        ),
-      max: z
-        .number()
-        .describe(
-          "End of time range (inclusive). Examples: period_id 202412 (Dec 2024), quarter_id 202404 (Q4 2024), year 2024",
-        ),
-    })
+  startDate: z
+    .number()
     .optional()
     .describe(
-      "Optional: Filter to limit the time range. Format depends on periodOption: period_id=YYYYMM (202301-202412), quarter_id=YYYYQQ (202301-202404), year=YYYY (2023-2024).",
+      "Optional: Start of time range (inclusive). Format: YYYY for years (2023), YYYYMM for months (202301). Must be used together with endDate.",
     ),
-  valuesFilter: z
-    .array(z.string())
+  endDate: z
+    .number()
     .optional()
     .describe(
-      "Optional: Array of value property names to display. For metrics with multiple value properties (shown in 'Value properties' section from get_metric_data), specify which ones to include. E.g., ['count_final_both'] to show only the combined count.",
+      "Optional: End of time range (inclusive). Must be used together with startDate.",
     ),
 });
 
 // Individual figure schemas (unnested for type inference)
 
 export const AiTextBlockSchema = z.object({
-  type: z.literal("text").describe("Block type identifier for text content"),
+  type: z.literal("text"),
   markdown: z
     .string()
     .max(5000)
     .describe(
-      "The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. Maximum 5000 characters. IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, you must create a table figure using the 'from_metric' or 'from_visualization' block types with chartType='table', not markdown tables.",
+      "The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. Maximum 5000 characters. IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, use a 'from_metric' block with a table preset, or a 'from_visualization' block.",
     ),
 });
 
 export const AiFigureFromVisualizationSchema = z.object({
-  type: z
-    .literal("from_visualization")
-    .describe(
-      "Block type identifier for figures cloned from existing visualizations",
-    ),
+  type: z.literal("from_visualization"),
   visualizationId: z
     .string()
     .describe(
@@ -96,11 +76,7 @@ export const AiFigureFromVisualizationSchema = z.object({
 });
 
 export const AiFigureFromMetricSchema = z.object({
-  type: z
-    .literal("from_metric")
-    .describe(
-      "Block type identifier for figures created from metric data using a pre-defined visualization preset",
-    ),
+  type: z.literal("from_metric"),
   metricId: z
     .string()
     .describe(
@@ -111,7 +87,7 @@ export const AiFigureFromMetricSchema = z.object({
     .describe(
       "The ID of a pre-defined visualization preset for this metric. Get available preset IDs from get_available_metrics.",
     ),
-  chartTitle: z.string().max(200).describe("The chart title"),
+  chartTitle: z.string().max(200).describe("Title displayed above the figure"),
   selectedReplicant: z
     .string()
     .optional()
@@ -121,7 +97,7 @@ export const AiFigureFromMetricSchema = z.object({
   filterOverrides: z
     .array(
       z.object({
-        col: z.string().describe("The column/dimension name to filter on"),
+        col: z.string().describe("Dimension to filter on. Must be listed in the preset's 'Filterable by' dimensions (shown in get_available_metrics)"),
         vals: z
           .array(z.string())
           .describe("Array of values to include for this filter"),
@@ -129,7 +105,7 @@ export const AiFigureFromMetricSchema = z.object({
     )
     .optional()
     .describe(
-      "Optional: Override the preset's filters to limit which data is displayed.",
+      "Optional: Add filters to limit which data is displayed. Only use dimensions listed in the preset's 'Filterable by' list from get_available_metrics.",
     ),
   startDate: z
     .number()
@@ -137,7 +113,7 @@ export const AiFigureFromMetricSchema = z.object({
     .describe(
       "Optional: Start of time range. Format depends on the preset's date format " +
       "(shown in preset listing). For YYYYMM presets: 202301 = Jan 2023. " +
-      "For YYYY presets: 2023. For YYYYQQ presets: 202301 = Q1 2023. Must be used together with endDate.",
+      "For YYYY presets: 2023. Must be used together with endDate.",
     ),
   endDate: z
     .number()
@@ -145,7 +121,7 @@ export const AiFigureFromMetricSchema = z.object({
     .describe(
       "Optional: End of time range. Format depends on the preset's date format " +
       "(shown in preset listing). For YYYYMM presets: 202312 = Dec 2023. " +
-      "For YYYY presets: 2024. For YYYYQQ presets: 202304 = Q4 2023. Must be used together with startDate.",
+      "For YYYY presets: 2024. Must be used together with startDate.",
     ),
 });
 
@@ -164,14 +140,12 @@ export const AiContentBlockInputSchema = z.union([
 // Slide schemas
 
 export const AiCoverSlideSchema = z.object({
-  type: z
-    .literal("cover")
-    .describe("Slide type identifier for title/cover slides"),
+  type: z.literal("cover"),
   title: z
     .string()
     .max(200)
     .describe(
-      "The main title of the presentation, displayed prominently on the cover slide. Can be empty string. Maximum 200 characters.",
+      "The main title of the presentation, displayed prominently on the cover slide. Maximum 200 characters.",
     ),
   subtitle: z
     .string()
@@ -197,9 +171,7 @@ export const AiCoverSlideSchema = z.object({
 });
 
 export const AiSectionSlideSchema = z.object({
-  type: z
-    .literal("section")
-    .describe("Slide type identifier for section divider slides"),
+  type: z.literal("section"),
   sectionTitle: z
     .string()
     .min(1)
@@ -217,11 +189,7 @@ export const AiSectionSlideSchema = z.object({
 });
 
 export const AiContentSlideSchema = z.object({
-  type: z
-    .literal("content")
-    .describe(
-      "Slide type identifier for content slides with text and/or figures",
-    ),
+  type: z.literal("content"),
   header: z
     .string()
     .max(200)

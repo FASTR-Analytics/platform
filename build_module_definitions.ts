@@ -225,6 +225,7 @@ function generateModuleMetadata(
       periodOptions: string[];
       postAggregationExpression?: any;
       vizPresets?: any[];
+      hide?: boolean;
     }
   > = {};
 
@@ -255,6 +256,7 @@ function generateModuleMetadata(
         periodOptions: metric.periodOptions,
         postAggregationExpression: metric.postAggregationExpression,
         vizPresets: metric.vizPresets,
+        hide: metric.hide,
       };
     }
 
@@ -314,7 +316,8 @@ function generateModuleMetadata(
       const vizPresets = d.vizPresets
         ? `, vizPresets: ${JSON.stringify(d.vizPresets)}`
         : "";
-      return `  "${metricId}": { label: "${d.label}"${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)}, periodOptions: ${JSON.stringify(d.periodOptions)}${postAgg}${vizPresets} }`;
+      const hide = d.hide ? `, hide: true` : "";
+      return `  "${metricId}": { label: "${d.label}"${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)}, periodOptions: ${JSON.stringify(d.periodOptions)}${postAgg}${vizPresets}${hide} }`;
     })
     .join(",\n");
 
@@ -383,6 +386,7 @@ export const METRIC_STATIC_DATA: Record<string, {
   periodOptions: PeriodOption[];
   postAggregationExpression?: any;
   vizPresets?: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; needsReplicant?: boolean; allowedFilters?: string[]; config: { d: any; s?: any; t?: any } }[];
+  hide?: boolean;
 }> = {
 ${metricStaticDataCode},
 };

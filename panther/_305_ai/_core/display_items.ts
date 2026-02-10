@@ -4,12 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { ContentBlock, MessageParam } from "../deps.ts";
-import type { ToolRegistry } from "./tool_engine.ts";
 import type { DisplayItem } from "./types.ts";
 
 export function getDisplayItemsFromMessage(
   message: MessageParam,
-  toolRegistry: ToolRegistry,
 ): DisplayItem[] {
   if (typeof message.content === "string") {
     const trimmed = message.content.trim();
@@ -48,14 +46,6 @@ export function getDisplayItemsFromMessage(
   for (const block of content) {
     if (block.type === "tool_use") {
       flushText();
-      const toolWithMetadata = toolRegistry.get(block.name);
-      if (toolWithMetadata?.metadata.displayComponent) {
-        displayItems.push({
-          type: "tool_display",
-          toolName: block.name,
-          input: block.input,
-        });
-      }
       continue;
     }
 

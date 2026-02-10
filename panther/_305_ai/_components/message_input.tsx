@@ -31,10 +31,12 @@ export const MessageInput: Component<Props> = (props) => {
           value={props.value}
           onChange={props.onChange}
           onKeyDown={handleKeyDown}
-          placeholder={props.placeholder ??
-            "Type your message... (Shift+Enter for new line)"}
+          placeholder={
+            props.placeholder ??
+            "Type your message... (Shift+Enter for new line)"
+          }
           height={props.height ?? "100px"}
-          mono
+          // mono
           fullWidth
         />
       </div>

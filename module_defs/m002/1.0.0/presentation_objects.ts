@@ -3,7 +3,7 @@ import type { PartialDefaultPresentationObjectJSON } from "lib";
 export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "e5edce68-369c-498e-a4b0-03ba73d31d6c",
-    label: "Default 1. Percent change in volume due to outlier adjustment",
+    label: "Percent change in volume due to outlier adjustment",
     metricId: "m2-01-01",
     config: {
       d: {
@@ -49,7 +49,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   },
   {
     id: "b4750223-9ffd-43f6-958b-0ba9c0412df4",
-    label: "Default 2. Percent change in volume due to completeness adjustment",
+    label: "Percent change in volume due to completeness adjustment",
     metricId: "m2-01-02",
     config: {
       d: {
@@ -96,7 +96,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   {
     id: "5337d614-02b8-4de8-abcb-f390d2b7a714",
     label:
-      "Default 3. Percent change in volume due to both outlier and completeness adjustment",
+      "Percent change in volume due to both outlier and completeness adjustment",
     metricId: "m2-01-03",
     config: {
       d: {

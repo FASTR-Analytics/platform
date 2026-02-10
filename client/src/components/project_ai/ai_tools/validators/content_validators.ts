@@ -1,4 +1,5 @@
 import { ALL_DISAGGREGATION_OPTIONS, type AiMetricQuery, type DisaggregationOption, type MetricWithStatus, type PeriodOption, MAX_CONTENT_BLOCKS } from "lib";
+import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/po_cache";
 
 const MARKDOWN_TABLE_PATTERNS = [
@@ -13,7 +14,7 @@ function containsMarkdownTable(text: string): boolean {
 export function validateNoMarkdownTables(markdown: string): void {
   if (containsMarkdownTable(markdown)) {
     throw new Error(
-      "Markdown tables are not allowed. To display tabular data, you must create a table figure using 'from_metric' or 'from_visualization' with chartType='table' instead of using markdown table syntax (pipes and dashes)."
+      "Markdown tables are not allowed. To display tabular data, use a 'from_metric' block with a table preset, or a 'from_visualization' block."
     );
   }
 }
@@ -32,14 +33,6 @@ function isPeriodIdValid(val: number): boolean {
   const year = Math.floor(val / 100);
   const month = val % 100;
   return year >= 1900 && year <= 2100 && month >= 1 && month <= 12;
-}
-
-function isQuarterIdValid(val: number): boolean {
-  const str = String(val);
-  if (str.length !== 6) return false;
-  const year = Math.floor(val / 100);
-  const quarter = val % 100;
-  return year >= 1900 && year <= 2100 && quarter >= 1 && quarter <= 4;
 }
 
 function validateFilters(
@@ -104,52 +97,43 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
 
   validateFilters(query.filters, query.metricId, metric);
 
-  if (query.periodFilter) {
-    const { periodOption, min, max } = query.periodFilter;
-
-    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+  if (query.startDate != null && query.endDate != null) {
+    if (!Number.isFinite(query.startDate) || !Number.isFinite(query.endDate)) {
       throw new Error(
-        `Period filter min and max must be valid numbers. Got min: ${min}, max: ${max}`
+        `startDate and endDate must be valid numbers. Got startDate: ${query.startDate}, endDate: ${query.endDate}`
       );
     }
-
-    if (min > max) {
+    if (query.startDate > query.endDate) {
       throw new Error(
-        `Period filter min (${min}) cannot be greater than max (${max})`
+        `startDate (${query.startDate}) cannot be greater than endDate (${query.endDate})`
       );
     }
-
-    if (periodOption === "period_id") {
-      if (!isPeriodIdValid(min) || !isPeriodIdValid(max)) {
+    const startDigits = String(query.startDate).length;
+    const endDigits = String(query.endDate).length;
+    if (startDigits !== endDigits) {
+      throw new Error(
+        `startDate and endDate must use the same format. Got startDate: ${query.startDate} (${startDigits} digits), endDate: ${query.endDate} (${endDigits} digits)`
+      );
+    }
+    if (startDigits === 6) {
+      if (!isPeriodIdValid(query.startDate) || !isPeriodIdValid(query.endDate)) {
         throw new Error(
-          `Invalid period_id format. Must be YYYYMM (e.g., 202301 for Jan 2023). Got min: ${min}, max: ${max}`
+          `Invalid YYYYMM format. Got startDate: ${query.startDate}, endDate: ${query.endDate}`
         );
       }
-    } else if (periodOption === "quarter_id") {
-      if (!isQuarterIdValid(min) || !isQuarterIdValid(max)) {
+    } else if (startDigits <= 4) {
+      if (query.startDate < 1900 || query.endDate > 2100) {
         throw new Error(
-          `Invalid quarter_id format. Must be YYYYQQ where QQ is 01-04 (e.g., 202301 for Q1 2023). Got min: ${min}, max: ${max}`
-        );
-      }
-    } else if (periodOption === "year") {
-      if (min < 1900 || max > 2100) {
-        throw new Error(
-          `Year must be between 1900 and 2100. Got min: ${min}, max: ${max}`
+          `Year must be between 1900 and 2100. Got startDate: ${query.startDate}, endDate: ${query.endDate}`
         );
       }
     }
-  }
-
-  if (query.valuesFilter && metric) {
-    const invalidValues = query.valuesFilter.filter(
-      v => !metric.valueProps.includes(v)
+  } else if (query.startDate != null || query.endDate != null) {
+    throw new Error(
+      "Both startDate and endDate must be provided together, or neither."
     );
-    if (invalidValues.length > 0) {
-      throw new Error(
-        `Invalid valuesFilter value(s): ${invalidValues.join(", ")}. Valid values for metric "${query.metricId}" are: ${metric.valueProps.join(", ")}`
-      );
-    }
   }
+
 }
 
 export function validatePresetOverrides(
@@ -197,7 +181,7 @@ export async function validateMetricInputs(
   for (const filter of filters ?? []) {
     const dimValues = metricInfoRes.data.disaggregationPossibleValues[filter.col as DisaggregationOption];
     if (dimValues?.status === "ok") {
-      const invalid = filter.vals.filter(v => !dimValues.values.includes(v));
+      const invalid = filter.vals.filter(v => !dimValues.values.some(dv => String(dv) === String(v)));
       if (invalid.length > 0) {
         throw new Error(
           `Invalid filter value(s) for "${filter.col}": ${invalid.join(", ")}. ` +
@@ -209,10 +193,12 @@ export async function validateMetricInputs(
 
   if (periodFilter && metricInfoRes.data.periodBounds) {
     const bounds = metricInfoRes.data.periodBounds;
-    if (periodFilter.max < bounds.min || periodFilter.min > bounds.max) {
+    const filterMin = convertPeriodValue(periodFilter.min, bounds.periodOption, false);
+    const filterMax = convertPeriodValue(periodFilter.max, bounds.periodOption, true);
+    if (filterMax < bounds.min || filterMin > bounds.max) {
       throw new Error(
         `Date range ${periodFilter.min}-${periodFilter.max} is outside available data ` +
-        `${bounds.min}-${bounds.max} (${periodFilter.periodOption} format).`
+        `${bounds.min}-${bounds.max} (${bounds.periodOption} format).`
       );
     }
   }

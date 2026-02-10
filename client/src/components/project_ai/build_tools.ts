@@ -32,13 +32,13 @@ export function buildToolsForContext(params: BuildToolsParams) {
     // Base data tools - always available
     ...getToolsForMetrics(projectId, metrics),
     ...getToolsForModules(projectId, modules, metrics),
-    ...getToolsForVisualizations(projectId, visualizations, slideDecks),
+    ...getToolsForVisualizations(projectId, visualizations, slideDecks, metrics),
     ...getToolsForMethodologyDocs(),
 
     // Mode-specific tools - check mode in handler
     ...getToolsForSlides(projectId, aiContext, metrics),
     ...getToolsForSlideEditor(projectId, aiContext, metrics),
-    ...getToolsForVizEditor(projectId, aiContext),
+    ...getToolsForVizEditor(projectId, aiContext, metrics),
 
     // Navigation tools - always available
     ...getToolsForNavigation(aiContext),

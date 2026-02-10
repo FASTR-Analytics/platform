@@ -1,4 +1,5 @@
 import type {
+  MetricWithStatus,
   PresentationObjectSummary,
   SlideDeckSummary,
 } from "lib";
@@ -12,6 +13,7 @@ export function getToolsForVisualizations(
   projectId: string,
   visualizations: PresentationObjectSummary[],
   slideDecks: SlideDeckSummary[],
+  metrics: MetricWithStatus[],
 ) {
   return [
     createAITool({
@@ -44,7 +46,7 @@ export function getToolsForVisualizations(
         "Get the underlying data for a specific saved visualization by its ID. Use get_available_visualizations to find IDs. For the current visualization being edited, use get_viz_editor instead.",
       inputSchema: z.object({ id: z.string().describe("Visualization ID") }),
       handler: async (input) => {
-        return await getVisualizationDataAsCSV(projectId, input.id);
+        return await getVisualizationDataAsCSV(projectId, input.id, metrics);
       },
       inProgressLabel: (input) => `Getting data for viz ${input.id}...`,
       completionMessage: (input) => `Retrieved data for viz ${input.id}`,

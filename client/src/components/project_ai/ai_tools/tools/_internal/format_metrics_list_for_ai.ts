@@ -6,18 +6,13 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
     "AVAILABLE METRICS",
     "=".repeat(80),
     "",
-    "Each metric can be queried using get_metric_data with metricId.",
-    "Required disaggregations are automatically included. Optional ones can be added for more detail.",
-    "",
-    "PERIOD OPTIONS (for disaggregation and filtering):",
-    "  - period_id (YYYYMM): By specific month. Examples: 202301 (Jan 2023), 202412 (Dec 2024)",
-    "  - quarter_id (YYYYQQ): By specific quarter. Examples: 202301 (Q1 2023), 202404 (Q4 2024)",
-    "  - year (YYYY): By year. Examples: 2023, 2024",
-    "  - month (1-12): By month-of-year for seasonal patterns. Examples: 1 (all Januaries), 12 (all Decembers)",
+    "Query with get_metric_data for data and detailed context.",
+    "Visualize with from_metric blocks using vizPresetId.",
+    "Required disaggregations are auto-included.",
+    "Period formats: period_id (YYYYMM), year (YYYY), month (1-12 for seasonal).",
     "",
   ];
 
-  // Filter to only ready metrics
   const readyMetrics = metrics.filter(m => m.status === "ready");
 
   if (readyMetrics.length === 0) {
@@ -25,158 +20,55 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
     return lines.join("\n");
   }
 
-  // Group metrics by moduleId
-  const metricsByModule = new Map<string, MetricWithStatus[]>();
-  for (const metric of readyMetrics) {
-    const existing = metricsByModule.get(metric.moduleId) ?? [];
-    existing.push(metric);
-    metricsByModule.set(metric.moduleId, existing);
-  }
+  const sorted = [...readyMetrics].sort((a, b) => a.id.localeCompare(b.id));
 
-  for (const [moduleId, moduleMetrics] of metricsByModule) {
-    lines.push(`MODULE: ${moduleId}`);
-    lines.push("-".repeat(60));
+  for (const metric of sorted) {
+    const staticData = getMetricStaticData(metric.id);
+    const label = metric.variantLabel
+      ? `${metric.label} [${metric.variantLabel}]`
+      : metric.label;
 
-    // Group by label within module
-    const metricGroups = new Map<string, MetricWithStatus[]>();
-    for (const metric of moduleMetrics) {
-      const existing = metricGroups.get(metric.label) ?? [];
-      existing.push(metric);
-      metricGroups.set(metric.label, existing);
+    lines.push(`${metric.id}: ${label} [${metric.formatAs}]`);
+
+    if (metric.aiDescription?.summary) {
+      lines.push(`  ${getAIStr(metric.aiDescription.summary)}`);
     }
 
-    for (const [label, variants] of metricGroups) {
-      const firstVariant = variants[0];
+    if (metric.valueProps.length > 0) {
+      const propStrs = metric.valueProps.map(prop => {
+        const propLabel = metric.valueLabelReplacements?.[prop] || prop;
+        return propLabel !== prop ? `${prop} (${propLabel})` : prop;
+      });
+      lines.push(`  Values: ${propStrs.join(", ")}`);
+    }
 
-      if (variants.length === 1 && !firstVariant.variantLabel) {
-        // Single metric without variants
-        lines.push(`  METRIC: ${label}`);
-        lines.push(`    ID: ${firstVariant.id}`);
-        lines.push(`    Format: ${firstVariant.formatAs}`);
+    const required = metric.disaggregationOptions.filter(opt => opt.isRequired && opt.value !== "quarter_id");
+    const optional = metric.disaggregationOptions.filter(opt => !opt.isRequired && opt.value !== "quarter_id");
 
-        if (firstVariant.valueProps.length > 0) {
-          lines.push(`    Value properties:`);
-          for (const prop of firstVariant.valueProps) {
-            const propLabel = firstVariant.valueLabelReplacements?.[prop] || prop;
-            lines.push(`      - ${prop}: ${propLabel}`);
-          }
-        }
+    if (required.length > 0) {
+      lines.push(`  Auto-disaggregated by: ${required.map(opt => opt.value).join(", ")}`);
+    }
 
-        if (firstVariant.aiDescription?.summary) {
-          lines.push(`    Summary: ${getAIStr(firstVariant.aiDescription.summary)}`);
-        }
-        if (firstVariant.aiDescription?.methodology) {
-          lines.push(`    Methodology: ${getAIStr(firstVariant.aiDescription.methodology)}`);
-        }
-        if (firstVariant.aiDescription?.interpretation) {
-          lines.push(`    Interpretation: ${getAIStr(firstVariant.aiDescription.interpretation)}`);
-        }
-        if (firstVariant.aiDescription?.typicalRange) {
-          lines.push(`    Typical range: ${getAIStr(firstVariant.aiDescription.typicalRange)}`);
-        }
-        if (firstVariant.aiDescription?.caveats) {
-          lines.push(`    Caveats: ${getAIStr(firstVariant.aiDescription.caveats)}`);
-        }
-        if (firstVariant.aiDescription?.disaggregationGuidance) {
-          lines.push(`    Disaggregation guidance: ${getAIStr(firstVariant.aiDescription.disaggregationGuidance)}`);
-        }
+    if (optional.length > 0) {
+      lines.push(`  Optional disaggregations: ${optional.map(opt => opt.value).join(", ")}`);
+    }
 
-        const required = firstVariant.disaggregationOptions.filter(opt => opt.isRequired);
-        const optional = firstVariant.disaggregationOptions.filter(opt => !opt.isRequired);
-
-        if (required.length > 0) {
-          lines.push(`    Automatically disaggregated by: ${required.map(opt => opt.value).join(", ")}`);
-        }
-
-        if (optional.length > 0) {
-          lines.push(`    Optional additional disaggregations:`);
-          for (const opt of optional) {
-            lines.push(`      - ${opt.value} (${getAIStr(opt.label)})`);
-          }
-        }
-
-        lines.push(`    Period options: ${firstVariant.periodOptions.join(", ")}`);
-        appendVizPresetLines(lines, firstVariant.id, "    ");
-        lines.push("");
-      } else {
-        // Multiple variants or has variantLabel - use grouped format
-        lines.push(`  METRIC: ${label}`);
-        lines.push(`    Format: ${firstVariant.formatAs}`);
-
-        if (firstVariant.valueProps.length > 0) {
-          lines.push(`    Value properties:`);
-          for (const prop of firstVariant.valueProps) {
-            const propLabel = firstVariant.valueLabelReplacements?.[prop] || prop;
-            lines.push(`      - ${prop}: ${propLabel}`);
-          }
-        }
-
-        if (firstVariant.aiDescription?.summary) {
-          lines.push(`    Summary: ${getAIStr(firstVariant.aiDescription.summary)}`);
-        }
-        if (firstVariant.aiDescription?.methodology) {
-          lines.push(`    Methodology: ${getAIStr(firstVariant.aiDescription.methodology)}`);
-        }
-        if (firstVariant.aiDescription?.interpretation) {
-          lines.push(`    Interpretation: ${getAIStr(firstVariant.aiDescription.interpretation)}`);
-        }
-        if (firstVariant.aiDescription?.typicalRange) {
-          lines.push(`    Typical range: ${getAIStr(firstVariant.aiDescription.typicalRange)}`);
-        }
-        if (firstVariant.aiDescription?.caveats) {
-          lines.push(`    Caveats: ${getAIStr(firstVariant.aiDescription.caveats)}`);
-        }
-        if (firstVariant.aiDescription?.disaggregationGuidance) {
-          lines.push(`    Disaggregation guidance: ${getAIStr(firstVariant.aiDescription.disaggregationGuidance)}`);
-        }
-
-        lines.push(`    Period options: ${firstVariant.periodOptions.join(", ")}`);
-        lines.push("");
-        lines.push(`    Available at:`);
-
-        for (const variant of variants) {
-          const variantName = variant.variantLabel || "Default";
-          lines.push(`      - ${variantName} (ID: ${variant.id})`);
-
-          const required = variant.disaggregationOptions.filter(opt => opt.isRequired);
-          const optional = variant.disaggregationOptions.filter(opt => !opt.isRequired);
-
-          if (required.length > 0) {
-            lines.push(`        Automatically disaggregated by: ${required.map(opt => opt.value).join(", ")}`);
-          }
-
-          if (optional.length > 0) {
-            lines.push(`        Optional: ${optional.map(opt => opt.value).join(", ")}`);
-          }
-
-          appendVizPresetLines(lines, variant.id, "        ");
-          lines.push("");
-        }
+    if (staticData.vizPresets && staticData.vizPresets.length > 0) {
+      lines.push(`  Visualization presets:`);
+      for (const preset of staticData.vizPresets) {
+        const dateFormat = preset.config.d.periodOpt === "year" ? "YYYY" : "YYYYMM";
+        const filterNote = preset.allowedFilters && preset.allowedFilters.length > 0
+          ? ` — filters: ${preset.allowedFilters.join(", ")}`
+          : "";
+        const replicantNote = preset.needsReplicant ? " ** REQUIRES selectedReplicant **" : "";
+        lines.push(`    - ${preset.id}: ${preset.label.en} (${dateFormat})${filterNote}${replicantNote}`);
       }
     }
+
     lines.push("");
   }
 
   return lines.join("\n");
-}
-
-function appendVizPresetLines(lines: string[], metricId: string, indent: string): void {
-  const staticData = getMetricStaticData(metricId);
-  if (!staticData.vizPresets || staticData.vizPresets.length === 0) return;
-  lines.push(`${indent}Visualization presets (use vizPresetId with from_metric):`);
-  for (const preset of staticData.vizPresets) {
-    const replicantNote = preset.needsReplicant ? " [requires selectedReplicant]" : "";
-    const dateFormat = preset.config.d.periodOpt === "year"
-      ? "YYYY (e.g., 2023)"
-      : preset.config.d.periodOpt === "quarter_id"
-        ? "YYYYQQ (e.g., 202301 for Q1 2023)"
-        : "YYYYMM (e.g., 202301 for Jan 2023)";
-    lines.push(`${indent}  - ${preset.id}: ${preset.label.en} — ${preset.description.en}${replicantNote}`);
-    if (preset.allowedFilters && preset.allowedFilters.length > 0) {
-      lines.push(`${indent}      Filterable by: ${preset.allowedFilters.join(", ")}`);
-    }
-    lines.push(`${indent}      Date format: ${dateFormat}`);
-  }
 }
 
 function getAIStr(val: string | { en: string; fr?: string }): string {

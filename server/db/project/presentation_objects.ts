@@ -114,6 +114,23 @@ VALUES
   });
 }
 
+function configToSummary(row: DBPresentationObject, config: PresentationObjectConfig): PresentationObjectSummary {
+  return {
+    id: row.id,
+    metricId: row.metric_id,
+    label: row.label,
+    isDefault: row.is_default_visualization,
+    replicateBy: getReplicateByProp(config),
+    isFiltered: config.d.filterBy.length > 0 || !!config.d.periodFilter,
+    type: config.d.type,
+    disaggregateBy: config.d.disaggregateBy.map(d => d.disOpt),
+    filterBy: config.d.filterBy.map(f => ({ col: f.disOpt, vals: f.values })),
+    createdByAI: row.created_by_ai,
+    folderId: row.folder_id,
+    sortOrder: row.sort_order,
+  };
+}
+
 export async function getAllPresentationObjectsForModule(
   projectDb: Sql,
   moduleId: string,
@@ -129,17 +146,7 @@ ORDER BY po.sort_order, LOWER(po.label)
 `;
     const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
       const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
-      return {
-        id: row.id,
-        metricId: row.metric_id,
-        label: row.label,
-        isDefault: row.is_default_visualization,
-        replicateBy: getReplicateByProp(config),
-        isFiltered: config.d.filterBy.length > 0 || !!config.d.periodFilter,
-        createdByAI: row.created_by_ai,
-        folderId: row.folder_id,
-        sortOrder: row.sort_order,
-      };
+      return configToSummary(row, config);
     });
     return { success: true, data: presentationObjects };
   });
@@ -156,17 +163,7 @@ ORDER BY po.is_default_visualization DESC, po.sort_order, LOWER(po.label)
 `;
     const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
       const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
-      return {
-        id: row.id,
-        metricId: row.metric_id,
-        label: row.label,
-        isDefault: row.is_default_visualization,
-        replicateBy: getReplicateByProp(config),
-        isFiltered: config.d.filterBy.length > 0 || !!config.d.periodFilter,
-        createdByAI: row.created_by_ai,
-        folderId: row.folder_id,
-        sortOrder: row.sort_order,
-      };
+      return configToSummary(row, config);
     });
     return { success: true, data: presentationObjects };
   });

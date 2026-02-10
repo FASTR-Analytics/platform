@@ -1,26 +1,50 @@
 import {
   type AiMetricQuery,
+  type MetricAIDescription,
   type PresentationObjectConfig,
+  type TranslatableString,
   DisaggregationOption,
   GenericLongFormFetchConfig,
   getMetricStaticData,
   ItemsHolderPresentationObject,
   PeriodOption,
 } from "lib";
+import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/utils/request_queue";
 
+export function inferPeriodFilter(
+  startDate: number | undefined,
+  endDate: number | undefined,
+  disaggregations?: string[],
+): { periodOption: PeriodOption; min: number; max: number } | undefined {
+  if (startDate == null || endDate == null) return undefined;
+  const timeDis = disaggregations?.find(
+    (d) => d === "period_id" || d === "quarter_id" || d === "year",
+  );
+  if (timeDis) {
+    return { periodOption: timeDis as PeriodOption, min: startDate, max: endDate };
+  }
+  const digits = String(startDate).length;
+  if (digits <= 4) {
+    return { periodOption: "year", min: startDate, max: endDate };
+  }
+  return { periodOption: "period_id", min: startDate, max: endDate };
+}
+
 export async function getMetricDataForAI(
   projectId: string,
   query: AiMetricQuery,
+  valuesFilter?: string[],
+  aiDescription?: MetricAIDescription,
 ): Promise<string> {
   const {
     metricId,
     disaggregations: inputDisaggregations,
     filters: inputFilters,
-    periodFilter,
-    valuesFilter,
+    startDate,
+    endDate,
   } = query;
   const disaggregations = (inputDisaggregations ??
     []) as DisaggregationOption[];
@@ -28,9 +52,22 @@ export async function getMetricDataForAI(
     col: DisaggregationOption;
     vals: string[];
   }[];
+  let periodFilter = inferPeriodFilter(startDate, endDate, inputDisaggregations);
 
   // Get static metric data from build-time map
   const staticData = getMetricStaticData(metricId);
+
+  // Convert period filter to a format the metric supports
+  if (periodFilter && staticData.periodOptions.length > 0) {
+    if (!staticData.periodOptions.includes(periodFilter.periodOption)) {
+      const targetOption = staticData.periodOptions[0];
+      periodFilter = {
+        periodOption: targetOption,
+        min: convertPeriodValue(periodFilter.min, targetOption, false),
+        max: convertPeriodValue(periodFilter.max, targetOption, true),
+      };
+    }
+  }
 
   // Auto-merge required disaggregations (AI doesn't need to specify them)
   const allDisaggregations = [
@@ -51,38 +88,23 @@ export async function getMetricDataForAI(
   const fetchConfig: GenericLongFormFetchConfig =
     staticData.postAggregationExpression
       ? {
-          // Use ingredientValues when there's a post-aggregation expression
-          // Note: post-aggregation expressions require all ingredient values, so ignore valuesFilter
           values: staticData.postAggregationExpression.ingredientValues,
           groupBys: uniqueDisaggregations,
           filters: filters,
-          periodFilter: periodFilter
-            ? {
-                periodOption: periodFilter.periodOption,
-                min: periodFilter.min,
-                max: periodFilter.max,
-              }
-            : undefined,
+          periodFilter,
           postAggregationExpression:
             staticData.postAggregationExpression.expression,
           includeNationalForAdminArea2: false,
           includeNationalPosition: undefined,
         }
       : {
-          // Standard query for simple metrics - apply valuesFilter here
           values: valuePropsToFetch.map((prop) => ({
             prop,
             func: staticData.valueFunc,
           })),
           groupBys: uniqueDisaggregations,
           filters: filters,
-          periodFilter: periodFilter
-            ? {
-                periodOption: periodFilter.periodOption,
-                min: periodFilter.min,
-                max: periodFilter.max,
-              }
-            : undefined,
+          periodFilter,
           postAggregationExpression: undefined,
           includeNationalForAdminArea2: false,
           includeNationalPosition: undefined,
@@ -135,7 +157,13 @@ export async function getMetricDataForAI(
     disaggregations,
     filters,
     periodFilter,
+    aiDescription,
   );
+}
+
+function toStr(val: TranslatableString): string {
+  if (typeof val === "string") return val;
+  return val.en;
 }
 
 function formatItemsAsMarkdown(
@@ -144,6 +172,7 @@ function formatItemsAsMarkdown(
   disaggregations: DisaggregationOption[],
   filters?: { col: DisaggregationOption; vals: string[] }[],
   periodFilter?: { periodOption: PeriodOption; min: number; max: number },
+  aiDescription?: MetricAIDescription,
 ): string {
   const lines: string[] = [];
   const staticData = getMetricStaticData(metricId);
@@ -163,6 +192,25 @@ function formatItemsAsMarkdown(
     for (const prop of staticData.valueProps) {
       const propLabel = staticData.valueLabelReplacements?.[prop] || prop;
       lines.push(`  - ${prop}: ${propLabel}`);
+    }
+  }
+
+  if (aiDescription) {
+    lines.push("");
+    if (aiDescription.methodology) {
+      lines.push(`**Methodology:** ${toStr(aiDescription.methodology)}`);
+    }
+    if (aiDescription.interpretation) {
+      lines.push(`**Interpretation:** ${toStr(aiDescription.interpretation)}`);
+    }
+    if (aiDescription.typicalRange) {
+      lines.push(`**Typical range:** ${toStr(aiDescription.typicalRange)}`);
+    }
+    if (aiDescription.caveats) {
+      lines.push(`**Caveats:** ${toStr(aiDescription.caveats)}`);
+    }
+    if (aiDescription.disaggregationGuidance) {
+      lines.push(`**Disaggregation guidance:** ${toStr(aiDescription.disaggregationGuidance)}`);
     }
   }
 
@@ -275,7 +323,7 @@ function formatItemsAsMarkdown(
   lines.push("**Notes:**");
   lines.push(`- Use get_available_metrics to see available vizPresetId values for metric "${metricId}"`);
   lines.push("- filterOverrides and startDate/endDate are optional");
-  lines.push("- Date format depends on the preset (YYYY, YYYYQQ, or YYYYMM — shown in preset listing)");
+  lines.push("- Date format depends on the preset (YYYY or YYYYMM — shown in preset listing)");
   lines.push("- Only filter on dimensions listed in the preset's allowedFilters");
   lines.push("");
 
@@ -478,6 +526,7 @@ export async function getDataFromConfig(
   projectId: string,
   metricId: string,
   config: PresentationObjectConfig,
+  aiDescription?: MetricAIDescription,
 ): Promise<string> {
   const disaggregations = config.d.disaggregateBy.map((d) => d.disOpt);
   if (config.d.type === "timeseries") {
@@ -489,20 +538,12 @@ export async function getDataFromConfig(
     vals: f.values,
   }));
 
-  const periodFilter = config.d.periodFilter
-    ? {
-        periodOption: config.d.periodFilter.periodOption,
-        min: config.d.periodFilter.min,
-        max: config.d.periodFilter.max,
-      }
-    : undefined;
-
-  const query = {
+  const query: AiMetricQuery = {
     metricId,
     disaggregations,
     filters,
-    periodFilter,
-    valuesFilter: config.d.valuesFilter,
+    startDate: config.d.periodFilter?.min,
+    endDate: config.d.periodFilter?.max,
   };
-  return await getMetricDataForAI(projectId, query);
+  return await getMetricDataForAI(projectId, query, config.d.valuesFilter, aiDescription);
 }

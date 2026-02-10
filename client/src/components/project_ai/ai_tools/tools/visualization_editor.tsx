@@ -1,4 +1,4 @@
-import { DisaggregationOption } from "lib";
+import { DisaggregationOption, type MetricWithStatus } from "lib";
 import { createAITool } from "panther";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
@@ -7,6 +7,7 @@ import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
 export function getToolsForVizEditor(
   projectId: string,
   getAIContext: () => AIContext,
+  metrics: MetricWithStatus[],
 ) {
   return [
     createAITool({
@@ -23,7 +24,8 @@ export function getToolsForVizEditor(
         const resultsValue = ctx.resultsValue;
         const presentationObjectId = ctx.vizId;
 
-        const dataOutput = await getDataFromConfig(projectId, resultsValue.id, config);
+        const metric = metrics.find(m => m.id === resultsValue.id);
+        const dataOutput = await getDataFromConfig(projectId, resultsValue.id, config, metric?.aiDescription);
 
         const lines: string[] = [];
 

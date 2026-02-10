@@ -19,6 +19,7 @@ import {
   type HfaIndicator,
   type MetricStatus,
   type MetricWithStatus,
+  METRIC_STATIC_DATA,
   type ModuleConfigSelections,
   type ModuleDetailForRunningScript,
   type ModuleId,
@@ -854,9 +855,12 @@ export async function getMetricsWithStatus(
       SELECT * FROM metrics ORDER BY label
     `;
 
-    // Enrich each metric and determine status
+    // Enrich each metric and determine status, skipping hidden metrics
     const metrics: MetricWithStatus[] = [];
     for (const dbMetric of rawMetrics) {
+      const staticData = METRIC_STATIC_DATA[dbMetric.id];
+      if (staticData?.hide) continue;
+
       const enrichedMetric = await enrichMetric(
         dbMetric,
         projectDb,

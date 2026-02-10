@@ -14,7 +14,7 @@ export function getToolsForMethodologyDocs() {
         const url = `${GITHUB_API_BASE}/index.md`;
         const response = await fetch(url);
         if (!response.ok) {
-          throw new Error(`GitHub API error: ${response.statusText}`);
+          throw new Error(`GitHub API error (${response.status}): ${response.statusText || "Failed to fetch methodology index"}`);
         }
         const fileData = (await response.json()) as {
           content: string;
@@ -42,10 +42,16 @@ export function getToolsForMethodologyDocs() {
         fileName: z.string().describe("Name of the markdown file to read (e.g., 'introduction.md' or 'fr/introduction.md')"),
       }),
       handler: async (input) => {
+        if (input.fileName.includes("..")) {
+          throw new Error(`Invalid file name: "${input.fileName}". Path traversal is not allowed.`);
+        }
         const url = `${GITHUB_API_BASE}/${input.fileName}`;
         const response = await fetch(url);
         if (!response.ok) {
-          throw new Error(`GitHub API error: ${response.statusText}`);
+          if (response.status === 404) {
+            throw new Error(`File "${input.fileName}" not found. Use get_methodology_docs_list to see available files.`);
+          }
+          throw new Error(`GitHub API error (${response.status}): ${response.statusText || "Unknown error"}`);
         }
         const fileData = (await response.json()) as {
           content: string;

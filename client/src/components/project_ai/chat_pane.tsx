@@ -20,6 +20,8 @@ import { useAIProjectContext } from "./context";
 import { setShowAi } from "~/state/ui";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
 import { usePromptLibrary } from "./ai_prompt_library";
+import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
+import { useProjectDetail } from "~/components/project_runner/mod";
 
 type ConsolidatedChatPaneProps = {
   aiDocs: ReturnType<typeof useAIDocuments>;
@@ -27,8 +29,8 @@ type ConsolidatedChatPaneProps = {
 };
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
-  const { aiContext } =
-    useAIProjectContext();
+  const { aiContext } = useAIProjectContext();
+  const projectDetail = useProjectDetail();
   const { updateConfig, getConfig, conversationId, isLoading, sendMessage } =
     createAIChat();
   const conversations = useConversations();
@@ -135,6 +137,18 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         openComponent<AIChatSystemPromptPanelProps, void>({
           element: AIChatSystemPromptPanel,
           props: { systemPrompt: p.getSystemPrompt() },
+        }),
+    },
+    {
+      label: "View AI tool output",
+      icon: "search",
+      onClick: () =>
+        openComponent<AIDebugPanelProps, void>({
+          element: AIDebugPanel,
+          props: {
+            metrics: projectDetail.metrics,
+            visualizations: projectDetail.visualizations,
+          },
         }),
     },
     {

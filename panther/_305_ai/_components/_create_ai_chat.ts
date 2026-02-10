@@ -210,7 +210,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   };
 
   const processMessageForDisplay = (message: MessageParam) => {
-    const items = getDisplayItemsFromMessage(message, toolRegistry);
+    const items = getDisplayItemsFromMessage(message);
     addDisplayItems(items);
   };
 
@@ -407,6 +407,18 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           allResults.push(...results);
           allErrorItems.push(...errorItems);
           allSuccessItems.push(...successItems);
+
+          // Add display component for successful tools
+          if (errorItems.length === 0) {
+            const metadata = toolRegistry.getMetadata(block.name);
+            if (metadata?.displayComponent) {
+              addDisplayItems([{
+                type: "tool_display",
+                toolName: block.name,
+                input: block.input,
+              }]);
+            }
+          }
         }
       }
 

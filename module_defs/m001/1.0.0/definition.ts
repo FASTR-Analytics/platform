@@ -126,6 +126,7 @@ export const definition = {
   /////////////////////////////////////////////////////////////////////////
   metrics: [{
     id: "m1-01-00",
+    hide: true,
     resultsObjectId: "M1_output_outliers.csv",
 
     valueProps: ["facility_id"],
@@ -617,6 +618,7 @@ export const definition = {
     }],
   }, {
     id: "m1-05-01",
+    hide: true,
     resultsObjectId: "M1_output_outlier_list.csv",
 
     valueProps: ["count"],

@@ -211,6 +211,7 @@ export type MetricDefinition = {
   resultsObjectId: string;
   aiDescription?: MetricAIDescription;
   vizPresets?: VizPreset[];
+  hide?: boolean;
 };
 
 // Alias for backwards compatibility

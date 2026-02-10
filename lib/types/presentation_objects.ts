@@ -61,6 +61,9 @@ export type PresentationObjectSummary = {
   isDefault: boolean;
   replicateBy: DisaggregationOption | undefined;
   isFiltered: boolean;
+  type: PresentationOption;
+  disaggregateBy: DisaggregationOption[];
+  filterBy: { col: DisaggregationOption; vals: string[] }[];
   createdByAI: boolean;
   folderId: string | null;
   sortOrder: number;

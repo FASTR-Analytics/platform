@@ -16,7 +16,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
     //////////////
     "id": "15ca88bd-6183-4e71-bb26-3277dd8eb02f",
     "label":
-      "Default 1. Coverage estimated with different denominators (National)",
+      "Coverage estimated with different denominators (National)",
     "metricId": "m4a-02-01",
     "config": {
       "d": {
@@ -89,7 +89,7 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
   ////////////////
   {
     "id": "1f8d2940-803c-43f0-b17b-278b271d34a7",
-    "label": "Default 2. Denominator values (National)",
+    "label": "Denominator values (National)",
     "metricId": "m4a-01-01",
     "config": {
       "d": {
