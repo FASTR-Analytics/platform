@@ -277,6 +277,7 @@ export type ProjectUser = {
   can_view_data: boolean;
   can_view_logs: boolean;
   isGlobalAdmin: boolean;
+  hasProjectAccess: boolean;
 };
 
 // ============================================================================

@@ -31,7 +31,7 @@ import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
 import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
 import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
-import { useProjectDetail } from "~/components/project_runner/mod";
+import { useProjectDetail, useRefetchProjectDetail } from "~/components/project_runner/mod";
 
 // Backup types
 interface BackupFileInfo {
@@ -71,6 +71,7 @@ type Props = {
 
 export function ProjectSettings(p: Props) {
   const projectDetail = useProjectDetail();
+  const refetchProjectDetail = useRefetchProjectDetail();
   // Actions
 
   async function attemptCopyProject() {
@@ -128,6 +129,7 @@ export function ProjectSettings(p: Props) {
         projectId: projectDetail.id,
         projectLabel: projectDetail.label,
         users,
+        silentFetch: refetchProjectDetail,
       },
     });
   }
@@ -297,6 +299,33 @@ export function ProjectSettings(p: Props) {
   );
 }
 
+const permissionLabels: { key: keyof ProjectUser; label: string }[] = [
+  { key: "can_view_reports", label: "View reports" },
+  { key: "can_view_visualizations", label: "View visualizations" },
+  { key: "can_view_slide_decks", label: "View slide decks" },
+  { key: "can_view_data", label: "View data" },
+  { key: "can_view_logs", label: "View logs" },
+  { key: "can_configure_settings", label: "Configure settings" },
+  { key: "can_configure_modules", label: "Configure modules" },
+  { key: "can_run_modules", label: "Run modules" },
+  { key: "can_configure_users", label: "Configure users" },
+  { key: "can_configure_visualizations", label: "Configure visualizations" },
+  { key: "can_configure_reports", label: "Configure reports" },
+  { key: "can_configure_slide_decks", label: "Configure slide decks" },
+  { key: "can_configure_data", label: "Configure data" },
+  { key: "can_create_backups", label: "Create backups" },
+  { key: "can_restore_backups", label: "Restore backups" },
+];
+
+function getPermissionSummary(user: ProjectUser): string {
+  if (user.hasProjectAccess === false) return "Does not have access";
+  const active = permissionLabels.filter((p) => user[p.key]);
+  if (active.length === 0) return "No permissions";
+  const shown = active.slice(0, 5).map((p) => p.label).join(", ");
+  if (active.length > 5) return `${shown}, +${active.length - 5} more`;
+  return shown;
+}
+
 function ProjectUserTable(p: {
   users: ProjectUser[];
   onUserClick?: (users: ProjectUser[]) => void;
@@ -317,10 +346,14 @@ function ProjectUserTable(p: {
           when={user.isGlobalAdmin}
           fallback={
             <span
-              class="text-primary cursor-pointer hover:underline"
-              onClick={() => p.onDisplayUserRole?.(user)}
+              class={`text-sm ${getPermissionSummary(user) === "Does not have access" ? "text-neutral" : "text-primary cursor-pointer hover:underline"}`}
+              onClick={() => {
+                if (getPermissionSummary(user) !== "Does not have access") {
+                  p.onDisplayUserRole?.(user);
+                }
+              }}
             >
-              See Permissions
+              {getPermissionSummary(user)}
             </span>
           }
         >
