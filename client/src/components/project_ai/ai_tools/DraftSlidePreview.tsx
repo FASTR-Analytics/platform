@@ -99,8 +99,8 @@ export function DraftSlidePreview(p: Props) {
         onAddToDeck: handleAddToDeck,
         addToDeckLabel:
           aiContext().mode === "editing_slide_deck"
-            ? t3({ en: "Add to this deck", fr: "Ajouter à cette présentation" })
-            : t3({ en: "Add to slide deck", fr: "Ajouter à une présentation" }),
+            ? t3({ en: "Add to this deck", fr: "Ajouter au deck" })
+            : t3({ en: "Add to slide deck", fr: "Ajouter à un deck" }),
       },
     });
   }
@@ -148,8 +148,8 @@ export function DraftSlidePreview(p: Props) {
           />
           <Button size="sm" outline onClick={handleAddToDeck}>
             {aiContext().mode === "editing_slide_deck"
-              ? t3({ en: "Add to this deck", fr: "Ajouter à cette présentation" })
-              : t3({ en: "Add to slide deck", fr: "Ajouter à une présentation" })}
+              ? t3({ en: "Add to this deck", fr: "Ajouter au deck" })
+              : t3({ en: "Add to slide deck", fr: "Ajouter à un deck" })}
           </Button>
         </div>
       </div>

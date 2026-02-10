@@ -549,7 +549,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                         onClick={saveAsNewVisualization}
                         iconName="save"
                       >
-                        {t3({ en: "Save as new visualization", fr: "Enregistrer comme nouvelle visualisation" })}
+                        {t3({ en: "Save as new visualization", fr: "Sauver comme nouvelle viz." })}
                       </Button>
                     </Match>
                     <Match when={true}>
