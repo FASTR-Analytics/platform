@@ -1,83 +1,83 @@
-import {
-  createSignal,
-  createMemo,
-  Show,
-  For,
-  onMount,
-  type Component,
-} from "solid-js";
+import { createSignal, createMemo, Show, For, onMount } from "solid-js";
 import {
   AlertComponentProps,
   Button,
+  CollapsibleSection,
   Input,
   Loading,
   ModalContainer,
   TextArea,
 } from "panther";
 import { t } from "lib";
-import type { PromptCategory, FlattenedPrompt } from "./types";
-import { parsePromptsMarkdown, flattenPrompts } from "./parse_prompts";
+import type {
+  PromptCategory,
+  PromptItem,
+  FlattenedPrompt,
+  ParseResult,
+} from "./types";
+import { parsePromptsMarkdown } from "./parse_prompts";
 
 type Props = {};
 
 export type PromptLibraryResult =
   | {
-    action: "run_current" | "run_new";
-    promptText: string;
-  }
+      action: "run_current" | "run_new";
+      promptText: string;
+    }
   | undefined;
 
 export function PromptLibraryModal(
-  p: AlertComponentProps<Props, PromptLibraryResult>
+  p: AlertComponentProps<Props, PromptLibraryResult>,
 ) {
   const [isLoading, setIsLoading] = createSignal(true);
-  const [categories, setCategories] = createSignal<PromptCategory[]>([]);
+  const [parseResult, setParseResult] = createSignal<ParseResult>({
+    categories: [],
+    status: "error",
+    message: "Loading...",
+  });
   const [searchText, setSearchText] = createSignal("");
-  const [selectedPrompt, setSelectedPrompt] = createSignal<FlattenedPrompt | null>(null);
+  const [selectedPrompt, setSelectedPrompt] =
+    createSignal<FlattenedPrompt | null>(null);
   const [editedContent, setEditedContent] = createSignal("");
 
-  const allPrompts = createMemo(() => flattenPrompts(categories()));
-
-  const filteredPrompts = createMemo(() => {
+  const filteredCategories = createMemo(() => {
     const search = searchText().toLowerCase().trim();
-    if (!search) return allPrompts();
-    return allPrompts().filter(
-      (p) =>
-        p.title.toLowerCase().includes(search) ||
-        p.content.toLowerCase().includes(search) ||
-        p.category.toLowerCase().includes(search) ||
-        p.subcategory.toLowerCase().includes(search)
-    );
-  });
-
-  const groupedPrompts = createMemo(() => {
-    const groups = new Map<string, FlattenedPrompt[]>();
-    for (const prompt of filteredPrompts()) {
-      const key = `${prompt.category} > ${prompt.subcategory}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(prompt);
-    }
-    return groups;
+    const cats = parseResult().categories;
+    if (!search) return cats;
+    return cats
+      .map((cat) => ({
+        ...cat,
+        prompts: cat.prompts.filter(
+          (pr) =>
+            pr.title.toLowerCase().includes(search) ||
+            pr.content.toLowerCase().includes(search) ||
+            cat.title.toLowerCase().includes(search),
+        ),
+      }))
+      .filter((cat) => cat.prompts.length > 0);
   });
 
   onMount(async () => {
     try {
       const url = `https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main/prompts.md?t=${Date.now()}`;
-      const response = await fetch(url, {
-        cache: "no-store"
-      });
+      const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) throw new Error("Failed to load prompts");
       const markdown = await response.text();
-      setCategories(parsePromptsMarkdown(markdown));
+      setParseResult(parsePromptsMarkdown(markdown));
     } catch (err) {
       console.error("Failed to load prompt library:", err);
+      setParseResult({
+        categories: [],
+        status: "error",
+        message: "Failed to load prompt library",
+      });
     } finally {
       setIsLoading(false);
     }
   });
 
-  const handleSelectPrompt = (prompt: FlattenedPrompt) => {
-    setSelectedPrompt(prompt);
+  const handleSelectPrompt = (prompt: PromptItem, category: string) => {
+    setSelectedPrompt({ ...prompt, category });
     setEditedContent(prompt.content);
   };
 
@@ -96,8 +96,8 @@ export function PromptLibraryModal(
 
   return (
     <ModalContainer
-      title={selectedPrompt() ? t("Edit Prompt") : t("Prompt Library")}
-      width="lg"
+      title={selectedPrompt() ? t("Edit prompt") : t("Prompt library")}
+      width="xl"
       scroll="content"
       rightButtons={
         !isLoading() && !selectedPrompt()
@@ -111,7 +111,7 @@ export function PromptLibraryModal(
       }
     >
       <Show when={isLoading()}>
-        <div class="">
+        <div>
           <Loading msg={t("Loading prompts...")} noPad />
         </div>
       </Show>
@@ -123,7 +123,8 @@ export function PromptLibraryModal(
             <BrowsePhase
               searchText={searchText()}
               onSearchChange={setSearchText}
-              groupedPrompts={groupedPrompts()}
+              filteredCategories={filteredCategories()}
+              parseResult={parseResult()}
               onSelectPrompt={handleSelectPrompt}
             />
           }
@@ -148,11 +149,14 @@ export function PromptLibraryModal(
 type BrowsePhaseProps = {
   searchText: string;
   onSearchChange: (v: string) => void;
-  groupedPrompts: Map<string, FlattenedPrompt[]>;
-  onSelectPrompt: (prompt: FlattenedPrompt) => void;
+  filteredCategories: PromptCategory[];
+  parseResult: ParseResult;
+  onSelectPrompt: (prompt: PromptItem, category: string) => void;
 };
 
-const BrowsePhase: Component<BrowsePhaseProps> = (p) => {
+function BrowsePhase(p: BrowsePhaseProps) {
+  const isSearching = () => p.searchText.trim().length > 0;
+
   return (
     <>
       <Input
@@ -162,43 +166,68 @@ const BrowsePhase: Component<BrowsePhaseProps> = (p) => {
         autoFocus
         fullWidth
       />
-      <div class="mt-3 flex-1 overflow-y-auto max-h-[50vh]">
+      <div
+        class="mt-1 text-xs"
+        classList={{
+          "text-success": p.parseResult.status === "ok",
+          "text-danger":
+            p.parseResult.status === "warning" ||
+            p.parseResult.status === "error",
+        }}
+      >
+        {p.parseResult.message}
+      </div>
+      <div class="mt-3 flex-1 overflow-y-auto">
         <Show
-          when={p.groupedPrompts.size > 0}
+          when={p.filteredCategories.length > 0}
           fallback={
-            <div class="text-base-content/60 text-center py-8">
+            <div class="text-base-content/60 py-8 text-center">
               {t("No prompts found matching your search.")}
             </div>
           }
         >
-          <For each={[...p.groupedPrompts.entries()]}>
-            {([groupName, prompts]) => (
-              <div class="mb-4">
-                <div class="text-xs font-600 text-base-content/60 uppercase tracking-wide mb-2">
-                  {groupName}
-                </div>
-                <For each={prompts}>
-                  {(prompt) => (
-                    <button
-                      type="button"
-                      class="w-full text-left px-3 py-2 rounded hover:bg-base-200 cursor-pointer block"
-                      onClick={() => p.onSelectPrompt(prompt)}
-                    >
-                      <div class="font-500">{prompt.title}</div>
-                      <div class="text-sm text-base-content/60 truncate">
-                        {prompt.content.slice(0, 100)}...
-                      </div>
-                    </button>
-                  )}
-                </For>
-              </div>
-            )}
-          </For>
+          <div class="flex flex-col gap-2">
+            <For each={p.filteredCategories}>
+              {(cat) => (
+                <CollapsibleSection
+                  title={
+                    <div class="flex items-center gap-2">
+                      <span>{cat.title}</span>
+                      <span class="text-base-content/50 text-xs">
+                        ({cat.prompts.length})
+                      </span>
+                    </div>
+                  }
+                  defaultOpen={isSearching()}
+                  borderStyle="full"
+                  rounded
+                  padding="sm"
+                >
+                  <div>
+                    <For each={cat.prompts}>
+                      {(prompt) => (
+                        <button
+                          type="button"
+                          class="hover:bg-base-200 block w-full cursor-pointer px-3 py-2 text-left"
+                          onClick={() => p.onSelectPrompt(prompt, cat.title)}
+                        >
+                          <div class="font-700">{prompt.title}</div>
+                          <div class="text-base-content/60 truncate text-sm">
+                            {prompt.content.slice(0, 120)}...
+                          </div>
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </CollapsibleSection>
+              )}
+            </For>
+          </div>
         </Show>
       </div>
     </>
   );
-};
+}
 
 type EditPhaseProps = {
   prompt: FlattenedPrompt;
@@ -210,33 +239,31 @@ type EditPhaseProps = {
   onCancel: () => void;
 };
 
-const EditPhase: Component<EditPhaseProps> = (p) => {
+function EditPhase(p: EditPhaseProps) {
   return (
-    <div class="flex flex-col flex-1">
-      <div class="flex items-center gap-2 mb-3">
-        <Button size="sm" outline iconName="chevronLeft" onClick={p.onBack}>
-          {t("Back")}
-        </Button>
-        <div class="text-sm text-base-content/60">{p.prompt.categoryPath}</div>
-      </div>
-      <div class="font-600 mb-2">{p.prompt.title}</div>
+    <div class="flex flex-1 flex-col">
+      <div class="font-700 mb-2">{p.prompt.title}</div>
       <TextArea
         value={p.editedContent}
         onChange={p.onContentChange}
         fullWidth
         height="300px"
       />
-      <div class="mt-4 flex gap-2 justify-end">
-        <Button onClick={p.onCancel} intent="neutral">
-          {t("Cancel")}
+      <div class="mt-4 flex gap-2">
+        <Button outline iconName="chevronLeft" onClick={p.onBack}>
+          {t("Back")}
         </Button>
+        <div class="flex-1"></div>
         <Button onClick={p.onRunCurrent} intent="primary">
-          {t("Run in Current Chat")}
+          {t("Run in current chat")}
         </Button>
         <Button onClick={p.onRunNew} intent="success">
-          {t("Run as New Chat")}
+          {t("Run as new chat")}
+        </Button>
+        <Button onClick={p.onCancel} intent="neutral">
+          {t("Cancel")}
         </Button>
       </div>
     </div>
   );
-};
+}

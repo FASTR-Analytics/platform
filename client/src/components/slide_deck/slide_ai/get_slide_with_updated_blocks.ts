@@ -13,6 +13,17 @@ export async function getSlideWithUpdatedBlocks(
     throw new Error("Can only update blocks on content slides");
   }
 
+  // Validate block IDs exist in layout
+  function collectItemIds(node: LayoutNode<ContentBlock>): string[] {
+    if (node.type === "item") return [node.id];
+    return node.children.flatMap(collectItemIds);
+  }
+  const layoutIds = collectItemIds(currentSlide.layout);
+  const unknownIds = updates.filter(u => !layoutIds.includes(u.blockId)).map(u => u.blockId);
+  if (unknownIds.length > 0) {
+    throw new Error(`Block ID(s) not found in slide: ${unknownIds.join(", ")}. Available block IDs: ${layoutIds.join(", ")}. Use get_slide to see current block IDs.`);
+  }
+
   // Build update map with resolved content
   const updateMap = new Map<string, ContentBlock>();
 

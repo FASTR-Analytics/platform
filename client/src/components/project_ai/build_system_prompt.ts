@@ -326,7 +326,7 @@ You're editing: "${deckLabel}"
 **create_slide** - Create a new slide (cover/section/content)
 **replace_slide** - Replace an entire slide
 **update_slide_content** - Update specific blocks within a slide
-**update_slide_heading** - Update just the heading of a slide
+**update_slide_header** - Update just the header of a content slide
 **delete_slides** - Remove slides from the deck
 **duplicate_slides** - Copy existing slides
 **move_slides** - Reorder slides in the deck
@@ -343,11 +343,11 @@ ${getAllToolsList()}
 
 ## Content Blocks
 
-**Text (markdown):** { "type": "text", "text": "..." }
+**Text (markdown):** { "type": "text", "markdown": "..." }
 **From visualization:** { "type": "from_visualization", "visualizationId": "uuid" }
-**From metric:** { "type": "from_metric", "metricQuery": {...}, "chartType": "bar|line|table" }
+**From metric:** { "type": "from_metric", "metricId": "...", "vizPresetId": "...", "chartTitle": "..." }
 
-**IMPORTANT:** No markdown tables - use from_metric with chartType='table' instead.
+**IMPORTANT:** Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type visualization preset.
 
 ## Communication Style
 
@@ -396,7 +396,7 @@ ${getAllToolsList()}
 - Changes are previewed immediately but NOT saved automatically
 - The user must click Save to persist changes
 - For content slides, use block IDs from get_slide_editor to target specific blocks
-- IMPORTANT: Markdown tables are NOT allowed in text blocks - use from_metric with chartType='table' instead`;
+- IMPORTANT: Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type visualization preset.`;
 }
 
 function getEditingVisualizationInstructions(vizLabel: string): string {

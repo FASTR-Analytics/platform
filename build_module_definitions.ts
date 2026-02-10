@@ -4,12 +4,7 @@ import type {
   ModuleDefinitionJSON,
   ModuleId,
   ScriptSource,
-  PartialDefaultPresentationObjectJSON,
 } from "./lib/types/module_definitions.ts";
-import {
-  DEFAULT_S_CONFIG,
-  DEFAULT_T_CONFIG,
-} from "./lib/types/presentation_object_defaults.ts";
 
 function stripFrontmatter(script: string): string {
   const lines = script.split("\n");
@@ -385,7 +380,7 @@ export const METRIC_STATIC_DATA: Record<string, {
   requiredDisaggregationOptions: string[];
   periodOptions: PeriodOption[];
   postAggregationExpression?: any;
-  vizPresets?: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; needsReplicant?: boolean; allowedFilters?: string[]; config: { d: any; s?: any; t?: any } }[];
+  vizPresets?: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; needsReplicant?: boolean; allowedFilters?: string[]; createDefaultVisualizationOnInstall?: string; config: { d: any; s?: any; t?: any } }[];
   hide?: boolean;
 }> = {
 ${metricStaticDataCode},
@@ -619,71 +614,6 @@ async function buildModules() {
   console.log(`  - Generated: ${metadataPath}`);
 }
 
-function cleanPresentationObjectJSON(
-  obj: PartialDefaultPresentationObjectJSON,
-): PartialDefaultPresentationObjectJSON {
-  const cleaned: PartialDefaultPresentationObjectJSON = {
-    id: obj.id,
-    label: obj.label,
-    metricId: obj.metricId,
-    config: {
-      d: obj.config.d,
-    },
-  };
-
-  if (obj.config.s) {
-    const cleanedS: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj.config.s)) {
-      const defaultValue =
-        DEFAULT_S_CONFIG[key as keyof typeof DEFAULT_S_CONFIG];
-      if (JSON.stringify(value) !== JSON.stringify(defaultValue)) {
-        cleanedS[key] = value;
-      }
-    }
-    if (Object.keys(cleanedS).length > 0) {
-      cleaned.config.s = cleanedS as typeof obj.config.s;
-    }
-  }
-
-  if (obj.config.t) {
-    const cleanedT: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj.config.t)) {
-      const defaultValue =
-        DEFAULT_T_CONFIG[key as keyof typeof DEFAULT_T_CONFIG];
-      if (JSON.stringify(value) !== JSON.stringify(defaultValue)) {
-        cleanedT[key] = value;
-      }
-    }
-    if (Object.keys(cleanedT).length > 0) {
-      cleaned.config.t = cleanedT as typeof obj.config.t;
-    }
-  }
-
-  return cleaned;
-}
-
-async function cleanPresentationObjectFile(filePath: string) {
-  console.log(`\nCleaning presentation object JSON file: ${filePath}`);
-
-  const content = await Deno.readTextFile(filePath);
-  const obj = JSON.parse(content) as PartialDefaultPresentationObjectJSON;
-
-  const cleaned = cleanPresentationObjectJSON(obj);
-
-  await Deno.writeTextFile(filePath, JSON.stringify(cleaned, null, 2));
-  console.log(`✓ Cleaned and saved: ${filePath}`);
-}
-
 if (import.meta.main) {
-  const args = Deno.args;
-
-  if (args.length > 0 && args[0] === "clean") {
-    if (args.length < 2) {
-      console.error("Usage: deno task build:modules clean <path-to-json-file>");
-      Deno.exit(1);
-    }
-    await cleanPresentationObjectFile(args[1]);
-  } else {
-    await buildModules();
-  }
+  await buildModules();
 }

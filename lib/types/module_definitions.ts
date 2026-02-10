@@ -217,16 +217,26 @@ export type MetricDefinition = {
 // Alias for backwards compatibility
 export type TranslatableAIString = TranslatableString;
 
+export type VizPresetTextConfig = {
+  caption?: TranslatableString;
+  captionRelFontSize?: number;
+  subCaption?: TranslatableString;
+  subCaptionRelFontSize?: number;
+  footnote?: TranslatableString;
+  footnoteRelFontSize?: number;
+};
+
 export type VizPreset = {
   id: string;
   label: TranslatableString;
   description: TranslatableString;
   needsReplicant?: boolean;
   allowedFilters?: DisaggregationOption[];
+  createDefaultVisualizationOnInstall?: string;
   config: {
     d: PresentationObjectConfig["d"];
     s?: Partial<PresentationObjectConfig["s"]>;
-    t?: Partial<PresentationObjectConfig["t"]>;
+    t?: VizPresetTextConfig;
   };
 };
 
@@ -255,43 +265,12 @@ export function get_PERIOD_OPTION_MAP(): Record<PeriodOption, string> {
 //                                    //
 ////////////////////////////////////////
 
-// // Raw presentation object structure from JSON
-// export type RawDefaultPresentationObject = {
-//   id: string;
-//   label: string;
-//   resultsValue: { id: string; moduleId: string; resultsObjectId: string };
-//   config: {
-//     d: unknown;
-//     s: unknown;
-//     t: {
-//       caption: string;
-//       captionRelFontSize?: number;
-//       subCaption: string;
-//       subCaptionRelFontSize?: number;
-//       footnote: string;
-//       footnoteRelFontSize?: number;
-//     };
-//   };
-// };
-
 export type DefaultPresentationObject = {
   id: string;
   label: string;
   moduleId: string;
   metricId: string;
   config: PresentationObjectConfig;
-};
-
-export type PartialDefaultPresentationObject = {
-  id: string;
-  label: string;
-  moduleId: string;
-  metricId: string;
-  config: {
-    d: PresentationObjectConfig["d"];
-    s?: Partial<PresentationObjectConfig["s"]>;
-    t?: Partial<PresentationObjectConfig["t"]>;
-  };
 };
 
 ////////////////////////////////////////
@@ -309,12 +288,6 @@ export type ResultsValueDefinitionJSON = Omit<
 // JSON representation of results object - omits moduleId which can be inferred from parent
 export type ResultsObjectDefinitionJSON = Omit<ResultsObjectDefinition, "moduleId">;
 
-// JSON representation of presentation object - omits moduleId which can be inferred from parent
-export type PartialDefaultPresentationObjectJSON = Omit<
-  PartialDefaultPresentationObject,
-  "moduleId"
->;
-
 // JSON representation of module definition (stored in built files)
 // Script is stored separately and loaded at runtime
 // id and lastScriptUpdate are inferred/added during build
@@ -323,7 +296,6 @@ export type ModuleDefinitionJSON = Omit<
   "id" | "script" | "lastScriptUpdate" | "resultsObjects" | "defaultPresentationObjects" | "commitSha"
 > & {
   resultsObjects: ResultsObjectDefinitionJSON[];
-  defaultPresentationObjects: PartialDefaultPresentationObjectJSON[];
 };
 
 // Built JSON representation (after build process adds id and lastScriptUpdate)

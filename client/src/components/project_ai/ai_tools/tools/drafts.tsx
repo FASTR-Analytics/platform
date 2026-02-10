@@ -7,6 +7,7 @@ import {
   AiSectionSlideSchema,
   AiContentSlideSchema,
   getStartingConfigForSlideDeck,
+  MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
 } from "lib";
 import {
@@ -78,7 +79,7 @@ export function getToolsForDrafts(
     createAITool({
       name: "show_draft_slide_to_user",
       description:
-        "Show an ad-hoc slide preview to the user inline in the chat. Use this to propose slide content, display ideas, or when the user asks to see a slide mockup. The user can then add it to a slide deck.\n\nSupports three slide types:\n- 'cover': Title slide with optional title/subtitle/presenter/date\n- 'section': Section divider with title and optional subtitle\n- 'content': Content slide with optional header and blocks (text and/or figures)\n\nFor content blocks, use the same rules as create_slide: from_visualization for existing vizs, from_metric for new charts (call get_metric_data first), text for markdown (no markdown tables - use from_metric with chartType='table' instead). Max 6 content blocks.",
+        `Show an ad-hoc slide preview to the user inline in the chat. Use this to propose slide content, display ideas, or when the user asks to see a slide mockup. The user can then add it to a slide deck.\n\nSupports three slide types:\n- 'cover': Title slide with optional title/subtitle/presenter/date\n- 'section': Section divider with title and optional subtitle\n- 'content': Content slide with optional header and blocks (text and/or figures)\n\nFor content blocks, use the same rules as create_slide: from_visualization for existing vizs, from_metric for new charts (call get_metric_data first), text for markdown. IMPORTANT: Markdown tables are NOT allowed — to display tabular data, use a from_metric block with a table-type visualization preset. Max ${MAX_CONTENT_BLOCKS} content blocks.`,
       inputSchema: z.object({
         slide: z
           .union([AiCoverSlideSchema, AiSectionSlideSchema, AiContentSlideSchema])

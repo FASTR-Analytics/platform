@@ -84,7 +84,7 @@ export function getToolsForSlides(
     createAITool({
       name: "create_slide",
       description:
-        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures).\n\nFor content blocks, you have three figure source options:\n- from_visualization: Clone an existing saved visualization (created via Presentations section). Use 'replicant' to show different indicator variants from the same viz config (e.g., 'anc1', 'penta3').\n- from_metric: Create a new chart directly from metric data. IMPORTANT: Always call get_metric_data FIRST to see available disaggregations, filters, and time ranges before creating from_metric blocks. The output provides exact parameter guidance.\n- text: Markdown text content with autofit. IMPORTANT: Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
+        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures).\n\nFor content blocks, you have three figure source options:\n- from_visualization: Clone an existing saved visualization (created via Presentations section). If the source visualization uses replication (e.g., one chart per region or per indicator), specify which replicant value to show.\n- from_metric: Create a new chart directly from metric data. IMPORTANT: Always call get_metric_data FIRST to see available disaggregations, filters, and time ranges before creating from_metric blocks. The output provides exact parameter guidance.\n- text: Markdown text content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type visualization preset.",
       inputSchema: z.object({
         position: z
           .union([
@@ -106,6 +106,9 @@ export function getToolsForSlides(
         const ctx = requireDeckContext(getAIContext());
 
         if (input.slide.type === "content") {
+          if (input.slide.blocks.length === 0) {
+            throw new Error("Content slide must have at least 1 block.");
+          }
           validateMaxContentBlocks(input.slide.blocks.length);
 
           for (const block of input.slide.blocks) {
@@ -154,6 +157,9 @@ export function getToolsForSlides(
         const ctx = requireDeckContext(getAIContext());
 
         if (input.slide.type === "content") {
+          if (input.slide.blocks.length === 0) {
+            throw new Error("Content slide must have at least 1 block.");
+          }
           validateMaxContentBlocks(input.slide.blocks.length);
 
           for (const block of input.slide.blocks) {
@@ -284,6 +290,16 @@ export function getToolsForSlides(
       handler: async (input) => {
         const ctx = requireDeckContext(getAIContext());
 
+        if (input.slideIds.length === 0) {
+          throw new Error("No slide IDs provided. Specify at least one slide to delete.");
+        }
+
+        const deckSlideIds = ctx.getSlideIds();
+        const invalidIds = input.slideIds.filter(id => !deckSlideIds.includes(id));
+        if (invalidIds.length > 0) {
+          throw new Error(`Slide ID(s) not found in deck: ${invalidIds.join(", ")}. Use get_deck to see current slide IDs.`);
+        }
+
         const res = await serverActions.deleteSlides({
           projectId,
           deck_id: ctx.deckId,
@@ -316,6 +332,16 @@ export function getToolsForSlides(
       }),
       handler: async (input) => {
         const ctx = requireDeckContext(getAIContext());
+
+        if (input.slideIds.length === 0) {
+          throw new Error("No slide IDs provided. Specify at least one slide to duplicate.");
+        }
+
+        const deckSlideIds = ctx.getSlideIds();
+        const invalidIds = input.slideIds.filter(id => !deckSlideIds.includes(id));
+        if (invalidIds.length > 0) {
+          throw new Error(`Slide ID(s) not found in deck: ${invalidIds.join(", ")}. Use get_deck to see current slide IDs.`);
+        }
 
         const res = await serverActions.duplicateSlides({
           projectId,
@@ -356,6 +382,18 @@ export function getToolsForSlides(
       }),
       handler: async (input) => {
         const ctx = requireDeckContext(getAIContext());
+
+        if (input.slideIds.length === 0) {
+          throw new Error("No slide IDs provided. Specify at least one slide to move.");
+        }
+
+        const position = input.position;
+        if ("after" in position && input.slideIds.includes(position.after)) {
+          throw new Error(`Cannot move slide(s) relative to themselves. Slide "${position.after}" is in both the move set and target position.`);
+        }
+        if ("before" in position && input.slideIds.includes(position.before)) {
+          throw new Error(`Cannot move slide(s) relative to themselves. Slide "${position.before}" is in both the move set and target position.`);
+        }
 
         const res = await serverActions.moveSlides({
           projectId,

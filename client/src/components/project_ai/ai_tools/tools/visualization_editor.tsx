@@ -1,8 +1,23 @@
-import { DisaggregationOption, type MetricWithStatus } from "lib";
+import { DisaggregationOption, type MetricWithStatus, type PeriodOption } from "lib";
 import { createAITool } from "panther";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
+import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
+
+const VALID_TYPES = ["timeseries", "table", "chart"] as const;
+
+const VALID_DIS_DISPLAY: Record<string, string[]> = {
+  timeseries: ["series", "cell", "row", "col", "replicant"],
+  table: ["row", "col", "rowGroup", "colGroup", "replicant"],
+  chart: ["indicator", "series", "cell", "row", "col", "replicant"],
+};
+
+const VALID_VALUES_DISPLAY: Record<string, string[]> = {
+  timeseries: ["series", "cell", "row", "col"],
+  table: ["row", "col", "rowGroup", "colGroup"],
+  chart: ["indicator", "series", "cell", "row", "col"],
+};
 
 export function getToolsForVizEditor(
   projectId: string,
@@ -143,12 +158,12 @@ export function getToolsForVizEditor(
       description: "Update the visualization configuration. Only provide fields you want to change. Changes are LOCAL (preview only) until user clicks Save button. Use get_viz_editor to see current state and valid options.",
       inputSchema: z.object({
         type: z.enum(["timeseries", "table", "chart"]).optional().describe("Presentation type (d.type)"),
-        periodOpt: z.string().optional().describe("Period option from available period options (d.periodOpt) - e.g., 'year', 'quarter_id', 'period_id'. Get valid values from get_visualization."),
+        periodOpt: z.string().optional().describe("Period option from available period options (d.periodOpt) - e.g., 'year', 'quarter_id', 'period_id'. Get valid values from get_viz_editor."),
         valuesDisDisplayOpt: z.string().optional().describe("How to display values dimension (d.valuesDisDisplayOpt). Valid values depend on type: timeseries=(series|cell|row|col), table=(row|col|rowGroup|colGroup), chart=(indicator|series|cell|row|col)"),
         valuesFilter: z.union([
           z.array(z.string()),
           z.null()
-        ]).optional().describe("Which value properties to show (d.valuesFilter) from available value properties, or null to show all. Check get_visualization for available properties."),
+        ]).optional().describe("Which value properties to show (d.valuesFilter) from available value properties, or null to show all. Check get_viz_editor for available properties."),
         disaggregateBy: z.array(z.object({
           disOpt: z.string().describe("Dimension from available disaggregation dimensions (e.g., 'indicator_common_id', 'admin_area_2')"),
           disDisplayOpt: z.string().describe("Display mode - valid values depend on type: timeseries=(series|cell|row|col|replicant), table=(row|col|rowGroup|colGroup|replicant), chart=(indicator|series|cell|row|col|replicant)"),
@@ -180,9 +195,42 @@ export function getToolsForVizEditor(
           throw new Error("This tool is only available when editing a visualization");
         }
 
-        const tempConfig = ctx.getTempConfig();
+        const resultsValue = ctx.resultsValue;
         const setTempConfig = ctx.setTempConfig;
         const changes: string[] = [];
+
+        if (input.type && !(VALID_TYPES as readonly string[]).includes(input.type)) {
+          throw new Error(`Invalid type "${input.type}". Valid types: ${VALID_TYPES.join(", ")}`);
+        }
+        const effectiveType = input.type || ctx.getTempConfig().d.type;
+
+        if (input.periodOpt && !resultsValue.periodOptions.includes(input.periodOpt as any)) {
+          throw new Error(`Invalid periodOpt "${input.periodOpt}". Available: ${resultsValue.periodOptions.join(", ")}`);
+        }
+
+        if (input.valuesDisDisplayOpt) {
+          const valid = VALID_VALUES_DISPLAY[effectiveType];
+          if (valid && !valid.includes(input.valuesDisDisplayOpt)) {
+            throw new Error(`Invalid valuesDisDisplayOpt "${input.valuesDisDisplayOpt}" for type "${effectiveType}". Valid: ${valid.join(", ")}`);
+          }
+        }
+
+        if (input.disaggregateBy) {
+          const validDisplay = VALID_DIS_DISPLAY[effectiveType];
+          const availableDims = resultsValue.disaggregationOptions.map(o => o.value);
+          for (const d of input.disaggregateBy) {
+            if (!availableDims.includes(d.disOpt as any)) {
+              throw new Error(`Invalid disaggregation dimension "${d.disOpt}". Available: ${availableDims.join(", ")}`);
+            }
+            if (validDisplay && !validDisplay.includes(d.disDisplayOpt)) {
+              throw new Error(`Invalid disDisplayOpt "${d.disDisplayOpt}" for type "${effectiveType}". Valid: ${validDisplay.join(", ")}`);
+            }
+          }
+        }
+
+        if (input.includeNationalPosition && !["top", "bottom"].includes(input.includeNationalPosition)) {
+          throw new Error(`Invalid includeNationalPosition "${input.includeNationalPosition}". Valid: top, bottom`);
+        }
 
         if (input.type) {
           setTempConfig("d", "type", input.type);
@@ -225,12 +273,12 @@ export function getToolsForVizEditor(
             setTempConfig("d", "periodFilter", undefined);
             changes.push("periodFilter (cleared)");
           } else {
-            const periodOpt = input.periodOpt || tempConfig.d.periodOpt;
+            const periodOpt = (input.periodOpt || ctx.getTempConfig().d.periodOpt) as PeriodOption;
             setTempConfig("d", "periodFilter", {
               filterType: "custom",
-              periodOption: periodOpt as any,
-              min: input.periodFilter.min ?? 0,
-              max: input.periodFilter.max ?? 999999,
+              periodOption: periodOpt,
+              min: input.periodFilter.min != null ? convertPeriodValue(input.periodFilter.min, periodOpt, false) : 0,
+              max: input.periodFilter.max != null ? convertPeriodValue(input.periodFilter.max, periodOpt, true) : 999999,
             });
             changes.push("periodFilter");
           }

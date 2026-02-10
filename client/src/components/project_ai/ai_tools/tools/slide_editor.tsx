@@ -4,6 +4,7 @@ import { reconcile } from "solid-js/store";
 import { unwrap } from "solid-js/store";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
+import { validateNoMarkdownTables } from "../validators/content_validators";
 import { simplifySlideForAI } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
 import { getSlideWithUpdatedBlocks } from "~/components/slide_deck/slide_ai/get_slide_with_updated_blocks";
 
@@ -123,6 +124,11 @@ export function getToolsForSlideEditor(
             changes.push("header");
           }
           if (input.blockUpdates && input.blockUpdates.length > 0) {
+            for (const bu of input.blockUpdates) {
+              if (bu.newContent.type === "text") {
+                validateNoMarkdownTables(bu.newContent.markdown);
+              }
+            }
             updated = (await getSlideWithUpdatedBlocks(
               projectId,
               updated,

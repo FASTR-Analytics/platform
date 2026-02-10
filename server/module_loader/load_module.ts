@@ -8,44 +8,45 @@ import {
   type MetricDefinition,
   type ModuleDefinition,
   type ModuleId,
-  type PartialDefaultPresentationObject,
-  type PartialDefaultPresentationObjectJSON,
-  type PresentationObjectConfig,
   type ResultsObjectDefinition,
+  type TranslatableString,
 } from "lib";
 import { getTranslateFunc } from "./translation_utils.ts";
 
-function mergePartialPresentationObject(
-  partial: PartialDefaultPresentationObject
-): DefaultPresentationObject {
-  return {
-    ...partial,
-    config: {
-      d: partial.config.d,
-      s: { ...DEFAULT_S_CONFIG, ...partial.config.s },
-      t: { ...DEFAULT_T_CONFIG, ...partial.config.t },
-    },
-  };
+function resolveTS(ts: TranslatableString, lang: InstanceLanguage): string {
+  return lang === "fr" ? (ts.fr || ts.en) : ts.en;
 }
 
-function mergePartialPresentationObjects(
-  partials: PartialDefaultPresentationObject[]
+function deriveDefaultPresentationObjects(
+  metrics: MetricDefinition[],
+  moduleId: string,
+  language: InstanceLanguage,
 ): DefaultPresentationObject[] {
-  return partials.map(mergePartialPresentationObject);
-}
-
-function validatePresentationObjectMetricIds(
-  presentationObjects: PartialDefaultPresentationObjectJSON[],
-  metrics: MetricDefinition[]
-): void {
-  const metricIds = new Set(metrics.map((m) => m.id));
-  for (const po of presentationObjects) {
-    if (!metricIds.has(po.metricId)) {
-      throw new Error(
-        `Presentation object "${po.id}" references unknown metricId: ${po.metricId}`
-      );
+  const results: DefaultPresentationObject[] = [];
+  for (const metric of metrics) {
+    for (const preset of metric.vizPresets ?? []) {
+      if (!preset.createDefaultVisualizationOnInstall) continue;
+      results.push({
+        id: preset.createDefaultVisualizationOnInstall,
+        label: resolveTS(preset.label, language),
+        moduleId,
+        metricId: metric.id,
+        config: {
+          d: preset.config.d,
+          s: { ...DEFAULT_S_CONFIG, ...preset.config.s },
+          t: {
+            caption: preset.config.t?.caption ? resolveTS(preset.config.t.caption, language) : DEFAULT_T_CONFIG.caption,
+            captionRelFontSize: preset.config.t?.captionRelFontSize ?? DEFAULT_T_CONFIG.captionRelFontSize,
+            subCaption: preset.config.t?.subCaption ? resolveTS(preset.config.t.subCaption, language) : DEFAULT_T_CONFIG.subCaption,
+            subCaptionRelFontSize: preset.config.t?.subCaptionRelFontSize ?? DEFAULT_T_CONFIG.subCaptionRelFontSize,
+            footnote: preset.config.t?.footnote ? resolveTS(preset.config.t.footnote, language) : DEFAULT_T_CONFIG.footnote,
+            footnoteRelFontSize: preset.config.t?.footnoteRelFontSize ?? DEFAULT_T_CONFIG.footnoteRelFontSize,
+          },
+        },
+      });
     }
   }
+  return results;
 }
 
 type ModuleManifest = {
@@ -107,30 +108,14 @@ export async function getModuleDefinitionDetail(
 
     const tc = getTranslateFunc(language);
 
-    // Validate presentation objects reference valid metrics
-    validatePresentationObjectMetricIds(
-      rawModuleJSON.defaultPresentationObjects,
-      rawModuleJSON.metrics
-    );
-
-    // Add moduleId to presentation objects (derived from parent)
-    const presentationObjectsWithModuleId: PartialDefaultPresentationObject[] =
-      rawModuleJSON.defaultPresentationObjects.map((po) => ({
-        ...po,
-        moduleId: rawModuleJSON.id,
-      }));
-
-    // Merge partial presentation objects
-    const fullPresentationObjects = mergePartialPresentationObjects(
-      presentationObjectsWithModuleId
-    );
-
     // Add moduleId to resultsObjects (derived from parent)
     const resultsObjectsWithModuleId: ResultsObjectDefinition[] =
       rawModuleJSON.resultsObjects.map((ro) => ({
         ...ro,
         moduleId: rawModuleJSON.id,
       }));
+
+    const translatedMetrics = translateMetrics(rawModuleJSON.metrics, tc);
 
     const translatedModule: ModuleDefinition = {
       id: rawModuleJSON.id,
@@ -144,11 +129,12 @@ export async function getModuleDefinitionDetail(
       script,
       assetsToImport: rawModuleJSON.assetsToImport,
       resultsObjects: translateResultsObjects(resultsObjectsWithModuleId, tc),
-      defaultPresentationObjects: translateDefaultPresentationObjects(
-        fullPresentationObjects,
-        tc
+      defaultPresentationObjects: deriveDefaultPresentationObjects(
+        translatedMetrics,
+        rawModuleJSON.id,
+        language,
       ),
-      metrics: translateMetrics(rawModuleJSON.metrics, tc),
+      metrics: translatedMetrics,
     };
 
     return { success: true, data: translatedModule };
@@ -189,30 +175,3 @@ function translateMetrics(
   }));
 }
 
-function translateDefaultPresentationObjects(
-  presentationObjects: DefaultPresentationObject[],
-  tc: (v: string) => string
-): DefaultPresentationObject[] {
-  return presentationObjects.map((po) => {
-    const translatedConfig: PresentationObjectConfig = {
-      d: po.config.d,
-      s: po.config.s,
-      t: {
-        caption: tc(po.config.t.caption),
-        captionRelFontSize: po.config.t.captionRelFontSize,
-        subCaption: tc(po.config.t.subCaption),
-        subCaptionRelFontSize: po.config.t.subCaptionRelFontSize,
-        footnote: tc(po.config.t.footnote),
-        footnoteRelFontSize: po.config.t.footnoteRelFontSize,
-      },
-    };
-
-    return {
-      id: po.id,
-      label: tc(po.label),
-      moduleId: po.moduleId,
-      metricId: po.metricId,
-      config: translatedConfig,
-    };
-  });
-}
