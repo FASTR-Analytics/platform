@@ -184,17 +184,17 @@ export const AiFigureFromMetricSchema = z.object({
     .describe(
       "Optional: Override the preset's filters to limit which data is displayed.",
     ),
-  periodFilterOverride: z
-    .object({
-      periodOption: z
-        .enum(["period_id", "quarter_id", "year"])
-        .describe("Time granularity for the filter"),
-      min: z.number().describe("Start of time range (inclusive)"),
-      max: z.number().describe("End of time range (inclusive)"),
-    })
+  startDate: z
+    .number()
     .optional()
     .describe(
-      "Optional: Override the preset's period filter to limit the time range.",
+      "Optional: Start of time range in YYYYMM format (e.g., 202301 for Jan 2023). Must be used together with endDate.",
+    ),
+  endDate: z
+    .number()
+    .optional()
+    .describe(
+      "Optional: End of time range in YYYYMM format (e.g., 202312 for Dec 2023). Must be used together with startDate.",
     ),
 });
 

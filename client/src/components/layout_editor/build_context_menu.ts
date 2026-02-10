@@ -36,6 +36,8 @@ export type LayoutMenuCallbacks<T> = {
   onEditVisualization?: (blockId: string) => Promise<void>;
   onSelectVisualization?: (blockId: string) => Promise<void>;
   onReplaceVisualization?: (blockId: string) => Promise<void>;
+  onCreateVisualization?: (blockId: string) => Promise<void>;
+  onRemoveVisualization?: (blockId: string) => void;
 
   // Block type conversion (optional)
   onConvertToText?: (blockId: string) => void;
@@ -72,19 +74,30 @@ export function buildLayoutContextMenu<T>(
     ? callbacks.isEmptyFigure(blockData)
     : false;
 
-  if (isEmptyFigure && callbacks.onSelectVisualization) {
-    items.push({
-      label: "Select visualization",
-      icon: "chart",
-      onClick: () => callbacks.onSelectVisualization!(targetId),
-    });
-    items.push({ type: "divider" });
+  if (isEmptyFigure) {
+    if (callbacks.onSelectVisualization) {
+      items.push({
+        label: "Select visualization",
+        icon: "chart",
+        onClick: () => callbacks.onSelectVisualization!(targetId),
+      });
+    }
+    if (callbacks.onCreateVisualization) {
+      items.push({
+        label: "Create new visualization",
+        icon: "plus",
+        onClick: () => callbacks.onCreateVisualization!(targetId),
+      });
+    }
+    if (items.length > 0) {
+      items.push({ type: "divider" });
+    }
   }
 
-  if (isFigureWithSource) {
+  if (blockType === "figure" && !isEmptyFigure) {
     const beforeViz = items.length;
 
-    if (callbacks.onEditVisualization) {
+    if (isFigureWithSource && callbacks.onEditVisualization) {
       items.push({
         label: "Edit visualization",
         icon: "pencil",
@@ -97,6 +110,23 @@ export function buildLayoutContextMenu<T>(
         label: "Switch visualization",
         icon: "switchHorizontal",
         onClick: () => callbacks.onReplaceVisualization!(targetId),
+      });
+    }
+
+    if (callbacks.onCreateVisualization) {
+      items.push({
+        label: "Create new visualization",
+        icon: "plus",
+        onClick: () => callbacks.onCreateVisualization!(targetId),
+      });
+    }
+
+    if (callbacks.onRemoveVisualization) {
+      items.push({
+        label: "Remove visualization",
+        icon: "trash",
+        intent: "danger",
+        onClick: () => callbacks.onRemoveVisualization!(targetId),
       });
     }
 

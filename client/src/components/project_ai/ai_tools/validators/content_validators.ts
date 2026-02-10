@@ -154,44 +154,33 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
 export function validatePresetOverrides(
   metricId: string,
   filterOverrides: { col: string; vals: string[] }[] | undefined,
-  periodFilterOverride: { periodOption: "period_id" | "quarter_id" | "year"; min: number; max: number } | undefined,
-  metric?: MetricWithStatus
+  startDate: number | undefined,
+  endDate: number | undefined,
+  metric?: MetricWithStatus,
 ): void {
   validateFilters(filterOverrides, metricId, metric);
 
-  if (periodFilterOverride) {
-    const { periodOption, min, max } = periodFilterOverride;
-
-    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+  if (startDate != null && endDate != null) {
+    if (!Number.isFinite(startDate) || !Number.isFinite(endDate)) {
       throw new Error(
-        `Period filter min and max must be valid numbers. Got min: ${min}, max: ${max}`
+        `startDate and endDate must be valid numbers. Got startDate: ${startDate}, endDate: ${endDate}`
       );
     }
 
-    if (min > max) {
+    if (startDate > endDate) {
       throw new Error(
-        `Period filter min (${min}) cannot be greater than max (${max})`
+        `startDate (${startDate}) cannot be greater than endDate (${endDate})`
       );
     }
 
-    if (periodOption === "period_id") {
-      if (!isPeriodIdValid(min) || !isPeriodIdValid(max)) {
-        throw new Error(
-          `Invalid period_id format. Must be YYYYMM (e.g., 202301 for Jan 2023). Got min: ${min}, max: ${max}`
-        );
-      }
-    } else if (periodOption === "quarter_id") {
-      if (!isQuarterIdValid(min) || !isQuarterIdValid(max)) {
-        throw new Error(
-          `Invalid quarter_id format. Must be YYYYQQ where QQ is 01-04 (e.g., 202301 for Q1 2023). Got min: ${min}, max: ${max}`
-        );
-      }
-    } else if (periodOption === "year") {
-      if (min < 1900 || max > 2100) {
-        throw new Error(
-          `Year must be between 1900 and 2100. Got min: ${min}, max: ${max}`
-        );
-      }
+    if (!isPeriodIdValid(startDate) || !isPeriodIdValid(endDate)) {
+      throw new Error(
+        `startDate and endDate must be in YYYYMM format (e.g., 202301 for Jan 2023). Got startDate: ${startDate}, endDate: ${endDate}`
+      );
     }
+  } else if (startDate != null || endDate != null) {
+    throw new Error(
+      "Both startDate and endDate must be provided together, or neither."
+    );
   }
 }

@@ -25,11 +25,11 @@ export async function resolveFigureFromVisualization(
 
   return {
     type: "figure",
-    figureInputs: { ...figureInputsRes.data, style: undefined },
+    figureInputs: structuredClone({ ...figureInputsRes.data, style: undefined }),
     source: {
       type: "from_data",
       metricId: poDetailRes.data.resultsValue.id,
-      config: poDetailRes.data.config,
+      config: structuredClone(poDetailRes.data.config),
       snapshotAt: new Date().toISOString(),
     },
   };

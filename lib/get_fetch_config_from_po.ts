@@ -37,8 +37,8 @@ export function getFetchConfigFromPresentationObjectConfig(
   const nationalAggregateIsAllowed = config.d.disaggregateBy.some((d) => {
     return d.disOpt === "admin_area_2" && d.disDisplayOpt !== "replicant";
   });
-  const includeNationalForAdminArea2 = shouldIncludeNationalAggregate &&
-    nationalAggregateIsAllowed;
+  const includeNationalForAdminArea2 =
+    shouldIncludeNationalAggregate && nationalAggregateIsAllowed;
 
   const filters = options?.excludeReplicantFilter
     ? getFiltersWithoutReplicant(config)
@@ -86,7 +86,7 @@ export function getPeriodFilterExactBounds(
     return periodBounds;
   }
   // Auto-migrate old "last_12_months" to "last_n_months"
-  if (periodFilter?.filterType === "last_12_months" as any) {
+  if (periodFilter?.filterType === ("last_12_months" as any)) {
     periodFilter = {
       ...periodFilter,
       filterType: "last_n_months",
@@ -123,14 +123,12 @@ export function getPeriodFilterExactBounds(
           ? "year-month"
           : "year-quarter";
 
-      const time = getTimeFromPeriodId(
-        periodBounds.max,
-        periodType,
-      );
+      const time = getTimeFromPeriodId(periodBounds.max, periodType);
 
-      const periodsToSubtract = periodBounds.periodOption === "period_id"
-        ? nMonths - 1
-        : Math.ceil(nMonths / 3) - 1;
+      const periodsToSubtract =
+        periodBounds.periodOption === "period_id"
+          ? nMonths - 1
+          : Math.ceil(nMonths / 3) - 1;
 
       const min = getPeriodIdFromTime(time - periodsToSubtract, periodType);
 
@@ -159,8 +157,7 @@ export function getPeriodFilterExactBounds(
           periodBounds.max.toFixed(0).endsWith("11") ||
           periodBounds.max.toFixed(0).endsWith("12")
         ) {
-          const minYear = Math.floor(periodBounds.max / 100) -
-            1;
+          const minYear = Math.floor(periodBounds.max / 100) - 1;
           const min = minYear * 100 + 11;
           const max = (minYear + 1) * 100 + 10;
           return {
@@ -264,13 +261,27 @@ export function getPeriodFilterExactBounds(
 
 export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
   return [
-    getSortedAlphabeticalByFunc(fc.values, (v: { prop: string; func: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity" }) => v.prop)
-      .map((v: { prop: string; func: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity" }) => [v.func, v.prop].join("&"))
+    getSortedAlphabeticalByFunc(
+      fc.values,
+      (v: {
+        prop: string;
+        func: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
+      }) => v.prop,
+    )
+      .map(
+        (v: {
+          prop: string;
+          func: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
+        }) => [v.func, v.prop].join("&"),
+      )
       .join("$"),
     getSortedAlphabetical(fc.groupBys).join("$"),
-    getSortedAlphabeticalByFunc(fc.filters, (v: { col: DisaggregationOption; vals: string[] }) => v.col)
+    getSortedAlphabeticalByFunc(
+      fc.filters,
+      (v: { col: DisaggregationOption; vals: string[] }) => v.col,
+    )
       .map((f: { col: DisaggregationOption; vals: string[] }) =>
-        [f.col, getSortedAlphabetical(f.vals.map(String)).join(",")].join("&")
+        [f.col, getSortedAlphabetical(f.vals.map(String)).join(",")].join("&"),
       )
       .join("$"),
     fc.periodFilter?.filterType ?? "",
@@ -288,8 +299,8 @@ export function getFilteredValueProps(
   valueProps: string[],
   config: PresentationObjectConfig,
 ) {
-  const needsFilter = !!config.d.valuesFilter &&
-    config.d.valuesFilter.length > 0;
+  const needsFilter =
+    !!config.d.valuesFilter && config.d.valuesFilter.length > 0;
   return valueProps.filter((vp) => {
     return !needsFilter || config.d.valuesFilter?.includes(vp);
   });

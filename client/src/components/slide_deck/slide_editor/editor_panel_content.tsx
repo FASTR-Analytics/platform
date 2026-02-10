@@ -42,6 +42,7 @@ type Props = {
   onShowLayoutMenu: (x: number, y: number) => void;
   onEditVisualization: () => void;
   onSelectVisualization: () => void;
+  onCreateVisualization: () => void;
   deckLogos: string[];
 };
 
@@ -109,14 +110,14 @@ export function SlideEditorPanelContent(p: Props) {
           onClick={() => p.setContentTab("slide")}
           data-selected={p.contentTab === "slide"}
         >
-          Slide
+          Header / Footer
         </div>
         <div
           class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 py-2 text-center"
           onClick={() => p.setContentTab("block")}
           data-selected={p.contentTab === "block"}
         >
-          Block
+          Content
         </div>
       </div>
 
@@ -220,7 +221,7 @@ export function SlideEditorPanelContent(p: Props) {
                 <div class="ui-pad ui-spy">
                   <div class="ui-gap-sm flex items-end">
                     <Select
-                      label="Block Type"
+                      label="Content type"
                       options={[
                         { value: "text", label: "Text" },
                         { value: "figure", label: "Visualization" },
@@ -245,7 +246,7 @@ export function SlideEditorPanelContent(p: Props) {
                   <Switch>
                     <Match when={getCurrentBlock()?.type === "text"}>
                       <TextArea
-                        label="Markdown Content"
+                        label="Text"
                         value={(getCurrentBlock() as TextBlock).markdown}
                         onChange={(v: string) =>
                           updateSelectedBlock((b: any) => ({
@@ -383,29 +384,34 @@ export function SlideEditorPanelContent(p: Props) {
                         const hasSource = () =>
                           block().source?.type === "from_data";
                         return (
-                          <>
-                            <Show when={!hasFigure()}>
-                              <Button onClick={() => p.onSelectVisualization()}>
-                                Select Visualization
+                          <div class="ui-gap-sm flex flex-col">
+                            <Show when={hasFigure() && hasSource()}>
+                              <Button onClick={() => p.onEditVisualization()}>
+                                Edit Visualization
                               </Button>
                             </Show>
+                            <Button onClick={() => p.onSelectVisualization()}>
+                              {hasFigure()
+                                ? "Switch Visualization"
+                                : "Select Visualization"}
+                            </Button>
+                            <Button onClick={() => p.onCreateVisualization()}>
+                              Create New Visualization
+                            </Button>
                             <Show when={hasFigure()}>
-                              <div class="ui-gap-sm flex flex-col">
-                                <Show when={hasSource()}>
-                                  <Button
-                                    onClick={() => p.onEditVisualization()}
-                                  >
-                                    Edit Visualization
-                                  </Button>
-                                </Show>
-                                <Button
-                                  onClick={() => p.onSelectVisualization()}
-                                >
-                                  Switch Visualization
-                                </Button>
-                              </div>
+                              <Button
+                                intent="danger"
+                                outline
+                                onClick={() =>
+                                  updateSelectedBlock(() => ({
+                                    type: "figure",
+                                  }))
+                                }
+                              >
+                                Remove Visualization
+                              </Button>
                             </Show>
-                          </>
+                          </div>
                         );
                       })()}
                     </Match>

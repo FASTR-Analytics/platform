@@ -7,11 +7,6 @@ export const DEFAULT_MODEL_CONFIG = {
   max_tokens: 4096,
 };
 
-export const VIZ_CHAT_MODEL_CONFIG = {
-  model: DEFAULT_ANTHROPIC_MODEL,
-  max_tokens: 2048,
-};
-
 export const DEFAULT_BUILTIN_TOOLS = { webSearch: true };
 
 export function createProjectSDKClient(projectId: string) {

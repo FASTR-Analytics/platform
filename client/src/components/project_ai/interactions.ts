@@ -56,15 +56,6 @@ export function reduceInteractions(
         reduced.push({ type: "edited_slide", slideId });
       }
     }
-
-    if (latestSelection && latestSelection.type === "selected_slides") {
-      const relevantSelected = latestSelection.slideIds.filter((id) =>
-        deckSlideIds.has(id)
-      );
-      if (relevantSelected.length > 0) {
-        reduced.push({ type: "selected_slides", slideIds: relevantSelected });
-      }
-    }
   }
 
   if (currentContext.mode === "editing_slide") {
@@ -79,6 +70,12 @@ export function reduceInteractions(
   if (currentContext.mode === "editing_visualization") {
     if (hasEditedVizLocally) {
       reduced.push({ type: "edited_viz_locally" });
+    }
+  }
+
+  if (currentContext.mode === "viewing_slide_decks") {
+    if (latestSelection) {
+      reduced.push(latestSelection);
     }
   }
 

@@ -86,6 +86,8 @@ export function VisualizationEditorInner(p: InnerProps) {
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
   const { setAIContext, notifyAI } = useAIProjectContext();
 
+  const [lastKnownServerTimestamp, setLastKnownServerTimestamp] = createSignal(p.poDetail.lastUpdated);
+
   // Extract static values from stores to prevent external reactivity
   const projectId = p.projectDetail.id;
   // const visualizationFolders = structuredClone(p.projectDetail.visualizationFolders);
@@ -238,7 +240,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       projectId: projectId,
       po_id: p.poDetail.id,
       config: unwrappedTempConfig,
-      expectedLastUpdated: p.poDetail.lastUpdated,
+      expectedLastUpdated: lastKnownServerTimestamp(),
       overwrite: overwriteIfConflict,
     });
 
@@ -296,6 +298,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     }
 
     setNeedsSave(false);
+    setLastKnownServerTimestamp(res.data.lastUpdated);
 
     optimisticSetLastUpdated(
       "presentation_objects",

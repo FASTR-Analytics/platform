@@ -1,55 +1,76 @@
 import { trackStore } from "@solid-primitives/deep";
-import type { Slide, CoverSlide, SectionSlide, ContentSlide, InstanceDetail, ProjectDetail, SlideDeckConfig, SlideType } from "lib";
-import { getTextRenderingOptions, getMetricStaticData, getSlideTitle, t } from "lib";
+import type {
+  ContentBlock,
+  ContentSlide,
+  CoverSlide,
+  InstanceDetail,
+  ProjectDetail,
+  SectionSlide,
+  Slide,
+  SlideDeckConfig,
+  SlideType,
+} from "lib";
+import {
+  getMetricStaticData,
+  getSlideTitle,
+  getTextRenderingOptions,
+  t,
+} from "lib";
+import type { DividerDragUpdate, LayoutNode } from "panther";
 import {
   AlertComponentProps,
   Button,
-  PageHolder,
-  FrameRightResizable,
+  FrameLeftResizable,
   FrameTop,
-  getEditorWrapper,
-  StateHolder,
-  PageInputs,
-  _GLOBAL_CANVAS_PIXEL_WIDTH,
   HeadingBar,
+  PageHolder,
+  PageInputs,
+  Select,
+  StateHolder,
+  _GLOBAL_CANVAS_PIXEL_WIDTH,
+  applyDividerDragUpdate,
+  createItemNode,
   findById,
-  findFirstItem,
+  getEditorWrapper,
+  openAlert,
   openComponent,
   showMenu,
-  createItemNode,
-  openAlert,
-  FrameLeftResizable,
-  Select,
 } from "panther";
-import { applyDividerDragUpdate } from "panther";
-import type { DividerDragUpdate, LayoutNode } from "panther";
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
-import { createStore, unwrap, reconcile, type SetStoreFunction } from "solid-js/store";
-import { convertSlideToPageInputs } from "../slide_rendering/convert_slide_to_page_inputs";
-import { SlideEditorPanel } from "./editor_panel";
-import { convertSlideType } from "../slide_transforms/convert_slide_type";
-import { serverActions } from "~/server_actions";
-import { useOptimisticSetLastUpdated } from "../../project_runner/mod";
-import { _SLIDE_CACHE } from "~/state/caches/slides";
+import {
+  createStore,
+  reconcile,
+  unwrap,
+  type SetStoreFunction,
+} from "solid-js/store";
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
-import type { ContentBlock } from "lib";
-import { VisualizationEditor } from "~/components/visualization";
-import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/po_cache";
-import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
-import { setShowAi, showAi } from "~/state/ui";
+import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
+import { AddVisualization } from "~/components/project/add_visualization";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import type { AIContext } from "~/components/project_ai/types";
-import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
-import { convertBlockType } from "../slide_transforms/convert_block_type";
+import { VisualizationEditor } from "~/components/visualization";
+import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
+import { serverActions } from "~/server_actions";
+import { _SLIDE_CACHE } from "~/state/caches/slides";
+import {
+  getPODetailFromCacheorFetch,
+  getPOFigureInputsFromCacheOrFetch,
+  getPresentationObjectItemsFromCacheOrFetch,
+} from "~/state/po_cache";
+import { setShowAi, showAi } from "~/state/ui";
 import { createIdGeneratorForLayout } from "~/utils/id_generation";
 import { snapshotForVizEditor } from "~/utils/snapshot";
+import { useOptimisticSetLastUpdated } from "../../project_runner/mod";
 import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
-import { getPODetailFromCacheorFetch, getPOFigureInputsFromCacheOrFetch } from "~/state/po_cache";
+import { convertSlideToPageInputs } from "../slide_rendering/convert_slide_to_page_inputs";
+import { convertBlockType } from "../slide_transforms/convert_block_type";
+import { convertSlideType } from "../slide_transforms/convert_slide_type";
+import { SlideEditorPanel } from "./editor_panel";
 
 function updateBlockInLayout(
   layout: LayoutNode<ContentBlock>,
   targetId: string,
-  updater: (block: ContentBlock) => ContentBlock
+  updater: (block: ContentBlock) => ContentBlock,
 ): LayoutNode<ContentBlock> {
   if (layout.type === "item") {
     if (layout.id === targetId) {
@@ -60,8 +81,8 @@ function updateBlockInLayout(
 
   return {
     ...layout,
-    children: layout.children.map(child =>
-      updateBlockInLayout(child as LayoutNode<ContentBlock>, targetId, updater)
+    children: layout.children.map((child) =>
+      updateBlockInLayout(child as LayoutNode<ContentBlock>, targetId, updater),
     ),
   };
 }
@@ -92,7 +113,9 @@ export function SlideEditor(p: Props) {
 
   const [needsSave, setNeedsSave] = createSignal(false);
   const [isSaving, setIsSaving] = createSignal(false);
-  const [tempSlide, setTempSlide] = createStore<Slide>(structuredClone(normalizedSlide));
+  const [tempSlide, setTempSlide] = createStore<Slide>(
+    structuredClone(normalizedSlide),
+  );
 
   const manuallyUpdateTempSlide: SetStoreFunction<Slide> = (...args: any[]) => {
     (setTempSlide as any)(...args);
@@ -109,12 +132,19 @@ export function SlideEditor(p: Props) {
     status: "loading",
     msg: "Rendering...",
   });
-  const [selectedBlockId, setSelectedBlockId] = createSignal<string | undefined>();
+  const [selectedBlockId, setSelectedBlockId] = createSignal<
+    string | undefined
+  >();
   const [contentTab, setContentTab] = createSignal<"slide" | "block">("slide");
 
   // Render slide preview
   async function attemptGetPageInputs(slide: Slide) {
-    const res = await convertSlideToPageInputs(p.projectId, slide, undefined, p.deckConfig);
+    const res = await convertSlideToPageInputs(
+      p.projectId,
+      slide,
+      undefined,
+      p.deckConfig,
+    );
     if (res.success) {
       setPageInputs({ status: "ready", data: res.data });
     } else {
@@ -190,7 +220,7 @@ export function SlideEditor(p: Props) {
       const userChoice = await openComponent({
         element: ConflictResolutionModal,
         props: {
-          itemName: "slide"
+          itemName: "slide",
         },
       });
 
@@ -219,7 +249,11 @@ export function SlideEditor(p: Props) {
           return;
         }
 
-        optimisticSetLastUpdated("slides", createRes.data.slideId, createRes.data.lastUpdated);
+        optimisticSetLastUpdated(
+          "slides",
+          createRes.data.slideId,
+          createRes.data.lastUpdated,
+        );
 
         p.close(true);
         return;
@@ -233,9 +267,19 @@ export function SlideEditor(p: Props) {
       optimisticSetLastUpdated("slides", p.slideId, updateRes.data.lastUpdated);
 
       // Immediate cache update for instant thumbnail refresh
-      const cached = await _SLIDE_CACHE.get({ projectId: p.projectId, slideId: p.slideId });
-      const promise = serverActions.getSlide({ projectId: p.projectId, slide_id: p.slideId });
-      await _SLIDE_CACHE.setPromise(promise, { projectId: p.projectId, slideId: p.slideId }, cached.version);
+      const cached = await _SLIDE_CACHE.get({
+        projectId: p.projectId,
+        slideId: p.slideId,
+      });
+      const promise = serverActions.getSlide({
+        projectId: p.projectId,
+        slide_id: p.slideId,
+      });
+      await _SLIDE_CACHE.setPromise(
+        promise,
+        { projectId: p.projectId, slideId: p.slideId },
+        cached.version,
+      );
       await promise;
 
       p.close(true);
@@ -254,7 +298,9 @@ export function SlideEditor(p: Props) {
     const currentSlide = unwrap(tempSlide) as ContentSlide;
     const updatedLayout = applyDividerDragUpdate(currentSlide.layout, update);
 
-    manuallyUpdateTempSlide(reconcile({ ...currentSlide, layout: updatedLayout }));
+    manuallyUpdateTempSlide(
+      reconcile({ ...currentSlide, layout: updatedLayout }),
+    );
   }
 
   function handleTypeChange(newType: "cover" | "section" | "content") {
@@ -292,16 +338,48 @@ export function SlideEditor(p: Props) {
     const idGenerator = createIdGeneratorForLayout(contentSlide.layout);
     return {
       onLayoutChange: (newLayout: LayoutNode<ContentBlock>) => {
-        manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+        manuallyUpdateTempSlide(
+          reconcile({ ...unwrap(tempSlide), layout: newLayout }),
+        );
       },
       onSelectionChange: setSelectedBlockId,
-      createNewBlock: () => createItemNode<ContentBlock>({ type: "text", markdown: "" }, undefined, idGenerator),
+      createNewBlock: () =>
+        createItemNode<ContentBlock>(
+          { type: "text", markdown: "" },
+          undefined,
+          idGenerator,
+        ),
       idGenerator,
       getBlockType: (block: ContentBlock) => block.type,
       isFigureWithSource: (block: ContentBlock) =>
         block.type === "figure" && block.source?.type === "from_data",
       isEmptyFigure: (block: ContentBlock) =>
         block.type === "figure" && !block.figureInputs,
+      onEditVisualization: async (blockId: string) => {
+        setSelectedBlockId(blockId);
+        await handleEditVisualization();
+      },
+      onSelectVisualization: async (blockId: string) => {
+        await handleSelectVisualization(blockId);
+      },
+      onReplaceVisualization: async (blockId: string) => {
+        await handleSelectVisualization(blockId);
+      },
+      onCreateVisualization: async (blockId: string) => {
+        setSelectedBlockId(blockId);
+        await handleCreateVisualization();
+      },
+      onRemoveVisualization: (blockId: string) => {
+        if (tempSlide.type !== "content") return;
+        const updatedLayout = updateBlockInLayout(
+          tempSlide.layout,
+          blockId,
+          () => ({ type: "figure" as const }),
+        );
+        manuallyUpdateTempSlide(
+          reconcile({ ...unwrap(tempSlide), layout: updatedLayout }),
+        );
+      },
     };
   }
 
@@ -328,10 +406,15 @@ export function SlideEditor(p: Props) {
 
     try {
       const metricStaticData = getMetricStaticData(source.metricId);
-      const resultsValue = p.projectDetail.metrics.find(m => m.id === source.metricId);
+      const resultsValue = p.projectDetail.metrics.find(
+        (m) => m.id === source.metricId,
+      );
 
       if (!resultsValue) {
-        await openAlert({ text: "Metric not found in project", intent: "danger" });
+        await openAlert({
+          text: "Metric not found in project",
+          intent: "danger",
+        });
         return;
       }
 
@@ -370,8 +453,14 @@ export function SlideEditor(p: Props) {
           newConfig,
         );
 
-        if (newItemsRes.success === false || newItemsRes.data.ih.status !== "ok") {
-          await openAlert({ text: "Failed to regenerate visualization", intent: "danger" });
+        if (
+          newItemsRes.success === false ||
+          newItemsRes.data.ih.status !== "ok"
+        ) {
+          await openAlert({
+            text: "Failed to regenerate visualization",
+            intent: "danger",
+          });
           return;
         }
 
@@ -388,7 +477,10 @@ export function SlideEditor(p: Props) {
         );
 
         if (newFigureInputs.status !== "ready") {
-          await openAlert({ text: "Failed to generate figure", intent: "danger" });
+          await openAlert({
+            text: "Failed to generate figure",
+            intent: "danger",
+          });
           return;
         }
 
@@ -407,14 +499,17 @@ export function SlideEditor(p: Props) {
                 snapshotAt: new Date().toISOString(),
               },
             };
-          }
+          },
         );
 
-        manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: updatedLayout }));
+        manuallyUpdateTempSlide(
+          reconcile({ ...unwrap(tempSlide), layout: updatedLayout }),
+        );
       }
     } catch (err) {
       await openAlert({
-        text: err instanceof Error ? err.message : "Failed to edit visualization",
+        text:
+          err instanceof Error ? err.message : "Failed to edit visualization",
         intent: "danger",
       });
     }
@@ -436,7 +531,10 @@ export function SlideEditor(p: Props) {
         ? { selectedReplicantValue: result.replicant, _forOptimizer: true }
         : { _forOptimizer: true };
 
-      const poDetailRes = await getPODetailFromCacheorFetch(p.projectId, result.visualizationId);
+      const poDetailRes = await getPODetailFromCacheorFetch(
+        p.projectId,
+        result.visualizationId,
+      );
       if (!poDetailRes.success) {
         await openAlert({ text: poDetailRes.err, intent: "danger" });
         return;
@@ -457,20 +555,114 @@ export function SlideEditor(p: Props) {
         blockId,
         () => ({
           type: "figure" as const,
-          figureInputs: { ...figureInputsRes.data, style: undefined },
+          figureInputs: structuredClone({ ...figureInputsRes.data, style: undefined }),
           source: {
             type: "from_data" as const,
             metricId: poDetailRes.data.resultsValue.id,
-            config: poDetailRes.data.config,
+            config: structuredClone(poDetailRes.data.config),
             snapshotAt: new Date().toISOString(),
           },
         }),
       );
 
-      manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: updatedLayout }));
+      manuallyUpdateTempSlide(
+        reconcile({ ...unwrap(tempSlide), layout: updatedLayout }),
+      );
     } catch (err) {
       await openAlert({
-        text: err instanceof Error ? err.message : "Failed to select visualization",
+        text:
+          err instanceof Error ? err.message : "Failed to select visualization",
+        intent: "danger",
+      });
+    }
+  }
+
+  async function handleCreateVisualization() {
+    const blockId = selectedBlockId();
+    if (!blockId || tempSlide.type !== "content") return;
+
+    const result = await openComponent({
+      element: AddVisualization,
+      props: {
+        projectId: p.projectId,
+        isGlobalAdmin: p.isGlobalAdmin,
+        metrics: p.projectDetail.metrics,
+      },
+    });
+
+    if (!result) return;
+
+    try {
+      const { resultsValue, config } = result;
+
+      const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
+        p.projectId,
+        {
+          id: "",
+          projectId: p.projectId,
+          lastUpdated: "",
+          label: "Ephemeral",
+          resultsValue,
+          config,
+          isDefault: false,
+          folderId: null,
+        },
+        config,
+      );
+
+      if (
+        newItemsRes.success === false ||
+        newItemsRes.data.ih.status !== "ok"
+      ) {
+        await openAlert({
+          text: "Failed to generate visualization",
+          intent: "danger",
+        });
+        return;
+      }
+
+      const resultsValueForViz = {
+        formatAs: resultsValue.formatAs,
+        valueProps: resultsValue.valueProps,
+        valueLabelReplacements: resultsValue.valueLabelReplacements,
+      };
+
+      const newFigureInputs = getFigureInputsFromPresentationObject(
+        resultsValueForViz,
+        newItemsRes.data.ih,
+        config,
+      );
+
+      if (newFigureInputs.status !== "ready") {
+        await openAlert({
+          text: "Failed to generate figure",
+          intent: "danger",
+        });
+        return;
+      }
+
+      const updatedLayout = updateBlockInLayout(
+        tempSlide.layout,
+        blockId,
+        () => ({
+          type: "figure" as const,
+          figureInputs: { ...newFigureInputs.data, style: undefined },
+          source: {
+            type: "from_data" as const,
+            metricId: resultsValue.id,
+            config,
+            snapshotAt: new Date().toISOString(),
+          },
+        }),
+      );
+
+      manuallyUpdateTempSlide(
+        reconcile({ ...unwrap(tempSlide), layout: updatedLayout }),
+      );
+    } catch (err) {
+      await openAlert({
+        text:
+          err instanceof Error ? err.message : "Failed to create visualization",
         intent: "danger",
       });
     }
@@ -482,36 +674,31 @@ export function SlideEditor(p: Props) {
         panelChildren={
           <HeadingBar
             heading="Edit Slide"
-            leftChildren={<Show
-              when={needsSave()}
-              fallback={
-                <Button
-                  iconName="chevronLeft"
-                  onClick={handleCancel}
-                />
-              }
-            >
-              <div class="flex items-center ui-gap-sm">
-                <Button
-                  intent="success"
-                  onClick={() => handleSave()}
-                  disabled={isSaving()}
-                  loading={isSaving()}
-                  iconName="save"
-                >
-                  Save
-                </Button>
-                <Button
-                  outline
-                  onClick={handleCancel}
-                  iconName="x"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </Show>}
+            leftChildren={
+              <Show
+                when={needsSave()}
+                fallback={
+                  <Button iconName="chevronLeft" onClick={handleCancel} />
+                }
+              >
+                <div class="ui-gap-sm flex items-center">
+                  <Button
+                    intent="success"
+                    onClick={() => handleSave()}
+                    disabled={isSaving()}
+                    loading={isSaving()}
+                    iconName="save"
+                  >
+                    Save
+                  </Button>
+                  <Button outline onClick={handleCancel} iconName="x">
+                    Cancel
+                  </Button>
+                </div>
+              </Show>
+            }
           >
-            <div class="flex items-center ui-gap-sm">
+            <div class="ui-gap-sm flex items-center">
               <Select
                 options={[
                   { value: "cover", label: "Cover" },
@@ -519,7 +706,9 @@ export function SlideEditor(p: Props) {
                   { value: "content", label: "Content" },
                 ]}
                 value={tempSlide.type}
-                onChange={(v: string) => handleTypeChange(v as "cover" | "section" | "content")}
+                onChange={(v: string) =>
+                  handleTypeChange(v as "cover" | "section" | "content")
+                }
               />
               <Show when={!showAi()}>
                 <Button
@@ -551,11 +740,12 @@ export function SlideEditor(p: Props) {
               onShowLayoutMenu={handleShowLayoutMenu}
               onEditVisualization={handleEditVisualization}
               onSelectVisualization={() => handleSelectVisualization()}
+              onCreateVisualization={handleCreateVisualization}
               deckLogos={p.deckConfig.logos ?? []}
             />
           }
         >
-          <div class="h-full w-full overflow-auto ui-pad bg-base-200">
+          <div class="ui-pad bg-base-200 h-full w-full overflow-auto">
             <Show when={pageInputs().status === "loading"}>
               <div class="flex h-full items-center justify-center">
                 <div class="text-base-content/70">Rendering slide...</div>
@@ -566,13 +756,22 @@ export function SlideEditor(p: Props) {
                 <div class="text-error">Error: {(pageInputs() as any).err}</div>
               </div>
             </Show>
-            <Show when={pageInputs().status === "ready" ? (pageInputs() as { status: "ready"; data: PageInputs }).data : undefined} keyed>
+            <Show
+              when={
+                pageInputs().status === "ready"
+                  ? (pageInputs() as { status: "ready"; data: PageInputs }).data
+                  : undefined
+              }
+              keyed
+            >
               {(keyedPageInputs) => (
-                <div class="h-full w-full overflow-auto ui-pad bg-base-200">
+                <div class="ui-pad bg-base-200 h-full w-full overflow-auto">
                   <PageHolder
                     pageInputs={keyedPageInputs}
                     canvasElementId="SLIDE_EDITOR_CANVAS"
-                    fixedCanvasH={Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16)}
+                    fixedCanvasH={Math.round(
+                      (_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16,
+                    )}
                     fitWithin={true}
                     textRenderingOptions={getTextRenderingOptions()}
                     hoverStyle={{
@@ -604,19 +803,26 @@ export function SlideEditor(p: Props) {
                     onMeasured={(mPage) => {
                       const mLayout = (mPage as any).mLayout;
                       if (!mLayout) return;
-                      console.log('=== LAYOUT TREE ===');
+                      console.log("=== LAYOUT TREE ===");
                       const printNode = (node: any, depth = 0) => {
-                        const indent = '  '.repeat(depth);
-                        console.log(`${indent}${node.type} id=${node.id} absCol=${node.absoluteStartColumn} span=${node.span ?? 'none'}`);
+                        const indent = "  ".repeat(depth);
+                        console.log(
+                          `${indent}${node.type} id=${node.id} absCol=${node.absoluteStartColumn} span=${node.span ?? "none"}`,
+                        );
                         if (node.children) {
-                          node.children.forEach((child: any) => printNode(child, depth + 1));
+                          node.children.forEach((child: any) =>
+                            printNode(child, depth + 1),
+                          );
                         }
                       };
                       printNode(mLayout);
 
-                      const dividerGaps = (mPage as any).gaps?.filter((g: any) => g.type === 'col-divider') || [];
+                      const dividerGaps =
+                        (mPage as any).gaps?.filter(
+                          (g: any) => g.type === "col-divider",
+                        ) || [];
                       if (dividerGaps.length > 0) {
-                        console.log('=== COL DIVIDER GAPS ===');
+                        console.log("=== COL DIVIDER GAPS ===");
                         dividerGaps.forEach((gap: any, i: number) => {
                           console.log(`Divider ${i}:`, gap);
                         });
@@ -627,37 +833,68 @@ export function SlideEditor(p: Props) {
                       if (target.type !== "layoutItem") return;
                       const callbacks = getLayoutCallbacks();
                       if (!callbacks) return;
-                      const items = buildLayoutContextMenu((tempSlide as ContentSlide).layout, target.node.id, {
-                        ...callbacks,
-                        onEditVisualization: async (blockId) => {
-                          setSelectedBlockId(blockId);
-                          await handleEditVisualization();
+                      const items = buildLayoutContextMenu(
+                        (tempSlide as ContentSlide).layout,
+                        target.node.id,
+                        {
+                          ...callbacks,
+                          onEditVisualization: async (blockId) => {
+                            setSelectedBlockId(blockId);
+                            await handleEditVisualization();
+                          },
+                          onSelectVisualization: async (blockId) => {
+                            await handleSelectVisualization(blockId);
+                          },
+                          onReplaceVisualization: async (blockId) => {
+                            await handleSelectVisualization(blockId);
+                          },
+                          onConvertToText: (blockId) => {
+                            const newLayout = convertBlockType(
+                              (tempSlide as ContentSlide).layout,
+                              blockId,
+                              "text",
+                            );
+                            manuallyUpdateTempSlide(
+                              reconcile({
+                                ...unwrap(tempSlide),
+                                layout: newLayout,
+                              }),
+                            );
+                            setSelectedBlockId(blockId);
+                            setContentTab("block");
+                          },
+                          onConvertToFigure: (blockId) => {
+                            const newLayout = convertBlockType(
+                              (tempSlide as ContentSlide).layout,
+                              blockId,
+                              "figure",
+                            );
+                            manuallyUpdateTempSlide(
+                              reconcile({
+                                ...unwrap(tempSlide),
+                                layout: newLayout,
+                              }),
+                            );
+                            setSelectedBlockId(blockId);
+                            setContentTab("block");
+                          },
+                          onConvertToImage: (blockId) => {
+                            const newLayout = convertBlockType(
+                              (tempSlide as ContentSlide).layout,
+                              blockId,
+                              "image",
+                            );
+                            manuallyUpdateTempSlide(
+                              reconcile({
+                                ...unwrap(tempSlide),
+                                layout: newLayout,
+                              }),
+                            );
+                            setSelectedBlockId(blockId);
+                            setContentTab("block");
+                          },
                         },
-                        onSelectVisualization: async (blockId) => {
-                          await handleSelectVisualization(blockId);
-                        },
-                        onReplaceVisualization: async (blockId) => {
-                          await handleSelectVisualization(blockId);
-                        },
-                        onConvertToText: (blockId) => {
-                          const newLayout = convertBlockType((tempSlide as ContentSlide).layout, blockId, "text");
-                          manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
-                          setSelectedBlockId(blockId);
-                          setContentTab("block");
-                        },
-                        onConvertToFigure: (blockId) => {
-                          const newLayout = convertBlockType((tempSlide as ContentSlide).layout, blockId, "figure");
-                          manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
-                          setSelectedBlockId(blockId);
-                          setContentTab("block");
-                        },
-                        onConvertToImage: (blockId) => {
-                          const newLayout = convertBlockType((tempSlide as ContentSlide).layout, blockId, "image");
-                          manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
-                          setSelectedBlockId(blockId);
-                          setContentTab("block");
-                        },
-                      });
+                      );
                       showMenu({ x: e.clientX, y: e.clientY, items });
                     }}
                   />

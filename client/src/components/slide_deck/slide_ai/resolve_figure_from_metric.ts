@@ -10,7 +10,10 @@ import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/utils/request_queue";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
-import { buildConfigFromMetric, buildFetchConfigFromMetric } from "./build_config_from_metric";
+import {
+  buildConfigFromPreset,
+  buildFetchConfigFromMetric,
+} from "./build_config_from_metric";
 
 export async function resolveFigureFromMetric(
   projectId: string,
@@ -19,7 +22,7 @@ export async function resolveFigureFromMetric(
 ): Promise<FigureBlock> {
   const { metricId } = block;
 
-  const buildResult = buildConfigFromMetric(block, metrics);
+  const buildResult = buildConfigFromPreset(block, metrics);
   if (!buildResult.success) {
     throw new Error(buildResult.error);
   }
@@ -27,19 +30,23 @@ export async function resolveFigureFromMetric(
   const { resultsValue, resultsValueForViz, config } = buildResult;
 
   if (resultsValue.status !== "ready") {
-    throw new Error(`Metric "${metricId}" is not ready (status: ${resultsValue.status})`);
+    throw new Error(
+      `Metric "${metricId}" is not ready (status: ${resultsValue.status})`,
+    );
   }
 
   const staticData = getMetricStaticData(metricId);
 
-  const disaggregations = config.d.disaggregateBy.map(d => d.disOpt);
+  const disaggregations = config.d.disaggregateBy.map((d) => d.disOpt);
   const allDisaggregations = [
     ...staticData.requiredDisaggregationOptions,
     ...disaggregations,
   ];
-  const uniqueDisaggregations = [...new Set(allDisaggregations)] as DisaggregationOption[];
+  const uniqueDisaggregations = [
+    ...new Set(allDisaggregations),
+  ] as DisaggregationOption[];
 
-  const fetchConfigFilters = config.d.filterBy.map(f => ({
+  const fetchConfigFilters = config.d.filterBy.map((f) => ({
     col: f.disOpt,
     vals: f.values,
   }));
@@ -51,7 +58,8 @@ export async function resolveFigureFromMetric(
     config.d.periodFilter,
   );
 
-  fetchConfig.includeNationalForAdminArea2 = config.d.includeNationalForAdminArea2 ?? false;
+  fetchConfig.includeNationalForAdminArea2 =
+    config.d.includeNationalForAdminArea2 ?? false;
   fetchConfig.includeNationalPosition = config.d.includeNationalPosition;
 
   const { data, version } = await _PO_ITEMS_CACHE.get({
@@ -69,8 +77,8 @@ export async function resolveFigureFromMetric(
         projectId,
         resultsObjectId: staticData.resultsObjectId,
         fetchConfig,
-        firstPeriodOption: undefined,
-      })
+        firstPeriodOption: staticData.periodOptions.at(0),
+      }),
     );
 
     _PO_ITEMS_CACHE.setPromise(
@@ -97,7 +105,11 @@ export async function resolveFigureFromMetric(
   );
 
   if (figureInputsResult.status !== "ready") {
-    throw new Error(figureInputsResult.status === "error" ? figureInputsResult.err : "Failed to generate figure");
+    throw new Error(
+      figureInputsResult.status === "error"
+        ? figureInputsResult.err
+        : "Failed to generate figure",
+    );
   }
 
   return {

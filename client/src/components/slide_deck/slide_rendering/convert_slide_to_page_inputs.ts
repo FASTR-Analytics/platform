@@ -101,6 +101,20 @@ export function buildStyleForSlide(
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
+      subHeader: {
+        font: _Inter_400,
+        relFontSize: 3.5,
+        color: "#1E1E1E",
+        letterSpacing: "-0.02em",
+        lineHeight: 1.1,
+      },
+      date: {
+        font: _Inter_400,
+        relFontSize: 3,
+        color: "#1E1E1E",
+        letterSpacing: "-0.02em",
+        lineHeight: 1.1,
+      },
       footer: {
         font: _Inter_400,
         relFontSize: 2,

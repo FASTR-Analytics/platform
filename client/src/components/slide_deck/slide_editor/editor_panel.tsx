@@ -18,6 +18,7 @@ type Props = {
   onShowLayoutMenu: (x: number, y: number) => void;
   onEditVisualization: () => void;
   onSelectVisualization: () => void;
+  onCreateVisualization: () => void;
   deckLogos: string[];
 };
 
@@ -51,6 +52,7 @@ export function SlideEditorPanel(p: Props) {
             onShowLayoutMenu={p.onShowLayoutMenu}
             onEditVisualization={p.onEditVisualization}
             onSelectVisualization={p.onSelectVisualization}
+            onCreateVisualization={p.onCreateVisualization}
             deckLogos={p.deckLogos}
           />
         </Match>

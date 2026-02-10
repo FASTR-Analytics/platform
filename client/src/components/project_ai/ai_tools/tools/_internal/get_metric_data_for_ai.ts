@@ -14,9 +14,19 @@ export async function getMetricDataForAI(
   projectId: string,
   query: AiMetricQuery,
 ): Promise<string> {
-  const { metricId, disaggregations: inputDisaggregations, filters: inputFilters, periodFilter, valuesFilter } = query;
-  const disaggregations = (inputDisaggregations ?? []) as DisaggregationOption[];
-  const filters = (inputFilters ?? []) as { col: DisaggregationOption; vals: string[] }[];
+  const {
+    metricId,
+    disaggregations: inputDisaggregations,
+    filters: inputFilters,
+    periodFilter,
+    valuesFilter,
+  } = query;
+  const disaggregations = (inputDisaggregations ??
+    []) as DisaggregationOption[];
+  const filters = (inputFilters ?? []) as {
+    col: DisaggregationOption;
+    vals: string[];
+  }[];
 
   // Get static metric data from build-time map
   const staticData = getMetricStaticData(metricId);
@@ -26,51 +36,56 @@ export async function getMetricDataForAI(
     ...staticData.requiredDisaggregationOptions,
     ...disaggregations,
   ];
-  const uniqueDisaggregations = [...new Set(allDisaggregations)] as DisaggregationOption[];
+  const uniqueDisaggregations = [
+    ...new Set(allDisaggregations),
+  ] as DisaggregationOption[];
 
   // Determine which value properties to fetch
-  const valuePropsToFetch = valuesFilter && valuesFilter.length > 0
-    ? valuesFilter.filter(vf => staticData.valueProps.includes(vf))
-    : staticData.valueProps;
+  const valuePropsToFetch =
+    valuesFilter && valuesFilter.length > 0
+      ? valuesFilter.filter((vf) => staticData.valueProps.includes(vf))
+      : staticData.valueProps;
 
   // Build fetchConfig
-  const fetchConfig: GenericLongFormFetchConfig = staticData.postAggregationExpression
-    ? {
-      // Use ingredientValues when there's a post-aggregation expression
-      // Note: post-aggregation expressions require all ingredient values, so ignore valuesFilter
-      values: staticData.postAggregationExpression.ingredientValues,
-      groupBys: uniqueDisaggregations,
-      filters: filters,
-      periodFilter: periodFilter
-        ? {
-          periodOption: periodFilter.periodOption,
-          min: periodFilter.min,
-          max: periodFilter.max,
+  const fetchConfig: GenericLongFormFetchConfig =
+    staticData.postAggregationExpression
+      ? {
+          // Use ingredientValues when there's a post-aggregation expression
+          // Note: post-aggregation expressions require all ingredient values, so ignore valuesFilter
+          values: staticData.postAggregationExpression.ingredientValues,
+          groupBys: uniqueDisaggregations,
+          filters: filters,
+          periodFilter: periodFilter
+            ? {
+                periodOption: periodFilter.periodOption,
+                min: periodFilter.min,
+                max: periodFilter.max,
+              }
+            : undefined,
+          postAggregationExpression:
+            staticData.postAggregationExpression.expression,
+          includeNationalForAdminArea2: false,
+          includeNationalPosition: undefined,
         }
-        : undefined,
-      postAggregationExpression: staticData.postAggregationExpression.expression,
-      includeNationalForAdminArea2: false,
-      includeNationalPosition: undefined,
-    }
-    : {
-      // Standard query for simple metrics - apply valuesFilter here
-      values: valuePropsToFetch.map((prop) => ({
-        prop,
-        func: staticData.valueFunc,
-      })),
-      groupBys: uniqueDisaggregations,
-      filters: filters,
-      periodFilter: periodFilter
-        ? {
-          periodOption: periodFilter.periodOption,
-          min: periodFilter.min,
-          max: periodFilter.max,
-        }
-        : undefined,
-      postAggregationExpression: undefined,
-      includeNationalForAdminArea2: false,
-      includeNationalPosition: undefined,
-    };
+      : {
+          // Standard query for simple metrics - apply valuesFilter here
+          values: valuePropsToFetch.map((prop) => ({
+            prop,
+            func: staticData.valueFunc,
+          })),
+          groupBys: uniqueDisaggregations,
+          filters: filters,
+          periodFilter: periodFilter
+            ? {
+                periodOption: periodFilter.periodOption,
+                min: periodFilter.min,
+                max: periodFilter.max,
+              }
+            : undefined,
+          postAggregationExpression: undefined,
+          includeNationalForAdminArea2: false,
+          includeNationalPosition: undefined,
+        };
 
   // Follow same pattern as getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   const { data, version } = await _PO_ITEMS_CACHE.get({
@@ -91,8 +106,8 @@ export async function getMetricDataForAI(
         projectId,
         resultsObjectId: staticData.resultsObjectId,
         fetchConfig,
-        firstPeriodOption: undefined,
-      })
+        firstPeriodOption: staticData.periodOptions.at(0),
+      }),
     );
 
     _PO_ITEMS_CACHE.setPromise(
@@ -113,7 +128,13 @@ export async function getMetricDataForAI(
   }
 
   // Format as markdown
-  return formatItemsAsMarkdown(itemsHolder, metricId, disaggregations, filters, periodFilter);
+  return formatItemsAsMarkdown(
+    itemsHolder,
+    metricId,
+    disaggregations,
+    filters,
+    periodFilter,
+  );
 }
 
 function formatItemsAsMarkdown(
@@ -130,7 +151,9 @@ function formatItemsAsMarkdown(
   lines.push("=".repeat(80));
   lines.push("");
   lines.push(`**Metric ID (metricId):** ${metricId}`);
-  lines.push(`**Metric Label:** ${staticData.label}${staticData.variantLabel ? ` [${staticData.variantLabel}]` : ""}`);
+  lines.push(
+    `**Metric Label:** ${staticData.label}${staticData.variantLabel ? ` [${staticData.variantLabel}]` : ""}`,
+  );
   lines.push(`**Format:** ${staticData.formatAs}`);
 
   if (staticData.valueProps.length > 0) {
@@ -145,7 +168,9 @@ function formatItemsAsMarkdown(
   lines.push("");
 
   if (itemsHolder.status === "too_many_items") {
-    lines.push("**STATUS: Too many items - add more filters or disaggregations to narrow results**");
+    lines.push(
+      "**STATUS: Too many items - add more filters or disaggregations to narrow results**",
+    );
     return lines.join("\n");
   }
 
@@ -170,12 +195,16 @@ function formatItemsAsMarkdown(
   }
 
   if (periodFilter) {
-    lines.push(`**Period filter:** ${periodFilter.periodOption} from ${periodFilter.min} to ${periodFilter.max}`);
+    lines.push(
+      `**Period filter:** ${periodFilter.periodOption} from ${periodFilter.min} to ${periodFilter.max}`,
+    );
     lines.push("");
   }
 
   if (itemsHolder.dateRange) {
-    lines.push(`**Time range in data:** ${itemsHolder.dateRange.periodOption} (${itemsHolder.dateRange.min} to ${itemsHolder.dateRange.max})`);
+    lines.push(
+      `**Time range in data:** ${itemsHolder.dateRange.periodOption} (${itemsHolder.dateRange.min} to ${itemsHolder.dateRange.max})`,
+    );
     lines.push("");
   }
 
@@ -189,7 +218,9 @@ function formatItemsAsMarkdown(
 
   // Dimension summary (only for disaggregation dimensions, not value columns)
   const columns = Object.keys(items[0]);
-  const dimensionColumns = columns.filter(col => disaggregations.includes(col as DisaggregationOption));
+  const dimensionColumns = columns.filter((col) =>
+    disaggregations.includes(col as DisaggregationOption),
+  );
 
   if (dimensionColumns.length > 0) {
     const dimensionStats = getDimensionStats(items, dimensionColumns);
@@ -212,7 +243,12 @@ function formatItemsAsMarkdown(
   // Format as CSV (with smart pivot)
   lines.push("## Data (CSV)");
   lines.push("");
-  const csvData = pivotAndFormatAsCSV(items, columns, disaggregations, staticData.formatAs);
+  const csvData = pivotAndFormatAsCSV(
+    items,
+    columns,
+    disaggregations,
+    staticData.formatAs,
+  );
   lines.push(csvData);
   lines.push("");
 
@@ -220,7 +256,9 @@ function formatItemsAsMarkdown(
   lines.push("=".repeat(80));
   lines.push("## Creating Visualizations from this Metric");
   lines.push("");
-  lines.push("To create a `from_metric` block in slides, use these exact parameters:");
+  lines.push(
+    "To create a `from_metric` block in slides, use these exact parameters:",
+  );
   lines.push("");
   lines.push("```");
   lines.push("{");
@@ -236,8 +274,10 @@ function formatItemsAsMarkdown(
     lines.push(`    "filters": [`);
     for (let i = 0; i < filters.length; i++) {
       const f = filters[i];
-      const comma = i < filters.length - 1 ? ',' : '';
-      lines.push(`      { "col": "${f.col}", "vals": ${JSON.stringify(f.vals)} }${comma}`);
+      const comma = i < filters.length - 1 ? "," : "";
+      lines.push(
+        `      { "col": "${f.col}", "vals": ${JSON.stringify(f.vals)} }${comma}`,
+      );
     }
     lines.push(`    ],`);
   }
@@ -251,7 +291,9 @@ function formatItemsAsMarkdown(
   }
 
   if (staticData.valueProps.length > 1) {
-    lines.push(`    "valuesFilter": ${JSON.stringify(staticData.valueProps)}  // Optional: choose specific values`);
+    lines.push(
+      `    "valuesFilter": ${JSON.stringify(staticData.valueProps)}  // Optional: choose specific values`,
+    );
   }
 
   lines.push("  },");
@@ -262,12 +304,22 @@ function formatItemsAsMarkdown(
   lines.push("");
   lines.push("**Parameter Notes:**");
   lines.push("- `metricId`: Always use the exact ID shown above");
-  lines.push("- `disaggregations`: Array of dimension names from the Dimension Summary");
-  lines.push("- `filters`: Array of {col, vals} objects to limit data (col must be a disaggregation)");
-  lines.push("- `periodFilter`: Time range filter with periodOption (period_id/quarter_id/year), min, and max");
+  lines.push(
+    "- `disaggregations`: Array of dimension names from the Dimension Summary",
+  );
+  lines.push(
+    "- `filters`: Array of {col, vals} objects to limit data (col must be a disaggregation)",
+  );
+  lines.push(
+    "- `periodFilter`: Time range filter with periodOption (period_id/quarter_id/year), min, and max",
+  );
 
   if (staticData.valueProps.length > 1) {
-    lines.push("- `valuesFilter`: Optional array to select specific value properties (" + staticData.valueProps.join(", ") + ")");
+    lines.push(
+      "- `valuesFilter`: Optional array to select specific value properties (" +
+        staticData.valueProps.join(", ") +
+        ")",
+    );
   }
 
   lines.push("- `chartType`: Choose 'bar', 'line', or 'table'");
@@ -281,7 +333,8 @@ function getDimensionStats(
   items: Record<string, string>[],
   columns: string[],
 ): Record<string, { uniqueCount: number; uniqueValues: string[] }> {
-  const stats: Record<string, { uniqueCount: number; uniqueValues: string[] }> = {};
+  const stats: Record<string, { uniqueCount: number; uniqueValues: string[] }> =
+    {};
 
   for (const col of columns) {
     const uniqueValues = new Set<string>();
@@ -311,26 +364,48 @@ function pivotAndFormatAsCSV(
   const decimalPlaces = formatAs === "percent" ? 3 : 2;
 
   // Identify value columns (everything not in disaggregations)
-  const valueColumns = columns.filter(col => !disaggregations.includes(col as DisaggregationOption));
+  const valueColumns = columns.filter(
+    (col) => !disaggregations.includes(col as DisaggregationOption),
+  );
 
   // Case 1: Has indicator_common_id → pivot indicators to columns
   if (disaggregations.includes("indicator_common_id")) {
-    const rowDimensions = disaggregations.filter(d => d !== "indicator_common_id");
-    const indicators = [...new Set(items.map(item => item.indicator_common_id))].sort();
+    const rowDimensions = disaggregations.filter(
+      (d) => d !== "indicator_common_id",
+    );
+    const indicators = [
+      ...new Set(items.map((item) => item.indicator_common_id)),
+    ].sort();
 
-    return pivotToWide(items, rowDimensions, "indicator_common_id", indicators, valueColumns, decimalPlaces);
+    return pivotToWide(
+      items,
+      rowDimensions,
+      "indicator_common_id",
+      indicators,
+      valueColumns,
+      decimalPlaces,
+    );
   }
 
   // Case 2: Has time dimension → pivot time to columns
-  const timeDimension = disaggregations.find(d =>
-    d === "year" || d === "quarter_id" || d === "period_id"
+  const timeDimension = disaggregations.find(
+    (d) => d === "year" || d === "quarter_id" || d === "period_id",
   );
 
   if (timeDimension) {
-    const rowDimensions = disaggregations.filter(d => d !== timeDimension);
-    const timePeriods = [...new Set(items.map(item => item[timeDimension]))].sort();
+    const rowDimensions = disaggregations.filter((d) => d !== timeDimension);
+    const timePeriods = [
+      ...new Set(items.map((item) => item[timeDimension])),
+    ].sort();
 
-    return pivotToWide(items, rowDimensions, timeDimension, timePeriods, valueColumns, decimalPlaces);
+    return pivotToWide(
+      items,
+      rowDimensions,
+      timeDimension,
+      timePeriods,
+      valueColumns,
+      decimalPlaces,
+    );
   }
 
   // Case 3: No pivot - return long format
@@ -368,7 +443,7 @@ function pivotToWide(
   const grouped = new Map<string, Record<string, string>[]>();
 
   for (const item of items) {
-    const rowKey = rowDimensions.map(dim => item[dim] || "").join("|");
+    const rowKey = rowDimensions.map((dim) => item[dim] || "").join("|");
     if (!grouped.has(rowKey)) {
       grouped.set(rowKey, []);
     }
@@ -382,7 +457,9 @@ function pivotToWide(
 
     for (const pivotVal of pivotValues) {
       // Find item matching this pivot value
-      const matchingItem = rowItems.find(item => item[pivotDimension] === pivotVal);
+      const matchingItem = rowItems.find(
+        (item) => item[pivotDimension] === pivotVal,
+      );
 
       if (matchingItem) {
         // Add all value columns for this pivot value

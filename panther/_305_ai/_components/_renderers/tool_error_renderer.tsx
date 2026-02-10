@@ -22,7 +22,7 @@ export const ToolErrorRenderer: Component<{
       <button
         type="button"
         onClick={() => setExpanded(!expanded())}
-        class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-xs"
+        class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
       >
         <div class="mt-0.5">
           {expanded() ? (

@@ -22,7 +22,8 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         ],
         filterBy: [],
         periodFilter: {
-          filterType: "last_12_months",
+          filterType: "last_n_months",
+          nMonths: 12,
           periodOption: "period_id",
           min: 202405,
           max: 202504,
@@ -67,7 +68,8 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         ],
         filterBy: [],
         periodFilter: {
-          filterType: "last_12_months",
+          filterType: "last_n_months",
+          nMonths: 12,
           periodOption: "period_id",
           min: 202405,
           max: 202504,
@@ -113,7 +115,8 @@ export const presentationObjects: PartialDefaultPresentationObjectJSON[] = [
         ],
         filterBy: [],
         periodFilter: {
-          filterType: "last_12_months",
+          filterType: "last_n_months",
+          nMonths: 12,
           periodOption: "period_id",
           min: 202405,
           max: 202504,
