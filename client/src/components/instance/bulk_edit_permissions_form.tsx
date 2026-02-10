@@ -1,6 +1,8 @@
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  Button,
+  ModalContainer,
+  StateHolderFormError,
   timActionForm,
 } from "panther";
 import { For } from "solid-js";
@@ -21,6 +23,12 @@ const PERMISSION_LABELS: Record<UserPermission, string> = {
   can_view_data: "View data",
   can_create_projects: "Create projects",
 };
+
+function cycleTriState(current: TriState): TriState {
+  if (current === "unchanged") return true;
+  if (current === true) return false;
+  return "unchanged";
+}
 
 type Props = {
   emails: string[];
@@ -56,82 +64,79 @@ export function BulkEditPermissionsForm(
   );
 
   const userCount = p.emails.length;
-  const headerText = t(
-    `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`,
-  );
 
   return (
-    <AlertFormHolder
-      formId="bulk-edit-permissions"
-      header={headerText}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
+    <ModalContainer
+      width="sm"
+      title={t(`Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`)}
+      leftButtons={[
+        <Button
+          onClick={save.click}
+          intent="success"
+          state={save.state()}
+          iconName="save"
+        >
+          {isFrench() ? "Sauvegarder" : "Save"}
+        </Button>,
+        <Button
+          onClick={() => p.close(undefined)}
+          intent="neutral"
+          iconName="x"
+          outline
+        >
+          {isFrench() ? "Annuler" : "Cancel"}
+        </Button>,
+      ]}
     >
-      <div class="w-[420px] space-y-1">
-        <For each={[...USER_PERMISSIONS]}>
-          {(key) => (
-            <div class="flex items-center gap-3 py-1">
-              <span class="text-sm flex-1 min-w-0">
-                {PERMISSION_LABELS[key]}
-              </span>
-              <div class="flex gap-0.5 flex-none">
-                <TriStateButton
-                  label="—"
-                  title={t("Unchanged")}
-                  active={state[key] === "unchanged"}
-                  onClick={() => setState(key, "unchanged")}
-                  intent="neutral"
-                />
-                <TriStateButton
-                  label="✓"
-                  title={t("Set to true")}
-                  active={state[key] === true}
-                  onClick={() => setState(key, true)}
-                  intent="positive"
-                />
-                <TriStateButton
-                  label="✗"
-                  title={t("Set to false")}
-                  active={state[key] === false}
-                  onClick={() => setState(key, false)}
-                  intent="negative"
-                />
-              </div>
-            </div>
+      <div class="space-y-1">
+        <div class="text-xs text-neutral mb-2">
+          {t("Click to cycle: unchanged → true → false")}
+        </div>
+        <For each={USER_PERMISSIONS}>
+          {(key: UserPermission) => (
+            <TriStateCheckbox
+              label={PERMISSION_LABELS[key]}
+              value={state[key]}
+              onChange={() => setState(key, cycleTriState(state[key]))}
+            />
           )}
         </For>
       </div>
-    </AlertFormHolder>
+      <StateHolderFormError state={save.state()} />
+    </ModalContainer>
   );
 }
 
-function TriStateButton(p: {
+function TriStateCheckbox(p: {
   label: string;
-  title: string;
-  active: boolean;
-  onClick: () => void;
-  intent: "neutral" | "positive" | "negative";
+  value: TriState;
+  onChange: () => void;
 }) {
-  const cls = () => {
-    const base =
-      "w-8 h-8 flex items-center justify-center text-sm rounded cursor-pointer border transition-colors";
-    if (!p.active)
-      return `${base} border-base-300 text-neutral bg-transparent hover:bg-base-200`;
-    switch (p.intent) {
-      case "neutral":
-        return `${base} border-base-400 text-base-content bg-base-200 font-700`;
-      case "positive":
-        return `${base} border-success text-success bg-success/10 font-700`;
-      case "negative":
-        return `${base} border-error text-error bg-error/10 font-700`;
-    }
+  const icon = () => {
+    if (p.value === true) return "✓";
+    if (p.value === false) return "✗";
+    return "—";
+  };
+
+  const boxClass = () => {
+    const base = "w-4 h-4 rounded border flex items-center justify-center text-xs flex-none";
+    if (p.value === true)
+      return `${base} bg-primary border-primary text-primary-content`;
+    if (p.value === false)
+      return `${base} border-danger text-danger bg-danger/10 font-700`;
+    return `${base} bg-base-200 border-base-400 text-base-content`;
+  };
+
+  const labelClass = () => {
+    if (p.value === "unchanged") return "text-sm text-neutral";
+    if (p.value === false) return "text-sm text-danger";
+    return "text-sm";
   };
 
   return (
-    <button type="button" class={cls()} title={p.title} onClick={() => p.onClick()}>
-      {p.label}
-    </button>
+    <label class="flex items-center gap-2 cursor-pointer select-none py-1" onClick={() => p.onChange()}>
+      <span class={boxClass()}>{icon()}</span>
+      <span class={labelClass()}>{p.label}</span>
+    </label>
   );
 }

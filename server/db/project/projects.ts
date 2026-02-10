@@ -129,7 +129,6 @@ export async function getProjectDetail(
           email: u.email,
           role: "editor",
           isGlobalAdmin: true,
-          hasProjectAccess: true,
           can_configure_settings: true,
           can_create_backups: true,
           can_restore_backups: true,
@@ -144,6 +143,7 @@ export async function getProjectDetail(
           can_view_slide_decks: true,
           can_configure_data: true,
           can_view_data: true,
+          can_view_metrics: true,
           can_view_logs: true,
         };
       }
@@ -154,7 +154,6 @@ export async function getProjectDetail(
         email: u.email,
         role: !pur ? "none" : pur.role === "editor" ? "editor" : "viewer",
         isGlobalAdmin: false,
-        hasProjectAccess: !!pur,
         can_configure_settings: pur?.can_configure_settings ?? false,
         can_create_backups: pur?.can_create_backups ?? false,
         can_restore_backups: pur?.can_restore_backups ?? false,
@@ -170,6 +169,7 @@ export async function getProjectDetail(
         can_view_slide_decks: pur?.can_view_slide_decks ?? false,
         can_configure_data: pur?.can_configure_data ?? false,
         can_view_data: pur?.can_view_data ?? false,
+        can_view_metrics: pur?.can_view_metrics ?? false,
         can_view_logs: pur?.can_view_logs ?? false,
       };
     });
@@ -206,6 +206,7 @@ export async function getProjectDetail(
         can_view_slide_decks: projectUser?.can_view_slide_decks ?? false,
         can_configure_data: projectUser?.can_configure_data ?? false,
         can_view_data: projectUser?.can_view_data ?? false,
+        can_view_metrics: projectUser?.can_view_metrics ?? false,
         can_view_logs: projectUser?.can_view_logs ?? false,
       },
     };
@@ -257,15 +258,15 @@ export async function addProject(
     `;
     await mainDb.begin((sql) => [
       sql`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${projectLabel}, '')`,
-      sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_logs)
-       VALUES (${globalUser.email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`,
+      sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs)
+       VALUES (${globalUser.email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`,
       ...projectEditors.map((email) => {
-        return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_logs)
-       VALUES (${email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`;
+        return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs)
+       VALUES (${email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`;
       }),
       ...projectViewers.map((email) => {
-        return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_logs)
-       VALUES (${email}, ${newProjectId}, 'viewer', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`;
+        return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs)
+       VALUES (${email}, ${newProjectId}, 'viewer', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`;
       }),
     ]);
     const datasetLastUpdateds: {
@@ -438,7 +439,7 @@ export async function addProjectUserRole(
         can_configure_visualizations, can_view_visualizations,
         can_configure_reports, can_view_reports,
         can_configure_slide_decks, can_view_slide_decks,
-        can_configure_data, can_view_data, can_view_logs
+        can_configure_data, can_view_data, can_view_metrics, can_view_logs
       ) VALUES (
         ${email}, ${projectId}, 'viewer',
         false, false, false,
@@ -446,26 +447,13 @@ export async function addProjectUserRole(
         false, false,
         false, false,
         false, false,
-        false, false, false
+        false, false, false, false
       )
     `;
     return { success: true };
   });
 }
 
-export async function removeProjectUserRole(
-  mainDb: Sql,
-  projectId: string,
-  email: string,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-      DELETE FROM project_user_roles
-      WHERE email = ${email} ANd project_id = ${projectId}
-    `;
-    return { success: true };
-  });
-}
 
 export async function updateProjectUserPermissions(
   mainDb: Sql,
@@ -476,8 +464,8 @@ export async function updateProjectUserPermissions(
   return await tryCatchDatabaseAsync(async () => {
     for (const email of emails) {
       await mainDb`
-        INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_logs)
-        VALUES (${email}, ${projectId}, 'viewer', ${permissions.can_configure_settings}, ${permissions.can_create_backups}, ${permissions.can_restore_backups}, ${permissions.can_configure_modules}, ${permissions.can_run_modules}, ${permissions.can_configure_users}, ${permissions.can_configure_visualizations}, ${permissions.can_view_visualizations}, ${permissions.can_configure_reports}, ${permissions.can_view_reports}, ${permissions.can_configure_slide_decks}, ${permissions.can_view_slide_decks}, ${permissions.can_configure_data}, ${permissions.can_view_data}, ${permissions.can_view_logs})
+        INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs)
+        VALUES (${email}, ${projectId}, 'viewer', ${permissions.can_configure_settings}, ${permissions.can_create_backups}, ${permissions.can_restore_backups}, ${permissions.can_configure_modules}, ${permissions.can_run_modules}, ${permissions.can_configure_users}, ${permissions.can_configure_visualizations}, ${permissions.can_view_visualizations}, ${permissions.can_configure_reports}, ${permissions.can_view_reports}, ${permissions.can_configure_slide_decks}, ${permissions.can_view_slide_decks}, ${permissions.can_configure_data}, ${permissions.can_view_data}, ${permissions.can_view_metrics}, ${permissions.can_view_logs})
         ON CONFLICT (email, project_id) DO UPDATE SET
           can_configure_settings = ${permissions.can_configure_settings},
           can_create_backups = ${permissions.can_create_backups},
@@ -493,6 +481,7 @@ export async function updateProjectUserPermissions(
           can_view_slide_decks = ${permissions.can_view_slide_decks},
           can_configure_data = ${permissions.can_configure_data},
           can_view_data = ${permissions.can_view_data},
+          can_view_metrics = ${permissions.can_view_metrics},
           can_view_logs = ${permissions.can_view_logs}
       `;
     }
@@ -554,6 +543,7 @@ export async function getProjectUserPermissions(
         can_view_slide_decks,
         can_configure_data,
         can_view_data,
+        can_view_metrics,
         can_view_logs
       FROM project_user_roles
       WHERE email = ${email}
@@ -683,8 +673,8 @@ export async function copyProject(
 
     // Copy all user roles and permissions from source project
     await mainDb`
-      INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_logs)
-      SELECT email, ${newProjectId}, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_logs
+      INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs)
+      SELECT email, ${newProjectId}, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs
       FROM project_user_roles
       WHERE project_id = ${sourceProjectId}
     `;

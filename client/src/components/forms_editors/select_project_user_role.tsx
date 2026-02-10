@@ -50,6 +50,7 @@ const PERMISSION_CATEGORIES: {
     permissions: [
       "can_configure_data",
       "can_view_data",
+      "can_view_metrics",
       "can_configure_modules",
       "can_run_modules",
     ],
@@ -87,9 +88,6 @@ export function SelectProjectUserRole(
     ProjectPermission,
     boolean
   > | null>(null);
-  const [userRoleExists, setUserRoleExists] = createSignal<boolean | null>(
-    null,
-  );
 
   onMount(async () => {
     if (p.users.length === 1) {
@@ -97,17 +95,13 @@ export function SelectProjectUserRole(
         projectId: p.projectId,
         email: p.users[0].email,
       });
-      console.log("getProjectUserPermissions response:", res);
       if (res.success) {
         setPermissions(res.data.permissions);
-        setUserRoleExists(true);
       } else {
         setPermissions(makeDefaultPermissions());
-        setUserRoleExists(false);
       }
     } else {
       setPermissions(makeDefaultPermissions());
-      setUserRoleExists(true);
     }
   });
 
@@ -133,36 +127,9 @@ export function SelectProjectUserRole(
     },
   );
 
-  const addUserRole = timActionForm(
-    async () => {
-      return serverActions.addProjectUserRole({
-        projectId: p.projectId,
-        email: p.users[0].email,
-      });
-    },
-    async () => {
-      setUserRoleExists(true);
-      await p.silentFetch?.();
-    },
-  );
-
-  const removeUserRole = timActionForm(
-    async () => {
-      return serverActions.removeProjectUserRole({
-        projectId: p.projectId,
-        email: p.users[0].email,
-      });
-    },
-    async () => {
-      setUserRoleExists(false);
-      setPermissions(makeDefaultPermissions());
-      await p.silentFetch?.();
-    },
-  );
-
   return (
     <ModalContainer
-      width="lg"
+      width="md"
       topPanel={
         <div class="flex items-center justify-between">
           <div>
@@ -173,32 +140,6 @@ export function SelectProjectUserRole(
               {p.users.map((u) => u.email).join(", ")}
             </div>
           </div>
-          <Show when={p.users.length === 1}>
-            <Show
-              when={userRoleExists()}
-              fallback={
-                <Button
-                  onClick={addUserRole.click}
-                  intent="success"
-                  state={addUserRole.state()}
-                  iconName="userPlus"
-                  size="sm"
-                >
-                  Add to project
-                </Button>
-              }
-            >
-              <Button
-                onClick={removeUserRole.click}
-                intent="danger"
-                state={removeUserRole.state()}
-                iconName="user"
-                size="sm"
-              >
-                Remove from project
-              </Button>
-            </Show>
-          </Show>
         </div>
       }
       leftButtons={
@@ -209,7 +150,6 @@ export function SelectProjectUserRole(
             intent="success"
             state={save.state()}
             iconName="save"
-            disabled={userRoleExists() === false}
           >
             {t2(T.FRENCH_UI_STRINGS.save)}
           </Button>,
@@ -224,15 +164,12 @@ export function SelectProjectUserRole(
       }
     >
       <Show
-        when={permissions() && userRoleExists() !== null}
+        when={permissions()}
         fallback={<div>Loading...</div>}
       >
-        <div
-          class="flex gap-2"
-          classList={{
-            "opacity-50 pointer-events-none": userRoleExists() === false,
-          }}
-        >
+        <div>
+          <div class="font-600 text-sm">{t2("Permission presets")}</div>
+          <div class="flex gap-2">
           <For each={PERMISSION_PRESETS}>
             {(preset: {
               label: string;
@@ -249,19 +186,15 @@ export function SelectProjectUserRole(
               </Button>
             )}
           </For>
+          </div>
         </div>
-        <div
-          class="grid grid-cols-2 gap-4"
-          classList={{
-            "opacity-50 pointer-events-none": userRoleExists() === false,
-          }}
-        >
+        <div class="grid grid-cols-2 gap-3">
           <For each={PERMISSION_CATEGORIES}>
             {(category: {
               label: string;
               permissions: readonly ProjectPermission[];
             }) => (
-              <div class="space-y-2">
+              <div class="space-y-1">
                 <div class="font-600 text-sm">{category.label}</div>
                 <For each={category.permissions}>
                   {(key: ProjectPermission) => (
@@ -269,7 +202,6 @@ export function SelectProjectUserRole(
                       label={getPermissionLabel(key)}
                       checked={permissions()![key]}
                       onChange={() => togglePermission(key)}
-                      disabled={userRoleExists() === false}
                     />
                   )}
                 </For>

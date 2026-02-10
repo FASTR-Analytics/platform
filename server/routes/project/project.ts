@@ -10,7 +10,6 @@ import {
   getProjectDetail,
   getProjectUserPermissions,
   removeDatasetFromProject,
-  removeProjectUserRole,
   setProjectLockStatus,
   updateProject,
   updateProjectUserPermissions,
@@ -332,20 +331,4 @@ defineRoute(
   },
 );
 
-defineRoute(
-  routesProject,
-  "removeProjectUserRole",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_users",
-  ),
-  log("removeProjectUserRole"),
-  async (c, { body }) => {
-    const res = await removeProjectUserRole(
-      c.var.mainDb,
-      c.var.ppk.projectId,
-      body.email,
-    );
-    return c.json(res);
-  },
-);
+

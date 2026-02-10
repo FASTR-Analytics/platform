@@ -318,6 +318,7 @@ const permissionLabels: { key: keyof ProjectUser; label: string }[] = [
   { key: "can_view_visualizations", label: "View visualizations" },
   { key: "can_view_slide_decks", label: "View slide decks" },
   { key: "can_view_data", label: "View data" },
+  { key: "can_view_metrics", label: "View metrics" },
   { key: "can_view_logs", label: "View logs" },
   { key: "can_configure_settings", label: "Configure settings" },
   { key: "can_configure_modules", label: "Configure modules" },
@@ -332,9 +333,8 @@ const permissionLabels: { key: keyof ProjectUser; label: string }[] = [
 ];
 
 function getPermissionSummary(user: ProjectUser): string {
-  if (user.hasProjectAccess === false) return "Does not have access";
   const active = permissionLabels.filter((p) => user[p.key]);
-  if (active.length === 0) return "No permissions";
+  if (active.length === 0) return "Does not have access";
   const shown = active.slice(0, 5).map((p) => p.label).join(", ");
   if (active.length > 5) return `${shown}, +${active.length - 5} more`;
   return shown;

@@ -152,15 +152,6 @@ export const projectRouteRegistry = {
     requiresProject: true,
   }),
 
-  removeProjectUserRole: route({
-    path: "/remove_project_user_role",
-    method: "POST",
-    body: {} as {
-      projectId: string;
-      email: string;
-    },
-    requiresProject: true,
-  }),
 
   bulkUpdateProjectUserPermissions: route({
     path: "/bulk_update_project_user_permissions",

@@ -310,6 +310,7 @@ async function getProjectUser(
           can_view_slide_decks: true,
           can_configure_data: true,
           can_view_data: true,
+          can_view_metrics: true,
           can_view_logs: true,
         },
       };
@@ -317,10 +318,28 @@ async function getProjectUser(
 
     const rawProjectUserRoleResult = await mainDb<
       DBProjectUserRole[]
-    >`SELECT * FROM project_user_roles WHERE email = ${globalUser.email} AND project_id = ${projectId}`; // add if all permissions are false treat as no access
+    >`SELECT * FROM project_user_roles WHERE email = ${globalUser.email} AND project_id = ${projectId}`;
     const rawProjectUserRole = rawProjectUserRoleResult.at(0);
 
-    if (!rawProjectUserRole) {
+    if (
+      !rawProjectUserRole ||
+      (!rawProjectUserRole.can_configure_settings &&
+        !rawProjectUserRole.can_create_backups &&
+        !rawProjectUserRole.can_restore_backups &&
+        !rawProjectUserRole.can_configure_modules &&
+        !rawProjectUserRole.can_run_modules &&
+        !rawProjectUserRole.can_configure_users &&
+        !rawProjectUserRole.can_configure_visualizations &&
+        !rawProjectUserRole.can_view_visualizations &&
+        !rawProjectUserRole.can_configure_reports &&
+        !rawProjectUserRole.can_view_reports &&
+        !rawProjectUserRole.can_configure_slide_decks &&
+        !rawProjectUserRole.can_view_slide_decks &&
+        !rawProjectUserRole.can_configure_data &&
+        !rawProjectUserRole.can_view_data &&
+        !rawProjectUserRole.can_view_metrics &&
+        !rawProjectUserRole.can_view_logs)
+    ) {
       throw new Error(
         "Middleware error: User does not have access to this project",
       );
@@ -348,6 +367,7 @@ async function getProjectUser(
         can_view_slide_decks: rawProjectUserRole.can_view_slide_decks,
         can_configure_data: rawProjectUserRole.can_configure_data,
         can_view_data: rawProjectUserRole.can_view_data,
+        can_view_metrics: rawProjectUserRole.can_view_metrics,
         can_view_logs: rawProjectUserRole.can_view_logs,
       },
     };

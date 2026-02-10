@@ -7,8 +7,7 @@ import {
 import { For } from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { t, t2, T, type ProjectPermission } from "lib";
-import { PROJECT_PERMISSIONS } from "./select_project_user_role";
+import { t, t2, T, type ProjectPermission, PROJECT_PERMISSIONS } from "lib";
 
 type TriState = true | false | "unchanged";
 
@@ -21,6 +20,7 @@ const PERMISSION_LABELS: Record<ProjectPermission, string> = {
   can_configure_slide_decks: "can create and edit slide decks",
   can_configure_data: "can configure data",
   can_view_data: "can view data",
+  can_view_metrics: "can view metrics",
   can_configure_modules: "can configure modules",
   can_run_modules: "can run modules",
   can_configure_settings: "can configure settings",
@@ -50,6 +50,7 @@ const PERMISSION_CATEGORIES: {
     permissions: [
       "can_configure_data",
       "can_view_data",
+      "can_view_metrics",
       "can_configure_modules",
       "can_run_modules",
     ],
@@ -177,12 +178,13 @@ function TriStateCheckbox(p: {
     if (p.value === true)
       return `${base} bg-primary border-primary text-primary-content`;
     if (p.value === false)
-      return `${base} bg-base-100 border-base-400 text-error`;
+      return `${base} border-danger text-danger bg-danger/10 font-700`;
     return `${base} bg-base-200 border-base-400 text-base-content`;
   };
 
   const labelClass = () => {
     if (p.value === "unchanged") return "text-sm text-neutral";
+    if (p.value === false) return "text-sm text-danger";
     return "text-sm";
   };
 
