@@ -1,4 +1,9 @@
-import type { InstalledModuleSummary, MetricWithStatus } from "lib";
+import type {
+  InstalledModuleSummary,
+  MetricWithStatus,
+  PresentationObjectSummary,
+  SlideDeckSummary,
+} from "lib";
 import { getToolsForDrafts } from "./ai_tools/tools/drafts";
 import { getToolsForMethodologyDocs } from "./ai_tools/tools/methodology_docs";
 import { getToolsForMetrics } from "./ai_tools/tools/metrics";
@@ -13,17 +18,20 @@ type BuildToolsParams = {
   projectId: string;
   modules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
+  visualizations: PresentationObjectSummary[];
+  slideDecks: SlideDeckSummary[];
   aiContext: () => AIContext;
 };
 
 export function buildToolsForContext(params: BuildToolsParams) {
-  const { projectId, modules, metrics, aiContext } = params;
+  const { projectId, modules, metrics, visualizations, slideDecks, aiContext } =
+    params;
 
   return [
     // Base data tools - always available
     ...getToolsForMetrics(projectId, metrics),
     ...getToolsForModules(projectId, modules, metrics),
-    ...getToolsForVisualizations(projectId),
+    ...getToolsForVisualizations(projectId, visualizations, slideDecks),
     ...getToolsForMethodologyDocs(),
 
     // Mode-specific tools - check mode in handler

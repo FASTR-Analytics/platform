@@ -169,28 +169,6 @@ function getIdealHeightAtScale(
     xAxisHeight +
     mSurrounds.extraHeightDueToSurrounds;
 
-  if (total > 2000) {
-    console.log(
-      `[TS getIdealHeightAtScale] width=${width.toFixed(0)} scale=${
-        scale.toFixed(2)
-      } ` +
-        `nPanes=${transformedData.paneHeaders.length} nGRows=${nGRows} nTiers=${nTiers} ` +
-        `minSubH=${minSubChartHeight.toFixed(0)} totalSubH=${
-          totalSubChartsHeight.toFixed(0)
-        } ` +
-        `tierGaps=${tierGapsHeight.toFixed(0)} paneGaps=${
-          paneGapsHeight.toFixed(0)
-        } ` +
-        `tierPad=${tierPaddingHeight.toFixed(0)} paneHeaders=${
-          paneHeadersHeight.toFixed(0)
-        } ` +
-        `xAxis=${xAxisHeight.toFixed(0)} surrounds=${
-          mSurrounds.extraHeightDueToSurrounds.toFixed(0)
-        } ` +
-        `TOTAL=${total.toFixed(0)}`,
-    );
-  }
-
   return total;
 }
 

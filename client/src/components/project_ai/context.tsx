@@ -84,6 +84,10 @@ function reduceInteractions(interactions: AIUserInteraction[], currentContext: A
       case "custom":
         customMessages.push(interaction.message);
         break;
+      default: {
+        const _exhaustive: never = interaction;
+        return _exhaustive;
+      }
     }
   }
 
@@ -186,6 +190,10 @@ function formatInteraction(interaction: AIUserInteraction): string {
       return `- Selected visualizations: ${interaction.vizIds.join(", ")}`;
     case "custom":
       return `- ${interaction.message}`;
+    default: {
+      const _exhaustive: never = interaction;
+      return _exhaustive;
+    }
   }
 }
 

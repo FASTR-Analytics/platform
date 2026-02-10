@@ -22,20 +22,22 @@ export const ToolSuccessRenderer: Component<{
       <button
         type="button"
         onClick={() => setExpanded(!expanded())}
-        class="flex w-full cursor-pointer items-start gap-1 text-sm text-success/80 hover:text-success transition-colors"
+        class="text-success/80 hover:text-success flex w-full cursor-pointer items-start gap-1 text-sm transition-colors"
       >
         <div class="mt-0.5">
-          {expanded()
-            ? <ChevronDownIcon class="size-4" />
-            : <ChevronRightIcon class="size-4" />}
+          {expanded() ? (
+            <ChevronDownIcon class="h-4 w-4" />
+          ) : (
+            <ChevronRightIcon class="h-4 w-4" />
+          )}
         </div>
         <span class="italic">{props.item.message}</span>
       </button>
 
       <Show when={expanded()}>
         <div class="ml-5 mt-1">
-          <div class="text-xs font-medium text-success/60 mb-1">Result:</div>
-          <div class="font-mono text-xs text-success/80 whitespace-pre-wrap bg-success/5 rounded p-2">
+          <div class="text-success/60 mb-1 text-xs font-medium">Result:</div>
+          <div class="text-success/80 bg-success/5 whitespace-pre-wrap rounded p-2 font-mono text-xs">
             {props.item.result}
           </div>
         </div>

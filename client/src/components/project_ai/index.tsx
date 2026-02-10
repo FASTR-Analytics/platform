@@ -37,7 +37,7 @@ function AIProjectWrapperInner(props: AIProjectWrapperProps) {
   const aiDocs = useAIDocuments({ projectId });
 
   const tools = createMemo(() => {
-    console.log("[WRAPPER] tools memo recomputing, aiContext mode:", aiContext().mode);
+    // console.log("[WRAPPER] tools memo recomputing, aiContext mode:", aiContext().mode);
     // Touch all properties used by tools (bespoke reader pattern)
     projectDetail.projectModules.forEach(m => {
       const _v = m.id + m.label + m.configType + m.dateInstalled + m.lastRun + m.dirty;
@@ -81,6 +81,8 @@ function AIProjectWrapperInner(props: AIProjectWrapperProps) {
       projectId,
       modules: projectDetail.projectModules,
       metrics: projectDetail.metrics,
+      visualizations: projectDetail.visualizations,
+      slideDecks: projectDetail.slideDecks,
       aiContext: aiContext,
     });
   });
@@ -167,7 +169,7 @@ function AIProjectWrapperInner(props: AIProjectWrapperProps) {
         maxWidth={1200}
         isShown={showAi()}
         onToggleShow={() => setShowAi(false)}
-        panelChildren={<ConsolidatedChatPane aiDocs={aiDocs} />}>
+        panelChildren={<ConsolidatedChatPane aiDocs={aiDocs} getSystemPrompt={systemPrompt} />}>
         {props.children}
       </FrameRightResizable>
     </AIChatProvider>

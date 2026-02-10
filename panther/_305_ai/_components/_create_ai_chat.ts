@@ -76,11 +76,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     );
   }
 
-  const config = configMaybe as
-    & Required<
-      Pick<AIChatConfig, "sdkClient" | "modelConfig">
-    >
-    & AIChatConfig;
+  const config = configMaybe as Required<
+    Pick<AIChatConfig, "sdkClient" | "modelConfig">
+  > &
+    AIChatConfig;
 
   const settingsKey = config.scope
     ? `${SETTINGS_KEY_PREFIX}-${config.scope}`
@@ -103,7 +102,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     getOrCreateConversationStore(
       conversationId(),
       config.enablePersistence ?? true,
-    )
+    ),
   );
 
   const messages = () => store().messages[0]();
@@ -163,7 +162,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // Include documents if we have them AND they're not already in the message array
     const shouldIncludeDocuments = !messagesContainDocuments();
     const documentRefs = shouldIncludeDocuments
-      ? (config.getDocumentRefs?.() || [])
+      ? config.getDocumentRefs?.() || []
       : [];
     if (documentRefs.length === 0) {
       return { role: "user", content: text };
@@ -178,10 +177,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     return {
       role: "user",
-      content: [
-        ...documentBlocks,
-        { type: "text" as const, text },
-      ],
+      content: [...documentBlocks, { type: "text" as const, text }],
     };
   };
 
@@ -364,7 +360,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             allErrorItems.push({
               type: "tool_error",
               toolName: block.name,
-              errorMessage: `Tool error: ${block.name}`,
+              errorMessage: `Tool feedback: ${block.name}`,
               errorDetails: result,
               toolInput: block.input,
             });

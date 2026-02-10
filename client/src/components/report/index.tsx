@@ -1,4 +1,12 @@
-import { InstanceDetail, LongFormReportConfig, ProjectDetail, ReportDetail, t, t2, T } from "lib";
+import {
+  InstanceDetail,
+  LongFormReportConfig,
+  ProjectDetail,
+  ReportDetail,
+  t,
+  t2,
+  T,
+} from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -12,7 +20,16 @@ import {
   timActionButton,
   useSmartNavigate,
 } from "panther";
-import { For, Match, Show, Switch, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  For,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import { unwrap } from "solid-js/store";
 import { ReportItemMiniDisplay } from "~/components/ReportItemMiniDisplay";
 import { DownloadReport } from "./download_report";
@@ -100,18 +117,18 @@ export function Report(p: Props) {
     setReportDetail({ status: "ready", data: res.data });
 
     // Set AI context once report data is loaded
-    const report = p.projectDetail.reports.find(r => r.id === p.reportId);
+    const report = p.projectDetail.reports.find((r) => r.id === p.reportId);
     if (report) {
-      setAIContext({
-        mode: "editing_report",
-        reportId: p.reportId,
-        reportLabel: report.label,
-      });
+      // setAIContext({
+      //   mode: "editing_report",
+      //   reportId: p.reportId,
+      //   reportLabel: report.label,
+      // });
     }
   }
 
   onCleanup(() => {
-    setAIContext(p.returnToContext ?? { mode: "viewing_reports" });
+    // setAIContext(p.returnToContext ?? { mode: "viewing_reports" });
   });
 
   createEffect(() => {
@@ -149,14 +166,20 @@ export function Report(p: Props) {
     if (rd.status !== "ready") {
       return;
     }
-    const res = await openEditorForSettings<ReportSettingsProps, "AFTER_DELETE">({
+    const res = await openEditorForSettings<
+      ReportSettingsProps,
+      "AFTER_DELETE"
+    >({
       element: ReportSettings,
       props: {
         projectId: p.projectDetail.id,
         config: rd.data.config,
         heading: t2(T.FRENCH_UI_STRINGS.report_settings),
         nameLabel: t2(T.FRENCH_UI_STRINGS.report_name),
-        showPageNumbersSuffix: rd.data.reportType === "slide_deck" ? t2(T.FRENCH_UI_STRINGS.except_on_cover_and_section_sl) : undefined,
+        showPageNumbersSuffix:
+          rd.data.reportType === "slide_deck"
+            ? t2(T.FRENCH_UI_STRINGS.except_on_cover_and_section_sl)
+            : undefined,
         saveConfig: (config) =>
           serverActions.updateReportConfig({
             projectId: p.projectDetail.id,
@@ -262,7 +285,6 @@ export function Report(p: Props) {
   //   return undefined;
   // };
 
-
   return (
     <Switch>
       {/* <Match when={longFormData()} keyed>
@@ -282,10 +304,7 @@ export function Report(p: Props) {
           <FrameTop
             panelChildren={
               <div class="ui-pad ui-gap border-base-200 bg-base-100 flex h-full w-full items-center border-b">
-                <Button
-                  iconName="chevronLeft"
-                  onClick={() => handleClose()}
-                />
+                <Button iconName="chevronLeft" onClick={() => handleClose()} />
                 <div class="font-700 flex-1 truncate text-xl">
                   <span class="font-400">{reportLabel()}</span>
                 </div>
@@ -293,8 +312,14 @@ export function Report(p: Props) {
                   <Show when={reportType() === "policy_brief"}>
                     <RadioGroup
                       options={[
-                        { value: "fit-within", label: t2(T.FRENCH_UI_STRINGS.fitwithin) },
-                        { value: "fit-width", label: t2(T.FRENCH_UI_STRINGS.maxwidth) },
+                        {
+                          value: "fit-within",
+                          label: t2(T.FRENCH_UI_STRINGS.fitwithin),
+                        },
+                        {
+                          value: "fit-width",
+                          label: t2(T.FRENCH_UI_STRINGS.maxwidth),
+                        },
                       ]}
                       value={fitWithin()}
                       onChange={setFitWithin}

@@ -1,24 +1,16 @@
-
 import {
   PresentationObjectConfig,
   PresentationObjectDetail,
   ProjectDetail,
   ResultsValue,
   ResultsValueInfoForPresentationObject,
-  type InstanceDetail
+  type InstanceDetail,
 } from "lib";
-import {
-  AlertComponentProps,
-  StateHolderWrapper,
-  timQuery
-} from "panther";
-import {
-  Match,
-  Switch
-} from "solid-js";
+import { AlertComponentProps, StateHolderWrapper, timQuery } from "panther";
+import { Match, Switch } from "solid-js";
 import {
   getPODetailFromCacheorFetch,
-  getResultsValueInfoForPresentationObjectFromCacheOrFetch
+  getResultsValueInfoForPresentationObjectFromCacheOrFetch,
 } from "~/state/po_cache";
 import { VisualizationEditorInner } from "./visualization_editor_inner";
 import type { AIContext } from "~/components/project_ai/types";
@@ -76,7 +68,6 @@ export type VisualizationEditorProps =
 export function VisualizationEditor(
   p: AlertComponentProps<VisualizationEditorProps, any>,
 ) {
-  console.log("open")
   return (
     <Switch>
       <Match when={p.mode === "edit" && p}>
@@ -144,8 +135,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
         resultsValueInfo: resultsValueInfoRes.data,
       },
     } as const;
-  },
-    "Loading...");
+  }, "Loading...");
 
   // async function attemptDeleteFromError() {
   //   const deleteAction = timActionDelete(
@@ -164,7 +154,10 @@ function VisualizationEditorEdit(p: EditModeProps) {
   return (
     <StateHolderWrapper state={combinedData.state()}>
       {(keyedCombinedData: CombinedData) => {
-        console.log("[VIZ EDIT] StateHolderWrapper rendering children with data:", keyedCombinedData);
+        console.log(
+          "[VIZ EDIT] StateHolderWrapper rendering children with data:",
+          keyedCombinedData,
+        );
         return (
           <VisualizationEditorInner
             mode="edit"
@@ -204,7 +197,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
   };
 
   return (
-    <StateHolderWrapper state={resultsValueInfo.state()} >
+    <StateHolderWrapper state={resultsValueInfo.state()}>
       {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => {
         return (
           <VisualizationEditorInner
@@ -245,7 +238,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
   };
 
   return (
-    <StateHolderWrapper state={resultsValueInfo.state()} >
+    <StateHolderWrapper state={resultsValueInfo.state()}>
       {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => {
         return (
           <VisualizationEditorInner

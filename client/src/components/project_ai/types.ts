@@ -61,7 +61,7 @@ export type AIContextEditingSlideDeck = {
   optimisticSetLastUpdated: (
     tableName: "slides" | "slide_decks",
     id: string,
-    lastUpdated: string
+    lastUpdated: string,
   ) => void;
 };
 
@@ -94,23 +94,26 @@ export type AIContextEditingReport = {
 export type AIContext =
   | AIContextViewingVisualizations
   | AIContextViewingSlideDecks
-  | AIContextViewingReports
+  // | AIContextViewingReports
+  // | AIContextEditingReport;
   | AIContextViewingData
   | AIContextViewingMetrics
   | AIContextViewingModules
   | AIContextViewingSettings
   | AIContextEditingSlideDeck
   | AIContextEditingSlide
-  | AIContextEditingVisualization
-  | AIContextEditingReport;
+  | AIContextEditingVisualization;
 
-export type DraftContent = {
-  type: "slide";
-  input: AiContentSlideInput;
-} | {
-  type: "viz";
-  input: AiContentSlideInput;
-} | null;
+export type DraftContent =
+  | {
+      type: "slide";
+      input: AiContentSlideInput;
+    }
+  | {
+      type: "viz";
+      input: AiContentSlideInput;
+    }
+  | null;
 
 export type AIProjectContextValue = {
   aiContext: () => AIContext;
