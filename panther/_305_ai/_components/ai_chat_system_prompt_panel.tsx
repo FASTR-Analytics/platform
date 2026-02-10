@@ -6,17 +6,16 @@
 import { type AlertComponentProps, Button, ModalContainer } from "../deps.ts";
 
 export type AIChatSystemPromptPanelProps = {
-  systemPrompt:
-    | string
-    | Array<{ type: "text"; text: string }>;
+  systemPrompt: string | Array<{ type: "text"; text: string }>;
 };
 
 type Props = AlertComponentProps<AIChatSystemPromptPanelProps, void>;
 
 export function AIChatSystemPromptPanel(p: Props) {
-  const text = typeof p.systemPrompt === "string"
-    ? p.systemPrompt
-    : p.systemPrompt.map((block) => block.text).join("\n\n");
+  const text =
+    typeof p.systemPrompt === "string"
+      ? p.systemPrompt
+      : p.systemPrompt.map((block) => block.text).join("\n\n");
 
   return (
     <ModalContainer
@@ -29,9 +28,7 @@ export function AIChatSystemPromptPanel(p: Props) {
         </Button>
       }
     >
-      <pre class="whitespace-pre-wrap break-words text-sm leading-relaxed">
-        {text}
-      </pre>
+      <pre class="whitespace-pre-wrap break-words text-xs">{text}</pre>
     </ModalContainer>
   );
 }

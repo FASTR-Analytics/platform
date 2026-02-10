@@ -11,6 +11,7 @@ import { getToolsForModules } from "./ai_tools/tools/modules";
 import { getToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
 import { getToolsForSlides } from "./ai_tools/tools/slides";
 import { getToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
+import { getToolsForNavigation } from "./ai_tools/tools/navigation";
 import { getToolsForVisualizations } from "./ai_tools/tools/visualizations";
 import type { AIContext } from "./types";
 
@@ -38,6 +39,9 @@ export function buildToolsForContext(params: BuildToolsParams) {
     ...getToolsForSlides(projectId, aiContext, metrics),
     ...getToolsForSlideEditor(projectId, aiContext, metrics),
     ...getToolsForVizEditor(projectId, aiContext),
+
+    // Navigation tools - always available
+    ...getToolsForNavigation(aiContext),
 
     // Draft preview tools - always available
     ...getToolsForDrafts(projectId, metrics, aiContext),

@@ -27,7 +27,7 @@ type ConsolidatedChatPaneProps = {
 };
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
-  const { aiContext, getPendingInteractionsMessage, clearPendingInteractions } =
+  const { aiContext } =
     useAIProjectContext();
   const { updateConfig, getConfig, conversationId, isLoading, sendMessage } =
     createAIChat();
@@ -149,15 +149,6 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     },
   ];
 
-  const handleBeforeSubmit = (userMessage: string): string => {
-    const interactionsMessage = getPendingInteractionsMessage();
-    if (interactionsMessage) {
-      clearPendingInteractions();
-      return `${interactionsMessage}\n\n${userMessage}`;
-    }
-    return userMessage;
-  };
-
   const placeholder = () => {
     const ctx = aiContext();
     switch (ctx.mode) {
@@ -250,7 +241,6 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       <div class="flex-1 overflow-hidden">
         <AIChat
           placeholder={placeholder()}
-          onBeforeSubmit={handleBeforeSubmit}
           onScrollReady={(fn) => (scrollToBottom = fn)}
         />
       </div>

@@ -450,5 +450,6 @@ function getAllToolsList(): string {
 **get_methodology_docs_list** - List methodology documents
 **get_methodology_doc_content** - Read a methodology document
 **show_draft_visualization_to_user** - Show an ad-hoc chart preview inline in the chat. Use this purely for display — to illustrate a point, explore data visually, or show the user what something would look like. Does not save or modify anything — the user can then choose to save it if they wish.
-**show_draft_slide_to_user** - Show an ad-hoc slide preview inline in the chat. Use this purely for display — to propose slide ideas, show mockups, or illustrate content options. Does not save or modify anything — the user can then choose to add it to a deck if they wish.`;
+**show_draft_slide_to_user** - Show an ad-hoc slide preview inline in the chat. Use this purely for display — to propose slide ideas, show mockups, or illustrate content options. Does not save or modify anything — the user can then choose to add it to a deck if they wish.
+**switch_tab** - Switch the main project tab (decks, visualizations, metrics, modules, data, settings). Cannot be used while the user is editing.`;
 }

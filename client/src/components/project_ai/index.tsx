@@ -27,7 +27,7 @@ export function AIProjectWrapper(props: AIProjectWrapperProps) {
 }
 
 function AIProjectWrapperInner(props: AIProjectWrapperProps) {
-  const { aiContext, notifyAI } = useAIProjectContext();
+  const { aiContext, notifyAI, getPendingInteractionsMessage, clearPendingInteractions } = useAIProjectContext();
   const projectDetail = useProjectDetail();
   const addListener = useLastUpdatedListener();
   const projectId = projectDetail.id;
@@ -120,17 +120,8 @@ function AIProjectWrapperInner(props: AIProjectWrapperProps) {
         return;
       }
 
-      // Slide decks - always notify
       if (tableName === "slide_decks") {
-        ids.forEach(id => {
-          const deck = projectDetail.slideDecks.find(d => d.id === id);
-          if (deck) {
-            notifyAI({
-              type: "custom",
-              message: `Slide deck "${deck.label}" updated`
-            });
-          }
-        });
+        notifyAI({ type: "deck_structure_changed" });
         return;
       }
 
@@ -161,6 +152,11 @@ function AIProjectWrapperInner(props: AIProjectWrapperProps) {
         scope: projectId,
         system: systemPrompt,
         getDocumentRefs: aiDocs.getDocumentRefs,
+        getEphemeralContext: () => {
+          const msg = getPendingInteractionsMessage();
+          if (msg) clearPendingInteractions();
+          return msg;
+        },
       }}
     >
       <FrameRightResizable

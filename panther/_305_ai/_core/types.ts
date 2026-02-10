@@ -183,6 +183,8 @@ export type AIChatConfig = {
   textEditorHandler?: (input: unknown) => string;
 
   getDocumentRefs?: DocumentRefsGetter;
+
+  getEphemeralContext?: () => string | null;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
