@@ -94,37 +94,15 @@ export default function Project(p: Props) {
             EditorWrapper: ProjectEditorWrapper,
           } = getEditorWrapper();
 
-          // Define base tabs (always visible)
-          const baseTabs = [
-            { value: "decks" as const, label: "Slide decks" },
-            // {
-            //   value: "reports" as const,
-            //   label: t2(T.FRENCH_UI_STRINGS.reports),
-            // },
-            {
-              value: "visualizations" as const,
-              label: t2(T.FRENCH_UI_STRINGS.visualizations),
-            },
-            { value: "metrics" as const, label: t2("Metrics") },
+          const allTabs = [
+            ...(projectDetail.thisUserPermissions.can_view_slide_decks ? [{ value: "decks" as const, label: "Slide decks" }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_reports ? [{ value: "reports" as const, label: t2(T.FRENCH_UI_STRINGS.reports) }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_visualizations ? [{ value: "visualizations" as const, label: t2(T.FRENCH_UI_STRINGS.visualizations) }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_metrics ? [{ value: "metrics" as const, label: t2("Metrics") }] : []),
+            ...(projectDetail.thisUserPermissions.can_configure_modules || projectDetail.thisUserPermissions.can_run_modules ? [{ value: "modules" as const, label: t2(T.FRENCH_UI_STRINGS.modules) }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_data ? [{ value: "data" as const, label: t2(T.FRENCH_UI_STRINGS.data) }] : []),
+            ...(projectDetail.thisUserPermissions.can_configure_settings ? [{ value: "settings" as const, label: t2(T.FRENCH_UI_STRINGS.settings) }] : []),
           ];
-
-          // Admin-only tabs
-          const adminTabs = [
-            {
-              value: "modules" as const,
-              label: t2(T.FRENCH_UI_STRINGS.modules),
-            },
-            { value: "data" as const, label: t2(T.FRENCH_UI_STRINGS.data) },
-            {
-              value: "settings" as const,
-              label: t2(T.FRENCH_UI_STRINGS.settings),
-            },
-          ];
-
-          // Combine tabs based on admin status
-          const allTabs = p.isGlobalAdmin
-            ? [...baseTabs, ...adminTabs]
-            : baseTabs;
 
           // Create tabs controller
           const tabs = getTabs(allTabs, {
@@ -188,35 +166,40 @@ export default function Project(p: Props) {
                     }
                   >
                     <Switch>
-                      {/* <Match when={projectTab() === "reports"}>
+                      {/* <Match when={projectTab() === "whiteboard"}>
+                        <ProjectWhiteboard
+                          instanceDetail={keyedInstanceDetail}
+                        />
+                      </Match> */}
+                      <Match when={projectTab() === "reports" && (projectDetail.thisUserPermissions.can_view_reports)}>
                         <ProjectReports
                           instanceDetail={keyedInstanceDetail}
                           isGlobalAdmin={p.isGlobalAdmin}
                           openProjectEditor={openProjectEditor}
                         />
-                      </Match> */}
-                      <Match when={projectTab() === "decks"}>
+                      </Match>
+                      <Match when={projectTab() === "decks" && (projectDetail.thisUserPermissions.can_view_slide_decks)}>
                         <ProjectDecks
                           instanceDetail={keyedInstanceDetail}
                           isGlobalAdmin={p.isGlobalAdmin}
                           openProjectEditor={openProjectEditor}
                         />
                       </Match>
-                      <Match when={projectTab() === "visualizations"}>
+                      <Match when={projectTab() === "visualizations" && (projectDetail.thisUserPermissions.can_view_visualizations)}>
                         <ProjectVisualizations
                           isGlobalAdmin={p.isGlobalAdmin}
                           instanceDetail={keyedInstanceDetail}
                           openProjectEditor={openProjectEditor}
                         />
                       </Match>
-                      <Match when={projectTab() === "metrics"}>
+                      <Match when={projectTab() === "metrics" && (projectDetail.thisUserPermissions.can_view_metrics)}>
                         <ProjectMetrics
                           isGlobalAdmin={p.isGlobalAdmin}
                           openProjectEditor={openProjectEditor}
                           instanceDetail={keyedInstanceDetail}
                         />
                       </Match>
-                      <Match when={projectTab() === "modules"}>
+                      <Match when={projectTab() === "modules" && (projectDetail.thisUserPermissions.can_configure_modules || projectDetail.thisUserPermissions.can_run_modules)}>
                         <ProjectModules
                           isGlobalAdmin={p.isGlobalAdmin}
                           canConfigureModules={
@@ -228,14 +211,14 @@ export default function Project(p: Props) {
                           }
                         />
                       </Match>
-                      <Match when={projectTab() === "data"}>
+                      <Match when={projectTab() === "data" && (projectDetail.thisUserPermissions.can_view_data)}>
                         <ProjectData
                           isGlobalAdmin={p.isGlobalAdmin}
                           instanceDetail={keyedInstanceDetail}
                         />
                       </Match>
                       <Match
-                        when={projectTab() === "settings" && p.isGlobalAdmin}
+                        when={projectTab() === "settings" && (projectDetail.thisUserPermissions.can_configure_settings)}
                       >
                         <ProjectSettings
                           isGlobalAdmin={p.isGlobalAdmin}

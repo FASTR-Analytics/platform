@@ -4,12 +4,12 @@ import {
   addDatasetHmisToProject,
   addProject,
   addProjectUserRole,
+  bulkUpdateProjectUserPermissions,
   copyProject,
   deleteProject,
   getProjectDetail,
   getProjectUserPermissions,
   removeDatasetFromProject,
-  removeProjectUserRole,
   setProjectLockStatus,
   updateProject,
   updateProjectUserPermissions,
@@ -133,6 +133,25 @@ defineRoute(
       c.var.mainDb,
       params.projectId,
       params.email,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesProject,
+  "bulkUpdateProjectUserPermissions",
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_users",
+  ),
+  log("bulkUpdateProjectUserPermissions"),
+  async (c, { body }) => {
+    const res = await bulkUpdateProjectUserPermissions(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      body.emails,
+      body.permissions,
     );
     return c.json(res);
   },
@@ -312,20 +331,4 @@ defineRoute(
   },
 );
 
-defineRoute(
-  routesProject,
-  "removeProjectUserRole",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_users",
-  ),
-  log("removeProjectUserRole"),
-  async (c, { body }) => {
-    const res = await removeProjectUserRole(
-      c.var.mainDb,
-      c.var.ppk.projectId,
-      body.email,
-    );
-    return c.json(res);
-  },
-);
+

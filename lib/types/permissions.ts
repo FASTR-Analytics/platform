@@ -26,6 +26,7 @@ export type ProjectUserPermissions = {
   can_view_slide_decks: boolean;
   can_configure_data: boolean;
   can_view_data: boolean;
+  can_view_metrics: boolean;
   can_view_logs: boolean;
 };
 
@@ -46,6 +47,7 @@ export const PROJECT_PERMISSIONS = [
   "can_view_slide_decks",
   "can_configure_data",
   "can_view_data",
+  "can_view_metrics",
   "can_view_logs",
 ] satisfies readonly ProjectPermission[];
 
@@ -64,6 +66,7 @@ export const _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS = {
   can_view_slide_decks: false,
   can_configure_data: false,
   can_view_data: false,
+  can_view_metrics: false,
   can_view_logs: false,
 };
 
@@ -82,6 +85,7 @@ export const _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS = {
   can_view_slide_decks: true,
   can_configure_data: true,
   can_view_data: true,
+  can_view_metrics: true,
   can_view_logs: true,
 };
 
@@ -110,6 +114,7 @@ export const PERMISSION_PRESETS: {
       can_view_slide_decks: true,
       can_configure_data: false,
       can_view_data: true,
+      can_view_metrics: true,
       can_view_logs: false,
     },
   },
@@ -130,6 +135,7 @@ export const PERMISSION_PRESETS: {
       can_view_slide_decks: true,
       can_configure_data: false,
       can_view_data: true,
+      can_view_metrics: true,
       can_view_logs: false,
     },
   },

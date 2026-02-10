@@ -267,6 +267,7 @@ export function createDevProjectUser(): ProjectUser {
     can_view_slide_decks: true,
     can_configure_data: true,
     can_view_data: true,
+    can_view_metrics: true,
     can_view_logs: true,
   };
 }

@@ -112,6 +112,24 @@ export async function updateUserPermissions(
   });
 }
 
+export async function bulkUpdateUserPermissions(
+  mainDb: Sql,
+  emails: string[],
+  permissions: Partial<Record<UserPermission, boolean>>,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    if (Object.keys(permissions).length === 0) {
+      return { success: true };
+    }
+    await mainDb`
+      UPDATE user_permissions
+      SET ${mainDb(permissions)}
+      WHERE user_email = ANY(${emails})
+    `;
+    return { success: true };
+  });
+}
+
 export async function getUserPermissions(
   mainDb: Sql,
   email: string,

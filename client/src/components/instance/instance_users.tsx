@@ -16,6 +16,7 @@ import {
 import { Match, Show, Switch, createSignal, createResource, Suspense } from "solid-js";
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
+import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
 import { User } from "./user";
 import { Table, TableColumn, BulkAction } from "panther";
 import { serverActions } from "~/server_actions";
@@ -299,6 +300,14 @@ function UserTable(p: {
     await deleteAction.click();
   }
 
+  async function handleBulkEditPermissions(selectedUsers: UserData[]) {
+    const emails = selectedUsers.map((u) => u.email);
+    await openComponent({
+      element: BulkEditPermissionsForm,
+      props: { emails, silentFetch: p.silentFetch },
+    });
+  }
+
   function handleBulkDownloadCSV(selectedUsers: UserData[]) {
     const csv = new Csv({
       colHeaders: ["email", "is_global_admin"],
@@ -323,6 +332,12 @@ function UserTable(p: {
       onClick: bulkMakeNonAdmin.click,
       state: bulkMakeNonAdmin.state,
       outline: true,
+    },
+    {
+      label: t("Edit permissions"),
+      intent: "primary",
+      outline: true,
+      onClick: handleBulkEditPermissions,
     },
     {
       label: t("Download users"),

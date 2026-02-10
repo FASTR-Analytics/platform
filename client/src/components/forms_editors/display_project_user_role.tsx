@@ -37,6 +37,7 @@ const PERMISSION_CATEGORIES: {
     permissions: [
       "can_configure_data",
       "can_view_data",
+      "can_view_metrics",
       "can_configure_modules",
       "can_run_modules",
     ],
@@ -88,8 +89,36 @@ export function DisplayProjectUserRole(
       width="lg"
       topPanel={
         <div class="space-y-3">
-          <div class="font-700 text-lg leading-6">{t2("Permissions")}</div>
-          <div class="font-700 text-sm">{p.user.email}</div>
+          <div class="font-700 text-lg leading-6">
+              {t2("Permissions")}
+            </div>
+            <div class="font-700 text-sm">
+              {p.user.email}
+            </div>
+            <Show
+              when={userRoleExists()}
+              fallback={<div>Loading...</div>}
+            >
+              <Show when={permissions()} fallback={<div>Loading...</div>}>
+                <div class="grid grid-cols-2 gap-4">
+                  <For each={PERMISSION_CATEGORIES}>
+                    {(category: { label: string; permissions: readonly ProjectPermission[] }) => (
+                      <div class="space-y-1">
+                        <div class="font-600 text-sm">{category.label}</div>
+                        <For each={category.permissions}>
+                          {(key: ProjectPermission) => (
+                            <div class="flex justify-between">
+                              <span>{getPermissionLabel(key)}</span>
+                              <span>{permissions()![key] ? "✓" : "✗"}</span>
+                            </div>
+                          )}
+                        </For>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </Show>
+            </Show>
         </div>
       }
       leftButtons={
