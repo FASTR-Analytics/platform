@@ -2,13 +2,14 @@ import { ProjectDirtyStates, t, t2, T } from "lib";
 import {
   Button,
   EditorComponentProps,
+  ModalContainer,
   RadioGroup,
   StateHolderFormError,
   downloadJson,
   toPct0,
   toPct1,
 } from "panther";
-import { Match, Show, Switch, createSignal } from "solid-js";
+import { Show, createSignal } from "solid-js";
 import { exportReportAsPdfVector } from "~/export_report/export_report_as_pdf_vector";
 import { exportReportAsPptxVector } from "~/export_report/export_report_as_pptx_vector";
 import { exportReportAsPptxWithImages } from "~/export_report/export_report_as_pptx_with_images";
@@ -85,8 +86,31 @@ export function DownloadReport(
   }
 
   return (
-    <div class="ui-spy w-[400px] px-8 py-6">
-      <div class="font-700 text-xl">{t("Download report")}</div>
+    <ModalContainer
+      title={t("Download report")}
+      width="sm"
+      leftButtons={
+        pct() > 0
+          ? undefined
+          : // eslint-disable-next-line jsx-key
+            [
+              <Button
+                onClick={attemptExportReportAsPdf}
+                intent="success"
+                iconName="download"
+              >
+                {t2(T.FRENCH_UI_STRINGS.download)}
+              </Button>,
+              <Button
+                onClick={() => p.close(undefined)}
+                intent="neutral"
+                iconName="x"
+              >
+                {t2(T.FRENCH_UI_STRINGS.done)}
+              </Button>,
+            ]
+      }
+    >
       <div class="ui-spy-sm">
         <div class="">{t("PDF")}</div>
         <RadioGroup
@@ -124,40 +148,20 @@ export function DownloadReport(
           onChange={setExportFormat}
         />
       </div>
-      <Switch>
-        <Match when={pct() > 0}>
-          <div class="ui-spy-sm">
-            <div class="bg-base-300 h-8 w-full">
-              <div
-                class="bg-primary h-full"
-                style={{ width: toPct1(pct()) }}
-              ></div>
-            </div>
-            <div class="text-center">{toPct0(pct())}</div>
+      <Show when={pct() > 0}>
+        <div class="ui-spy-sm">
+          <div class="bg-base-300 h-8 w-full">
+            <div
+              class="bg-primary h-full"
+              style={{ width: toPct1(pct()) }}
+            ></div>
           </div>
-        </Match>
-        <Match when={true}>
-          <Show when={err()}>
-            <StateHolderFormError state={{ status: "error", err: err() }} />
-          </Show>
-          <div class="ui-gap-sm flex">
-            <Button
-              onClick={attemptExportReportAsPdf}
-              intent="success"
-              iconName="download"
-            >
-              {t2(T.FRENCH_UI_STRINGS.download)}
-            </Button>
-            <Button
-              onClick={() => p.close(undefined)}
-              intent="neutral"
-              iconName="x"
-            >
-              {t2(T.FRENCH_UI_STRINGS.done)}
-            </Button>
-          </div>
-        </Match>
-      </Switch>
-    </div>
+          <div class="text-center">{toPct0(pct())}</div>
+        </div>
+      </Show>
+      <Show when={pct() === 0 && err()}>
+        <StateHolderFormError state={{ status: "error", err: err() }} />
+      </Show>
+    </ModalContainer>
   );
 }

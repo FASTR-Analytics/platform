@@ -26,7 +26,11 @@ import { getPgConnectionFromCacheOrNew } from "../postgres/mod.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { DBDataset_IN_PROJECT } from "./_project_database_types.ts";
 import { addDatasetHmisToProject } from "./datasets_in_project_hmis.ts";
-import { getAllModulesForProject, getMetricsWithStatus, installModule } from "./modules.ts";
+import {
+  getAllModulesForProject,
+  getMetricsWithStatus,
+  installModule,
+} from "./modules.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
 import { getAllReportsForProject } from "./reports.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
@@ -45,7 +49,7 @@ export async function getProjectDetail(
   projectUser: ProjectUser | undefined,
   mainDb: Sql,
   projectDb: Sql,
-  projectId: string
+  projectId: string,
 ): Promise<APIResponseWithData<ProjectDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawProject = (
@@ -99,9 +103,8 @@ export async function getProjectDetail(
     const resSlideDeckFolders = await getAllSlideDeckFolders(projectDb);
     throwIfErrWithData(resSlideDeckFolders);
 
-    const resVisualizations = await getAllPresentationObjectsForProject(
-      projectDb
-    );
+    const resVisualizations =
+      await getAllPresentationObjectsForProject(projectDb);
     throwIfErrWithData(resVisualizations);
 
     const resFolders = await getAllVisualizationFolders(projectDb);
@@ -110,7 +113,7 @@ export async function getProjectDetail(
     const thisUserRole: ProjectUserRoleType = projectUser?.role ?? "viewer";
     if (thisUserRole === "none") {
       throw new Error(
-        "Should not be possible, because not allowed in middleware"
+        "Should not be possible, because not allowed in middleware",
       );
     }
 
@@ -144,7 +147,7 @@ export async function getProjectDetail(
         };
       }
       const pur = rawAllUserRolesForProject.find(
-        (pur) => pur.email === u.email
+        (pur) => pur.email === u.email,
       );
       return {
         email: u.email,
@@ -156,7 +159,8 @@ export async function getProjectDetail(
         can_configure_modules: pur?.can_configure_modules ?? false,
         can_run_modules: pur?.can_run_modules ?? false,
         can_configure_users: pur?.can_configure_users ?? false,
-        can_configure_visualizations: pur?.can_configure_visualizations ?? false,
+        can_configure_visualizations:
+          pur?.can_configure_visualizations ?? false,
         can_view_visualizations: pur?.can_view_visualizations ?? false,
         can_configure_reports: pur?.can_configure_reports ?? false,
         can_view_reports: pur?.can_view_reports ?? false,
@@ -172,7 +176,7 @@ export async function getProjectDetail(
       id: projectId,
       label: rawProject.label,
       aiContext: rawProject.ai_context,
-      thisUserRole: projectUser?.isGlobalAdmin ? "admin" : thisUserRole,
+      thisUserRole: "viewer",
       isLocked: rawProject.is_locked,
       projectDatasets: datasetsInProject,
       projectModules: sortedModules,
@@ -190,11 +194,13 @@ export async function getProjectDetail(
         can_configure_modules: projectUser?.can_configure_modules ?? false,
         can_run_modules: projectUser?.can_run_modules ?? false,
         can_configure_users: projectUser?.can_configure_users ?? false,
-        can_configure_visualizations: projectUser?.can_configure_visualizations ?? false,
+        can_configure_visualizations:
+          projectUser?.can_configure_visualizations ?? false,
         can_view_visualizations: projectUser?.can_view_visualizations ?? false,
         can_configure_reports: projectUser?.can_configure_reports ?? false,
         can_view_reports: projectUser?.can_view_reports ?? false,
-        can_configure_slide_decks: projectUser?.can_configure_slide_decks ?? false,
+        can_configure_slide_decks:
+          projectUser?.can_configure_slide_decks ?? false,
         can_view_slide_decks: projectUser?.can_view_slide_decks ?? false,
         can_configure_data: projectUser?.can_configure_data ?? false,
         can_view_data: projectUser?.can_view_data ?? false,
@@ -219,7 +225,7 @@ export async function addProject(
   datasetsToEnable: DatasetType[],
   modulesToEnable: ModuleId[],
   projectEditors: string[],
-  projectViewers: string[]
+  projectViewers: string[],
 ): Promise<
   APIResponseWithData<{
     newProjectId: string;
@@ -238,7 +244,7 @@ export async function addProject(
     await mainDb`create database ${mainDb(newProjectId)}`;
     const projectDb = getPgConnectionFromCacheOrNew(
       newProjectId,
-      "READ_AND_WRITE"
+      "READ_AND_WRITE",
     );
     await projectDb.file("./server/db/project/_project_database.sql");
     await runProjectMigrations(projectDb);
@@ -269,7 +275,7 @@ export async function addProject(
         mainDb,
         projectDb,
         newProjectId,
-        undefined
+        undefined,
       );
       throwIfErrWithData(res);
       datasetLastUpdateds.push({
@@ -282,7 +288,7 @@ export async function addProject(
         mainDb,
         projectDb,
         newProjectId,
-        undefined
+        undefined,
       );
       throwIfErrWithData(res);
       datasetLastUpdateds.push({
@@ -317,7 +323,7 @@ export async function updateProject(
   mainDb: Sql,
   projectId: string,
   label: string,
-  aiContext: string
+  aiContext: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`
@@ -333,7 +339,7 @@ WHERE id = ${projectId}
 
 export async function deleteProject(
   mainDb: Sql,
-  projectId: string
+  projectId: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // !!!!! We don't delete project data, only the record in main.db !!!!!
@@ -353,7 +359,7 @@ export async function deleteProject(
 export async function setProjectLockStatus(
   mainDb: Sql,
   projectId: string,
-  lockAction: "lock" | "unlock"
+  lockAction: "lock" | "unlock",
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const isLocked = lockAction === "lock";
@@ -378,7 +384,7 @@ export async function updateProjectUserRole( // delete this after implementing n
   mainDb: Sql,
   projectId: string,
   emails: string[],
-  role: ProjectUserRoleType
+  role: ProjectUserRoleType,
 ) {
   return await tryCatchDatabaseAsync(async () => {
     if (!projectId) {
@@ -391,21 +397,21 @@ export async function updateProjectUserRole( // delete this after implementing n
     await mainDb.begin(async (sql) => {
       const deleteQueries = emails.map(
         (email) =>
-          sql`DELETE FROM project_user_roles WHERE email = ${email} AND project_id = ${projectId}`
+          sql`DELETE FROM project_user_roles WHERE email = ${email} AND project_id = ${projectId}`,
       );
       await Promise.all(deleteQueries);
 
       if (role !== "none") {
         const userInserts = emails.map(
           (email) =>
-            sql`INSERT INTO users (email, is_admin) VALUES (${email}, false) ON CONFLICT (email) DO NOTHING`
+            sql`INSERT INTO users (email, is_admin) VALUES (${email}, false) ON CONFLICT (email) DO NOTHING`,
         );
         await Promise.all(userInserts);
 
         const insertQueries = emails.map(
           (email) =>
             sql`INSERT INTO project_user_roles (email, project_id, role)
-              VALUES (${email}, ${projectId}, ${role})`
+              VALUES (${email}, ${projectId}, ${role})`,
         );
         await Promise.all(insertQueries);
       }
@@ -448,8 +454,8 @@ export async function addProjectUserRole(
 export async function removeProjectUserRole(
   mainDb: Sql,
   projectId: string,
-  email: string
-) : Promise<APIResponseNoData> {
+  email: string,
+): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`
       DELETE FROM project_user_roles
@@ -463,10 +469,10 @@ export async function updateProjectUserPermissions(
   mainDb: Sql,
   projectId: string,
   emails: string[],
-  permissions: Record<ProjectPermission, boolean>
+  permissions: Record<ProjectPermission, boolean>,
 ) {
   return await tryCatchDatabaseAsync(async () => {
-    for(const email of emails){
+    for (const email of emails) {
       await mainDb`
         INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_logs)
         VALUES (${email}, ${projectId}, 'viewer', ${permissions.can_configure_settings}, ${permissions.can_create_backups}, ${permissions.can_restore_backups}, ${permissions.can_configure_modules}, ${permissions.can_run_modules}, ${permissions.can_configure_users}, ${permissions.can_configure_visualizations}, ${permissions.can_view_visualizations}, ${permissions.can_configure_reports}, ${permissions.can_view_reports}, ${permissions.can_configure_slide_decks}, ${permissions.can_view_slide_decks}, ${permissions.can_configure_data}, ${permissions.can_view_data}, ${permissions.can_view_logs})
@@ -495,13 +501,13 @@ export async function updateProjectUserPermissions(
 export async function getProjectUserPermissions(
   mainDb: Sql,
   projectId: string,
-  email: string
-): Promise<APIResponseWithData<{ permissions: Record<ProjectPermission, boolean> }>> {
+  email: string,
+): Promise<
+  APIResponseWithData<{ permissions: Record<ProjectPermission, boolean> }>
+> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await mainDb<
-        Record<ProjectPermission, boolean>[]
-      >`SELECT
+      await mainDb<Record<ProjectPermission, boolean>[]>`SELECT
         can_configure_settings,
         can_create_backups,
         can_restore_backups,
@@ -523,7 +529,10 @@ export async function getProjectUserPermissions(
     ).at(0);
 
     if (!row) {
-      return { success: false, err: "User does not have a role in this project" };
+      return {
+        success: false,
+        err: "User does not have a role in this project",
+      };
     }
 
     return {
@@ -537,7 +546,7 @@ export async function copyProject(
   mainDb: Sql,
   sourceProjectId: string,
   newProjectLabel: string,
-  globalUser: GlobalUser
+  globalUser: GlobalUser,
 ): Promise<APIResponseWithData<{ newProjectId: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     // Check if source project exists
@@ -579,7 +588,7 @@ export async function copyProject(
     // Create new database using source as template
     try {
       await mainDb`CREATE DATABASE ${mainDb(
-        newProjectId
+        newProjectId,
       )} WITH TEMPLATE ${mainDb(sourceProjectId)}`;
     } catch (e) {
       if (
@@ -626,7 +635,7 @@ export async function copyProject(
         } catch (dropErr) {
           console.error(
             "Failed to cleanup database after copy error:",
-            dropErr
+            dropErr,
           );
         }
         return { success: false, err: "Failed to copy project files" };

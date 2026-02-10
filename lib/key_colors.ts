@@ -1,4 +1,6 @@
 export const _PRIMARY_GFF = "#0E706C";
+export const _GFF_GREEN = "#09544F";
+export const _NIGERIA_GREEN = "#027D53";
 
 export const _KEY_COLORS = {
   base100: "white",
@@ -10,7 +12,7 @@ export const _KEY_COLORS = {
   primaryContent: "white",
 };
 
-export const _SLIDE_BACKGROUND_COLOR = "#027D53";
+export const _SLIDE_BACKGROUND_COLOR = _NIGERIA_GREEN;
 
 export const _KEY_COLORS_SUCCESS = "#009F70";
 export const _KEY_COLORS_DANGER = "#F04D44";

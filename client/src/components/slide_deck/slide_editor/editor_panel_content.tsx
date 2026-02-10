@@ -1,6 +1,29 @@
-import { ContentSlide, ContentBlock, FigureBlock, TextBlock, ImageBlock, t2, T, t } from "lib";
-import { TextArea, OpenEditorProps, findById, LayoutNode, Select, Button, LabelHolder, MultiSelect, RadioGroup, StateHolderWrapper, getSelectOptions, timQuery } from "panther";
-import { Match, Setter, Show, Switch } from "solid-js";
+import {
+  ContentSlide,
+  ContentBlock,
+  FigureBlock,
+  TextBlock,
+  ImageBlock,
+  t2,
+  T,
+  t,
+} from "lib";
+import {
+  TextArea,
+  OpenEditorProps,
+  findById,
+  LayoutNode,
+  Select,
+  Button,
+  LabelHolder,
+  MultiSelect,
+  RadioGroup,
+  StateHolderWrapper,
+  getSelectOptions,
+  timQuery,
+  Slider,
+} from "panther";
+import { createSignal, Match, Setter, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { SetStoreFunction } from "solid-js/store";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
@@ -11,7 +34,9 @@ type Props = {
   setTempSlide: SetStoreFunction<any>;
   selectedBlockId: string | undefined;
   setSelectedBlockId: Setter<string | undefined>;
-  openEditor: <TProps, TReturn>(v: OpenEditorProps<TProps, TReturn>) => Promise<TReturn | undefined>;
+  openEditor: <TProps, TReturn>(
+    v: OpenEditorProps<TProps, TReturn>,
+  ) => Promise<TReturn | undefined>;
   contentTab: "slide" | "block";
   setContentTab: Setter<"slide" | "block">;
   onShowLayoutMenu: (x: number, y: number) => void;
@@ -38,7 +63,9 @@ export function SlideEditorPanelContent(p: Props) {
   function updateSelectedBlock(updater: (block: ContentBlock) => ContentBlock) {
     if (!p.selectedBlockId) return;
 
-    function updateNode(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> {
+    function updateNode(
+      node: LayoutNode<ContentBlock>,
+    ): LayoutNode<ContentBlock> {
       if (node.id === p.selectedBlockId && node.type === "item") {
         return { ...node, data: updater(node.data) };
       }
@@ -65,7 +92,11 @@ export function SlideEditorPanelContent(p: Props) {
     if (cached) {
       updateSelectedBlock(() => cached);
     } else {
-      const newLayout = convertBlockType(p.tempSlide.layout, p.selectedBlockId, newType as "text" | "figure" | "image");
+      const newLayout = convertBlockType(
+        p.tempSlide.layout,
+        p.selectedBlockId,
+        newType as "text" | "figure" | "image",
+      );
       p.setTempSlide("layout", newLayout);
     }
   }
@@ -74,14 +105,14 @@ export function SlideEditorPanelContent(p: Props) {
     <div class="flex h-full w-full flex-col">
       <div class="flex w-full flex-none border-b">
         <div
-          class="ui-hoverable flex-1 border-r py-2 text-center data-[selected=true]:bg-base-200"
+          class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 border-r py-2 text-center"
           onClick={() => p.setContentTab("slide")}
           data-selected={p.contentTab === "slide"}
         >
           Slide
         </div>
         <div
-          class="ui-hoverable flex-1 py-2 text-center data-[selected=true]:bg-base-200"
+          class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 py-2 text-center"
           onClick={() => p.setContentTab("block")}
           data-selected={p.contentTab === "block"}
         >
@@ -97,28 +128,36 @@ export function SlideEditorPanelContent(p: Props) {
                 <TextArea
                   label="Header"
                   value={p.tempSlide.header ?? ""}
-                  onChange={(v: string) => p.setTempSlide("header", v || undefined)}
+                  onChange={(v: string) =>
+                    p.setTempSlide("header", v || undefined)
+                  }
                   fullWidth
                   height="60px"
                 />
                 <TextArea
                   label="Sub Header"
                   value={p.tempSlide.subHeader ?? ""}
-                  onChange={(v: string) => p.setTempSlide("subHeader", v || undefined)}
+                  onChange={(v: string) =>
+                    p.setTempSlide("subHeader", v || undefined)
+                  }
                   fullWidth
                   height="40px"
                 />
                 <TextArea
                   label="Date"
                   value={p.tempSlide.date ?? ""}
-                  onChange={(v: string) => p.setTempSlide("date", v || undefined)}
+                  onChange={(v: string) =>
+                    p.setTempSlide("date", v || undefined)
+                  }
                   fullWidth
                   height="40px"
                 />
                 <TextArea
                   label="Footer"
                   value={p.tempSlide.footer ?? ""}
-                  onChange={(v: string) => p.setTempSlide("footer", v || undefined)}
+                  onChange={(v: string) =>
+                    p.setTempSlide("footer", v || undefined)
+                  }
                   fullWidth
                   height="40px"
                 />
@@ -126,7 +165,7 @@ export function SlideEditorPanelContent(p: Props) {
                   <Show
                     when={p.deckLogos.length > 0}
                     fallback={
-                      <div class="text-xs text-neutral">
+                      <div class="text-neutral text-xs">
                         {t2(T.FRENCH_UI_STRINGS.no_logos_set_in_report_setting)}
                       </div>
                     }
@@ -147,7 +186,7 @@ export function SlideEditorPanelContent(p: Props) {
                   <Show
                     when={p.deckLogos.length > 0}
                     fallback={
-                      <div class="text-xs text-neutral">
+                      <div class="text-neutral text-xs">
                         {t2(T.FRENCH_UI_STRINGS.no_logos_set_in_report_setting)}
                       </div>
                     }
@@ -173,13 +212,13 @@ export function SlideEditorPanelContent(p: Props) {
               <Show
                 when={getCurrentBlock()}
                 fallback={
-                  <div class="ui-pad text-sm text-base-content/70">
+                  <div class="ui-pad text-base-content/70 text-sm">
                     Click a block on the canvas to edit it
                   </div>
                 }
               >
                 <div class="ui-pad ui-spy">
-                  <div class="flex items-end ui-gap-sm">
+                  <div class="ui-gap-sm flex items-end">
                     <Select
                       label="Block Type"
                       options={[
@@ -194,7 +233,9 @@ export function SlideEditorPanelContent(p: Props) {
                     <Button
                       outline
                       onClick={(e: MouseEvent) => {
-                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        const rect = (
+                          e.currentTarget as HTMLElement
+                        ).getBoundingClientRect();
                         p.onShowLayoutMenu(rect.left, rect.bottom);
                       }}
                     >
@@ -203,51 +244,134 @@ export function SlideEditorPanelContent(p: Props) {
                   </div>
                   <Switch>
                     <Match when={getCurrentBlock()?.type === "text"}>
-                      <div class="flex ui-gap-sm">
-                        <Select
-                          label={t2(T.FRENCH_UI_STRINGS.text_background)}
-                          options={[
-                            { value: "none", label: "None" },
-                            { value: "primary", label: "Theme color" },
-                            { value: "grey", label: "Light grey" },
-                            { value: "success", label: "Green" },
-                            { value: "danger", label: "Red" },
-                          ]}
-                          value={(getCurrentBlock() as TextBlock).style?.textBackground ?? "none"}
-                          onChange={(v: string) => updateSelectedBlock((b) => {
+                      <Select
+                        label={t2(T.FRENCH_UI_STRINGS.text_background)}
+                        options={[
+                          { value: "none", label: "None" },
+                          { value: "primary", label: "Theme color" },
+                          { value: "grey", label: "Light grey" },
+                          { value: "success", label: "Green" },
+                          { value: "danger", label: "Red" },
+                        ]}
+                        value={
+                          (getCurrentBlock() as TextBlock).style
+                            ?.textBackground ?? "none"
+                        }
+                        onChange={(v: string) =>
+                          updateSelectedBlock((b) => {
                             const tb = b as TextBlock;
-                            return { ...tb, style: { ...tb.style, textBackground: v } };
-                          })}
-                          fullWidth
-                        />
-                        <Select
-                          label={t2(T.FRENCH_UI_STRINGS.text_size)}
-                          options={[
-                            { value: "0.41", label: "3XS" },
-                            { value: "0.51", label: "2XS" },
-                            { value: "0.64", label: "XS" },
-                            { value: "0.8", label: "Small" },
-                            { value: "1", label: "Medium" },
-                            { value: "1.25", label: "Large" },
-                            { value: "1.56", label: "XL" },
-                            { value: "1.95", label: "2XL" },
-                            { value: "2.44", label: "3XL" },
-                            { value: "3.05", label: "4XL" },
-                            { value: "3.81", label: "5XL" },
-                            { value: "4.77", label: "6XL" },
-                          ]}
-                          value={String((getCurrentBlock() as TextBlock).style?.textSize ?? 1)}
-                          onChange={(v: string) => updateSelectedBlock((b) => {
-                            const tb = b as TextBlock;
-                            return { ...tb, style: { ...tb.style, textSize: Number(v) } };
-                          })}
-                          fullWidth
-                        />
-                      </div>
+                            return {
+                              ...tb,
+                              style: { ...tb.style, textBackground: v },
+                            };
+                          })
+                        }
+                        fullWidth
+                      />
+                      {(() => {
+                        const TEXT_SIZES = [
+                          0.41, 0.51, 0.64, 0.8, 1, 1.25, 1.56, 1.95, 2.44,
+                          3.05, 3.81, 4.77,
+                        ];
+                        const TEXT_SIZE_LABELS: Record<number, string> = {
+                          0.41: "3XS",
+                          0.64: "XS",
+                          1: "M",
+                          1.56: "XL",
+                          2.44: "3XL",
+                          4.77: "6XL",
+                        };
+                        const SIZE_LABELS = [
+                          "3XS",
+                          "2XS",
+                          "XS",
+                          "S",
+                          "M",
+                          "L",
+                          "XL",
+                          "2XL",
+                          "3XL",
+                          "4XL",
+                          "5XL",
+                          "6XL",
+                        ];
+                        const blockIndex = () => {
+                          const size =
+                            (getCurrentBlock() as TextBlock).style?.textSize ??
+                            1;
+                          const idx = TEXT_SIZES.indexOf(size);
+                          return idx >= 0 ? idx : TEXT_SIZES.indexOf(1);
+                        };
+                        const [dragIndex, setDragIndex] = createSignal<
+                          number | undefined
+                        >(undefined);
+                        const displayIndex = () => dragIndex() ?? blockIndex();
+                        const disableReset = () =>
+                          (getCurrentBlock() as TextBlock).style?.textSize ===
+                            1 ||
+                          (getCurrentBlock() as TextBlock).style === undefined;
+                        return (
+                          <div class="ui-gap-sm flex items-center">
+                            <Slider
+                              label={t2(T.FRENCH_UI_STRINGS.text_size)}
+                              value={displayIndex()}
+                              onChange={(i) => setDragIndex(i)}
+                              onRelease={(i) => {
+                                setDragIndex(undefined);
+                                const size = TEXT_SIZES[i];
+                                updateSelectedBlock((b) => {
+                                  const tb = b as TextBlock;
+                                  return {
+                                    ...tb,
+                                    style: { ...tb.style, textSize: size },
+                                  };
+                                });
+                              }}
+                              min={0}
+                              max={TEXT_SIZES.length - 1}
+                              step={1}
+                              showValueInLabel
+                              valueInLabelFormatter={(i) =>
+                                SIZE_LABELS[i] ?? ""
+                              }
+                              ticks={{
+                                major: TEXT_SIZES.map((_, i) => i),
+                                showLabels: true,
+                                labelFormatter: (i) =>
+                                  TEXT_SIZE_LABELS[TEXT_SIZES[i]] ?? "",
+                              }}
+                              fullWidth
+                            />
+
+                            <Button
+                              outline
+                              onClick={() => {
+                                setDragIndex(undefined);
+                                updateSelectedBlock((b) => {
+                                  const tb = b as TextBlock;
+                                  return {
+                                    ...tb,
+                                    style: { ...tb.style, textSize: 1 },
+                                  };
+                                });
+                              }}
+                              iconName="refresh"
+                              disabled={disableReset()}
+                            >
+                              {/* Layout */}
+                            </Button>
+                          </div>
+                        );
+                      })()}
                       <TextArea
                         label="Markdown Content"
                         value={(getCurrentBlock() as TextBlock).markdown}
-                        onChange={(v: string) => updateSelectedBlock((b: any) => ({ ...b, markdown: v }))}
+                        onChange={(v: string) =>
+                          updateSelectedBlock((b: any) => ({
+                            ...b,
+                            markdown: v,
+                          }))
+                        }
                         fullWidth
                         height="300px"
                       />
@@ -256,7 +380,8 @@ export function SlideEditorPanelContent(p: Props) {
                       {(() => {
                         const block = () => getCurrentBlock() as FigureBlock;
                         const hasFigure = () => !!block().figureInputs;
-                        const hasSource = () => block().source?.type === "from_data";
+                        const hasSource = () =>
+                          block().source?.type === "from_data";
                         return (
                           <>
                             <Show when={!hasFigure()}>
@@ -265,13 +390,17 @@ export function SlideEditorPanelContent(p: Props) {
                               </Button>
                             </Show>
                             <Show when={hasFigure()}>
-                              <div class="flex flex-col ui-gap-sm">
+                              <div class="ui-gap-sm flex flex-col">
                                 <Show when={hasSource()}>
-                                  <Button onClick={() => p.onEditVisualization()}>
+                                  <Button
+                                    onClick={() => p.onEditVisualization()}
+                                  >
                                     Edit Visualization
                                   </Button>
                                 </Show>
-                                <Button onClick={() => p.onSelectVisualization()}>
+                                <Button
+                                  onClick={() => p.onSelectVisualization()}
+                                >
                                   Switch Visualization
                                 </Button>
                               </div>
@@ -313,9 +442,7 @@ function ImageBlockEditor(p: {
           <Select
             label={t2(T.FRENCH_UI_STRINGS.image_file)}
             options={getSelectOptions(
-              keyedAssets
-                .filter((f) => f.isImage)
-                .map((f) => f.fileName),
+              keyedAssets.filter((f) => f.isImage).map((f) => f.fileName),
             )}
             value={p.block().imgFile}
             onChange={(v: string) =>
@@ -331,12 +458,18 @@ function ImageBlockEditor(p: {
           value={p.block().style?.imgFit ?? "contain"}
           options={[
             { value: "cover", label: t2(T.FRENCH_UI_STRINGS.cover_whole_area) },
-            { value: "contain", label: t2(T.FRENCH_UI_STRINGS.fit_inside_area) },
+            {
+              value: "contain",
+              label: t2(T.FRENCH_UI_STRINGS.fit_inside_area),
+            },
           ]}
           onChange={(v: string) =>
             p.updateSelectedBlock((b) => {
               const ib = b as ImageBlock;
-              return { ...ib, style: { ...ib.style, imgFit: v as "cover" | "contain" } };
+              return {
+                ...ib,
+                style: { ...ib.style, imgFit: v as "cover" | "contain" },
+              };
             })
           }
         />
@@ -354,7 +487,18 @@ function ImageBlockEditor(p: {
             onChange={(v: string) =>
               p.updateSelectedBlock((b) => {
                 const ib = b as ImageBlock;
-                return { ...ib, style: { ...ib.style, imgAlign: v as "center" | "top" | "bottom" | "left" | "right" } };
+                return {
+                  ...ib,
+                  style: {
+                    ...ib.style,
+                    imgAlign: v as
+                      | "center"
+                      | "top"
+                      | "bottom"
+                      | "left"
+                      | "right",
+                  },
+                };
               })
             }
             fullWidth

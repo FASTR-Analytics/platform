@@ -97,10 +97,10 @@ export default function Project(p: Props) {
           // Define base tabs (always visible)
           const baseTabs = [
             { value: "decks" as const, label: "Slide decks" },
-            {
-              value: "reports" as const,
-              label: t2(T.FRENCH_UI_STRINGS.reports),
-            },
+            // {
+            //   value: "reports" as const,
+            //   label: t2(T.FRENCH_UI_STRINGS.reports),
+            // },
             {
               value: "visualizations" as const,
               label: t2(T.FRENCH_UI_STRINGS.visualizations),
@@ -188,18 +188,13 @@ export default function Project(p: Props) {
                     }
                   >
                     <Switch>
-                      {/* <Match when={projectTab() === "whiteboard"}>
-                        <ProjectWhiteboard
-                          instanceDetail={keyedInstanceDetail}
-                        />
-                      </Match> */}
-                      <Match when={projectTab() === "reports"}>
+                      {/* <Match when={projectTab() === "reports"}>
                         <ProjectReports
                           instanceDetail={keyedInstanceDetail}
                           isGlobalAdmin={p.isGlobalAdmin}
                           openProjectEditor={openProjectEditor}
                         />
-                      </Match>
+                      </Match> */}
                       <Match when={projectTab() === "decks"}>
                         <ProjectDecks
                           instanceDetail={keyedInstanceDetail}

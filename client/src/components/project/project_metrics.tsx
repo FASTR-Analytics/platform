@@ -77,11 +77,11 @@ export function ProjectMetrics(p: Props) {
         <For each={organized()}>
           {(moduleGroup) => (
             <div class="ui-spy">
-              <div class=" bg-primary/5 border-base-300 ui-pad-sm rounded border-l-4">
-                <div class="font-700 text-lg">{moduleGroup.moduleLabel}</div>
+              <div class="border-base-300 flex items-baseline gap-3 border-b pb-2">
+                <div class="font-700 text-base">{moduleGroup.moduleLabel}</div>
                 <div class="font-mono text-neutral text-xs">{moduleGroup.moduleId}</div>
               </div>
-              <div class="ui-gap grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]">
                 <For each={moduleGroup.metricGroups}>
                   {(metricGroup) => (
                     <MetricGroupCard

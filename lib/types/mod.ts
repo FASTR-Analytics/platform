@@ -21,3 +21,4 @@ export * from "./slides_ai_input.ts";
 export * from "./streaming.ts";
 export * from "./structure.ts";
 export * from "./visualization_folders.ts";
+export * from "./permissions.ts";

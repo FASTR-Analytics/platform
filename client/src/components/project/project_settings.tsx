@@ -608,12 +608,17 @@ function ProjectBackups(props: {
           const data = await response.json();
 
           if (!data.success) {
-            return { success: false as const, err: data.error || "Backup failed" };
+            return {
+              success: false as const,
+              err: data.error || "Backup failed",
+            };
           }
 
           return { success: true as const };
         },
-        silentFetch: async () => { refetchBackups(); },
+        silentFetch: async () => {
+          refetchBackups();
+        },
       },
     });
   };
@@ -656,12 +661,18 @@ function ProjectBackups(props: {
 
           if (!response.ok) {
             const data = await response.json();
-            return { success: false as const, err: data.error || "Failed to restore" };
+            return {
+              success: false as const,
+              err: data.error || "Failed to restore",
+            };
           }
 
           const data = await response.json();
           if (!data.success) {
-            return { success: false as const, err: data.error || "Restore failed" };
+            return {
+              success: false as const,
+              err: data.error || "Restore failed",
+            };
           }
 
           // Force full page reload after successful restore to clear all cached data

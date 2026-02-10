@@ -1,4 +1,4 @@
-import { type InstanceDetail, type ProjectDetail, type Slide, type SlideDeckConfig, getStartingConfigForReport, t, t2, T } from "lib";
+import { type InstanceDetail, type ProjectDetail, type Slide, type SlideDeckConfig, getStartingConfigForSlideDeck, t, t2, T } from "lib";
 import {
   createAIChat,
   EditorComponentProps,
@@ -12,7 +12,7 @@ import { useOptimisticSetLastUpdated, useProjectDirtyStates } from "../project_r
 import { DownloadSlideDeck } from "./download_slide_deck";
 import { SlideEditor } from "./slide_editor";
 import { SlideList } from "./slide_list";
-import { ReportSettings, type ReportSettingsProps } from "../report/report_settings";
+import { SlideDeckSettings, type SlideDeckSettingsProps } from "./slide_deck_settings";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext } from "../project_ai/types";
 import { snapshotForSlideEditor } from "~/utils/snapshot";
@@ -46,7 +46,7 @@ export function ProjectAiSlideDeck(p: Props) {
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedSlideIds, setSelectedSlideIds] = createSignal<string[]>([]);
   const [deckLabel, setDeckLabel] = createSignal(p.reportLabel);
-  const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(getStartingConfigForReport(p.reportLabel));
+  const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(getStartingConfigForSlideDeck(p.reportLabel));
 
   // Load deck metadata and set AI context on mount
   onMount(async () => {
@@ -128,8 +128,8 @@ function ProjectAiSlideDeckInner(p: {
   const [editingSlideId, setEditingSlideId] = createSignal<string | undefined>();
 
   async function handleOpenSettings() {
-    await openSettingsEditor<ReportSettingsProps, "AFTER_DELETE">({
-      element: ReportSettings,
+    await openSettingsEditor<SlideDeckSettingsProps, "AFTER_DELETE">({
+      element: SlideDeckSettings,
       props: {
         projectId: p.projectDetail.id,
         config: p.deckConfig,

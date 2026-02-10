@@ -15,6 +15,7 @@ import {
 type ComparisonSliderProps = {
   value: number;
   onChange: (value: number) => void;
+  onRelease?: (value: number) => void;
   comparisonValue: number;
   min?: number;
   max?: number;
@@ -174,6 +175,7 @@ export function ComparisonSlider(p: ComparisonSliderProps) {
           step={step()}
           value={p.value}
           onInput={(e) => p.onChange(Number(e.currentTarget.value))}
+          onChange={(e) => p.onRelease?.(Number(e.currentTarget.value))}
           disabled={p.disabled}
         />
       </div>

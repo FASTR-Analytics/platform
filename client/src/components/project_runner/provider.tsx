@@ -3,15 +3,18 @@ import {
   ProjectDetail,
   ProjectDirtyStates,
   ProjectSseUpdateMessage,
+  T,
+  _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   parseJsonOrThrow,
   t,
   t2,
-  T,
+  type ProjectUserPermissions,
 } from "lib";
-import { Show, createSignal, onCleanup, onMount } from "solid-js";
-import { createStore, reconcile, type Store } from "solid-js/store";
-import { _SERVER_HOST } from "~/server_actions/config";
 import { Button } from "panther";
+import { Show, createSignal, onCleanup, onMount } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
+import { serverActions } from "~/server_actions";
+import { _SERVER_HOST } from "~/server_actions/config";
 import { ProjectDirtyStateContext } from "./context";
 import { setGlobalPDS } from "./global_pds";
 import type { ConnectionState, Props } from "./types";
@@ -21,13 +24,12 @@ import {
   getRetryDelay,
   validateTimestamp,
 } from "./utils";
-import { serverActions } from "~/server_actions";
 
 // Listener type for SSE last_updated events
 type LastUpdatedListener = (
   tableName: LastUpdateTableName,
   ids: string[],
-  timestamp: string
+  timestamp: string,
 ) => void;
 
 export function ProjectRunnerProvider(p: Props) {
@@ -51,23 +53,9 @@ export function ProjectRunnerProvider(p: Props) {
     slideDecks: [],
     slideDeckFolders: [],
     projectUsers: [],
-    thisUserPermissions: {
-      can_configure_settings: false,
-      can_create_backups: false,
-      can_restore_backups: false,
-      can_configure_modules: false,
-      can_run_modules: false,
-      can_configure_users: false,
-      can_configure_visualizations: false,
-      can_view_visualizations: false,
-      can_configure_reports: false,
-      can_view_reports: false,
-      can_configure_slide_decks: false,
-      can_view_slide_decks: false,
-      can_configure_data: false,
-      can_view_data: false,
-      can_view_logs: false,
-    },
+    thisUserPermissions: structuredClone(
+      _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+    ),
   });
   const [isProjectReady, setIsProjectReady] = createSignal(false);
 
@@ -80,9 +68,11 @@ export function ProjectRunnerProvider(p: Props) {
   }
 
   async function fetchProjectDetail() {
-    const res = await serverActions.getProjectDetail({ projectId: p.projectId });
+    const res = await serverActions.getProjectDetail({
+      projectId: p.projectId,
+    });
     if (res.success) {
-      setProjectDetail(reconcile(res.data));  // Efficiently diffs and updates only changed properties
+      setProjectDetail(reconcile(res.data)); // Efficiently diffs and updates only changed properties
     }
     // TODO: Handle error case
   }

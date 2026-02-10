@@ -1,6 +1,7 @@
-import { InstanceMeta, t, t2, T } from "lib";
+import { t, t2, T } from "lib";
 import {
   Button,
+  ModalContainer,
   SettingsSection,
   StateHolderWrapper,
   timQuery,
@@ -32,14 +33,22 @@ export function InstanceMetaForm(
   }
 
   return (
-    <div class="w-[800px]">
+    <ModalContainer
+      title={t("Instance Information")}
+      width="lg"
+      leftButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button onClick={() => p.close(undefined)} iconName="x">
+            Done
+          </Button>,
+        ]
+      }
+    >
       <StateHolderWrapper state={instanceMeta.state()}>
         {(keyedMeta) => {
           return (
-            <div class="ui-pad ui-spy">
-              <div class="font-700 text-base-content text-xl">
-                {t("Instance Information")}
-              </div>
+            <>
               <div class="ui-gap flex text-sm">
                 <div class="flex-1">
                   <SettingsSection header={t("Instance Configuration")}>
@@ -121,16 +130,10 @@ export function InstanceMetaForm(
                   </SettingsSection>
                 </div>
               </div>
-
-              <div class="ui-gap-sm flex">
-                <Button onClick={() => p.close(undefined)} iconName="x">
-                  Done
-                </Button>
-              </div>
-            </div>
+            </>
           );
         }}
       </StateHolderWrapper>
-    </div>
+    </ModalContainer>
   );
 }

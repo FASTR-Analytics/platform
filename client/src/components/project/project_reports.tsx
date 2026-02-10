@@ -27,7 +27,6 @@ import {
   onMount,
 } from "solid-js";
 import { AddReportForm } from "./add_report";
-import { ConvertReportModal } from "./convert_report_modal";
 import { t } from "lib";
 import type Uppy from "@uppy/core";
 import { createUppyInstance, cleanupUppy } from "~/upload/uppy_file_upload";
@@ -236,26 +235,6 @@ export function ProjectReports(p: ExtendedProps) {
                     <div class="text-sm">
                       {get_REPORT_TYPE_MAP()[report.reportType]}
                     </div>
-                    <Show when={report.reportType === "slide_deck"}>
-                      <Button
-                        outline
-                        size="sm"
-                        onClick={(e: MouseEvent) => {
-                          e.stopPropagation();
-                          openComponent({
-                            element: ConvertReportModal,
-                            props: {
-                              projectId: projectDetail.id,
-                              reportId: report.id,
-                              reportLabel: report.label,
-                              folders: projectDetail.slideDeckFolders,
-                            },
-                          });
-                        }}
-                      >
-                        Convert to slide deck
-                      </Button>
-                    </Show>
                   </div>
                 </div>
               );

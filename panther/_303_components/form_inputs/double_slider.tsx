@@ -14,6 +14,8 @@ type DoubleSliderProps = {
   valueHigh: number;
   onChangeLow: (v: number) => void;
   onChangeHigh: (v: number) => void;
+  onReleaseLow?: (v: number) => void;
+  onReleaseHigh?: (v: number) => void;
   minDifference?: number;
 };
 
@@ -83,9 +85,9 @@ export function DoubleSlider(p: DoubleSliderProps) {
         onInput={(e) => {
           const newValue = Number(e.target.value);
           const constrainedValue = handleLowChange(newValue);
-          // Force the input to display the constrained value
           e.target.value = String(constrainedValue);
         }}
+        onChange={(e) => p.onReleaseLow?.(Number(e.target.value))}
       />
       <input
         type="range"
@@ -97,9 +99,9 @@ export function DoubleSlider(p: DoubleSliderProps) {
         onInput={(e) => {
           const newValue = Number(e.target.value);
           const constrainedValue = handleHighChange(newValue);
-          // Force the input to display the constrained value
           e.target.value = String(constrainedValue);
         }}
+        onChange={(e) => p.onReleaseHigh?.(Number(e.target.value))}
       />
     </div>
   );

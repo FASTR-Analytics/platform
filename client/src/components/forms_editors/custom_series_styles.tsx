@@ -1,4 +1,4 @@
-import { AlertComponentProps, Button, ColorPicker } from "panther";
+import { AlertComponentProps, Button, ColorPicker, ModalContainer } from "panther";
 import { For } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { CustomSeriesStyle, T, t, t2 } from "lib";
@@ -53,8 +53,25 @@ export function CustomSeriesStyles(
   }
 
   return (
-    <div class="ui-spy px-8 py-6">
-      <div class="font-700 text-xl">{t("Custom series colors")}</div>
+    <ModalContainer
+      title={t("Custom series colors")}
+      width="md"
+      leftButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button onClick={done} intent="success" iconName="save">
+            {t2(T.FRENCH_UI_STRINGS.save)}
+          </Button>,
+          <Button
+            onClick={() => p.close(undefined)}
+            intent="neutral"
+            iconName="x"
+          >
+            {t2(T.FRENCH_UI_STRINGS.cancel)}
+          </Button>,
+        ]
+      }
+    >
       <div class="ui-spy-sm">
         <For each={tempStyles}>
           {(s, i) => {
@@ -89,18 +106,6 @@ export function CustomSeriesStyles(
           </Button>
         </div>
       </div>
-      <div class="ui-gap-sm flex">
-        <Button onClick={done} intent="success" iconName="save">
-          {t2(T.FRENCH_UI_STRINGS.save)}
-        </Button>
-        <Button
-          onClick={() => p.close(undefined)}
-          intent="neutral"
-          iconName="x"
-        >
-          {t2(T.FRENCH_UI_STRINGS.cancel)}
-        </Button>
-      </div>
-    </div>
+    </ModalContainer>
   );
 }

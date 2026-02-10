@@ -1,7 +1,7 @@
 import {
   getTextRenderingOptions,
   getMetricStaticData,
-  getStartingConfigForReport,
+  getStartingConfigForSlideDeck,
   type AiFigureFromVisualization,
   type AiFigureFromMetric,
   type AiContentSlideInput,
@@ -11,7 +11,7 @@ import {
   type SlideDeckConfig,
 } from "lib";
 import type { AlertComponentProps, FigureInputs, StateHolder } from "panther";
-import { Button, ChartHolder, Loading, openComponent } from "panther";
+import { Button, ChartHolder, Loading, ModalContainer, openComponent } from "panther";
 import { createSignal, Match, onMount, Show, Switch } from "solid-js";
 import {
   getPOFigureInputsFromCacheOrFetch_AsyncGenerator,
@@ -175,7 +175,7 @@ export function DraftVisualizationPreview(p: Props) {
     const ctx = aiContext();
     const deckConfig: SlideDeckConfig = ctx.mode === "editing_slide_deck"
       ? ctx.getDeckConfig()
-      : getStartingConfigForReport("Draft");
+      : getStartingConfigForSlideDeck("Draft");
     const slide: Slide = await convertAiInputToSlide(
       p.projectId,
       slideInput,
@@ -308,27 +308,27 @@ function ExpandedVizModal(
   p: AlertComponentProps<ExpandedVizModalProps, void>,
 ) {
   return (
-    <div
-      class="ui-pad-lg flex flex-col ui-gap"
-      style={{ "max-width": "90vw", "max-height": "90vh" }}
+    <ModalContainer
+      width="2xl"
+      rightButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button outline onClick={() => { p.close(undefined); p.onEditSave(); }}>
+            Save as new visualization
+          </Button>,
+          <Button outline onClick={() => { p.close(undefined); p.onAddToDeck(); }}>
+            {p.addToDeckLabel}
+          </Button>,
+          <Button onClick={() => p.close(undefined)}>Close</Button>,
+        ]
+      }
     >
-      <div class="min-h-0 flex-1 overflow-auto">
-        <div style={{ width: "min(80vw, 1200px)" }}>
-          <FigureStateWrapper
-            state={{ status: "ready" as const, data: p.figureInputs }}
-            scalePixelResolution={0.5}
-          />
-        </div>
+      <div style={{ width: "min(80vw, 1200px)" }}>
+        <FigureStateWrapper
+          state={{ status: "ready" as const, data: p.figureInputs }}
+          scalePixelResolution={0.5}
+        />
       </div>
-      <div class="flex shrink-0 justify-end ui-gap-sm">
-        <Button outline onClick={() => { p.close(undefined); p.onEditSave(); }}>
-          Save as new visualization
-        </Button>
-        <Button outline onClick={() => { p.close(undefined); p.onAddToDeck(); }}>
-          {p.addToDeckLabel}
-        </Button>
-        <Button onClick={() => p.close(undefined)}>Close</Button>
-      </div>
-    </div>
+    </ModalContainer>
   );
 }

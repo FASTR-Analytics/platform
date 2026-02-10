@@ -2,11 +2,12 @@ import { t, t2, T, type Dhis2Credentials } from "lib";
 import {
   AlertComponentProps,
   Button,
+  ModalContainer,
   timActionForm,
   StateHolderFormError,
 } from "panther";
 import { createStore } from "solid-js/store";
-import { Show, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { Dhis2CredentialsEditor } from "../Dhis2CredentialsEditor";
 
 export function Dhis2CredentialsForm(
@@ -74,10 +75,37 @@ export function Dhis2CredentialsForm(
     tempCredentials.password.trim();
 
   return (
-    <div class="ui-pad ui-spy-sm min-w-[500px] max-w-[600px]">
-      <h2 class="font-700 mb-4 text-lg">{t("DHIS2 Connection Credentials")}</h2>
-
-      <div class="text-base-content mb-6 text-sm">
+    <ModalContainer
+      title={t("DHIS2 Connection Credentials")}
+      width="md"
+      leftButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button
+            onClick={saveAction.click}
+            intent="primary"
+            disabled={!isValid()}
+            state={saveAction.state()}
+          >
+            {t("Set Credentials")}
+          </Button>,
+          <Button onClick={handleCancel} intent="neutral" outline>
+            {t2(T.FRENCH_UI_STRINGS.cancel)}
+          </Button>,
+        ]
+      }
+      rightButtons={
+        p.allowClear
+          ? // eslint-disable-next-line jsx-key
+            [
+              <Button onClick={handleClear} intent="danger" outline>
+                {t("Clear Credentials")}
+              </Button>,
+            ]
+          : undefined
+      }
+    >
+      <div class="text-base-content text-sm">
         {t(
           "Enter your DHIS2 instance credentials. These will be stored only for this session.",
         )}
@@ -94,27 +122,6 @@ export function Dhis2CredentialsForm(
       </div>
 
       <StateHolderFormError state={saveAction.state()} />
-
-      <div class="ui-gap mt-6 flex justify-between">
-        <div class="ui-gap flex">
-          <Button
-            onClick={saveAction.click}
-            intent="primary"
-            disabled={!isValid()}
-            state={saveAction.state()}
-          >
-            {t("Set Credentials")}
-          </Button>
-          <Button onClick={handleCancel} intent="neutral" outline>
-            {t2(T.FRENCH_UI_STRINGS.cancel)}
-          </Button>
-        </div>
-        <Show when={p.allowClear}>
-          <Button onClick={handleClear} intent="danger" outline>
-            {t("Clear Credentials")}
-          </Button>
-        </Show>
-      </div>
-    </div>
+    </ModalContainer>
   );
 }

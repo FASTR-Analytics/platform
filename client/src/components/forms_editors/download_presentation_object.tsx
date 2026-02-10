@@ -1,6 +1,6 @@
-import { Button, EditorComponentProps, RadioGroup } from "panther";
+import { Button, EditorComponentProps, ModalContainer, RadioGroup } from "panther";
 import { Show, createSignal } from "solid-js";
-import { t, t2, T, PresentationObjectDetail } from "lib";
+import { t2, T, PresentationObjectDetail } from "lib";
 
 export function DownloadPresentationObject(
   p: EditorComponentProps<
@@ -34,8 +34,25 @@ export function DownloadPresentationObject(
   }
 
   return (
-    <div class="ui-spy px-8 py-6">
-      <div class="text-xl font-700">{t2(T.FRENCH_UI_STRINGS.download)}</div>
+    <ModalContainer
+      title={t2(T.FRENCH_UI_STRINGS.download)}
+      width="sm"
+      leftButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button onClick={done} intent="success" iconName="download">
+            {t2(T.FRENCH_UI_STRINGS.download)}
+          </Button>,
+          <Button
+            onClick={() => p.close(undefined)}
+            intent="neutral"
+            iconName="x"
+          >
+            {t2(T.FRENCH_UI_STRINGS.cancel)}
+          </Button>,
+        ]
+      }
+    >
       <div class="">
         <RadioGroup
           label={t2(T.FRENCH_UI_STRINGS.format)}
@@ -74,18 +91,6 @@ export function DownloadPresentationObject(
           />
         </div>
       </Show>
-      <div class="ui-gap-sm flex">
-        <Button onClick={done} intent="success" iconName="download">
-          {t2(T.FRENCH_UI_STRINGS.download)}
-        </Button>
-        <Button
-          onClick={() => p.close(undefined)}
-          intent="neutral"
-          iconName="x"
-        >
-          {t2(T.FRENCH_UI_STRINGS.cancel)}
-        </Button>
-      </div>
-    </div>
+    </ModalContainer>
   );
 }

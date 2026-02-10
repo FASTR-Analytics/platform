@@ -1,5 +1,5 @@
 import {
-  getStartingConfigForReport,
+  getStartingConfigForSlideDeck,
   getTextRenderingOptions,
   type AiSlideInput,
   type MetricWithStatus,
@@ -7,7 +7,7 @@ import {
   type SlideDeckConfig,
 } from "lib";
 import type { AlertComponentProps, PageInputs, StateHolder } from "panther";
-import { Button, Loading, openComponent, PageHolder, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
+import { Button, Loading, ModalContainer, openComponent, PageHolder, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
 import { createSignal, Match, onMount, Switch } from "solid-js";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/components/slide_deck/slide_rendering/convert_slide_to_page_inputs";
@@ -43,7 +43,7 @@ export function DraftSlidePreview(p: Props) {
     if (ctx.mode === "editing_slide_deck") {
       return ctx.getDeckConfig();
     }
-    return getStartingConfigForReport("Draft");
+    return getStartingConfigForSlideDeck("Draft");
   }
 
   async function buildSlide() {
@@ -179,28 +179,28 @@ function ExpandedSlideModal(
   p: AlertComponentProps<ExpandedSlideModalProps, void>,
 ) {
   return (
-    <div
-      class="ui-pad-lg flex flex-col ui-gap"
-      style={{ "max-width": "90vw", "max-height": "90vh" }}
+    <ModalContainer
+      width="2xl"
+      rightButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button outline onClick={() => { p.close(undefined); p.onAddToDeck(); }}>
+            {p.addToDeckLabel}
+          </Button>,
+          <Button onClick={() => p.close(undefined)}>Close</Button>,
+        ]
+      }
     >
-      <div class="min-h-0 flex-1 overflow-auto">
-        <div style={{ width: "min(80vw, 1200px)" }}>
-          <div class="aspect-video overflow-hidden">
-            <PageHolder
-              pageInputs={p.pageInputs}
-              fixedCanvasH={CANVAS_H}
-              textRenderingOptions={getTextRenderingOptions()}
-              scalePixelResolution={0.5}
-            />
-          </div>
+      <div style={{ width: "min(80vw, 1200px)" }}>
+        <div class="aspect-video overflow-hidden">
+          <PageHolder
+            pageInputs={p.pageInputs}
+            fixedCanvasH={CANVAS_H}
+            textRenderingOptions={getTextRenderingOptions()}
+            scalePixelResolution={0.5}
+          />
         </div>
       </div>
-      <div class="flex shrink-0 justify-end ui-gap-sm">
-        <Button outline onClick={() => { p.close(undefined); p.onAddToDeck(); }}>
-          {p.addToDeckLabel}
-        </Button>
-        <Button onClick={() => p.close(undefined)}>Close</Button>
-      </div>
-    </div>
+    </ModalContainer>
   );
 }

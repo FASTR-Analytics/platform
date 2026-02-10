@@ -11,6 +11,7 @@ import {
   Button,
   Input,
   Loading,
+  ModalContainer,
   TextArea,
 } from "panther";
 import { t } from "lib";
@@ -94,11 +95,21 @@ export function PromptLibraryModal(
   };
 
   return (
-    <div class="ui-pad-lg ui-spy max-h-[80vh] w-[min(700px,90vw)] overflow-hidden flex flex-col">
-      <div class="font-700 text-lg mb-4">
-        {selectedPrompt() ? t("Edit Prompt") : t("Prompt Library")}
-      </div>
-
+    <ModalContainer
+      title={selectedPrompt() ? t("Edit Prompt") : t("Prompt Library")}
+      width="lg"
+      scroll="content"
+      rightButtons={
+        !isLoading() && !selectedPrompt()
+          ? // eslint-disable-next-line jsx-key
+            [
+              <Button onClick={() => p.close(undefined)} intent="neutral">
+                {t("Cancel")}
+              </Button>,
+            ]
+          : undefined
+      }
+    >
       <Show when={isLoading()}>
         <div class="">
           <Loading msg={t("Loading prompts...")} noPad />
@@ -130,15 +141,7 @@ export function PromptLibraryModal(
           )}
         </Show>
       </Show>
-
-      <Show when={!isLoading() && !selectedPrompt()}>
-        <div class="mt-4 flex justify-end">
-          <Button onClick={() => p.close(undefined)} intent="neutral">
-            {t("Cancel")}
-          </Button>
-        </div>
-      </Show>
-    </div>
+    </ModalContainer>
   );
 }
 

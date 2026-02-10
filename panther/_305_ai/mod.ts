@@ -8,6 +8,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 export { AIChat } from "./_components/ai_chat.tsx";
+export { AIChatConversationSelector } from "./_components/ai_chat_conversation_selector.tsx";
 export { AIChatSettingsPanel } from "./_components/ai_chat_settings_panel.tsx";
 export { AIChatProvider } from "./context.tsx";
 
@@ -32,7 +33,11 @@ export { BETA_HEADERS, getBetaHeaders } from "./_core/beta_headers.ts";
 ////////////////////////////////////////////////////////////////////////////////
 
 export type { AIChatConfig } from "./_core/types.ts";
-export type { AIChatSettingsField, AIChatSettingsPanelProps, AIChatSettingsValues } from "./_components/ai_chat_settings_panel.tsx";
+export type {
+  AIChatSettingsField,
+  AIChatSettingsPanelProps,
+  AIChatSettingsValues,
+} from "./_components/ai_chat_settings_panel.tsx";
 export type { ConversationMetadata } from "./_core/conversations_persistence.ts";
 export type { ConversationsContextValue } from "./_components/use_conversations.ts";
 

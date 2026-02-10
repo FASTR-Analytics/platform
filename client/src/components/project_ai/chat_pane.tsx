@@ -1,9 +1,8 @@
-import { AIChat, AIChatSettingsPanel, type AIChatSettingsPanelProps, type AIChatSettingsValues, Button, createAIChat, MenuTriggerWrapper, openComponent, openConfirm, useConversations, type MenuItem } from "panther";
+import { AIChat, AIChatConversationSelector, AIChatSettingsPanel, type AIChatSettingsPanelProps, type AIChatSettingsValues, Button, createAIChat, MenuTriggerWrapper, openComponent, openConfirm, useConversations, type MenuItem } from "panther";
 import { t } from "lib";
 import { useAIProjectContext } from "./context";
 import { setShowAi } from "~/state/ui";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
-import { ConversationSelectorModal } from "./ConversationSelectorModal";
 import { usePromptLibrary } from "./ai_prompt_library";
 
 type ConsolidatedChatPaneProps = {
@@ -19,7 +18,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   const openConversationSelector = async () => {
     await openComponent({
-      element: ConversationSelectorModal,
+      element: AIChatConversationSelector,
       props: {
         conversations,
       },

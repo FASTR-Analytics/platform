@@ -1,35 +1,21 @@
-import { OtherUser, ProjectUser, ProjectUserRoleType, t2, T } from "lib";
+import type { ProjectPermission } from "lib";
+import {
+  PERMISSION_PRESETS,
+  PROJECT_PERMISSIONS,
+  ProjectUser,
+  T,
+  t2,
+} from "lib";
 import {
   AlertComponentProps,
   Button,
-  RadioGroup,
-  StateHolderFormError,
-  getSelectOptions,
-  timActionForm,
   Checkbox,
+  ModalContainer,
+  StateHolderFormError,
+  timActionForm,
 } from "panther";
-import { Match, Show, Switch, createSignal, For, onMount } from "solid-js";
+import { For, Show, createSignal, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { t } from "lib";
-import type { ProjectPermission } from "lib";
-
-export const PROJECT_PERMISSIONS = [
-  "can_configure_settings",
-  "can_create_backups",
-  "can_restore_backups",
-  "can_configure_modules",
-  "can_run_modules",
-  "can_configure_users",
-  "can_configure_visualizations",
-  "can_view_visualizations",
-  "can_configure_reports",
-  "can_view_reports",
-  "can_configure_slide_decks",
-  "can_view_slide_decks",
-  "can_configure_data",
-  "can_view_data",
-  "can_view_logs",
-] as const satisfies readonly ProjectPermission[];
 
 const PERMISSION_LABELS: Partial<Record<ProjectPermission, string>> = {
   can_configure_visualizations: "can create and edit visualizations",
@@ -86,72 +72,6 @@ function makeDefaultPermissions(): Record<ProjectPermission, boolean> {
   ) as Record<ProjectPermission, boolean>;
 }
 
-const PERMISSION_PRESETS: {
-  label: string;
-  permissions: Record<ProjectPermission, boolean>;
-}[] = [
-  {
-    label: "Viewer",
-    permissions: {
-      can_configure_settings: false,
-      can_create_backups: false,
-      can_restore_backups: false,
-      can_configure_modules: false,
-      can_run_modules: false,
-      can_configure_users: false,
-      can_configure_visualizations: false,
-      can_view_visualizations: true,
-      can_configure_reports: false,
-      can_view_reports: true,
-      can_configure_slide_decks: false,
-      can_view_slide_decks: true,
-      can_configure_data: false,
-      can_view_data: true,
-      can_view_logs: false,
-    },
-  },
-  {
-    label: "Editor",
-    permissions: {
-      can_configure_settings: false,
-      can_create_backups: false,
-      can_restore_backups: false,
-      can_configure_modules: true,
-      can_run_modules: true,
-      can_configure_users: false,
-      can_configure_visualizations: true,
-      can_view_visualizations: true,
-      can_configure_reports: true,
-      can_view_reports: true,
-      can_configure_slide_decks: true,
-      can_view_slide_decks: true,
-      can_configure_data: true,
-      can_view_data: true,
-      can_view_logs: false,
-    },
-  },
-  {
-    label: "Admin",
-    permissions: {
-      can_configure_settings: true,
-      can_create_backups: true,
-      can_restore_backups: true,
-      can_configure_modules: true,
-      can_run_modules: true,
-      can_configure_users: true,
-      can_configure_visualizations: true,
-      can_view_visualizations: true,
-      can_configure_reports: true,
-      can_view_reports: true,
-      can_configure_slide_decks: true,
-      can_view_slide_decks: true,
-      can_configure_data: true,
-      can_view_data: true,
-      can_view_logs: true,
-    },
-  },
-];
-
 export function SelectProjectUserRole(
   p: AlertComponentProps<
     {
@@ -171,7 +91,6 @@ export function SelectProjectUserRole(
     null,
   );
 
-  // only fetch the existing permissions if modifying a single users permissions
   onMount(async () => {
     if (p.users.length === 1) {
       const res = await serverActions.getProjectUserPermissions({
@@ -188,7 +107,7 @@ export function SelectProjectUserRole(
       }
     } else {
       setPermissions(makeDefaultPermissions());
-      setUserRoleExists(true); // For multiple users, assume they have roles
+      setUserRoleExists(true);
     }
   });
 
@@ -242,11 +161,17 @@ export function SelectProjectUserRole(
   );
 
   return (
-    <div class="ui-pad ui-spy w-[600px]">
-      <div class="space-y-3">
+    <ModalContainer
+      width="lg"
+      topPanel={
         <div class="flex items-center justify-between">
-          <div class="font-700 text-lg leading-6">
-            {t2(T.FRENCH_UI_STRINGS.update_project_permissions)}
+          <div>
+            <div class="font-700 text-lg leading-6">
+              {t2(T.FRENCH_UI_STRINGS.update_project_permissions)}
+            </div>
+            <div class="font-700 text-sm">
+              {p.users.map((u) => u.email).join(", ")}
+            </div>
           </div>
           <Show when={p.users.length === 1}>
             <Show
@@ -275,84 +200,85 @@ export function SelectProjectUserRole(
             </Show>
           </Show>
         </div>
-        <div class="font-700 text-sm">
-          {p.users.map((u) => u.email).join(", ")}
+      }
+      leftButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button
+            onClick={save.click}
+            intent="success"
+            state={save.state()}
+            iconName="save"
+            disabled={userRoleExists() === false}
+          >
+            {t2(T.FRENCH_UI_STRINGS.save)}
+          </Button>,
+          <Button
+            onClick={() => p.close(undefined)}
+            intent="neutral"
+            iconName="x"
+          >
+            {t2(T.FRENCH_UI_STRINGS.cancel)}
+          </Button>,
+        ]
+      }
+    >
+      <Show
+        when={permissions() && userRoleExists() !== null}
+        fallback={<div>Loading...</div>}
+      >
+        <div
+          class="flex gap-2"
+          classList={{
+            "opacity-50 pointer-events-none": userRoleExists() === false,
+          }}
+        >
+          <For each={PERMISSION_PRESETS}>
+            {(preset: {
+              label: string;
+              permissions: Record<ProjectPermission, boolean>;
+            }) => (
+              <Button
+                onClick={() =>
+                  setPermissions(structuredClone(preset.permissions))
+                }
+                intent="neutral"
+                size="sm"
+              >
+                {preset.label}
+              </Button>
+            )}
+          </For>
         </div>
-        <Show
-          when={permissions() && userRoleExists() !== null}
-          fallback={<div>Loading...</div>}
+        <div
+          class="grid grid-cols-2 gap-4"
+          classList={{
+            "opacity-50 pointer-events-none": userRoleExists() === false,
+          }}
         >
-              <div
-                class="flex gap-2"
-                classList={{
-                  "opacity-50 pointer-events-none": userRoleExists() === false,
-                }}
-              >
-                <For each={PERMISSION_PRESETS}>
-                  {(preset: {
-                    label: string;
-                    permissions: Record<ProjectPermission, boolean>;
-                  }) => (
-                    <Button
-                      onClick={() => setPermissions({ ...preset.permissions })}
-                      intent="neutral"
-                      size="sm"
-                    >
-                      {preset.label}
-                    </Button>
+          <For each={PERMISSION_CATEGORIES}>
+            {(category: {
+              label: string;
+              permissions: readonly ProjectPermission[];
+            }) => (
+              <div class="space-y-2">
+                <div class="font-600 text-sm">{category.label}</div>
+                <For each={category.permissions}>
+                  {(key: ProjectPermission) => (
+                    <Checkbox
+                      label={getPermissionLabel(key)}
+                      checked={permissions()![key]}
+                      onChange={() => togglePermission(key)}
+                      disabled={userRoleExists() === false}
+                    />
                   )}
                 </For>
               </div>
-              <div
-                class="grid grid-cols-2 gap-4"
-                classList={{
-                  "opacity-50 pointer-events-none": userRoleExists() === false,
-                }}
-              >
-                <For each={PERMISSION_CATEGORIES}>
-                  {(category: {
-                    label: string;
-                    permissions: readonly ProjectPermission[];
-                  }) => (
-                    <div class="space-y-2">
-                      <div class="font-600 text-sm">{category.label}</div>
-                      <For each={category.permissions}>
-                        {(key: ProjectPermission) => (
-                          <Checkbox
-                            label={getPermissionLabel(key)}
-                            checked={permissions()![key]}
-                            onChange={() => togglePermission(key)}
-                            disabled={userRoleExists() === false}
-                          />
-                        )}
-                      </For>
-                    </div>
-                  )}
-                </For>
-              </div>
-        </Show>
-      </div>
+            )}
+          </For>
+        </div>
+      </Show>
       <StateHolderFormError state={save.state()} />
-      <div class="flex gap-2">
-        {/* <Show when={!p.user.isGlobalAdmin}> */}
-        <Button
-          onClick={save.click}
-          intent="success"
-          state={save.state()}
-          iconName="save"
-          disabled={userRoleExists() === false}
-        >
-          {t2(T.FRENCH_UI_STRINGS.save)}
-        </Button>
-        {/* </Show> */}
-        <Button
-          onClick={() => p.close(undefined)}
-          intent="neutral"
-          iconName="x"
-        >
-          {t2(T.FRENCH_UI_STRINGS.cancel)}
-        </Button>
-      </div>
-    </div>
+    </ModalContainer>
   );
 }

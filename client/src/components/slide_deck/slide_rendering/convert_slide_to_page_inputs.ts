@@ -4,9 +4,8 @@ import type {
   SlideDeckConfig,
   CoverSlide,
   SectionSlide,
-  ColorDetails,
 } from "lib";
-import { FIGURE_AUTOFIT, getMetricStaticData, getColorDetailsForColorTheme, MARKDOWN_AUTOFIT, _SLIDE_BACKGROUND_COLOR, _CF_RED } from "lib";
+import { FIGURE_AUTOFIT, getMetricStaticData, getTextColorForBackground, MARKDOWN_AUTOFIT, _SLIDE_BACKGROUND_COLOR, _CF_RED } from "lib";
 import type {
   APIResponseWithData,
   PageInputs,
@@ -19,7 +18,7 @@ import type {
 } from "panther";
 import { getStyleFromPresentationObject } from "~/generate_visualization/get_style_from_po";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
-import { getOverlayImage } from "~/generate_report/get_overlay_image";
+import { getOverlayImage } from "./get_overlay_image";
 import { _SERVER_HOST } from "~/server_actions/config";
 
 const _Inter_400: FontInfo = {
@@ -38,7 +37,8 @@ export function buildStyleForSlide(
   slide: Slide,
   config: SlideDeckConfig,
 ): CustomPageStyleOptions {
-  const cDetails = getColorDetailsForColorTheme(config.colorTheme);
+  const primaryColor = config.primaryColor;
+  const primaryTextColor = getTextColorForBackground(primaryColor);
 
   const hasFooter = slide.type === "content" && !!(slide.footer?.trim());
 
@@ -54,42 +54,42 @@ export function buildStyleForSlide(
     text: {
       coverTitle: {
         font: _Inter_800,
-        color: cDetails.primaryTextColor,
+        color: primaryTextColor,
         relFontSize: coverFontSizes.titleTextRelFontSize ?? 10,
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       coverSubTitle: {
         font: _Inter_400,
-        color: cDetails.primaryTextColor,
+        color: primaryTextColor,
         relFontSize: coverFontSizes.subTitleTextRelFontSize ?? 6,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       coverAuthor: {
         font: _Inter_800,
-        color: cDetails.primaryTextColor,
+        color: primaryTextColor,
         relFontSize: coverFontSizes.presenterTextRelFontSize ?? 4,
         letterSpacing: "-0.02em",
         lineHeight: 1.2,
       },
       coverDate: {
         font: _Inter_400,
-        color: cDetails.primaryTextColor,
+        color: primaryTextColor,
         relFontSize: coverFontSizes.dateTextRelFontSize ?? 3,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       sectionTitle: {
         font: _Inter_800,
-        color: cDetails.primaryTextColor,
+        color: primaryTextColor,
         relFontSize: sectionFontSizes.sectionTextRelFontSize ?? 8,
         letterSpacing: "-0.02em",
         lineHeight: 1.05,
       },
       sectionSubTitle: {
         font: _Inter_400,
-        color: cDetails.primaryTextColor,
+        color: primaryTextColor,
         relFontSize: sectionFontSizes.smallerSectionTextRelFontSize ?? 5,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
@@ -97,42 +97,42 @@ export function buildStyleForSlide(
       header: {
         font: _Inter_800,
         relFontSize: 5.5,
-        color: cDetails.baseTextColor,
+        color: "#1E1E1E",
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       footer: {
         font: _Inter_400,
         relFontSize: 2,
-        color: cDetails.primaryTextColor,
+        color: primaryTextColor,
         letterSpacing: "-0.02em",
       },
       pageNumber: {
         font: _Inter_400,
-        color: hasFooter ? cDetails.primaryTextColor : cDetails.baseTextColor,
+        color: hasFooter ? primaryTextColor : "#1E1E1E",
         relFontSize: 1.5,
       },
     },
     cover: {
-      backgroundColor: cDetails.primaryBackgroundColor,
+      backgroundColor: primaryColor,
       logoGapX: 80,
       gapY: 60,
     },
     section: {
-      backgroundColor: cDetails.primaryBackgroundColor,
+      backgroundColor: primaryColor,
     },
     header: {
-      backgroundColor: cDetails.baseBackgroundColor,
+      backgroundColor: "#FFFFFF",
       padding: [60, 80, 0, 80],
     },
     content: {
       padding: [60, 80],
-      backgroundColor: cDetails.baseBackgroundColor,
+      backgroundColor: "#FFFFFF",
       gapX: 100,
       gapY: 80,
     },
     footer: {
-      backgroundColor: cDetails.primaryBackgroundColor,
+      backgroundColor: primaryColor,
       logoGapX: 80,
       padding: [60, 80],
     },
@@ -198,8 +198,7 @@ export async function convertSlideToPageInputs(
     };
   }
 
-  const cDetails = getColorDetailsForColorTheme(config.colorTheme);
-  const convertedLayout = await convertLayoutNode(slide.layout, cDetails);
+  const convertedLayout = await convertLayoutNode(slide.layout, config.primaryColor);
   const headerLogos = await loadLogos(slide.headerLogos, config.logos);
   const footerLogos = await loadLogos(slide.footerLogos, config.logos);
 
@@ -229,43 +228,42 @@ type ResolvedTextBackground = {
   textColor: string;
 };
 
-function resolveTextBackground(bg: string | undefined, cDetails: ColorDetails): ResolvedTextBackground | undefined {
+function resolveTextBackground(bg: string | undefined, primaryColor: string): ResolvedTextBackground | undefined {
   if (!bg || bg === "none") return undefined;
   if (bg === "grey") {
     return {
       containerStyle: { backgroundColor: { key: "base200" }, padding: [50, 60] },
-      textColor: cDetails.baseTextColor,
+      textColor: "#1E1E1E",
     };
   }
   if (bg === "primary") {
     return {
-      containerStyle: { backgroundColor: cDetails.primaryBackgroundColor, padding: [50, 60] },
-      textColor: cDetails.lightOrDark === "dark" ? "#FFFFFF" : cDetails.baseTextColor,
+      containerStyle: { backgroundColor: primaryColor, padding: [50, 60] },
+      textColor: getTextColorForBackground(primaryColor),
     };
   }
   if (bg === "success") {
     return {
       containerStyle: { backgroundColor: _SLIDE_BACKGROUND_COLOR, padding: [50, 60] },
-      textColor: "#FFFFFF",
+      textColor: getTextColorForBackground(_SLIDE_BACKGROUND_COLOR),
     };
   }
   if (bg === "danger") {
     return {
       containerStyle: { backgroundColor: _CF_RED, padding: [50, 60] },
-      textColor: "#FFFFFF",
+      textColor: getTextColorForBackground(_CF_RED),
     };
   }
   return undefined;
 }
 
-// Convert LayoutNode<ContentBlock> to LayoutNode<PageContentItem>
-async function convertLayoutNode(node: LayoutNode<ContentBlock>, cDetails: ColorDetails): Promise<LayoutNode<PageContentItem>> {
+async function convertLayoutNode(node: LayoutNode<ContentBlock>, primaryColor: string): Promise<LayoutNode<PageContentItem>> {
   if (node.type === "item") {
     if (!node.data) {
       return { type: "item", id: node.id, span: node.span, data: { spacer: true } };
     }
     const resolved = node.data.type === "text"
-      ? resolveTextBackground(node.data.style?.textBackground, cDetails)
+      ? resolveTextBackground(node.data.style?.textBackground, primaryColor)
       : undefined;
     return {
       type: "item",
@@ -276,13 +274,12 @@ async function convertLayoutNode(node: LayoutNode<ContentBlock>, cDetails: Color
     };
   }
 
-  // Rows/cols - recurse
   return {
     type: node.type,
     id: node.id,
     span: node.span,
     children: Array.isArray(node.children)
-      ? await Promise.all(node.children.map((c) => convertLayoutNode(c, cDetails)))
+      ? await Promise.all(node.children.map((c) => convertLayoutNode(c, primaryColor)))
       : [],
   };
 }

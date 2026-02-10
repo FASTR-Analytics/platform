@@ -1,6 +1,6 @@
 import { useNavigate } from "@solidjs/router";
 import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckConfig, SlideDeckFolder, SlideDeckSummary } from "lib";
-import { getStartingConfigForReport, t } from "lib";
+import { getStartingConfigForSlideDeck, t } from "lib";
 import { AlertComponentProps, AlertFormHolder, RadioGroup, ProgressBar, getProgress, timActionForm } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -63,7 +63,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
       // Fetch deck config (for existing decks) or use default (for new decks)
       let deckConfig: SlideDeckConfig;
       if (isCreatingNew()) {
-        deckConfig = getStartingConfigForReport(newDeckLabel().trim());
+        deckConfig = getStartingConfigForSlideDeck(newDeckLabel().trim());
       } else {
         const detailRes = await serverActions.getSlideDeckDetail({ projectId: p.projectId, deck_id: deckId });
         if (!detailRes.success) return detailRes;
