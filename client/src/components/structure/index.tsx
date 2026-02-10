@@ -1,4 +1,4 @@
-import { t, t2, T, type InstanceDetail } from "lib";
+import { t3, TC, type InstanceDetail } from "lib";
 import {
   Button,
   Csv,
@@ -33,7 +33,7 @@ export function Structure(p: Props) {
     <StateHolderWrapper
       state={p.instanceDetail.state()}
       onErrorButton={{
-        label: "Go back to project",
+        label: t3(TC.goBackToProject),
         onClick: p.backToInstance,
       }}
     >
@@ -60,7 +60,7 @@ export function Structure(p: Props) {
 
         async function attemptDeleteItems() {
           const deleteAction = timActionDelete(
-            t("Are you sure you want to clear all admin areas and facilities?"),
+            t3({ en: "Are you sure you want to clear all admin areas and facilities?", fr: "Êtes-vous sûr de vouloir supprimer toutes les unités administratives et les établissements de santé ?" }),
             () => serverActions.deleteAllStructureData({}),
             p.instanceDetail.silentFetch,
           );
@@ -75,7 +75,7 @@ export function Structure(p: Props) {
                 <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
                   <Button iconName="chevronLeft" onClick={p.backToInstance} />
                   <div class="font-700 flex-1 truncate text-xl">
-                    Admin areas and facilities
+                    {t3({ en: "Admin areas and facilities", fr: "Unités administratives et établissements de santé" })}
                   </div>
                   <div class="ui-gap-sm flex items-center">
                     <Show when={csvDataIsReady()}>
@@ -84,7 +84,7 @@ export function Structure(p: Props) {
                         href={`${_SERVER_HOST}/structure/facilities/export/csv?t=${Date.now()}`}
                         newTab
                       >
-                        {t2(T.FRENCH_UI_STRINGS.download)}
+                        {t3(TC.download)}
                       </Button>
                     </Show>
                     <Button
@@ -108,7 +108,7 @@ export function Structure(p: Props) {
                               onClick={openUploadAttempt}
                               iconName="upload"
                             >
-                              {t("Resume adding admin areas and facilities")}
+                              {t3({ en: "Resume adding admin areas and facilities", fr: "Reprendre l'ajout d'unités administratives et d'établissements de santé" })}
                             </Button>
                           </Match>
                           <Match when={true}>
@@ -117,7 +117,7 @@ export function Structure(p: Props) {
                               state={attemptCreateStructureUA.state()}
                               iconName="plus"
                             >
-                              {t("Add more admin areas and facilities")}
+                              {t3({ en: "Add more admin areas and facilities", fr: "Ajouter des unités administratives et des établissements de santé" })}
                             </Button>
                           </Match>
                         </Switch>
@@ -127,7 +127,7 @@ export function Structure(p: Props) {
                           outline
                           iconName="trash"
                         >
-                          {t("Clear admin areas and facilities")}
+                          {t3({ en: "Clear admin areas and facilities", fr: "Supprimer les unités administratives et les établissements de santé" })}
                         </Button>
                       </div>
                     </Show>
@@ -141,15 +141,13 @@ export function Structure(p: Props) {
                     <div class="ui-pad ui-gap-sm flex h-full flex-none flex-col overflow-auto border-l">
                       <Switch>
                         <Match when={!p.isGlobalAdmin}>
-                          {t(
-                            "Waiting for admin to add admin areas and facilities",
-                          )}
+                          {t3({ en: "Waiting for admin to add admin areas and facilities", fr: "En attente de l'ajout des unités administratives et des établissements de santé par l'administrateur" })}
                         </Match>
                         <Match
                           when={keyedInstanceDetail.structureUploadAttempt}
                         >
                           <Button onClick={openUploadAttempt} iconName="upload">
-                            {t("Resume importing")}
+                            {t3({ en: "Resume importing", fr: "Reprendre l'importation" })}
                           </Button>
                         </Match>
                         <Match when={true}>
@@ -158,7 +156,7 @@ export function Structure(p: Props) {
                             state={attemptCreateStructureUA.state()}
                             iconName="upload"
                           >
-                            {t("Start importing admin areas and facilities")}
+                            {t3({ en: "Start importing admin areas and facilities", fr: "Commencer l'importation des unités administratives et des établissements de santé" })}
                           </Button>
                         </Match>
                       </Switch>

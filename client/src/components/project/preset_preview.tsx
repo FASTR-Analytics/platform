@@ -175,7 +175,7 @@ async function fetchPreview(
   const config: PresentationObjectConfig = {
     d: { ...preset.config.d },
     s: { ...DEFAULT_S_CONFIG, ...preset.config.s, scale: (preset.config.s?.scale ?? DEFAULT_S_CONFIG.scale) * 2 },
-    t: { ...DEFAULT_T_CONFIG, ...preset.config.t },
+    t: { ...DEFAULT_T_CONFIG },
   };
 
   const resFetchConfig = getFetchConfigFromPresentationObjectConfig(

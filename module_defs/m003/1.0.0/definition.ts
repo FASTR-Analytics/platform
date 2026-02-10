@@ -1,5 +1,4 @@
 import type { ModuleDefinitionJSON } from "lib";
-import { presentationObjects } from "./presentation_objects.ts";
 
 export const definition = {
   label: "M3. Service utilization",
@@ -11,7 +10,6 @@ export const definition = {
     path: "03_module_service_utilization.R",
     commit: "main",
   },
-  defaultPresentationObjects: presentationObjects,
   assetsToImport: [],
   dataSources: [
     {
@@ -250,6 +248,7 @@ export const definition = {
         id: "volume-monthly",
         label: { en: "Service volume over time (monthly)", fr: "Service volume over time (monthly)" },
         description: { en: "Line chart showing monthly service volume by indicator", fr: "Line chart showing monthly service volume by indicator" },
+        createDefaultVisualizationOnInstall: "45f2bcd8-879d-4423-a4b0-a84127e168bf",
         allowedFilters: ["indicator_common_id"],
         config: {
           d: {
@@ -261,11 +260,18 @@ export const definition = {
             valuesFilter: ["count_final_outliers"],
           },
           s: { content: "lines" },
+          t: {
+            caption: { en: "Service utilization over time", fr: "Service utilization over time" },
+            subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
+            footnote: { en: "Yearly volume is adjusted for outliers.", fr: "Yearly volume is adjusted for outliers." },
+          },
         },
       }, {
         id: "volume-quarterly",
         label: { en: "Volume quarterly change", fr: "Volume quarterly change" },
         description: { en: "Bar chart showing quarterly volume with quarter-on-quarter change", fr: "Bar chart showing quarterly volume with quarter-on-quarter change" },
+        createDefaultVisualizationOnInstall: "7196a784-8665-41ad-b563-965c59937def",
+        defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
         allowedFilters: ["indicator_common_id"],
         config: {
           d: {
@@ -276,12 +282,18 @@ export const definition = {
             filterBy: [],
             valuesFilter: ["count_final_outliers"],
           },
-          s: { specialBarChart: true },
+          s: { specialBarChart: true, specialBarChartDataLabels: "all-values" },
+          t: {
+            caption: { en: "Service volume by quarter & quarter-on-quarter change", fr: "Service volume by quarter & quarter-on-quarter change" },
+            subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
+            footnote: { en: "Service volume is adjusted for outliers.", fr: "Service volume is adjusted for outliers." },
+          },
         },
       }, {
         id: "volume-annual",
         label: { en: "Volume annual change", fr: "Volume annual change" },
         description: { en: "Bar chart showing annual volume with year-on-year change", fr: "Bar chart showing annual volume with year-on-year change" },
+        createDefaultVisualizationOnInstall: "cfc11e32-5102-484c-b242-892bb132c410",
         allowedFilters: ["indicator_common_id"],
         config: {
           d: {
@@ -292,12 +304,18 @@ export const definition = {
             filterBy: [],
             valuesFilter: ["count_final_outliers"],
           },
-          s: { specialBarChart: true },
+          s: { specialBarChart: true, specialBarChartDataLabels: "all-values" },
+          t: {
+            caption: { en: "Service volume by year & year-on-year change", fr: "Service volume by year & year-on-year change" },
+            subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
+            footnote: { en: "Service volume is adjusted for outliers.", fr: "Service volume is adjusted for outliers." },
+          },
         },
       }, {
         id: "volume-subnational",
         label: { en: "Volume annual change by region", fr: "Volume annual change by region" },
         description: { en: "Bar chart showing annual volume change by indicator and admin area", fr: "Bar chart showing annual volume change by indicator and admin area" },
+        createDefaultVisualizationOnInstall: "20658bc8-2b24-4adc-8090-407c6e34f22a",
         allowedFilters: ["indicator_common_id", "admin_area_2"],
         config: {
           d: {
@@ -311,12 +329,18 @@ export const definition = {
             filterBy: [],
             valuesFilter: ["count_final_outliers"],
           },
-          s: { scale: 1.7, specialBarChart: true },
+          s: { scale: 1.7, specialBarChart: true, specialBarChartDataLabels: "all-values" },
+          t: {
+            caption: { en: "Service volume by year & year-on-year change", fr: "Service volume by year & year-on-year change" },
+            subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
+            footnote: { en: "Yearly volume is adjusted for outliers.", fr: "Yearly volume is adjusted for outliers." },
+          },
         },
       }, {
         id: "dq-comparison",
         label: { en: "Data quality adjustment comparison", fr: "Data quality adjustment comparison" },
         description: { en: "Line chart comparing volume under different adjustment scenarios", fr: "Line chart comparing volume under different adjustment scenarios" },
+        createDefaultVisualizationOnInstall: "508f17cc-fbfd-4585-a2e8-8242234898c3",
         allowedFilters: ["indicator_common_id"],
         config: {
           d: {
@@ -336,6 +360,10 @@ export const definition = {
               { color: "#8e24aa", lineStyle: "solid", strokeWidth: 5 },
               { color: "#7cb342", lineStyle: "solid", strokeWidth: 5 },
             ],
+          },
+          t: {
+            caption: { en: "Change in volume due to data quality adjustments", fr: "Change in volume due to data quality adjustments" },
+            subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
           },
         },
       }],
@@ -411,6 +439,7 @@ export const definition = {
         id: "disruption-chart",
         label: { en: "Disruptions and surpluses (national)", fr: "Disruptions and surpluses (national)" },
         description: { en: "Area chart showing actual vs expected service volume nationally", fr: "Area chart showing actual vs expected service volume nationally" },
+        createDefaultVisualizationOnInstall: "e51a15fd-acfc-4da9-8797-b462b9626cff",
         allowedFilters: ["indicator_common_id"],
         config: {
           d: {
@@ -421,6 +450,11 @@ export const definition = {
             filterBy: [],
           },
           s: { scale: 2.5, content: "areas", diffAreas: true },
+          t: {
+            caption: { en: "Disruptions and surpluses in service volume, nationally", fr: "Disruptions and surpluses in service volume, nationally" },
+            subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
+            footnote: { en: "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects.", fr: "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects." },
+          },
         },
       }],
     },
@@ -574,6 +608,7 @@ export const definition = {
         id: "disruption-chart",
         label: { en: "Disruptions and surpluses (subnational)", fr: "Disruptions and surpluses (subnational)" },
         description: { en: "Area chart showing actual vs expected service volume by region", fr: "Area chart showing actual vs expected service volume by region" },
+        createDefaultVisualizationOnInstall: "e1916b10-433a-4b19-b376-491a66b81f11",
         allowedFilters: ["indicator_common_id", "admin_area_2"],
         config: {
           d: {
@@ -587,6 +622,11 @@ export const definition = {
             filterBy: [{ disOpt: "indicator_common_id", values: ["anc1", "anc4", "bcg", "delivery", "penta3", "penta1"] }],
           },
           s: { scale: 1.6, content: "areas", diffAreas: true },
+          t: {
+            caption: { en: "Disruptions and surpluses in service volume, sub-nationally", fr: "Disruptions and surpluses in service volume, sub-nationally" },
+            subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
+            footnote: { en: "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects.", fr: "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects." },
+          },
         },
       }],
     },

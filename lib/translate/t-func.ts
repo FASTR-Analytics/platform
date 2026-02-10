@@ -1,7 +1,7 @@
 import { TextRenderingOptions, type CalendarType } from "@timroberton/panther";
 import { InstanceCalendar, InstanceLanguage } from "../types/mod.ts";
 import { _LANGAUGE_MAP_UI } from "./language_map_ui.ts";
-import type { TranslatableStringPartial } from "./types.ts";
+import type { TranslatableString, TranslatableStringPartial } from "./types.ts";
 
 const _LANGUAGE: { lang: InstanceLanguage } = { lang: "en" };
 
@@ -44,6 +44,13 @@ export function getCalendar(): CalendarType {
     return "french";
   }
   return _CALENDAR.cal;
+}
+
+export function t3(val: TranslatableString): string {
+  if (_LANGUAGE.lang === "fr") {
+    return val.fr;
+  }
+  return val.en;
 }
 
 export function getTextRenderingOptions(): TextRenderingOptions | undefined {

@@ -60,7 +60,7 @@ export function buildConfigFromPreset(
   const config: PresentationObjectConfig = {
     d: { ...preset.config.d },
     s: { ...DEFAULT_S_CONFIG, ...preset.config.s },
-    t: { ...DEFAULT_T_CONFIG, ...preset.config.t, caption: input.chartTitle },
+    t: { ...DEFAULT_T_CONFIG, caption: input.chartTitle },
   };
 
   if (input.selectedReplicant) {

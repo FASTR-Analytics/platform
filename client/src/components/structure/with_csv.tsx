@@ -1,4 +1,4 @@
-import { ItemsHolderStructure, t, t2, T } from "lib";
+import { ItemsHolderStructure, t3, TC } from "lib";
 import { Csv, StateHolder, StateHolderWrapper, TableFromCsv } from "panther";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";

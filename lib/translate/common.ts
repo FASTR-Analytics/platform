@@ -1,0 +1,26 @@
+import type { TranslatableString } from "./types.ts";
+
+export const TC = {
+  cancel: { en: "Cancel", fr: "Annuler" },
+  save: { en: "Save", fr: "Sauvegarder" },
+  download: { en: "Download", fr: "Télécharger" },
+  delete: { en: "Delete", fr: "Supprimer" },
+  edit: { en: "Edit", fr: "Modifier" },
+  done: { en: "Done", fr: "Terminé" },
+  update: { en: "Update", fr: "Mettre à jour" },
+  settings: { en: "Settings", fr: "Paramètres" },
+  email: { en: "Email", fr: "E-mail" },
+  national: { en: "National", fr: "National" },
+  columns: { en: "Columns", fr: "Colonnes" },
+  rows: { en: "Rows", fr: "Lignes" },
+  scale: { en: "Scale", fr: "Échelle" },
+  loading: { en: "Loading...", fr: "Chargement..." },
+  loadingFiles: { en: "Loading files...", fr: "Chargement des fichiers..." },
+  loadingAssets: { en: "Loading asset files...", fr: "Chargement des fichiers ressources..." },
+  fetchingData: { en: "Fetching data...", fr: "Récupération des données..." },
+  general: { en: "General", fr: "Général" },
+  label: { en: "Label", fr: "Libellé" },
+  folder: { en: "Folder", fr: "Dossier" },
+  goBackToProject: { en: "Go back to project", fr: "Retour au projet" },
+  mustEnterName: { en: "You must enter a name", fr: "Vous devez saisir un nom" },
+} as const satisfies Record<string, TranslatableString>;

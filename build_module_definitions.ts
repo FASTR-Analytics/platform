@@ -380,7 +380,7 @@ export const METRIC_STATIC_DATA: Record<string, {
   requiredDisaggregationOptions: string[];
   periodOptions: PeriodOption[];
   postAggregationExpression?: any;
-  vizPresets?: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; needsReplicant?: boolean; allowedFilters?: string[]; createDefaultVisualizationOnInstall?: string; config: { d: any; s?: any; t?: any } }[];
+  vizPresets?: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; needsReplicant?: boolean; allowedFilters?: string[]; createDefaultVisualizationOnInstall?: string; defaultPeriodFilterForDefaultVisualizations?: { nMonths: number }; config: { d: any; s?: any; t?: any } }[];
   hide?: boolean;
 }> = {
 ${metricStaticDataCode},

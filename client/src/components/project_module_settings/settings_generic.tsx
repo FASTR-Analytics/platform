@@ -1,4 +1,4 @@
-import { t, t2, T,
+import { t3, TC,
   type APIResponseWithData,
   type ModuleConfigSelectionsParameters,
   type ModuleId } from "lib";
@@ -56,7 +56,7 @@ export function SettingsForProjectModuleGeneric(
       success: true,
       data: res.data.configSelections as ModuleConfigSelectionsParameters,
     };
-  }, "Loading module config selections...");
+  }, t3({ en: "Loading module config selections...", fr: "Chargement des configurations du module..." }));
 
   const save = timActionButton(async () => {
     const newParameters = unwrap(tempParameters);
@@ -70,7 +70,7 @@ export function SettingsForProjectModuleGeneric(
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${p.installedModuleLabel} ${t2(T.FRENCH_UI_STRINGS.settings_1)}`}>
+        <HeadingBar heading={`${p.installedModuleLabel} ${t3({ en: "settings", fr: "paramètres" })}`}>
           <div class="ui-gap-sm flex">
             <Show when={!p.projectIsLocked}>
               <Button
@@ -80,7 +80,7 @@ export function SettingsForProjectModuleGeneric(
                 disabled={!needsSaving()}
                 iconName="save"
               >
-                {t2(T.FRENCH_UI_STRINGS.save)}
+                {t3(TC.save)}
               </Button>
             </Show>
             <Button
@@ -88,7 +88,7 @@ export function SettingsForProjectModuleGeneric(
               intent="neutral"
               iconName="x"
             >
-              {t2(T.FRENCH_UI_STRINGS.cancel)}
+              {t3(TC.cancel)}
             </Button>
           </div>
         </HeadingBar>
@@ -102,7 +102,7 @@ export function SettingsForProjectModuleGeneric(
                 each={keyedConfig.parameterDefinitions}
                 fallback={
                   <div class="text-neutral col-span-12">
-                    {t("No parameters for this module")}
+                    {t3({ en: "No parameters for this module", fr: "Aucun paramètre pour ce module" })}
                   </div>
                 }
               >
@@ -113,7 +113,7 @@ export function SettingsForProjectModuleGeneric(
                         {inputParameter.description}
                       </div>
                       <div class="">
-                        <Switch fallback="Bad input type">
+                        <Switch fallback={t3({ en: "Bad input type", fr: "Type de saisie incorrect" })}>
                           <Match
                             when={inputParameter.input.inputType === "number"}
                           >
@@ -137,7 +137,7 @@ export function SettingsForProjectModuleGeneric(
                                     ],
                                   ),
                                 )
-                                  ? t("Not a number")
+                                  ? t3({ en: "Not a number", fr: "Pas un nombre" })
                                   : undefined
                               }
                               fullWidth
@@ -163,7 +163,7 @@ export function SettingsForProjectModuleGeneric(
                                 !tempParameters[
                                   inputParameter.replacementString
                                 ]
-                                  ? t("No text")
+                                  ? t3({ en: "No text", fr: "Aucun texte" })
                                   : undefined
                               }
                               fullWidth
@@ -195,7 +195,7 @@ export function SettingsForProjectModuleGeneric(
                                     !tempParameters[
                                       inputParameter.replacementString
                                     ]
-                                      ? t("Unselected")
+                                      ? t3({ en: "Unselected", fr: "Non sélectionné" })
                                       : undefined
                                   }
                                   fullWidth
@@ -207,16 +207,16 @@ export function SettingsForProjectModuleGeneric(
                             when={inputParameter.input.inputType === "boolean"}
                           >
                             <Checkbox
-                              label={t("Yes / No")}
+                              label={t3({ en: "Yes / No", fr: "Oui / Non" })}
                               checked={
                                 tempParameters[
                                   inputParameter.replacementString
-                                ] === t("TRUE")
+                                ] === "TRUE"
                               }
                               onChange={(v) =>
                                 updateTempParameter(
                                   inputParameter.replacementString,
-                                  v ? t("TRUE") : t("FALSE"),
+                                  v ? "TRUE" : "FALSE",
                                 )
                               }
                             />

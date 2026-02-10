@@ -1,5 +1,4 @@
 import type { ModuleDefinitionJSON } from "lib";
-import { presentationObjects } from "./presentation_objects.ts";
 
 export const definition = {
   label: "M2. Data quality adjustments",
@@ -11,7 +10,6 @@ export const definition = {
     path: "02_module_data_quality_adjustments.R",
     commit: "main",
   },
-  defaultPresentationObjects: presentationObjects,
   assetsToImport: [],
   dataSources: [
     {
@@ -172,6 +170,8 @@ export const definition = {
             en: "Table showing percent change due to outlier adjustment by indicator and region",
             fr: "Table showing percent change due to outlier adjustment by indicator and region",
           },
+          createDefaultVisualizationOnInstall: "e5edce68-369c-498e-a4b0-03ba73d31d6c",
+          defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
           allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
             d: {
@@ -183,18 +183,17 @@ export const definition = {
                 { disOpt: "admin_area_2", disDisplayOpt: "row" },
               ],
               filterBy: [],
-              // periodFilter: {
-              //   filterType: "last_n_months",
-              //   nMonths: 12,
-              //   periodOption: "period_id",
-              //   min: 0,
-              //   max: 0,
-              // },
             },
             s: {
+              content: "lines",
               conditionalFormatting: "fmt-01-03",
               decimalPlaces: 1,
               idealAspectRatio: "ideal",
+            },
+            t: {
+              caption: { en: "Deviance Due to Outliers", fr: "Deviance Due to Outliers" },
+              subCaption: { en: "Percent change in volume due to outlier adjustment, DATE_RANGE", fr: "Percent change in volume due to outlier adjustment, DATE_RANGE" },
+              footnote: { en: "Outliers are reports which are suspiciously high compared to the usual volume reported by the facility in other months. Outliers are identified by assessing the within-facility variation in monthly reporting for each indicator. Outliers are defined observations which are greater than 10 times the median absolute deviation (MAD) from the monthly median value for the indicator in each time period, OR a value for which the proportional contribution in volume for a facility, indicator, and time period is greater than 80%. Outliers are only identified for indicators where the volume is greater than or equal to the median, the volume is not missing, and the average volume is greater than 100. The deviance is the difference in volume after removing the outlier. High levels of deviance can affect the plausiability of the data.", fr: "Outliers are reports which are suspiciously high compared to the usual volume reported by the facility in other months. Outliers are identified by assessing the within-facility variation in monthly reporting for each indicator. Outliers are defined observations which are greater than 10 times the median absolute deviation (MAD) from the monthly median value for the indicator in each time period, OR a value for which the proportional contribution in volume for a facility, indicator, and time period is greater than 80%. Outliers are only identified for indicators where the volume is greater than or equal to the median, the volume is not missing, and the average volume is greater than 100. The deviance is the difference in volume after removing the outlier. High levels of deviance can affect the plausiability of the data." },
             },
           },
         },
@@ -272,6 +271,8 @@ export const definition = {
             en: "Table showing percent change due to completeness adjustment by indicator and region",
             fr: "Table showing percent change due to completeness adjustment by indicator and region",
           },
+          createDefaultVisualizationOnInstall: "b4750223-9ffd-43f6-958b-0ba9c0412df4",
+          defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
           allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
             d: {
@@ -289,6 +290,11 @@ export const definition = {
               conditionalFormatting: "fmt-01-03",
               decimalPlaces: 1,
               idealAspectRatio: "ideal",
+            },
+            t: {
+              caption: { en: "Deviance Due to Incompleteness", fr: "Deviance Due to Incompleteness" },
+              subCaption: { en: "Percent change in volume due to completeness adjustment, DATE_RANGE", fr: "Percent change in volume due to completeness adjustment, DATE_RANGE" },
+              footnote: { en: "Completeness is defined as the percentage of reporting facilities each month out of the total number of facilities expected to report. A facility is expected to report if it has reported any volume for each indicator anytime within a year. The deviance is the difference in volume after imputing incomplete data. High levels of deviance can affect the plausiability of the data.", fr: "Completeness is defined as the percentage of reporting facilities each month out of the total number of facilities expected to report. A facility is expected to report if it has reported any volume for each indicator anytime within a year. The deviance is the difference in volume after imputing incomplete data. High levels of deviance can affect the plausiability of the data." },
             },
           },
         },
@@ -367,6 +373,8 @@ export const definition = {
             en: "Table showing percent change due to combined outlier and completeness adjustment by indicator and region",
             fr: "Table showing percent change due to combined outlier and completeness adjustment by indicator and region",
           },
+          createDefaultVisualizationOnInstall: "5337d614-02b8-4de8-abcb-f390d2b7a714",
+          defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
           allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
             d: {
@@ -384,6 +392,11 @@ export const definition = {
               conditionalFormatting: "fmt-01-03",
               decimalPlaces: 1,
               idealAspectRatio: "ideal",
+            },
+            t: {
+              caption: { en: "Deviance Due to Incompleteness and Outliers", fr: "Deviance Due to Incompleteness and Outliers" },
+              subCaption: { en: "Percent change in volume due to both outlier and completeness adjustment, DATE_RANGE", fr: "Percent change in volume due to both outlier and completeness adjustment, DATE_RANGE" },
+              footnote: { en: "TBD", fr: "TBD" },
             },
           },
         },

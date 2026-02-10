@@ -233,6 +233,9 @@ export type VizPreset = {
   needsReplicant?: boolean;
   allowedFilters?: DisaggregationOption[];
   createDefaultVisualizationOnInstall?: string;
+  defaultPeriodFilterForDefaultVisualizations?: {
+    nMonths: number;
+  };
   config: {
     d: PresentationObjectConfig["d"];
     s?: Partial<PresentationObjectConfig["s"]>;

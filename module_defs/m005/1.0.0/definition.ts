@@ -1,5 +1,4 @@
 import type { ModuleDefinitionJSON } from "lib";
-import { presentationObjects } from "./presentation_objects.ts";
 
 const _VALUE_LABELS = {
   best: "Best",
@@ -94,7 +93,6 @@ export const definition = {
     path: "05_module_coverage_estimates_part1.R",
     commit: "main",
   },
-  defaultPresentationObjects: presentationObjects,
   assetsToImport: [
     "survey_data_unified.csv",
     "population_estimates_only.csv",
@@ -299,6 +297,7 @@ export const definition = {
         id: "values-table",
         label: { en: "Denominator values table", fr: "Denominator values table" },
         description: { en: "Table of denominator values by source and year", fr: "Table of denominator values by source and year" },
+        createDefaultVisualizationOnInstall: "1f8d2940-803c-43f0-b17b-278b271d34a7",
         allowedFilters: ["denominator", "source_indicator"],
         config: {
           d: {
@@ -503,6 +502,7 @@ export const definition = {
         id: "coverage-timeseries",
         label: { en: "Coverage by denominator type", fr: "Coverage by denominator type" },
         description: { en: "Timeseries comparing coverage across denominator sources", fr: "Timeseries comparing coverage across denominator sources" },
+        createDefaultVisualizationOnInstall: "15ca88bd-6183-4e71-bb26-3277dd8eb02f",
         needsReplicant: true,
         allowedFilters: ["denominator_best_or_survey"],
         config: {
@@ -518,6 +518,10 @@ export const definition = {
             selectedReplicantValue: "anc4",
           },
           s: { content: "lines", showDataLabels: true },
+          t: {
+            caption: { en: "Coverage based of different denominators, REPLICANT", fr: "Coverage based of different denominators, REPLICANT" },
+            subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
+          },
         },
       }],
     },

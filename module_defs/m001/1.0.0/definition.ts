@@ -1,5 +1,4 @@
 import type { ModuleDefinitionJSON } from "lib";
-import { presentationObjects } from "./presentation_objects.ts";
 
 export const definition = {
   label: "M1. Data quality assessment",
@@ -11,7 +10,6 @@ export const definition = {
     path: "01_module_data_quality_assessment.R",
     commit: "main",
   },
-  defaultPresentationObjects: presentationObjects,
   assetsToImport: [],
   dataSources: [
     {
@@ -251,6 +249,8 @@ export const definition = {
       id: "outlier-table",
       label: { en: "Outlier proportion table", fr: "Outlier proportion table" },
       description: { en: "Table showing proportion of outliers by indicator and region", fr: "Table showing proportion of outliers by indicator and region" },
+      createDefaultVisualizationOnInstall: "c3cb0cc9-4352-4b27-8532-f18e465faec8",
+      defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
       allowedFilters: ["indicator_common_id", "admin_area_2"],
       config: {
         d: {
@@ -264,6 +264,11 @@ export const definition = {
           filterBy: [],
         },
         s: { content: "lines", conditionalFormatting: "fmt-01-03", decimalPlaces: 1, idealAspectRatio: "ideal" },
+        t: {
+          caption: { en: "Outliers", fr: "Outliers" },
+          subCaption: { en: "Percentage of facility-months that are outliers, DATE_RANGE", fr: "Percentage of facility-months that are outliers, DATE_RANGE" },
+          footnote: { en: "Outliers are reports which are suspiciously high compared to the usual volume reported by the facility in other months. Outliers are identified by assessing the within-facility variation in monthly reporting for each indicator. Outliers are defined observations which are greater than 10 times the median absolute deviation (MAD) from the monthly median value for the indicator in each time period, OR a value for which the proportional contribution in volume for a facility, indicator, and time period  is greater than 80%. Outliers are only identified for indicators where the volume is greater than or equal to the median, the volume is not missing, and the average volume is greater than 100.", fr: "Outliers are reports which are suspiciously high compared to the usual volume reported by the facility in other months. Outliers are identified by assessing the within-facility variation in monthly reporting for each indicator. Outliers are defined observations which are greater than 10 times the median absolute deviation (MAD) from the monthly median value for the indicator in each time period, OR a value for which the proportional contribution in volume for a facility, indicator, and time period  is greater than 80%. Outliers are only identified for indicators where the volume is greater than or equal to the median, the volume is not missing, and the average volume is greater than 100." },
+        },
       },
     }],
   }, {
@@ -336,6 +341,8 @@ export const definition = {
       id: "completeness-table",
       label: { en: "Completeness table by region", fr: "Completeness table by region" },
       description: { en: "Table showing completeness by indicator and region", fr: "Table showing completeness by indicator and region" },
+      createDefaultVisualizationOnInstall: "c20f1672-edfc-4140-ae2c-09a30b50443a",
+      defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
       allowedFilters: ["indicator_common_id", "admin_area_2"],
       config: {
         d: {
@@ -349,11 +356,17 @@ export const definition = {
           filterBy: [],
         },
         s: { content: "lines", conditionalFormatting: "fmt-90-80", decimalPlaces: 1, idealAspectRatio: "ideal" },
+        t: {
+          caption: { en: "Indicator Completeness", fr: "Indicator Completeness" },
+          subCaption: { en: "Percentage of facility-months with complete data, DATE_RANGE", fr: "Percentage of facility-months with complete data, DATE_RANGE" },
+          footnote: { en: "Higher completeness improves the reliability of the data, especially when completeness is stable over time. Completeness is defined as the percentage of reporting facilities each month out of the total number of facilities expected to report. A facility is expected to report if it has reported any volume for each indicator anytime within a year. A high completeness does not indicate that the HMIS is representative of all service delivery in the country, as some services may not be delivered in facilities, or some facilities may not report.", fr: "Higher completeness improves the reliability of the data, especially when completeness is stable over time. Completeness is defined as the percentage of reporting facilities each month out of the total number of facilities expected to report. A facility is expected to report if it has reported any volume for each indicator anytime within a year. A high completeness does not indicate that the HMIS is representative of all service delivery in the country, as some services may not be delivered in facilities, or some facilities may not report." },
+        },
       },
     }, {
       id: "completeness-timeseries",
       label: { en: "Completeness over time", fr: "Completeness over time" },
       description: { en: "Area chart showing completeness trends over time by indicator", fr: "Area chart showing completeness trends over time by indicator" },
+      createDefaultVisualizationOnInstall: "26dedd7c-4577-4022-928c-69e0ee790a71",
       allowedFilters: ["indicator_common_id"],
       config: {
         d: {
@@ -366,6 +379,11 @@ export const definition = {
           filterBy: [],
         },
         s: { content: "areas", decimalPlaces: 1, idealAspectRatio: "video" },
+        t: {
+          caption: { en: "Indicator completeness over time", fr: "Indicator completeness over time" },
+          subCaption: { en: "Percentage of facility-months with complete data DATE_RANGE", fr: "Percentage of facility-months with complete data DATE_RANGE" },
+          footnote: { en: "Higher completeness improves the reliability of the data, especially when completeness is stable over time. Completeness is defined as the percentage of reporting facilities each month out of the total number of facilities expected to report. A facility is expected to report if it has reported any volume for each indicator anytime within a year. A high completeness does not indicate that the HMIS is representative of all service delivery in the country, as some services may not be delivered in facilities, or some facilities may not report.", fr: "Higher completeness improves the reliability of the data, especially when completeness is stable over time. Completeness is defined as the percentage of reporting facilities each month out of the total number of facilities expected to report. A facility is expected to report if it has reported any volume for each indicator anytime within a year. A high completeness does not indicate that the HMIS is representative of all service delivery in the country, as some services may not be delivered in facilities, or some facilities may not report." },
+        },
       },
     }],
   }, {
@@ -440,6 +458,8 @@ export const definition = {
       id: "consistency-table",
       label: { en: "Internal consistency table", fr: "Internal consistency table" },
       description: { en: "Table showing consistency by ratio type and region", fr: "Table showing consistency by ratio type and region" },
+      createDefaultVisualizationOnInstall: "cf5b8649-93c2-4bbe-8f2d-773f42ce8ec3",
+      defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
       allowedFilters: ["ratio_type", "admin_area_2"],
       config: {
         d: {
@@ -453,6 +473,11 @@ export const definition = {
           filterBy: [],
         },
         s: { content: "lines", conditionalFormatting: "fmt-90-80", decimalPlaces: 1, idealAspectRatio: "ideal" },
+        t: {
+          caption: { en: "Internal consistency", fr: "Internal consistency" },
+          subCaption: { en: "Percentage of sub-national areas meeting consistency benchmarks, DATE_RANGE", fr: "Percentage of sub-national areas meeting consistency benchmarks, DATE_RANGE" },
+          footnote: { en: "Internal consistency assesses the plausibility of reported data based on related indicators. Consistency metrics are approximate - depending on timing and seasonality, indicator definitions, and the nature of service delivery and reporting, values may be expected to sit outside plausible ranges. Indicators which are similar are expected to have roughy the same volume over the year (within a 30% margin). The data in this analysis is adjusted for outliers.", fr: "Internal consistency assesses the plausibility of reported data based on related indicators. Consistency metrics are approximate - depending on timing and seasonality, indicator definitions, and the nature of service delivery and reporting, values may be expected to sit outside plausible ranges. Indicators which are similar are expected to have roughy the same volume over the year (within a 30% margin). The data in this analysis is adjusted for outliers." },
+        },
       },
     }],
   }, {
@@ -524,6 +549,7 @@ export const definition = {
       id: "dqa-score-table",
       label: { en: "Overall DQA score table", fr: "Overall DQA score table" },
       description: { en: "Table showing DQA scores by region and year", fr: "Table showing DQA scores by region and year" },
+      createDefaultVisualizationOnInstall: "d46e1957-09dd-41c3-b7dc-b4409da23bbe",
       allowedFilters: ["admin_area_2"],
       config: {
         d: {
@@ -537,6 +563,11 @@ export const definition = {
           filterBy: [],
         },
         s: { content: "lines", conditionalFormatting: "fmt-80-70", decimalPlaces: 1, idealAspectRatio: "ideal" },
+        t: {
+          caption: { en: "Overall DQA score", fr: "Overall DQA score" },
+          subCaption: { en: "Percentage of facility-months with adequate data quality over time", fr: "Percentage of facility-months with adequate data quality over time" },
+          footnote: { en: "Adequate data quality is defined as: 1) No missing data or outliers for OPD, Penta1, and ANC1, where available 2) Consistent reporting between Penta1/Penta3 and ANC1/ANC4.", fr: "Adequate data quality is defined as: 1) No missing data or outliers for OPD, Penta1, and ANC1, where available 2) Consistent reporting between Penta1/Penta3 and ANC1/ANC4." },
+        },
       },
     }],
   }, {
@@ -601,6 +632,7 @@ export const definition = {
       id: "mean-dqa-table",
       label: { en: "Mean DQA score table", fr: "Mean DQA score table" },
       description: { en: "Table showing mean DQA scores by region and year", fr: "Table showing mean DQA scores by region and year" },
+      createDefaultVisualizationOnInstall: "4dc02c21-29da-4a01-9812-469deedaaac8",
       allowedFilters: ["admin_area_2"],
       config: {
         d: {
@@ -614,6 +646,11 @@ export const definition = {
           filterBy: [],
         },
         s: { content: "lines", conditionalFormatting: "fmt-80-70", decimalPlaces: 1, idealAspectRatio: "ideal" },
+        t: {
+          caption: { en: "Mean DQA score", fr: "Mean DQA score" },
+          subCaption: { en: "Average data quality score across facility-months", fr: "Average data quality score across facility-months" },
+          footnote: { en: "Items included in the DQA score include: No missing data for 1) OPD, 2) Penta1, and 3) ANC1, where available; No outliers for 4) OPD, 5) Penta1, and 6) ANC1, where available; Consistent reporting between 7) Penta1/Penta3, 8) ANC1/ANC4, 9)BCG/Delivery, where available.", fr: "Items included in the DQA score include: No missing data for 1) OPD, 2) Penta1, and 3) ANC1, where available; No outliers for 4) OPD, 5) Penta1, and 6) ANC1, where available; Consistent reporting between 7) Penta1/Penta3, 8) ANC1/ANC4, 9)BCG/Delivery, where available." },
+        },
       },
     }],
   }, {

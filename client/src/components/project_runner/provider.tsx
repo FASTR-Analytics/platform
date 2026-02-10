@@ -3,12 +3,9 @@ import {
   ProjectDetail,
   ProjectDirtyStates,
   ProjectSseUpdateMessage,
-  T,
   _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   parseJsonOrThrow,
-  t,
-  t2,
-  type ProjectUserPermissions,
+  t3,
 } from "lib";
 import { Button } from "panther";
 import { Show, createSignal, onCleanup, onMount } from "solid-js";
@@ -334,9 +331,9 @@ export function ProjectRunnerProvider(p: Props) {
       when={connectAttempts() <= _MAX_CONNECTION_ATTEMPTS}
       fallback={
         <div class="ui-pad ui-spy-sm">
-          <div class="">{t("Cannot connect to project.")}</div>
+          <div class="">{t3({ en: "Cannot connect to project.", fr: "Impossible de se connecter au projet." })}</div>
           <div class="">
-            <Button href="/">{t("Go home")}</Button>
+            <Button href="/">{t3({ en: "Go home", fr: "Retour à l'accueil" })}</Button>
           </div>
         </div>
       }
@@ -346,12 +343,12 @@ export function ProjectRunnerProvider(p: Props) {
         fallback={
           <div class="ui-pad">
             {connectionState() === "connecting"
-              ? t2(T.FRENCH_UI_STRINGS.connecting_to_project)
+              ? t3({ en: "Connecting to project", fr: "Connexion au projet" })
               : connectionState() === "failed"
-                ? t2(T.FRENCH_UI_STRINGS.connection_failed)
-                : t2(T.FRENCH_UI_STRINGS.connecting_to_project)}
+                ? t3({ en: "Connection failed", fr: "Échec de la connexion" })
+                : t3({ en: "Connecting to project", fr: "Connexion au projet" })}
             {connectAttempts() > 1
-              ? ` (${t2(T.FRENCH_UI_STRINGS.retrying)} ${connectAttempts() - 1})`
+              ? ` (${t3({ en: "retrying", fr: "réessayer" })} ${connectAttempts() - 1})`
               : ""}
             ...
           </div>
