@@ -185,6 +185,14 @@ export async function getInstanceDetail(
           >`SELECT * FROM project_user_roles
 JOIN projects ON project_user_roles.project_id = projects.id
 WHERE email = ${globalUser.email}
+AND (
+  can_configure_settings OR can_create_backups OR can_restore_backups OR
+  can_configure_modules OR can_run_modules OR can_configure_users OR
+  can_configure_visualizations OR can_view_visualizations OR
+  can_configure_reports OR can_view_reports OR
+  can_configure_slide_decks OR can_view_slide_decks OR
+  can_configure_data OR can_view_data OR can_view_metrics OR can_view_logs
+)
 ORDER BY LOWER(label)`
         ).map<ProjectSummary>((p) => {
           return {
