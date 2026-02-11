@@ -54,9 +54,9 @@ function AIContextSync() {
       case "decks":
         setAIContext({ mode: "viewing_slide_decks" });
         break;
-      case "reports":
-        setAIContext({ mode: "viewing_reports" });
-        break;
+      // case "reports":
+      //   setAIContext({ mode: "viewing_reports" });
+      //   break;
       case "data":
         setAIContext({ mode: "viewing_data" });
         break;

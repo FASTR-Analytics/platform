@@ -24,7 +24,7 @@ import {
 import { applyDividerDragUpdate } from "panther";
 import type { DividerDragUpdate, LayoutNode } from "panther";
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
-import { createStore, unwrap, reconcile } from "solid-js/store";
+import { createStore, unwrap, reconcile, type SetStoreFunction } from "solid-js/store";
 import { convertSlideToPageInputs } from "../slide_rendering/convert_slide_to_page_inputs";
 import { SlideEditorPanel } from "./editor_panel";
 import { convertSlideType } from "../slide_transforms/convert_slide_type";
@@ -85,7 +85,7 @@ type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
 export function SlideEditor(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
-  const { aiContext, setAIContext } = useAIProjectContext();
+  const { aiContext, setAIContext, notifyAI } = useAIProjectContext();
 
   // No normalization needed - panther operations produce valid output
   const normalizedSlide = p.slide;
@@ -93,6 +93,11 @@ export function SlideEditor(p: Props) {
   const [needsSave, setNeedsSave] = createSignal(false);
   const [isSaving, setIsSaving] = createSignal(false);
   const [tempSlide, setTempSlide] = createStore<Slide>(structuredClone(normalizedSlide));
+
+  const manuallyUpdateTempSlide: SetStoreFunction<Slide> = (...args: any[]) => {
+    (setTempSlide as any)(...args);
+    notifyAI({ type: "edited_slide_locally" });
+  };
 
   // Cache each type's state for restoration when switching back
   const typeCache: {
@@ -249,7 +254,7 @@ export function SlideEditor(p: Props) {
     const currentSlide = unwrap(tempSlide) as ContentSlide;
     const updatedLayout = applyDividerDragUpdate(currentSlide.layout, update);
 
-    setTempSlide(reconcile({ ...currentSlide, layout: updatedLayout }));
+    manuallyUpdateTempSlide(reconcile({ ...currentSlide, layout: updatedLayout }));
   }
 
   function handleTypeChange(newType: "cover" | "section" | "content") {
@@ -277,7 +282,7 @@ export function SlideEditor(p: Props) {
       converted = convertSlideType(currentSlide, newType);
     }
 
-    setTempSlide(reconcile(converted));
+    manuallyUpdateTempSlide(reconcile(converted));
     setNeedsSave(true);
   }
 
@@ -287,7 +292,7 @@ export function SlideEditor(p: Props) {
     const idGenerator = createIdGeneratorForLayout(contentSlide.layout);
     return {
       onLayoutChange: (newLayout: LayoutNode<ContentBlock>) => {
-        setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+        manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
       },
       onSelectionChange: setSelectedBlockId,
       createNewBlock: () => createItemNode<ContentBlock>({ type: "text", markdown: "" }, undefined, idGenerator),
@@ -405,7 +410,7 @@ export function SlideEditor(p: Props) {
           }
         );
 
-        setTempSlide(reconcile({ ...unwrap(tempSlide), layout: updatedLayout }));
+        manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: updatedLayout }));
       }
     } catch (err) {
       await openAlert({
@@ -462,7 +467,7 @@ export function SlideEditor(p: Props) {
         }),
       );
 
-      setTempSlide(reconcile({ ...unwrap(tempSlide), layout: updatedLayout }));
+      manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: updatedLayout }));
     } catch (err) {
       await openAlert({
         text: err instanceof Error ? err.message : "Failed to select visualization",
@@ -537,7 +542,7 @@ export function SlideEditor(p: Props) {
             <SlideEditorPanel
               projectId={p.projectId}
               tempSlide={tempSlide}
-              setTempSlide={setTempSlide}
+              setTempSlide={manuallyUpdateTempSlide}
               selectedBlockId={selectedBlockId()}
               setSelectedBlockId={setSelectedBlockId}
               openEditor={openEditor}
@@ -636,19 +641,19 @@ export function SlideEditor(p: Props) {
                         },
                         onConvertToText: (blockId) => {
                           const newLayout = convertBlockType((tempSlide as ContentSlide).layout, blockId, "text");
-                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+                          manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
                           setSelectedBlockId(blockId);
                           setContentTab("block");
                         },
                         onConvertToFigure: (blockId) => {
                           const newLayout = convertBlockType((tempSlide as ContentSlide).layout, blockId, "figure");
-                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+                          manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
                           setSelectedBlockId(blockId);
                           setContentTab("block");
                         },
                         onConvertToImage: (blockId) => {
                           const newLayout = convertBlockType((tempSlide as ContentSlide).layout, blockId, "image");
-                          setTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
+                          manuallyUpdateTempSlide(reconcile({ ...unwrap(tempSlide), layout: newLayout }));
                           setSelectedBlockId(blockId);
                           setContentTab("block");
                         },

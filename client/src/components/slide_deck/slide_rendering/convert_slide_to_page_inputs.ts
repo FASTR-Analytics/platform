@@ -5,7 +5,7 @@ import type {
   CoverSlide,
   SectionSlide,
 } from "lib";
-import { FIGURE_AUTOFIT, getMetricStaticData, getTextColorForBackground, MARKDOWN_AUTOFIT, _SLIDE_BACKGROUND_COLOR, _CF_RED } from "lib";
+import { FIGURE_AUTOFIT, getMetricStaticData, getPrimaryColor, getTextColorForBackground, MARKDOWN_AUTOFIT, _SLIDE_BACKGROUND_COLOR, _CF_RED } from "lib";
 import type {
   APIResponseWithData,
   PageInputs,
@@ -37,7 +37,7 @@ export function buildStyleForSlide(
   slide: Slide,
   config: SlideDeckConfig,
 ): CustomPageStyleOptions {
-  const primaryColor = config.primaryColor;
+  const primaryColor = getPrimaryColor(config.primaryColor);
   const primaryTextColor = getTextColorForBackground(primaryColor);
 
   const hasFooter = slide.type === "content" && !!(slide.footer?.trim());
@@ -198,7 +198,7 @@ export async function convertSlideToPageInputs(
     };
   }
 
-  const convertedLayout = await convertLayoutNode(slide.layout, config.primaryColor);
+  const convertedLayout = await convertLayoutNode(slide.layout, getPrimaryColor(config.primaryColor));
   const headerLogos = await loadLogos(slide.headerLogos, config.logos);
   const footerLogos = await loadLogos(slide.footerLogos, config.logos);
 

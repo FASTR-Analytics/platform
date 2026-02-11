@@ -244,6 +244,18 @@ export function SlideEditorPanelContent(p: Props) {
                   </div>
                   <Switch>
                     <Match when={getCurrentBlock()?.type === "text"}>
+                      <TextArea
+                        label="Markdown Content"
+                        value={(getCurrentBlock() as TextBlock).markdown}
+                        onChange={(v: string) =>
+                          updateSelectedBlock((b: any) => ({
+                            ...b,
+                            markdown: v,
+                          }))
+                        }
+                        fullWidth
+                        height="300px"
+                      />{" "}
                       <Select
                         label={t2(T.FRENCH_UI_STRINGS.text_background)}
                         options={[
@@ -363,18 +375,6 @@ export function SlideEditorPanelContent(p: Props) {
                           </div>
                         );
                       })()}
-                      <TextArea
-                        label="Markdown Content"
-                        value={(getCurrentBlock() as TextBlock).markdown}
-                        onChange={(v: string) =>
-                          updateSelectedBlock((b: any) => ({
-                            ...b,
-                            markdown: v,
-                          }))
-                        }
-                        fullWidth
-                        height="300px"
-                      />
                     </Match>
                     <Match when={getCurrentBlock()?.type === "figure"}>
                       {(() => {

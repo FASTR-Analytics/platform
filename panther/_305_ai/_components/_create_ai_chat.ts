@@ -33,6 +33,34 @@ import { ConversationsContext } from "./use_conversations.ts";
 
 const SETTINGS_KEY_PREFIX = "panther-ai-settings";
 
+const EPHEMERAL_OPEN = "<<<[";
+const EPHEMERAL_CLOSE = "]>>>";
+const EPHEMERAL_REGEX = /<<<\[[\s\S]*?\]>>>\n?\n?/g;
+
+function stripEphemeralContext(messages: MessageParam[]): MessageParam[] {
+  const lastUserIndex = findLastUserMessageIndex(messages);
+  return messages.map((msg, i) => {
+    if (msg.role !== "user" || i === lastUserIndex) return msg;
+    if (typeof msg.content === "string") {
+      const stripped = msg.content.replace(EPHEMERAL_REGEX, "");
+      return stripped === msg.content ? msg : { ...msg, content: stripped };
+    }
+    const newContent = msg.content.map((block) => {
+      if (block.type !== "text") return block;
+      const stripped = block.text.replace(EPHEMERAL_REGEX, "");
+      return stripped === block.text ? block : { ...block, text: stripped };
+    });
+    return { ...msg, content: newContent };
+  });
+}
+
+function findLastUserMessageIndex(messages: MessageParam[]): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") return i;
+  }
+  return -1;
+}
+
 function loadSettings(key: string): AIChatSettingsValues | undefined {
   try {
     const raw = localStorage.getItem(key);
@@ -76,11 +104,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     );
   }
 
-  const config = configMaybe as
-    & Required<
-      Pick<AIChatConfig, "sdkClient" | "modelConfig">
-    >
-    & AIChatConfig;
+  const config = configMaybe as Required<
+    Pick<AIChatConfig, "sdkClient" | "modelConfig">
+  > &
+    AIChatConfig;
 
   const settingsKey = config.scope
     ? `${SETTINGS_KEY_PREFIX}-${config.scope}`
@@ -103,7 +130,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     getOrCreateConversationStore(
       conversationId(),
       config.enablePersistence ?? true,
-    )
+    ),
   );
 
   const messages = () => store().messages[0]();
@@ -163,7 +190,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // Include documents if we have them AND they're not already in the message array
     const shouldIncludeDocuments = !messagesContainDocuments();
     const documentRefs = shouldIncludeDocuments
-      ? (config.getDocumentRefs?.() || [])
+      ? config.getDocumentRefs?.() || []
       : [];
     if (documentRefs.length === 0) {
       return { role: "user", content: text };
@@ -178,10 +205,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     return {
       role: "user",
-      content: [
-        ...documentBlocks,
-        { type: "text" as const, text },
-      ],
+      content: [...documentBlocks, { type: "text" as const, text }],
     };
   };
 
@@ -197,7 +221,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     // Only add user message if provided (undefined means messages already in state)
     if (userMessage !== undefined) {
-      const userMsg = createUserMessage(userMessage);
+      const ephemeralContext = config.getEphemeralContext?.() ?? null;
+      const fullMessage = ephemeralContext
+        ? `${EPHEMERAL_OPEN}${ephemeralContext}${EPHEMERAL_CLOSE}\n\n${userMessage}`
+        : userMessage;
+      const userMsg = createUserMessage(fullMessage);
       const isFirstMessage = messages().length === 0;
       setMessages([...messages(), userMsg]);
 
@@ -263,11 +291,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       messagesContainDocuments(),
       config.modelConfig.context1M,
     );
+    const messagesForAPI = stripEphemeralContext(currentMessages);
     const stream = config.sdkClient.beta.messages.stream({
       model: config.modelConfig.model,
       max_tokens: config.modelConfig.max_tokens,
       temperature: config.modelConfig.temperature,
-      messages: currentMessages,
+      messages: messagesForAPI,
       tools: allTools,
       system: config.system(),
       betas,
@@ -364,7 +393,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             allErrorItems.push({
               type: "tool_error",
               toolName: block.name,
-              errorMessage: `Tool error: ${block.name}`,
+              errorMessage: `Tool feedback: ${block.name}`,
               errorDetails: result,
               toolInput: block.input,
             });

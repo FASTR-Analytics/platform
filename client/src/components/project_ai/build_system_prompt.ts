@@ -1,10 +1,17 @@
-import { MAX_CONTENT_BLOCKS, type InstanceDetail, type ProjectDetail } from "lib";
+import {
+  MAX_CONTENT_BLOCKS,
+  getCountryLabel,
+  type InstanceDetail,
+  type ProjectDetail,
+} from "lib";
 import type { AIContext } from "./types";
+
+// ── Entry point ──
 
 export function buildSystemPromptForContext(
   aiContext: AIContext,
   instanceDetail: InstanceDetail,
-  projectDetail: ProjectDetail
+  projectDetail: ProjectDetail,
 ): string {
   const contextSection = buildAISystemContext(instanceDetail, projectDetail);
   const baseInstructions = getBaseInstructions();
@@ -13,19 +20,132 @@ export function buildSystemPromptForContext(
   return `${contextSection}${baseInstructions}\n\n${modeInstructions}`;
 }
 
-function getAllToolsList(): string {
-  return `**get_available_metrics** - List all metrics with disaggregation options
-**get_metric_data** - Query raw data for a metric (returns CSV)
-**get_available_visualizations** - List all saved visualizations
-**get_visualization_data** - Get data for a specific visualization by ID
-**get_available_modules** - List analysis modules and their status
-**get_module_r_script** - View R script for a module
-**get_module_log** - View execution log for a module
-**get_methodology_docs_list** - List methodology documents
-**get_methodology_doc_content** - Read a methodology document
-**show_draft_visualization_to_user** - Show an ad-hoc chart preview inline in the chat. Use this purely for display — to illustrate a point, explore data visually, or show the user what something would look like. Does not save or modify anything — the user can then choose to save it if they wish.
-**show_draft_slide_to_user** - Show an ad-hoc slide preview inline in the chat. Use this purely for display — to propose slide ideas, show mockups, or illustrate content options. Does not save or modify anything — the user can then choose to add it to a deck if they wish.`;
+// ── Project context ──
+
+function buildAISystemContext(
+  instanceDetail: InstanceDetail,
+  projectDetail: ProjectDetail,
+): string {
+  const sections: string[] = [];
+
+  sections.push("# Instance Information");
+  sections.push("");
+
+  if (instanceDetail.countryIso3) {
+    sections.push(`**Country:** ${getCountryLabel(instanceDetail.countryIso3)} (${instanceDetail.countryIso3})`);
+  }
+
+  sections.push(`**Instance:** ${instanceDetail.instanceName}`);
+  sections.push("");
+
+  sections.push("# Terminology");
+  sections.push("");
+  sections.push("**Geographic levels:**");
+  sections.push("- admin_area_1: National level");
+  if (instanceDetail.maxAdminArea >= 2) {
+    sections.push(
+      "- admin_area_2: Regional/provincial level (e.g., districts, regions)",
+    );
+  }
+  if (instanceDetail.maxAdminArea >= 3) {
+    sections.push(
+      "- admin_area_3: Sub-district level (e.g., zones, sub-districts)",
+    );
+  }
+  if (instanceDetail.maxAdminArea >= 4) {
+    sections.push(
+      "- admin_area_4: Facility catchment level (e.g., woredas, communes)",
+    );
+  }
+  sections.push("");
+  const hasHmis = instanceDetail.datasetsWithData.includes("hmis");
+  const hasHfa = instanceDetail.datasetsWithData.includes("hfa");
+  if (hasHmis || hasHfa) {
+    sections.push("**Data sources:**");
+    if (hasHmis) {
+      sections.push(
+        "- HMIS: Health Management Information System (routine facility reporting)",
+      );
+    }
+    if (hasHfa) {
+      sections.push(
+        "- HFA: Health Facility Assessment (facility survey data)",
+      );
+    }
+    sections.push("");
+  }
+
+  sections.push("# Project");
+  sections.push("");
+  sections.push(`**Name:** ${projectDetail.label}`);
+
+  const hmisDataset = projectDetail.projectDatasets.find(
+    (d) => d.datasetType === "hmis",
+  );
+  const hfaDataset = projectDetail.projectDatasets.find(
+    (d) => d.datasetType === "hfa",
+  );
+
+  if (hmisDataset || hfaDataset) {
+    sections.push("");
+    sections.push("**Loaded datasets:**");
+    if (hmisDataset && hmisDataset.datasetType === "hmis") {
+      sections.push(`- HMIS data (version ${hmisDataset.info.version})`);
+    }
+    if (hfaDataset) {
+      sections.push(`- HFA data`);
+    }
+  }
+
+  if (instanceDetail.indicators.commonIndicators > 0) {
+    sections.push("");
+    sections.push(
+      `**Common indicators available:** ${instanceDetail.indicators.commonIndicators}`,
+    );
+  }
+
+  if (projectDetail.projectModules.length > 0) {
+    sections.push("");
+    sections.push(
+      `**Installed analysis modules:** ${projectDetail.projectModules.length}`,
+    );
+  }
+
+  if (instanceDetail.structure) {
+    sections.push("");
+    sections.push("**Data coverage:**");
+    sections.push(`- ${instanceDetail.structure.facilities} facilities`);
+    if (instanceDetail.structure.adminArea2s > 0) {
+      sections.push(`- ${instanceDetail.structure.adminArea2s} admin area 2s`);
+    }
+    if (instanceDetail.structure.adminArea3s > 0) {
+      sections.push(`- ${instanceDetail.structure.adminArea3s} admin area 3s`);
+    }
+  }
+
+  sections.push("");
+  sections.push(
+    `**Available visualizations:** ${projectDetail.visualizations.length} (use get_available_visualizations for details)`,
+  );
+  sections.push(
+    `**Available slide decks:** ${projectDetail.slideDecks.length} (use get_available_slide_decks for details)`,
+  );
+
+  if (projectDetail.aiContext.trim()) {
+    sections.push("");
+    sections.push("# Additional Project Context");
+    sections.push("");
+    sections.push(projectDetail.aiContext.trim());
+  }
+
+  sections.push("");
+  sections.push("---");
+  sections.push("");
+
+  return sections.join("\n");
 }
+
+// ── Base instructions ──
 
 function getBaseInstructions(): string {
   return `# Role and Purpose
@@ -40,46 +160,40 @@ You are an AI assistant helping users explore, analyze, and present their health
 4. **Be concise** - Keep explanations actionable and to the point`;
 }
 
+// ── Mode dispatcher ──
+
 function getModeInstructions(aiContext: AIContext): string {
   switch (aiContext.mode) {
-    // Viewing modes
     case "viewing_visualizations":
       return getViewingVisualizationsInstructions();
-
     case "viewing_slide_decks":
       return getViewingSlideDecksInstructions();
-
-    case "viewing_reports":
-      return getViewingReportsInstructions();
-
     case "viewing_data":
       return getViewingDataInstructions();
-
     case "viewing_metrics":
       return getViewingMetricsInstructions();
-
     case "viewing_modules":
       return getViewingModulesInstructions();
-
     case "viewing_settings":
       return getViewingSettingsInstructions();
-
-    // Editing modes
     case "editing_slide_deck":
       return getEditingSlideDeckInstructions(aiContext.deckLabel);
-
     case "editing_slide":
-      return getEditingSlideInstructions(aiContext.slideLabel, aiContext.deckLabel);
-
+      return getEditingSlideInstructions(
+        aiContext.slideLabel,
+        aiContext.deckLabel,
+      );
     case "editing_visualization":
       return getEditingVisualizationInstructions(aiContext.vizLabel);
-
-    case "editing_report":
-      return getEditingReportInstructions(aiContext.reportLabel);
+    default: {
+      const _exhaustive: never = aiContext;
+      return _exhaustive;
+    }
   }
 }
 
-// Viewing mode instructions
+// ── Viewing mode instructions ──
+
 function getViewingVisualizationsInstructions(): string {
   return `# Current View: Visualizations Library
 
@@ -115,21 +229,6 @@ ${getAllToolsList()}
 - Help explore existing slide decks
 - Answer questions about deck content
 - Suggest new decks to create`;
-}
-
-function getViewingReportsInstructions(): string {
-  return `# Current View: Reports Library
-
-The user is browsing their reports.
-
-## Available Tools
-
-${getAllToolsList()}
-
-## Actions
-
-- Help explore existing reports
-- Answer questions about report content and data`;
 }
 
 function getViewingDataInstructions(): string {
@@ -213,42 +312,8 @@ ${getAllToolsList()}
 - Help with data exploration or analysis`;
 }
 
-function getEditingSlideInstructions(slideLabel: string, deckLabel: string): string {
-  return `# Current Mode: Editing Slide
+// ── Editing mode instructions ──
 
-You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
-
-## Primary Tools (for this slide)
-
-**get_slide_editor** - Get the current content and structure of this slide. Shows live state from the editor (including unsaved changes). ALWAYS call this first.
-**update_slide_editor** - Modify this slide's content. For cover/section slides you can update text fields. For content slides you can update the header and individual blocks by ID.
-
-## Other Available Tools
-
-${getAllToolsList()}
-
-## What You Can Modify
-
-- **Cover slides:** title, subtitle, presenter, date
-- **Section slides:** sectionTitle, sectionSubtitle
-- **Content slides:** header, individual content blocks (text, figures)
-
-## Workflow
-
-1. Call get_slide_editor FIRST to see current content and block IDs
-2. Suggest changes based on what would improve the slide
-3. Use update_slide_editor to apply changes
-4. Changes are LOCAL until the user saves - remind them to save if satisfied
-
-## Important
-
-- Changes are previewed immediately but NOT saved automatically
-- The user must click Save to persist changes
-- For content slides, use block IDs from get_slide_editor to target specific blocks
-- IMPORTANT: Markdown tables are NOT allowed in text blocks - use from_metric with chartType='table' instead`;
-}
-
-// Editing mode instructions
 function getEditingSlideDeckInstructions(deckLabel: string): string {
   return `# Current Mode: Editing Slide Deck
 
@@ -296,6 +361,44 @@ When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a
 4. Call get_metric_data before creating from_metric blocks to check available data`;
 }
 
+function getEditingSlideInstructions(
+  slideLabel: string,
+  deckLabel: string,
+): string {
+  return `# Current Mode: Editing Slide
+
+You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
+
+## Primary Tools (for this slide)
+
+**get_slide_editor** - Get the current content and structure of this slide. Shows live state from the editor (including unsaved changes). ALWAYS call this first.
+**update_slide_editor** - Modify this slide's content. For cover/section slides you can update text fields. For content slides you can update the header and individual blocks by ID.
+
+## Other Available Tools
+
+${getAllToolsList()}
+
+## What You Can Modify
+
+- **Cover slides:** title, subtitle, presenter, date
+- **Section slides:** sectionTitle, sectionSubtitle
+- **Content slides:** header, individual content blocks (text, figures)
+
+## Workflow
+
+1. Call get_slide_editor FIRST to see current content and block IDs
+2. Suggest changes based on what would improve the slide
+3. Use update_slide_editor to apply changes
+4. Changes are LOCAL until the user saves - remind them to save if satisfied
+
+## Important
+
+- Changes are previewed immediately but NOT saved automatically
+- The user must click Save to persist changes
+- For content slides, use block IDs from get_slide_editor to target specific blocks
+- IMPORTANT: Markdown tables are NOT allowed in text blocks - use from_metric with chartType='table' instead`;
+}
+
 function getEditingVisualizationInstructions(vizLabel: string): string {
   return `# Current Mode: Editing Visualization
 
@@ -333,139 +436,20 @@ ${getAllToolsList()}
 - The user must click Save to persist changes`;
 }
 
-function getEditingReportInstructions(reportLabel: string): string {
-  return `# Current Mode: Editing Report
+// ── Shared helper ──
 
-You're editing: "${reportLabel}"
-
-## Available Tools
-
-${getAllToolsList()}
-
-## Actions
-
-- Query underlying data for visualizations in the report
-- Explain methodology and interpretation
-- Answer questions about the data`;
-}
-
-function buildAISystemContext(
-  instanceDetail: InstanceDetail,
-  projectDetail: ProjectDetail,
-): string {
-  const sections: string[] = [];
-
-  // Instance information
-  sections.push("# Instance Information");
-  sections.push("");
-
-  if (instanceDetail.countryIso3) {
-    sections.push(`**Country:** ${instanceDetail.countryIso3}`);
-  }
-
-  sections.push(`**Instance:** ${instanceDetail.instanceName}`);
-  sections.push("");
-
-  // Terminology
-  sections.push("# Terminology");
-  sections.push("");
-  sections.push("**Geographic levels:**");
-  sections.push("- admin_area_1: National level");
-  sections.push("- admin_area_2: Regional/provincial level (e.g., districts, regions)");
-  sections.push("- admin_area_3: Sub-district level (e.g., zones, sub-districts)");
-  sections.push("- admin_area_4: Facility catchment level (e.g., woredas, communes)");
-  sections.push("");
-  sections.push("**Data sources:**");
-  sections.push("- HMIS: Health Management Information System (routine facility reporting)");
-  sections.push("- HFA: Health Facility Assessment (facility survey data)");
-  sections.push("");
-
-  // Project information
-  sections.push("# Project");
-  sections.push("");
-  sections.push(`**Name:** ${projectDetail.label}`);
-
-  // Datasets
-  const hmisDataset = projectDetail.projectDatasets.find(d => d.datasetType === "hmis");
-  const hfaDataset = projectDetail.projectDatasets.find(d => d.datasetType === "hfa");
-
-  if (hmisDataset || hfaDataset) {
-    sections.push("");
-    sections.push("**Loaded datasets:**");
-    if (hmisDataset && hmisDataset.datasetType === "hmis") {
-      sections.push(`- HMIS data (version ${hmisDataset.info.version})`);
-    }
-    if (hfaDataset) {
-      sections.push(`- HFA data`);
-    }
-  }
-
-  // Indicators
-  if (instanceDetail.indicators.commonIndicators > 0) {
-    sections.push("");
-    sections.push(`**Common indicators available:** ${instanceDetail.indicators.commonIndicators}`);
-  }
-
-  // Modules
-  if (projectDetail.projectModules.length > 0) {
-    sections.push("");
-    sections.push(`**Installed analysis modules:** ${projectDetail.projectModules.length}`);
-  }
-
-  // Structure
-  if (instanceDetail.structure) {
-    sections.push("");
-    sections.push("**Data coverage:**");
-    sections.push(`- ${instanceDetail.structure.facilities} facilities`);
-    if (instanceDetail.structure.adminArea2s > 0) {
-      sections.push(`- ${instanceDetail.structure.adminArea2s} admin area 2s`);
-    }
-    if (instanceDetail.structure.adminArea3s > 0) {
-      sections.push(`- ${instanceDetail.structure.adminArea3s} admin area 3s`);
-    }
-  }
-
-  // Available visualizations
-  sections.push("");
-  sections.push(`**Available visualizations:** ${projectDetail.visualizations.length}`);
-  if (projectDetail.visualizations.length > 0) {
-    for (const viz of projectDetail.visualizations.slice(0, 10)) {
-      sections.push(`  - ${viz.label} (${viz.id})`);
-    }
-    if (projectDetail.visualizations.length > 10) {
-      sections.push(`  ... and ${projectDetail.visualizations.length - 10} more`);
-    }
-  }
-
-  // Available slide decks
-  sections.push("");
-  sections.push(`**Available slide decks:** ${projectDetail.slideDecks.length}`);
-  if (projectDetail.slideDecks.length > 0) {
-    for (const deck of projectDetail.slideDecks) {
-      sections.push(`  - ${deck.label} (${deck.id})`);
-    }
-  }
-
-  // Available reports
-  sections.push("");
-  sections.push(`**Available reports:** ${projectDetail.reports.length}`);
-  if (projectDetail.reports.length > 0) {
-    for (const report of projectDetail.reports) {
-      sections.push(`  - ${report.label} (${report.id})`);
-    }
-  }
-
-  // User-provided custom context
-  if (projectDetail.aiContext.trim()) {
-    sections.push("");
-    sections.push("# Additional Project Context");
-    sections.push("");
-    sections.push(projectDetail.aiContext.trim());
-  }
-
-  sections.push("");
-  sections.push("---");
-  sections.push("");
-
-  return sections.join("\n");
+function getAllToolsList(): string {
+  return `**get_available_metrics** - List all metrics with disaggregation options
+**get_metric_data** - Query raw data for a metric (returns CSV)
+**get_available_visualizations** - List all saved visualizations
+**get_visualization_data** - Get data for a specific visualization by ID
+**get_available_slide_decks** - List all slide decks
+**get_available_modules** - List analysis modules and their status
+**get_module_r_script** - View R script for a module
+**get_module_log** - View execution log for a module
+**get_methodology_docs_list** - List methodology documents
+**get_methodology_doc_content** - Read a methodology document
+**show_draft_visualization_to_user** - Show an ad-hoc chart preview inline in the chat. Use this purely for display — to illustrate a point, explore data visually, or show the user what something would look like. Does not save or modify anything — the user can then choose to save it if they wish.
+**show_draft_slide_to_user** - Show an ad-hoc slide preview inline in the chat. Use this purely for display — to propose slide ideas, show mockups, or illustrate content options. Does not save or modify anything — the user can then choose to add it to a deck if they wish.
+**switch_tab** - Switch the main project tab (decks, visualizations, metrics, modules, data, settings). Cannot be used while the user is editing.`;
 }

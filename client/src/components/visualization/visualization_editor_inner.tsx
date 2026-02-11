@@ -43,7 +43,7 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
-import { createStore, unwrap } from "solid-js/store";
+import { createStore, unwrap, type SetStoreFunction } from "solid-js/store";
 import { ReplicateByOptionsPresentationObject } from "~/components/ReplicateByOptions";
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { DownloadPresentationObject } from "~/components/forms_editors/download_presentation_object";
@@ -84,7 +84,7 @@ type InnerProps = {
 export function VisualizationEditorInner(p: InnerProps) {
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
-  const { setAIContext } = useAIProjectContext();
+  const { setAIContext, notifyAI } = useAIProjectContext();
 
   // Extract static values from stores to prevent external reactivity
   const projectId = p.projectDetail.id;
@@ -101,6 +101,11 @@ export function VisualizationEditorInner(p: InnerProps) {
   const [tempConfig, setTempConfig] = createStore<PresentationObjectConfig>(
     structuredClone(p.poDetail.config),
   );
+
+  const manuallyUpdateTempConfig: SetStoreFunction<PresentationObjectConfig> = (...args: any[]) => {
+    (setTempConfig as any)(...args);
+    notifyAI({ type: "edited_viz_locally" });
+  };
 
   const [itemsHolder, setItemsHolder] = createSignal<
     StateHolder<{
@@ -634,7 +639,7 @@ export function VisualizationEditorInner(p: InnerProps) {
               poDetail={p.poDetail}
               resultsValueInfo={p.resultsValueInfo}
               tempConfig={tempConfig}
-              setTempConfig={setTempConfig}
+              setTempConfig={manuallyUpdateTempConfig}
               viewResultsObject={viewResultsObject}
             />
           </div>
@@ -647,7 +652,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                   poDetail={p.poDetail}
                   selectedReplicantValue={tempConfig.d.selectedReplicantValue}
                   setSelectedReplicant={(v) =>
-                    setTempConfig("d", "selectedReplicantValue", v)
+                    manuallyUpdateTempConfig("d", "selectedReplicantValue", v)
                   }
                 />
               );

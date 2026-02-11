@@ -1,5 +1,21 @@
-import { AIChat, AIChatConversationSelector, AIChatSettingsPanel, type AIChatSettingsPanelProps, type AIChatSettingsValues, Button, createAIChat, MenuTriggerWrapper, openComponent, openConfirm, useConversations, type MenuItem } from "panther";
+import {
+  AIChat,
+  AIChatConversationSelector,
+  AIChatSettingsPanel,
+  type AIChatSettingsPanelProps,
+  type AIChatSettingsValues,
+  AIChatSystemPromptPanel,
+  type AIChatSystemPromptPanelProps,
+  Button,
+  createAIChat,
+  MenuTriggerWrapper,
+  openComponent,
+  openConfirm,
+  useConversations,
+  type MenuItem,
+} from "panther";
 import { t } from "lib";
+import type { Accessor } from "solid-js";
 import { useAIProjectContext } from "./context";
 import { setShowAi } from "~/state/ui";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
@@ -7,11 +23,14 @@ import { usePromptLibrary } from "./ai_prompt_library";
 
 type ConsolidatedChatPaneProps = {
   aiDocs: ReturnType<typeof useAIDocuments>;
+  getSystemPrompt: Accessor<string>;
 };
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
-  const { aiContext, getPendingInteractionsMessage, clearPendingInteractions } = useAIProjectContext();
-  const { updateConfig, getConfig, conversationId, isLoading, sendMessage } = createAIChat();
+  const { aiContext } =
+    useAIProjectContext();
+  const { updateConfig, getConfig, conversationId, isLoading, sendMessage } =
+    createAIChat();
   const conversations = useConversations();
 
   let scrollToBottom: ((force?: boolean) => void) | null = null;
@@ -49,7 +68,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       element: AIChatSettingsPanel,
       props: {
         initialValues: current,
-        allowedModels: ["claude-opus-4-6", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"],
+        allowedModels: [
+          "claude-opus-4-6",
+          "claude-sonnet-4-5-20250929",
+          "claude-haiku-4-5-20251001",
+        ],
       },
     });
     if (result) {
@@ -106,6 +129,15 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       onClick: openSettings,
     },
     {
+      label: "View system prompt",
+      icon: "code",
+      onClick: () =>
+        openComponent<AIChatSystemPromptPanelProps, void>({
+          element: AIChatSystemPromptPanel,
+          props: { systemPrompt: p.getSystemPrompt() },
+        }),
+    },
+    {
       type: "divider",
     },
     {
@@ -117,15 +149,6 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     },
   ];
 
-  const handleBeforeSubmit = (userMessage: string): string => {
-    const interactionsMessage = getPendingInteractionsMessage();
-    if (interactionsMessage) {
-      clearPendingInteractions();
-      return `${interactionsMessage}\n\n${userMessage}`;
-    }
-    return userMessage;
-  };
-
   const placeholder = () => {
     const ctx = aiContext();
     switch (ctx.mode) {
@@ -135,16 +158,20 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         return t("Ask about this slide...");
       case "editing_visualization":
         return t("Ask about this visualization...");
-      case "editing_report":
-        return t("Ask about this report...");
+      // case "editing_report":
+      //   return t("Ask about this report...");
       case "viewing_visualizations":
       case "viewing_slide_decks":
-      case "viewing_reports":
+      // case "viewing_reports":
       case "viewing_data":
       case "viewing_metrics":
       case "viewing_modules":
       case "viewing_settings":
         return t("Explore your data...");
+      default: {
+        const _exhaustive: never = ctx;
+        return _exhaustive;
+      }
     }
   };
 
@@ -157,14 +184,14 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         return ctx.slideLabel;
       case "editing_visualization":
         return ctx.vizLabel;
-      case "editing_report":
-        return ctx.reportLabel;
+      // case "editing_report":
+      //   return ctx.reportLabel;
       case "viewing_visualizations":
         return "Visualizations";
       case "viewing_slide_decks":
         return "Slide Decks";
-      case "viewing_reports":
-        return "Reports";
+      // case "viewing_reports":
+      //   return "Reports";
       case "viewing_data":
         return "Data";
       case "viewing_metrics":
@@ -173,17 +200,21 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         return "Modules";
       case "viewing_settings":
         return "Settings";
+      default: {
+        const _exhaustive: never = ctx;
+        return _exhaustive;
+      }
     }
   };
 
   return (
     <div class="flex h-full w-full flex-col border-l">
-      <div class="ui-pad ui-gap flex items-center justify-between border-b border-base-content bg-primary text-white">
+      <div class="ui-pad ui-gap border-base-content bg-primary flex items-center justify-between border-b text-white">
         <h3 class="flex items-baseline gap-2 truncate text-base">
           <span class="font-700">AI</span>
           <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
         </h3>
-        <div class="flex ui-gap-sm">
+        <div class="ui-gap-sm flex">
           <MenuTriggerWrapper items={menuItems} position="bottom-end">
             <Button
               outline
@@ -202,7 +233,6 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         </div>
       </div>
 
-
       <AIDocumentList
         documents={p.aiDocs.documents()}
         onRemove={p.aiDocs.removeDocument}
@@ -211,8 +241,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       <div class="flex-1 overflow-hidden">
         <AIChat
           placeholder={placeholder()}
-          onBeforeSubmit={handleBeforeSubmit}
-          onScrollReady={(fn) => scrollToBottom = fn}
+          onScrollReady={(fn) => (scrollToBottom = fn)}
         />
       </div>
     </div>

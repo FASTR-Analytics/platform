@@ -44,7 +44,7 @@ export function MultiSelect<T extends string>(p: MultiSelectProps<T>) {
 
   function updateCheckbox(c: boolean, value: T) {
     const validCurrentValues = p.values.filter((v) =>
-      validOptionValues().includes(v)
+      validOptionValues().includes(v),
     );
 
     if (p.inverted) {
@@ -72,8 +72,10 @@ export function MultiSelect<T extends string>(p: MultiSelectProps<T>) {
         data-horizontal={!!p.horizontal}
       >
         <Show
-          when={p.showSelectAll &&
-            p.options.length >= (p.onlyShowSelectAllWhenAtLeast ?? 0)}
+          when={
+            p.showSelectAll &&
+            p.options.length >= (p.onlyShowSelectAllWhenAtLeast ?? 0)
+          }
         >
           <div class="">
             <Checkbox
@@ -94,9 +96,11 @@ export function MultiSelect<T extends string>(p: MultiSelectProps<T>) {
               <div class="">
                 <Checkbox
                   label={opt.label}
-                  checked={p.inverted
-                    ? !p.values.includes(opt.value)
-                    : p.values.includes(opt.value)}
+                  checked={
+                    p.inverted
+                      ? !p.values.includes(opt.value)
+                      : p.values.includes(opt.value)
+                  }
                   onChange={(c) => updateCheckbox(c, opt.value)}
                   intentWhenChecked={p.intentWhenChecked}
                 />

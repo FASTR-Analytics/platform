@@ -9,16 +9,13 @@ import type {
 } from "lib";
 import type { SetStoreFunction } from "solid-js/store";
 
-// User interactions that should be communicated to AI
 export type AIUserInteraction =
-  | { type: "added_slide"; slideId: string }
   | { type: "edited_slide"; slideId: string }
-  | { type: "deleted_slides"; slideIds: string[] }
-  | { type: "duplicated_slides"; slideIds: string[] }
-  | { type: "moved_slides"; slideIds: string[] }
+  | { type: "deck_structure_changed" }
   | { type: "selected_slides"; slideIds: string[] }
-  | { type: "edited_viz_config"; vizId: string; field: string }
   | { type: "selected_visualizations"; vizIds: string[] }
+  | { type: "edited_viz_locally" }
+  | { type: "edited_slide_locally" }
   | { type: "custom"; message: string };
 
 // Viewing contexts (browsing main project sections)
@@ -61,7 +58,7 @@ export type AIContextEditingSlideDeck = {
   optimisticSetLastUpdated: (
     tableName: "slides" | "slide_decks",
     id: string,
-    lastUpdated: string
+    lastUpdated: string,
   ) => void;
 };
 
@@ -94,23 +91,26 @@ export type AIContextEditingReport = {
 export type AIContext =
   | AIContextViewingVisualizations
   | AIContextViewingSlideDecks
-  | AIContextViewingReports
+  // | AIContextViewingReports
+  // | AIContextEditingReport;
   | AIContextViewingData
   | AIContextViewingMetrics
   | AIContextViewingModules
   | AIContextViewingSettings
   | AIContextEditingSlideDeck
   | AIContextEditingSlide
-  | AIContextEditingVisualization
-  | AIContextEditingReport;
+  | AIContextEditingVisualization;
 
-export type DraftContent = {
-  type: "slide";
-  input: AiContentSlideInput;
-} | {
-  type: "viz";
-  input: AiContentSlideInput;
-} | null;
+export type DraftContent =
+  | {
+      type: "slide";
+      input: AiContentSlideInput;
+    }
+  | {
+      type: "viz";
+      input: AiContentSlideInput;
+    }
+  | null;
 
 export type AIProjectContextValue = {
   aiContext: () => AIContext;

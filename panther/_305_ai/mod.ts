@@ -10,6 +10,7 @@
 export { AIChat } from "./_components/ai_chat.tsx";
 export { AIChatConversationSelector } from "./_components/ai_chat_conversation_selector.tsx";
 export { AIChatSettingsPanel } from "./_components/ai_chat_settings_panel.tsx";
+export { AIChatSystemPromptPanel } from "./_components/ai_chat_system_prompt_panel.tsx";
 export { AIChatProvider } from "./context.tsx";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -38,6 +39,7 @@ export type {
   AIChatSettingsPanelProps,
   AIChatSettingsValues,
 } from "./_components/ai_chat_settings_panel.tsx";
+export type { AIChatSystemPromptPanelProps } from "./_components/ai_chat_system_prompt_panel.tsx";
 export type { ConversationMetadata } from "./_core/conversations_persistence.ts";
 export type { ConversationsContextValue } from "./_components/use_conversations.ts";
 

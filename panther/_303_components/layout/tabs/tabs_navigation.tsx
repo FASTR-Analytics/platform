@@ -66,13 +66,15 @@ export function TabsNavigation(p: TabsNavigationProps) {
       // Vertical tabs - match original wb-fastr styling
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
-      const paddingClass = isCollapsed() ? "px-4 py-4" : "py-4 px-4";
-      const baseClasses = `ui-hoverable ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer border-l-4`;
+      const paddingClass = isCollapsed()
+        ? "pr-4 pl-5 py-4"
+        : "py-4 pr-4 pl-5";
+      const baseClasses = `ui-hoverable ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer`;
 
       if (isActive) {
-        return `${baseClasses} border-primary text-primary bg-base-200`;
+        return `${baseClasses} shadow-[inset_4px_0_0_0_var(--color-primary)] text-primary bg-base-200`;
       }
-      return `${baseClasses} border-transparent text-base-content hover:text-primary hover:bg-base-100`;
+      return `${baseClasses} text-base-content hover:text-primary hover:bg-base-100`;
     }
   };
 
