@@ -161,42 +161,16 @@ export async function getGlobalUser(
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
     const email = auth.sessionClaims.email as string;
 
-    // Fetch user and permissions in parallel
-    const [rawUserResult, permissionsResult] = await Promise.all([
-      mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${email}`,
-      mainDb<GlobalUser["thisUserPermissions"][]>`
-        SELECT
-          can_configure_users,
-          can_view_users,
-          can_view_logs,
-          can_configure_settings,
-          can_configure_assets,
-          can_configure_data,
-          can_view_data,
-          can_create_projects
-        FROM user_permissions
-        WHERE user_email = ${email}
-      `,
-    ]);
-
+    const rawUserResult = await mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${email}`;
     const rawUser = rawUserResult.at(0);
 
     if (_OPEN_ACCESS && (!rawUser || !rawUser.is_admin)) {
       // Non-critical insert, don't wait if it fails
-      mainDb
-        .begin(async (sql) => {
-          await sql`
-          INSERT INTO users (email, is_admin)
-          VALUES (${email}, TRUE)
-          ON CONFLICT DO NOTHING
-        `;
-          await sql`
-          INSERT INTO user_permissions (user_email)
-          VALUES (${email})
-          ON CONFLICT (user_email) DO NOTHING
-        `;
-        })
-        .catch(() => {}); // Ignore errors on this insert
+      mainDb`
+        INSERT INTO users (email, is_admin)
+        VALUES (${email}, TRUE)
+        ON CONFLICT DO NOTHING
+      `.catch(() => {}); // Ignore errors on this insert
     }
 
     const isGlobalAdmin = _OPEN_ACCESS || (!!rawUser && rawUser.is_admin);
@@ -213,16 +187,27 @@ export async function getGlobalUser(
           can_view_data: true,
           can_create_projects: true,
         }
-      : (permissionsResult.at(0) ?? {
-          can_configure_users: false,
-          can_view_users: false,
-          can_view_logs: false,
-          can_configure_settings: false,
-          can_configure_assets: false,
-          can_configure_data: false,
-          can_view_data: false,
-          can_create_projects: false,
-        });
+      : rawUser
+        ? {
+            can_configure_users: rawUser.can_configure_users,
+            can_view_users: rawUser.can_view_users,
+            can_view_logs: rawUser.can_view_logs,
+            can_configure_settings: rawUser.can_configure_settings,
+            can_configure_assets: rawUser.can_configure_assets,
+            can_configure_data: rawUser.can_configure_data,
+            can_view_data: rawUser.can_view_data,
+            can_create_projects: rawUser.can_create_projects,
+          }
+        : {
+            can_configure_users: false,
+            can_view_users: false,
+            can_view_logs: false,
+            can_configure_settings: false,
+            can_configure_assets: false,
+            can_configure_data: false,
+            can_view_data: false,
+            can_create_projects: false,
+          };
 
     const globalUser: GlobalUser = {
       instanceName: _INSTANCE_NAME,

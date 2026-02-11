@@ -35,8 +35,8 @@ const PERMISSION_CATEGORIES: {
   {
     label: "Data & Modules",
     permissions: [
-      "can_configure_data",
       "can_view_data",
+      "can_configure_data",
       "can_view_metrics",
       "can_configure_modules",
       "can_run_modules",

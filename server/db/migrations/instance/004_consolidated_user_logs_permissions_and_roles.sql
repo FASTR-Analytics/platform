@@ -64,44 +64,20 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_user_logs_project_id ON user_logs(project_id) WHERE project_id IS NOT NULL;
 
 -- ============================================================================
--- 6. Create user_permissions table (from 009_add_user_permissions_table)
+-- 6. Add permission columns to users table (previously in user_permissions)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS user_permissions (
-  user_email text PRIMARY KEY NOT NULL,
-  can_configure_users boolean NOT NULL DEFAULT FALSE,
-  can_view_users boolean NOT NULL DEFAULT FALSE,
-  can_view_logs boolean NOT NULL DEFAULT FALSE,
-  can_configure_settings boolean NOT NULL DEFAULT FALSE,
-  can_configure_assets boolean NOT NULL DEFAULT FALSE,
-  can_configure_data boolean NOT NULL DEFAULT FALSE,
-  can_view_data boolean NOT NULL DEFAULT FALSE,
-  can_create_projects boolean NOT NULL DEFAULT FALSE,
-  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
-);
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS can_configure_users boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS can_view_users boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS can_view_logs boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS can_configure_settings boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS can_configure_assets boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS can_configure_data boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS can_view_data boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS can_create_projects boolean NOT NULL DEFAULT FALSE;
 
--- ============================================================================
--- 7. Fix user_permissions columns (from 010_alter_user_permissions_columns)
---    Handle case where 009 was run with old column name 'can_configure_instance'
--- ============================================================================
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'user_permissions' AND column_name = 'can_configure_instance'
-  ) THEN
-    ALTER TABLE user_permissions RENAME COLUMN can_configure_instance TO can_configure_settings;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'user_permissions' AND column_name = 'can_configure_assets'
-  ) THEN
-    ALTER TABLE user_permissions ADD COLUMN can_configure_assets boolean NOT NULL DEFAULT FALSE;
-  END IF;
-END $$;
+-- Drop user_permissions if it exists (from older migrations)
+DROP TABLE IF EXISTS user_permissions;
 
 -- ============================================================================
 -- 8. Rename misspelled column (from 011_rename_visulizations_column)

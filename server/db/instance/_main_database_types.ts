@@ -1,6 +1,14 @@
 export type DBUser = {
   email: string;
   is_admin: boolean;
+  can_configure_users: boolean;
+  can_view_users: boolean;
+  can_view_logs: boolean;
+  can_configure_settings: boolean;
+  can_configure_assets: boolean;
+  can_configure_data: boolean;
+  can_view_data: boolean;
+  can_create_projects: boolean;
 };
 
 export type UserLog = {
@@ -24,18 +32,6 @@ export type DBProject = {
   ai_context: string;
   is_locked: boolean;
 };
-
-export type UserPermissions = {
-  user_email: string;
-  can_configure_users: boolean;
-  can_view_users: boolean;
-  can_view_logs: boolean;
-  can_configure_settings: boolean;
-  can_configure_assets: boolean;
-  can_configure_data: boolean;
-  can_view_data: boolean;
-  can_create_projects: boolean;
-}
 
 export type DBProjectUserRole = {
   email: string;
