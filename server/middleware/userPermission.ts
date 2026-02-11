@@ -71,35 +71,9 @@ export function requireGlobalPermission(
         return;
       }
 
-      // Fetch user permissions from database
-      const permissionsResult = await mainDb<Record<UserPermission, boolean>[]>`
-        SELECT
-          can_configure_users,
-          can_view_users,
-          can_view_logs,
-          can_configure_settings,
-          can_configure_assets,
-          can_configure_data,
-          can_view_data,
-          can_create_projects
-        FROM user_permissions
-        WHERE user_email = ${globalUser.email}
-      `;
-      const userPermissions = permissionsResult.at(0);
-
-      // If no permissions row exists, deny access
-      if (!userPermissions) {
-        c.status(403);
-        return c.json({
-          success: false,
-          err: "User does not have any permissions configured",
-          authError: true,
-        });
-      }
-
-      // Check all required permissions
+      // Check all required permissions using already-fetched permissions
       for (const perm of perms) {
-        if (!userPermissions[perm]) {
+        if (!globalUser.thisUserPermissions[perm]) {
           c.status(403);
           return c.json({
             success: false,
@@ -113,15 +87,12 @@ export function requireGlobalPermission(
       c.set("mainDb", mainDb);
       await next();
     } catch (error) {
-      if (error instanceof Error && error.message === "SERVICE_UNAVAILABLE") {
-        c.status(503);
-        return c.json({
-          success: false,
-          err: "Service temporarily unavailable",
-        });
-      }
       console.error("Database error in requireGlobalPermission:", error);
-      throw new Error("SERVICE_UNAVAILABLE");
+      c.status(503);
+      return c.json({
+        success: false,
+        err: "Service temporarily unavailable",
+      });
     }
   });
 }

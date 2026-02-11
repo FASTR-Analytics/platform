@@ -123,7 +123,7 @@ export function InstanceUsers(p: Props) {
                 }
               >
                 <div class="ui-pad h-full w-full flex flex-col gap-4">
-                  <div class="flex-1">
+                  <div class="flex-1 min-h-0">
                     <UserTable
                       users={keyedInstanceDetail.users}
                       logs={userLogs.latest?.success ? userLogs.latest.data : []}
@@ -137,7 +137,7 @@ export function InstanceUsers(p: Props) {
                   <Suspense fallback={<div class="text-neutral text-sm">{t3({ en: "Loading activity logs...", fr: "Chargement des journaux d'activité..." })}</div>}>
                     <Show when={userLogs.latest?.success ? userLogs.latest.data : undefined} keyed>
                       {(logs: UserLog[]) => (
-                        <div class="flex-1 overflow-auto">
+                        <div class="flex-1 min-h-0">
                           <UserLogsTable
                             logs={logs}
                             filterByUser={logFilterUser()}

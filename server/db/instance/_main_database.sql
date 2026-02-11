@@ -4,7 +4,15 @@
 
 CREATE TABLE users (
   email text PRIMARY KEY NOT NULL,
-  is_admin boolean NOT NULL
+  is_admin boolean NOT NULL,
+  can_configure_users boolean NOT NULL DEFAULT FALSE,
+  can_view_users boolean NOT NULL DEFAULT FALSE,
+  can_view_logs boolean NOT NULL DEFAULT FALSE,
+  can_configure_settings boolean NOT NULL DEFAULT FALSE,
+  can_configure_assets boolean NOT NULL DEFAULT FALSE,
+  can_configure_data boolean NOT NULL DEFAULT FALSE,
+  can_view_data boolean NOT NULL DEFAULT FALSE,
+  can_create_projects boolean NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE user_logs (
@@ -15,21 +23,8 @@ CREATE TABLE user_logs (
   endpoint_result text NOT NULL,
   details text,
   project_id text,
-  FOREIGN KEY (user_email) REFERENCES users(email)
+  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-);
-
-CREATE TABLE user_permissions (
-  user_email text PRIMARY KEY NOT NULL,
-  can_configure_users boolean NOT NULL DEFAULT FALSE,
-  can_view_users boolean NOT NULL DEFAULT FALSE,
-  can_view_logs boolean NOT NULL DEFAULT FALSE,
-  can_configure_settings boolean NOT NULL DEFAULT FALSE,
-  can_configure_assets boolean NOT NULL DEFAULT FALSE,
-  can_configure_data boolean NOT NULL DEFAULT FALSE,
-  can_view_data boolean NOT NULL DEFAULT FALSE,
-  can_create_projects boolean NOT NULL DEFAULT FALSE,
-  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
 );
 
 CREATE TABLE instance_config (

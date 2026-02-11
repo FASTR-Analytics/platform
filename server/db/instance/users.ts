@@ -69,18 +69,10 @@ export async function addUsers(
     }
 
     const values = emails.map((email) => ({ email, is_admin: isGlobalAdmin }));
-    await mainDb.begin(async (sql) => {
-      await sql`
-        INSERT INTO users ${sql(values, "email", "is_admin")}
-        ON CONFLICT (email) DO NOTHING
-      `;
-
-      const permissionValues = emails.map((email) => ({ user_email: email }));
-      await sql`
-        INSERT INTO user_permissions ${sql(permissionValues, "user_email")}
-        ON CONFLICT (user_email) DO NOTHING
-      `;
-    });
+    await mainDb`
+      INSERT INTO users ${mainDb(values, "email", "is_admin")}
+      ON CONFLICT (email) DO NOTHING
+    `;
 
     return { success: true };
   });
@@ -104,9 +96,9 @@ export async function updateUserPermissions(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`
-      UPDATE user_permissions
+      UPDATE users
       SET ${mainDb(permissions)}
-      WHERE user_email = ${email}
+      WHERE email = ${email}
     `;
     return { success: true };
   });
@@ -122,9 +114,9 @@ export async function bulkUpdateUserPermissions(
       return { success: true };
     }
     await mainDb`
-      UPDATE user_permissions
+      UPDATE users
       SET ${mainDb(permissions)}
-      WHERE user_email = ANY(${emails})
+      WHERE email = ANY(${emails})
     `;
     return { success: true };
   });
@@ -137,13 +129,6 @@ export async function getUserPermissions(
   APIResponseWithData<{ permissions: Record<UserPermission, boolean> }>
 > {
   return await tryCatchDatabaseAsync(async () => {
-    // Create user_permissions row if it doesn't exist (for existing users)
-    await mainDb`
-      INSERT INTO user_permissions (user_email)
-      VALUES (${email})
-      ON CONFLICT (user_email) DO NOTHING
-    `;
-
     const row = (
       await mainDb<Record<UserPermission, boolean>[]>`SELECT
         can_configure_users,
@@ -154,11 +139,11 @@ export async function getUserPermissions(
         can_configure_data,
         can_view_data,
         can_create_projects
-      FROM user_permissions
-      WHERE user_email=${email}`
+      FROM users
+      WHERE email=${email}`
     ).at(0);
 
-    if (!row) throw new Error("User does not have a user permission table");
+    if (!row) throw new Error("User not found");
 
     return {
       success: true,
@@ -284,13 +269,6 @@ export async function batchUploadUsers(
           ON CONFLICT (email)
           DO UPDATE SET
             is_admin = EXCLUDED.is_admin
-        `;
-
-        // Insert user_permissions entry (with default permissions)
-        await sql`
-          INSERT INTO user_permissions (user_email)
-          VALUES (${batchUser.email})
-          ON CONFLICT (user_email) DO NOTHING
         `;
       }
     });
