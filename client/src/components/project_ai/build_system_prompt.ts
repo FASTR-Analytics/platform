@@ -32,7 +32,9 @@ function buildAISystemContext(
   sections.push("");
 
   if (instanceDetail.countryIso3) {
-    sections.push(`**Country:** ${getCountryLabel(instanceDetail.countryIso3)} (${instanceDetail.countryIso3})`);
+    sections.push(
+      `**Country:** ${getCountryLabel(instanceDetail.countryIso3)} (${instanceDetail.countryIso3})`,
+    );
   }
 
   sections.push(`**Instance:** ${instanceDetail.instanceName}`);
@@ -68,9 +70,7 @@ function buildAISystemContext(
       );
     }
     if (hasHfa) {
-      sections.push(
-        "- HFA: Health Facility Assessment (facility survey data)",
-      );
+      sections.push("- HFA: Health Facility Assessment (facility survey data)");
     }
     sections.push("");
   }
@@ -90,7 +90,7 @@ function buildAISystemContext(
     sections.push("");
     sections.push("**Loaded datasets:**");
     if (hmisDataset && hmisDataset.datasetType === "hmis") {
-      sections.push(`- HMIS data (version ${hmisDataset.info.version})`);
+      sections.push(`- HMIS data (version ${hmisDataset.info.version.id})`);
     }
     if (hfaDataset) {
       sections.push(`- HFA data`);
@@ -148,7 +148,8 @@ function buildAISystemContext(
 // ── Base instructions ──
 
 function getBaseInstructions(): string {
-  return `# Role and Purpose
+  return `
+# Role and Purpose
 
 You are an AI assistant helping users explore, analyze, and present their health data. You can query data, show draft visualizations, and help create slide decks.
 

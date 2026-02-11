@@ -8,7 +8,7 @@ import {
   ModalContainer,
   TextArea,
 } from "panther";
-import { t3 } from "lib";
+import { isFrench, t3 } from "lib";
 import type {
   PromptCategory,
   PromptItem,
@@ -58,11 +58,19 @@ export function PromptLibraryModal(
   });
 
   onMount(async () => {
+    const base = `https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main`;
+    const cacheBust = `?t=${Date.now()}`;
     try {
-      const url = `https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main/prompts.md?t=${Date.now()}`;
-      const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) throw new Error("Failed to load prompts");
-      const markdown = await response.text();
+      let markdown: string | undefined;
+      if (isFrench()) {
+        const frRes = await fetch(`${base}/prompts_fr.md${cacheBust}`, { cache: "no-store" });
+        if (frRes.ok) markdown = await frRes.text();
+      }
+      if (!markdown) {
+        const enRes = await fetch(`${base}/prompts.md${cacheBust}`, { cache: "no-store" });
+        if (!enRes.ok) throw new Error("Failed to load prompts");
+        markdown = await enRes.text();
+      }
       setParseResult(parsePromptsMarkdown(markdown));
     } catch (err) {
       console.error("Failed to load prompt library:", err);
@@ -96,7 +104,11 @@ export function PromptLibraryModal(
 
   return (
     <ModalContainer
-      title={selectedPrompt() ? t3({ en: "Edit prompt", fr: "Modifier le prompt" }) : t3({ en: "Prompt library", fr: "Bibliothèque de prompts" })}
+      title={
+        selectedPrompt()
+          ? t3({ en: "Edit prompt", fr: "Modifier le prompt" })
+          : t3({ en: "Prompt library", fr: "Bibliothèque de prompts" })
+      }
       width="xl"
       scroll="content"
       rightButtons={
@@ -112,7 +124,13 @@ export function PromptLibraryModal(
     >
       <Show when={isLoading()}>
         <div>
-          <Loading msg={t3({ en: "Loading prompts...", fr: "Chargement des prompts..." })} noPad />
+          <Loading
+            msg={t3({
+              en: "Loading prompts...",
+              fr: "Chargement des prompts...",
+            })}
+            noPad
+          />
         </div>
       </Show>
 
@@ -162,7 +180,10 @@ function BrowsePhase(p: BrowsePhaseProps) {
       <Input
         value={p.searchText}
         onChange={p.onSearchChange}
-        placeholder={t3({ en: "Search prompts...", fr: "Rechercher des prompts..." })}
+        placeholder={t3({
+          en: "Search prompts...",
+          fr: "Rechercher des prompts...",
+        })}
         autoFocus
         fullWidth
       />
@@ -182,7 +203,10 @@ function BrowsePhase(p: BrowsePhaseProps) {
           when={p.filteredCategories.length > 0}
           fallback={
             <div class="text-base-content/60 py-8 text-center">
-              {t3({ en: "No prompts found matching your search.", fr: "Aucun prompt correspondant à votre recherche." })}
+              {t3({
+                en: "No prompts found matching your search.",
+                fr: "Aucun prompt correspondant à votre recherche.",
+              })}
             </div>
           }
         >
@@ -255,7 +279,10 @@ function EditPhase(p: EditPhaseProps) {
         </Button>
         <div class="flex-1"></div>
         <Button onClick={p.onRunCurrent} intent="primary">
-          {t3({ en: "Run in current chat", fr: "Exécuter dans le chat actuel" })}
+          {t3({
+            en: "Run in current chat",
+            fr: "Exécuter dans le chat actuel",
+          })}
         </Button>
         <Button onClick={p.onRunNew} intent="success">
           {t3({ en: "Run as new chat", fr: "Exécuter dans un nouveau chat" })}

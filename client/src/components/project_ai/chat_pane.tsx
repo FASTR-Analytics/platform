@@ -85,7 +85,10 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   const handleDeleteConversation = async () => {
     const confirmed = await openConfirm({
       title: t3({ en: "Delete conversation", fr: "Supprimer la conversation" }),
-      text: t3({ en: "Are you sure you want to delete this conversation? This action cannot be undone.", fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible." }),
+      text: t3({
+        en: "Are you sure you want to delete this conversation? This action cannot be undone.",
+        fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
+      }),
       intent: "danger",
       confirmButtonLabel: t3(TC.delete),
     });
@@ -140,7 +143,10 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         }),
     },
     {
-      label: t3({ en: "View AI tool output", fr: "Voir la sortie des outils IA" }),
+      label: t3({
+        en: "View AI tool output",
+        fr: "Voir la sortie des outils IA",
+      }),
       icon: "search",
       onClick: () =>
         openComponent<AIDebugPanelProps, void>({
@@ -167,11 +173,20 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     const ctx = aiContext();
     switch (ctx.mode) {
       case "editing_slide_deck":
-        return t3({ en: "Ask about this slide deck...", fr: "Posez une question sur cette présentation..." });
+        return t3({
+          en: "Ask about this slide deck...",
+          fr: "Posez une question sur cette présentation...",
+        });
       case "editing_slide":
-        return t3({ en: "Ask about this slide...", fr: "Posez une question sur cette diapositive..." });
+        return t3({
+          en: "Ask about this slide...",
+          fr: "Posez une question sur cette diapositive...",
+        });
       case "editing_visualization":
-        return t3({ en: "Ask about this visualization...", fr: "Posez une question sur cette visualisation..." });
+        return t3({
+          en: "Ask about this visualization...",
+          fr: "Posez une question sur cette visualisation...",
+        });
       // case "editing_report":
       //   return t3({ en: "Ask about this report...", fr: "Posez une question sur ce rapport..." });
       case "viewing_visualizations":
@@ -181,7 +196,10 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       case "viewing_metrics":
       case "viewing_modules":
       case "viewing_settings":
-        return t3({ en: "Explore your data...", fr: "Explorez vos données..." });
+        return t3({
+          en: "Explore your data...",
+          fr: "Explorez vos données...",
+        });
       default: {
         const _exhaustive: never = ctx;
         return _exhaustive;
@@ -209,7 +227,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       case "viewing_data":
         return t3({ en: "Data", fr: "Données" });
       case "viewing_metrics":
-        return t3({ en: "Metrics", fr: "Indicateurs" });
+        return t3({ en: "Metrics", fr: "Métriques" });
       case "viewing_modules":
         return t3({ en: "Modules", fr: "Modules" });
       case "viewing_settings":
