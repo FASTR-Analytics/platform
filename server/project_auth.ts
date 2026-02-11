@@ -308,22 +308,9 @@ async function getProjectUser(
 
     if (
       !rawProjectUserRole ||
-      (!rawProjectUserRole.can_configure_settings &&
-        !rawProjectUserRole.can_create_backups &&
-        !rawProjectUserRole.can_restore_backups &&
-        !rawProjectUserRole.can_configure_modules &&
-        !rawProjectUserRole.can_run_modules &&
-        !rawProjectUserRole.can_configure_users &&
-        !rawProjectUserRole.can_configure_visualizations &&
-        !rawProjectUserRole.can_view_visualizations &&
-        !rawProjectUserRole.can_configure_reports &&
-        !rawProjectUserRole.can_view_reports &&
-        !rawProjectUserRole.can_configure_slide_decks &&
-        !rawProjectUserRole.can_view_slide_decks &&
-        !rawProjectUserRole.can_configure_data &&
-        !rawProjectUserRole.can_view_data &&
-        !rawProjectUserRole.can_view_metrics &&
-        !rawProjectUserRole.can_view_logs)
+      !Object.entries(rawProjectUserRole).some(
+        ([key, value]) => key.startsWith("can_") && value
+      )
     ) {
       throw new Error(
         "Middleware error: User does not have access to this project",
