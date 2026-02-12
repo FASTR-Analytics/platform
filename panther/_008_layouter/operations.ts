@@ -373,9 +373,9 @@ function simplifyNode<U>(node: LayoutNode<U>): LayoutNode<U> {
     return node;
   }
 
-  const simplifiedChildren = node.children.map((child) =>
-    simplifyNode(child as LayoutNode<U>)
-  );
+  const simplifiedChildren = node.children
+    .map((child) => simplifyNode(child as LayoutNode<U>))
+    .filter((child) => child.type === "item" || child.children.length > 0);
 
   if (simplifiedChildren.length === 1) {
     const child = simplifiedChildren[0] as LayoutNode<U>;
