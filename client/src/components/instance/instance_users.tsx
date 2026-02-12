@@ -13,7 +13,14 @@ import {
   timActionButton,
   timActionDelete,
 } from "panther";
-import { Match, Show, Switch, createSignal, createResource, Suspense } from "solid-js";
+import {
+  Match,
+  Show,
+  Switch,
+  createSignal,
+  createResource,
+  Suspense,
+} from "solid-js";
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
@@ -29,9 +36,7 @@ type Props = {
 
 export function InstanceUsers(p: Props) {
   // Temp state
-  const [userLogs] = createResource(
-    () => serverActions.getAllUserLogs({})
-  );
+  const [userLogs] = createResource(() => serverActions.getAllUserLogs({}));
 
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
     undefined,
@@ -62,7 +67,10 @@ export function InstanceUsers(p: Props) {
 
   async function showCommingSoon() {
     const _res = await openAlert({
-      text: t3({ en: "This functionality is coming soon. For now, click on the 'edit' button for individual users.", fr: "Cette fonctionnalité sera bientôt disponible. Pour l'instant, cliquez sur le bouton « modifier » pour chaque utilisateur." }),
+      text: t3({
+        en: "This functionality is coming soon. For now, click on the 'edit' button for individual users.",
+        fr: "Cette fonctionnalité sera bientôt disponible. Pour l'instant, cliquez sur le bouton « modifier » pour chaque utilisateur.",
+      }),
     });
     return true;
   }
@@ -73,7 +81,10 @@ export function InstanceUsers(p: Props) {
         function downloadUsersCSV() {
           const csv = new Csv({
             colHeaders: ["email", "is_global_admin"],
-            aoa: keyedInstanceDetail.users.map((user) => [user.email, String(user.isGlobalAdmin)]),
+            aoa: keyedInstanceDetail.users.map((user) => [
+              user.email,
+              String(user.isGlobalAdmin),
+            ]),
           });
           const today = new Date()
             .toISOString()
@@ -104,29 +115,42 @@ export function InstanceUsers(p: Props) {
             <Match when={true}>
               <FrameTop
                 panelChildren={
-                  <HeadingBarMainRibbon heading={t3({ en: "Users", fr: "Utilisateurs" })}>
+                  <HeadingBarMainRibbon
+                    heading={t3({ en: "Users", fr: "Utilisateurs" })}
+                  >
                     <div class="ui-gap-sm flex items-center">
                       <Button onClick={downloadUsersCSV} iconName="download">
-                        {t3({ en: "Download users", fr: "Télécharger les utilisateurs" })}
+                        {t3({
+                          en: "Download users",
+                          fr: "Télécharger les utilisateurs",
+                        })}
                       </Button>
                       <Button
                         onClick={attemptBatchUploadUsers}
                         iconName="upload"
                       >
-                        {t3({ en: "Batch import from CSV", fr: "Importation groupée depuis CSV" })}
+                        {t3({
+                          en: "Batch import from CSV",
+                          fr: "Importation groupée depuis CSV",
+                        })}
                       </Button>
                       <Button onClick={attemptAddUser} iconName="plus">
-                        {t3({ en: "Add users", fr: "Ajouter des utilisateurs" })}
+                        {t3({
+                          en: "Add users",
+                          fr: "Ajouter des utilisateurs",
+                        })}
                       </Button>
                     </div>
                   </HeadingBarMainRibbon>
                 }
               >
-                <div class="ui-pad h-full w-full flex flex-col gap-4">
-                  <div class="flex-1 min-h-0">
+                <div class="ui-pad flex h-full w-full flex-col gap-4">
+                  <div class="min-h-0 flex-1">
                     <UserTable
                       users={keyedInstanceDetail.users}
-                      logs={userLogs.latest?.success ? userLogs.latest.data : []}
+                      logs={
+                        userLogs.latest?.success ? userLogs.latest.data : []
+                      }
                       logsLoading={userLogs.loading}
                       onUserClick={(user) => setSelectedUser(user.email)}
                       onViewLogs={(email) => setLogFilterUser(email)}
@@ -134,7 +158,7 @@ export function InstanceUsers(p: Props) {
                       silentFetch={p.instanceDetail.silentFetch}
                     />
                   </div>
-                  <Suspense fallback={<div class="text-neutral text-sm">{t3({ en: "Loading activity logs...", fr: "Chargement des journaux d'activité..." })}</div>}>
+                  {/* <Suspense fallback={<div class="text-neutral text-sm">{t3({ en: "Loading activity logs...", fr: "Chargement des journaux d'activité..." })}</div>}>
                     <Show when={userLogs.latest?.success ? userLogs.latest.data : undefined} keyed>
                       {(logs: UserLog[]) => (
                         <div class="flex-1 min-h-0">
@@ -146,7 +170,7 @@ export function InstanceUsers(p: Props) {
                         </div>
                       )}
                     </Show>
-                  </Suspense>
+                  </Suspense> */}
                 </div>
               </FrameTop>
             </Match>
@@ -174,9 +198,12 @@ function formatTimeAgo(date: Date): string {
   const diffDays = Math.floor(diffMs / 86400000);
 
   if (diffMins < 1) return t3({ en: "Just now", fr: "À l'instant" });
-  if (diffMins < 60) return t3({ en: `${diffMins}m ago`, fr: `il y a ${diffMins}m` });
-  if (diffHours < 24) return t3({ en: `${diffHours}h ago`, fr: `il y a ${diffHours}h` });
-  if (diffDays < 30) return t3({ en: `${diffDays}d ago`, fr: `il y a ${diffDays}j` });
+  if (diffMins < 60)
+    return t3({ en: `${diffMins}m ago`, fr: `il y a ${diffMins}m` });
+  if (diffHours < 24)
+    return t3({ en: `${diffHours}h ago`, fr: `il y a ${diffHours}h` });
+  if (diffDays < 30)
+    return t3({ en: `${diffDays}d ago`, fr: `il y a ${diffDays}j` });
   return date.toLocaleDateString();
 }
 
@@ -221,10 +248,19 @@ function UserTable(p: {
         }
         try {
           const lastActive = lastActiveByUser().get(user.email);
-          if (!lastActive) return <span class="text-neutral text-sm">{t3({ en: "Never", fr: "Jamais" })}</span>;
+          if (!lastActive)
+            return (
+              <span class="text-neutral text-sm">
+                {t3({ en: "Never", fr: "Jamais" })}
+              </span>
+            );
           return <span class="text-sm">{formatTimeAgo(lastActive)}</span>;
         } catch {
-          return <span class="text-neutral text-sm">{t3({ en: "Unknown", fr: "Inconnu" })}</span>;
+          return (
+            <span class="text-neutral text-sm">
+              {t3({ en: "Unknown", fr: "Inconnu" })}
+            </span>
+          );
         }
       },
     },
@@ -235,10 +271,17 @@ function UserTable(p: {
       render: (user) => (
         <Show
           when={user.isGlobalAdmin}
-          fallback={<span class="text-neutral text-sm">{t3({ en: "User", fr: "Utilisateur" })}</span>}
+          fallback={
+            <span class="text-neutral text-sm">
+              {t3({ en: "User", fr: "Utilisateur" })}
+            </span>
+          }
         >
           <span class="text-primary text-sm">
-            {t3({ en: "Instance administrator", fr: "Administrateur d'instance" })}
+            {t3({
+              en: "Instance administrator",
+              fr: "Administrateur d'instance",
+            })}
           </span>
         </Show>
       ),
@@ -248,7 +291,7 @@ function UserTable(p: {
       header: "",
       align: "right",
       render: (user) => (
-        <div class="flex gap-1 justify-end">
+        <div class="flex justify-end gap-1">
           <Button
             onClick={(e: MouseEvent) => {
               e.stopPropagation();
@@ -286,13 +329,17 @@ function UserTable(p: {
   async function handleBulkRemoveUsers(selectedUsers: UserData[]) {
     const emails = selectedUsers.map((u) => u.email);
     const userCount = emails.length;
-    const userText = userCount === 1
-      ? t3({ en: "this user", fr: "cet utilisateur" })
-      : t3({ en: "these users", fr: "ces utilisateurs" });
+    const userText =
+      userCount === 1
+        ? t3({ en: "this user", fr: "cet utilisateur" })
+        : t3({ en: "these users", fr: "ces utilisateurs" });
 
     const deleteAction = timActionDelete(
       {
-        text: t3({ en: `Are you sure you want to remove ${userText}?`, fr: `Êtes-vous sûr de vouloir supprimer ${userText} ?` }),
+        text: t3({
+          en: `Are you sure you want to remove ${userText}?`,
+          fr: `Êtes-vous sûr de vouloir supprimer ${userText} ?`,
+        }),
         itemList: emails,
       },
       () => serverActions.deleteUser({ emails }),
@@ -313,7 +360,10 @@ function UserTable(p: {
   function handleBulkDownloadCSV(selectedUsers: UserData[]) {
     const csv = new Csv({
       colHeaders: ["email", "is_global_admin"],
-      aoa: selectedUsers.map((user) => [user.email, String(user.isGlobalAdmin)]),
+      aoa: selectedUsers.map((user) => [
+        user.email,
+        String(user.isGlobalAdmin),
+      ]),
     });
     const today = new Date().toISOString().split("T")[0].replace(/-/g, "_");
     const filename = `selected_users_export_${today}.csv`;
@@ -329,7 +379,10 @@ function UserTable(p: {
       outline: true,
     },
     {
-      label: t3({ en: "Make non-admin", fr: "Retirer le rôle d'administrateur" }),
+      label: t3({
+        en: "Make non-admin",
+        fr: "Retirer le rôle d'administrateur",
+      }),
       intent: "primary",
       onClick: bulkMakeNonAdmin.click,
       state: bulkMakeNonAdmin.state,
@@ -385,9 +438,7 @@ function UserLogsTable(p: {
       header: t3({ en: "Timestamp", fr: "Horodatage" }),
       sortable: true,
       render: (log) => (
-        <span class="text-sm">
-          {new Date(log.timestamp).toLocaleString()}
-        </span>
+        <span class="text-sm">{new Date(log.timestamp).toLocaleString()}</span>
       ),
     },
     {
@@ -396,10 +447,12 @@ function UserLogsTable(p: {
       sortable: true,
       render: (log) => (
         <button
-          class="text-left hover:underline hover:text-primary cursor-pointer"
+          class="hover:text-primary cursor-pointer text-left hover:underline"
           onClick={(e) => {
             e.stopPropagation();
-            p.onFilterByUser(p.filterByUser === log.user_email ? undefined : log.user_email);
+            p.onFilterByUser(
+              p.filterByUser === log.user_email ? undefined : log.user_email,
+            );
           }}
         >
           {log.user_email}
@@ -427,27 +480,32 @@ function UserLogsTable(p: {
             onClick={(e) => {
               e.stopPropagation();
               openAlert({
-                title: t3({ en: "Request Details", fr: "Détails de la requête" }),
+                title: t3({
+                  en: "Request Details",
+                  fr: "Détails de la requête",
+                }),
                 text: (
-                  <div class="whitespace-pre-wrap font-mono text-sm max-h-96 overflow-auto">
+                  <div class="max-h-96 overflow-auto font-mono text-sm whitespace-pre-wrap">
                     {formatJsonDetails(log.details!)}
                   </div>
-                )
+                ),
               });
             }}
           >
             {t3({ en: "View", fr: "Voir" })}
           </Button>
         </Show>
-      )
-    }
+      ),
+    },
   ];
 
   return (
-    <div class="flex flex-col h-full">
+    <div class="flex h-full flex-col">
       <Show when={p.filterByUser}>
-        <div class="flex items-center gap-2 mb-2 text-sm">
-          <span class="text-neutral">{t3({ en: "Filtering by", fr: "Filtré par" })}:</span>
+        <div class="mb-2 flex items-center gap-2 text-sm">
+          <span class="text-neutral">
+            {t3({ en: "Filtering by", fr: "Filtré par" })}:
+          </span>
           <span class="font-medium">{p.filterByUser}</span>
           <Button
             size="sm"
@@ -466,7 +524,7 @@ function UserLogsTable(p: {
         fitTableToAvailableHeight
       />
     </div>
-  )
+  );
 }
 
 function formatJsonDetails(details: string): string {

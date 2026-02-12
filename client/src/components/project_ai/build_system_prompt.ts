@@ -43,20 +43,30 @@ function buildAISystemContext(
   sections.push("# Terminology");
   sections.push("");
   sections.push("**Geographic levels:**");
-  sections.push("- admin_area_1: National level");
+  sections.push("- admin_area_1 is always the national level");
   if (instanceDetail.maxAdminArea >= 2) {
+    const aa = instanceDetail.maxAdminArea;
+    const sub = aa >= 4 ? "admin_area_2, admin_area_3, admin_area_4 etc."
+      : aa >= 3 ? "admin_area_2, admin_area_3 etc."
+      : "admin_area_2 etc.";
+    sections.push(`- ${sub} are sub-national levels. For example:`);
+    const examples: { country: string; aa2: string; aa3?: string; aa4?: string }[] = [
+      { country: "Nigeria", aa2: "Zone", aa3: "State", aa4: "LGA (Local Government Area)" },
+      { country: "Ghana", aa2: "Region", aa3: "District" },
+      { country: "Burkina Faso", aa2: "Région", aa3: "Province" },
+      { country: "Zambia", aa2: "Province", aa3: "District" },
+      { country: "Liberia", aa2: "County", aa3: "District" },
+      { country: "Sierra Leone", aa2: "District", aa3: "District Council" },
+      { country: "République Démocratique du Congo (RDC)", aa2: "Province", aa3: "Zone de Santé" },
+    ];
+    for (const ex of examples) {
+      let line = `  - ${ex.country}: admin_area_2 = ${ex.aa2}`;
+      if (aa >= 3 && ex.aa3) line += `, admin_area_3 = ${ex.aa3}`;
+      if (aa >= 4 && ex.aa4) line += `, admin_area_4 = ${ex.aa4}`;
+      sections.push(line);
+    }
     sections.push(
-      "- admin_area_2: Regional/provincial level (e.g., districts, regions)",
-    );
-  }
-  if (instanceDetail.maxAdminArea >= 3) {
-    sections.push(
-      "- admin_area_3: Sub-district level (e.g., zones, sub-districts)",
-    );
-  }
-  if (instanceDetail.maxAdminArea >= 4) {
-    sections.push(
-      "- admin_area_4: Facility catchment level (e.g., woredas, communes)",
+      "- If this instance's country matches one of the above, use that country's terminology instead of 'admin_area_2' etc.",
     );
   }
   sections.push("");
