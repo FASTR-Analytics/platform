@@ -3,6 +3,7 @@ import { createAITool } from "panther";
 import { z } from "zod";
 import type { InstalledModuleSummary, MetricWithStatus } from "lib";
 import { formatModulesListForAI } from "./_internal/format_modules_list_for_ai";
+import { formatModuleSettingsForAI } from "./_internal/format_module_settings_for_ai";
 
 export function getToolsForModules(
   projectId: string,
@@ -49,6 +50,22 @@ export function getToolsForModules(
         return res.data.logs;
       },
       inProgressLabel: "Getting module log...",
+    }),
+
+    createAITool({
+      name: "get_module_settings",
+      description:
+        "Get the configuration settings and parameters for a specific module. This shows what options are selected for the module.",
+      inputSchema: z.object({ id: z.string().describe("Module ID") }),
+      handler: async (input) => {
+        const res = await serverActions.getModuleWithConfigSelections({
+          projectId,
+          module_id: input.id as any,
+        });
+        if (!res.success) throw new Error(res.err);
+        return formatModuleSettingsForAI(res.data);
+      },
+      inProgressLabel: "Getting module settings...",
     }),
   ];
 }

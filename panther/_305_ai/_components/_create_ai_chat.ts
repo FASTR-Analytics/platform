@@ -104,10 +104,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     );
   }
 
-  const config = configMaybe as Required<
-    Pick<AIChatConfig, "sdkClient" | "modelConfig">
-  > &
-    AIChatConfig;
+  const config = configMaybe as
+    & Required<
+      Pick<AIChatConfig, "sdkClient" | "modelConfig">
+    >
+    & AIChatConfig;
 
   const settingsKey = config.scope
     ? `${SETTINGS_KEY_PREFIX}-${config.scope}`
@@ -130,7 +131,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     getOrCreateConversationStore(
       conversationId(),
       config.enablePersistence ?? true,
-    ),
+    )
   );
 
   const messages = () => store().messages[0]();
@@ -511,6 +512,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     clearConversation,
     toolRegistry,
     processMessageForDisplay,
+    clearInProgressItems,
     conversationId,
   };
 }

@@ -320,7 +320,9 @@ function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
         bold: isBold,
         italic: isItalic,
         lineSpacingMultiple: baseLineSpacingMultiple,
-        ...(baseCharSpacing !== undefined ? { charSpacing: baseCharSpacing } : {}),
+        ...(baseCharSpacing !== undefined
+          ? { charSpacing: baseCharSpacing }
+          : {}),
       };
 
       // Add soft break before first run of each line (except first line)

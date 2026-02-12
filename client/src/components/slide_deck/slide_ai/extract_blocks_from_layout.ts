@@ -1,6 +1,7 @@
 import type { ContentBlock, Slide } from "lib";
 import type { LayoutNode } from "panther";
 import { getDataFromConfig } from "~/components/project_ai/ai_tools/tools/_internal/format_metric_data_for_ai";
+import { layoutNodeToStructure, type LayoutStructure } from "./layout_spec_helpers";
 
 export type BlockWithId = {
   id: string;
@@ -30,28 +31,15 @@ export function extractBlocksFromLayout(
   return blocks;
 }
 
-function describeLayout(layout: LayoutNode<ContentBlock>): string {
-  if (layout.type === "item") {
-    return "Single block";
-  }
-
-  const childCount = layout.children.length;
-  const direction = layout.type === "cols" ? "side by side" : "stacked vertically";
-
-  // Check if all children are items (simple layout)
-  const allItems = layout.children.every(child => child.type === "item");
-  if (allItems) {
-    return `${childCount} blocks ${direction}`;
-  }
-
-  // Nested layout
-  return `${childCount} sections ${direction}`;
-}
-
 export type SimplifiedSlide =
   | { type: "cover"; title?: string; subtitle?: string; presenter?: string; date?: string }
   | { type: "section"; sectionTitle: string; sectionSubtitle?: string }
-  | { type: "content"; header?: string; blocks: Array<{ id: string; summary: string }>; _layout_info: string };
+  | {
+      type: "content";
+      header?: string;
+      blocks: Array<{ id: string; summary: string }>;
+      _layout: { description: string; structure: LayoutStructure | null };
+    };
 
 export async function simplifySlideForAI(projectId: string, slide: Slide): Promise<SimplifiedSlide> {
   if (slide.type === "cover") {
@@ -124,6 +112,6 @@ export async function simplifySlideForAI(projectId: string, slide: Slide): Promi
     type: "content",
     header: slide.header,
     blocks: simplifiedBlocks,
-    _layout_info: describeLayout(slide.layout),
+    _layout: layoutNodeToStructure(slide.layout),
   };
 }

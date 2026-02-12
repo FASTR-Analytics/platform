@@ -26,7 +26,12 @@ async function fetchGitHubScript(
 
   console.log(`  Fetching from GitHub: ${url}`);
 
-  const response = await fetch(url);
+  const githubToken = Deno.env.get("GITHUB_TOKEN");
+  const authHeaders: Record<string, string> = githubToken
+    ? { Authorization: `token ${githubToken}` }
+    : {};
+
+  const response = await fetch(url, { headers: authHeaders });
   if (!response.ok) {
     throw new Error(
       `Failed to fetch from GitHub: ${response.status} ${response.statusText}`,
@@ -36,7 +41,7 @@ async function fetchGitHubScript(
   const rawScript = await response.text();
   // get the commit sha
   const shaUrl = `https://api.github.com/repos/${source.owner}/${source.repo}/commits/${source.commit}`;
-  const shaResponse = await fetch(shaUrl);
+  const shaResponse = await fetch(shaUrl, { headers: authHeaders });
 
   if (!shaResponse.ok) {
     throw new Error(
@@ -220,6 +225,7 @@ function generateModuleMetadata(
       periodOptions: string[];
       postAggregationExpression?: any;
       vizPresets?: any[];
+      importantNotes?: { en: string; fr: string };
       hide?: boolean;
     }
   > = {};
@@ -251,6 +257,7 @@ function generateModuleMetadata(
         periodOptions: metric.periodOptions,
         postAggregationExpression: metric.postAggregationExpression,
         vizPresets: metric.vizPresets,
+        importantNotes: metric.importantNotes,
         hide: metric.hide,
       };
     }
@@ -309,8 +316,11 @@ function generateModuleMetadata(
       const vizPresets = d.vizPresets
         ? `, vizPresets: ${JSON.stringify(d.vizPresets)}`
         : "";
+      const importantNotes = d.importantNotes
+        ? `, importantNotes: ${JSON.stringify(d.importantNotes)}`
+        : "";
       const hide = d.hide ? `, hide: true` : "";
-      return `  "${metricId}": { label: ${JSON.stringify(d.label)}${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)}, periodOptions: ${JSON.stringify(d.periodOptions)}${postAgg}${vizPresets}${hide} }`;
+      return `  "${metricId}": { label: ${JSON.stringify(d.label)}${variant}, resultsObjectId: "${d.resultsObjectId}", valueProps: ${JSON.stringify(d.valueProps)}, valueFunc: "${d.valueFunc}", formatAs: "${d.formatAs}"${replacements}, requiredDisaggregationOptions: ${JSON.stringify(d.requiredDisaggregationOptions)}, periodOptions: ${JSON.stringify(d.periodOptions)}${postAgg}${vizPresets}${importantNotes}${hide} }`;
     })
     .join(",\n");
 
@@ -383,7 +393,8 @@ export const METRIC_STATIC_DATA: Record<string, {
   requiredDisaggregationOptions: string[];
   periodOptions: PeriodOption[];
   postAggregationExpression?: any;
-  vizPresets?: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; needsReplicant?: boolean; allowedFilters?: string[]; createDefaultVisualizationOnInstall?: string; defaultPeriodFilterForDefaultVisualizations?: { nMonths: number }; config: { d: any; s?: any; t?: any } }[];
+  vizPresets?: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; importantNotes?: { en: string; fr: string }; needsReplicant?: boolean; allowedFilters?: string[]; createDefaultVisualizationOnInstall?: string; defaultPeriodFilterForDefaultVisualizations?: { nMonths: number }; config: { d: any; s?: any; t?: any } }[];
+  importantNotes?: { en: string; fr: string };
   hide?: boolean;
 }> = {
 ${metricStaticDataCode},
@@ -394,7 +405,7 @@ export function getMetricStaticData(metricId: string) {
   if (!data) {
     throw new Error(\`Unknown metricId: \${metricId}. This may indicate a migration issue.\`);
   }
-  return { ...data, label: t3(data.label), variantLabel: data.variantLabel ? t3(data.variantLabel) : undefined };
+  return { ...data, label: t3(data.label), variantLabel: data.variantLabel ? t3(data.variantLabel) : undefined, importantNotes: data.importantNotes ? t3(data.importantNotes) : undefined };
 }
 
 `;

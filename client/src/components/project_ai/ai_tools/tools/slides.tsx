@@ -6,14 +6,28 @@ import {
   AiSectionSlideSchema,
   AiContentSlideSchema,
   AiContentBlockInputSchema,
+  LayoutSpecSchema,
+  MAX_CONTENT_BLOCKS,
   getSlideTitle,
   type Slide,
+  type ContentBlock,
   type MetricWithStatus,
+  type AiContentBlockInput,
 } from "lib";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
-import { simplifySlideForAI } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
+import {
+  extractBlocksFromLayout,
+  simplifySlideForAI,
+} from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
 import { getSlideWithUpdatedBlocks } from "~/components/slide_deck/slide_ai/get_slide_with_updated_blocks";
 import { getDeckSummaryForAI } from "~/components/slide_deck/slide_ai/get_deck_summary";
+import {
+  buildLayoutFromSpec,
+  normalizeSpans,
+} from "~/components/slide_deck/slide_ai/layout_spec_helpers";
+import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
+import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
+import { createIdGeneratorForLayout } from "~/utils/id_generation";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { validateMaxContentBlocks, validateNoMarkdownTables } from "../validators/content_validators";
 import type { AIContext } from "~/components/project_ai/types";
@@ -54,7 +68,7 @@ export function getToolsForSlides(
     createAITool({
       name: "get_slide",
       description:
-        "Retrieve the content and structure of a specific slide. For content slides, this returns a simplified view showing each content block with its unique ID and a summary. Use these block IDs with update_slide_content to make targeted changes without regenerating the entire layout. Always call this before modifying a slide to see what's currently in it.",
+        "Retrieve the content and structure of a specific slide. For content slides, this returns a simplified view showing each content block with its unique ID, a summary, and the current layout structure (rows/columns with spans). Use block IDs with update_slide_content for content changes, or with modify_slide_layout for layout changes. Always call this before modifying a slide to see what's currently in it.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
       }),
@@ -142,7 +156,7 @@ export function getToolsForSlides(
     createAITool({
       name: "replace_slide",
       description:
-        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n- Adding/removing blocks from content slides\n\nFor content slides with existing layout, prefer update_slide_content (preserves layout) or update_slide_heading (preserves content and layout).\n\nIMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
+        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor layout changes on existing content, prefer modify_slide_layout which preserves existing blocks. For content updates, prefer update_slide_content (preserves layout).\n\nIMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         slide: z
@@ -190,7 +204,7 @@ export function getToolsForSlides(
     createAITool({
       name: "update_slide_content",
       description:
-        "Update specific content blocks within a slide while preserving the layout structure. This is the PREFERRED way to modify content slides as it maintains custom layout arrangements. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. This is much safer than replace_slide for targeted content updates. Use block IDs from get_slide to target specific text or figure blocks for replacement. IMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
+        "Update specific content blocks within a slide while preserving the layout structure. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. Use block IDs from get_slide to target specific text or figure blocks for replacement. To add/remove blocks or change layout arrangement, use modify_slide_layout instead. IMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         updates: z.array(z.object({
@@ -276,6 +290,163 @@ export function getToolsForSlides(
       },
       inProgressLabel: (input) => `Updating header for slide ${input.slideId}...`,
       completionMessage: (input) => `Updated header for slide ${input.slideId}`,
+    }),
+
+    createAITool({
+      name: "modify_slide_layout",
+      description:
+        "Modify the layout and/or blocks of a content slide. Use this to: add new blocks, remove blocks, rearrange blocks, or change column widths. The layout specifies ALL blocks that will be on the slide — any existing blocks not referenced are REMOVED. Use block IDs from get_slide to keep existing blocks; provide inline content for new blocks. Prefer balanced spans (e.g. 6+6 or 8+4) unless the user requests specific proportions.\n\nTo change what's IN a block → use update_slide_content.\nTo change which blocks EXIST or how they're ARRANGED → use this tool.",
+      inputSchema: z.object({
+        slideId: z
+          .string()
+          .describe(
+            "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
+          ),
+        header: z
+          .string()
+          .max(200)
+          .optional()
+          .describe(
+            "If provided, updates the header. If omitted, the existing header is preserved.",
+          ),
+        layout: LayoutSpecSchema,
+      }),
+      handler: async (input) => {
+        const ctx = requireDeckContext(getAIContext());
+
+        const currentRes = await serverActions.getSlide({
+          projectId,
+          slide_id: input.slideId,
+        });
+        if (!currentRes.success) throw new Error(currentRes.err);
+
+        const currentSlide = currentRes.data.slide;
+        if (currentSlide.type !== "content") {
+          throw new Error(
+            `Cannot modify layout on ${currentSlide.type} slide. This tool only works on content slides.`,
+          );
+        }
+
+        const existingBlocks = extractBlocksFromLayout(currentSlide.layout);
+        const blockMap = new Map<string, ContentBlock>();
+        for (const { id, block } of existingBlocks) {
+          blockMap.set(id, block);
+        }
+
+        let totalBlocks = 0;
+        const seenBlockIds = new Set<string>();
+        for (const row of input.layout) {
+          for (const cell of row) {
+            totalBlocks++;
+            if (typeof cell.block === "string") {
+              if (seenBlockIds.has(cell.block)) {
+                throw new Error(
+                  `Duplicate block ID "${cell.block}". Each block can only appear once in the layout.`,
+                );
+              }
+              seenBlockIds.add(cell.block);
+            }
+          }
+        }
+        validateMaxContentBlocks(totalBlocks);
+
+        const normalizedSpans = normalizeSpans(input.layout);
+
+        const generateId = createIdGeneratorForLayout(currentSlide.layout);
+        const resolvedRows: Array<
+          Array<{ id: string; block: ContentBlock; span: number }>
+        > = [];
+        const removedBlocks: Array<{ id: string; type: string }> = [];
+
+        for (let r = 0; r < input.layout.length; r++) {
+          const row = input.layout[r];
+          const resolvedRow: Array<{
+            id: string;
+            block: ContentBlock;
+            span: number;
+          }> = [];
+
+          for (let c = 0; c < row.length; c++) {
+            const cell = row[c];
+            const span = normalizedSpans[r][c];
+
+            if (typeof cell.block === "string") {
+              const existing = blockMap.get(cell.block);
+              if (!existing) {
+                const available = [...blockMap.keys()].join(", ");
+                throw new Error(
+                  `Block ID "${cell.block}" not found in slide. Available block IDs: ${available}. Use get_slide to see current block IDs.`,
+                );
+              }
+              resolvedRow.push({ id: cell.block, block: existing, span });
+            } else {
+              const newBlockInput = cell.block as AiContentBlockInput;
+              if (newBlockInput.type === "text") {
+                validateNoMarkdownTables(newBlockInput.markdown);
+                resolvedRow.push({
+                  id: generateId(),
+                  block: newBlockInput,
+                  span,
+                });
+              } else if (newBlockInput.type === "from_visualization") {
+                const figureBlock = await resolveFigureFromVisualization(
+                  projectId,
+                  newBlockInput,
+                );
+                resolvedRow.push({ id: generateId(), block: figureBlock, span });
+              } else if (newBlockInput.type === "from_metric") {
+                const figureBlock = await resolveFigureFromMetric(
+                  projectId,
+                  newBlockInput,
+                  metrics,
+                );
+                resolvedRow.push({ id: generateId(), block: figureBlock, span });
+              } else {
+                throw new Error("Unsupported block type");
+              }
+            }
+          }
+          resolvedRows.push(resolvedRow);
+        }
+
+        for (const { id, block } of existingBlocks) {
+          if (!seenBlockIds.has(id)) {
+            removedBlocks.push({ id, type: block.type });
+          }
+        }
+
+        const newLayout = buildLayoutFromSpec(resolvedRows);
+        const updatedSlide = {
+          ...currentSlide,
+          header: input.header ?? currentSlide.header,
+          layout: newLayout,
+        };
+
+        const res = await serverActions.updateSlide({
+          projectId,
+          slide_id: input.slideId,
+          slide: updatedSlide,
+        });
+        if (!res.success) throw new Error(res.err);
+
+        ctx.optimisticSetLastUpdated(
+          "slides",
+          input.slideId,
+          res.data.lastUpdated,
+        );
+
+        const parts = [`Modified layout for slide ${input.slideId}.`];
+        if (removedBlocks.length > 0) {
+          parts.push(
+            `Removed blocks: ${removedBlocks.map((b) => `${b.id} (${b.type})`).join(", ")}`,
+          );
+        }
+        return parts.join(" ");
+      },
+      inProgressLabel: (input) =>
+        `Modifying layout for slide ${input.slideId}...`,
+      completionMessage: (input) =>
+        `Modified layout for slide ${input.slideId}`,
     }),
 
     createAITool({

@@ -25,11 +25,9 @@ export const ToolSuccessRenderer: Component<{
         class="text-success/80 hover:text-success flex w-full cursor-pointer items-start gap-1 text-left text-sm transition-colors"
       >
         <div class="mt-0.5">
-          {expanded() ? (
-            <ChevronDownIcon class="h-4 w-4" />
-          ) : (
-            <ChevronRightIcon class="h-4 w-4" />
-          )}
+          {expanded()
+            ? <ChevronDownIcon class="h-4 w-4" />
+            : <ChevronRightIcon class="h-4 w-4" />}
         </div>
         <span class="italic">{props.item.message}</span>
       </button>

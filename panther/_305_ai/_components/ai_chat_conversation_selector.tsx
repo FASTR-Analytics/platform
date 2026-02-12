@@ -155,20 +155,20 @@ export function AIChatConversationSelector(
       header: "",
       width: "80px",
       render: (conv) =>
-        conv.id === conversations.activeConversationId() ? (
-          <div />
-        ) : (
-          <div class="flex justify-end">
-            <Button
-              size="sm"
-              intent="danger"
-              outline
-              iconName="trash"
-              onClick={(e) => handleDelete(conv.id, e)}
-              disabled={deleting() === conv.id}
-            />
-          </div>
-        ),
+        conv.id === conversations.activeConversationId()
+          ? <div />
+          : (
+            <div class="flex justify-end">
+              <Button
+                size="sm"
+                intent="danger"
+                outline
+                iconName="trash"
+                onClick={(e) => handleDelete(conv.id, e)}
+                disabled={deleting() === conv.id}
+              />
+            </div>
+          ),
     },
   ];
 

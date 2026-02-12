@@ -34,6 +34,10 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
       lines.push(`  ${getAIStr(metric.aiDescription.summary)}`);
     }
 
+    if (staticData.importantNotes) {
+      lines.push(`  NOTE: ${staticData.importantNotes}`);
+    }
+
     if (metric.valueProps.length > 0) {
       const propStrs = metric.valueProps.map(prop => {
         const propLabel = metric.valueLabelReplacements?.[prop] || prop;
@@ -62,6 +66,9 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
           : "";
         const replicantNote = preset.needsReplicant ? " ** REQUIRES selectedReplicant **" : "";
         lines.push(`    - ${preset.id}: ${preset.label.en} (${dateFormat})${filterNote}${replicantNote}`);
+        if (preset.importantNotes) {
+          lines.push(`      NOTE: ${getAIStr(preset.importantNotes)}`);
+        }
       }
     }
 

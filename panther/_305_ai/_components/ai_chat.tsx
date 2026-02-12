@@ -58,6 +58,7 @@ export const AIChat: Component<Props> = (props) => {
     sendMessages,
     toolRegistry,
     processMessageForDisplay,
+    clearInProgressItems,
   } = createAIChat();
   const [inputValue, setInputValue] = createSignal("");
   const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
@@ -121,6 +122,12 @@ export const AIChat: Component<Props> = (props) => {
       // Queue the message and display it immediately
       setQueuedMessages([...queuedMessages(), message]);
 
+      // Cancel any interactive tool components (e.g. ask_user_questions) so
+      // the tool loop unblocks via onCleanup auto-reject
+      if (isProcessingTools()) {
+        clearInProgressItems();
+      }
+
       // Display as user message immediately
       const userMsg: MessageParam = { role: "user", content: message };
       processMessageForDisplay(userMsg);
@@ -179,6 +186,7 @@ export const AIChat: Component<Props> = (props) => {
         placeholder={props.placeholder}
         submitLabel={props.submitLabel}
         height={props.inputHeight}
+
       />
     </div>
   );

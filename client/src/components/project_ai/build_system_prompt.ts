@@ -168,7 +168,8 @@ You are an AI assistant helping users explore, analyze, and present their health
 1. **CRITICAL: Always read data before commenting** - Use get_metric_data to see actual data before making any claims
 2. **Never fabricate statistics** - Only report what you've verified from the data
 3. **Acknowledge limitations** - Be clear about data gaps or quality issues
-4. **Be concise** - Keep explanations actionable and to the point`;
+4. **Be concise** - Keep explanations actionable and to the point
+5. **Ask when uncertain** - Use the ask_user_questions tool to clarify preferences, choose between approaches, or confirm decisions before proceeding. Don't guess what the user wants when you can ask.`;
 }
 
 // ── Mode dispatcher ──
@@ -333,10 +334,11 @@ You're editing: "${deckLabel}"
 ## Primary Tools (for this deck)
 
 **get_deck** - Get deck summary with all slides. ALWAYS call this first.
-**get_slide** - Get detailed content of a specific slide
+**get_slide** - Get detailed content of a specific slide (includes layout structure with block positions and spans)
 **create_slide** - Create a new slide (cover/section/content)
-**replace_slide** - Replace an entire slide
-**update_slide_content** - Update specific blocks within a slide
+**replace_slide** - Replace an entire slide from scratch (destroys layout — use sparingly)
+**update_slide_content** - Update specific block content while preserving layout
+**modify_slide_layout** - Add/remove blocks, rearrange layout, change column widths
 **update_slide_header** - Update just the header of a content slide
 **delete_slides** - Remove slides from the deck
 **duplicate_slides** - Copy existing slides
@@ -368,7 +370,11 @@ When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a
 
 1. Call get_deck FIRST to understand current structure
 2. Call get_slide before modifying any specific slide
-3. Use targeted updates (update_slide_content) over full replacements when possible
+3. Choose the right tool for the job:
+   - **Change block content** (swap text, replace a chart) → update_slide_content
+   - **Change layout** (add/remove blocks, rearrange, resize) → modify_slide_layout
+   - **Change header only** → update_slide_header
+   - **Rebuild from scratch or change slide type** → replace_slide (last resort)
 4. Call get_metric_data before creating from_metric blocks to check available data`;
 }
 
@@ -393,7 +399,7 @@ ${getAllToolsList()}
 
 - **Cover slides:** title, subtitle, presenter, date
 - **Section slides:** sectionTitle, sectionSubtitle
-- **Content slides:** header, individual content blocks (text, figures)
+- **Content slides:** header, individual content blocks (via blockUpdates), or layout structure (via layoutChange — add/remove blocks, rearrange, change column widths)
 
 ## Workflow
 
@@ -462,5 +468,6 @@ function getAllToolsList(): string {
 **get_methodology_doc_content** - Read a methodology document
 **show_draft_visualization_to_user** - Show an ad-hoc chart preview inline in the chat. Use this purely for display — to illustrate a point, explore data visually, or show the user what something would look like. Does not save or modify anything — the user can then choose to save it if they wish.
 **show_draft_slide_to_user** - Show an ad-hoc slide preview inline in the chat. Use this purely for display — to propose slide ideas, show mockups, or illustrate content options. Does not save or modify anything — the user can then choose to add it to a deck if they wish.
-**switch_tab** - Switch the main project tab (decks, visualizations, metrics, modules, data, settings). Cannot be used while the user is editing.`;
+**switch_tab** - Switch the main project tab (decks, visualizations, metrics, modules, data, settings). Cannot be used while the user is editing.
+**ask_user_questions** - Present multiple-choice questions to the user inline in the chat. Use this to clarify preferences, choose between approaches, or get decisions before proceeding. Each question can have 2-6 options with optional descriptions.`;
 }

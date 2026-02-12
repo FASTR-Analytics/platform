@@ -200,19 +200,19 @@ export const definition = {
         },
         methodology: {
           en: "SUM of service counts under each adjustment type. Four values are presented: (1) raw reported volumes, (2) outlier-adjusted volumes, (3) completeness-adjusted volumes, (4) fully-adjusted volumes with both corrections applied.",
-          fr: "Somme des comptes de services sous chaque type d'ajustement. Quatre valeurs sont présentées: (1) volumes bruts déclarés, (2) volumes ajustés pour aberrants, (3) volumes ajustés pour complétude, (4) volumes totalement ajustés.",
+          fr: "Somme des comptes de services sous chaque type d'ajustement. Quatre valeurs sont présentées: (1) volumes bruts déclarés, (2) volumes ajustés pour aberrants, (3) volumes ajustés pour complétude, (4) volumes totalement ajustés avec les deux corrections appliquées.",
         },
         interpretation: {
           en: "Comparing the four adjustment types reveals the impact of data quality corrections on service totals. Large differences between unadjusted and adjusted values indicate significant data quality issues. Users can select which adjustment scenario to use for subsequent analysis based on their data quality tolerance.",
-          fr: "La comparaison des quatre types d'ajustement révèle l'impact des corrections de qualité sur les totaux de services. De grandes différences indiquent des problèmes de qualité importants.",
+          fr: "La comparaison des quatre types d'ajustement révèle l'impact des corrections de qualité des données sur les totaux de services. De grandes différences entre les valeurs non ajustées et ajustées indiquent des problèmes de qualité des données importants. Les utilisateurs peuvent sélectionner le scénario d'ajustement à utiliser pour l'analyse ultérieure en fonction de leur tolérance à la qualité des données.",
         },
         typicalRange: {
           en: "Varies by service type and dataset quality. Completeness adjustment typically increases totals; outlier adjustment may increase or decrease totals.",
-          fr: "Varie selon le type de service et la qualité du jeu de données. L'ajustement de complétude augmente généralement les totaux.",
+          fr: "Varie selon le type de service et la qualité du jeu de données. L'ajustement de complétude augmente généralement les totaux; l'ajustement des valeurs aberrantes peut augmenter ou diminuer les totaux.",
         },
         caveats: {
           en: "The appropriate adjustment type depends on analytical goals. Conservative analyses may prefer minimal adjustment; comprehensive coverage estimates may require full adjustment. Maternal/neonatal/under-5 deaths are excluded from all adjustments.",
-          fr: "Le type d'ajustement approprié dépend des objectifs analytiques. Les décès maternels/néonatals/moins de 5 ans sont exclus de tous les ajustements.",
+          fr: "Le type d'ajustement approprié dépend des objectifs analytiques. Les analyses conservatrices peuvent préférer un ajustement minimal; les estimations de couverture complète peuvent nécessiter un ajustement complet. Les décès maternels/néonatals/moins de 5 ans sont exclus de tous les ajustements.",
         },
         useCases: [
           {
@@ -231,8 +231,12 @@ export const definition = {
         relatedMetrics: ["m2-01-01", "m2-01-02", "m2-01-03"],
         disaggregationGuidance: {
           en: "Always disaggregate by indicator_common_id (required) to see adjustment impact per service. Time series reveals if data quality improves over time. Regional disaggregation shows geographic variation in adjustment needs.",
-          fr: "Toujours désagréger par indicator_common_id (requis) pour voir l'impact de l'ajustement par service. Les séries temporelles révèlent si la qualité s'améliore.",
+          fr: "Toujours désagréger par indicator_common_id (requis) pour voir l'impact de l'ajustement par service. Les séries temporelles révèlent si la qualité des données s'améliore au fil du temps. La désagrégation régionale montre la variation géographique des besoins d'ajustement.",
         },
+      },
+      importantNotes: {
+        en: "The intention of the first four visualization presets (volume-monthly, volume-quarterly, volume-annual, volume-subnational) is that only one of the values is selected: count_final_none, count_final_outliers, count_final_completeness, or count_final_both. You should use valuesFilter to select it (i.e. filter so it is only one value). To determine which to use, run get_module_settings for module id 'm003' and see what value is set for 'Count variable to use for visualization', which should be the default value that you use (although the user may ask for a different one, which you can use instead). If the user wants to compare different adjustments, you should use preset dq-comparison.",
+        fr: "L'intention des quatre premiers préréglages de visualisation (volume-monthly, volume-quarterly, volume-annual, volume-subnational) est qu'une seule des valeurs soit sélectionnée : count_final_none, count_final_outliers, count_final_completeness, ou count_final_both. Vous devez utiliser valuesFilter pour la sélectionner (c'est-à-dire filtrer pour n'avoir qu'une seule valeur). Pour déterminer laquelle utiliser, exécutez get_module_settings pour le module 'm003' et consultez la valeur définie pour 'Count variable to use for visualization', qui devrait être la valeur par défaut que vous utilisez (bien que l'utilisateur puisse en demander une différente, que vous pouvez utiliser à la place). Si l'utilisateur souhaite comparer différents ajustements, vous devez utiliser le préréglage dq-comparison.",
       },
       vizPresets: [
         {
@@ -485,19 +489,19 @@ export const definition = {
         },
         methodology: {
           en: "SUM of actual reported counts vs SUM of expected counts from robust regression models. Expected volumes are calculated using panel regression with time trends, seasonal patterns, and disruption flags. Only periods with differences exceeding the configured threshold are included.",
-          fr: "Somme des comptes réels déclarés vs somme des comptes attendus des modèles de régression robustes. Les volumes attendus sont calculés par régression de panel.",
+          fr: "Somme des comptes réels déclarés vs somme des comptes attendus des modèles de régression robustes. Les volumes attendus sont calculés en utilisant la régression de panel avec des tendances temporelles, des modèles saisonniers et des indicateurs de perturbation. Seules les périodes avec des différences dépassant le seuil configuré sont incluses.",
         },
         interpretation: {
           en: "Deviations between actual and expected volumes indicate potential service disruptions or anomalies. Periods where actual falls below expected suggest service delivery problems; actual above expected may indicate data quality issues, campaigns, or genuine increases in demand.",
-          fr: "Les écarts entre volumes réels et attendus indiquent des perturbations potentielles de services. Les périodes où le réel est inférieur à l'attendu suggèrent des problèmes de prestation.",
+          fr: "Les écarts entre volumes réels et attendus indiquent des perturbations potentielles de services ou des anomalies. Les périodes où le réel est inférieur à l'attendu suggèrent des problèmes de prestation de services; le réel supérieur à l'attendu peut indiquer des problèmes de qualité des données, des campagnes ou de véritables augmentations de la demande.",
         },
         typicalRange: {
           en: "Expected volumes should closely track actual volumes in stable periods. Deviations during crises, campaigns, or data system changes are normal.",
-          fr: "Les volumes attendus devraient suivre de près les volumes réels en périodes stables. Les écarts pendant les crises sont normaux.",
+          fr: "Les volumes attendus devraient suivre de près les volumes réels pendant les périodes stables. Les écarts pendant les crises, les campagnes ou les changements du système de données sont normaux.",
         },
         caveats: {
           en: "Model quality depends on sufficient historical data and stable baseline periods. Expected values are only shown when difference exceeds the configured DIFFPERCENT threshold (default 10%), so small deviations are filtered out.",
-          fr: "La qualité du modèle dépend de données historiques suffisantes. Les valeurs attendues ne sont affichées que lorsque la différence dépasse le seuil DIFFPERCENT configuré.",
+          fr: "La qualité du modèle dépend de données historiques suffisantes et de périodes de référence stables. Les valeurs attendues ne sont affichées que lorsque la différence dépasse le seuil DIFFPERCENT configuré (10% par défaut), donc les petits écarts sont filtrés.",
         },
         useCases: [
           {
@@ -516,7 +520,7 @@ export const definition = {
         relatedMetrics: ["m3-02-02", "m3-03-01", "m3-04-01", "m3-05-01"],
         disaggregationGuidance: {
           en: "Always disaggregate by indicator_common_id (required) to see service-specific patterns. Time series visualization is essential for identifying disruption periods and recovery trends.",
-          fr: "Toujours désagréger par indicator_common_id (requis) pour voir les modèles spécifiques au service. La visualisation en séries temporelles est essentielle.",
+          fr: "Toujours désagréger par indicator_common_id (requis) pour voir les modèles spécifiques au service. La visualisation en séries temporelles est essentielle pour identifier les périodes de perturbation et les tendances de récupération.",
         },
       },
       vizPresets: [
@@ -594,15 +598,15 @@ export const definition = {
         },
         interpretation: {
           en: "Negative values indicate service disruptions or underperformance relative to expected levels. Values below -20% warrant investigation. Positive values may reflect data quality issues, special campaigns, increased demand, or genuine service improvements. Use alongside control chart flags for context.",
-          fr: "Les valeurs négatives indiquent des perturbations de services. Les valeurs inférieures à -20% nécessitent une investigation. Les valeurs positives peuvent refléter des problèmes de qualité.",
+          fr: "Les valeurs négatives indiquent des perturbations de services ou une sous-performance par rapport aux niveaux attendus. Les valeurs inférieures à -20% nécessitent une investigation. Les valeurs positives peuvent refléter des problèmes de qualité des données, des campagnes spéciales, une demande accrue ou de véritables améliorations de services. Utiliser avec les indicateurs de carte de contrôle pour le contexte.",
         },
         typicalRange: {
           en: "±10% is within normal variation; ±10-30% indicates moderate disruption; >30% deviation suggests major disruption or data issues.",
-          fr: "±10% est dans la variation normale; ±10-30% indique une perturbation modérée; >30% suggère une perturbation majeure.",
+          fr: "±10% est dans la variation normale; ±10-30% indique une perturbation modérée; >30% d'écart suggère une perturbation majeure ou des problèmes de données.",
         },
         caveats: {
           en: "Percentage differences can be misleading for indicators with small absolute volumes. Model predictions assume stable baseline patterns - structural changes in the health system may appear as disruptions.",
-          fr: "Les différences en pourcentage peuvent être trompeuses pour les indicateurs avec de petits volumes absolus. Les prédictions du modèle supposent des modèles de base stables.",
+          fr: "Les différences en pourcentage peuvent être trompeuses pour les indicateurs avec de petits volumes absolus. Les prédictions du modèle supposent des modèles de base stables - les changements structurels du système de santé peuvent apparaître comme des perturbations.",
         },
         useCases: [
           {
@@ -621,7 +625,7 @@ export const definition = {
         relatedMetrics: ["m3-02-01", "m3-03-02", "m3-04-02", "m3-05-02"],
         disaggregationGuidance: {
           en: "Always disaggregate by indicator_common_id (required). Time series shows disruption evolution and recovery patterns. Consider using absolute differences (m3-02-01) alongside percentages for low-volume indicators.",
-          fr: "Toujours désagréger par indicator_common_id (requis). Les séries temporelles montrent l'évolution de la perturbation et les modèles de récupération.",
+          fr: "Toujours désagréger par indicator_common_id (requis). Les séries temporelles montrent l'évolution de la perturbation et les modèles de récupération. Considérer l'utilisation des différences absolues (m3-02-01) aux côtés des pourcentages pour les indicateurs à faible volume.",
         },
       },
       vizPresets: [],
@@ -651,19 +655,19 @@ export const definition = {
         },
         methodology: {
           en: "SUM of actual vs expected counts from area-specific robust regression models. Expected volumes account for local time trends and seasonal patterns. Only periods exceeding the difference threshold are shown.",
-          fr: "Somme des comptes réels vs attendus des modèles de régression robustes spécifiques à la zone. Les volumes attendus tiennent compte des tendances temporelles locales.",
+          fr: "Somme des comptes réels vs attendus des modèles de régression robustes spécifiques à la zone. Les volumes attendus tiennent compte des tendances temporelles locales et des modèles saisonniers. Seules les périodes dépassant le seuil de différence sont affichées.",
         },
         interpretation: {
           en: "Enables subnational identification of service disruptions. Compare across admin areas to identify geographic hotspots of service delivery problems. Areas with persistent negative deviations need targeted support.",
-          fr: "Permet l'identification sous-nationale des perturbations de services. Comparer entre zones pour identifier les points chauds géographiques de problèmes de prestation.",
+          fr: "Permet l'identification sous-nationale des perturbations de services. Comparer entre les zones administratives pour identifier les points chauds géographiques de problèmes de prestation de services. Les zones avec des écarts négatifs persistants nécessitent un soutien ciblé.",
         },
         typicalRange: {
           en: "Expected to closely match actual in stable regions. Deviations indicate local disruptions, data issues, or demand changes.",
-          fr: "Attendu pour correspondre étroitement au réel dans les régions stables. Les écarts indiquent des perturbations locales.",
+          fr: "Attendu pour correspondre étroitement au réel dans les régions stables. Les écarts indiquent des perturbations locales, des problèmes de données ou des changements de la demande.",
         },
         caveats: {
           en: "Smaller geographic areas may have more volatile patterns, making model predictions less reliable. Consider aggregating to higher levels if area-specific models perform poorly.",
-          fr: "Les zones géographiques plus petites peuvent avoir des modèles plus volatils, rendant les prédictions moins fiables.",
+          fr: "Les zones géographiques plus petites peuvent avoir des modèles plus volatils, rendant les prédictions du modèle moins fiables. Considérer l'agrégation à des niveaux supérieurs si les modèles spécifiques aux zones fonctionnent mal.",
         },
         useCases: [
           {
@@ -682,7 +686,7 @@ export const definition = {
         relatedMetrics: ["m3-03-02", "m3-02-01", "m3-04-01", "m3-05-01"],
         disaggregationGuidance: {
           en: "Always disaggregate by indicator_common_id and admin_area_2 (both required). Time series reveals when and where disruptions occurred. Map visualization effectively shows geographic distribution of service gaps.",
-          fr: "Toujours désagréger par indicator_common_id et admin_area_2 (tous deux requis). Les séries temporelles révèlent quand et où les perturbations se sont produites.",
+          fr: "Toujours désagréger par indicator_common_id et admin_area_2 (tous deux requis). Les séries temporelles révèlent quand et où les perturbations se sont produites. La visualisation cartographique montre efficacement la distribution géographique des écarts de services.",
         },
       },
       vizPresets: [
@@ -690,11 +694,11 @@ export const definition = {
           id: "disruption-chart",
           label: {
             en: "Disruptions and surpluses (multiple Admin Area 2, multiple indicators)",
-            fr: "Perturbations et excédents (multiple Zone administrative 2, multiple indicateurs)",
+            fr: "Perturbations et excédents (plusieurs Zones administratives 2, plusieurs indicateurs)",
           },
           description: {
             en: "Area chart showing actual vs expected service volume, with multiple Admin Areas 2 and multiple indicators",
-            fr: "Graphique en aires montrant le volume de services réel vs attendu, avec multiple Zone administrative 2 et multiple indicateurs",
+            fr: "Graphique en aires montrant le volume de services réel vs attendu, avec plusieurs Zones administratives 2 et plusieurs indicateurs",
           },
           createDefaultVisualizationOnInstall:
             "e1916b10-433a-4b19-b376-491a66b81f11",
@@ -729,11 +733,11 @@ export const definition = {
           id: "disruption-chart-single-admin-area-2",
           label: {
             en: "Disruptions and surpluses (single Admin Area 2, multiple indicators)",
-            fr: "Perturbations et excédents (unique Zone administrative 2, multiple indicateurs)",
+            fr: "Perturbations et excédents (unique Zone administrative 2, plusieurs indicateurs)",
           },
           description: {
             en: "Area chart showing actual vs expected service volume, for a single Admin Area 2 and multiple indicators",
-            fr: "Graphique en aires montrant le volume de services réel vs attendu, avec unique Zone administrative 2 et multiple indicateurs",
+            fr: "Graphique en aires montrant le volume de services réel vs attendu, pour une unique Zone administrative 2 et plusieurs indicateurs",
           },
           allowedFilters: ["indicator_common_id"],
           needsReplicant: true,
@@ -757,11 +761,11 @@ export const definition = {
           id: "disruption-chart-single-indicator",
           label: {
             en: "Disruptions and surpluses (single indicator, multiple Admin Area 2)",
-            fr: "Perturbations et excédents (unique indicateur, multiple Zone administrative 2)",
+            fr: "Perturbations et excédents (unique indicateur, plusieurs Zones administratives 2)",
           },
           description: {
             en: "Area chart showing actual vs expected service volume, for a single indicator and multiple Admin Area 2",
-            fr: "Graphique en aires montrant le volume de services réel vs attendu, avec unique indicateur et multiple Zone administrative 2",
+            fr: "Graphique en aires montrant le volume de services réel vs attendu, pour un unique indicateur et plusieurs Zones administratives 2",
           },
           allowedFilters: ["admin_area_2"],
           needsReplicant: true,
@@ -818,7 +822,7 @@ export const definition = {
         },
         interpretation: {
           en: "Negative values indicate regional shortfalls; positive values may indicate improved service delivery or data issues. Compare across regions to identify areas needing support.",
-          fr: "Les valeurs négatives indiquent des déficits régionaux; les valeurs positives peuvent indiquer une amélioration ou des problèmes de données.",
+          fr: "Les valeurs négatives indiquent des déficits régionaux; les valeurs positives peuvent indiquer une amélioration de la prestation de services ou des problèmes de données. Comparer entre les régions pour identifier les zones nécessitant un soutien.",
         },
         typicalRange: {
           en: "±10-30% variation common; >30% deviation warrants investigation.",
@@ -845,11 +849,11 @@ export const definition = {
           id: "disruption-differences-table",
           label: {
             en: "Difference between actual and expected service volume (multiple Admin Area 2, multiple indicators)",
-            fr: "Différence entre le volume de services réel et attendu (multiple Zone administrative 2, multiple indicateurs)",
+            fr: "Différence entre le volume de services réel et attendu (plusieurs Zones administratives 2, plusieurs indicateurs)",
           },
           description: {
             en: "Table showing percentage differences between actual vs expected service volume, with conditional formatting, with multiple Admin Areas 2 and multiple indicators",
-            fr: "Tableau montrant les différences en pourcentage entre le volume de services réel et attendu, avec mise en forme conditionnelle, avec multiple Zones administratives 2 et multiple indicateurs",
+            fr: "Tableau montrant les différences en pourcentage entre le volume de services réel et attendu, avec mise en forme conditionnelle, avec plusieurs Zones administratives 2 et plusieurs indicateurs",
           },
           allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
@@ -897,11 +901,11 @@ export const definition = {
         },
         methodology: {
           en: "District-level disruption analysis using robust regression models. Enables fine-grained geographic targeting.",
-          fr: "Analyse de perturbation au niveau du district utilisant des modèles de régression robustes.",
+          fr: "Analyse de perturbation au niveau du district utilisant des modèles de régression robustes. Permet un ciblage géographique précis.",
         },
         interpretation: {
           en: "Identifies district-specific service delivery problems. Use for operational planning and targeted supervision.",
-          fr: "Identifie les problèmes de prestation spécifiques au district. Utiliser pour la planification opérationnelle.",
+          fr: "Identifie les problèmes de prestation de services spécifiques au district. Utiliser pour la planification opérationnelle et la supervision ciblée.",
         },
         typicalRange: {
           en: "Varies by district size. Expect similar patterns to admin area 2 but with more volatility.",
@@ -924,11 +928,11 @@ export const definition = {
           id: "disruption-chart-single-admin-area-2-multiple-admin-area-3",
           label: {
             en: "Disruptions and surpluses (single Admin Area 2, multiple Admin Area 3, multiple indicators)",
-            fr: "Perturbations et excédents (unique Zone administrative 2, multiple Zone administrative 3, multiple indicateurs)",
+            fr: "Perturbations et excédents (unique Zone administrative 2, plusieurs Zones administratives 3, plusieurs indicateurs)",
           },
           description: {
             en: "Area chart showing actual vs expected service volume, for a single Admin Area 2, with multiple Admin Areas 3 and multiple indicators",
-            fr: "Graphique en aires montrant le volume de services réel vs attendu, pour unique Zone administrative 2, avec multiple Zone administrative 3 et multiple indicateurs",
+            fr: "Graphique en aires montrant le volume de services réel vs attendu, pour une unique Zone administrative 2, avec plusieurs Zones administratives 3 et plusieurs indicateurs",
           },
           needsReplicant: true,
           allowedFilters: ["indicator_common_id", "admin_area_3"],
@@ -953,11 +957,11 @@ export const definition = {
           id: "disruption-chart-single-admin-area-3",
           label: {
             en: "Disruptions and surpluses (single Admin Area 3, multiple indicators)",
-            fr: "Perturbations et excédents (unique Zone administrative 3, multiple indicateurs)",
+            fr: "Perturbations et excédents (unique Zone administrative 3, plusieurs indicateurs)",
           },
           description: {
             en: "Area chart showing actual vs expected service volume, for a single Admin Area 3 and multiple indicators",
-            fr: "Graphique en aires montrant le volume de services réel vs attendu, avec unique Zone administrative 3 et multiple indicateurs",
+            fr: "Graphique en aires montrant le volume de services réel vs attendu, pour une unique Zone administrative 3 et plusieurs indicateurs",
           },
           allowedFilters: ["indicator_common_id"],
           needsReplicant: true,
@@ -1036,11 +1040,11 @@ export const definition = {
           id: "disruption-differences-table-single-admin-area-2-multiple-admin-area-3",
           label: {
             en: "Difference between actual and expected service volume (single Admin Area 2, multiple Admin Area 3, multiple indicators)",
-            fr: "Différence entre le volume de services réel et attendu (unique Zone administrative 2, multiple Zone administrative 3, multiple indicateurs)",
+            fr: "Différence entre le volume de services réel et attendu (unique Zone administrative 2, plusieurs Zones administratives 3, plusieurs indicateurs)",
           },
           description: {
             en: "Table showing percentage differences between actual vs expected service volume, with conditional formatting, for a single Admin Area 2, with multiple Admin Areas 3 and multiple indicators",
-            fr: "Tableau montrant percentage difference entre le volume de services réel vs attendu, avec mise en forme conditionnelle, pour unique Zone administrative 2, avec multiple Zone administrative 3 et multiple indicateurs",
+            fr: "Tableau montrant les différences en pourcentage entre le volume de services réel et attendu, avec mise en forme conditionnelle, pour une unique Zone administrative 2, avec plusieurs Zones administratives 3 et plusieurs indicateurs",
           },
           needsReplicant: true,
           allowedFilters: ["indicator_common_id", "admin_area_3"],
@@ -1093,7 +1097,7 @@ export const definition = {
         },
         interpretation: {
           en: "Highest geographic resolution for disruption detection. Use for micro-level targeting and facility-level support.",
-          fr: "Plus haute résolution géographique pour la détection de perturbations. Utiliser pour le ciblage micro-niveau.",
+          fr: "Plus haute résolution géographique pour la détection de perturbations. Utiliser pour le ciblage micro-niveau et le soutien au niveau de l'établissement.",
         },
         typicalRange: {
           en: "Highly variable by sub-district. Expect greater volatility than higher geographic levels.",

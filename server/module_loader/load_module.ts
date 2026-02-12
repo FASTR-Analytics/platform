@@ -218,6 +218,7 @@ function translateMetrics(
     ...m,
     label: resolveTS(m.label, language),
     variantLabel: m.variantLabel ? resolveTS(m.variantLabel, language) : undefined,
+    importantNotes: m.importantNotes ? resolveTS(m.importantNotes, language) : undefined,
     valueLabelReplacements: m.valueLabelReplacements
       ? Object.fromEntries(
           Object.entries(m.valueLabelReplacements).map(([key, value]) => [

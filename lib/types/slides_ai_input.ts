@@ -137,6 +137,33 @@ export const AiContentBlockInputSchema = z.union([
   AiFigureBlockInputSchema,
 ]);
 
+// Layout spec schemas (for AI layout control)
+
+export const LayoutCellSchema = z.object({
+  block: z.union([
+    z.string().describe("Existing block ID (from get_slide) to keep unchanged"),
+    AiContentBlockInputSchema.describe("New block content to create"),
+  ]),
+  span: z
+    .number()
+    .int()
+    .min(1)
+    .max(12)
+    .optional()
+    .describe(
+      "Column width (1-12). Spans per row must sum to 12. Omit for equal split.",
+    ),
+});
+
+export const LayoutSpecSchema = z
+  .array(z.array(LayoutCellSchema).min(1).max(3))
+  .min(1)
+  .max(3)
+  .describe("Rows (top→bottom), each containing columns (left→right).");
+
+export type LayoutCell = z.infer<typeof LayoutCellSchema>;
+export type LayoutSpec = z.infer<typeof LayoutSpecSchema>;
+
 // Slide schemas
 
 export const AiCoverSlideSchema = z.object({

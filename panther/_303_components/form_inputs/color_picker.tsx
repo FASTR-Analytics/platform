@@ -227,14 +227,12 @@ export function ColorPicker(props: ColorPickerProps) {
         type="button"
         class={`ui-hoverable border-base-300 rounded border ${padClass()}`}
         classList={{ "w-full": props.fullWidth, block: !!props.label }}
-        style={
-          {
-            "anchor-name": anchorName,
-            "background-image":
-              "repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%)",
-            "background-size": "16px 16px",
-          } as JSX.CSSProperties
-        }
+        style={{
+          "anchor-name": anchorName,
+          "background-image":
+            "repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%)",
+          "background-size": "16px 16px",
+        } as JSX.CSSProperties}
         disabled={props.disabled}
         title={props.value}
         // @ts-ignore - popovertarget is valid HTML
@@ -254,17 +252,15 @@ export function ColorPicker(props: ColorPickerProps) {
         id={popoverId}
         // @ts-ignore - popover is valid HTML
         popover
-        style={
-          {
-            position: "absolute",
-            "position-anchor": anchorName,
-            margin: "6px",
-            background: "transparent",
-            border: "none",
-            padding: "0",
-            ...POSITION_STYLE[position()],
-          } as JSX.CSSProperties
-        }
+        style={{
+          position: "absolute",
+          "position-anchor": anchorName,
+          margin: "6px",
+          background: "transparent",
+          border: "none",
+          padding: "0",
+          ...POSITION_STYLE[position()],
+        } as JSX.CSSProperties}
       >
         <div class="bg-base-100 overflow-hidden rounded-md border p-2 shadow-lg">
           <div class="grid grid-cols-6 gap-1">
@@ -272,7 +268,8 @@ export function ColorPicker(props: ColorPickerProps) {
               {(color) => (
                 <ColorSwatch
                   color={color}
-                  selected={props.value != null && color.toLowerCase() === props.value.toLowerCase()}
+                  selected={props.value != null &&
+                    color.toLowerCase() === props.value.toLowerCase()}
                   onClick={handleColorSelect}
                 />
               )}
@@ -285,7 +282,8 @@ export function ColorPicker(props: ColorPickerProps) {
                 {(color) => (
                   <ColorSwatch
                     color={color}
-                    selected={props.value != null && color.toLowerCase() === props.value.toLowerCase()}
+                    selected={props.value != null &&
+                      color.toLowerCase() === props.value.toLowerCase()}
                     onClick={handleColorSelect}
                   />
                 )}
