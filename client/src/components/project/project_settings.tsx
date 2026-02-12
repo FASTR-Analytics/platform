@@ -345,13 +345,24 @@ function getPermissionSummary(user: ProjectUser): string {
   return shown;
 }
 
+type ProjectUserWithRole = ProjectUser & { role: number };
+
+function getRoleSortValue(user: ProjectUser): number {
+  if (user.isGlobalAdmin) return 0;
+  if (hasPermissions(user)) return 1;
+  return 2;
+}
+
 function ProjectUserTable(p: {
   users: ProjectUser[];
   onUserClick?: (users: ProjectUser[]) => void;
   onBulkEditPermissions?: (users: ProjectUser[]) => void;
   onDisplayUserRole?: (user: ProjectUser) => void;
 }) {
-  const columns: TableColumn<ProjectUser>[] = [
+  const usersWithRole = (): ProjectUserWithRole[] =>
+    p.users.map((u) => ({ ...u, role: getRoleSortValue(u) }));
+
+  const columns: TableColumn<ProjectUserWithRole>[] = [
     {
       key: "email",
       header: t3(TC.email),
@@ -365,14 +376,7 @@ function ProjectUserTable(p: {
         <Show
           when={user.isGlobalAdmin}
           fallback={
-            <span
-              class={`text-sm ${!hasPermissions(user) ? "text-neutral" : "text-primary cursor-pointer hover:underline"}`}
-              onClick={() => {
-                if (hasPermissions(user)) {
-                  p.onDisplayUserRole?.(user);
-                }
-              }}
-            >
+            <span class={`text-sm ${!hasPermissions(user) ? "text-neutral" : ""}`}>
               {getPermissionSummary(user)}
             </span>
           }
@@ -400,7 +404,7 @@ function ProjectUserTable(p: {
     },
   ];
 
-  const bulkActions: BulkAction<ProjectUser>[] = [
+  const bulkActions: BulkAction<ProjectUserWithRole>[] = [
     {
       label: t3({ en: "Edit permissions", fr: "Modifier les permissions" }),
       intent: "primary",
@@ -411,9 +415,10 @@ function ProjectUserTable(p: {
 
   return (
     <Table
-      data={p.users}
+      data={usersWithRole()}
       columns={columns}
       keyField="email"
+      defaultSort={{ key: "role", direction: "asc" }}
       noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur" })}
       selectionLabel={t3({ en: "user", fr: "utilisateur" })}
       bulkActions={bulkActions}

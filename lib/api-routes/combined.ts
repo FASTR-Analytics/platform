@@ -15,6 +15,7 @@ import { slideDeckRouteRegistry } from "./project/slide-decks.ts";
 import { slideDeckFolderRouteRegistry } from "./project/slide-deck-folders.ts";
 import { slideRouteRegistry } from "./project/slides.ts";
 import { visualizationFolderRouteRegistry } from "./project/visualization-folders.ts";
+import { emailRouteRegistry } from "./project/emails.ts";
 
 // Combined route registry
 export const routeRegistry = {
@@ -35,4 +36,5 @@ export const routeRegistry = {
   ...slideDeckFolderRouteRegistry,
   ...slideRouteRegistry,
   ...visualizationFolderRouteRegistry,
+  ...emailRouteRegistry,
 } as const;

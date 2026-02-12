@@ -7,6 +7,7 @@ import { useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideCard } from "./slide_card";
 import { setShowAi, showAi } from "~/state/ui.ts";
 import { useAIProjectContext } from "~/components/project_ai";
+import { t2 } from "../../../../lib/translate/mod.ts";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -19,6 +20,7 @@ type Props = {
   handleClose: () => Promise<void>;
   handleOpenSettings: () => Promise<void>;
   download: () => Promise<void>;
+  share: () => Promise<void>;
   deckConfig: SlideDeckConfig;
 };
 
@@ -381,6 +383,11 @@ export function SlideList(p: Props) {
       icon: "download",
       onClick: () => p.download(),
     },
+    {
+      label: t2("Share"),
+      icon: "arrowRight",
+      onClick: () => p.share(),
+    }
     // { type: "divider" },
     // {
     //   label: "Batch edit visualizations",
