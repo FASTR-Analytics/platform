@@ -2,6 +2,7 @@ import { t3, TC } from "lib";
 import {
   Button,
   EditorComponentProps,
+  getTruncatedString,
   ModalContainer,
   StateHolderFormError,
   Table,
@@ -34,7 +35,8 @@ export function ShareSlideDeck(
   const [err, setErr] = createSignal("");
   const [sent, setSent] = createSignal(false);
 
-  const userRows = (): UserRow[] => p.userEmails.map((email: string) => ({ email }));
+  const userRows = (): UserRow[] =>
+    p.userEmails.map((email: string) => ({ email }));
 
   const parsedAdditionalEmails = () =>
     additionalEmails()
@@ -62,7 +64,12 @@ export function ShareSlideDeck(
   async function handleSend() {
     const recipients = allRecipients();
     if (recipients.length === 0) {
-      setErr(t3({ en: "Select at least one recipient", fr: "Sélectionnez au moins un destinataire" }));
+      setErr(
+        t3({
+          en: "Select at least one recipient",
+          fr: "Sélectionnez au moins un destinataire",
+        }),
+      );
       return;
     }
 
@@ -98,9 +105,10 @@ export function ShareSlideDeck(
     if (res.success && res.data.sent) {
       setSent(true);
     } else {
-      const failedList = res.success && res.data.failedRecipients
-        ? res.data.failedRecipients.join(", ")
-        : "";
+      const failedList =
+        res.success && res.data.failedRecipients
+          ? res.data.failedRecipients.join(", ")
+          : "";
       setErr(
         t3({
           en: `Failed to send${failedList ? ` to: ${failedList}` : ""}`,
@@ -119,7 +127,11 @@ export function ShareSlideDeck(
         sent()
           ? // eslint-disable-next-line jsx-key
             [
-              <Button onClick={() => p.close(undefined)} intent="success" iconName="check">
+              <Button
+                onClick={() => p.close(undefined)}
+                intent="success"
+                iconName="check"
+              >
                 {t3(TC.done)}
               </Button>,
             ]
@@ -127,71 +139,87 @@ export function ShareSlideDeck(
             ? undefined
             : // eslint-disable-next-line jsx-key
               [
-                <Button onClick={handleSend} intent="success" iconName="arrowRight">
+                <Button
+                  onClick={handleSend}
+                  intent="success"
+                  iconName="arrowRight"
+                >
                   {t3({ en: "Send", fr: "Envoyer" })} ({allRecipients().length})
                 </Button>,
-                <Button onClick={() => p.close(undefined)} intent="neutral" iconName="x">
+                <Button
+                  onClick={() => p.close(undefined)}
+                  intent="neutral"
+                  iconName="x"
+                >
                   {t3(TC.cancel)}
                 </Button>,
               ]
       }
     >
       <Show when={sent()}>
-        <div class="text-success text-center py-4">
-          {t3({ en: "Email sent successfully!", fr: "Email envoyé avec succès !" })}
+        <div class="text-success py-4 text-center">
+          {t3({
+            en: "Email sent successfully!",
+            fr: "Email envoyé avec succès !",
+          })}
         </div>
       </Show>
       <Show when={!sent()}>
-        <div class="ui-spy-sm">
-          <label class="ui-label">
-            {t3({ en: "Select users", fr: "Sélectionner des utilisateurs" })}
-          </label>
-          <div style={{ "max-height": "200px", overflow: "auto" }}>
-            <Table
-              data={userRows()}
-              columns={columns}
-              keyField="email"
-              defaultSort={{ key: "email", direction: "asc" }}
-              noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur" })}
-              selectedKeys={selectedKeys}
-              setSelectedKeys={setSelectedKeys}
-              selectionLabel={t3({ en: "user", fr: "utilisateur" })}
-              paddingY="compact"
-            />
-          </div>
-        </div>
-        <div class="ui-spy-sm">
-          <TextArea
-            label={t3({ en: "Additional emails", fr: "Emails supplémentaires" })}
-            value={additionalEmails()}
-            onChange={setAdditionalEmails}
-            placeholder={t3({ en: "Add emails separated by comma, semicolon, or line break", fr: "Ajouter des emails séparés par virgule, point-virgule ou saut de ligne" })}
-            fullWidth
-            height="80px"
+        {/* <div class="ui-spy-sm"> */}
+        {/* <label class="ui-label"></label>
+          <div style={{ "max-height": "200px", overflow: "auto" }}> */}
+        <div class="h-56">
+          <Table
+            data={userRows()}
+            columns={columns}
+            keyField="email"
+            defaultSort={{ key: "email", direction: "asc" }}
+            noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur" })}
+            selectedKeys={selectedKeys}
+            setSelectedKeys={setSelectedKeys}
+            selectionLabel={t3({ en: "user", fr: "utilisateur" })}
+            paddingY="compact"
+            fitTableToAvailableHeight
           />
         </div>
+        {/* </div>
+        </div> */}
+        <TextArea
+          label={t3({
+            en: "Additional emails",
+            fr: "Emails supplémentaires",
+          })}
+          value={additionalEmails()}
+          onChange={setAdditionalEmails}
+          placeholder={t3({
+            en: "Add emails separated by comma, semicolon, or line break",
+            fr: "Ajouter des emails séparés par virgule, point-virgule ou saut de ligne",
+          })}
+          fullWidth
+          height="80px"
+        />
         <Show when={allRecipients().length > 0}>
-          <div class="ui-spy-sm">
+          <div class="">
             <label class="ui-label">
-              {t3({ en: "Recipients", fr: "Destinataires" })} ({allRecipients().length})
+              {t3({ en: "Recipients", fr: "Destinataires" })} (
+              {allRecipients().length})
             </label>
-            <div class="pt-1">
-              <For each={allRecipients()}>
-                {(email: string) => <div class="list-item list-inside text-xs">{email}</div>}
-              </For>
+            <div class="pt-1 text-xs">
+              {getTruncatedString(allRecipients()?.join(", "), 200)}
             </div>
           </div>
         </Show>
-        <div class="ui-spy-sm">
-          <TextArea
-            label={t3({ en: "Message", fr: "Message" })}
-            value={message()}
-            onChange={setMessage}
-            placeholder={t3({ en: "Optional message to include in the email", fr: "Message facultatif à inclure dans l'email" })}
-            fullWidth
-            height="80px"
-          />
-        </div>
+        <TextArea
+          label={t3({ en: "Message", fr: "Message" })}
+          value={message()}
+          onChange={setMessage}
+          placeholder={t3({
+            en: "Optional message to include in the email",
+            fr: "Message facultatif à inclure dans l'email",
+          })}
+          fullWidth
+          height="80px"
+        />
         <Show when={pct() > 0}>
           <div class="ui-spy-sm">
             <div class="bg-base-300 h-8 w-full">
