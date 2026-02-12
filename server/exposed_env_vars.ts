@@ -130,6 +130,11 @@ if (_STATUS_API_KEY === undefined) {
   throw new Error("Could not get STATUS_API_KEY env variable");
 }
 
+export const _SEND_GRID_API = Deno.env.get("SEND_GRID_API")!;
+if (_SEND_GRID_API === undefined) {
+  throw new Error("Could not get SEND_GRID_API env variable");
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Authentication (Optional)
 ///////////////////////////////////////////////////////////////////////////////

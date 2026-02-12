@@ -10,6 +10,7 @@ import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { useOptimisticSetLastUpdated, useProjectDirtyStates } from "../project_runner/mod";
 import { DownloadSlideDeck } from "./download_slide_deck";
+import { ShareSlideDeck } from "./share_slide_deck";
 import { SlideEditor } from "./slide_editor";
 import { SlideList } from "./slide_list";
 import { SlideDeckSettings, type SlideDeckSettingsProps } from "./slide_deck_settings";
@@ -159,6 +160,18 @@ function ProjectAiSlideDeckInner(p: {
     });
   }
 
+  async function share() {
+    await openComponent({
+      element: ShareSlideDeck,
+      props: {
+        projectId: p.projectDetail.id,
+        deckId: p.deckId,
+        deckLabel: p.deckLabel,
+        userEmails: p.instanceDetail.users.map((u) => u.email),
+      },
+    });
+  }
+
   async function handleEditSlide(slideId: string) {
     const cached = await _SLIDE_CACHE.get({ projectId: p.projectDetail.id, slideId });
     let slide: Slide;
@@ -216,6 +229,7 @@ function ProjectAiSlideDeckInner(p: {
           handleClose={p.handleClose}
           handleOpenSettings={handleOpenSettings}
           download={download}
+          share={share}
           deckConfig={p.deckConfig}
         />
       </EditorWrapper>
