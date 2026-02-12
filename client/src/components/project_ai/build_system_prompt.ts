@@ -1,5 +1,7 @@
 import {
   MAX_CONTENT_BLOCKS,
+  SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
+  SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
   getCountryLabel,
   type InstanceDetail,
   type ProjectDetail,
@@ -13,11 +15,14 @@ export function buildSystemPromptForContext(
   instanceDetail: InstanceDetail,
   projectDetail: ProjectDetail,
 ): string {
+  const currentDate = new Date().toISOString().split("T")[0];
+  const dateHeader = `**CURRENT DATE: ${currentDate}**\n\n---\n\n`;
+
   const contextSection = buildAISystemContext(instanceDetail, projectDetail);
   const baseInstructions = getBaseInstructions();
   const modeInstructions = getModeInstructions(aiContext);
 
-  return `${contextSection}${baseInstructions}\n\n${modeInstructions}`;
+  return `${dateHeader}${contextSection}${baseInstructions}\n\n${modeInstructions}`;
 }
 
 // ── Project context ──
@@ -46,18 +51,35 @@ function buildAISystemContext(
   sections.push("- admin_area_1 is always the national level");
   if (instanceDetail.maxAdminArea >= 2) {
     const aa = instanceDetail.maxAdminArea;
-    const sub = aa >= 4 ? "admin_area_2, admin_area_3, admin_area_4 etc."
-      : aa >= 3 ? "admin_area_2, admin_area_3 etc."
-      : "admin_area_2 etc.";
+    const sub =
+      aa >= 4
+        ? "admin_area_2, admin_area_3, admin_area_4 etc."
+        : aa >= 3
+          ? "admin_area_2, admin_area_3 etc."
+          : "admin_area_2 etc.";
     sections.push(`- ${sub} are sub-national levels. For example:`);
-    const examples: { country: string; aa2: string; aa3?: string; aa4?: string }[] = [
-      { country: "Nigeria", aa2: "Zone", aa3: "State", aa4: "LGA (Local Government Area)" },
+    const examples: {
+      country: string;
+      aa2: string;
+      aa3?: string;
+      aa4?: string;
+    }[] = [
+      {
+        country: "Nigeria",
+        aa2: "Zone",
+        aa3: "State",
+        aa4: "LGA (Local Government Area)",
+      },
       { country: "Ghana", aa2: "Region", aa3: "District" },
       { country: "Burkina Faso", aa2: "Région", aa3: "Province" },
       { country: "Zambia", aa2: "Province", aa3: "District" },
       { country: "Liberia", aa2: "County", aa3: "District" },
       { country: "Sierra Leone", aa2: "District", aa3: "District Council" },
-      { country: "République Démocratique du Congo (RDC)", aa2: "Province", aa3: "Zone de Santé" },
+      {
+        country: "République Démocratique du Congo (RDC)",
+        aa2: "Province",
+        aa3: "Zone de Santé",
+      },
     ];
     for (const ex of examples) {
       let line = `  - ${ex.country}: admin_area_2 = ${ex.aa2}`;
@@ -169,7 +191,22 @@ You are an AI assistant helping users explore, analyze, and present their health
 2. **Never fabricate statistics** - Only report what you've verified from the data
 3. **Acknowledge limitations** - Be clear about data gaps or quality issues
 4. **Be concise** - Keep explanations actionable and to the point
-5. **Ask when uncertain** - Use the ask_user_questions tool to clarify preferences, choose between approaches, or confirm decisions before proceeding. Don't guess what the user wants when you can ask.`;
+5. **Ask when uncertain** - Use the ask_user_questions tool to clarify preferences, choose between approaches, or confirm decisions before proceeding. Don't guess what the user wants when you can ask.
+
+# Indicator Interpretation Framework
+
+When analyzing indicators, first determine the directionality:
+
+**Positive indicators** (↑ good, ↓ concerning):
+- Service delivery: ANC visits, deliveries, PNC, immunizations, OPD, family planning, skilled birth attendance
+- Expected values: "surplus" = positive, "disruption" = concern
+
+**Negative indicators** (↑ bad, ↓ good):
+- Mortality/adverse outcomes: maternal deaths, neonatal deaths, stillbirths
+- Quality failures: dropout rates, outlier rates, stockout rates
+
+**Critical rule**: Before writing any interpretation, verify the indicator type. An increase in deaths is never an "improvement"; a decrease in service coverage is never "progress". Match your language to what the indicator measures.
+`;
 }
 
 // ── Mode dispatcher ──
@@ -362,6 +399,13 @@ ${getAllToolsList()}
 
 **IMPORTANT:** Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type visualization preset.
 
+## Text Length Guidelines
+
+**Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide** (adjust down if slide has multiple figures)
+**Absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words per slide**
+
+Keep text concise and focused. Slides with charts/visualizations should have less text. Use bullet points, not paragraphs.
+
 ## Communication Style
 
 When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a3k', 't2n') — these are meaningless to the user. Instead, refer to slides by their position (e.g. "slide 3"), title (e.g. "the ANC Coverage slide"), or type (e.g. "the cover slide"). Refer to blocks by their content (e.g. "the bar chart showing immunization rates", "the text block on the left"). Use IDs only in tool calls, never in your messages to the user.
@@ -407,6 +451,13 @@ ${getAllToolsList()}
 2. Suggest changes based on what would improve the slide
 3. Use update_slide_editor to apply changes
 4. Changes are LOCAL until the user saves - remind them to save if satisfied
+
+## Text Length Guidelines
+
+**Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide** (adjust down if slide has multiple figures)
+**Absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words per slide**
+
+Keep text concise and focused. Slides with charts/visualizations should have less text. Use bullet points, not paragraphs.
 
 ## Important
 

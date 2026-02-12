@@ -153,6 +153,10 @@ export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
 // but we use 3 for better layouts
 export const MAX_CONTENT_BLOCKS = 3;
 
+// Slide text length guidelines for AI-generated content
+export const SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET = "50-100";
+export const SLIDE_TEXT_TOTAL_WORD_COUNT_MAX = 180;
+
 // Autofit configuration for markdown and figures
 export const MARKDOWN_AUTOFIT = { minScale: 0.2, maxScale: 1 } as const;
 export const FIGURE_AUTOFIT = { minScale: 0.3, maxScale: 1 } as const;

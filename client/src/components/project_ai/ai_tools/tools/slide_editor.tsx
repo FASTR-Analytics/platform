@@ -14,6 +14,7 @@ import type { AIContext } from "~/components/project_ai/types";
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
+  validateSlideTotalWordCount,
 } from "../validators/content_validators";
 import {
   extractBlocksFromLayout,
@@ -181,6 +182,14 @@ export function getToolsForSlideEditor(
               input.blockUpdates,
               metrics,
             )) as typeof updated;
+
+            // Validate total word count across all text blocks
+            const allTextBlocks = extractBlocksFromLayout(updated.layout)
+              .map(({ block }) => block)
+              .filter((b): b is { type: "text"; markdown: string } => b.type === "text")
+              .map(b => b.markdown);
+            validateSlideTotalWordCount(allTextBlocks);
+
             changes.push(`${input.blockUpdates.length} block(s)`);
           }
           if (input.layoutChange) {
@@ -278,6 +287,14 @@ export function getToolsForSlideEditor(
               ...updated,
               layout: buildLayoutFromSpec(resolvedRows),
             };
+
+            // Validate total word count across all text blocks
+            const allTextBlocks = extractBlocksFromLayout(updated.layout)
+              .map(({ block }) => block)
+              .filter((b): b is { type: "text"; markdown: string } => b.type === "text")
+              .map(b => b.markdown);
+            validateSlideTotalWordCount(allTextBlocks);
+
             changes.push("layout");
           }
           if (changes.length > 0) {

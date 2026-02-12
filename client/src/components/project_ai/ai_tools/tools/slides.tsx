@@ -29,7 +29,11 @@ import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolv
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/utils/id_generation";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
-import { validateMaxContentBlocks, validateNoMarkdownTables } from "../validators/content_validators";
+import {
+  validateMaxContentBlocks,
+  validateNoMarkdownTables,
+  validateSlideTotalWordCount,
+} from "../validators/content_validators";
 import type { AIContext } from "~/components/project_ai/types";
 
 function requireDeckContext(ctx: AIContext) {
@@ -125,11 +129,14 @@ export function getToolsForSlides(
           }
           validateMaxContentBlocks(input.slide.blocks.length);
 
+          const textBlocks: string[] = [];
           for (const block of input.slide.blocks) {
             if (block.type === "text") {
               validateNoMarkdownTables(block.markdown);
+              textBlocks.push(block.markdown);
             }
           }
+          validateSlideTotalWordCount(textBlocks);
         }
 
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, ctx.getDeckConfig());
@@ -176,11 +183,14 @@ export function getToolsForSlides(
           }
           validateMaxContentBlocks(input.slide.blocks.length);
 
+          const textBlocks: string[] = [];
           for (const block of input.slide.blocks) {
             if (block.type === "text") {
               validateNoMarkdownTables(block.markdown);
+              textBlocks.push(block.markdown);
             }
           }
+          validateSlideTotalWordCount(textBlocks);
         }
 
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, ctx.getDeckConfig());
@@ -233,6 +243,15 @@ export function getToolsForSlides(
           input.updates as any,
           metrics,
         );
+
+        // Validate total word count across all text blocks
+        if (updatedSlide.type === "content") {
+          const allTextBlocks = extractBlocksFromLayout(updatedSlide.layout)
+            .map(({ block }) => block)
+            .filter((b): b is { type: "text"; markdown: string } => b.type === "text")
+            .map(b => b.markdown);
+          validateSlideTotalWordCount(allTextBlocks);
+        }
 
         const res = await serverActions.updateSlide({
           projectId,
@@ -421,6 +440,13 @@ export function getToolsForSlides(
           header: input.header ?? currentSlide.header,
           layout: newLayout,
         };
+
+        // Validate total word count across all text blocks
+        const allTextBlocks = extractBlocksFromLayout(updatedSlide.layout)
+          .map(({ block }) => block)
+          .filter((b): b is { type: "text"; markdown: string } => b.type === "text")
+          .map(b => b.markdown);
+        validateSlideTotalWordCount(allTextBlocks);
 
         const res = await serverActions.updateSlide({
           projectId,
