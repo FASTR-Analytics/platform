@@ -56,12 +56,18 @@ export const AIChat: Component<Props> = (props) => {
     usage,
     sendMessage,
     sendMessages,
+    stopGeneration,
     toolRegistry,
     processMessageForDisplay,
     clearInProgressItems,
   } = createAIChat();
   const [inputValue, setInputValue] = createSignal("");
   const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
+
+  const handleStop = () => {
+    setQueuedMessages([]);
+    stopGeneration();
+  };
 
   let scrollContainer: HTMLDivElement | undefined;
 
@@ -183,10 +189,11 @@ export const AIChat: Component<Props> = (props) => {
         value={inputValue()}
         onChange={setInputValue}
         onSubmit={handleSubmit}
+        onStop={handleStop}
+        isGenerating={isLoading()}
         placeholder={props.placeholder}
         submitLabel={props.submitLabel}
         height={props.inputHeight}
-
       />
     </div>
   );

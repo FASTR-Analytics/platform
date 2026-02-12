@@ -11,7 +11,7 @@ export { default as Anthropic } from "@anthropic-ai/sdk";
 export type { default as AnthropicType } from "@anthropic-ai/sdk";
 export { del, get, set } from "idb-keyval";
 export { default as MarkdownIt } from "markdown-it";
-export { For, Match, Show, Switch, createContext, createEffect, createMemo, createSignal, onCleanup, useContext } from "solid-js";
+export { For, Match, Show, Switch, createContext, createEffect, createMemo, createSignal, onCleanup, onMount, useContext } from "solid-js";
 export type { Component, JSX } from "solid-js";
 export { z } from "zod";
 export type { z as zType } from "zod";

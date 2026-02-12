@@ -528,6 +528,18 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     return sendMessageStreaming(undefined);
   }
 
+  function stopGeneration() {
+    if (!isLoading()) return;
+    abortRequested = true;
+    if (activeStream) {
+      try {
+        activeStream.abort();
+      } catch { /* swallow */ }
+      activeStream = null;
+    }
+    clearInProgressItems();
+  }
+
   function clearConversation() {
     clearConversationStore(conversationId());
   }
@@ -563,6 +575,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     sendMessage,
     sendMessages,
     clearConversation,
+    stopGeneration,
     toolRegistry,
     processMessageForDisplay,
     clearInProgressItems,

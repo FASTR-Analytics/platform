@@ -3,13 +3,15 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { Component } from "solid-js";
+import { type Component, Show } from "solid-js";
 import { Button, TextArea } from "../deps.ts";
 
 type Props = {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onStop?: () => void;
+  isGenerating?: boolean;
   disabled?: boolean;
   placeholder?: string;
   submitLabel?: string;
@@ -31,14 +33,19 @@ export const MessageInput: Component<Props> = (props) => {
           value={props.value}
           onChange={props.onChange}
           onKeyDown={handleKeyDown}
-          placeholder={props.placeholder ??
-            "Type your message... (Shift+Enter for new line)"}
+          placeholder={
+            props.placeholder ??
+            "Type your message... (Shift+Enter for new line)"
+          }
           height={props.height ?? "100px"}
           // mono
           fullWidth
         />
       </div>
-      <div class="flex-none" data-ai-submit-wrapper>
+      <div
+        class="ui-gap-sm flex flex-none flex-col items-start"
+        data-ai-submit-wrapper
+      >
         <Button
           onClick={props.onSubmit}
           disabled={props.disabled}
@@ -46,6 +53,11 @@ export const MessageInput: Component<Props> = (props) => {
         >
           {props.submitLabel ?? "Submit"}
         </Button>
+        <Show when={props.isGenerating && props.onStop}>
+          <Button onClick={() => props.onStop!()} intent="neutral">
+            Stop
+          </Button>
+        </Show>
       </div>
     </div>
   );

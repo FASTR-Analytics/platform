@@ -3,7 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Button, createSignal, For, onCleanup, Show } from "../../deps.ts";
+import {
+  Button,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from "../../deps.ts";
 import type {
   AskUserQuestionsAnswer,
   AskUserQuestionsInput,
@@ -25,8 +32,7 @@ export function AskUserQuestionsRenderer(p: Props) {
     }
   });
 
-  const options = () =>
-    Array.isArray(p.input?.options) ? p.input.options : [];
+  const options = () => Array.isArray(p.input?.options) ? p.input.options : [];
 
   const allAnswered = () => selected().length > 0;
 
@@ -61,8 +67,13 @@ export function AskUserQuestionsRenderer(p: Props) {
     p.onCancel();
   }
 
+  let containerRef: HTMLDivElement | undefined;
+  onMount(() => {
+    containerRef?.scrollIntoView({ block: "end" });
+  });
+
   return (
-    <div class="border-base-300 rounded border p-3">
+    <div ref={containerRef} class="border-base-300 rounded border p-3">
       <div class="font-700 mb-2 text-sm">{p.input.question}</div>
       <Show when={p.input.allowMultiple}>
         <div class="text-neutral mb-2 text-xs">Select all that apply</div>
@@ -81,8 +92,8 @@ export function AskUserQuestionsRenderer(p: Props) {
                 ),
                 "border-base-300 hover:bg-base-200":
                   !isSelected(option.label) && !submitted(),
-                "border-base-300 opacity-60":
-                  !isSelected(option.label) && submitted(),
+                "border-base-300 opacity-60": !isSelected(option.label) &&
+                  submitted(),
                 "cursor-pointer": !submitted(),
                 "cursor-default": submitted(),
               }}
