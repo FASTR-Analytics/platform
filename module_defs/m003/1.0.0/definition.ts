@@ -848,8 +848,8 @@ export const definition = {
             fr: "Différence entre le volume de services réel et attendu (multiple Zone administrative 2, multiple indicateurs)",
           },
           description: {
-            en: "Table showing percentage differences between actual vs expected service volume, with multiple Admin Areas 2 and multiple indicators",
-            fr: "Tableau montrant percentage difference entre le volume de services réel vs attendu, avec multiple Zone administrative 2 et multiple indicateurs",
+            en: "Table showing percentage differences between actual vs expected service volume, with conditional formatting, with multiple Admin Areas 2 and multiple indicators",
+            fr: "Tableau montrant les différences en pourcentage entre le volume de services réel et attendu, avec mise en forme conditionnelle, avec multiple Zones administratives 2 et multiple indicateurs",
           },
           allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
@@ -919,6 +919,64 @@ export const definition = {
           fr: "Toujours désagréger par indicator_common_id et admin_area_3 (tous deux requis). Les séries temporelles et cartes révèlent les modèles au niveau du district.",
         },
       },
+      vizPresets: [
+        {
+          id: "disruption-chart-single-admin-area-2-multiple-admin-area-3",
+          label: {
+            en: "Disruptions and surpluses (single Admin Area 2, multiple Admin Area 3, multiple indicators)",
+            fr: "Perturbations et excédents (unique Zone administrative 2, multiple Zone administrative 3, multiple indicateurs)",
+          },
+          description: {
+            en: "Area chart showing actual vs expected service volume, for a single Admin Area 2, with multiple Admin Areas 3 and multiple indicators",
+            fr: "Graphique en aires montrant le volume de services réel vs attendu, pour unique Zone administrative 2, avec multiple Zone administrative 3 et multiple indicateurs",
+          },
+          needsReplicant: true,
+          allowedFilters: ["indicator_common_id", "admin_area_3"],
+          config: {
+            d: {
+              type: "timeseries",
+              periodOpt: "period_id",
+              valuesDisDisplayOpt: "series",
+              disaggregateBy: [
+                { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+                { disOpt: "admin_area_2", disDisplayOpt: "replicant" },
+                { disOpt: "admin_area_3", disDisplayOpt: "row" },
+              ],
+              filterBy: [], // QUESTION: Does this get used when transformed to default visualization??????,
+            },
+            s: { content: "areas", diffAreas: true },
+            t: {},
+          },
+        },
+
+        {
+          id: "disruption-chart-single-admin-area-3",
+          label: {
+            en: "Disruptions and surpluses (single Admin Area 3, multiple indicators)",
+            fr: "Perturbations et excédents (unique Zone administrative 3, multiple indicateurs)",
+          },
+          description: {
+            en: "Area chart showing actual vs expected service volume, for a single Admin Area 3 and multiple indicators",
+            fr: "Graphique en aires montrant le volume de services réel vs attendu, avec unique Zone administrative 3 et multiple indicateurs",
+          },
+          allowedFilters: ["indicator_common_id"],
+          needsReplicant: true,
+          config: {
+            d: {
+              type: "timeseries",
+              periodOpt: "period_id",
+              valuesDisDisplayOpt: "series",
+              selectedReplicantValue: "",
+              disaggregateBy: [
+                { disOpt: "indicator_common_id", disDisplayOpt: "cell" },
+                { disOpt: "admin_area_3", disDisplayOpt: "replicant" },
+              ],
+              filterBy: [],
+            },
+            s: { content: "areas", diffAreas: true },
+          },
+        },
+      ],
     },
     {
       id: "m3-04-02",
@@ -973,6 +1031,39 @@ export const definition = {
           fr: "Toujours désagréger par indicator_common_id et admin_area_3 (tous deux requis). Comparer avec la zone administrative 2 pour le contexte.",
         },
       },
+      vizPresets: [
+        {
+          id: "disruption-differences-table-single-admin-area-2-multiple-admin-area-3",
+          label: {
+            en: "Difference between actual and expected service volume (single Admin Area 2, multiple Admin Area 3, multiple indicators)",
+            fr: "Différence entre le volume de services réel et attendu (unique Zone administrative 2, multiple Zone administrative 3, multiple indicateurs)",
+          },
+          description: {
+            en: "Table showing percentage differences between actual vs expected service volume, with conditional formatting, for a single Admin Area 2, with multiple Admin Areas 3 and multiple indicators",
+            fr: "Tableau montrant percentage difference entre le volume de services réel vs attendu, avec mise en forme conditionnelle, pour unique Zone administrative 2, avec multiple Zone administrative 3 et multiple indicateurs",
+          },
+          needsReplicant: true,
+          allowedFilters: ["indicator_common_id", "admin_area_3"],
+          config: {
+            d: {
+              type: "table",
+              periodOpt: "period_id",
+              valuesDisDisplayOpt: "col",
+              disaggregateBy: [
+                { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+                { disOpt: "admin_area_2", disDisplayOpt: "replicant" },
+                { disOpt: "admin_area_3", disDisplayOpt: "row" },
+              ],
+              filterBy: [], // QUESTION: Does this get used when transformed to default visualization??????,
+            },
+            s: {
+              conditionalFormatting: "fmt-neg10-pos10",
+              decimalPlaces: 0,
+              idealAspectRatio: "ideal",
+            },
+          },
+        },
+      ],
     },
     {
       id: "m3-05-01",
