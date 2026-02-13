@@ -174,6 +174,12 @@ export async function getProjectDetail(
       };
     });
 
+    const commonIndicators = (
+      await projectDb<
+        { indicator_common_id: string; indicator_common_label: string }[]
+      >`SELECT indicator_common_id, indicator_common_label FROM indicators ORDER BY indicator_common_label`
+    ).map((row) => ({ id: row.indicator_common_id, label: row.indicator_common_label }));
+
     const projectDetail: ProjectDetail = {
       id: projectId,
       label: rawProject.label,
@@ -183,6 +189,7 @@ export async function getProjectDetail(
       projectDatasets: datasetsInProject,
       projectModules: sortedModules,
       metrics: resMetrics.data,
+      commonIndicators,
       visualizations: resVisualizations.data,
       visualizationFolders: resFolders.data,
       reports: resReports.data,

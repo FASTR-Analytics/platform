@@ -44,6 +44,7 @@ export function ProjectRunnerProvider(p: Props) {
     projectDatasets: [],
     projectModules: [],
     metrics: [],
+    commonIndicators: [],
     visualizations: [],
     visualizationFolders: [],
     reports: [],

@@ -129,11 +129,14 @@ function buildAISystemContext(
     }
   }
 
-  if (instanceDetail.indicators.commonIndicators > 0) {
+  if (projectDetail.commonIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**Common indicators available:** ${instanceDetail.indicators.commonIndicators}`,
+      `**Common indicators (${projectDetail.commonIndicators.length}):**`,
     );
+    for (const ind of projectDetail.commonIndicators) {
+      sections.push(`- ${ind.id}: ${ind.label}`);
+    }
   }
 
   if (projectDetail.projectModules.length > 0) {

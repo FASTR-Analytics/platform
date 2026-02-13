@@ -7,7 +7,7 @@ export const definition = {
     type: "github",
     owner: "FASTR-Analytics",
     repo: "modules",
-    path: "03_module_service_utilization.R",
+    path: "m003_module_service_utilization.R",
     commit: "main",
   },
   assetsToImport: [],
