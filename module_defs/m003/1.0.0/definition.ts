@@ -424,25 +424,8 @@ export const definition = {
               disaggregateBy: [
                 { disOpt: "indicator_common_id", disDisplayOpt: "col" },
               ],
-              filterBy: [
-                {
-                  disOpt: "indicator_common_id",
-                  values: [
-                    "anc1",
-                    "anc4",
-                    "bcg",
-                    "delivery",
-                    "penta1",
-                    "penta3",
-                  ],
-                },
-              ],
-              valuesFilter: [
-                "count_final_outliers",
-                "count_final_none",
-                "count_final_completeness",
-                "count_final_both",
-              ],
+              filterBy: [],
+              valuesFilter: [],
             },
             s: {
               scale: 1.8,
@@ -465,6 +448,18 @@ export const definition = {
         },
       ],
     },
+    ////////////////////////////////////////////////////////////////
+    //  _______   __                   ______    ______     __    //
+    // /       \ /  |                 /      \  /      \  _/  |   //
+    // $$$$$$$  |$$/   _______       /$$$$$$  |/$$$$$$  |/ $$ |   //
+    // $$ |  $$ |/  | /       |      $$ |__$$ |$$ |__$$ |$$$$ |   //
+    // $$ |  $$ |$$ |/$$$$$$$/       $$    $$ |$$    $$ |  $$ |   //
+    // $$ |  $$ |$$ |$$      \       $$$$$$$$ |$$$$$$$$ |  $$ |   //
+    // $$ |__$$ |$$ | $$$$$$  |      $$ |  $$ |$$ |  $$ | _$$ |_  //
+    // $$    $$/ $$ |/     $$/       $$ |  $$ |$$ |  $$ |/ $$   | //
+    // $$$$$$$/  $$/ $$$$$$$/        $$/   $$/ $$/   $$/ $$$$$$/  //
+    //                                                            //
+    ////////////////////////////////////////////////////////////////
     {
       id: "m3-02-01",
       resultsObjectId: "M3_disruptions_analysis_admin_area_1.csv",
@@ -631,6 +626,18 @@ export const definition = {
       vizPresets: [],
     },
 
+    //////////////////////////////////////////////////////////////////
+    //  _______   __                   ______    ______    ______   //
+    // /       \ /  |                 /      \  /      \  /      \  //
+    // $$$$$$$  |$$/   _______       /$$$$$$  |/$$$$$$  |/$$$$$$  | //
+    // $$ |  $$ |/  | /       |      $$ |__$$ |$$ |__$$ |$$____$$ | //
+    // $$ |  $$ |$$ |/$$$$$$$/       $$    $$ |$$    $$ | /    $$/  //
+    // $$ |  $$ |$$ |$$      \       $$$$$$$$ |$$$$$$$$ |/$$$$$$/   //
+    // $$ |__$$ |$$ | $$$$$$  |      $$ |  $$ |$$ |  $$ |$$ |_____  //
+    // $$    $$/ $$ |/     $$/       $$ |  $$ |$$ |  $$ |$$       | //
+    // $$$$$$$/  $$/ $$$$$$$/        $$/   $$/ $$/   $$/ $$$$$$$$/  //
+    //                                                              //
+    //////////////////////////////////////////////////////////////////
     {
       id: "m3-03-01",
       resultsObjectId: "M3_disruptions_analysis_admin_area_2.csv",
@@ -876,7 +883,18 @@ export const definition = {
         },
       ],
     },
-
+    //////////////////////////////////////////////////////////////////
+    //  _______   __                   ______    ______    ______   //
+    // /       \ /  |                 /      \  /      \  /      \  //
+    // $$$$$$$  |$$/   _______       /$$$$$$  |/$$$$$$  |/$$$$$$  | //
+    // $$ |  $$ |/  | /       |      $$ |__$$ |$$ |__$$ |$$ ___$$ | //
+    // $$ |  $$ |$$ |/$$$$$$$/       $$    $$ |$$    $$ |  /   $$<  //
+    // $$ |  $$ |$$ |$$      \       $$$$$$$$ |$$$$$$$$ | _$$$$$  | //
+    // $$ |__$$ |$$ | $$$$$$  |      $$ |  $$ |$$ |  $$ |/  \__$$ | //
+    // $$    $$/ $$ |/     $$/       $$ |  $$ |$$ |  $$ |$$    $$/  //
+    // $$$$$$$/  $$/ $$$$$$$/        $$/   $$/ $$/   $$/  $$$$$$/   //
+    //                                                              //
+    //////////////////////////////////////////////////////////////////
     {
       id: "m3-04-01",
       resultsObjectId: "M3_disruptions_analysis_admin_area_3.csv",
@@ -1069,6 +1087,19 @@ export const definition = {
         },
       ],
     },
+    //////////////////////////////////////////////////////////////////
+    //  _______   __                   ______    ______   __    __  //
+    // /       \ /  |                 /      \  /      \ /  |  /  | //
+    // $$$$$$$  |$$/   _______       /$$$$$$  |/$$$$$$  |$$ |  $$ | //
+    // $$ |  $$ |/  | /       |      $$ |__$$ |$$ |__$$ |$$ |__$$ | //
+    // $$ |  $$ |$$ |/$$$$$$$/       $$    $$ |$$    $$ |$$    $$ | //
+    // $$ |  $$ |$$ |$$      \       $$$$$$$$ |$$$$$$$$ |$$$$$$$$ | //
+    // $$ |__$$ |$$ | $$$$$$  |      $$ |  $$ |$$ |  $$ |      $$ | //
+    // $$    $$/ $$ |/     $$/       $$ |  $$ |$$ |  $$ |      $$ | //
+    // $$$$$$$/  $$/ $$$$$$$/        $$/   $$/ $$/   $$/       $$/  //
+    //                                                              //
+    //////////////////////////////////////////////////////////////////
+
     {
       id: "m3-05-01",
       resultsObjectId: "M3_disruptions_analysis_admin_area_4.csv",
@@ -1115,6 +1146,64 @@ export const definition = {
           fr: "Toujours désagréger par indicator_common_id et admin_area_4 (tous deux requis). Disponible uniquement si RUN_ADMIN_AREA_4_ANALYSIS activé.",
         },
       },
+      vizPresets: [
+        {
+          id: "disruption-chart-single-admin-area-3-multiple-admin-area-4",
+          label: {
+            en: "Disruptions and surpluses (single Admin Area 3, multiple Admin Area 4, multiple indicators)",
+            fr: "Perturbations et excédents (unique Zone administrative 3, plusieurs Zones administratives 4, plusieurs indicateurs)",
+          },
+          description: {
+            en: "Area chart showing actual vs expected service volume, for a single Admin Area 3, with multiple Admin Areas 4 and multiple indicators",
+            fr: "Graphique en aires montrant le volume de services réel vs attendu, pour une unique Zone administrative 3, avec plusieurs Zones administratives 4 et plusieurs indicateurs",
+          },
+          needsReplicant: true,
+          allowedFilters: ["indicator_common_id", "admin_area_4"],
+          config: {
+            d: {
+              type: "timeseries",
+              periodOpt: "period_id",
+              valuesDisDisplayOpt: "series",
+              disaggregateBy: [
+                { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+                { disOpt: "admin_area_3", disDisplayOpt: "replicant" },
+                { disOpt: "admin_area_4", disDisplayOpt: "row" },
+              ],
+              filterBy: [], // QUESTION: Does this get used when transformed to default visualization??????,
+            },
+            s: { content: "areas", diffAreas: true },
+            t: {},
+          },
+        },
+
+        {
+          id: "disruption-chart-single-admin-area-4",
+          label: {
+            en: "Disruptions and surpluses (single Admin Area 4, multiple indicators)",
+            fr: "Perturbations et excédents (unique Zone administrative 4, plusieurs indicateurs)",
+          },
+          description: {
+            en: "Area chart showing actual vs expected service volume, for a single Admin Area 4 and multiple indicators",
+            fr: "Graphique en aires montrant le volume de services réel vs attendu, pour une unique Zone administrative 4 et plusieurs indicateurs",
+          },
+          allowedFilters: ["indicator_common_id"],
+          needsReplicant: true,
+          config: {
+            d: {
+              type: "timeseries",
+              periodOpt: "period_id",
+              valuesDisDisplayOpt: "series",
+              selectedReplicantValue: "",
+              disaggregateBy: [
+                { disOpt: "indicator_common_id", disDisplayOpt: "cell" },
+                { disOpt: "admin_area_4", disDisplayOpt: "replicant" },
+              ],
+              filterBy: [],
+            },
+            s: { content: "areas", diffAreas: true },
+          },
+        },
+      ],
     },
     {
       id: "m3-05-02",
@@ -1169,6 +1258,39 @@ export const definition = {
           fr: "Toujours désagréger par indicator_common_id et admin_area_4 (tous deux requis). Interpréter avec prudence en raison de petites tailles d'échantillon.",
         },
       },
+      vizPresets: [
+        {
+          id: "disruption-differences-table-single-admin-area-3-multiple-admin-area-4",
+          label: {
+            en: "Difference between actual and expected service volume (single Admin Area 3, multiple Admin Area 4, multiple indicators)",
+            fr: "Différence entre le volume de services réel et attendu (unique Zone administrative 3, plusieurs Zones administratives 4, plusieurs indicateurs)",
+          },
+          description: {
+            en: "Table showing percentage differences between actual vs expected service volume, with conditional formatting, for a single Admin Area 3, with multiple Admin Areas 4 and multiple indicators",
+            fr: "Tableau montrant les différences en pourcentage entre le volume de services réel et attendu, avec mise en forme conditionnelle, pour une unique Zone administrative 3, avec plusieurs Zones administratives 4 et plusieurs indicateurs",
+          },
+          needsReplicant: true,
+          allowedFilters: ["indicator_common_id", "admin_area_4"],
+          config: {
+            d: {
+              type: "table",
+              periodOpt: "period_id",
+              valuesDisDisplayOpt: "col",
+              disaggregateBy: [
+                { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+                { disOpt: "admin_area_3", disDisplayOpt: "replicant" },
+                { disOpt: "admin_area_4", disDisplayOpt: "row" },
+              ],
+              filterBy: [], // QUESTION: Does this get used when transformed to default visualization??????,
+            },
+            s: {
+              conditionalFormatting: "fmt-neg10-pos10",
+              decimalPlaces: 0,
+              idealAspectRatio: "ideal",
+            },
+          },
+        },
+      ],
     },
   ],
   ////////////////////////////////////////////////////////////////////
