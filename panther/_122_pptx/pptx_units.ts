@@ -35,11 +35,17 @@ export function rcdToSlidePosition(rcd: RectCoordsDims): SlidePosition {
 export function imageToDataUrl(
   img: HTMLImageElement,
   createCanvasRenderContext: CreateCanvasRenderContext,
+  crop?: { sx: number; sy: number; sw: number; sh: number },
 ): string {
-  const { canvas, rc } = createCanvasRenderContext(
-    img.naturalWidth,
-    img.naturalHeight,
-  );
-  rc.rImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+  const width = crop?.sw ?? img.naturalWidth;
+  const height = crop?.sh ?? img.naturalHeight;
+  const { canvas, rc } = createCanvasRenderContext(width, height);
+
+  if (crop) {
+    rc.rImage(img, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height);
+  } else {
+    rc.rImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+  }
+
   return canvas.toDataURL("png");
 }

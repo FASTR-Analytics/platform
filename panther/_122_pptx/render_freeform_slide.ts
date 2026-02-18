@@ -432,13 +432,30 @@ function addContentItem(
   }
 
   // Image: measure to get fitted dimensions, then add to slide
-  // Note: cover mode with source cropping is not supported in PPTX (falls back to fill behavior)
   if (ImageRenderer.isType(item)) {
     const imageItem = item as import("./deps.ts").ImageInputs;
     const measured = ImageRenderer.measure(rc, bounds, imageItem);
-    const dataUrl = typeof imageItem.image === "string"
-      ? imageItem.image
-      : imageToDataUrl(imageItem.image, createCanvasRenderContext);
+
+    let dataUrl: string;
+    if (typeof imageItem.image === "string") {
+      dataUrl = imageItem.image;
+    } else {
+      // Support cover mode with source cropping
+      const crop =
+        measured.srcX !== undefined &&
+        measured.srcY !== undefined &&
+        measured.srcW !== undefined &&
+        measured.srcH !== undefined
+          ? {
+              sx: measured.srcX,
+              sy: measured.srcY,
+              sw: measured.srcW,
+              sh: measured.srcH,
+            }
+          : undefined;
+      dataUrl = imageToDataUrl(imageItem.image, createCanvasRenderContext, crop);
+    }
+
     slide.addImage({
       data: dataUrl,
       x: pixelsToInches(measured.drawX),
