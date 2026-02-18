@@ -108,17 +108,14 @@ export async function convertAiInputToSlide(
   const rc = createCanvasRenderContextBrowser();
   const bounds = new RectCoordsDims([0, 0, 1920, 1080]);
 
-  const optimized = optimizePageLayout(
+  const result = optimizePageLayout(
     rc,
     bounds,
     itemNodes,
     buildStyleForSlide({ type: "content", header: slideInput.header, layout: { type: "item", id: "tmp", data: { type: "text", markdown: "" } } }, deckConfig),
-    undefined,
-    undefined,
   );
 
-  // Restore metadata into layout (IDs are preserved by optimizer)
-  const layoutWithMeta = restoreMetadata(optimized.layout, sourceMap);
+  const layoutWithMeta = restoreMetadata(result.best.layout, sourceMap);
 
   return {
     type: "content",

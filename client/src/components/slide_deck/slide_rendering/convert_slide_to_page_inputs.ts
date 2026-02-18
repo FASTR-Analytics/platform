@@ -226,10 +226,7 @@ export async function convertSlideToPageInputs(
       footer: slide.footer,
       headerLogos,
       footerLogos,
-      content: {
-        layoutType: "explicit",
-        layout: convertedLayout,
-      },
+      content: convertedLayout,
       style,
       watermark,
       overlay,

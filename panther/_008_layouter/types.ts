@@ -6,6 +6,7 @@
 import type {
   ColorKeyOrString,
   HeightConstraints,
+  Padding,
   PaddingOptions,
   RectCoordsDims,
 } from "./deps.ts";
@@ -21,6 +22,13 @@ export type ContainerStyleOptions = {
   backgroundColor?: ColorKeyOrString;
   borderColor?: ColorKeyOrString;
   borderWidth?: number;
+};
+
+export type ResolvedContainerStyle = {
+  padding: Padding;
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
 };
 
 export type LayoutNodeBase = {
@@ -71,7 +79,9 @@ export type MeasuredColsLayoutNode<U> = ColsLayoutNode<U> & {
   minimumSpanIfAllChildrenWere1: number;
 };
 
-export type MeasuredItemLayoutNode<U> = ItemLayoutNode<U> & {
+export type MeasuredItemLayoutNode<U> = Omit<ItemLayoutNode<U>, "style"> & {
+  type: "item";
+  resolvedStyle: ResolvedContainerStyle;
   rpd: RectCoordsDims;
   contentRpd: RectCoordsDims;
   idealH: number;

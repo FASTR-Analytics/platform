@@ -5,13 +5,19 @@
 
 import { _GLOBAL_LAYOUT_COLUMNS, type RectCoordsDims } from "./deps.ts";
 import { createColsNode, createRowsNode } from "./id.ts";
-import { createCachedMeasurer, measureLayout } from "./measure.ts";
-import { isMeasuredColsLayoutNode, isMeasuredRowsLayoutNode } from "./types.ts";
+import { measureLayout } from "./measure.ts";
+import {
+  isMeasuredColsLayoutNode,
+  isMeasuredItemLayoutNode,
+  isMeasuredRowsLayoutNode,
+} from "./types.ts";
 import type {
   ItemHeightMeasurer,
   ItemLayoutNode,
   LayoutNode,
+  MeasuredItemLayoutNode,
   MeasuredLayoutNode,
+  ResolvedContainerStyle,
 } from "./types.ts";
 
 const MAX_OPTIMIZER_ITEMS = 4;
@@ -19,6 +25,8 @@ const MAX_OPTIMIZER_ITEMS = 4;
 export type LayoutStyleConfig = {
   gapX: number;
   gapY: number;
+  containerDefaults?: ResolvedContainerStyle;
+  alreadyScaledValue?: number;
 };
 
 export type OptimizerConstraint = {
@@ -29,24 +37,152 @@ export type OptimizerConstraint = {
 export type OptimizerConfig = {
   constraint?: OptimizerConstraint;
   minSpan?: number;
-  debug?: boolean;
 };
 
 export type LayoutScore = {
-  overflow: number;
+  overflow: 0 | 1;
   shrinkPenalty: number;
   stretchPenalty: number;
   scalePenalty: number;
   heightImbalance: number;
   wastedSpace: number;
-  total: number;
 };
 
-export type OptimizeResult<U> = {
+export type ScoredLayout<U> = {
   layout: LayoutNode<U>;
   measured: MeasuredLayoutNode<U>;
   score: LayoutScore;
 };
+
+export type LayoutScoreWeights = {
+  overflow?: number;
+  shrinkPenalty?: number;
+  stretchPenalty?: number;
+  scalePenalty?: number;
+  heightImbalance?: number;
+  wastedSpace?: number;
+};
+
+const DEFAULT_WEIGHTS: Required<LayoutScoreWeights> = {
+  overflow: 100_000,
+  shrinkPenalty: 10,
+  stretchPenalty: 5,
+  scalePenalty: 8,
+  heightImbalance: 2,
+  wastedSpace: 0,
+};
+
+// =============================================================================
+// Phase 1: Generate Candidates
+// =============================================================================
+
+export function generateCandidates<U>(
+  items: ItemLayoutNode<U>[],
+  config?: OptimizerConfig,
+): LayoutNode<U>[] {
+  if (items.length > MAX_OPTIMIZER_ITEMS) {
+    throw new Error(
+      `Optimizer supports at most ${MAX_OPTIMIZER_ITEMS} items, got ${items.length}. ` +
+        `Use an explicit layout for more complex layouts.`,
+    );
+  }
+
+  const nColumns = _GLOBAL_LAYOUT_COLUMNS;
+  const minSpan = config?.minSpan ?? 1;
+
+  return generateCandidatesExhaustive(
+    items,
+    nColumns,
+    minSpan,
+    config?.constraint,
+  );
+}
+
+// =============================================================================
+// Phase 2: Score Layouts
+// =============================================================================
+
+export function scoreLayouts<T, U>(
+  ctx: T,
+  candidates: LayoutNode<U>[],
+  bounds: RectCoordsDims,
+  style: LayoutStyleConfig,
+  itemMeasurer: ItemHeightMeasurer<T, U>,
+): ScoredLayout<U>[] {
+  return candidates.map((candidate) => {
+    const result = measureLayout(ctx, candidate, bounds, style, itemMeasurer);
+    const score = scoreOneMeasured(result.measured, bounds, result.overflow);
+    return { layout: candidate, measured: result.measured, score };
+  });
+}
+
+// =============================================================================
+// Phase 3: Pick Best
+// =============================================================================
+
+export function computeWeightedScore(
+  score: LayoutScore,
+  weights?: LayoutScoreWeights,
+): number {
+  const w = { ...DEFAULT_WEIGHTS, ...weights };
+  return score.overflow * w.overflow +
+    score.shrinkPenalty * w.shrinkPenalty +
+    score.stretchPenalty * w.stretchPenalty +
+    score.scalePenalty * w.scalePenalty +
+    score.heightImbalance * w.heightImbalance +
+    score.wastedSpace * w.wastedSpace;
+}
+
+export function pickBestLayout<U>(
+  scored: ScoredLayout<U>[],
+  weights?: LayoutScoreWeights,
+): ScoredLayout<U> {
+  let best = scored[0];
+  let bestTotal = computeWeightedScore(best.score, weights);
+  for (let i = 1; i < scored.length; i++) {
+    const total = computeWeightedScore(scored[i].score, weights);
+    if (total < bestTotal) {
+      best = scored[i];
+      bestTotal = total;
+    }
+  }
+  return best;
+}
+
+// =============================================================================
+// Convenience wrapper (all three phases)
+// =============================================================================
+
+export function optimizeLayout<T, U>(
+  ctx: T,
+  items: ItemLayoutNode<U>[],
+  bounds: RectCoordsDims,
+  style: LayoutStyleConfig,
+  itemMeasurer: ItemHeightMeasurer<T, U>,
+  config?: OptimizerConfig,
+): ScoredLayout<U> {
+  const candidates = generateCandidates(items, config);
+
+  if (candidates.length === 0) {
+    const fallback = createRowsNode<U>([]);
+    const result = measureLayout(ctx, fallback, bounds, style, itemMeasurer);
+    return {
+      layout: fallback,
+      measured: result.measured,
+      score: {
+        overflow: 0,
+        shrinkPenalty: 0,
+        stretchPenalty: 0,
+        scalePenalty: 0,
+        heightImbalance: 0,
+        wastedSpace: bounds.h(),
+      },
+    };
+  }
+
+  const scored = scoreLayouts(ctx, candidates, bounds, style, itemMeasurer);
+  return pickBestLayout(scored);
+}
 
 // =============================================================================
 // Span Combinations
@@ -200,14 +336,13 @@ function generateCandidatesExhaustive<U>(
 }
 
 // =============================================================================
-// Scoring
+// Internal Scoring
 // =============================================================================
 
-function scoreLayout<U>(
+function scoreOneMeasured<U>(
   measured: MeasuredLayoutNode<U>,
   bounds: RectCoordsDims,
   overflow: boolean,
-  debug: boolean = false,
 ): LayoutScore {
   let shrinkPenalty = 0;
   let stretchPenalty = 0;
@@ -238,24 +373,6 @@ function scoreLayout<U>(
       worstScale = Math.min(worstScale, heightScale);
     }
 
-    if (debug && worstScale < 1.0) {
-      console.log(
-        `  Item w=${node.rpd.w().toFixed(0)} actualH=${
-          actualH.toFixed(
-            0,
-          )
-        } idealH=${idealH.toFixed(0)} ` +
-          `widthScale=${
-            typeof widthScale === "number" ? widthScale.toFixed(2) : "none"
-          } ` +
-          `heightScale=${heightScale.toFixed(2)} worstScale=${
-            worstScale.toFixed(
-              2,
-            )
-          }`,
-      );
-    }
-
     if (worstScale < 1.0) {
       const scaleDiff = 1.0 - worstScale;
       scalePenalty += scaleDiff * scaleDiff * 10000;
@@ -264,24 +381,16 @@ function scoreLayout<U>(
 
   const heightImbalance = calculateHeightImbalance(measured);
 
-  const overflowPenalty = overflow ? 100 : 0;
   const totalIdealHeight = sumIdealHeights(measured);
   const wastedSpace = Math.max(0, bounds.h() - totalIdealHeight);
 
-  const total = overflowPenalty * 1000 +
-    shrinkPenalty * 10 +
-    stretchPenalty * 5 +
-    scalePenalty * 8 +
-    heightImbalance * 2;
-
   return {
-    overflow: overflowPenalty,
+    overflow: overflow ? 1 : 0,
     shrinkPenalty,
     stretchPenalty,
     scalePenalty,
     heightImbalance,
     wastedSpace,
-    total,
   };
 }
 
@@ -309,19 +418,12 @@ function calculateHeightImbalance<U>(node: MeasuredLayoutNode<U>): number {
   return totalImbalance;
 }
 
-type MeasuredItemWithIdeal<U> = MeasuredLayoutNode<U> & {
-  type: "item";
-  idealH: number;
-  maxH: number;
-  neededScalingToFitWidth?: "none" | number;
-};
-
 function walkMeasuredItems<U>(
   node: MeasuredLayoutNode<U>,
-  callback: (node: MeasuredItemWithIdeal<U>) => void,
+  callback: (node: MeasuredItemLayoutNode<U>) => void,
 ): void {
-  if (node.type === "item") {
-    callback(node as MeasuredItemWithIdeal<U>);
+  if (isMeasuredItemLayoutNode(node)) {
+    callback(node);
   } else {
     for (const child of node.children) {
       walkMeasuredItems(child, callback);
@@ -335,154 +437,4 @@ function sumIdealHeights<U>(node: MeasuredLayoutNode<U>): number {
     total += item.idealH;
   });
   return total;
-}
-
-// =============================================================================
-// Debug Helpers
-// =============================================================================
-
-function layoutToString<U>(node: LayoutNode<U>): string {
-  if (node.type === "item") {
-    return `item(${node.id})`;
-  }
-  if (node.type === "rows") {
-    return `rows([${node.children.map(layoutToString).join(", ")}])`;
-  }
-  const spans = node.children.map((c) => c.span ?? "?").join(",");
-  return `cols[${spans}]([${node.children.map(layoutToString).join(", ")}])`;
-}
-
-// =============================================================================
-// Main Optimizer
-// =============================================================================
-
-export function optimizeLayout<T, U>(
-  ctx: T,
-  items: ItemLayoutNode<U>[],
-  bounds: RectCoordsDims,
-  style: LayoutStyleConfig,
-  itemMeasurer: ItemHeightMeasurer<T, U>,
-  layoutTransform?: (layout: LayoutNode<U>) => LayoutNode<U>,
-  config?: OptimizerConfig,
-): OptimizeResult<U> {
-  if (items.length > MAX_OPTIMIZER_ITEMS) {
-    throw new Error(
-      `Optimizer supports at most ${MAX_OPTIMIZER_ITEMS} items, got ${items.length}. ` +
-        `Use layoutType: "explicit" for more complex layouts.`,
-    );
-  }
-
-  const nColumns = _GLOBAL_LAYOUT_COLUMNS;
-  const { gapX, gapY } = style;
-  const minSpan = config?.minSpan ?? 1;
-  const debug = config?.debug ?? false;
-  const transform = layoutTransform ?? ((l) => l);
-
-  const cachedMeasurer = createCachedMeasurer(itemMeasurer);
-
-  const candidates = generateCandidatesExhaustive(
-    items,
-    nColumns,
-    minSpan,
-    config?.constraint,
-  );
-
-  if (candidates.length === 0) {
-    const fallback = transform(createRowsNode<U>([]));
-    const result = measureLayout(
-      ctx,
-      fallback,
-      bounds,
-      gapX,
-      gapY,
-      cachedMeasurer,
-    );
-    return {
-      layout: fallback,
-      measured: result.measured,
-      score: {
-        overflow: 0,
-        shrinkPenalty: 0,
-        stretchPenalty: 0,
-        scalePenalty: 0,
-        heightImbalance: 0,
-        wastedSpace: bounds.h(),
-        total: bounds.h(),
-      },
-    };
-  }
-
-  let bestLayout: LayoutNode<U> = transform(candidates[0]);
-  let bestMeasured: MeasuredLayoutNode<U> | null = null;
-  let bestScore: LayoutScore = {
-    overflow: Infinity,
-    shrinkPenalty: 0,
-    stretchPenalty: 0,
-    scalePenalty: 0,
-    heightImbalance: 0,
-    wastedSpace: 0,
-    total: Infinity,
-  };
-
-  const debugScores: { layout: string; score: LayoutScore }[] = [];
-
-  for (const candidate of candidates) {
-    const transformed = transform(candidate);
-    const result = measureLayout(
-      ctx,
-      transformed,
-      bounds,
-      gapX,
-      gapY,
-      cachedMeasurer,
-    );
-    const score = scoreLayout(result.measured, bounds, result.overflow, debug);
-
-    if (debug) {
-      debugScores.push({ layout: layoutToString(transformed), score });
-    }
-
-    if (score.total < bestScore.total) {
-      bestLayout = transformed;
-      bestMeasured = result.measured;
-      bestScore = score;
-    }
-
-    if (score.total === 0) break;
-  }
-
-  if (debug) {
-    debugScores.sort((a, b) => a.score.total - b.score.total);
-    console.log(`\n=== Optimizer Debug (${candidates.length} candidates) ===`);
-    for (const { layout, score } of debugScores.slice(0, 10)) {
-      console.log(
-        `  ${
-          score.total
-            .toFixed(0)
-            .padStart(
-              6,
-            )
-        } | overflow=${score.overflow} shrink=${
-          score.shrinkPenalty.toFixed(
-            0,
-          )
-        } stretch=${score.stretchPenalty.toFixed(0)} scale=${
-          score.scalePenalty.toFixed(
-            0,
-          )
-        } imbal=${score.heightImbalance.toFixed(0)} waste=${
-          score.wastedSpace.toFixed(
-            0,
-          )
-        } | ${layout}`,
-      );
-    }
-    console.log(`=== Best: ${layoutToString(bestLayout)} ===\n`);
-  }
-
-  return {
-    layout: bestLayout,
-    measured: bestMeasured!,
-    score: bestScore,
-  };
 }

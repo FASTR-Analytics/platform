@@ -26,11 +26,7 @@ type ConvertResult = {
   node: LayoutNode<PageContentItem>;
 };
 
-// Now always returns explicit layout
-export type FreeformContentResult = {
-  layoutType: "explicit";
-  layout: LayoutNode<PageContentItem>;
-};
+export type FreeformContentResult = LayoutNode<PageContentItem>;
 
 export async function getRowsForFreeform(
   projectId: string,
@@ -54,7 +50,7 @@ export async function getRowsForFreeform(
     if (result.success === false) return result;
     return {
       success: true,
-      data: { layoutType: "explicit", layout: result.data.node },
+      data: result.data.node,
     };
   } catch (e) {
     return {
@@ -66,9 +62,9 @@ export async function getRowsForFreeform(
   }
 }
 
-function resolveTextBackground(bg: string | undefined, cDetails: ColorDetails, extraScale: number): { containerStyle: ContainerStyleOptions; textColor: string } | undefined {
+function resolveTextBackground(bg: string | undefined, cDetails: ColorDetails): { containerStyle: ContainerStyleOptions; textColor: string } | undefined {
   if (!bg || bg === "none") return undefined;
-  const pad: [number, number] = [50 * extraScale, 60 * extraScale];
+  const pad: [number, number] = [50, 60];
   if (bg === "grey") {
     return {
       containerStyle: { backgroundColor: { key: "base200" }, padding: pad },
@@ -105,7 +101,7 @@ async function convertLayoutNode(
 ): Promise<APIResponseWithData<ConvertResult>> {
   if (node.type === "item") {
     const resolved = node.data.type === "text"
-      ? resolveTextBackground(node.data.textBackground, cDetails, extraScale)
+      ? resolveTextBackground(node.data.textBackground, cDetails)
       : undefined;
 
     const result = await convertContentItem(

@@ -3,7 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Padding, PANTHER_DEBUG, RectCoordsDims, sum } from "../deps.ts";
+import {
+  getColor,
+  Padding,
+  PANTHER_DEBUG,
+  RectCoordsDims,
+  sum,
+} from "../deps.ts";
+import type { LayoutStyleConfig } from "../optimizer.ts";
 import type {
   ContainerStyleOptions,
   HeightConstraints,
@@ -13,12 +20,14 @@ import type {
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,
   MeasuredRowsLayoutNode,
+  ResolvedContainerStyle,
 } from "../types.ts";
 
 export type MeasureContext<T, U> = {
   renderCtx: T;
   gapX: number;
   gapY: number;
+  layoutStyle: LayoutStyleConfig;
   nAbsoluteGridColumns: number;
   dividerPositions: number[]; // N-1 divider positions (center of gaps between columns)
   globalSnapPositions: number[]; // Same as dividerPositions
@@ -29,6 +38,32 @@ export type MeasureContext<T, U> = {
   parentStartColumn: number;
   parentAvailableSpan: number;
 };
+
+function resolveContainerStyle(
+  nodeStyle: ContainerStyleOptions | undefined,
+  layoutStyle: LayoutStyleConfig,
+): ResolvedContainerStyle {
+  const sf = layoutStyle.alreadyScaledValue ?? 1;
+  const defaults = layoutStyle.containerDefaults;
+
+  const padding = nodeStyle?.padding
+    ? new Padding(nodeStyle.padding).toScaled(sf)
+    : defaults?.padding ?? new Padding(0);
+
+  const borderWidth = nodeStyle?.borderWidth
+    ? nodeStyle.borderWidth * sf
+    : (defaults?.borderWidth ?? 0);
+
+  const backgroundColor = nodeStyle?.backgroundColor
+    ? getColor(nodeStyle.backgroundColor)
+    : (defaults?.backgroundColor ?? "none");
+
+  const borderColor = nodeStyle?.borderColor
+    ? getColor(nodeStyle.borderColor)
+    : (defaults?.borderColor ?? "none");
+
+  return { padding, borderWidth, backgroundColor, borderColor };
+}
 
 // =============================================================================
 // Recursive function to calculate height constraints (minH, maxH) for each node
@@ -46,9 +81,9 @@ export function getHeightConstraints<T, U>(
   let maxH: number;
 
   if (node.type === "item") {
-    // Items have style (padding/border)
-    const pad = new Padding(node.style?.padding ?? 0);
-    const borderWidth = node.style?.borderWidth ?? 0;
+    const resolved = resolveContainerStyle(node.style, mctx.layoutStyle);
+    const pad = resolved.padding;
+    const borderWidth = resolved.borderWidth;
     const borderTotal = borderWidth * 2;
     const paddingAndBorder = pad.totalPy() + borderTotal;
     const innerW = width - pad.totalPx() - borderTotal;
@@ -410,10 +445,13 @@ function measureItemNode<T, U>(
   node: LayoutNode<U> & { type: "item" },
   bounds: RectCoordsDims,
 ): MeasuredItemLayoutNode<U> {
-  const innerBounds = getInnerBounds(bounds, node.style);
-  const borderWidth = node.style?.borderWidth ?? 0;
+  const resolved = resolveContainerStyle(node.style, mctx.layoutStyle);
+  const pad = resolved.padding;
+  const borderWidth = resolved.borderWidth;
   const borderTotal = borderWidth * 2;
-  const pad = new Padding(node.style?.padding ?? 0);
+
+  const boundsAfterBorder = bounds.getPadded(new Padding(borderWidth));
+  const innerBounds = boundsAfterBorder.getPadded(pad);
 
   const constraints = mctx.itemMeasurer(mctx.renderCtx, node, innerBounds.w());
 
@@ -432,15 +470,15 @@ function measureItemNode<T, U>(
   maxH = Math.max(minH, maxH);
   idealH = Math.max(minH, Math.min(idealH, maxH));
 
-  const rpd = bounds;
-  const contentRpd = innerBounds;
-
   const span = node.span ?? mctx.parentAvailableSpan;
+  const { style: _style, ...nodeWithoutStyle } = node;
 
   return {
-    ...node,
-    rpd,
-    contentRpd,
+    ...nodeWithoutStyle,
+    type: "item",
+    resolvedStyle: resolved,
+    rpd: bounds,
+    contentRpd: innerBounds,
     idealH,
     maxH,
     neededScalingToFitWidth: constraints.neededScalingToFitWidth,
@@ -449,21 +487,6 @@ function measureItemNode<T, U>(
     span,
     minimumSpanIfAllChildrenWere1: 1,
   };
-}
-
-/**
- * Calculates inner bounds by applying border and padding insets.
- * Box model: bounds -> border -> padding -> inner content area
- */
-function getInnerBounds(
-  bounds: RectCoordsDims,
-  style?: ContainerStyleOptions,
-): RectCoordsDims {
-  const borderWidth = style?.borderWidth ?? 0;
-  const borderPad = new Padding(borderWidth);
-  const pad = new Padding(style?.padding ?? 0);
-  const boundsAfterBorder = bounds.getPadded(borderPad);
-  return boundsAfterBorder.getPadded(pad);
 }
 
 /**

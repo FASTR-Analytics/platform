@@ -6,21 +6,26 @@
 import {
   CustomPageStyle,
   type CustomPageStyleOptions,
+  generateCandidates,
   type ItemLayoutNode,
   type LayoutNode,
-  optimizeLayout,
+  type LayoutStyleConfig,
   type OptimizerConfig,
-  type OptimizerConstraint,
-  type OptimizeResult,
   Padding,
+  pickBestLayout,
   type RectCoordsDims,
   type RenderContext,
+  type ScoredLayout,
+  scoreLayouts,
 } from "./deps.ts";
-import { applyContainerDefaults } from "./apply_container_defaults.ts";
 import { itemMeasurer } from "./_internal/freeform/item_measurer.ts";
 import type { PageContentItem } from "./types.ts";
 
-export type OptimizePageLayoutResult = OptimizeResult<PageContentItem>;
+export type OptimizePageLayoutResult = {
+  best: ScoredLayout<PageContentItem>;
+  candidates: LayoutNode<PageContentItem>[];
+  scored: ScoredLayout<PageContentItem>[];
+};
 
 export function optimizePageLayout(
   rc: RenderContext,
@@ -32,19 +37,24 @@ export function optimizePageLayout(
 ): OptimizePageLayoutResult {
   const s = new CustomPageStyle(style, responsiveScale).getMergedPageStyle();
 
-  // Calculate content bounds (same as measureContent does)
   const padContent = new Padding(s.content.padding);
   const contentBounds = bounds.getPadded(padContent);
 
-  // Call the generic optimizer with container defaults transform
-  return optimizeLayout(
+  const layoutStyle: LayoutStyleConfig = {
+    gapX: s.content.gapX,
+    gapY: s.content.gapY,
+    containerDefaults: s.layoutContainers,
+    alreadyScaledValue: s.alreadyScaledValue,
+  };
+
+  const candidates = generateCandidates(itemNodes, config);
+  const scored = scoreLayouts(
     { rc, s },
-    itemNodes,
+    candidates,
     contentBounds,
-    s.content,
+    layoutStyle,
     itemMeasurer,
-    (layout: LayoutNode<PageContentItem>) =>
-      applyContainerDefaults(layout, s.layoutContainers),
-    config,
   );
+  const best = pickBestLayout(scored);
+  return { best, candidates, scored };
 }

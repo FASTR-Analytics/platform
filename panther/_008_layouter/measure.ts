@@ -10,6 +10,7 @@ import {
 } from "./_internal/measure_internal.ts";
 import { normalizeLayout, validateLayout } from "./_internal/normalize.ts";
 import { _GLOBAL_LAYOUT_COLUMNS, type RectCoordsDims } from "./deps.ts";
+import type { LayoutStyleConfig } from "./optimizer.ts";
 import type {
   HeightConstraints,
   ItemHeightMeasurer,
@@ -44,12 +45,12 @@ export function measureLayout<T, U>(
   ctx: T,
   layout: LayoutNode<U>,
   bounds: RectCoordsDims,
-  gapX: number,
-  gapY: number,
+  style: LayoutStyleConfig,
   itemMeasurer: ItemHeightMeasurer<T, U>,
   options?: MeasureLayoutOptions,
 ): MeasureLayoutResult<U> {
   const nCols = _GLOBAL_LAYOUT_COLUMNS;
+  const { gapX, gapY } = style;
 
   validateLayout(layout, nCols);
   const normalizedLayout = normalizeLayout(layout, nCols);
@@ -67,18 +68,17 @@ export function measureLayout<T, U>(
 
   const globalSnapPositions = dividerPositions;
 
-  const cachedMeasurer = createCachedMeasurer(itemMeasurer);
-
   const measureCtx: MeasureContext<T, U> = {
     renderCtx: ctx,
     gapX,
     gapY,
+    layoutStyle: style,
     nAbsoluteGridColumns: nCols,
     dividerPositions,
     globalSnapPositions,
     boundsX: bounds.x(),
     boundsW: bounds.w(),
-    itemMeasurer: cachedMeasurer,
+    itemMeasurer,
     overflowTracker,
     parentStartColumn: 0,
     parentAvailableSpan: nCols,

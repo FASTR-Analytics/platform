@@ -348,41 +348,34 @@ function renderContainerStyle(
   node: MeasuredLayoutNode<PageContentItem>,
 ): void {
   if (node.type !== "item") return;
-  const style = node.style;
-  if (!style) return;
+  const rs = node.resolvedStyle;
 
-  const hasBackground = style.backgroundColor &&
-    style.backgroundColor !== "none";
-  const hasBorder = style.borderColor &&
-    style.borderColor !== "none" &&
-    style.borderWidth &&
-    style.borderWidth > 0;
+  const hasBackground = rs.backgroundColor !== "none";
+  const hasBorder = rs.borderColor !== "none" && rs.borderWidth > 0;
 
   if (!hasBackground && !hasBorder) return;
 
-  // Inset by half border width so stroke is drawn fully inside bounds
-  const borderWidth = style.borderWidth ?? 0;
-  const inset = borderWidth / 2;
+  const inset = rs.borderWidth / 2;
   const insetPad = new Padding(inset);
   const renderBounds = node.rpd.getPadded(insetPad);
 
   const pos = rcdToSlidePosition(renderBounds);
 
-  const borderWidthPts = pixelsToPoints(borderWidth);
+  const borderWidthPts = pixelsToPoints(rs.borderWidth);
 
   if (hasBackground && hasBorder) {
     slide.addShape("rect", {
       ...pos,
-      fill: { color: Color.toHexNoHash(getColor(style.backgroundColor!)) },
+      fill: { color: Color.toHexNoHash(rs.backgroundColor) },
       line: {
-        color: Color.toHexNoHash(getColor(style.borderColor!)),
+        color: Color.toHexNoHash(rs.borderColor),
         width: borderWidthPts,
       },
     });
   } else if (hasBackground) {
     slide.addShape("rect", {
       ...pos,
-      fill: { color: Color.toHexNoHash(getColor(style.backgroundColor!)) },
+      fill: { color: Color.toHexNoHash(rs.backgroundColor) },
       line: { width: 0 },
     });
   } else {
@@ -390,7 +383,7 @@ function renderContainerStyle(
       ...pos,
       fill: { type: "none" },
       line: {
-        color: Color.toHexNoHash(getColor(style.borderColor!)),
+        color: Color.toHexNoHash(rs.borderColor),
         width: borderWidthPts,
       },
     });

@@ -3,7 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { applyContainerDefaults } from "./apply_container_defaults.ts";
 export { buildPageLayout } from "./build_page_layout.ts";
 export type { LayoutInput } from "./build_page_layout.ts";
 export { measureHeaderFooterHeights } from "./measure_header_footer_heights.ts";
@@ -14,7 +13,6 @@ export type {
 export { PageRenderer } from "./page_renderer.ts";
 export type {
   CoverPageInputs,
-  FreeformPageContent,
   FreeformPageInputs,
   MeasuredCoverPage,
   MeasuredFreeformPage,
@@ -45,6 +43,3 @@ export type {
 
 export { optimizePageLayout } from "./optimize_page_layout.ts";
 export type { OptimizePageLayoutResult } from "./optimize_page_layout.ts";
-
-// Re-export constraint type for convenience
-export type { OptimizerConstraint } from "./types.ts";
