@@ -9,13 +9,18 @@ import type {
   MeasuredText,
   RenderContext,
 } from "./deps.ts";
-import { pixelsToInches, pixelsToPoints } from "./pptx_units.ts";
-import type { PptxGenJSInstance, PptxSlide } from "./types.ts";
+import { imageToDataUrl, pixelsToInches, pixelsToPoints } from "./pptx_units.ts";
+import type {
+  CreateCanvasRenderContext,
+  PptxGenJSInstance,
+  PptxSlide,
+} from "./types.ts";
 
 export function renderSectionSlide(
   rc: RenderContext,
   pptx: PptxGenJSInstance,
   measured: MeasuredSectionPage,
+  createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const item = measured.item;
@@ -37,8 +42,9 @@ export function renderSectionSlide(
 
   // Overlay image
   if (item.overlay) {
+    const overlayDataUrl = imageToDataUrl(item.overlay, createCanvasRenderContext);
     slide.addImage({
-      data: item.overlay.src,
+      data: overlayDataUrl,
       x: 0,
       y: 0,
       w: pixelsToInches(bounds.w()),

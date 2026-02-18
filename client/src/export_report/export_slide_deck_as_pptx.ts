@@ -10,7 +10,7 @@ import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { convertSlideToPageInputs } from "~/components/slide_deck/slide_rendering/convert_slide_to_page_inputs";
 
-export async function exportSlideDeckAsPptxWithImages(
+export async function exportSlideDeckAsPptx(
   projectId: string,
   deckId: string,
   progress: (pct: number) => void,

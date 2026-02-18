@@ -2,7 +2,6 @@ import {
   RectCoordsDims,
   PageRenderer,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
-  _GLOBAL_PDF_PIXEL_WIDTH,
   createPdfRenderContextWithFontsBrowser,
   CustomPageStyle,
   type FontInfo,
@@ -38,8 +37,7 @@ export async function exportSlideDeckAsPdfBase64(
       return resDeckDetail;
     }
 
-    const pdfScaleFactor = _GLOBAL_PDF_PIXEL_WIDTH / _GLOBAL_CANVAS_PIXEL_WIDTH;
-    const pdfW = _GLOBAL_PDF_PIXEL_WIDTH;
+    const pdfW = _GLOBAL_CANVAS_PIXEL_WIDTH;
     const pdfH = Math.round((pdfW * 9) / 16);
     const pdfOrientation = "landscape";
 
@@ -128,7 +126,6 @@ export async function exportSlideDeckAsPdfBase64(
         rc,
         rcd,
         resPageInputs.data,
-        pdfScaleFactor,
       );
     }
 

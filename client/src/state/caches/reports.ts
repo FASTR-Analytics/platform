@@ -23,7 +23,6 @@ export const _SLIDE_INPUTS_CACHE = createReactiveCache<
     projectId: string;
     reportId: string;
     reportItemId: string;
-    pdfScaleFactor: number | undefined;
   },
   {
     pageInputs: PageInputs;
@@ -42,7 +41,6 @@ export const _SLIDE_INPUTS_CACHE = createReactiveCache<
       pds.anyModuleLastRun,
       reportLastUpdated,
       reportItemLastUpdated,
-      String(params.pdfScaleFactor),
     ].join("|");
   },
 });

@@ -32,10 +32,8 @@ export async function getRowsForFreeform(
   projectId: string,
   _reportConfig: ReportConfig,
   reportItemConfig: ReportItemConfig,
-  pdfScaleFactor?: number,
 ): Promise<APIResponseWithData<FreeformContentResult>> {
   try {
-    const extraScale = pdfScaleFactor ?? 1;
     const content = reportItemConfig.freeform.content;
     const cDetails = getColorDetailsForColorTheme(_reportConfig.colorTheme);
 
@@ -43,8 +41,6 @@ export async function getRowsForFreeform(
     const result = await convertLayoutNode(
       content,
       projectId,
-      extraScale,
-      pdfScaleFactor,
       cDetails,
     );
     if (result.success === false) return result;
@@ -95,8 +91,6 @@ function resolveTextBackground(bg: string | undefined, cDetails: ColorDetails): 
 async function convertLayoutNode(
   node: LayoutNode<ReportItemContentItem>,
   projectId: string,
-  extraScale: number,
-  pdfScaleFactor: number | undefined,
   cDetails: ColorDetails,
 ): Promise<APIResponseWithData<ConvertResult>> {
   if (node.type === "item") {
@@ -108,8 +102,6 @@ async function convertLayoutNode(
       node.data,
       node.id,
       projectId,
-      extraScale,
-      pdfScaleFactor,
       false,
       resolved?.textColor,
     );
@@ -130,8 +122,6 @@ async function convertLayoutNode(
     const result = await convertLayoutNode(
       child,
       projectId,
-      extraScale,
-      pdfScaleFactor,
       cDetails,
     );
     if (result.success === false) return result;
@@ -154,8 +144,6 @@ async function convertContentItem(
   item: ReportItemContentItem,
   _itemId: string,
   projectId: string,
-  extraScale: number,
-  pdfScaleFactor?: number,
   isForOptimizer: boolean = false,
   textColor?: string,
 ): Promise<APIResponseWithData<PageContentItem>> {
@@ -166,7 +154,7 @@ async function convertContentItem(
     }
 
     const markdownStyle: CustomMarkdownStyleOptions = {
-      scale: (item.textSize ?? 1) * extraScale,
+      scale: item.textSize ?? 1,
       ...(textColor ? { text: { base: { color: textColor } } } : {}),
     };
 
@@ -190,9 +178,7 @@ async function convertContentItem(
       {
         selectedReplicantValue:
           item.presentationObjectInReportInfo.selectedReplicantValue,
-        additionalScale: isForOptimizer
-          ? 1  // Use scale 1 for optimizer
-          : (item.figureAdditionalScale ?? 1) * (pdfScaleFactor ?? 1),
+        additionalScale: isForOptimizer ? 1 : (item.figureAdditionalScale ?? 1),
         hideFigureCaption: isForOptimizer ? true : item.hideFigureCaption,
         hideFigureSubCaption: isForOptimizer ? true : item.hideFigureSubCaption,
         hideFigureFootnote: isForOptimizer ? true : item.hideFigureFootnote,

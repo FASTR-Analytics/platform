@@ -28,13 +28,11 @@ export async function getPageInputsFromCacheOrFetch(
   projectId: string,
   reportId: string,
   reportItemId: string,
-  pdfScaleFactor?: number,
 ) {
   const { data, version } = await _SLIDE_INPUTS_CACHE.get({
     projectId,
     reportId,
     reportItemId,
-    pdfScaleFactor,
   });
 
   if (data) {
@@ -45,12 +43,11 @@ export async function getPageInputsFromCacheOrFetch(
     projectId,
     reportId,
     reportItemId,
-    pdfScaleFactor,
   );
 
   _SLIDE_INPUTS_CACHE.setPromise(
     newPromise,
-    { projectId, reportId, reportItemId, pdfScaleFactor },
+    { projectId, reportId, reportItemId },
     version,
   );
 
@@ -61,7 +58,6 @@ async function getPageInputsCombo(
   projectId: string,
   reportId: string,
   reportItemId: string,
-  pdfScaleFactor?: number,
 ): Promise<
   APIResponseWithData<{
     pageInputs: PageInputs;
@@ -88,7 +84,6 @@ async function getPageInputsCombo(
     resReportDetail.data.config as ReportConfig,  // Report items only used with traditional reports
     resReportItem.data.config,
     resReportDetail.data.itemIdsInOrder.indexOf(resReportItem.data.id),
-    pdfScaleFactor,
   );
   if (resPageInputs.success === false) {
     return resPageInputs;

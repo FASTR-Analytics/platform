@@ -25,6 +25,7 @@ import type {
   PptxSlide,
 } from "./types.ts";
 import {
+  imageToDataUrl,
   pixelsToInches,
   pixelsToPoints,
   rcdToSlidePosition,
@@ -57,12 +58,12 @@ export function renderFreeformSlide(
 
   // Render header
   if (measured.header) {
-    renderHeader(slide, measured, s);
+    renderHeader(slide, measured, s, createCanvasRenderContext);
   }
 
   // Render footer
   if (measured.footer) {
-    renderFooter(slide, measured, s);
+    renderFooter(slide, measured, s, createCanvasRenderContext);
   }
 
   // Render content
@@ -93,6 +94,7 @@ function renderHeader(
   slide: PptxSlide,
   measured: MeasuredFreeformPage,
   s: import("./deps.ts").MergedPageStyle,
+  createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const header = measured.header!;
   const inputs = measured.item;
@@ -110,6 +112,10 @@ function renderHeader(
 
   // Header overlay image (covers header area, matching PDF behavior)
   if (inputs.overlay) {
+    const overlayDataUrl = imageToDataUrl(
+      inputs.overlay,
+      createCanvasRenderContext,
+    );
     const overlayFinalWidth = header.rcdHeaderOuter.w();
     const overlayFinalHeight = overlayFinalWidth *
       (inputs.overlay.height / inputs.overlay.width);
@@ -117,7 +123,7 @@ function renderHeader(
       const overlayFinalYOffset = overlayFinalHeight -
         header.rcdHeaderOuter.h();
       slide.addImage({
-        data: inputs.overlay.src,
+        data: overlayDataUrl,
         x: pixelsToInches(header.rcdHeaderOuter.x()),
         y: pixelsToInches(header.rcdHeaderOuter.y() - overlayFinalYOffset),
         w: pixelsToInches(overlayFinalWidth),
@@ -129,7 +135,7 @@ function renderHeader(
         (inputs.overlay.width / inputs.overlay.height);
       const xOffset = (finalWidth - header.rcdHeaderOuter.w()) / 2;
       slide.addImage({
-        data: inputs.overlay.src,
+        data: overlayDataUrl,
         x: pixelsToInches(header.rcdHeaderOuter.x() - xOffset),
         y: pixelsToInches(header.rcdHeaderOuter.y()),
         w: pixelsToInches(finalWidth),
@@ -151,9 +157,10 @@ function renderHeader(
   ) {
     let currentX = x;
     for (const logo of inputs.headerLogos) {
+      const logoDataUrl = imageToDataUrl(logo, createCanvasRenderContext);
       const logoWidth = (s.header.logoHeight * logo.width) / logo.height;
       slide.addImage({
-        data: logo.src,
+        data: logoDataUrl,
         x: pixelsToInches(currentX),
         y: pixelsToInches(currentY),
         w: pixelsToInches(logoWidth),
@@ -211,9 +218,10 @@ function renderHeader(
     let currentX = paddedHeader.rightX();
     const y = paddedHeader.y() + header.yOffsetRightPlacementLogos;
     for (const logo of inputs.headerLogos) {
+      const logoDataUrl = imageToDataUrl(logo, createCanvasRenderContext);
       const logoWidth = (s.header.logoHeight * logo.width) / logo.height;
       slide.addImage({
-        data: logo.src,
+        data: logoDataUrl,
         x: pixelsToInches(currentX - logoWidth),
         y: pixelsToInches(y),
         w: pixelsToInches(logoWidth),
@@ -244,6 +252,7 @@ function renderFooter(
   slide: PptxSlide,
   measured: MeasuredFreeformPage,
   s: import("./deps.ts").MergedPageStyle,
+  createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const footer = measured.footer!;
   const inputs = measured.item;
@@ -288,9 +297,10 @@ function renderFooter(
     const y = paddedRcd.y() + (paddedRcd.h() - s.footer.logoHeight) / 2;
 
     for (const logo of inputs.footerLogos) {
+      const logoDataUrl = imageToDataUrl(logo, createCanvasRenderContext);
       const logoWidth = (s.footer.logoHeight * logo.width) / logo.height;
       slide.addImage({
-        data: logo.src,
+        data: logoDataUrl,
         x: pixelsToInches(currentX),
         y: pixelsToInches(y),
         w: pixelsToInches(logoWidth),
@@ -425,16 +435,17 @@ function addContentItem(
   // Note: cover mode with source cropping is not supported in PPTX (falls back to fill behavior)
   if (ImageRenderer.isType(item)) {
     const imageItem = item as import("./deps.ts").ImageInputs;
-    if (typeof imageItem.image === "string") {
-      const measured = ImageRenderer.measure(rc, bounds, imageItem);
-      slide.addImage({
-        data: imageItem.image,
-        x: pixelsToInches(measured.drawX),
-        y: pixelsToInches(measured.drawY),
-        w: pixelsToInches(measured.drawW),
-        h: pixelsToInches(measured.drawH),
-      });
-    }
+    const measured = ImageRenderer.measure(rc, bounds, imageItem);
+    const dataUrl = typeof imageItem.image === "string"
+      ? imageItem.image
+      : imageToDataUrl(imageItem.image, createCanvasRenderContext);
+    slide.addImage({
+      data: dataUrl,
+      x: pixelsToInches(measured.drawX),
+      y: pixelsToInches(measured.drawY),
+      w: pixelsToInches(measured.drawW),
+      h: pixelsToInches(measured.drawH),
+    });
     return;
   }
 

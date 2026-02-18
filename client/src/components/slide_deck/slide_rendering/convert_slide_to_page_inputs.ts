@@ -5,7 +5,15 @@ import type {
   CoverSlide,
   SectionSlide,
 } from "lib";
-import { FIGURE_AUTOFIT, getMetricStaticData, getPrimaryColor, getTextColorForBackground, MARKDOWN_AUTOFIT, _SLIDE_BACKGROUND_COLOR, _CF_RED } from "lib";
+import {
+  FIGURE_AUTOFIT,
+  getMetricStaticData,
+  getPrimaryColor,
+  getTextColorForBackground,
+  MARKDOWN_AUTOFIT,
+  _SLIDE_BACKGROUND_COLOR,
+  _CF_RED,
+} from "lib";
 import type {
   APIResponseWithData,
   PageInputs,
@@ -40,15 +48,17 @@ export function buildStyleForSlide(
   const primaryColor = getPrimaryColor(config.primaryColor);
   const primaryTextColor = getTextColorForBackground(primaryColor);
 
-  const hasFooter = slide.type === "content" && !!(slide.footer?.trim());
+  const hasFooter = slide.type === "content" && !!slide.footer?.trim();
 
-  const coverFontSizes = slide.type === "cover"
-    ? slide as CoverSlide
-    : {} as Partial<CoverSlide>;
+  const coverFontSizes =
+    slide.type === "cover"
+      ? (slide as CoverSlide)
+      : ({} as Partial<CoverSlide>);
 
-  const sectionFontSizes = slide.type === "section"
-    ? slide as SectionSlide
-    : {} as Partial<SectionSlide>;
+  const sectionFontSizes =
+    slide.type === "section"
+      ? (slide as SectionSlide)
+      : ({} as Partial<SectionSlide>);
 
   return {
     text: {
@@ -178,7 +188,8 @@ export async function convertSlideToPageInputs(
 ): Promise<APIResponseWithData<PageInputs>> {
   const style = buildStyleForSlide(slide, config);
   const watermark = config.useWatermark ? config.watermarkText : undefined;
-  const overlay = slide.type !== "content" ? await getOverlayImage(config) : undefined;
+  const overlay =
+    slide.type !== "content" ? await getOverlayImage(config) : undefined;
 
   if (slide.type === "cover") {
     const titleLogos = await loadLogos(slide.logos, config.logos);
@@ -212,7 +223,10 @@ export async function convertSlideToPageInputs(
     };
   }
 
-  const convertedLayout = await convertLayoutNode(slide.layout, getPrimaryColor(config.primaryColor));
+  const convertedLayout = await convertLayoutNode(
+    slide.layout,
+    getPrimaryColor(config.primaryColor),
+  );
   const headerLogos = await loadLogos(slide.headerLogos, config.logos);
   const footerLogos = await loadLogos(slide.footerLogos, config.logos);
 
@@ -239,11 +253,17 @@ type ResolvedTextBackground = {
   textColor: string;
 };
 
-function resolveTextBackground(bg: string | undefined, primaryColor: string): ResolvedTextBackground | undefined {
+function resolveTextBackground(
+  bg: string | undefined,
+  primaryColor: string,
+): ResolvedTextBackground | undefined {
   if (!bg || bg === "none") return undefined;
   if (bg === "grey") {
     return {
-      containerStyle: { backgroundColor: { key: "base200" }, padding: [50, 60] },
+      containerStyle: {
+        backgroundColor: { key: "base200" },
+        padding: [50, 60],
+      },
       textColor: "#1E1E1E",
     };
   }
@@ -255,7 +275,10 @@ function resolveTextBackground(bg: string | undefined, primaryColor: string): Re
   }
   if (bg === "success") {
     return {
-      containerStyle: { backgroundColor: _SLIDE_BACKGROUND_COLOR, padding: [50, 60] },
+      containerStyle: {
+        backgroundColor: _SLIDE_BACKGROUND_COLOR,
+        padding: [50, 60],
+      },
       textColor: getTextColorForBackground(_SLIDE_BACKGROUND_COLOR),
     };
   }
@@ -268,14 +291,23 @@ function resolveTextBackground(bg: string | undefined, primaryColor: string): Re
   return undefined;
 }
 
-async function convertLayoutNode(node: LayoutNode<ContentBlock>, primaryColor: string): Promise<LayoutNode<PageContentItem>> {
+async function convertLayoutNode(
+  node: LayoutNode<ContentBlock>,
+  primaryColor: string,
+): Promise<LayoutNode<PageContentItem>> {
   if (node.type === "item") {
     if (!node.data) {
-      return { type: "item", id: node.id, span: node.span, data: { spacer: true } };
+      return {
+        type: "item",
+        id: node.id,
+        span: node.span,
+        data: { spacer: true },
+      };
     }
-    const resolved = node.data.type === "text"
-      ? resolveTextBackground(node.data.style?.textBackground, primaryColor)
-      : undefined;
+    const resolved =
+      node.data.type === "text"
+        ? resolveTextBackground(node.data.style?.textBackground, primaryColor)
+        : undefined;
     return {
       type: "item",
       id: node.id,
@@ -290,16 +322,19 @@ async function convertLayoutNode(node: LayoutNode<ContentBlock>, primaryColor: s
     id: node.id,
     span: node.span,
     children: Array.isArray(node.children)
-      ? await Promise.all(node.children.map((c) => convertLayoutNode(c, primaryColor)))
+      ? await Promise.all(
+          node.children.map((c) => convertLayoutNode(c, primaryColor)),
+        )
       : [],
   };
 }
 
-async function convertBlockToPageContentItem(block: ContentBlock, textColor?: string): Promise<PageContentItem> {
+async function convertBlockToPageContentItem(
+  block: ContentBlock,
+  textColor?: string,
+): Promise<PageContentItem> {
   if (block.type === "text") {
-    const baseFontSize = block.style?.textSize
-      ? 60 * block.style.textSize
-      : 60;
+    const baseFontSize = block.style?.textSize ? 60 * block.style.textSize : 60;
     return {
       markdown: block.markdown,
       autofit: MARKDOWN_AUTOFIT,
@@ -318,7 +353,9 @@ async function convertBlockToPageContentItem(block: ContentBlock, textColor?: st
     if (!block.imgFile) {
       return { spacer: true };
     }
-    const resImg = await getImgFromCacheOrFetch(`${_SERVER_HOST}/${block.imgFile}`);
+    const resImg = await getImgFromCacheOrFetch(
+      `${_SERVER_HOST}/${block.imgFile}`,
+    );
     if (!resImg.success) {
       return { spacer: true };
     }
@@ -346,7 +383,10 @@ async function convertBlockToPageContentItem(block: ContentBlock, textColor?: st
   if (block.source?.type === "from_data") {
     try {
       const { formatAs } = getMetricStaticData(block.source.metricId);
-      const style = getStyleFromPresentationObject(block.source.config, formatAs);
+      const style = getStyleFromPresentationObject(
+        block.source.config,
+        formatAs,
+      );
       return { ...fi, autofit: FIGURE_AUTOFIT, style } as PageContentItem;
     } catch {
       return { ...fi, autofit: FIGURE_AUTOFIT } as PageContentItem;
