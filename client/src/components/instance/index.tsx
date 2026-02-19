@@ -12,7 +12,7 @@ import {
   openComponent,
   timQuery,
 } from "panther";
-import { Match, Show, Switch, createSignal } from "solid-js";
+import { Match, Show, Switch, createSignal, onMount } from "solid-js";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
@@ -28,6 +28,9 @@ import {
   getDhis2SessionCredentials,
   setDhis2SessionCredentials,
 } from "~/state/dhis2-session-storage";
+import { clerk } from "~/components/LoggedInWrapper";
+import { EmailOptInModal } from "~/components/email_opt_in_modal";
+
 
 type Props = {
   globalUser: GlobalUser;
@@ -40,6 +43,17 @@ export default function Instance(p: Props) {
   const [tab, setTab] = createSignal<
     "projects" | "users" | "data" | "assets" | "settings"
   >("projects");
+
+  // email opt in modal 
+  onMount(async () => {
+    if (!clerk.user) return; // skips dev bypass mode naturally
+    if (!clerk.user.unsafeMetadata?.emailOptInAsked) {
+      await openComponent({
+        element: EmailOptInModal,
+        props: undefined,
+      });
+    }
+  });
 
   async function openProfile() {
     await openComponent({
