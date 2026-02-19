@@ -1,13 +1,16 @@
 import type { ModuleDefinitionJSON } from "lib";
 
 export const definition = {
-  label: { en: "M2. Data quality adjustments", fr: "M2. Ajustements de la qualité des données" },
+  label: {
+    en: "M2. Data quality adjustments",
+    fr: "M2. Ajustements de la qualité des données",
+  },
   prerequisites: ["m001"],
   scriptSource: {
     type: "github",
     owner: "FASTR-Analytics",
     repo: "modules",
-    path: "02_module_data_quality_adjustments.R",
+    path: "m002_module_data_quality_adjustments.R",
     commit: "main",
   },
   assetsToImport: [],
@@ -101,7 +104,10 @@ export const definition = {
     {
       id: "m2-01-01",
       resultsObjectId: "M2_adjusted_data.csv",
-      label: { en: "Percent change in volume due to outlier adjustment", fr: "Changement en pourcentage du volume dû à l'ajustement des valeurs aberrantes" },
+      label: {
+        en: "Percent change in volume due to outlier adjustment",
+        fr: "Changement en pourcentage du volume dû à l'ajustement des valeurs aberrantes",
+      },
       valueProps: ["pct_change"],
       valueFunc: "identity",
       valueLabelReplacements: {
@@ -170,7 +176,8 @@ export const definition = {
             en: "Table showing percent change due to outlier adjustment by indicator and region",
             fr: "Tableau montrant le changement en pourcentage dû à l'ajustement des valeurs aberrantes par indicateur et région",
           },
-          createDefaultVisualizationOnInstall: "e5edce68-369c-498e-a4b0-03ba73d31d6c",
+          createDefaultVisualizationOnInstall:
+            "e5edce68-369c-498e-a4b0-03ba73d31d6c",
           defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
           allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
@@ -191,9 +198,18 @@ export const definition = {
               idealAspectRatio: "ideal",
             },
             t: {
-              caption: { en: "Deviance Due to Outliers", fr: "Déviance due aux valeurs aberrantes" },
-              subCaption: { en: "Percent change in volume due to outlier adjustment, DATE_RANGE", fr: "Changement en pourcentage du volume dû à l'ajustement des valeurs aberrantes, DATE_RANGE" },
-              footnote: { en: "Outliers are reports which are suspiciously high compared to the usual volume reported by the facility in other months. Outliers are identified by assessing the within-facility variation in monthly reporting for each indicator. Outliers are defined observations which are greater than 10 times the median absolute deviation (MAD) from the monthly median value for the indicator in each time period, OR a value for which the proportional contribution in volume for a facility, indicator, and time period is greater than 80%. Outliers are only identified for indicators where the volume is greater than or equal to the median, the volume is not missing, and the average volume is greater than 100. The deviance is the difference in volume after removing the outlier. High levels of deviance can affect the plausiability of the data.", fr: "Les valeurs aberrantes sont des rapports anormalement élevés par rapport au volume habituel déclaré par l'établissement au cours des autres mois. Elles sont identifiées en évaluant la variation intra-établissement des déclarations mensuelles pour chaque indicateur. Les valeurs aberrantes sont définies comme des observations supérieures à 10 fois l'écart absolu médian (MAD) par rapport à la valeur médiane mensuelle de l'indicateur pour chaque période, OU une valeur dont la contribution proportionnelle au volume pour un établissement, indicateur et période est supérieure à 80%. Les valeurs aberrantes ne sont identifiées que pour les indicateurs dont le volume est supérieur ou égal à la médiane, le volume n'est pas manquant, et le volume moyen est supérieur à 100. La déviance est la différence de volume après suppression de la valeur aberrante. Des niveaux élevés de déviance peuvent affecter la plausibilité des données." },
+              caption: {
+                en: "Deviance Due to Outliers",
+                fr: "Déviance due aux valeurs aberrantes",
+              },
+              subCaption: {
+                en: "Percent change in volume due to outlier adjustment, DATE_RANGE",
+                fr: "Changement en pourcentage du volume dû à l'ajustement des valeurs aberrantes, DATE_RANGE",
+              },
+              footnote: {
+                en: "Outliers are reports which are suspiciously high compared to the usual volume reported by the facility in other months. Outliers are identified by assessing the within-facility variation in monthly reporting for each indicator. Outliers are defined observations which are greater than 10 times the median absolute deviation (MAD) from the monthly median value for the indicator in each time period, OR a value for which the proportional contribution in volume for a facility, indicator, and time period is greater than 80%. Outliers are only identified for indicators where the volume is greater than or equal to the median, the volume is not missing, and the average volume is greater than 100. The deviance is the difference in volume after removing the outlier. High levels of deviance can affect the plausiability of the data.",
+                fr: "Les valeurs aberrantes sont des rapports anormalement élevés par rapport au volume habituel déclaré par l'établissement au cours des autres mois. Elles sont identifiées en évaluant la variation intra-établissement des déclarations mensuelles pour chaque indicateur. Les valeurs aberrantes sont définies comme des observations supérieures à 10 fois l'écart absolu médian (MAD) par rapport à la valeur médiane mensuelle de l'indicateur pour chaque période, OU une valeur dont la contribution proportionnelle au volume pour un établissement, indicateur et période est supérieure à 80%. Les valeurs aberrantes ne sont identifiées que pour les indicateurs dont le volume est supérieur ou égal à la médiane, le volume n'est pas manquant, et le volume moyen est supérieur à 100. La déviance est la différence de volume après suppression de la valeur aberrante. Des niveaux élevés de déviance peuvent affecter la plausibilité des données.",
+              },
             },
           },
         },
@@ -202,7 +218,10 @@ export const definition = {
     {
       id: "m2-01-02",
       resultsObjectId: "M2_adjusted_data.csv",
-      label: { en: "Percent change in volume due to completeness adjustment", fr: "Changement en pourcentage du volume dû à l'ajustement de complétude" },
+      label: {
+        en: "Percent change in volume due to completeness adjustment",
+        fr: "Changement en pourcentage du volume dû à l'ajustement de complétude",
+      },
       valueProps: ["pct_change"],
       valueFunc: "identity",
       valueLabelReplacements: {
@@ -271,7 +290,8 @@ export const definition = {
             en: "Table showing percent change due to completeness adjustment by indicator and region",
             fr: "Tableau montrant le changement en pourcentage dû à l'ajustement de complétude par indicateur et région",
           },
-          createDefaultVisualizationOnInstall: "b4750223-9ffd-43f6-958b-0ba9c0412df4",
+          createDefaultVisualizationOnInstall:
+            "b4750223-9ffd-43f6-958b-0ba9c0412df4",
           defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
           allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
@@ -292,9 +312,18 @@ export const definition = {
               idealAspectRatio: "ideal",
             },
             t: {
-              caption: { en: "Deviance Due to Incompleteness", fr: "Déviance due à l'incomplétude" },
-              subCaption: { en: "Percent change in volume due to completeness adjustment, DATE_RANGE", fr: "Changement en pourcentage du volume dû à l'ajustement de complétude, DATE_RANGE" },
-              footnote: { en: "Completeness is defined as the percentage of reporting facilities each month out of the total number of facilities expected to report. A facility is expected to report if it has reported any volume for each indicator anytime within a year. The deviance is the difference in volume after imputing incomplete data. High levels of deviance can affect the plausiability of the data.", fr: "La complétude est définie comme le pourcentage d'établissements déclarants chaque mois par rapport au nombre total d'établissements censés déclarer. Un établissement est censé déclarer s'il a déclaré un volume pour chaque indicateur à tout moment au cours de l'année. La déviance est la différence de volume après imputation des données incomplètes. Des niveaux élevés de déviance peuvent affecter la plausibilité des données." },
+              caption: {
+                en: "Deviance Due to Incompleteness",
+                fr: "Déviance due à l'incomplétude",
+              },
+              subCaption: {
+                en: "Percent change in volume due to completeness adjustment, DATE_RANGE",
+                fr: "Changement en pourcentage du volume dû à l'ajustement de complétude, DATE_RANGE",
+              },
+              footnote: {
+                en: "Completeness is defined as the percentage of reporting facilities each month out of the total number of facilities expected to report. A facility is expected to report if it has reported any volume for each indicator anytime within a year. The deviance is the difference in volume after imputing incomplete data. High levels of deviance can affect the plausiability of the data.",
+                fr: "La complétude est définie comme le pourcentage d'établissements déclarants chaque mois par rapport au nombre total d'établissements censés déclarer. Un établissement est censé déclarer s'il a déclaré un volume pour chaque indicateur à tout moment au cours de l'année. La déviance est la différence de volume après imputation des données incomplètes. Des niveaux élevés de déviance peuvent affecter la plausibilité des données.",
+              },
             },
           },
         },
@@ -303,7 +332,10 @@ export const definition = {
     {
       id: "m2-01-03",
       resultsObjectId: "M2_adjusted_data.csv",
-      label: { en: "Percent change in volume due to both outlier and completeness adjustment", fr: "Changement en pourcentage du volume dû à l'ajustement combiné des valeurs aberrantes et de la complétude" },
+      label: {
+        en: "Percent change in volume due to both outlier and completeness adjustment",
+        fr: "Changement en pourcentage du volume dû à l'ajustement combiné des valeurs aberrantes et de la complétude",
+      },
       valueProps: ["pct_change"],
       valueFunc: "identity",
       valueLabelReplacements: {
@@ -372,7 +404,8 @@ export const definition = {
             en: "Table showing percent change due to combined outlier and completeness adjustment by indicator and region",
             fr: "Tableau montrant le changement en pourcentage dû à l'ajustement combiné des valeurs aberrantes et de la complétude par indicateur et région",
           },
-          createDefaultVisualizationOnInstall: "5337d614-02b8-4de8-abcb-f390d2b7a714",
+          createDefaultVisualizationOnInstall:
+            "5337d614-02b8-4de8-abcb-f390d2b7a714",
           defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
           allowedFilters: ["indicator_common_id", "admin_area_2"],
           config: {
@@ -393,8 +426,14 @@ export const definition = {
               idealAspectRatio: "ideal",
             },
             t: {
-              caption: { en: "Deviance Due to Incompleteness and Outliers", fr: "Déviance due à l'incomplétude et aux valeurs aberrantes" },
-              subCaption: { en: "Percent change in volume due to both outlier and completeness adjustment, DATE_RANGE", fr: "Changement en pourcentage du volume dû à l'ajustement combiné des valeurs aberrantes et de la complétude, DATE_RANGE" },
+              caption: {
+                en: "Deviance Due to Incompleteness and Outliers",
+                fr: "Déviance due à l'incomplétude et aux valeurs aberrantes",
+              },
+              subCaption: {
+                en: "Percent change in volume due to both outlier and completeness adjustment, DATE_RANGE",
+                fr: "Changement en pourcentage du volume dû à l'ajustement combiné des valeurs aberrantes et de la complétude, DATE_RANGE",
+              },
               footnote: { en: "TBD", fr: "TBD" },
             },
           },

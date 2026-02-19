@@ -48,6 +48,7 @@ export {
   For,
   Match,
   onCleanup,
+  onMount,
   Show,
   Switch,
   useContext,

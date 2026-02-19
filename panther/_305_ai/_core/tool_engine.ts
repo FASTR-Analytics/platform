@@ -73,10 +73,9 @@ export function getInProgressItems(
     let label: string | undefined;
 
     if (metadata?.inProgressLabel) {
-      label =
-        typeof metadata.inProgressLabel === "function"
-          ? metadata.inProgressLabel(block.input)
-          : metadata.inProgressLabel;
+      label = typeof metadata.inProgressLabel === "function"
+        ? metadata.inProgressLabel(block.input)
+        : metadata.inProgressLabel;
     } else if (SERVER_TOOL_LABELS[block.name]) {
       // Fall back to built-in tool labels
       label = SERVER_TOOL_LABELS[block.name];
@@ -133,13 +132,15 @@ export async function processToolUses(
         };
       } catch (error) {
         // Clean message for Claude API (no stack, no "Error:" prefix)
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error
+          ? error.message
+          : String(error);
         const cleanMessage = errorMessage.replace(/^Error:\s*/i, "");
 
         // Full error details for UI (includes stack)
-        const fullError =
-          error instanceof Error && error.stack ? error.stack : cleanMessage;
+        const fullError = error instanceof Error && error.stack
+          ? error.stack
+          : cleanMessage;
 
         return {
           type: "tool_result" as const,
@@ -176,8 +177,9 @@ export async function processToolUses(
         toolName: toolBlock.name,
         errorMessage: errorLabel,
         errorDetails: result.content,
-        errorStack:
-          result._fullError !== result.content ? result._fullError : undefined,
+        errorStack: result._fullError !== result.content
+          ? result._fullError
+          : undefined,
         toolInput: toolBlock.input,
       };
     });
@@ -194,8 +196,8 @@ export async function processToolUses(
       const metadata = toolRegistry.getMetadata(toolBlock.name);
 
       // Use successMessage if provided, fall back to completionMessage (backwards compat), then default
-      const messageSource =
-        metadata?.successMessage ?? metadata?.completionMessage;
+      const messageSource = metadata?.successMessage ??
+        metadata?.completionMessage;
       const message = messageSource
         ? typeof messageSource === "function"
           ? messageSource(toolBlock.input)

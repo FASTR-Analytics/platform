@@ -2,12 +2,11 @@ import {
   RectCoordsDims,
   PageRenderer,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
-  _GLOBAL_PDF_PIXEL_WIDTH,
   createPdfRenderContextWithFontsBrowser,
   CustomPageStyle,
   type FontInfo,
 } from "panther";
-import { APIResponseNoData, APIResponseWithData, getTextRenderingOptions, type Slide } from "lib";
+import { APIResponseWithData, getTextRenderingOptions, type Slide } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { convertSlideToPageInputs } from "~/components/slide_deck/slide_rendering/convert_slide_to_page_inputs";
@@ -21,7 +20,7 @@ export async function exportSlideDeckAsPdfBase64(
   projectId: string,
   deckId: string,
   progress: (pct: number) => void,
-): Promise<APIResponseNoData | APIResponseWithData<string>> {
+): Promise<APIResponseWithData<string>> {
   let currentSlideNumber = 0;
   try {
     await new Promise((res) => setTimeout(res, 0));
@@ -38,8 +37,7 @@ export async function exportSlideDeckAsPdfBase64(
       return resDeckDetail;
     }
 
-    const pdfScaleFactor = _GLOBAL_PDF_PIXEL_WIDTH / _GLOBAL_CANVAS_PIXEL_WIDTH;
-    const pdfW = _GLOBAL_PDF_PIXEL_WIDTH;
+    const pdfW = _GLOBAL_CANVAS_PIXEL_WIDTH;
     const pdfH = Math.round((pdfW * 9) / 16);
     const pdfOrientation = "landscape";
 
@@ -128,7 +126,6 @@ export async function exportSlideDeckAsPdfBase64(
         rc,
         rcd,
         resPageInputs.data,
-        pdfScaleFactor,
       );
     }
 

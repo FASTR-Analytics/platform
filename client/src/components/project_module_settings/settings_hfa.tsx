@@ -1,13 +1,13 @@
 import {
-  t3, TC,
+  TC,
+  t3,
   type HfaIndicator,
   type ModuleConfigSelectionsHfa,
-  type ModuleId
+  type ModuleId,
 } from "lib";
 import {
   Button,
   EditorComponentProps,
-  FrameRight,
   FrameRightResizable,
   FrameTop,
   HeadingBar,
@@ -16,16 +16,15 @@ import {
   Table,
   getEditorWrapper,
   getPixelsFromPctClientWidth,
-  getTruncatedString,
-  openComponent,
   timActionButton,
   timQuery,
   type APIResponseWithData,
 } from "panther";
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { Show, createMemo, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { EditHfaIndicator } from "../forms_editors/edit_hfa_indicator";
+import { HfaCsvUploadForm } from "./hfa_csv_upload_form";
 
 export function SettingsForProjectModuleHFA(
   p: EditorComponentProps<
@@ -38,8 +37,7 @@ export function SettingsForProjectModuleHFA(
     undefined
   >,
 ) {
-
-  const { openEditor, EditorWrapper } = getEditorWrapper()
+  const { openEditor, EditorWrapper } = getEditorWrapper();
 
   const [tempIndicators, setTempIndicators] = createStore<HfaIndicator[]>([]);
   const [vars, setVars] = createSignal<
@@ -57,21 +55,27 @@ export function SettingsForProjectModuleHFA(
     return vars().filter((v) => v.var_name.toLowerCase().includes(search));
   });
 
-  const config = timQuery(async () => {
-    const res = await serverActions.getModuleWithConfigSelections({
-      projectId: p.projectId,
-      module_id: p.installedModuleId,
-    });
-    if (res.success === true) {
-      if (res.data.configSelections.configType === "hfa") {
-        setTempIndicators(res.data.configSelections.indicators);
-        setVars(res.data.hfaIndicators ?? []);
-      } else {
-        return { success: false, err: "Wrong config type" };
+  const config = timQuery(
+    async () => {
+      const res = await serverActions.getModuleWithConfigSelections({
+        projectId: p.projectId,
+        module_id: p.installedModuleId,
+      });
+      if (res.success === true) {
+        if (res.data.configSelections.configType === "hfa") {
+          setTempIndicators(res.data.configSelections.indicators);
+          setVars(res.data.hfaIndicators ?? []);
+        } else {
+          return { success: false, err: "Wrong config type" };
+        }
       }
-    }
-    return res as APIResponseWithData<ModuleConfigSelectionsHfa>;
-  }, t3({ en: "Loading module config selections...", fr: "Chargement des configurations du module..." }));
+      return res as APIResponseWithData<ModuleConfigSelectionsHfa>;
+    },
+    t3({
+      en: "Loading module config selections...",
+      fr: "Chargement des configurations du module...",
+    }),
+  );
 
   const save = timActionButton(async () => {
     return await serverActions.updateModuleParameters({
@@ -113,17 +117,82 @@ export function SettingsForProjectModuleHFA(
     }
   }
 
+  async function handleCsvUpload() {
+    await openEditor({
+      element: HfaCsvUploadForm,
+      props: {
+        onUploadComplete: (indicators: HfaIndicator[], replaceAll: boolean) => {
+          if (replaceAll) {
+            setTempIndicators(indicators);
+          } else {
+            // Add to existing, avoiding duplicates by varName
+            const existingVarNames = new Set(
+              tempIndicators.map((ind) => ind.varName),
+            );
+            const newIndicators = indicators.filter(
+              (ind) => !existingVarNames.has(ind.varName),
+            );
+            setTempIndicators([...tempIndicators, ...newIndicators]);
+          }
+          setNeedsSaving(true);
+        },
+      },
+    });
+  }
+
+  function handleDownloadCsv() {
+    const headers = [
+      "category",
+      "definition",
+      "varName",
+      "rCode",
+      "type",
+      "rFilterCode",
+    ];
+    const rows = tempIndicators.map((indicator) => [
+      indicator.category,
+      indicator.definition,
+      indicator.varName,
+      indicator.rCode,
+      indicator.type,
+      indicator.rFilterCode ?? "",
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row: string[]) =>
+        row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "hfa_indicators.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${p.installedModuleLabel} ${t3({ en: "settings", fr: "paramètres" })}`}>
+        <HeadingBar
+          heading={`${p.installedModuleLabel} ${t3({ en: "settings", fr: "paramètres" })}`}
+        >
           <div class="ui-gap-sm flex">
             <Show when={!p.projectIsLocked}>
-              <Button
-                onClick={addIndicator}
-                intent="primary"
-                iconName="plus"
-              >
+              <Button onClick={handleDownloadCsv} intent="neutral" iconName="download">
+                {t3({ en: "Download CSV", fr: "Télécharger CSV" })}
+              </Button>
+            </Show>
+            <Show when={!p.projectIsLocked}>
+              <Button onClick={handleCsvUpload} intent="neutral" iconName="upload">
+                {t3({ en: "Upload CSV", fr: "Téléverser CSV" })}
+              </Button>
+            </Show>
+            <Show when={!p.projectIsLocked}>
+              <Button onClick={addIndicator} intent="primary" iconName="plus">
                 {t3({ en: "Add Indicator", fr: "Ajouter un indicateur" })}
               </Button>
             </Show>
@@ -160,7 +229,10 @@ export function SettingsForProjectModuleHFA(
                     <Input
                       value={varSearch()}
                       onChange={setVarSearch}
-                      placeholder={t3({ en: "Search variables...", fr: "Rechercher des variables..." })}
+                      placeholder={t3({
+                        en: "Search variables...",
+                        fr: "Rechercher des variables...",
+                      })}
                       fullWidth
                     />
                   </div>
@@ -180,7 +252,10 @@ export function SettingsForProjectModuleHFA(
                         },
                         {
                           key: "example_values",
-                          header: t3({ en: "Example Values", fr: "Exemples de valeurs" }),
+                          header: t3({
+                            en: "Example Values",
+                            fr: "Exemples de valeurs",
+                          }),
                           render: (v) => (
                             <div class="truncate font-mono">
                               {v.example_values}
@@ -207,10 +282,12 @@ export function SettingsForProjectModuleHFA(
                         intent: "danger",
                         onClick: (selectedIndicators) => {
                           const selectedVarNames = new Set(
-                            selectedIndicators.map((ind) => ind.varName)
+                            selectedIndicators.map((ind) => ind.varName),
                           );
                           setTempIndicators(
-                            tempIndicators.filter((ind) => !selectedVarNames.has(ind.varName))
+                            tempIndicators.filter(
+                              (ind) => !selectedVarNames.has(ind.varName),
+                            ),
                           );
                           setNeedsSaving(true);
                           return "CLEAR_SELECTION";
@@ -230,28 +307,42 @@ export function SettingsForProjectModuleHFA(
                       },
                       {
                         key: "varName",
-                        header: t3({ en: "Variable Name", fr: "Nom de la variable" }),
+                        header: t3({
+                          en: "Variable Name",
+                          fr: "Nom de la variable",
+                        }),
                         // sortable: true,
                       },
                       {
                         key: "type",
                         header: t3({ en: "Type", fr: "Type" }),
                         render: (indicator) => (
-                          <code class="font-mono text-xs">{indicator.type === "binary" ? t3({ en: "Boolean", fr: "Booléen" }) : t3({ en: "Numeric", fr: "Numérique" })}</code>
+                          <code class="font-mono text-xs">
+                            {indicator.type === "binary"
+                              ? t3({ en: "Boolean", fr: "Booléen" })
+                              : t3({ en: "Numeric", fr: "Numérique" })}
+                          </code>
                         ),
                       },
                       {
                         key: "rCode",
                         header: t3({ en: "R Code", fr: "Code R" }),
                         render: (indicator) => (
-                          <code class="font-mono text-xs">{indicator.rCode}</code>
+                          <code class="font-mono text-xs">
+                            {indicator.rCode}
+                          </code>
                         ),
                       },
                       {
                         key: "rFilterCode",
-                        header: t3({ en: "R Filter Code", fr: "Code de filtre R" }),
+                        header: t3({
+                          en: "R Filter Code",
+                          fr: "Code de filtre R",
+                        }),
                         render: (indicator) => (
-                          <code class="font-mono text-xs">{indicator.rFilterCode}</code>
+                          <code class="font-mono text-xs">
+                            {indicator.rFilterCode}
+                          </code>
                         ),
                       },
                     ]}
@@ -264,8 +355,12 @@ export function SettingsForProjectModuleHFA(
                       },
                     ]}
                     currentGroup="category"
-                    noRowsMessage={t3({ en: "No indicators configured", fr: "Aucun indicateur configuré" })}
-                  /></EditorWrapper>
+                    noRowsMessage={t3({
+                      en: "No indicators configured",
+                      fr: "Aucun indicateur configuré",
+                    })}
+                  />
+                </EditorWrapper>
               </div>
             </FrameRightResizable>
           );

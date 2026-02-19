@@ -195,6 +195,11 @@ function formatItemsAsMarkdown(
     }
   }
 
+  if (staticData.importantNotes) {
+    lines.push("");
+    lines.push(`**IMPORTANT:** ${staticData.importantNotes}`);
+  }
+
   if (aiDescription) {
     lines.push("");
     if (aiDescription.methodology) {

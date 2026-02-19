@@ -11,8 +11,7 @@ import {
 } from "panther";
 import { Show, createSignal } from "solid-js";
 import { exportReportAsPdfVector } from "~/export_report/export_report_as_pdf_vector";
-import { exportReportAsPptxVector } from "~/export_report/export_report_as_pptx_vector";
-import { exportReportAsPptxWithImages } from "~/export_report/export_report_as_pptx_with_images";
+import { exportReportAsPptx } from "~/export_report/export_report_as_pptx";
 import { serverActions } from "~/server_actions";
 
 export function DownloadReport(
@@ -63,20 +62,12 @@ export function DownloadReport(
             p.unwrappedPDS,
             progress,
           )
-        : format === "pptx"
-          ? await exportReportAsPptxVector(
-              p.projectId,
-              p.reportId,
-              p.unwrappedPDS,
-              progress,
-            )
-          : await exportReportAsPptxWithImages(
-              p.projectId,
-              p.reportId,
-              Number(format),
-              p.unwrappedPDS,
-              progress,
-            );
+        : await exportReportAsPptx(
+            p.projectId,
+            p.reportId,
+            p.unwrappedPDS,
+            progress,
+          );
     if (res.success === false) {
       setErr(res.err);
       setPct(0);
@@ -114,7 +105,7 @@ export function DownloadReport(
       <div class="ui-spy-sm">
         <div class="">{t("PDF")}</div>
         <RadioGroup
-          options={[{ value: "vector", label: "Native PDF (Recommended!)" }]}
+          options={[{ value: "vector", label: "PDF" }]}
           value={exportFormat()}
           onChange={setExportFormat}
         />
@@ -122,20 +113,7 @@ export function DownloadReport(
       <div class="ui-spy-sm">
         <div class="">{t("PPTX")}</div>
         <RadioGroup
-          options={[{ value: "pptx", label: "Native PPTX" }]}
-          value={exportFormat()}
-          onChange={setExportFormat}
-        />
-      </div>
-      <div class="ui-spy-sm">
-        <div class="">{t("Image-based PPTX")}</div>
-        <RadioGroup
-          options={[
-            { value: "0.2", label: "Image-based PPTX: Very low quality" },
-            { value: "0.33", label: t("Image-based PPTX: Low quality") },
-            { value: "0.6", label: "Image-based PPTX: Medium quality" },
-            { value: "1", label: t("Image-based PPTX: High quality") },
-          ]}
+          options={[{ value: "pptx", label: "PPTX" }]}
           value={exportFormat()}
           onChange={setExportFormat}
         />

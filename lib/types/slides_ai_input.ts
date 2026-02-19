@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { MAX_CONTENT_BLOCKS } from "../consts.ts";
+import {
+  MAX_CONTENT_BLOCKS,
+  SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
+  SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
+} from "../consts.ts";
 
 // Metric schema
 
@@ -54,9 +58,17 @@ export const AiTextBlockSchema = z.object({
   type: z.literal("text"),
   markdown: z
     .string()
-    .max(5000)
     .describe(
-      "The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. Maximum 5000 characters. IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, use a 'from_metric' block with a table preset, or a 'from_visualization' block.",
+      `The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. WORD COUNT: Target ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words TOTAL across all text blocks per slide (adjust down if slide has charts/figures), absolute maximum ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words TOTAL per slide. IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, use a 'from_metric' block with a table preset, or a 'from_visualization' block.`,
+    )
+    .refine(
+      (text) => {
+        const wordCount = text.trim().split(/\s+/).length;
+        return wordCount <= SLIDE_TEXT_TOTAL_WORD_COUNT_MAX;
+      },
+      {
+        message: `Individual text block exceeds ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words`,
+      },
     ),
 });
 
@@ -136,6 +148,33 @@ export const AiContentBlockInputSchema = z.union([
   AiTextBlockSchema,
   AiFigureBlockInputSchema,
 ]);
+
+// Layout spec schemas (for AI layout control)
+
+export const LayoutCellSchema = z.object({
+  block: z.union([
+    z.string().describe("Existing block ID (from get_slide) to keep unchanged"),
+    AiContentBlockInputSchema.describe("New block content to create"),
+  ]),
+  span: z
+    .number()
+    .int()
+    .min(1)
+    .max(12)
+    .optional()
+    .describe(
+      "Column width (1-12). Spans per row must sum to 12. Omit for equal split.",
+    ),
+});
+
+export const LayoutSpecSchema = z
+  .array(z.array(LayoutCellSchema).min(1).max(3))
+  .min(1)
+  .max(3)
+  .describe("Rows (top→bottom), each containing columns (left→right).");
+
+export type LayoutCell = z.infer<typeof LayoutCellSchema>;
+export type LayoutSpec = z.infer<typeof LayoutSpecSchema>;
 
 // Slide schemas
 

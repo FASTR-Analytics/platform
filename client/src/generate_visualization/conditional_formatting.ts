@@ -5,11 +5,68 @@ import {
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
   _CF_RED,
+  PeriodOption,
   PresentationObjectConfig,
   t,
   t2,
+  t3,
   T,
+  TranslatableString,
 } from "lib";
+
+function getPeriodChangeLabels(
+  periodOpt: PeriodOption,
+  inverted: boolean
+): { increase: string; decrease: string } {
+  const labels = getPeriodChangeTranslatableStrings(periodOpt);
+  return {
+    increase: t3(labels.increase),
+    decrease: t3(labels.decrease),
+  };
+}
+
+function getPeriodChangeTranslatableStrings(
+  periodOpt: PeriodOption
+): {
+  increase: TranslatableString;
+  decrease: TranslatableString;
+} {
+  switch (periodOpt) {
+    case "period_id":
+      return {
+        increase: {
+          en: "Greater than 10% month-to-month increase",
+          fr: "Augmentation de plus de 10% d'un mois à l'autre",
+        },
+        decrease: {
+          en: "Greater than 10% month-to-month decrease",
+          fr: "Diminution de plus de 10% d'un mois à l'autre",
+        },
+      };
+    case "quarter_id":
+      return {
+        increase: {
+          en: "Greater than 10% quarter-to-quarter increase",
+          fr: "Augmentation de plus de 10% d'un trimestre à l'autre",
+        },
+        decrease: {
+          en: "Greater than 10% quarter-to-quarter decrease",
+          fr: "Diminution de plus de 10% d'un trimestre à l'autre",
+        },
+      };
+    case "year":
+      return {
+        increase: {
+          en: "Greater than 10% year-on-year increase",
+          fr: "Augmentation de plus de 10% d'une année sur l'autre",
+        },
+        decrease: {
+          en: "Greater than 10% year-on-year decrease",
+          fr: "Diminution de plus de 10% d'une année sur l'autre",
+        },
+      };
+  }
+}
 
 export function getColorFuncGivenConditionalFormatting(
   config: PresentationObjectConfig,
@@ -98,29 +155,33 @@ export function getLegendItemsFromConfig(
   config: PresentationObjectConfig,
 ): LegendItem[] | undefined {
   if (config.s.content === "bars" && config.s.specialBarChart) {
+    const labels = getPeriodChangeLabels(
+      config.d.periodOpt,
+      config.s.specialBarChartInverted
+    );
+
     if (config.s.specialBarChartInverted) {
+      return [
+        {
+          label: labels.increase,
+          color: _CF_RED,
+        },
+        {
+          label: labels.decrease,
+          color: _CF_GREEN,
+        },
+      ];
+    }
     return [
       {
-        label: t2(T.FRENCH_UI_STRINGS.greater_than_10_quartertoquart_1),
-        color: _CF_RED,
-      },
-      {
-        label: t2(T.FRENCH_UI_STRINGS.greater_than_10_quartertoquart),
-        color: _CF_GREEN,
-      },
-    ];
-  } 
-    return [
-      {
-        label: t2(T.FRENCH_UI_STRINGS.greater_than_10_quartertoquart_1),
+        label: labels.increase,
         color: _CF_GREEN,
       },
       {
-        label: t2(T.FRENCH_UI_STRINGS.greater_than_10_quartertoquart),
+        label: labels.decrease,
         color: _CF_RED,
       },
     ];
-  
   }
   if (config.s.content === "areas" && config.s.diffAreas) {
     if (config.s.diffInverted) {

@@ -15,7 +15,6 @@ export async function getPageInputsFromReportItem(
   reportConfig: ReportConfig,
   reportItemConfig: ReportItemConfig,
   itemIndex: number | undefined,
-  pdfScaleFactor?: number,
 ): Promise<APIResponseWithData<PageInputs>> {
   if (reportType === "slide_deck") {
     if (reportItemConfig.type === "freeform") {
@@ -24,7 +23,6 @@ export async function getPageInputsFromReportItem(
         reportConfig,
         reportItemConfig,
         itemIndex,
-        pdfScaleFactor,
       );
     }
     if (reportItemConfig.type === "cover") {
@@ -57,7 +55,6 @@ export async function getPageInputsFromReportItem(
       reportConfig,
       reportItemConfig,
       itemIndex,
-      pdfScaleFactor,
     );
   }
   throw new Error(`Bad slide input type: reportType=${reportType}, itemType=${reportItemConfig.type}`);

@@ -61,6 +61,13 @@ export const MessageList: Component<Props> = (props) => {
         );
       }
       case "tool_in_progress": {
+        // Tool-specific inProgressComponent takes priority over global toolLoading renderer
+        const toolWithMetadata = props.toolRegistry.get(item.toolName);
+        if (toolWithMetadata?.metadata.inProgressComponent) {
+          const InProgressComponent =
+            toolWithMetadata.metadata.inProgressComponent;
+          return <InProgressComponent input={item.toolInput} />;
+        }
         const Renderer = registry.toolLoading ?? ToolLoadingRenderer;
         return <Renderer item={item} />;
       }

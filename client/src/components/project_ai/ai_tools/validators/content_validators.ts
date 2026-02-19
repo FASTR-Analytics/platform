@@ -1,4 +1,13 @@
-import { ALL_DISAGGREGATION_OPTIONS, type AiMetricQuery, type DisaggregationOption, type MetricWithStatus, type PeriodOption, MAX_CONTENT_BLOCKS } from "lib";
+import {
+  ALL_DISAGGREGATION_OPTIONS,
+  MAX_CONTENT_BLOCKS,
+  SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
+  SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
+  type AiMetricQuery,
+  type DisaggregationOption,
+  type MetricWithStatus,
+  type PeriodOption,
+} from "lib";
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/po_cache";
 
@@ -23,6 +32,19 @@ export function validateMaxContentBlocks(blocksCount: number): void {
   if (blocksCount > MAX_CONTENT_BLOCKS) {
     throw new Error(
       `Too many blocks (${blocksCount}). Maximum is ${MAX_CONTENT_BLOCKS} blocks per slide. Please reduce the number of blocks and try again.`
+    );
+  }
+}
+
+export function validateSlideTotalWordCount(textBlocks: string[]): void {
+  const totalWordCount = textBlocks.reduce((sum, text) => {
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+    return sum + words;
+  }, 0);
+
+  if (totalWordCount > SLIDE_TEXT_TOTAL_WORD_COUNT_MAX) {
+    throw new Error(
+      `Slide exceeds maximum word count (${totalWordCount} words across all text blocks). Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide, absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words. Please reduce the text length.`
     );
   }
 }

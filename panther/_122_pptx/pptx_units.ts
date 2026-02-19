@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { RectCoordsDims } from "./deps.ts";
+import type { CreateCanvasRenderContext } from "./types.ts";
 
 const DPI = 96;
 
@@ -29,4 +30,22 @@ export function rcdToSlidePosition(rcd: RectCoordsDims): SlidePosition {
     w: pixelsToInches(rcd.w()),
     h: pixelsToInches(rcd.h()),
   };
+}
+
+export function imageToDataUrl(
+  img: HTMLImageElement,
+  createCanvasRenderContext: CreateCanvasRenderContext,
+  crop?: { sx: number; sy: number; sw: number; sh: number },
+): string {
+  const width = crop?.sw ?? img.naturalWidth;
+  const height = crop?.sh ?? img.naturalHeight;
+  const { canvas, rc } = createCanvasRenderContext(width, height);
+
+  if (crop) {
+    rc.rImage(img, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height);
+  } else {
+    rc.rImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+  }
+
+  return canvas.toDataURL("png");
 }

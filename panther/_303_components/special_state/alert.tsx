@@ -123,13 +123,15 @@ function isComponentState(
   return alertState?.stateType === "component";
 }
 
-type ComponentStateType<TProps, TReturn> = OpenComponentInput<
-  TProps,
-  TReturn
-> & {
-  stateType: "component";
-  componentResolver(v: TReturn | undefined): void;
-};
+type ComponentStateType<TProps, TReturn> =
+  & OpenComponentInput<
+    TProps,
+    TReturn
+  >
+  & {
+    stateType: "component";
+    componentResolver(v: TReturn | undefined): void;
+  };
 
 const [alertState, setAlertState] = createSignal<
   | AlertStateType
@@ -330,9 +332,8 @@ export default function AlertProvider() {
                               )}
                             </Show>
                             <Show
-                              when={
-                                isPromptState(keyedACPState) && keyedACPState
-                              }
+                              when={isPromptState(keyedACPState) &&
+                                keyedACPState}
                               keyed
                             >
                               {(keyedPromptState) => (

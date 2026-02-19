@@ -1,13 +1,16 @@
 import type { ModuleDefinitionJSON } from "lib";
 
 export const definition = {
-  label: { en: "M6. Coverage estimates ~ new, part 2", fr: "M6. Estimations de couverture ~ nouveau, partie 2" },
+  label: {
+    en: "M6. Coverage estimates ~ new, part 2",
+    fr: "M6. Estimations de couverture ~ nouveau, partie 2",
+  },
   prerequisites: ["m005"],
   scriptSource: {
     type: "github",
     owner: "FASTR-Analytics",
     repo: "modules",
-    path: "06_module_coverage_estimates_part2.R",
+    path: "m006_module_coverage_estimates_part2.R",
     commit: "main",
   },
   assetsToImport: [],
@@ -150,7 +153,10 @@ export const definition = {
           "Projected survey estimate (when survey data is missing)",
         coverage_cov: "Coverage calculated from HMIS data",
       },
-      label: { en: "Coverage (all estimation types)", fr: "Couverture (tous types d'estimation)" },
+      label: {
+        en: "Coverage (all estimation types)",
+        fr: "Couverture (tous types d'estimation)",
+      },
       variantLabel: { en: "National", fr: "National" },
       requiredDisaggregationOptions: ["indicator_common_id", "year"],
       formatAs: "percent",
@@ -200,32 +206,55 @@ export const definition = {
           fr: "Toujours désagréger par indicator_common_id et year (tous deux requis). Comparer les trois types de couverture pour évaluer la qualité des données.",
         },
       },
-      vizPresets: [{
-        id: "coverage-timeseries",
-        label: { en: "Coverage timeseries (national)", fr: "Séries temporelles de couverture (national)" },
-        description: { en: "National coverage timeseries with survey benchmarks", fr: "Séries temporelles de couverture nationale avec repères d'enquête" },
-        createDefaultVisualizationOnInstall: "2a74f737-78e5-41a1-8f6d-7a3f59be2d19",
-        needsReplicant: true,
-        allowedFilters: [],
-        config: {
-          d: {
-            type: "timeseries",
-            periodOpt: "year",
-            valuesDisDisplayOpt: "series",
-            disaggregateBy: [
-              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
-            ],
-            filterBy: [],
-            selectedReplicantValue: "anc1",
+      vizPresets: [
+        {
+          id: "coverage-timeseries",
+          label: {
+            en: "Coverage timeseries (national)",
+            fr: "Séries temporelles de couverture (national)",
           },
-          s: { scale: 2.7, content: "lines", showDataLabels: true, specialCoverageChart: true },
-          t: {
-            caption: { en: "Coverage estimates for REPLICANT", fr: "Estimations de couverture pour REPLICANT" },
-            subCaption: { en: "DATE_RANGE\nDISCLAIMER: These results use routine data to provide rigorous, but not official estimates. They should be interpreted considering any data quality or representation limitations, including data quality findings and any other country specific factors.", fr: "DATE_RANGE\nAVERTISSEMENT : Ces résultats utilisent des données de routine pour fournir des estimations rigoureuses mais non officielles. Ils doivent être interprétés en tenant compte des limitations de qualité des données ou de représentativité, y compris les résultats d'évaluation de la qualité des données et tout autre facteur spécifique au pays." },
-            footnote: { en: "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.", fr: "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante." },
+          description: {
+            en: "National coverage timeseries with survey benchmarks",
+            fr: "Séries temporelles de couverture nationale avec repères d'enquête",
+          },
+          createDefaultVisualizationOnInstall:
+            "2a74f737-78e5-41a1-8f6d-7a3f59be2d19",
+          needsReplicant: true,
+          allowedFilters: [],
+          config: {
+            d: {
+              type: "timeseries",
+              periodOpt: "year",
+              valuesDisDisplayOpt: "series",
+              disaggregateBy: [
+                { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+              ],
+              filterBy: [],
+              selectedReplicantValue: "anc1",
+            },
+            s: {
+              scale: 2.7,
+              content: "lines",
+              showDataLabels: true,
+              specialCoverageChart: true,
+            },
+            t: {
+              caption: {
+                en: "Coverage estimates for REPLICANT",
+                fr: "Estimations de couverture pour REPLICANT",
+              },
+              subCaption: {
+                en: "DATE_RANGE\nDISCLAIMER: These results use routine data to provide rigorous, but not official estimates. They should be interpreted considering any data quality or representation limitations, including data quality findings and any other country specific factors.",
+                fr: "DATE_RANGE\nAVERTISSEMENT : Ces résultats utilisent des données de routine pour fournir des estimations rigoureuses mais non officielles. Ils doivent être interprétés en tenant compte des limitations de qualité des données ou de représentativité, y compris les résultats d'évaluation de la qualité des données et tout autre facteur spécifique au pays.",
+              },
+              footnote: {
+                en: "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.",
+                fr: "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante.",
+              },
+            },
           },
         },
-      }],
+      ],
     },
     {
       id: "m6-02-01",
@@ -242,7 +271,10 @@ export const definition = {
           "Projected survey estimate (when survey data is missing)",
         coverage_cov: "Coverage calculated from HMIS data",
       },
-      label: { en: "Coverage (all estimation types)", fr: "Couverture (tous types d'estimation)" },
+      label: {
+        en: "Coverage (all estimation types)",
+        fr: "Couverture (tous types d'estimation)",
+      },
       variantLabel: { en: "Admin area 2", fr: "Zone administrative 2" },
       requiredDisaggregationOptions: [
         "indicator_common_id",
@@ -284,62 +316,103 @@ export const definition = {
           fr: "Toujours désagréger par indicator_common_id, admin_area_2 et year (tous requis). Comparer trois types de couverture pour la validation de la qualité des données régionales.",
         },
       },
-      vizPresets: [{
-        id: "coverage-timeseries",
-        label: { en: "Coverage timeseries by region", fr: "Séries temporelles de couverture par région" },
-        description: { en: "Coverage trends over time by admin area 2", fr: "Tendances de couverture dans le temps par zone administrative 2" },
-        createDefaultVisualizationOnInstall: "e5f8740b-a690-4a84-a0cd-05d529676f26",
-        needsReplicant: true,
-        allowedFilters: ["admin_area_2"],
-        config: {
-          d: {
-            type: "timeseries",
-            periodOpt: "year",
-            valuesDisDisplayOpt: "series",
-            disaggregateBy: [
-              { disOpt: "admin_area_2", disDisplayOpt: "cell" },
-              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
-            ],
-            filterBy: [],
-            includeNationalForAdminArea2: true,
-            selectedReplicantValue: "anc1",
+      vizPresets: [
+        {
+          id: "coverage-timeseries",
+          label: {
+            en: "Coverage timeseries by region",
+            fr: "Séries temporelles de couverture par région",
           },
-          s: { scale: 1.7, content: "lines", showDataLabels: true, specialCoverageChart: true },
-          t: {
-            caption: { en: "Subnational coverage estimates for REPLICANT", fr: "Estimations de couverture sous-nationales pour REPLICANT" },
-            subCaption: { en: "DATE_RANGE\nDISCLAIMER: These results use routine data to provide rigorous, but not official estimates. They should be interpreted considering any data quality or representation limitations, including data quality findings and any other country specific factors.", fr: "DATE_RANGE\nAVERTISSEMENT : Ces résultats utilisent des données de routine pour fournir des estimations rigoureuses mais non officielles. Ils doivent être interprétés en tenant compte des limitations de qualité des données ou de représentativité, y compris les résultats d'évaluation de la qualité des données et tout autre facteur spécifique au pays." },
-            footnote: { en: "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.", fr: "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante." },
+          description: {
+            en: "Coverage trends over time by admin area 2",
+            fr: "Tendances de couverture dans le temps par zone administrative 2",
           },
-        },
-      }, {
-        id: "coverage-bar",
-        label: { en: "Coverage bar chart by region", fr: "Diagramme à barres de couverture par région" },
-        description: { en: "Bar chart comparing coverage across regions", fr: "Diagramme à barres comparant la couverture entre régions" },
-        createDefaultVisualizationOnInstall: "9d4977b4-0d87-44e1-b2bd-3eddcba623f4",
-        defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
-        needsReplicant: true,
-        allowedFilters: ["admin_area_2"],
-        config: {
-          d: {
-            type: "chart",
-            periodOpt: "year",
-            valuesDisDisplayOpt: "series",
-            disaggregateBy: [
-              { disOpt: "admin_area_2", disDisplayOpt: "indicator" },
-              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
-            ],
-            filterBy: [],
-            selectedReplicantValue: "anc4",
-            valuesFilter: ["coverage_cov"],
-          },
-          s: { showDataLabels: true, colorScale: "single-grey", sortIndicatorValues: "descending" },
-          t: {
-            caption: { en: "Sub-national level coverage estimates, REPLICANT", fr: "Estimations de couverture au niveau sous-national, REPLICANT" },
-            subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
-            footnote: { en: "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.", fr: "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante." },
+          createDefaultVisualizationOnInstall:
+            "e5f8740b-a690-4a84-a0cd-05d529676f26",
+          needsReplicant: true,
+          allowedFilters: ["admin_area_2"],
+          config: {
+            d: {
+              type: "timeseries",
+              periodOpt: "year",
+              valuesDisDisplayOpt: "series",
+              disaggregateBy: [
+                { disOpt: "admin_area_2", disDisplayOpt: "cell" },
+                { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+              ],
+              filterBy: [],
+              includeNationalForAdminArea2: true,
+              selectedReplicantValue: "anc1",
+            },
+            s: {
+              scale: 1.7,
+              content: "lines",
+              showDataLabels: true,
+              specialCoverageChart: true,
+            },
+            t: {
+              caption: {
+                en: "Subnational coverage estimates for REPLICANT",
+                fr: "Estimations de couverture sous-nationales pour REPLICANT",
+              },
+              subCaption: {
+                en: "DATE_RANGE\nDISCLAIMER: These results use routine data to provide rigorous, but not official estimates. They should be interpreted considering any data quality or representation limitations, including data quality findings and any other country specific factors.",
+                fr: "DATE_RANGE\nAVERTISSEMENT : Ces résultats utilisent des données de routine pour fournir des estimations rigoureuses mais non officielles. Ils doivent être interprétés en tenant compte des limitations de qualité des données ou de représentativité, y compris les résultats d'évaluation de la qualité des données et tout autre facteur spécifique au pays.",
+              },
+              footnote: {
+                en: "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.",
+                fr: "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante.",
+              },
+            },
           },
         },
-      }],
+        {
+          id: "coverage-bar",
+          label: {
+            en: "Coverage bar chart by region",
+            fr: "Diagramme à barres de couverture par région",
+          },
+          description: {
+            en: "Bar chart comparing coverage across regions",
+            fr: "Diagramme à barres comparant la couverture entre régions",
+          },
+          createDefaultVisualizationOnInstall:
+            "9d4977b4-0d87-44e1-b2bd-3eddcba623f4",
+          defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
+          needsReplicant: true,
+          allowedFilters: ["admin_area_2"],
+          config: {
+            d: {
+              type: "chart",
+              periodOpt: "year",
+              valuesDisDisplayOpt: "series",
+              disaggregateBy: [
+                { disOpt: "admin_area_2", disDisplayOpt: "indicator" },
+                { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+              ],
+              filterBy: [],
+              selectedReplicantValue: "anc4",
+              valuesFilter: ["coverage_cov"],
+            },
+            s: {
+              showDataLabels: true,
+              colorScale: "single-grey",
+              sortIndicatorValues: "descending",
+            },
+            t: {
+              caption: {
+                en: "Sub-national level coverage estimates, REPLICANT",
+                fr: "Estimations de couverture au niveau sous-national, REPLICANT",
+              },
+              subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
+              footnote: {
+                en: "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.",
+                fr: "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante.",
+              },
+            },
+          },
+        },
+      ],
     },
     {
       id: "m6-02-02",
@@ -403,7 +476,10 @@ export const definition = {
           "Projected survey estimate (when survey data is missing)",
         coverage_cov: "Coverage calculated from HMIS data",
       },
-      label: { en: "Coverage (all estimation types)", fr: "Couverture (tous types d'estimation)" },
+      label: {
+        en: "Coverage (all estimation types)",
+        fr: "Couverture (tous types d'estimation)",
+      },
       variantLabel: { en: "Admin area 3", fr: "Zone administrative 3" },
       requiredDisaggregationOptions: [
         "indicator_common_id",
@@ -441,62 +517,103 @@ export const definition = {
           fr: "Toujours désagréger par indicator_common_id, admin_area_3 et year (tous requis). Comparer avec la zone administrative 2 pour le contexte.",
         },
       },
-      vizPresets: [{
-        id: "coverage-timeseries",
-        label: { en: "Coverage timeseries by district", fr: "Séries temporelles de couverture par district" },
-        description: { en: "Coverage trends over time by admin area 3", fr: "Tendances de couverture dans le temps par zone administrative 3" },
-        createDefaultVisualizationOnInstall: "e5f8740b-a690-4a84-a0cd-05d529676f27",
-        needsReplicant: true,
-        allowedFilters: ["admin_area_3"],
-        config: {
-          d: {
-            type: "timeseries",
-            periodOpt: "year",
-            valuesDisDisplayOpt: "series",
-            disaggregateBy: [
-              { disOpt: "admin_area_3", disDisplayOpt: "cell" },
-              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
-            ],
-            filterBy: [],
-            includeNationalForAdminArea2: true,
-            selectedReplicantValue: "anc1",
+      vizPresets: [
+        {
+          id: "coverage-timeseries",
+          label: {
+            en: "Coverage timeseries by district",
+            fr: "Séries temporelles de couverture par district",
           },
-          s: { scale: 1.7, content: "lines", showDataLabels: true, specialCoverageChart: true },
-          t: {
-            caption: { en: "Subnational coverage estimates for REPLICANT", fr: "Estimations de couverture sous-nationales pour REPLICANT" },
-            subCaption: { en: "DATE_RANGE\nDISCLAIMER: These results use routine data to provide rigorous, but not official estimates. They should be interpreted considering any data quality or representation limitations, including data quality findings and any other country specific factors.", fr: "DATE_RANGE\nAVERTISSEMENT : Ces résultats utilisent des données de routine pour fournir des estimations rigoureuses mais non officielles. Ils doivent être interprétés en tenant compte des limitations de qualité des données ou de représentativité, y compris les résultats d'évaluation de la qualité des données et tout autre facteur spécifique au pays." },
-            footnote: { en: "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.", fr: "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante." },
+          description: {
+            en: "Coverage trends over time by admin area 3",
+            fr: "Tendances de couverture dans le temps par zone administrative 3",
           },
-        },
-      }, {
-        id: "coverage-bar",
-        label: { en: "Coverage bar chart by district", fr: "Diagramme à barres de couverture par district" },
-        description: { en: "Bar chart comparing coverage across districts", fr: "Diagramme à barres comparant la couverture entre districts" },
-        createDefaultVisualizationOnInstall: "9d4977b4-0d87-44e1-b2bd-3eddcba623f5",
-        defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
-        needsReplicant: true,
-        allowedFilters: ["admin_area_3"],
-        config: {
-          d: {
-            type: "chart",
-            periodOpt: "year",
-            valuesDisDisplayOpt: "series",
-            disaggregateBy: [
-              { disOpt: "admin_area_3", disDisplayOpt: "indicator" },
-              { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
-            ],
-            filterBy: [],
-            selectedReplicantValue: "anc4",
-            valuesFilter: ["coverage_cov"],
-          },
-          s: { showDataLabels: true, colorScale: "single-grey", sortIndicatorValues: "descending" },
-          t: {
-            caption: { en: "Sub-national level coverage estimates, REPLICANT", fr: "Estimations de couverture au niveau sous-national, REPLICANT" },
-            subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
-            footnote: { en: "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.", fr: "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante." },
+          createDefaultVisualizationOnInstall:
+            "e5f8740b-a690-4a84-a0cd-05d529676f27",
+          needsReplicant: true,
+          allowedFilters: ["admin_area_3"],
+          config: {
+            d: {
+              type: "timeseries",
+              periodOpt: "year",
+              valuesDisDisplayOpt: "series",
+              disaggregateBy: [
+                { disOpt: "admin_area_3", disDisplayOpt: "cell" },
+                { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+              ],
+              filterBy: [],
+              includeNationalForAdminArea2: true,
+              selectedReplicantValue: "anc1",
+            },
+            s: {
+              scale: 1.7,
+              content: "lines",
+              showDataLabels: true,
+              specialCoverageChart: true,
+            },
+            t: {
+              caption: {
+                en: "Subnational coverage estimates for REPLICANT",
+                fr: "Estimations de couverture sous-nationales pour REPLICANT",
+              },
+              subCaption: {
+                en: "DATE_RANGE\nDISCLAIMER: These results use routine data to provide rigorous, but not official estimates. They should be interpreted considering any data quality or representation limitations, including data quality findings and any other country specific factors.",
+                fr: "DATE_RANGE\nAVERTISSEMENT : Ces résultats utilisent des données de routine pour fournir des estimations rigoureuses mais non officielles. Ils doivent être interprétés en tenant compte des limitations de qualité des données ou de représentativité, y compris les résultats d'évaluation de la qualité des données et tout autre facteur spécifique au pays.",
+              },
+              footnote: {
+                en: "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.",
+                fr: "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante.",
+              },
+            },
           },
         },
-      }],
+        {
+          id: "coverage-bar",
+          label: {
+            en: "Coverage bar chart by district",
+            fr: "Diagramme à barres de couverture par district",
+          },
+          description: {
+            en: "Bar chart comparing coverage across districts",
+            fr: "Diagramme à barres comparant la couverture entre districts",
+          },
+          createDefaultVisualizationOnInstall:
+            "9d4977b4-0d87-44e1-b2bd-3eddcba623f5",
+          defaultPeriodFilterForDefaultVisualizations: { nMonths: 12 },
+          needsReplicant: true,
+          allowedFilters: ["admin_area_3"],
+          config: {
+            d: {
+              type: "chart",
+              periodOpt: "year",
+              valuesDisDisplayOpt: "series",
+              disaggregateBy: [
+                { disOpt: "admin_area_3", disDisplayOpt: "indicator" },
+                { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+              ],
+              filterBy: [],
+              selectedReplicantValue: "anc4",
+              valuesFilter: ["coverage_cov"],
+            },
+            s: {
+              showDataLabels: true,
+              colorScale: "single-grey",
+              sortIndicatorValues: "descending",
+            },
+            t: {
+              caption: {
+                en: "Sub-national level coverage estimates, REPLICANT",
+                fr: "Estimations de couverture au niveau sous-national, REPLICANT",
+              },
+              subCaption: { en: "DATE_RANGE", fr: "DATE_RANGE" },
+              footnote: {
+                en: "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.",
+                fr: "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante.",
+              },
+            },
+          },
+        },
+      ],
     },
     {
       id: "m6-03-02",

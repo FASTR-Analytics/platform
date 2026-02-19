@@ -25,6 +25,7 @@ export { useConversations } from "./_components/use_conversations.ts";
 ////////////////////////////////////////////////////////////////////////////////
 
 export { createAITool } from "./_core/tool_helpers.ts";
+export { createAskUserQuestionsTool } from "./_components/ask_user_questions.tsx";
 export { createSDKClient } from "./_core/sdk_client.ts";
 export { callAI } from "./_core/one_shot.ts";
 export { BETA_HEADERS, getBetaHeaders } from "./_core/beta_headers.ts";
@@ -43,6 +44,11 @@ export type { AIChatSystemPromptPanelProps } from "./_components/ai_chat_system_
 export type { ConversationMetadata } from "./_core/conversations_persistence.ts";
 export type { ConversationsContextValue } from "./_components/use_conversations.ts";
 
+export type {
+  AskUserQuestionsAnswer,
+  AskUserQuestionsInput,
+  AskUserQuestionsOption,
+} from "./_core/ask_user_questions_types.ts";
 export type { CallAIConfig, CallAIResult } from "./_core/one_shot.ts";
 export type {
   BuiltInToolsConfig,

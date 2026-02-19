@@ -104,10 +104,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     );
   }
 
-  const config = configMaybe as Required<
-    Pick<AIChatConfig, "sdkClient" | "modelConfig">
-  > &
-    AIChatConfig;
+  const config = configMaybe as
+    & Required<
+      Pick<AIChatConfig, "sdkClient" | "modelConfig">
+    >
+    & AIChatConfig;
 
   const settingsKey = config.scope
     ? `${SETTINGS_KEY_PREFIX}-${config.scope}`
@@ -130,7 +131,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     getOrCreateConversationStore(
       conversationId(),
       config.enablePersistence ?? true,
-    ),
+    )
   );
 
   const messages = () => store().messages[0]();
@@ -168,6 +169,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     ...toolRegistry.getSDKTools(),
     ...resolveBuiltInTools(config.builtInTools),
   ] as SDKToolUnion[];
+
+  let activeStream: { abort: () => void } | null = null;
+  let abortRequested = false;
 
   const addDisplayItems = (items: DisplayItem[]) => {
     setDisplayItems([...displayItems(), ...items]);
@@ -248,21 +252,50 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     try {
       await streamWithToolLoop(messages());
+      if (abortRequested) {
+        const partialText = currentStreamingText();
+        if (partialText?.trim()) {
+          addDisplayItems([
+            { type: "assistant_text", text: partialText.trim() },
+          ]);
+        }
+      }
     } catch (err) {
-      const errorDetails = err instanceof Error ? err.message : String(err);
-      setError(errorDetails);
-      setIsStreaming(false);
-      setCurrentStreamingText(undefined);
-      setServerToolLabel(undefined);
-      addDisplayItems([
-        {
-          type: "tool_error",
-          toolName: "system",
-          errorMessage: getUserFacingErrorMessage(err),
-          errorDetails,
-        },
-      ]);
+      if (abortRequested) {
+        const partialText = currentStreamingText();
+        if (partialText?.trim()) {
+          addDisplayItems([
+            { type: "assistant_text", text: partialText.trim() },
+          ]);
+        }
+      } else {
+        const errorDetails = err instanceof Error ? err.message : String(err);
+        setError(errorDetails);
+        setIsStreaming(false);
+        setCurrentStreamingText(undefined);
+        setServerToolLabel(undefined);
+        addDisplayItems([
+          {
+            type: "tool_error",
+            toolName: "system",
+            errorMessage: getUserFacingErrorMessage(err),
+            errorDetails,
+          },
+        ]);
+      }
     } finally {
+      if (abortRequested) {
+        const msgs = messages();
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg?.role === "user") {
+          setMessages([
+            ...msgs,
+            { role: "assistant", content: "[Stopped]" },
+          ]);
+        }
+      }
+      abortRequested = false;
+      activeStream = null;
       setIsLoading(false);
       setIsStreaming(false);
       setCurrentStreamingText(undefined);
@@ -301,6 +334,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       system: config.system(),
       betas,
     });
+    activeStream = stream;
 
     // Subscribe to text events
     stream.on("text", (text) => {
@@ -330,6 +364,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     // Wait for completion
     const finalMessage = await stream.finalMessage();
+    activeStream = null;
+    if (abortRequested) return;
 
     // Update usage
     if (finalMessage.usage) {
@@ -374,6 +410,22 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       const allSuccessItems: DisplayItem[] = [];
 
       for (const block of toolUseBlocks) {
+        if (abortRequested) {
+          for (
+            const remaining of toolUseBlocks.slice(
+              toolUseBlocks.indexOf(block),
+            )
+          ) {
+            allResults.push({
+              type: "tool_result",
+              tool_use_id: remaining.id,
+              content: "Tool execution cancelled by user",
+              is_error: true,
+            });
+          }
+          break;
+        }
+
         // Handle built-in text editor tool locally
         if (
           block.name === "str_replace_based_edit_tool" &&
@@ -444,6 +496,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       const messagesWithToolResults = [...updatedMessages, toolResultMsg];
       setMessages(messagesWithToolResults);
 
+      if (abortRequested) return;
+
       // Continue streaming with tool results (recursive call)
       setIsStreaming(true);
       setCurrentStreamingText(undefined);
@@ -472,6 +526,18 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     setError(null);
 
     return sendMessageStreaming(undefined);
+  }
+
+  function stopGeneration() {
+    if (!isLoading()) return;
+    abortRequested = true;
+    if (activeStream) {
+      try {
+        activeStream.abort();
+      } catch { /* swallow */ }
+      activeStream = null;
+    }
+    clearInProgressItems();
   }
 
   function clearConversation() {
@@ -509,8 +575,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     sendMessage,
     sendMessages,
     clearConversation,
+    stopGeneration,
     toolRegistry,
     processMessageForDisplay,
+    clearInProgressItems,
     conversationId,
   };
 }

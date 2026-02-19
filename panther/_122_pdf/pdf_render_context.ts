@@ -297,13 +297,13 @@ export class PdfRenderContext implements RenderContext {
       const f = getColor(s.strokeColor);
       if (f.at(0) === "#") {
         //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: 1 });
+        const newGState = new this._jsPdf.GState({ "stroke-opacity": 1 });
         this._jsPdf.setGState(newGState);
         this._jsPdf.setDrawColor(f);
       } else {
         const rgba = new Color(f).rgba();
         //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: rgba.a });
+        const newGState = new this._jsPdf.GState({ "stroke-opacity": rgba.a });
         this._jsPdf.setGState(newGState);
         this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
       }
@@ -518,13 +518,13 @@ export class PdfRenderContext implements RenderContext {
       // Set up stroke color
       if (strokeColor.at(0) === "#") {
         //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: 1 });
+        const newGState = new this._jsPdf.GState({ "stroke-opacity": 1 });
         this._jsPdf.setGState(newGState);
         this._jsPdf.setDrawColor(strokeColor);
       } else {
         const rgba = new Color(strokeColor).rgba();
         //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: rgba.a });
+        const newGState = new this._jsPdf.GState({ "stroke-opacity": rgba.a });
         this._jsPdf.setGState(newGState);
         this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
       }

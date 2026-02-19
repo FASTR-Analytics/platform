@@ -4,6 +4,7 @@ import type {
   PresentationObjectSummary,
   SlideDeckSummary,
 } from "lib";
+import { createAskUserQuestionsTool } from "panther";
 import { getToolsForDrafts } from "./ai_tools/tools/drafts";
 import { getToolsForMethodologyDocs } from "./ai_tools/tools/methodology_docs";
 import { getToolsForMetrics } from "./ai_tools/tools/metrics";
@@ -45,5 +46,8 @@ export function buildToolsForContext(params: BuildToolsParams) {
 
     // Draft preview tools - always available
     ...getToolsForDrafts(projectId, metrics, aiContext),
+
+    // Interactive tools
+    createAskUserQuestionsTool(),
   ];
 }

@@ -9,6 +9,8 @@ import type { Component, zType } from "../deps.ts";
 export interface ToolUIMetadata<TInput = unknown> {
   displayComponent?: Component<{ input: TInput }>;
 
+  inProgressComponent?: Component<{ input: TInput }>;
+
   inProgressLabel?: string | ((input: TInput) => string);
 
   completionMessage?: string | ((input: TInput) => string);
@@ -46,6 +48,8 @@ export interface CreateAIToolConfig<TInput, TOutput = string> {
   handler: (input: TInput) => Promise<TOutput> | TOutput;
 
   displayComponent?: Component<{ input: TInput }>;
+
+  inProgressComponent?: Component<{ input: TInput }>;
 
   inProgressLabel?: string | ((input: TInput) => string);
 
@@ -91,6 +95,7 @@ export function createAITool<TInput, TOutput = string>(
 
   const metadata: ToolUIMetadata<TInput> = {
     displayComponent: config.displayComponent,
+    inProgressComponent: config.inProgressComponent,
     inProgressLabel: config.inProgressLabel,
     completionMessage: config.completionMessage,
     successMessage: config.successMessage,

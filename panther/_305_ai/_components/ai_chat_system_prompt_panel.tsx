@@ -12,10 +12,9 @@ export type AIChatSystemPromptPanelProps = {
 type Props = AlertComponentProps<AIChatSystemPromptPanelProps, void>;
 
 export function AIChatSystemPromptPanel(p: Props) {
-  const text =
-    typeof p.systemPrompt === "string"
-      ? p.systemPrompt
-      : p.systemPrompt.map((block) => block.text).join("\n\n");
+  const text = typeof p.systemPrompt === "string"
+    ? p.systemPrompt
+    : p.systemPrompt.map((block) => block.text).join("\n\n");
 
   return (
     <ModalContainer

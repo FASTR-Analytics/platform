@@ -26,20 +26,14 @@ type ConvertResult = {
   node: LayoutNode<PageContentItem>;
 };
 
-// Now always returns explicit layout
-export type FreeformContentResult = {
-  layoutType: "explicit";
-  layout: LayoutNode<PageContentItem>;
-};
+export type FreeformContentResult = LayoutNode<PageContentItem>;
 
 export async function getRowsForFreeform(
   projectId: string,
   _reportConfig: ReportConfig,
   reportItemConfig: ReportItemConfig,
-  pdfScaleFactor?: number,
 ): Promise<APIResponseWithData<FreeformContentResult>> {
   try {
-    const extraScale = pdfScaleFactor ?? 1;
     const content = reportItemConfig.freeform.content;
     const cDetails = getColorDetailsForColorTheme(_reportConfig.colorTheme);
 
@@ -47,14 +41,12 @@ export async function getRowsForFreeform(
     const result = await convertLayoutNode(
       content,
       projectId,
-      extraScale,
-      pdfScaleFactor,
       cDetails,
     );
     if (result.success === false) return result;
     return {
       success: true,
-      data: { layoutType: "explicit", layout: result.data.node },
+      data: result.data.node,
     };
   } catch (e) {
     return {
@@ -66,9 +58,9 @@ export async function getRowsForFreeform(
   }
 }
 
-function resolveTextBackground(bg: string | undefined, cDetails: ColorDetails, extraScale: number): { containerStyle: ContainerStyleOptions; textColor: string } | undefined {
+function resolveTextBackground(bg: string | undefined, cDetails: ColorDetails): { containerStyle: ContainerStyleOptions; textColor: string } | undefined {
   if (!bg || bg === "none") return undefined;
-  const pad: [number, number] = [50 * extraScale, 60 * extraScale];
+  const pad: [number, number] = [50, 60];
   if (bg === "grey") {
     return {
       containerStyle: { backgroundColor: { key: "base200" }, padding: pad },
@@ -99,21 +91,17 @@ function resolveTextBackground(bg: string | undefined, cDetails: ColorDetails, e
 async function convertLayoutNode(
   node: LayoutNode<ReportItemContentItem>,
   projectId: string,
-  extraScale: number,
-  pdfScaleFactor: number | undefined,
   cDetails: ColorDetails,
 ): Promise<APIResponseWithData<ConvertResult>> {
   if (node.type === "item") {
     const resolved = node.data.type === "text"
-      ? resolveTextBackground(node.data.textBackground, cDetails, extraScale)
+      ? resolveTextBackground(node.data.textBackground, cDetails)
       : undefined;
 
     const result = await convertContentItem(
       node.data,
       node.id,
       projectId,
-      extraScale,
-      pdfScaleFactor,
       false,
       resolved?.textColor,
     );
@@ -134,8 +122,6 @@ async function convertLayoutNode(
     const result = await convertLayoutNode(
       child,
       projectId,
-      extraScale,
-      pdfScaleFactor,
       cDetails,
     );
     if (result.success === false) return result;
@@ -158,8 +144,6 @@ async function convertContentItem(
   item: ReportItemContentItem,
   _itemId: string,
   projectId: string,
-  extraScale: number,
-  pdfScaleFactor?: number,
   isForOptimizer: boolean = false,
   textColor?: string,
 ): Promise<APIResponseWithData<PageContentItem>> {
@@ -170,7 +154,7 @@ async function convertContentItem(
     }
 
     const markdownStyle: CustomMarkdownStyleOptions = {
-      scale: (item.textSize ?? 1) * extraScale,
+      scale: item.textSize ?? 1,
       ...(textColor ? { text: { base: { color: textColor } } } : {}),
     };
 
@@ -194,9 +178,7 @@ async function convertContentItem(
       {
         selectedReplicantValue:
           item.presentationObjectInReportInfo.selectedReplicantValue,
-        additionalScale: isForOptimizer
-          ? 1  // Use scale 1 for optimizer
-          : (item.figureAdditionalScale ?? 1) * (pdfScaleFactor ?? 1),
+        additionalScale: isForOptimizer ? 1 : (item.figureAdditionalScale ?? 1),
         hideFigureCaption: isForOptimizer ? true : item.hideFigureCaption,
         hideFigureSubCaption: isForOptimizer ? true : item.hideFigureSubCaption,
         hideFigureFootnote: isForOptimizer ? true : item.hideFigureFootnote,

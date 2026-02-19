@@ -5,13 +5,18 @@
 
 import { Color, getColor, sum } from "./deps.ts";
 import type { MeasuredCoverPage, MeasuredText, RenderContext } from "./deps.ts";
-import { pixelsToInches, pixelsToPoints } from "./pptx_units.ts";
-import type { PptxGenJSInstance, PptxSlide } from "./types.ts";
+import { imageToDataUrl, pixelsToInches, pixelsToPoints } from "./pptx_units.ts";
+import type {
+  CreateCanvasRenderContext,
+  PptxGenJSInstance,
+  PptxSlide,
+} from "./types.ts";
 
 export function renderCoverSlide(
   rc: RenderContext,
   pptx: PptxGenJSInstance,
   measured: MeasuredCoverPage,
+  createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const item = measured.item;
@@ -33,8 +38,9 @@ export function renderCoverSlide(
 
   // Overlay image
   if (item.overlay) {
+    const overlayDataUrl = imageToDataUrl(item.overlay, createCanvasRenderContext);
     slide.addImage({
-      data: item.overlay.src,
+      data: overlayDataUrl,
       x: 0,
       y: 0,
       w: pixelsToInches(bounds.w()),
@@ -73,9 +79,10 @@ export function renderCoverSlide(
     let currentX = bounds.x() + (bounds.w() - totalLogoWidths) / 2;
     for (let i = 0; i < item.titleLogos.length; i++) {
       const logo = item.titleLogos[i];
+      const logoDataUrl = imageToDataUrl(logo, createCanvasRenderContext);
       const logoWidth = logoWidths[i];
       slide.addImage({
-        data: logo.src,
+        data: logoDataUrl,
         x: pixelsToInches(currentX),
         y: pixelsToInches(currentY),
         w: pixelsToInches(logoWidth),

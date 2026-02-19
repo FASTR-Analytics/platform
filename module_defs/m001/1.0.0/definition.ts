@@ -10,7 +10,7 @@ export const definition = {
     type: "github",
     owner: "FASTR-Analytics",
     repo: "modules",
-    path: "01_module_data_quality_assessment.R",
+    path: "m001_module_data_quality_assessment.R",
     commit: "main",
   },
   assetsToImport: [],

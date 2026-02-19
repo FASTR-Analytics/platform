@@ -158,6 +158,7 @@ export type ResultsValue = {
   periodOptions: PeriodOption[];
   autoIncludeFacilityColumns?: boolean;
   aiDescription?: MetricAIDescription;
+  importantNotes?: string;
 };
 
 // Minimal subset used by visualization generation functions
@@ -210,13 +211,15 @@ export type MetricDefinition = {
   autoIncludeFacilityColumns?: boolean;
   resultsObjectId: string;
   aiDescription?: MetricAIDescription;
+  importantNotes?: string;
   vizPresets?: VizPreset[];
   hide?: boolean;
 };
 
-export type MetricDefinitionJSON = Omit<MetricDefinition, "label" | "variantLabel"> & {
+export type MetricDefinitionJSON = Omit<MetricDefinition, "label" | "variantLabel" | "importantNotes"> & {
   label: TranslatableString;
   variantLabel?: TranslatableString;
+  importantNotes?: TranslatableString;
 };
 
 // Alias for backwards compatibility
@@ -235,6 +238,7 @@ export type VizPreset = {
   id: string;
   label: TranslatableString;
   description: TranslatableString;
+  importantNotes?: TranslatableString;
   needsReplicant?: boolean;
   allowedFilters?: DisaggregationOption[];
   createDefaultVisualizationOnInstall?: string;
@@ -257,6 +261,7 @@ export type MetricAIDescription = {
   useCases: TranslatableString[];
   relatedMetrics?: string[];
   disaggregationGuidance: TranslatableString;
+  importantNotes?: TranslatableString;
 };
 
 export function get_PERIOD_OPTION_MAP(): Record<PeriodOption, string> {

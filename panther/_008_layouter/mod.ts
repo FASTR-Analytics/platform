@@ -23,6 +23,7 @@ export type {
   MeasuredLayoutNode,
   MeasuredRowsLayoutNode,
   MeasureLayoutResult,
+  ResolvedContainerStyle,
   RowsLayoutNode,
 } from "./types.ts";
 
@@ -35,7 +36,7 @@ export {
   isRowsLayoutNode,
 } from "./types.ts";
 
-export { measureLayout } from "./measure.ts";
+export { createCachedMeasurer, measureLayout } from "./measure.ts";
 export type { MeasureLayoutOptions } from "./measure.ts";
 
 export { findFirstItem, walkLayout } from "./walk.ts";
@@ -82,13 +83,20 @@ export {
   updateNodeStyle,
 } from "./operations.ts";
 
-export { optimizeLayout } from "./optimizer.ts";
+export {
+  computeWeightedScore,
+  generateCandidates,
+  optimizeLayout,
+  pickBestLayout,
+  scoreLayouts,
+} from "./optimizer.ts";
 export type {
   LayoutScore,
+  LayoutScoreWeights,
   LayoutStyleConfig,
   OptimizerConfig,
   OptimizerConstraint,
-  OptimizeResult,
+  ScoredLayout,
 } from "./optimizer.ts";
 
 export { normalizeLayout, validateLayout } from "./_internal/normalize.ts";

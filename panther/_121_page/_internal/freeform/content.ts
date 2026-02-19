@@ -5,17 +5,16 @@
 
 import {
   type LayoutGap,
+  type LayoutStyleConfig,
   type MeasuredLayoutNode,
   measureLayout,
   type MergedPageStyle,
-  optimizeLayout,
   Padding,
   RectCoordsDims,
   renderContainerStyle,
   type RenderContext,
   walkLayout,
 } from "../../deps.ts";
-import { applyContainerDefaults } from "../../apply_container_defaults.ts";
 import { itemMeasurer } from "./item_measurer.ts";
 import { renderItem } from "./item_renderer.ts";
 import type { FreeformPageInputs, PageContentItem } from "../../types.ts";
@@ -47,50 +46,27 @@ export function measureContent(
 
   const rcdContentInner = rcdContentOuter.getPadded(padContent);
 
-  let measured: MeasuredLayoutNode<PageContentItem>;
-  let overflow: boolean;
-  let gaps: LayoutGap[];
+  const layoutStyle: LayoutStyleConfig = {
+    gapX: s.content.gapX,
+    gapY: s.content.gapY,
+    containerDefaults: s.layoutContainers,
+    alreadyScaledValue: s.alreadyScaledValue,
+  };
 
-  if (inputs.content.layoutType === "optimize") {
-    // Optimize layout from items
-    const optimized = optimizeLayout(
-      { rc, s },
-      inputs.content.items,
-      rcdContentInner,
-      s.content,
-      itemMeasurer,
-      (layout) => applyContainerDefaults(layout, s.layoutContainers),
-      { constraint: inputs.content.constraint },
-    );
-    measured = optimized.measured;
-    overflow = optimized.score.overflow > 0;
-    gaps = [];
-  } else {
-    // Use provided layout
-    const contentWithContainerDefaults = applyContainerDefaults(
-      inputs.content.layout,
-      s.layoutContainers,
-    );
-
-    const result = measureLayout(
-      { rc, s },
-      contentWithContainerDefaults,
-      rcdContentInner,
-      s.content.gapX,
-      s.content.gapY,
-      itemMeasurer,
-    );
-    measured = result.measured;
-    overflow = result.overflow;
-    gaps = result.gaps;
-  }
+  const result = measureLayout(
+    { rc, s },
+    inputs.content,
+    rcdContentInner,
+    layoutStyle,
+    itemMeasurer,
+  );
 
   return {
     rcdContentOuter,
     rcdContentInner,
-    mLayout: measured,
-    overflow,
-    gaps,
+    mLayout: result.measured,
+    overflow: result.overflow,
+    gaps: result.gaps,
   };
 }
 
@@ -101,9 +77,6 @@ export function renderContent(
   s: MergedPageStyle,
 ): void {
   const padContent = new Padding(s.content.padding);
-
-  // Note: Content background is painted once on the entire slide in render_freeform.ts
-  // No need to paint it again here
 
   walkLayout(measured.mLayout, (node) => {
     renderContainerStyle(rc, node);

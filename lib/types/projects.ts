@@ -28,6 +28,7 @@ export type ProjectDetail = {
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
+  commonIndicators: { id: string; label: string }[];
   visualizations: PresentationObjectSummary[];
   visualizationFolders: VisualizationFolder[];
   reports: ReportSummary[];

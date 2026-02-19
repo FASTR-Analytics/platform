@@ -8,7 +8,6 @@ import type {
   CustomPageStyleOptions,
   FigureInputs,
   ImageInputs,
-  ItemLayoutNode,
   LayoutGap,
   LayoutNode,
   LineStyle,
@@ -17,13 +16,9 @@ import type {
   MeasuredLayoutNode,
   MeasuredText,
   MergedPageStyle,
-  OptimizerConstraint,
   RectCoordsDims,
   RenderContext,
 } from "./deps.ts";
-
-// Re-export types that consumers need
-export type { OptimizerConstraint };
 
 // =============================================================================
 // Page Primitives (for rendering page decoration elements)
@@ -116,15 +111,6 @@ export type SectionPageInputs = PageInputsBase & {
   sectionSubTitle?: string;
 };
 
-// Freeform page content - either explicit layout or items to optimize
-export type FreeformPageContent =
-  | { layoutType: "explicit"; layout: LayoutNode<PageContentItem> }
-  | {
-    layoutType: "optimize";
-    items: ItemLayoutNode<PageContentItem>[];
-    constraint?: OptimizerConstraint;
-  };
-
 // Freeform page specific inputs
 export type FreeformPageInputs = PageInputsBase & {
   type: "freeform";
@@ -134,7 +120,7 @@ export type FreeformPageInputs = PageInputsBase & {
   footer?: string;
   headerLogos?: HTMLImageElement[];
   footerLogos?: HTMLImageElement[];
-  content: FreeformPageContent;
+  content: LayoutNode<PageContentItem>;
   pageNumber?: string;
 };
 

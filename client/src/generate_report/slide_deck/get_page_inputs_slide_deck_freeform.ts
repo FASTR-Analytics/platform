@@ -28,14 +28,12 @@ export async function getPageInputs_SlideDeck_Freeform(
   reportConfig: ReportConfig,
   reportItemConfig: ReportItemConfig,
   itemIndex: number | undefined,
-  pdfScaleFactor?: number,
 ): Promise<APIResponseWithData<PageInputs>> {
   try {
     const resRows = await getRowsForFreeform(
       projectId,
       reportConfig,
       reportItemConfig,
-      pdfScaleFactor,
     );
 
     if (resRows.success === false) {

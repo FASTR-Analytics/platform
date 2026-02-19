@@ -4,5 +4,4 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export const _GLOBAL_CANVAS_PIXEL_WIDTH = 4000; // Canvas pixels for high-DPI rendering
-export const _GLOBAL_PDF_PIXEL_WIDTH = 2400; // PDF pixels - optimized for print quality
 export const _GLOBAL_LAYOUT_COLUMNS = 12;

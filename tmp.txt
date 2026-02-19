@@ -1,0 +1,39 @@
+
+
+wb stop rdc rdc-ai
+wb c update rdc --instance-dir rdc-ai --server 1.10.0
+wb c remove rdc-ai
+wb start rdc
+
+wb stop sierraleone sierraleone-ai
+wb c update sierraleone --instance-dir sierraleone-ai --server 1.10.0
+wb c remove sierraleone-ai
+wb start sierraleone
+
+wb stop zambia zambia-ai
+wb c update zambia --instance-dir zambia-ai --server 1.10.0
+wb c remove zambia-ai
+wb start zambia
+
+wb stop nigeria nigeria-ai
+wb c update nigeria --instance-dir nigeria-ai --server 1.10.0
+wb c remove nigeria-ai
+wb start nigeria
+
+
+ARCHIVED DIRS:
+
+burkinafaso
+liberia2
+nigeria5
+rdc
+sierraleone2
+zambia
+
+
+1. Set up Digital Ocean subdomains (burkinafaso-archive...)
+2. wb c add burkinafaso-archive
+3. wb c update --instance-dir burkinafaso (BUT COULD BE liberia2)
+4. wb init-nginx <id>         
+5. wb init-ssl <id>  
+6. wb start ...

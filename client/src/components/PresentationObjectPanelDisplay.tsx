@@ -12,7 +12,9 @@ import {
   VisualizationFolder,
   VisualizationGroupingMode,
   t2,
+  t3,
   T,
+  TC,
 } from "lib";
 import { Button, Checkbox, FrameLeftResizable, getColor, openAlert, openComponent, Select, SelectList, showMenu, timActionDelete, type MenuItem, type SelectOption } from "panther";
 import { createEffect, createSignal, For, Show } from "solid-js";
@@ -27,11 +29,11 @@ import { EditCommonPropertiesModal } from "./visualization/edit_common_propertie
 import { useAIProjectContext } from "~/components/project_ai";
 
 const GROUPING_OPTIONS: { value: VisualizationGroupingMode; label: string }[] = [
-  { value: "folders", label: "By folder" },
-  { value: "module", label: "By module" },
-  { value: "metric", label: "By metric" },
-  // { value: "ownership", label: "By ownership" },
-  { value: "flat", label: "Flat list" },
+  { value: "folders", label: t3({ en: "By folder", fr: "Par dossier" }) },
+  { value: "module", label: t3({ en: "By module", fr: "Par module" }) },
+  { value: "metric", label: t3({ en: "By metric", fr: "Par métrique" }) },
+  // { value: "ownership", label: t3({ en: "By ownership", fr: "Par propriétaire" }) },
+  { value: "flat", label: t3({ en: "Flat list", fr: "Liste plate" }) },
 ];
 
 type GroupOption = {
@@ -83,8 +85,8 @@ export function PresentationObjectPanelDisplay(p: Props) {
         const defaults = vizs.filter((v) => v.isDefault && !v.createdByAI);
         const generalCount = vizs.filter((v) => v.folderId === null && !v.isDefault && !v.createdByAI).length;
         const groups: GroupOption[] = [
-          { value: "_defaults", label: "Defaults", count: defaults.length },
-          { value: "_unfiled", label: "General", count: generalCount },
+          { value: "_defaults", label: t3({ en: "Defaults", fr: "Par défaut" }), count: defaults.length },
+          { value: "_unfiled", label: t3(TC.general), count: generalCount },
         ];
         groups.push(...p.projectDetail.visualizationFolders.map((f) => ({
           value: f.id,
@@ -137,7 +139,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
 
 
       case "flat":
-        return [{ value: "_all", label: "All Visualizations", count: vizs.length }];
+        return [{ value: "_all", label: t3({ en: "All Visualizations", fr: "Toutes les visualisations" }), count: vizs.length }];
 
       default:
         return [];

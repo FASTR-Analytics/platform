@@ -345,7 +345,7 @@ function getPermissionSummary(user: ProjectUser): string {
   return shown;
 }
 
-type ProjectUserWithRole = ProjectUser & { role: number };
+type ProjectUserWithRole = ProjectUser & { roleSortValue: number };
 
 function getRoleSortValue(user: ProjectUser): number {
   if (user.isGlobalAdmin) return 0;
@@ -360,7 +360,7 @@ function ProjectUserTable(p: {
   onDisplayUserRole?: (user: ProjectUser) => void;
 }) {
   const usersWithRole = (): ProjectUserWithRole[] =>
-    p.users.map((u) => ({ ...u, role: getRoleSortValue(u) }));
+    p.users.map((u) => ({ ...u, roleSortValue: getRoleSortValue(u) }));
 
   const columns: TableColumn<ProjectUserWithRole>[] = [
     {
@@ -369,7 +369,7 @@ function ProjectUserTable(p: {
       sortable: true,
     },
     {
-      key: "role",
+      key: "roleSortValue",
       header: t3({ en: "Role", fr: "Rôle" }),
       sortable: true,
       render: (user) => (

@@ -56,11 +56,18 @@ export const AIChat: Component<Props> = (props) => {
     usage,
     sendMessage,
     sendMessages,
+    stopGeneration,
     toolRegistry,
     processMessageForDisplay,
+    clearInProgressItems,
   } = createAIChat();
   const [inputValue, setInputValue] = createSignal("");
   const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
+
+  const handleStop = () => {
+    setQueuedMessages([]);
+    stopGeneration();
+  };
 
   let scrollContainer: HTMLDivElement | undefined;
 
@@ -121,6 +128,12 @@ export const AIChat: Component<Props> = (props) => {
       // Queue the message and display it immediately
       setQueuedMessages([...queuedMessages(), message]);
 
+      // Cancel any interactive tool components (e.g. ask_user_questions) so
+      // the tool loop unblocks via onCleanup auto-reject
+      if (isProcessingTools()) {
+        clearInProgressItems();
+      }
+
       // Display as user message immediately
       const userMsg: MessageParam = { role: "user", content: message };
       processMessageForDisplay(userMsg);
@@ -176,6 +189,8 @@ export const AIChat: Component<Props> = (props) => {
         value={inputValue()}
         onChange={setInputValue}
         onSubmit={handleSubmit}
+        onStop={handleStop}
+        isGenerating={isLoading()}
         placeholder={props.placeholder}
         submitLabel={props.submitLabel}
         height={props.inputHeight}

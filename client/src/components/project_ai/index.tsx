@@ -12,6 +12,7 @@ import { useAIDocuments } from "./ai_documents";
 
 export { useAIProjectContext } from "./context";
 
+
 type AIProjectWrapperProps = ParentProps<{
   instanceDetail: InstanceDetail;
 }>;
@@ -153,9 +154,27 @@ function AIProjectWrapperInner(props: AIProjectWrapperProps) {
         system: systemPrompt,
         getDocumentRefs: aiDocs.getDocumentRefs,
         getEphemeralContext: () => {
+          const ctx = aiContext();
+          let modeStr = `[Current mode: ${ctx.mode}`;
+          if (ctx.mode === "editing_visualization") {
+            modeStr += ` | vizId: ${ctx.vizId ?? "unsaved"}`;
+          } else if (ctx.mode === "editing_slide_deck") {
+            modeStr += ` | deckId: ${ctx.deckId}`;
+            const selected = ctx.getSelectedSlideIds();
+            if (selected.length > 0) {
+              modeStr += ` | selectedSlideIds: ${selected.join(", ")}`;
+            }
+          } else if (ctx.mode === "editing_slide") {
+            modeStr += ` | slideId: ${ctx.slideId} | deckId: ${ctx.deckId}`;
+          }
+          modeStr += "]";
+          const parts: string[] = [modeStr];
           const msg = getPendingInteractionsMessage();
-          if (msg) clearPendingInteractions();
-          return msg;
+          if (msg) {
+            clearPendingInteractions();
+            parts.push(msg);
+          }
+          return parts.join("\n\n");
         },
       }}
     >

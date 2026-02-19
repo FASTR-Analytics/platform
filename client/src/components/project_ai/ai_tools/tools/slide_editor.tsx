@@ -1,12 +1,33 @@
-import { AiContentBlockInputSchema, MAX_CONTENT_BLOCKS, type MetricWithStatus } from "lib";
+import {
+  AiContentBlockInputSchema,
+  LayoutSpecSchema,
+  MAX_CONTENT_BLOCKS,
+  type AiContentBlockInput,
+  type ContentBlock,
+  type MetricWithStatus,
+} from "lib";
 import { createAITool } from "panther";
 import { reconcile } from "solid-js/store";
 import { unwrap } from "solid-js/store";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
-import { validateNoMarkdownTables } from "../validators/content_validators";
-import { simplifySlideForAI } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
+import {
+  validateMaxContentBlocks,
+  validateNoMarkdownTables,
+  validateSlideTotalWordCount,
+} from "../validators/content_validators";
+import {
+  extractBlocksFromLayout,
+  simplifySlideForAI,
+} from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
 import { getSlideWithUpdatedBlocks } from "~/components/slide_deck/slide_ai/get_slide_with_updated_blocks";
+import {
+  buildLayoutFromSpec,
+  normalizeSpans,
+} from "~/components/slide_deck/slide_ai/layout_spec_helpers";
+import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
+import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
+import { createIdGeneratorForLayout } from "~/utils/id_generation";
 
 export function getToolsForSlideEditor(
   projectId: string,
@@ -53,11 +74,23 @@ export function getToolsForSlideEditor(
       inputSchema: z.object({
         title: z.string().optional().describe("Cover slide: main title"),
         subtitle: z.string().optional().describe("Cover slide: subtitle"),
-        presenter: z.string().optional().describe("Cover slide: presenter name"),
+        presenter: z
+          .string()
+          .optional()
+          .describe("Cover slide: presenter name"),
         date: z.string().optional().describe("Cover slide: date text"),
-        sectionTitle: z.string().optional().describe("Section slide: section title"),
-        sectionSubtitle: z.string().optional().describe("Section slide: section subtitle"),
-        header: z.string().optional().describe("Content slide: header text at top of slide"),
+        sectionTitle: z
+          .string()
+          .optional()
+          .describe("Section slide: section title"),
+        sectionSubtitle: z
+          .string()
+          .optional()
+          .describe("Section slide: section subtitle"),
+        header: z
+          .string()
+          .optional()
+          .describe("Content slide: header text at top of slide"),
         blockUpdates: z
           .array(
             z.object({
@@ -67,13 +100,27 @@ export function getToolsForSlideEditor(
           )
           .optional()
           .describe(
-            `Content slide: update specific blocks by ID. Max ${MAX_CONTENT_BLOCKS} blocks. No markdown tables - use from_metric with chartType='table' instead.`,
+            `Content slide: update specific blocks by ID. Max ${MAX_CONTENT_BLOCKS} blocks. No markdown tables - use from_metric with chartType='table' instead. Mutually exclusive with layoutChange.`,
+          ),
+        layoutChange: z
+          .object({
+            layout: LayoutSpecSchema,
+          })
+          .optional()
+          .describe(
+            "Content slide: restructure the layout — add/remove blocks, rearrange, change spans. Mutually exclusive with blockUpdates.",
           ),
       }),
       handler: async (input) => {
         const ctx = getAIContext();
         if (ctx.mode !== "editing_slide") {
           throw new Error("This tool is only available when editing a slide");
+        }
+
+        if (input.blockUpdates && input.layoutChange) {
+          throw new Error(
+            "Cannot use both blockUpdates and layoutChange. Use blockUpdates to change block content, or layoutChange to change layout structure.",
+          );
         }
 
         const currentSlide = unwrap(ctx.getTempSlide());
@@ -135,7 +182,120 @@ export function getToolsForSlideEditor(
               input.blockUpdates,
               metrics,
             )) as typeof updated;
+
+            // Validate total word count across all text blocks
+            const allTextBlocks = extractBlocksFromLayout(updated.layout)
+              .map(({ block }) => block)
+              .filter((b): b is { type: "text"; markdown: string } => b.type === "text")
+              .map(b => b.markdown);
+            validateSlideTotalWordCount(allTextBlocks);
+
             changes.push(`${input.blockUpdates.length} block(s)`);
+          }
+          if (input.layoutChange) {
+            const layoutSpec = input.layoutChange.layout;
+
+            const existingBlocks = extractBlocksFromLayout(updated.layout);
+            const blockMap = new Map<string, ContentBlock>();
+            for (const { id, block } of existingBlocks) {
+              blockMap.set(id, block);
+            }
+
+            let totalBlocks = 0;
+            const seenBlockIds = new Set<string>();
+            for (const row of layoutSpec) {
+              for (const cell of row) {
+                totalBlocks++;
+                if (typeof cell.block === "string") {
+                  if (seenBlockIds.has(cell.block)) {
+                    throw new Error(
+                      `Duplicate block ID "${cell.block}". Each block can only appear once in the layout.`,
+                    );
+                  }
+                  seenBlockIds.add(cell.block);
+                }
+              }
+            }
+            validateMaxContentBlocks(totalBlocks);
+
+            const normalizedSpans = normalizeSpans(layoutSpec);
+            const generateId = createIdGeneratorForLayout(updated.layout);
+            const resolvedRows: Array<
+              Array<{ id: string; block: ContentBlock; span: number }>
+            > = [];
+
+            for (let r = 0; r < layoutSpec.length; r++) {
+              const row = layoutSpec[r];
+              const resolvedRow: Array<{
+                id: string;
+                block: ContentBlock;
+                span: number;
+              }> = [];
+
+              for (let c = 0; c < row.length; c++) {
+                const cell = row[c];
+                const span = normalizedSpans[r][c];
+
+                if (typeof cell.block === "string") {
+                  const existing = blockMap.get(cell.block);
+                  if (!existing) {
+                    const available = [...blockMap.keys()].join(", ");
+                    throw new Error(
+                      `Block ID "${cell.block}" not found in slide. Available block IDs: ${available}. Use get_slide_editor to see current block IDs.`,
+                    );
+                  }
+                  resolvedRow.push({ id: cell.block, block: existing, span });
+                } else {
+                  const newBlockInput = cell.block as AiContentBlockInput;
+                  if (newBlockInput.type === "text") {
+                    validateNoMarkdownTables(newBlockInput.markdown);
+                    resolvedRow.push({
+                      id: generateId(),
+                      block: newBlockInput,
+                      span,
+                    });
+                  } else if (newBlockInput.type === "from_visualization") {
+                    const figureBlock = await resolveFigureFromVisualization(
+                      projectId,
+                      newBlockInput,
+                    );
+                    resolvedRow.push({
+                      id: generateId(),
+                      block: figureBlock,
+                      span,
+                    });
+                  } else if (newBlockInput.type === "from_metric") {
+                    const figureBlock = await resolveFigureFromMetric(
+                      projectId,
+                      newBlockInput,
+                      metrics,
+                    );
+                    resolvedRow.push({
+                      id: generateId(),
+                      block: figureBlock,
+                      span,
+                    });
+                  } else {
+                    throw new Error("Unsupported block type");
+                  }
+                }
+              }
+              resolvedRows.push(resolvedRow);
+            }
+
+            updated = {
+              ...updated,
+              layout: buildLayoutFromSpec(resolvedRows),
+            };
+
+            // Validate total word count across all text blocks
+            const allTextBlocks = extractBlocksFromLayout(updated.layout)
+              .map(({ block }) => block)
+              .filter((b): b is { type: "text"; markdown: string } => b.type === "text")
+              .map(b => b.markdown);
+            validateSlideTotalWordCount(allTextBlocks);
+
+            changes.push("layout");
           }
           if (changes.length > 0) {
             ctx.setTempSlide(reconcile(updated));
