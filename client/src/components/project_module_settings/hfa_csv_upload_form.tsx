@@ -1,21 +1,15 @@
-import type Uppy from "@uppy/core";
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal } from "solid-js";
 import { t3, TC, type HfaIndicator } from "lib";
 import {
   Button,
-  Select,
   StateHolderFormError,
-  StateHolderWrapper,
-  getSelectOptions,
-  timActionForm,
-  timQuery,
   type EditorComponentProps,
   FrameTop,
   HeaderBarCanGoBack,
   RadioGroup,
+  timActionForm,
 } from "panther";
-import { cleanupUppy, createUppyInstance } from "~/upload/uppy_file_upload";
-import { serverActions } from "~/server_actions";
+import Papa from "papaparse";
 
 type Props = EditorComponentProps<
   {
@@ -25,23 +19,22 @@ type Props = EditorComponentProps<
 >;
 
 export function HfaCsvUploadForm(p: Props) {
-  const [selectedFileName, setSelectedFileName] = createSignal<string>("");
   const [uploadMode, setUploadMode] = createSignal<"replace" | "add">("add");
-
-  const assetListing = timQuery(
-    () => serverActions.getAssets({}),
-    t3({ en: "Loading assets...", fr: "Chargement des fichiers..." }),
+  const [selectedFile, setSelectedFile] = createSignal<File | undefined>(
+    undefined,
   );
+  let fileInputRef: HTMLInputElement | undefined;
 
-  function updateSelectedFileName(fileName: string) {
-    setSelectedFileName(fileName);
+  function handleFileSelect(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    setSelectedFile(file);
   }
 
   const handleCsvUpload = timActionForm(
     async () => {
-      const assetFileName = selectedFileName();
-
-      if (!assetFileName) {
+      const file = selectedFile();
+      if (!file) {
         return {
           success: false,
           err: t3({
@@ -51,210 +44,123 @@ export function HfaCsvUploadForm(p: Props) {
         };
       }
 
-      // Fetch the CSV file content
-      const fileRes = await fetch(`/assets/${assetFileName}`);
-      if (!fileRes.ok) {
+      // Read file content
+      const csvText = await file.text();
+
+      // Parse CSV using PapaParse
+      const parseResult = Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: false,
+        transformHeader: (header: string) => header.trim(),
+      });
+
+      if (parseResult.errors && parseResult.errors.length > 0) {
+        const errorMessages = parseResult.errors
+          .map((e) => e.message || e.code)
+          .join(", ");
+        const firstLine = csvText.split("\n")[0];
         return {
           success: false,
           err: t3({
-            en: "Failed to fetch CSV file",
-            fr: "Échec du téléchargement du fichier CSV",
+            en: `CSV parsing failed: ${errorMessages}\n\nFirst line of file:\n${firstLine}`,
+            fr: `Échec de l'analyse du CSV : ${errorMessages}\n\nPremière ligne du fichier :\n${firstLine}`,
           }),
         };
       }
 
-      const csvText = await fileRes.text();
+      const rows = parseResult.data as Record<string, string>[];
 
-      // Parse CSV
-      const lines = csvText.trim().split("\n");
-      if (lines.length < 2) {
+      if (rows.length === 0) {
         return {
           success: false,
           err: t3({
-            en: "CSV file is empty or invalid",
-            fr: "Le fichier CSV est vide ou invalide",
+            en: "CSV file is empty",
+            fr: "Le fichier CSV est vide",
           }),
         };
       }
-
-      const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
 
       // Validate headers
-      const requiredHeaders = ["category", "definition", "varName", "rCode", "type"];
-      const optionalHeaders = ["rFilterCode"];
-      const validHeaders = [...requiredHeaders, ...optionalHeaders];
+      const requiredHeaders = [
+        "category",
+        "definition",
+        "varName",
+        "rCode",
+        "type",
+      ];
+      const headers = Object.keys(rows[0]);
 
       for (const header of requiredHeaders) {
         if (!headers.includes(header)) {
           return {
             success: false,
             err: t3({
-              en: `Missing required header: ${header}`,
-              fr: `En-tête requis manquant : ${header}`,
+              en: `Missing required header: ${header}. Found headers: ${headers.join(", ")}`,
+              fr: `En-tête requis manquant : ${header}. En-têtes trouvés : ${headers.join(", ")}`,
             }),
           };
         }
       }
 
-      // Parse rows
+      // Validate and convert rows to indicators
       const indicators: HfaIndicator[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+      const usedVarNames = new Set<string>();
+      let autoVarCounter = 1;
 
-        // Simple CSV parsing (handles quoted fields)
-        const values: string[] = [];
-        let currentValue = "";
-        let inQuotes = false;
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
 
-        for (let j = 0; j < line.length; j++) {
-          const char = line[j];
-          const nextChar = line[j + 1];
+        // Normalize type: Boolean→binary, Numeric→numeric
+        const typeLower = row.type?.toLowerCase().trim();
+        let normalizedType: "binary" | "numeric";
+        if (typeLower === "boolean" || typeLower === "binary") {
+          normalizedType = "binary";
+        } else if (typeLower === "numeric") {
+          normalizedType = "numeric";
+        } else {
+          return {
+            success: false,
+            err: t3({
+              en: `Row ${i + 2}: type must be "binary"/"Boolean" or "numeric"/"Numeric", got "${row.type}"`,
+              fr: `Ligne ${i + 2} : le type doit être "binary"/"Boolean" ou "numeric"/"Numeric", reçu "${row.type}"`,
+            }),
+          };
+        }
 
-          if (char === '"') {
-            if (inQuotes && nextChar === '"') {
-              currentValue += '"';
-              j++; // Skip next quote
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (char === "," && !inQuotes) {
-            values.push(currentValue.trim());
-            currentValue = "";
-          } else {
-            currentValue += char;
+        // Auto-generate varName if empty
+        let varName = row.varName?.trim() || "";
+        if (!varName) {
+          while (usedVarNames.has(`ind${String(autoVarCounter).padStart(3, "0")}`)) {
+            autoVarCounter++;
           }
+          varName = `ind${String(autoVarCounter).padStart(3, "0")}`;
+          autoVarCounter++;
         }
-        values.push(currentValue.trim()); // Push last value
-
-        if (values.length !== headers.length) {
-          return {
-            success: false,
-            err: t3({
-              en: `Row ${i} has ${values.length} columns but expected ${headers.length}`,
-              fr: `La ligne ${i} a ${values.length} colonnes mais ${headers.length} attendues`,
-            }),
-          };
-        }
-
-        const row: Record<string, string> = {};
-        headers.forEach((header, idx) => {
-          row[header] = values[idx].replace(/^"|"$/g, "");
-        });
-
-        // Validate type
-        if (row.type !== "binary" && row.type !== "numeric") {
-          return {
-            success: false,
-            err: t3({
-              en: `Row ${i}: type must be "binary" or "numeric"`,
-              fr: `Ligne ${i} : le type doit être "binary" ou "numeric"`,
-            }),
-          };
-        }
+        usedVarNames.add(varName);
 
         const indicator: HfaIndicator = {
-          category: row.category,
-          definition: row.definition,
-          varName: row.varName,
-          rCode: row.rCode,
-          type: row.type as "binary" | "numeric",
-          ...(row.rFilterCode && { rFilterCode: row.rFilterCode }),
+          category: row.category || "",
+          definition: row.definition || "",
+          varName,
+          rCode: row.rCode || "",
+          type: normalizedType,
+          ...(row.rFilterCode &&
+            row.rFilterCode.trim() && { rFilterCode: row.rFilterCode }),
         };
 
         indicators.push(indicator);
       }
 
-      if (indicators.length === 0) {
-        return {
-          success: false,
-          err: t3({
-            en: "No valid indicators found in CSV",
-            fr: "Aucun indicateur valide trouvé dans le CSV",
-          }),
-        };
-      }
-
+      // Success - pass indicators to callback
+      p.onUploadComplete(indicators, uploadMode() === "replace");
+      p.close(undefined);
       return { success: true };
     },
     async () => {
-      // After successful validation, trigger callback with parsed data
-      const fileRes = await fetch(`/assets/${selectedFileName()}`);
-      const csvText = await fileRes.text();
-      const lines = csvText.trim().split("\n");
-      const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
-
-      const indicators: HfaIndicator[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        const values: string[] = [];
-        let currentValue = "";
-        let inQuotes = false;
-
-        for (let j = 0; j < line.length; j++) {
-          const char = line[j];
-          const nextChar = line[j + 1];
-
-          if (char === '"') {
-            if (inQuotes && nextChar === '"') {
-              currentValue += '"';
-              j++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (char === "," && !inQuotes) {
-            values.push(currentValue.trim());
-            currentValue = "";
-          } else {
-            currentValue += char;
-          }
-        }
-        values.push(currentValue.trim());
-
-        const row: Record<string, string> = {};
-        headers.forEach((header, idx) => {
-          row[header] = values[idx].replace(/^"|"$/g, "");
-        });
-
-        const indicator: HfaIndicator = {
-          category: row.category,
-          definition: row.definition,
-          varName: row.varName,
-          rCode: row.rCode,
-          type: row.type as "binary" | "numeric",
-          ...(row.rFilterCode && { rFilterCode: row.rFilterCode }),
-        };
-
-        indicators.push(indicator);
-      }
-
-      p.onUploadComplete(indicators, uploadMode() === "replace");
-      p.close(undefined);
+      // No-op success callback
     },
   );
-
-  let uppy: Uppy | undefined = undefined;
-
-  onMount(() => {
-    uppy = createUppyInstance({
-      triggerId: "#select-hfa-csv-file-button",
-      onModalClosed: () => {
-        assetListing.fetch();
-      },
-      onUploadSuccess: (file) => {
-        if (!file) {
-          return;
-        }
-        updateSelectedFileName(file.name as string);
-      },
-    });
-  });
-
-  onCleanup(() => {
-    cleanupUppy(uppy);
-  });
 
   return (
     <FrameTop
@@ -274,13 +180,13 @@ export function HfaCsvUploadForm(p: Props) {
             en: "Upload a CSV file with the following headers:",
             fr: "Téléversez un fichier CSV avec les en-têtes suivants :",
           })}
-          <div class="font-700 ml-3 mt-2 font-mono">
+          <div class="font-700 mt-2 ml-3 font-mono">
             category, definition, varName, rCode, type, rFilterCode
           </div>
           <div class="mt-2 text-xs opacity-60">
             {t3({
-              en: 'Note: "type" must be "binary" or "numeric". "rFilterCode" is optional.',
-              fr: 'Remarque : "type" doit être "binary" ou "numeric". "rFilterCode" est optionnel.',
+              en: 'Note: "type" can be "binary"/"Boolean" or "numeric"/"Numeric". "rFilterCode" is optional.',
+              fr: 'Remarque : "type" peut être "binary"/"Boolean" ou "numeric"/"Numeric". "rFilterCode" est optionnel.',
             })}
           </div>
         </div>
@@ -288,41 +194,46 @@ export function HfaCsvUploadForm(p: Props) {
         <RadioGroup
           label={t3({ en: "Upload Mode", fr: "Mode de téléversement" })}
           options={[
-            { value: "add", label: t3({ en: "Add to existing", fr: "Ajouter aux existants" }) },
-            { value: "replace", label: t3({ en: "Replace all existing", fr: "Remplacer tous les existants" }) },
+            {
+              value: "add",
+              label: t3({ en: "Add to existing", fr: "Ajouter aux existants" }),
+            },
+            {
+              value: "replace",
+              label: t3({
+                en: "Replace all existing",
+                fr: "Remplacer tous les existants",
+              }),
+            },
           ]}
           value={uploadMode()}
           onChange={(val) => setUploadMode(val as "replace" | "add")}
         />
 
         <div class="">
-          <Button id="select-hfa-csv-file-button" iconName="upload">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleFileSelect}
+            style={{ display: "none" }}
+          />
+          <Button
+            onClick={() => fileInputRef?.click()}
+            iconName="upload"
+            intent="neutral"
+          >
             {t3({
-              en: "Upload new CSV file",
-              fr: "Téléverser un nouveau fichier CSV",
+              en: "Select CSV file",
+              fr: "Sélectionner un fichier CSV",
             })}
           </Button>
-        </div>
-
-        <div class="w-96">
-          <StateHolderWrapper state={assetListing.state()} noPad>
-            {(keyedAssets) => {
-              return (
-                <Select
-                  label={t3({
-                    en: "Or select existing CSV file",
-                    fr: "Ou sélectionner un fichier CSV existant",
-                  })}
-                  options={getSelectOptions(
-                    keyedAssets.filter((a) => a.isCsv).map((a) => a.fileName),
-                  )}
-                  value={selectedFileName()}
-                  onChange={updateSelectedFileName}
-                  fullWidth
-                />
-              );
-            }}
-          </StateHolderWrapper>
+          {selectedFile() && (
+            <div class="mt-2 text-sm">
+              {t3({ en: "Selected:", fr: "Sélectionné :" })}{" "}
+              <span class="font-600">{selectedFile()!.name}</span>
+            </div>
+          )}
         </div>
 
         <StateHolderFormError state={handleCsvUpload.state()} />
@@ -332,7 +243,7 @@ export function HfaCsvUploadForm(p: Props) {
             onClick={handleCsvUpload.click}
             intent="primary"
             state={handleCsvUpload.state()}
-            disabled={!selectedFileName()}
+            disabled={!selectedFile()}
             iconName="upload"
           >
             {t3({ en: "Process CSV", fr: "Traiter le CSV" })}

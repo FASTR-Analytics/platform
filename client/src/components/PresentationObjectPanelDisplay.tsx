@@ -16,9 +16,29 @@ import {
   T,
   TC,
 } from "lib";
-import { Button, Checkbox, FrameLeftResizable, getColor, openAlert, openComponent, Select, SelectList, showMenu, timActionDelete, type MenuItem, type SelectOption } from "panther";
+import {
+  Button,
+  Checkbox,
+  FrameLeftResizable,
+  getColor,
+  openAlert,
+  openComponent,
+  Select,
+  SelectList,
+  showMenu,
+  timActionDelete,
+  type MenuItem,
+  type SelectOption,
+} from "panther";
 import { createEffect, createSignal, For, Show } from "solid-js";
-import { vizGroupingMode, setVizGroupingMode, vizSelectedGroup, setVizSelectedGroup, hideUnreadyVisualizations, setHideUnreadyVisualizations } from "~/state/ui";
+import {
+  vizGroupingMode,
+  setVizGroupingMode,
+  vizSelectedGroup,
+  setVizSelectedGroup,
+  hideUnreadyVisualizations,
+  setHideUnreadyVisualizations,
+} from "~/state/ui";
 import { serverActions } from "~/server_actions";
 import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
 import { EditFolderModal } from "./project/edit_folder_modal";
@@ -28,13 +48,14 @@ import { CreateSlideFromVisualizationModal } from "./visualization/create_slide_
 import { EditCommonPropertiesModal } from "./visualization/edit_common_properties_modal";
 import { useAIProjectContext } from "~/components/project_ai";
 
-const GROUPING_OPTIONS: { value: VisualizationGroupingMode; label: string }[] = [
-  { value: "folders", label: t3({ en: "By folder", fr: "Par dossier" }) },
-  { value: "module", label: t3({ en: "By module", fr: "Par module" }) },
-  { value: "metric", label: t3({ en: "By metric", fr: "Par métrique" }) },
-  // { value: "ownership", label: t3({ en: "By ownership", fr: "Par propriétaire" }) },
-  { value: "flat", label: t3({ en: "Flat list", fr: "Liste plate" }) },
-];
+const GROUPING_OPTIONS: { value: VisualizationGroupingMode; label: string }[] =
+  [
+    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier" }) },
+    { value: "module", label: t3({ en: "By module", fr: "Par module" }) },
+    { value: "metric", label: t3({ en: "By metric", fr: "Par métrique" }) },
+    // { value: "ownership", label: t3({ en: "By ownership", fr: "Par propriétaire" }) },
+    { value: "flat", label: t3({ en: "Flat list", fr: "Liste plate" }) },
+  ];
 
 type GroupOption = {
   value: string;
@@ -56,24 +77,24 @@ type Props = {
 };
 
 export function PresentationObjectPanelDisplay(p: Props) {
-
-  const readyMetricIds = () => new Set(
-    p.projectDetail.metrics.filter(m => m.status === "ready").map(m => m.id)
-  );
+  const readyMetricIds = () =>
+    new Set(
+      p.projectDetail.metrics
+        .filter((m) => m.status === "ready")
+        .map((m) => m.id),
+    );
 
   const filteredBySearch = () => {
     let vizs = p.projectDetail.visualizations;
 
     if (hideUnreadyVisualizations()) {
       const ready = readyMetricIds();
-      vizs = vizs.filter(po => ready.has(po.metricId));
+      vizs = vizs.filter((po) => ready.has(po.metricId));
     }
 
     if (p.searchText.length < 3) return vizs;
     const searchLower = p.searchText.toLowerCase();
-    return vizs.filter((po) =>
-      po.label.toLowerCase().includes(searchLower)
-    );
+    return vizs.filter((po) => po.label.toLowerCase().includes(searchLower));
   };
 
   const groupOptions = (): GroupOption[] => {
@@ -83,17 +104,26 @@ export function PresentationObjectPanelDisplay(p: Props) {
     switch (mode) {
       case "folders": {
         const defaults = vizs.filter((v) => v.isDefault && !v.createdByAI);
-        const generalCount = vizs.filter((v) => v.folderId === null && !v.isDefault && !v.createdByAI).length;
+        const generalCount = vizs.filter(
+          (v) => v.folderId === null && !v.isDefault && !v.createdByAI,
+        ).length;
         const groups: GroupOption[] = [
-          { value: "_defaults", label: t3({ en: "Defaults", fr: "Par défaut" }), count: defaults.length },
+          {
+            value: "_defaults",
+            label: t3({ en: "Defaults", fr: "Par défaut" }),
+            count: defaults.length,
+          },
           { value: "_unfiled", label: t3(TC.general), count: generalCount },
         ];
-        groups.push(...p.projectDetail.visualizationFolders.map((f) => ({
-          value: f.id,
-          label: f.label,
-          count: vizs.filter((v) => v.folderId === f.id && !v.isDefault).length,
-          color: f.color,
-        })));
+        groups.push(
+          ...p.projectDetail.visualizationFolders.map((f) => ({
+            value: f.id,
+            label: f.label,
+            count: vizs.filter((v) => v.folderId === f.id && !v.isDefault)
+              .length,
+            color: f.color,
+          })),
+        );
         return groups;
       }
 
@@ -101,18 +131,21 @@ export function PresentationObjectPanelDisplay(p: Props) {
         return p.projectDetail.projectModules.map((m) => ({
           value: m.id,
           label: m.moduleDefinitionLabel,
-          count: vizs.filter((v) => getModuleIdForMetric(v.metricId) === m.id).length,
+          count: vizs.filter((v) => getModuleIdForMetric(v.metricId) === m.id)
+            .length,
         }));
 
       case "metric": {
         const metricGroups = groupMetricsByLabel(p.projectDetail.metrics);
         const moduleOrder = new Map(
-          p.projectDetail.projectModules.map((m, i) => [m.id, i])
+          p.projectDetail.projectModules.map((m, i) => [m.id, i]),
         );
         return metricGroups
           .filter((group) => {
             // Only include groups that have visualizations
-            return group.variants.some((m) => vizs.some((v) => v.metricId === m.id));
+            return group.variants.some((m) =>
+              vizs.some((v) => v.metricId === m.id),
+            );
           })
           .sort((a, b) => {
             const moduleA = a.variants[0].moduleId;
@@ -127,7 +160,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
           .map((group) => {
             const count = group.variants.reduce(
               (sum, m) => sum + vizs.filter((v) => v.metricId === m.id).length,
-              0
+              0,
             );
             return {
               value: group.label,
@@ -137,9 +170,17 @@ export function PresentationObjectPanelDisplay(p: Props) {
           });
       }
 
-
       case "flat":
-        return [{ value: "_all", label: t3({ en: "All Visualizations", fr: "Toutes les visualisations" }), count: vizs.length }];
+        return [
+          {
+            value: "_all",
+            label: t3({
+              en: "All Visualizations",
+              fr: "Toutes les visualisations",
+            }),
+            count: vizs.length,
+          },
+        ];
 
       default:
         return [];
@@ -159,7 +200,9 @@ export function PresentationObjectPanelDisplay(p: Props) {
           return vizs.filter((v) => v.isDefault && !v.createdByAI);
         }
         if (group === "_unfiled") {
-          return vizs.filter((v) => v.folderId === null && !v.isDefault && !v.createdByAI);
+          return vizs.filter(
+            (v) => v.folderId === null && !v.isDefault && !v.createdByAI,
+          );
         }
         return vizs.filter((v) => v.folderId === group && !v.isDefault);
 
@@ -175,7 +218,6 @@ export function PresentationObjectPanelDisplay(p: Props) {
         return vizs.filter((v) => metricIds.has(v.metricId));
       }
 
-
       case "flat":
         return [...vizs].sort((a, b) => a.label.localeCompare(b.label));
 
@@ -189,10 +231,11 @@ export function PresentationObjectPanelDisplay(p: Props) {
     const mode = vizGroupingMode();
 
     // Sub-group by module for Defaults folder or "default" in ownership
-    if ((mode === "folders" && group === "_defaults")) {
+    if (mode === "folders" && group === "_defaults") {
       return {
         getGroupKey: (po) => getModuleIdForMetric(po.metricId),
-        getGroupLabel: (key, modules) => modules.find((m) => m.id === key)?.moduleDefinitionLabel ?? key,
+        getGroupLabel: (key, modules) =>
+          modules.find((m) => m.id === key)?.moduleDefinitionLabel ?? key,
         getGroupOrder: (modules) => modules.map((m) => m.id),
       };
     }
@@ -242,7 +285,9 @@ export function PresentationObjectPanelDisplay(p: Props) {
   function handleFolderContextMenu(e: MouseEvent, folderId: string) {
     e.preventDefault();
     e.stopPropagation();
-    const folder = p.projectDetail.visualizationFolders.find((f) => f.id === folderId);
+    const folder = p.projectDetail.visualizationFolders.find(
+      (f) => f.id === folderId,
+    );
     if (!folder) return;
 
     const items: MenuItem[] = [
@@ -266,11 +311,12 @@ export function PresentationObjectPanelDisplay(p: Props) {
         onClick: async () => {
           const deleteAction = timActionDelete(
             "Are you sure you want to delete this folder? Visualizations will be moved to General.",
-            () => serverActions.deleteVisualizationFolder({
-              projectId: p.projectDetail.id,
-              folder_id: folderId,
-            }),
-            () => { },
+            () =>
+              serverActions.deleteVisualizationFolder({
+                projectId: p.projectDetail.id,
+                folder_id: folderId,
+              }),
+            () => {},
           );
           await deleteAction.click();
         },
@@ -289,11 +335,17 @@ export function PresentationObjectPanelDisplay(p: Props) {
       return (
         <div
           class="flex items-center gap-2"
-          onContextMenu={isUserFolder ? (e) => handleFolderContextMenu(e, selectOpt.value) : undefined}
+          onContextMenu={
+            isUserFolder
+              ? (e) => handleFolderContextMenu(e, selectOpt.value)
+              : undefined
+          }
         >
           <div
             class="h-2.5 w-2.5 flex-none rounded-full"
-            style={{ "background-color": opt.color ?? getColor({ key: "base300" }) }}
+            style={{
+              "background-color": opt.color ?? getColor({ key: "base300" }),
+            }}
           />
           <span class="flex-1 truncate">{opt.label}</span>
           <span class="text-neutral text-xs">({opt.count})</span>
@@ -315,11 +367,13 @@ export function PresentationObjectPanelDisplay(p: Props) {
       maxWidth={300}
       panelChildren={
         <div class="border-base-300 flex h-full w-full flex-col border-r">
-          <div class="border-base-300 border-b p-3 flex flex-col gap-2">
+          <div class="border-base-300 flex flex-col gap-2 border-b p-3">
             <Select
               options={GROUPING_OPTIONS}
               value={vizGroupingMode()}
-              onChange={(v) => setVizGroupingMode(v as VisualizationGroupingMode)}
+              onChange={(v) =>
+                setVizGroupingMode(v as VisualizationGroupingMode)
+              }
               fullWidth
             />
             <Checkbox
@@ -391,11 +445,16 @@ function VisualizationGrid(p: VisualizationGridProps) {
   const { notifyAI } = useAIProjectContext();
 
   const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
-  const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(null);
+  const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(
+    null,
+  );
 
   function updateSelection(newSelected: Set<string>) {
     setSelectedIds(newSelected);
-    notifyAI({ type: "selected_visualizations", vizIds: Array.from(newSelected) });
+    notifyAI({
+      type: "selected_visualizations",
+      vizIds: Array.from(newSelected),
+    });
   }
 
   function clearSelection() {
@@ -426,7 +485,10 @@ function VisualizationGrid(p: VisualizationGridProps) {
       groups.get(key)!.push(po);
     }
 
-    const keys = order.length > 0 ? order.filter((key) => groups.has(key)) : Array.from(groups.keys());
+    const keys =
+      order.length > 0
+        ? order.filter((key) => groups.has(key))
+        : Array.from(groups.keys());
 
     let visualIndex = 0;
     const visualIndexMap = new Map<string, number>();
@@ -443,7 +505,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
     index: number,
     po: PresentationObjectSummary,
     event: MouseEvent,
-    isCircleClick: boolean
+    isCircleClick: boolean,
   ) {
     if (isCircleClick) {
       event.stopPropagation();
@@ -562,20 +624,23 @@ function VisualizationGrid(p: VisualizationGridProps) {
 
     const idsToEdit = Array.from(selected);
 
-    const firstViz = p.visualizations.find(v => v.id === idsToEdit[0]);
+    const firstViz = p.visualizations.find((v) => v.id === idsToEdit[0]);
     if (!firstViz) return;
 
-    const metricInfoRes = await serverActions.getResultsValueInfoForPresentationObject({
-      projectId: p.projectId,
-      metricId: firstViz.metricId,
-    });
+    const metricInfoRes =
+      await serverActions.getResultsValueInfoForPresentationObject({
+        projectId: p.projectId,
+        metricId: firstViz.metricId,
+      });
 
     await openComponent({
       element: EditCommonPropertiesModal,
       props: {
         projectId: p.projectId,
         visualizationIds: idsToEdit,
-        periodBounds: metricInfoRes.success ? metricInfoRes.data.periodBounds : undefined,
+        periodBounds: metricInfoRes.success
+          ? metricInfoRes.data.periodBounds
+          : undefined,
       },
     });
 
@@ -591,11 +656,11 @@ function VisualizationGrid(p: VisualizationGridProps) {
 
     // Get visualization details
     const vizsToCreate = idsToCreate
-      .map(id => p.visualizations.find(v => v.id === id))
+      .map((id) => p.visualizations.find((v) => v.id === id))
       .filter((v): v is PresentationObjectSummary => v !== undefined);
 
     // Check if any selected viz is replicated (when creating multiple)
-    const hasReplicated = vizsToCreate.some(v => v.replicateBy);
+    const hasReplicated = vizsToCreate.some((v) => v.replicateBy);
 
     if (hasReplicated && vizsToCreate.length > 1) {
       await openAlert({
@@ -607,8 +672,8 @@ function VisualizationGrid(p: VisualizationGridProps) {
     }
 
     // Open modal (works for both single replicated and batch modes)
-    const vizIds = vizsToCreate.map(v => v.id);
-    const vizLabels = vizsToCreate.map(v => v.label);
+    const vizIds = vizsToCreate.map((v) => v.id);
+    const vizLabels = vizsToCreate.map((v) => v.label);
 
     await openComponent({
       element: CreateSlideFromVisualizationModal,
@@ -616,7 +681,8 @@ function VisualizationGrid(p: VisualizationGridProps) {
         projectId: p.projectId,
         visualizationIds: vizIds,
         visualizationLabels: vizLabels,
-        replicateBy: vizsToCreate.length === 1 ? vizsToCreate[0].replicateBy : undefined,
+        replicateBy:
+          vizsToCreate.length === 1 ? vizsToCreate[0].replicateBy : undefined,
         metrics: p.metrics,
         slideDecks: p.slideDecks,
         slideDeckFolders: p.slideDeckFolders,
@@ -631,12 +697,14 @@ function VisualizationGrid(p: VisualizationGridProps) {
     const isItemSelected = selected.has(po.id);
     const shouldDuplicateMultiple = isItemSelected && selected.size > 1;
 
-    const idsToDuplicate = shouldDuplicateMultiple ? Array.from(selected) : [po.id];
+    const idsToDuplicate = shouldDuplicateMultiple
+      ? Array.from(selected)
+      : [po.id];
 
     const poDetails = idsToDuplicate
-      .map(id => p.visualizations.find(v => v.id === id))
+      .map((id) => p.visualizations.find((v) => v.id === id))
       .filter((v): v is PresentationObjectSummary => v !== undefined)
-      .map(v => ({ id: v.id, label: v.label, folderId: v.folderId }));
+      .map((v) => ({ id: v.id, label: v.label, folderId: v.folderId }));
 
     await openComponent({
       element: DuplicateVisualization,
@@ -656,21 +724,22 @@ function VisualizationGrid(p: VisualizationGridProps) {
     const shouldDeleteMultiple = isItemSelected && selected.size > 1;
 
     const idsToDelete = shouldDeleteMultiple ? Array.from(selected) : [po.id];
-    const confirmText = idsToDelete.length > 1
-      ? `Are you sure you want to delete ${idsToDelete.length} visualizations?`
-      : t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1);
+    const confirmText =
+      idsToDelete.length > 1
+        ? `Are you sure you want to delete ${idsToDelete.length} visualizations?`
+        : t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1);
 
     const deleteAction = timActionDelete(
       confirmText,
       async () => {
-        const promises = idsToDelete.map(id =>
+        const promises = idsToDelete.map((id) =>
           serverActions.deletePresentationObject({
             projectId: p.projectId,
             po_id: id,
-          })
+          }),
         );
         const results = await Promise.all(promises);
-        const failed = results.filter(r => !r.success);
+        const failed = results.filter((r) => !r.success);
         if (failed.length > 0) {
           return failed[0];
         }
@@ -698,7 +767,9 @@ function VisualizationGrid(p: VisualizationGridProps) {
         clearSelection();
         p.onClick(po);
       }}
-      onCardClick={(e, isCircleClick) => handleVisualizationClick(index, po, e, isCircleClick)}
+      onCardClick={(e, isCircleClick) =>
+        handleVisualizationClick(index, po, e, isCircleClick)
+      }
       onDuplicate={() => handleDuplicate(po)}
       onDelete={() => handleDelete(po)}
       onMoveToFolder={() => handleMoveToFolder(po)}
@@ -742,7 +813,10 @@ function VisualizationGrid(p: VisualizationGridProps) {
           }
 
           // Use provided order, or natural order from visualizations if order is empty
-          const keys = order.length > 0 ? order.filter((key) => groups.has(key)) : Array.from(groups.keys());
+          const keys =
+            order.length > 0
+              ? order.filter((key) => groups.has(key))
+              : Array.from(groups.keys());
 
           const visualIndexMap = getVisualIndexMap();
 
@@ -759,17 +833,29 @@ function VisualizationGrid(p: VisualizationGridProps) {
             class="h-full w-full overflow-auto"
             onClick={() => clearSelection()}
           >
-            <Show when={grouped().length > 0} fallback={emptyMessage()}>
+            <Show
+              when={grouped().length > 0}
+              fallback={<div class="ui-pad">{emptyMessage()}</div>}
+            >
               <For each={grouped()}>
                 {(group, i) => (
-                  <div class="mb-6" classList={{ "pt-4": i() === 0, "pt-2": i() > 0 }}>
-                    <div class="border-base-300 mb-3 flex items-center gap-3 border-b mx-4 pb-2">
-                      <span class="text-base-content text-sm font-700">{group.label}</span>
-                      <span class="text-neutral text-xs">({group.items.length})</span>
+                  <div
+                    class="mb-6"
+                    classList={{ "pt-4": i() === 0, "pt-2": i() > 0 }}
+                  >
+                    <div class="border-base-300 mx-4 mb-3 flex items-center gap-3 border-b pb-2">
+                      <span class="text-base-content font-700 text-sm">
+                        {group.label}
+                      </span>
+                      <span class="text-neutral text-xs">
+                        ({group.items.length})
+                      </span>
                     </div>
-                    <div class="px-4 pt-1 pb-4 ui-gap grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start">
+                    <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start px-4 pt-1 pb-4">
                       <For each={group.items}>
-                        {(po) => renderCard(po, group.visualIndexMap.get(po.id)!)}
+                        {(po) =>
+                          renderCard(po, group.visualIndexMap.get(po.id)!)
+                        }
                       </For>
                     </div>
                   </div>
@@ -869,21 +955,22 @@ function VisualizationCard(p: VisualizationCardProps) {
   const isReady = () => p.metricLookup.get(p.po.metricId)?.status === "ready";
 
   return (
-    <div
-      class="group bg-base-100 ring-offset-[6px] grid grid-rows-subgrid row-span-3 gap-y-1"
-    >
+    <div class="group bg-base-100 row-span-3 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
       <div class="ui-gap-sm flex items-end pb-1">
-        <div class="font-400 text-base-content text-xs italic select-none pointer-events-none">{p.po.label}</div>
+        <div class="font-400 text-base-content pointer-events-none text-xs italic select-none">
+          {p.po.label}
+        </div>
       </div>
       <Show
         when={isReady()}
         fallback={
-          <div class="border-base-300 border p-2 rounded bg-base-200 aspect-video flex items-center justify-center">
+          <div class="border-base-300 bg-base-200 flex aspect-video items-center justify-center rounded border p-2">
             <span class="text-neutral text-xs">Not available</span>
           </div>
         }
       >
-        <div class="relative border p-2 rounded cursor-pointer"
+        <div
+          class="relative cursor-pointer rounded border p-2"
           classList={{
             "border-base-300": !p.isSelected,
             "border-primary": p.isSelected,
@@ -895,10 +982,12 @@ function VisualizationCard(p: VisualizationCardProps) {
           }}
           onContextMenu={handleContextMenu}
         >
-          <div class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
+          <div
+            class="absolute top-2 right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
             classList={{
               "bg-primary text-primary-content opacity-100": p.isSelected,
-              "border border-base-300 bg-transparent hover:bg-base-300 hover:text-white [&:not(:hover)]:text-transparent": !p.isSelected,
+              "border border-base-300 bg-transparent hover:bg-base-300 hover:text-white [&:not(:hover)]:text-transparent":
+                !p.isSelected,
             }}
             onClick={(e) => p.onCardClick(e, true)}
           >
@@ -941,7 +1030,9 @@ function VisualizationCard(p: VisualizationCardProps) {
           </div>
         </Show>
         <Show when={p.po.createdByAI}>
-          <div class="bg-danger font-400 text-base-100 rounded px-1 py-0.5 text-xs">AI</div>
+          <div class="bg-danger font-400 text-base-100 rounded px-1 py-0.5 text-xs">
+            AI
+          </div>
         </Show>
         <Show when={!p.po.createdByAI && p.po.isDefault}>
           <div class="bg-success font-400 text-base-100 rounded px-1 py-0.5 text-xs">
