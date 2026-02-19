@@ -74,12 +74,9 @@ export function ProjectModules(p: Props) {
         <div class="ui-pad ui-spy">
           <For each={getPossibleModules()}>
             {(possibleModuleDef) => {
-              const installedModule = projectDetail.projectModules.find(
-                (m) => m.id === possibleModuleDef.id,
-              );
               return (
                 <Switch>
-                  <Match when={installedModule} keyed>
+                  <Match when={projectDetail.projectModules.find((m) => m.id === possibleModuleDef.id)} keyed>
                     {(keyedInstalledModule) => {
                       return (
                         <InstalledModulePresentation

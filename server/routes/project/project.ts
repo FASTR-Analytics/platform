@@ -21,6 +21,7 @@ import {
   setAllModulesDirty,
   setModulesDirtyForDataset,
 } from "../../task_management/mod.ts";
+import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
 import { GetLogsByProject } from "../../db/instance/user_logs.ts";
@@ -219,6 +220,7 @@ defineRoute(
         [body.datasetType],
         res.data.lastUpdated,
       );
+      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
 
       await writer.complete(res.data);
     });
@@ -239,7 +241,10 @@ defineRoute(
       c.var.ppk.projectId,
       params.dataset_type,
     );
-    await setModulesDirtyForDataset(c.var.ppk, params.dataset_type);
+    if (res.success === true) {
+      await setModulesDirtyForDataset(c.var.ppk, params.dataset_type);
+      notifyProjectUpdated(c.var.ppk.projectId, new Date().toISOString());
+    }
     return c.json(res);
   },
 );

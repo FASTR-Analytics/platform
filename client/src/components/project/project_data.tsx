@@ -39,14 +39,13 @@ export function ProjectData(p: Props) {
         <div class="ui-pad ui-spy">
           <For each={_POSSIBLE_DATASETS}>
             {(possibleDataset) => {
-              const projectDataset = projectDetail.projectDatasets.find(
-                (d) => d.datasetType === possibleDataset.datasetType,
-              );
               return (
                 <Switch>
                   <Match
                     when={
-                      projectDataset?.datasetType === "hmis" && projectDataset
+                      projectDetail.projectDatasets.find(
+                        (d) => d.datasetType === possibleDataset.datasetType && d.datasetType === "hmis"
+                      ) as Extract<typeof projectDetail.projectDatasets[number], { datasetType: "hmis" }> | undefined
                     }
                     keyed
                   >
@@ -115,12 +114,11 @@ export function ProjectData(p: Props) {
                         });
                       }
 
-                      const disableDataset = timActionButton(
-                        () =>
-                          serverActions.removeDatasetFromProject({
-                            projectId: projectDetail.id,
-                            dataset_type: "hmis",
-                          }),
+                      const disableDataset = timActionButton(() =>
+                        serverActions.removeDatasetFromProject({
+                          projectId: projectDetail.id,
+                          dataset_type: "hmis",
+                        }),
                       );
 
                       return (
@@ -302,7 +300,9 @@ export function ProjectData(p: Props) {
                   </Match>
                   <Match
                     when={
-                      projectDataset?.datasetType === "hfa" && projectDataset
+                      projectDetail.projectDatasets.find(
+                        (d) => d.datasetType === possibleDataset.datasetType && d.datasetType === "hfa"
+                      ) as Extract<typeof projectDetail.projectDatasets[number], { datasetType: "hfa" }> | undefined
                     }
                     keyed
                   >
@@ -315,21 +315,19 @@ export function ProjectData(p: Props) {
                         return inst !== undefined && proj !== undefined && proj < inst;
                       };
 
-                      const disableDataset = timActionButton(
-                        () =>
-                          serverActions.removeDatasetFromProject({
-                            projectId: projectDetail.id,
-                            dataset_type: "hfa",
-                          }),
+                      const disableDataset = timActionButton(() =>
+                        serverActions.removeDatasetFromProject({
+                          projectId: projectDetail.id,
+                          dataset_type: "hfa",
+                        }),
                       );
 
-                      const updateData = timActionButton(
-                        () =>
-                          serverActions.addDatasetToProject({
-                            projectId: projectDetail.id,
-                            datasetType: "hfa",
-                            windowing: undefined,
-                          }),
+                      const updateData = timActionButton(() =>
+                        serverActions.addDatasetToProject({
+                          projectId: projectDetail.id,
+                          datasetType: "hfa",
+                          windowing: undefined,
+                        }),
                       );
 
                       return (
