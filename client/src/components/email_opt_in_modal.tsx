@@ -25,12 +25,16 @@ export function EmailOptInModal(p: AlertComponentProps<void, undefined>) {
         <ModalContainer
             width="sm"
             topPanel={<div class="font-700 text-base-content text-xl">Stay in the loop</div>}
-            leftButtons={[
-                <Button onClick={() => handleChoice(false)} intent="base-200" disabled={loading()}>
+            leftButtons={
+                // eslint-disable-next-line jsx-key
+                [
+                <Button onClick={() => handleChoice(false)} intent="neutral" disabled={loading()}>
                 No thanks
                 </Button>,
             ]}
-            rightButtons={[
+            rightButtons={
+                // eslint-disable-next-line jsx-key
+                [
                 <Button onClick={() => handleChoice(true)} intent="primary" disabled={loading()}>
                 Yes, sign me up
                 </Button>,
