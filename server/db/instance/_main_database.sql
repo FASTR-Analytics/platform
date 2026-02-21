@@ -15,6 +15,13 @@ CREATE TABLE users (
   can_create_projects boolean NOT NULL DEFAULT FALSE
 );
 
+CREATE TABLE projects (
+  id text PRIMARY KEY NOT NULL,
+  label text NOT NULL,
+  ai_context text NOT NULL,
+  is_locked boolean NOT NULL DEFAULT FALSE
+);
+
 CREATE TABLE user_logs (
   id SERIAL PRIMARY KEY,
   user_email text NOT NULL,
@@ -30,13 +37,6 @@ CREATE TABLE user_logs (
 CREATE TABLE instance_config (
   config_key text PRIMARY KEY NOT NULL,
   config_json_value text NOT NULL
-);
-
-CREATE TABLE projects (
-  id text PRIMARY KEY NOT NULL,
-  label text NOT NULL,
-  ai_context text NOT NULL,
-  is_locked boolean NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE project_user_roles (
