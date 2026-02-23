@@ -9,6 +9,22 @@ export type DBUser = {
   can_configure_data: boolean;
   can_view_data: boolean;
   can_create_projects: boolean;
+  default_project_can_configure_settings: boolean;
+  default_project_can_create_backups: boolean;
+  default_project_can_restore_backups: boolean;
+  default_project_can_configure_modules: boolean;
+  default_project_can_run_modules: boolean;
+  default_project_can_configure_users: boolean;
+  default_project_can_configure_visualizations: boolean;
+  default_project_can_view_visualizations: boolean;
+  default_project_can_configure_reports: boolean;
+  default_project_can_view_reports: boolean;
+  default_project_can_configure_slide_decks: boolean;
+  default_project_can_view_slide_decks: boolean;
+  default_project_can_configure_data: boolean;
+  default_project_can_view_data: boolean;
+  default_project_can_view_metrics: boolean;
+  default_project_can_view_logs: boolean;
 };
 
 export type UserLog = {

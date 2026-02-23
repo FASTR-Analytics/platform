@@ -1,0 +1,17 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS default_project_can_configure_settings boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_create_backups boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_restore_backups boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_configure_modules boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_run_modules boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_configure_users boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_configure_visualizations boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_view_visualizations boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_configure_reports boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_view_reports boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_configure_slide_decks boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_view_slide_decks boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_configure_data boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_view_data boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_view_metrics boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS default_project_can_view_logs boolean NOT NULL DEFAULT FALSE;

@@ -1,4 +1,4 @@
-import type { GlobalUser, UserLog, UserPermission } from "../../types/mod.ts";
+import type { GlobalUser, UserLog, UserPermission, ProjectPermission } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 // Route registry for users
@@ -55,5 +55,16 @@ export const userRouteRegistry = {
     path: "/user/permissions/bulk",
     method: "POST",
     body: {} as { emails: string[]; permissions: Partial<Record<UserPermission, boolean>> },
+  }),
+  getUserDefaultProjectPermissions: route({
+    path: "/user/:email/default-project-permissions",
+    method: "GET",
+    params: {} as { email: string },
+    response: {} as { permissions: Record<ProjectPermission, boolean> },
+  }),
+  updateUserDefaultProjectPermissions: route({
+    path: "/user/default-project-permissions",
+    method: "POST",
+    body: {} as { email: string; permissions: Partial<Record<ProjectPermission, boolean>> },
   }),
 } as const;

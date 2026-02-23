@@ -6,8 +6,10 @@ import {
   bulkUpdateUserPermissions,
   deleteUser,
   getOtherUser,
+  getUserDefaultProjectPermissions,
   getUserPermissions,
   toggleAdmin,
+  updateUserDefaultProjectPermissions,
   updateUserPermissions,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
@@ -146,6 +148,32 @@ defineRoute(
   log("updateUserPermissions"),
   async (c, { body }) => {
     const res = await updateUserPermissions(
+      c.var.mainDb,
+      body.email,
+      body.permissions,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesUsers,
+  "getUserDefaultProjectPermissions",
+  requireGlobalPermission("can_configure_users"),
+  log("getUserDefaultProjectPermissions"),
+  async (c, { params }) => {
+    const res = await getUserDefaultProjectPermissions(c.var.mainDb, params.email);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesUsers,
+  "updateUserDefaultProjectPermissions",
+  requireGlobalPermission("can_configure_users"),
+  log("updateUserDefaultProjectPermissions"),
+  async (c, { body }) => {
+    const res = await updateUserDefaultProjectPermissions(
       c.var.mainDb,
       body.email,
       body.permissions,

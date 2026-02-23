@@ -263,17 +263,69 @@ export async function addProject(
       VALUES (${globalUser.email}, ${globalUser.isGlobalAdmin})
       ON CONFLICT (email) DO NOTHING
     `;
+
+    // Fetch default project permissions for all editors/viewers before the transaction
+    const allMemberEmails = [...projectEditors, ...projectViewers];
+    const defaultRows = allMemberEmails.length > 0
+      ? await mainDb<{ email: string; [key: string]: boolean | string }[]>`
+          SELECT
+            email,
+            default_project_can_configure_settings,
+            default_project_can_create_backups,
+            default_project_can_restore_backups,
+            default_project_can_configure_modules,
+            default_project_can_run_modules,
+            default_project_can_configure_users,
+            default_project_can_configure_visualizations,
+            default_project_can_view_visualizations,
+            default_project_can_configure_reports,
+            default_project_can_view_reports,
+            default_project_can_configure_slide_decks,
+            default_project_can_view_slide_decks,
+            default_project_can_configure_data,
+            default_project_can_view_data,
+            default_project_can_view_metrics,
+            default_project_can_view_logs
+          FROM users WHERE email = ANY(${allMemberEmails})
+        `
+      : ([] as { email: string; [key: string]: boolean | string }[]);
+
+    const getDefaultPerms = (email: string) => {
+      const row = defaultRows.find((r) => r.email === email);
+      const g = (k: string): boolean => (row?.[`default_project_${k}`] as boolean) ?? false;
+      return {
+        can_configure_settings: g("can_configure_settings"),
+        can_create_backups: g("can_create_backups"),
+        can_restore_backups: g("can_restore_backups"),
+        can_configure_modules: g("can_configure_modules"),
+        can_run_modules: g("can_run_modules"),
+        can_configure_users: g("can_configure_users"),
+        can_configure_visualizations: g("can_configure_visualizations"),
+        can_view_visualizations: g("can_view_visualizations"),
+        can_configure_reports: g("can_configure_reports"),
+        can_view_reports: g("can_view_reports"),
+        can_configure_slide_decks: g("can_configure_slide_decks"),
+        can_view_slide_decks: g("can_view_slide_decks"),
+        can_configure_data: g("can_configure_data"),
+        can_view_data: g("can_view_data"),
+        can_view_metrics: g("can_view_metrics"),
+        can_view_logs: g("can_view_logs"),
+      };
+    };
+
     await mainDb.begin((sql) => [
       sql`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${projectLabel}, '')`,
       sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs)
        VALUES (${globalUser.email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`,
       ...projectEditors.map((email) => {
+        const d = getDefaultPerms(email);
         return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs)
-       VALUES (${email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`;
+         VALUES (${email}, ${newProjectId}, 'editor', ${d.can_configure_settings}, ${d.can_create_backups}, ${d.can_restore_backups}, ${d.can_configure_modules}, ${d.can_run_modules}, ${d.can_configure_users}, ${d.can_configure_visualizations}, ${d.can_view_visualizations}, ${d.can_configure_reports}, ${d.can_view_reports}, ${d.can_configure_slide_decks}, ${d.can_view_slide_decks}, ${d.can_configure_data}, ${d.can_view_data}, ${d.can_view_metrics}, ${d.can_view_logs})`;
       }),
       ...projectViewers.map((email) => {
+        const d = getDefaultPerms(email);
         return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs)
-       VALUES (${email}, ${newProjectId}, 'viewer', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`;
+         VALUES (${email}, ${newProjectId}, 'viewer', ${d.can_configure_settings}, ${d.can_create_backups}, ${d.can_restore_backups}, ${d.can_configure_modules}, ${d.can_run_modules}, ${d.can_configure_users}, ${d.can_configure_visualizations}, ${d.can_view_visualizations}, ${d.can_configure_reports}, ${d.can_view_reports}, ${d.can_configure_slide_decks}, ${d.can_view_slide_decks}, ${d.can_configure_data}, ${d.can_view_data}, ${d.can_view_metrics}, ${d.can_view_logs})`;
       }),
     ]);
     const datasetLastUpdateds: {
@@ -437,7 +489,33 @@ export async function addProjectUserRole(
   email: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    // current the role is set to viewer but I want to remove this when make the role system completely obselete
+    const defaultRow = (
+      await mainDb<Record<string, boolean>[]>`
+        SELECT
+          default_project_can_configure_settings,
+          default_project_can_create_backups,
+          default_project_can_restore_backups,
+          default_project_can_configure_modules,
+          default_project_can_run_modules,
+          default_project_can_configure_users,
+          default_project_can_configure_visualizations,
+          default_project_can_view_visualizations,
+          default_project_can_configure_reports,
+          default_project_can_view_reports,
+          default_project_can_configure_slide_decks,
+          default_project_can_view_slide_decks,
+          default_project_can_configure_data,
+          default_project_can_view_data,
+          default_project_can_view_metrics,
+          default_project_can_view_logs
+        FROM users WHERE email = ${email}
+      `
+    ).at(0);
+
+    const d = defaultRow ?? {};
+    const g = (k: string) => d[`default_project_${k}`] ?? false;
+
+    // current the role is set to viewer but I want to remove this when make the role system completely obsolete
     await mainDb`
       INSERT INTO project_user_roles (
         email, project_id, role,
@@ -449,12 +527,12 @@ export async function addProjectUserRole(
         can_configure_data, can_view_data, can_view_metrics, can_view_logs
       ) VALUES (
         ${email}, ${projectId}, 'viewer',
-        false, false, false,
-        false, false, false,
-        false, false,
-        false, false,
-        false, false,
-        false, false, false, false
+        ${g("can_configure_settings")}, ${g("can_create_backups")}, ${g("can_restore_backups")},
+        ${g("can_configure_modules")}, ${g("can_run_modules")}, ${g("can_configure_users")},
+        ${g("can_configure_visualizations")}, ${g("can_view_visualizations")},
+        ${g("can_configure_reports")}, ${g("can_view_reports")},
+        ${g("can_configure_slide_decks")}, ${g("can_view_slide_decks")},
+        ${g("can_configure_data")}, ${g("can_view_data")}, ${g("can_view_metrics")}, ${g("can_view_logs")}
       )
     `;
     return { success: true };
