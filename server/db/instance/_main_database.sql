@@ -59,6 +59,7 @@ CREATE TABLE project_user_roles (
   can_view_data boolean NOT NULL DEFAULT FALSE,
   can_view_metrics boolean NOT NULL DEFAULT FALSE,
   can_view_logs boolean NOT NULL DEFAULT FALSE,
+  can_view_script_code boolean NOT NULL DEFAULT FALSE,
   PRIMARY KEY (email, project_id),
   FOREIGN KEY (email) REFERENCES users (email) ON DELETE CASCADE,
   FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE

@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router";
-import { InstanceDetail, t3, TC } from "lib";
+import { InstanceDetail, T, t, t2 } from "lib";
 import {
   Button,
   FrameLeft,
@@ -54,9 +54,9 @@ function AIContextSync() {
       case "decks":
         setAIContext({ mode: "viewing_slide_decks" });
         break;
-      // case "reports":
-      //   setAIContext({ mode: "viewing_reports" });
-      //   break;
+      case "reports":
+        setAIContext({ mode: "viewing_reports" });
+        break;
       case "data":
         setAIContext({ mode: "viewing_data" });
         break;
@@ -80,7 +80,7 @@ export default function Project(p: Props) {
     <ProjectRunnerProvider projectId={p.projectId}>
       <StateHolderWrapper
         state={p.instanceDetail.state()}
-        onErrorButton={{ label: t3({ en: "Go home", fr: "Accueil" }), link: "/" }}
+        onErrorButton={{ label: t("Go home"), link: "/" }}
       >
         {(keyedInstanceDetail) => {
           const projectDetail = useProjectDetail();
@@ -95,46 +95,13 @@ export default function Project(p: Props) {
           } = getEditorWrapper();
 
           const allTabs = [
-            ...(projectDetail.thisUserPermissions.can_view_slide_decks
-              ? [{ value: "decks" as const, label: t3({ en: "Slide decks", fr: "Présentations" }) }]
-              : []),
-            // ...(projectDetail.thisUserPermissions.can_view_reports ? [{ value: "reports" as const, label: t3({ en: "Reports", fr: "Rapports" }) }] : []),
-            ...(projectDetail.thisUserPermissions.can_view_visualizations
-              ? [
-                  {
-                    value: "visualizations" as const,
-                    label: t3({ en: "Visualizations", fr: "Visualisations" }),
-                  },
-                ]
-              : []),
-            ...(projectDetail.thisUserPermissions.can_view_metrics
-              ? [{ value: "metrics" as const, label: t3({ en: "Metrics", fr: "Métriques" }) }]
-              : []),
-            ...(projectDetail.thisUserPermissions.can_configure_modules ||
-            projectDetail.thisUserPermissions.can_run_modules
-              ? [
-                  {
-                    value: "modules" as const,
-                    label: t3({ en: "Modules", fr: "Modules" }),
-                  },
-                ]
-              : []),
-            ...(projectDetail.thisUserPermissions.can_view_data
-              ? [
-                  {
-                    value: "data" as const,
-                    label: t3({ en: "Data", fr: "Données" }),
-                  },
-                ]
-              : []),
-            ...(projectDetail.thisUserPermissions.can_configure_settings
-              ? [
-                  {
-                    value: "settings" as const,
-                    label: t3(TC.settings),
-                  },
-                ]
-              : []),
+            ...(projectDetail.thisUserPermissions.can_view_slide_decks ? [{ value: "decks" as const, label: "Slide decks" }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_reports ? [{ value: "reports" as const, label: t2(T.FRENCH_UI_STRINGS.reports) }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_visualizations ? [{ value: "visualizations" as const, label: t2(T.FRENCH_UI_STRINGS.visualizations) }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_metrics ? [{ value: "metrics" as const, label: t2("Metrics") }] : []),
+            ...(projectDetail.thisUserPermissions.can_configure_modules || projectDetail.thisUserPermissions.can_run_modules || projectDetail.thisUserPermissions.can_view_script_code ? [{ value: "modules" as const, label: t2(T.FRENCH_UI_STRINGS.modules) }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_data ? [{ value: "data" as const, label: t2(T.FRENCH_UI_STRINGS.data) }] : []),
+            ...(projectDetail.thisUserPermissions.can_configure_settings ? [{ value: "settings" as const, label: t2(T.FRENCH_UI_STRINGS.settings) }] : []),
           ];
 
           // Create tabs controller
@@ -176,7 +143,7 @@ export default function Project(p: Props) {
                             intent="base-100"
                             outline
                           >
-                            {t3({ en: "AI", fr: "IA" })}
+                            {t("AI")}
                           </Button>
                         </Show>
                         <ProjectRunStatus />
@@ -199,63 +166,40 @@ export default function Project(p: Props) {
                     }
                   >
                     <Switch>
-                      {/* <Match
-                        when={
-                          projectTab() === "reports" &&
-                          projectDetail.thisUserPermissions.can_view_reports
-                        }
-                      >
+                      {/* <Match when={projectTab() === "whiteboard"}>
+                        <ProjectWhiteboard
+                          instanceDetail={keyedInstanceDetail}
+                        />
+                      </Match> */}
+                      <Match when={projectTab() === "reports" && (projectDetail.thisUserPermissions.can_view_reports)}>
                         <ProjectReports
                           instanceDetail={keyedInstanceDetail}
                           isGlobalAdmin={p.isGlobalAdmin}
                           openProjectEditor={openProjectEditor}
                         />
-                      </Match> */}
-                      <Match
-                        when={
-                          projectTab() === "decks" &&
-                          projectDetail.thisUserPermissions.can_view_slide_decks
-                        }
-                      >
+                      </Match>
+                      <Match when={projectTab() === "decks" && (projectDetail.thisUserPermissions.can_view_slide_decks)}>
                         <ProjectDecks
                           instanceDetail={keyedInstanceDetail}
                           isGlobalAdmin={p.isGlobalAdmin}
                           openProjectEditor={openProjectEditor}
                         />
                       </Match>
-                      <Match
-                        when={
-                          projectTab() === "visualizations" &&
-                          projectDetail.thisUserPermissions
-                            .can_view_visualizations
-                        }
-                      >
+                      <Match when={projectTab() === "visualizations" && (projectDetail.thisUserPermissions.can_view_visualizations)}>
                         <ProjectVisualizations
                           isGlobalAdmin={p.isGlobalAdmin}
                           instanceDetail={keyedInstanceDetail}
                           openProjectEditor={openProjectEditor}
                         />
                       </Match>
-                      <Match
-                        when={
-                          projectTab() === "metrics" &&
-                          projectDetail.thisUserPermissions.can_view_metrics
-                        }
-                      >
+                      <Match when={projectTab() === "metrics" && (projectDetail.thisUserPermissions.can_view_metrics)}>
                         <ProjectMetrics
                           isGlobalAdmin={p.isGlobalAdmin}
                           openProjectEditor={openProjectEditor}
                           instanceDetail={keyedInstanceDetail}
                         />
                       </Match>
-                      <Match
-                        when={
-                          projectTab() === "modules" &&
-                          (projectDetail.thisUserPermissions
-                            .can_configure_modules ||
-                            projectDetail.thisUserPermissions.can_run_modules)
-                        }
-                      >
+                      <Match when={projectTab() === "modules" && (projectDetail.thisUserPermissions.can_configure_modules || projectDetail.thisUserPermissions.can_run_modules || projectDetail.thisUserPermissions.can_view_script_code)}>
                         <ProjectModules
                           isGlobalAdmin={p.isGlobalAdmin}
                           canConfigureModules={
@@ -265,25 +209,19 @@ export default function Project(p: Props) {
                           canRunModules={
                             projectDetail.thisUserPermissions.can_run_modules
                           }
+                          canViewScriptCode={
+                            projectDetail.thisUserPermissions.can_view_script_code
+                          }
                         />
                       </Match>
-                      <Match
-                        when={
-                          projectTab() === "data" &&
-                          projectDetail.thisUserPermissions.can_view_data
-                        }
-                      >
+                      <Match when={projectTab() === "data" && (projectDetail.thisUserPermissions.can_view_data)}>
                         <ProjectData
                           isGlobalAdmin={p.isGlobalAdmin}
                           instanceDetail={keyedInstanceDetail}
                         />
                       </Match>
                       <Match
-                        when={
-                          projectTab() === "settings" &&
-                          projectDetail.thisUserPermissions
-                            .can_configure_settings
-                        }
+                        when={projectTab() === "settings" && (projectDetail.thisUserPermissions.can_configure_settings)}
                       >
                         <ProjectSettings
                           isGlobalAdmin={p.isGlobalAdmin}

@@ -38,6 +38,7 @@ type Props = {
   isGlobalAdmin: boolean;
   canConfigureModules: boolean;
   canRunModules: boolean;
+  canViewScriptCode: boolean;
 };
 
 export function ProjectModules(p: Props) {
@@ -85,6 +86,7 @@ export function ProjectModules(p: Props) {
                           isGlobalAdmin={p.isGlobalAdmin}
                           canConfigureModules={p.canConfigureModules}
                           canRunModules={p.canRunModules}
+                          canViewScriptCode={p.canViewScriptCode}
                           thisInstalledModule={keyedInstalledModule}
                           allInstalledModules={projectDetail.projectModules}
                           openEditor={openEditor}
@@ -131,6 +133,7 @@ type InstalledModuleProps = {
   isGlobalAdmin: boolean;
   canConfigureModules: boolean;
   canRunModules: boolean;
+  canViewScriptCode: boolean;
   thisInstalledModule: InstalledModuleSummary;
   allInstalledModules: InstalledModuleSummary[];
   openEditor: <TProps, TReturn>(
@@ -262,9 +265,11 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
             pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"
           }
         >
-          <Button onClick={showScript} outline>
-            {t3({ en: "Script", fr: "Script" })}
-          </Button>
+          <Show when={p.isGlobalAdmin || p.canViewScriptCode}>
+            <Button onClick={showScript} outline>
+              {t3({ en: "Script", fr: "Script" })}
+            </Button>
+          </Show>
           <Button onClick={showLogs} outline>
             {t3({ en: "Logs", fr: "Journaux des données" })}
           </Button>

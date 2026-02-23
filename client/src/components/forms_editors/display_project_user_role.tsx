@@ -38,6 +38,7 @@ const PERMISSION_CATEGORIES: {
       "can_view_data",
       "can_configure_data",
       "can_view_metrics",
+      "can_view_script_code",
       "can_configure_modules",
       "can_run_modules",
     ],

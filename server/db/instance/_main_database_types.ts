@@ -25,6 +25,7 @@ export type DBUser = {
   default_project_can_view_data: boolean;
   default_project_can_view_metrics: boolean;
   default_project_can_view_logs: boolean;
+  default_project_can_view_script_code: boolean;
 };
 
 export type UserLog = {
@@ -69,6 +70,7 @@ export type DBProjectUserRole = {
   can_view_data: boolean;
   can_view_metrics: boolean;
   can_view_logs: boolean;
+  can_view_script_code: boolean;
 };
 
 // Structure

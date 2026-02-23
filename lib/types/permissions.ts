@@ -28,6 +28,7 @@ export type ProjectUserPermissions = {
   can_view_data: boolean;
   can_view_metrics: boolean;
   can_view_logs: boolean;
+  can_view_script_code: boolean;
 };
 
 export type ProjectPermission = keyof ProjectUserPermissions;
@@ -49,6 +50,7 @@ export const PROJECT_PERMISSIONS = [
   "can_view_data",
   "can_view_metrics",
   "can_view_logs",
+  "can_view_script_code",
 ] satisfies readonly ProjectPermission[];
 
 export const _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS = {
@@ -68,6 +70,7 @@ export const _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS = {
   can_view_data: false,
   can_view_metrics: false,
   can_view_logs: false,
+  can_view_script_code: false,
 };
 
 export const _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS = {
@@ -87,6 +90,7 @@ export const _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS = {
   can_view_data: true,
   can_view_metrics: true,
   can_view_logs: true,
+  can_view_script_code: true,
 };
 
 export const PERMISSION_PRESETS: {
@@ -116,6 +120,7 @@ export const PERMISSION_PRESETS: {
       can_view_data: true,
       can_view_metrics: true,
       can_view_logs: false,
+      can_view_script_code: false,
     },
   },
   {
@@ -137,6 +142,7 @@ export const PERMISSION_PRESETS: {
       can_view_data: true,
       can_view_metrics: true,
       can_view_logs: false,
+      can_view_script_code: false,
     },
   },
   {

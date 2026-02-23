@@ -178,7 +178,8 @@ export async function getUserDefaultProjectPermissions(
         default_project_can_configure_data,
         default_project_can_view_data,
         default_project_can_view_metrics,
-        default_project_can_view_logs
+        default_project_can_view_logs,
+        default_project_can_view_script_code
       FROM users
       WHERE email=${email}`
     ).at(0);

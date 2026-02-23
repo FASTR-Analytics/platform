@@ -28,6 +28,7 @@ const PERMISSION_LABELS: Record<ProjectPermission, string> = {
   can_view_logs: t3({ en: "can view logs", fr: "peut voir les journaux" }),
   can_create_backups: t3({ en: "can create backups", fr: "peut créer des sauvegardes" }),
   can_restore_backups: t3({ en: "can restore backups", fr: "peut restaurer des sauvegardes" }),
+  can_view_script_code: t3({ en: "can view script code", fr: "peut voir le code des scripts" }),
 };
 
 const PERMISSION_CATEGORIES: {
@@ -51,6 +52,7 @@ const PERMISSION_CATEGORIES: {
       "can_view_data",
       "can_configure_data",
       "can_view_metrics",
+      "can_view_script_code",
       "can_configure_modules",
       "can_run_modules",
     ],
