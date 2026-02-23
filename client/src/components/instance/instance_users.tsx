@@ -24,6 +24,7 @@ import {
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
+import { BulkEditDefaultProjectPermissionsForm } from "./bulk_edit_default_project_permissions_form.tsx";
 import { User } from "./user";
 import { Table, TableColumn, BulkAction } from "panther";
 import { serverActions } from "~/server_actions";
@@ -357,6 +358,14 @@ function UserTable(p: {
     });
   }
 
+  async function handleBulkEditDefaultProjectPermissions(selectedUsers: UserData[]) {
+    const emails = selectedUsers.map((u) => u.email);
+    await openComponent({
+      element: BulkEditDefaultProjectPermissionsForm,
+      props: { emails, silentFetch: p.silentFetch },
+    });
+  }
+
   function handleBulkDownloadCSV(selectedUsers: UserData[]) {
     const csv = new Csv({
       colHeaders: ["email", "is_global_admin"],
@@ -393,6 +402,12 @@ function UserTable(p: {
       intent: "primary",
       outline: true,
       onClick: handleBulkEditPermissions,
+    },
+    {
+      label: t3({ en: "Edit default project permissions", fr: "Modifier les permissions de projet par défaut" }),
+      intent: "primary",
+      outline: true,
+      onClick: handleBulkEditDefaultProjectPermissions,
     },
     {
       label: t3({ en: "Download users", fr: "Télécharger les utilisateurs" }),

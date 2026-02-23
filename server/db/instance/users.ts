@@ -211,6 +211,27 @@ export async function updateUserDefaultProjectPermissions(
   });
 }
 
+export async function bulkUpdateUserDefaultProjectPermissions(
+  mainDb: Sql,
+  emails: string[],
+  permissions: Partial<Record<ProjectPermission, boolean>>,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    if (Object.keys(permissions).length === 0) {
+      return { success: true };
+    }
+    const prefixed = Object.fromEntries(
+      Object.entries(permissions).map(([k, v]) => [`default_project_${k}`, v]),
+    );
+    await mainDb`
+      UPDATE users
+      SET ${mainDb(prefixed)}
+      WHERE email = ANY(${emails})
+    `;
+    return { success: true };
+  });
+}
+
 export async function deleteUser(
   mainDb: Sql,
   emails: string[],
