@@ -15,16 +15,28 @@ CREATE TABLE users (
   can_create_projects boolean NOT NULL DEFAULT FALSE
 );
 
-CREATE TABLE instance_config (
-  config_key text PRIMARY KEY NOT NULL,
-  config_json_value text NOT NULL
-);
-
 CREATE TABLE projects (
   id text PRIMARY KEY NOT NULL,
   label text NOT NULL,
   ai_context text NOT NULL,
   is_locked boolean NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE user_logs (
+  id SERIAL PRIMARY KEY,
+  user_email text NOT NULL,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  endpoint text NOT NULL,
+  endpoint_result text NOT NULL,
+  details text,
+  project_id text,
+  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+CREATE TABLE instance_config (
+  config_key text PRIMARY KEY NOT NULL,
+  config_json_value text NOT NULL
 );
 
 CREATE TABLE project_user_roles (

@@ -69,6 +69,12 @@ export function getScriptWithParametersHfa(
 
   const validationErrors: string[] = [];
   for (const indicator of indicators) {
+    if (!indicator.rCode || indicator.rCode.trim() === "") {
+      validationErrors.push(
+        `Indicator "${indicator.varName}": rCode is empty or missing.`
+      );
+    }
+
     const deps = extractDependencies(
       indicator,
       allIndicatorVarNames,
