@@ -7,7 +7,7 @@ import {
 import { For } from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { t3, TC, type ProjectPermission, PROJECT_PERMISSIONS } from "lib";
+import { t3, TC, type ProjectPermission, PROJECT_PERMISSIONS, PERMISSION_PRESETS } from "lib";
 
 type TriState = true | false | "unchanged";
 
@@ -120,6 +120,28 @@ export function BulkEditProjectPermissionsForm(
         </div>
         <div class="text-xs text-neutral">
           {t3({ en: "Click to cycle: unchanged → true → false", fr: "Cliquez pour alterner : inchangé → vrai → faux" })}
+        </div>
+        <div>
+          <div class="font-600 text-sm">{t3({ en: "Permission presets", fr: "Préréglages de permissions" })}</div>
+          <div class="flex gap-2">
+            <For each={PERMISSION_PRESETS}>
+              {(preset: { label: string; permissions: Record<ProjectPermission, boolean> }) => (
+                <Button
+                  onClick={() =>
+                    setState(
+                      Object.fromEntries(
+                        PROJECT_PERMISSIONS.map((k: ProjectPermission) => [k, preset.permissions[k]]),
+                      ) as Record<ProjectPermission, TriState>,
+                    )
+                  }
+                  intent="neutral"
+                  size="sm"
+                >
+                  {preset.label}
+                </Button>
+              )}
+            </For>
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <For each={PERMISSION_CATEGORIES}>
