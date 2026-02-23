@@ -636,10 +636,51 @@ export async function getProjectUserPermissions(
     ).at(0);
 
     if (!row) {
-      return {
-        success: false,
-        err: "User does not have a role in this project",
+      // No existing role: load user's configured default project permissions
+      const defaultRow = (
+        await mainDb<Record<string, boolean>[]>`SELECT
+          default_project_can_configure_settings,
+          default_project_can_create_backups,
+          default_project_can_restore_backups,
+          default_project_can_configure_modules,
+          default_project_can_run_modules,
+          default_project_can_configure_users,
+          default_project_can_configure_visualizations,
+          default_project_can_view_visualizations,
+          default_project_can_configure_reports,
+          default_project_can_view_reports,
+          default_project_can_configure_slide_decks,
+          default_project_can_view_slide_decks,
+          default_project_can_configure_data,
+          default_project_can_view_data,
+          default_project_can_view_metrics,
+          default_project_can_view_logs
+        FROM users WHERE email = ${email}`
+      ).at(0);
+
+      const g = (k: string): boolean =>
+        (defaultRow?.[`default_project_${k}`] as boolean) ?? false;
+
+      const permissions: Record<ProjectPermission, boolean> = {
+        can_configure_settings: g("can_configure_settings"),
+        can_create_backups: g("can_create_backups"),
+        can_restore_backups: g("can_restore_backups"),
+        can_configure_modules: g("can_configure_modules"),
+        can_run_modules: g("can_run_modules"),
+        can_configure_users: g("can_configure_users"),
+        can_configure_visualizations: g("can_configure_visualizations"),
+        can_view_visualizations: g("can_view_visualizations"),
+        can_configure_reports: g("can_configure_reports"),
+        can_view_reports: g("can_view_reports"),
+        can_configure_slide_decks: g("can_configure_slide_decks"),
+        can_view_slide_decks: g("can_view_slide_decks"),
+        can_configure_data: g("can_configure_data"),
+        can_view_data: g("can_view_data"),
+        can_view_metrics: g("can_view_metrics"),
+        can_view_logs: g("can_view_logs"),
       };
+
+      return { success: true, data: { permissions } };
     }
 
     return {
