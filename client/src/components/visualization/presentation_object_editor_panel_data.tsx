@@ -40,7 +40,11 @@ export function PresentationObjectEditorPanelData(p: Props) {
   return (
     <div class="ui-pad ui-spy h-full w-full overflow-auto">
       <DataValuesSummary poDetail={p.poDetail} />
-      <PresentationTypeSummary poDetail={p.poDetail} />
+      <PresentationTypeSummary
+        tempConfig={p.tempConfig}
+        setTempConfig={p.setTempConfig}
+        disaggregationOptions={p.poDetail.resultsValue.disaggregationOptions}
+      />
 
       <Filters
         poDetail={p.poDetail}

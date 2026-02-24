@@ -492,7 +492,7 @@ DELETE FROM presentation_objects WHERE id = ${presentationObjectId}
 export type UpdateAIPresentationObjectParams = {
   label?: string;
   presentationType?: PresentationOption;
-  disaggregations?: { dimension: DisaggregationOption; displayAs: string }[];
+  disaggregations?: { dimension: DisaggregationOption; displayAs: DisaggregationDisplayOption }[];
   filters?: { dimension: DisaggregationOption; values: string[] }[];
   periodFilter?: { startPeriod?: number; endPeriod?: number } | null;
   valuesFilter?: string[] | null;
@@ -558,7 +558,7 @@ FROM presentation_objects WHERE id = ${presentationObjectId}
     if (updates.disaggregations !== undefined) {
       config.d.disaggregateBy = updates.disaggregations.map((d) => ({
         disOpt: d.dimension,
-        disDisplayOpt: d.displayAs as any,
+        disDisplayOpt: d.displayAs,
       }));
     }
 

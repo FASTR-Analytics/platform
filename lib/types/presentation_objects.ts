@@ -155,43 +155,75 @@ export type DisaggregationDisplayOption =
   | "indicator"
   | "replicant";
 
+export const VIZ_TYPE_CONFIG: Record<PresentationOption, {
+  defaultValuesDisDisplayOpt: DisaggregationDisplayOption;
+  defaultContent: PresentationObjectConfig["s"]["content"];
+  disaggregationDisplayOptions: DisaggregationDisplayOption[];
+  disDisplayOptFallbacks: Partial<Record<DisaggregationDisplayOption, DisaggregationDisplayOption>>;
+  styleResets: Partial<PresentationObjectConfig["s"]>;
+}> = {
+  timeseries: {
+    defaultValuesDisDisplayOpt: "series",
+    defaultContent: "lines",
+    disaggregationDisplayOptions: ["series", "cell", "row", "col", "replicant"],
+    disDisplayOptFallbacks: { indicator: "series", rowGroup: "row", colGroup: "col" },
+    styleResets: { specialScorecardTable: false, sortIndicatorValues: "none", verticalTickLabels: false },
+  },
+  table: {
+    defaultValuesDisDisplayOpt: "col",
+    defaultContent: "bars",
+    disaggregationDisplayOptions: ["row", "col", "rowGroup", "colGroup", "replicant"],
+    disDisplayOptFallbacks: { series: "row", cell: "row", indicator: "col" },
+    styleResets: { specialBarChart: false, specialCoverageChart: false, diffAreas: false, sortIndicatorValues: "none", verticalTickLabels: false },
+  },
+  chart: {
+    defaultValuesDisDisplayOpt: "indicator",
+    defaultContent: "bars",
+    disaggregationDisplayOptions: ["indicator", "series", "cell", "row", "col", "replicant"],
+    disDisplayOptFallbacks: { rowGroup: "row", colGroup: "col" },
+    styleResets: { specialScorecardTable: false, specialCoverageChart: false, specialBarChart: false, diffAreas: false },
+  },
+};
+
 export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
   PresentationOption,
   { value: DisaggregationDisplayOption; label: string }[]
 > {
-  return {
-    timeseries: [
-      { value: "series", label: t2(T.FRENCH_UI_STRINGS.lines) },
-      { value: "cell", label: t2(T.FRENCH_UI_STRINGS.grid) },
-      { value: "row", label: t2(T.FRENCH_UI_STRINGS.rows) },
-      { value: "col", label: t2(T.FRENCH_UI_STRINGS.columns) },
-      {
-        value: "replicant",
-        label: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
-      },
-    ],
-    table: [
-      { value: "row", label: t2(T.FRENCH_UI_STRINGS.rows) },
-      { value: "col", label: t2(T.FRENCH_UI_STRINGS.columns) },
-      { value: "rowGroup", label: t2(T.FRENCH_UI_STRINGS.row_groups) },
-      { value: "colGroup", label: t2(T.FRENCH_UI_STRINGS.column_groups) },
-      {
-        value: "replicant",
-        label: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
-      },
-    ],
-    chart: [
-      { value: "indicator", label: t2(T.FRENCH_UI_STRINGS.bars) },
-      { value: "series", label: t2(T.FRENCH_UI_STRINGS.series_subbars) },
-      { value: "cell", label: t2(T.FRENCH_UI_STRINGS.grid) },
-      { value: "row", label: t2(T.FRENCH_UI_STRINGS.rows) },
-      { value: "col", label: t2(T.FRENCH_UI_STRINGS.columns) },
-      {
-        value: "replicant",
-        label: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
-      },
-    ],
+  const labelMap: Record<PresentationOption, Record<DisaggregationDisplayOption, string>> = {
+    timeseries: {
+      series: t2(T.FRENCH_UI_STRINGS.lines),
+      cell: t2(T.FRENCH_UI_STRINGS.grid),
+      row: t2(T.FRENCH_UI_STRINGS.rows),
+      col: t2(T.FRENCH_UI_STRINGS.columns),
+      replicant: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
+      rowGroup: "", colGroup: "", indicator: "",
+    },
+    table: {
+      row: t2(T.FRENCH_UI_STRINGS.rows),
+      col: t2(T.FRENCH_UI_STRINGS.columns),
+      rowGroup: t2(T.FRENCH_UI_STRINGS.row_groups),
+      colGroup: t2(T.FRENCH_UI_STRINGS.column_groups),
+      replicant: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
+      series: "", cell: "", indicator: "",
+    },
+    chart: {
+      indicator: t2(T.FRENCH_UI_STRINGS.bars),
+      series: t2(T.FRENCH_UI_STRINGS.series_subbars),
+      cell: t2(T.FRENCH_UI_STRINGS.grid),
+      row: t2(T.FRENCH_UI_STRINGS.rows),
+      col: t2(T.FRENCH_UI_STRINGS.columns),
+      replicant: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
+      rowGroup: "", colGroup: "",
+    },
   };
+  const result = {} as Record<PresentationOption, { value: DisaggregationDisplayOption; label: string }[]>;
+  for (const type of ["timeseries", "table", "chart"] as PresentationOption[]) {
+    result[type] = VIZ_TYPE_CONFIG[type].disaggregationDisplayOptions.map((v) => ({
+      value: v,
+      label: labelMap[type][v],
+    }));
+  }
+  return result;
 }
 
 export type ReplicantValueOverride = {
@@ -316,11 +348,7 @@ export function getStartingConfigForPresentationObject(
     d: {
       type: presentationOption,
       periodOpt: resultsValue.periodOptions.at(0) ?? "period_id",
-      valuesDisDisplayOpt: presentationOption === "timeseries"
-        ? "series"
-        : presentationOption === "table"
-        ? "col"
-        : "indicator",
+      valuesDisDisplayOpt: VIZ_TYPE_CONFIG[presentationOption].defaultValuesDisDisplayOpt,
       valuesFilter: undefined,
       disaggregateBy: [],
       filterBy: [],
@@ -331,7 +359,7 @@ export function getStartingConfigForPresentationObject(
     },
     s: {
       ...DEFAULT_S_CONFIG,
-      content: presentationOption === "timeseries" ? "lines" : "bars",
+      content: VIZ_TYPE_CONFIG[presentationOption].defaultContent,
     },
     t: DEFAULT_T_CONFIG,
   };

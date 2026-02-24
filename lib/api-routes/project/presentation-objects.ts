@@ -182,7 +182,7 @@ export const presentationObjectRouteRegistry = {
     body: {} as {
       label?: string;
       presentationType?: PresentationOption;
-      disaggregations?: { dimension: DisaggregationOption; displayAs: string }[];
+      disaggregations?: { dimension: DisaggregationOption; displayAs: DisaggregationDisplayOption }[];
       filters?: { dimension: DisaggregationOption; values: string[] }[];
       periodFilter?: { startPeriod?: number; endPeriod?: number } | null;
       valuesFilter?: string[] | null;

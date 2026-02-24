@@ -1,6 +1,7 @@
 export * from "./api-routes/mod.ts";
 export * from "./cache_class_B_in_memory_map.ts";
 export * from "./consts.ts";
+export * from "./convert_visualization_type.ts";
 export * from "./get_disaggregator_display_prop.ts";
 export * from "./get_fetch_config_from_po.ts";
 export * from "./group_metrics.ts";
