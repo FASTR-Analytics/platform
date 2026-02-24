@@ -20,6 +20,7 @@ import { InstanceUsers } from "~/components/instance/instance_users";
 import { serverActions } from "~/server_actions";
 import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 import Project from "../project";
+import { HelpForm } from "./help_form";
 import { InstanceMetaForm } from "./instance_meta_form";
 import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
@@ -44,7 +45,7 @@ export default function Instance(p: Props) {
     "projects" | "users" | "data" | "assets" | "settings"
   >("projects");
 
-  // email opt in modal 
+  // email opt in modal   
   onMount(async () => {
     if (!clerk.user) return; // skips dev bypass mode naturally
     if (!clerk.user.unsafeMetadata?.emailOptInAsked) {
@@ -65,6 +66,13 @@ export default function Instance(p: Props) {
   async function openInstanceMeta() {
     await openComponent({
       element: InstanceMetaForm,
+      props: {},
+    });
+  }
+
+  async function openHelp() {
+    await openComponent({
+      element: HelpForm,
       props: {},
     });
   }
@@ -222,6 +230,11 @@ export default function Instance(p: Props) {
                     >
                       {/* {t2(T.Platform.platforme)} */}
                     </Button>
+                    <Button
+                      onClick={openHelp}
+                      iconName="circle-help"
+                      intent="base-100"
+                    />
                     <Button
                       onClick={handleDhis2Credentials}
                       iconName="database"
