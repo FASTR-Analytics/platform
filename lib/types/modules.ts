@@ -76,7 +76,7 @@ export function getStartingModuleConfigSelections(
     const cs: ModuleConfigSelectionsHfa = {
       configType: "hfa",
       useSampleWeights: false,
-      indicators: structuredClone(configRequirements.indicators),
+      indicators: [],
     };
     return cs;
   }

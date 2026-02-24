@@ -1,5 +1,4 @@
 import type { ModuleDefinitionJSON } from "lib";
-import { convertToHfaIndicators, indicators } from "./hfa_indicators.ts";
 
 export const definition = {
   label: {
@@ -303,6 +302,5 @@ export const definition = {
   ////////////////////////////////////////////////////////////////////
   configRequirements: {
     configType: "hfa",
-    indicators: convertToHfaIndicators(indicators),
   },
 } satisfies ModuleDefinitionJSON;

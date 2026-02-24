@@ -74,7 +74,6 @@ export type ModuleConfigRequirements =
     }
   | {
       configType: "hfa";
-      indicators: HfaIndicator[];
     };
 
 export type HfaIndicator = {

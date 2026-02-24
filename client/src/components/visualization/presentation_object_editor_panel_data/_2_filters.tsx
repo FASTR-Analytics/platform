@@ -347,15 +347,15 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
       >
         {(keyedFilter) => {
           function toggleVal(val: string) {
-            const normalized = val.toLowerCase();
+            const normalized = String(val).toLowerCase();
             p.setTempConfig(
               "d",
               "filterBy",
               (fil) => fil.disOpt === p.disOpt.value,
               "values",
               (prev) => {
-                if (prev?.some(v => v.toLowerCase() === normalized)) {
-                  return prev.filter(v => v.toLowerCase() !== normalized);
+                if (prev?.some(v => String(v).toLowerCase() === normalized)) {
+                  return prev.filter(v => String(v).toLowerCase() !== normalized);
                 }
                 return [...(prev ?? []), val];
               },
@@ -384,12 +384,12 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                             class="ui-hoverable bg-base-200 data-[selected=true]:bg-success data-[selected=true]:text-base-100 rounded px-2 py-1"
                             onClick={() => toggleVal(opt)}
                             data-selected={keyedFilter.values.some(
-                              v => v.toLowerCase() === opt.toLowerCase()
+                              v => String(v).toLowerCase() === String(opt).toLowerCase()
                             )}
                           >
                             <span class="relative">
                               {keyedFilter.disOpt === "indicator_common_id"
-                                ? opt.toUpperCase()
+                                ? String(opt).toUpperCase()
                                 : opt}
                             </span>
                           </div>
