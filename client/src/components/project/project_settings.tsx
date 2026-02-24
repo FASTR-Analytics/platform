@@ -320,6 +320,7 @@ const permissionLabels: { key: keyof ProjectUser; label: TranslatableString }[] 
   { key: "can_view_slide_decks", label: { en: "View slide decks", fr: "Consulter les présentations" } },
   { key: "can_view_data", label: { en: "View data", fr: "Consulter les données" } },
   { key: "can_view_metrics", label: { en: "View metrics", fr: "Consulter les métriques" } },
+  { key: "can_view_script_code", label: { en: "View script code", fr: "Consulter le code des scripts" } },
   { key: "can_view_logs", label: { en: "View logs", fr: "Consulter les journaux" } },
   { key: "can_configure_settings", label: { en: "Configure settings", fr: "Configurer les paramètres" } },
   { key: "can_configure_modules", label: { en: "Configure modules", fr: "Configurer les modules" } },

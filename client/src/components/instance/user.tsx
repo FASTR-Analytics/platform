@@ -298,7 +298,7 @@ export function User(p: Props) {
             </Show>
           </SettingsSection>
           <SettingsSection
-            header={t3("Default project permissions")}
+            header={t3({ en: "Default project permissions", fr: "Permissions de projet par défaut" })}
             rightChildren={
               <Show when={hasDefaultProjectPermsChanges()}>
                 <Button
