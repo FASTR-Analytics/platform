@@ -70,10 +70,14 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
   p: PresentationObjectMiniDisplayStateHolderWrapperProps,
 ) {
   const pds = useProjectDirtyStates();
-  const moduleDirtyStatus = () =>
-    p.moduleId
-      ? pds.moduleDirtyStates[p.moduleId]
-      : "no_id_provided_which_is_ok";
+  const moduleDirtyStatus = () => {
+    try {
+      const mid = p.moduleId;
+      return mid ? pds.moduleDirtyStates[mid] : "no_id_provided_which_is_ok";
+    } catch {
+      return "no_id_provided_which_is_ok";
+    }
+  };
   return (
     <Switch>
       <Match when={moduleDirtyStatus() === "running"}>
