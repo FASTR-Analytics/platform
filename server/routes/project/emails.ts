@@ -87,10 +87,14 @@ defineRoute(
   "sendHelpEmail",
   requireGlobalPermission(),
   async (c, { body }) => {
-    const { feedbackType, description } = body;
+    const { feedbackType, description, projectLabel } = body;
     const userEmail = c.var.globalUser.email;
 
     const typeLabel = feedbackType === "bug" ? "Bug Report" : "Suggestion";
+    const projectLine = projectLabel ? ` (Project: ${projectLabel})` : "";
+    const projectHtmlLine = projectLabel
+      ? `<p><strong>Project:</strong> ${projectLabel}</p>`
+      : "";
 
     // Email to the user confirming receipt
     const userPlainText = feedbackType === "bug"
@@ -109,12 +113,13 @@ defineRoute(
 </div>`.trim();
 
     // Email to the preset recipients with the full details
-    const internalPlainText = `New ${typeLabel} from ${userEmail}\n\n${description}`;
+    const internalPlainText = `New ${typeLabel} from ${userEmail}${projectLine}\n\n${description}`;
 
     const internalHtml = `
 <div style="font-family: sans-serif; color: #333;">
   <p><strong>Type:</strong> ${typeLabel}</p>
   <p><strong>From:</strong> ${userEmail}</p>
+  ${projectHtmlLine}
   <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
   <p><strong>Description:</strong></p>
   <p>${description.replace(/\n/g, "<br>")}</p>

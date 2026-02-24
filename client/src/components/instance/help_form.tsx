@@ -12,7 +12,7 @@ import { serverActions } from "~/server_actions";
 
 type FeedbackType = "bug" | "suggestion";
 
-export function HelpForm(p: AlertComponentProps<{}, undefined>) {
+export function HelpForm(p: AlertComponentProps<{ projectLabel?: string }, undefined>) {
   const [feedbackType, setFeedbackType] = createSignal<FeedbackType | undefined>(undefined);
   const [description, setDescription] = createSignal("");
   const [err, setErr] = createSignal("");
@@ -33,6 +33,7 @@ export function HelpForm(p: AlertComponentProps<{}, undefined>) {
     const res = await serverActions.sendHelpEmail({
       feedbackType: feedbackType()!,
       description: description(),
+      projectLabel: p.projectLabel,
     });
     setSending(false);
     if (!res.success) {

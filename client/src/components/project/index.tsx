@@ -9,7 +9,9 @@ import {
   TimQuery,
   getEditorWrapper,
   getTabs,
+  openComponent,
 } from "panther";
+import { HelpForm } from "~/components/instance/help_form";
 import { createEffect, Match, Show, Switch } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
 import {
@@ -136,6 +138,12 @@ export default function Project(p: Props) {
                         <span class="font-400">{projectDetail.label}</span>
                       </div>
                       <div class="ui-gap-sm flex items-center">
+                        <Button
+                          onClick={() => openComponent({ element: HelpForm, props: { projectLabel: projectDetail.label } })}
+                          iconName="help"
+                          intent="base-100"
+                          outline
+                        />
                         <Show when={!showAi()}>
                           <Button
                             onClick={() => setShowAi(true)}

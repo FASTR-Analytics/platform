@@ -18,6 +18,7 @@ export const emailRouteRegistry = {
     body: {} as {
       feedbackType: "bug" | "suggestion";
       description: string;
+      projectLabel?: string;
     },
     response: {} as { sent: boolean },
   }),
