@@ -224,17 +224,17 @@ export default function Instance(p: Props) {
                 <div class="flex-0 ui-gap-sm flex items-center justify-end">
                   <Show when={p.globalUser.approved}>
                     <Button
+                      onClick={openHelp}
+                      iconName="help"
+                      intent="base-100"
+                    />
+                    <Button
                       onClick={openInstanceMeta}
                       iconName="versions"
                       intent="base-100"
                     >
                       {/* {t2(T.Platform.platforme)} */}
                     </Button>
-                    <Button
-                      onClick={openHelp}
-                      iconName="circle-help"
-                      intent="base-100"
-                    />
                     <Button
                       onClick={handleDhis2Credentials}
                       iconName="database"
