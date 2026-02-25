@@ -160,12 +160,12 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
 
 export function validatePresetOverrides(
   metricId: string,
-  filterOverrides: { col: string; vals: string[] }[] | undefined,
+  filters: { col: string; vals: string[] }[] | undefined,
   startDate: number | undefined,
   endDate: number | undefined,
   metric?: MetricWithStatus,
 ): void {
-  validateFilters(filterOverrides, metricId, metric);
+  validateFilters(filters, metricId, metric);
 
   if (startDate != null && endDate != null) {
     if (!Number.isFinite(startDate) || !Number.isFinite(endDate)) {

@@ -319,7 +319,7 @@ function formatItemsAsMarkdown(
   lines.push(`  "metricId": "${metricId}",`);
   lines.push('  "vizPresetId": "<preset_id>",');
   lines.push('  "chartTitle": "Your chart title here",');
-  lines.push('  "filterOverrides": [{ "col": "<dimension>", "vals": ["<value>"] }],');
+  lines.push('  "filters": [{ "col": "<dimension>", "vals": ["<value>"] }],');
   lines.push('  "startDate": 202301,');
   lines.push('  "endDate": 202412');
   lines.push("}");
@@ -327,7 +327,7 @@ function formatItemsAsMarkdown(
   lines.push("");
   lines.push("**Notes:**");
   lines.push(`- Use get_available_metrics to see available vizPresetId values for metric "${metricId}"`);
-  lines.push("- filterOverrides and startDate/endDate are optional");
+  lines.push("- filters and startDate/endDate are optional");
   lines.push("- Date format depends on the preset (YYYY or YYYYMM — shown in preset listing)");
   lines.push("- Only filter on dimensions listed in the preset's allowedFilters");
   lines.push("");

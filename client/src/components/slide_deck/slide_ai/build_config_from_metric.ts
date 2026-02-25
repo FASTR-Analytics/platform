@@ -45,7 +45,7 @@ export function buildConfigFromPreset(
   // Validate overrides before applying
   validatePresetOverrides(
     metricId,
-    input.filterOverrides,
+    input.filters,
     input.startDate,
     input.endDate,
     resultsValue,
@@ -67,14 +67,14 @@ export function buildConfigFromPreset(
     config.d.selectedReplicantValue = input.selectedReplicant;
   }
 
-  if (input.filterOverrides) {
+  if (input.filters) {
     const allowedFilters = preset.allowedFilters;
     if (allowedFilters) {
-      for (const f of input.filterOverrides) {
+      for (const f of input.filters) {
         if (!allowedFilters.includes(f.col as DisaggregationOption)) {
           const allowed = allowedFilters.length > 0
             ? allowedFilters.join(", ")
-            : "none (this preset does not support filter overrides)";
+            : "none (this preset does not support filters)";
           throw new Error(
             `Invalid filter dimension "${f.col}" for preset "${vizPresetId}". ` +
             `Allowed filter dimensions: ${allowed}`,
@@ -82,10 +82,14 @@ export function buildConfigFromPreset(
         }
       }
     }
-    config.d.filterBy = input.filterOverrides.map((f) => ({
+    config.d.filterBy = input.filters.map((f) => ({
       disOpt: f.col as DisaggregationOption,
       values: f.vals,
     }));
+  }
+
+  if (input.valuesFilter) {
+    config.d.valuesFilter = input.valuesFilter;
   }
 
   if (input.startDate != null && input.endDate != null) {

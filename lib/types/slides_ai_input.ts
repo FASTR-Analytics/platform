@@ -50,6 +50,12 @@ export const AiMetricQuerySchema = z.object({
     .describe(
       "Optional: End of time range (inclusive). Must be used together with startDate.",
     ),
+  valuesFilter: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Optional: Array of value property names to include in the results. If omitted, all value properties are returned. Use the value property names shown by get_available_metrics.",
+    ),
 });
 
 // Individual figure schemas (unnested for type inference)
@@ -106,7 +112,7 @@ export const AiFigureFromMetricSchema = z.object({
     .describe(
       "Required when the preset has needsReplicant=true. Specifies which replicant value to display, e.g., 'anc1'.",
     ),
-  filterOverrides: z
+  filters: z
     .array(
       z.object({
         col: z.string().describe("Dimension to filter on. Must be listed in the preset's 'Filterable by' dimensions (shown in get_available_metrics)"),
@@ -117,7 +123,13 @@ export const AiFigureFromMetricSchema = z.object({
     )
     .optional()
     .describe(
-      "Optional: Add filters to limit which data is displayed. Only use dimensions listed in the preset's 'Filterable by' list from get_available_metrics.",
+      "Optional: Filters to limit which data is displayed. Only use dimensions listed in the preset's 'Filterable by' list from get_available_metrics.",
+    ),
+  valuesFilter: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Optional: Which value properties to show. Array of value property names from get_available_metrics. If omitted, the preset's default is used.",
     ),
   startDate: z
     .number()

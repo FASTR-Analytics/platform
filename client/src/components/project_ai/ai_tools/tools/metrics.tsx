@@ -34,7 +34,7 @@ export function getToolsForMetrics(projectId: string, metrics: MetricWithStatus[
           input.filters,
           periodFilter,
         );
-        return await getMetricDataForAI(projectId, input, undefined, metric?.aiDescription);
+        return await getMetricDataForAI(projectId, input, input.valuesFilter, metric?.aiDescription);
       },
       inProgressLabel: (input: AiMetricQuery) => `Getting data for metric ${input.metricId}...`,
       completionMessage: (input: AiMetricQuery) => `Retrieved data for metric ${input.metricId}`,
