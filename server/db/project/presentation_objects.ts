@@ -159,6 +159,7 @@ export async function getAllPresentationObjectsForProject(
     const rows = await projectDb<DBPresentationObject[]>`
 SELECT po.*
 FROM presentation_objects po
+JOIN metrics m ON po.metric_id = m.id
 ORDER BY po.is_default_visualization DESC, po.sort_order, LOWER(po.label)
 `;
     const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
