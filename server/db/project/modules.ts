@@ -815,9 +815,10 @@ export async function getAllMetrics(
       SELECT * FROM metrics ORDER BY label
     `;
 
-    // Enrich each metric
+    // Enrich each metric, skipping metrics not in current definitions
     const metrics: ResultsValue[] = [];
     for (const dbMetric of rawMetrics) {
+      if (!(dbMetric.id in METRIC_STATIC_DATA)) continue;
       const enrichedMetric = await enrichMetric(
         dbMetric,
         projectDb,
@@ -859,7 +860,7 @@ export async function getMetricsWithStatus(
     const metrics: MetricWithStatus[] = [];
     for (const dbMetric of rawMetrics) {
       const staticData = METRIC_STATIC_DATA[dbMetric.id];
-      if (staticData?.hide) continue;
+      if (!staticData || staticData.hide) continue;
 
       const enrichedMetric = await enrichMetric(
         dbMetric,

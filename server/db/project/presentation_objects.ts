@@ -2,6 +2,7 @@ import { Sql } from "postgres";
 import {
   DisaggregationDisplayOption,
   DisaggregationOption,
+  METRIC_TO_MODULE,
   PeriodFilter,
   PresentationOption,
   ProjectUser,
@@ -159,13 +160,14 @@ export async function getAllPresentationObjectsForProject(
     const rows = await projectDb<DBPresentationObject[]>`
 SELECT po.*
 FROM presentation_objects po
-JOIN metrics m ON po.metric_id = m.id
 ORDER BY po.is_default_visualization DESC, po.sort_order, LOWER(po.label)
 `;
-    const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
-      const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
-      return configToSummary(row, config);
-    });
+    const presentationObjects = rows
+      .filter((row) => row.metric_id in METRIC_TO_MODULE)
+      .map<PresentationObjectSummary>((row) => {
+        const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
+        return configToSummary(row, config);
+      });
     return { success: true, data: presentationObjects };
   });
 }
