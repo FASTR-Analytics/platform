@@ -3,13 +3,11 @@ import {
   PeriodBounds,
   PresentationObjectConfig,
   PresentationObjectDetail,
+  ResultsValue,
   getCalendar,
   t3,
   TC,
-  type DisaggregationOption,
-  type PresentationOption,
   type ResultsValueInfoForPresentationObject,
-  type TranslatableString,
 } from "lib";
 import {
   Button,
@@ -31,12 +29,7 @@ type FiltersProps = {
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
-  allowedFilterOptions: {
-    value: DisaggregationOption;
-    label: string | TranslatableString;
-    isRequired: boolean;
-    allowedPresentationOptions?: PresentationOption[];
-  }[];
+  allowedFilterOptions: ResultsValue["disaggregationOptions"];
 };
 
 export function Filters(p: FiltersProps) {
@@ -320,7 +313,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3(p.disOpt.label as TranslatableString)}
+        label={t3(p.disOpt.label)}
         checked={
           !!p.tempConfig.d.filterBy.some((fil) => fil.disOpt === p.disOpt.value)
         }

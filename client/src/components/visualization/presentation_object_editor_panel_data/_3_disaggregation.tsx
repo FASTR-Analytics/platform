@@ -2,13 +2,11 @@ import {
   DisaggregationDisplayOption,
   PresentationObjectConfig,
   PresentationObjectDetail,
+  ResultsValue,
   getFilteredValueProps,
   getNextAvailableDisaggregationDisplayOption,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
   t3,
-  type PresentationOption,
-  type DisaggregationOption,
-  type TranslatableString,
 } from "lib";
 import { Checkbox, RadioGroup, Select } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
@@ -18,12 +16,7 @@ type DisaggregationSectionProps = {
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
-  allowedDisaggregationOptions: {
-    value: DisaggregationOption;
-    label: string | TranslatableString;
-    isRequired: boolean;
-    allowedPresentationOptions?: PresentationOption[];
-  }[];
+  allowedDisaggregationOptions: ResultsValue["disaggregationOptions"];
 };
 
 export function DisaggregationSection(p: DisaggregationSectionProps) {
@@ -114,7 +107,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
       <Match when={!p.disOpt.isRequired}>
         <div class="ui-spy-sm">
           <Checkbox
-            label={t3(p.disOpt.label as TranslatableString)}
+            label={t3(p.disOpt.label)}
             checked={p.tempConfig.d.disaggregateBy.some(
               (d) => d.disOpt === p.disOpt.value,
             )}
@@ -163,7 +156,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
           <Checkbox
             label={
               <div class="flex flex-wrap items-center gap-x-1">
-                <span class="">{t3(p.disOpt.label as TranslatableString)}</span>
+                <span class="">{t3(p.disOpt.label)}</span>
                 <span class="text-xs">
                   ({t3({ en: "Required for this visualization", fr: "Nécessaire pour cette visualisation" })})
                 </span>

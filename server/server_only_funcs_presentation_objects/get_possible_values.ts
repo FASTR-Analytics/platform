@@ -206,8 +206,9 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
       query,
     );
 
-    // Return just the raw array - the route will wrap it in the discriminated union
-    const possibleValues = results.map((opt) => opt.disaggregation_value);
+    const possibleValues = results
+      .map((opt) => opt.disaggregation_value)
+      .filter((v) => v != null && String(v).trim() !== "");
     return { success: true, data: possibleValues };
   });
 }

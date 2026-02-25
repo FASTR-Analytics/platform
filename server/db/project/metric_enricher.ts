@@ -173,7 +173,7 @@ async function buildDisaggregationOptions(
           const metadata = getDisaggregationMetadata(facilityOpt.option);
           disaggregationOptions.push({
             value: facilityOpt.option,
-            label: facilityOpt.customLabel || metadata.label,
+            label: facilityOpt.customLabel ? { en: facilityOpt.customLabel, fr: facilityOpt.customLabel } : metadata.label,
             isRequired: requiredOptions.includes(facilityOpt.option),
             allowedPresentationOptions: metadata.allowedPresentationOptions,
           });

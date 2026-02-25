@@ -25,10 +25,14 @@ type Props = {
 export function PresentationObjectEditorPanelData(p: Props) {
   const allowedFilterOptions = () => {
     return p.poDetail.resultsValue.disaggregationOptions.filter((disOpt) => {
-      return (
-        !disOpt.allowedPresentationOptions ||
-        disOpt.allowedPresentationOptions.includes(p.tempConfig.d.type)
-      );
+      if (disOpt.allowedPresentationOptions && !disOpt.allowedPresentationOptions.includes(p.tempConfig.d.type)) {
+        return false;
+      }
+      const possibleValues = p.resultsValueInfo.disaggregationPossibleValues[disOpt.value];
+      if (!possibleValues || possibleValues.status === "no_values_available") {
+        return false;
+      }
+      return true;
     });
   };
 
