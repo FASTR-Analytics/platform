@@ -155,7 +155,6 @@ export type ResultsValue = {
     allowedPresentationOptions?: PresentationOption[];
   }[];
   periodOptions: PeriodOption[];
-  autoIncludeFacilityColumns?: boolean;
   aiDescription?: MetricAIDescription;
   importantNotes?: string;
 };
@@ -207,7 +206,6 @@ export type MetricDefinition = {
   requiredDisaggregationOptions: DisaggregationOption[];
   valueLabelReplacements?: Record<string, string>;
   postAggregationExpression?: PostAggregationExpression;
-  autoIncludeFacilityColumns?: boolean;
   resultsObjectId: string;
   aiDescription?: MetricAIDescription;
   importantNotes?: string;

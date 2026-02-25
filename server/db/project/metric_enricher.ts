@@ -31,7 +31,6 @@ export async function enrichMetric(
     resultsObjectId,
     projectDb,
     facilityConfig,
-    dbMetric.auto_include_facility_columns
   );
 
   const enrichedMetric: ResultsValue = {
@@ -50,7 +49,6 @@ export async function enrichMetric(
     formatAs: dbMetric.format_as as "percent" | "number",
     disaggregationOptions,
     periodOptions: parseJsonOrThrow(dbMetric.period_options),
-    autoIncludeFacilityColumns: dbMetric.auto_include_facility_columns,
     aiDescription: dbMetric.ai_description
       ? parseJsonOrThrow(dbMetric.ai_description)
       : undefined,
@@ -118,7 +116,6 @@ async function buildDisaggregationOptions(
   resultsObjectId: string,
   projectDb: Sql,
   facilityConfig: InstanceConfigFacilityColumns | undefined,
-  autoIncludeFacilityColumns: boolean | undefined
 ): Promise<ResultsValue["disaggregationOptions"]> {
   const disaggregationOptions: ResultsValue["disaggregationOptions"] = [];
   const tableName = getResultsObjectTableName(resultsObjectId);
@@ -153,7 +150,7 @@ async function buildDisaggregationOptions(
   }
 
   // Facility columns
-  if (autoIncludeFacilityColumns !== false && facilityConfig) {
+  if (facilityConfig) {
     const hasFacilityId = await detectColumnExists(projectDb, tableName, "facility_id");
 
     if (hasFacilityId) {

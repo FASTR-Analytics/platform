@@ -128,14 +128,6 @@ export function MetricDetailsModal(
           </div>
         </div>
 
-        <Show when={p.metric.autoIncludeFacilityColumns}>
-          <div class="bg-primary/10 text-primary ui-pad-sm rounded">
-            <div class="font-700 text-sm">
-              {t3({ en: "Auto include facility columns", fr: "Inclure automatiquement les colonnes d'établissements" })}
-            </div>
-          </div>
-        </Show>
-
         <div>
           <div class="text-neutral font-700 mb-1 text-xs">
             {t3({ en: "Disaggregation options", fr: "Options de désagrégation" })}

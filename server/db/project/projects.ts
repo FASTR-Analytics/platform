@@ -22,7 +22,7 @@ import {
   DBUser,
   type DBProjectUserRole,
 } from "../instance/_main_database_types.ts";
-import { getPgConnectionFromCacheOrNew } from "../postgres/mod.ts";
+import { getPgConnectionFromCacheOrNew, createWorkerConnection } from "../postgres/mod.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { DBDataset_IN_PROJECT } from "./_project_database_types.ts";
 import { addDatasetHmisToProject } from "./datasets_in_project_hmis.ts";
@@ -571,14 +571,13 @@ export async function getProjectUserPermissions(
   });
 }
 
-export async function copyProject(
+export async function copyProjectSync(
   mainDb: Sql,
   sourceProjectId: string,
   newProjectLabel: string,
   globalUser: GlobalUser,
 ): Promise<APIResponseWithData<{ newProjectId: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Check if source project exists
     const sourceProject = (
       await mainDb<
         DBProject[]
@@ -589,86 +588,13 @@ export async function copyProject(
       return { success: false, err: "Source project not found" };
     }
 
-    // Generate new project ID
     const newProjectId = crypto.randomUUID();
 
-    // Check if new project ID already exists
     const matchingDatabases = await mainDb<
       object[]
     >`SELECT datname FROM pg_catalog.pg_database WHERE datname=${newProjectId}`;
     if (matchingDatabases.length > 0) {
       return { success: false, err: "Project with this ID already exists" };
-    }
-
-    // Terminate connections to source database before copying
-    try {
-      await mainDb`
-        SELECT pg_terminate_backend(pid) 
-        FROM pg_stat_activity 
-        WHERE datname = ${sourceProjectId} 
-          AND pid <> pg_backend_pid()
-      `;
-      // Wait a moment for connections to close
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    } catch (e) {
-      console.log("Warning: Could not terminate connections:", e);
-    }
-
-    // Create new database using source as template
-    try {
-      await mainDb`CREATE DATABASE ${mainDb(
-        newProjectId,
-      )} WITH TEMPLATE ${mainDb(sourceProjectId)}`;
-    } catch (e) {
-      if (
-        e instanceof Error &&
-        e.message.includes("being accessed by other users")
-      ) {
-        // Still failing after termination attempt
-        return {
-          success: false,
-          err: "Could not copy project database. Please try again.",
-        };
-      }
-      throw e;
-    }
-
-    // Copy sandbox directory if it exists
-    const sourceSandboxDir = join(_SANDBOX_DIR_PATH, sourceProjectId);
-    const destSandboxDir = join(_SANDBOX_DIR_PATH, newProjectId);
-
-    try {
-      const sourceExists = await Deno.stat(sourceSandboxDir);
-      if (sourceExists.isDirectory) {
-        await Deno.mkdir(destSandboxDir, { recursive: true });
-        // Copy directory contents recursively
-        const copyCommand = new Deno.Command("cp", {
-          args: ["-r", sourceSandboxDir + "/.", destSandboxDir],
-        });
-        const { success } = await copyCommand.output();
-        if (!success) {
-          throw new Error("Failed to copy sandbox directory");
-        }
-        await Deno.chmod(destSandboxDir, 0o777);
-      }
-    } catch (e) {
-      // If directory copy fails, cleanup and return error
-      if (e instanceof Deno.errors.NotFound) {
-        // Source directory doesn't exist - this is ok, continue
-        console.log("Note: Source project has no sandbox directory");
-      } else {
-        // Actual copy error - cleanup and fail
-        console.error("Failed to copy sandbox directory:", e);
-        try {
-          await mainDb`DROP DATABASE IF EXISTS ${mainDb(newProjectId)}`;
-        } catch (dropErr) {
-          console.error(
-            "Failed to cleanup database after copy error:",
-            dropErr,
-          );
-        }
-        return { success: false, err: "Failed to copy project files" };
-      }
     }
 
     await mainDb`
@@ -678,7 +604,6 @@ export async function copyProject(
     `;
     await mainDb`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${newProjectLabel}, '')`;
 
-    // Copy all user roles and permissions from source project
     await mainDb`
       INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs)
       SELECT email, ${newProjectId}, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs
@@ -691,6 +616,61 @@ export async function copyProject(
       data: { newProjectId },
     };
   });
+}
+
+export async function copyProjectInBackground(
+  sourceProjectId: string,
+  newProjectId: string,
+): Promise<void> {
+  const dedicatedDb = createWorkerConnection("main");
+  try {
+    await dedicatedDb`
+      SELECT pg_terminate_backend(pid)
+      FROM pg_stat_activity
+      WHERE datname = ${sourceProjectId}
+        AND pid <> pg_backend_pid()
+    `;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    await dedicatedDb`CREATE DATABASE ${dedicatedDb(
+      newProjectId,
+    )} WITH TEMPLATE ${dedicatedDb(sourceProjectId)}`;
+
+    const sourceSandboxDir = join(_SANDBOX_DIR_PATH, sourceProjectId);
+    const destSandboxDir = join(_SANDBOX_DIR_PATH, newProjectId);
+    try {
+      const sourceExists = await Deno.stat(sourceSandboxDir);
+      if (sourceExists.isDirectory) {
+        await Deno.mkdir(destSandboxDir, { recursive: true });
+        const copyCommand = new Deno.Command("cp", {
+          args: ["-r", sourceSandboxDir + "/.", destSandboxDir],
+        });
+        const { success } = await copyCommand.output();
+        if (!success) {
+          throw new Error("Failed to copy sandbox directory");
+        }
+        await Deno.chmod(destSandboxDir, 0o777);
+      }
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound)) {
+        throw e;
+      }
+    }
+
+    console.log(`Copy project completed: ${newProjectId}`);
+  } catch (e) {
+    console.error(`Copy project failed for ${newProjectId}:`, e);
+    const cleanupDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+    try {
+      await cleanupDb`DELETE FROM project_user_roles WHERE project_id = ${newProjectId}`;
+      await cleanupDb`DELETE FROM projects WHERE id = ${newProjectId}`;
+      await cleanupDb`DROP DATABASE IF EXISTS ${cleanupDb(newProjectId)}`;
+    } catch (cleanupErr) {
+      console.error("Failed to clean up after copy project failure:", cleanupErr);
+    }
+  } finally {
+    await dedicatedDb.end();
+  }
 }
 
 ////////////////////////////

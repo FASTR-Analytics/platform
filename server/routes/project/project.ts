@@ -5,7 +5,9 @@ import {
   addProject,
   addProjectUserRole,
   bulkUpdateProjectUserPermissions,
-  copyProject,
+  closePgConnection,
+  copyProjectSync,
+  copyProjectInBackground,
   deleteProject,
   getProjectDetail,
   getProjectUserPermissions,
@@ -295,12 +297,18 @@ defineRoute(
   requireProjectPermission({ requireAdmin: true }),
   log("copyProject"),
   async (c, { params, body }) => {
-    const res = await copyProject(
+    const res = await copyProjectSync(
       c.var.mainDb,
       params.project_id,
       body.newProjectLabel,
       c.var.globalUser,
     );
+    if (res.success) {
+      await closePgConnection(params.project_id);
+      copyProjectInBackground(params.project_id, res.data.newProjectId).catch(
+        () => {},
+      );
+    }
     return c.json(res);
   },
 );

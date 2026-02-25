@@ -9,6 +9,7 @@ import {
   LockIcon,
   SettingsSection,
   UnlockIcon,
+  openAlert,
   openComponent,
   timActionDelete,
   timActionButton,
@@ -33,7 +34,11 @@ import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
 import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
 import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
-import { useProjectDetail, useRefetchProjectDetail } from "~/components/project_runner/mod";
+import {
+  useProjectDetail,
+  useRefetchProjectDetail,
+} from "~/components/project_runner/mod";
+import { MigrateReportsToSlides } from "./migrate_reports_to_slides";
 
 // Backup types
 interface BackupFileInfo {
@@ -85,6 +90,13 @@ export function ProjectSettings(p: Props) {
       },
     });
     if (res) {
+      await openAlert({
+        title: t3({ en: "Project copy started", fr: "Copie du projet lancée" }),
+        text: t3({
+          en: "Your project is being copied in the background. This may take several minutes. Refresh the home page to check if it's ready.",
+          fr: "Votre projet est en cours de copie en arrière-plan. Cela peut prendre plusieurs minutes. Actualisez la page d'accueil pour vérifier s'il est prêt.",
+        }),
+      });
       p.backToHome();
     }
   }
@@ -93,7 +105,10 @@ export function ProjectSettings(p: Props) {
     const _res = await openComponent({
       element: EditLabelForm,
       props: {
-        headerText: t3({ en: "Edit project name", fr: "Modifier le nom du projet" }),
+        headerText: t3({
+          en: "Edit project name",
+          fr: "Modifier le nom du projet",
+        }),
         existingLabel: projectDetail.label,
         mutateFunc: (newLabel) =>
           serverActions.updateProject({
@@ -110,7 +125,10 @@ export function ProjectSettings(p: Props) {
     const _res = await openComponent({
       element: EditLabelForm,
       props: {
-        headerText: t3({ en: "Edit project context", fr: "Modifier le contexte du projet" }),
+        headerText: t3({
+          en: "Edit project context",
+          fr: "Modifier le contexte du projet",
+        }),
         existingLabel: projectDetail.aiContext,
         mutateFunc: (newAiContext) =>
           serverActions.updateProject({
@@ -185,7 +203,10 @@ export function ProjectSettings(p: Props) {
   async function attemptDeleteProject() {
     const deleteAction = timActionDelete(
       {
-        text: t3({ en: "Are you sure you want to delete this project?", fr: "Êtes-vous sûr de vouloir supprimer ce projet ?" }),
+        text: t3({
+          en: "Are you sure you want to delete this project?",
+          fr: "Êtes-vous sûr de vouloir supprimer ce projet ?",
+        }),
         itemList: [projectDetail.label],
       },
       () =>
@@ -223,7 +244,9 @@ export function ProjectSettings(p: Props) {
         >
           <div class="">{projectDetail.label}</div>
         </SettingsSection>
-        <SettingsSection header={t3({ en: "Project users", fr: "Utilisateurs du projet" })}>
+        <SettingsSection
+          header={t3({ en: "Project users", fr: "Utilisateurs du projet" })}
+        >
           <ProjectUserTable
             users={projectDetail.projectUsers}
             onUserClick={attemptSelectUserRole}
@@ -232,7 +255,10 @@ export function ProjectSettings(p: Props) {
           />
         </SettingsSection>
         <SettingsSection
-          header={t3({ en: "Project context for AI interpretation", fr: "Contexte du projet pour l'interprétation de l'IA" })}
+          header={t3({
+            en: "Project context for AI interpretation",
+            fr: "Contexte du projet pour l'interprétation de l'IA",
+          })}
           rightChildren={
             <Show when={!projectDetail.isLocked}>
               <Button
@@ -244,13 +270,19 @@ export function ProjectSettings(p: Props) {
             </Show>
           }
         >
-          <div class="">{projectDetail.aiContext || t3({ en: "No context set", fr: "Aucun contexte défini" })}</div>
+          <div class="">
+            {projectDetail.aiContext ||
+              t3({ en: "No context set", fr: "Aucun contexte défini" })}
+          </div>
         </SettingsSection>
 
         <Switch>
           <Match when={projectDetail.isLocked}>
             <SettingsSection
-              header={t3({ en: "Project lock status", fr: "Statut de verrouillage du projet" })}
+              header={t3({
+                en: "Project lock status",
+                fr: "Statut de verrouillage du projet",
+              })}
               rightChildren={
                 <Button
                   onClick={unlockProject.click}
@@ -261,7 +293,12 @@ export function ProjectSettings(p: Props) {
               }
             >
               <div class="ui-gap-sm text-danger flex">
-                <span class="">{t3({ en: "Project is currently locked", fr: "Le projet est actuellement verrouillé" })}</span>
+                <span class="">
+                  {t3({
+                    en: "Project is currently locked",
+                    fr: "Le projet est actuellement verrouillé",
+                  })}
+                </span>
                 <span class="relative inline-flex h-[1.25em] w-[1.25em]">
                   <LockIcon />
                 </span>
@@ -270,7 +307,10 @@ export function ProjectSettings(p: Props) {
           </Match>
           <Match when={!projectDetail.isLocked}>
             <SettingsSection
-              header={t3({ en: "Project lock status", fr: "Statut de verrouillage du projet" })}
+              header={t3({
+                en: "Project lock status",
+                fr: "Statut de verrouillage du projet",
+              })}
               rightChildren={
                 <Button onClick={lockProject.click} state={lockProject.state()}>
                   {t3({ en: "Lock project", fr: "Verrouiller le projet" })}
@@ -278,7 +318,12 @@ export function ProjectSettings(p: Props) {
               }
             >
               <div class="ui-gap-sm flex">
-                <span class="">{t3({ en: "Project is currently unlocked", fr: "Le projet est actuellement déverrouillé" })}</span>
+                <span class="">
+                  {t3({
+                    en: "Project is currently unlocked",
+                    fr: "Le projet est actuellement déverrouillé",
+                  })}
+                </span>
                 <span class="relative inline-flex h-[1.25em] w-[1.25em]">
                   <UnlockIcon />
                 </span>
@@ -293,6 +338,38 @@ export function ProjectSettings(p: Props) {
             instanceDetail={p.instanceDetail}
           />
         </SettingsSection>
+
+        <Show
+          when={projectDetail.reports.some(
+            (r) => r.reportType === "slide_deck",
+          )}
+        >
+          <SettingsSection
+            header={t3({ en: "Migrate reports", fr: "Migrer les rapports" })}
+            rightChildren={
+              <Button
+                onClick={async () => {
+                  await openComponent({
+                    element: MigrateReportsToSlides,
+                    props: { projectDetail },
+                  });
+                }}
+              >
+                {t3({
+                  en: "Migrate reports to slides",
+                  fr: "Migrer les rapports vers les diapositives",
+                })}
+              </Button>
+            }
+          >
+            <div>
+              {t3({
+                en: "Convert old slide deck reports into the new slides system",
+                fr: "Convertir les anciens rapports de type présentation vers le nouveau système de diapositives",
+              })}
+            </div>
+          </SettingsSection>
+        </Show>
 
         <div class="ui-gap flex">
           <Show when={!projectDetail.isLocked}>
@@ -314,23 +391,77 @@ export function ProjectSettings(p: Props) {
   );
 }
 
-const permissionLabels: { key: keyof ProjectUser; label: TranslatableString }[] = [
-  { key: "can_view_reports", label: { en: "View reports", fr: "Consulter les rapports" } },
-  { key: "can_view_visualizations", label: { en: "View visualizations", fr: "Consulter les visualisations" } },
-  { key: "can_view_slide_decks", label: { en: "View slide decks", fr: "Consulter les présentations" } },
-  { key: "can_view_data", label: { en: "View data", fr: "Consulter les données" } },
-  { key: "can_view_metrics", label: { en: "View metrics", fr: "Consulter les métriques" } },
-  { key: "can_view_logs", label: { en: "View logs", fr: "Consulter les journaux" } },
-  { key: "can_configure_settings", label: { en: "Configure settings", fr: "Configurer les paramètres" } },
-  { key: "can_configure_modules", label: { en: "Configure modules", fr: "Configurer les modules" } },
-  { key: "can_run_modules", label: { en: "Run modules", fr: "Exécuter les modules" } },
-  { key: "can_configure_users", label: { en: "Configure users", fr: "Configurer les utilisateurs" } },
-  { key: "can_configure_visualizations", label: { en: "Configure visualizations", fr: "Configurer les visualisations" } },
-  { key: "can_configure_reports", label: { en: "Configure reports", fr: "Configurer les rapports" } },
-  { key: "can_configure_slide_decks", label: { en: "Configure slide decks", fr: "Configurer les présentations" } },
-  { key: "can_configure_data", label: { en: "Configure data", fr: "Configurer les données" } },
-  { key: "can_create_backups", label: { en: "Create backups", fr: "Créer des sauvegardes" } },
-  { key: "can_restore_backups", label: { en: "Restore backups", fr: "Restaurer des sauvegardes" } },
+const permissionLabels: {
+  key: keyof ProjectUser;
+  label: TranslatableString;
+}[] = [
+  {
+    key: "can_view_reports",
+    label: { en: "View reports", fr: "Consulter les rapports" },
+  },
+  {
+    key: "can_view_visualizations",
+    label: { en: "View visualizations", fr: "Consulter les visualisations" },
+  },
+  {
+    key: "can_view_slide_decks",
+    label: { en: "View slide decks", fr: "Consulter les présentations" },
+  },
+  {
+    key: "can_view_data",
+    label: { en: "View data", fr: "Consulter les données" },
+  },
+  {
+    key: "can_view_metrics",
+    label: { en: "View metrics", fr: "Consulter les métriques" },
+  },
+  {
+    key: "can_view_logs",
+    label: { en: "View logs", fr: "Consulter les journaux" },
+  },
+  {
+    key: "can_configure_settings",
+    label: { en: "Configure settings", fr: "Configurer les paramètres" },
+  },
+  {
+    key: "can_configure_modules",
+    label: { en: "Configure modules", fr: "Configurer les modules" },
+  },
+  {
+    key: "can_run_modules",
+    label: { en: "Run modules", fr: "Exécuter les modules" },
+  },
+  {
+    key: "can_configure_users",
+    label: { en: "Configure users", fr: "Configurer les utilisateurs" },
+  },
+  {
+    key: "can_configure_visualizations",
+    label: {
+      en: "Configure visualizations",
+      fr: "Configurer les visualisations",
+    },
+  },
+  {
+    key: "can_configure_reports",
+    label: { en: "Configure reports", fr: "Configurer les rapports" },
+  },
+  {
+    key: "can_configure_slide_decks",
+    label: { en: "Configure slide decks", fr: "Configurer les présentations" },
+  },
+  {
+    key: "can_configure_data",
+    label: { en: "Configure data", fr: "Configurer les données" },
+  },
+  {
+    key: "can_create_backups",
+    label: { en: "Create backups", fr: "Créer des sauvegardes" },
+  },
+  {
+    key: "can_restore_backups",
+    label: { en: "Restore backups", fr: "Restaurer des sauvegardes" },
+  },
 ];
 
 function hasPermissions(user: ProjectUser): boolean {
@@ -339,9 +470,14 @@ function hasPermissions(user: ProjectUser): boolean {
 
 function getPermissionSummary(user: ProjectUser): string {
   const active = permissionLabels.filter((p) => user[p.key]);
-  if (active.length === 0) return t3({ en: "Does not have access", fr: "N'a pas accès" });
-  const shown = active.slice(0, 5).map((p) => t3(p.label)).join(", ");
-  if (active.length > 5) return `${shown}, +${active.length - 5} ${t3({ en: "more", fr: "de plus" })}`;
+  if (active.length === 0)
+    return t3({ en: "Does not have access", fr: "N'a pas accès" });
+  const shown = active
+    .slice(0, 5)
+    .map((p) => t3(p.label))
+    .join(", ");
+  if (active.length > 5)
+    return `${shown}, +${active.length - 5} ${t3({ en: "more", fr: "de plus" })}`;
   return shown;
 }
 
@@ -376,12 +512,19 @@ function ProjectUserTable(p: {
         <Show
           when={user.isGlobalAdmin}
           fallback={
-            <span class={`text-sm ${!hasPermissions(user) ? "text-neutral" : ""}`}>
+            <span
+              class={`text-sm ${!hasPermissions(user) ? "text-neutral" : ""}`}
+            >
               {getPermissionSummary(user)}
             </span>
           }
         >
-          <span class="text-primary">{t3({ en: "Instance administrator", fr: "Administrateur d'instance" })}</span>
+          <span class="text-primary">
+            {t3({
+              en: "Instance administrator",
+              fr: "Administrateur d'instance",
+            })}
+          </span>
         </Show>
       ),
     },
@@ -777,13 +920,23 @@ function ProjectBackups(props: {
       </div>
       <Show
         when={!backupsList.loading}
-        fallback={<div>{t3({ en: "Loading backups...", fr: "Chargement des sauvegardes..." })}</div>}
+        fallback={
+          <div>
+            {t3({
+              en: "Loading backups...",
+              fr: "Chargement des sauvegardes...",
+            })}
+          </div>
+        }
       >
         <Show
           when={backupsList() && backupsList()!.length > 0}
           fallback={
             <div class="text-neutral">
-              {t3({ en: "No backups available for this project", fr: "Aucune sauvegarde disponible pour ce projet" })}
+              {t3({
+                en: "No backups available for this project",
+                fr: "Aucune sauvegarde disponible pour ce projet",
+              })}
             </div>
           }
         >
@@ -808,10 +961,16 @@ function ProjectBackups(props: {
                           <ChevronDownIcon />
                         </Show>
                         <span class="font-medium">
-                          {group.isCustom ? t3({ en: "Custom Backups", fr: "Sauvegardes personnalisées" }) : group.date}
+                          {group.isCustom
+                            ? t3({
+                                en: "Custom Backups",
+                                fr: "Sauvegardes personnalisées",
+                              })
+                            : group.date}
                         </span>
                         <span class="text-neutral text-sm">
-                          ({group.backups.length} {t3({ en: "backup", fr: "sauvegarde" })}
+                          ({group.backups.length}{" "}
+                          {t3({ en: "backup", fr: "sauvegarde" })}
                           {group.backups.length !== 1 ? "s" : ""})
                         </span>
                       </div>

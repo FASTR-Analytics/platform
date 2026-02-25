@@ -117,7 +117,7 @@ VALUES (
 INSERT INTO metrics (
   id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
-  auto_include_facility_columns, results_object_id, ai_description
+  results_object_id, ai_description
 )
 VALUES (
   ${metric.id},
@@ -131,7 +131,6 @@ VALUES (
   ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
-  ${metric.autoIncludeFacilityColumns ?? false},
   ${metric.resultsObjectId},
   ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null}
 )
@@ -343,7 +342,7 @@ VALUES (
 INSERT INTO metrics (
   id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
-  auto_include_facility_columns, results_object_id, ai_description
+  results_object_id, ai_description
 )
 VALUES (
   ${metric.id},
@@ -357,7 +356,6 @@ VALUES (
   ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
-  ${metric.autoIncludeFacilityColumns ?? false},
   ${metric.resultsObjectId},
   ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null}
 )

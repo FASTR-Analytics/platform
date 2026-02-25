@@ -166,7 +166,7 @@ async function migrateToMetricsTables(
             INSERT INTO metrics (
               id, module_id, label, variant_label, value_func, format_as, value_props,
               period_options, required_disaggregation_options, value_label_replacements,
-              post_aggregation_expression, auto_include_facility_columns, results_object_id, ai_description
+              post_aggregation_expression, results_object_id, ai_description
             ) VALUES (
               ${rv.id},
               ${mod.id},
@@ -183,7 +183,6 @@ async function migrateToMetricsTables(
               )},
               ${rv.valueLabelReplacements ? JSON.stringify(rv.valueLabelReplacements) : null},
               ${rv.postAggregationExpression ? JSON.stringify(rv.postAggregationExpression) : null},
-              ${rv.autoIncludeFacilityColumns ?? false},
               ${ro.id},
               ${rv.aiDescription ? JSON.stringify(rv.aiDescription) : null}
             )

@@ -35,7 +35,6 @@ export type DBMetric = {
   required_disaggregation_options: string;
   value_label_replacements: string | null;
   post_aggregation_expression: string | null;
-  auto_include_facility_columns: boolean;
   results_object_id: string;
   ai_description: string | null;
 };
