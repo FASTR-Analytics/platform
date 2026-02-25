@@ -675,12 +675,13 @@ export const definition = {
   // $$/       $$$$$$$/ $$/       $$$$$$$/ $$/  $$/  $$/ $$$$$$$/   //
   //                                                                //
   ////////////////////////////////////////////////////////////////////
+
   configRequirements: {
     configType: "parameters",
     parameters: [
       {
-        description: "DENOM_ANC1",
-        replacementString: "DENOM_ANC1",
+        description: "DENOM_PREGNANCY",
+        replacementString: "DENOM_PREGNANCY",
         input: {
           inputType: "select",
           options: [
@@ -698,34 +699,12 @@ export const definition = {
         },
       },
       {
-        description: "DENOM_ANC4",
-        replacementString: "DENOM_ANC4",
+        description: "DENOM_LIVEBIRTH",
+        replacementString: "DENOM_LIVEBIRTH",
         input: {
           inputType: "select",
           options: [
             { value: `best`, label: "Best" },
-
-            ...[
-              "danc1_pregnancy",
-              "ddelivery_pregnancy",
-              "dbcg_pregnancy",
-              "dlivebirths_pregnancy",
-              "dwpp_pregnancy",
-            ].map((v) => ({ value: v, label: v })),
-          ],
-          valueType: "string",
-          defaultValue: "best",
-        },
-      },
-
-      {
-        description: "DENOM_DELIVERY",
-        replacementString: "DENOM_DELIVERY",
-        input: {
-          inputType: "select",
-          options: [
-            { value: `best`, label: "Best" },
-
             ...[
               "danc1_livebirth",
               "ddelivery_livebirth",
@@ -739,198 +718,12 @@ export const definition = {
         },
       },
       {
-        description: "DENOM_BCG",
-        replacementString: "DENOM_BCG",
+        description: "DENOM_DPT",
+        replacementString: "DENOM_DPT",
         input: {
           inputType: "select",
           options: [
             { value: `best`, label: "Best" },
-
-            ...[
-              "danc1_livebirth",
-              "ddelivery_livebirth",
-              "dbcg_livebirth",
-              "dlivebirths_livebirth",
-              "dwpp_livebirth",
-            ].map((v) => ({ value: v, label: v })),
-          ],
-          valueType: "string",
-          defaultValue: "best",
-        },
-      },
-      {
-        description: "DENOM_SBA",
-        replacementString: "DENOM_SBA",
-        input: {
-          inputType: "select",
-          options: [
-            { value: `best`, label: "Best" },
-
-            ...[
-              "danc1_livebirth",
-              "ddelivery_livebirth",
-              "dbcg_livebirth",
-              "dlivebirths_livebirth",
-              "dwpp_livebirth",
-            ].map((v) => ({ value: v, label: v })),
-          ],
-          valueType: "string",
-          defaultValue: "best",
-        },
-      },
-      {
-        description: "DENOM_PNC1_MOTHER",
-        replacementString: "DENOM_PNC1_MOTHER",
-        input: {
-          inputType: "select",
-          options: [
-            { value: `best`, label: "Best" },
-
-            ...[
-              "danc1_livebirth",
-              "ddelivery_livebirth",
-              "dbcg_livebirth",
-              "dlivebirths_livebirth",
-              "dwpp_livebirth",
-            ].map((v) => ({ value: v, label: v })),
-          ],
-          valueType: "string",
-          defaultValue: "best",
-        },
-      },
-      {
-        description: "DENOM_PNC1",
-        replacementString: "DENOM_PNC1",
-        input: {
-          inputType: "select",
-          options: [
-            { value: `best`, label: "Best" },
-
-            ...[
-              "danc1_livebirth",
-              "ddelivery_livebirth",
-              "dbcg_livebirth",
-              "dlivebirths_livebirth",
-              "dwpp_livebirth",
-            ].map((v) => ({ value: v, label: v })),
-          ],
-          valueType: "string",
-          defaultValue: "best",
-        },
-      },
-      {
-        description: "DENOM_PENTA1",
-        replacementString: "DENOM_PENTA1",
-        input: {
-          inputType: "select",
-          options: [
-            { value: `best`, label: "Best" },
-
-            ...[
-              "danc1_dpt",
-              "ddelivery_dpt",
-              "dpenta1_dpt",
-              "dbcg_dpt",
-              "dlivebirths_dpt",
-              "dwpp_dpt",
-            ].map((v) => ({ value: v, label: v })),
-          ],
-          valueType: "string",
-          defaultValue: "best",
-        },
-      },
-      {
-        description: "DENOM_PENTA2",
-        replacementString: "DENOM_PENTA2",
-        input: {
-          inputType: "select",
-          options: [
-            { value: `best`, label: "Best" },
-
-            ...[
-              "danc1_dpt",
-              "ddelivery_dpt",
-              "dpenta1_dpt",
-              "dbcg_dpt",
-              "dlivebirths_dpt",
-              "dwpp_dpt",
-            ].map((v) => ({ value: v, label: v })),
-          ],
-          valueType: "string",
-          defaultValue: "best",
-        },
-      },
-      {
-        description: "DENOM_PENTA3",
-        replacementString: "DENOM_PENTA3",
-        input: {
-          inputType: "select",
-          options: [
-            { value: `best`, label: "Best" },
-
-            ...[
-              "danc1_dpt",
-              "ddelivery_dpt",
-              "dpenta1_dpt",
-              "dbcg_dpt",
-              "dlivebirths_dpt",
-              "dwpp_dpt",
-            ].map((v) => ({ value: v, label: v })),
-          ],
-          valueType: "string",
-          defaultValue: "best",
-        },
-      },
-      {
-        description: "DENOM_OPV1",
-        replacementString: "DENOM_OPV1",
-        input: {
-          inputType: "select",
-          options: [
-            { value: `best`, label: "Best" },
-
-            ...[
-              "danc1_dpt",
-              "ddelivery_dpt",
-              "dpenta1_dpt",
-              "dbcg_dpt",
-              "dlivebirths_dpt",
-              "dwpp_dpt",
-            ].map((v) => ({ value: v, label: v })),
-          ],
-          valueType: "string",
-          defaultValue: "best",
-        },
-      },
-      {
-        description: "DENOM_OPV2",
-        replacementString: "DENOM_OPV2",
-        input: {
-          inputType: "select",
-          options: [
-            { value: `best`, label: "Best" },
-
-            ...[
-              "danc1_dpt",
-              "ddelivery_dpt",
-              "dpenta1_dpt",
-              "dbcg_dpt",
-              "dlivebirths_dpt",
-              "dwpp_dpt",
-            ].map((v) => ({ value: v, label: v })),
-          ],
-          valueType: "string",
-          defaultValue: "best",
-        },
-      },
-      {
-        description: "DENOM_OPV3",
-        replacementString: "DENOM_OPV3",
-        input: {
-          inputType: "select",
-          options: [
-            { value: `best`, label: "Best" },
-
             ...[
               "danc1_dpt",
               "ddelivery_dpt",
@@ -992,10 +785,9 @@ export const definition = {
           defaultValue: "best",
         },
       },
-
       {
-        description: "DENOM_VITA",
-        replacementString: "DENOM_VITA",
+        description: "DENOM_VITAMINA",
+        replacementString: "DENOM_VITAMINA",
         input: {
           inputType: "select",
           options: [
