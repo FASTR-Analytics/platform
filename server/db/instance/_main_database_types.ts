@@ -31,6 +31,7 @@ export type DBProject = {
   label: string;
   ai_context: string;
   is_locked: boolean;
+  status: string;
 };
 
 export type DBProjectUserRole = {

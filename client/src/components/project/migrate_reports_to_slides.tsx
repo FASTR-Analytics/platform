@@ -310,7 +310,7 @@ async function convertLayoutNode(
   }
 
   const children = await Promise.all(
-    node.children.map((child) => convertLayoutNode(child, projectId, addLog)),
+    (node.children ?? []).map((child) => convertLayoutNode(child, projectId, addLog)),
   );
   return {
     type: node.type,

@@ -5,6 +5,7 @@ import {
   FrameTop,
   HeadingBarMainRibbon,
   LockIcon,
+  Spinner,
   StateHolderWrapper,
   TimQuery,
   getEditorWrapper,
@@ -29,14 +30,20 @@ export function InstanceProjects(p: Props) {
     const instState = p.instanceDetail.state();
     if (instState.status !== "ready") {
       await openAlert({
-        text: t3({ en: "Instance is not ready yet. Try refreshing the web page.", fr: "L'instance n'est pas encore prête. Essayez de rafraîchir la page." }),
+        text: t3({
+          en: "Instance is not ready yet. Try refreshing the web page.",
+          fr: "L'instance n'est pas encore prête. Essayez de rafraîchir la page.",
+        }),
         intent: "danger",
       });
       return;
     }
     if (instState.data.datasetsWithData.length === 0) {
       await openAlert({
-        text: t3({ en: "You need to add data to the instance before you can create a project", fr: "Vous devez ajouter des données à l'instance avant de pouvoir créer un projet" }),
+        text: t3({
+          en: "You need to add data to the instance before you can create a project",
+          fr: "Vous devez ajouter des données à l'instance avant de pouvoir créer un projet",
+        }),
         intent: "danger",
       });
       return;
@@ -74,10 +81,27 @@ export function InstanceProjects(p: Props) {
                 <For
                   each={keyedInstanceDetail.projects}
                   fallback={
-                    <div class="text-neutral text-sm">{t3({ en: "No projects", fr: "Aucun projet" })}</div>
+                    <div class="text-neutral text-sm">
+                      {t3({ en: "No projects", fr: "Aucun projet" })}
+                    </div>
                   }
                 >
                   {(project) => {
+                    if (project.status !== "ready") {
+                      return (
+                        <div class="ui-pad border-base-300 min-h-[150px] rounded border opacity-50">
+                          <div class="ui-spy-sm col-span-1">
+                            <div class="font-700">{project.label}</div>
+                            <div class="text-neutral text-sm">
+                              {t3({
+                                en: "Copying...",
+                                fr: "Copie en cours...",
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
                     return (
                       <a
                         href={`/?p=${project.id}`}
@@ -90,7 +114,10 @@ export function InstanceProjects(p: Props) {
                               <span class="relative inline-flex h-[1.25em] w-[1.25em]">
                                 <LockIcon />
                               </span>
-                              {t3({ en: "Project locked", fr: "Projet verrouillé" })}
+                              {t3({
+                                en: "Project locked",
+                                fr: "Projet verrouillé",
+                              })}
                             </div>
                           </Show>
                         </div>

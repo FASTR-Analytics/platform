@@ -177,6 +177,7 @@ export async function getInstanceDetail(
             label: p.label,
             thisUserRole: "editor",
             isLocked: p.is_locked,
+            status: p.status as ProjectSummary["status"],
           };
         })
       : (
@@ -200,6 +201,7 @@ ORDER BY LOWER(label)`
             label: p.label,
             thisUserRole: p.role === "editor" ? "editor" : "viewer",
             isLocked: p.is_locked,
+            status: p.status as ProjectSummary["status"],
           };
         });
 

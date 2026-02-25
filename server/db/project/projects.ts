@@ -602,7 +602,7 @@ export async function copyProjectSync(
       VALUES (${globalUser.email}, ${globalUser.isGlobalAdmin})
       ON CONFLICT (email) DO NOTHING
     `;
-    await mainDb`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${newProjectLabel}, '')`;
+    await mainDb`INSERT INTO projects (id, label, ai_context, status) VALUES (${newProjectId}, ${newProjectLabel}, '', 'copying')`;
 
     await mainDb`
       INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs)
@@ -657,6 +657,7 @@ export async function copyProjectInBackground(
       }
     }
 
+    await dedicatedDb`UPDATE projects SET status = 'ready' WHERE id = ${newProjectId}`;
     console.log(`Copy project completed: ${newProjectId}`);
   } catch (e) {
     console.error(`Copy project failed for ${newProjectId}:`, e);

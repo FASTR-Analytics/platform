@@ -17,6 +17,7 @@ export type ProjectSummary = {
   label: string;
   thisUserRole: "viewer" | "editor";
   isLocked: boolean;
+  status: "ready" | "copying";
 };
 
 export type ProjectDetail = {

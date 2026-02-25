@@ -93,8 +93,8 @@ export function ProjectSettings(p: Props) {
       await openAlert({
         title: t3({ en: "Project copy started", fr: "Copie du projet lancée" }),
         text: t3({
-          en: "Your project is being copied in the background. This may take several minutes. Refresh the home page to check if it's ready.",
-          fr: "Votre projet est en cours de copie en arrière-plan. Cela peut prendre plusieurs minutes. Actualisez la page d'accueil pour vérifier s'il est prêt.",
+          en: "Your project is being copied in the background. This may take several minutes. It will appear on the home page once copying is complete.",
+          fr: "Votre projet est en cours de copie en arrière-plan. Cela peut prendre plusieurs minutes. Il apparaîtra sur la page d'accueil une fois la copie terminée.",
         }),
       });
       p.backToHome();

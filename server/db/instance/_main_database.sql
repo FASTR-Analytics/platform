@@ -19,7 +19,8 @@ CREATE TABLE projects (
   id text PRIMARY KEY NOT NULL,
   label text NOT NULL,
   ai_context text NOT NULL,
-  is_locked boolean NOT NULL DEFAULT FALSE
+  is_locked boolean NOT NULL DEFAULT FALSE,
+  status text NOT NULL DEFAULT 'ready'
 );
 
 CREATE TABLE user_logs (
