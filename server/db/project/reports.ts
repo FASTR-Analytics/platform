@@ -341,20 +341,19 @@ SELECT id FROM report_items WHERE report_id = ${reportId} ORDER BY sort_order
       itemIdsInOrder,
       lastUpdated: rawReport.last_updated,
     };
-    const reportItems = (
-      await projectDb<DBReportItem[]>`
+    const rawReportItems = await projectDb<DBReportItem[]>`
 SELECT * FROM report_items WHERE report_id = ${reportId}
-`
-    ).map((rawReportItem) => {
-      const reportItem: ReportItem = {
+`;
+    const reportItems: ReportItem[] = [];
+    for (const rawReportItem of rawReportItems) {
+      reportItems.push({
         id: rawReportItem.id,
         projectId,
         reportId: rawReportItem.report_id,
-        config: parseJsonOrThrow(rawReportItem.config),
+        config: await adaptLegacyReportItemConfig(parseJsonOrThrow(rawReportItem.config), projectDb),
         lastUpdated: rawReportItem.last_updated,
-      };
-      return reportItem;
-    });
+      });
+    }
     return { success: true, data: { report, reportItems } };
   });
 }
