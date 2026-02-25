@@ -164,14 +164,28 @@ CREATE INDEX idx_report_items_last_updated ON report_items(last_updated);
 -- AI SLIDE DECKS
 -- ============================================================================
 
+CREATE TABLE slide_deck_folders (
+  id text PRIMARY KEY,
+  label text NOT NULL,
+  color text,
+  description text,
+  sort_order integer NOT NULL DEFAULT 0,
+  last_updated text NOT NULL
+);
+
+CREATE INDEX idx_slide_deck_folders_sort_order ON slide_deck_folders(sort_order);
+
 CREATE TABLE slide_decks (
   id text PRIMARY KEY NOT NULL,
   label text NOT NULL,
   plan text,
-  last_updated text NOT NULL
+  config text,
+  last_updated text NOT NULL,
+  folder_id text REFERENCES slide_deck_folders(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_slide_decks_last_updated ON slide_decks(last_updated);
+CREATE INDEX idx_slide_decks_folder_id ON slide_decks(folder_id);
 
 CREATE TABLE slides (
   id text PRIMARY KEY NOT NULL,

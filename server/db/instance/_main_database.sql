@@ -143,19 +143,19 @@ CREATE TABLE indicators (
   indicator_common_id text PRIMARY KEY NOT NULL,
   indicator_common_label text NOT NULL,
   is_default boolean NOT NULL DEFAULT FALSE,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP
+  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE indicators_raw (
   indicator_raw_id text PRIMARY KEY NOT NULL,
   indicator_raw_label text NOT NULL,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP
+  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE indicator_mappings (
   indicator_raw_id text NOT NULL,
   indicator_common_id text NOT NULL,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (indicator_raw_id, indicator_common_id),
   FOREIGN KEY (indicator_raw_id) REFERENCES indicators_raw(indicator_raw_id) ON DELETE CASCADE,
   FOREIGN KEY (indicator_common_id) REFERENCES indicators(indicator_common_id) ON DELETE CASCADE
@@ -278,42 +278,6 @@ CREATE INDEX idx_dataset_hfa_covering ON dataset_hfa(var_name, facility_id, time
 CREATE INDEX idx_dataset_hfa_upload_attempts_status ON dataset_hfa_upload_attempts(status);
 CREATE INDEX idx_dataset_hfa_upload_attempts_status_type ON dataset_hfa_upload_attempts(status_type);
 CREATE INDEX idx_dataset_hfa_upload_attempts_date_started ON dataset_hfa_upload_attempts(date_started);
-
--- ============================================================================
--- AUDIT LOGGING
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id SERIAL PRIMARY KEY,
-  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  user_email TEXT NOT NULL,
-  project_id TEXT,
-  action TEXT NOT NULL,
-  resource_type TEXT,
-  resource_id TEXT,
-  method TEXT,
-  path TEXT,
-  details TEXT,
-  success BOOLEAN NOT NULL,
-  error_message TEXT,
-  session_id TEXT,
-  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE,
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-);
-
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_email ON audit_logs(user_email);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_project_id ON audit_logs(project_id) WHERE project_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id)
-  WHERE resource_type IS NOT NULL AND resource_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_activity
-  ON audit_logs(user_email, action, timestamp DESC)
-  WHERE action IN ('USER_LOGIN', 'USER_LOGOUT', 'USER_ACTIVITY');
-CREATE INDEX IF NOT EXISTS idx_audit_logs_session
-  ON audit_logs(session_id, timestamp DESC)
-  WHERE session_id IS NOT NULL;
 
 -- ============================================================================
 -- SCHEMA MIGRATIONS
