@@ -407,24 +407,30 @@ Same `get()` / `setPromise()` / `clear()` interface.
 
 ### Modified: `src/core/constants.ts`
 
-Add `"valkey"` to `SUBDIRECTORIES`. Add `"valkey/valkey:8"` to `IMAGES_TO_PULL`.
+Add `"valkey"` to `SUBDIRECTORIES`. Add `"valkey/valkey:8.0"` to `IMAGES_TO_PULL` (pinned to minor version, matching the `postgres:17.4` pattern).
 
 ```ts
-export const IMAGES_TO_PULL = ["timroberton/comb:wb-hmis-r-linux", "postgres:17.4", "dpage/pgadmin4", "valkey/valkey:8"];
+export const IMAGES_TO_PULL = ["timroberton/comb:wb-hmis-r-linux", "postgres:17.4", "dpage/pgadmin4", "valkey/valkey:8.0"];
 export const SUBDIRECTORIES = ["databases", "sandbox", "exports", "assets", "valkey"];
 ```
 
 ### Modified: `src/commands/docker/run-container.ts`
 
-**1. Replace the subdirectory existence check with create-if-missing.** The current code throws if any subdir is missing. Change to `mkdir` with `recursive: true` so new subdirs (like `valkey/`) are created automatically on existing instances without requiring a separate `wb init-dirs` step:
+**1. Auto-create missing subdirectories with logging.** The current code throws if any subdir is missing. Use `mkdir` with `recursive: true` so new subdirs (like `valkey/`) are created automatically on existing instances without requiring a separate `wb init-dirs` step. Log when a directory is created so misconfigurations are visible:
 
 ```ts
 for (const subDir of SUBDIRECTORIES) {
-  await Deno.mkdir(join(instanceDirPath, subDir), { recursive: true });
+  const dirPath = join(instanceDirPath, subDir);
+  try {
+    await Deno.stat(dirPath);
+  } catch {
+    console.log(colors.cyan(`Creating missing directory: ${subDir}/`));
+    await Deno.mkdir(dirPath, { recursive: true });
+  }
 }
 ```
 
-**2. Start Valkey after Postgres, before admin container.** Valkey start failure is non-fatal — log a warning and continue (the server app degrades gracefully without Valkey). `--maxmemory 512mb --maxmemory-policy allkeys-lru` caps memory usage and evicts least-recently-used keys if full — prevents unbounded growth from large PO payloads with 15–30 day TTLs:
+**2. Start Valkey after Postgres, before admin container.** Valkey start failure is non-fatal — log a warning and continue (the server app degrades gracefully without Valkey). No maxmemory cap — TTLs (15–30 day jittered write, 30-day read refresh) handle cleanup organically:
 
 ```ts
 ////////////////////////
@@ -437,9 +443,8 @@ const argsRunValkey = [
   "--name", `${serverInfo.id}-valkey`,
   "--network", serverInfo.id,
   "-v", `${join(instanceDirPath, "valkey")}:/data`,
-  "valkey/valkey:8",
+  "valkey/valkey:8.0",
   "valkey-server", "--appendonly", "yes",
-  "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru",
 ];
 const cmdRunValkey = new Deno.Command("docker", { args: argsRunValkey });
 const chdRunValkey = cmdRunValkey.spawn();
@@ -449,7 +454,7 @@ if (!valkeyOutput.success) {
 }
 ```
 
-**3. Add `VALKEY_URL` env var to app container args** (unconditionally — server handles missing Valkey gracefully):
+**3. Add `VALKEY_URL` env var to app container args** (unconditionally — server handles missing Valkey gracefully). Uses `redis://` protocol — this is correct, Valkey speaks the RESP protocol and `redis://` is the standard URI scheme. There is no `valkey://` scheme:
 
 ```ts
 "-e", `VALKEY_URL=redis://${serverInfo.id}-valkey:6379`,
@@ -497,7 +502,7 @@ Value: `JSON.stringify({ versionHash, data })`. Jittered TTL on write (15–30 d
 ## Migration path
 
 1. Deploy new server image + updated CLI
-2. `wb pull` — pre-pulls `valkey/valkey:8` (now in `IMAGES_TO_PULL`)
+2. `wb pull` — pre-pulls `valkey/valkey:8.0` (now in `IMAGES_TO_PULL`)
 3. `wb restart testing` — `runContainer` auto-creates `valkey/` subdir, starts `testing-valkey` container, app connects, cache fills as users browse. No `wb init-dirs` needed.
 4. Verify POs load, restart is fast
 5. `wb restart @all` to roll out everywhere

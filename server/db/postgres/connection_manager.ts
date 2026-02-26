@@ -234,20 +234,3 @@ export function getConnectionStats() {
   return stats;
 }
 
-/**
- * Register graceful shutdown handlers
- */
-if (typeof Deno !== "undefined") {
-  // Handle Deno signals for graceful shutdown
-  Deno.addSignalListener("SIGINT", async () => {
-    console.log("Closing database connections...");
-    await closeAllConnections();
-    Deno.exit(0);
-  });
-
-  Deno.addSignalListener("SIGTERM", async () => {
-    console.log("Closing database connections...");
-    await closeAllConnections();
-    Deno.exit(0);
-  });
-}

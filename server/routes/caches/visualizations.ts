@@ -1,16 +1,16 @@
 import {
-  APIResponseWithData,
-  DisaggregationOption,
-  GenericLongFormFetchConfig,
+  type APIResponseWithData,
+  type DisaggregationOption,
+  type GenericLongFormFetchConfig,
   hashFetchConfig,
-  ItemsHolderPresentationObject,
-  PresentationObjectDetail,
-  ReplicantOptionsForPresentationObject,
-  ResultsValueInfoForPresentationObject,
-  TimCacheB,
+  type ItemsHolderPresentationObject,
+  type PresentationObjectDetail,
+  type ReplicantOptionsForPresentationObject,
+  type ResultsValueInfoForPresentationObject,
 } from "lib";
+import { TimCacheC } from "../../valkey/cache_class_C.ts";
 
-export const _PO_DETAIL_CACHE = new TimCacheB<
+export const _PO_DETAIL_CACHE = new TimCacheC<
   {
     projectId: string;
     presentationObjectId: string;
@@ -19,7 +19,7 @@ export const _PO_DETAIL_CACHE = new TimCacheB<
     presentationObjectLastUpdated: string;
   },
   APIResponseWithData<PresentationObjectDetail>
->({
+>("po_detail", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) => params.presentationObjectLastUpdated,
@@ -39,7 +39,7 @@ export const _PO_DETAIL_CACHE = new TimCacheB<
   },
 });
 
-export const _PO_ITEMS_CACHE = new TimCacheB<
+export const _PO_ITEMS_CACHE = new TimCacheC<
   {
     projectId: string;
     resultsObjectId: string;
@@ -49,7 +49,7 @@ export const _PO_ITEMS_CACHE = new TimCacheB<
     moduleLastRun: string;
   },
   APIResponseWithData<ItemsHolderPresentationObject>
->({
+>("po_items", {
   uniquenessHashFromParams: (params) =>
     [
       params.projectId,
@@ -77,7 +77,7 @@ export const _PO_ITEMS_CACHE = new TimCacheB<
   },
 });
 
-export const _METRIC_INFO_CACHE = new TimCacheB<
+export const _METRIC_INFO_CACHE = new TimCacheC<
   {
     projectId: string;
     metricId: string;
@@ -86,7 +86,7 @@ export const _METRIC_INFO_CACHE = new TimCacheB<
     moduleLastRun: string;
   },
   APIResponseWithData<ResultsValueInfoForPresentationObject>
->({
+>("metric_info", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.metricId].join("::"),
   versionHashFromParams: (params) => params.moduleLastRun,
@@ -109,7 +109,7 @@ export const _METRIC_INFO_CACHE = new TimCacheB<
   },
 });
 
-export const _REPLICANT_OPTIONS_CACHE = new TimCacheB<
+export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
   {
     projectId: string;
     resultsObjectId: string;
@@ -120,7 +120,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheB<
     moduleLastRun: string;
   },
   APIResponseWithData<ReplicantOptionsForPresentationObject>
->({
+>("replicant_opts", {
   uniquenessHashFromParams: (params) => {
     return [
       params.projectId,

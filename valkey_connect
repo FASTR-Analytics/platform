@@ -1,0 +1,5 @@
+#!/bin/sh
+
+set -e
+
+docker exec -it valkey-local valkey-cli

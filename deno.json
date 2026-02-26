@@ -29,6 +29,7 @@
     "papaparse": "npm:papaparse@^5.5.2",
     "parse-multipart": "npm:parse-multipart@^1.0.4",
     "postgres": "npm:postgres@^3.4.5",
+    "redis": "npm:redis@^4.7.0",
     "zod": "npm:zod@^3.22.4"
   },
   "compilerOptions": {

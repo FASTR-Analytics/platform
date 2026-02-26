@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { dbStartUp } from "./server/db_startup.ts";
-import { warmAllCaches } from "./server/cache_warming.ts";
+import { connectValkey, disconnectValkey } from "./server/valkey/connection.ts";
+import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
 import {
   authMiddleware,
@@ -38,7 +39,7 @@ import { routesEmails } from "./server/routes/project/emails.ts";
 
 await dbStartUp();
 
-await warmAllCaches();
+await connectValkey();
 
 const app = new Hono();
 
@@ -109,10 +110,18 @@ console.log(`Starting server on port ${port}...`);
 
 const server = Deno.serve({ port }, app.fetch);
 
-const shutdown = () => {
+const shutdown = async () => {
   console.log("\nShutting down...");
-  server.shutdown();
+  setTimeout(() => {
+    console.warn("[Shutdown] Timed out — forcing exit");
+    Deno.exit(1);
+  }, 8000);
+  await Promise.all([
+    server.shutdown(),
+    disconnectValkey(),
+    closeAllConnections(),
+  ]);
   Deno.exit(0);
 };
-
 Deno.addSignalListener("SIGINT", shutdown);
+Deno.addSignalListener("SIGTERM", shutdown);

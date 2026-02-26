@@ -1,20 +1,20 @@
 import {
-  APIResponseWithData,
-  ItemsHolderDatasetHmisDisplay,
-  ItemsHolderDatasetHfaDisplay,
-  TimCacheB,
+  type APIResponseWithData,
+  type ItemsHolderDatasetHmisDisplay,
+  type ItemsHolderDatasetHfaDisplay,
   type IndicatorType,
   type InstanceConfigFacilityColumns,
 } from "lib";
+import { TimCacheC } from "../../valkey/cache_class_C.ts";
 
-export const _FETCH_CACHE_DATASET_HMIS_ITEMS = new TimCacheB<
+export const _FETCH_CACHE_DATASET_HMIS_ITEMS = new TimCacheC<
   {
     rawOrCommonIndicators: IndicatorType;
     facilityColumns: InstanceConfigFacilityColumns;
   },
   { versionId: number; indicatorMappingsVersion: string },
   APIResponseWithData<ItemsHolderDatasetHmisDisplay>
->({
+>("ds_hmis", {
   uniquenessHashFromParams: (params) => {
     const fcHash = Object.values(params.facilityColumns).sort().join("_");
     return `${params.rawOrCommonIndicators}_${fcHash}`;
@@ -39,11 +39,11 @@ export const _FETCH_CACHE_DATASET_HMIS_ITEMS = new TimCacheB<
   },
 });
 
-export const _FETCH_CACHE_DATASET_HFA_ITEMS = new TimCacheB<
+export const _FETCH_CACHE_DATASET_HFA_ITEMS = new TimCacheC<
   {},
   { versionId: number },
   APIResponseWithData<ItemsHolderDatasetHfaDisplay>
->({
+>("ds_hfa", {
   uniquenessHashFromParams: () => "hfa",
   versionHashFromParams: (params) => `${params.versionId}`,
   parseData: (res) => {

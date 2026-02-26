@@ -1,0 +1,21 @@
+#!/bin/sh
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+docker stop valkey-local 2>/dev/null
+
+if [ "$1" = "clear" ]; then
+	echo "Clearing Valkey data"
+	rm -rf "$SCRIPT_DIR/_example_instance_dir/valkey"/*
+fi
+
+set -e
+
+sleep 1
+
+docker run --rm -d \
+	--name valkey-local \
+	-p 7379:6379 \
+	-v "$SCRIPT_DIR/_example_instance_dir/valkey":/data \
+	valkey/valkey:8.0 \
+	valkey-server --appendonly yes
