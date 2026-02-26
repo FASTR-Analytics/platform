@@ -7,7 +7,7 @@ Server uses in-memory `TimCacheB` (JS `Map`s) for visualization/dataset caches. 
 ## Approach
 
 - One Valkey container per instance (same pattern as Postgres)
-- `TimCacheC` — same interface as `TimCacheB`, backed by Valkey
+- `TimCacheC` — superset of `TimCacheB` interface (adds `prefix` constructor param + `clearAll()`), backed by Valkey
 - Data persists in `{instanceDir}/valkey/`
 - Always started — every instance gets Valkey, no opt-in flag
 - Graceful fallback: if Valkey connection fails, falls back to DB queries
@@ -24,13 +24,12 @@ In March 2024 Redis Inc. relicensed Redis from BSD to RSALv2/SSPLv1 (source-avai
 
 ## Part 1: wb-fastr (server)
 
-### New: `lib/cache_class_C_redis.ts`
+### New: `server/valkey/cache_class_C.ts`
 
-Same interface as `TimCacheB`. The `_unresolved` map serves the same dedup role — concurrent
-requests for the same key share a single promise instead of hitting DB multiple times.
+Superset of `TimCacheB` interface (adds `prefix` constructor param + `clearAll()` method). Lives in `server/` rather than `lib/` because it imports from `server/valkey/connection.ts` — placing it in `lib/` would create a dependency direction violation (`lib/` → `server/`). The `_unresolved` map serves the same dedup role — concurrent requests for the same key share a single promise instead of hitting DB multiple times.
 
 ```ts
-import { getValkeyClient } from "../server/valkey/connection.ts";
+import { getValkeyClient } from "./connection.ts";
 
 const WRITE_TTL_BASE = 15 * 86400; // 15 days base
 const WRITE_TTL_JITTER = 15 * 86400; // up to 15 more days random
@@ -98,21 +97,17 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
     if (!client) return undefined;
 
     try {
-      const raw = await client.get(this._redisKey(uniquenessHash));
+      const raw = await client.getEx(this._redisKey(uniquenessHash), { EX: READ_TTL });
       if (!raw) return undefined;
 
       const parsed: { versionHash: string; data: T } = JSON.parse(raw);
 
-      const key = this._redisKey(uniquenessHash);
-
       if (versionParams === "any_version") {
-        await client.expire(key, READ_TTL);
         return parsed.data;
       }
       const versionHash =
         this._hashFuncs.versionHashFromParams(versionParams);
       if (parsed.versionHash === versionHash) {
-        await client.expire(key, READ_TTL);
         return parsed.data;
       }
         // Version mismatch — stale data, treat as miss (TTL handles cleanup)
@@ -220,13 +215,15 @@ Key differences from `TimCacheB`:
 - `_unresolved` map kept for inflight promise dedup (same behavior)
 - All Valkey operations wrapped in try/catch for graceful degradation
 - `clear()` deletes a single key from Valkey (fire-and-forget)
-- `clearAll()` uses SCAN to delete all keys for this cache's prefix (not KEYS — non-blocking)
-- Constructor takes `prefix` string (no TTL param — TTL managed internally)
+- `clearAll()` uses SCAN to delete all keys for this cache's prefix (not KEYS — non-blocking). New method — `TimCacheB` has no `clearAll()`
+- Constructor takes `prefix` string as first arg (breaking change vs `TimCacheB` — every instantiation site needs updating)
+- Lives in `server/valkey/` not `lib/` to avoid `lib/` → `server/` dependency direction violation
 - Jittered TTL on write: 15–30 days (random) — prevents thundering herd when bulk-written keys expire
-- Fixed TTL on read hit: 30 days via `expire()` — actively-used entries stay alive
+- Fixed TTL on read hit: 30 days via `GETEX` — atomically gets value and refreshes TTL in one round-trip (instead of separate `GET` + `expire()`)
 - On version mismatch: return undefined (write TTL handles cleanup)
 - Entries expire after 15–30 days if never read, or 30 days after last read
 - `npm:redis` uses `{ EX: ttl }` option syntax (uppercase) and `scan()` returns `{ cursor, keys }` object (not tuple)
+- **JSON round-trip safety**: All cached `T` types (`APIResponseWithData<...>`) must be JSON-safe. Verified: the cached types contain only primitives, strings, arrays, and plain objects — no `Date`, `Map`, `Set`, or `BigInt` values. If new cache types are added, verify they survive `JSON.stringify` → `JSON.parse`
 
 ### New: `server/valkey/connection.ts`
 
@@ -269,9 +266,13 @@ export async function connectValkey(): Promise<void> {
 }
 
 export async function disconnectValkey(): Promise<void> {
-  if (_client && _available) {
-    await _client.quit();
-    console.log("[Valkey] Disconnected");
+  if (_client) {
+    try {
+      await _client.disconnect();
+      console.log("[Valkey] Disconnected");
+    } catch {
+      // Connection may already be dead — ignore
+    }
   }
 }
 
@@ -284,6 +285,7 @@ Key design decisions:
 - **`_available` flag**: If Valkey is down, the server continues with no caching. Cache is an optimization, not a hard dependency.
 - **`"ready"` event listener**: `npm:redis` auto-reconnects by default. Without listening to `"ready"`, a single transient error would permanently disable Valkey. The listener resets `_available` to `true` on recovery.
 - **`"error"` event listener**: `npm:redis` emits `"error"` events for connection issues. If unhandled, Deno crashes. This listener prevents that.
+- **`disconnect()` over `quit()`**: `disconnectValkey` uses forceful `disconnect()` instead of graceful `quit()` because during shutdown the connection may already be dead. Wrapped in try/catch and not gated on `_available` to ensure cleanup regardless of connection state.
 
 ### New: `server/valkey/flush.ts`
 
@@ -295,49 +297,87 @@ import { getValkeyClient } from "./connection.ts";
 export async function flushAllServerCaches(): Promise<void> {
   const client = getValkeyClient();
   if (!client) return;
-  await client.sendCommand(["FLUSHDB"]);
+  try {
+    await client.sendCommand(["FLUSHDB"]);
+  } catch {
+    // Valkey error — degrade gracefully
+  }
 }
 ```
 
-Uses `FLUSHDB` (not `FLUSHALL`) — scoped to the current database. Safe because each instance has its own Valkey container and we only store cache data.
+Uses `FLUSHDB` (not `FLUSHALL`) — scoped to the current database. Safe because each instance has its own Valkey container and we only store cache data. Wrapped in try/catch to match the graceful-degradation pattern — if Valkey is unhealthy but `_available` hasn't flipped yet, this won't crash the route handler.
+
+### New: `lib/api-routes/instance/caches.ts`
+
+Route registry entry for the flush endpoint. Follows the existing pattern (e.g. `instance/instance.ts`):
+
+```ts
+import { route } from "../route-utils.ts";
+
+export const cachesRouteRegistry = {
+  flushAllCaches: route({
+    path: "/caches/flush-all",
+    method: "POST",
+  }),
+} as const;
+```
+
+Then import and spread in `lib/api-routes/combined.ts`:
+
+```ts
+import { cachesRouteRegistry } from "./instance/caches.ts";
+
+export const routeRegistry = {
+  ...cachesRouteRegistry,
+  // ... existing spreads
+} as const;
+```
 
 ### New: `server/routes/caches/flush.ts`
 
 ```ts
 app.post("/caches/flush-all", async (c) => {
+  markRouteDefined("flushAllCaches");
   await flushAllServerCaches();
   return c.json({ success: true });
 });
 ```
 
 Called by:
-- Client "Clear cache" button (`profile.tsx`) — now clears IndexedDB **and** server Valkey
+- Client "Clear cache" button (`profile.tsx`) — calls `serverActions.flushAllCaches({})` then `clearDataCache()`
 - Client version-mismatch logic (`LoggedInWrapper.tsx`) — same
 
 ### Modified files
 
 | File | Change |
 | ---- | ------ |
-| `server/routes/caches/visualizations.ts` | `TimCacheB` → `TimCacheC` with prefixes: `po_detail`, `po_items`, `metric_info`, `replicant_opts` |
+| `server/routes/caches/visualizations.ts` | `TimCacheB` → `TimCacheC` (import from `server/valkey/cache_class_C.ts`) with prefixes: `po_detail`, `po_items`, `metric_info`, `replicant_opts` |
 | `server/routes/caches/dataset.ts` | `TimCacheB` → `TimCacheC` with prefixes: `ds_hmis`, `ds_hfa` |
 | `server/routes/caches/structure.ts` | Leave as-is (singleton, TTL-based, not TimCacheB, has Map inside that won't JSON round-trip) |
-| `server/main.ts` | `await warmAllCaches()` → `await connectValkey()`. Add `disconnectValkey()` to shutdown. Add SIGTERM handler. |
+| `main.ts` (project root) | `await warmAllCaches()` → `await connectValkey()`. Consolidate shutdown (see below). |
 | `server/cache_warming.ts` | Delete entirely |
-| `client/src/components/instance/profile.tsx` | "Clear cache" button: add `POST /caches/flush-all` before `idb-keyval.clear()` |
-| `client/src/components/LoggedInWrapper.tsx` | Version-mismatch handler: add `POST /caches/flush-all` before `idb-keyval.clear()` |
+| `server/db/postgres/connection_manager.ts` | Remove SIGINT/SIGTERM handlers (lines 240–253) — shutdown consolidated in `main.ts` |
+| `lib/cache_class_B_in_memory_map.ts` | Keep (unused but reusable for future in-memory caching) |
+| `lib/api-routes/instance/caches.ts` | New file: route registry for `POST /caches/flush-all` |
+| `lib/api-routes/combined.ts` | Import and spread `cachesRouteRegistry` |
+| `client/src/components/instance/profile.tsx` | "Clear cache" button: add `serverActions.flushAllCaches({})` before `clearDataCache()` |
+| `client/src/components/LoggedInWrapper.tsx` | Version-mismatch handler: add `serverActions.flushAllCaches({})` before `clearDataCache()` |
 | `deno.json` | Add `"redis": "npm:redis@^4.7.0"` to imports |
 
-### Modified: `server/main.ts` — Startup, shutdown, SIGTERM
+### Modified: `main.ts` (project root) — Startup, shutdown, SIGTERM
 
-Replace `await warmAllCaches()` with `await connectValkey()`. Add SIGTERM handler and clean Valkey disconnect:
+**Problem**: Currently there are competing signal handlers — `connection_manager.ts:240-253` registers its own SIGINT/SIGTERM handlers that call `Deno.exit(0)`, and `main.ts:112-118` registers a separate SIGINT handler. Deno runs all listeners for a signal, so the Postgres handler may `Deno.exit(0)` before Valkey disconnect completes.
+
+**Fix**: Remove signal handlers from `connection_manager.ts` (see below). Consolidate all shutdown into a single handler in `main.ts` that orchestrates everything:
 
 ```ts
 import { connectValkey, disconnectValkey } from "./server/valkey/connection.ts";
+import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
 
 // Startup: connect Valkey before serving
 await connectValkey();
 
-// Shutdown: async, disconnect Valkey, handle both signals, with exit failsafe
+// Shutdown: consolidated handler for Postgres + Valkey + HTTP server
 const shutdown = async () => {
   console.log("\nShutting down...");
   setTimeout(() => {
@@ -347,12 +387,17 @@ const shutdown = async () => {
   await Promise.all([
     server.shutdown(),
     disconnectValkey(),
+    closeAllConnections(),
   ]);
   Deno.exit(0);
 };
 Deno.addSignalListener("SIGINT", shutdown);
 Deno.addSignalListener("SIGTERM", shutdown); // Docker uses SIGTERM
 ```
+
+### Modified: `server/db/postgres/connection_manager.ts` — Remove signal handlers
+
+Delete lines 240–253 (the `if (typeof Deno !== "undefined")` block that registers its own SIGINT/SIGTERM handlers). Shutdown is now consolidated in `main.ts`. Ensure `closeAllConnections()` is exported (it already is).
 
 ### Route handlers: NO CHANGES
 
@@ -379,7 +424,7 @@ for (const subDir of SUBDIRECTORIES) {
 }
 ```
 
-**2. Start Valkey after Postgres, before admin container.** Valkey start failure is non-fatal — log a warning and continue (the server app degrades gracefully without Valkey):
+**2. Start Valkey after Postgres, before admin container.** Valkey start failure is non-fatal — log a warning and continue (the server app degrades gracefully without Valkey). `--maxmemory 512mb --maxmemory-policy allkeys-lru` caps memory usage and evicts least-recently-used keys if full — prevents unbounded growth from large PO payloads with 15–30 day TTLs:
 
 ```ts
 ////////////////////////
@@ -394,6 +439,7 @@ const argsRunValkey = [
   "-v", `${join(instanceDirPath, "valkey")}:/data`,
   "valkey/valkey:8",
   "valkey-server", "--appendonly", "yes",
+  "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru",
 ];
 const cmdRunValkey = new Deno.Command("docker", { args: argsRunValkey });
 const chdRunValkey = cmdRunValkey.spawn();
@@ -455,6 +501,14 @@ Value: `JSON.stringify({ versionHash, data })`. Jittered TTL on write (15–30 d
 3. `wb restart testing` — `runContainer` auto-creates `valkey/` subdir, starts `testing-valkey` container, app connects, cache fills as users browse. No `wb init-dirs` needed.
 4. Verify POs load, restart is fast
 5. `wb restart @all` to roll out everywhere
+
+## Dead code cleanup
+
+After migration, delete:
+
+- `server/cache_warming.ts` — `warmAllCaches()`, `warmPresentationObjectCaches()`, `warmDatasetCaches()` — all dead
+- `lib/cache_class_B_in_memory_map.ts` — keep as-is (unused but reusable for future in-memory caching needs)
+- `client/src/state/caches/_archived/` — already unused, can clean up now
 
 ## Verification
 
