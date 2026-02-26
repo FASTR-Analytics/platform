@@ -4,6 +4,7 @@ import {
   RectCoordsDims,
   createItemNode,
   type LayoutNode,
+  type OptimizerConfig,
   type PageContentItem,
 } from "panther";
 import type {
@@ -37,7 +38,9 @@ export async function convertAiInputToSlide(
   // Content slide - resolve figures and optimize layout
   if (!slideInput.blocks || !Array.isArray(slideInput.blocks)) {
     console.error("Invalid blocks:", JSON.stringify(slideInput, null, 2));
-    throw new Error(`Content slide must have a 'blocks' array. Received: ${typeof slideInput.blocks}`);
+    throw new Error(
+      `Content slide must have a 'blocks' array. Received: ${typeof slideInput.blocks}`,
+    );
   }
 
   const resolvedBlocks: ContentBlock[] = [];
@@ -51,27 +54,34 @@ export async function convertAiInputToSlide(
     // Handle figure input types
     if (block.type === "from_visualization") {
       try {
-        const figureBlock = await resolveFigureFromVisualization(projectId, block);
+        const figureBlock = await resolveFigureFromVisualization(
+          projectId,
+          block,
+        );
         resolvedBlocks.push(figureBlock);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         throw new Error(
           `Failed to resolve visualization "${block.visualizationId}"${
-            block.replicant ? ` with replicant "${block.replicant}"` : ''
-          }. Check that the visualization exists and the replicant is valid. Original error: ${errMsg}`
+            block.replicant ? ` with replicant "${block.replicant}"` : ""
+          }. Check that the visualization exists and the replicant is valid. Original error: ${errMsg}`,
         );
       }
     } else if (block.type === "from_metric") {
       try {
-        const figureBlock = await resolveFigureFromMetric(projectId, block, metrics);
+        const figureBlock = await resolveFigureFromMetric(
+          projectId,
+          block,
+          metrics,
+        );
         resolvedBlocks.push(figureBlock);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`
+          `Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`,
         );
       }
-    // } else if (block.type === "custom") {
+      // } else if (block.type === "custom") {
     } else {
       throw new Error("Bad input figure type");
     }
@@ -112,7 +122,20 @@ export async function convertAiInputToSlide(
     rc,
     bounds,
     itemNodes,
-    buildStyleForSlide({ type: "content", header: slideInput.header, layout: { type: "item", id: "tmp", data: { type: "text", markdown: "" } } }, deckConfig),
+    buildStyleForSlide(
+      {
+        type: "content",
+        header: slideInput.header,
+        layout: {
+          type: "item",
+          id: "tmp",
+          data: { type: "text", markdown: "" },
+        },
+      },
+      deckConfig,
+    ),
+    undefined,
+    getOptimizerConfig(slideInput.layoutPreference, resolvedBlocks.length),
   );
 
   const layoutWithMeta = restoreMetadata(result.best.layout, sourceMap);
@@ -129,7 +152,7 @@ export async function convertAiInputToSlide(
  */
 function restoreMetadata(
   node: LayoutNode<PageContentItem>,
-  sourceMap: Map<string, FigureSource>
+  sourceMap: Map<string, FigureSource>,
 ): LayoutNode<ContentBlock> {
   if (node.type === "item") {
     const pageItem = node.data;
@@ -156,4 +179,14 @@ function restoreMetadata(
     span: node.span,
     children: node.children.map((child) => restoreMetadata(child, sourceMap)),
   };
+}
+
+function getOptimizerConfig(
+  layoutPreference: "cols" | "rows" | undefined,
+  blockCount: number,
+): OptimizerConfig | undefined {
+  if (blockCount === 2 && layoutPreference) {
+    return { constraint: { type: layoutPreference } };
+  }
+  return undefined;
 }

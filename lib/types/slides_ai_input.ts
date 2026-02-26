@@ -248,6 +248,12 @@ export const AiContentSlideSchema = z.object({
     .describe(
       "Optional: The slide header/title that appears at the top of the slide. Should clearly describe what this slide is about. Maximum 200 characters.",
     ),
+  layoutPreference: z
+    .enum(["cols", "rows"])
+    .optional()
+    .describe(
+      "Optional: Layout preference for arranging content blocks. 'cols' places blocks side-by-side in columns. 'rows' stacks blocks vertically. If omitted, the layout is automatically optimized. Only set this when you have a specific reason; omit it to let the auto-optimizer decide.",
+    ),
   blocks: z
     .array(AiContentBlockInputSchema)
     .describe(
