@@ -1,5 +1,6 @@
 import {
   SlideDeckConfig,
+  getPrimaryColor,
   getTextColorForBackground,
   isColorLight,
   t3,
@@ -15,9 +16,12 @@ import {
   FrameTop,
   HeadingBar,
   Input,
+  LabelHolder,
+  MultiSelect,
   Select,
   SettingsSection,
   StateHolderWrapper,
+  TextArea,
   getSelectOptions,
   timActionDelete,
   timActionButton,
@@ -98,8 +102,10 @@ export function SlideDeckSettings(p: Props) {
     await deleteAction.click();
   }
 
-  const primaryTextColor = () => getTextColorForBackground(tempConfig.primaryColor);
-  const lightOrDark = () => isColorLight(tempConfig.primaryColor) ? "light" : "dark";
+  const primaryTextColor = () =>
+    getTextColorForBackground(getPrimaryColor(tempConfig.primaryColor));
+  const lightOrDark = () =>
+    isColorLight(getPrimaryColor(tempConfig.primaryColor)) ? "light" : "dark";
 
   return (
     <FrameTop
@@ -174,66 +180,146 @@ export function SlideDeckSettings(p: Props) {
               }}
             </StateHolderWrapper>
           </SettingsSection>
-          <div class="col-span-2">
-            <SettingsSection header={t3({ en: "Style", fr: "Style" })}>
-              <div class="ui-gap flex flex-wrap">
-                <div class="ui-spy-sm w-56">
-                  <ColorPicker
-                    label={t3({ en: "Report color theme", fr: "Thème de couleur du rapport" })}
-                    value={tempConfig.primaryColor}
-                    onChange={(v) => setTempConfig("primaryColor", v)}
-                    colorSet="standard"
-                    extraColors={[_GFF_GREEN, _NIGERIA_GREEN]}
-                    showCheckeredBackground
-                    fullWidth
+          {/* <div class="col-span-2"> */}
+          <SettingsSection header={t3({ en: "Style", fr: "Style" })}>
+            <div class="ui-gap flex flex-wrap">
+              <div class="ui-spy-sm w-56">
+                <ColorPicker
+                  label={t3({
+                    en: "Report color theme",
+                    fr: "Thème de couleur du rapport",
+                  })}
+                  value={tempConfig.primaryColor}
+                  onChange={(v) => setTempConfig("primaryColor", v)}
+                  colorSet="standard"
+                  extraColors={[_GFF_GREEN, _NIGERIA_GREEN]}
+                  showCheckeredBackground
+                  fullWidth
+                />
+                <Select
+                  label={t3({
+                    en: "Background detail",
+                    fr: "Détail de l'arrière-plan",
+                  })}
+                  value={tempConfig.overlay}
+                  options={[
+                    { value: "none", label: t3({ en: "None", fr: "Aucun" }) },
+                    {
+                      value: "dots",
+                      label: t3({ en: "Dots", fr: "Points" }),
+                    },
+                    {
+                      value: "rivers",
+                      label: t3({ en: "Maze", fr: "Labyrinthe" }),
+                    },
+                    {
+                      value: "waves",
+                      label: t3({ en: "Waves", fr: "Vagues" }),
+                    },
+                    {
+                      value: "world",
+                      label: t3({ en: "World", fr: "Monde" }),
+                    },
+                  ]}
+                  onChange={(v) =>
+                    setTempConfig(
+                      "overlay",
+                      v as "dots" | "rivers" | "waves" | "world" | "none",
+                    )
+                  }
+                  fullWidth
+                />
+              </div>
+              <div
+                class="border-base-300 relative aspect-video w-96 rounded border"
+                style={{
+                  background: tempConfig.primaryColor,
+                }}
+              >
+                <Show when={tempConfig.overlay !== "none"}>
+                  <img
+                    class="w-full rounded"
+                    src={`/images/${tempConfig.overlay}_for_${lightOrDark()}_themes.png`}
                   />
-                  <Select
-                    label={t3({ en: "Background detail", fr: "Détail de l'arrière-plan" })}
-                    value={tempConfig.overlay}
-                    options={[
-                      { value: "none", label: t3({ en: "None", fr: "Aucun" }) },
-                      { value: "dots", label: t3({ en: "Dots", fr: "Points" }) },
-                      { value: "rivers", label: t3({ en: "Maze", fr: "Labyrinthe" }) },
-                      { value: "waves", label: t3({ en: "Waves", fr: "Vagues" }) },
-                      { value: "world", label: t3({ en: "World", fr: "Monde" }) },
-                    ]}
-                    onChange={(v) =>
-                      setTempConfig(
-                        "overlay",
-                        v as "dots" | "rivers" | "waves" | "world" | "none",
-                      )
-                    }
-                    fullWidth
-                  />
-                </div>
+                </Show>
                 <div
-                  class="border-base-300 relative aspect-video w-96 rounded border"
+                  class="font-700 absolute inset-0 flex items-center justify-center"
                   style={{
-                    background: tempConfig.primaryColor,
+                    "letter-spacing": "-0.02em",
+                    color: primaryTextColor(),
                   }}
                 >
-                  <Show when={tempConfig.overlay !== "none"}>
-                    <img
-                      class="w-full rounded"
-                      src={`/images/${tempConfig.overlay}_for_${lightOrDark()}_themes.png`}
-                    />
-                  </Show>
-                  <div
-                    class="font-700 absolute inset-0 flex items-center justify-center"
-                    style={{
-                      "letter-spacing": "-0.02em",
-                      color: primaryTextColor(),
-                    }}
-                  >
-                    <div class="space-y-1 text-center">
-                      <div class="font-700 text-2xl">{t3({ en: "Example title", fr: "Titre exemple" })}</div>
-                      <div class="font-400 text-base">{t3({ en: "Sub-title", fr: "Sous-titre" })}</div>
+                  <div class="space-y-1 text-center">
+                    <div class="font-700 text-2xl">
+                      {t3({ en: "Example title", fr: "Titre exemple" })}
+                    </div>
+                    <div class="font-400 text-base">
+                      {t3({ en: "Sub-title", fr: "Sous-titre" })}
                     </div>
                   </div>
                 </div>
               </div>
-            </SettingsSection>
-          </div>
+            </div>
+          </SettingsSection>
+          {/* </div>
+          <div class="col-span-2"> */}
+          <SettingsSection header={t3({ en: "Footer", fr: "Pied de page" })}>
+            <Checkbox
+              label={t3({
+                en: "Set global footer for all content slides",
+                fr: "Définir un pied de page global pour toutes les diapositives de contenu",
+              })}
+              checked={tempConfig.deckFooter !== undefined}
+              onChange={(v) => {
+                if (v) {
+                  setTempConfig("deckFooter", { text: "", logos: [] });
+                } else {
+                  setTempConfig("deckFooter", undefined);
+                }
+              }}
+            />
+            <Show when={tempConfig.deckFooter !== undefined}>
+              <TextArea
+                label={t3({ en: "Footer text", fr: "Texte du pied de page" })}
+                value={tempConfig.deckFooter!.text}
+                onChange={(v: string) => setTempConfig("deckFooter", "text", v)}
+                fullWidth
+                height="40px"
+              />
+              <LabelHolder
+                label={t3({
+                  en: "Footer logos",
+                  fr: "Logos de pied de page",
+                })}
+              >
+                <Show
+                  when={(tempConfig.logos ?? []).length > 0}
+                  fallback={
+                    <div class="text-neutral text-xs">
+                      {t3({
+                        en: "No logos set in deck settings",
+                        fr: "Aucun logo défini dans les paramètres",
+                      })}
+                    </div>
+                  }
+                >
+                  <MultiSelect
+                    values={tempConfig.deckFooter!.logos}
+                    options={(tempConfig.logos ?? [])
+                      .filter(Boolean)
+                      .map((logo) => ({
+                        value: logo,
+                        label: logo,
+                      }))}
+                    onChange={(selectedLogos) => {
+                      setTempConfig("deckFooter", "logos", selectedLogos);
+                    }}
+                  />
+                </Show>
+              </LabelHolder>
+            </Show>
+          </SettingsSection>
+          {/* </div> */}
           {/* <SettingsSection header={t("Page details")}>
             <div class="max-w-96">
               <Checkbox

@@ -1,6 +1,7 @@
 import {
   ContentSlide,
   ContentBlock,
+  DeckFooterConfig,
   FigureBlock,
   TextBlock,
   ImageBlock,
@@ -43,6 +44,7 @@ type Props = {
   onSelectVisualization: () => void;
   onCreateVisualization: () => void;
   deckLogos: string[];
+  deckFooter: DeckFooterConfig | undefined;
 };
 
 export function SlideEditorPanelContent(p: Props) {
@@ -152,15 +154,6 @@ export function SlideEditorPanelContent(p: Props) {
                   fullWidth
                   height="40px"
                 />
-                <TextArea
-                  label={t3({ en: "Footer", fr: "Pied de page" })}
-                  value={p.tempSlide.footer ?? ""}
-                  onChange={(v: string) =>
-                    p.setTempSlide("footer", v || undefined)
-                  }
-                  fullWidth
-                  height="40px"
-                />
                 <LabelHolder label={t3({ en: "Header logos", fr: "Logos d'en-tête" })}>
                   <Show
                     when={p.deckLogos.length > 0}
@@ -182,27 +175,46 @@ export function SlideEditorPanelContent(p: Props) {
                     />
                   </Show>
                 </LabelHolder>
-                <LabelHolder label={t3({ en: "Footer logos", fr: "Logos de pied de page" })}>
-                  <Show
-                    when={p.deckLogos.length > 0}
-                    fallback={
-                      <div class="text-neutral text-xs">
-                        {t3({ en: "No logos set in report settings", fr: "Aucun logo défini dans les paramètres du rapport" })}
-                      </div>
+                <hr class="border-base-300" />
+                <Show
+                  when={!p.deckFooter}
+                  fallback={
+                    <div class="text-neutral text-xs">
+                      {t3({ en: "Footer is set at the deck level", fr: "Le pied de page est défini au niveau du diaporama" })}
+                    </div>
+                  }
+                >
+                  <TextArea
+                    label={t3({ en: "Footer", fr: "Pied de page" })}
+                    value={p.tempSlide.footer ?? ""}
+                    onChange={(v: string) =>
+                      p.setTempSlide("footer", v || undefined)
                     }
-                  >
-                    <MultiSelect
-                      values={p.tempSlide.footerLogos ?? []}
-                      options={p.deckLogos.map((logo) => ({
-                        value: logo,
-                        label: logo,
-                      }))}
-                      onChange={(selectedLogos) => {
-                        p.setTempSlide("footerLogos", selectedLogos);
-                      }}
-                    />
-                  </Show>
-                </LabelHolder>
+                    fullWidth
+                    height="40px"
+                  />
+                  <LabelHolder label={t3({ en: "Footer logos", fr: "Logos de pied de page" })}>
+                    <Show
+                      when={p.deckLogos.length > 0}
+                      fallback={
+                        <div class="text-neutral text-xs">
+                          {t3({ en: "No logos set in report settings", fr: "Aucun logo défini dans les paramètres du rapport" })}
+                        </div>
+                      }
+                    >
+                      <MultiSelect
+                        values={p.tempSlide.footerLogos ?? []}
+                        options={p.deckLogos.map((logo) => ({
+                          value: logo,
+                          label: logo,
+                        }))}
+                        onChange={(selectedLogos) => {
+                          p.setTempSlide("footerLogos", selectedLogos);
+                        }}
+                      />
+                    </Show>
+                  </LabelHolder>
+                </Show>
               </div>
             </div>
           </Match>

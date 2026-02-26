@@ -1,5 +1,5 @@
 import { Clerk } from "@clerk/clerk-js/headless";
-import { clear } from "idb-keyval";
+import { clearDataCache } from "~/state/clear_data_cache";
 import { GlobalUser, t, t2, T, createDevGlobalUser } from "lib";
 import { Button, StateHolderWrapper, timQuery } from "panther";
 import { JSX, Show, onMount } from "solid-js";
@@ -71,7 +71,7 @@ export function LoggedInWrapper(p: Props) {
                 console.log(
                   `Server version changed from ${storedVersion} to ${serverVersion}, clearing cache...`,
                 );
-                await clear();
+                await clearDataCache();
               }
               localStorage.setItem("serverVersion", serverVersion);
             }

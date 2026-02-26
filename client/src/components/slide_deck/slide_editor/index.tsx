@@ -743,6 +743,7 @@ export function SlideEditor(p: Props) {
               onSelectVisualization={() => handleSelectVisualization()}
               onCreateVisualization={handleCreateVisualization}
               deckLogos={p.deckConfig.logos ?? []}
+              deckFooter={p.deckConfig.deckFooter}
             />
           }
         >

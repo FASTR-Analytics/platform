@@ -228,7 +228,7 @@ function mapReportConfigToSlideDeckConfig(rc: ReportConfig): SlideDeckConfig {
     logos: rc.logos,
     logoSize: rc.logoSize,
     figureScale: rc.figureScale,
-    footer: rc.footer,
+    deckFooter: rc.footer ? { text: rc.footer, logos: [] } : undefined,
     showPageNumbers: rc.showPageNumbers,
     headerSize: rc.headerSize,
     useWatermark: rc.useWatermark,

@@ -48,7 +48,9 @@ export function buildStyleForSlide(
   const primaryColor = getPrimaryColor(config.primaryColor);
   const primaryTextColor = getTextColorForBackground(primaryColor);
 
-  const hasFooter = slide.type === "content" && !!slide.footer?.trim();
+  const df = config.deckFooter;
+  const footerText = slide.type === "content" ? (df ? df.text : slide.footer) : undefined;
+  const hasFooter = !!footerText?.trim();
 
   const coverFontSizes =
     slide.type === "cover"
@@ -227,8 +229,11 @@ export async function convertSlideToPageInputs(
     slide.layout,
     getPrimaryColor(config.primaryColor),
   );
+  const df = config.deckFooter;
+  const footerText = df ? df.text : slide.footer;
+  const footerLogoNames = df ? df.logos : slide.footerLogos;
   const headerLogos = await loadLogos(slide.headerLogos, config.logos);
-  const footerLogos = await loadLogos(slide.footerLogos, config.logos);
+  const footerLogos = await loadLogos(footerLogoNames, config.logos);
 
   return {
     success: true,
@@ -237,7 +242,7 @@ export async function convertSlideToPageInputs(
       header: slide.header,
       subHeader: slide.subHeader,
       date: slide.date,
-      footer: slide.footer,
+      footer: footerText,
       headerLogos,
       footerLogos,
       content: convertedLayout,

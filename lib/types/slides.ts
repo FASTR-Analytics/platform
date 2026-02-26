@@ -3,13 +3,18 @@ import { Color } from "@timroberton/panther";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
 import { _GFF_GREEN } from "../key_colors.ts";
 
+export type DeckFooterConfig = {
+  text: string;
+  logos: string[];
+};
+
 export type SlideDeckConfig = {
   label: string;
   selectedReplicantValue: undefined | string;
   logos: string[] | undefined;
   logoSize: number;
   figureScale: number;
-  footer: string;
+  deckFooter: DeckFooterConfig | undefined;
   showPageNumbers: boolean;
   headerSize: number;
   useWatermark: boolean;
@@ -37,7 +42,7 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
     logos: [],
     logoSize: 300,
     figureScale: 2,
-    footer: "",
+    deckFooter: undefined,
     showPageNumbers: true,
     headerSize: 1,
     useWatermark: false,

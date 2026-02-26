@@ -1,4 +1,4 @@
-import { clear } from "idb-keyval";
+import { clearDataCache, clearAiChatCache } from "~/state/clear_data_cache";
 import { t3, TC } from "lib";
 import {
   Button,
@@ -26,8 +26,15 @@ export function ProfileForm(
 
   const clearCache = timActionButton(
     async () => {
-      await new Promise((res) => setTimeout(res, 1000));
-      await clear();
+      await clearDataCache();
+      return { success: true };
+    },
+    () => window.location.reload(),
+  );
+
+  const clearAiChat = timActionButton(
+    async () => {
+      await clearAiChatCache();
       return { success: true };
     },
     () => window.location.reload(),
@@ -83,14 +90,24 @@ export function ProfileForm(
               <SettingsSection
                 header={t3({ en: "Cache management", fr: "Gestion du cache" })}
                 rightChildren={
-                  <Button
-                    onClick={clearCache.click}
-                    state={clearCache.state()}
-                    outline
-                    iconName="trash"
-                  >
-                    {t3({ en: "Clear cache", fr: "Vider le cache" })}
-                  </Button>
+                  <div class="ui-gap-sm flex">
+                    <Button
+                      onClick={clearCache.click}
+                      state={clearCache.state()}
+                      outline
+                      iconName="trash"
+                    >
+                      {t3({ en: "Clear data cache", fr: "Vider le cache de données" })}
+                    </Button>
+                    <Button
+                      onClick={clearAiChat.click}
+                      state={clearAiChat.state()}
+                      outline
+                      iconName="trash"
+                    >
+                      {t3({ en: "Clear AI chat history", fr: "Vider l'historique IA" })}
+                    </Button>
+                  </div>
                 }
               >
                 {null}

@@ -1,4 +1,4 @@
-import { Slide, CoverSlide, SectionSlide, ContentSlide } from "lib";
+import { Slide, CoverSlide, SectionSlide, ContentSlide, DeckFooterConfig } from "lib";
 import { OpenEditorProps } from "panther";
 import { Match, Setter, Switch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
@@ -20,6 +20,7 @@ type Props = {
   onSelectVisualization: () => void;
   onCreateVisualization: () => void;
   deckLogos: string[];
+  deckFooter: DeckFooterConfig | undefined;
 };
 
 export function SlideEditorPanel(p: Props) {
@@ -54,6 +55,7 @@ export function SlideEditorPanel(p: Props) {
             onSelectVisualization={p.onSelectVisualization}
             onCreateVisualization={p.onCreateVisualization}
             deckLogos={p.deckLogos}
+            deckFooter={p.deckFooter}
           />
         </Match>
       </Switch>
