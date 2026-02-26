@@ -109,6 +109,7 @@ export function InstanceUsers(p: Props) {
                     thisLoggedInUserEmail={p.thisLoggedInUserEmail}
                     close={() => setSelectedUser(undefined)}
                     silentFetch={p.instanceDetail.silentFetch}
+                    projects={keyedInstanceDetail.projects}
                   />
                 );
               }}
