@@ -1,4 +1,4 @@
-import { InstanceDetail, t3, TC } from "lib";
+import { H_USERS, InstanceDetail, t3, TC } from "lib";
 import {
   Button,
   Csv,
@@ -224,15 +224,6 @@ function UserTable(p: {
   showCommingSoon: () => Promise<boolean>;
   silentFetch: () => Promise<void>;
 }) {
-  const HIDDEN_EMAILS = new Set([
-    "timroberton@gmail.com",
-    "asheffel@worldbank.org",
-    "alopezhernandez@worldbank.org",
-    "claire.boulange@gmail.com",
-    "meghanpaul00@gmail.com",
-    "nick@usefuldata.com.au",
-  ]);
-
   const userRows = (): UserTableData[] => {
     const map = new Map<string, number>();
     for (const log of p.logs) {
@@ -249,7 +240,7 @@ function UserTable(p: {
       }
     }
     return p.users
-      .filter((user) => !HIDDEN_EMAILS.has(user.email))
+      .filter((user) => !H_USERS.includes(user.email))
       .map((user) => ({
         ...user,
         lastActiveTs: map.get(user.email) ?? -1,

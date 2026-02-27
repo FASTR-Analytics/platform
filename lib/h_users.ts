@@ -6,6 +6,7 @@ export const H_USERS = [
   "meghanpaul00@gmail.com",
   "nick@usefuldata.com.au",
   "cnoonan@worldbank.org",
+  "sjiwani@worldbank.org",
 ];
 
 export const _FEEDBACK_EMAIL_RECIPIENTS = [

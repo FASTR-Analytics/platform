@@ -1,4 +1,4 @@
-import { ProjectDetail, InstanceDetail, ProjectUser, t3, TC } from "lib";
+import { H_USERS, ProjectDetail, InstanceDetail, ProjectUser, t3, TC } from "lib";
 import type { TranslatableString } from "lib";
 import {
   Button,
@@ -499,18 +499,9 @@ function ProjectUserTable(p: {
   onBulkEditPermissions?: (users: ProjectUser[]) => void;
   onDisplayUserRole?: (user: ProjectUser) => void;
 }) {
-  const HIDDEN_EMAILS = new Set([
-    "timroberton@gmail.com",
-    "asheffel@worldbank.org",
-    "alopezhernandez@worldbank.org",
-    "claire.boulange@gmail.com",
-    "meghanpaul00@gmail.com",
-    "nick@usefuldata.com.au",
-  ]);
-
   const usersWithRole = (): ProjectUserWithRole[] =>
     p.users
-      .filter((u) => !HIDDEN_EMAILS.has(u.email))
+      .filter((u) => !H_USERS.includes(u.email))
       .map((u) => ({ ...u, roleSortValue: getRoleSortValue(u) }));
 
   const columns: TableColumn<ProjectUserWithRole>[] = [
