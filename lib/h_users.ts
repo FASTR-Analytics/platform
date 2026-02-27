@@ -7,3 +7,11 @@ export const H_USERS = [
   "nick@usefuldata.com.au",
   "cnoonan@worldbank.org",
 ];
+
+export const _FEEDBACK_EMAIL_RECIPIENTS = [
+  "support@usefuldata.com.au",
+  "claire.boulange@gmail.com",
+  "meghanpaul00@gmail.com",
+  "timroberton@gmail.com",
+  "asheffel@worldbank.org",
+];

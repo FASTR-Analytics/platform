@@ -12,7 +12,24 @@ CREATE TABLE users (
   can_configure_assets boolean NOT NULL DEFAULT FALSE,
   can_configure_data boolean NOT NULL DEFAULT FALSE,
   can_view_data boolean NOT NULL DEFAULT FALSE,
-  can_create_projects boolean NOT NULL DEFAULT FALSE
+  can_create_projects boolean NOT NULL DEFAULT FALSE,
+  default_project_can_configure_settings boolean NOT NULL DEFAULT FALSE,
+  default_project_can_create_backups boolean NOT NULL DEFAULT FALSE,
+  default_project_can_restore_backups boolean NOT NULL DEFAULT FALSE,
+  default_project_can_configure_modules boolean NOT NULL DEFAULT FALSE,
+  default_project_can_run_modules boolean NOT NULL DEFAULT FALSE,
+  default_project_can_configure_users boolean NOT NULL DEFAULT FALSE,
+  default_project_can_configure_visualizations boolean NOT NULL DEFAULT FALSE,
+  default_project_can_view_visualizations boolean NOT NULL DEFAULT FALSE,
+  default_project_can_configure_reports boolean NOT NULL DEFAULT FALSE,
+  default_project_can_view_reports boolean NOT NULL DEFAULT FALSE,
+  default_project_can_configure_slide_decks boolean NOT NULL DEFAULT FALSE,
+  default_project_can_view_slide_decks boolean NOT NULL DEFAULT FALSE,
+  default_project_can_configure_data boolean NOT NULL DEFAULT FALSE,
+  default_project_can_view_data boolean NOT NULL DEFAULT FALSE,
+  default_project_can_view_metrics boolean NOT NULL DEFAULT FALSE,
+  default_project_can_view_logs boolean NOT NULL DEFAULT FALSE,
+  default_project_can_view_script_code boolean NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE projects (
@@ -60,6 +77,7 @@ CREATE TABLE project_user_roles (
   can_view_data boolean NOT NULL DEFAULT FALSE,
   can_view_metrics boolean NOT NULL DEFAULT FALSE,
   can_view_logs boolean NOT NULL DEFAULT FALSE,
+  can_view_script_code boolean NOT NULL DEFAULT FALSE,
   PRIMARY KEY (email, project_id),
   FOREIGN KEY (email) REFERENCES users (email) ON DELETE CASCADE,
   FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE

@@ -297,6 +297,7 @@ async function getProjectUser(
           can_view_data: true,
           can_view_metrics: true,
           can_view_logs: true,
+          can_view_script_code: true,
         },
       };
     }
@@ -341,6 +342,7 @@ async function getProjectUser(
         can_view_data: rawProjectUserRole.can_view_data,
         can_view_metrics: rawProjectUserRole.can_view_metrics,
         can_view_logs: rawProjectUserRole.can_view_logs,
+        can_view_script_code: rawProjectUserRole.can_view_script_code,
       },
     };
   } catch (error) {

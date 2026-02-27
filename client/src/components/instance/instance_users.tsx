@@ -24,6 +24,7 @@ import {
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
+import { BulkEditDefaultProjectPermissionsForm } from "./bulk_edit_default_project_permissions_form.tsx";
 import { User } from "./user";
 import { Table, TableColumn, BulkAction } from "panther";
 import { serverActions } from "~/server_actions";
@@ -108,6 +109,7 @@ export function InstanceUsers(p: Props) {
                     thisLoggedInUserEmail={p.thisLoggedInUserEmail}
                     close={() => setSelectedUser(undefined)}
                     silentFetch={p.instanceDetail.silentFetch}
+                    projects={keyedInstanceDetail.projects}
                   />
                 );
               }}
@@ -186,6 +188,12 @@ type UserData = {
   isGlobalAdmin: boolean;
 };
 
+type UserTableData = {
+  email: string;
+  isGlobalAdmin: boolean;
+  lastActiveTs: number;
+};
+
 function formatTimeAgo(date: Date): string {
   if (!date || isNaN(date.getTime())) {
     return t3({ en: "Unknown", fr: "Inconnu" });
@@ -216,52 +224,60 @@ function UserTable(p: {
   showCommingSoon: () => Promise<boolean>;
   silentFetch: () => Promise<void>;
 }) {
-  const lastActiveByUser = () => {
-    const map = new Map<string, Date>();
+  const HIDDEN_EMAILS = new Set([
+    "timroberton@gmail.com",
+    "asheffel@worldbank.org",
+    "alopezhernandez@worldbank.org",
+    "claire.boulange@gmail.com",
+    "meghanpaul00@gmail.com",
+    "nick@usefuldata.com.au",
+  ]);
+
+  const userRows = (): UserTableData[] => {
+    const map = new Map<string, number>();
     for (const log of p.logs) {
       try {
-        const existing = map.get(log.user_email);
         const logDate = new Date(log.timestamp);
         if (isNaN(logDate.getTime())) continue;
-        if (!existing || logDate > existing) {
-          map.set(log.user_email, logDate);
+        const ts = logDate.getTime();
+        const existing = map.get(log.user_email);
+        if (!existing || ts > existing) {
+          map.set(log.user_email, ts);
         }
       } catch {
-        // Skip invalid log entries
+        // skip invalid log entries
       }
     }
-    return map;
+    return p.users
+      .filter((user) => !HIDDEN_EMAILS.has(user.email))
+      .map((user) => ({
+        ...user,
+        lastActiveTs: map.get(user.email) ?? -1,
+      }));
   };
-  const columns: TableColumn<UserData>[] = [
+
+  const columns: TableColumn<UserTableData>[] = [
     {
       key: "email",
       header: t3(TC.email),
       sortable: true,
     },
     {
-      key: "last_active",
+      key: "lastActiveTs",
       header: t3({ en: "Last active", fr: "Dernière activité" }),
       sortable: true,
       render: (user) => {
         if (p.logsLoading) {
           return <span class="text-neutral text-sm">...</span>;
         }
-        try {
-          const lastActive = lastActiveByUser().get(user.email);
-          if (!lastActive)
-            return (
-              <span class="text-neutral text-sm">
-                {t3({ en: "Never", fr: "Jamais" })}
-              </span>
-            );
-          return <span class="text-sm">{formatTimeAgo(lastActive)}</span>;
-        } catch {
+        if (user.lastActiveTs === -1) {
           return (
             <span class="text-neutral text-sm">
-              {t3({ en: "Unknown", fr: "Inconnu" })}
+              {t3({ en: "Never", fr: "Jamais" })}
             </span>
           );
         }
+        return <span class="text-sm">{formatTimeAgo(new Date(user.lastActiveTs))}</span>;
       },
     },
     {
@@ -313,20 +329,20 @@ function UserTable(p: {
     },
   ];
 
-  const bulkMakeAdmin = timActionButton(async (selectedUsers: UserData[]) => {
+  const bulkMakeAdmin = timActionButton(async (selectedUsers: UserTableData[]) => {
     const emails = selectedUsers.map((u) => u.email);
     return serverActions.toggleUserAdmin({ emails, makeAdmin: true });
   }, p.silentFetch);
 
   const bulkMakeNonAdmin = timActionButton(
-    async (selectedUsers: UserData[]) => {
+    async (selectedUsers: UserTableData[]) => {
       const emails = selectedUsers.map((u) => u.email);
       return serverActions.toggleUserAdmin({ emails, makeAdmin: false });
     },
     p.silentFetch,
   );
 
-  async function handleBulkRemoveUsers(selectedUsers: UserData[]) {
+  async function handleBulkRemoveUsers(selectedUsers: UserTableData[]) {
     const emails = selectedUsers.map((u) => u.email);
     const userCount = emails.length;
     const userText =
@@ -349,7 +365,7 @@ function UserTable(p: {
     await deleteAction.click();
   }
 
-  async function handleBulkEditPermissions(selectedUsers: UserData[]) {
+  async function handleBulkEditPermissions(selectedUsers: UserTableData[]) {
     const emails = selectedUsers.map((u) => u.email);
     await openComponent({
       element: BulkEditPermissionsForm,
@@ -357,7 +373,15 @@ function UserTable(p: {
     });
   }
 
-  function handleBulkDownloadCSV(selectedUsers: UserData[]) {
+  async function handleBulkEditDefaultProjectPermissions(selectedUsers: UserTableData[]) {
+    const emails = selectedUsers.map((u) => u.email);
+    await openComponent({
+      element: BulkEditDefaultProjectPermissionsForm,
+      props: { emails, silentFetch: p.silentFetch },
+    });
+  }
+
+  function handleBulkDownloadCSV(selectedUsers: UserTableData[]) {
     const csv = new Csv({
       colHeaders: ["email", "is_global_admin"],
       aoa: selectedUsers.map((user) => [
@@ -370,7 +394,7 @@ function UserTable(p: {
     downloadCsv(csv.stringify(), filename);
   }
 
-  const bulkActions: BulkAction<UserData>[] = [
+  const bulkActions: BulkAction<UserTableData>[] = [
     {
       label: t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur" }),
       intent: "primary",
@@ -395,6 +419,12 @@ function UserTable(p: {
       onClick: handleBulkEditPermissions,
     },
     {
+      label: t3({ en: "Edit default project permissions", fr: "Modifier les permissions de projet par défaut" }),
+      intent: "primary",
+      outline: true,
+      onClick: handleBulkEditDefaultProjectPermissions,
+    },
+    {
       label: t3({ en: "Download users", fr: "Télécharger les utilisateurs" }),
       intent: "primary",
       outline: true,
@@ -410,9 +440,9 @@ function UserTable(p: {
 
   return (
     <Table
-      data={p.users}
+      data={userRows()}
       columns={columns}
-      defaultSort={{ key: "email", direction: "asc" }}
+      defaultSort={{ key: "lastActiveTs", direction: "desc" }}
       keyField="email"
       noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur" })}
       bulkActions={bulkActions}

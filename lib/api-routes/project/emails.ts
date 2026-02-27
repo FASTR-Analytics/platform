@@ -12,4 +12,14 @@ export const emailRouteRegistry = {
     response: {} as { sent: boolean; failedRecipients?: string[] },
     requiresProject: true,
   }),
+  sendHelpEmail: route({
+    path: "/emails/help",
+    method: "POST",
+    body: {} as {
+      feedbackType: "bug" | "suggestion";
+      description: string;
+      projectLabel?: string;
+    },
+    response: {} as { sent: boolean },
+  }),
 };

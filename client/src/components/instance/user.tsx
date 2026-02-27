@@ -1,15 +1,23 @@
-import { OtherUser, t3, TC, UserPermission } from "lib";
+import {
+  OtherUser,
+  type ProjectSummary,
+  t3,
+  TC,
+  UserPermission,
+} from "lib";
 import {
   Button,
+  Checkbox,
   FrameTop,
   HeaderBarCanGoBack,
   SettingsSection,
-  timActionDelete,
+  openComponent,
   timActionButton,
-  Checkbox
+  timActionDelete,
 } from "panther";
-import { Match, Switch, Show, createSignal, For } from "solid-js";
+import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { ProjectPermissionForm } from "./project_permission_form.tsx";
 
 
 export const USER_PERMISSIONS = [
@@ -23,15 +31,15 @@ export const USER_PERMISSIONS = [
   "can_create_projects"
 ] as const satisfies readonly UserPermission[];
 
-
 type Props = {
   user: OtherUser;
   thisLoggedInUserEmail: string;
   close: () => void;
   silentFetch: () => Promise<void>;
+  projects: ProjectSummary[];
 };
 
-function makeDefaultPermissions(): Record<UserPermission, boolean> {
+function makeDefaultUserPermissions(): Record<UserPermission, boolean> {
   return Object.fromEntries(USER_PERMISSIONS.map((k) => [k, false])) as Record<
     UserPermission,
     boolean
@@ -49,8 +57,8 @@ export function User(p: Props) {
       setPermissions(res.data.permissions);
       setOriginalPermissions(res.data.permissions);
     } else {
-      setPermissions(makeDefaultPermissions());
-      setOriginalPermissions(makeDefaultPermissions());
+      setPermissions(makeDefaultUserPermissions());
+      setOriginalPermissions(makeDefaultUserPermissions());
     }
   })();
 
@@ -110,6 +118,13 @@ export function User(p: Props) {
     );
 
     await deleteAction.click();
+  }
+
+  async function openProjectPermissions(projectId: string | null, projectLabel: string) {
+    await openComponent({
+      element: ProjectPermissionForm,
+      props: { projectId, projectLabel, email: p.user.email, silentFetch: p.silentFetch },
+    });
   }
 
   return (
@@ -190,6 +205,30 @@ export function User(p: Props) {
                 </div>
               )}
             </Show>
+          </SettingsSection>
+        </Show>
+        <Show when={p.user.isGlobalAdmin === false}>
+          <SettingsSection
+            header={t3({ en: "Project permissions", fr: "Permissions par projet" })}
+          >
+            <div class="grid grid-cols-3 gap-2">
+              {p.projects.map((project) => (
+                <button
+                  type="button"
+                  class="ui-pad ui-hoverable border-base-300 min-h-[60px] rounded border text-left text-sm font-semibold"
+                  onClick={() => openProjectPermissions(project.id, project.label)}
+                >
+                  {project.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                class="ui-pad ui-hoverable border-base-300 col-span-full min-h-[40px] rounded border text-left text-sm italic text-neutral"
+                onClick={() => openProjectPermissions(null, t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)" }))}
+              >
+                {t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)" })}
+              </button>
+            </div>
           </SettingsSection>
         </Show>
         <Button

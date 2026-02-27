@@ -7,6 +7,8 @@ import {
   type ProjectUserRole,
   type BatchUser,
   type UserPermission,
+  type ProjectPermission,
+  PROJECT_PERMISSIONS,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
@@ -149,6 +151,85 @@ export async function getUserPermissions(
       success: true,
       data: { permissions: row },
     };
+  });
+}
+
+export async function getUserDefaultProjectPermissions(
+  mainDb: Sql,
+  email: string,
+): Promise<
+  APIResponseWithData<{ permissions: Record<ProjectPermission, boolean> }>
+> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await mainDb<Record<string, boolean>[]>`SELECT
+        default_project_can_configure_settings,
+        default_project_can_create_backups,
+        default_project_can_restore_backups,
+        default_project_can_configure_modules,
+        default_project_can_run_modules,
+        default_project_can_configure_users,
+        default_project_can_configure_visualizations,
+        default_project_can_view_visualizations,
+        default_project_can_configure_reports,
+        default_project_can_view_reports,
+        default_project_can_configure_slide_decks,
+        default_project_can_view_slide_decks,
+        default_project_can_configure_data,
+        default_project_can_view_data,
+        default_project_can_view_metrics,
+        default_project_can_view_logs,
+        default_project_can_view_script_code
+      FROM users
+      WHERE email=${email}`
+    ).at(0);
+
+    if (!row) throw new Error("User not found");
+
+    const permissions = Object.fromEntries(
+      PROJECT_PERMISSIONS.map((k) => [k, row[`default_project_${k}`]]),
+    ) as Record<ProjectPermission, boolean>;
+
+    return { success: true, data: { permissions } };
+  });
+}
+
+export async function updateUserDefaultProjectPermissions(
+  mainDb: Sql,
+  email: string,
+  permissions: Partial<Record<ProjectPermission, boolean>>,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    const prefixed = Object.fromEntries(
+      Object.entries(permissions).map(([k, v]) => [`default_project_${k}`, v]),
+    );
+    await mainDb`
+      UPDATE users
+      SET ${mainDb(prefixed)}
+      WHERE email = ${email}
+    `;
+    return { success: true };
+  });
+}
+
+export async function bulkUpdateUserDefaultProjectPermissions(
+  mainDb: Sql,
+  emails: string[],
+  permissions: Partial<Record<ProjectPermission, boolean>>,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    if (Object.keys(permissions).length === 0) {
+      return { success: true };
+    }
+    const prefixed = Object.fromEntries(
+      Object.entries(permissions).map(([k, v]) => [`default_project_${k}`, v]),
+    );
+    await mainDb`
+      UPDATE users
+      SET ${mainDb(prefixed)}
+      WHERE email = ANY(${emails})
+    `;
+    return { success: true };
   });
 }
 

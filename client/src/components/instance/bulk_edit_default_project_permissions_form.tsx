@@ -76,12 +76,11 @@ function cycleTriState(current: TriState): TriState {
 }
 
 type Props = {
-  projectId: string;
   emails: string[];
   silentFetch: () => Promise<void>;
 };
 
-export function BulkEditProjectPermissionsForm(
+export function BulkEditDefaultProjectPermissionsForm(
   p: AlertComponentProps<Props, undefined>,
 ) {
   const [state, setState] = createStore<Record<ProjectPermission, TriState>>(
@@ -91,7 +90,8 @@ export function BulkEditProjectPermissionsForm(
   );
 
   const save = timActionForm(
-    async () => {
+    async (e: MouseEvent) => {
+      e.preventDefault();
       const permissions: Partial<Record<ProjectPermission, boolean>> = {};
       for (const key of PROJECT_PERMISSIONS) {
         const val = state[key];
@@ -99,8 +99,7 @@ export function BulkEditProjectPermissionsForm(
           permissions[key] = val;
         }
       }
-      return serverActions.bulkUpdateProjectUserPermissions({
-        projectId: p.projectId,
+      return serverActions.bulkUpdateUserDefaultProjectPermissions({
         emails: p.emails,
         permissions,
       });
@@ -115,7 +114,7 @@ export function BulkEditProjectPermissionsForm(
     <div class="ui-pad ui-spy w-[600px]">
       <div class="space-y-3">
         <div class="font-700 text-lg leading-6">
-          {t3({ en: `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}` })}
+          {t3({ en: `Edit default project permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions de projet par défaut pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}` })}
         </div>
         <div class="font-700 text-sm">
           {p.emails.join(", ")}

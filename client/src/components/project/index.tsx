@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router";
-import { InstanceDetail, t3, TC } from "lib";
+import { InstanceDetail, T, t, t2 } from "lib";
 import {
   Button,
   FrameLeft,
@@ -9,7 +9,9 @@ import {
   TimQuery,
   getEditorWrapper,
   getTabs,
+  openComponent,
 } from "panther";
+import { FeedbackForm } from "~/components/instance/feedback_form";
 import { createEffect, Match, Show, Switch } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
 import {
@@ -80,7 +82,7 @@ export default function Project(p: Props) {
     <ProjectRunnerProvider projectId={p.projectId}>
       <StateHolderWrapper
         state={p.instanceDetail.state()}
-        onErrorButton={{ label: t3({ en: "Go home", fr: "Accueil" }), link: "/" }}
+        onErrorButton={{ label: t("Go home"), link: "/" }}
       >
         {(keyedInstanceDetail) => {
           const projectDetail = useProjectDetail();
@@ -96,26 +98,34 @@ export default function Project(p: Props) {
 
           const allTabs = [
             ...(projectDetail.thisUserPermissions.can_view_slide_decks
-              ? [{ value: "decks" as const, label: t3({ en: "Slide decks", fr: "Présentations" }) }]
+              ? [{ value: "decks" as const, label: "Slide decks" }]
               : []),
-            // ...(projectDetail.thisUserPermissions.can_view_reports ? [{ value: "reports" as const, label: t3({ en: "Reports", fr: "Rapports" }) }] : []),
+            ...(projectDetail.thisUserPermissions.can_view_reports
+              ? [
+                  {
+                    value: "reports" as const,
+                    label: t2(T.FRENCH_UI_STRINGS.reports),
+                  },
+                ]
+              : []),
             ...(projectDetail.thisUserPermissions.can_view_visualizations
               ? [
                   {
                     value: "visualizations" as const,
-                    label: t3({ en: "Visualizations", fr: "Visualisations" }),
+                    label: t2(T.FRENCH_UI_STRINGS.visualizations),
                   },
                 ]
               : []),
             ...(projectDetail.thisUserPermissions.can_view_metrics
-              ? [{ value: "metrics" as const, label: t3({ en: "Metrics", fr: "Métriques" }) }]
+              ? [{ value: "metrics" as const, label: t2("Metrics") }]
               : []),
             ...(projectDetail.thisUserPermissions.can_configure_modules ||
-            projectDetail.thisUserPermissions.can_run_modules
+            projectDetail.thisUserPermissions.can_run_modules ||
+            projectDetail.thisUserPermissions.can_view_script_code
               ? [
                   {
                     value: "modules" as const,
-                    label: t3({ en: "Modules", fr: "Modules" }),
+                    label: t2(T.FRENCH_UI_STRINGS.modules),
                   },
                 ]
               : []),
@@ -123,7 +133,7 @@ export default function Project(p: Props) {
               ? [
                   {
                     value: "data" as const,
-                    label: t3({ en: "Data", fr: "Données" }),
+                    label: t2(T.FRENCH_UI_STRINGS.data),
                   },
                 ]
               : []),
@@ -131,7 +141,7 @@ export default function Project(p: Props) {
               ? [
                   {
                     value: "settings" as const,
-                    label: t3(TC.settings),
+                    label: t2(T.FRENCH_UI_STRINGS.settings),
                   },
                 ]
               : []),
@@ -169,6 +179,19 @@ export default function Project(p: Props) {
                         <span class="font-400">{projectDetail.label}</span>
                       </div>
                       <div class="ui-gap-sm flex items-center">
+                        <Button
+                          onClick={() =>
+                            openComponent({
+                              element: FeedbackForm,
+                              props: { projectLabel: projectDetail.label },
+                            })
+                          }
+                          // iconName="help"
+                          intent="base-100"
+                          outline
+                        >
+                          Send feedback
+                        </Button>
                         <Show when={!showAi()}>
                           <Button
                             onClick={() => setShowAi(true)}
@@ -176,7 +199,7 @@ export default function Project(p: Props) {
                             intent="base-100"
                             outline
                           >
-                            {t3({ en: "AI", fr: "IA" })}
+                            {t("AI")}
                           </Button>
                         </Show>
                         <ProjectRunStatus />
@@ -199,7 +222,12 @@ export default function Project(p: Props) {
                     }
                   >
                     <Switch>
-                      {/* <Match
+                      {/* <Match when={projectTab() === "whiteboard"}>
+                        <ProjectWhiteboard
+                          instanceDetail={keyedInstanceDetail}
+                        />
+                      </Match> */}
+                      <Match
                         when={
                           projectTab() === "reports" &&
                           projectDetail.thisUserPermissions.can_view_reports
@@ -210,7 +238,7 @@ export default function Project(p: Props) {
                           isGlobalAdmin={p.isGlobalAdmin}
                           openProjectEditor={openProjectEditor}
                         />
-                      </Match> */}
+                      </Match>
                       <Match
                         when={
                           projectTab() === "decks" &&
@@ -253,7 +281,9 @@ export default function Project(p: Props) {
                           projectTab() === "modules" &&
                           (projectDetail.thisUserPermissions
                             .can_configure_modules ||
-                            projectDetail.thisUserPermissions.can_run_modules)
+                            projectDetail.thisUserPermissions.can_run_modules ||
+                            projectDetail.thisUserPermissions
+                              .can_view_script_code)
                         }
                       >
                         <ProjectModules
@@ -264,6 +294,10 @@ export default function Project(p: Props) {
                           }
                           canRunModules={
                             projectDetail.thisUserPermissions.can_run_modules
+                          }
+                          canViewScriptCode={
+                            projectDetail.thisUserPermissions
+                              .can_view_script_code
                           }
                         />
                       </Match>
