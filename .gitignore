@@ -28,3 +28,5 @@ CLAUDE.local.md
 
 .playwright-mcp
 .vscode
+
+lib/admin_config.ts

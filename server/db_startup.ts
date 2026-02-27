@@ -1,6 +1,6 @@
-import { getPgConnectionFromCacheOrNew } from "./db/mod.ts";
 import {
   _COMMON_INDICATORS,
+  H_USERS,
   type InstanceConfigCountryIso3,
   type InstanceConfigFacilityColumns,
   type InstanceConfigMaxAdminArea,
@@ -9,6 +9,7 @@ import {
   runInstanceMigrations,
   runProjectMigrations,
 } from "./db/migrations/runner.ts";
+import { getPgConnectionFromCacheOrNew } from "./db/mod.ts";
 
 export async function dbStartUp() {
   const sql = getPgConnectionFromCacheOrNew("postgres", "READ_AND_WRITE");
@@ -26,7 +27,7 @@ export async function dbStartUp() {
   if (isNewDatabase) {
     await sqlMain.file("./server/db/instance/_main_database.sql");
 
-    const userInserts = await getInitialUsersInsertStatements();
+    const userInserts = getInitialUsersInsertStatements();
 
     await sqlMain.unsafe(`
 ${getDefaultInstanceConfigInsertStatement()}
@@ -43,28 +44,19 @@ ${userInserts}
   for (const project of projects) {
     const projectDb = getPgConnectionFromCacheOrNew(
       project.id,
-      "READ_AND_WRITE"
+      "READ_AND_WRITE",
     );
     await runProjectMigrations(projectDb);
     await migrateToMetricsTables(projectDb);
   }
 }
 
-
-async function getInitialUsersInsertStatements(): Promise<string> {
+function getInitialUsersInsertStatements(): string {
   try {
-    const content = await Deno.readTextFile("./server/initial_users.txt");
-    const emails = content
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-
-    return emails
-      .map(
-        (email) =>
-          `INSERT INTO users (email, is_admin) VALUES ('${email}', TRUE) ON CONFLICT DO NOTHING;`
-      )
-      .join("\n");
+    return H_USERS.map(
+      (email) =>
+        `INSERT INTO users (email, is_admin) VALUES ('${email}', TRUE) ON CONFLICT DO NOTHING;`,
+    ).join("\n");
   } catch {
     return "";
   }
@@ -122,7 +114,7 @@ ON CONFLICT (indicator_common_id) DO NOTHING;
 // presentation_objects to their metrics via metric_id.
 // =============================================================================
 async function migrateToMetricsTables(
-  sql: ReturnType<typeof getPgConnectionFromCacheOrNew>
+  sql: ReturnType<typeof getPgConnectionFromCacheOrNew>,
 ) {
   const MIGRATION_ID = "js_migrate_to_metrics_2025_02";
 
@@ -134,7 +126,9 @@ async function migrateToMetricsTables(
     return;
   }
 
-  console.log("[MIGRATION] Populating metrics and linking presentation objects...");
+  console.log(
+    "[MIGRATION] Populating metrics and linking presentation objects...",
+  );
 
   // Run entire migration in a transaction for atomicity
   await sql.begin(async (tx) => {
@@ -178,8 +172,10 @@ async function migrateToMetricsTables(
               ${JSON.stringify(rv.periodOptions)},
               ${JSON.stringify(
                 rv.requiredDisaggregationOptions ??
-                rv.disaggregationOptions?.filter((d: {isRequired?: boolean}) => d.isRequired).map((d: {value: string}) => d.value) ??
-                []
+                  rv.disaggregationOptions
+                    ?.filter((d: { isRequired?: boolean }) => d.isRequired)
+                    .map((d: { value: string }) => d.value) ??
+                  [],
               )},
               ${rv.valueLabelReplacements ? JSON.stringify(rv.valueLabelReplacements) : null},
               ${rv.postAggregationExpression ? JSON.stringify(rv.postAggregationExpression) : null},
@@ -205,7 +201,9 @@ async function migrateToMetricsTables(
 
     let presObjsLinked = 0;
     if (hasResultsValueColumn[0]?.exists) {
-      const presObjs = await tx<{ id: string; results_value: string; label: string }[]>`
+      const presObjs = await tx<
+        { id: string; results_value: string; label: string }[]
+      >`
         SELECT id, results_value, label FROM presentation_objects WHERE metric_id IS NULL
       `;
 
@@ -226,11 +224,15 @@ async function migrateToMetricsTables(
         SELECT id, label FROM presentation_objects WHERE metric_id IS NULL
       `;
       if (orphaned.length > 0) {
-        console.error(`[MIGRATION ERROR] ${orphaned.length} presentation objects couldn't be linked:`);
+        console.error(
+          `[MIGRATION ERROR] ${orphaned.length} presentation objects couldn't be linked:`,
+        );
         for (const po of orphaned) {
           console.error(`  - ${po.id}: ${po.label}`);
         }
-        throw new Error("Migration failed: orphaned presentation objects found");
+        throw new Error(
+          "Migration failed: orphaned presentation objects found",
+        );
       }
 
       // Enforce NOT NULL constraint
@@ -250,6 +252,8 @@ async function migrateToMetricsTables(
     // 5. Mark migration complete
     await tx`INSERT INTO schema_migrations (migration_id) VALUES (${MIGRATION_ID})`;
 
-    console.log(`[MIGRATION] Complete: ${metricsInserted} metrics, ${presObjsLinked} presentation objects linked`);
+    console.log(
+      `[MIGRATION] Complete: ${metricsInserted} metrics, ${presObjsLinked} presentation objects linked`,
+    );
   });
 }
