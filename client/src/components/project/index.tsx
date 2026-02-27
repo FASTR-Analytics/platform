@@ -100,14 +100,14 @@ export default function Project(p: Props) {
             ...(projectDetail.thisUserPermissions.can_view_slide_decks
               ? [{ value: "decks" as const, label: "Slide decks" }]
               : []),
-            ...(projectDetail.thisUserPermissions.can_view_reports
-              ? [
-                  {
-                    value: "reports" as const,
-                    label: t2(T.FRENCH_UI_STRINGS.reports),
-                  },
-                ]
-              : []),
+            // ...(projectDetail.thisUserPermissions.can_view_reports
+            //   ? [
+            //       {
+            //         value: "reports" as const,
+            //         label: t2(T.FRENCH_UI_STRINGS.reports),
+            //       },
+            //     ]
+            //   : []),
             ...(projectDetail.thisUserPermissions.can_view_visualizations
               ? [
                   {
