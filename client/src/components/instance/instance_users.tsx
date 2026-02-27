@@ -224,6 +224,15 @@ function UserTable(p: {
   showCommingSoon: () => Promise<boolean>;
   silentFetch: () => Promise<void>;
 }) {
+  const HIDDEN_EMAILS = new Set([
+    "timroberton@gmail.com",
+    "asheffel@worldbank.org",
+    "alopezhernandez@worldbank.org",
+    "claire.boulange@gmail.com",
+    "meghanpaul00@gmail.com",
+    "nick@usefuldata.com.au",
+  ]);
+
   const userRows = (): UserTableData[] => {
     const map = new Map<string, number>();
     for (const log of p.logs) {
@@ -239,10 +248,12 @@ function UserTable(p: {
         // skip invalid log entries
       }
     }
-    return p.users.map((user) => ({
-      ...user,
-      lastActiveTs: map.get(user.email) ?? -1,
-    }));
+    return p.users
+      .filter((user) => !HIDDEN_EMAILS.has(user.email))
+      .map((user) => ({
+        ...user,
+        lastActiveTs: map.get(user.email) ?? -1,
+      }));
   };
 
   const columns: TableColumn<UserTableData>[] = [

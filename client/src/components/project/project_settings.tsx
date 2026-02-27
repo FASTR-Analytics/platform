@@ -360,8 +360,19 @@ function ProjectUserTable(p: {
   onBulkEditPermissions?: (users: ProjectUser[]) => void;
   onDisplayUserRole?: (user: ProjectUser) => void;
 }) {
+  const HIDDEN_EMAILS = new Set([
+    "timroberton@gmail.com",
+    "asheffel@worldbank.org",
+    "alopezhernandez@worldbank.org",
+    "claire.boulange@gmail.com",
+    "meghanpaul00@gmail.com",
+    "nick@usefuldata.com.au",
+  ]);
+
   const usersWithRole = (): ProjectUserWithRole[] =>
-    p.users.map((u) => ({ ...u, roleSortValue: getRoleSortValue(u) }));
+    p.users
+      .filter((u) => !HIDDEN_EMAILS.has(u.email))
+      .map((u) => ({ ...u, roleSortValue: getRoleSortValue(u) }));
 
   const columns: TableColumn<ProjectUserWithRole>[] = [
     {
