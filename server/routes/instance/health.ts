@@ -45,6 +45,7 @@ routesHealth.get("/health_check", async (c) => {
     databaseFolder: _DATABASE_FOLDER,
     totalUsers: users.length,
     adminUsers,
+    serverUsers: users.map((u: DBUser) => u.email),
     projects: projects.map((p) => (p.label)),
     datasets: {
       hmis: hmisVersion
