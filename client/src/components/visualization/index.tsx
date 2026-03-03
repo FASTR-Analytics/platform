@@ -247,18 +247,26 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
   return (
     <StateHolderWrapper state={resultsValueInfo.state()}>
       {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => {
-        return (
-          <VisualizationEditorInner
-            mode="ephemeral"
-            instanceDetail={p.instanceDetail}
-            projectDetail={p.projectDetail}
-            isGlobalAdmin={p.isGlobalAdmin}
-            poDetail={syntheticPoDetail}
-            resultsValueInfo={keyedResultsValueInfo}
-            returnToContext={p.returnToContext}
-            onClose={p.close}
-          />
-        );
+        console.log("[VIZ EPHEMERAL] StateHolderWrapper children callback called, data:", !!keyedResultsValueInfo);
+        try {
+          const el = (
+            <VisualizationEditorInner
+              mode="ephemeral"
+              instanceDetail={p.instanceDetail}
+              projectDetail={p.projectDetail}
+              isGlobalAdmin={p.isGlobalAdmin}
+              poDetail={syntheticPoDetail}
+              resultsValueInfo={keyedResultsValueInfo}
+              returnToContext={p.returnToContext}
+              onClose={p.close}
+            />
+          );
+          console.log("[VIZ EPHEMERAL] VisualizationEditorInner created successfully");
+          return el;
+        } catch (err) {
+          console.error("[VIZ EPHEMERAL] ERROR creating VisualizationEditorInner:", err);
+          return <div class="ui-pad text-danger">Error: {err instanceof Error ? err.message : String(err)}</div>;
+        }
       }}
     </StateHolderWrapper>
   );
