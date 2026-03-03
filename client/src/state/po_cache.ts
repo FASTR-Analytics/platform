@@ -34,14 +34,22 @@ export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
   projectId: string,
   metricId: string,
 ) {
-  const { data, version } = await _METRIC_INFO_CACHE.get({
+  const t0 = performance.now();
+  console.log(`[METRIC_INFO] ${metricId} — cache.get() starting`);
+  const { data, version, isInflight } = await _METRIC_INFO_CACHE.get({
     projectId,
     metricId,
   });
+  const t1 = performance.now();
 
   if (data) {
+    console.log(`[METRIC_INFO] ${metricId} — ${isInflight ? "INFLIGHT" : "HIT"} (${(t1 - t0).toFixed(0)}ms, version=${version})`);
     return { success: true, data } as const;
   }
+
+  console.log(`[METRIC_INFO] ${metricId} — MISS (${(t1 - t0).toFixed(0)}ms, version=${version}) — queueing server request`);
+  const queueStats = resultsValueInfoQueue.getStats();
+  console.log(`[METRIC_INFO] ${metricId} — queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting`);
 
   // Queue the network request to prevent overwhelming server
   const newPromise = resultsValueInfoQueue.enqueue(() =>
@@ -60,7 +68,10 @@ export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
     version,
   );
 
-  return await newPromise;
+  const result = await newPromise;
+  const t2 = performance.now();
+  console.log(`[METRIC_INFO] ${metricId} — server responded: success=${result.success} (${(t2 - t0).toFixed(0)}ms total)`);
+  return result;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

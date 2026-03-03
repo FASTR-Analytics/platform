@@ -219,12 +219,17 @@ function VisualizationEditorCreate(p: CreateModeProps) {
 }
 
 function VisualizationEditorEphemeral(p: EphemeralModeProps) {
+  console.log(`[VIZ EPHEMERAL] timQuery starting for metric: ${p.resultsValue.id}, label: ${p.label}`);
   const resultsValueInfo = timQuery(
-    () =>
-      getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+    async () => {
+      console.log(`[VIZ EPHEMERAL] queryFunc executing for metric: ${p.resultsValue.id}`);
+      const res = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
         p.projectId,
         p.resultsValue.id,
-      ),
+      );
+      console.log(`[VIZ EPHEMERAL] queryFunc resolved for metric: ${p.resultsValue.id}, success=${res.success}`);
+      return res;
+    },
     t3(TC.loading),
   );
 

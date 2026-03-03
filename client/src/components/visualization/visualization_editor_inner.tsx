@@ -123,13 +123,29 @@ export function VisualizationEditorInner(p: InnerProps) {
   async function attemptGetPresentationObjectItems(
     config: PresentationObjectConfig,
   ) {
-    const iter = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
-      projectId,
-      p.poDetail,
-      config,
-    );
-    for await (const state of iter) {
-      setItemsHolder(state);
+    try {
+      console.log("[VIZ ITEMS] attemptGetPresentationObjectItems starting", {
+        metricId: p.poDetail.resultsValue.id,
+        hasDisaggregateBy: !!config.d.disaggregateBy,
+        disaggregateByLength: config.d.disaggregateBy?.length,
+        configDKeys: Object.keys(config.d),
+      });
+      const iter = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
+        projectId,
+        p.poDetail,
+        config,
+      );
+      for await (const state of iter) {
+        console.log("[VIZ ITEMS] state update:", state.status, state.status === "error" ? (state as any).err : "");
+        setItemsHolder(state);
+      }
+      console.log("[VIZ ITEMS] generator completed");
+    } catch (err) {
+      console.error("[VIZ ITEMS] UNCAUGHT ERROR in attemptGetPresentationObjectItems:", err);
+      setItemsHolder({
+        status: "error",
+        err: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
