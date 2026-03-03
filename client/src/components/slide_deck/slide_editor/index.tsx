@@ -406,13 +406,6 @@ export function SlideEditor(p: Props) {
     const source = block.source;
 
     try {
-      console.log("[SLIDE EDIT VIZ] handleEditVisualization:", {
-        metricId: source.metricId,
-        configDKeys: Object.keys(source.config?.d ?? {}),
-        hasDisaggregateBy: Array.isArray(source.config?.d?.disaggregateBy),
-        hasFilterBy: Array.isArray(source.config?.d?.filterBy),
-        configD: JSON.stringify(source.config?.d).slice(0, 500),
-      });
       const metricStaticData = getMetricStaticData(source.metricId);
       const resultsValue = p.projectDetail.metrics.find(
         (m) => m.id === source.metricId,
@@ -426,7 +419,6 @@ export function SlideEditor(p: Props) {
         return;
       }
 
-      console.log("[SLIDE EDIT VIZ] opening VisualizationEditor for:", source.metricId);
       const result = await openEditor({
         element: VisualizationEditor,
         props: {

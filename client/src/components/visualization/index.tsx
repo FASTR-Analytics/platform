@@ -104,7 +104,6 @@ function VisualizationEditorEdit(p: EditModeProps) {
   };
 
   const combinedData = timQuery<CombinedData>(async () => {
-    console.log("[VIZ EDIT] timQuery starting for:", p.presentationObjectId);
     const [poDetailRes, resultsValueInfoRes] = await Promise.all([
       getPODetailFromCacheorFetch(p.projectId, p.presentationObjectId),
       (async () => {
@@ -129,7 +128,6 @@ function VisualizationEditorEdit(p: EditModeProps) {
       return resultsValueInfoRes;
     }
 
-    console.log("[VIZ EDIT] timQuery completed successfully");
     return {
       success: true,
       data: {
@@ -152,14 +150,9 @@ function VisualizationEditorEdit(p: EditModeProps) {
   //   await deleteAction.click();
   // }
 
-  console.log("[VIZ EDIT] Rendering with state:", combinedData.state());
   return (
     <StateHolderWrapper state={combinedData.state()}>
       {(keyedCombinedData: CombinedData) => {
-        console.log(
-          "[VIZ EDIT] StateHolderWrapper rendering children with data:",
-          keyedCombinedData,
-        );
         return (
           <VisualizationEditorInner
             mode="edit"
@@ -219,17 +212,12 @@ function VisualizationEditorCreate(p: CreateModeProps) {
 }
 
 function VisualizationEditorEphemeral(p: EphemeralModeProps) {
-  console.log(`[VIZ EPHEMERAL] timQuery starting for metric: ${p.resultsValue.id}, label: ${p.label}`);
   const resultsValueInfo = timQuery(
-    async () => {
-      console.log(`[VIZ EPHEMERAL] queryFunc executing for metric: ${p.resultsValue.id}`);
-      const res = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+    () =>
+      getResultsValueInfoForPresentationObjectFromCacheOrFetch(
         p.projectId,
         p.resultsValue.id,
-      );
-      console.log(`[VIZ EPHEMERAL] queryFunc resolved for metric: ${p.resultsValue.id}, success=${res.success}`);
-      return res;
-    },
+      ),
     t3(TC.loading),
   );
 
@@ -247,26 +235,18 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
   return (
     <StateHolderWrapper state={resultsValueInfo.state()}>
       {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => {
-        console.log("[VIZ EPHEMERAL] StateHolderWrapper children callback called, data:", !!keyedResultsValueInfo);
-        try {
-          const el = (
-            <VisualizationEditorInner
-              mode="ephemeral"
-              instanceDetail={p.instanceDetail}
-              projectDetail={p.projectDetail}
-              isGlobalAdmin={p.isGlobalAdmin}
-              poDetail={syntheticPoDetail}
-              resultsValueInfo={keyedResultsValueInfo}
-              returnToContext={p.returnToContext}
-              onClose={p.close}
-            />
-          );
-          console.log("[VIZ EPHEMERAL] VisualizationEditorInner created successfully");
-          return el;
-        } catch (err) {
-          console.error("[VIZ EPHEMERAL] ERROR creating VisualizationEditorInner:", err);
-          return <div class="ui-pad text-danger">Error: {err instanceof Error ? err.message : String(err)}</div>;
-        }
+        return (
+          <VisualizationEditorInner
+            mode="ephemeral"
+            instanceDetail={p.instanceDetail}
+            projectDetail={p.projectDetail}
+            isGlobalAdmin={p.isGlobalAdmin}
+            poDetail={syntheticPoDetail}
+            resultsValueInfo={keyedResultsValueInfo}
+            returnToContext={p.returnToContext}
+            onClose={p.close}
+          />
+        );
       }}
     </StateHolderWrapper>
   );

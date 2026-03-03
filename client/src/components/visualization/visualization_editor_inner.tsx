@@ -124,24 +124,16 @@ export function VisualizationEditorInner(p: InnerProps) {
     config: PresentationObjectConfig,
   ) {
     try {
-      console.log("[VIZ ITEMS] attemptGetPresentationObjectItems starting", {
-        metricId: p.poDetail.resultsValue.id,
-        hasDisaggregateBy: !!config.d.disaggregateBy,
-        disaggregateByLength: config.d.disaggregateBy?.length,
-        configDKeys: Object.keys(config.d),
-      });
       const iter = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
         projectId,
         p.poDetail,
         config,
       );
       for await (const state of iter) {
-        console.log("[VIZ ITEMS] state update:", state.status, state.status === "error" ? (state as any).err : "");
         setItemsHolder(state);
       }
-      console.log("[VIZ ITEMS] generator completed");
     } catch (err) {
-      console.error("[VIZ ITEMS] UNCAUGHT ERROR in attemptGetPresentationObjectItems:", err);
+      console.error("attemptGetPresentationObjectItems error:", err);
       setItemsHolder({
         status: "error",
         err: err instanceof Error ? err.message : String(err),
@@ -152,23 +144,17 @@ export function VisualizationEditorInner(p: InnerProps) {
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
   onMount(() => {
-    console.log("[VIZ] onMount - mode:", p.mode, "label:", p.poDetail.label);
     const unwrappedTempConfig = unwrap(tempConfig);
-
-    console.log("[VIZ] calling attemptGetPresentationObjectItems");
     attemptGetPresentationObjectItems(unwrappedTempConfig);
 
-    // Set AI context now that editor is mounted (all modes)
-    console.log("[VIZ] calling setAIContext");
     setAIContext({
       mode: "editing_visualization",
-      vizId: p.mode === "edit" ? p.poDetail.id : null, // null for create/ephemeral
+      vizId: p.mode === "edit" ? p.poDetail.id : null,
       vizLabel: p.poDetail.label,
       resultsValue: p.poDetail.resultsValue,
       getTempConfig: () => tempConfig,
       setTempConfig,
     });
-    console.log("[VIZ] setAIContext completed");
   });
 
   onCleanup(() => {
