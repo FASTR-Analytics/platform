@@ -1,4 +1,4 @@
-import { InstanceDetail, t3, TC } from "lib";
+import { H_USERS, InstanceDetail, t3, TC } from "lib";
 import {
   Button,
   Csv,
@@ -14,14 +14,7 @@ import {
   timActionDelete,
   timQuery,
 } from "panther";
-import {
-  Match,
-  Show,
-  Switch,
-  createSignal,
-  createResource,
-  Suspense,
-} from "solid-js";
+import { Match, Show, Switch, createSignal } from "solid-js";
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
@@ -39,8 +32,6 @@ type Props = {
 export function InstanceUsers(p: Props) {
   // Temp state
   const userLogs = timQuery(() => serverActions.getAllUserLogs({}));
-
-  // const [userLogs] = createResource(() => serverActions.getAllUserLogs({}));
 
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
     undefined,
@@ -216,15 +207,6 @@ function UserTable(p: {
   showCommingSoon: () => Promise<boolean>;
   silentFetch: () => Promise<void>;
 }) {
-  const HIDDEN_EMAILS = new Set([
-    "timroberton@gmail.com",
-    "asheffel@worldbank.org",
-    "alopezhernandez@worldbank.org",
-    "claire.boulange@gmail.com",
-    "meghanpaul00@gmail.com",
-    "nick@usefuldata.com.au",
-  ]);
-
   const userRows = (): UserTableData[] => {
     const map = new Map<string, number>();
     for (const log of p.logs) {
@@ -241,7 +223,7 @@ function UserTable(p: {
       }
     }
     return p.users
-      .filter((user) => !HIDDEN_EMAILS.has(user.email))
+      .filter((user) => !H_USERS.includes(user.email))
       .map((user) => ({
         ...user,
         lastActiveTs: map.get(user.email) ?? -1,

@@ -164,7 +164,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             const inputs: TimeseriesInputs = {
               timeseriesData: timeseriesData,
               style: {
-                scale: 0.75,
+                scale: 0.6,
                 text: {
                   yScaleAxisLabel: {
                     relFontSize: 0.75,

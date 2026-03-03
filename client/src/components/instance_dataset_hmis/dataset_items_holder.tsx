@@ -130,11 +130,17 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
 
     const value = vizConfig.value;
     const figureType = vizConfig.figureType;
-    const scale = vizConfig.scale;
+    const scale = vizConfig.scale * 0.6;
+
+    const showLegend =
+      vizConfig.indicators.length > 0 && vizConfig.indicators.length < 6;
 
     const style: CustomFigureStyleOptions = {
+      surrounds: {
+        legendPosition: showLegend ? undefined : "none",
+      },
       legend: {
-        maxLegendItemsInOneColumn: 6,
+        maxLegendItemsInOneColumn: 1,
       },
       scale: scale,
       seriesColorFunc: (info: any) => getAbcQualScale(info.i_series),
@@ -150,6 +156,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
           joinAcrossGaps: false,
           defaults: {
             show: true,
+            color: showLegend ? 666 : { key: "base300" },
           },
         },
       },
@@ -161,37 +168,37 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
     const figureData: FigureInputs =
       figureType === "chart"
         ? {
-          timeseriesData: {
-            jsonArray,
-            jsonDataConfig: {
-              valueProps: [value],
-              periodProp: "period_id",
-              periodType: "year-month",
-              seriesProp: "indicator_id",
-              labelReplacementsBeforeSorting:
-                p.displayItems.indicatorLabelReplacements,
-              yScaleAxisLabel:
-                value === "count"
-                  ? t2(T.FRENCH_UI_STRINGS.number_of_records)
-                  : t("Number of service counts"),
+            timeseriesData: {
+              jsonArray,
+              jsonDataConfig: {
+                valueProps: [value],
+                periodProp: "period_id",
+                periodType: "year-month",
+                seriesProp: "indicator_id",
+                labelReplacementsBeforeSorting:
+                  p.displayItems.indicatorLabelReplacements,
+                yScaleAxisLabel:
+                  value === "count"
+                    ? t2(T.FRENCH_UI_STRINGS.number_of_records)
+                    : t("Number of service counts"),
+              },
             },
-          },
-          style,
-        }
+            style,
+          }
         : {
-          tableData: {
-            jsonArray,
-            jsonDataConfig: {
-              valueProps: [value],
-              colProp: "indicator_id",
-              rowProp: "period_id",
-              sortHeaders: true,
-              labelReplacementsBeforeSorting:
-                p.displayItems.indicatorLabelReplacements,
+            tableData: {
+              jsonArray,
+              jsonDataConfig: {
+                valueProps: [value],
+                colProp: "indicator_id",
+                rowProp: "period_id",
+                sortHeaders: true,
+                labelReplacementsBeforeSorting:
+                  p.displayItems.indicatorLabelReplacements,
+              },
             },
-          },
-          style,
-        };
+            style,
+          };
     return { status: "ready", data: figureData };
   });
 
