@@ -12,6 +12,7 @@ import {
   openConfirm,
   timActionButton,
   timActionDelete,
+  timQuery,
 } from "panther";
 import {
   Match,
@@ -37,7 +38,9 @@ type Props = {
 
 export function InstanceUsers(p: Props) {
   // Temp state
-  const [userLogs] = createResource(() => serverActions.getAllUserLogs({}));
+  const userLogs = timQuery(() => serverActions.getAllUserLogs({}));
+
+  // const [userLogs] = createResource(() => serverActions.getAllUserLogs({}));
 
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
     undefined,
@@ -146,34 +149,24 @@ export function InstanceUsers(p: Props) {
                   </HeadingBarMainRibbon>
                 }
               >
-                <div class="ui-pad flex h-full w-full flex-col gap-4">
-                  <div class="min-h-0 flex-1">
-                    <UserTable
-                      users={keyedInstanceDetail.users}
-                      logs={
-                        userLogs.latest?.success ? userLogs.latest.data : []
-                      }
-                      logsLoading={userLogs.loading}
-                      onUserClick={(user) => setSelectedUser(user.email)}
-                      onViewLogs={(email) => setLogFilterUser(email)}
-                      showCommingSoon={showCommingSoon}
-                      silentFetch={p.instanceDetail.silentFetch}
-                    />
-                  </div>
-                  {/* <Suspense fallback={<div class="text-neutral text-sm">{t3({ en: "Loading activity logs...", fr: "Chargement des journaux d'activité..." })}</div>}>
-                    <Show when={userLogs.latest?.success ? userLogs.latest.data : undefined} keyed>
-                      {(logs: UserLog[]) => (
-                        <div class="flex-1 min-h-0">
-                          <UserLogsTable
-                            logs={logs}
-                            filterByUser={logFilterUser()}
-                            onFilterByUser={setLogFilterUser}
+                <StateHolderWrapper state={userLogs.state()}>
+                  {(keyedUserLogs) => {
+                    return (
+                      <div class="ui-pad flex h-full w-full flex-col gap-4">
+                        <div class="min-h-0 flex-1">
+                          <UserTable
+                            users={keyedInstanceDetail.users}
+                            logs={keyedUserLogs}
+                            onUserClick={(user) => setSelectedUser(user.email)}
+                            onViewLogs={(email) => setLogFilterUser(email)}
+                            showCommingSoon={showCommingSoon}
+                            silentFetch={p.instanceDetail.silentFetch}
                           />
                         </div>
-                      )}
-                    </Show>
-                  </Suspense> */}
-                </div>
+                      </div>
+                    );
+                  }}
+                </StateHolderWrapper>
               </FrameTop>
             </Match>
           </Switch>
@@ -218,7 +211,6 @@ function formatTimeAgo(date: Date): string {
 function UserTable(p: {
   users: UserData[];
   logs: UserLog[];
-  logsLoading: boolean;
   onUserClick: (user: UserData) => void;
   onViewLogs: (email: string) => void;
   showCommingSoon: () => Promise<boolean>;
@@ -267,9 +259,6 @@ function UserTable(p: {
       header: t3({ en: "Last active", fr: "Dernière activité" }),
       sortable: true,
       render: (user) => {
-        if (p.logsLoading) {
-          return <span class="text-neutral text-sm">...</span>;
-        }
         if (user.lastActiveTs === -1) {
           return (
             <span class="text-neutral text-sm">
@@ -277,7 +266,11 @@ function UserTable(p: {
             </span>
           );
         }
-        return <span class="text-sm">{formatTimeAgo(new Date(user.lastActiveTs))}</span>;
+        return (
+          <span class="text-sm">
+            {formatTimeAgo(new Date(user.lastActiveTs))}
+          </span>
+        );
       },
     },
     {
@@ -329,10 +322,13 @@ function UserTable(p: {
     },
   ];
 
-  const bulkMakeAdmin = timActionButton(async (selectedUsers: UserTableData[]) => {
-    const emails = selectedUsers.map((u) => u.email);
-    return serverActions.toggleUserAdmin({ emails, makeAdmin: true });
-  }, p.silentFetch);
+  const bulkMakeAdmin = timActionButton(
+    async (selectedUsers: UserTableData[]) => {
+      const emails = selectedUsers.map((u) => u.email);
+      return serverActions.toggleUserAdmin({ emails, makeAdmin: true });
+    },
+    p.silentFetch,
+  );
 
   const bulkMakeNonAdmin = timActionButton(
     async (selectedUsers: UserTableData[]) => {
@@ -373,7 +369,9 @@ function UserTable(p: {
     });
   }
 
-  async function handleBulkEditDefaultProjectPermissions(selectedUsers: UserTableData[]) {
+  async function handleBulkEditDefaultProjectPermissions(
+    selectedUsers: UserTableData[],
+  ) {
     const emails = selectedUsers.map((u) => u.email);
     await openComponent({
       element: BulkEditDefaultProjectPermissionsForm,
@@ -419,7 +417,10 @@ function UserTable(p: {
       onClick: handleBulkEditPermissions,
     },
     {
-      label: t3({ en: "Edit default project permissions", fr: "Modifier les permissions de projet par défaut" }),
+      label: t3({
+        en: "Edit default project permissions",
+        fr: "Modifier les permissions de projet par défaut",
+      }),
       intent: "primary",
       outline: true,
       onClick: handleBulkEditDefaultProjectPermissions,

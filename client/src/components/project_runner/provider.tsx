@@ -55,7 +55,12 @@ export function ProjectRunnerProvider(p: Props) {
       _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
     ),
   });
-  const [isProjectReady, setIsProjectReady] = createSignal(false);
+  type ProjectFetchState =
+    | { status: "loading" }
+    | { status: "error"; err: string }
+    | { status: "ready" };
+  const [projectFetchState, setProjectFetchState] =
+    createSignal<ProjectFetchState>({ status: "loading" });
 
   // Listener management for SSE last_updated events
   const listeners = new Set<LastUpdatedListener>();
@@ -70,9 +75,11 @@ export function ProjectRunnerProvider(p: Props) {
       projectId: p.projectId,
     });
     if (res.success) {
-      setProjectDetail(reconcile(res.data)); // Efficiently diffs and updates only changed properties
+      setProjectDetail(reconcile(res.data));
+      setProjectFetchState({ status: "ready" });
+    } else {
+      setProjectFetchState({ status: "error", err: res.err ?? "Failed to load project" });
     }
-    // TODO: Handle error case
   }
 
   // Context
@@ -162,13 +169,8 @@ export function ProjectRunnerProvider(p: Props) {
   }
 
   onMount(async () => {
-    // Set global PDS reference for cache system (async contexts)
     setGlobalPDS(projectDirtyStates);
-
-    // Fetch initial project detail
     await fetchProjectDetail();
-    setIsProjectReady(true);
-
     setUpEventSource();
   });
 
@@ -339,20 +341,32 @@ export function ProjectRunnerProvider(p: Props) {
         </div>
       }
     >
-      <Show
-        when={projectDirtyStates.isReady && isProjectReady()}
-        fallback={
-          <div class="ui-pad">
-            {connectionState() === "connecting"
-              ? t3({ en: "Connecting to project", fr: "Connexion au projet" })
-              : connectionState() === "failed"
-                ? t3({ en: "Connection failed", fr: "Échec de la connexion" })
-                : t3({ en: "Connecting to project", fr: "Connexion au projet" })}
-            {connectAttempts() > 1
-              ? ` (${t3({ en: "retrying", fr: "réessayer" })} ${connectAttempts() - 1})`
-              : ""}
-            ...
+      <Show when={projectFetchState().status === "error"}>
+        <div class="ui-pad ui-spy-sm">
+          <div class="text-danger">
+            {(projectFetchState() as { err: string }).err}
           </div>
+          <Button onClick={() => fetchProjectDetail()}>
+            {t3({ en: "Retry", fr: "Réessayer" })}
+          </Button>
+        </div>
+      </Show>
+      <Show
+        when={projectDirtyStates.isReady && projectFetchState().status === "ready"}
+        fallback={
+          projectFetchState().status === "loading"
+            ? <div class="ui-pad">
+                {connectionState() === "connecting"
+                  ? t3({ en: "Connecting to project", fr: "Connexion au projet" })
+                  : connectionState() === "failed"
+                    ? t3({ en: "Connection failed", fr: "Échec de la connexion" })
+                    : t3({ en: "Connecting to project", fr: "Connexion au projet" })}
+                {connectAttempts() > 1
+                  ? ` (${t3({ en: "retrying", fr: "réessayer" })} ${connectAttempts() - 1})`
+                  : ""}
+                ...
+              </div>
+            : undefined
         }
       >
         <ProjectDirtyStateContext.Provider
