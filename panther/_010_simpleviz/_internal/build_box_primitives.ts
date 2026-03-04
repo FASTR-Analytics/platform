@@ -326,7 +326,7 @@ export function buildBoxPrimitives(
 
       // Calculate horizontal position
       let unitCenterX: number;
-      switch (mergedBoxStyle.textHorizontalAlign) {
+      switch (mergedBoxStyle.alignH) {
         case "left": {
           const primaryWidth = mTextPrimary ? mTextPrimary.dims.w() : 0;
           const secondaryWidth = mTextSecondary ? mTextSecondary.dims.w() : 0;
@@ -350,7 +350,7 @@ export function buildBoxPrimitives(
 
       // Calculate vertical position
       let unitCenterY: number;
-      switch (mergedBoxStyle.textVerticalAlign) {
+      switch (mergedBoxStyle.alignV) {
         case "top": {
           unitCenterY = topLeft.y + height * 0.05 + totalTextHeight / 2;
           break;
@@ -360,7 +360,7 @@ export function buildBoxPrimitives(
             totalTextHeight / 2;
           break;
         }
-        case "center":
+        case "middle":
         default: {
           unitCenterY = topLeft.y + height / 2;
         }

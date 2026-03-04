@@ -81,6 +81,8 @@ type InnerProps = {
 };
 
 export function VisualizationEditorInner(p: InnerProps) {
+  const defaultHeight = p.poDetail.config.d.type === "table" ? "ideal" as const : "flex" as const;
+  const [editorHeight, setEditorHeight] = createSignal<"flex" | "ideal">(defaultHeight);
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
   const { setAIContext, notifyAI } = useAIProjectContext();
@@ -123,36 +125,38 @@ export function VisualizationEditorInner(p: InnerProps) {
   async function attemptGetPresentationObjectItems(
     config: PresentationObjectConfig,
   ) {
-    const iter = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
-      projectId,
-      p.poDetail,
-      config,
-    );
-    for await (const state of iter) {
-      setItemsHolder(state);
+    try {
+      const iter = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
+        projectId,
+        p.poDetail,
+        config,
+      );
+      for await (const state of iter) {
+        setItemsHolder(state);
+      }
+    } catch (err) {
+      console.error("attemptGetPresentationObjectItems error:", err);
+      setItemsHolder({
+        status: "error",
+        err: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
   onMount(() => {
-    console.log("[VIZ] onMount - mode:", p.mode, "label:", p.poDetail.label);
     const unwrappedTempConfig = unwrap(tempConfig);
-
-    console.log("[VIZ] calling attemptGetPresentationObjectItems");
     attemptGetPresentationObjectItems(unwrappedTempConfig);
 
-    // Set AI context now that editor is mounted (all modes)
-    console.log("[VIZ] calling setAIContext");
     setAIContext({
       mode: "editing_visualization",
-      vizId: p.mode === "edit" ? p.poDetail.id : null, // null for create/ephemeral
+      vizId: p.mode === "edit" ? p.poDetail.id : null,
       vizLabel: p.poDetail.label,
       resultsValue: p.poDetail.resultsValue,
       getTempConfig: () => tempConfig,
       setTempConfig,
     });
-    console.log("[VIZ] setAIContext completed");
   });
 
   onCleanup(() => {
@@ -619,6 +623,12 @@ export function VisualizationEditorInner(p: InnerProps) {
               <Button onClick={download} iconName="download">
                 {t3(TC.download)}
               </Button>
+              <Button
+                onClick={() => setEditorHeight(editorHeight() === "flex" ? "ideal" : "flex")}
+                iconName={editorHeight() === "flex" ? "maximize" : "minimize"}
+                outline
+              >
+              </Button>
               <Show when={!showAi()}>
                 <Button
                   onClick={() => setShowAi(true)}
@@ -734,11 +744,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                                       <ChartHolder
                                         canvasElementId="CANVAS_FOR_DOWNLOADING"
                                         chartInputs={keyedFigureInputs}
-                                        height={
-                                          tempConfig.s.idealAspectRatio === "none"
-                                            ? "flex"
-                                            : "ideal"
-                                        }
+                                        height={editorHeight()}
                                         noRescaleWithWidthChange
                                         textRenderingOptions={getTextRenderingOptions()}
                                       />

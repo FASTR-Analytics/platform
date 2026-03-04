@@ -64,7 +64,7 @@ export type CustomMarkdownStyleOptions = {
       right?: number; // em multiplier
     };
     paragraphGapEm?: number; // em multiplier for gap between paragraphs within blockquote
-    align?: "left" | "center" | "right";
+    alignH?: "left" | "center" | "right";
     backgroundColor?: ColorKeyOrString | "none";
   };
 

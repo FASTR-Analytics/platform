@@ -60,7 +60,8 @@ export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
     version,
   );
 
-  return await newPromise;
+  const result = await newPromise;
+  return result;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -130,10 +131,6 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
   }
   if (replicateOverride?.hideFigureFootnote) {
     configWithReplicateOverride.t.footnote = "";
-  }
-  // For optimize mode: override aspectRatio to make figures width-responsive
-  if ((replicateOverride as any)?._forOptimizer) {
-    configWithReplicateOverride.s.idealAspectRatio = "video";
   }
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////

@@ -4,6 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AlignH,
+  AlignV,
   MergedPageStyle,
   RectCoordsDims,
   RenderContext,
@@ -22,8 +24,6 @@ export function measureCover(
   s: MergedPageStyle,
   responsiveScale?: number,
 ): MeasuredCoverPage {
-  // Type is guaranteed by TypeScript
-
   const textMaxWidth = bounds.w() - s.cover.padding.totalPx();
 
   const mTitle = item.title?.trim()
@@ -72,6 +72,37 @@ export function measureCover(
   };
 }
 
+function getTextX(
+  bounds: RectCoordsDims,
+  padding: Padding,
+  alignH: AlignH,
+): number {
+  switch (alignH) {
+    case "left":
+      return bounds.x() + padding.pl();
+    case "right":
+      return bounds.x() + bounds.w() - padding.pr();
+    case "center":
+      return bounds.centerX();
+  }
+}
+
+function getStartY(
+  bounds: RectCoordsDims,
+  padding: Padding,
+  alignV: AlignV,
+  totalH: number,
+): number {
+  switch (alignV) {
+    case "top":
+      return bounds.y() + padding.pt();
+    case "bottom":
+      return bounds.y() + bounds.h() - padding.pb() - totalH;
+    case "middle":
+      return bounds.y() + (bounds.h() - totalH) / 2;
+  }
+}
+
 function buildCoverPrimitives(
   bounds: RectCoordsDims,
   item: CoverPageInputs,
@@ -83,6 +114,8 @@ function buildCoverPrimitives(
   mWatermark?: import("../../deps.ts").MeasuredText,
 ): { primitives: PagePrimitive[]; totalH: number } {
   const primitives: PagePrimitive[] = [];
+  const alignH = s.cover.alignH;
+  const alignV = s.cover.alignV;
 
   // Background
   if (s.cover.backgroundColor !== "none") {
@@ -133,7 +166,8 @@ function buildCoverPrimitives(
     totalH -= s.cover.gapY;
   }
 
-  let currentY = bounds.y() + (bounds.h() - totalH) / 2;
+  const textX = getTextX(bounds, s.cover.padding, alignH);
+  let currentY = getStartY(bounds, s.cover.padding, alignV, totalH);
 
   // Logos
   if (item.titleLogos && item.titleLogos.length > 0 && logoH > 0) {
@@ -142,8 +176,22 @@ function buildCoverPrimitives(
     });
     const totalLogoWidths = sum(logoWidths) +
       (logoWidths.length - 1) * s.cover.logoGapX;
-    let currentX = bounds.x() + (bounds.w() - totalLogoWidths) / 2;
 
+    let logoStartX: number;
+    switch (alignH) {
+      case "left":
+        logoStartX = bounds.x() + s.cover.padding.pl();
+        break;
+      case "right":
+        logoStartX = bounds.x() + bounds.w() - s.cover.padding.pr() -
+          totalLogoWidths;
+        break;
+      case "center":
+        logoStartX = bounds.x() + (bounds.w() - totalLogoWidths) / 2;
+        break;
+    }
+
+    let currentX = logoStartX;
     for (let i = 0; i < item.titleLogos.length; i++) {
       const logo = item.titleLogos[i];
       const logoWidth = (logoH * logo.width) / logo.height;
@@ -166,10 +214,10 @@ function buildCoverPrimitives(
       type: "text",
       id: "coverTitle",
       mText: mTitle,
-      x: bounds.centerX(),
+      x: textX,
       y: currentY,
-      hAlign: "center",
-      vAlign: "top",
+      alignH: alignH,
+      alignV: "top",
       maxWidth: textMaxWidth,
     });
     currentY += titleH + s.cover.gapY;
@@ -181,10 +229,10 @@ function buildCoverPrimitives(
       type: "text",
       id: "coverSubTitle",
       mText: mSubTitle,
-      x: bounds.centerX(),
+      x: textX,
       y: currentY,
-      hAlign: "center",
-      vAlign: "top",
+      alignH: alignH,
+      alignV: "top",
       maxWidth: textMaxWidth,
     });
     currentY += subTitleH + s.cover.gapY;
@@ -196,10 +244,10 @@ function buildCoverPrimitives(
       type: "text",
       id: "coverAuthor",
       mText: mAuthor,
-      x: bounds.centerX(),
+      x: textX,
       y: currentY,
-      hAlign: "center",
-      vAlign: "top",
+      alignH: alignH,
+      alignV: "top",
       maxWidth: textMaxWidth,
     });
     currentY += authorH + s.cover.gapY;
@@ -211,15 +259,15 @@ function buildCoverPrimitives(
       type: "text",
       id: "coverDate",
       mText: mDate,
-      x: bounds.centerX(),
+      x: textX,
       y: currentY,
-      hAlign: "center",
-      vAlign: "top",
+      alignH: alignH,
+      alignV: "top",
       maxWidth: textMaxWidth,
     });
   }
 
-  // Watermark (centered on page)
+  // Watermark (always centered on page)
   if (mWatermark) {
     primitives.push({
       type: "text",
@@ -227,8 +275,8 @@ function buildCoverPrimitives(
       mText: mWatermark,
       x: bounds.centerX(),
       y: bounds.centerY(),
-      hAlign: "center",
-      vAlign: "center",
+      alignH: "center",
+      alignV: "middle",
     });
   }
 

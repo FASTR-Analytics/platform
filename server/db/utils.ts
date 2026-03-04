@@ -1,18 +1,22 @@
 import type { Sql } from "postgres";
-import { APIResponseNoData, APIResponseWithData } from "lib";
+import { APIResponseNoData, APIResponseWithData, ERROR_CATEGORY } from "lib";
 import { classifyDatabaseError } from "./error_classifier.ts";
+import { closeAllConnections } from "./postgres/connection_manager.ts";
 
 /**
  * Wrap database operations with error handling
  */
 export async function tryCatchDatabaseAsync<
-  T extends APIResponseNoData | APIResponseWithData<unknown>
+  T extends APIResponseNoData | APIResponseWithData<unknown>,
 >(func: () => Promise<T>): Promise<T> {
   try {
     return await func();
   } catch (e) {
     console.error(e);
     const categorized = classifyDatabaseError(e);
+    if (categorized.category === ERROR_CATEGORY.NETWORK_ERROR) {
+      closeAllConnections().catch(() => {});
+    }
     const err = categorized.suggestedAction
       ? `${categorized.userMessage} ${categorized.suggestedAction}`
       : categorized.userMessage;
@@ -43,7 +47,7 @@ function cleanUuidForTableNames(str: string): string {
  */
 export async function detectHasPeriodId(
   projectDb: Sql,
-  tableName: string
+  tableName: string,
 ): Promise<boolean> {
   try {
     await projectDb.unsafe(`SELECT period_id FROM ${tableName} LIMIT 1`);
@@ -64,7 +68,7 @@ export async function detectHasPeriodId(
 export async function detectColumnExists(
   projectDb: Sql,
   tableName: string,
-  columnName: string
+  columnName: string,
 ): Promise<boolean> {
   try {
     await projectDb.unsafe(`SELECT ${columnName} FROM ${tableName} LIMIT 1`);
@@ -82,7 +86,7 @@ export async function detectColumnExists(
  */
 export async function detectHasAnyRows(
   db: Sql,
-  tableName: string
+  tableName: string,
 ): Promise<boolean> {
   try {
     const result = await db.unsafe(`SELECT 1 FROM ${tableName} LIMIT 1`);

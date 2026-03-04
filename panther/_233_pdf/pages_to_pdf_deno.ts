@@ -34,14 +34,13 @@ export async function pagesToPdfDeno(
 }
 
 function extractFontsFromPages(pages: PageInputs[]): FontInfo[] {
-  const allFonts: FontInfo[] = [];
+  const allFonts: FontInfo[] = new CustomStyle().getFontsToRegister();
   for (const page of pages) {
     if (page.style) {
       const customStyle = new CustomStyle(page.style);
       allFonts.push(...customStyle.getFontsToRegister());
     }
   }
-  // Deduplicate fonts by id
   const seen = new Set<string>();
   return allFonts.filter((f) => {
     const id = `${f.fontFamily}-${f.weight}-${f.italic}`;

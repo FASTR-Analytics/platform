@@ -5,18 +5,20 @@
 
 import {
   CustomFigureStyle,
-  generateSankeyPrimitives,
   generateSurroundsPrimitives,
   type HeightConstraints,
   measureSurrounds,
-  type PositionedSankeyLink,
-  type PositionedSankeyNode,
   type Primitive,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
   renderFigurePrimitives,
 } from "./deps.ts";
+import {
+  generateSankeyPrimitives,
+  type PositionedSankeyLink,
+  type PositionedSankeyNode,
+} from "./_sankey_primitives/generate_sankey_primitives.ts";
 import type {
   ExplicitSankeyLink,
   ExplicitSankeyNode,

@@ -327,7 +327,7 @@ function CommonIndicatorsTable(p: {
     columns.push({
       key: "actions",
       header: "",
-      align: "right",
+      alignH: "right",
       render: (indicator) => (
         <div class="ui-gap-sm flex justify-end">
           <Button
@@ -518,7 +518,7 @@ function RawIndicatorsTable(p: {
     columns.push({
       key: "actions",
       header: "",
-      align: "right",
+      alignH: "right",
       render: (mapping) => {
         return (
           <div class="ui-gap-sm flex justify-end">

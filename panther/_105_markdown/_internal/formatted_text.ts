@@ -45,7 +45,7 @@ export function measureFormattedText(
   rc: RenderContext,
   text: FormattedText,
   maxWidth: number,
-  align: "left" | "center" | "right",
+  alignH: "left" | "center" | "right",
   linkColor: string,
   linkUnderline: boolean,
 ): MeasuredFormattedText {
@@ -56,7 +56,7 @@ export function measureFormattedText(
       baseStyle: text.baseStyle,
       linkUnderline,
       maxWidth,
-      align,
+      alignH,
     };
   }
 
@@ -75,7 +75,7 @@ export function measureFormattedText(
     baseStyle: text.baseStyle,
     linkUnderline,
     maxWidth,
-    align,
+    alignH,
   };
 }
 
@@ -89,9 +89,9 @@ export function renderFormattedText(
   position: Coordinates,
 ): void {
   for (const line of mText.lines) {
-    const lineX = mText.align === "left"
+    const lineX = mText.alignH === "left"
       ? position.x()
-      : mText.align === "right"
+      : mText.alignH === "right"
       ? position.x() + mText.maxWidth - line.totalWidth
       : position.x() + (mText.maxWidth - line.totalWidth) / 2;
 

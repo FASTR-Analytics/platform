@@ -15,7 +15,7 @@ export type TableColumn<T> = {
   sortable?: boolean;
   render?: (item: T) => JSX.Element;
   width?: string;
-  align?: "left" | "center" | "right";
+  alignH?: "left" | "center" | "right";
 };
 
 export type TableGroup<T> = {

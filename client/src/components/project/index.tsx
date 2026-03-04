@@ -147,188 +147,205 @@ export default function Project(p: Props) {
               : []),
           ];
 
-          // Create tabs controller
-          const tabs = getTabs(allTabs, {
-            initialTab: projectTab(),
-            onTabChange: (tab) => updateProjectView({ tab: tab as TabOption }),
-          });
-
-          // Icon mapping
-          const tabIcons = {
-            decks: "sparkles" as const,
-            reports: "report" as const,
-            visualizations: "chart" as const,
-            metrics: "badge" as const,
-            modules: "code" as const,
-            data: "database" as const,
-            settings: "settings" as const,
-          };
-
           return (
             <AIProjectWrapper instanceDetail={keyedInstanceDetail}>
               <AIContextSync />
               <ProjectEditorWrapper>
-                <FrameTop
-                  panelChildren={
-                    <div class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b">
-                      <Button
-                        iconName="chevronLeft"
-                        onClick={() => navigate("/")}
-                      />
-                      <div class="font-700 flex-1 truncate text-xl">
-                        <span class="font-400">{projectDetail.label}</span>
-                      </div>
-                      <div class="ui-gap-sm flex items-center">
-                        <Button
-                          onClick={() =>
-                            openComponent({
-                              element: FeedbackForm,
-                              props: { projectLabel: projectDetail.label },
-                            })
-                          }
-                          // iconName="help"
-                          intent="base-100"
-                          outline
-                        >
-                          Send feedback
-                        </Button>
-                        <Show when={!showAi()}>
-                          <Button
-                            onClick={() => setShowAi(true)}
-                            iconName="chevronLeft"
-                            intent="base-100"
-                            outline
-                          >
-                            {t("AI")}
-                          </Button>
-                        </Show>
-                        <ProjectRunStatus />
-                      </div>
+                <Show
+                  when={allTabs.length > 0}
+                  fallback={
+                    <div class="ui-pad text-danger">
+                      {t("No accessible tabs for this project.")}
                     </div>
                   }
                 >
-                  <FrameLeft
-                    panelChildren={
-                      <div class="h-full border-r">
-                        <TabsNavigation
-                          tabs={tabs}
-                          vertical
-                          collapsible
-                          collapsed={navCollapsed()}
-                          onCollapsedChange={setNavCollapsed}
-                          icons={tabIcons}
-                        />
-                      </div>
-                    }
-                  >
-                    <Switch>
-                      {/* <Match when={projectTab() === "whiteboard"}>
-                        <ProjectWhiteboard
-                          instanceDetail={keyedInstanceDetail}
-                        />
-                      </Match> */}
-                      <Match
-                        when={
-                          projectTab() === "reports" &&
-                          projectDetail.thisUserPermissions.can_view_reports
+                  {(() => {
+                    const tabs = getTabs(allTabs, {
+                      initialTab: projectTab(),
+                      onTabChange: (tab) =>
+                        updateProjectView({ tab: tab as TabOption }),
+                    });
+
+                    const tabIcons = {
+                      decks: "sparkles" as const,
+                      reports: "report" as const,
+                      visualizations: "chart" as const,
+                      metrics: "badge" as const,
+                      modules: "code" as const,
+                      data: "database" as const,
+                      settings: "settings" as const,
+                    };
+
+                    return (
+                      <FrameTop
+                        panelChildren={
+                          <div class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b">
+                            <Button
+                              iconName="chevronLeft"
+                              onClick={() => navigate("/")}
+                            />
+                            <div class="font-700 flex-1 truncate text-xl">
+                              <span class="font-400">
+                                {projectDetail.label}
+                              </span>
+                            </div>
+                            <div class="ui-gap-sm flex items-center">
+                              <Button
+                                onClick={() =>
+                                  openComponent({
+                                    element: FeedbackForm,
+                                    props: {
+                                      projectLabel: projectDetail.label,
+                                    },
+                                  })
+                                }
+                                intent="base-100"
+                                outline
+                              >
+                                Send feedback
+                              </Button>
+                              <Show when={!showAi()}>
+                                <Button
+                                  onClick={() => setShowAi(true)}
+                                  iconName="chevronLeft"
+                                  intent="base-100"
+                                  outline
+                                >
+                                  {t("AI")}
+                                </Button>
+                              </Show>
+                              <ProjectRunStatus />
+                            </div>
+                          </div>
                         }
                       >
-                        <ProjectReports
-                          instanceDetail={keyedInstanceDetail}
-                          isGlobalAdmin={p.isGlobalAdmin}
-                          openProjectEditor={openProjectEditor}
-                        />
-                      </Match>
-                      <Match
-                        when={
-                          projectTab() === "decks" &&
-                          projectDetail.thisUserPermissions.can_view_slide_decks
-                        }
-                      >
-                        <ProjectDecks
-                          instanceDetail={keyedInstanceDetail}
-                          isGlobalAdmin={p.isGlobalAdmin}
-                          openProjectEditor={openProjectEditor}
-                        />
-                      </Match>
-                      <Match
-                        when={
-                          projectTab() === "visualizations" &&
-                          projectDetail.thisUserPermissions
-                            .can_view_visualizations
-                        }
-                      >
-                        <ProjectVisualizations
-                          isGlobalAdmin={p.isGlobalAdmin}
-                          instanceDetail={keyedInstanceDetail}
-                          openProjectEditor={openProjectEditor}
-                        />
-                      </Match>
-                      <Match
-                        when={
-                          projectTab() === "metrics" &&
-                          projectDetail.thisUserPermissions.can_view_metrics
-                        }
-                      >
-                        <ProjectMetrics
-                          isGlobalAdmin={p.isGlobalAdmin}
-                          openProjectEditor={openProjectEditor}
-                          instanceDetail={keyedInstanceDetail}
-                        />
-                      </Match>
-                      <Match
-                        when={
-                          projectTab() === "modules" &&
-                          (projectDetail.thisUserPermissions
-                            .can_configure_modules ||
-                            projectDetail.thisUserPermissions.can_run_modules ||
-                            projectDetail.thisUserPermissions
-                              .can_view_script_code)
-                        }
-                      >
-                        <ProjectModules
-                          isGlobalAdmin={p.isGlobalAdmin}
-                          canConfigureModules={
-                            projectDetail.thisUserPermissions
-                              .can_configure_modules
+                        <FrameLeft
+                          panelChildren={
+                            <div class="h-full border-r">
+                              <TabsNavigation
+                                tabs={tabs}
+                                vertical
+                                collapsible
+                                collapsed={navCollapsed()}
+                                onCollapsedChange={setNavCollapsed}
+                                icons={tabIcons}
+                              />
+                            </div>
                           }
-                          canRunModules={
-                            projectDetail.thisUserPermissions.can_run_modules
-                          }
-                          canViewScriptCode={
-                            projectDetail.thisUserPermissions
-                              .can_view_script_code
-                          }
-                        />
-                      </Match>
-                      <Match
-                        when={
-                          projectTab() === "data" &&
-                          projectDetail.thisUserPermissions.can_view_data
-                        }
-                      >
-                        <ProjectData
-                          isGlobalAdmin={p.isGlobalAdmin}
-                          instanceDetail={keyedInstanceDetail}
-                        />
-                      </Match>
-                      <Match
-                        when={
-                          projectTab() === "settings" &&
-                          projectDetail.thisUserPermissions
-                            .can_configure_settings
-                        }
-                      >
-                        <ProjectSettings
-                          isGlobalAdmin={p.isGlobalAdmin}
-                          silentRefreshInstance={p.instanceDetail.silentFetch}
-                          backToHome={() => navigate("/")}
-                          instanceDetail={keyedInstanceDetail}
-                        />
-                      </Match>
-                    </Switch>
-                  </FrameLeft>
-                </FrameTop>
+                        >
+                          <Switch>
+                            <Match
+                              when={
+                                projectTab() === "reports" &&
+                                projectDetail.thisUserPermissions
+                                  .can_view_reports
+                              }
+                            >
+                              <ProjectReports
+                                instanceDetail={keyedInstanceDetail}
+                                isGlobalAdmin={p.isGlobalAdmin}
+                                openProjectEditor={openProjectEditor}
+                              />
+                            </Match>
+                            <Match
+                              when={
+                                projectTab() === "decks" &&
+                                projectDetail.thisUserPermissions
+                                  .can_view_slide_decks
+                              }
+                            >
+                              <ProjectDecks
+                                instanceDetail={keyedInstanceDetail}
+                                isGlobalAdmin={p.isGlobalAdmin}
+                                openProjectEditor={openProjectEditor}
+                              />
+                            </Match>
+                            <Match
+                              when={
+                                projectTab() === "visualizations" &&
+                                projectDetail.thisUserPermissions
+                                  .can_view_visualizations
+                              }
+                            >
+                              <ProjectVisualizations
+                                isGlobalAdmin={p.isGlobalAdmin}
+                                instanceDetail={keyedInstanceDetail}
+                                openProjectEditor={openProjectEditor}
+                              />
+                            </Match>
+                            <Match
+                              when={
+                                projectTab() === "metrics" &&
+                                projectDetail.thisUserPermissions
+                                  .can_view_metrics
+                              }
+                            >
+                              <ProjectMetrics
+                                isGlobalAdmin={p.isGlobalAdmin}
+                                openProjectEditor={openProjectEditor}
+                                instanceDetail={keyedInstanceDetail}
+                              />
+                            </Match>
+                            <Match
+                              when={
+                                projectTab() === "modules" &&
+                                (projectDetail.thisUserPermissions
+                                  .can_configure_modules ||
+                                  projectDetail.thisUserPermissions
+                                    .can_run_modules ||
+                                  projectDetail.thisUserPermissions
+                                    .can_view_script_code)
+                              }
+                            >
+                              <ProjectModules
+                                isGlobalAdmin={p.isGlobalAdmin}
+                                canConfigureModules={
+                                  projectDetail.thisUserPermissions
+                                    .can_configure_modules
+                                }
+                                canRunModules={
+                                  projectDetail.thisUserPermissions
+                                    .can_run_modules
+                                }
+                                canViewScriptCode={
+                                  projectDetail.thisUserPermissions
+                                    .can_view_script_code
+                                }
+                              />
+                            </Match>
+                            <Match
+                              when={
+                                projectTab() === "data" &&
+                                projectDetail.thisUserPermissions.can_view_data
+                              }
+                            >
+                              <ProjectData
+                                isGlobalAdmin={p.isGlobalAdmin}
+                                instanceDetail={keyedInstanceDetail}
+                              />
+                            </Match>
+                            <Match
+                              when={
+                                projectTab() === "settings" &&
+                                projectDetail.thisUserPermissions
+                                  .can_configure_settings
+                              }
+                            >
+                              <ProjectSettings
+                                isGlobalAdmin={p.isGlobalAdmin}
+                                silentRefreshInstance={
+                                  p.instanceDetail.silentFetch
+                                }
+                                backToHome={() => navigate("/")}
+                                instanceDetail={keyedInstanceDetail}
+                              />
+                            </Match>
+                          </Switch>
+                        </FrameLeft>
+                      </FrameTop>
+                    );
+                  })()}
+                </Show>
               </ProjectEditorWrapper>
             </AIProjectWrapper>
           );

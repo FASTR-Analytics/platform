@@ -14,6 +14,7 @@ import {
 } from "./_2_custom_figure_style_options.ts";
 import type {
   MergedChartOVStyle,
+  MergedChartStyleBase,
   MergedContentStyle,
   MergedGridStyle,
   MergedLegendStyle,
@@ -36,17 +37,19 @@ import {
   m,
   ms,
   msOrNone,
-  Padding,
+  msPadding,
   type TextInfo,
 } from "./deps.ts";
 import {
   getAreaStyleFunc,
   getBarStyleFunc,
+  getCascadeArrowStyleFunc,
+  getConfidenceBandStyleFunc,
+  getErrorBarStyleFunc,
   getLineStyleFunc,
   getPointStyleFunc,
 } from "./style_func_types.ts";
 import { FIGURE_TEXT_STYLE_KEYS } from "./text_style_keys.ts";
-import type { AspectRatio } from "./types.ts";
 
 export class CustomFigureStyle {
   private _d: DefaultFigureStyle;
@@ -107,9 +110,12 @@ export class CustomFigureStyle {
           d.surrounds.backgroundColor,
         ),
       ),
-      padding: new Padding(
-        m(c.surrounds?.padding, g.surrounds?.padding, d.surrounds.padding),
-      ).toScaled(sf),
+      padding: msPadding(
+        sf,
+        c.surrounds?.padding,
+        g.surrounds?.padding,
+        d.surrounds.padding,
+      ),
       captionGap: ms(
         sf,
         c.surrounds?.captionGap,
@@ -232,29 +238,27 @@ export class CustomFigureStyle {
     };
   }
 
-  ///////////////////////////////////////////////////////////////////////////////
-  //   ______   __                              __             ______   __     __  //
-  //  /      \ /  |                            /  |           /      \ /  |   /  | //
-  // /$$$$$$  |$$ |____    ______    ______   _$$ |_         /$$$$$$  |$$ |   $$ | //
-  // $$ |  $$/ $$      \  /      \  /      \ / $$   |        $$ |  $$ |$$ |   $$ | //
-  // $$ |      $$$$$$$  | $$$$$$  |/$$$$$$  |$$$$$$/         $$ |  $$ |$$  \ /$$/  //
-  // $$ |   __ $$ |  $$ | /    $$ |$$ |  $$/   $$ | __       $$ |  $$ | $$  /$$/   //
-  // $$ \__/  |$$ |  $$ |/$$$$$$$ |$$ |        $$ |/  |      $$ \__$$ |  $$ $$/    //
-  // $$    $$/ $$ |  $$ |$$    $$ |$$ |        $$  $$/       $$    $$/    $$$/     //
-  //  $$$$$$/  $$/   $$/  $$$$$$$/ $$/          $$$$/         $$$$$$/      $/      //
-  //                                                                               //
-  ///////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////
+  //   ______   __                              __               //
+  //  /      \ /  |                            /  |              //
+  // /$$$$$$  |$$ |____    ______    ______   _$$ |_    _______  //
+  // $$ |  $$/ $$      \  /      \  /      \ / $$   |  /       | //
+  // $$ |      $$$$$$$  | $$$$$$  |/$$$$$$  |$$$$$$/  /$$$$$$$/  //
+  // $$ |   __ $$ |  $$ | /    $$ |$$ |  $$/   $$ | __$$      \  //
+  // $$ \__/  |$$ |  $$ |/$$$$$$$ |$$ |        $$ |/  |$$$$$$  | //
+  // $$    $$/ $$ |  $$ |$$    $$ |$$ |        $$  $$//     $$/  //
+  //  $$$$$$/  $$/   $$/  $$$$$$$/ $$/          $$$$/ $$$$$$$/   //
+  //                                                             //
+  /////////////////////////////////////////////////////////////////
 
-  getMergedChartOVStyle(): MergedChartOVStyle {
+  private getMergedChartStyleBase(): MergedChartStyleBase {
     const c = this._c;
     const g = this._g;
     const d = this._d;
     const sf = this._sf;
     const baseText = this._baseText;
-
     return {
       alreadyScaledValue: sf,
-
       text: {
         paneHeaders: getTextInfo(
           c.text?.paneHeaders,
@@ -266,84 +270,96 @@ export class CustomFigureStyle {
           g.text?.laneHeaders,
           baseText,
         ),
+        tierHeaders: getTextInfo(
+          c.text?.tierHeaders,
+          g.text?.tierHeaders,
+          baseText,
+        ),
         dataLabels: getTextInfo(
           c.text?.dataLabels,
           g.text?.dataLabels,
           baseText,
         ),
       },
-      chartAreaBackgroundColor: getColor(
-        m(
-          c.chartAreaBackgroundColor,
-          g.chartAreaBackgroundColor,
-          d.chartAreaBackgroundColor,
+      lanes: {
+        hideHeaders: m(
+          c.lanes?.hideHeaders,
+          g.lanes?.hideHeaders,
+          d.lanes.hideHeaders,
         ),
-      ),
-      hideColHeaders: m(c.hideColHeaders, g.hideColHeaders, d.hideColHeaders),
-      // Nested style objects
+        paddingLeft: ms(
+          sf,
+          c.lanes?.paddingLeft,
+          g.lanes?.paddingLeft,
+          d.lanes.paddingLeft,
+        ),
+        paddingRight: ms(
+          sf,
+          c.lanes?.paddingRight,
+          g.lanes?.paddingRight,
+          d.lanes.paddingRight,
+        ),
+        gapX: ms(sf, c.lanes?.gapX, g.lanes?.gapX, d.lanes.gapX),
+        headerAlignH: m(
+          c.lanes?.headerAlignH,
+          g.lanes?.headerAlignH,
+          d.lanes.headerAlignH,
+        ),
+      },
+      tiers: {
+        hideHeaders: m(
+          c.tiers?.hideHeaders,
+          g.tiers?.hideHeaders,
+          d.tiers.hideHeaders,
+        ),
+        paddingTop: ms(
+          sf,
+          c.tiers?.paddingTop,
+          g.tiers?.paddingTop,
+          d.tiers.paddingTop,
+        ),
+        paddingBottom: ms(
+          sf,
+          c.tiers?.paddingBottom,
+          g.tiers?.paddingBottom,
+          d.tiers.paddingBottom,
+        ),
+        gapY: ms(sf, c.tiers?.gapY, g.tiers?.gapY, d.tiers.gapY),
+        maxHeaderWidthAsPctOfChart: m(
+          c.tiers?.maxHeaderWidthAsPctOfChart,
+          g.tiers?.maxHeaderWidthAsPctOfChart,
+          d.tiers.maxHeaderWidthAsPctOfChart,
+        ),
+        headerAlignH: m(
+          c.tiers?.headerAlignH,
+          g.tiers?.headerAlignH,
+          d.tiers.headerAlignH,
+        ),
+        headerAlignV: m(
+          c.tiers?.headerAlignV,
+          g.tiers?.headerAlignV,
+          d.tiers.headerAlignV,
+        ),
+      },
       content: this.getMergedContentStyle(),
-      yScaleAxis: this.getMergedYScaleAxisStyle(),
-      xTextAxis: this.getMergedXTextAxisStyle(),
       grid: this.getMergedGridStyle(),
       panes: this.getMergedPaneStyle(),
     };
   }
 
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-  //  ________  __                                                        __                      //
-  // /        |/  |                                                      /  |                     //
-  // $$$$$$$$/ $$/  _____  ____    ______    _______   ______    ______  $$/   ______    _______  //
-  //    $$ |   /  |/     \/    \  /      \  /       | /      \  /      \ /  | /      \  /       | //
-  //    $$ |   $$ |$$$$$$ $$$$  |/$$$$$$  |/$$$$$$$/ /$$$$$$  |/$$$$$$  |$$ |/$$$$$$  |/$$$$$$$/  //
-  //    $$ |   $$ |$$ | $$ | $$ |$$    $$ |$$      \ $$    $$ |$$ |  $$/ $$ |$$    $$ |$$      \  //
-  //    $$ |   $$ |$$ | $$ | $$ |$$$$$$$$/  $$$$$$  |$$$$$$$$/ $$ |      $$ |$$$$$$$$/  $$$$$$  | //
-  //    $$ |   $$ |$$ | $$ | $$ |$$       |/     $$/ $$       |$$ |      $$ |$$       |/     $$/  //
-  //    $$/    $$/ $$/  $$/  $$/  $$$$$$$/ $$$$$$$/   $$$$$$$/ $$/       $$/  $$$$$$$/ $$$$$$$/   //
-  //                                                                                              //
-  //////////////////////////////////////////////////////////////////////////////////////////////////
+  getMergedChartOVStyle(): MergedChartOVStyle {
+    return {
+      ...this.getMergedChartStyleBase(),
+      yScaleAxis: this.getMergedYScaleAxisStyle(),
+      xTextAxis: this.getMergedXTextAxisStyle(),
+    };
+  }
 
   getMergedTimeseriesStyle(): MergedTimeseriesStyle {
-    const c = this._c;
-    const g = this._g;
-    const d = this._d;
-    const sf = this._sf;
-    const baseText = this._baseText;
     return {
-      alreadyScaledValue: sf,
-      text: {
-        base: getTextInfo(baseText, baseText, baseText),
-        laneHeaders: getTextInfo(
-          c.text?.laneHeaders,
-          g.text?.laneHeaders,
-          baseText,
-        ),
-        dataLabels: getTextInfo(
-          c.text?.dataLabels,
-          g.text?.dataLabels,
-          baseText,
-        ),
-        paneHeaders: getTextInfo(
-          c.text?.paneHeaders,
-          g.text?.paneHeaders,
-          baseText,
-        ),
-      },
-      chartAreaBackgroundColor: getColor(
-        m(
-          c.chartAreaBackgroundColor,
-          g.chartAreaBackgroundColor,
-          d.chartAreaBackgroundColor,
-        ),
-      ),
-
-      hideColHeaders: m(c.hideColHeaders, g.hideColHeaders, d.hideColHeaders),
-
-      // Nested style objects
-      content: this.getMergedContentStyle(),
+      ...this.getMergedChartStyleBase(),
       yScaleAxis: this.getMergedYScaleAxisStyle(),
       xPeriodAxis: this.getMergedXPeriodAxisStyle(),
-      grid: this.getMergedGridStyle(),
-      panes: this.getMergedPaneStyle(),
     };
   }
 
@@ -414,27 +430,28 @@ export class CustomFigureStyle {
         g.table?.cellValueFormatter,
         d.table.cellValueFormatter,
       ),
-      colHeaderPadding: new Padding(
-        m(
-          c.table?.colHeaderPadding,
-          g.table?.colHeaderPadding,
-          d.table.colHeaderPadding,
-        ),
-      ).toScaled(sf),
-      rowHeaderPadding: new Padding(
-        m(
-          c.table?.rowHeaderPadding,
-          g.table?.rowHeaderPadding,
-          d.table.rowHeaderPadding,
-        ),
-      ).toScaled(sf),
-      cellPadding: new Padding(
-        m(c.table?.cellPadding, g.table?.cellPadding, d.table.cellPadding),
-      ).toScaled(sf),
-      cellVerticalAlign: m(
-        c.table?.cellVerticalAlign,
-        g.table?.cellVerticalAlign,
-        d.table.cellVerticalAlign,
+      colHeaderPadding: msPadding(
+        sf,
+        c.table?.colHeaderPadding,
+        g.table?.colHeaderPadding,
+        d.table.colHeaderPadding,
+      ),
+      rowHeaderPadding: msPadding(
+        sf,
+        c.table?.rowHeaderPadding,
+        g.table?.rowHeaderPadding,
+        d.table.rowHeaderPadding,
+      ),
+      cellPadding: msPadding(
+        sf,
+        c.table?.cellPadding,
+        g.table?.cellPadding,
+        d.table.cellPadding,
+      ),
+      alignV: m(
+        c.table?.alignV,
+        g.table?.alignV,
+        d.table.alignV,
       ),
       cellBackgroundColorFormatter: m(
         c.table?.cellBackgroundColorFormatter,
@@ -514,11 +531,6 @@ export class CustomFigureStyle {
     const baseText = this._baseText;
     return {
       text: {
-        tierHeaders: getTextInfo(
-          c.text?.tierHeaders,
-          g.text?.tierHeaders,
-          baseText,
-        ),
         yScaleAxisTickLabels: getTextInfo(
           c.text?.yScaleAxisTickLabels,
           g.text?.yScaleAxisTickLabels,
@@ -572,9 +584,6 @@ export class CustomFigureStyle {
         g.yScaleAxis?.exactAxisX,
         d.yScaleAxis.exactAxisX,
       ),
-      tierPaddingTop: 10 * sf,
-      tierPaddingBottom: 10 * sf,
-      tierGapY: 50 * sf,
     };
   }
 
@@ -627,24 +636,6 @@ export class CustomFigureStyle {
         g.xTextAxis?.tickLabelGap,
         d.xTextAxis.tickLabelGap,
       ),
-      lanePaddingLeft: ms(
-        sf,
-        c.xTextAxis?.lanePaddingLeft,
-        g.xTextAxis?.lanePaddingLeft,
-        d.xTextAxis.lanePaddingLeft,
-      ),
-      lanePaddingRight: ms(
-        sf,
-        c.xTextAxis?.lanePaddingRight,
-        g.xTextAxis?.lanePaddingRight,
-        d.xTextAxis.lanePaddingRight,
-      ),
-      laneGapX: ms(
-        sf,
-        c.xTextAxis?.laneGapX,
-        g.xTextAxis?.laneGapX,
-        d.xTextAxis.laneGapX,
-      ),
     };
   }
 
@@ -678,25 +669,6 @@ export class CustomFigureStyle {
           baseText,
         ),
       },
-      lanePaddingLeft: ms(
-        sf,
-        c.xPeriodAxis?.lanePaddingLeft,
-        g.xPeriodAxis?.lanePaddingLeft,
-        d.xPeriodAxis.lanePaddingLeft,
-      ),
-      lanePaddingRight: ms(
-        sf,
-        c.xPeriodAxis?.lanePaddingRight,
-        g.xPeriodAxis?.lanePaddingRight,
-        d.xPeriodAxis.lanePaddingRight,
-      ),
-      laneGapX: ms(
-        sf,
-        c.xPeriodAxis?.laneGapX,
-        g.xPeriodAxis?.laneGapX,
-        d.xPeriodAxis.laneGapX,
-      ),
-
       forceSideTicksWhenYear: m(
         c.xPeriodAxis?.forceSideTicksWhenYear,
         g.xPeriodAxis?.forceSideTicksWhenYear,
@@ -711,13 +683,13 @@ export class CustomFigureStyle {
         sf,
         c.xPeriodAxis?.periodLabelSmallTopPadding,
         g.xPeriodAxis?.periodLabelSmallTopPadding,
-        5,
+        d.xPeriodAxis.periodLabelSmallTopPadding,
       ),
       periodLabelLargeTopPadding: ms(
         sf,
         c.xPeriodAxis?.periodLabelLargeTopPadding,
         g.xPeriodAxis?.periodLabelLargeTopPadding,
-        5,
+        d.xPeriodAxis.periodLabelLargeTopPadding,
       ),
       calendar: m(
         c.xPeriodAxis?.calendar,
@@ -764,6 +736,13 @@ export class CustomFigureStyle {
       gridColor: getColor(
         m(c.grid?.gridColor, g.grid?.gridColor, d.grid.gridColor),
       ),
+      backgroundColor: getColor(
+        m(
+          c.grid?.backgroundColor,
+          g.grid?.backgroundColor,
+          d.grid.backgroundColor,
+        ),
+      ),
     };
   }
 
@@ -786,12 +765,20 @@ export class CustomFigureStyle {
     const d = this._d;
     const sf = this._sf;
     return {
+      hideHeaders: m(
+        c.panes?.hideHeaders,
+        g.panes?.hideHeaders,
+        d.panes.hideHeaders,
+      ),
       nCols: m(c.panes?.nCols, g.panes?.nCols, d.panes.nCols),
       gapX: ms(sf, c.panes?.gapX, g.panes?.gapX, d.panes.gapX),
       gapY: ms(sf, c.panes?.gapY, g.panes?.gapY, d.panes.gapY),
-      padding: new Padding(
-        m(c.panes?.padding, g.panes?.padding, d.panes.padding),
-      ).toScaled(sf),
+      padding: msPadding(
+        sf,
+        c.panes?.padding,
+        g.panes?.padding,
+        d.panes.padding,
+      ),
       backgroundColor: getColor(
         m(
           c.panes?.backgroundColor,
@@ -805,10 +792,10 @@ export class CustomFigureStyle {
         g.panes?.headerGap,
         d.panes.headerGap,
       ),
-      headerAlignment: m(
-        c.panes?.headerAlignment,
-        g.panes?.headerAlignment,
-        d.panes.headerAlignment,
+      headerAlignH: m(
+        c.panes?.headerAlignH,
+        g.panes?.headerAlignH,
+        d.panes.headerAlignH,
       ),
     };
   }
@@ -831,6 +818,7 @@ export class CustomFigureStyle {
     const g = this._g ?? {};
     const d = this._d;
     const sf = this._sf;
+    const baseText = this._baseText;
     return {
       points: {
         getStyle: getPointStyleFunc(
@@ -899,6 +887,11 @@ export class CustomFigureStyle {
           d.content.areas.defaults,
           m(c.seriesColorFunc, g.seriesColorFunc, d.seriesColorFunc),
         ),
+        joinAcrossGaps: m(
+          c.content?.areas?.joinAcrossGaps,
+          g.content?.areas?.joinAcrossGaps,
+          d.content.areas.joinAcrossGaps,
+        ),
         diff: {
           enabled: m(
             c.content?.areas?.diff?.enabled,
@@ -906,6 +899,33 @@ export class CustomFigureStyle {
             d.content.areas.diff.enabled,
           ),
         },
+      },
+      errorBars: {
+        getStyle: getErrorBarStyleFunc(
+          m(
+            c.content?.errorBars?.func,
+            g.content?.errorBars?.func,
+            d.content.errorBars.func,
+          ),
+          sf,
+          c.content?.errorBars?.defaults,
+          g.content?.errorBars?.defaults,
+          d.content.errorBars.defaults,
+        ),
+      },
+      confidenceBands: {
+        getStyle: getConfidenceBandStyleFunc(
+          m(
+            c.content?.confidenceBands?.func,
+            g.content?.confidenceBands?.func,
+            d.content.confidenceBands.func,
+          ),
+          sf,
+          c.content?.confidenceBands?.defaults,
+          g.content?.confidenceBands?.defaults,
+          d.content.confidenceBands.defaults,
+          m(c.seriesColorFunc, g.seriesColorFunc, d.seriesColorFunc),
+        ),
       },
       withDataLabels: m(
         c.content?.withDataLabels,
@@ -917,6 +937,26 @@ export class CustomFigureStyle {
         g.content?.dataLabelFormatter,
         d.content.dataLabelFormatter,
       ),
+      cascadeArrows: {
+        text: {
+          labels: getTextInfo(
+            c.text?.cascadeArrowLabels,
+            g.text?.cascadeArrowLabels,
+            baseText,
+          ),
+        },
+        getStyle: getCascadeArrowStyleFunc(
+          m(
+            c.content?.cascadeArrows?.func,
+            g.content?.cascadeArrows?.func,
+            d.content.cascadeArrows.func,
+          ),
+          sf,
+          c.content?.cascadeArrows?.defaults,
+          g.content?.cascadeArrows?.defaults,
+          d.content.cascadeArrows.defaults,
+        ),
+      },
     };
   }
 
@@ -935,13 +975,6 @@ export class CustomFigureStyle {
   //                                                                     $$/                                      //
   //                                                                                                              //
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  getIdealAspectRatio(): "none" | AspectRatio {
-    const c = this._c;
-    const g = this._g;
-    const d = this._d;
-    return m(c.idealAspectRatio, g.idealAspectRatio, d.idealAspectRatio);
-  }
 
   /////////////////////////////////////////////////////////////////////////////
   //   ______   __                            __           __   __           //
@@ -1017,15 +1050,15 @@ export class CustomFigureStyle {
           g.simpleviz?.boxes?.strokeWidth,
           d.simpleviz.boxes.strokeWidth,
         ),
-        textHorizontalAlign: m(
-          c.simpleviz?.boxes?.textHorizontalAlign,
-          g.simpleviz?.boxes?.textHorizontalAlign,
-          d.simpleviz.boxes.textHorizontalAlign,
+        alignH: m(
+          c.simpleviz?.boxes?.alignH,
+          g.simpleviz?.boxes?.alignH,
+          d.simpleviz.boxes.alignH,
         ),
-        textVerticalAlign: m(
-          c.simpleviz?.boxes?.textVerticalAlign,
-          g.simpleviz?.boxes?.textVerticalAlign,
-          d.simpleviz.boxes.textVerticalAlign,
+        alignV: m(
+          c.simpleviz?.boxes?.alignV,
+          g.simpleviz?.boxes?.alignV,
+          d.simpleviz.boxes.alignV,
         ),
         textGap: ms(
           sf,
@@ -1033,13 +1066,12 @@ export class CustomFigureStyle {
           g.simpleviz?.boxes?.textGap,
           d.simpleviz.boxes.textGap,
         ),
-        padding: new Padding(
-          m(
-            c.simpleviz?.boxes?.padding,
-            g.simpleviz?.boxes?.padding,
-            d.simpleviz.boxes.padding,
-          ),
-        ).toScaled(sf),
+        padding: msPadding(
+          sf,
+          c.simpleviz?.boxes?.padding,
+          g.simpleviz?.boxes?.padding,
+          d.simpleviz.boxes.padding,
+        ),
         arrowStartPoint: m(
           c.simpleviz?.boxes?.arrowStartPoint,
           g.simpleviz?.boxes?.arrowStartPoint,

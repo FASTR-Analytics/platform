@@ -13,6 +13,8 @@ import type {
   RectStyle,
 } from "./deps.ts";
 import {
+  type AlignH,
+  type AlignV,
   CanvasRenderContext,
   cleanFontFamilyForJsPdf,
   Color,
@@ -57,8 +59,8 @@ export class PdfRenderContext implements RenderContext {
   rText(
     mText: MeasuredText,
     coordsOrBounds: CoordinatesOptions | RectCoordsDimsOptions,
-    hAlign: "center" | "left" | "right",
-    vAlign?: "top" | "center" | "bottom",
+    alignH: AlignH,
+    alignV?: AlignV,
     link?: string,
   ): void {
     try {
@@ -73,8 +75,8 @@ export class PdfRenderContext implements RenderContext {
       ) {
         coords = getRectAlignmentCoords(
           coordsOrBounds as RectCoordsDimsOptions,
-          hAlign,
-          vAlign ?? "top",
+          alignH,
+          alignV ?? "top",
         );
       } else {
         coords = coordsOrBounds as CoordinatesOptions;
@@ -85,7 +87,7 @@ export class PdfRenderContext implements RenderContext {
         mText.rotation === "anticlockwise" ||
         mText.rotation === "clockwise"
       ) {
-        this.rVerticalText(mText, coords, hAlign, vAlign);
+        this.rVerticalText(mText, coords, alignH, alignV);
         return;
       }
 
@@ -134,10 +136,10 @@ export class PdfRenderContext implements RenderContext {
       // Note: "0px" results in undefined charSpace, which is correct (default spacing)
 
       let y = c.y();
-      if (vAlign === "center") {
+      if (alignV === "middle") {
         y -= mText.dims.h() / 2;
       }
-      if (vAlign === "bottom") {
+      if (alignV === "bottom") {
         y -= mText.dims.h();
       }
 
@@ -146,13 +148,13 @@ export class PdfRenderContext implements RenderContext {
           // Use textWithLink for clickable text
           this._jsPdf.textWithLink(line.text, c.x(), y + line.y, {
             url: link,
-            align: hAlign,
+            align: alignH,
           });
         } else {
           this._jsPdf.text(line.text, c.x(), y + line.y, {
             maxWidth: 0,
             charSpace,
-            align: hAlign,
+            align: alignH,
             baseline: "alphabetic",
             lineHeightFactor: mText.ti.lineHeight,
           });
@@ -166,8 +168,8 @@ export class PdfRenderContext implements RenderContext {
   private rVerticalText(
     mText: MeasuredText,
     coords: CoordinatesOptions,
-    hAlign: "center" | "left" | "right",
-    vAlign?: "top" | "center" | "bottom",
+    alignH: AlignH,
+    alignV?: AlignV,
   ): void {
     const c = new Coordinates(coords);
     const rotation = mText.rotation;
@@ -212,68 +214,61 @@ export class PdfRenderContext implements RenderContext {
     }
     // Note: "0px" results in undefined charSpace, which is correct (default spacing)
 
-    // Match Canvas implementation exactly
-    const align2 = rotation === "anticlockwise"
-      ? vAlign === "top" ? "right" : vAlign === "bottom" ? "left" : "center"
-      : vAlign === "top"
+    // jsPDF applies align offsets in the UNROTATED frame, but Canvas applies
+    // textAlign in the ROTATED frame. So we use align:"left" in jsPDF and
+    // manually compute screen positions from the Canvas rotation math.
+    //
+    // Canvas: translate(x,y) → rotate(angle) → fillText(text, rx, ry)
+    //   where rx depends on Canvas textAlign, ry = y2 + line.y
+    //
+    // Anticlockwise rotate(-π/2): rotated (rx, ry) → screen (x + ry, y - rx)
+    // Clockwise    rotate(+π/2): rotated (rx, ry) → screen (x - ry, y + rx)
+
+    const canvasAlign = rotation === "anticlockwise"
+      ? alignV === "top" ? "right" : alignV === "bottom" ? "left" : "center"
+      : alignV === "top"
       ? "left"
-      : vAlign === "bottom"
+      : alignV === "bottom"
       ? "right"
       : "center";
 
     const y2 = rotation === "anticlockwise"
-      ? hAlign === "left"
+      ? alignH === "left"
         ? 0
-        : hAlign === "center"
+        : alignH === "center"
         ? (0 - mText.dims.w()) / 2
         : 0 - mText.dims.w()
-      : hAlign === "left"
+      : alignH === "left"
       ? 0 - mText.dims.w()
-      : hAlign === "center"
+      : alignH === "center"
       ? (0 - mText.dims.w()) / 2
       : 0;
 
-    // Save context
-    this._jsPdf.saveGraphicsState();
-
-    // The Canvas implementation does:
-    // 1. ctx.translate(x, y)
-    // 2. ctx.rotate(Math.PI * angle) where angle is -0.5 or 0.5
-    // 3. ctx.fillText(line.text, 0, y2 + line.y)
-
-    // We need to simulate this with jsPDF's angle parameter
-    // jsPDF rotates text around its anchor point, not the origin
-
-    // Calculate the angle in degrees
     const angleInDegrees = rotation === "anticlockwise" ? 90 : -90;
 
-    // When jsPDF rotates text, it rotates around the text position
-    // To match Canvas behavior, we need to calculate where the text would be
-    // after the Canvas-style transform
+    this._jsPdf.saveGraphicsState();
 
     for (const line of mText.lines) {
-      // For vertical text, line.y represents the vertical offset between lines
-      // After rotation, this becomes a horizontal offset
-      let finalX, finalY;
+      const ry = y2 + line.y;
+      const rx = canvasAlign === "right"
+        ? -line.w
+        : canvasAlign === "center"
+        ? -line.w / 2
+        : 0;
 
+      let finalX: number, finalY: number;
       if (rotation === "anticlockwise") {
-        // 90 degree anticlockwise rotation
-        // The first line (smallest line.y) should be rightmost
-        // Each subsequent line moves left
-        finalX = c.x() + (y2 + line.y); // Note: positive, not negative
-        finalY = c.y();
+        finalX = c.x() + ry;
+        finalY = c.y() - rx;
       } else {
-        // 90 degree clockwise rotation
-        // The first line (smallest line.y) should be leftmost
-        // Each subsequent line moves right
-        finalX = c.x() - (y2 + line.y); // Note: negative, not positive
-        finalY = c.y();
+        finalX = c.x() - ry;
+        finalY = c.y() + rx;
       }
 
       this._jsPdf.text(line.text, finalX, finalY, {
         maxWidth: 0,
         charSpace,
-        align: align2,
+        align: "left",
         baseline: "alphabetic",
         lineHeightFactor: mText.ti.lineHeight,
         angle: angleInDegrees,

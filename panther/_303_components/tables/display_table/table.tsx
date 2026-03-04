@@ -217,7 +217,7 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
                     <th
                       class={`${padding().px} py-3 ${
                         getCellAlignment(
-                          column.align,
+                          column.alignH,
                         )
                       } font-700 text-base-content text-xs uppercase tracking-wider ${
                         column.sortable
@@ -366,7 +366,7 @@ const TableRow: Component<TableRowProps<any>> = (p) => {
           <td
             class={`${p.padding.px} ${p.padding.py} ${
               getCellAlignment(
-                column.align,
+                column.alignH,
               )
             } text-sm`}
             style={{ width: column.width }}

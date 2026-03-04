@@ -8,6 +8,8 @@ import { addLine } from "./_internal/drawing/add_line.ts";
 import { addPoint } from "./_internal/drawing/add_point.ts";
 import { addRect } from "./_internal/drawing/add_rect.ts";
 import {
+  type AlignH,
+  type AlignV,
   type AreaStyle,
   Coordinates,
   type CoordinatesOptions,
@@ -77,8 +79,8 @@ export class CanvasRenderContext implements RenderContext {
   rText(
     mText: MeasuredText,
     coordsOrBounds: CoordinatesOptions | RectCoordsDimsOptions,
-    hAlign: "center" | "left" | "right",
-    vAlign?: "top" | "center" | "bottom",
+    alignH: AlignH,
+    alignV?: AlignV,
     _link?: string,
   ) {
     // Check if it's a RectCoordsDims
@@ -92,8 +94,8 @@ export class CanvasRenderContext implements RenderContext {
     ) {
       coords = getRectAlignmentCoords(
         coordsOrBounds as RectCoordsDimsOptions,
-        hAlign,
-        vAlign ?? "top",
+        alignH,
+        alignV ?? "top",
       );
     } else {
       coords = coordsOrBounds as CoordinatesOptions;
@@ -106,20 +108,20 @@ export class CanvasRenderContext implements RenderContext {
         mText,
         c.x(),
         c.y(),
-        vAlign ?? "top",
-        hAlign,
+        alignV ?? "top",
+        alignH,
       );
       return;
     }
-    if (vAlign === "center") {
-      writeText(this._ctx, mText, c.x(), c.y() - mText.dims.h() / 2, hAlign);
+    if (alignV === "middle") {
+      writeText(this._ctx, mText, c.x(), c.y() - mText.dims.h() / 2, alignH);
       return;
     }
-    if (vAlign === "bottom") {
-      writeText(this._ctx, mText, c.x(), c.y() - mText.dims.h(), hAlign);
+    if (alignV === "bottom") {
+      writeText(this._ctx, mText, c.x(), c.y() - mText.dims.h(), alignH);
       return;
     }
-    writeText(this._ctx, mText, c.x(), c.y(), hAlign);
+    writeText(this._ctx, mText, c.x(), c.y(), alignH);
   }
 
   rLine(coordArray: CoordinatesOptions[], s: LineStyle) {

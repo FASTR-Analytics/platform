@@ -9,7 +9,11 @@ import type {
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
-import type { YScaleAxisData, YScaleAxisWidthInfo } from "../../types.ts";
+import type {
+  YAxisWidthInfoBase,
+  YScaleAxisData,
+  YScaleAxisWidthInfo,
+} from "../../types.ts";
 import { getGoodAxisTickValues_V2 } from "../get_good_axis_tick_values.ts";
 
 export function estimateMinYAxisWidth(
@@ -33,36 +37,9 @@ export function measureYScaleAxisWidthInfo(
   sg: MergedGridStyle,
   contentRcd: RectCoordsDims,
   i_pane: number,
-  barStacking?:
-    | "none"
-    | "stacked"
-    | "imposed"
-    | "uncertainty"
-    | "uncertainty-tiers",
+  tierHeaderAndLabelGapWidth: number,
+  tierCount: number,
 ): YScaleAxisWidthInfo {
-  ///////////////////////
-  //                   //
-  //    Row headers    //
-  //                   //
-  ///////////////////////
-
-  let maxTierHeaderWidth = 0;
-  let tierHeaderAndLabelGapWidth = 0;
-  // Don't allocate space for tier headers in uncertainty-tiers mode (only 1 visible tier)
-  if (dy.tierHeaders.length > 1 && barStacking !== "uncertainty-tiers") {
-    for (let i_tier = 0; i_tier < dy.tierHeaders.length; i_tier++) {
-      const mText = rc.mText(dy.tierHeaders[i_tier], sy.text.tierHeaders, 9999);
-      maxTierHeaderWidth = Math.max(maxTierHeaderWidth, mText.dims.w());
-    }
-    tierHeaderAndLabelGapWidth = maxTierHeaderWidth + sy.labelGap;
-  }
-
-  //////////////////////
-  //                  //
-  //    Axis label    //
-  //                  //
-  //////////////////////
-
   let axisLabelAndLabelGapWidth = 0;
   if (dy.yScaleAxisLabel) {
     const mLabel = rc.mText(
@@ -74,13 +51,7 @@ export function measureYScaleAxisWidthInfo(
     axisLabelAndLabelGapWidth = mLabel.dims.w() + sy.labelGap;
   }
 
-  /////////////////
-  //             //
-  //    Ticks    //
-  //             //
-  /////////////////
-
-  const guessSubChartH = (contentRcd.h() * 0.8) / dy.tierHeaders.length;
+  const guessSubChartH = (contentRcd.h() * 0.8) / tierCount;
   const yAxisTickLabelH = rc
     .mText("100%", sy.text.yScaleAxisTickLabels, Number.POSITIVE_INFINITY)
     .dims.h();
@@ -89,7 +60,7 @@ export function measureYScaleAxisWidthInfo(
     ? Math.max(2, Math.floor(guessSubChartH / 2 / yAxisTickLabelH))
     : 2;
 
-  const yAxisTickValues = dy.tierHeaders.map((_, i_tier) => {
+  const yAxisTickValues = Array.from({ length: tierCount }, (_, i_tier) => {
     const finalValueMin = typeof sy.min === "function"
       ? sy.min(i_pane)
       : sy.min !== "auto"
@@ -114,7 +85,6 @@ export function measureYScaleAxisWidthInfo(
 
   let maxYTickWidth = 0;
   for (const rowYTickVals of yAxisTickValues) {
-    // Measure all tick labels to find the widest one
     for (const tickVal of rowYTickVals) {
       const tickLabel = sy.tickLabelFormatter(tickVal);
       const mTickLabel = rc.mText(
@@ -147,21 +117,15 @@ export function measureYScaleAxisWidthInfo(
 export function measureYScaleAxis(
   topHeightForLaneHeaders: number,
   xAxisAreaHeightIncludingStroke: number,
-  yScaleAxisWidthInfo: YScaleAxisWidthInfo,
-  dy: YScaleAxisData,
-  sy: MergedYScaleAxisStyle,
+  yAxisWidthInfo: YAxisWidthInfoBase,
+  tiers: { paddingTop: number; paddingBottom: number; gapY: number },
   contentRcd: RectCoordsDims,
-  barStacking?:
-    | "none"
-    | "stacked"
-    | "imposed"
-    | "uncertainty"
-    | "uncertainty-tiers",
+  tierCount: number,
 ): {
   yAxisRcd: RectCoordsDims;
   subChartAreaHeight: number;
 } {
-  const my = yScaleAxisWidthInfo;
+  const my = yAxisWidthInfo;
 
   const yAxisRcd = contentRcd.getAdjusted((prev) => ({
     y: prev.y() + topHeightForLaneHeaders,
@@ -169,16 +133,11 @@ export function measureYScaleAxis(
     h: prev.h() - (topHeightForLaneHeaders + xAxisAreaHeightIncludingStroke),
   }));
 
-  // For uncertainty-tiers, only 1 tier is rendered (tier 1)
-  const effectiveTierCount = barStacking === "uncertainty-tiers"
-    ? 1
-    : dy.tierHeaders.length;
-
   const subChartAreaHeight = (yAxisRcd.h() -
-    (sy.tierPaddingTop +
-      (effectiveTierCount - 1) * sy.tierGapY +
-      sy.tierPaddingBottom)) /
-    effectiveTierCount;
+    (tiers.paddingTop +
+      (tierCount - 1) * tiers.gapY +
+      tiers.paddingBottom)) /
+    tierCount;
 
   return { yAxisRcd, subChartAreaHeight };
 }

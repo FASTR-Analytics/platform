@@ -3,35 +3,19 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { RectCoordsDims, RenderContext } from "../deps.ts";
-import type { YScaleAxisWidthInfo } from "../types.ts";
+import type {
+  MergedGridStyle,
+  RectCoordsDims,
+  RenderContext,
+} from "../deps.ts";
+import type { YAxisWidthInfo } from "../types.ts";
+import type { XAxisConfig } from "./axis_configs.ts";
 import { measureXPeriodAxis } from "./x_period/measure.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
 import { measureXTextAxis } from "./x_text/measure.ts";
 import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 
 export type XAxisType = "text" | "period" | "scale";
-
-import type { MergedChartOVStyle, MergedTimeseriesStyle } from "../deps.ts";
-
-export type XAxisMeasureData =
-  | {
-    type: "text";
-    indicatorHeaders: string[];
-    nLanes: number;
-    mergedStyle: MergedChartOVStyle;
-  }
-  | {
-    type: "period";
-    periodType: "year-month" | "year-quarter" | "year";
-    nTimePoints: number;
-    nLanes: number;
-    mergedStyle: MergedTimeseriesStyle;
-  }
-  | {
-    type: "scale";
-    // Future: scale-specific data
-  };
 
 export type XAxisMeasuredInfo =
   | XTextAxisMeasuredInfo
@@ -40,30 +24,51 @@ export type XAxisMeasuredInfo =
 export function measureXAxis(
   rc: RenderContext,
   contentRcd: RectCoordsDims,
-  yScaleAxisWidthInfo: YScaleAxisWidthInfo,
-  data: XAxisMeasureData,
+  yAxisWidthInfo: YAxisWidthInfo,
+  subChartAreaWidth: number,
+  xAxisConfig: XAxisConfig,
+  gridStyle: MergedGridStyle,
 ): XAxisMeasuredInfo {
-  switch (data.type) {
+  switch (xAxisConfig.type) {
     case "text":
       return measureXTextAxis(
         rc,
         contentRcd,
-        yScaleAxisWidthInfo,
-        data.indicatorHeaders,
-        data.nLanes,
-        data.mergedStyle,
+        yAxisWidthInfo,
+        subChartAreaWidth,
+        xAxisConfig.indicatorHeaders,
+        xAxisConfig.axisStyle,
+        gridStyle,
       );
     case "period":
       return measureXPeriodAxis(
         rc,
         contentRcd,
-        yScaleAxisWidthInfo,
-        data.periodType,
-        data.nTimePoints,
-        data.nLanes,
-        data.mergedStyle,
+        yAxisWidthInfo,
+        subChartAreaWidth,
+        xAxisConfig.periodType,
+        xAxisConfig.nTimePoints,
+        xAxisConfig.axisStyle,
+        gridStyle,
       );
     case "scale":
       throw new Error("X-scale axis not implemented yet");
+  }
+}
+
+export function measureXAxisHeightInfo(
+  _rc: RenderContext,
+  xAxisConfig: XAxisConfig,
+  _gridStyle: MergedGridStyle,
+): number {
+  switch (xAxisConfig.type) {
+    case "scale":
+      // When implemented: return self-contained height from tick label measurements
+      throw new Error("X-scale axis height measurement not implemented yet");
+    case "text":
+    case "period":
+      throw new Error(
+        "X-text/period height is not self-contained — use measureXAxis instead",
+      );
   }
 }

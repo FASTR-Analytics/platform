@@ -4,40 +4,34 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  MergedChartOVStyle,
+  MergedGridStyle,
+  MergedXTextAxisStyle,
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
-import type { YScaleAxisWidthInfo } from "../../types.ts";
+import type { YAxisWidthInfoBase } from "../../types.ts";
 import type { XTextAxisMeasuredInfo } from "./types.ts";
 
-// NOTE: This function depends on ChartOVDataTransformed from _010_chartov
-// We pass the needed data as parameters to avoid importing from higher-numbered modules
 export function measureXTextAxis(
   rc: RenderContext,
   contentRcd: RectCoordsDims,
-  yScaleAxisWidthInfo: YScaleAxisWidthInfo,
+  yAxisWidthInfo: YAxisWidthInfoBase,
+  subChartAreaWidth: number,
   indicatorHeaders: string[],
-  nLanes: number,
-  s: MergedChartOVStyle,
+  axisStyle: MergedXTextAxisStyle,
+  gridStyle: MergedGridStyle,
 ): XTextAxisMeasuredInfo {
-  const sx = s.xTextAxis;
+  const sx = axisStyle;
 
   const yAxisAreaWidthIncludingStroke =
-    yScaleAxisWidthInfo.widthIncludingYAxisStrokeWidth;
+    yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
 
   const xAxisW = contentRcd.w() - yAxisAreaWidthIncludingStroke;
-
-  const subChartAreaWidth = (xAxisW -
-    (sx.lanePaddingLeft +
-      (nLanes - 1) * sx.laneGapX +
-      sx.lanePaddingRight)) /
-    nLanes;
 
   const indicatorAreaInnerWidth = sx.tickPosition === "center"
     ? subChartAreaWidth / indicatorHeaders.length
     : (subChartAreaWidth -
-      s.grid.gridStrokeWidth * (indicatorHeaders.length + 1)) /
+      gridStyle.gridStrokeWidth * (indicatorHeaders.length + 1)) /
       indicatorHeaders.length;
 
   let maxIndicatorTickLabelHeight = 0;
@@ -58,11 +52,11 @@ export function measureXTextAxis(
   }
 
   const heightIncludingXAxisStrokeWidth = sx.tickPosition === "center"
-    ? s.grid.axisStrokeWidth +
+    ? gridStyle.axisStrokeWidth +
       sx.tickHeight +
       sx.tickLabelGap +
       maxIndicatorTickLabelHeight
-    : s.grid.axisStrokeWidth + sx.tickLabelGap + maxIndicatorTickLabelHeight;
+    : gridStyle.axisStrokeWidth + sx.tickLabelGap + maxIndicatorTickLabelHeight;
 
   const xAxisRcd = contentRcd.getAdjusted((prev) => ({
     x: prev.x() + yAxisAreaWidthIncludingStroke,

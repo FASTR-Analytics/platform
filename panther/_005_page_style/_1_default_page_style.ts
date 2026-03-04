@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ColorKeyOrString, PaddingOptions } from "./deps.ts";
+import type {
+  AlignH,
+  AlignV,
+  ColorKeyOrString,
+  PaddingOptions,
+} from "./deps.ts";
 
 const _DS = {
   scale: 1,
@@ -14,11 +19,15 @@ const _DS = {
     logoHeight: 320,
     logoGapX: 40,
     gapY: 30,
+    alignH: "center" as AlignH,
+    alignV: "middle" as AlignV,
   },
   section: {
     padding: [200, 300] as PaddingOptions,
     backgroundColor: { key: "base300" } as ColorKeyOrString,
     gapY: 30,
+    alignH: "center" as AlignH,
+    alignV: "middle" as AlignV,
   },
   header: {
     padding: [40, 60] as PaddingOptions,

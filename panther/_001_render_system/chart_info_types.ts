@@ -5,6 +5,8 @@
 
 export type ChartSeriesInfo = {
   i_series: number;
+  isFirstSeries: boolean;
+  isLastSeries: boolean;
   seriesHeader: string;
   nSerieses: number;
   seriesValArrays: (number | undefined)[][];
@@ -22,6 +24,22 @@ export type ChartSeriesInfoFunc<T> = (info: ChartSeriesInfo) => T;
 export type ChartValueInfo = ChartSeriesInfo & {
   val: number | undefined;
   i_val: number;
+  isFirstVal: boolean;
+  isLastVal: boolean;
 };
 
 export type ChartValueInfoFunc<T> = (info: ChartValueInfo) => T;
+
+export type CascadeArrowInfo = ChartSeriesInfo & {
+  i_arrow: number;
+  nArrows: number;
+  isFirstArrow: boolean;
+  isLastArrow: boolean;
+  fromVal: number;
+  toVal: number;
+  dropoff: number;
+  retention: number;
+  isBiggestDropoff: boolean;
+};
+
+export type CascadeArrowInfoFunc<T> = (info: CascadeArrowInfo) => T;

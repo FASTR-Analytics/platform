@@ -5,6 +5,7 @@
 
 import {
   CustomFigureStyle,
+  generateSurroundsPrimitives,
   measureSurrounds,
   type RectCoordsDims,
   type RenderContext,
@@ -210,12 +211,15 @@ export function measureTable(
     extraBottomPaddingForRowsAndAllHeaders,
   };
 
+  const primitives = generateSurroundsPrimitives(measuredSurrounds);
+
   const mTable: MeasuredTable = {
     item: inputs,
     bounds: rcdWithSurrounds,
     measuredInfo,
     measuredSurrounds,
     extraHeightDueToSurrounds,
+    primitives,
     transformedData,
     customFigureStyle,
     mergedTableStyle,

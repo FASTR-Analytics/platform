@@ -4,28 +4,27 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { measureSurrounds } from "./_surrounds/measure_surrounds.ts";
+import { generateSurroundsPrimitives } from "./_surrounds/generate_surrounds_primitives.ts";
 import {
   CustomFigureStyle,
   type MeasuredText,
-  type MergedChartOVStyle,
-  type MergedTimeseriesStyle,
+  type MergedChartStyleBase,
   Padding,
+  type Primitive,
   RectCoordsDims,
   type RenderContext,
 } from "./deps.ts";
 import { measurePane } from "./measure_pane.ts";
 import type {
-  ChartInputsBase,
   MeasuredChartBase,
-  MeasuredPaneBase,
   SimplifiedChartConfig,
 } from "./measure_types.ts";
+import type { FigureInputsBase } from "./types.ts";
 
-// Main function that measures chart with surrounds - now with simplified config
 export function measureChart<
-  TInputs extends ChartInputsBase,
+  TInputs extends FigureInputsBase,
   TData,
-  TStyle extends MergedChartOVStyle | MergedTimeseriesStyle,
+  TStyle extends MergedChartStyleBase,
 >(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
@@ -40,13 +39,10 @@ export function measureChart<
     responsiveScale,
   );
 
-  // Use pre-computed values from config
   const mergedStyle = config.mergedStyle;
-  const styleProps = config.styleProps;
   const transformedData = config.transformedData;
   const dataProps = config.dataProps;
 
-  // Add legend items manually
   const legendItemsOrLabels = inputs.legendItemsOrLabels ??
     dataProps.seriesHeaders;
 
@@ -63,27 +59,27 @@ export function measureChart<
 
   const contentRcd = measuredSurrounds.contentRcd;
 
-  const nGCols = styleProps.panes.nCols === "auto"
+  const nGCols = mergedStyle.panes.nCols === "auto"
     ? Math.ceil(Math.sqrt(dataProps.paneHeaders.length))
-    : styleProps.panes.nCols;
+    : mergedStyle.panes.nCols;
   const nGRows = Math.ceil(dataProps.paneHeaders.length / nGCols);
 
-  const paneWidth = (contentRcd.w() - (nGCols - 1) * styleProps.panes.gapX) /
+  const paneWidth = (contentRcd.w() - (nGCols - 1) * mergedStyle.panes.gapX) /
     nGCols;
-  const paneHeight = (contentRcd.h() - (nGRows - 1) * styleProps.panes.gapY) /
+  const paneHeight = (contentRcd.h() - (nGRows - 1) * mergedStyle.panes.gapY) /
     nGRows;
 
-  const panePadding = new Padding(styleProps.panes.padding);
+  const panePadding = new Padding(mergedStyle.panes.padding);
 
   let maxColHeaderHeightAndHeaderGap = 0;
   const mCellHeaders: MeasuredText[] = [];
 
-  if (!styleProps.hideColHeaders && dataProps.paneHeaders.length > 1) {
+  if (!mergedStyle.panes.hideHeaders && dataProps.paneHeaders.length > 1) {
     dataProps.paneHeaders.forEach((paneHeader) => {
       mCellHeaders.push(
         rc.mText(
           paneHeader,
-          styleProps.text.paneHeaders,
+          mergedStyle.text.paneHeaders,
           paneWidth - panePadding.totalPx(),
         ),
       );
@@ -92,10 +88,10 @@ export function measureChart<
       ...mCellHeaders.map((m) => m.dims.h()),
     );
     maxColHeaderHeightAndHeaderGap = maxPaneHeaderHeight +
-      styleProps.panes.headerGap;
+      mergedStyle.panes.headerGap;
   }
 
-  const mPanes: MeasuredPaneBase[] = [];
+  const panePrimitives: Primitive[] = [];
 
   for (let i_pane_row = 0; i_pane_row < nGRows; i_pane_row++) {
     for (let i_pane_col = 0; i_pane_col < nGCols; i_pane_col++) {
@@ -105,59 +101,57 @@ export function measureChart<
       }
 
       const paneOuterRcd = new RectCoordsDims([
-        contentRcd.x() + i_pane_col * (paneWidth + styleProps.panes.gapX),
-        contentRcd.y() + i_pane_row * (paneHeight + styleProps.panes.gapY),
+        contentRcd.x() + i_pane_col * (paneWidth + mergedStyle.panes.gapX),
+        contentRcd.y() + i_pane_row * (paneHeight + mergedStyle.panes.gapY),
         paneWidth,
         paneHeight,
       ]);
 
       const paneContentRcd = new RectCoordsDims([
         contentRcd.x() +
-        i_pane_col * (paneWidth + styleProps.panes.gapX) +
+        i_pane_col * (paneWidth + mergedStyle.panes.gapX) +
         panePadding.pl(),
         contentRcd.y() +
-        i_pane_row * (paneHeight + styleProps.panes.gapY) +
+        i_pane_row * (paneHeight + mergedStyle.panes.gapY) +
         panePadding.pt() +
         maxColHeaderHeightAndHeaderGap,
         paneWidth - panePadding.totalPx(),
         paneHeight - (panePadding.totalPy() + maxColHeaderHeightAndHeaderGap),
       ]);
 
-      const mPane = measurePane(rc, {
-        indices: {
-          pane: i_pane,
-          row: i_pane_row,
-          col: i_pane_col,
-        },
-        geometry: {
-          outerRcd: paneOuterRcd,
-          contentRcd: paneContentRcd,
-        },
-        header: mCellHeaders.at(i_pane),
-        dataProps: {
-          laneHeaders: dataProps.laneHeaders,
-          yScaleAxisData: dataProps.yScaleAxisData,
-        },
-        styleProps: {
-          yScaleAxis: styleProps.yScaleAxis,
-          grid: styleProps.grid,
-          xAxisStyle: styleProps.xAxisStyle,
-        },
-        data: transformedData,
-        style: mergedStyle,
-        xAxisMeasureData: config.xAxisMeasureData,
-      });
-
-      mPanes.push(mPane);
+      panePrimitives.push(
+        ...measurePane(rc, {
+          indices: {
+            pane: i_pane,
+            row: i_pane_row,
+            col: i_pane_col,
+          },
+          geometry: {
+            outerRcd: paneOuterRcd,
+            contentRcd: paneContentRcd,
+          },
+          paneHeader: mCellHeaders.at(i_pane),
+          dataProps,
+          data: transformedData,
+          baseStyle: mergedStyle,
+          xAxisConfig: config.xAxisConfig,
+          yAxisConfig: config.yAxisConfig,
+          orientation: config.orientation,
+        }),
+      );
     }
   }
 
-  const base: MeasuredChartBase<TInputs, TData, TStyle> = {
+  const primitives = [
+    ...panePrimitives,
+    ...generateSurroundsPrimitives(measuredSurrounds),
+  ];
+
+  return {
     item: inputs,
     bounds: rcdWithSurrounds,
     measuredSurrounds,
     extraHeightDueToSurrounds,
-    mPanes,
     transformedData,
     customFigureStyle,
     mergedStyle,
@@ -165,7 +159,6 @@ export function measureChart<
     subCaption,
     footnote,
     legendItemsOrLabels,
+    primitives,
   };
-
-  return base;
 }

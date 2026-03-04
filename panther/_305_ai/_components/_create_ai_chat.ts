@@ -3,7 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createContext, createMemo, useContext } from "solid-js";
+import {
+  createContext,
+  createEffect,
+  createMemo,
+  createSignal,
+  useContext,
+} from "solid-js";
 import type {
   Anthropic,
   AnthropicModelConfig,
@@ -169,6 +175,17 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     ...toolRegistry.getSDKTools(),
     ...resolveBuiltInTools(config.builtInTools),
   ] as SDKToolUnion[];
+
+  const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
+
+  function enqueueMessage(text: string) {
+    setQueuedMessages([...queuedMessages(), text]);
+    processMessageForDisplay({ role: "user", content: text });
+  }
+
+  function clearQueue() {
+    setQueuedMessages([]);
+  }
 
   let activeStream: { abort: () => void } | null = null;
   let abortRequested = false;
@@ -487,10 +504,24 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         addDisplayItems(allErrorItems);
       }
 
-      // Add tool results to messages
+      // Check for queued user messages to inject alongside tool results
+      const queuedTexts = queuedMessages();
+      if (queuedTexts.length > 0) setQueuedMessages([]);
+
+      const toolResultContent: (ToolResult | { type: "text"; text: string })[] =
+        queuedTexts.length > 0
+          ? [
+            ...allResults,
+            ...queuedTexts.map((text) => ({
+              type: "text" as const,
+              text,
+            })),
+          ]
+          : allResults;
+
       const toolResultMsg: MessageParam = {
         role: "user",
-        content: allResults,
+        content: toolResultContent,
       };
 
       const messagesWithToolResults = [...updatedMessages, toolResultMsg];
@@ -527,6 +558,26 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     return sendMessageStreaming(undefined);
   }
+
+  // Drain queued messages when the turn completes (non-tool-loop case)
+  createEffect(() => {
+    const loading = isLoading();
+    const processingTools = isProcessingTools();
+    const queue = queuedMessages();
+    const msgs = messages();
+
+    const lastMsg = msgs[msgs.length - 1];
+    const hasUnresolvedTools = msgs.length > 0 &&
+      lastMsg?.role === "assistant" &&
+      Array.isArray(lastMsg.content) &&
+      lastMsg.content.some((block: any) => block.type === "tool_use");
+
+    if (!loading && !processingTools && queue.length > 0) {
+      if (hasUnresolvedTools) return;
+      setQueuedMessages([]);
+      sendMessages(queue);
+    }
+  });
 
   function stopGeneration() {
     if (!isLoading()) return;
@@ -577,7 +628,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     clearConversation,
     stopGeneration,
     toolRegistry,
-    processMessageForDisplay,
+    enqueueMessage,
+    clearQueue,
+    queuedMessages,
     clearInProgressItems,
     conversationId,
   };

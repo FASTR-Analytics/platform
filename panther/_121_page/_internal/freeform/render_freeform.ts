@@ -47,8 +47,8 @@ export function renderFreeform(
     rc.rText(
       watermarkPrim.mText,
       [watermarkPrim.x, watermarkPrim.y],
-      watermarkPrim.hAlign,
-      watermarkPrim.vAlign,
+      watermarkPrim.alignH,
+      watermarkPrim.alignV,
     );
   }
 }

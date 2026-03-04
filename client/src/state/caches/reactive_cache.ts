@@ -165,10 +165,14 @@ export function createReactiveCache<Params, Data>(
     // Check in-flight promises
     const existingUnresolved = _unresolved.get(cacheKey);
     if (existingUnresolved) {
-      // console.log(
-      //   `[ReactiveCache:${config.name}] In-flight promise found for key: ${cacheKey}`,
-      // );
+      console.log(
+        `[ReactiveCache:${config.name}] In-flight promise found — awaiting for key: ${cacheKey}`,
+      );
+      const t_inflight = performance.now();
       const response = await existingUnresolved.dataPromise;
+      console.log(
+        `[ReactiveCache:${config.name}] In-flight resolved (${(performance.now() - t_inflight).toFixed(0)}ms) success=${response.success} for key: ${cacheKey}`,
+      );
       const data = response.success ? response.data : undefined;
       return { data, version, isInflight: true };
     }

@@ -3,51 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { isUnique, type MeasuredText } from "../deps.ts";
-
-export function getGoodAxisTickValues(
-  maxValue: number,
-  minValue: number,
-  startingMaxNumberTicks: number,
-  formatter: (v: number) => string,
-): number[] {
-  if (!isFinite(maxValue) || !isFinite(minValue)) {
-    throw new Error(
-      `Invalid axis range: maxValue (${maxValue}) or minValue (${minValue}) is not finite`,
-    );
-  }
-
-  if (maxValue < minValue) {
-    throw new Error(
-      `Invalid axis range: maxValue (${maxValue}) < minValue (${minValue})`,
-    );
-  }
-
-  const range = maxValue - minValue;
-  const avgMagnitude = Math.max(Math.abs(maxValue), Math.abs(minValue));
-  const epsilon = avgMagnitude * Number.EPSILON * 100;
-
-  if (range <= epsilon) {
-    const adjustedMax = maxValue === 0 ? 1 : maxValue * 1.1;
-    const adjustedMin = minValue === 0 ? 0 : minValue * 0.9;
-    return getGoodAxisTickValues(
-      adjustedMax,
-      adjustedMin,
-      startingMaxNumberTicks,
-      formatter,
-    );
-  }
-
-  let nTicks = startingMaxNumberTicks;
-  let arr = getArrayForNTicksAndMaxValue(nTicks, minValue, maxValue);
-
-  while (nTicks > 2 && isNotUnique(arr, formatter)) {
-    nTicks -= 1;
-    arr = getArrayForNTicksAndMaxValue(nTicks, minValue, maxValue);
-  }
-
-  return arr;
-}
+import { isUnique } from "../deps.ts";
 
 export function getGoodAxisTickValues_V2(
   maxValue: number,
@@ -91,19 +47,6 @@ export function getGoodAxisTickValues_V2(
   }
 
   return arr;
-}
-
-function getArrayForNTicksAndMaxValue(
-  nTicks: number,
-  minValue: number,
-  maxValue: number,
-) {
-  const increment = (maxValue - minValue) / (nTicks - 1);
-  const roundedIncrement = getAppropriatelyRoundedIncrement(increment);
-  return new Array(nTicks)
-    .fill(0)
-    .map((_, i) => minValue + i * roundedIncrement)
-    .filter((v) => v < maxValue + roundedIncrement);
 }
 
 function getArrayForNTicksAndExpandedRange(
@@ -161,21 +104,4 @@ function getAppropriatelyRoundedIncrement(n: number): number {
   }
   const result = Math.ceil(n / denom2) * denom2;
   return result > 0 ? result : n;
-}
-
-export function getPropotionOfYAxisTakenUpByTicks(
-  yAxisTickLabelDimensions: MeasuredText[],
-  gridStrokeWidth: number,
-  chartAreaHeight: number,
-): number {
-  const sumYAxisTickLabelHeights = yAxisTickLabelDimensions.reduce(
-    (sum, obj, i, arr) => {
-      if (i === 0 || i === arr.length - 1) {
-        return sum + gridStrokeWidth + (obj.dims.h() - gridStrokeWidth) / 2;
-      }
-      return sum + obj.dims.h();
-    },
-    0,
-  );
-  return sumYAxisTickLabelHeights / chartAreaHeight;
 }

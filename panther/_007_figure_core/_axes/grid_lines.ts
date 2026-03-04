@@ -3,102 +3,65 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { PeriodType, RectCoordsDims } from "../deps.ts";
-import type { YScaleAxisWidthInfo } from "../types.ts";
+import type { RectCoordsDims } from "../deps.ts";
+import type { YAxisWidthInfo, YScaleAxisWidthInfo } from "../types.ts";
+import type { XAxisConfig, YAxisConfig } from "./axis_configs.ts";
 import { calculateVerticalGridLinesForLaneXPeriod } from "./x_period/grid_lines.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
 import { calculateVerticalGridLinesForLaneXText } from "./x_text/grid_lines.ts";
 import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 import { calculateHorizontalGridLinesForTier as calculateHorizontalGridLinesForTierYScale } from "./y_scale/grid_lines.ts";
-
-///////////////////////////////////////////
-//                                       //
-//    X-Axis Grid Lines (Vertical)       //
-//                                       //
-///////////////////////////////////////////
-
-export type XAxisGridLineConfig =
-  | {
-    type: "text";
-    nIndicators: number;
-    centeredTicks: boolean;
-  }
-  | {
-    type: "period";
-    periodType: PeriodType;
-    timeMin: number;
-    nTimePoints: number;
-    showEveryNthTick: number;
-  }
-  | {
-    type: "scale";
-    // Future: X-scale axis
-  };
+import type { XAxisMeasuredInfo } from "./measure_x_axis.ts";
 
 export function calculateXAxisGridLines(
   i_lane: number,
   plotAreaRcd: RectCoordsDims,
-  config: XAxisGridLineConfig,
-  xAxisMeasuredInfo: XTextAxisMeasuredInfo | XPeriodAxisMeasuredInfo,
+  xAxisConfig: XAxisConfig,
+  xAxisMeasuredInfo: XAxisMeasuredInfo,
   gridStrokeWidth: number,
 ): { x: number; tickValue?: number }[] {
-  switch (config.type) {
+  switch (xAxisConfig.type) {
     case "text":
       return calculateVerticalGridLinesForLaneXText(
         i_lane,
         plotAreaRcd,
         xAxisMeasuredInfo as XTextAxisMeasuredInfo,
-        config.nIndicators,
+        xAxisConfig.indicatorHeaders.length,
         gridStrokeWidth,
-        config.centeredTicks,
+        xAxisConfig.axisStyle.tickPosition === "center",
       );
     case "period":
       return calculateVerticalGridLinesForLaneXPeriod(
         i_lane,
         plotAreaRcd,
         xAxisMeasuredInfo as XPeriodAxisMeasuredInfo,
-        config.periodType,
-        config.timeMin,
-        config.nTimePoints,
+        xAxisConfig.periodType,
+        xAxisConfig.timeMin,
+        xAxisConfig.nTimePoints,
         gridStrokeWidth,
-        config.showEveryNthTick,
+        xAxisConfig.axisStyle.showEveryNthTick,
       );
     case "scale":
-      throw new Error("X-scale axis not implemented yet");
+      throw new Error("X-scale grid lines not implemented yet");
   }
 }
-
-///////////////////////////////////////////
-//                                       //
-//    Y-Axis Grid Lines (Horizontal)     //
-//                                       //
-///////////////////////////////////////////
-
-export type YAxisGridLineConfig =
-  | {
-    type: "scale";
-  }
-  | {
-    type: "text";
-    // Future: Y-text axis
-  };
 
 export function calculateYAxisGridLines(
   i_tier: number,
   plotAreaY: number,
   plotAreaHeight: number,
-  config: YAxisGridLineConfig,
-  yScaleAxisWidthInfo: YScaleAxisWidthInfo,
+  yAxisConfig: YAxisConfig,
+  yAxisWidthInfo: YAxisWidthInfo,
 ): { y: number; tickValue: number }[] {
-  switch (config.type) {
+  switch (yAxisConfig.type) {
     case "scale":
       return calculateHorizontalGridLinesForTierYScale(
         i_tier,
-        yScaleAxisWidthInfo,
+        yAxisWidthInfo as YScaleAxisWidthInfo,
         plotAreaY,
         plotAreaHeight,
       );
     case "text":
-      throw new Error("Y-text axis not implemented yet");
+      throw new Error("Y-text grid lines not implemented yet");
   }
 }

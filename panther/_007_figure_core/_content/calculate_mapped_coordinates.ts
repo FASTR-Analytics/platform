@@ -4,13 +4,15 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Coordinates, type RectCoordsDims } from "../deps.ts";
-import type { YScaleAxisWidthInfo } from "../types.ts";
+import type { ValueRange } from "../types.ts";
 
-export type MappedValueCoordinate = {
-  coords: Coordinates;
-  val: number;
-  barHeight: number;
-} | undefined;
+export type MappedValueCoordinate =
+  | {
+    coords: Coordinates;
+    val: number;
+    barExtent: number;
+  }
+  | undefined;
 
 export function calculateMappedCoordinates(
   seriesVals: (number | undefined)[][],
@@ -18,11 +20,13 @@ export function calculateMappedCoordinates(
   incrementWidth: number,
   isCentered: boolean,
   gridStrokeWidth: number,
-  yScaleAxisWidthInfo: YScaleAxisWidthInfo,
-  i_tier: number,
+  valueRange: ValueRange,
+  orientation: "vertical" | "horizontal" = "vertical",
 ): MappedValueCoordinate[][] {
-  const maxYVal = yScaleAxisWidthInfo.yAxisTickValues[i_tier]?.at(-1) ?? 1;
-  const minYVal = yScaleAxisWidthInfo.yAxisTickValues[i_tier]?.at(0) ?? 0;
+  if (orientation === "horizontal") {
+    throw new Error("Horizontal coordinate mapping not implemented yet");
+  }
+  const { maxVal, minVal } = valueRange;
 
   return seriesVals.map((singleSeries) => {
     return singleSeries.map((val, i_val) => {
@@ -36,11 +40,10 @@ export function calculateMappedCoordinates(
         incrementWidth / 2 +
         i_val * (extraWidthForStrokeIfNeeded + incrementWidth);
 
-      const barHeight = plotAreaRcd.h() *
-        ((val - minYVal) / (maxYVal - minYVal));
-      const y = plotAreaRcd.y() + (plotAreaRcd.h() - barHeight);
+      const barExtent = plotAreaRcd.h() * ((val - minVal) / (maxVal - minVal));
+      const y = plotAreaRcd.y() + (plotAreaRcd.h() - barExtent);
 
-      return { coords: new Coordinates({ x, y }), val, barHeight };
+      return { coords: new Coordinates({ x, y }), val, barExtent };
     });
   });
 }

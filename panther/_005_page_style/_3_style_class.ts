@@ -21,7 +21,7 @@ import {
   getTextInfo,
   m,
   ms,
-  Padding,
+  msPadding,
   type TextInfo,
 } from "./deps.ts";
 import { PAGE_TEXT_STYLE_KEYS } from "./text_style_keys.ts";
@@ -100,9 +100,12 @@ export class CustomPageStyle {
         watermark: getTextInfo(c.text?.watermark, g.text?.watermark, baseText),
       },
       header: {
-        padding: new Padding(
-          m(c.header?.padding, g.header?.padding, d.header.padding),
-        ).toScaled(sf),
+        padding: msPadding(
+          sf,
+          c.header?.padding,
+          g.header?.padding,
+          d.header.padding,
+        ),
         backgroundColor: getColor(
           m(
             c.header?.backgroundColor,
@@ -160,9 +163,12 @@ export class CustomPageStyle {
         ),
       },
       footer: {
-        padding: new Padding(
-          m(c.footer?.padding, g.footer?.padding, d.footer.padding),
-        ).toScaled(sf),
+        padding: msPadding(
+          sf,
+          c.footer?.padding,
+          g.footer?.padding,
+          d.footer.padding,
+        ),
         logoHeight: ms(
           sf,
           c.footer?.logoHeight,
@@ -184,9 +190,12 @@ export class CustomPageStyle {
         ),
       },
       content: {
-        padding: new Padding(
-          m(c.content?.padding, g.content?.padding, d.content.padding),
-        ).toScaled(sf),
+        padding: msPadding(
+          sf,
+          c.content?.padding,
+          g.content?.padding,
+          d.content.padding,
+        ),
         backgroundColor: getColor(
           m(
             c.content?.backgroundColor,
@@ -198,9 +207,12 @@ export class CustomPageStyle {
         gapY: ms(sf, c.content?.gapY, g.content?.gapY, d.content.gapY),
       },
       cover: {
-        padding: new Padding(
-          m(c.cover?.padding, g.cover?.padding, d.cover.padding),
-        ).toScaled(sf),
+        padding: msPadding(
+          sf,
+          c.cover?.padding,
+          g.cover?.padding,
+          d.cover.padding,
+        ),
         backgroundColor: getColor(
           m(
             c.cover?.backgroundColor,
@@ -221,11 +233,16 @@ export class CustomPageStyle {
           d.cover.logoGapX,
         ),
         gapY: ms(sf, c.cover?.gapY, g.cover?.gapY, d.cover.gapY),
+        alignH: m(c.cover?.alignH, g.cover?.alignH, d.cover.alignH),
+        alignV: m(c.cover?.alignV, g.cover?.alignV, d.cover.alignV),
       },
       section: {
-        padding: new Padding(
-          m(c.section?.padding, g.section?.padding, d.section.padding),
-        ).toScaled(sf),
+        padding: msPadding(
+          sf,
+          c.section?.padding,
+          g.section?.padding,
+          d.section.padding,
+        ),
         backgroundColor: getColor(
           m(
             c.section?.backgroundColor,
@@ -234,15 +251,16 @@ export class CustomPageStyle {
           ),
         ),
         gapY: ms(sf, c.section?.gapY, g.section?.gapY, d.section.gapY),
+        alignH: m(c.section?.alignH, g.section?.alignH, d.section.alignH),
+        alignV: m(c.section?.alignV, g.section?.alignV, d.section.alignV),
       },
       layoutContainers: {
-        padding: new Padding(
-          m(
-            c.layoutContainers?.padding,
-            g.layoutContainers?.padding,
-            d.layoutContainers.padding,
-          ),
-        ).toScaled(sf),
+        padding: msPadding(
+          sf,
+          c.layoutContainers?.padding,
+          g.layoutContainers?.padding,
+          d.layoutContainers.padding,
+        ),
         backgroundColor: getColor(
           m(
             c.layoutContainers?.backgroundColor,

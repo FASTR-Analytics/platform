@@ -21,6 +21,7 @@ import type {
   LayoutNode,
   ContainerStyleOptions,
   CustomPageStyleOptions,
+  FigureInputs,
   FontInfo,
   ImageInputs,
 } from "panther";
@@ -49,7 +50,8 @@ export function buildStyleForSlide(
   const primaryTextColor = getTextColorForBackground(primaryColor);
 
   const df = config.deckFooter;
-  const footerText = slide.type === "content" ? (df ? df.text : slide.footer) : undefined;
+  const footerText =
+    slide.type === "content" ? (df ? df.text : slide.footer) : undefined;
   const hasFooter = !!footerText?.trim();
 
   const coverFontSizes =
@@ -160,7 +162,8 @@ export function buildStyleForSlide(
     footer: {
       backgroundColor: primaryColor,
       logoGapX: 80,
-      padding: [60, 80],
+      padding: [45, 80],
+      logoHeight: 110,
     },
   };
 }
@@ -372,7 +375,7 @@ async function convertBlockToPageContentItem(
     return imageItem;
   }
 
-  const fi = block.figureInputs;
+  let fi: FigureInputs | undefined = block.figureInputs;
   if (
     !fi ||
     !(
@@ -384,6 +387,21 @@ async function convertBlockToPageContentItem(
   ) {
     return { spacer: true };
   }
+
+  // --- LEGACY MIGRATION: remove once all saved slides have been rebuilt ---
+  // tierHeaders was moved from yScaleAxisData to the top level of
+  // TimeseriesDataTransformed and ChartOVDataTransformed. Saved slides
+  // created before this change are missing the top-level field.
+  for (const dataKey of ["timeseriesData", "chartData"] as const) {
+    const d: any = (fi as Record<string, any>)[dataKey];
+    if (d?.isTransformed && !d.tierHeaders) {
+      fi = {
+        ...fi,
+        [dataKey]: { ...d, tierHeaders: d.yScaleAxisData?.tierHeaders ?? ["default"] },
+      };
+    }
+  }
+  // --- END LEGACY MIGRATION ---
 
   if (block.source?.type === "from_data") {
     try {

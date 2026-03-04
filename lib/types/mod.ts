@@ -1,4 +1,5 @@
 export * from "./assets.ts";
+export * from "./errors.ts";
 export * from "./dataset_hfa.ts";
 export * from "./dimension_definitions.ts";
 export * from "./dataset_hfa_import.ts";

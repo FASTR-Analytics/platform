@@ -1,4 +1,11 @@
-import { H_USERS, ProjectDetail, InstanceDetail, ProjectUser, t3, TC } from "lib";
+import {
+  ProjectDetail,
+  InstanceDetail,
+  ProjectUser,
+  t3,
+  TC,
+  H_USERS,
+} from "lib";
 import type { TranslatableString } from "lib";
 import {
   Button,
@@ -13,24 +20,18 @@ import {
   openComponent,
   timActionDelete,
   timActionButton,
+  StateHolderWrapper,
+  timQuery,
 } from "panther";
-import {
-  Match,
-  Show,
-  Switch,
-  onMount,
-  For,
-  createResource,
-  createSignal,
-} from "solid-js";
+import { Match, Show, Switch, For, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { Table, TableColumn, type BulkAction } from "panther";
 import { EditLabelForm } from "~/components/forms_editors/edit_label";
 import { BulkEditProjectPermissionsForm } from "~/components/forms_editors/bulk_edit_project_permissions_form";
 import { SelectProjectUserRole } from "~/components/forms_editors/select_project_user_role";
 import { serverActions } from "~/server_actions";
+import { _SERVER_HOST } from "~/server_actions/config";
 import { CopyProjectForm } from "./copy_project";
-import { getPropotionOfYAxisTakenUpByTicks } from "@timroberton/panther";
 import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
 import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
@@ -537,7 +538,7 @@ function ProjectUserTable(p: {
     {
       key: "actions",
       header: "",
-      align: "right",
+      alignH: "right",
       render: (user) => (
         <Button
           onClick={(e) => {
@@ -614,49 +615,46 @@ function ProjectBackups(props: {
     });
   };
 
-  const [backupsList, { refetch: refetchBackups }] = createResource<
-    ProjectBackupInfo[]
-  >(async () => {
+  const backupsQuery = timQuery<ProjectBackupInfo[]>(async () => {
     const token = await clerk.session?.getToken();
     const headers: HeadersInit = {};
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch("/api/all-projects-backups", { headers });
+    const response = await fetch(`${_SERVER_HOST}/api/all-projects-backups`, { headers });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch backups: ${response.status}`);
+      return {
+        success: false,
+        err: `Failed to fetch backups: ${response.status}`,
+      };
     }
 
-    const data = await response.json();
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      return { success: false, err: "Invalid response from server" };
+    }
 
     if (!data.success) {
-      throw new Error(data.error || "Failed to fetch backups");
+      return { success: false, err: data.error || "Failed to fetch backups" };
     }
 
     const allBackups = data.backups || [];
 
-    // Filter backups to only include those containing this project
     const projectBackups = allBackups
       .map((backup: any) => {
-        // Filter files to only include the project backups
         const projectFiles = backup.files.filter(
           (file: BackupFileInfo) =>
             file.type === "project" && file.name.includes(props.projectId),
         );
-
-        // Only include this backup if it has project files
-        if (projectFiles.length === 0) {
-          return null;
-        }
-
-        // Calculate size of just the project files
+        if (projectFiles.length === 0) return null;
         const projectSize = projectFiles.reduce(
           (sum: number, file: BackupFileInfo) => sum + file.size,
           0,
         );
-
         return {
           ...backup,
           files: projectFiles,
@@ -666,14 +664,13 @@ function ProjectBackups(props: {
       })
       .filter((backup: any) => backup !== null);
 
-    return projectBackups;
+    return { success: true, data: projectBackups };
   });
 
   // Group backups by date or custom
-  const groupedBackups = (): GroupedBackups[] => {
-    const backups = backupsList();
-    if (!backups) return [];
-
+  const getGroupedBackups = (
+    backups: ProjectBackupInfo[],
+  ): GroupedBackups[] => {
     const dateGroups = new Map<string, ProjectBackupInfo[]>();
     const customBackups: ProjectBackupInfo[] = [];
 
@@ -735,7 +732,7 @@ function ProjectBackups(props: {
         headers["Authorization"] = `Bearer ${token}`;
       }
       console.log("Downloading file:", folder, fileName);
-      const response = await fetch(`/api/backups/${folder}/${fileName}`, {
+      const response = await fetch(`${_SERVER_HOST}/api/backups/${folder}/${fileName}`, {
         headers,
       });
       if (response.ok) {
@@ -766,7 +763,7 @@ function ProjectBackups(props: {
       }
       headers["Content-Type"] = "application/json";
       headers["Project-Id"] = projectId;
-      const response = await fetch(`/api/restore-backup`, {
+      const response = await fetch(`${_SERVER_HOST}/api/restore-backup`, {
         method: "POST",
         headers,
         body: JSON.stringify({ folder, fileName, projectId }),
@@ -804,7 +801,7 @@ function ProjectBackups(props: {
           if (token) {
             headers["Authorization"] = `Bearer ${token}`;
           }
-          const response = await fetch(`/api/create-backup/${backupName}`, {
+          const response = await fetch(`${_SERVER_HOST}/api/create-backup/${backupName}`, {
             method: "POST",
             headers,
           });
@@ -825,7 +822,7 @@ function ProjectBackups(props: {
           return { success: true as const };
         },
         silentFetch: async () => {
-          refetchBackups();
+          backupsQuery.silentFetch();
         },
       },
     });
@@ -857,7 +854,7 @@ function ProjectBackups(props: {
             headers["Authorization"] = `Bearer ${token}`;
           }
 
-          const response = await fetch(`/api/restore-backup`, {
+          const response = await fetch(`${_SERVER_HOST}/api/restore-backup`, {
             method: "POST",
             headers,
             body: JSON.stringify({
@@ -901,12 +898,7 @@ function ProjectBackups(props: {
 
   return (
     <div>
-      <div class="mb-3 flex items-center justify-between">
-        <div class="text-neutral text-sm">
-          {backupsList.loading
-            ? ""
-            : `${backupsList()?.length || 0} ${t3({ en: "backup(s) available", fr: "sauvegarde(s) disponible(s)" })}`}
-        </div>
+      <div class="mb-3 flex items-center justify-end">
         <div class="flex gap-2">
           <Button onClick={attemptCreateBackup} size="sm">
             {t3({ en: "Create backup", fr: "Créer une sauvegarde" })}
@@ -915,7 +907,7 @@ function ProjectBackups(props: {
             {t3({ en: "Restore from file", fr: "Restaurer depuis un fichier" })}
           </Button>
           <Button
-            onClick={() => refetchBackups()}
+            onClick={() => backupsQuery.fetch()}
             iconName="refresh"
             size="sm"
             outline
@@ -924,119 +916,117 @@ function ProjectBackups(props: {
           </Button>
         </div>
       </div>
-      <Show
-        when={!backupsList.loading}
-        fallback={
-          <div>
-            {t3({
-              en: "Loading backups...",
-              fr: "Chargement des sauvegardes...",
-            })}
-          </div>
-        }
-      >
-        <Show
-          when={backupsList() && backupsList()!.length > 0}
-          fallback={
-            <div class="text-neutral">
-              {t3({
-                en: "No backups available for this project",
-                fr: "Aucune sauvegarde disponible pour ce projet",
-              })}
-            </div>
-          }
-        >
-          <div class="flex flex-col gap-2">
-            <For each={groupedBackups()}>
-              {(group: GroupedBackups) => {
-                const groupKey = group.isCustom ? "custom" : group.date!;
-                const isExpanded = () => expandedGroups().has(groupKey);
-
-                return (
-                  <div class="flex flex-col">
-                    {/* Group Header */}
-                    <button
-                      onClick={() => toggleGroup(groupKey)}
-                      class="flex items-center justify-between rounded border border-neutral-200 bg-neutral-50 p-3 text-left transition-colors hover:bg-neutral-100"
-                    >
-                      <div class="flex items-center gap-2">
-                        <Show
-                          when={isExpanded()}
-                          fallback={<ChevronRightIcon />}
-                        >
-                          <ChevronDownIcon />
-                        </Show>
-                        <span class="font-medium">
-                          {group.isCustom
-                            ? t3({
-                                en: "Custom Backups",
-                                fr: "Sauvegardes personnalisées",
-                              })
-                            : group.date}
-                        </span>
-                        <span class="text-neutral text-sm">
-                          ({group.backups.length}{" "}
-                          {t3({ en: "backup", fr: "sauvegarde" })}
-                          {group.backups.length !== 1 ? "s" : ""})
-                        </span>
-                      </div>
-                    </button>
-
-                    {/* Expanded Backups */}
-                    <Show when={isExpanded()}>
-                      <div class="mt-2 ml-6 flex flex-col gap-2">
-                        <For each={group.backups}>
-                          {(backup: ProjectBackupInfo) => (
-                            <div class="flex items-center justify-between rounded border border-neutral-200 bg-white p-3">
-                              <div class="flex flex-col gap-1">
-                                <span class="font-medium">
-                                  {group.isCustom
-                                    ? backup.folder
-                                    : formatTime(backup.folder)}
-                                </span>
-                                <span class="text-neutral text-sm">
-                                  {formatBytes(backup.size)}
-                                </span>
-                              </div>
-                              <div class="flex gap-2">
-                                <Button
-                                  onClick={() =>
-                                    downloadFile(
-                                      backup.folder,
-                                      backup.files[0].name,
-                                    )
-                                  }
-                                  iconName="download"
-                                  intent="primary"
-                                  size="sm"
-                                >
-                                  {t3(TC.download)}
-                                </Button>
-                                <Button
-                                  onClick={() =>
-                                    restoreBackup(
-                                      backup.folder,
-                                      backup.files[0].name,
-                                    )
-                                  }
-                                  size="sm"
-                                  outline
-                                >
-                                  {t3({ en: "Restore", fr: "Restaurer" })}
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </For>
-                      </div>
-                    </Show>
+      <StateHolderWrapper state={backupsQuery.state()} noPad>
+        {(backups) => {
+          const grouped = getGroupedBackups(backups);
+          return (
+            <>
+              <div class="text-neutral mb-3 text-sm">
+                {`${backups.length} ${t3({ en: "backup(s) available", fr: "sauvegarde(s) disponible(s)" })}`}
+              </div>
+              <Show
+                when={grouped.length > 0}
+                fallback={
+                  <div class="text-neutral">
+                    {t3({
+                      en: "No backups available for this project",
+                      fr: "Aucune sauvegarde disponible pour ce projet",
+                    })}
                   </div>
-                );
-              }}
-            </For>
-          </div>
-        </Show>
-      </Show>
+                }
+              >
+                <div class="flex flex-col gap-2">
+                  <For each={grouped}>
+                    {(group: GroupedBackups) => {
+                      const groupKey = group.isCustom ? "custom" : group.date!;
+                      const isExpanded = () => expandedGroups().has(groupKey);
+
+                      return (
+                        <div class="flex flex-col">
+                          <button
+                            onClick={() => toggleGroup(groupKey)}
+                            class="flex items-center justify-between rounded border border-neutral-200 bg-neutral-50 p-3 text-left transition-colors hover:bg-neutral-100"
+                          >
+                            <div class="flex items-center gap-2">
+                              <Show
+                                when={isExpanded()}
+                                fallback={<ChevronRightIcon />}
+                              >
+                                <ChevronDownIcon />
+                              </Show>
+                              <span class="font-medium">
+                                {group.isCustom
+                                  ? t3({
+                                      en: "Custom Backups",
+                                      fr: "Sauvegardes personnalisées",
+                                    })
+                                  : group.date}
+                              </span>
+                              <span class="text-neutral text-sm">
+                                ({group.backups.length}{" "}
+                                {t3({ en: "backup", fr: "sauvegarde" })}
+                                {group.backups.length !== 1 ? "s" : ""})
+                              </span>
+                            </div>
+                          </button>
+
+                          <Show when={isExpanded()}>
+                            <div class="mt-2 ml-6 flex flex-col gap-2">
+                              <For each={group.backups}>
+                                {(backup: ProjectBackupInfo) => (
+                                  <div class="flex items-center justify-between rounded border border-neutral-200 bg-white p-3">
+                                    <div class="flex flex-col gap-1">
+                                      <span class="font-medium">
+                                        {group.isCustom
+                                          ? backup.folder
+                                          : formatTime(backup.folder)}
+                                      </span>
+                                      <span class="text-neutral text-sm">
+                                        {formatBytes(backup.size)}
+                                      </span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                      <Button
+                                        onClick={() =>
+                                          downloadFile(
+                                            backup.folder,
+                                            backup.files[0].name,
+                                          )
+                                        }
+                                        iconName="download"
+                                        intent="primary"
+                                        size="sm"
+                                      >
+                                        {t3(TC.download)}
+                                      </Button>
+                                      <Button
+                                        onClick={() =>
+                                          restoreBackup(
+                                            backup.folder,
+                                            backup.files[0].name,
+                                          )
+                                        }
+                                        size="sm"
+                                        outline
+                                      >
+                                        {t3({ en: "Restore", fr: "Restaurer" })}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </For>
+                            </div>
+                          </Show>
+                        </div>
+                      );
+                    }}
+                  </For>
+                </div>
+              </Show>
+            </>
+          );
+        }}
+      </StateHolderWrapper>
     </div>
   );
 }

@@ -14,7 +14,10 @@ export { writeSlide, writeSlides } from "./write_slide.ts";
 
 // Utility exports for advanced usage
 export { createCanvasRenderContext, writeCanvas } from "./utils.ts";
-export { registerFontWithSkiaIfNeeded } from "./register_font.ts";
+export {
+  registerFontWithSkiaIfNeeded,
+  registerGlobalFontsWithSkia,
+} from "./register_font.ts";
 export { loadImage } from "./load_image.ts";
 
 // Error types for better error handling

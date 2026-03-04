@@ -139,6 +139,30 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
       (d) => d.disOpt === "indicator_common_id",
     );
 
+    const indicatorProp =
+      getDisaggregatorDisplayProp(resultsValue, config, ["indicator"]) ??
+      "--v";
+    const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"]);
+    const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"]);
+    const laneProp = getDisaggregatorDisplayProp(resultsValue, config, [
+      "col",
+      "colGroup",
+    ]);
+    const tierProp = getDisaggregatorDisplayProp(resultsValue, config, [
+      "row",
+      "rowGroup",
+    ]);
+
+    const dateLabelReplacements = jsonArray
+      ? getDateLabelReplacements(jsonArray, [
+          indicatorProp,
+          seriesProp,
+          paneProp,
+          laneProp,
+          tierProp,
+        ])
+      : {};
+
     const adminArea3LabelReplacements =
       config.s.formatAdminArea3Labels && jsonArray
         ? getAdminArea3LabelReplacements(jsonArray)
@@ -146,19 +170,11 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
 
     const dataConfig: ChartOVJsonDataConfig = {
       valueProps: getFilteredValueProps(resultsValue.valueProps, config),
-      indicatorProp:
-        getDisaggregatorDisplayProp(resultsValue, config, ["indicator"]) ??
-        "--v",
-      seriesProp: getDisaggregatorDisplayProp(resultsValue, config, ["series"]),
-      paneProp: getDisaggregatorDisplayProp(resultsValue, config, ["cell"]),
-      laneProp: getDisaggregatorDisplayProp(resultsValue, config, [
-        "col",
-        "colGroup",
-      ]),
-      tierProp: getDisaggregatorDisplayProp(resultsValue, config, [
-        "row",
-        "rowGroup",
-      ]),
+      indicatorProp,
+      seriesProp,
+      paneProp,
+      laneProp,
+      tierProp,
       //
       sortHeaders: includesIndicatorDisaggregation
         ? get_INDICATOR_COMMON_IDS_IN_SORT_ORDER()
@@ -167,6 +183,7 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
       labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
       labelReplacementsAfterSorting: {
         ...indicatorLabelReplacements,
+        ...dateLabelReplacements,
         ...adminArea3LabelReplacements,
         __NATIONAL: t2(T.FRENCH_UI_STRINGS.national),
         zzNATIONAL: t2(T.FRENCH_UI_STRINGS.national),

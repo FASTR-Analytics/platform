@@ -10,6 +10,11 @@ import type {
   TextInfoUnkeyed,
 } from "../deps.ts";
 import { Coordinates, RectCoordsDims, Z_INDEX } from "../deps.ts";
+export type {
+  PositionedSankeyLink,
+  PositionedSankeyNode,
+  SankeyPrimitiveOptions,
+} from "./types.ts";
 import type {
   PositionedSankeyLink,
   PositionedSankeyNode,
@@ -49,7 +54,7 @@ function generateNodePrimitives(
     });
 
     let labelData:
-      | { mText: any; position: Coordinates; alignment: "left" | "right" }
+      | { mText: any; position: Coordinates; alignH: "left" | "right" }
       | undefined;
 
     if (node.label) {
@@ -64,7 +69,7 @@ function generateNodePrimitives(
       labelData = {
         mText,
         position: new Coordinates([labelX, labelY]),
-        alignment: labelOnRight ? "left" : "right",
+        alignH: labelOnRight ? "left" : "right",
       };
     }
 

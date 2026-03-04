@@ -441,19 +441,22 @@ function addContentItem(
       dataUrl = imageItem.image;
     } else {
       // Support cover mode with source cropping
-      const crop =
-        measured.srcX !== undefined &&
-        measured.srcY !== undefined &&
-        measured.srcW !== undefined &&
-        measured.srcH !== undefined
-          ? {
-              sx: measured.srcX,
-              sy: measured.srcY,
-              sw: measured.srcW,
-              sh: measured.srcH,
-            }
-          : undefined;
-      dataUrl = imageToDataUrl(imageItem.image, createCanvasRenderContext, crop);
+      const crop = measured.srcX !== undefined &&
+          measured.srcY !== undefined &&
+          measured.srcW !== undefined &&
+          measured.srcH !== undefined
+        ? {
+          sx: measured.srcX,
+          sy: measured.srcY,
+          sw: measured.srcW,
+          sh: measured.srcH,
+        }
+        : undefined;
+      dataUrl = imageToDataUrl(
+        imageItem.image,
+        createCanvasRenderContext,
+        crop,
+      );
     }
 
     slide.addImage({

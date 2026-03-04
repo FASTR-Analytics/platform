@@ -12,6 +12,7 @@ import type {
   MeasuredSurrounds,
   MeasuredText,
   MergedTableStyle,
+  Primitive,
   RectCoordsDims,
 } from "./deps.ts";
 
@@ -187,6 +188,7 @@ export type MeasuredTable = Measured<TableInputs> & {
   measuredSurrounds: MeasuredSurrounds;
   extraHeightDueToSurrounds: number;
   measuredInfo: TableMeasuredInfo;
+  primitives: Primitive[];
   // Computed data
   transformedData: TableDataTransformed;
   customFigureStyle: CustomFigureStyle;

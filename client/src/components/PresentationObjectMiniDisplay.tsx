@@ -115,11 +115,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
             keyed
           >
             {(keyedFigureInputs) => {
-              const h1 =
-                //@ts-ignore
-                keyedFigureInputs.style.idealAspectRatio === "none"
-                  ? "flex"
-                  : "ideal";
+              const h1 = "tableData" in keyedFigureInputs ? "ideal" as const : "flex" as const;
               return (
                 <Switch>
                   <Match when={p.shapeType === "force-aspect-video"}>
@@ -136,7 +132,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                   <Match when={true}>
                     <ChartHolder
                       chartInputs={keyedFigureInputs}
-                      height={"ideal"}
+                      height={h1}
                       noRescaleWithWidthChange
                       textRenderingOptions={getTextRenderingOptions()}
                       scalePixelResolution={p.scalePixelResolution}

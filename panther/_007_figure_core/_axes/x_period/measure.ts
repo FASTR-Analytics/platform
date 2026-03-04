@@ -4,51 +4,45 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  MergedTimeseriesStyle,
+  MergedGridStyle,
+  MergedXPeriodAxisStyle,
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
-import type { YScaleAxisWidthInfo } from "../../types.ts";
+import type { YAxisWidthInfoBase } from "../../types.ts";
 import { calculateYearSkipInterval, getPeriodAxisInfo } from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
 
-// NOTE: This function depends on TimeseriesDataTransformed from _010_timeseries
-// We pass the needed data as parameters to avoid importing from higher-numbered modules
 export function measureXPeriodAxis(
   rc: RenderContext,
   contentRcd: RectCoordsDims,
-  yScaleAxisWidthInfo: YScaleAxisWidthInfo,
+  yAxisWidthInfo: YAxisWidthInfoBase,
+  subChartAreaWidth: number,
   periodType: "year-month" | "year-quarter" | "year",
   nTimePoints: number,
-  nLanes: number,
-  s: MergedTimeseriesStyle,
+  axisStyle: MergedXPeriodAxisStyle,
+  gridStyle: MergedGridStyle,
 ): XPeriodAxisMeasuredInfo {
-  const sx = s.xPeriodAxis;
+  const sx = axisStyle;
 
   const yAxisAreaWidthIncludingStroke =
-    yScaleAxisWidthInfo.widthIncludingYAxisStrokeWidth;
+    yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
 
   const xAxisW = contentRcd.w() - yAxisAreaWidthIncludingStroke;
 
-  const subChartAreaWidth = (xAxisW -
-    (sx.lanePaddingLeft +
-      (nLanes - 1) * sx.laneGapX +
-      sx.lanePaddingRight)) /
-    nLanes;
-
   const periodIncrementWidth =
-    periodType === "year" && !s.xPeriodAxis.forceSideTicksWhenYear
+    periodType === "year" && !sx.forceSideTicksWhenYear
       ? subChartAreaWidth / nTimePoints
-      : (subChartAreaWidth - s.grid.gridStrokeWidth * (nTimePoints + 1)) /
+      : (subChartAreaWidth - gridStyle.gridStrokeWidth * (nTimePoints + 1)) /
         nTimePoints;
 
   const { periodAxisType, maxTickH, periodAxisSmallTickH } = getPeriodAxisInfo(
     rc,
     periodType,
-    s,
-    s.grid,
+    axisStyle,
+    gridStyle,
     periodIncrementWidth,
-    s.xPeriodAxis.showEveryNthTick,
+    sx.showEveryNthTick,
   );
 
   const autoCalculatedSkipInterval = calculateYearSkipInterval(
@@ -56,15 +50,15 @@ export function measureXPeriodAxis(
     periodType,
     periodAxisType,
     periodIncrementWidth,
-    s,
+    axisStyle,
   );
 
   const yearSkipInterval = Math.max(
-    s.xPeriodAxis.showEveryNthTick,
+    sx.showEveryNthTick,
     autoCalculatedSkipInterval,
   );
 
-  const heightIncludingXAxisStrokeWidth = s.grid.axisStrokeWidth + maxTickH;
+  const heightIncludingXAxisStrokeWidth = gridStyle.axisStrokeWidth + maxTickH;
 
   const xAxisRcd = contentRcd.getAdjusted((prev) => ({
     x: prev.x() + yAxisAreaWidthIncludingStroke,
@@ -74,7 +68,7 @@ export function measureXPeriodAxis(
   }));
 
   const fourDigitYearW = rc
-    .mText("2022", s.text.base, Number.POSITIVE_INFINITY)
+    .mText("2022", sx.text.xPeriodAxisTickLabels, Number.POSITIVE_INFINITY)
     .dims.w();
 
   return {

@@ -72,8 +72,8 @@ type RawBox = {
   fillColor?: ColorKeyOrString;
   strokeColor?: ColorKeyOrString;
   strokeWidth?: number;
-  textHorizontalAlign?: "left" | "center" | "right";
-  textVerticalAlign?: "top" | "center" | "bottom";
+  alignH?: "left" | "center" | "right";
+  alignV?: "top" | "middle" | "bottom";
   textGap?: number; // Gap between primary and secondary text (default: 10)
 };
 ```
@@ -706,8 +706,8 @@ boxes: {
   fillColor: { key: "base200" },
   strokeColor: { key: "baseContent" },
   strokeWidth: 1,
-  textHorizontalAlign: "center",
-  textVerticalAlign: "center",
+  alignH: "center",
+  alignV: "middle",
 }
 
 // Default arrow styles
@@ -841,8 +841,8 @@ Text positioning (alignment) can be controlled per box or globally via the
 style: {
   simpleviz: {
     boxes: {
-      textHorizontalAlign: "left", // "left" | "center" | "right"
-      textVerticalAlign: "top",    // "top" | "center" | "bottom"
+      alignH: "left", // "left" | "center" | "right"
+      alignV: "top",    // "top" | "middle" | "bottom"
     },
   },
 }
@@ -862,8 +862,8 @@ Override styles for individual boxes and arrows:
   fillColor: "#FCA5A5",
   strokeColor: "#991B1B",
   strokeWidth: 3,
-  textHorizontalAlign: "left",
-  textVerticalAlign: "top",
+  alignH: "left",
+  alignV: "top",
   padding: 20,
 }
 
@@ -921,8 +921,8 @@ type RawBox = {
   fillColor?: ColorKeyOrString;
   strokeColor?: ColorKeyOrString;
   strokeWidth?: number;
-  textHorizontalAlign?: "left" | "center" | "right";
-  textVerticalAlign?: "top" | "center" | "bottom";
+  alignH?: "left" | "center" | "right";
+  alignV?: "top" | "middle" | "bottom";
   textGap?: number; // Gap between primary and secondary text (default: 10)
   padding?: PaddingOptions; // Override global padding
 };
@@ -930,8 +930,8 @@ type RawBox = {
 
 **Text Alignment**: Control how text is positioned within boxes:
 
-- `textHorizontalAlign` - "left", "center" (default), or "right"
-- `textVerticalAlign` - "top", "center" (default), or "bottom"
+- `alignH` - "left", "center" (default), or "right"
+- `alignV` - "top", "middle" (default), or "bottom"
 - Alignment applies to both primary and secondary texts as a unit
 - Non-centered alignments use 5% padding from box edges
 

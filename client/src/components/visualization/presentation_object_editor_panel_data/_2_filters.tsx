@@ -259,7 +259,8 @@ function PeriodFilter(p: PeriodFilterProps) {
                 <Match
                   when={
                     p.tempConfig.d.periodFilter?.filterType === "custom" &&
-                    p.keyedPeriodBounds.periodOption === "period_id"
+                    p.keyedPeriodBounds.periodOption === "period_id" &&
+                    p.tempConfig.d.periodFilter?.periodOption === "period_id"
                   }
                 >
                   <div class="ui-gap-sm ui-pad border-base-300 rounded border">
@@ -268,7 +269,7 @@ function PeriodFilter(p: PeriodFilterProps) {
                       periodFilter={keyedPeriodFilter}
                       onUpdate={(v) =>
                         p.setTempConfig("d", "periodFilter", {
-                          periodOption: p.keyedPeriodBounds.periodOption,
+                          periodOption: "period_id",
                           min: v.minPeriodId,
                           max: v.maxPeriodId,
                         })
@@ -276,22 +277,33 @@ function PeriodFilter(p: PeriodFilterProps) {
                     /></div>
                 </Match>
                 <Match
-                  when={
-                    p.tempConfig.d.periodFilter?.filterType === "custom" &&
-                    p.keyedPeriodBounds.periodOption === "year"
-                  }
+                  when={p.tempConfig.d.periodFilter?.filterType === "custom"}
                 >
-                  <PeriodFilterYear
-                    periodBounds={p.keyedPeriodBounds}
-                    periodFilter={keyedPeriodFilter}
-                    onUpdate={(v) =>
-                      p.setTempConfig("d", "periodFilter", {
-                        periodOption: p.keyedPeriodBounds.periodOption,
-                        min: v.minYear,
-                        max: v.maxYear,
-                      })
-                    }
-                  />
+                  {(() => {
+                    const toYear = (v: number) => String(v).length <= 4 ? v : Math.floor(v / 100);
+                    return (
+                      <PeriodFilterYear
+                        periodBounds={{
+                          periodOption: "year",
+                          min: toYear(p.keyedPeriodBounds.min),
+                          max: toYear(p.keyedPeriodBounds.max),
+                        }}
+                        periodFilter={{
+                          ...keyedPeriodFilter,
+                          periodOption: "year",
+                          min: toYear(keyedPeriodFilter.min),
+                          max: toYear(keyedPeriodFilter.max),
+                        }}
+                        onUpdate={(v) =>
+                          p.setTempConfig("d", "periodFilter", {
+                            periodOption: p.tempConfig.d.periodFilter?.periodOption ?? "year",
+                            min: v.minYear,
+                            max: v.maxYear,
+                          })
+                        }
+                      />
+                    );
+                  })()}
                 </Match>
               </Switch>
             </div>

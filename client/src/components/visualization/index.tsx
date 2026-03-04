@@ -104,7 +104,6 @@ function VisualizationEditorEdit(p: EditModeProps) {
   };
 
   const combinedData = timQuery<CombinedData>(async () => {
-    console.log("[VIZ EDIT] timQuery starting for:", p.presentationObjectId);
     const [poDetailRes, resultsValueInfoRes] = await Promise.all([
       getPODetailFromCacheorFetch(p.projectId, p.presentationObjectId),
       (async () => {
@@ -129,7 +128,6 @@ function VisualizationEditorEdit(p: EditModeProps) {
       return resultsValueInfoRes;
     }
 
-    console.log("[VIZ EDIT] timQuery completed successfully");
     return {
       success: true,
       data: {
@@ -152,14 +150,9 @@ function VisualizationEditorEdit(p: EditModeProps) {
   //   await deleteAction.click();
   // }
 
-  console.log("[VIZ EDIT] Rendering with state:", combinedData.state());
   return (
     <StateHolderWrapper state={combinedData.state()}>
       {(keyedCombinedData: CombinedData) => {
-        console.log(
-          "[VIZ EDIT] StateHolderWrapper rendering children with data:",
-          keyedCombinedData,
-        );
         return (
           <VisualizationEditorInner
             mode="edit"

@@ -9,12 +9,12 @@ import type {
   JsonArray,
   LegendItem,
   Measured,
-  MeasuredPaneBase,
   MeasuredSurrounds,
   MergedTimeseriesStyle,
   PeriodType,
   Primitive,
   RectCoordsDims,
+  UncertaintyConfig,
   XPeriodAxisMeasuredInfo,
   YScaleAxisData,
 } from "./deps.ts";
@@ -46,6 +46,7 @@ export type TimeseriesJsonDataConfig = {
   laneProp?: string | "--v";
   tierProp?: string | "--v";
   paneProp?: string | "--v";
+  uncertainty?: UncertaintyConfig;
   //
   sortHeaders?: boolean | string[];
   labelReplacementsBeforeSorting?: Record<string, string>;
@@ -67,8 +68,13 @@ export type TimeseriesDataTransformed = {
   nTimePoints: number;
   seriesHeaders: string[];
   laneHeaders: string[];
+  tierHeaders: string[];
   paneHeaders: string[];
   values: (number | undefined)[][][][][];
+  bounds?: {
+    ub: (number | undefined)[][][][][];
+    lb: (number | undefined)[][][][][];
+  };
   yScaleAxisData: YScaleAxisData;
 };
 
@@ -106,19 +112,14 @@ export function isTimeseriesDataTransformed(
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export type MeasuredTimeseries = Measured<TimeseriesInputs> & {
-  // Measured state
   measuredSurrounds: MeasuredSurrounds;
   extraHeightDueToSurrounds: number;
-  mPanes: MeasuredPaneBase[];
-  // Computed data
   transformedData: TimeseriesDataTransformed;
   customFigureStyle: CustomFigureStyle;
   mergedStyle: MergedTimeseriesStyle;
-  // Display data
   caption?: string;
   subCaption?: string;
   footnote?: string | string[];
   legendItemsOrLabels?: LegendItem[] | string[];
-  // Primitives
   primitives: Primitive[];
 };

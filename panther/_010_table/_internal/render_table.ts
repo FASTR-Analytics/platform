@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { addSurrounds, type RenderContext } from "../deps.ts";
+import { type RenderContext, renderFigurePrimitives } from "../deps.ts";
 import type { MeasuredTable } from "../types.ts";
 import {
   renderColAndColGroupHeaders,
@@ -12,7 +12,12 @@ import {
 } from "./render_helpers.ts";
 
 export function renderTable(rc: RenderContext, mTable: MeasuredTable) {
-  addSurrounds(rc, mTable.measuredSurrounds);
+  if (mTable.measuredSurrounds.s.backgroundColor !== "none") {
+    rc.rRect(mTable.measuredSurrounds.outerRcd, {
+      fillColor: mTable.measuredSurrounds.s.backgroundColor,
+    });
+  }
+  renderFigurePrimitives(rc, mTable.primitives);
   //
   renderColAndColGroupHeaders(rc, mTable);
   renderRows(rc, mTable);

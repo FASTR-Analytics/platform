@@ -19,8 +19,8 @@ export type MergedBoxStyle = {
   fillColor: ColorKeyOrString;
   strokeColor: ColorKeyOrString;
   strokeWidth: number;
-  textHorizontalAlign: "left" | "center" | "right";
-  textVerticalAlign: "top" | "center" | "bottom";
+  alignH: "left" | "center" | "right";
+  alignV: "top" | "middle" | "bottom";
   textGap: number;
   padding: Padding;
 };
@@ -33,9 +33,9 @@ export function mergeBoxStyle(
     fillColor: box.fillColor ?? defaults.fillColor,
     strokeColor: box.strokeColor ?? defaults.strokeColor,
     strokeWidth: box.strokeWidth ?? defaults.strokeWidth,
-    textHorizontalAlign: box.textHorizontalAlign ??
-      defaults.textHorizontalAlign,
-    textVerticalAlign: box.textVerticalAlign ?? defaults.textVerticalAlign,
+    alignH: box.alignH ??
+      defaults.alignH,
+    alignV: box.alignV ?? defaults.alignV,
     textGap: box.textGap ?? defaults.textGap,
     padding: new Padding(box.padding ?? defaults.padding),
   };

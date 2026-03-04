@@ -173,7 +173,7 @@ function AssetTable(p: {
     {
       key: "actions",
       header: "",
-      align: "right",
+      alignH: "right",
       render: (asset) => (
         <div class="ui-gap-sm flex items-center justify-end">
           <Button

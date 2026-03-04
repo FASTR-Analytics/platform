@@ -54,3 +54,7 @@ export function createItemNode<U>(
     ...options,
   };
 }
+
+export const cRows = createRowsNode;
+export const cCols = createColsNode;
+export const cItem = createItemNode;

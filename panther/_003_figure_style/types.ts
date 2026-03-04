@@ -3,8 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export type AspectRatio = "video" | "square";
-
 export type LegendPosition =
   | "bottom-left"
   | "bottom-center"

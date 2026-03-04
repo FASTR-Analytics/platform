@@ -54,6 +54,7 @@ const _REGEX_RGBA =
   /^rgba\((((((((1?[1-9]?\d)|10\d|(2[0-4]\d)|25[0-5]),\s?)){3})|(((([1-9]?\d(\.\d+)?)|100|(\.\d+))%,\s?){3}))|(((((1?[1-9]?\d)|10\d|(2[0-4]\d)|25[0-5])\s){3})|(((([1-9]?\d(\.\d+)?)|100|(\.\d+))%\s){3}))\/\s)((0?\.\d+)|[01]|(([1-9]?\d(\.\d+)?)|100|(\.\d+))%)\)$/i;
 const _REGEX_HEX = /^#([\da-f]{3}){1,2}$/i;
 const _REGEX_HEX_ALPHA = /^#([\da-f]{4}){1,2}$/i;
+const _REGEX_OKLCH = /^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)$/i;
 
 const _NAMED_COLORS: Record<string, ColorRgba> = {
   //
@@ -483,6 +484,15 @@ export class Color {
       const a = Number(arr[3]);
       return { r, g, b, a };
     }
+    const oklchMatch = str.match(_REGEX_OKLCH);
+    if (oklchMatch) {
+      const rgb = Color.oklchToRgb({
+        l: parseFloat(oklchMatch[1]),
+        c: parseFloat(oklchMatch[2]),
+        h: parseFloat(oklchMatch[3]),
+      });
+      return { ...rgb, a: 1 };
+    }
     if (_NAMED_COLORS[str]) {
       return _NAMED_COLORS[str];
     }
@@ -728,6 +738,28 @@ export class Color {
     const xyz = Color.labToXyz(lab);
     const rgb = Color.xyzToRgb(xyz);
     return rgb;
+  }
+
+  static oklchToRgb(oklch: ColorLch): ColorRgb {
+    const { l: L, c: C, h: H } = oklch;
+    const hRad = H * Math.PI / 180;
+    const a = C * Math.cos(hRad);
+    const b = C * Math.sin(hRad);
+    const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+    const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+    const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+    const l = l_ * l_ * l_;
+    const m = m_ * m_ * m_;
+    const s = s_ * s_ * s_;
+    let r = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+    let g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+    let bl = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+    const gamma = (x: number) =>
+      x >= 0.0031308 ? 1.055 * Math.pow(x, 1 / 2.4) - 0.055 : 12.92 * x;
+    r = Math.max(0, Math.min(255, Math.round(gamma(r) * 255)));
+    g = Math.max(0, Math.min(255, Math.round(gamma(g) * 255)));
+    bl = Math.max(0, Math.min(255, Math.round(gamma(bl) * 255)));
+    return { r, g, b: bl };
   }
 
   // ================================================================================

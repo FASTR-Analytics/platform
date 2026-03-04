@@ -9,7 +9,11 @@ import type {
   MeasuredText,
   RenderContext,
 } from "./deps.ts";
-import { imageToDataUrl, pixelsToInches, pixelsToPoints } from "./pptx_units.ts";
+import {
+  imageToDataUrl,
+  pixelsToInches,
+  pixelsToPoints,
+} from "./pptx_units.ts";
 import type {
   CreateCanvasRenderContext,
   PptxGenJSInstance,
@@ -42,7 +46,10 @@ export function renderSectionSlide(
 
   // Overlay image
   if (item.overlay) {
-    const overlayDataUrl = imageToDataUrl(item.overlay, createCanvasRenderContext);
+    const overlayDataUrl = imageToDataUrl(
+      item.overlay,
+      createCanvasRenderContext,
+    );
     slide.addImage({
       data: overlayDataUrl,
       x: 0,

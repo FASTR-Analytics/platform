@@ -7,7 +7,6 @@ import {
   t3,
 } from "lib";
 import {
-  AspectRatio,
   Button,
   Checkbox,
   LabelHolder,
@@ -81,41 +80,6 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           labelFormatter: toNum0,
         }}
       />
-      <Show when={p.tempConfig.d.type !== "table"}>
-        <RadioGroup
-          label={t3({ en: "Aspect ratio", fr: "Rapport hauteur/largeur" })}
-          options={[
-            { value: "none", label: t3({ en: "Fit to area", fr: "Ajuster à la zone" }) },
-            { value: "video", label: "16 x 9" },
-            { value: "square", label: "1 x 1" },
-          ]}
-          value={p.tempConfig.s.idealAspectRatio}
-          onChange={(v) =>
-            p.setTempConfig(
-              "s",
-              "idealAspectRatio",
-              v as "none" | "ideal" | AspectRatio,
-            )
-          }
-        />
-      </Show>
-      <Show when={p.tempConfig.d.type === "table"}>
-        <RadioGroup
-          label={t3({ en: "Aspect ratio", fr: "Rapport hauteur/largeur" })}
-          options={[
-            { value: "none", label: t3({ en: "Fit to area", fr: "Ajuster à la zone" }) },
-            { value: "ideal", label: t3({ en: "Ideal for table", fr: "Idéal pour un tableau" }) },
-          ]}
-          value={p.tempConfig.s.idealAspectRatio}
-          onChange={(v) =>
-            p.setTempConfig(
-              "s",
-              "idealAspectRatio",
-              v as "none" | "ideal" | AspectRatio,
-            )
-          }
-        />
-      </Show>
       <Show when={p.tempConfig.d.type === "table"}>
         <Checkbox
           label={t3({ en: "Allow vertical column headers", fr: "Autoriser les en-têtes de colonnes verticales" })}

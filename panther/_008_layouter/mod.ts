@@ -45,9 +45,12 @@ export type { LayoutVisitor } from "./walk.ts";
 export { renderContainerStyle } from "./render.ts";
 
 export {
+  cCols,
+  cItem,
   createColsNode,
   createItemNode,
   createRowsNode,
+  cRows,
   generateLayoutId,
 } from "./id.ts";
 
@@ -79,6 +82,7 @@ export {
   simplifyLayout,
   splitIntoColumns,
   splitIntoRows,
+  swapNodeData,
   updateNodeData,
   updateNodeStyle,
 } from "./operations.ts";

@@ -207,9 +207,9 @@ export function renderRows(rc: RenderContext, mTable: MeasuredTable) {
           const mText = mr.cellTexts[cellIdx];
           const cellTextHeight = mText.dims.h();
           const availableHeight = mr.rowContentHeight;
-          const yOffset = s.cellVerticalAlign === "middle"
+          const yOffset = s.alignV === "middle"
             ? (availableHeight - cellTextHeight) / 2
-            : s.cellVerticalAlign === "bottom"
+            : s.alignV === "bottom"
             ? availableHeight - cellTextHeight
             : 0;
           const cellContentWidth = m.colInnerWidth - s.cellPadding.pl() -

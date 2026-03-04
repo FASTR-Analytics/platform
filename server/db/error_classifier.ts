@@ -1,8 +1,21 @@
 import type { CategorizedError } from "../../lib/types/errors.ts";
 import { ERROR_CATEGORY } from "../../lib/types/errors.ts";
 
+const NETWORK_ERROR_CODES = new Set([
+  "CONNECTION_ENDED",
+  "CONNECTION_DESTROYED",
+  "CONNECTION_CLOSED",
+  "CONNECT_TIMEOUT",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "EPIPE",
+]);
+
 export function classifyDatabaseError(e: unknown): CategorizedError {
   const technicalMessage = e instanceof Error ? e.message : String(e);
+  const errorCode =
+    e instanceof Error && "code" in e ? String((e as { code: unknown }).code) : "";
 
   // Check if error is already categorized (thrown by internal functions)
   if (technicalMessage === ERROR_CATEGORY.MODULE_NOT_RUN) {
@@ -87,7 +100,7 @@ export function classifyDatabaseError(e: unknown): CategorizedError {
     };
   }
 
-  if (/connection|timeout|ECONNREFUSED/.test(technicalMessage)) {
+  if (NETWORK_ERROR_CODES.has(errorCode)) {
     return {
       category: ERROR_CATEGORY.NETWORK_ERROR,
       userMessage: "Could not connect to the database. Please try again.",

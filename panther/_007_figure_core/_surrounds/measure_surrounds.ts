@@ -5,17 +5,17 @@
 
 import {
   Coordinates,
+  type CustomFigureStyle,
   type MeasuredText,
   type MergedSurroundsStyle,
   type RectCoordsDims,
   type RenderContext,
 } from "../deps.ts";
-import type { CustomFigureStyle } from "../../_003_figure_style/mod.ts";
 import {
-  isArrayOfLegendItems,
   type MeasuredLegend,
   measureLegend,
-} from "../mod.ts";
+} from "../_legend/measure_legend.ts";
+import { isArrayOfLegendItems } from "../_legend/types.ts";
 import type { LegendItem } from "../types.ts";
 
 export function estimateMinSurroundsWidth(
@@ -48,6 +48,8 @@ export function estimateMinSurroundsWidth(
       label,
       color: sLegend.seriesColorFunc({
         i_series: i_label,
+        isFirstSeries: i_label === 0,
+        isLastSeries: i_label === arr_label.length - 1,
         seriesHeader: label,
         nSerieses: arr_label.length,
         seriesValArrays: [],
@@ -206,9 +208,10 @@ export function measureSurrounds(
           label,
           color: sLegend.seriesColorFunc({
             i_series: i_label,
+            isFirstSeries: i_label === 0,
+            isLastSeries: i_label === arr_label.length - 1,
             seriesHeader: label,
             nSerieses: arr_label.length,
-            // Other required properties with dummy/undefined values
             seriesValArrays: [],
             nVals: 0,
             i_lane: 0,

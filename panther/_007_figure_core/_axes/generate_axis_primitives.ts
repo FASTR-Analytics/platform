@@ -7,17 +7,15 @@ import type {
   ChartAxisPrimitive,
   LineStyle,
   MeasuredText,
+  MergedGridStyle,
+  MergedXPeriodAxisStyle,
+  MergedXTextAxisStyle,
+  MergedYScaleAxisStyle,
   PeriodType,
+  RectCoordsDims,
   RenderContext,
 } from "../deps.ts";
 import { Coordinates, getPeriodIdFromTime, Z_INDEX } from "../deps.ts";
-import type {
-  MergedChartOVStyle,
-  MergedGridStyle,
-  MergedTimeseriesStyle,
-  MergedYScaleAxisStyle,
-  RectCoordsDims,
-} from "../deps.ts";
 import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
 import type { YScaleAxisData, YScaleAxisWidthInfo } from "../types.ts";
@@ -42,10 +40,11 @@ export function generateXTextAxisPrimitive(
   subChartAreaX: number,
   mx: XTextAxisMeasuredInfo,
   indicatorHeaders: string[],
-  s: MergedChartOVStyle,
+  axisStyle: MergedXTextAxisStyle,
+  gridStyle: MergedGridStyle,
 ): ChartAxisPrimitive {
-  const sx = s.xTextAxis;
-  const sg = s.grid;
+  const sx = axisStyle;
+  const sg = gridStyle;
 
   const axisY = mx.xAxisRcd.y() + sg.axisStrokeWidth / 2;
   const centeredTicks = sx.tickPosition === "center";
@@ -161,10 +160,11 @@ export function generateXPeriodAxisPrimitive(
   nTimePoints: number,
   timeMin: number,
   periodType: PeriodType,
-  s: MergedTimeseriesStyle,
+  axisStyle: MergedXPeriodAxisStyle,
+  gridStyle: MergedGridStyle,
 ): ChartAxisPrimitive {
-  const sx = s.xPeriodAxis;
-  const sg = s.grid;
+  const sx = axisStyle;
+  const sg = gridStyle;
 
   const axisY = mx.xAxisRcd.y() + sg.axisStrokeWidth / 2;
   const ticks: ChartAxisPrimitive["ticks"] = [];
@@ -433,7 +433,7 @@ export function generateYScaleAxisPrimitive(
           (sg.axisStrokeWidth + sy.tickWidth + sy.tickLabelGap),
           currentY,
         ]),
-        alignment: { h: "right", v: "center" },
+        alignment: { h: "right", v: "middle" },
       },
       value: tickVal,
     });

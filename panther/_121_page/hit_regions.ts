@@ -95,16 +95,16 @@ function getTextPrimitiveRcd(prim: PagePrimitiveText): RectCoordsDims {
   const h = prim.mText.dims.h();
 
   let x = prim.x;
-  if (prim.hAlign === "center") {
+  if (prim.alignH === "center") {
     x = prim.x - w / 2;
-  } else if (prim.hAlign === "right") {
+  } else if (prim.alignH === "right") {
     x = prim.x - w;
   }
 
   let y = prim.y;
-  if (prim.vAlign === "center") {
+  if (prim.alignV === "middle") {
     y = prim.y - h / 2;
-  } else if (prim.vAlign === "bottom") {
+  } else if (prim.alignV === "bottom") {
     y = prim.y - h;
   }
 

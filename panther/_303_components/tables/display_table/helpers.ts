@@ -77,8 +77,8 @@ export function groupData<T extends Record<string, any>>(
   };
 }
 
-export function getCellAlignment(align?: string): string {
-  switch (align) {
+export function getCellAlignment(alignH?: string): string {
+  switch (alignH) {
     case "center":
       return "text-center";
     case "right":

@@ -54,7 +54,7 @@ const _DS = {
       right: 0,
     },
     paragraphGapEm: 0.5,
-    align: "left" as "left" | "center" | "right",
+    alignH: "left" as "left" | "center" | "right",
     backgroundColor: "none" as ColorKeyOrString | "none",
   },
 

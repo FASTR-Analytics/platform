@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  CustomStyle,
   type FontInfo,
   Fonts,
   getFontInfoId,
@@ -40,5 +41,12 @@ export async function registerFontWithSkiaIfNeeded(
     throw new FontRegistrationError(
       `Could not read font file: ${absFilePath} - ${errorMessage}`,
     );
+  }
+}
+
+export async function registerGlobalFontsWithSkia(): Promise<void> {
+  const fonts = new CustomStyle().getFontsToRegister();
+  for (const font of fonts) {
+    await registerFontWithSkiaIfNeeded(font);
   }
 }

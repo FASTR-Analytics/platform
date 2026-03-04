@@ -17,7 +17,7 @@ import {
   t3,
   TC,
 } from "lib";
-import type { DividerDragUpdate, LayoutNode } from "panther";
+import type { DividerDragUpdate, LayoutItemSwapUpdate, LayoutNode } from "panther";
 import {
   AlertComponentProps,
   Button,
@@ -30,6 +30,7 @@ import {
   StateHolder,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   applyDividerDragUpdate,
+  findNodeInDraft,
   createItemNode,
   findById,
   getEditorWrapper,
@@ -40,6 +41,7 @@ import {
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import {
   createStore,
+  produce,
   reconcile,
   unwrap,
   type SetStoreFunction,
@@ -301,6 +303,28 @@ export function SlideEditor(p: Props) {
 
     manuallyUpdateTempSlide(
       reconcile({ ...currentSlide, layout: updatedLayout }),
+    );
+  }
+
+  // Uses produce (not reconcile) because swapping exchanges data references
+  // between two nodes. reconcile mutates the first node's data in-place,
+  // which corrupts the second node's "new" value since it was the same
+  // reference. produce just swaps the pointers without walking into objects.
+  function handleLayoutItemSwap(update: LayoutItemSwapUpdate) {
+    manuallyUpdateTempSlide(
+      produce((draft) => {
+        if (draft.type !== "content") return;
+        const nodeA = findNodeInDraft(draft.layout, update.sourceNodeId);
+        const nodeB = findNodeInDraft(draft.layout, update.targetNodeId);
+        if (!nodeA || !nodeB) return;
+        if (nodeA.type !== "item" || nodeB.type !== "item") return;
+        const tmpData = nodeA.data;
+        const tmpStyle = nodeA.style;
+        nodeA.data = nodeB.data;
+        nodeA.style = nodeB.style;
+        nodeB.data = tmpData;
+        nodeB.style = tmpStyle;
+      }),
     );
   }
 
@@ -831,6 +855,7 @@ export function SlideEditor(p: Props) {
                       }
                     }}
                     onDividerDrag={handleDividerDrag}
+                    onLayoutItemSwap={handleLayoutItemSwap}
                     onContextMenu={(e, target) => {
                       if (target.type !== "layoutItem") return;
                       const callbacks = getLayoutCallbacks();

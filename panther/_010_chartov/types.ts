@@ -10,12 +10,10 @@ import type {
   JsonArray,
   LegendItem,
   Measured,
-  MeasuredPaneBase,
   MeasuredSurrounds,
   MergedChartOVStyle,
   Primitive,
-  RectCoordsDims,
-  XTextAxisMeasuredInfo,
+  UncertaintyConfig,
   YScaleAxisData,
 } from "./deps.ts";
 
@@ -43,6 +41,7 @@ export type ChartOVJsonDataConfig = {
   laneProp?: string | "--v";
   tierProp?: string | "--v";
   paneProp?: string | "--v";
+  uncertainty?: UncertaintyConfig;
   //
   sortHeaders?: boolean | string[];
   sortIndicatorValues?: "ascending" | "descending" | "none";
@@ -61,8 +60,13 @@ export type ChartOVDataTransformed = {
   indicatorHeaders: string[];
   seriesHeaders: string[];
   laneHeaders: string[];
+  tierHeaders: string[];
   paneHeaders: string[];
   values: (number | undefined)[][][][][];
+  bounds?: {
+    ub: (number | undefined)[][][][][];
+    lb: (number | undefined)[][][][][];
+  };
   yScaleAxisData: YScaleAxisData;
 };
 
@@ -150,19 +154,14 @@ export type ChartHeightInfo = {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export type MeasuredChartOV = Measured<ChartOVInputs> & {
-  // Measured state
   measuredSurrounds: MeasuredSurrounds;
   extraHeightDueToSurrounds: number;
-  mPanes: MeasuredPaneBase[];
-  // Computed data
   transformedData: ChartOVDataTransformed;
   customFigureStyle: CustomFigureStyle;
   mergedStyle: MergedChartOVStyle;
-  // Display data
   caption?: string;
   subCaption?: string;
   footnote?: string | string[];
   legendItemsOrLabels?: LegendItem[] | string[];
-  // Primitives
   primitives: Primitive[];
 };

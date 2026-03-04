@@ -122,3 +122,49 @@ export class Padding {
     return n;
   }
 }
+
+export function mPadding(
+  cs: PaddingOptions,
+  gs: PaddingOptions,
+  ds: PaddingOptions,
+): Padding {
+  let result = new Padding(ds);
+  result = overlayPadding(result, gs);
+  result = overlayPadding(result, cs);
+  return result;
+}
+
+export function msPadding(
+  sf: number,
+  cs: PaddingOptions,
+  gs: PaddingOptions,
+  ds: PaddingOptions,
+): Padding {
+  const result = mPadding(cs, gs, ds);
+  result.MUTATE_scale(sf);
+  return result;
+}
+
+function overlayPadding(base: Padding, over: PaddingOptions): Padding {
+  if (over === undefined) return base;
+  if (
+    typeof over !== "object" || over instanceof Array || over instanceof Padding
+  ) {
+    return new Padding(over);
+  }
+  const ht = over.top !== undefined || over.py !== undefined ||
+    over.y !== undefined;
+  const hr = over.right !== undefined || over.px !== undefined ||
+    over.x !== undefined;
+  const hb = over.bottom !== undefined || over.py !== undefined ||
+    over.y !== undefined;
+  const hl = over.left !== undefined || over.px !== undefined ||
+    over.x !== undefined;
+  const o = new Padding(over);
+  return new Padding({
+    top: ht ? o.pt() : base.pt(),
+    right: hr ? o.pr() : base.pr(),
+    bottom: hb ? o.pb() : base.pb(),
+    left: hl ? o.pl() : base.pl(),
+  });
+}
