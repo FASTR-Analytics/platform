@@ -17,7 +17,7 @@ import {
   t3,
   TC,
 } from "lib";
-import type { DividerDragUpdate, LayoutNode } from "panther";
+import type { DividerDragUpdate, LayoutItemSwapUpdate, LayoutNode } from "panther";
 import {
   AlertComponentProps,
   Button,
@@ -30,6 +30,7 @@ import {
   StateHolder,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   applyDividerDragUpdate,
+  swapNodeData,
   createItemNode,
   findById,
   getEditorWrapper,
@@ -298,6 +299,21 @@ export function SlideEditor(p: Props) {
 
     const currentSlide = unwrap(tempSlide) as ContentSlide;
     const updatedLayout = applyDividerDragUpdate(currentSlide.layout, update);
+
+    manuallyUpdateTempSlide(
+      reconcile({ ...currentSlide, layout: updatedLayout }),
+    );
+  }
+
+  function handleLayoutItemSwap(update: LayoutItemSwapUpdate) {
+    if (tempSlide.type !== "content") return;
+
+    const currentSlide = unwrap(tempSlide) as ContentSlide;
+    const updatedLayout = swapNodeData(
+      currentSlide.layout,
+      update.sourceNodeId,
+      update.targetNodeId,
+    );
 
     manuallyUpdateTempSlide(
       reconcile({ ...currentSlide, layout: updatedLayout }),
@@ -831,6 +847,7 @@ export function SlideEditor(p: Props) {
                       }
                     }}
                     onDividerDrag={handleDividerDrag}
+                    onLayoutItemSwap={handleLayoutItemSwap}
                     onContextMenu={(e, target) => {
                       if (target.type !== "layoutItem") return;
                       const callbacks = getLayoutCallbacks();
