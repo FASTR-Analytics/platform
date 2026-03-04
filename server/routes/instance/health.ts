@@ -13,7 +13,7 @@ import {
   getCurrentDatasetHfaMaxVersionId,
   getCurrentDatasetHmisMaxVersionId,
 } from "../../db/mod.ts";
-import { DBProject, DBUser } from "../../db/instance/_main_database_types.ts";
+import { DBProject, DBUser, UserLog } from "../../db/instance/_main_database_types.ts";
 
 export const routesHealth = new Hono();
 
@@ -32,6 +32,8 @@ routesHealth.get("/health_check", async (c) => {
   const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
   const hfaVersion = await getCurrentDatasetHfaMaxVersionId(mainDb);
 
+  const [lastLog] = await mainDb<UserLog[]>`SELECT user_email, endpoint, timestamp FROM user_logs ORDER BY timestamp DESC LIMIT 1`;
+
   return c.json({
     running: true,
     instanceName: _INSTANCE_NAME,
@@ -47,6 +49,9 @@ routesHealth.get("/health_check", async (c) => {
     adminUsers,
     serverUsers: users.map((u: DBUser) => u.email),
     projects: projects.map((p) => (p.label)),
+    lastUserLog: lastLog
+      ? { userEmail: lastLog.user_email, endpoint: lastLog.endpoint, timestamp: lastLog.timestamp }
+      : null,
     datasets: {
       hmis: hmisVersion
         ? {
