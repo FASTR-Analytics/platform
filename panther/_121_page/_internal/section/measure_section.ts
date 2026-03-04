@@ -4,11 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AlignH,
+  AlignV,
   MergedPageStyle,
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
-import { Padding, RectCoordsDims as RCD } from "../../deps.ts";
+import { Padding } from "../../deps.ts";
 import type {
   MeasuredSectionPage,
   PagePrimitive,
@@ -22,8 +24,6 @@ export function measureSection(
   s: MergedPageStyle,
   responsiveScale?: number,
 ): MeasuredSectionPage {
-  // Type is guaranteed by TypeScript
-
   const textMaxWidth = bounds.w() - s.section.padding.totalPx();
 
   const mSectionTitle = item.sectionTitle?.trim()
@@ -64,6 +64,37 @@ export function measureSection(
   };
 }
 
+function getTextX(
+  bounds: RectCoordsDims,
+  padding: Padding,
+  alignH: AlignH,
+): number {
+  switch (alignH) {
+    case "left":
+      return bounds.x() + padding.pl();
+    case "right":
+      return bounds.x() + bounds.w() - padding.pr();
+    case "center":
+      return bounds.centerX();
+  }
+}
+
+function getStartY(
+  bounds: RectCoordsDims,
+  padding: Padding,
+  alignV: AlignV,
+  totalH: number,
+): number {
+  switch (alignV) {
+    case "top":
+      return bounds.y() + padding.pt();
+    case "bottom":
+      return bounds.y() + bounds.h() - padding.pb() - totalH;
+    case "middle":
+      return bounds.y() + (bounds.h() - totalH) / 2;
+  }
+}
+
 function buildSectionPrimitives(
   bounds: RectCoordsDims,
   item: SectionPageInputs,
@@ -73,6 +104,8 @@ function buildSectionPrimitives(
   mWatermark?: import("../../deps.ts").MeasuredText,
 ): { primitives: PagePrimitive[]; totalH: number } {
   const primitives: PagePrimitive[] = [];
+  const alignH = s.section.alignH;
+  const alignV = s.section.alignV;
 
   // Background
   if (s.section.backgroundColor !== "none") {
@@ -100,7 +133,9 @@ function buildSectionPrimitives(
 
   const totalH = sectionTitleH +
     (sectionSubTitleH > 0 ? sectionSubTitleH + s.section.gapY : 0);
-  let currentY = bounds.y() + (bounds.h() - totalH) / 2;
+
+  const textX = getTextX(bounds, s.section.padding, alignH);
+  let currentY = getStartY(bounds, s.section.padding, alignV, totalH);
 
   const textMaxWidth = bounds.w() - s.section.padding.totalPx();
 
@@ -110,10 +145,10 @@ function buildSectionPrimitives(
       type: "text",
       id: "sectionTitle",
       mText: mSectionTitle,
-      x: bounds.centerX(),
+      x: textX,
       y: currentY,
-      hAlign: "center",
-      vAlign: "top",
+      alignH: alignH,
+      alignV: "top",
       maxWidth: textMaxWidth,
     });
     currentY += sectionTitleH + s.section.gapY;
@@ -125,15 +160,15 @@ function buildSectionPrimitives(
       type: "text",
       id: "sectionSubTitle",
       mText: mSectionSubTitle,
-      x: bounds.centerX(),
+      x: textX,
       y: currentY,
-      hAlign: "center",
-      vAlign: "top",
+      alignH: alignH,
+      alignV: "top",
       maxWidth: textMaxWidth,
     });
   }
 
-  // Watermark (centered on page)
+  // Watermark (always centered on page)
   if (mWatermark) {
     primitives.push({
       type: "text",
@@ -141,8 +176,8 @@ function buildSectionPrimitives(
       mText: mWatermark,
       x: bounds.centerX(),
       y: bounds.centerY(),
-      hAlign: "center",
-      vAlign: "center",
+      alignH: "center",
+      alignV: "middle",
     });
   }
 

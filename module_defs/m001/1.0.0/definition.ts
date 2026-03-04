@@ -263,7 +263,6 @@ export const definition = {
               content: "lines",
               conditionalFormatting: "fmt-01-03",
               decimalPlaces: 1,
-              idealAspectRatio: "ideal",
             },
             t: {
               caption: { en: "Outliers", fr: "Valeurs aberrantes" },
@@ -368,7 +367,6 @@ export const definition = {
               content: "lines",
               conditionalFormatting: "fmt-90-80",
               decimalPlaces: 1,
-              idealAspectRatio: "ideal",
             },
             t: {
               caption: {
@@ -412,7 +410,6 @@ export const definition = {
             s: {
               content: "areas",
               decimalPlaces: 1,
-              idealAspectRatio: "video",
             },
             t: {
               caption: {
@@ -523,7 +520,6 @@ export const definition = {
               content: "lines",
               conditionalFormatting: "fmt-90-80",
               decimalPlaces: 1,
-              idealAspectRatio: "ideal",
             },
             t: {
               caption: { en: "Internal consistency", fr: "Cohérence interne" },
@@ -626,7 +622,6 @@ export const definition = {
               content: "lines",
               conditionalFormatting: "fmt-80-70",
               decimalPlaces: 1,
-              idealAspectRatio: "ideal",
             },
             t: {
               caption: { en: "Overall DQA score", fr: "Score EQD global" },
@@ -725,7 +720,6 @@ export const definition = {
               content: "lines",
               conditionalFormatting: "fmt-80-70",
               decimalPlaces: 1,
-              idealAspectRatio: "ideal",
             },
             t: {
               caption: { en: "Mean DQA score", fr: "Score EQD moyen" },

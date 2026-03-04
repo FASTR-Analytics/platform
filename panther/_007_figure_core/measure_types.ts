@@ -5,86 +5,36 @@
 
 import type {
   CustomFigureStyle,
-  CustomFigureStyleOptions,
   MeasuredText,
-  MergedChartOVStyle,
-  MergedGridStyle,
-  MergedPaneStyle,
-  MergedTimeseriesStyle,
-  MergedYScaleAxisStyle,
+  MergedChartStyleBase,
+  Primitive,
   RectCoordsDims,
-  RenderContext,
-  TextInfoUnkeyed,
 } from "./deps.ts";
 import type { LegendItem } from "./_legend/types.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
-import type { XAxisMeasuredInfo } from "./render_types.ts";
-import type { YScaleAxisData, YScaleAxisWidthInfo } from "./types.ts";
-import type { PlotAreaInfo } from "./get_plot_area_infos.ts";
+import type { XAxisConfig, YAxisConfig } from "./_axes/axis_configs.ts";
 
-export type { MeasuredSurrounds, PlotAreaInfo };
+export type { MeasuredSurrounds };
 
-// Legacy interfaces - keeping for compatibility with measurePane function
-export interface ChartInputsBase {
-  caption?: string;
-  subCaption?: string;
-  footnote?: string | string[];
-  legendItemsOrLabels?: string[] | LegendItem[];
-  style?: CustomFigureStyleOptions;
-}
-
-// Simplified config interface for chart measurement
-export interface SimplifiedChartConfig<TInputs, TData, TStyle> {
-  // Pre-computed values
+export interface SimplifiedChartConfig<
+  TInputs,
+  TData,
+  TStyle extends MergedChartStyleBase,
+> {
   mergedStyle: TStyle;
   transformedData: TData;
   dataProps: {
     paneHeaders: string[];
+    tierHeaders: string[];
     laneHeaders: string[];
     seriesHeaders: string[];
-    yScaleAxisData: YScaleAxisData;
   };
-  styleProps: {
-    hideColHeaders: boolean;
-    panes: MergedPaneStyle;
-    text: { paneHeaders: TextInfoUnkeyed };
-    yScaleAxis: MergedYScaleAxisStyle;
-    grid: MergedGridStyle;
-    content: { bars: { stacking: string } };
-    xAxisStyle: {
-      lanePaddingLeft: number;
-      lanePaddingRight: number;
-      laneGapX: number;
-    };
-  };
-
-  // X-axis configuration
-  xAxisType: "text" | "period" | "scale";
-  xAxisMeasureData:
-    | {
-      type: "text";
-      indicatorHeaders: string[];
-      nLanes: number;
-      mergedStyle: TStyle;
-    }
-    | {
-      type: "period";
-      periodType: "year-month" | "year-quarter" | "year";
-      nTimePoints: number;
-      nLanes: number;
-      mergedStyle: TStyle;
-    }
-    | {
-      type: "scale";
-      // Future: scale-specific data
-    };
+  xAxisConfig: XAxisConfig;
+  yAxisConfig: YAxisConfig;
+  orientation: "vertical" | "horizontal";
 }
 
-// Configuration object for measurePane function
-export interface MeasurePaneConfig<
-  TData,
-  TStyle extends (MergedChartOVStyle | MergedTimeseriesStyle),
-> {
+export interface MeasurePaneConfig<TData> {
   indices: {
     pane: number;
     row: number;
@@ -94,65 +44,25 @@ export interface MeasurePaneConfig<
     outerRcd: RectCoordsDims;
     contentRcd: RectCoordsDims;
   };
-  header: MeasuredText | undefined;
+  paneHeader: MeasuredText | undefined;
   dataProps: {
+    paneHeaders: string[];
+    tierHeaders: string[];
     laneHeaders: string[];
-    yScaleAxisData: YScaleAxisData;
-  };
-  styleProps: {
-    yScaleAxis: MergedYScaleAxisStyle;
-    grid: MergedGridStyle;
-    xAxisStyle: {
-      lanePaddingLeft: number;
-      lanePaddingRight: number;
-      laneGapX: number;
-    };
+    seriesHeaders: string[];
   };
   data: TData;
-  style: TStyle;
-  xAxisMeasureData:
-    | {
-      type: "text";
-      indicatorHeaders: string[];
-      nLanes: number;
-      mergedStyle: TStyle;
-    }
-    | {
-      type: "period";
-      periodType: "year-month" | "year-quarter" | "year";
-      nTimePoints: number;
-      nLanes: number;
-      mergedStyle: TStyle;
-    }
-    | {
-      type: "scale";
-      // Future: scale-specific data
-    };
+  baseStyle: MergedChartStyleBase;
+  xAxisConfig: XAxisConfig;
+  yAxisConfig: YAxisConfig;
+  orientation: "vertical" | "horizontal";
 }
 
-// Base measured pane structure
-export interface MeasuredPaneBase {
-  mPaneHeader?: MeasuredText;
-  i_pane: number;
-  i_pane_row: number;
-  i_pane_col: number;
-  paneOuterRcd: RectCoordsDims;
-  paneContentRcd: RectCoordsDims;
-  xAxisMeasuredInfo: XAxisMeasuredInfo;
-  yScaleAxisWidthInfo: YScaleAxisWidthInfo;
-  yAxisRcd: RectCoordsDims;
-  subChartAreaHeight: number;
-  topHeightForLaneHeaders: number;
-  plotAreaInfos: PlotAreaInfo[];
-}
-
-// Legacy interfaces - keeping for compatibility with measurePane function
 export interface MeasuredChartBase<TInputs, TData, TStyle> {
   item: TInputs;
   bounds: RectCoordsDims;
   measuredSurrounds: MeasuredSurrounds;
   extraHeightDueToSurrounds: number;
-  mPanes: MeasuredPaneBase[];
   transformedData: TData;
   customFigureStyle: CustomFigureStyle;
   mergedStyle: TStyle;
@@ -160,4 +70,5 @@ export interface MeasuredChartBase<TInputs, TData, TStyle> {
   subCaption?: string;
   footnote?: string | string[];
   legendItemsOrLabels?: string[] | LegendItem[];
+  primitives: Primitive[];
 }

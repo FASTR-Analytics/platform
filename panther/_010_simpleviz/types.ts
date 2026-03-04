@@ -60,8 +60,8 @@ export type RawBox = {
   fillColor?: ColorKeyOrString;
   strokeColor?: ColorKeyOrString;
   strokeWidth?: number;
-  textHorizontalAlign?: "left" | "center" | "right";
-  textVerticalAlign?: "top" | "center" | "bottom";
+  alignH?: "left" | "center" | "right";
+  alignV?: "top" | "middle" | "bottom";
   textGap?: number;
   // Text style overrides
   primaryTextStyle?: CustomStyleTextOptions;

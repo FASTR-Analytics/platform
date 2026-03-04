@@ -280,7 +280,7 @@ function UserTable(p: {
     {
       key: "actions",
       header: "",
-      align: "right",
+      alignH: "right",
       render: (user) => (
         <div class="flex justify-end gap-1">
           <Button

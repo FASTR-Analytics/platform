@@ -16,7 +16,7 @@ export function renderPagePrimitives(
         rc.rRect(prim.rcd, { fillColor: prim.fillColor });
         break;
       case "text":
-        rc.rText(prim.mText, [prim.x, prim.y], prim.hAlign, prim.vAlign);
+        rc.rText(prim.mText, [prim.x, prim.y], prim.alignH, prim.alignV);
         break;
       case "image":
         rc.rImage(

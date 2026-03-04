@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { MeasuredText } from "../../deps.ts";
+import type { AlignH, AlignV, MeasuredText } from "../../deps.ts";
 import { setCtxFont } from "./set_ctx_font.ts";
 
 export function writeText(
@@ -24,33 +24,29 @@ export function writeVerticalText(
   mText: MeasuredText,
   x: number,
   y: number,
-  verticalAlign: "top" | "center" | "bottom",
-  horizontalAlign: "left" | "center" | "right",
+  alignV: AlignV,
+  alignH: AlignH,
 ) {
   const rotation = mText.rotation;
   const align2 = rotation === "anticlockwise"
-    ? verticalAlign === "top"
-      ? "right"
-      : verticalAlign === "bottom"
-      ? "left"
-      : "center"
-    : verticalAlign === "top"
+    ? alignV === "top" ? "right" : alignV === "bottom" ? "left" : "center"
+    : alignV === "top"
     ? "left"
-    : verticalAlign === "bottom"
+    : alignV === "bottom"
     ? "right"
     : "center";
 
   const angle = rotation === "anticlockwise" ? -0.5 : 0.5;
 
   const y2 = rotation === "anticlockwise"
-    ? horizontalAlign === "left"
+    ? alignH === "left"
       ? 0
-      : horizontalAlign === "center"
+      : alignH === "center"
       ? (0 - mText.dims.w()) / 2
       : 0 - mText.dims.w()
-    : horizontalAlign === "left"
+    : alignH === "left"
     ? 0 - mText.dims.w()
-    : horizontalAlign === "center"
+    : alignH === "center"
     ? (0 - mText.dims.w()) / 2
     : 0;
 

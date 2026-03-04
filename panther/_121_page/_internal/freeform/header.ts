@@ -233,8 +233,8 @@ export function buildHeaderPrimitives(
       mText: measured.mHeader,
       x,
       y: currentY,
-      hAlign: "left",
-      vAlign: "top",
+      alignH: "left",
+      alignV: "top",
       maxWidth: measured.maxWidthForHeaderText,
     });
     currentY += measured.mHeader.dims.h() + s.header.headerBottomPadding;
@@ -248,8 +248,8 @@ export function buildHeaderPrimitives(
       mText: measured.mSubHeader,
       x,
       y: currentY,
-      hAlign: "left",
-      vAlign: "top",
+      alignH: "left",
+      alignV: "top",
       maxWidth: measured.maxWidthForHeaderText,
     });
     currentY += measured.mSubHeader.dims.h() + s.header.subHeaderBottomPadding;
@@ -263,8 +263,8 @@ export function buildHeaderPrimitives(
       mText: measured.mDate,
       x,
       y: currentY,
-      hAlign: "left",
-      vAlign: "top",
+      alignH: "left",
+      alignV: "top",
       maxWidth: measured.maxWidthForHeaderText,
     });
   }

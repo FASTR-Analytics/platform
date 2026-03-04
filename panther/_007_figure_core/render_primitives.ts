@@ -4,14 +4,15 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AreaStyle,
   ArrowPrimitive,
   BoxPrimitive,
+  CascadeArrowPrimitive,
   ChartAxisPrimitive,
   ChartCaptionPrimitive,
   ChartGridPrimitive,
   ChartLabelPrimitive,
   ChartLegendPrimitive,
-  DataLabel,
   LineStyle,
   Primitive,
   RenderContext,
@@ -50,21 +51,21 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
           primitive.dataLabel.relativePosition,
           primitive.bounds,
         );
-        const hAlign = "dx" in primitive.dataLabel.relativePosition &&
+        const alignH = "dx" in primitive.dataLabel.relativePosition &&
             primitive.dataLabel.relativePosition.dx < 0
           ? "right"
           : "dx" in primitive.dataLabel.relativePosition &&
               primitive.dataLabel.relativePosition.dx > 0
           ? "left"
           : "center";
-        const vAlign = "dy" in primitive.dataLabel.relativePosition &&
+        const alignV = "dy" in primitive.dataLabel.relativePosition &&
             primitive.dataLabel.relativePosition.dy < 0
           ? "bottom"
           : "dy" in primitive.dataLabel.relativePosition &&
               primitive.dataLabel.relativePosition.dy > 0
           ? "top"
-          : "center";
-        rc.rText(primitive.dataLabel.mText, labelPos, hAlign, vAlign);
+          : "middle";
+        rc.rText(primitive.dataLabel.mText, labelPos, alignH, alignV);
       }
       break;
 
@@ -101,12 +102,7 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
           primitive.dataLabel.relativePosition,
           primitive.bounds,
         );
-        rc.rText(
-          primitive.dataLabel.mText,
-          labelPos,
-          "center",
-          "bottom",
-        );
+        rc.rText(primitive.dataLabel.mText, labelPos, "center", "bottom");
       }
       break;
 
@@ -153,6 +149,10 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       break;
     }
 
+    case "chart-confidence-band":
+      rc.rArea(primitive.coords, primitive.style as AreaStyle);
+      break;
+
     case "chart-grid":
       renderGridPrimitive(rc, primitive);
       break;
@@ -189,6 +189,10 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       renderSankeyLinkPrimitive(rc, primitive);
       break;
 
+    case "cascade-arrow":
+      renderCascadeArrowPrimitive(rc, primitive);
+      break;
+
     default: {
       const _exhaustive: never = primitive;
       throw new Error(`Unknown primitive type: ${(primitive as any).type}`);
@@ -207,6 +211,12 @@ function renderGridPrimitive(
   primitive: ChartGridPrimitive,
 ): void {
   if (!primitive.style.show) return;
+
+  if (primitive.style.backgroundColor !== "none") {
+    rc.rRect(primitive.plotAreaRcd, {
+      fillColor: primitive.style.backgroundColor,
+    });
+  }
 
   primitive.horizontalLines.forEach((line) => {
     rc.rLine(
@@ -350,7 +360,7 @@ function renderBoxPrimitive(rc: RenderContext, primitive: BoxPrimitive): void {
   rc.rRect(primitive.rcd, primitive.rectStyle);
 
   if (primitive.text) {
-    rc.rText(primitive.text.mText, primitive.text.position, "center", "center");
+    rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
   }
 
   if (primitive.secondaryText) {
@@ -358,7 +368,7 @@ function renderBoxPrimitive(rc: RenderContext, primitive: BoxPrimitive): void {
       primitive.secondaryText.mText,
       primitive.secondaryText.position,
       "center",
-      "center",
+      "middle",
     );
   }
 }
@@ -470,8 +480,8 @@ function renderSankeyNodePrimitive(
     rc.rText(
       primitive.label.mText,
       primitive.label.position,
-      primitive.label.alignment,
-      "center",
+      primitive.label.alignH,
+      "middle",
     );
   }
 }
@@ -487,4 +497,35 @@ function renderSankeyLinkPrimitive(
   primitive: SankeyLinkPrimitive,
 ): void {
   rc.rPath(primitive.pathSegments, primitive.pathStyle);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Cascade Arrow Rendering                                                 //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderCascadeArrowPrimitive(
+  rc: RenderContext,
+  primitive: CascadeArrowPrimitive,
+): void {
+  rc.rPath(primitive.pathSegments, primitive.pathStyle);
+
+  if (primitive.arrowhead) {
+    const lineStyle: LineStyle = {
+      strokeColor: primitive.pathStyle.stroke?.color ?? "black",
+      strokeWidth: primitive.pathStyle.stroke?.width ?? 1,
+      lineDash: "solid",
+    };
+    renderArrowhead(
+      rc,
+      primitive.arrowhead,
+      lineStyle,
+      primitive.arrowhead.size,
+    );
+  }
+
+  if (primitive.label) {
+    rc.rText(primitive.label.mText, primitive.label.position, "center", "top");
+  }
 }

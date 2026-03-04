@@ -6,6 +6,8 @@
 import type {
   ChartSeriesInfo,
   ChartValueInfo,
+  ColorAdjustmentStrategy,
+  ColorKeyOrString,
   Coordinates,
   RectCoordsDims,
 } from "../deps.ts";
@@ -43,6 +45,8 @@ export const Z_INDEX = {
   // SimpleViz defaults
   SIMPLEVIZ_ARROW: 490, // Behind boxes by default
   SIMPLEVIZ_BOX: 500,
+  // Cascade defaults
+  CASCADE_ARROW: 550,
   // Sankey defaults
   SANKEY_LINK: 300,
   SANKEY_NODE: 400,
@@ -90,7 +94,7 @@ export type DataLabel = {
   relativePosition: RelativePosition;
 };
 
-export type BarStackingMode = "stacked" | "imposed" | "grouped";
+export type BarStackingMode = "stacked" | "imposed" | "diff" | "grouped";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -173,11 +177,23 @@ export type ChartErrorBarPrimitive = BasePrimitive & {
   centerX: number;
   ubY: number;
   lbY: number;
-  strokeColor: string;
+  strokeColor: ColorKeyOrString;
   strokeWidth: number;
   capWidth: number;
   // Optional metadata
   sourceData?: any;
+};
+
+export type ChartConfidenceBandPrimitive = BasePrimitive & {
+  type: "chart-confidence-band";
+  meta: {
+    series: ChartSeriesInfo;
+  };
+  coords: Coordinates[];
+  style: {
+    fillColor: ColorKeyOrString;
+    fillColorAdjustmentStrategy: ColorAdjustmentStrategy;
+  };
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -203,7 +219,7 @@ export type ChartAxisPrimitive = BasePrimitive & {
       position: Coordinates;
       alignment: {
         h: "left" | "center" | "right";
-        v: "top" | "center" | "bottom";
+        v: "top" | "middle" | "bottom";
       };
     };
     value: number | string;
@@ -225,6 +241,7 @@ export type ChartGridPrimitive = BasePrimitive & {
     show: boolean;
     strokeColor: string;
     strokeWidth: number;
+    backgroundColor: string | "none";
   };
 };
 
@@ -267,7 +284,7 @@ export type ChartCaptionPrimitive = BasePrimitive & {
   position: Coordinates;
   alignment: {
     h: "left" | "center" | "right";
-    v: "top" | "center" | "bottom";
+    v: "top" | "middle" | "bottom";
   };
 };
 
@@ -284,7 +301,7 @@ export type ChartLabelPrimitive = BasePrimitive & {
   position: Coordinates;
   alignment: {
     h: "left" | "center" | "right";
-    v: "top" | "center" | "bottom";
+    v: "top" | "middle" | "bottom";
   };
 };
 
@@ -350,7 +367,7 @@ export type SankeyNodePrimitive = BasePrimitive & {
   label?: {
     mText: MeasuredText;
     position: Coordinates;
-    alignment: "left" | "right";
+    alignH: "left" | "right";
   };
 };
 
@@ -368,6 +385,33 @@ export type SankeyLinkPrimitive = BasePrimitive & {
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+//    Cascade Primitives                                                      //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type CascadeArrowPrimitive = BasePrimitive & {
+  type: "cascade-arrow";
+  meta: {
+    i_fromStage: number;
+    i_toStage: number;
+    i_series: number;
+    retention: number;
+  };
+  pathSegments: PathSegment[];
+  pathStyle: PathStyle;
+  arrowhead?: {
+    position: Coordinates;
+    angle: number;
+    size: number;
+  };
+  label?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
 //    Primitive Union Type                                                    //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -379,6 +423,7 @@ export type Primitive =
   | ChartAreaSeriesPrimitive
   | ChartBarPrimitive
   | ChartErrorBarPrimitive
+  | ChartConfidenceBandPrimitive
   // Chart structure (coarse-grained)
   | ChartAxisPrimitive
   | ChartGridPrimitive
@@ -390,4 +435,6 @@ export type Primitive =
   | ArrowPrimitive
   // Sankey primitives
   | SankeyNodePrimitive
-  | SankeyLinkPrimitive;
+  | SankeyLinkPrimitive
+  // Cascade primitives
+  | CascadeArrowPrimitive;

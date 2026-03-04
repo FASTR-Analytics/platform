@@ -81,6 +81,8 @@ type InnerProps = {
 };
 
 export function VisualizationEditorInner(p: InnerProps) {
+  const defaultHeight = p.poDetail.config.d.type === "table" ? "ideal" as const : "flex" as const;
+  const [editorHeight, setEditorHeight] = createSignal<"flex" | "ideal">(defaultHeight);
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
   const { setAIContext, notifyAI } = useAIProjectContext();
@@ -621,6 +623,12 @@ export function VisualizationEditorInner(p: InnerProps) {
               <Button onClick={download} iconName="download">
                 {t3(TC.download)}
               </Button>
+              <Button
+                onClick={() => setEditorHeight(editorHeight() === "flex" ? "ideal" : "flex")}
+                iconName={editorHeight() === "flex" ? "maximize" : "minimize"}
+                outline
+              >
+              </Button>
               <Show when={!showAi()}>
                 <Button
                   onClick={() => setShowAi(true)}
@@ -736,11 +744,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                                       <ChartHolder
                                         canvasElementId="CANVAS_FOR_DOWNLOADING"
                                         chartInputs={keyedFigureInputs}
-                                        height={
-                                          tempConfig.s.idealAspectRatio === "none"
-                                            ? "flex"
-                                            : "ideal"
-                                        }
+                                        height={editorHeight()}
                                         noRescaleWithWidthChange
                                         textRenderingOptions={getTextRenderingOptions()}
                                       />

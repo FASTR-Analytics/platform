@@ -877,7 +877,6 @@ export const definition = {
             s: {
               conditionalFormatting: "fmt-neg10-pos10",
               decimalPlaces: 0,
-              idealAspectRatio: "ideal",
             },
           },
         },
@@ -1081,7 +1080,6 @@ export const definition = {
             s: {
               conditionalFormatting: "fmt-neg10-pos10",
               decimalPlaces: 0,
-              idealAspectRatio: "ideal",
             },
           },
         },
@@ -1286,7 +1284,6 @@ export const definition = {
             s: {
               conditionalFormatting: "fmt-neg10-pos10",
               decimalPlaces: 0,
-              idealAspectRatio: "ideal",
             },
           },
         },

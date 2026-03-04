@@ -304,11 +304,7 @@ function FigureStateWrapper(p: FigureStateWrapperProps) {
         keyed
       >
         {(keyedFigureInputs) => {
-          const h1 =
-            //@ts-ignore
-            keyedFigureInputs.style.idealAspectRatio === "none"
-              ? "flex"
-              : "ideal";
+          const h1 = "tableData" in keyedFigureInputs ? "ideal" as const : "flex" as const;
           return (
             <div class="aspect-video overflow-hidden">
               <ChartHolder

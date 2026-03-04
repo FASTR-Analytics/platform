@@ -5,8 +5,6 @@
 
 import {
   CustomFigureStyle,
-  generateChartPrimitives,
-  generateSurroundsPrimitives,
   measureChart,
   type MergedTimeseriesStyle,
   type RectCoordsDims,
@@ -26,7 +24,6 @@ export function measureTimeseries(
   inputs: TimeseriesInputs,
   responsiveScale?: number,
 ): MeasuredTimeseries {
-  // Pre-compute values
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
     responsiveScale,
@@ -37,27 +34,6 @@ export function measureTimeseries(
     mergedStyle.content.bars.stacking === "stacked",
   );
 
-  const dataProps = {
-    paneHeaders: transformedData.paneHeaders,
-    laneHeaders: transformedData.laneHeaders,
-    seriesHeaders: transformedData.seriesHeaders,
-    yScaleAxisData: transformedData.yScaleAxisData,
-  };
-
-  const styleProps = {
-    hideColHeaders: mergedStyle.hideColHeaders,
-    panes: mergedStyle.panes,
-    text: { paneHeaders: mergedStyle.text.paneHeaders },
-    yScaleAxis: mergedStyle.yScaleAxis,
-    grid: mergedStyle.grid,
-    content: { bars: { stacking: mergedStyle.content.bars.stacking } },
-    xAxisStyle: {
-      lanePaddingLeft: mergedStyle.xPeriodAxis.lanePaddingLeft,
-      lanePaddingRight: mergedStyle.xPeriodAxis.lanePaddingRight,
-      laneGapX: mergedStyle.xPeriodAxis.laneGapX,
-    },
-  };
-
   const config: SimplifiedChartConfig<
     TimeseriesInputs,
     TimeseriesDataTransformed,
@@ -65,63 +41,26 @@ export function measureTimeseries(
   > = {
     mergedStyle,
     transformedData,
-    dataProps,
-    styleProps,
-
-    xAxisType: "period",
-    xAxisMeasureData: {
+    dataProps: {
+      paneHeaders: transformedData.paneHeaders,
+      tierHeaders: transformedData.tierHeaders,
+      laneHeaders: transformedData.laneHeaders,
+      seriesHeaders: transformedData.seriesHeaders,
+    },
+    xAxisConfig: {
       type: "period",
       periodType: transformedData.periodType,
       nTimePoints: transformedData.nTimePoints,
-      nLanes: transformedData.laneHeaders.length,
-      mergedStyle,
-    },
-  };
-
-  const measured = measureChart<
-    TimeseriesInputs,
-    TimeseriesDataTransformed,
-    MergedTimeseriesStyle
-  >(rc, rcdWithSurrounds, inputs, config, responsiveScale);
-
-  // Generate all primitives using centralized loop
-  const chartPrimitives = generateChartPrimitives(rc, measured, {
-    xAxisType: "period",
-    yAxisType: "scale",
-    xAxisGridLineConfig: {
-      type: "period",
-      periodType: transformedData.periodType,
       timeMin: transformedData.timeMin,
-      nTimePoints: transformedData.nTimePoints,
-      showEveryNthTick: mergedStyle.xPeriodAxis.showEveryNthTick,
+      axisStyle: mergedStyle.xPeriodAxis,
     },
-    yAxisGridLineConfig: {
+    yAxisConfig: {
       type: "scale",
+      axisStyle: mergedStyle.yScaleAxis,
+      axisData: transformedData.yScaleAxisData,
     },
-    transformedData,
-    gridStyle: {
-      showGrid: mergedStyle.grid.showGrid,
-      gridColor: mergedStyle.grid.gridColor,
-      gridStrokeWidth: mergedStyle.grid.gridStrokeWidth,
-    },
-    contentStyle: mergedStyle.content,
-    dataLabelsTextStyle: mergedStyle.text.dataLabels,
-    mergedStyle,
-  });
-
-  // Generate surrounds primitives (captions and legend)
-  const surroundsPrimitives = generateSurroundsPrimitives(
-    measured.measuredSurrounds,
-  );
-
-  // Combine all primitives
-  const primitives = [
-    ...chartPrimitives,
-    ...surroundsPrimitives,
-  ];
-
-  return {
-    ...measured,
-    primitives,
+    orientation: "vertical",
   };
+
+  return measureChart(rc, rcdWithSurrounds, inputs, config, responsiveScale);
 }

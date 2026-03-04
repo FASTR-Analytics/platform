@@ -145,7 +145,7 @@ export type MeasuredFormattedText = {
   baseStyle: TextInfoUnkeyed;
   linkUnderline: boolean;
   maxWidth: number;
-  align: "left" | "center" | "right";
+  alignH: "left" | "center" | "right";
 };
 
 // =============================================================================

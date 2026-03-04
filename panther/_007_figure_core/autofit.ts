@@ -69,18 +69,16 @@ export function findOptimalScaleForBounds(
   availableWidth: number,
   availableHeight: number,
   options: ResolvedFigureAutofitOptions,
-  getMinWidthAtScale: (scale: number) => number,
-  getIdealHeightAtScale: (scale: number) => number,
+  getSizeAtScale: (scale: number) => { minWidth: number; idealHeight: number },
 ): number {
-  // Try scale 1.0 first
+  const size1 = getSizeAtScale(1.0);
   if (
-    availableWidth >= getMinWidthAtScale(1.0) &&
-    availableHeight >= getIdealHeightAtScale(1.0)
+    availableWidth >= size1.minWidth &&
+    availableHeight >= size1.idealHeight
   ) {
     return 1.0;
   }
 
-  // Binary search for largest scale that fits both dimensions
   const scales = getDiscreteScales(options.minScale, options.maxScale);
   let lo = 0;
   let hi = scales.length - 1;
@@ -89,14 +87,15 @@ export function findOptimalScaleForBounds(
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
     const scale = scales[mid];
-    const fitsWidth = availableWidth >= getMinWidthAtScale(scale);
-    const fitsHeight = availableHeight >= getIdealHeightAtScale(scale);
+    const size = getSizeAtScale(scale);
+    const fitsWidth = availableWidth >= size.minWidth;
+    const fitsHeight = availableHeight >= size.idealHeight;
 
     if (fitsWidth && fitsHeight) {
       bestScale = scale;
-      hi = mid - 1; // Try larger scales
+      hi = mid - 1;
     } else {
-      lo = mid + 1; // Need smaller scale
+      lo = mid + 1;
     }
   }
 

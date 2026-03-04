@@ -3,39 +3,28 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { MergedChartOVStyle, MergedTimeseriesStyle } from "../deps.ts";
+import type { XAxisConfig } from "./axis_configs.ts";
 import type { XAxisMeasuredInfo } from "./measure_x_axis.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
 import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 
-///////////////////////////////////////////
-//                                       //
-//    Axis Rendering Configuration       //
-//                                       //
-///////////////////////////////////////////
-
-// Configuration needed for mapping coordinates and generating content primitives
 export interface AxisRenderingConfig {
   incrementWidth: number;
   isCentered: boolean;
   nVals: number;
 }
 
-// Extract rendering config from X-axis measured info
 export function getXAxisRenderConfig(
-  xAxisType: "text" | "period" | "scale",
+  xAxisConfig: XAxisConfig,
   xAxisMeasuredInfo: XAxisMeasuredInfo,
-  transformedData: { indicatorHeaders?: string[]; nTimePoints?: number },
-  style: MergedChartOVStyle | MergedTimeseriesStyle,
 ): AxisRenderingConfig {
-  switch (xAxisType) {
+  switch (xAxisConfig.type) {
     case "text": {
       const mx = xAxisMeasuredInfo as XTextAxisMeasuredInfo;
-      const textStyle = style as MergedChartOVStyle;
       return {
         incrementWidth: mx.indicatorAreaInnerWidth,
-        isCentered: textStyle.xTextAxis.tickPosition === "center",
-        nVals: transformedData.indicatorHeaders?.length ?? 0,
+        isCentered: xAxisConfig.axisStyle.tickPosition === "center",
+        nVals: xAxisConfig.indicatorHeaders.length,
       };
     }
     case "period": {
@@ -43,7 +32,7 @@ export function getXAxisRenderConfig(
       return {
         incrementWidth: mx.periodIncrementWidth,
         isCentered: mx.periodAxisType === "year-centered",
-        nVals: transformedData.nTimePoints ?? 0,
+        nVals: xAxisConfig.nTimePoints,
       };
     }
     case "scale":

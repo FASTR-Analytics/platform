@@ -5,6 +5,8 @@
 
 import {
   type AreaStyle,
+  type CascadeArrowInfo,
+  type CascadeArrowInfoFunc,
   type ChartSeriesInfo,
   type ChartSeriesInfoFunc,
   type ChartValueInfo,
@@ -263,6 +265,243 @@ export function getAreaStyleFunc(
       fillColor: color === 666 ? seriesColorFunc(info) : color,
       fillColorAdjustmentStrategy:
         areaStyleOptions?.fillColorAdjustmentStrategy ?? dColorStrategy,
+    };
+  };
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+//   ______                                         __                             //
+//  /      \                                       /  |                            //
+// /$$$$$$  |  ______    _______   _______   ______$$ |  ______                    //
+// $$ |  $$/  /      \  /       | /       | /      $$ | /      \                   //
+// $$ |      /$$$$$$  |/$$$$$$$/  $$$$$$$/  $$$$$$$$$ |/$$$$$$  |                  //
+// $$ |   __ $$ |  $$ |$$      \  $$      \ $$ |  $$ |$$    $$ |                   //
+// $$ \__/  |$$ |__$$ | $$$$$$  |  $$$$$$  |$$ \__$$ |$$$$$$$$/                    //
+// $$    $$/ $$    $$ |/     $$/ /     $$/ $$    $$ |$$       |                    //
+//  $$$$$$/  $$$$$$$/  $$$$$$$/  $$$$$$$/   $$$$$$$/  $$$$$$$/                     //
+//           $$ |                                                                  //
+//           $$ |                                                                  //
+//           $$/                                                                   //
+/////////////////////////////////////////////////////////////////////////////////////
+
+export type GenericCascadeArrowStyleOptions = {
+  show?: boolean;
+  strokeColor?: ColorKeyOrString;
+  strokeWidth?: number;
+  arrowHeadLength?: number;
+  showArrowhead?: boolean;
+  arrowLengthPctOfSpace?: number;
+  arrowLabelGap?: number;
+  labelFormatter?: (
+    retention: number,
+    fromVal: number,
+    toVal: number,
+  ) => string;
+  labelColor?: ColorKeyOrString;
+  labelRelFontSize?: number;
+};
+
+export type GenericCascadeArrowStyle = {
+  show: boolean;
+  strokeColor: ColorKeyOrString;
+  strokeWidth: number;
+  arrowHeadLength: number;
+  showArrowhead: boolean;
+  arrowLengthPctOfSpace: number;
+  arrowLabelGap: number;
+  labelFormatter: (retention: number, fromVal: number, toVal: number) => string;
+};
+
+export type CascadeArrowStyle = {
+  show: boolean;
+  strokeColor: ColorKeyOrString;
+  strokeWidth: number;
+  arrowHeadLength: number;
+  showArrowhead: boolean;
+  arrowLengthPctOfSpace: number;
+  arrowLabelGap: number;
+  labelFormatter: (retention: number, fromVal: number, toVal: number) => string;
+  labelColor?: ColorKeyOrString;
+  labelRelFontSize?: number;
+};
+
+export function getCascadeArrowStyleFunc(
+  func: CascadeArrowInfoFunc<GenericCascadeArrowStyleOptions> | "none",
+  _sf: number,
+  c: GenericCascadeArrowStyleOptions | undefined,
+  g: GenericCascadeArrowStyleOptions | undefined,
+  d: GenericCascadeArrowStyle,
+): CascadeArrowInfoFunc<CascadeArrowStyle> {
+  const dShow = m(c?.show, g?.show, d.show);
+  const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
+  const dStrokeWidth = ms(_sf, c?.strokeWidth, g?.strokeWidth, d.strokeWidth);
+  const dArrowHeadLength = ms(
+    _sf,
+    c?.arrowHeadLength,
+    g?.arrowHeadLength,
+    d.arrowHeadLength,
+  );
+  const dShowArrowhead = m(
+    c?.showArrowhead,
+    g?.showArrowhead,
+    d.showArrowhead,
+  );
+  const dArrowLengthPctOfSpace = m(
+    c?.arrowLengthPctOfSpace,
+    g?.arrowLengthPctOfSpace,
+    d.arrowLengthPctOfSpace,
+  );
+  const dArrowLabelGap = ms(
+    _sf,
+    c?.arrowLabelGap,
+    g?.arrowLabelGap,
+    d.arrowLabelGap,
+  );
+  const dLabelFormatter = m(
+    c?.labelFormatter,
+    g?.labelFormatter,
+    d.labelFormatter,
+  );
+  return (info: CascadeArrowInfo): CascadeArrowStyle => {
+    const o = func === "none" ? undefined : func(info);
+    return {
+      show: o?.show ?? dShow,
+      strokeColor: o?.strokeColor ?? dStrokeColor,
+      strokeWidth: o?.strokeWidth !== undefined
+        ? o.strokeWidth * _sf
+        : dStrokeWidth,
+      arrowHeadLength: o?.arrowHeadLength !== undefined
+        ? o.arrowHeadLength * _sf
+        : dArrowHeadLength,
+      showArrowhead: o?.showArrowhead ?? dShowArrowhead,
+      arrowLengthPctOfSpace: o?.arrowLengthPctOfSpace ??
+        dArrowLengthPctOfSpace,
+      arrowLabelGap: o?.arrowLabelGap !== undefined
+        ? o.arrowLabelGap * _sf
+        : dArrowLabelGap,
+      labelFormatter: o?.labelFormatter ?? dLabelFormatter,
+      labelColor: o?.labelColor,
+      labelRelFontSize: o?.labelRelFontSize,
+    };
+  };
+}
+
+//////////////////////////////////////////////////////////////////
+//  ________                                                    //
+// /        |                                                   //
+// $$$$$$$$/  ______    ______    ______    ______              //
+// $$ |__    /      \  /      \  /      \  /      \             //
+// $$    |  /$$$$$$  |/$$$$$$  |/$$$$$$  |/$$$$$$  |            //
+// $$$$$/   $$ |  $$/ $$ |  $$/ $$ |  $$ |$$ |  $$/             //
+// $$ |___  $$ |      $$ |      $$ \__$$ |$$ |                  //
+// $$    |  $$ |      $$ |      $$    $$/ $$ |                  //
+// $$$$$$$/  $$/       $$/        $$$$$$/  $$/                   //
+//                                                              //
+//////////////////////////////////////////////////////////////////
+
+export type GenericErrorBarStyleOptions = {
+  show?: boolean;
+  strokeColor?: ColorKeyOrString;
+  strokeWidth?: number;
+  capWidthProportion?: number;
+};
+
+export type GenericErrorBarStyle = {
+  show: boolean;
+  strokeColor: ColorKeyOrString;
+  strokeWidth: number;
+  capWidthProportion: number;
+};
+
+export type ErrorBarStyle = {
+  show: boolean;
+  strokeColor: ColorKeyOrString;
+  strokeWidth: number;
+  capWidthProportion: number;
+};
+
+export function getErrorBarStyleFunc(
+  func: ChartValueInfoFunc<GenericErrorBarStyleOptions> | "none",
+  _sf: number,
+  c: GenericErrorBarStyleOptions | undefined,
+  g: GenericErrorBarStyleOptions | undefined,
+  d: GenericErrorBarStyle,
+): ChartValueInfoFunc<ErrorBarStyle> {
+  const dShow = m(c?.show, g?.show, d.show);
+  const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
+  const dStrokeWidth = ms(_sf, c?.strokeWidth, g?.strokeWidth, d.strokeWidth);
+  const dCapWidthProportion = m(
+    c?.capWidthProportion,
+    g?.capWidthProportion,
+    d.capWidthProportion,
+  );
+  return (info: ChartValueInfo): ErrorBarStyle => {
+    const o = func === "none" ? undefined : func(info);
+    return {
+      show: o?.show ?? dShow,
+      strokeColor: o?.strokeColor ?? dStrokeColor,
+      strokeWidth: o?.strokeWidth !== undefined
+        ? o.strokeWidth * _sf
+        : dStrokeWidth,
+      capWidthProportion: o?.capWidthProportion ?? dCapWidthProportion,
+    };
+  };
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+//   ______                     ___   __       __                                //
+//  /      \                   /  _| /  |     /  |                               //
+// /$$$$$$  |  ______   ____  | |_  $$/   ____$$ |  ______   _______    _______  //
+// $$ |  $$/  /      \ /    \ |  _| /  | /    $$ | /      \ /       \  /       | //
+// $$ |      /$$$$$$  |$$$$$  | |  $$ |/$$$$$$$ |/$$$$$$  |$$$$$$$  |/$$$$$$$/   //
+// $$ |   __ $$ |  $$ |$$ | $$|  _| $$ |$$ |  $$ |$$    $$ |$$ |  $$ |$$      \  //
+// $$ \__/  |$$ \__$$ |$$ | $$ | |  $$ |$$ \__$$ |$$$$$$$$/ $$ |  $$ | $$$$$$  | //
+// $$    $$/ $$    $$/ $$ | $$ |_|  $$ |$$    $$ |$$       |$$ |  $$ |/     $$/  //
+//  $$$$$$/   $$$$$$/  $$/  $$$$/   $$/  $$$$$$$/  $$$$$$$/ $$/   $$/ $$$$$$$/   //
+//                                                                               //
+///////////////////////////////////////////////////////////////////////////////////
+
+export type GenericConfidenceBandStyleOptions = {
+  show?: boolean;
+  fillColor?: ColorKeyOrString | 666;
+  fillColorAdjustmentStrategy?: ColorAdjustmentStrategy;
+};
+
+export type GenericConfidenceBandStyle = {
+  show: boolean;
+  fillColor: ColorKeyOrString | 666;
+  fillColorAdjustmentStrategy: ColorAdjustmentStrategy;
+};
+
+export type ConfidenceBandStyle = {
+  show: boolean;
+  fillColor: ColorKeyOrString;
+  fillColorAdjustmentStrategy: ColorAdjustmentStrategy;
+};
+
+export function getConfidenceBandStyleFunc(
+  func: ChartSeriesInfoFunc<GenericConfidenceBandStyleOptions> | "none",
+  _sf: number,
+  c: GenericConfidenceBandStyleOptions | undefined,
+  g: GenericConfidenceBandStyleOptions | undefined,
+  d: GenericConfidenceBandStyle,
+  seriesColorFunc: ChartSeriesInfoFunc<ColorKeyOrString>,
+): ChartSeriesInfoFunc<ConfidenceBandStyle> {
+  const dShow = m(c?.show, g?.show, d.show);
+  const dFillColor = m(c?.fillColor, g?.fillColor, d.fillColor);
+  const dFillColorAdjustmentStrategy = m(
+    c?.fillColorAdjustmentStrategy,
+    g?.fillColorAdjustmentStrategy,
+    d.fillColorAdjustmentStrategy,
+  );
+  return (info: ChartSeriesInfo): ConfidenceBandStyle => {
+    const o = func === "none" ? undefined : func(info);
+    const fillColor = o?.fillColor ?? dFillColor;
+    return {
+      show: o?.show ?? dShow,
+      fillColor: fillColor === 666 ? seriesColorFunc(info) : fillColor,
+      fillColorAdjustmentStrategy: o?.fillColorAdjustmentStrategy ??
+        dFillColorAdjustmentStrategy,
     };
   };
 }

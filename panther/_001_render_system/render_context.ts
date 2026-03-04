@@ -4,6 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AlignH,
+  AlignV,
   ColorAdjustmentStrategy,
   ColorKeyOrString,
   CoordinatesOptions,
@@ -112,15 +114,15 @@ export type RenderContext = {
     (
       mText: MeasuredText,
       bounds: RectCoordsDimsOptions,
-      hAlign: "center" | "left" | "right",
-      vAlign?: "top" | "center" | "bottom",
+      alignH: AlignH,
+      alignV?: AlignV,
       link?: string,
     ): void;
     (
       mText: MeasuredText,
       coords: CoordinatesOptions,
-      hAlign: "center" | "left" | "right",
-      vAlign?: "top" | "center" | "bottom",
+      alignH: AlignH,
+      alignV?: AlignV,
       link?: string,
     ): void;
   };

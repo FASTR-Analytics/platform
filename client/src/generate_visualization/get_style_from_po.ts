@@ -1,5 +1,4 @@
 import {
-  AspectRatio,
   ChartSeriesInfo,
   ChartValueInfo,
   Color,
@@ -52,10 +51,6 @@ export function getStyleFromPresentationObject(
   const goodDiffAreas = config.s.content === "areas" && config.s.diffAreas;
   const style: CustomFigureStyleOptions = {
     scale: config.s.scale,
-    idealAspectRatio: config.s.idealAspectRatio as
-      | "none"
-      | AspectRatio
-      | undefined,
     seriesColorFunc: getSeriesColorFunc(config),
     text: {
       base: {

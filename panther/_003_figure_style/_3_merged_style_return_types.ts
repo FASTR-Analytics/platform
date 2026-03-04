@@ -7,6 +7,7 @@ import type {
   AnchorPoint,
   AreaStyle,
   CalendarType,
+  CascadeArrowInfoFunc,
   ChartSeriesInfoFunc,
   ChartValueInfoFunc,
   ColorAdjustmentStrategy,
@@ -18,7 +19,12 @@ import type {
   TextInfo,
   TextInfoUnkeyed,
 } from "./deps.ts";
-import type { TableCellFormatterFunc } from "./style_func_types.ts";
+import type {
+  CascadeArrowStyle,
+  ConfidenceBandStyle,
+  ErrorBarStyle,
+  TableCellFormatterFunc,
+} from "./style_func_types.ts";
 import type { LegendPosition } from "./types.ts";
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,22 +102,53 @@ export type MergedLegendStyle = {
 //                                                                         //
 /////////////////////////////////////////////////////////////////////////////
 
-export type MergedChartOVStyle = {
+export type MergedChartStyleBase = {
   alreadyScaledValue: number;
+  panes: MergedPaneStyle;
+  grid: MergedGridStyle;
+  content: MergedContentStyle;
+  lanes: {
+    hideHeaders: boolean;
+    paddingLeft: number;
+    paddingRight: number;
+    gapX: number;
+    headerAlignH: "left" | "center" | "right";
+  };
+  tiers: {
+    hideHeaders: boolean;
+    paddingTop: number;
+    paddingBottom: number;
+    gapY: number;
+    maxHeaderWidthAsPctOfChart: number;
+    headerAlignH: "left" | "center" | "right";
+    headerAlignV: "top" | "middle";
+  };
   text: {
     paneHeaders: TextInfoUnkeyed;
     laneHeaders: TextInfoUnkeyed;
+    tierHeaders: TextInfoUnkeyed;
     dataLabels: TextInfoUnkeyed;
   };
-  chartAreaBackgroundColor: string | "none";
-  hideColHeaders: boolean;
+};
 
-  // Nested style objects
-  content: MergedContentStyle;
+export type MergedChartOVStyle = MergedChartStyleBase & {
   yScaleAxis: MergedYScaleAxisStyle;
   xTextAxis: MergedXTextAxisStyle;
-  grid: MergedGridStyle;
-  panes: MergedPaneStyle;
+};
+
+export type MergedCascadeArrowStyle = {
+  text: {
+    labels: TextInfoUnkeyed;
+  };
+  getStyle: CascadeArrowInfoFunc<CascadeArrowStyle>;
+};
+
+export type MergedYTextAxisStyle = {
+  // Stub — to be defined for ChartOH
+};
+
+export type MergedXScaleAxisStyle = {
+  // Stub — to be defined for ChartOH/ChartTW
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,23 +164,9 @@ export type MergedChartOVStyle = {
 //                                                                                              //
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-export type MergedTimeseriesStyle = {
-  alreadyScaledValue: number;
-  text: {
-    base: TextInfoUnkeyed;
-    laneHeaders: TextInfoUnkeyed;
-    dataLabels: TextInfoUnkeyed;
-    paneHeaders: TextInfoUnkeyed;
-  };
-  chartAreaBackgroundColor: string | "none";
-  hideColHeaders: boolean;
-
-  // Nested style objects
-  content: MergedContentStyle;
+export type MergedTimeseriesStyle = MergedChartStyleBase & {
   yScaleAxis: MergedYScaleAxisStyle;
   xPeriodAxis: MergedXPeriodAxisStyle;
-  grid: MergedGridStyle;
-  panes: MergedPaneStyle;
 };
 
 ///////////////////////////////////////////////
@@ -184,7 +207,7 @@ export type MergedTableStyle = {
   colHeaderPadding: Padding;
   rowHeaderPadding: Padding;
   cellPadding: Padding;
-  cellVerticalAlign: "top" | "middle" | "bottom";
+  alignV: "top" | "middle" | "bottom";
   colHeaderBackgroundColor: string | "none";
   colGroupHeaderBackgroundColor: string | "none";
   headerBorderWidth: number;
@@ -214,6 +237,7 @@ export type MergedGridStyle = {
   gridStrokeWidth: number;
   axisColor: string;
   gridColor: string;
+  backgroundColor: string | "none";
 };
 
 ///////////////////////////////////////////////////////
@@ -230,13 +254,14 @@ export type MergedGridStyle = {
 ///////////////////////////////////////////////////////
 
 export type MergedPaneStyle = {
+  hideHeaders: boolean;
   nCols: number | "auto";
   gapX: number;
   gapY: number;
   padding: Padding;
   backgroundColor: string | "none";
   headerGap: number;
-  headerAlignment: "left" | "center" | "right";
+  headerAlignH: "left" | "center" | "right";
 };
 
 ////////////////////////////////////////////////////////////////////////////
@@ -262,8 +287,7 @@ export type MergedContentStyle = {
       | "none"
       | "stacked"
       | "imposed"
-      | "uncertainty"
-      | "uncertainty-tiers";
+      | "diff";
     maxBarWidth: number;
   };
   lines: {
@@ -272,13 +296,24 @@ export type MergedContentStyle = {
   };
   areas: {
     getStyle: ChartSeriesInfoFunc<AreaStyle>;
+    joinAcrossGaps: boolean;
     diff: {
       enabled: boolean;
-      // order: "actual-expected" | "expected-actual";
     };
   };
+  errorBars: MergedErrorBarStyle;
+  confidenceBands: MergedConfidenceBandStyle;
   withDataLabels: boolean;
   dataLabelFormatter: ChartValueInfoFunc<string | undefined>;
+  cascadeArrows: MergedCascadeArrowStyle;
+};
+
+export type MergedErrorBarStyle = {
+  getStyle: ChartValueInfoFunc<ErrorBarStyle>;
+};
+
+export type MergedConfidenceBandStyle = {
+  getStyle: ChartSeriesInfoFunc<ConfidenceBandStyle>;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -298,7 +333,6 @@ export type MergedYScaleAxisStyle = {
   text: {
     yScaleAxisTickLabels: TextInfoUnkeyed;
     yScaleAxisLabel: TextInfoUnkeyed;
-    tierHeaders: TextInfoUnkeyed;
   };
   max: number | "auto" | ((i_series: number) => number);
   min: number | "auto" | ((i_series: number) => number);
@@ -309,9 +343,6 @@ export type MergedYScaleAxisStyle = {
   forceTopOverhangHeight: "none" | number;
   allowIndividualTierLimits: boolean;
   exactAxisX: "none" | number;
-  tierPaddingTop: number;
-  tierPaddingBottom: number;
-  tierGapY: number;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -335,9 +366,6 @@ export type MergedXTextAxisStyle = {
   tickHeight: number;
   tickPosition: "sides" | "center";
   tickLabelGap: number;
-  lanePaddingLeft: number;
-  lanePaddingRight: number;
-  laneGapX: number;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -360,9 +388,6 @@ export type MergedXPeriodAxisStyle = {
   text: {
     xPeriodAxisTickLabels: TextInfoUnkeyed;
   };
-  lanePaddingLeft: number;
-  lanePaddingRight: number;
-  laneGapX: number;
   forceSideTicksWhenYear: boolean;
   showEveryNthTick: number;
   periodLabelSmallTopPadding: number;
@@ -399,8 +424,8 @@ export type MergedSimpleVizStyle = {
     fillColor: string;
     strokeColor: string;
     strokeWidth: number;
-    textHorizontalAlign: "left" | "center" | "right";
-    textVerticalAlign: "top" | "center" | "bottom";
+    alignH: "left" | "center" | "right";
+    alignV: "top" | "middle" | "bottom";
     textGap: number;
     padding: Padding;
     arrowStartPoint: AnchorPoint;

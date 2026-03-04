@@ -37,6 +37,8 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   // SimpleViz
   "simplevizBoxTextPrimary",
   "simplevizBoxTextSecondary",
+  // Cascade
+  "cascadeArrowLabels",
 ] as const;
 
 // Extract the type from the const array

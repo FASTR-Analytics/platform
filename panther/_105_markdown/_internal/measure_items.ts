@@ -375,7 +375,7 @@ function measureBlockquote(
       rc,
       formattedText,
       contentWidth,
-      bqStyle.align,
+      bqStyle.alignH,
       style.link.color,
       style.link.underline,
     );

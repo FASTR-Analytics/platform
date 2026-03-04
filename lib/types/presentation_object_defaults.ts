@@ -24,7 +24,6 @@ export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   specialBarChartDiffThreshold: 0.1,
   specialBarChartDataLabels: "threshold-values",
   specialScorecardTable: false,
-  idealAspectRatio: "none",
   verticalTickLabels: false,
   allowVerticalColHeaders: true,
   forceYMax1: false,

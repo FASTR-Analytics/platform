@@ -11,9 +11,11 @@ import {
   createSortFunction,
   fillValuesWithDuplicateCheck,
   getHeaderIndex,
+  isRowBasedUncertainty,
   type JsonArray,
   type ProcessedHeaders,
   validateDataInput,
+  validateUncertaintyConfig,
   withAnyLabelReplacement,
 } from "./deps.ts";
 import {
@@ -45,6 +47,40 @@ export function getChartOVDataTransformed(
   throw new Error(`Unhandled chart data type: ${_exhaustive}`);
 }
 
+function createEmptyValuesArray(
+  paneCount: number,
+  tierCount: number,
+  laneCount: number,
+  seriesCount: number,
+  lastDimCount: number,
+): (number | undefined)[][][][][] {
+  return createArray(
+    paneCount,
+    () =>
+      createArray(
+        tierCount,
+        () =>
+          createArray(laneCount, () =>
+            createArray(seriesCount, () =>
+              createArray(lastDimCount, () =>
+                undefined))),
+      ),
+  );
+}
+
+function reorderLastDimension(
+  vals: (number | undefined)[][][][][],
+  sortedIndices: number[],
+): (number | undefined)[][][][][] {
+  return vals.map((panes) =>
+    panes.map((tiers) =>
+      tiers.map((lanes) =>
+        lanes.map((series) => sortedIndices.map((i) => series[i]))
+      )
+    )
+  );
+}
+
 export function getChartOVDataJsonTransformed(
   jsonArray: JsonArray,
   jsonDataConfig: ChartOVJsonDataConfig,
@@ -57,22 +93,45 @@ export function getChartOVDataJsonTransformed(
     laneProp,
     paneProp,
     tierProp,
+    uncertainty,
     sortHeaders,
     sortIndicatorValues,
     labelReplacementsBeforeSorting,
     labelReplacementsAfterSorting,
   } = jsonDataConfig;
 
-  validateDataInput(jsonArray, valueProps);
+  if (uncertainty) {
+    validateUncertaintyConfig(uncertainty, valueProps, [
+      indicatorProp,
+      seriesProp,
+      laneProp,
+      tierProp,
+      paneProp,
+    ]);
+  }
 
-  // Collect all headers
-  const indicatorHeaders = collectHeaders(jsonArray, indicatorProp, valueProps);
-  const seriesHeaders = collectHeaders(jsonArray, seriesProp, valueProps);
-  const laneHeaders = collectHeaders(jsonArray, laneProp, valueProps);
-  const tierHeaders = collectHeaders(jsonArray, tierProp, valueProps);
-  const paneHeaders = collectHeaders(jsonArray, paneProp, valueProps);
+  const sourceRows = uncertainty && isRowBasedUncertainty(uncertainty)
+    ? jsonArray.filter((obj) =>
+      String(obj[uncertainty.uncertaintyProp]) === uncertainty.peValue
+    )
+    : jsonArray;
 
-  // Check for --v assignment
+  validateDataInput(sourceRows, valueProps);
+
+  const headersSource = uncertainty && isRowBasedUncertainty(uncertainty)
+    ? jsonArray
+    : sourceRows;
+
+  const indicatorHeaders = collectHeaders(
+    headersSource,
+    indicatorProp,
+    valueProps,
+  );
+  const seriesHeaders = collectHeaders(headersSource, seriesProp, valueProps);
+  const laneHeaders = collectHeaders(headersSource, laneProp, valueProps);
+  const tierHeaders = collectHeaders(headersSource, tierProp, valueProps);
+  const paneHeaders = collectHeaders(headersSource, paneProp, valueProps);
+
   checkValuePropsAssignment(valueProps, {
     indicatorProp,
     seriesProp,
@@ -81,14 +140,11 @@ export function getChartOVDataJsonTransformed(
     paneProp,
   });
 
-  // Sort headers if needed
   if (sortHeaders) {
     const sortFunc = createSortFunction(
       sortHeaders,
       labelReplacementsBeforeSorting,
     );
-
-    // Only sort indicator headers if we're not doing value-based sorting later
     if (!sortIndicatorValues) {
       indicatorHeaders.sort(sortFunc);
     }
@@ -98,21 +154,20 @@ export function getChartOVDataJsonTransformed(
     paneHeaders.sort(sortFunc);
   }
 
-  // Initialize values array
-  const values: (number | undefined)[][][][][] = createArray(
-    paneHeaders.length,
-    () => {
-      return createArray(tierHeaders.length, () => {
-        return createArray(laneHeaders.length, () => {
-          return createArray(seriesHeaders.length, () => {
-            return createArray(indicatorHeaders.length, () => undefined);
-          });
-        });
-      });
-    },
+  const nPanes = paneHeaders.length;
+  const nTiers = tierHeaders.length;
+  const nLanes = laneHeaders.length;
+  const nSeries = seriesHeaders.length;
+  const nIndicators = indicatorHeaders.length;
+
+  const values = createEmptyValuesArray(
+    nPanes,
+    nTiers,
+    nLanes,
+    nSeries,
+    nIndicators,
   );
 
-  // Fill values
   const headers: ProcessedHeaders = {
     series: seriesHeaders,
     lane: laneHeaders,
@@ -120,68 +175,151 @@ export function getChartOVDataJsonTransformed(
     pane: paneHeaders,
   };
 
+  const dimensionProps = { seriesProp, laneProp, tierProp, paneProp };
+  const getIndicatorIndex = (
+    obj: { [key: string]: string | number | undefined | null },
+    valueProp: string,
+  ) => getHeaderIndex(indicatorProp, valueProp, obj, indicatorHeaders);
+
   fillValuesWithDuplicateCheck(
     values,
-    jsonArray,
+    sourceRows,
     valueProps,
     headers,
-    {
-      seriesProp,
-      laneProp,
-      tierProp,
-      paneProp,
-    },
-    (obj, valueProp) =>
-      getHeaderIndex(indicatorProp, valueProp, obj, indicatorHeaders),
+    dimensionProps,
+    getIndicatorIndex,
   );
 
-  // Calculate Y-scale limits
-  const paneLimits = calculateYScaleLimits(
-    values,
-    {
-      paneCount: paneHeaders.length,
-      tierCount: tierHeaders.length,
-      laneCount: laneHeaders.length,
-      seriesCount: seriesHeaders.length,
-      lastDimCount: indicatorHeaders.length,
-    },
-    stacked,
-  );
+  let bounds: {
+    ub: (number | undefined)[][][][][];
+    lb: (number | undefined)[][][][][];
+  } | undefined;
 
-  // Handle indicator sorting by values if needed
+  if (uncertainty) {
+    const ubValues = createEmptyValuesArray(
+      nPanes,
+      nTiers,
+      nLanes,
+      nSeries,
+      nIndicators,
+    );
+    const lbValues = createEmptyValuesArray(
+      nPanes,
+      nTiers,
+      nLanes,
+      nSeries,
+      nIndicators,
+    );
+
+    if (isRowBasedUncertainty(uncertainty)) {
+      const ubRows = jsonArray.filter((obj) =>
+        String(obj[uncertainty.uncertaintyProp]) === uncertainty.ubValue
+      );
+      const lbRows = jsonArray.filter((obj) =>
+        String(obj[uncertainty.uncertaintyProp]) === uncertainty.lbValue
+      );
+
+      fillValuesWithDuplicateCheck(
+        ubValues,
+        ubRows,
+        valueProps,
+        headers,
+        dimensionProps,
+        getIndicatorIndex,
+      );
+      fillValuesWithDuplicateCheck(
+        lbValues,
+        lbRows,
+        valueProps,
+        headers,
+        dimensionProps,
+        getIndicatorIndex,
+      );
+    } else {
+      fillValuesWithDuplicateCheck(
+        ubValues,
+        jsonArray,
+        uncertainty.ubValueProps,
+        headers,
+        dimensionProps,
+        getIndicatorIndex,
+      );
+      fillValuesWithDuplicateCheck(
+        lbValues,
+        jsonArray,
+        uncertainty.lbValueProps,
+        headers,
+        dimensionProps,
+        getIndicatorIndex,
+      );
+    }
+
+    bounds = { ub: ubValues, lb: lbValues };
+  }
+
+  const dimensions = {
+    paneCount: nPanes,
+    tierCount: nTiers,
+    laneCount: nLanes,
+    seriesCount: nSeries,
+    lastDimCount: nIndicators,
+  };
+
+  const paneLimits = calculateYScaleLimits(values, dimensions, stacked);
+
+  if (bounds) {
+    const ubLimits = calculateYScaleLimits(bounds.ub, dimensions, false);
+    const lbLimits = calculateYScaleLimits(bounds.lb, dimensions, false);
+    for (let i = 0; i < nPanes; i++) {
+      paneLimits[i].valueMin = Math.min(
+        paneLimits[i].valueMin,
+        ubLimits[i].valueMin,
+        lbLimits[i].valueMin,
+      );
+      paneLimits[i].valueMax = Math.max(
+        paneLimits[i].valueMax,
+        ubLimits[i].valueMax,
+        lbLimits[i].valueMax,
+      );
+      for (let j = 0; j < nTiers; j++) {
+        paneLimits[i].tierLimits[j].valueMin = Math.min(
+          paneLimits[i].tierLimits[j].valueMin,
+          ubLimits[i].tierLimits[j].valueMin,
+          lbLimits[i].tierLimits[j].valueMin,
+        );
+        paneLimits[i].tierLimits[j].valueMax = Math.max(
+          paneLimits[i].tierLimits[j].valueMax,
+          ubLimits[i].tierLimits[j].valueMax,
+          lbLimits[i].tierLimits[j].valueMax,
+        );
+      }
+    }
+  }
+
   let finalIndicatorHeaders = indicatorHeaders;
   let finalValues = values;
+  let finalBounds = bounds;
 
   if (sortIndicatorValues && sortIndicatorValues !== "none") {
     const firstSeries = values[0][0][0][0];
-
-    // Create array of [index, value] pairs for sorting
     const indexValuePairs = indicatorHeaders.map(
       (_, i) => [i, firstSeries[i] ?? 0] as const,
     );
-
-    // Sort the pairs
     indexValuePairs.sort(([, a], [, b]) =>
       sortIndicatorValues === "descending" ? b - a : a - b
     );
-
-    // Extract sorted indices
     const sortedIndices = indexValuePairs.map(([i]) => i);
 
-    // Apply the sorted order
     finalIndicatorHeaders = sortedIndices.map((i) => indicatorHeaders[i]);
-
-    // Reorder values
-    finalValues = values.map((panes) =>
-      panes.map((tiers) =>
-        tiers.map((lanes) =>
-          lanes.map((series) => sortedIndices.map((i) => series[i]))
-        )
-      )
-    );
+    finalValues = reorderLastDimension(values, sortedIndices);
+    if (bounds) {
+      finalBounds = {
+        ub: reorderLastDimension(bounds.ub, sortedIndices),
+        lb: reorderLastDimension(bounds.lb, sortedIndices),
+      };
+    }
   }
 
-  // Combine both sets of label replacements
   const combinedReplacements = {
     ...labelReplacementsBeforeSorting,
     ...labelReplacementsAfterSorting,
@@ -195,10 +333,11 @@ export function getChartOVDataJsonTransformed(
     ),
     seriesHeaders: withAnyLabelReplacement(seriesHeaders, combinedReplacements),
     laneHeaders: withAnyLabelReplacement(laneHeaders, combinedReplacements),
+    tierHeaders: withAnyLabelReplacement(tierHeaders, combinedReplacements),
     paneHeaders: withAnyLabelReplacement(paneHeaders, combinedReplacements),
     values: finalValues,
+    bounds: finalBounds,
     yScaleAxisData: {
-      tierHeaders: withAnyLabelReplacement(tierHeaders, combinedReplacements),
       paneLimits,
     },
   };

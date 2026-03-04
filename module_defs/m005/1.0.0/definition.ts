@@ -309,7 +309,7 @@ export const definition = {
               ],
               filterBy: [],
             },
-            s: { showDataLabels: true, idealAspectRatio: "ideal" },
+            s: { showDataLabels: true },
           },
         },
       ],

@@ -7,6 +7,7 @@ import {
   type AnchorPoint,
   assert,
   type CalendarType,
+  type CascadeArrowInfoFunc,
   type ChartSeriesInfoFunc,
   type ChartValueInfoFunc,
   type ColorAdjustmentStrategy,
@@ -16,20 +17,19 @@ import {
 import type {
   GenericAreaStyleOptions,
   GenericBarStyleOptions,
+  GenericCascadeArrowStyleOptions,
+  GenericConfidenceBandStyleOptions,
+  GenericErrorBarStyleOptions,
   GenericLineStyleOptions,
   GenericPointStyleOptions,
   TableCellFormatterFunc,
 } from "./style_func_types.ts";
 import type { FigureTextStyleOptions } from "./text_style_keys.ts";
-import type { AspectRatio, LegendPosition } from "./types.ts";
+import type { LegendPosition } from "./types.ts";
 
 export type CustomFigureStyleOptions = {
   scale?: number;
-  idealAspectRatio?: "none" | AspectRatio;
   seriesColorFunc?: ChartSeriesInfoFunc<ColorKeyOrString>;
-
-  hideColHeaders?: boolean;
-  chartAreaBackgroundColor?: ColorKeyOrString | "none";
 
   ///////////////////////////////////////////
   //  ________                     __      //
@@ -111,7 +111,7 @@ export type CustomFigureStyleOptions = {
     colHeaderPadding?: PaddingOptions;
     rowHeaderPadding?: PaddingOptions;
     cellPadding?: PaddingOptions;
-    cellVerticalAlign?: "top" | "middle" | "bottom";
+    alignV?: "top" | "middle" | "bottom";
     colHeaderBackgroundColor?: ColorKeyOrString | "none";
     colGroupHeaderBackgroundColor?: ColorKeyOrString | "none";
     cellBackgroundColorFormatter?:
@@ -143,14 +143,27 @@ export type CustomFigureStyleOptions = {
   // $$/   $$/        $$/   $$/ $$/   $$/ $$/ $$$$$$$/   //
   //                                                     //
   ////////////////////////////////////////////////////////
+  tiers?: {
+    hideHeaders?: boolean;
+    paddingTop?: number;
+    paddingBottom?: number;
+    gapY?: number;
+    maxHeaderWidthAsPctOfChart?: number;
+    headerAlignH?: "left" | "center" | "right";
+    headerAlignV?: "top" | "middle";
+  };
+  lanes?: {
+    hideHeaders?: boolean;
+    paddingLeft?: number;
+    paddingRight?: number;
+    gapX?: number;
+    headerAlignH?: "left" | "center" | "right";
+  };
   xTextAxis?: {
     verticalTickLabels?: boolean;
     tickPosition?: "sides" | "center";
     tickHeight?: number;
     tickLabelGap?: number;
-    lanePaddingLeft?: number;
-    lanePaddingRight?: number;
-    laneGapX?: number;
   };
   xScaleAxis?: {
     max?: number | "auto";
@@ -161,9 +174,6 @@ export type CustomFigureStyleOptions = {
     tickLabelFormatter?: (v: number) => string;
   };
   xPeriodAxis?: {
-    lanePaddingLeft?: number;
-    lanePaddingRight?: number;
-    laneGapX?: number;
     forceSideTicksWhenYear?: boolean;
     showEveryNthTick?: number;
     periodLabelSmallTopPadding?: number;
@@ -235,8 +245,7 @@ export type CustomFigureStyleOptions = {
         | "none"
         | "stacked"
         | "imposed"
-        | "uncertainty"
-        | "uncertainty-tiers";
+        | "diff";
       maxBarWidth?: number;
     };
     lines?: {
@@ -247,13 +256,25 @@ export type CustomFigureStyleOptions = {
     areas?: {
       defaults?: GenericAreaStyleOptions;
       func?: ChartSeriesInfoFunc<GenericAreaStyleOptions> | "none";
+      joinAcrossGaps?: boolean;
       diff?: {
         enabled?: boolean;
-        // order?: "actual-expected" | "expected-actual";
       };
+    };
+    errorBars?: {
+      defaults?: GenericErrorBarStyleOptions;
+      func?: ChartValueInfoFunc<GenericErrorBarStyleOptions> | "none";
+    };
+    confidenceBands?: {
+      defaults?: GenericConfidenceBandStyleOptions;
+      func?: ChartSeriesInfoFunc<GenericConfidenceBandStyleOptions> | "none";
     };
     withDataLabels?: boolean;
     dataLabelFormatter?: ChartValueInfoFunc<string | undefined>;
+    cascadeArrows?: {
+      defaults?: GenericCascadeArrowStyleOptions;
+      func?: CascadeArrowInfoFunc<GenericCascadeArrowStyleOptions> | "none";
+    };
   };
   ////////////////////////////////////////
   //   ______             __        __  //
@@ -273,6 +294,7 @@ export type CustomFigureStyleOptions = {
     gridStrokeWidth?: number;
     axisColor?: ColorKeyOrString;
     gridColor?: ColorKeyOrString;
+    backgroundColor?: ColorKeyOrString | "none";
   };
   ///////////////////////////////////////////////////////
   //  _______                                          //
@@ -287,10 +309,11 @@ export type CustomFigureStyleOptions = {
   //                                                   //
   ///////////////////////////////////////////////////////
   panes?: {
+    hideHeaders?: boolean;
     padding?: PaddingOptions;
     backgroundColor?: ColorKeyOrString | "none";
     headerGap?: number;
-    headerAlignment?: "left" | "center" | "right";
+    headerAlignH?: "left" | "center" | "right";
     gapX?: number;
     gapY?: number;
     nCols?: number | "auto";
@@ -322,8 +345,8 @@ export type CustomFigureStyleOptions = {
       fillColor?: ColorKeyOrString;
       strokeColor?: ColorKeyOrString;
       strokeWidth?: number;
-      textHorizontalAlign?: "left" | "center" | "right";
-      textVerticalAlign?: "top" | "center" | "bottom";
+      alignH?: "left" | "center" | "right";
+      alignV?: "top" | "middle" | "bottom";
       textGap?: number;
       padding?: PaddingOptions;
       arrowStartPoint?: AnchorPoint;

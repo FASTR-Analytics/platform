@@ -628,6 +628,26 @@ function findColsAncestor<U>(
   return null;
 }
 
+export function swapNodeData<U>(
+  layout: LayoutNode<U>,
+  nodeIdA: LayoutNodeId,
+  nodeIdB: LayoutNodeId,
+): LayoutNode<U> {
+  return updateLayout(layout, (draft) => {
+    const nodeA = findNodeInDraft(draft, nodeIdA);
+    const nodeB = findNodeInDraft(draft, nodeIdB);
+    if (!nodeA || !nodeB) return;
+    if (nodeA.type !== "item" || nodeB.type !== "item") return;
+
+    const tmpData = nodeA.data;
+    const tmpStyle = nodeA.style;
+    nodeA.data = nodeB.data;
+    nodeA.style = nodeB.style;
+    nodeB.data = tmpData;
+    nodeB.style = tmpStyle;
+  });
+}
+
 export function moveNodeLeft<U>(
   layout: LayoutNode<U>,
   nodeId: LayoutNodeId,

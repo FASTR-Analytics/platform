@@ -43,8 +43,8 @@ export type PagePrimitiveText = {
   mText: MeasuredText;
   x: number;
   y: number;
-  hAlign: "left" | "center" | "right";
-  vAlign?: "top" | "center" | "bottom";
+  alignH: "left" | "center" | "right";
+  alignV?: "top" | "middle" | "bottom";
   maxWidth?: number; // Available width constraint (for full-width hit areas)
 };
 

@@ -21,6 +21,7 @@ import type {
   PageContentItem,
   PageHitTarget,
   PageHitTargetColDivider,
+  PageHitTargetLayoutItem,
   PageInputs,
   TextRenderingOptions,
 } from "../deps.ts";
@@ -45,6 +46,11 @@ export type EditableHoverStyle = {
   strokeColor?: string;
   strokeWidth?: number;
   showLayoutBoundaries?: boolean;
+};
+
+export type LayoutItemSwapUpdate = {
+  sourceNodeId: string;
+  targetNodeId: string;
 };
 
 export type DividerDragUpdate = {
@@ -73,11 +79,19 @@ type Props = {
   onHover?: (target: PageHitTarget | undefined) => void;
   onMeasured?: (measured: MeasuredPage) => void;
   onDividerDrag?: (update: DividerDragUpdate) => void;
+  onLayoutItemSwap?: (update: LayoutItemSwapUpdate) => void;
+  dragStyle?: EditableHoverStyle;
 };
 
 const DEFAULT_HOVER_STYLE: EditableHoverStyle = {
   fillColor: "rgba(0, 112, 243, 0.1)",
   strokeColor: "rgba(0, 112, 243, 0.8)",
+  strokeWidth: 2,
+};
+
+const DEFAULT_DRAG_STYLE: EditableHoverStyle = {
+  fillColor: "rgba(16, 185, 129, 0.15)",
+  strokeColor: "rgba(16, 185, 129, 0.8)",
   strokeWidth: 2,
 };
 
@@ -88,6 +102,7 @@ export function PageHolder(p: Props) {
     p.onContextMenu ||
     p.onHover ||
     p.onDividerDrag ||
+    p.onLayoutItemSwap ||
     p.onMeasured
   );
 
@@ -116,15 +131,7 @@ export function PageHolder(p: Props) {
   const [measuredPage, setMeasuredPage] = createSignal<
     MeasuredPage | undefined
   >();
-  const [dragState, setDragState] = createSignal<
-    | {
-      target: PageHitTargetColDivider;
-      startX: number;
-      currentX: number;
-      colsNode: MeasuredColsLayoutNode<PageContentItem>;
-    }
-    | undefined
-  >();
+  const [dragState, setDragState] = createSignal<DragState | undefined>();
 
   onMount(() => {
     mainCanvas.width = fixedCanvasW;
@@ -256,7 +263,7 @@ export function PageHolder(p: Props) {
       }
     }
 
-    if (drag) {
+    if (drag?.type === "divider") {
       const { target, startX, currentX } = drag;
       const gap = target.gap;
       const deltaX = currentX - startX;
@@ -268,6 +275,15 @@ export function PageHolder(p: Props) {
       ctx.moveTo(snappedX, gap.line.y1);
       ctx.lineTo(snappedX, gap.line.y2);
       ctx.stroke();
+    } else if (drag?.type === "layoutItem") {
+      const dStyle = p.dragStyle ?? DEFAULT_DRAG_STYLE;
+      renderDragSource(ctx, drag.source, dStyle, screenPixelSize);
+      if (drag.dropTarget) {
+        renderDropTarget(ctx, drag.dropTarget, dStyle, screenPixelSize);
+      }
+      const deltaX = drag.currentX - drag.startX;
+      const deltaY = drag.currentY - drag.startY;
+      renderDragGhost(ctx, drag.source, dStyle, screenPixelSize, deltaX, deltaY);
     } else if (hit) {
       renderHover(ctx, hit, style, screenPixelSize);
     }
@@ -310,8 +326,18 @@ export function PageHolder(p: Props) {
     const coords = getCanvasCoords(e, overlayCanvas, scale);
     const drag = dragState();
 
-    if (drag) {
+    if (drag?.type === "divider") {
       setDragState({ ...drag, currentX: coords.x });
+      return;
+    }
+
+    if (drag?.type === "layoutItem") {
+      const hit = findHitTarget(hitRegions(), coords.x, coords.y);
+      const dropTarget = hit?.type === "layoutItem" &&
+          hit.node.id !== drag.source.node.id
+        ? hit
+        : undefined;
+      setDragState({ ...drag, dropTarget, currentX: coords.x, currentY: coords.y });
       return;
     }
 
@@ -321,24 +347,42 @@ export function PageHolder(p: Props) {
 
   function handlePointerDown(e: PointerEvent) {
     const hit = currentHit();
-    if (hit?.type !== "colDivider" || !p.onDividerDrag) return;
 
-    const mPage = measuredPage();
-    if (!mPage || mPage.type !== "freeform") return;
+    if (hit?.type === "colDivider" && p.onDividerDrag) {
+      const mPage = measuredPage();
+      if (!mPage || mPage.type !== "freeform") return;
 
-    const colsNode = findColsNodeById(mPage.mLayout, hit.gap.colsNodeId);
-    if (!colsNode) return;
+      const colsNode = findColsNodeById(mPage.mLayout, hit.gap.colsNodeId);
+      if (!colsNode) return;
 
-    e.preventDefault();
-    overlayCanvas.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      overlayCanvas.setPointerCapture(e.pointerId);
 
-    const coords = getCanvasCoords(e, overlayCanvas, scale);
-    setDragState({
-      target: hit,
-      startX: coords.x,
-      currentX: coords.x,
-      colsNode,
-    });
+      const coords = getCanvasCoords(e, overlayCanvas, scale);
+      setDragState({
+        type: "divider",
+        target: hit,
+        startX: coords.x,
+        currentX: coords.x,
+        colsNode,
+      });
+      return;
+    }
+
+    if (hit?.type === "layoutItem" && p.onLayoutItemSwap) {
+      e.preventDefault();
+      overlayCanvas.setPointerCapture(e.pointerId);
+      const coords = getCanvasCoords(e, overlayCanvas, scale);
+      setDragState({
+        type: "layoutItem",
+        source: hit,
+        dropTarget: undefined,
+        startX: coords.x,
+        startY: coords.y,
+        currentX: coords.x,
+        currentY: coords.y,
+      });
+    }
   }
 
   function handlePointerUp(e: PointerEvent) {
@@ -348,13 +392,22 @@ export function PageHolder(p: Props) {
     overlayCanvas.releasePointerCapture(e.pointerId);
     justFinishedDrag = true;
 
-    const coords = getCanvasCoords(e, overlayCanvas, scale);
-    const deltaX = coords.x - drag.startX;
+    if (drag.type === "divider") {
+      const coords = getCanvasCoords(e, overlayCanvas, scale);
+      const deltaX = coords.x - drag.startX;
 
-    if (Math.abs(deltaX) > 5) {
-      const update = calculateDividerDragUpdate(drag, deltaX);
-      if (update) {
-        p.onDividerDrag?.(update);
+      if (Math.abs(deltaX) > 5) {
+        const update = calculateDividerDragUpdate(drag, deltaX);
+        if (update) {
+          p.onDividerDrag?.(update);
+        }
+      }
+    } else if (drag.type === "layoutItem") {
+      if (drag.dropTarget) {
+        p.onLayoutItemSwap?.({
+          sourceNodeId: drag.source.node.id,
+          targetNodeId: drag.dropTarget.node.id,
+        });
       }
     }
 
@@ -455,10 +508,14 @@ export function PageHolder(p: Props) {
           class="absolute left-1/2 top-0 -translate-x-1/2 data-[fitWithin=true]:max-h-full data-[fitWithin=false]:w-full data-[fitWithin=true]:max-w-full"
           data-fitWithin={!!p.fitWithin}
           style={{
-            cursor: dragState()
+            cursor: dragState()?.type === "divider"
               ? "col-resize"
+              : dragState()?.type === "layoutItem"
+              ? "grabbing"
               : currentHit()?.type === "colDivider"
               ? "col-resize"
+              : currentHit()?.type === "layoutItem" && p.onLayoutItemSwap
+              ? "grab"
               : currentHit()
               ? "pointer"
               : "default",
@@ -614,6 +671,64 @@ function isTextHitTarget(target: PageHitTarget): boolean {
   ].includes(target.type);
 }
 
+function renderDragSource(
+  ctx: CanvasRenderingContext2D,
+  source: PageHitTargetLayoutItem,
+  style: EditableHoverStyle,
+  screenPixelSize: number,
+) {
+  const { rcd } = source;
+  ctx.save();
+  ctx.strokeStyle = style.strokeColor ?? "rgba(16, 185, 129, 0.8)";
+  ctx.lineWidth = (style.strokeWidth ?? 2) * screenPixelSize;
+  ctx.setLineDash([6 * screenPixelSize, 4 * screenPixelSize]);
+  ctx.strokeRect(rcd.x(), rcd.y(), rcd.w(), rcd.h());
+  ctx.restore();
+}
+
+function renderDropTarget(
+  ctx: CanvasRenderingContext2D,
+  target: PageHitTargetLayoutItem,
+  style: EditableHoverStyle,
+  screenPixelSize: number,
+) {
+  const { rcd } = target;
+  if (style.fillColor) {
+    ctx.fillStyle = style.fillColor;
+    ctx.fillRect(rcd.x(), rcd.y(), rcd.w(), rcd.h());
+  }
+  if (style.strokeColor) {
+    ctx.strokeStyle = style.strokeColor;
+    ctx.lineWidth = (style.strokeWidth ?? 2) * screenPixelSize;
+    ctx.strokeRect(rcd.x(), rcd.y(), rcd.w(), rcd.h());
+  }
+}
+
+function renderDragGhost(
+  ctx: CanvasRenderingContext2D,
+  source: PageHitTargetLayoutItem,
+  style: EditableHoverStyle,
+  screenPixelSize: number,
+  deltaX: number,
+  deltaY: number,
+) {
+  const { rcd } = source;
+  const x = rcd.x() + deltaX;
+  const y = rcd.y() + deltaY;
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  if (style.fillColor) {
+    ctx.fillStyle = style.fillColor;
+    ctx.fillRect(x, y, rcd.w(), rcd.h());
+  }
+  if (style.strokeColor) {
+    ctx.strokeStyle = style.strokeColor;
+    ctx.lineWidth = (style.strokeWidth ?? 2) * screenPixelSize;
+    ctx.strokeRect(x, y, rcd.w(), rcd.h());
+  }
+  ctx.restore();
+}
+
 function renderDividerLine(
   ctx: CanvasRenderingContext2D,
   target: PageHitTargetColDivider,
@@ -637,7 +752,7 @@ function renderDividerLine(
 }
 
 function calculateSnappedDividerX(
-  drag: DragStateValue,
+  drag: DividerDragState,
   deltaX: number,
 ): number {
   const { target, colsNode } = drag;
@@ -714,15 +829,28 @@ function findColsNodeById<T>(
   return undefined;
 }
 
-type DragStateValue = {
-  target: PageHitTargetColDivider;
-  startX: number;
-  currentX: number;
-  colsNode: MeasuredColsLayoutNode<PageContentItem>;
-};
+type DragState =
+  | {
+    type: "divider";
+    target: PageHitTargetColDivider;
+    startX: number;
+    currentX: number;
+    colsNode: MeasuredColsLayoutNode<PageContentItem>;
+  }
+  | {
+    type: "layoutItem";
+    source: PageHitTargetLayoutItem;
+    dropTarget: PageHitTargetLayoutItem | undefined;
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  };
+
+type DividerDragState = Extract<DragState, { type: "divider" }>;
 
 function calculateDividerDragUpdate(
-  drag: DragStateValue,
+  drag: DividerDragState,
   deltaX: number,
 ): DividerDragUpdate | undefined {
   const { target, colsNode } = drag;

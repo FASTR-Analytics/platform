@@ -96,8 +96,8 @@ function buildFreeformPrimitives(
       mText: mWatermark,
       x: bounds.centerX(),
       y: bounds.centerY(),
-      hAlign: "center",
-      vAlign: "center",
+      alignH: "center",
+      alignV: "middle",
     });
   }
 

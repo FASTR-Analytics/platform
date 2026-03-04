@@ -6,6 +6,7 @@
 import {
   type AnchorPoint,
   type CalendarType,
+  type CascadeArrowInfoFunc,
   type ChartSeriesInfoFunc,
   type ChartValueInfoFunc,
   type ColorAdjustmentStrategy,
@@ -18,23 +19,25 @@ import type {
   GenericAreaStyleOptions,
   GenericBarStyle,
   GenericBarStyleOptions,
+  GenericCascadeArrowStyle,
+  GenericCascadeArrowStyleOptions,
+  GenericConfidenceBandStyle,
+  GenericConfidenceBandStyleOptions,
+  GenericErrorBarStyle,
+  GenericErrorBarStyleOptions,
   GenericLineStyle,
   GenericLineStyleOptions,
   GenericPointStyle,
   TableCellFormatterFunc,
 } from "./style_func_types.ts";
-import type { AspectRatio, LegendPosition } from "./types.ts";
+import type { LegendPosition } from "./types.ts";
 
 const _DS = {
   scale: 1,
 
-  idealAspectRatio: "video" as "none" | AspectRatio,
   seriesColorFunc: (() => ({
     key: "baseContent",
   })) as ChartSeriesInfoFunc<ColorKeyOrString>,
-
-  hideColHeaders: false,
-  chartAreaBackgroundColor: "none" as ColorKeyOrString | "none",
 
   // Surrounds
   surrounds: {
@@ -69,7 +72,7 @@ const _DS = {
     colHeaderPadding: 5 as PaddingOptions,
     rowHeaderPadding: [5, 10] as PaddingOptions,
     cellPadding: 5 as PaddingOptions,
-    cellVerticalAlign: "top" as "top" | "middle" | "bottom",
+    alignV: "top" as "top" | "middle" | "bottom",
     colHeaderBackgroundColor: { key: "base100" } as ColorKeyOrString | "none",
     colGroupHeaderBackgroundColor: { key: "base200" } as
       | ColorKeyOrString
@@ -91,22 +94,26 @@ const _DS = {
     gridLineColor: { key: "base300" } as ColorKeyOrString,
     borderColor: { key: "base300" } as ColorKeyOrString,
   },
+  // Lanes
+  lanes: {
+    hideHeaders: false,
+    paddingLeft: 0,
+    paddingRight: 0,
+    gapX: 10,
+    headerAlignH: "center" as "left" | "center" | "right",
+  },
   // X Axis
   xTextAxis: {
     verticalTickLabels: false,
     tickPosition: "sides" as "sides" | "center",
     tickHeight: 10,
     tickLabelGap: 10,
-    lanePaddingLeft: 10,
-    lanePaddingRight: 0,
-    laneGapX: 10,
   },
   xPeriodAxis: {
-    lanePaddingLeft: 10,
-    lanePaddingRight: 0,
-    laneGapX: 10,
     forceSideTicksWhenYear: false,
     showEveryNthTick: 1,
+    periodLabelSmallTopPadding: 5,
+    periodLabelLargeTopPadding: 5,
     calendar: "gregorian" as CalendarType,
   },
   // Y Axis
@@ -159,12 +166,7 @@ const _DS = {
         fillColor: 666,
       } as GenericBarStyle,
       func: "none" as ChartValueInfoFunc<GenericBarStyleOptions> | "none",
-      stacking: "none" as
-        | "none"
-        | "stacked"
-        | "imposed"
-        | "uncertainty"
-        | "uncertainty-tiers",
+      stacking: "none" as "none" | "stacked" | "imposed" | "diff",
       maxBarWidth: 200,
     },
     lines: {
@@ -185,15 +187,51 @@ const _DS = {
         fillColorAdjustmentStrategy: { opacity: 0.5 },
       } as GenericAreaStyle,
       func: "none" as ChartSeriesInfoFunc<GenericAreaStyleOptions> | "none",
+      joinAcrossGaps: true,
       diff: {
         enabled: false,
-        // order: "actual-expected" as "actual-expected" | "expected-actual",
       },
+    },
+    errorBars: {
+      defaults: {
+        show: true,
+        strokeColor: { key: "baseContent" },
+        strokeWidth: 3,
+        capWidthProportion: 0.4,
+      } as GenericErrorBarStyle,
+      func: "none" as
+        | ChartValueInfoFunc<GenericErrorBarStyleOptions>
+        | "none",
+    },
+    confidenceBands: {
+      defaults: {
+        show: true,
+        fillColor: 666,
+        fillColorAdjustmentStrategy: { opacity: 0.15 },
+      } as GenericConfidenceBandStyle,
+      func: "none" as
+        | ChartSeriesInfoFunc<GenericConfidenceBandStyleOptions>
+        | "none",
     },
     withDataLabels: true,
     dataLabelFormatter: ((v) => toPct1(v.val)) as ChartValueInfoFunc<
       string | undefined
     >,
+    cascadeArrows: {
+      defaults: {
+        show: false,
+        strokeColor: { key: "baseContent" } as ColorKeyOrString,
+        strokeWidth: 1.5,
+        arrowHeadLength: 6,
+        showArrowhead: true,
+        arrowLengthPctOfSpace: 0.7,
+        arrowLabelGap: 4,
+        labelFormatter: (r: number): string => `${(r * 100).toFixed(0)}%`,
+      } as GenericCascadeArrowStyle,
+      func: "none" as
+        | CascadeArrowInfoFunc<GenericCascadeArrowStyleOptions>
+        | "none",
+    },
   },
   // Grid
   grid: {
@@ -202,12 +240,24 @@ const _DS = {
     gridStrokeWidth: 1,
     axisColor: { key: "baseContent" } as ColorKeyOrString,
     gridColor: { key: "base300" } as ColorKeyOrString,
+    backgroundColor: "none" as ColorKeyOrString | "none",
+  },
+  // Tiers
+  tiers: {
+    hideHeaders: false,
+    paddingTop: 10,
+    paddingBottom: 10,
+    gapY: 50,
+    maxHeaderWidthAsPctOfChart: 0.3,
+    headerAlignH: "left" as "left" | "center" | "right",
+    headerAlignV: "top" as "top" | "middle",
   },
   // Panes
   panes: {
+    hideHeaders: false,
     padding: 0,
     backgroundColor: "none" as ColorKeyOrString | "none",
-    headerAlignment: "left" as "left" | "center" | "right",
+    headerAlignH: "left" as "left" | "center" | "right",
     headerGap: 5,
     gapX: 15,
     gapY: 15,
@@ -226,8 +276,8 @@ const _DS = {
       fillColor: { key: "base200" } as ColorKeyOrString,
       strokeColor: { key: "baseContent" } as ColorKeyOrString,
       strokeWidth: 1,
-      textHorizontalAlign: "center" as "left" | "center" | "right",
-      textVerticalAlign: "center" as "top" | "center" | "bottom",
+      alignH: "center" as "left" | "center" | "right",
+      alignV: "middle" as "top" | "middle" | "bottom",
       textGap: 10,
       padding: 10 as PaddingOptions,
       arrowStartPoint: "center" as AnchorPoint,

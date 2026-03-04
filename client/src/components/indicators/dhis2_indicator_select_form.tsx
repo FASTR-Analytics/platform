@@ -174,7 +174,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     {
       key: "actions",
       header: "",
-      align: "right",
+      alignH: "right",
       render: (item) => (
         <Button
           onClick={(e: MouseEvent) => {

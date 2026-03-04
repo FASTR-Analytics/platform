@@ -3,149 +3,280 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-/**
- * PANE / TIER / LANE STRUCTURE
- *
- * Charts are organized in a three-level hierarchy that creates independent plot areas:
- *
- * 1. PANE: Top-level subdivision for multi-chart figures
- *    - Each pane is an independent chart (e.g., different time periods, regions, or categories)
- *    - Panes are laid out in a grid (rows × columns)
- *    - Example: Separate panes for "North", "South", "East", "West" regions
- *
- * 2. TIER: Y-axis subdivision within a pane
- *    - Determined by Y-axis type (ranges for scale axis, categories for text axis)
- *    - For scale axis: Different Y ranges (e.g., 0-100, 100-200, 200-300)
- *    - For text axis: Different Y categories (e.g., "Product A", "Product B", "Product C")
- *    - Tiers stack vertically with gaps between them
- *    - Example: Multiple products shown as separate horizontal bands
- *
- * 3. LANE: X-axis subdivision within a pane
- *    - Determined by X-axis type (periods/categories for current, ranges for scale axis)
- *    - For period axis: Different time periods (usually just one lane)
- *    - For text axis: Different X categories (usually just one lane)
- *    - For scale axis: Different X ranges (e.g., 0-50, 50-100)
- *    - Lanes arrange horizontally with gaps between them
- *    - Example: Different product categories side by side
- *
- * PLOT AREA: The (pane × tier × lane) combination where content actually renders
- *    - Each plot area has its own coordinate space
- *    - Content primitives (bars, lines, points, areas) are generated per plot area
- *    - Grid lines are calculated per plot area
- *
- * The looping structure `for pane, for tier, for lane` is consistent across all
- * chart types. What varies is:
- * - How tier boundaries are determined (Y-axis type)
- * - How lane boundaries are determined (X-axis type)
- * - How data coordinates map to plot area coordinates (axis type combinations)
- *
- * CHART TYPE AXIS COMBINATIONS:
- * - Timeseries: X-period + Y-scale
- * - ChartOV: X-text + Y-scale
- * - ChartOH (future): X-scale + Y-text
- * - ChartTwoWay (future): X-scale + Y-scale
- */
-
 import {
-  measureYScaleAxis,
-  measureYScaleAxisWidthInfo,
-} from "./_axes/y_scale/measure.ts";
+  measureYAxisLayout,
+  measureYAxisWidthInfo,
+} from "./_axes/measure_y_axis.ts";
 import { measureXAxis } from "./_axes/measure_x_axis.ts";
 import type {
-  MergedChartOVStyle,
-  MergedTimeseriesStyle,
+  ChartLabelPrimitive,
+  MeasuredText,
+  MergedChartStyleBase,
+  Primitive,
   RenderContext,
+  TextInfoUnkeyed,
 } from "./deps.ts";
-import { getTopHeightForLaneHeaders } from "./lane_headers.ts";
-import type { MeasuredPaneBase, MeasurePaneConfig } from "./measure_types.ts";
-import { getPlotAreaInfos } from "./get_plot_area_infos.ts";
+import { Coordinates, Padding, RectCoordsDims, Z_INDEX } from "./deps.ts";
+import type { MeasurePaneConfig } from "./measure_types.ts";
+import type { YAxisWidthInfoBase } from "./types.ts";
+import { generatePaneContentPrimitives } from "./generate_pane_content_primitives.ts";
 
-// Shared function for measuring a single pane
-export function measurePane<
-  TData,
-  TStyle extends MergedChartOVStyle | MergedTimeseriesStyle,
->(
+export function measurePane<TData>(
   rc: RenderContext,
-  config: MeasurePaneConfig<TData, TStyle>,
-): MeasuredPaneBase {
-  const yScaleAxisWidthInfo = measureYScaleAxisWidthInfo(
+  config: MeasurePaneConfig<TData>,
+): Primitive[] {
+  const i_pane = config.indices.pane;
+  const baseStyle = config.baseStyle;
+  const tierHeaders = config.dataProps.tierHeaders;
+  const laneHeaders = config.dataProps.laneHeaders;
+  const nTiers = tierHeaders.length;
+
+  const maxTierHeaderWidth = config.geometry.contentRcd.w() *
+    baseStyle.tiers.maxHeaderWidthAsPctOfChart;
+
+  const {
+    value: tierHeaderAndLabelGapWidth,
+    measuredTexts: measuredTierHeaders,
+  } = baseStyle.tiers.hideHeaders
+    ? { value: 0, measuredTexts: [] }
+    : measureTierHeaders(
+      rc,
+      nTiers,
+      tierHeaders,
+      baseStyle.text.tierHeaders,
+      config.yAxisConfig.type === "scale"
+        ? config.yAxisConfig.axisStyle.labelGap
+        : 0,
+      maxTierHeaderWidth,
+    );
+
+  const yAxisWidthInfo = measureYAxisWidthInfo(
     rc,
-    config.dataProps.yScaleAxisData,
-    config.styleProps.yScaleAxis,
-    config.styleProps.grid,
+    config.yAxisConfig,
+    baseStyle.grid,
     config.geometry.contentRcd,
-    config.indices.pane,
-    (config.style as any).content?.bars?.stacking,
+    i_pane,
+    tierHeaderAndLabelGapWidth,
+    nTiers,
   );
 
-  // Type narrowing: TStyle is constrained to MergedChartOVStyle | MergedTimeseriesStyle
-  // So we can safely cast config.xAxisMeasureData to the expected XAxisMeasureData type
+  const nLanes = laneHeaders.length;
+  const lanes = baseStyle.lanes;
+  const xAxisW = config.geometry.contentRcd.w() -
+    yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
+  const subChartAreaWidth = (xAxisW -
+    (lanes.paddingLeft + Math.max(0, nLanes - 1) * lanes.gapX +
+      lanes.paddingRight)) /
+    Math.max(1, nLanes);
+
   const xAxisMeasuredInfo = measureXAxis(
     rc,
     config.geometry.contentRcd,
-    yScaleAxisWidthInfo,
-    config
-      .xAxisMeasureData as import("./_axes/measure_x_axis.ts").XAxisMeasureData,
+    yAxisWidthInfo,
+    subChartAreaWidth,
+    config.xAxisConfig,
+    baseStyle.grid,
   );
 
-  const topHeightForLaneHeaders = getTopHeightForLaneHeaders(
-    rc,
-    xAxisMeasuredInfo.subChartAreaWidth,
-    config.dataProps.laneHeaders,
-    config.style,
-  );
+  const { value: topHeightForLaneHeaders, measuredTexts: measuredLaneHeaders } =
+    baseStyle.lanes.hideHeaders
+      ? { value: 0, measuredTexts: [] }
+      : measureLaneHeaders(
+        rc,
+        subChartAreaWidth,
+        laneHeaders,
+        baseStyle,
+      );
 
-  const { yAxisRcd, subChartAreaHeight } = measureYScaleAxis(
+  const { yAxisRcd, subChartAreaHeight } = measureYAxisLayout(
     topHeightForLaneHeaders,
     xAxisMeasuredInfo.xAxisRcd.h(),
-    yScaleAxisWidthInfo,
-    config.dataProps.yScaleAxisData,
-    config.styleProps.yScaleAxis,
+    yAxisWidthInfo,
+    baseStyle.tiers,
     config.geometry.contentRcd,
-    (config.style as any).content?.bars?.stacking,
+    nTiers,
   );
 
-  // Cast data to access values property - we know chart data has this structure
-  const chartData = config.data as TData & {
-    values: (number | undefined)[][][][][];
-  };
-
-  const plotAreaInfos = getPlotAreaInfos({
-    // Geometric
-    yAxisRcd,
-    plotAreaHeight: subChartAreaHeight,
-    plotAreaWidth: xAxisMeasuredInfo.subChartAreaWidth,
-
-    // Data
-    values: chartData.values,
-    i_pane: config.indices.pane,
-    tierHeaders: config.dataProps.yScaleAxisData.tierHeaders,
-    laneHeaders: config.dataProps.laneHeaders,
-
-    // Styling
-    tierPaddingTop: config.styleProps.yScaleAxis.tierPaddingTop,
-    tierGapY: config.styleProps.yScaleAxis.tierGapY,
-    lanePaddingLeft: config.styleProps.xAxisStyle.lanePaddingLeft,
-    laneGapX: config.styleProps.xAxisStyle.laneGapX,
-
-    // Stacking mode
-    barStacking: (config.style as any).content?.bars?.stacking,
-  });
-
-  const mPane = {
-    mPaneHeader: config.header,
-    i_pane: config.indices.pane,
-    i_pane_row: config.indices.row,
-    i_pane_col: config.indices.col,
-    paneOuterRcd: config.geometry.outerRcd,
-    paneContentRcd: config.geometry.contentRcd,
-    yScaleAxisWidthInfo,
+  const measured = {
+    yAxisWidthInfo,
+    xAxisMeasuredInfo,
     yAxisRcd,
     subChartAreaHeight,
+    subChartAreaWidth,
     topHeightForLaneHeaders,
-    xAxisMeasuredInfo,
-    plotAreaInfos,
   };
 
-  return mPane;
+  const labelPrimitives: Primitive[] = [];
+
+  if (config.paneHeader) {
+    const panePadding = new Padding(baseStyle.panes.padding);
+    const position = new Coordinates([
+      baseStyle.panes.headerAlignH === "left"
+        ? config.geometry.outerRcd.x() + panePadding.pl()
+        : config.geometry.outerRcd.centerX(),
+      config.geometry.outerRcd.y() + panePadding.pt(),
+    ]);
+    labelPrimitives.push({
+      type: "chart-label",
+      key: `pane-header-${i_pane}`,
+      bounds: config.geometry.outerRcd,
+      zIndex: Z_INDEX.LABEL,
+      meta: { labelType: "pane", paneIndex: i_pane },
+      mText: config.paneHeader,
+      position,
+      alignment: { h: baseStyle.panes.headerAlignH, v: "top" },
+    });
+  }
+
+  labelPrimitives.push(
+    ...tierHeaderLabelPrimitives(
+      measuredTierHeaders,
+      yAxisWidthInfo,
+      yAxisRcd,
+      subChartAreaHeight,
+      baseStyle.tiers,
+      i_pane,
+    ),
+  );
+
+  const laneHeaderRcd = new RectCoordsDims({
+    x: xAxisMeasuredInfo.xAxisRcd.x(),
+    y: config.geometry.contentRcd.y(),
+    w: config.geometry.contentRcd.rightX() - xAxisMeasuredInfo.xAxisRcd.x(),
+    h: topHeightForLaneHeaders,
+  });
+  labelPrimitives.push(
+    ...laneHeaderLabelPrimitives(
+      measuredLaneHeaders,
+      laneHeaderRcd,
+      subChartAreaWidth,
+      lanes.paddingLeft,
+      lanes.gapX,
+      lanes.headerAlignH,
+      i_pane,
+    ),
+  );
+
+  return [
+    ...labelPrimitives,
+    ...generatePaneContentPrimitives(rc, config, measured),
+  ];
+}
+
+function measureTierHeaders(
+  rc: RenderContext,
+  nTiers: number,
+  tierHeaders: string[],
+  tierHeadersTextStyle: TextInfoUnkeyed,
+  labelGap: number,
+  maxWidth: number,
+): { value: number; measuredTexts: MeasuredText[] } {
+  if (nTiers < 2) {
+    return { value: 0, measuredTexts: [] };
+  }
+  const measuredTexts: MeasuredText[] = [];
+  let maxMeasuredWidth = 0;
+  for (let i_tier = 0; i_tier < tierHeaders.length; i_tier++) {
+    const mText = rc.mText(tierHeaders[i_tier], tierHeadersTextStyle, maxWidth);
+    measuredTexts.push(mText);
+    maxMeasuredWidth = Math.max(maxMeasuredWidth, mText.dims.w());
+  }
+  return { value: maxMeasuredWidth + labelGap, measuredTexts };
+}
+
+function measureLaneHeaders(
+  rc: RenderContext,
+  subChartAreaWidth: number,
+  laneHeaders: string[],
+  s: MergedChartStyleBase,
+): { value: number; measuredTexts: MeasuredText[] } {
+  if (laneHeaders.length < 2) {
+    return { value: 0, measuredTexts: [] };
+  }
+  const measuredTexts: MeasuredText[] = [];
+  let maxHeight = 0;
+  for (let i_lane = 0; i_lane < laneHeaders.length; i_lane++) {
+    const mText = rc.mText(
+      laneHeaders[i_lane],
+      s.text.laneHeaders,
+      subChartAreaWidth,
+    );
+    measuredTexts.push(mText);
+    maxHeight = Math.max(maxHeight, mText.dims.h());
+  }
+  return { value: maxHeight, measuredTexts };
+}
+
+function tierHeaderLabelPrimitives(
+  measuredTexts: MeasuredText[],
+  yAxisWidthInfo: YAxisWidthInfoBase,
+  yAxisRcd: RectCoordsDims,
+  subChartAreaHeight: number,
+  tiers: {
+    paddingTop: number;
+    gapY: number;
+    headerAlignH: "left" | "center" | "right";
+    headerAlignV: "top" | "middle";
+  },
+  i_pane: number,
+): ChartLabelPrimitive[] {
+  if (measuredTexts.length === 0) return [];
+
+  const primitives: ChartLabelPrimitive[] = [];
+  let currentY = yAxisRcd.y() + tiers.paddingTop;
+
+  for (let i_tier = 0; i_tier < measuredTexts.length; i_tier++) {
+    const y = tiers.headerAlignV === "middle"
+      ? currentY + subChartAreaHeight / 2
+      : currentY - yAxisWidthInfo.halfYAxisTickLabelH;
+    primitives.push({
+      type: "chart-label",
+      key: `tier-header-${i_pane}-${i_tier}`,
+      bounds: yAxisRcd,
+      zIndex: Z_INDEX.LABEL,
+      meta: { labelType: "tier", paneIndex: i_pane, tierIndex: i_tier },
+      mText: measuredTexts[i_tier],
+      position: new Coordinates([yAxisRcd.x(), y]),
+      alignment: { h: tiers.headerAlignH, v: tiers.headerAlignV },
+    });
+    currentY += subChartAreaHeight + tiers.gapY;
+  }
+
+  return primitives;
+}
+
+function laneHeaderLabelPrimitives(
+  measuredTexts: MeasuredText[],
+  laneHeaderRcd: RectCoordsDims,
+  subChartAreaWidth: number,
+  lanePaddingLeft: number,
+  laneGapX: number,
+  headerAlignH: "left" | "center" | "right",
+  i_pane: number,
+): ChartLabelPrimitive[] {
+  if (measuredTexts.length === 0) return [];
+
+  const primitives: ChartLabelPrimitive[] = [];
+  let currentX = laneHeaderRcd.x() + lanePaddingLeft;
+
+  for (let i_lane = 0; i_lane < measuredTexts.length; i_lane++) {
+    const x = headerAlignH === "left"
+      ? currentX
+      : headerAlignH === "right"
+      ? currentX + subChartAreaWidth
+      : currentX + subChartAreaWidth / 2;
+    primitives.push({
+      type: "chart-label",
+      key: `lane-header-${i_pane}-${i_lane}`,
+      bounds: laneHeaderRcd,
+      zIndex: Z_INDEX.LABEL,
+      meta: { labelType: "lane", paneIndex: i_pane, laneIndex: i_lane },
+      mText: measuredTexts[i_lane],
+      position: new Coordinates([x, laneHeaderRcd.bottomY()]),
+      alignment: { h: headerAlignH, v: "bottom" },
+    });
+    currentX += subChartAreaWidth + laneGapX;
+  }
+
+  return primitives;
 }

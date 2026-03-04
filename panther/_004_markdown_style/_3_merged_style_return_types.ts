@@ -72,7 +72,7 @@ export type MergedMarkdownStyle = {
     paddingLeft: number;
     paddingRight: number;
     paragraphGap: number;
-    align: "left" | "center" | "right";
+    alignH: "left" | "center" | "right";
     backgroundColor: string | "none";
   };
 

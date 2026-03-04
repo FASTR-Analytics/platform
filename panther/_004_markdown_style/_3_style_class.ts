@@ -268,7 +268,11 @@ export class CustomMarkdownStyle {
           g.blockquote?.paragraphGapEm,
           d.blockquote.paragraphGapEm,
         ) * blockquoteText.fontSize,
-        align: m(c.blockquote?.align, g.blockquote?.align, d.blockquote.align),
+        alignH: m(
+          c.blockquote?.alignH,
+          g.blockquote?.alignH,
+          d.blockquote.alignH,
+        ),
         backgroundColor: getColor(
           m(
             c.blockquote?.backgroundColor,

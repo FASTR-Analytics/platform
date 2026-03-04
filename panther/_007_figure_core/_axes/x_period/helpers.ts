@@ -6,7 +6,7 @@
 import type {
   CalendarType,
   MergedGridStyle,
-  MergedTimeseriesStyle,
+  MergedXPeriodAxisStyle,
   PeriodType,
   RenderContext,
 } from "../../deps.ts";
@@ -164,7 +164,7 @@ const _VERY_SMALL_TICK_H = 10;
 export function getPeriodAxisInfo(
   rc: RenderContext,
   periodType: PeriodType,
-  s: MergedTimeseriesStyle,
+  axisStyle: MergedXPeriodAxisStyle,
   gridStyle: MergedGridStyle,
   periodIncrementWidth: number,
   showEveryNthTick: number,
@@ -172,14 +172,14 @@ export function getPeriodAxisInfo(
   const smallLabelH = rc
     .mText(
       "Jan",
-      s.xPeriodAxis.text.xPeriodAxisTickLabels,
+      axisStyle.text.xPeriodAxisTickLabels,
       Number.POSITIVE_INFINITY,
     )
     .dims.h();
   const largeLabelH = rc
     .mText(
       "2022",
-      s.xPeriodAxis.text.xPeriodAxisTickLabels,
+      axisStyle.text.xPeriodAxisTickLabels,
       Number.POSITIVE_INFINITY,
     )
     .dims.h();
@@ -191,16 +191,16 @@ export function getPeriodAxisInfo(
   ////////////////
 
   if (periodType === "year-month") {
-    const _MONTHS_THREE_CHARS = get_MONTHS_THREE_CHARS(s.xPeriodAxis.calendar);
-    const _MONTHS_ONE_CHARS = get_MONTHS_ONE_CHARS(s.xPeriodAxis.calendar);
+    const _MONTHS_THREE_CHARS = get_MONTHS_THREE_CHARS(axisStyle.calendar);
+    const _MONTHS_ONE_CHARS = get_MONTHS_ONE_CHARS(axisStyle.calendar);
     if (
-      getMaxWidthWord(rc, s, _MONTHS_THREE_CHARS) + _PIXEL_PAD <
+      getMaxWidthWord(rc, axisStyle, _MONTHS_THREE_CHARS) + _PIXEL_PAD <
         periodIncrementWidth
     ) {
-      const periodAxisSmallTickH = s.xPeriodAxis.periodLabelSmallTopPadding +
+      const periodAxisSmallTickH = axisStyle.periodLabelSmallTopPadding +
         smallLabelH;
       const maxTickH = periodAxisSmallTickH +
-        s.xPeriodAxis.periodLabelLargeTopPadding +
+        axisStyle.periodLabelLargeTopPadding +
         largeLabelH;
       return {
         periodAxisType: "month-three-year",
@@ -209,13 +209,13 @@ export function getPeriodAxisInfo(
       };
     }
     if (
-      getMaxWidthWord(rc, s, _MONTHS_ONE_CHARS) + _PIXEL_PAD <
+      getMaxWidthWord(rc, axisStyle, _MONTHS_ONE_CHARS) + _PIXEL_PAD <
         periodIncrementWidth
     ) {
-      const periodAxisSmallTickH = s.xPeriodAxis.periodLabelSmallTopPadding +
+      const periodAxisSmallTickH = axisStyle.periodLabelSmallTopPadding +
         smallLabelH;
       const maxTickH = periodAxisSmallTickH +
-        s.xPeriodAxis.periodLabelLargeTopPadding +
+        axisStyle.periodLabelLargeTopPadding +
         largeLabelH;
       return {
         periodAxisType: "month-one-year",
@@ -226,7 +226,7 @@ export function getPeriodAxisInfo(
     if (gridStyle.gridStrokeWidth < periodIncrementWidth / 2) {
       const periodAxisSmallTickH = _VERY_SMALL_TICK_H;
       const maxTickH = periodAxisSmallTickH +
-        s.xPeriodAxis.periodLabelLargeTopPadding +
+        axisStyle.periodLabelLargeTopPadding +
         largeLabelH;
       return {
         periodAxisType: "month-none-year",
@@ -235,7 +235,7 @@ export function getPeriodAxisInfo(
       };
     }
     const periodAxisSmallTickH = "none";
-    const maxTickH = s.xPeriodAxis.periodLabelLargeTopPadding + largeLabelH;
+    const maxTickH = axisStyle.periodLabelLargeTopPadding + largeLabelH;
     return {
       periodAxisType: "year-side",
       periodAxisSmallTickH,
@@ -250,15 +250,15 @@ export function getPeriodAxisInfo(
   ///////////////////
 
   if (periodType === "year-quarter") {
-    const _QUARTERS_TWO_CHARS = get_QUARTERS_TWO_CHARS(s.xPeriodAxis.calendar);
+    const _QUARTERS_TWO_CHARS = get_QUARTERS_TWO_CHARS(axisStyle.calendar);
     if (
-      getMaxWidthWord(rc, s, _QUARTERS_TWO_CHARS) + _PIXEL_PAD <
+      getMaxWidthWord(rc, axisStyle, _QUARTERS_TWO_CHARS) + _PIXEL_PAD <
         periodIncrementWidth
     ) {
-      const periodAxisSmallTickH = s.xPeriodAxis.periodLabelSmallTopPadding +
+      const periodAxisSmallTickH = axisStyle.periodLabelSmallTopPadding +
         smallLabelH;
       const maxTickH = periodAxisSmallTickH +
-        s.xPeriodAxis.periodLabelLargeTopPadding +
+        axisStyle.periodLabelLargeTopPadding +
         largeLabelH;
       return {
         periodAxisType: "quarter-two-year",
@@ -267,13 +267,13 @@ export function getPeriodAxisInfo(
       };
     }
     if (
-      getMaxWidthWord(rc, s, _QUARTERS_ONE_CHARS) + _PIXEL_PAD <
+      getMaxWidthWord(rc, axisStyle, _QUARTERS_ONE_CHARS) + _PIXEL_PAD <
         periodIncrementWidth
     ) {
-      const periodAxisSmallTickH = s.xPeriodAxis.periodLabelSmallTopPadding +
+      const periodAxisSmallTickH = axisStyle.periodLabelSmallTopPadding +
         smallLabelH;
       const maxTickH = periodAxisSmallTickH +
-        s.xPeriodAxis.periodLabelLargeTopPadding +
+        axisStyle.periodLabelLargeTopPadding +
         largeLabelH;
       return {
         periodAxisType: "quarter-one-year",
@@ -284,7 +284,7 @@ export function getPeriodAxisInfo(
     if (gridStyle.gridStrokeWidth < periodIncrementWidth / 2) {
       const periodAxisSmallTickH = 10;
       const maxTickH = periodAxisSmallTickH +
-        s.xPeriodAxis.periodLabelLargeTopPadding +
+        axisStyle.periodLabelLargeTopPadding +
         largeLabelH;
       return {
         periodAxisType: "quarter-none-year",
@@ -293,7 +293,7 @@ export function getPeriodAxisInfo(
       };
     }
     const periodAxisSmallTickH = "none";
-    const maxTickH = s.xPeriodAxis.periodLabelLargeTopPadding + largeLabelH;
+    const maxTickH = axisStyle.periodLabelLargeTopPadding + largeLabelH;
     return {
       periodAxisType: "year-side",
       periodAxisSmallTickH,
@@ -308,9 +308,9 @@ export function getPeriodAxisInfo(
   ////////////////
 
   if (periodType === "year") {
-    if (s.xPeriodAxis.forceSideTicksWhenYear) {
+    if (axisStyle.forceSideTicksWhenYear) {
       const periodAxisSmallTickH = "none";
-      const maxTickH = s.xPeriodAxis.periodLabelLargeTopPadding + largeLabelH;
+      const maxTickH = axisStyle.periodLabelLargeTopPadding + largeLabelH;
       return {
         periodAxisType: "year-side",
         periodAxisSmallTickH,
@@ -320,7 +320,7 @@ export function getPeriodAxisInfo(
     const periodAxisSmallTickH = _VERY_SMALL_TICK_H;
     // Always need space for labels, even if only showing every Nth
     const maxTickH = periodAxisSmallTickH +
-      s.xPeriodAxis.periodLabelSmallTopPadding +
+      axisStyle.periodLabelSmallTopPadding +
       smallLabelH;
     return {
       periodAxisType: "year-centered",
@@ -333,14 +333,14 @@ export function getPeriodAxisInfo(
 
 function getMaxWidthWord(
   rc: RenderContext,
-  s: MergedTimeseriesStyle,
+  axisStyle: MergedXPeriodAxisStyle,
   words: string[],
 ): number {
   let maxWidth = 0;
   for (const word of words) {
     const mText = rc.mText(
       word,
-      s.xPeriodAxis.text.xPeriodAxisTickLabels,
+      axisStyle.text.xPeriodAxisTickLabels,
       Number.POSITIVE_INFINITY,
     );
     if (mText.dims.w() > maxWidth) {
@@ -363,12 +363,12 @@ export function calculateYearSkipInterval(
   periodType: PeriodType,
   periodAxisType: PeriodAxisType,
   periodIncrementWidth: number,
-  s: MergedTimeseriesStyle,
+  axisStyle: MergedXPeriodAxisStyle,
 ): number {
   const twoDigitYearW = rc
     .mText(
       "22",
-      s.xPeriodAxis.text.xPeriodAxisTickLabels,
+      axisStyle.text.xPeriodAxisTickLabels,
       Number.POSITIVE_INFINITY,
     )
     .dims.w();

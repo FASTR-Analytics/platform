@@ -367,7 +367,18 @@ type TimFontOption =
   | "SöhneLeicht_300_Italic"
   | "SöhneLeicht_300"
   // Tiempos Headline
+  | "TiemposHeadline_500_Italic"
+  | "TiemposHeadline_600"
+  | "TiemposHeadline_700"
+  | "TiemposHeadline_400"
+  | "TiemposHeadline_500"
   | "TiemposHeadline_900"
+  | "TiemposHeadline_900_Italic"
+  | "TiemposHeadline_400_Italic"
+  | "TiemposHeadline_600_Italic"
+  | "TiemposHeadline_300"
+  | "TiemposHeadline_700_Italic"
+  | "TiemposHeadline_300_Italic"
   // Tiempos Text
   | "TiemposText_400_Italic"
   | "TiemposText_500_Italic"
@@ -2075,10 +2086,65 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
   },
 
   // Tiempos Headline
+  TiemposHeadline_500_Italic: {
+    fontFamily: "Tiempos Headline",
+    weight: 500,
+    italic: true,
+  },
+  TiemposHeadline_600: {
+    fontFamily: "Tiempos Headline",
+    weight: 600,
+    italic: false,
+  },
+  TiemposHeadline_700: {
+    fontFamily: "Tiempos Headline",
+    weight: 700,
+    italic: false,
+  },
+  TiemposHeadline_400: {
+    fontFamily: "Tiempos Headline",
+    weight: 400,
+    italic: false,
+  },
+  TiemposHeadline_500: {
+    fontFamily: "Tiempos Headline",
+    weight: 500,
+    italic: false,
+  },
   TiemposHeadline_900: {
     fontFamily: "Tiempos Headline",
     weight: 900,
     italic: false,
+  },
+  TiemposHeadline_900_Italic: {
+    fontFamily: "Tiempos Headline",
+    weight: 900,
+    italic: true,
+  },
+  TiemposHeadline_400_Italic: {
+    fontFamily: "Tiempos Headline",
+    weight: 400,
+    italic: true,
+  },
+  TiemposHeadline_600_Italic: {
+    fontFamily: "Tiempos Headline",
+    weight: 600,
+    italic: true,
+  },
+  TiemposHeadline_300: {
+    fontFamily: "Tiempos Headline",
+    weight: 300,
+    italic: false,
+  },
+  TiemposHeadline_700_Italic: {
+    fontFamily: "Tiempos Headline",
+    weight: 700,
+    italic: true,
+  },
+  TiemposHeadline_300_Italic: {
+    fontFamily: "Tiempos Headline",
+    weight: 300,
+    italic: true,
   },
 
   // Tiempos Text

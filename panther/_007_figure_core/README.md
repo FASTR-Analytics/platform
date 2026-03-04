@@ -76,7 +76,7 @@ renderPrimitives(rc, measured.primitives);
 - `ChartCaptionPrimitive` - Captions (shared)
 - `ChartLegendPrimitive` - Legend (shared)
 
-**Table**: Uses legacy rendering (not primitives-based)
+**Table**: Uses surrounds primitives for captions/legend
 
 ## Key Concepts
 
@@ -260,16 +260,8 @@ Legend measurement and primitive generation.
 
 Surrounds measurement and primitive generation (captions + legend).
 
-- `addSurrounds.ts` - Legacy rendering (used by Table only)
-
-### `_json_array/`
-
-JSON array filtering utilities.
-
 ### Root files
 
-- `generate_chart_primitives.ts` - Main chart primitives generation
 - `render_primitives.ts` - Primitive rendering dispatcher
 - `measure_chart.ts` / `measure_pane.ts` - Chart/pane measurement
-- `render_pane.ts` - Pane rendering (delegates to primitives)
 - `common_data_transform.ts` - Data transformation utilities

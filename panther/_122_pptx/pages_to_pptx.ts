@@ -10,10 +10,7 @@ import {
   RectCoordsDims,
   type RenderContext,
 } from "./deps.ts";
-import type {
-  CreateCanvasRenderContext,
-  PptxGenJSInstance,
-} from "./types.ts";
+import type { CreateCanvasRenderContext, PptxGenJSInstance } from "./types.ts";
 import { renderCoverSlide } from "./render_cover_slide.ts";
 import { renderSectionSlide } from "./render_section_slide.ts";
 import { renderFreeformSlide } from "./render_freeform_slide.ts";

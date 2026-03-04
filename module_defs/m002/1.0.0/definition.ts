@@ -195,7 +195,6 @@ export const definition = {
               content: "lines",
               conditionalFormatting: "fmt-01-03",
               decimalPlaces: 1,
-              idealAspectRatio: "ideal",
             },
             t: {
               caption: {
@@ -309,7 +308,6 @@ export const definition = {
               content: "lines",
               conditionalFormatting: "fmt-01-03",
               decimalPlaces: 1,
-              idealAspectRatio: "ideal",
             },
             t: {
               caption: {
@@ -423,7 +421,6 @@ export const definition = {
               content: "lines",
               conditionalFormatting: "fmt-01-03",
               decimalPlaces: 1,
-              idealAspectRatio: "ideal",
             },
             t: {
               caption: {

@@ -3,25 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { RectCoordsDims } from "../_001_geometry/mod.ts";
-export type {
-  HeightConstraints,
-  Measured,
-  Primitive,
-  RenderContext,
-  Renderer,
-} from "../_001_render_system/mod.ts";
+export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
+export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
+export { Z_INDEX } from "../_001_render_system/mod.ts";
+export type { HeightConstraints, Measured, PathSegment, Primitive, RenderContext, Renderer } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedSankeyStyle } from "../_003_figure_style/mod.ts";
-export {
-  generateSankeyPrimitives,
-  generateSurroundsPrimitives,
-  measureSurrounds,
-  renderFigurePrimitives,
-} from "../_007_figure_core/mod.ts";
-export type {
-  FigureInputsBase,
-  MeasuredSurrounds,
-  PositionedSankeyLink,
-  PositionedSankeyNode,
-} from "../_007_figure_core/mod.ts";
+export { generateSurroundsPrimitives, measureSurrounds, renderFigurePrimitives } from "../_007_figure_core/mod.ts";
+export type { FigureInputsBase, MeasuredSurrounds } from "../_007_figure_core/mod.ts";

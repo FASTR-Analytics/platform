@@ -5,17 +5,12 @@
 
 import {
   type Component,
-  createEffect,
   createSignal,
   type JSX,
   Show,
   useContext,
 } from "solid-js";
-import type {
-  AnthropicModel,
-  CustomMarkdownStyleOptions,
-  MessageParam,
-} from "../deps.ts";
+import type { AnthropicModel, CustomMarkdownStyleOptions } from "../deps.ts";
 import { createScrollManager } from "./_scroll_manager.ts";
 import { AIChatConfigContext, createAIChat } from "./_create_ai_chat.ts";
 import type { DisplayRegistry } from "../_core/types.ts";
@@ -55,17 +50,17 @@ export const AIChat: Component<Props> = (props) => {
     serverToolLabel,
     usage,
     sendMessage,
-    sendMessages,
     stopGeneration,
     toolRegistry,
-    processMessageForDisplay,
+    enqueueMessage,
+    clearQueue,
+    queuedMessages,
     clearInProgressItems,
   } = createAIChat();
   const [inputValue, setInputValue] = createSignal("");
-  const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
 
   const handleStop = () => {
-    setQueuedMessages([]);
+    clearQueue();
     stopGeneration();
   };
 
@@ -80,30 +75,6 @@ export const AIChat: Component<Props> = (props) => {
   if (props.onScrollReady) {
     props.onScrollReady(scrollToBottom);
   }
-
-  // Auto-send queued messages when loading completes (but not during tool processing)
-  createEffect(() => {
-    const loading = isLoading();
-    const processingTools = isProcessingTools();
-    const queue = queuedMessages();
-    const msgs = messages();
-
-    // Check if last message has unresolved tool_use
-    const lastMsg = msgs[msgs.length - 1];
-    const hasUnresolvedTools = msgs.length > 0 &&
-      lastMsg?.role === "assistant" &&
-      Array.isArray(lastMsg.content) &&
-      lastMsg.content.some((block: any) => block.type === "tool_use");
-
-    if (!loading && !processingTools && queue.length > 0) {
-      if (hasUnresolvedTools) {
-        // Don't send yet, keep in queue until tools are resolved
-        return;
-      }
-      setQueuedMessages([]);
-      sendMessages(queue);
-    }
-  });
 
   const handleSubmit = async () => {
     let message = inputValue().trim();
@@ -125,20 +96,10 @@ export const AIChat: Component<Props> = (props) => {
       lastMsg.content.some((block: any) => block.type === "tool_use");
 
     if (isLoading() || isProcessingTools() || hasUnresolvedTools) {
-      // Queue the message and display it immediately
-      setQueuedMessages([...queuedMessages(), message]);
-
-      // Cancel any interactive tool components (e.g. ask_user_questions) so
-      // the tool loop unblocks via onCleanup auto-reject
-      if (isProcessingTools()) {
-        clearInProgressItems();
-      }
-
-      // Display as user message immediately
-      const userMsg: MessageParam = { role: "user", content: message };
-      processMessageForDisplay(userMsg);
+      enqueueMessage(message);
+      if (isProcessingTools()) clearInProgressItems();
     } else {
-      sendMessage(message); // Don't await - scroll should happen after user message displays, not after assistant responds
+      sendMessage(message);
     }
 
     // Force scroll to bottom - immediate and after DOM updates

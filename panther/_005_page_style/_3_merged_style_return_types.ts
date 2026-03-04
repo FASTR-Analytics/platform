@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ColorKeyOrString, Padding, TextInfoUnkeyed } from "./deps.ts";
+import type { AlignH, AlignV, Padding, TextInfoUnkeyed } from "./deps.ts";
 
 export type MergedPageStyle = {
   alreadyScaledValue: number;
@@ -29,11 +29,15 @@ export type MergedPageStyle = {
     logoHeight: number;
     logoGapX: number;
     gapY: number;
+    alignH: AlignH;
+    alignV: AlignV;
   };
   section: {
     padding: Padding;
     backgroundColor: string;
     gapY: number;
+    alignH: AlignH;
+    alignV: AlignV;
   };
   header: {
     padding: Padding;

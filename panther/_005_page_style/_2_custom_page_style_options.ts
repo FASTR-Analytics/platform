@@ -3,7 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { assert, type ColorKeyOrString, type PaddingOptions } from "./deps.ts";
+import {
+  type AlignH,
+  type AlignV,
+  assert,
+  type ColorKeyOrString,
+  type PaddingOptions,
+} from "./deps.ts";
 import type { PageTextStyleOptions } from "./text_style_keys.ts";
 
 export type CustomPageStyleOptions = {
@@ -15,11 +21,15 @@ export type CustomPageStyleOptions = {
     logoHeight?: number;
     logoGapX?: number;
     gapY?: number;
+    alignH?: AlignH;
+    alignV?: AlignV;
   };
   section?: {
     padding?: PaddingOptions;
     backgroundColor?: ColorKeyOrString;
     gapY?: number;
+    alignH?: AlignH;
+    alignV?: AlignV;
   };
   header?: {
     padding?: PaddingOptions;

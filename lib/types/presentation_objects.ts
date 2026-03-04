@@ -1,4 +1,3 @@
-import { AspectRatio } from "@timroberton/panther";
 import { getNextAvailableDisaggregationDisplayOption } from "../get_disaggregator_display_prop.ts";
 import { T, t2 } from "../translate/mod.ts";
 import { PeriodOption, ResultsValue } from "./module_definitions.ts";
@@ -334,7 +333,6 @@ export type PresentationObjectConfig = {
     specialBarChartDataLabels: "all-values" | "threshold-values";
     specialCoverageChart: boolean;
     specialScorecardTable: boolean;
-    idealAspectRatio: "none" | "ideal" | AspectRatio;
     verticalTickLabels: boolean;
     allowVerticalColHeaders: boolean;
     forceYMax1: boolean;

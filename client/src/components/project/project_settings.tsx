@@ -538,7 +538,7 @@ function ProjectUserTable(p: {
     {
       key: "actions",
       header: "",
-      align: "right",
+      alignH: "right",
       render: (user) => (
         <Button
           onClick={(e) => {

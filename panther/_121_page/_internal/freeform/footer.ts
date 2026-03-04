@@ -108,8 +108,8 @@ export function buildFooterPrimitives(
       mText: measured.mFooter,
       x: paddedRcd.x(),
       y: paddedRcd.y(),
-      hAlign: "left",
-      vAlign: "top",
+      alignH: "left",
+      alignV: "top",
       maxWidth: measured.maxWidthForFooterText,
     });
   }
