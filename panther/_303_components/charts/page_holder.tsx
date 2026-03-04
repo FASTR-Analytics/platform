@@ -331,6 +331,24 @@ export function PageHolder(p: Props) {
       return;
     }
 
+    if (pendingItemDrag) {
+      const dx = coords.x - pendingItemDrag.startX;
+      const dy = coords.y - pendingItemDrag.startY;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        setDragState({
+          type: "layoutItem",
+          source: pendingItemDrag.source,
+          dropTarget: undefined,
+          startX: pendingItemDrag.startX,
+          startY: pendingItemDrag.startY,
+          currentX: coords.x,
+          currentY: coords.y,
+        });
+        pendingItemDrag = undefined;
+      }
+      return;
+    }
+
     if (drag?.type === "layoutItem") {
       const hit = findHitTarget(hitRegions(), coords.x, coords.y);
       const dropTarget = hit?.type === "layoutItem" &&
@@ -373,19 +391,22 @@ export function PageHolder(p: Props) {
       e.preventDefault();
       overlayCanvas.setPointerCapture(e.pointerId);
       const coords = getCanvasCoords(e, overlayCanvas, scale);
-      setDragState({
-        type: "layoutItem",
+      pendingItemDrag = {
         source: hit,
-        dropTarget: undefined,
         startX: coords.x,
         startY: coords.y,
-        currentX: coords.x,
-        currentY: coords.y,
-      });
+        pointerId: e.pointerId,
+      };
     }
   }
 
   function handlePointerUp(e: PointerEvent) {
+    if (pendingItemDrag) {
+      overlayCanvas.releasePointerCapture(e.pointerId);
+      pendingItemDrag = undefined;
+      return;
+    }
+
     const drag = dragState();
     if (!drag) return;
 
@@ -415,6 +436,11 @@ export function PageHolder(p: Props) {
   }
 
   function handlePointerCancel(e: PointerEvent) {
+    if (pendingItemDrag) {
+      overlayCanvas.releasePointerCapture(e.pointerId);
+      pendingItemDrag = undefined;
+      return;
+    }
     if (dragState()) {
       overlayCanvas.releasePointerCapture(e.pointerId);
       setDragState(undefined);
@@ -429,6 +455,9 @@ export function PageHolder(p: Props) {
   }
 
   let justFinishedDrag = false;
+  let pendingItemDrag:
+    | { source: PageHitTargetLayoutItem; startX: number; startY: number; pointerId: number }
+    | undefined;
 
   function handleClick() {
     if (justFinishedDrag) {
