@@ -131,6 +131,33 @@ export type MergedChartStyleBase = {
   };
 };
 
+export type MapDataLabelMode = "none" | "centroid" | "callout" | "auto";
+
+export type MapDataLabelFormatterInfo = {
+  featureId: string;
+  featureProperties: Record<string, unknown>;
+  value: number | undefined;
+};
+
+export type MergedMapDataLabelsStyle = {
+  mode: MapDataLabelMode;
+  formatter?: (info: MapDataLabelFormatterInfo) => string;
+  nameProp?: string;
+  showValue: boolean;
+  valueFormatter: (value: number) => string;
+  centroidOffsets?: Record<string, { dx: number; dy: number }>;
+  halo: {
+    color: string;
+    width: number;
+  };
+  leaderLine: {
+    strokeColor: string;
+    strokeWidth: number;
+    gap: number;
+  };
+  calloutMargin: number;
+};
+
 export type MergedMapStyle = MergedChartStyleBase & {
   map: {
     projection: "equirectangular" | "mercator" | "naturalEarth1";
@@ -139,11 +166,13 @@ export type MergedMapStyle = MergedChartStyleBase & {
     regionStrokeWidth: number;
     noDataColor: string;
     padding: number;
+    valueRange: { min: number; max: number } | "auto";
     boundingBox?: [number, number, number, number];
     includeAreaIds?: string[];
     featureFilter?: (
       feature: { properties?: Record<string, unknown> },
     ) => boolean;
+    dataLabels: MergedMapDataLabelsStyle;
   };
 };
 

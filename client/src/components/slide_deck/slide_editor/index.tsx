@@ -52,9 +52,11 @@ import { AddVisualization } from "~/components/project/add_visualization";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import type { AIContext } from "~/components/project_ai/types";
 import { VisualizationEditor } from "~/components/visualization";
-import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
+import { getFigureInputsFromPresentationObject, stripFigureInputsForStorage } from "~/generate_visualization/mod";
+import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
+import { getGeoJsonCached } from "~/state/caches/geojson_cache";
 import {
   getPODetailFromCacheorFetch,
   getPOFigureInputsFromCacheOrFetch,
@@ -495,10 +497,17 @@ export function SlideEditor(p: Props) {
           valueLabelReplacements: resultsValue.valueLabelReplacements,
         };
 
+        let geoJson;
+        const mapLevel = getAdminAreaLevelFromMapConfig(newConfig);
+        if (mapLevel) {
+          try { geoJson = await getGeoJsonCached(mapLevel); } catch { /* handled below */ }
+        }
+
         const newFigureInputs = getFigureInputsFromPresentationObject(
           resultsValueForViz,
           newItemsRes.data.ih,
           newConfig,
+          geoJson,
         );
 
         if (newFigureInputs.status !== "ready") {
@@ -516,7 +525,7 @@ export function SlideEditor(p: Props) {
             if (b.type !== "figure") return b;
             return {
               type: "figure",
-              figureInputs: { ...newFigureInputs.data, style: undefined },
+              figureInputs: stripFigureInputsForStorage(newFigureInputs.data),
               source: {
                 type: "from_data",
                 metricId: source.metricId,
@@ -580,7 +589,7 @@ export function SlideEditor(p: Props) {
         blockId,
         () => ({
           type: "figure" as const,
-          figureInputs: structuredClone({ ...figureInputsRes.data, style: undefined }),
+          figureInputs: structuredClone(stripFigureInputsForStorage(figureInputsRes.data)),
           source: {
             type: "from_data" as const,
             metricId: poDetailRes.data.resultsValue.id,
@@ -652,10 +661,17 @@ export function SlideEditor(p: Props) {
         valueLabelReplacements: resultsValue.valueLabelReplacements,
       };
 
+      let geoJson2;
+      const mapLevel2 = getAdminAreaLevelFromMapConfig(config);
+      if (mapLevel2) {
+        try { geoJson2 = await getGeoJsonCached(mapLevel2); } catch { /* handled below */ }
+      }
+
       const newFigureInputs = getFigureInputsFromPresentationObject(
         resultsValueForViz,
         newItemsRes.data.ih,
         config,
+        geoJson2,
       );
 
       if (newFigureInputs.status !== "ready") {
@@ -671,7 +687,7 @@ export function SlideEditor(p: Props) {
         blockId,
         () => ({
           type: "figure" as const,
-          figureInputs: { ...newFigureInputs.data, style: undefined },
+          figureInputs: stripFigureInputsForStorage(newFigureInputs.data),
           source: {
             type: "from_data" as const,
             metricId: resultsValue.id,

@@ -5,18 +5,20 @@ import type { AIContext } from "~/components/project_ai/types";
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
 
-const VALID_TYPES = ["timeseries", "table", "chart"] as const;
+const VALID_TYPES = ["timeseries", "table", "chart", "map"] as const;
 
 const VALID_DIS_DISPLAY: Record<string, string[]> = {
   timeseries: ["series", "cell", "row", "col", "replicant"],
   table: ["row", "col", "rowGroup", "colGroup", "replicant"],
   chart: ["indicator", "series", "cell", "row", "col", "replicant"],
+  map: ["mapArea", "cell", "row", "col", "replicant"],
 };
 
 const VALID_VALUES_DISPLAY: Record<string, string[]> = {
   timeseries: ["series", "cell", "row", "col"],
   table: ["row", "col", "rowGroup", "colGroup"],
   chart: ["indicator", "series", "cell", "row", "col"],
+  map: ["cell", "row", "col"],
 };
 
 export function getToolsForVizEditor(

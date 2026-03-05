@@ -880,6 +880,34 @@ export const definition = {
             },
           },
         },
+        {
+          id: "disruption-differences-map",
+          label: {
+            en: "Disruption map by admin area",
+            fr: "Carte des perturbations par zone administrative",
+          },
+          description: {
+            en: "Map showing disruption levels by admin area for a single indicator and time period",
+            fr: "Carte montrant les niveaux de perturbation par zone administrative pour un indicateur et une période unique",
+          },
+          allowedFilters: [],
+          config: {
+            d: {
+              type: "map",
+              periodOpt: "period_id",
+              valuesDisDisplayOpt: "cell",
+              disaggregateBy: [
+                { disOpt: "admin_area_2", disDisplayOpt: "mapArea" },
+                { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+              ],
+              filterBy: [],
+            },
+            s: {
+              mapColorFrom: "#fee0d2",
+              mapColorTo: "#de2d26",
+            },
+          },
+        },
       ],
     },
     //////////////////////////////////////////////////////////////////
@@ -1080,6 +1108,34 @@ export const definition = {
             s: {
               conditionalFormatting: "fmt-neg10-pos10",
               decimalPlaces: 0,
+            },
+          },
+        },
+        {
+          id: "disruption-differences-map",
+          label: {
+            en: "Disruption map by admin area",
+            fr: "Carte des perturbations par zone administrative",
+          },
+          description: {
+            en: "Map showing disruption levels by admin area for a single indicator and time period",
+            fr: "Carte montrant les niveaux de perturbation par zone administrative pour un indicateur et une période unique",
+          },
+          allowedFilters: [],
+          config: {
+            d: {
+              type: "map",
+              periodOpt: "period_id",
+              valuesDisDisplayOpt: "cell",
+              disaggregateBy: [
+                { disOpt: "admin_area_3", disDisplayOpt: "mapArea" },
+                { disOpt: "indicator_common_id", disDisplayOpt: "replicant" },
+              ],
+              filterBy: [],
+            },
+            s: {
+              mapColorFrom: "#fee0d2",
+              mapColorTo: "#de2d26",
             },
           },
         },

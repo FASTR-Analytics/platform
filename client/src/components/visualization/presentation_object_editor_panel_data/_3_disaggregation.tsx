@@ -79,7 +79,7 @@ function DataValuesDisaggregation(p: DataValuesDisaggregationProps) {
       <Select
         options={get_DISAGGREGATION_DISPLAY_OPTIONS()[
           p.tempConfig.d.type
-        ].filter((opt) => opt.value !== "replicant")}
+        ].filter((opt) => opt.value !== "replicant" && opt.value !== "mapArea")}
         value={p.tempConfig.d.valuesDisDisplayOpt}
         onChange={(v) =>
           p.setTempConfig(
@@ -222,7 +222,8 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
       <Show
         when={
           p.disOpt.value === "admin_area_2" &&
-          p.keyedDis.disDisplayOpt !== "replicant"
+          p.keyedDis.disDisplayOpt !== "replicant" &&
+          p.keyedDis.disDisplayOpt !== "mapArea"
         }
       >
         <AdminAreaOptions

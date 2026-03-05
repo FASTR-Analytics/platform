@@ -7,7 +7,9 @@ import { getFetchConfigFromPresentationObjectConfig, getMetricStaticData, getRep
 import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/utils/request_queue";
-import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
+import { getFigureInputsFromPresentationObject, stripFigureInputsForStorage } from "~/generate_visualization/mod";
+import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
+import { getGeoJsonCached } from "~/state/caches/geojson_cache";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/replicant_options_cache";
 import { validateMetricInputs } from "~/components/project_ai/ai_tools/validators/content_validators";
 import { buildConfigFromPreset } from "./build_config_from_metric";
@@ -113,10 +115,17 @@ export async function resolveFigureFromMetric(
     throw new Error("No data available or too many items");
   }
 
+  let geoJson;
+  const mapLevel = getAdminAreaLevelFromMapConfig(config);
+  if (mapLevel) {
+    geoJson = await getGeoJsonCached(mapLevel);
+  }
+
   const figureInputsResult = getFigureInputsFromPresentationObject(
     resultsValueForViz,
     itemsHolder,
     config,
+    geoJson,
   );
 
   if (figureInputsResult.status !== "ready") {
@@ -129,7 +138,7 @@ export async function resolveFigureFromMetric(
 
   return {
     type: "figure",
-    figureInputs: { ...figureInputsResult.data, style: undefined },
+    figureInputs: stripFigureInputsForStorage(figureInputsResult.data),
     source: {
       type: "from_data",
       metricId,

@@ -5,7 +5,15 @@
 
 export { assertNotUndefined } from "../_000_utils/mod.ts";
 export { Csv } from "../_100_csv/mod.ts";
-export { InvalidFileContentError, handleFileError, validateFilePath } from "../_230_file_utils/mod.ts";
+export {
+  handleFileError,
+  InvalidFileContentError,
+  validateFilePath,
+} from "../_230_file_utils/mod.ts";
 export { join } from "@std/path";
 export { default as Papa } from "papaparse";
-export { readFile as XLSX_readFile, utils as XLSX_utils, writeFile as XLSX_writeFile } from "xlsx/xlsx.mjs";
+export {
+  readFile as XLSX_readFile,
+  utils as XLSX_utils,
+  writeFile as XLSX_writeFile,
+} from "xlsx/xlsx.mjs";

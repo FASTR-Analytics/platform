@@ -1,5 +1,5 @@
 import { getNextAvailableDisaggregationDisplayOption } from "../get_disaggregator_display_prop.ts";
-import { T, t2 } from "../translate/mod.ts";
+import { T, t2, t3 } from "../translate/mod.ts";
 import { PeriodOption, ResultsValue } from "./module_definitions.ts";
 import type { OptionalFacilityColumn } from "./instance.ts";
 import {
@@ -155,7 +155,8 @@ export type DisaggregationDisplayOption =
   | "series"
   | "cell"
   | "indicator"
-  | "replicant";
+  | "replicant"
+  | "mapArea";
 
 export const VIZ_TYPE_CONFIG: Record<
   PresentationOption,
@@ -177,6 +178,7 @@ export const VIZ_TYPE_CONFIG: Record<
       indicator: "series",
       rowGroup: "row",
       colGroup: "col",
+      mapArea: "cell",
     },
     styleResets: {
       specialScorecardTable: false,
@@ -194,7 +196,7 @@ export const VIZ_TYPE_CONFIG: Record<
       "colGroup",
       "replicant",
     ],
-    disDisplayOptFallbacks: { series: "row", cell: "row", indicator: "col" },
+    disDisplayOptFallbacks: { series: "row", cell: "row", indicator: "col", mapArea: "row" },
     styleResets: {
       specialBarChart: false,
       specialCoverageChart: false,
@@ -214,12 +216,39 @@ export const VIZ_TYPE_CONFIG: Record<
       "col",
       "replicant",
     ],
-    disDisplayOptFallbacks: { rowGroup: "row", colGroup: "col" },
+    disDisplayOptFallbacks: { rowGroup: "row", colGroup: "col", mapArea: "cell" },
     styleResets: {
       specialScorecardTable: false,
       specialCoverageChart: false,
       specialBarChart: false,
       diffAreas: false,
+    },
+  },
+  map: {
+    defaultValuesDisDisplayOpt: "cell",
+    defaultContent: "bars",
+    disaggregationDisplayOptions: [
+      "mapArea",
+      "cell",
+      "row",
+      "col",
+      "replicant",
+    ],
+    disDisplayOptFallbacks: {
+      series: "cell",
+      indicator: "cell",
+      rowGroup: "row",
+      colGroup: "col",
+    },
+    styleResets: {
+      specialScorecardTable: false,
+      specialBarChart: false,
+      specialCoverageChart: false,
+      specialBarChartInverted: false,
+      diffAreas: false,
+      barsStacked: false,
+      verticalTickLabels: false,
+      sortIndicatorValues: "none",
     },
   },
 };
@@ -241,6 +270,7 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
       rowGroup: "",
       colGroup: "",
       indicator: "",
+      mapArea: "",
     },
     table: {
       row: t2(T.FRENCH_UI_STRINGS.rows),
@@ -251,6 +281,7 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
       series: "",
       cell: "",
       indicator: "",
+      mapArea: "",
     },
     chart: {
       indicator: t2(T.FRENCH_UI_STRINGS.bars),
@@ -261,13 +292,25 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
       replicant: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
       rowGroup: "",
       colGroup: "",
+      mapArea: "",
+    },
+    map: {
+      mapArea: t3({ en: "Map regions", fr: "Régions de la carte" }),
+      cell: t2(T.FRENCH_UI_STRINGS.grid),
+      row: t2(T.FRENCH_UI_STRINGS.rows),
+      col: t2(T.FRENCH_UI_STRINGS.columns),
+      replicant: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
+      series: "",
+      indicator: "",
+      rowGroup: "",
+      colGroup: "",
     },
   };
   const result = {} as Record<
     PresentationOption,
     { value: DisaggregationDisplayOption; label: string }[]
   >;
-  for (const type of ["timeseries", "table", "chart"] as PresentationOption[]) {
+  for (const type of ["timeseries", "table", "chart", "map"] as PresentationOption[]) {
     result[type] = VIZ_TYPE_CONFIG[type].disaggregationDisplayOptions.map(
       (v) => ({
         value: v,
@@ -342,6 +385,15 @@ export type PresentationObjectConfig = {
     seriesColorFuncPropToUse: "series" | "cell" | "col" | "row" | undefined;
     sortIndicatorValues: "ascending" | "descending" | "none";
     formatAdminArea3Labels: boolean;
+    mapColorPreset: "red" | "blue" | "green" | "red-green" | "custom";
+    mapColorFrom: string;
+    mapColorTo: string;
+    mapProjection: "equirectangular" | "mercator" | "naturalEarth1";
+    mapScaleType: "continuous" | "discrete";
+    mapDiscreteSteps: number;
+    mapDomainType: "auto" | "fixed";
+    mapDomainMin: number;
+    mapDomainMax: number;
   };
   // Text
   t: {
@@ -354,7 +406,7 @@ export type PresentationObjectConfig = {
   };
 };
 
-export type PresentationOption = "timeseries" | "table" | "chart";
+export type PresentationOption = "timeseries" | "table" | "chart" | "map";
 
 export type CreateModeVisualizationData = {
   label: string;
@@ -370,6 +422,7 @@ export function get_PRESENTATION_SELECT_OPTIONS(): {
     { value: "table", label: t2(T.FRENCH_UI_STRINGS.table) },
     { value: "timeseries", label: t2(T.FRENCH_UI_STRINGS.timeseries) },
     { value: "chart", label: t2(T.FRENCH_UI_STRINGS.bar_chart) },
+    { value: "map", label: t3({ en: "Map", fr: "Carte" }) },
   ];
 }
 
@@ -381,6 +434,7 @@ export function get_PRESENTATION_OPTIONS_MAP(): Record<
     table: t2(T.FRENCH_UI_STRINGS.table),
     timeseries: t2(T.FRENCH_UI_STRINGS.timeseries),
     chart: t2(T.FRENCH_UI_STRINGS.bar_chart),
+    map: t3({ en: "Map", fr: "Carte" }),
   };
 }
 

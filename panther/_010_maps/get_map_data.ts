@@ -38,14 +38,6 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
     laneHeaders.sort(sortByOrder);
   }
 
-  if (config.labelReplacements) {
-    const r = config.labelReplacements;
-    const replace = (headers: string[]) => headers.map((h) => r[h] ?? h);
-    paneHeaders.splice(0, paneHeaders.length, ...replace(paneHeaders));
-    tierHeaders.splice(0, tierHeaders.length, ...replace(tierHeaders));
-    laneHeaders.splice(0, laneHeaders.length, ...replace(laneHeaders));
-  }
-
   const valueMaps: Record<string, number | undefined>[][][] = [];
   let globalMin = Infinity;
   let globalMax = -Infinity;
@@ -86,6 +78,14 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
 
   if (!isFinite(globalMin)) globalMin = 0;
   if (!isFinite(globalMax)) globalMax = 1;
+
+  if (config.labelReplacements) {
+    const r = config.labelReplacements;
+    const replace = (headers: string[]) => headers.map((h) => r[h] ?? h);
+    paneHeaders.splice(0, paneHeaders.length, ...replace(paneHeaders));
+    tierHeaders.splice(0, tierHeaders.length, ...replace(tierHeaders));
+    laneHeaders.splice(0, laneHeaders.length, ...replace(laneHeaders));
+  }
 
   return {
     isTransformed: true,

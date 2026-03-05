@@ -11,6 +11,7 @@ import {
   t3,
 } from "lib";
 import { Select } from "panther";
+import { batch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 
 type DataValuesSummaryProps = {
@@ -58,15 +59,7 @@ type PresentationTypeSummaryProps = {
 export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
   const cache = new Map<PresentationOption, TypeSpecificCache>();
 
-  const allowedTypes = () => {
-    const activeDisOpts = p.tempConfig.d.disaggregateBy.map((d) => d.disOpt);
-    const restrictions = p.disaggregationOptions
-      .filter((d) => activeDisOpts.includes(d.value) && d.allowedPresentationOptions)
-      .map((d) => d.allowedPresentationOptions!);
-    return get_PRESENTATION_SELECT_OPTIONS().filter((opt) =>
-      restrictions.every((allowed) => allowed.includes(opt.value))
-    );
-  };
+  const allowedTypes = get_PRESENTATION_SELECT_OPTIONS();
 
   return (
     <div class="">
@@ -74,7 +67,7 @@ export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
         {t3({ en: "Presentation type", fr: "Type de présentation" })}
       </div>
       <Select
-        options={allowedTypes()}
+        options={allowedTypes}
         value={p.tempConfig.d.type}
         onChange={(v) => {
           const newType = v as PresentationOption;
@@ -90,22 +83,26 @@ export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
 
           const cached = cache.get(newType);
           if (cached) {
-            p.setTempConfig("d", "type", newType);
-            p.setTempConfig("d", "valuesDisDisplayOpt", cached.valuesDisDisplayOpt);
-            p.setTempConfig("d", "disaggregateBy", cached.disaggregateBy);
-            p.setTempConfig("s", "content", cached.content);
-            p.setTempConfig("s", (prev) => ({ ...prev, ...cached.styleOverrides }));
+            batch(() => {
+              p.setTempConfig("d", "type", newType);
+              p.setTempConfig("d", "valuesDisDisplayOpt", cached.valuesDisDisplayOpt);
+              p.setTempConfig("d", "disaggregateBy", cached.disaggregateBy);
+              p.setTempConfig("s", "content", cached.content);
+              p.setTempConfig("s", (prev) => ({ ...prev, ...cached.styleOverrides }));
+            });
           } else {
             const converted = convertVisualizationType(
               p.tempConfig,
               newType,
               p.disaggregationOptions,
             );
-            p.setTempConfig("d", "type", converted.d.type);
-            p.setTempConfig("d", "valuesDisDisplayOpt", converted.d.valuesDisDisplayOpt);
-            p.setTempConfig("d", "disaggregateBy", converted.d.disaggregateBy);
-            p.setTempConfig("s", "content", converted.s.content);
-            p.setTempConfig("s", (prev) => ({ ...prev, ...VIZ_TYPE_CONFIG[newType].styleResets }));
+            batch(() => {
+              p.setTempConfig("d", "type", converted.d.type);
+              p.setTempConfig("d", "valuesDisDisplayOpt", converted.d.valuesDisDisplayOpt);
+              p.setTempConfig("d", "disaggregateBy", converted.d.disaggregateBy);
+              p.setTempConfig("s", "content", converted.s.content);
+              p.setTempConfig("s", (prev) => ({ ...prev, ...VIZ_TYPE_CONFIG[newType].styleResets }));
+            });
           }
         }}
         fullWidth

@@ -19,8 +19,10 @@ import { t3 } from "lib";
 import { LabelHolder } from "panther";
 import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
+import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
 import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
+import { getGeoJsonCached } from "~/state/caches/geojson_cache";
 import { poItemsQueue } from "~/utils/request_queue";
 
 type Props = {
@@ -238,9 +240,20 @@ async function fetchPreview(
     valueLabelReplacements: metric.valueLabelReplacements,
   };
 
+  let geoJson;
+  const mapLevel = getAdminAreaLevelFromMapConfig(config);
+  if (mapLevel) {
+    try {
+      geoJson = await getGeoJsonCached(mapLevel);
+    } catch {
+      return { status: "error", err: "Failed to load GeoJSON" };
+    }
+  }
+
   return getFigureInputsFromPresentationObject(
     resultsValueForViz,
     itemsHolder,
     config,
+    geoJson,
   );
 }

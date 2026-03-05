@@ -176,7 +176,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       </Show>
       <Show
         when={
-          p.tempConfig.d.type !== "table" && p.tempConfig.s.content === "bars"
+          p.tempConfig.d.type !== "table" && p.tempConfig.d.type !== "map" && p.tempConfig.s.content === "bars"
         }
       >
         <Checkbox
@@ -283,14 +283,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         />
       </Show>
       <Show when={p.tempConfig.d.type !== "table"}>
-        <Show when={p.tempConfig.s.content === "bars" || p.tempConfig.s.content === "points"}>
+        <Show when={p.tempConfig.s.content === "bars" || p.tempConfig.s.content === "points" || p.tempConfig.d.type === "map"}>
           <Checkbox
             checked={p.tempConfig.s.showDataLabels}
             onChange={(v) => p.setTempConfig("s", "showDataLabels", v)}
             label={t3({ en: "Show data labels", fr: "Afficher les étiquettes de données" })}
           />
         </Show>
-        <Show when={p.tempConfig.s.content === "lines" || p.tempConfig.s.content === "areas"}>
+        <Show when={p.tempConfig.d.type !== "map" && (p.tempConfig.s.content === "lines" || p.tempConfig.s.content === "areas")}>
           <Checkbox
             checked={p.tempConfig.s.showDataLabelsLineCharts}
             onChange={(v) => p.setTempConfig("s", "showDataLabelsLineCharts", v)}
@@ -301,6 +301,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       <Show
         when={
           p.tempConfig.d.type !== "table" &&
+          p.tempConfig.d.type !== "map" &&
           p.poDetail.resultsValue.formatAs === "percent"
         }
       >
@@ -310,7 +311,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
         />
       </Show>
-      <Show when={p.tempConfig.d.type !== "table"}>
+      <Show when={p.tempConfig.d.type !== "table" && p.tempConfig.d.type !== "map"}>
         <Checkbox
           label={t3({ en: "Allow auto y-axis min", fr: "Autoriser le minimum automatique de l'axe Y" })}
           checked={p.tempConfig.s.forceYMinAuto}
@@ -332,6 +333,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           }
           horizontal
         />
+      </Show>
+      <Show
+        when={
+          p.tempConfig.d.type !== "map" && (
+          p.tempConfig.d.type !== "table" ||
+          !p.tempConfig.s.specialScorecardTable)
+        }
+      >
         <RadioGroup
           label={t3({ en: "Conditional formatting", fr: "Mise en forme conditionnelle" })}
           options={getSelectOptionsWithFirstCapital([
@@ -352,14 +361,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           }
         />
       </Show>
-      <Show when={p.tempConfig.d.type !== "table"}>
+      <Show when={p.tempConfig.d.type !== "table" && p.tempConfig.d.type !== "map"}>
         <Checkbox
           label={t3({ en: "Allow individual row limits", fr: "Autoriser des limites par ligne" })}
           checked={p.tempConfig.s.allowIndividualRowLimits}
           onChange={(v) => p.setTempConfig("s", "allowIndividualRowLimits", v)}
         />
       </Show>
-      <Show when={p.tempConfig.d.type !== "table"}>
+      <Show when={p.tempConfig.d.type !== "table" && p.tempConfig.d.type !== "map"}>
         <div class="ui-spy-sm">
           <RadioGroup
             label={t3({ en: "Color scale", fr: "Échelle de couleurs" })}
@@ -443,6 +452,113 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           onChange={(v) => p.setTempConfig("s", "formatAdminArea3Labels", v)}
           label={t3({ en: "Format Nigeria Admin Area 3 labels (e.g., 'ab Abia State' → 'Abia')", fr: "Formater les libellés de zone administrative 3 du Nigeria (ex. : 'ab Abia State' → 'Abia')" })}
         />
+      </Show>
+      <Show when={p.tempConfig.d.type === "map"}>
+        <RadioGroup
+          label={t3({ en: "Map projection", fr: "Projection cartographique" })}
+          options={[
+            { value: "equirectangular", label: t3({ en: "Equirectangular", fr: "Équirectangulaire" }) },
+            { value: "mercator", label: t3({ en: "Mercator", fr: "Mercator" }) },
+            { value: "naturalEarth1", label: t3({ en: "Natural Earth", fr: "Natural Earth" }) },
+          ]}
+          value={p.tempConfig.s.mapProjection}
+          onChange={(v) =>
+            p.setTempConfig("s", "mapProjection", v as "equirectangular" | "mercator" | "naturalEarth1")
+          }
+        />
+        <div class="ui-spy-sm">
+          <RadioGroup
+            label={t3({ en: "Color preset", fr: "Préréglage de couleurs" })}
+            options={[
+              { value: "red-green", label: t3({ en: "Red → Green", fr: "Rouge → Vert" }) },
+              { value: "red", label: t3({ en: "Red", fr: "Rouge" }) },
+              { value: "blue", label: t3({ en: "Blue", fr: "Bleu" }) },
+              { value: "green", label: t3({ en: "Green", fr: "Vert" }) },
+              { value: "custom", label: t3({ en: "Custom", fr: "Personnalisé" }) },
+            ]}
+            value={p.tempConfig.s.mapColorPreset}
+            onChange={(v) =>
+              p.setTempConfig("s", "mapColorPreset", v as "red" | "blue" | "green" | "red-green" | "custom")
+            }
+          />
+          <Show when={p.tempConfig.s.mapColorPreset === "custom"}>
+            <LabelHolder label={t3({ en: "Custom colors", fr: "Couleurs personnalisées" })}>
+              <div class="flex items-center gap-3">
+                <label class="flex items-center gap-1.5 text-sm">
+                  {t3({ en: "From", fr: "De" })}
+                  <input
+                    type="color"
+                    value={p.tempConfig.s.mapColorFrom}
+                    onInput={(e) => p.setTempConfig("s", "mapColorFrom", e.currentTarget.value)}
+                    class="h-8 w-10 cursor-pointer rounded border"
+                  />
+                </label>
+                <label class="flex items-center gap-1.5 text-sm">
+                  {t3({ en: "To", fr: "À" })}
+                  <input
+                    type="color"
+                    value={p.tempConfig.s.mapColorTo}
+                    onInput={(e) => p.setTempConfig("s", "mapColorTo", e.currentTarget.value)}
+                    class="h-8 w-10 cursor-pointer rounded border"
+                  />
+                </label>
+              </div>
+            </LabelHolder>
+          </Show>
+        </div>
+        <RadioGroup
+          label={t3({ en: "Scale type", fr: "Type d'échelle" })}
+          options={[
+            { value: "continuous", label: t3({ en: "Continuous", fr: "Continue" }) },
+            { value: "discrete", label: t3({ en: "Discrete", fr: "Discrète" }) },
+          ]}
+          value={p.tempConfig.s.mapScaleType}
+          onChange={(v) => p.setTempConfig("s", "mapScaleType", v as "continuous" | "discrete")}
+          horizontal
+        />
+        <Show when={p.tempConfig.s.mapScaleType === "discrete"}>
+          <Slider
+            label={t3({ en: "Number of steps", fr: "Nombre de paliers" })}
+            min={3}
+            max={7}
+            step={1}
+            value={p.tempConfig.s.mapDiscreteSteps}
+            onChange={(v) => p.setTempConfig("s", "mapDiscreteSteps", v)}
+            fullWidth
+            showValueInLabel
+          />
+        </Show>
+        <div class="ui-spy-sm">
+          <Checkbox
+            label={t3({ en: "Fix value range", fr: "Fixer la plage de valeurs" })}
+            checked={p.tempConfig.s.mapDomainType === "fixed"}
+            onChange={(v) => p.setTempConfig("s", "mapDomainType", v ? "fixed" : "auto")}
+          />
+          <Show when={p.tempConfig.s.mapDomainType === "fixed"}>
+            <div class="flex items-center gap-3">
+              <label class="flex items-center gap-1.5 text-sm">
+                {t3({ en: "Min", fr: "Min" })}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={p.tempConfig.s.mapDomainMin}
+                  onInput={(e) => p.setTempConfig("s", "mapDomainMin", Number(e.currentTarget.value))}
+                  class="border-base-300 w-24 rounded border px-2 py-1 text-sm"
+                />
+              </label>
+              <label class="flex items-center gap-1.5 text-sm">
+                {t3({ en: "Max", fr: "Max" })}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={p.tempConfig.s.mapDomainMax}
+                  onInput={(e) => p.setTempConfig("s", "mapDomainMax", Number(e.currentTarget.value))}
+                  class="border-base-300 w-24 rounded border px-2 py-1 text-sm"
+                />
+              </label>
+            </div>
+          </Show>
+        </div>
       </Show>
     </div>
   );

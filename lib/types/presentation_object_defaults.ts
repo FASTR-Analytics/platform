@@ -33,6 +33,15 @@ export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   seriesColorFuncPropToUse: "series",
   sortIndicatorValues: "none",
   formatAdminArea3Labels: false,
+  mapColorPreset: "red-green",
+  mapColorFrom: "#fee0d2",
+  mapColorTo: "#de2d26",
+  mapProjection: "equirectangular",
+  mapScaleType: "continuous",
+  mapDiscreteSteps: 5,
+  mapDomainType: "auto",
+  mapDomainMin: 0,
+  mapDomainMax: 1,
 };
 
 export const DEFAULT_T_CONFIG: PresentationObjectConfig["t"] = {

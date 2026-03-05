@@ -391,9 +391,75 @@ export class CustomFigureStyle {
           m(c.map?.noDataColor, g.map?.noDataColor, d.map.noDataColor),
         ),
         padding: ms(sf, c.map?.padding, g.map?.padding, d.map.padding),
+        valueRange: m(c.map?.valueRange, g.map?.valueRange, d.map.valueRange),
         boundingBox: c.map?.boundingBox ?? g.map?.boundingBox,
         includeAreaIds: c.map?.includeAreaIds ?? g.map?.includeAreaIds,
         featureFilter: c.map?.featureFilter ?? g.map?.featureFilter,
+        dataLabels: {
+          mode: m(
+            c.map?.dataLabels?.mode,
+            g.map?.dataLabels?.mode,
+            d.map.dataLabels.mode,
+          ),
+          formatter: c.map?.dataLabels?.formatter ??
+            g.map?.dataLabels?.formatter,
+          nameProp: c.map?.dataLabels?.nameProp ??
+            g.map?.dataLabels?.nameProp,
+          showValue: m(
+            c.map?.dataLabels?.showValue,
+            g.map?.dataLabels?.showValue,
+            d.map.dataLabels.showValue,
+          ),
+          valueFormatter: m(
+            c.map?.dataLabels?.valueFormatter,
+            g.map?.dataLabels?.valueFormatter,
+            d.map.dataLabels.valueFormatter,
+          ),
+          centroidOffsets: c.map?.dataLabels?.centroidOffsets ??
+            g.map?.dataLabels?.centroidOffsets,
+          halo: {
+            color: getColor(
+              m(
+                c.map?.dataLabels?.halo?.color,
+                g.map?.dataLabels?.halo?.color,
+                d.map.dataLabels.halo.color,
+              ),
+            ),
+            width: ms(
+              sf,
+              c.map?.dataLabels?.halo?.width,
+              g.map?.dataLabels?.halo?.width,
+              d.map.dataLabels.halo.width,
+            ),
+          },
+          leaderLine: {
+            strokeColor: getColor(
+              m(
+                c.map?.dataLabels?.leaderLine?.strokeColor,
+                g.map?.dataLabels?.leaderLine?.strokeColor,
+                d.map.dataLabels.leaderLine.strokeColor,
+              ),
+            ),
+            strokeWidth: ms(
+              sf,
+              c.map?.dataLabels?.leaderLine?.strokeWidth,
+              g.map?.dataLabels?.leaderLine?.strokeWidth,
+              d.map.dataLabels.leaderLine.strokeWidth,
+            ),
+            gap: ms(
+              sf,
+              c.map?.dataLabels?.leaderLine?.gap,
+              g.map?.dataLabels?.leaderLine?.gap,
+              d.map.dataLabels.leaderLine.gap,
+            ),
+          },
+          calloutMargin: ms(
+            sf,
+            c.map?.dataLabels?.calloutMargin,
+            g.map?.dataLabels?.calloutMargin,
+            d.map.dataLabels.calloutMargin,
+          ),
+        },
       },
     };
   }

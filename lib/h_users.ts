@@ -11,8 +11,5 @@ export const H_USERS = [
 
 export const _FEEDBACK_EMAIL_RECIPIENTS = [
   "support@usefuldata.com.au",
-  "claire.boulange@gmail.com",
   "meghanpaul00@gmail.com",
-  "timroberton@gmail.com",
-  "asheffel@worldbank.org",
 ];

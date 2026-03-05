@@ -15,6 +15,7 @@ import {
 import { getMapDataTransformed } from "../get_map_data.ts";
 import type { MapDataTransformed, MapInputs, MeasuredMap } from "../types.ts";
 import { generateMapRegionPrimitives } from "./generate_map_region_primitives.ts";
+import { generateMapLabelPrimitives } from "./generate_map_label_primitives.ts";
 
 export function measureMap(
   rc: RenderContext,
@@ -55,6 +56,12 @@ export function measureMap(
     responsiveScale,
   );
 
+  const dlMode = mergedStyle.map.dataLabels.mode;
+  const needsCalloutMargin = dlMode === "callout" || dlMode === "auto";
+  const effectivePadding = needsCalloutMargin
+    ? mergedStyle.map.padding + mergedStyle.map.dataLabels.calloutMargin
+    : mergedStyle.map.padding;
+
   const mapPrimitives: Primitive[] = [];
   for (const prim of chartMeasured.primitives) {
     if (prim.type === "chart-grid") {
@@ -62,19 +69,40 @@ export function measureMap(
       const cellRcd = prim.plotAreaRcd;
       const valueMap =
         transformedData.valueMaps[paneIndex][tierIndex][laneIndex];
-      mapPrimitives.push(
-        ...generateMapRegionPrimitives(
+
+      const { regionPrimitives, fitted, filteredFeatures } =
+        generateMapRegionPrimitives(
           cellRcd,
           transformedData.geoFeatures,
           valueMap,
-          transformedData.valueRange,
+          mergedStyle.map.valueRange === "auto"
+            ? transformedData.valueRange
+            : mergedStyle.map.valueRange,
           transformedData.areaMatchProp,
           mergedStyle,
           paneIndex,
           tierIndex,
           laneIndex,
-        ),
-      );
+          effectivePadding,
+        );
+      mapPrimitives.push(...regionPrimitives);
+
+      if (dlMode !== "none") {
+        mapPrimitives.push(
+          ...generateMapLabelPrimitives(
+            rc,
+            cellRcd,
+            filteredFeatures,
+            valueMap,
+            transformedData.areaMatchProp,
+            mergedStyle,
+            fitted,
+            paneIndex,
+            tierIndex,
+            laneIndex,
+          ),
+        );
+      }
     }
   }
 

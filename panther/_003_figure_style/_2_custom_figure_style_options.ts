@@ -391,11 +391,33 @@ export type CustomFigureStyleOptions = {
     regionStrokeWidth?: number;
     noDataColor?: ColorKeyOrString | "none";
     padding?: number;
+    valueRange?: { min: number; max: number } | "auto";
     boundingBox?: [number, number, number, number];
     includeAreaIds?: string[];
     featureFilter?: (
       feature: { properties?: Record<string, unknown> },
     ) => boolean;
+    dataLabels?: {
+      mode?: import("./_3_merged_style_return_types.ts").MapDataLabelMode;
+      formatter?: (
+        info:
+          import("./_3_merged_style_return_types.ts").MapDataLabelFormatterInfo,
+      ) => string;
+      nameProp?: string;
+      showValue?: boolean;
+      valueFormatter?: (value: number) => string;
+      centroidOffsets?: Record<string, { dx: number; dy: number }>;
+      halo?: {
+        color?: ColorKeyOrString;
+        width?: number;
+      };
+      leaderLine?: {
+        strokeColor?: ColorKeyOrString;
+        strokeWidth?: number;
+        gap?: number;
+      };
+      calloutMargin?: number;
+    };
   };
 };
 

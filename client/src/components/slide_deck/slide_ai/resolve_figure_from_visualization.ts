@@ -1,4 +1,5 @@
 import type { AiFigureFromVisualization, FigureBlock } from "lib";
+import { stripFigureInputsForStorage } from "~/generate_visualization/mod";
 import { getPODetailFromCacheorFetch, getPOFigureInputsFromCacheOrFetch } from "~/state/po_cache";
 
 export async function resolveFigureFromVisualization(
@@ -25,7 +26,7 @@ export async function resolveFigureFromVisualization(
 
   return {
     type: "figure",
-    figureInputs: structuredClone({ ...figureInputsRes.data, style: undefined }),
+    figureInputs: structuredClone(stripFigureInputsForStorage(figureInputsRes.data)),
     source: {
       type: "from_data",
       metricId: poDetailRes.data.resultsValue.id,

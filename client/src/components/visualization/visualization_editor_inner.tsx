@@ -52,6 +52,9 @@ import {
   useOptimisticSetProjectLastUpdated,
 } from "~/components/project_runner/mod";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
+import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
+import { getGeoJsonCached } from "~/state/caches/geojson_cache";
+import type { GeoJSONFeatureCollection } from "panther";
 import { serverActions } from "~/server_actions";
 import {
   getPresentationObjectItemsFromCacheOrFetch,
@@ -114,6 +117,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     StateHolder<{
       ih: ItemsHolderPresentationObject;
       config: PresentationObjectConfig;
+      geoJson?: GeoJSONFeatureCollection;
     }>
   >({
     status: "loading",
@@ -125,14 +129,34 @@ export function VisualizationEditorInner(p: InnerProps) {
   async function attemptGetPresentationObjectItems(
     config: PresentationObjectConfig,
   ) {
+    setItemsHolder({ status: "loading" });
     try {
       const iter = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
         projectId,
         p.poDetail,
         config,
       );
+      let lastState: typeof itemsHolder extends () => infer T ? T : never = { status: "loading" };
       for await (const state of iter) {
+        lastState = state;
         setItemsHolder(state);
+      }
+      if (lastState.status === "ready") {
+        const mapLevel = getAdminAreaLevelFromMapConfig(lastState.data.config);
+        if (mapLevel) {
+          try {
+            const geoJson = await getGeoJsonCached(mapLevel);
+            setItemsHolder({
+              status: "ready",
+              data: { ...lastState.data, geoJson },
+            });
+          } catch {
+            setItemsHolder({
+              status: "error",
+              err: t3({ en: "Failed to load GeoJSON for map", fr: "Échec du chargement du GeoJSON pour la carte" }),
+            });
+          }
+        }
       }
     } catch (err) {
       console.error("attemptGetPresentationObjectItems error:", err);
@@ -718,6 +742,8 @@ export function VisualizationEditorInner(p: InnerProps) {
                                     err: t3({ en: "No rows returned from database for this filter configuration", fr: "Aucune ligne retournée de la base de données pour cette configuration de filtre" }),
                                   };
                                 }
+                                // ddddddddddddddddddddddddddddd
+                                const _type = tempConfig.d.type;
                                 // sssssssssssssssssssssssssssss
                                 for (const k in tempConfig.s) {
                                   //@ts-ignore
@@ -728,10 +754,17 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   //@ts-ignore
                                   const _v = tempConfig.t[k];
                                 }
+                                if (_type === "timeseries" && keyedItemsHolder.ih.status === "ok" && keyedItemsHolder.ih.items.length > 0) {
+                                  const periodProp = tempConfig.d.periodOpt;
+                                  if (!(periodProp in keyedItemsHolder.ih.items[0])) {
+                                    return { status: "loading", msg: t3({ en: "Re-fetching data...", fr: "Récupération des données..." }) };
+                                  }
+                                }
                                 return getFigureInputsFromPresentationObject(
                                   p.poDetail.resultsValue,
                                   keyedItemsHolder.ih,
                                   keyedItemsHolder.config,
+                                  keyedItemsHolder.geoJson,
                                 );
                               },
                             );

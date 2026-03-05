@@ -382,7 +382,8 @@ async function convertBlockToPageContentItem(
       "tableData" in fi ||
       "chartData" in fi ||
       "timeseriesData" in fi ||
-      "simpleVizData" in fi
+      "simpleVizData" in fi ||
+      "mapData" in fi
     )
   ) {
     return { spacer: true };

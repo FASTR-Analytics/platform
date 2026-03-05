@@ -57,12 +57,5 @@ function interpolateColor(
   to: ColorKeyOrString,
   t: number,
 ): string {
-  const c1 = new Color(getColor(from));
-  const c2 = new Color(getColor(to));
-  const r1 = c1.rgba();
-  const r2 = c2.rgba();
-  const r = Math.round(r1.r + (r2.r - r1.r) * t);
-  const g = Math.round(r1.g + (r2.g - r1.g) * t);
-  const b = Math.round(r1.b + (r2.b - r1.b) * t);
-  return `rgb(${r},${g},${b})`;
+  return Color.scaledPct(getColor(from), getColor(to), t);
 }

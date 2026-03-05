@@ -12,9 +12,15 @@ import type {
 import { Z_INDEX } from "../deps.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 import { getProjectionFn } from "./projections.ts";
-import { fitProjection } from "./fit_projection.ts";
+import { fitProjection, type FittedProjection } from "./fit_projection.ts";
 import { geoToPathSegments } from "./geo_to_path_segments.ts";
 import { resolveColor } from "./color_scale.ts";
+
+export type MapRegionResult = {
+  regionPrimitives: Primitive[];
+  fitted: FittedProjection;
+  filteredFeatures: GeoJSONFeature[];
+};
 
 export function generateMapRegionPrimitives(
   cellRcd: RectCoordsDims,
@@ -26,7 +32,8 @@ export function generateMapRegionPrimitives(
   paneIndex: number,
   tierIndex: number,
   laneIndex: number,
-): Primitive[] {
+  effectivePadding?: number,
+): MapRegionResult {
   const mapStyle = mergedStyle.map;
   const projectionFn = getProjectionFn(mapStyle.projection);
 
@@ -36,10 +43,10 @@ export function generateMapRegionPrimitives(
     filteredFeatures,
     projectionFn,
     cellRcd,
-    mapStyle.padding,
+    effectivePadding ?? mapStyle.padding,
   );
 
-  const primitives: Primitive[] = [];
+  const regionPrimitives: Primitive[] = [];
 
   for (const feature of filteredFeatures) {
     const featureId = getFeatureMatchKey(feature, areaMatchProp);
@@ -74,10 +81,10 @@ export function generateMapRegionPrimitives(
           : undefined,
       },
     };
-    primitives.push(prim);
+    regionPrimitives.push(prim);
   }
 
-  return primitives;
+  return { regionPrimitives, fitted, filteredFeatures };
 }
 
 function filterFeatures(

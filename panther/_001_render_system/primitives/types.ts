@@ -49,6 +49,7 @@ export const Z_INDEX = {
   CASCADE_ARROW: 550,
   // Map defaults
   MAP_REGION: 300,
+  MAP_LABEL: 750,
   // Sankey defaults
   SANKEY_LINK: 300,
   SANKEY_NODE: 400,
@@ -431,6 +432,34 @@ export type MapRegionPrimitive = BasePrimitive & {
   pathStyle: PathStyle;
 };
 
+export type MapLabelPrimitive = BasePrimitive & {
+  type: "map-label";
+  meta: {
+    featureId: string;
+    paneIndex: number;
+    tierIndex: number;
+    laneIndex: number;
+    placement: "centroid" | "callout";
+  };
+  mText: MeasuredText;
+  position: Coordinates;
+  alignment: {
+    h: "left" | "center" | "right";
+    v: "top" | "middle" | "bottom";
+  };
+  halo?: {
+    color: string;
+    width: number;
+  };
+  leaderLine?: {
+    from: Coordinates;
+    to: Coordinates;
+    strokeColor: string;
+    strokeWidth: number;
+    gap: number;
+  };
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 //    Primitive Union Type                                                    //
@@ -460,4 +489,5 @@ export type Primitive =
   // Cascade primitives
   | CascadeArrowPrimitive
   // Map primitives
-  | MapRegionPrimitive;
+  | MapRegionPrimitive
+  | MapLabelPrimitive;

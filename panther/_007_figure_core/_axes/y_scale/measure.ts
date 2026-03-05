@@ -61,20 +61,25 @@ export function measureYScaleAxisWidthInfo(
     : 2;
 
   const yAxisTickValues = Array.from({ length: tierCount }, (_, i_tier) => {
-    const finalValueMin = typeof sy.min === "function"
+    let finalValueMin = typeof sy.min === "function"
       ? sy.min(i_pane)
       : sy.min !== "auto"
       ? sy.min
       : sy.allowIndividualTierLimits
       ? (dy.paneLimits[i_pane].tierLimits[i_tier]?.valueMin ?? 0)
       : dy.paneLimits[i_pane].valueMin;
-    const finalValueMax = typeof sy.max === "function"
+    let finalValueMax = typeof sy.max === "function"
       ? sy.max(i_pane)
       : sy.max !== "auto"
       ? sy.max
       : sy.allowIndividualTierLimits
       ? (dy.paneLimits[i_pane].tierLimits[i_tier]?.valueMax ?? 1)
       : dy.paneLimits[i_pane].valueMax;
+    if (finalValueMax < finalValueMin) {
+      const temp = finalValueMin;
+      finalValueMin = finalValueMax;
+      finalValueMax = temp;
+    }
     return getGoodAxisTickValues_V2(
       finalValueMax,
       finalValueMin,

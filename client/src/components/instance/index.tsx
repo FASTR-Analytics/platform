@@ -5,12 +5,14 @@ import {
   Button,
   ButtonGroup,
   FrameTop,
+  MenuTriggerWrapper,
   PopoverMenuProvider,
   UserCircleIcon,
   getEditorWrapper,
   getFirstString,
   openComponent,
   timQuery,
+  type MenuItem,
 } from "panther";
 import { Match, Show, Switch, createSignal, onMount } from "solid-js";
 import { InstanceAssets } from "~/components/instance/instance_assets";
@@ -232,6 +234,31 @@ export default function Instance(p: Props) {
                   </div>
                 </Show>
                 <div class="ui-gap-sm flex flex-0 items-center justify-end">
+                  <MenuTriggerWrapper
+                    items={[
+                      {
+                        label: "English",
+                        onClick: () => {
+                          localStorage.setItem("fastrLanguage", "en");
+                          if (!isFrench()) return;
+                          window.location.reload();
+                        },
+                      },
+                      {
+                        label: "Français",
+                        onClick: () => {
+                          localStorage.setItem("fastrLanguage", "fr");
+                          if (isFrench()) return;
+                          window.location.reload();
+                        },
+                      },
+                    ] satisfies MenuItem[]}
+                    position="bottom-end"
+                  >
+                    <Button intent="base-100">
+                      {isFrench() ? "FR" : "EN"}
+                    </Button>
+                  </MenuTriggerWrapper>
                   <Show when={p.globalUser.approved}>
                     <Button
                       onClick={openFeedback}

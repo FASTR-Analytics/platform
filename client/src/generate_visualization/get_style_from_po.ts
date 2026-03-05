@@ -5,6 +5,7 @@ import {
   ColorKeyOrString,
   CustomFigureStyleOptions,
   FontInfo,
+  MapColorScale,
   getAdjustedColor,
   getFormatterFunc,
   toPct0,
@@ -322,6 +323,17 @@ export function getStyleFromPresentationObject(
       ),
       verticalColHeaders: config.s.allowVerticalColHeaders ? "auto" : "never",
     },
+    map: config.d.type === "map" ? {
+      projection: config.s.mapProjection ?? "equirectangular",
+      colorScale: getMapColorScale(config),
+      valueRange: config.s.mapDomainType === "fixed"
+        ? { min: config.s.mapDomainMin, max: config.s.mapDomainMax }
+        : "auto",
+      regionStrokeColor: "#666",
+      regionStrokeWidth: 0.5,
+      noDataColor: "#f0f0f0",
+      padding: 10,
+    } : undefined,
   };
 
   return style;
@@ -442,4 +454,36 @@ function getN(
           ? "nLanes"
           : "nTiers";
   return info[nProp] ?? info.nSerieses;
+}
+
+const MAP_COLOR_PRESETS: Record<string, [string, string]> = {
+  "red-green": ["#de2d26", "#31a354"],
+  "red": ["#fee0d2", "#de2d26"],
+  "blue": ["#deebf7", "#3182bd"],
+  "green": ["#e5f5e0", "#31a354"],
+};
+
+function getMapColorScale(
+  config: PresentationObjectConfig,
+): MapColorScale {
+  const preset = config.s.mapColorPreset ?? "red-green";
+  const [fromColor, toColor] = preset === "custom"
+    ? [config.s.mapColorFrom ?? "#fee0d2", config.s.mapColorTo ?? "#de2d26"]
+    : MAP_COLOR_PRESETS[preset] ?? MAP_COLOR_PRESETS["red-green"];
+
+  if (config.s.mapScaleType === "discrete") {
+    const nSteps = config.s.mapDiscreteSteps ?? 5;
+    return {
+      type: "custom" as const,
+      fn: (value: number, min: number, max: number) => {
+        if (max === min) return fromColor;
+        const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+        const stepIndex = Math.min(nSteps - 1, Math.floor(t * nSteps));
+        const stepT = nSteps === 1 ? 0.5 : stepIndex / (nSteps - 1);
+        return Color.scaledPct(fromColor, toColor, stepT);
+      },
+    };
+  }
+
+  return { type: "sequential" as const, colors: [fromColor, toColor] };
 }

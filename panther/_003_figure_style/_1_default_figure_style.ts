@@ -315,6 +315,28 @@ const _DS = {
     regionStrokeWidth: 0.5,
     noDataColor: "#f0f0f0" as ColorKeyOrString | "none",
     padding: 5,
+    valueRange: "auto" as { min: number; max: number } | "auto",
+    dataLabels: {
+      mode: "none" as
+        | "none"
+        | "centroid"
+        | "callout"
+        | "auto",
+      showValue: false,
+      valueFormatter: ((v: number) => v.toFixed(1)) as (
+        value: number,
+      ) => string,
+      halo: {
+        color: "#ffffff" as ColorKeyOrString,
+        width: 3,
+      },
+      leaderLine: {
+        strokeColor: "#666666" as ColorKeyOrString,
+        strokeWidth: 1,
+        gap: 4,
+      },
+      calloutMargin: 30,
+    },
   },
 };
 

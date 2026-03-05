@@ -14,6 +14,7 @@ import type {
   ChartLabelPrimitive,
   ChartLegendPrimitive,
   LineStyle,
+  MapLabelPrimitive,
   Primitive,
   RenderContext,
   SankeyLinkPrimitive,
@@ -207,6 +208,10 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
 
     case "map-region":
       rc.rPath(primitive.pathSegments, primitive.pathStyle);
+      break;
+
+    case "map-label":
+      renderMapLabelPrimitive(rc, primitive);
       break;
 
     default: {
@@ -544,4 +549,65 @@ function renderCascadeArrowPrimitive(
   if (primitive.label) {
     rc.rText(primitive.label.mText, primitive.label.position, "center", "top");
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Map Label Rendering                                                     //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderMapLabelPrimitive(
+  rc: RenderContext,
+  primitive: MapLabelPrimitive,
+): void {
+  if (primitive.leaderLine) {
+    const { from, to, strokeColor, strokeWidth, gap } = primitive.leaderLine;
+    const dx = to.x() - from.x();
+    const dy = to.y() - from.y();
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > gap) {
+      const ratio = gap / dist;
+      const shortenedTo = new Coordinates([
+        to.x() - dx * ratio,
+        to.y() - dy * ratio,
+      ]);
+      rc.rLine([from, shortenedTo], {
+        strokeColor,
+        strokeWidth,
+        lineDash: "solid",
+      });
+    }
+  }
+
+  if (primitive.halo && primitive.halo.width > 0) {
+    const haloW = primitive.halo.width;
+    const textW = primitive.mText.dims.w();
+    const textH = primitive.mText.dims.h();
+    const pos = primitive.position;
+
+    let x = pos.x();
+    let y = pos.y();
+    if (primitive.alignment.h === "center") x -= textW / 2;
+    else if (primitive.alignment.h === "right") x -= textW;
+    if (primitive.alignment.v === "middle") y -= textH / 2;
+    else if (primitive.alignment.v === "bottom") y -= textH;
+
+    rc.rRect(
+      new RectCoordsDims({
+        x: x - haloW,
+        y: y - haloW,
+        w: textW + haloW * 2,
+        h: textH + haloW * 2,
+      }),
+      { fillColor: primitive.halo.color },
+    );
+  }
+
+  rc.rText(
+    primitive.mText,
+    primitive.position,
+    primitive.alignment.h,
+    primitive.alignment.v,
+  );
 }
