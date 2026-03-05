@@ -1,4 +1,5 @@
 import { assetRouteRegistry } from "./instance/assets.ts";
+import { geojsonMapRouteRegistry } from "./instance/geojson_maps.ts";
 import { backupRouteRegistry } from "./instance/backups.ts";
 import { datasetRouteRegistry } from "./instance/datasets.ts";
 import { indicatorRouteRegistry } from "./instance/indicators.ts";
@@ -20,6 +21,7 @@ import { emailRouteRegistry } from "./project/emails.ts";
 // Combined route registry
 export const routeRegistry = {
   ...assetRouteRegistry,
+  ...geojsonMapRouteRegistry,
   ...backupRouteRegistry,
   ...datasetRouteRegistry,
   ...indicatorRouteRegistry,

@@ -12,6 +12,7 @@ import { IndicatorsManager } from "../indicators/indicators_manager";
 import { InstanceDatasetHfa } from "../instance_dataset_hfa";
 import { InstanceDatasetHmis } from "../instance_dataset_hmis";
 import { Structure } from "../structure";
+import { GeoJsonManager } from "../instance_geojson/geojson_manager";
 
 type Props = {
   isGlobalAdmin: boolean;
@@ -53,6 +54,13 @@ export function InstanceData(p: Props) {
           instanceDetail={p.instanceDetail}
           backToInstance={() => setSelecteDatasource(undefined)}
           isGlobalAdmin={p.isGlobalAdmin}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "geojson"}>
+        <GeoJsonManager
+          isGlobalAdmin={p.isGlobalAdmin}
+          instanceDetail={p.instanceDetail}
+          backToInstance={() => setSelecteDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource()} keyed>
@@ -189,6 +197,25 @@ export function InstanceData(p: Props) {
                               </div>
                             </div>
                           )}
+                        </Show>
+                      </div>
+                      <div
+                        class="ui-pad ui-hoverable bg-base-100 border-base-300 ui-spy-sm block rounded border"
+                        onClick={() => setSelecteDatasource("geojson")}
+                      >
+                        <div class="font-700 pb-2">{t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON" })}</div>
+                        <Show
+                          when={keyedInstanceDetail.geojsonMaps.length > 0}
+                          fallback={
+                            <div class="text-danger text-xs">
+                              {t3({ en: "No GeoJSON maps uploaded", fr: "Aucune carte GeoJSON téléchargée" })}
+                            </div>
+                          }
+                        >
+                          <div class="text-success text-xs">
+                            {t3({ en: "Levels configured", fr: "Niveaux configurés" })}:{" "}
+                            {keyedInstanceDetail.geojsonMaps.map((g) => g.adminAreaLevel).join(", ")}
+                          </div>
                         </Show>
                       </div>
                     </div>

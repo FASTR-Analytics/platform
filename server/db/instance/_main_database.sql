@@ -299,6 +299,16 @@ CREATE INDEX idx_dataset_hfa_upload_attempts_status_type ON dataset_hfa_upload_a
 CREATE INDEX idx_dataset_hfa_upload_attempts_date_started ON dataset_hfa_upload_attempts(date_started);
 
 -- ============================================================================
+-- GEOJSON MAPS
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS geojson_maps (
+  admin_area_level integer PRIMARY KEY CHECK (admin_area_level IN (2, 3, 4)),
+  geojson text NOT NULL,
+  uploaded_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ============================================================================
 -- SCHEMA MIGRATIONS
 -- ============================================================================
 

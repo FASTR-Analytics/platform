@@ -21,6 +21,7 @@ import { routesStructure } from "./server/routes/instance/structure.ts";
 import { routesUpload } from "./server/routes/instance/upload.ts";
 import { routesUsers } from "./server/routes/instance/users.ts";
 import { routesBackups } from "./server/routes/instance/backups.ts";
+import { routesGeoJsonMaps } from "./server/routes/instance/geojson_maps.ts";
 
 // Project routes
 import { routesProject } from "./server/routes/project/project.ts";
@@ -64,6 +65,7 @@ app.route("/", routesProjectSSE);
 app.route("/", routesStructure);
 app.route("/", routesBackups);
 app.route("/", routesAssets);
+app.route("/", routesGeoJsonMaps);
 app.route("/", routesUpload);
 app.route("/", routesDatasets);
 app.route("/", routesIndicators);

@@ -1,4 +1,5 @@
 import { AssetInfo } from "./assets.ts";
+import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { IndicatorType } from "./indicators.ts";
 import type { ProjectUserPermissions, UserPermissions } from "./permissions.ts";
@@ -90,6 +91,7 @@ export type InstanceDetail = {
     rawIndicators: number;
   };
   assets: AssetInfo[];
+  geojsonMaps: GeoJsonMapSummary[];
   datasetsWithData: DatasetType[];
   datasetVersions: {
     hmis?: number;

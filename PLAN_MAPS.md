@@ -8,11 +8,12 @@ Two phases: (1) GeoJSON upload, pre-processing, and storage; (2) Map presentatio
 
 ---
 
-## Phase 1: GeoJSON Upload & Storage
+## Phase 1: GeoJSON Upload & Storage [IMPLEMENTED]
 
-### 1.1 Database Migration
+### 1.1 Database
 
-**New file:** `server/db/migrations/instance/010_add_geojson_maps.sql`
+**Migration:** `server/db/migrations/instance/010_add_geojson_maps.sql`
+**Schema:** `server/db/instance/_main_database.sql`
 
 ```sql
 CREATE TABLE IF NOT EXISTS geojson_maps (
@@ -22,88 +23,59 @@ CREATE TABLE IF NOT EXISTS geojson_maps (
 );
 ```
 
-**Update:** `server/db/instance/_main_database.sql` — add the same `CREATE TABLE geojson_maps` block to the base schema (so fresh instances get the table without running migrations).
+Level 1 excluded — always "national" (single area), pointless to map.
 
-Level 1 is excluded because it is always "national" (a single area) — mapping a single region is pointless.
-
-The `geojson` column stores the **pre-processed** GeoJSON (with admin area names as feature IDs), stringified as text. The original uploaded file is never persisted — it's only used during the mapping step.
+The `geojson` column stores **pre-processed** GeoJSON as stringified text. All original properties are stripped — only `area_id` (mapped admin area name) and geometry are kept. The original uploaded file stays in assets as a reference.
 
 ### 1.2 Types
 
-**New file:** `lib/types/geojson_maps.ts`
-
-- `GeoJsonMapSummary` — `{ admin_area_level: number; uploadedAt: string }` (used in InstanceDetail and route responses)
-
-Transient request/response shapes (upload analysis results, area mappings) are defined inline in the route registry, following the existing pattern (see `structureRouteRegistry`, `assetRouteRegistry`).
-
-**Update:** `lib/types/instance.ts` — add `geojsonMaps: GeoJsonMapSummary[]` to `InstanceDetail`
+- `lib/types/geojson_maps.ts` — `GeoJsonMapSummary` type
+- `lib/types/instance.ts` — `geojsonMaps: GeoJsonMapSummary[]` added to `InstanceDetail`
 
 ### 1.3 API Routes
 
-**New file:** `lib/api-routes/instance/geojson_maps.ts`
+`lib/api-routes/instance/geojson_maps.ts` + `lib/api-routes/combined.ts`
 
 | Route | Method | Purpose |
 |-------|--------|---------|
 | `getGeoJsonMaps` | GET | List which levels have GeoJSON (summary only) |
-| `analyzeGeoJsonUpload` | POST | Upload raw GeoJSON as JSON body, return property names + sample values for mapping UI |
-| `saveGeoJsonMap` | POST | Accept mapping + raw GeoJSON + level → pre-process and store |
-| `deleteGeoJsonMap` | DELETE | Remove a level's GeoJSON |
-| `getGeoJsonForLevel` | GET | Serve the processed GeoJSON text for a given level (used by client rendering) |
+| `analyzeGeoJsonUpload` | POST | Accept `assetFileName`, read from disk, return property names + values |
+| `saveGeoJsonMap` | POST | Accept `assetFileName` + level + mapping → pre-process and store in DB |
+| `deleteGeoJsonMap` | POST | Remove a level's GeoJSON |
+| `getAdminAreaNamesForLevel` | GET | Return admin area names for a level (used by mapping UI) |
+| `getGeoJsonForLevel` | GET | Serve the processed GeoJSON text (used by client rendering) |
 
-`analyzeGeoJsonUpload` and `saveGeoJsonMap` use direct JSON body POST (not TUS). GeoJSON for country boundaries is typically 1-30MB — well within normal POST limits. TUS is overkill for this use case (no resumability needed, file is parsed immediately).
+File upload uses **Uppy/TUS** to assets (same pattern as indicator batch upload). Server reads from disk via `assetFileName` — no raw GeoJSON in POST body.
 
-**Update:** `lib/api-routes/combined.ts` — import and spread `geojsonMapRouteRegistry` into the combined `routeRegistry`.
+### 1.4 GeoJSON Pre-processing
 
-**New file:** `server/routes/instance/geojson_maps.ts`
+`server/geojson/process_geojson.ts`
 
-Follows existing pattern: `defineRoute()` with `requireGlobalPermission("can_configure_data")` for mutations, `requireGlobalPermission()` (no args = any authenticated global user) for reads.
+- `analyzeGeoJson(rawStr)` — parse, extract property names + unique values per property
+- `processGeoJson(rawStr, areaMatchProp, areaMapping)` — produces new GeoJSON with only `area_id` property (mapped admin area name) + geometry. All other properties stripped. Unmapped features excluded.
 
-**Update:** `main.ts` — import `routesGeoJsonMaps` and add `app.route("/", routesGeoJsonMaps)` alongside existing instance routes.
+The `area_id` property is a **fixed constant** — not level-dependent. In Phase 2, `areaMatchProp` will always be `"area_id"`.
 
-### 1.4 DB Functions
+### 1.5 Client Components
 
-**New file:** `server/db/instance/geojson_maps.ts`
+`client/src/components/instance_geojson/` (sibling to `instance_dataset_hfa/`, `indicators/`, etc.)
 
-- `getGeoJsonMapSummaries(mainDb)` → `GeoJsonMapSummary[]`
-- `getGeoJsonForLevel(mainDb, level)` → `string | null`
-- `saveGeoJsonMap(mainDb, level, processedGeoJson)` → upsert
-- `deleteGeoJsonMap(mainDb, level)` → delete
+- `geojson_manager.tsx` — table of uploaded levels, upload/delete actions
+- `geojson_upload_wizard.tsx` — 4-step editor modal:
+  1. **Select file** — Uppy upload button + dropdown of existing `.geojson`/`.json` assets
+  2. **Configure** — pick admin area level + GeoJSON property to match on, with preview of values
+  3. **Map features** — GeoJSON values (left, monospace) with admin area name dropdown (right). Auto-matched by case-insensitive name comparison. User manually overrides mismatches.
+  4. **Confirm and save** — summary + save button
 
-### 1.5 GeoJSON Pre-processing Logic
+Entry from `instance_data.tsx` via Switch/Match pattern.
 
-**New file:** `server/geojson/process_geojson.ts`
+### 1.6 Client-side GeoJSON Caching
 
-Core function: takes raw GeoJSON + `areaMatchProp` (which property to read from features) + area mapping (`Record<string, string>`, mapping admin area names → feature property values) → produces a new GeoJSON where each feature's match property is replaced with the admin area name.
+`client/src/state/caches/geojson_cache.ts`
 
-This means at render time, `areaProp` and `areaMatchProp` are both the admin area column name (e.g. `"admin_area_2"`), and the GeoJSON features have that value directly. No mapping lookups at render time.
-
-Also: `analyzeGeoJson(rawGeoJson)` — parse, extract unique property names, sample values per property (for the mapping UI).
-
-### 1.6 Client Components
-
-**New directory:** `client/src/components/instance/instance_geojson/`
-
-Entry from `instance_data.tsx` via the same Switch/Match pattern used for indicators/structure.
-
-- `geojson_manager.tsx` — main component showing which levels have GeoJSON uploaded, with upload/delete actions
-- `geojson_upload_wizard.tsx` — multi-step flow:
-  1. File upload (accepts .geojson/.json)
-  2. Select admin area level (2, 3, or 4)
-  3. Select which GeoJSON property to match on (dropdown from `analyzeGeoJsonUpload` response)
-  4. Mapping table: admin area names (from DB) ↔ GeoJSON feature values (auto-matched by string similarity, with manual override dropdowns)
-  5. Confirm and save
-
-### 1.7 Client-side GeoJSON Caching
-
-GeoJSON is instance-level, rarely changes, and potentially large. Cache strategy:
-
-- Store in **IndexedDB** via `idb-keyval` (same as existing reactive cache)
-- Cache key: `geojson:{level}:{uploadedAt}`
-- The `uploadedAt` timestamp from `InstanceDetail.geojsonMaps` acts as the version — if it changes, the cached entry is stale and the old key is orphaned (cleaned up on next access or via periodic cleanup)
-- On first map render needing level X: check IndexedDB → if stale/missing, fetch from `getGeoJsonForLevel` → store → use
-- Simple helper: `getGeoJsonCached(level: number, uploadedAt: string): Promise<GeoJSONFeatureCollection>`
-
-This is NOT the reactive cache system (that's for project-level PDS-versioned data). This is a simpler instance-level cache.
+- IndexedDB via `idb-keyval`, key: `geojson:{level}`
+- Version tracked by `uploadedAt` timestamp from `InstanceDetail.geojsonMaps`
+- Helper: `getGeoJsonCached(level, uploadedAt)` — check cache → fetch if stale → store → return parsed object
 
 ---
 
@@ -151,18 +123,23 @@ Signature change: add optional `geoJson?: GeoJSONFeatureCollection` parameter. F
 1. `client/src/state/po_cache.ts` — main cache pipeline, fetches GeoJSON from IndexedDB cache before calling
 2. `client/src/components/visualization/visualization_editor_inner.tsx` — live preview in editor
 3. `client/src/components/project/preset_preview.tsx` — preset picker preview
-4. `client/src/components/slide_deck/slide_editor/index.tsx` — slide figure rendering
+4. `client/src/components/slide_deck/slide_editor/index.tsx` — slide figure rendering (2 call sites)
 5. `client/src/components/slide_deck/slide_ai/resolve_figure_from_metric.ts` — AI slide generation
 
 For callers 2-5, when `config.d.type === "map"`, they need to await the GeoJSON cache helper before calling `getFigureInputsFromPresentationObject`. For non-map types, no change in behavior.
+
+**Slides storage:** GeoJSON must NOT be stored in slide `FigureInputs` (same reason styles are stripped — too large, static data). The pattern follows existing `style: undefined` stripping:
+- When storing map `FigureInputs` to slides: set `mapData.geoData` to `undefined` (alongside existing `style: undefined`)
+- At render time in `convert_slide_to_page_inputs.ts`: inject `geoData` from the IndexedDB cache before passing to panther
+- Add `"mapData" in fi` to the valid FigureInputs check in `convert_slide_to_page_inputs.ts` (currently only checks for tableData/chartData/timeseriesData/simpleVizData)
 
 Note: No changes needed to panther. `FigureInputs` already includes `MapInputs` in its union type, and `FigureRenderer` already dispatches to `MapRenderer` via `.isType()` checks.
 
 **New file:** `client/src/generate_visualization/get_data_config_for_map.ts`
 
 - `getMapJsonDataConfigFromPresentationObjectConfig()` — builds panther's `MapJsonDataConfig`:
-  - `areaProp`: the disaggregation with `disDisplayOpt: "mapArea"` (e.g., `"admin_area_2"`)
-  - `areaMatchProp`: same value (since GeoJSON is pre-processed)
+  - `areaProp`: the admin area column from the disaggregation with `disDisplayOpt: "mapArea"` (e.g., `"admin_area_2"`)
+  - `areaMatchProp`: always `"area_id"` (fixed constant — the processed GeoJSON property name)
   - `valueProp`: from resultsValue.valueProps
   - `paneProp`/`tierProp`/`laneProp`: from other disaggregation display options (same pattern as chart/timeseries)
 
@@ -208,7 +185,7 @@ A map vizPreset example:
 }
 ```
 
-The rendering pipeline sees `type: "map"` and inspects `disaggregateBy` for a `disDisplayOpt: "mapArea"` entry → that determines which level's GeoJSON to load and which column is the `areaProp`. Other disaggregations become `paneProp`/`tierProp`/`laneProp` for multi-panel map layouts.
+The rendering pipeline sees `type: "map"` and inspects `disaggregateBy` for a `disDisplayOpt: "mapArea"` entry → that determines which level's GeoJSON to load and which column is the `areaProp`. The GeoJSON features are matched via `areaMatchProp: "area_id"` (constant). Other disaggregations become `paneProp`/`tierProp`/`laneProp` for multi-panel map layouts.
 
 No new fields needed in `d` — the admin area level is derived from whichever `admin_area_X` disaggregation has `disDisplayOpt: "mapArea"`.
 
@@ -246,11 +223,11 @@ Add vizPresets with `type: "map"` to modules that produce admin-area-level data 
 
 ## Implementation Order
 
-1. Phase 1 first (standalone, doesn't break anything)
-   - 1.1 Migration + schema + types
-   - 1.2 Server (DB functions, routes, processing logic, combined.ts registration)
-   - 1.3 Client (manager component, upload wizard)
-   - 1.4 Caching helper
+1. Phase 1 [DONE]
+   - Migration + schema + types
+   - Server (DB functions, routes, processing logic, combined.ts, main.ts)
+   - Client (manager component, upload wizard with Uppy + mapping UI)
+   - Caching helper
 
 2. Phase 2 (depends on Phase 1)
    - 2.1 Type changes (PresentationOption, DisaggregationDisplayOption, VIZ_TYPE_CONFIG, config.s fields, translation keys)
@@ -259,24 +236,27 @@ Add vizPresets with `type: "map"` to modules that produce admin-area-level data 
    - 2.4 UI updates (add_visualization, preset_preview, editor)
    - 2.5 Module vizPresets
 
-## Key Files to Modify
+## Key Files
 
-**Phase 1:**
+**Phase 1 (implemented):**
 
-- `server/db/migrations/instance/010_add_geojson_maps.sql` (new)
-- `server/db/instance/_main_database.sql` (add table)
-- `server/db/instance/geojson_maps.ts` (new)
-- `server/routes/instance/geojson_maps.ts` (new)
-- `server/geojson/process_geojson.ts` (new)
-- `lib/api-routes/instance/geojson_maps.ts` (new)
-- `lib/api-routes/combined.ts` (add geojsonMapRouteRegistry)
-- `main.ts` (import and mount routesGeoJsonMaps)
-- `lib/types/geojson_maps.ts` (new)
-- `lib/types/instance.ts` (add geojsonMaps to InstanceDetail)
-- `server/db/instance/instance.ts` (update getInstanceDetail to include geojson summaries)
-- `client/src/components/instance/instance_geojson/` (new directory)
-- `client/src/components/instance/instance_data.tsx` (add routing)
-- `client/src/state/caches/geojson_cache.ts` (new)
+- `server/db/migrations/instance/010_add_geojson_maps.sql`
+- `server/db/instance/_main_database.sql`
+- `server/db/instance/geojson_maps.ts`
+- `server/db/instance/mod.ts`
+- `server/db/instance/instance.ts`
+- `server/routes/instance/geojson_maps.ts`
+- `server/geojson/process_geojson.ts`
+- `lib/api-routes/instance/geojson_maps.ts`
+- `lib/api-routes/combined.ts`
+- `lib/types/geojson_maps.ts`
+- `lib/types/instance.ts`
+- `lib/types/mod.ts`
+- `main.ts`
+- `client/src/components/instance_geojson/geojson_manager.tsx`
+- `client/src/components/instance_geojson/geojson_upload_wizard.tsx`
+- `client/src/components/instance/instance_data.tsx`
+- `client/src/state/caches/geojson_cache.ts`
 
 **Phase 2:**
 
@@ -299,6 +279,6 @@ Add vizPresets with `type: "map"` to modules that produce admin-area-level data 
 
 ## Verification
 
-- Phase 1: Upload a GeoJSON file for a test country, verify mapping UI works, confirm processed GeoJSON stored in DB, verify client cache fetches correctly
+- Phase 1: Upload a GeoJSON file for a test country, verify mapping UI works, confirm processed GeoJSON stored in DB with only `area_id` + geometry, verify client cache fetches correctly
 - Phase 2: Create a map presentation object from a vizPreset, verify it renders via panther's MapRenderer, test with filtered admin areas, test multi-panel maps
 - Typecheck: `deno task typecheck` passes after each phase

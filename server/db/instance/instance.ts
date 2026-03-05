@@ -21,6 +21,7 @@ import {
   type DBProjectUserRole,
 } from "./_main_database_types.ts";
 import { getAssetsForInstance } from "./assets.ts";
+import { getGeoJsonMapSummaries } from "./geojson_maps.ts";
 import {
   getMaxAdminAreaConfig,
   getFacilityColumnsConfig,
@@ -253,6 +254,7 @@ ORDER BY LOWER(label)`
         rawIndicators: rawIndicatorsCount,
       },
       assets: resAssets.data,
+      geojsonMaps: await getGeoJsonMapSummaries(mainDb),
       datasetsWithData,
       datasetVersions: {
         hmis: hmisVersion,
