@@ -7,7 +7,6 @@ import type {
 } from "lib";
 import {
   FIGURE_AUTOFIT,
-  getMetricStaticData,
   getPrimaryColor,
   getTextColorForBackground,
   MARKDOWN_AUTOFIT,
@@ -25,7 +24,7 @@ import type {
   FontInfo,
   ImageInputs,
 } from "panther";
-import { getStyleFromPresentationObject } from "~/generate_visualization/get_style_from_po";
+import { hydrateFigureInputsForRendering } from "~/generate_visualization/mod";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
 import { getOverlayImage } from "./get_overlay_image";
 import { _SERVER_HOST } from "~/server_actions/config";
@@ -404,18 +403,10 @@ async function convertBlockToPageContentItem(
   }
   // --- END LEGACY MIGRATION ---
 
-  if (block.source?.type === "from_data") {
-    try {
-      const { formatAs } = getMetricStaticData(block.source.metricId);
-      const style = getStyleFromPresentationObject(
-        block.source.config,
-        formatAs,
-      );
-      return { ...fi, autofit: FIGURE_AUTOFIT, style } as PageContentItem;
-    } catch {
-      return { ...fi, autofit: FIGURE_AUTOFIT } as PageContentItem;
-    }
-  }
+  const source = block.source?.type === "from_data"
+    ? { config: block.source.config, metricId: block.source.metricId }
+    : undefined;
+  fi = await hydrateFigureInputsForRendering(fi, source);
 
   return { ...fi, autofit: FIGURE_AUTOFIT } as PageContentItem;
 }
