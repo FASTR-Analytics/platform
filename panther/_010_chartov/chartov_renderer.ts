@@ -18,7 +18,7 @@ import type { ChartOVInputs, MeasuredChartOV } from "./types.ts";
 
 export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
   isType(item: unknown): item is ChartOVInputs {
-    return (item as ChartOVInputs).chartData !== undefined;
+    return typeof item === "object" && item !== null && "chartData" in item;
   },
 
   measure(

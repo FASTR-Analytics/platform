@@ -21,7 +21,8 @@ export const SimpleVizRenderer: Renderer<
   MeasuredSimpleViz
 > = {
   isType(item: unknown): item is SimpleVizInputs {
-    return (item as SimpleVizInputs).simpleVizData !== undefined;
+    return typeof item === "object" && item !== null &&
+      "simpleVizData" in item;
   },
 
   measure(

@@ -72,7 +72,6 @@ export function generatePaneContentPrimitives<TData>(
         w: measured.subChartAreaWidth,
         h: measured.subChartAreaHeight,
       });
-      const seriesVals = chartData.values[i_pane][i_tier][i_lane];
 
       // Grid lines
       const horizontalGridLines = calculateYAxisGridLines(
@@ -134,6 +133,8 @@ export function generatePaneContentPrimitives<TData>(
             throw new Error(
               "Y-text axis primitive generation not implemented yet",
             );
+          case "none":
+            break;
         }
       }
 
@@ -175,42 +176,47 @@ export function generatePaneContentPrimitives<TData>(
             generatedXAxes.add(xAxisKey);
             break;
           }
+          case "none":
+            break;
         }
       }
 
-      // Content primitives
-      const valueRange = getScaleAxisValueRange(
-        measured.yAxisWidthInfo,
-        i_tier,
-      );
-      allPrimitives.push(
-        ...generateContentPrimitives({
-          rc,
-          subChartRcd: rcd,
-          subChartInfo: {
-            nSerieses: config.dataProps.seriesHeaders.length,
-            seriesValArrays: seriesVals,
-            i_pane,
-            nPanes: config.dataProps.paneHeaders.length,
-            i_tier,
-            nTiers: tierHeaders.length,
-            i_lane,
-            nLanes: laneHeaders.length,
-          },
-          seriesVals,
-          valueRange,
-          isCentered: xAxisRenderConfig.isCentered,
-          incrementWidth: xAxisRenderConfig.incrementWidth,
-          gridStrokeWidth: baseStyle.grid.gridStrokeWidth,
-          nVals: xAxisRenderConfig.nVals,
-          orientation: config.orientation,
-          transformedData: { seriesHeaders: config.dataProps.seriesHeaders },
-          contentStyle: baseStyle.content,
-          dataLabelsTextStyle: baseStyle.text.dataLabels,
-          boundsUbSeriesVals: chartData.bounds?.ub[i_pane][i_tier][i_lane],
-          boundsLbSeriesVals: chartData.bounds?.lb[i_pane][i_tier][i_lane],
-        }),
-      );
+      // Content primitives (skipped for "none" axes — maps generate their own primitives)
+      if (xAxisConfig.type !== "none" && yAxisConfig.type !== "none") {
+        const seriesVals = chartData.values[i_pane][i_tier][i_lane];
+        const valueRange = getScaleAxisValueRange(
+          measured.yAxisWidthInfo,
+          i_tier,
+        );
+        allPrimitives.push(
+          ...generateContentPrimitives({
+            rc,
+            subChartRcd: rcd,
+            subChartInfo: {
+              nSerieses: config.dataProps.seriesHeaders.length,
+              seriesValArrays: seriesVals,
+              i_pane,
+              nPanes: config.dataProps.paneHeaders.length,
+              i_tier,
+              nTiers: tierHeaders.length,
+              i_lane,
+              nLanes: laneHeaders.length,
+            },
+            seriesVals,
+            valueRange,
+            isCentered: xAxisRenderConfig.isCentered,
+            incrementWidth: xAxisRenderConfig.incrementWidth,
+            gridStrokeWidth: baseStyle.grid.gridStrokeWidth,
+            nVals: xAxisRenderConfig.nVals,
+            orientation: config.orientation,
+            transformedData: { seriesHeaders: config.dataProps.seriesHeaders },
+            contentStyle: baseStyle.content,
+            dataLabelsTextStyle: baseStyle.text.dataLabels,
+            boundsUbSeriesVals: chartData.bounds?.ub[i_pane][i_tier][i_lane],
+            boundsLbSeriesVals: chartData.bounds?.lb[i_pane][i_tier][i_lane],
+          }),
+        );
+      }
 
       currentPlotAreaX += measured.subChartAreaWidth + baseStyle.lanes.gapX;
     }

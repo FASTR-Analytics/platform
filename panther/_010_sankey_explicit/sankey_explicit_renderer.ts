@@ -12,6 +12,7 @@ import {
   RectCoordsDims,
   type RenderContext,
   type Renderer,
+  renderFigureBackground,
   renderFigurePrimitives,
 } from "./deps.ts";
 import {
@@ -169,6 +170,7 @@ function measure(
 }
 
 function render(rc: RenderContext, measured: MeasuredSankeyExplicit): void {
+  renderFigureBackground(rc, measured.measuredSurrounds);
   renderFigurePrimitives(rc, measured.primitives);
 }
 
@@ -208,8 +210,9 @@ function getIdealHeight(
 }
 
 function isType(item: unknown): item is SankeyExplicitInputs {
-  return Array.isArray((item as SankeyExplicitInputs).nodes) &&
-    Array.isArray((item as SankeyExplicitInputs).links);
+  return typeof item === "object" && item !== null && "nodes" in item &&
+    "links" in item && Array.isArray(item.nodes) &&
+    Array.isArray(item.links);
 }
 
 export const SankeyExplicitRenderer: Renderer<

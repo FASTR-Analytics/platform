@@ -167,13 +167,15 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
         keyed
       >
         {(keyedData) => (
-          <ErrorBoundary fallback={(err) => (
-            <div class="data-[no-pad=false]:ui-pad" data-no-pad={!!p.noPad}>
-              <div class="text-danger">
-                Error: {err instanceof Error ? err.message : String(err)}
+          <ErrorBoundary
+            fallback={(err) => (
+              <div class="data-[no-pad=false]:ui-pad" data-no-pad={!!p.noPad}>
+                <div class="text-danger">
+                  Error: {err instanceof Error ? err.message : String(err)}
+                </div>
               </div>
-            </div>
-          )}>
+            )}
+          >
             {p.children(keyedData)}
           </ErrorBoundary>
         )}

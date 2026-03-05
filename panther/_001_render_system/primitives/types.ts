@@ -47,6 +47,8 @@ export const Z_INDEX = {
   SIMPLEVIZ_BOX: 500,
   // Cascade defaults
   CASCADE_ARROW: 550,
+  // Map defaults
+  MAP_REGION: 300,
   // Sankey defaults
   SANKEY_LINK: 300,
   SANKEY_NODE: 400,
@@ -412,6 +414,25 @@ export type CascadeArrowPrimitive = BasePrimitive & {
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+//    Map Primitives                                                          //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type MapRegionPrimitive = BasePrimitive & {
+  type: "map-region";
+  meta: {
+    featureId: string;
+    paneIndex: number;
+    tierIndex: number;
+    laneIndex: number;
+    value?: number;
+  };
+  pathSegments: PathSegment[];
+  pathStyle: PathStyle;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
 //    Primitive Union Type                                                    //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -437,4 +458,6 @@ export type Primitive =
   | SankeyNodePrimitive
   | SankeyLinkPrimitive
   // Cascade primitives
-  | CascadeArrowPrimitive;
+  | CascadeArrowPrimitive
+  // Map primitives
+  | MapRegionPrimitive;

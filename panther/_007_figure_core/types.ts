@@ -48,7 +48,11 @@ export type YScaleAxisWidthInfo = YAxisWidthInfoBase & {
   guessMaxNTicks: number;
 };
 
-export type YAxisWidthInfo = YScaleAxisWidthInfo | YTextAxisWidthInfo;
+export type YNoneAxisWidthInfo = YAxisWidthInfoBase;
+export type YAxisWidthInfo =
+  | YScaleAxisWidthInfo
+  | YTextAxisWidthInfo
+  | YNoneAxisWidthInfo;
 
 export type ValueRange = { minVal: number; maxVal: number };
 

@@ -43,6 +43,8 @@ export function calculateXAxisGridLines(
       );
     case "scale":
       throw new Error("X-scale grid lines not implemented yet");
+    case "none":
+      return [];
   }
 }
 
@@ -63,5 +65,7 @@ export function calculateYAxisGridLines(
       );
     case "text":
       throw new Error("Y-text grid lines not implemented yet");
+    case "none":
+      return [];
   }
 }

@@ -37,5 +37,7 @@ export function getXAxisRenderConfig(
     }
     case "scale":
       throw new Error("X-scale axis not implemented yet");
+    case "none":
+      return { incrementWidth: 0, isCentered: false, nVals: 0 };
   }
 }

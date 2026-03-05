@@ -131,6 +131,36 @@ export type MergedChartStyleBase = {
   };
 };
 
+export type MergedMapStyle = MergedChartStyleBase & {
+  map: {
+    projection: "equirectangular" | "mercator" | "naturalEarth1";
+    colorScale: MapColorScale;
+    regionStrokeColor: string;
+    regionStrokeWidth: number;
+    noDataColor: string;
+    padding: number;
+    boundingBox?: [number, number, number, number];
+    includeAreaIds?: string[];
+    featureFilter?: (
+      feature: { properties?: Record<string, unknown> },
+    ) => boolean;
+  };
+};
+
+export type MapColorScale =
+  | { type: "sequential"; colors: [ColorKeyOrString, ColorKeyOrString] }
+  | {
+    type: "diverging";
+    colors: [ColorKeyOrString, ColorKeyOrString, ColorKeyOrString];
+    midpoint?: number;
+  }
+  | { type: "threshold"; thresholds: number[]; colors: ColorKeyOrString[] }
+  | { type: "quantile"; nQuantiles: number; colors: ColorKeyOrString[] }
+  | {
+    type: "custom";
+    fn: (value: number, min: number, max: number) => ColorKeyOrString;
+  };
+
 export type MergedChartOVStyle = MergedChartStyleBase & {
   yScaleAxis: MergedYScaleAxisStyle;
   xTextAxis: MergedXTextAxisStyle;

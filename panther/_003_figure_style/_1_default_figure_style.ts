@@ -302,6 +302,20 @@ const _DS = {
     defaultLinkColor: { key: "base300" } as ColorKeyOrString,
     layoutMode: "flow" as "flow" | "tiered",
   },
+  map: {
+    projection: "equirectangular" as
+      | "equirectangular"
+      | "mercator"
+      | "naturalEarth1",
+    colorScale: {
+      type: "sequential",
+      colors: ["#f7fbff", "#08306b"],
+    } as import("./_3_merged_style_return_types.ts").MapColorScale,
+    regionStrokeColor: "#999999" as ColorKeyOrString | "none",
+    regionStrokeWidth: 0.5,
+    noDataColor: "#f0f0f0" as ColorKeyOrString | "none",
+    padding: 5,
+  },
 };
 
 export type DefaultFigureStyle = typeof _DS;

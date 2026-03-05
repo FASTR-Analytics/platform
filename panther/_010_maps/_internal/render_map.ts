@@ -3,14 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { renderFigureBackground, renderFigurePrimitives } from "../deps.ts";
-import type { RenderContext } from "../deps.ts";
-import type { MeasuredSimpleViz } from "../types.ts";
+import {
+  type RenderContext,
+  renderFigureBackground,
+  renderFigurePrimitives,
+} from "../deps.ts";
+import type { MeasuredMap } from "../types.ts";
 
-export function renderSimpleViz(
-  rc: RenderContext,
-  measured: MeasuredSimpleViz,
-): void {
+export function renderMap(rc: RenderContext, measured: MeasuredMap): void {
   renderFigureBackground(rc, measured.measuredSurrounds);
   renderFigurePrimitives(rc, measured.primitives);
 }

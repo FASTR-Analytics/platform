@@ -18,6 +18,7 @@ import type {
   MergedContentStyle,
   MergedGridStyle,
   MergedLegendStyle,
+  MergedMapStyle,
   MergedPaneStyle,
   MergedSankeyStyle,
   MergedSimpleVizStyle,
@@ -360,6 +361,40 @@ export class CustomFigureStyle {
       ...this.getMergedChartStyleBase(),
       yScaleAxis: this.getMergedYScaleAxisStyle(),
       xPeriodAxis: this.getMergedXPeriodAxisStyle(),
+    };
+  }
+
+  getMergedMapStyle(): MergedMapStyle {
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const sf = this._sf;
+    return {
+      ...this.getMergedChartStyleBase(),
+      map: {
+        projection: c.map?.projection ?? g.map?.projection ?? d.map.projection,
+        colorScale: c.map?.colorScale ?? g.map?.colorScale ?? d.map.colorScale,
+        regionStrokeColor: getColor(
+          m(
+            c.map?.regionStrokeColor,
+            g.map?.regionStrokeColor,
+            d.map.regionStrokeColor,
+          ),
+        ),
+        regionStrokeWidth: ms(
+          sf,
+          c.map?.regionStrokeWidth,
+          g.map?.regionStrokeWidth,
+          d.map.regionStrokeWidth,
+        ),
+        noDataColor: getColor(
+          m(c.map?.noDataColor, g.map?.noDataColor, d.map.noDataColor),
+        ),
+        padding: ms(sf, c.map?.padding, g.map?.padding, d.map.padding),
+        boundingBox: c.map?.boundingBox ?? g.map?.boundingBox,
+        includeAreaIds: c.map?.includeAreaIds ?? g.map?.includeAreaIds,
+        featureFilter: c.map?.featureFilter ?? g.map?.featureFilter,
+      },
     };
   }
 

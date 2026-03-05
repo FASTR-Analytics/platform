@@ -713,7 +713,10 @@ export class PdfRenderContext implements RenderContext {
 
     this._jsPdf.path(arr);
 
-    if (style.fill && style.stroke) {
+    const hasFill = style.fill && getColor(style.fill.color) !== "none";
+    const hasStroke = style.stroke && getColor(style.stroke.color) !== "none";
+
+    if (hasFill && style.fill) {
       const fillColor = getColor(style.fill.color);
       if (fillColor.at(0) === "#") {
         //@ts-ignore
@@ -731,37 +734,9 @@ export class PdfRenderContext implements RenderContext {
         this._jsPdf.setGState(newGState);
         this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
       }
+    }
 
-      const strokeColor = getColor(style.stroke.color);
-      if (strokeColor.at(0) === "#") {
-        this._jsPdf.setDrawColor(strokeColor);
-      } else {
-        const rgba = new Color(strokeColor).rgba();
-        this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
-      }
-      this._jsPdf.setLineWidth(style.stroke.width);
-
-      this._jsPdf.fillStroke();
-    } else if (style.fill) {
-      const fillColor = getColor(style.fill.color);
-      if (fillColor.at(0) === "#") {
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({
-          opacity: style.fill.opacity ?? 1,
-        });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setFillColor(fillColor);
-      } else {
-        const rgba = new Color(fillColor).rgba();
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({
-          opacity: (style.fill.opacity ?? 1) * rgba.a,
-        });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
-      }
-      this._jsPdf.fill();
-    } else if (style.stroke) {
+    if (hasStroke && style.stroke) {
       const strokeColor = getColor(style.stroke.color);
       if (strokeColor.at(0) === "#") {
         //@ts-ignore
@@ -780,6 +755,23 @@ export class PdfRenderContext implements RenderContext {
         this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
       }
       this._jsPdf.setLineWidth(style.stroke.width);
+    }
+
+    if (hasFill && hasStroke) {
+      if (style.fill!.fillRule === "evenodd") {
+        //@ts-ignore — jsPDF types don't expose evenodd but PDF spec supports B* operator
+        this._jsPdf.fillStroke("B*");
+      } else {
+        this._jsPdf.fillStroke();
+      }
+    } else if (hasFill) {
+      if (style.fill!.fillRule === "evenodd") {
+        //@ts-ignore — jsPDF types don't expose evenodd but PDF spec supports f* operator
+        this._jsPdf.fill("f*");
+      } else {
+        this._jsPdf.fill();
+      }
+    } else if (hasStroke) {
       this._jsPdf.stroke();
     }
   }

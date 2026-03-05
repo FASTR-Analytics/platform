@@ -20,12 +20,24 @@ import type {
   SankeyNodePrimitive,
 } from "./deps.ts";
 import { Coordinates, RectCoordsDims, resolvePosition } from "./deps.ts";
+import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 //    Main Rendering Functions                                                //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
+
+export function renderFigureBackground(
+  rc: RenderContext,
+  measuredSurrounds: MeasuredSurrounds,
+): void {
+  if (measuredSurrounds.s.backgroundColor !== "none") {
+    rc.rRect(measuredSurrounds.outerRcd, {
+      fillColor: measuredSurrounds.s.backgroundColor,
+    });
+  }
+}
 
 export function renderFigurePrimitives(
   rc: RenderContext,
@@ -191,6 +203,10 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
 
     case "cascade-arrow":
       renderCascadeArrowPrimitive(rc, primitive);
+      break;
+
+    case "map-region":
+      rc.rPath(primitive.pathSegments, primitive.pathStyle);
       break;
 
     default: {

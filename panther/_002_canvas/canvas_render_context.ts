@@ -205,16 +205,22 @@ export class CanvasRenderContext implements RenderContext {
     }
 
     if (style.fill) {
-      ctx.globalAlpha = style.fill.opacity ?? 1;
-      ctx.fillStyle = getColor(style.fill.color);
-      ctx.fill();
+      const fillStr = getColor(style.fill.color);
+      if (fillStr !== "none") {
+        ctx.globalAlpha = style.fill.opacity ?? 1;
+        ctx.fillStyle = fillStr;
+        ctx.fill(style.fill.fillRule ?? "nonzero");
+      }
     }
 
     if (style.stroke) {
-      ctx.globalAlpha = style.stroke.opacity ?? 1;
-      ctx.strokeStyle = getColor(style.stroke.color);
-      ctx.lineWidth = style.stroke.width;
-      ctx.stroke();
+      const strokeStr = getColor(style.stroke.color);
+      if (strokeStr !== "none") {
+        ctx.globalAlpha = style.stroke.opacity ?? 1;
+        ctx.strokeStyle = strokeStr;
+        ctx.lineWidth = style.stroke.width;
+        ctx.stroke();
+      }
     }
 
     ctx.globalAlpha = 1;

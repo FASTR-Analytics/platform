@@ -21,7 +21,8 @@ export const TimeseriesRenderer: Renderer<
   MeasuredTimeseries
 > = {
   isType(item: unknown): item is TimeseriesInputs {
-    return (item as TimeseriesInputs).timeseriesData !== undefined;
+    return typeof item === "object" && item !== null &&
+      "timeseriesData" in item;
   },
 
   measure(

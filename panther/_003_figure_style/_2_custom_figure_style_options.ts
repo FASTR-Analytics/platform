@@ -384,6 +384,19 @@ export type CustomFigureStyleOptions = {
     defaultLinkColor?: ColorKeyOrString;
     layoutMode?: "flow" | "tiered";
   };
+  map?: {
+    projection?: "equirectangular" | "mercator" | "naturalEarth1";
+    colorScale?: import("./_3_merged_style_return_types.ts").MapColorScale;
+    regionStrokeColor?: ColorKeyOrString | "none";
+    regionStrokeWidth?: number;
+    noDataColor?: ColorKeyOrString | "none";
+    padding?: number;
+    boundingBox?: [number, number, number, number];
+    includeAreaIds?: string[];
+    featureFilter?: (
+      feature: { properties?: Record<string, unknown> },
+    ) => boolean;
+  };
 };
 
 let _GS: CustomFigureStyleOptions | undefined = undefined;

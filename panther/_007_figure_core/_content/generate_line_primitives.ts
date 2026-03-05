@@ -42,7 +42,12 @@ export function generateLinePrimitives(
 
       if (!lineSeriesData.has(i_series)) {
         lineSeriesData.set(i_series, {
-          segments: [{ coords: [], values: [], valueIndices: [], pointLabels: [] }],
+          segments: [{
+            coords: [],
+            values: [],
+            valueIndices: [],
+            pointLabels: [],
+          }],
         });
       }
 
@@ -52,7 +57,12 @@ export function generateLinePrimitives(
         if (!s.lines.joinAcrossGaps) {
           const currentSeg = lineData.segments[lineData.segments.length - 1];
           if (currentSeg.coords.length > 0) {
-            lineData.segments.push({ coords: [], values: [], valueIndices: [], pointLabels: [] });
+            lineData.segments.push({
+              coords: [],
+              values: [],
+              valueIndices: [],
+              pointLabels: [],
+            });
           }
         }
         continue;
@@ -87,7 +97,10 @@ export function generateLinePrimitives(
   for (const [i_series, lineData] of lineSeriesData.entries()) {
     const seriesInfo = {
       ...buildSeriesInfo(ctx, i_series, mapped),
-      nVals: lineData.segments.reduce((n: number, seg: LineSegment) => n + seg.coords.length, 0),
+      nVals: lineData.segments.reduce(
+        (n: number, seg: LineSegment) => n + seg.coords.length,
+        0,
+      ),
     };
     const lineStyle = s.lines.getStyle(seriesInfo);
 
@@ -113,7 +126,9 @@ export function generateLinePrimitives(
 
     const cbStyle = s.confidenceBands.getStyle(seriesInfo);
     if (cbStyle.show && ctx.mappedBoundsUb && ctx.mappedBoundsLb) {
-      const allValueIndices = lineData.segments.flatMap((seg: LineSegment) => seg.valueIndices);
+      const allValueIndices = lineData.segments.flatMap((seg: LineSegment) =>
+        seg.valueIndices
+      );
       const ubCoords: Coordinates[] = [];
       const lbCoords: Coordinates[] = [];
       for (const i_val of allValueIndices) {

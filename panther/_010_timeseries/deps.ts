@@ -9,5 +9,5 @@ export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { HeightConstraints, Measured, Primitive, RenderContext, Renderer } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedTimeseriesStyle } from "../_003_figure_style/mod.ts";
-export { calculateMinSubChartHeight, calculateYScaleLimits, checkValuePropsAssignment, collectHeaders, createSortFunction, estimateMinSurroundsWidth, estimateMinYAxisWidth, getChartHeightConstraints, getHeaderIndex, isRowBasedUncertainty, measureChart, measureChartWithAutofit, renderFigurePrimitives, validateDataInput, validateUncertaintyConfig, withAnyLabelReplacement } from "../_007_figure_core/mod.ts";
+export { calculateMinSubChartHeight, calculateYScaleLimits, checkValuePropsAssignment, collectHeaders, createSortFunction, estimateMinSurroundsWidth, estimateMinYAxisWidth, getChartHeightConstraints, getHeaderIndex, isRowBasedUncertainty, measureChart, measureChartWithAutofit, renderFigureBackground, renderFigurePrimitives, validateDataInput, validateUncertaintyConfig, withAnyLabelReplacement } from "../_007_figure_core/mod.ts";
 export type { ChartComponentSizes, FigureInputsBase, JsonArray, LegendItem, MeasuredSurrounds, SimplifiedChartConfig, UncertaintyConfig, XPeriodAxisMeasuredInfo, YScaleAxisData } from "../_007_figure_core/mod.ts";

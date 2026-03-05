@@ -7,7 +7,10 @@ import {
   type ChartOVInputs,
   ChartOVRenderer,
   type HeightConstraints,
+  type MapInputs,
+  MapRenderer,
   type MeasuredChartOV,
+  type MeasuredMap,
   type MeasuredSimpleViz,
   type MeasuredTable,
   type MeasuredTimeseries,
@@ -30,13 +33,15 @@ export type FigureInputs =
   | TableInputs
   | ChartOVInputs
   | TimeseriesInputs
-  | SimpleVizInputs;
+  | SimpleVizInputs
+  | MapInputs;
 
 export type MeasuredFigure =
   | MeasuredTable
   | MeasuredChartOV
   | MeasuredTimeseries
-  | MeasuredSimpleViz;
+  | MeasuredSimpleViz
+  | MeasuredMap;
 
 // ================================================================================
 // RENDERER
@@ -50,7 +55,8 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
       ("tableData" in item ||
         "chartData" in item ||
         "timeseriesData" in item ||
-        "simpleVizData" in item)
+        "simpleVizData" in item ||
+        "mapData" in item)
     );
   },
 
@@ -117,7 +123,8 @@ function getRendererForFigureItem(
   | typeof TableRenderer
   | typeof ChartOVRenderer
   | typeof TimeseriesRenderer
-  | typeof SimpleVizRenderer {
+  | typeof SimpleVizRenderer
+  | typeof MapRenderer {
   if (TableRenderer.isType(item)) {
     return TableRenderer;
   }
@@ -129,6 +136,9 @@ function getRendererForFigureItem(
   }
   if (SimpleVizRenderer.isType(item)) {
     return SimpleVizRenderer;
+  }
+  if (MapRenderer.isType(item)) {
+    return MapRenderer;
   }
   throw new Error("Unknown figure type");
 }

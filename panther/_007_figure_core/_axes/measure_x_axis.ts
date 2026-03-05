@@ -3,10 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type {
-  MergedGridStyle,
+import {
+  type MergedGridStyle,
   RectCoordsDims,
-  RenderContext,
+  type RenderContext,
 } from "../deps.ts";
 import type { YAxisWidthInfo } from "../types.ts";
 import type { XAxisConfig } from "./axis_configs.ts";
@@ -17,9 +17,15 @@ import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 
 export type XAxisType = "text" | "period" | "scale";
 
+export type XNoneAxisMeasuredInfo = {
+  subChartAreaWidth: number;
+  xAxisRcd: RectCoordsDims;
+};
+
 export type XAxisMeasuredInfo =
   | XTextAxisMeasuredInfo
-  | XPeriodAxisMeasuredInfo;
+  | XPeriodAxisMeasuredInfo
+  | XNoneAxisMeasuredInfo;
 
 export function measureXAxis(
   rc: RenderContext,
@@ -53,6 +59,19 @@ export function measureXAxis(
       );
     case "scale":
       throw new Error("X-scale axis not implemented yet");
+    case "none": {
+      const xStart = contentRcd.x() +
+        yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
+      return {
+        subChartAreaWidth,
+        xAxisRcd: new RectCoordsDims({
+          x: xStart,
+          y: contentRcd.bottomY(),
+          w: contentRcd.rightX() - xStart,
+          h: 0,
+        }),
+      };
+    }
   }
 }
 
@@ -70,5 +89,7 @@ export function measureXAxisHeightInfo(
       throw new Error(
         "X-text/period height is not self-contained — use measureXAxis instead",
       );
+    case "none":
+      return 0;
   }
 }

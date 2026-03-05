@@ -92,6 +92,7 @@ export type PathStyle = {
   fill?: {
     color: ColorKeyOrString;
     opacity?: number;
+    fillRule?: "nonzero" | "evenodd";
   };
   stroke?: {
     color: ColorKeyOrString;

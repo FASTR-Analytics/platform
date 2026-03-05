@@ -283,7 +283,14 @@ export function PageHolder(p: Props) {
       }
       const deltaX = drag.currentX - drag.startX;
       const deltaY = drag.currentY - drag.startY;
-      renderDragGhost(ctx, drag.source, dStyle, screenPixelSize, deltaX, deltaY);
+      renderDragGhost(
+        ctx,
+        drag.source,
+        dStyle,
+        screenPixelSize,
+        deltaX,
+        deltaY,
+      );
     } else if (hit) {
       renderHover(ctx, hit, style, screenPixelSize);
     }
@@ -355,7 +362,12 @@ export function PageHolder(p: Props) {
           hit.node.id !== drag.source.node.id
         ? hit
         : undefined;
-      setDragState({ ...drag, dropTarget, currentX: coords.x, currentY: coords.y });
+      setDragState({
+        ...drag,
+        dropTarget,
+        currentX: coords.x,
+        currentY: coords.y,
+      });
       return;
     }
 
@@ -456,7 +468,12 @@ export function PageHolder(p: Props) {
 
   let justFinishedDrag = false;
   let pendingItemDrag:
-    | { source: PageHitTargetLayoutItem; startX: number; startY: number; pointerId: number }
+    | {
+      source: PageHitTargetLayoutItem;
+      startX: number;
+      startY: number;
+      pointerId: number;
+    }
     | undefined;
 
   function handleClick() {

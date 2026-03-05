@@ -177,7 +177,7 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
   ////////////////////////////////////////////////////////////////////////////////////////////////////
 
   isType(item: unknown): item is TableInputs {
-    return (item as TableInputs).tableData !== undefined;
+    return typeof item === "object" && item !== null && "tableData" in item;
   },
 
   ///////////////////////////////////////////////////////////////////////////////

@@ -7,6 +7,8 @@ export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { HeightConstraints, RenderContext, Renderer } from "../_001_render_system/mod.ts";
 export { ChartOVRenderer } from "../_010_chartov/mod.ts";
 export type { ChartOVInputs, MeasuredChartOV } from "../_010_chartov/mod.ts";
+export { MapRenderer } from "../_010_maps/mod.ts";
+export type { MapInputs, MeasuredMap } from "../_010_maps/mod.ts";
 export { SimpleVizRenderer } from "../_010_simpleviz/mod.ts";
 export type { MeasuredSimpleViz, SimpleVizInputs } from "../_010_simpleviz/mod.ts";
 export { TableRenderer } from "../_010_table/mod.ts";

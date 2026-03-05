@@ -15,7 +15,7 @@ import { renderSankey } from "./_internal/render.ts";
 
 export const SankeyRenderer: Renderer<SankeyInputs, MeasuredSankey> = {
   isType(item: unknown): item is SankeyInputs {
-    return (item as SankeyInputs).sankeyData !== undefined;
+    return typeof item === "object" && item !== null && "sankeyData" in item;
   },
 
   measure(

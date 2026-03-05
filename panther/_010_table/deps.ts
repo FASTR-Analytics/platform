@@ -9,5 +9,5 @@ export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { HeightConstraints, Measured, MeasuredText, Primitive, RenderContext, Renderer } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedTableStyle } from "../_003_figure_style/mod.ts";
-export { estimateMinSurroundsWidth, findOptimalScaleForBounds, generateSurroundsPrimitives, measureSurrounds, renderFigurePrimitives, resolveFigureAutofitOptions, withAnyLabelReplacement } from "../_007_figure_core/mod.ts";
+export { estimateMinSurroundsWidth, findOptimalScaleForBounds, generateSurroundsPrimitives, measureSurrounds, renderFigureBackground, renderFigurePrimitives, resolveFigureAutofitOptions, withAnyLabelReplacement } from "../_007_figure_core/mod.ts";
 export type { FigureInputsBase, JsonArray, JsonArrayItem, LegendItem, MeasuredSurrounds } from "../_007_figure_core/mod.ts";

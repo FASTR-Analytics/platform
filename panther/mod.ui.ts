@@ -23,6 +23,7 @@ export * from "./_006_style/mod.ts";
 export * from "./_007_figure_core/mod.ts";
 export * from "./_008_layouter/mod.ts";
 export * from "./_010_chartov/mod.ts";
+export * from "./_010_maps/mod.ts";
 export * from "./_010_sankey/mod.ts";
 export * from "./_010_sankey_explicit/mod.ts";
 export * from "./_010_simpleviz/mod.ts";

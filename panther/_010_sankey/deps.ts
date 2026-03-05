@@ -11,5 +11,5 @@ export { Z_INDEX } from "../_001_render_system/mod.ts";
 export type { HeightConstraints, Measured, PathSegment, Primitive, RenderContext, Renderer } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedSankeyStyle } from "../_003_figure_style/mod.ts";
-export { generateSurroundsPrimitives, measureSurrounds, renderFigurePrimitives } from "../_007_figure_core/mod.ts";
+export { generateSurroundsPrimitives, measureSurrounds, renderFigureBackground, renderFigurePrimitives } from "../_007_figure_core/mod.ts";
 export type { FigureInputsBase, MeasuredSurrounds } from "../_007_figure_core/mod.ts";

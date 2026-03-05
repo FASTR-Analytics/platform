@@ -29,7 +29,8 @@ export type XAxisConfig =
   | {
     type: "scale";
     axisStyle: MergedXScaleAxisStyle;
-  };
+  }
+  | { type: "none" };
 
 export type YAxisConfig =
   | {
@@ -40,4 +41,5 @@ export type YAxisConfig =
   | {
     type: "text";
     axisStyle: MergedYTextAxisStyle;
-  };
+  }
+  | { type: "none" };

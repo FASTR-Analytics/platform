@@ -38,6 +38,8 @@ export function measureYAxisWidthInfo(
       );
     case "text":
       throw new Error("Y-text axis measurement not implemented yet");
+    case "none":
+      return { widthIncludingYAxisStrokeWidth: 0, halfYAxisTickLabelH: 0 };
   }
 }
 
