@@ -12,6 +12,7 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { clearGeoJsonMemoryCache } from "~/state/caches/geojson_cache";
 import { GeoJsonUploadWizard } from "./geojson_upload_wizard";
 
 type Props = {
@@ -32,6 +33,7 @@ export function GeoJsonManager(p: Props) {
   );
 
   const silentRefresh = () => {
+    clearGeoJsonMemoryCache();
     geojsonQuery.fetch();
     p.instanceDetail.fetch();
   };

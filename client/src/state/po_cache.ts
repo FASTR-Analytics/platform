@@ -11,7 +11,7 @@ import { FigureInputs, StateHolder, type GeoJSONFeatureCollection } from "panthe
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
-import { getGeoJsonCached } from "./caches/geojson_cache";
+import { getGeoJsonSync } from "./caches/geojson_cache";
 import {
   _PO_DETAIL_CACHE,
   _PO_ITEMS_CACHE,
@@ -178,12 +178,7 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
   let geoJson: GeoJSONFeatureCollection | undefined;
   const mapLevel = getAdminAreaLevelFromMapConfig(readyPoItems.data.config);
   if (mapLevel) {
-    try {
-      geoJson = await getGeoJsonCached(mapLevel);
-    } catch {
-      yield { status: "error", err: "Failed to load GeoJSON for map" };
-      return;
-    }
+    geoJson = getGeoJsonSync(mapLevel);
   }
 
   const figureInputs = getFigureInputsFromPresentationObject(

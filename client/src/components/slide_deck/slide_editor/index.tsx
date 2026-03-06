@@ -56,7 +56,7 @@ import { getFigureInputsFromPresentationObject, stripFigureInputsForStorage } fr
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
-import { getGeoJsonCached } from "~/state/caches/geojson_cache";
+import { getGeoJsonSync } from "~/state/caches/geojson_cache";
 import {
   getPODetailFromCacheorFetch,
   getPOFigureInputsFromCacheOrFetch,
@@ -500,7 +500,7 @@ export function SlideEditor(p: Props) {
         let geoJson;
         const mapLevel = getAdminAreaLevelFromMapConfig(newConfig);
         if (mapLevel) {
-          try { geoJson = await getGeoJsonCached(mapLevel); } catch { /* handled below */ }
+          geoJson = getGeoJsonSync(mapLevel);
         }
 
         const newFigureInputs = getFigureInputsFromPresentationObject(
@@ -664,7 +664,7 @@ export function SlideEditor(p: Props) {
       let geoJson2;
       const mapLevel2 = getAdminAreaLevelFromMapConfig(config);
       if (mapLevel2) {
-        try { geoJson2 = await getGeoJsonCached(mapLevel2); } catch { /* handled below */ }
+        geoJson2 = getGeoJsonSync(mapLevel2);
       }
 
       const newFigureInputs = getFigureInputsFromPresentationObject(

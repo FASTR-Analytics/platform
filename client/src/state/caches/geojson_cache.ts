@@ -1,40 +1,56 @@
 import { get, set, del, keys } from "idb-keyval";
 import type { GeoJSONFeatureCollection } from "panther";
+import type { GeoJsonMapSummary } from "lib";
 import { serverActions } from "~/server_actions";
 
-const GEOJSON_CACHE_PREFIX = "geojson:";
+const IDB_PREFIX = "geojson:";
 
-const memoryCache = new Map<number, GeoJSONFeatureCollection>();
+type CacheEntry = {
+  uploadedAt: string;
+  data: GeoJSONFeatureCollection;
+};
 
-export async function getGeoJsonCached(
-  level: number,
-): Promise<GeoJSONFeatureCollection> {
-  const cached = memoryCache.get(level);
-  if (cached) return cached;
+const memoryCache = new Map<number, CacheEntry>();
 
-  const cacheKey = `${GEOJSON_CACHE_PREFIX}${level}`;
-  const existing: GeoJSONFeatureCollection | undefined = await get(cacheKey);
-  if (existing) {
-    memoryCache.set(level, existing);
-    return existing;
+export function getGeoJsonSync(level: number): GeoJSONFeatureCollection | undefined {
+  return memoryCache.get(level)?.data;
+}
+
+export async function preloadGeoJson(maps: GeoJsonMapSummary[]): Promise<void> {
+  await Promise.all(maps.map((m) => loadLevel(m.adminAreaLevel, m.uploadedAt)));
+}
+
+async function loadLevel(level: number, uploadedAt: string): Promise<void> {
+  const mem = memoryCache.get(level);
+  if (mem && mem.uploadedAt === uploadedAt) return;
+
+  const idbKey = `${IDB_PREFIX}${level}`;
+  const stored: CacheEntry | undefined = await get(idbKey);
+  if (stored && stored.uploadedAt === uploadedAt) {
+    memoryCache.set(level, stored);
+    return;
   }
 
   const res = await serverActions.getGeoJsonForLevel({ level: String(level) });
-  if (res.success === false) {
-    throw new Error(res.err);
-  }
+  if (!res.success) throw new Error(res.err);
 
-  const parsed = JSON.parse(res.data) as GeoJSONFeatureCollection;
-  memoryCache.set(level, parsed);
-  await set(cacheKey, parsed);
-  return parsed;
+  const entry: CacheEntry = {
+    uploadedAt: res.data.uploadedAt,
+    data: JSON.parse(res.data.geojson) as GeoJSONFeatureCollection,
+  };
+  memoryCache.set(level, entry);
+  await set(idbKey, entry);
+}
+
+export function clearGeoJsonMemoryCache(): void {
+  memoryCache.clear();
 }
 
 export async function clearGeoJsonCache(): Promise<void> {
   memoryCache.clear();
   const allKeys = await keys();
   for (const key of allKeys) {
-    if (typeof key === "string" && key.startsWith(GEOJSON_CACHE_PREFIX)) {
+    if (typeof key === "string" && key.startsWith(IDB_PREFIX)) {
       await del(key);
     }
   }

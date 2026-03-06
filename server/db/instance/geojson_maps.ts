@@ -17,15 +17,15 @@ export async function getGeoJsonMapSummaries(
 export async function getGeoJsonForLevel(
   mainDb: Sql,
   level: number,
-): Promise<APIResponseWithData<string>> {
+): Promise<APIResponseWithData<{ geojson: string; uploadedAt: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<
-      { geojson: string }[]
-    >`SELECT geojson FROM geojson_maps WHERE admin_area_level = ${level}`;
+      { geojson: string; uploaded_at: Date }[]
+    >`SELECT geojson, uploaded_at FROM geojson_maps WHERE admin_area_level = ${level}`;
     if (rows.length === 0) {
       return { success: false, err: `No GeoJSON found for admin area level ${level}` };
     }
-    return { success: true, data: rows[0].geojson };
+    return { success: true, data: { geojson: rows[0].geojson, uploadedAt: rows[0].uploaded_at.toISOString() } };
   });
 }
 

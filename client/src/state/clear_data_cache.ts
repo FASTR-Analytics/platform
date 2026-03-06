@@ -1,8 +1,10 @@
 import { keys, del } from "idb-keyval";
+import { clearGeoJsonMemoryCache } from "./caches/geojson_cache";
 
 const AI_PREFIXES = ["ai-conv", "ai-documents"];
 
 export async function clearDataCache(): Promise<void> {
+  clearGeoJsonMemoryCache();
   const allKeys = await keys();
   const cacheKeys = allKeys.filter((k) => {
     if (typeof k !== "string") return true;

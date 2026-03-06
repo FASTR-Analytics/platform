@@ -42,6 +42,6 @@ export const geojsonMapRouteRegistry = {
     path: "/geojson-maps/level/:level",
     method: "GET",
     params: {} as { level: string },
-    response: {} as string,
+    response: {} as { geojson: string; uploadedAt: string },
   }),
 } as const;

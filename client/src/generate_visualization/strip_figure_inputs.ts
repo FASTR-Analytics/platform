@@ -3,7 +3,7 @@ import type { PresentationObjectConfig } from "lib";
 import { getMetricStaticData } from "lib";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getStyleFromPresentationObject } from "./get_style_from_po";
-import { getGeoJsonCached } from "~/state/caches/geojson_cache";
+import { getGeoJsonSync } from "~/state/caches/geojson_cache";
 
 export function stripFigureInputsForStorage(fi: FigureInputs): FigureInputs {
   const stripped: any = { ...fi, style: undefined };
@@ -22,10 +22,10 @@ export async function hydrateFigureInputsForRendering(
   if ("mapData" in hydrated && hydrated.mapData && !("isTransformed" in hydrated.mapData) && !hydrated.mapData.geoData && source) {
     const mapLevel = getAdminAreaLevelFromMapConfig(source.config);
     if (mapLevel) {
-      try {
-        const geoData = await getGeoJsonCached(mapLevel);
+      const geoData = getGeoJsonSync(mapLevel);
+      if (geoData) {
         hydrated = { ...hydrated, mapData: { ...hydrated.mapData, geoData } };
-      } catch { /* render without geo */ }
+      }
     }
   }
 

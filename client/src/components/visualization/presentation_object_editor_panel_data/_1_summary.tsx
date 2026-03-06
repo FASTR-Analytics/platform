@@ -59,7 +59,7 @@ type PresentationTypeSummaryProps = {
 export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
   const cache = new Map<PresentationOption, TypeSpecificCache>();
 
-  const allowedTypes = get_PRESENTATION_SELECT_OPTIONS();
+  const allowedTypes = get_PRESENTATION_SELECT_OPTIONS(p.disaggregationOptions);
 
   return (
     <div class="">
@@ -91,18 +91,22 @@ export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
               p.setTempConfig("s", (prev) => ({ ...prev, ...cached.styleOverrides }));
             });
           } else {
-            const converted = convertVisualizationType(
-              p.tempConfig,
-              newType,
-              p.disaggregationOptions,
-            );
-            batch(() => {
-              p.setTempConfig("d", "type", converted.d.type);
-              p.setTempConfig("d", "valuesDisDisplayOpt", converted.d.valuesDisDisplayOpt);
-              p.setTempConfig("d", "disaggregateBy", converted.d.disaggregateBy);
-              p.setTempConfig("s", "content", converted.s.content);
-              p.setTempConfig("s", (prev) => ({ ...prev, ...VIZ_TYPE_CONFIG[newType].styleResets }));
-            });
+            try {
+              const converted = convertVisualizationType(
+                p.tempConfig,
+                newType,
+                p.disaggregationOptions,
+              );
+              batch(() => {
+                p.setTempConfig("d", "type", converted.d.type);
+                p.setTempConfig("d", "valuesDisDisplayOpt", converted.d.valuesDisDisplayOpt);
+                p.setTempConfig("d", "disaggregateBy", converted.d.disaggregateBy);
+                p.setTempConfig("s", "content", converted.s.content);
+                p.setTempConfig("s", (prev) => ({ ...prev, ...VIZ_TYPE_CONFIG[newType].styleResets }));
+              });
+            } catch (e) {
+              console.error("Failed to convert visualization type:", e);
+            }
           }
         }}
         fullWidth

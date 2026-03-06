@@ -414,16 +414,30 @@ export type CreateModeVisualizationData = {
   config: PresentationObjectConfig;
 };
 
-export function get_PRESENTATION_SELECT_OPTIONS(): {
+const TIME_DISAGGREGATIONS: DisaggregationOption[] = ["period_id", "quarter_id", "year"];
+const AREA_DISAGGREGATIONS: DisaggregationOption[] = ["admin_area_2", "admin_area_3", "admin_area_4"];
+
+export function get_PRESENTATION_SELECT_OPTIONS(
+  disaggregationOptions?: { value: DisaggregationOption }[],
+): {
   value: PresentationOption;
   label: string;
 }[] {
-  return [
-    { value: "table", label: t2(T.FRENCH_UI_STRINGS.table) },
-    { value: "timeseries", label: t2(T.FRENCH_UI_STRINGS.timeseries) },
-    { value: "chart", label: t2(T.FRENCH_UI_STRINGS.bar_chart) },
-    { value: "map", label: t3({ en: "Map", fr: "Carte" }) },
+  const all = [
+    { value: "table" as const, label: t2(T.FRENCH_UI_STRINGS.table) },
+    { value: "timeseries" as const, label: t2(T.FRENCH_UI_STRINGS.timeseries) },
+    { value: "chart" as const, label: t2(T.FRENCH_UI_STRINGS.bar_chart) },
+    { value: "map" as const, label: t3({ en: "Map", fr: "Carte" }) },
   ];
+  if (!disaggregationOptions) return all;
+  const disOpts = disaggregationOptions.map((d) => d.value);
+  const hasTime = TIME_DISAGGREGATIONS.some((d) => disOpts.includes(d));
+  const hasArea = AREA_DISAGGREGATIONS.some((d) => disOpts.includes(d));
+  return all.filter((opt) => {
+    if (opt.value === "timeseries" && !hasTime) return false;
+    if (opt.value === "map" && !hasArea) return false;
+    return true;
+  });
 }
 
 export function get_PRESENTATION_OPTIONS_MAP(): Record<

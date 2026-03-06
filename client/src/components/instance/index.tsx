@@ -1,5 +1,6 @@
 import { useSearchParams } from "@solidjs/router";
 import { GlobalUser, isFrench, t3, TC } from "lib";
+import { preloadGeoJson } from "~/state/caches/geojson_cache";
 import {
   AlertProvider,
   Button,
@@ -104,7 +105,13 @@ export default function Instance(p: Props) {
   }
 
   const instanceDetail = timQuery(
-    () => serverActions.getInstanceDetail({}),
+    async () => {
+      const res = await serverActions.getInstanceDetail({});
+      if (res.success && res.data.geojsonMaps.length > 0) {
+        await preloadGeoJson(res.data.geojsonMaps);
+      }
+      return res;
+    },
     t3({
       en: "Loading instance info...",
       fr: "Chargement des informations de l'instance...",

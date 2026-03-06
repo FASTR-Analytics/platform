@@ -9,6 +9,7 @@ import {
 import {
   Button,
   Checkbox,
+  ColorPicker,
   LabelHolder,
   RadioGroup,
   Select,
@@ -482,28 +483,20 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             }
           />
           <Show when={p.tempConfig.s.mapColorPreset === "custom"}>
-            <LabelHolder label={t3({ en: "Custom colors", fr: "Couleurs personnalisées" })}>
-              <div class="flex items-center gap-3">
-                <label class="flex items-center gap-1.5 text-sm">
-                  {t3({ en: "From", fr: "De" })}
-                  <input
-                    type="color"
-                    value={p.tempConfig.s.mapColorFrom}
-                    onInput={(e) => p.setTempConfig("s", "mapColorFrom", e.currentTarget.value)}
-                    class="h-8 w-10 cursor-pointer rounded border"
-                  />
-                </label>
-                <label class="flex items-center gap-1.5 text-sm">
-                  {t3({ en: "To", fr: "À" })}
-                  <input
-                    type="color"
-                    value={p.tempConfig.s.mapColorTo}
-                    onInput={(e) => p.setTempConfig("s", "mapColorTo", e.currentTarget.value)}
-                    class="h-8 w-10 cursor-pointer rounded border"
-                  />
-                </label>
-              </div>
-            </LabelHolder>
+            <ColorPicker
+              label={t3({ en: "From color", fr: "Couleur de départ" })}
+              value={p.tempConfig.s.mapColorFrom}
+              onChange={(v) => p.setTempConfig("s", "mapColorFrom", v)}
+              colorSet="standard"
+              fullWidth
+            />
+            <ColorPicker
+              label={t3({ en: "To color", fr: "Couleur d'arrivée" })}
+              value={p.tempConfig.s.mapColorTo}
+              onChange={(v) => p.setTempConfig("s", "mapColorTo", v)}
+              colorSet="standard"
+              fullWidth
+            />
           </Show>
         </div>
         <RadioGroup

@@ -53,7 +53,7 @@ import {
 } from "~/components/project_runner/mod";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
-import { getGeoJsonCached } from "~/state/caches/geojson_cache";
+import { getGeoJsonSync } from "~/state/caches/geojson_cache";
 import type { GeoJSONFeatureCollection } from "panther";
 import { serverActions } from "~/server_actions";
 import {
@@ -144,18 +144,11 @@ export function VisualizationEditorInner(p: InnerProps) {
       if (lastState.status === "ready") {
         const mapLevel = getAdminAreaLevelFromMapConfig(lastState.data.config);
         if (mapLevel) {
-          try {
-            const geoJson = await getGeoJsonCached(mapLevel);
-            setItemsHolder({
-              status: "ready",
-              data: { ...lastState.data, geoJson },
-            });
-          } catch {
-            setItemsHolder({
-              status: "error",
-              err: t3({ en: "Failed to load GeoJSON for map", fr: "Échec du chargement du GeoJSON pour la carte" }),
-            });
-          }
+          const geoJson = getGeoJsonSync(mapLevel);
+          setItemsHolder({
+            status: "ready",
+            data: { ...lastState.data, geoJson },
+          });
         }
       }
     } catch (err) {

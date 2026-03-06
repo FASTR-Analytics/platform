@@ -242,7 +242,7 @@ export function AddVisualization(
               <Show when={!hasPresets || selectedVizPresetId() === CUSTOM_OPTION}>
                 <RadioGroup
                   label={t3({ en: "Present as", fr: "Afficher sous forme de" })}
-                  options={get_PRESENTATION_SELECT_OPTIONS()}
+                  options={get_PRESENTATION_SELECT_OPTIONS(metric.disaggregationOptions)}
                   value={tempPresentationOption()}
                   onChange={setTempPresentationOption}
                 />

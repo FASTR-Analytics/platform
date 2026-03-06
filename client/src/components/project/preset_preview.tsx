@@ -22,7 +22,7 @@ import { getFigureInputsFromPresentationObject } from "~/generate_visualization/
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
 import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
-import { getGeoJsonCached } from "~/state/caches/geojson_cache";
+import { getGeoJsonSync } from "~/state/caches/geojson_cache";
 import { poItemsQueue } from "~/utils/request_queue";
 
 type Props = {
@@ -243,11 +243,7 @@ async function fetchPreview(
   let geoJson;
   const mapLevel = getAdminAreaLevelFromMapConfig(config);
   if (mapLevel) {
-    try {
-      geoJson = await getGeoJsonCached(mapLevel);
-    } catch {
-      return { status: "error", err: "Failed to load GeoJSON" };
-    }
+    geoJson = getGeoJsonSync(mapLevel);
   }
 
   return getFigureInputsFromPresentationObject(
