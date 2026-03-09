@@ -4,6 +4,7 @@ import { _SEND_GRID_API } from "../../exposed_env_vars.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { log } from "../../middleware/logging.ts";
 
 export const routesEmails = new Hono();
 
@@ -11,6 +12,7 @@ defineRoute(
   routesEmails,
   "sendSlideDeckEmail",
   requireProjectPermission("can_view_slide_decks"),
+  log("sendSlideDeckEmail"),
   async (c, { body }) => {
     const { recipients, message, attachment } = body;
 
@@ -87,6 +89,7 @@ defineRoute(
   routesEmails,
   "sendHelpEmail",
   requireGlobalPermission(),
+  log("sendFeedbackEmail"),
   async (c, { body }) => {
     const { feedbackType, description, projectLabel } = body;
     const userEmail = c.var.globalUser.email;

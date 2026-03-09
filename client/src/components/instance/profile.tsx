@@ -1,4 +1,5 @@
 import { clearDataCache, clearAiChatCache } from "~/state/clear_data_cache";
+import { clerk } from "~/components/LoggedInWrapper";
 import { t3, TC } from "lib";
 import {
   Button,
@@ -83,6 +84,9 @@ export function ProfileForm(
                       <div class="w-36 flex-none">{t3({ en: "Password", fr: "Mot de passe" })}:</div>
                       <div class="flex-1">- - - -</div>
                     </div>
+                    <Button onClick={() => clerk.openUserProfile()} outline>
+                      {t3({ en: "Manage account", fr: "Gérer le compte" })}
+                    </Button>
                   </SettingsSection>
                 </div>
               </div>
