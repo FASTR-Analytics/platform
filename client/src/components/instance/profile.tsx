@@ -11,7 +11,7 @@ import {
   type AlertComponentProps,
 } from "panther";
 import { serverActions } from "~/server_actions";
-import { onMount } from "solid-js";
+import { createSignal } from "solid-js";
 
 export function ProfileForm(
   p: AlertComponentProps<
@@ -60,36 +60,62 @@ export function ProfileForm(
     >
       <StateHolderWrapper state={userDetails.state()}>
         {(keyedUser) => {
+          const [optedIn, setOptedIn] = createSignal(clerk.user?.unsafeMetadata?.emailOptIn === true);
+
+          async function toggleOptIn() {
+            const next = !optedIn();
+            setOptedIn(next);
+            await clerk.user?.update({
+              unsafeMetadata: {
+                ...clerk.user.unsafeMetadata,
+                emailOptIn: next,
+                emailOptInAsked: true,
+              },
+            });
+          }
+
           return (
             <>
-              <div class="ui-gap flex text-sm">
-                <div class="flex-1">
-                  {(() => { let ref!: HTMLDivElement; onMount(() => clerk.mountUserButton(ref)); return <div ref={ref} />; })()}
-                  <SettingsSection header={t3({ en: "User details", fr: "Détails de l'utilisateur" })}>
-                    <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "First name", fr: "Prénom" })}:</div>
-                      <div class="flex-1">{keyedUser.firstName}</div>
-                    </div>
-                    <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Last name", fr: "Nom" })}:</div>
-                      <div class="flex-1">{keyedUser.lastName}</div>
-                    </div>
-                  </SettingsSection>
-                </div>
-                <div class="flex-1">
-                  <SettingsSection header={t3({ en: "Login details", fr: "Identifiants" })}>
-                    <div class="flex">
-                      <div class="w-36 flex-none">{t3(TC.email)}:</div>
-                      <div class="flex-1">{keyedUser.email}</div>
-                    </div>
-                    <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Password", fr: "Mot de passe" })}:</div>
-                      <div class="flex-1">- - - -</div>
-                    </div>
-                  </SettingsSection>
+              {/* Hero */}
+              <div class="flex flex-col items-center gap-3 border-b border-base-300 pb-6 pt-2">
+                {clerk.user?.imageUrl && (
+                  <button
+                    type="button"
+                    class="cursor-pointer rounded-full ring-2 ring-transparent transition hover:ring-primary"
+                    onClick={() => clerk.openUserProfile()}
+                    title={t3({ en: "Manage account", fr: "Gérer le compte" })}
+                  >
+                    <img
+                      src={clerk.user.imageUrl}
+                      alt={keyedUser.firstName ?? ""}
+                      class="h-20 w-20 rounded-full"
+                    />
+                  </button>
+                )}
+                <div class="flex flex-col items-center gap-1">
+                  <div class="font-700 text-base-content text-base">
+                    {[keyedUser.firstName, keyedUser.lastName].filter(Boolean).join(" ") || "—"}
+                  </div>
+                  <div class="text-neutral text-sm">{keyedUser.email}</div>
+                  <button
+                    type="button"
+                    class="text-primary hover:underline cursor-pointer text-xs mt-1"
+                    onClick={() => clerk.openUserProfile()}
+                  >
+                    {t3({ en: "Manage account", fr: "Gérer le compte" })}
+                  </button>
                 </div>
               </div>
 
+              {/* Mailing list */}
+              <SettingsSection header={t3({ en: "Mailing list", fr: "Liste de diffusion" })}>
+                <label class="flex cursor-pointer items-center gap-2 text-sm">
+                  <input type="checkbox" checked={optedIn()} onChange={toggleOptIn} />
+                  {t3({ en: "Receive email updates and announcements", fr: "Recevoir des mises à jour et annonces par email" })}
+                </label>
+              </SettingsSection>
+
+              {/* Cache management */}
               <SettingsSection
                 header={t3({ en: "Cache management", fr: "Gestion du cache" })}
                 rightChildren={
