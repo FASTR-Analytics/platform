@@ -11,6 +11,7 @@ import {
   type AlertComponentProps,
 } from "panther";
 import { serverActions } from "~/server_actions";
+import { onMount } from "solid-js";
 
 export function ProfileForm(
   p: AlertComponentProps<
@@ -84,9 +85,7 @@ export function ProfileForm(
                       <div class="w-36 flex-none">{t3({ en: "Password", fr: "Mot de passe" })}:</div>
                       <div class="flex-1">- - - -</div>
                     </div>
-                    <Button onClick={() => clerk.openUserProfile()} outline>
-                      {t3({ en: "Manage account", fr: "Gérer le compte" })}
-                    </Button>
+                    {(() => { let ref!: HTMLDivElement; onMount(() => clerk.mountUserButton(ref)); return <div ref={ref} />; })()}
                   </SettingsSection>
                 </div>
               </div>
