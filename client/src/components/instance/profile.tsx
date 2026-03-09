@@ -64,6 +64,7 @@ export function ProfileForm(
             <>
               <div class="ui-gap flex text-sm">
                 <div class="flex-1">
+                  {(() => { let ref!: HTMLDivElement; onMount(() => clerk.mountUserButton(ref)); return <div ref={ref} />; })()}
                   <SettingsSection header={t3({ en: "User details", fr: "Détails de l'utilisateur" })}>
                     <div class="flex">
                       <div class="w-36 flex-none">{t3({ en: "First name", fr: "Prénom" })}:</div>
@@ -85,7 +86,6 @@ export function ProfileForm(
                       <div class="w-36 flex-none">{t3({ en: "Password", fr: "Mot de passe" })}:</div>
                       <div class="flex-1">- - - -</div>
                     </div>
-                    {(() => { let ref!: HTMLDivElement; onMount(() => clerk.mountUserButton(ref)); return <div ref={ref} />; })()}
                   </SettingsSection>
                 </div>
               </div>
