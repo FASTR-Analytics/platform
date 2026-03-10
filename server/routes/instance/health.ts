@@ -36,7 +36,7 @@ routesHealth.get("/health_check", async (c) => {
 
   const [lastLog] = await mainDb<
     UserLog[]
-  >`SELECT user_email, endpoint, timestamp FROM user_logs ORDER BY timestamp DESC LIMIT 1`;
+  >`SELECT user_email, endpoint, timestamp FROM user_logs WHERE user_email NOT IN ('nick@usefuldata.com.au', 'timroberton@gmail.com') ORDER BY timestamp DESC LIMIT 1`;
 
   return c.json({
     running: true,
