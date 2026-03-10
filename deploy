@@ -156,13 +156,22 @@ fi
 
 # Build modules and translations
 echo "Building modules"
-deno run --allow-read --allow-write --allow-env --allow-net --unstable-raw-imports build_module_definitions.ts
+if ! deno run --allow-read --allow-write --allow-env --allow-net --unstable-raw-imports build_module_definitions.ts; then
+    echo "ERROR: Module build failed!"
+    exit 1
+fi
 
 echo "Building translations"
-deno run --allow-read --allow-write --allow-env --allow-ffi build_translations.ts
+if ! deno run --allow-read --allow-write --allow-env --allow-ffi build_translations.ts; then
+    echo "ERROR: Translation build failed!"
+    exit 1
+fi
 
 echo "Building docs"
-deno run --allow-read --allow-write --allow-env --allow-ffi build_docs.ts
+if ! deno run --allow-read --allow-write --allow-env --allow-ffi build_docs.ts; then
+    echo "ERROR: Docs build failed!"
+    exit 1
+fi
 
 echo "Building Docker image with version: $VERSION"
 
