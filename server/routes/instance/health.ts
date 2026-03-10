@@ -1,5 +1,13 @@
 import { Hono } from "hono";
 import {
+  DBProject,
+  DBUser,
+  getCurrentDatasetHfaMaxVersionId,
+  getCurrentDatasetHmisMaxVersionId,
+  getPgConnectionFromCacheOrNew,
+  UserLog,
+} from "../../db/mod.ts";
+import {
   _DATABASE_FOLDER,
   _INSTANCE_CALENDAR,
   _INSTANCE_LANGUAGE,
@@ -8,12 +16,6 @@ import {
   _SERVER_VERSION,
   _START_TIME,
 } from "../../exposed_env_vars.ts";
-import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
-import {
-  getCurrentDatasetHfaMaxVersionId,
-  getCurrentDatasetHmisMaxVersionId,
-} from "../../db/mod.ts";
-import { DBProject, DBUser } from "../../db/instance/_main_database_types.ts";
 
 export const routesHealth = new Hono();
 
@@ -32,6 +34,10 @@ routesHealth.get("/health_check", async (c) => {
   const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
   const hfaVersion = await getCurrentDatasetHfaMaxVersionId(mainDb);
 
+  const [lastLog] = await mainDb<
+    UserLog[]
+  >`SELECT user_email, endpoint, timestamp FROM user_logs ORDER BY timestamp DESC LIMIT 1`;
+
   return c.json({
     running: true,
     instanceName: _INSTANCE_NAME,
@@ -45,12 +51,20 @@ routesHealth.get("/health_check", async (c) => {
     databaseFolder: _DATABASE_FOLDER,
     totalUsers: users.length,
     adminUsers,
-    projects: projects.map((p) => (p.label)),
+    serverUsers: users.map((u: DBUser) => u.email),
+    projects: projects.map((p) => p.label),
+    lastUserLog: lastLog
+      ? {
+          userEmail: lastLog.user_email,
+          endpoint: lastLog.endpoint,
+          timestamp: lastLog.timestamp,
+        }
+      : null,
     datasets: {
       hmis: hmisVersion
         ? {
-          versionId: hmisVersion,
-        }
+            versionId: hmisVersion,
+          }
         : null,
       hfa: hfaVersion ? { versionId: hfaVersion } : null,
     },

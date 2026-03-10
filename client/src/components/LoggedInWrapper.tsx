@@ -1,4 +1,4 @@
-import { Clerk } from "@clerk/clerk-js/headless";
+import { Clerk } from "@clerk/clerk-js";
 import { clearDataCache } from "~/state/clear_data_cache";
 import { GlobalUser, InstanceLanguage, t, t2, T, createDevGlobalUser, setLanguage } from "lib";
 import { Button, StateHolderWrapper, timQuery } from "panther";

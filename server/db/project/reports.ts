@@ -23,7 +23,7 @@ import { adaptLegacyReportItemConfig } from "./legacy_report_adapter.ts";
 
 function forEachLayoutItem<T>(
   node: LayoutNode<T>,
-  fn: (item: T) => void
+  fn: (item: T) => void,
 ): void {
   if (node.type === "item") {
     fn(node.data);
@@ -37,7 +37,7 @@ function forEachLayoutItem<T>(
 export async function addReport(
   projectDb: Sql,
   label: string,
-  reportType: ReportType
+  reportType: ReportType,
 ): Promise<APIResponseWithData<{ newReportId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const newReportId = crypto.randomUUID();
@@ -48,8 +48,8 @@ INSERT INTO reports
   (id, report_type, config, last_updated, is_deleted)
 VALUES
   (${newReportId}, ${reportType}, ${JSON.stringify(
-      startingReportConfig
-    )}, ${lastUpdated}, FALSE)
+    startingReportConfig,
+  )}, ${lastUpdated}, FALSE)
 `;
     return { success: true, data: { newReportId, lastUpdated } };
   });
@@ -59,7 +59,7 @@ export async function duplicateReport(
   projectDb: Sql,
   reportId: string,
   label: string,
-  newProjectId: string | "this_project"
+  newProjectId: string | "this_project",
 ): Promise<
   APIResponseWithData<{
     newReportId: string;
@@ -122,7 +122,7 @@ VALUES
     } else {
       const newProjectDb = getPgConnectionFromCacheOrNew(
         newProjectId,
-        "READ_AND_WRITE"
+        "READ_AND_WRITE",
       );
 
       const resPOs = await getAllPresentationObjectsForProject(projectDb);
@@ -146,7 +146,7 @@ VALUES
           newReportItemIds.push(newReportItemId);
 
           const config = parseJsonOrThrow<ReportItemConfig>(
-            rawReportItem.config
+            rawReportItem.config,
           );
 
           const content = config.freeform.content;
@@ -159,7 +159,7 @@ VALUES
               // OR... using what is listed in the item
               // Need to do this in case project currently doesn't have the module installed
               const databasePO = resPOs.data.find(
-                (po) => po.id === item.presentationObjectInReportInfo?.id
+                (po) => po.id === item.presentationObjectInReportInfo?.id,
               );
               if (
                 !databasePO?.isDefault &&
@@ -205,7 +205,7 @@ VALUES
 }
 
 export async function getAllReportsForProject(
-  projectDb: Sql
+  projectDb: Sql,
 ): Promise<APIResponseWithData<ReportSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const reports = (
@@ -213,7 +213,9 @@ export async function getAllReportsForProject(
 SELECT * FROM reports WHERE is_deleted = FALSE AND report_type != 'long_form' ORDER BY last_updated DESC
 `
     ).map<ReportSummary>((rawReport) => {
-      const reportConfig: { label: string } = parseJsonOrThrow(rawReport.config);
+      const reportConfig: { label: string } = parseJsonOrThrow(
+        rawReport.config,
+      );
       return {
         id: rawReport.id,
         label: reportConfig.label,
@@ -227,7 +229,7 @@ SELECT * FROM reports WHERE is_deleted = FALSE AND report_type != 'long_form' OR
 export async function getReportDetail(
   projectId: string,
   projectDb: Sql,
-  reportId: string
+  reportId: string,
 ): Promise<APIResponseWithData<ReportDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawReport = (
@@ -288,7 +290,7 @@ SELECT id FROM report_items WHERE report_id = ${reportId} ORDER BY sort_order
 export async function updateReportConfig(
   projectDb: Sql,
   reportId: string,
-  config: ReportConfig
+  config: ReportConfig,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -312,7 +314,7 @@ WHERE id = ${reportId}
 export async function backupReport(
   projectId: string,
   projectDb: Sql,
-  reportId: string
+  reportId: string,
 ): Promise<
   APIResponseWithData<{
     report: ReportDetail;
@@ -350,7 +352,10 @@ SELECT * FROM report_items WHERE report_id = ${reportId}
         id: rawReportItem.id,
         projectId,
         reportId: rawReportItem.report_id,
-        config: await adaptLegacyReportItemConfig(parseJsonOrThrow(rawReportItem.config), projectDb),
+        config: await adaptLegacyReportItemConfig(
+          parseJsonOrThrow(rawReportItem.config),
+          projectDb,
+        ),
         lastUpdated: rawReportItem.last_updated,
       });
     }
@@ -361,7 +366,7 @@ SELECT * FROM report_items WHERE report_id = ${reportId}
 export async function restoreReport(
   projectDb: Sql,
   report: ReportDetail,
-  reportItems: ReportItem[]
+  reportItems: ReportItem[],
 ): Promise<
   APIResponseWithData<{
     newReportId: string;
@@ -415,7 +420,7 @@ VALUES
 
 export async function deleteReport(
   projectDb: Sql,
-  reportId: string
+  reportId: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await projectDb`
@@ -463,7 +468,7 @@ WHERE id = ${reportId}
 export async function addReportItem(
   projectDb: Sql,
   reportId: string,
-  afterItemId: string
+  afterItemId: string,
 ): Promise<
   APIResponseWithData<{ newReportItemId: string; lastUpdated: string }>
 > {
@@ -519,7 +524,7 @@ export async function duplicateReportItem(
   reportId: string,
   reportItemId: string,
   nextOrEnd: "next" | "end",
-  newReportId: string | "this_report"
+  newReportId: string | "this_report",
 ): Promise<
   APIResponseWithData<{ newReportItemId: string; lastUpdated: string }>
 > {
@@ -577,7 +582,7 @@ WHERE id = ${reportIdToDuplicateInto}`,
 export async function getReportItem(
   projectId: string,
   projectDb: Sql,
-  reportItemId: string
+  reportItemId: string,
 ): Promise<APIResponseWithData<ReportItem>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawReportItem = (
@@ -592,7 +597,10 @@ SELECT * FROM report_items WHERE id = ${reportItemId}
       id: rawReportItem.id,
       projectId,
       reportId: rawReportItem.report_id,
-      config: await adaptLegacyReportItemConfig(parseJsonOrThrow(rawReportItem.config), projectDb),
+      config: await adaptLegacyReportItemConfig(
+        parseJsonOrThrow(rawReportItem.config),
+        projectDb,
+      ),
       lastUpdated: rawReportItem.last_updated,
     };
     return { success: true, data: reportItem };
@@ -602,7 +610,7 @@ SELECT * FROM report_items WHERE id = ${reportItemId}
 export async function updateReportItemConfig(
   projectDb: Sql,
   reportItemId: string,
-  config: ReportItemConfig
+  config: ReportItemConfig,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -618,7 +626,7 @@ WHERE id = ${reportItemId}
 export async function moveAndDeleteAllReportItems(
   projectDb: Sql,
   reportId: string,
-  itemIdsInOrder: string[]
+  itemIdsInOrder: string[],
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -651,7 +659,7 @@ export async function moveAndDeleteAllReportItems(
 
 export async function deleteReportItem(
   projectDb: Sql,
-  reportItemId: string
+  reportItemId: string,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
