@@ -70,3 +70,18 @@ routesHealth.get("/health_check", async (c) => {
     },
   });
 });
+
+routesHealth.get("/user_activity", async (c) => {
+  const email = c.req.query("email");
+  if (!email) {
+    return c.json({ activeDays: [] });
+  }
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const rows: { day: string }[] = await mainDb`
+SELECT DISTINCT DATE(timestamp)::text AS day
+FROM user_logs
+WHERE user_email = ${email}
+ORDER BY day
+  `;
+  return c.json({ activeDays: rows.map((r) => r.day) });
+});
