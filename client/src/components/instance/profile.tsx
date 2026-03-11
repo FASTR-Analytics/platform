@@ -3,6 +3,7 @@ import { clerk } from "~/components/LoggedInWrapper";
 import { t3, TC } from "lib";
 import {
   Button,
+  Checkbox,
   ModalContainer,
   SettingsSection,
   StateHolderWrapper,
@@ -62,8 +63,7 @@ export function ProfileForm(
         {(keyedUser) => {
           const [optedIn, setOptedIn] = createSignal(clerk.user?.unsafeMetadata?.emailOptIn === true);
 
-          async function toggleOptIn() {
-            const next = !optedIn();
+          async function toggleOptIn(next: boolean) {
             setOptedIn(next);
             await clerk.user?.update({
               unsafeMetadata: {
@@ -109,10 +109,11 @@ export function ProfileForm(
 
               {/* Mailing list */}
               <SettingsSection header={t3({ en: "Mailing list", fr: "Liste de diffusion" })}>
-                <label class="flex cursor-pointer items-center gap-2 text-sm">
-                  <input type="checkbox" checked={optedIn()} onChange={toggleOptIn} />
-                  {t3({ en: "Receive email updates and announcements", fr: "Recevoir des mises à jour et annonces par email" })}
-                </label>
+                <Checkbox
+                  checked={optedIn()}
+                  onChange={toggleOptIn}
+                  label={t3({ en: "Receive email updates and announcements", fr: "Recevoir des mises à jour et annonces par email" })}
+                />
               </SettingsSection>
 
               {/* Cache management */}
