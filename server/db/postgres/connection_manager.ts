@@ -38,8 +38,7 @@ interface CachedConnection {
 }
 
 const _CACHED_CONNECTIONS = new Map<string, CachedConnection>();
-const MAX_CACHE_AGE_MS = 30 * 60 * 1000; // 30 minutes
-const MAX_IDLE_TIME_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_IDLE_TIME_MS = 15 * 60 * 1000; // 15 minutes
 
 // Cleanup interval reference
 let cleanupInterval: number | undefined;
@@ -50,23 +49,21 @@ let cleanupInterval: number | undefined;
 function startCleanupInterval() {
   if (!cleanupInterval) {
     cleanupInterval = setInterval(() => {
-      cleanupStaleConnections();
+      cleanupStaleConnections().catch(console.error);
     }, 60 * 1000); // Run every minute
   }
 }
 
 /**
- * Clean up stale connections based on age and idle time
+ * Clean up idle connections
  */
 async function cleanupStaleConnections() {
-  const now = new Date();
+  const now = Date.now();
   const toRemove: string[] = [];
 
   for (const [key, conn] of _CACHED_CONNECTIONS.entries()) {
-    const age = now.getTime() - conn.createdAt.getTime();
-    const idleTime = now.getTime() - conn.lastUsed.getTime();
-
-    if (age > MAX_CACHE_AGE_MS || idleTime > MAX_IDLE_TIME_MS) {
+    const idleTime = now - conn.lastUsed.getTime();
+    if (idleTime > MAX_IDLE_TIME_MS) {
       toRemove.push(key);
     }
   }
@@ -74,12 +71,16 @@ async function cleanupStaleConnections() {
   for (const key of toRemove) {
     const conn = _CACHED_CONNECTIONS.get(key);
     if (conn) {
+      const currentIdleTime = Date.now() - conn.lastUsed.getTime();
+      if (currentIdleTime <= MAX_IDLE_TIME_MS) {
+        continue;
+      }
+      _CACHED_CONNECTIONS.delete(key);
       try {
         await conn.sql.end();
       } catch (e) {
         console.error(`Error closing connection for ${key}:`, e);
       }
-      _CACHED_CONNECTIONS.delete(key);
     }
   }
 }
@@ -157,9 +158,9 @@ export async function closePgConnection(
   for (const key of keys) {
     const conn = _CACHED_CONNECTIONS.get(key);
     if (conn) {
+      _CACHED_CONNECTIONS.delete(key);
       try {
         await conn.sql.end();
-        _CACHED_CONNECTIONS.delete(key);
       } catch (e) {
         console.error(`Error closing connection ${key}:`, e);
       }
@@ -176,18 +177,15 @@ export async function closeAllConnections(): Promise<void> {
     cleanupInterval = undefined;
   }
 
-  const promises: Promise<void>[] = [];
-
-  for (const [key, conn] of _CACHED_CONNECTIONS.entries()) {
-    promises.push(
+  const connections = [..._CACHED_CONNECTIONS.entries()];
+  _CACHED_CONNECTIONS.clear();
+  await Promise.all(
+    connections.map(([key, conn]) =>
       conn.sql
         .end()
         .catch((e) => console.error(`Error closing connection ${key}:`, e))
-    );
-  }
-
-  await Promise.all(promises);
-  _CACHED_CONNECTIONS.clear();
+    )
+  );
 }
 
 /**
