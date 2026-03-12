@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { dbStartUp } from "./server/db_startup.ts";
+import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
+import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
 import { connectValkey, disconnectValkey } from "./server/valkey/connection.ts";
 import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
@@ -39,6 +41,13 @@ import { routesSlideDeckFolders } from "./server/routes/project/slide_deck_folde
 import { routesEmails } from "./server/routes/project/emails.ts";
 
 await dbStartUp();
+
+const runLogCleanup = () => {
+  const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  DeleteOldLogs(db).catch((e) => console.error("Log cleanup failed:", e));
+};
+runLogCleanup();
+setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 
 await connectValkey();
 

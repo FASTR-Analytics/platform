@@ -35,6 +35,19 @@ ORDER BY timestamp DESC
     });
 }
 
+export async function DeleteOldLogs(
+    mainDb: Sql,
+): Promise<APIResponseNoData> {
+    return await tryCatchDatabaseAsync(async () => {
+        await mainDb`
+DELETE FROM user_logs
+WHERE timestamp < NOW() - INTERVAL '7 days'
+  AND endpoint != 'getInstanceDetail'
+        `;
+        return { success: true };
+    });
+}
+
 export async function GetLogsByProject(
     mainDb: Sql,
     project_id: string,

@@ -36,7 +36,7 @@ routesHealth.get("/health_check", async (c) => {
 
   const [lastLog] = await mainDb<
     UserLog[]
-  >`SELECT user_email, endpoint, timestamp FROM user_logs ORDER BY timestamp DESC LIMIT 1`;
+  >`SELECT user_email, endpoint, timestamp FROM user_logs WHERE user_email NOT IN ('nick@usefuldata.com.au', 'timroberton@gmail.com') ORDER BY timestamp DESC LIMIT 1`;
 
   return c.json({
     running: true,
@@ -69,4 +69,19 @@ routesHealth.get("/health_check", async (c) => {
       hfa: hfaVersion ? { versionId: hfaVersion } : null,
     },
   });
+});
+
+routesHealth.get("/user_activity", async (c) => {
+  const email = c.req.query("email");
+  if (!email) {
+    return c.json({ activeDays: [] });
+  }
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const rows: { day: string }[] = await mainDb`
+SELECT DISTINCT DATE(timestamp)::text AS day
+FROM user_logs
+WHERE user_email = ${email}
+ORDER BY day
+  `;
+  return c.json({ activeDays: rows.map((r) => r.day) });
 });
