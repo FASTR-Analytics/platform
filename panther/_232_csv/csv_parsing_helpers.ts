@@ -10,7 +10,7 @@ export function parseCsvString(content: string, filePath: string): string[][] {
   let parseResult;
   try {
     parseResult = Papa.parse(content, {
-      skipEmptyLines: true,
+      skipEmptyLines: "greedy",
       header: false,
       dynamicTyping: false,
     });

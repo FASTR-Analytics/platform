@@ -42,8 +42,10 @@ import { routesEmails } from "./server/routes/project/emails.ts";
 
 await dbStartUp();
 
-const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-const runLogCleanup = () => DeleteOldLogs(mainDb).catch(() => {});
+const runLogCleanup = () => {
+  const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  DeleteOldLogs(db).catch((e) => console.error("Log cleanup failed:", e));
+};
 runLogCleanup();
 setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 

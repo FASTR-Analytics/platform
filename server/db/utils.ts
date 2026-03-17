@@ -1,7 +1,6 @@
 import type { Sql } from "postgres";
-import { APIResponseNoData, APIResponseWithData, ERROR_CATEGORY } from "lib";
+import { APIResponseNoData, APIResponseWithData } from "lib";
 import { classifyDatabaseError } from "./error_classifier.ts";
-import { closeAllConnections } from "./postgres/connection_manager.ts";
 
 /**
  * Wrap database operations with error handling
@@ -14,9 +13,6 @@ export async function tryCatchDatabaseAsync<
   } catch (e) {
     console.error(e);
     const categorized = classifyDatabaseError(e);
-    if (categorized.category === ERROR_CATEGORY.NETWORK_ERROR) {
-      closeAllConnections().catch(() => {});
-    }
     const err = categorized.suggestedAction
       ? `${categorized.userMessage} ${categorized.suggestedAction}`
       : categorized.userMessage;
