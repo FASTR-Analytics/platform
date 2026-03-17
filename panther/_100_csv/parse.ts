@@ -14,7 +14,7 @@ export function parseCSV(csvString: string): string[][] {
   try {
     parseResult = Papa.parse(csvString, {
       header: false,
-      skipEmptyLines: true,
+      skipEmptyLines: "greedy",
       dynamicTyping: false,
     });
   } catch (error) {
@@ -44,7 +44,7 @@ export function parseCSVToObjects(csvString: string): Record<string, string>[] {
   try {
     parseResult = Papa.parse(csvString, {
       header: true,
-      skipEmptyLines: true,
+      skipEmptyLines: "greedy",
       dynamicTyping: false,
     });
   } catch (error) {

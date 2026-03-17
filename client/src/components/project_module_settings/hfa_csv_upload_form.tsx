@@ -47,29 +47,19 @@ export function HfaCsvUploadForm(p: Props) {
       // Read file content
       const csvText = await file.text();
 
-      // Parse CSV using PapaParse
-      const parseResult = Papa.parse(csvText, {
-        header: true,
-        skipEmptyLines: true,
-        dynamicTyping: false,
-        transformHeader: (header: string) => header.trim(),
-      });
-
-      if (parseResult.errors && parseResult.errors.length > 0) {
-        const errorMessages = parseResult.errors
-          .map((e) => e.message || e.code)
-          .join(", ");
+      let rows: Record<string, string>[];
+      try {
+        rows = parseCSVToObjects(csvText);
+      } catch (e) {
         const firstLine = csvText.split("\n")[0];
         return {
           success: false,
           err: t3({
-            en: `CSV parsing failed: ${errorMessages}\n\nFirst line of file:\n${firstLine}`,
-            fr: `Échec de l'analyse du CSV : ${errorMessages}\n\nPremière ligne du fichier :\n${firstLine}`,
+            en: `CSV parsing failed: ${e instanceof Error ? e.message : String(e)}\n\nFirst line of file:\n${firstLine}`,
+            fr: `Échec de l'analyse du CSV : ${e instanceof Error ? e.message : String(e)}\n\nPremière ligne du fichier :\n${firstLine}`,
           }),
         };
       }
-
-      const rows = parseResult.data as Record<string, string>[];
 
       if (rows.length === 0) {
         return {

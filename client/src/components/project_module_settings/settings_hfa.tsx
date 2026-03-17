@@ -78,14 +78,18 @@ export function SettingsForProjectModuleHFA(
   );
 
   const save = timActionButton(async () => {
-    return await serverActions.updateModuleParameters({
+    const res = await serverActions.updateModuleParameters({
       projectId: p.projectId,
       module_id: p.installedModuleId,
       newParams: {
         indicators: unwrap(tempIndicators),
         useSampleWeights: false,
       },
-    }); // This needs fixing!!!!
+    });
+    if (res.success) {
+      p.close(undefined);
+    }
+    return res;
   });
 
   async function editIndicator(indicator: HfaIndicator) {
