@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 import { t3, TC, type HfaIndicator } from "lib";
 import {
   Button,
+  parseCSVToObjects,
   StateHolderFormError,
   type EditorComponentProps,
   FrameTop,
@@ -9,7 +10,6 @@ import {
   RadioGroup,
   timActionForm,
 } from "panther";
-import Papa from "papaparse";
 
 type Props = EditorComponentProps<
   {

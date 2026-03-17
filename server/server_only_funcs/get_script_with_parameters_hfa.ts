@@ -122,6 +122,10 @@ data_wide <- data %>%
 # Detect facility columns dynamically
 facility_cols <- names(data_wide)[grepl("^(facility_|admin_area_|time_point)", names(data_wide))]
 
+# Convert pivoted variable columns to numeric (they may be character after pivot)
+data_wide <- data_wide %>%
+  mutate(across(-all_of(facility_cols), as.numeric))
+
 # Calculate indicators
 results <- data_wide %>%
 ${orderedIndicators
