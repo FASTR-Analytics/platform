@@ -73,7 +73,7 @@ routesHealth.get("/health_check", async (c) => {
 
 routesHealth.get("/user_logs", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const logs = await mainDb<UserLog[]>`SELECT user_email, endpoint, timestamp FROM user_logs ORDER BY timestamp DESC`;
+  const logs = await mainDb<UserLog[]>`SELECT user_email, endpoint, timestamp FROM user_logs WHERE endpoint = 'getInstanceDetail' ORDER BY timestamp DESC`;
   return c.json({ logs });
 });
 
