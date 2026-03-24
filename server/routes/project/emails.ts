@@ -136,6 +136,7 @@ defineRoute(
       subject: string,
       plainText: string,
       html: string,
+      replyTo?: string,
     ) {
       const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
         method: "POST",
@@ -149,6 +150,7 @@ defineRoute(
             email: "noreply@fastr-analytics.org",
             name: "FASTR Analytics Platform",
           },
+          ...(replyTo ? { reply_to: { email: replyTo } } : {}),
           subject,
           content: [
             { type: "text/plain", value: plainText },
@@ -177,6 +179,7 @@ defineRoute(
         `[FASTR] New ${typeLabel} from ${userEmail}`,
         internalPlainText,
         internalHtml,
+        userEmail,
       );
     }
 
