@@ -7,10 +7,11 @@ import {
   TextArea,
   type AlertComponentProps,
 } from "panther";
-import { Show, createSignal } from "solid-js";
+import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 type FeedbackType = "bug" | "suggestion";
+type ImageAttachment = { content: string; filename: string; mimeType: string };
 
 export function FeedbackForm(
   p: AlertComponentProps<{ projectLabel?: string }, undefined>,
@@ -22,6 +23,27 @@ export function FeedbackForm(
   const [err, setErr] = createSignal("");
   const [sent, setSent] = createSignal(false);
   const [sending, setSending] = createSignal(false);
+  const [images, setImages] = createSignal<ImageAttachment[]>([]);
+  let fileInputRef: HTMLInputElement | undefined;
+
+  async function handleFileSelect(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    const results: ImageAttachment[] = [];
+    for (const file of files) {
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          resolve(dataUrl.split(",")[1]);
+        };
+        reader.readAsDataURL(file);
+      });
+      results.push({ content: base64, filename: file.name, mimeType: file.type });
+    }
+    setImages((prev) => [...prev, ...results]);
+    input.value = "";
+  }
 
   async function handleSend() {
     if (!feedbackType()) {
@@ -48,6 +70,7 @@ export function FeedbackForm(
       feedbackType: feedbackType()!,
       description: description(),
       projectLabel: p.projectLabel,
+      images: images().length > 0 ? images() : undefined,
     });
     setSending(false);
     if (!res.success) {
@@ -137,6 +160,47 @@ export function FeedbackForm(
           fullWidth
           height="140px"
         />
+        <div>
+          <div class="text-base-content pb-1 text-sm font-medium">
+            {t3({ en: "Images (optional)", fr: "Images (optionnel)" })}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden"
+            onChange={handleFileSelect}
+          />
+          <div class="ui-gap-sm flex flex-wrap items-center">
+            <Button
+              onClick={() => fileInputRef?.click()}
+              intent="neutral"
+              iconName="plus"
+              size="sm"
+            >
+              {t3({ en: "Add image", fr: "Ajouter une image" })}
+            </Button>
+            <For each={images()}>
+              {(img, i) => (
+                <div class="flex items-center gap-1 text-sm">
+                  <span class="text-base-content max-w-32 truncate">
+                    {img.filename}
+                  </span>
+                  <button
+                    type="button"
+                    class="text-error hover:text-error cursor-pointer opacity-60 hover:opacity-100"
+                    onClick={() =>
+                      setImages((prev) => prev.filter((_, j) => j !== i()))
+                    }
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </For>
+          </div>
+        </div>
         <Show when={err()}>
           <StateHolderFormError state={{ status: "error", err: err() }} />
         </Show>
