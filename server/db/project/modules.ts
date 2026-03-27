@@ -57,7 +57,6 @@ function parseModuleConfigSelections(json: string): ModuleConfigSelections {
 export async function installModule(
   projectDb: Sql,
   moduleDefinitionId: ModuleId,
-  gitRef?: string,
 ): Promise<
   APIResponseWithData<{
     lastUpdated: string;
@@ -70,6 +69,7 @@ export async function installModule(
       _INSTANCE_LANGUAGE,
     );
     throwIfErrWithData(modDef);
+    const gitRef = modDef.data.gitRef;
     const lastUpdated = new Date().toISOString();
 
     // Cross-module metric ID conflict check
@@ -271,7 +271,6 @@ export async function updateModuleDefinition(
   projectDb: Sql,
   moduleDefinitionId: ModuleId,
   preserveSettings: boolean,
-  gitRef?: string,
 ): Promise<
   APIResponseWithData<{
     lastUpdated: string;
@@ -296,23 +295,25 @@ export async function updateModuleDefinition(
     );
     throwIfErrWithData(modDef);
 
+    const gitRef = modDef.data.gitRef;
     const lastUpdated = new Date().toISOString();
 
-    // Change detection: compare the three compute-affecting fields
+    // Compute new config selections
+    const oldConfigSelections = parseModuleConfigSelections(rawModule.config_selections);
+    const newConfigSelections = preserveSettings
+      ? getMergedModuleConfigSelections(oldConfigSelections, modDef.data.configRequirements)
+      : getStartingModuleConfigSelections(modDef.data.configRequirements);
+
+    // Change detection: compare compute-affecting fields
     const storedDef = parseJsonOrThrow<ModuleDefinition>(rawModule.module_definition);
     const scriptChanged = modDef.data.script !== storedDef.script;
     const configReqChanged = JSON.stringify(modDef.data.configRequirements) !== JSON.stringify(storedDef.configRequirements);
     const resultsObjectsChanged = JSON.stringify(modDef.data.resultsObjects) !== JSON.stringify(storedDef.resultsObjects);
+    const configSelectionsChanged = JSON.stringify(newConfigSelections.parameterSelections) !== JSON.stringify(oldConfigSelections.parameterSelections);
     const computeChange = scriptChanged || configReqChanged || resultsObjectsChanged;
 
     if (computeChange) {
       // Scenario B: compute change — full reinstall
-      const startingConfigSelections = preserveSettings
-        ? getMergedModuleConfigSelections(
-            parseModuleConfigSelections(rawModule.config_selections),
-            modDef.data.configRequirements,
-          )
-        : getStartingModuleConfigSelections(modDef.data.configRequirements);
 
       // Delegate to installModule logic (delete + recreate everything)
       const metricIds = modDef.data.metrics.map((m) => m.id);
@@ -326,12 +327,12 @@ INSERT INTO modules
 VALUES (
   ${modDef.data.id},
   ${JSON.stringify(modDef.data)},
-  ${JSON.stringify(startingConfigSelections)},
+  ${JSON.stringify(newConfigSelections)},
   'queued',
   ${lastUpdated},
   ${scriptChanged ? lastUpdated : rawModule.script_updated_at},
   ${lastUpdated},
-  ${preserveSettings ? rawModule.config_updated_at : lastUpdated},
+  ${configSelectionsChanged ? lastUpdated : rawModule.config_updated_at},
   ${lastUpdated},
   ${gitRef ?? rawModule.installed_git_ref}
 )`;
@@ -383,12 +384,7 @@ VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(po.conf
       };
     }
 
-    // Scenario A: presentation-only update — no dirty, no table drops
-    const mergedConfigSelections = getMergedModuleConfigSelections(
-      parseModuleConfigSelections(rawModule.config_selections),
-      modDef.data.configRequirements,
-    );
-
+    // Scenario A: presentation-only update — no table drops
     const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
     const metricIds = modDef.data.metrics.map((m) => m.id);
 
@@ -397,10 +393,12 @@ VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(po.conf
         UPDATE modules
         SET
           module_definition = ${JSON.stringify(modDef.data)},
-          config_selections = ${JSON.stringify(mergedConfigSelections)},
+          config_selections = ${JSON.stringify(newConfigSelections)},
           installed_at = ${lastUpdated},
           definition_updated_at = ${lastUpdated},
-          installed_git_ref = ${gitRef ?? rawModule.installed_git_ref}
+          installed_git_ref = ${gitRef ?? rawModule.installed_git_ref},
+          config_updated_at = ${configSelectionsChanged ? lastUpdated : rawModule.config_updated_at},
+          dirty = ${configSelectionsChanged ? 'queued' : rawModule.dirty}
         WHERE id = ${moduleDefinitionId}
       `;
 
@@ -451,7 +449,7 @@ VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(po.conf
 
     return {
       success: true,
-      data: { lastUpdated, presObjIdsWithNewLastUpdateds, computeChange: false },
+      data: { lastUpdated, presObjIdsWithNewLastUpdateds, computeChange: configSelectionsChanged },
     };
   });
 }
@@ -568,7 +566,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
       id: getValidatedModuleId(rawModule.id),
       moduleDefinition,
       installedAt: rawModule.installed_at,
-      configSelections: parseJsonOrThrow(rawModule.config_selections),
+      configSelections: parseModuleConfigSelections(rawModule.config_selections),
     };
     return { success: true, data: module };
   });

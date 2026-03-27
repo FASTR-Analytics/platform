@@ -22,7 +22,7 @@ RUN deno install --allow-scripts --allow-import
 COPY lib lib
 COPY panther panther
 COPY server server
-COPY module_defs_dist module_defs_dist
+# COPY module_defs_dist module_defs_dist
 COPY client_dist client_dist
 COPY main.ts main.ts
 

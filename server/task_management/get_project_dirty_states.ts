@@ -111,6 +111,18 @@ SELECT dataset_type, last_updated FROM datasets
         for (const rawDataset of rawDatasets) {
           pds.lastUpdated.datasets[rawDataset.dataset_type] = rawDataset.last_updated;
         }
+      } else if (tableName === "modules") {
+        const rawItems = await ppk.projectDb<
+          {
+            id: string;
+            installed_at: string;
+          }[]
+        >`
+SELECT id, installed_at FROM modules
+`;
+        for (const rawItem of rawItems) {
+          pds.lastUpdated[tableName][rawItem.id] = rawItem.installed_at;
+        }
       } else {
         const rawItems = await ppk.projectDb<
           {

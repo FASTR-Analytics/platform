@@ -1,14 +1,13 @@
 import {
   GenericLongFormFetchConfig,
   ItemsHolderPresentationObject,
-  METRIC_TO_MODULE,
   PresentationObjectDetail,
-  RESULTS_OBJECT_TO_MODULE,
   ReplicantOptionsForPresentationObject,
   ResultsValueInfoForPresentationObject,
   hashFetchConfig,
   type DisaggregationOption,
 } from "lib";
+import { getModuleIdForMetric, getModuleIdForResultsObject } from "~/components/project_runner/global_module_maps";
 import { createReactiveCache } from "./reactive_cache";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,7 +35,7 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
     params.projectId,
     params.metricId,
   ],
-  versionKey: (params, pds) => pds.moduleLastRun[METRIC_TO_MODULE[params.metricId]] ?? "unknown",
+  versionKey: (params, pds) => pds.moduleLastRun[getModuleIdForMetric(params.metricId)] ?? "unknown",
 });
 
 export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
@@ -55,7 +54,7 @@ export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
     params.replicateBy,
     hashFetchConfig(params.fetchConfig),
   ],
-  versionKey: (params, pds) => pds.moduleLastRun[RESULTS_OBJECT_TO_MODULE[params.resultsObjectId]] ?? "unknown",
+  versionKey: (params, pds) => pds.moduleLastRun[getModuleIdForResultsObject(params.resultsObjectId)] ?? "unknown",
 });
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -112,5 +111,5 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
     hashFetchConfig(params.fetchConfig),
   ],
   versionKey: (params, pds) =>
-    pds.moduleLastRun[RESULTS_OBJECT_TO_MODULE[params.resultsObjectId]] ?? "unknown",
+    pds.moduleLastRun[getModuleIdForResultsObject(params.resultsObjectId)] ?? "unknown",
 });

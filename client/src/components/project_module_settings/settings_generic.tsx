@@ -1,7 +1,10 @@
-import { t3, TC,
+import {
+  t3,
+  TC,
   type APIResponseWithData,
   type ModuleConfigSelections,
-  type ModuleId } from "lib";
+  type ModuleId,
+} from "lib";
 import {
   Button,
   Checkbox,
@@ -39,34 +42,45 @@ export function SettingsForProjectModuleGeneric(
     setNeedsSaving(true);
   }
 
-  const config = timQuery(async () => {
-    const res = await serverActions.getModuleWithConfigSelections({
-      projectId: p.projectId,
-      module_id: p.installedModuleId,
-    });
-    if (!res.success) {
-      return res;
-    }
-    setTempParameters(res.data.configSelections.parameterSelections);
-    return {
-      success: true,
-      data: res.data.configSelections as ModuleConfigSelections,
-    };
-  }, t3({ en: "Loading module config selections...", fr: "Chargement des configurations du module..." }));
+  const config = timQuery(
+    async () => {
+      const res = await serverActions.getModuleWithConfigSelections({
+        projectId: p.projectId,
+        module_id: p.installedModuleId,
+      });
+      if (!res.success) {
+        return res;
+      }
+      setTempParameters(res.data.configSelections.parameterSelections);
+      return {
+        success: true,
+        data: res.data.configSelections as ModuleConfigSelections,
+      };
+    },
+    t3({
+      en: "Loading module config selections...",
+      fr: "Chargement des configurations du module...",
+    }),
+  );
 
-  const save = timActionButton(async () => {
-    const newParameters = unwrap(tempParameters);
-    return await serverActions.updateModuleParameters({
-      projectId: p.projectId,
-      module_id: p.installedModuleId,
-      newParams: newParameters,
-    });
-  });
+  const save = timActionButton(
+    async () => {
+      const newParameters = unwrap(tempParameters);
+      return await serverActions.updateModuleParameters({
+        projectId: p.projectId,
+        module_id: p.installedModuleId,
+        newParams: newParameters,
+      });
+    },
+    () => p.close(undefined),
+  );
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${p.installedModuleLabel} ${t3({ en: "settings", fr: "paramètres" })}`}>
+        <HeadingBar
+          heading={`${p.installedModuleLabel} ${t3({ en: "settings", fr: "paramètres" })}`}
+        >
           <div class="ui-gap-sm flex">
             <Show when={!p.projectIsLocked}>
               <Button
@@ -98,7 +112,10 @@ export function SettingsForProjectModuleGeneric(
                 each={keyedConfig.parameterDefinitions}
                 fallback={
                   <div class="text-neutral col-span-12">
-                    {t3({ en: "No parameters for this module", fr: "Aucun paramètre pour ce module" })}
+                    {t3({
+                      en: "No parameters for this module",
+                      fr: "Aucun paramètre pour ce module",
+                    })}
                   </div>
                 }
               >
@@ -109,7 +126,12 @@ export function SettingsForProjectModuleGeneric(
                         {inputParameter.description}
                       </div>
                       <div class="">
-                        <Switch fallback={t3({ en: "Bad input type", fr: "Type de saisie incorrect" })}>
+                        <Switch
+                          fallback={t3({
+                            en: "Bad input type",
+                            fr: "Type de saisie incorrect",
+                          })}
+                        >
                           <Match
                             when={inputParameter.input.inputType === "number"}
                           >
@@ -133,7 +155,10 @@ export function SettingsForProjectModuleGeneric(
                                     ],
                                   ),
                                 )
-                                  ? t3({ en: "Not a number", fr: "Pas un nombre" })
+                                  ? t3({
+                                      en: "Not a number",
+                                      fr: "Pas un nombre",
+                                    })
                                   : undefined
                               }
                               fullWidth
@@ -191,7 +216,10 @@ export function SettingsForProjectModuleGeneric(
                                     !tempParameters[
                                       inputParameter.replacementString
                                     ]
-                                      ? t3({ en: "Unselected", fr: "Non sélectionné" })
+                                      ? t3({
+                                          en: "Unselected",
+                                          fr: "Non sélectionné",
+                                        })
                                       : undefined
                                   }
                                   fullWidth

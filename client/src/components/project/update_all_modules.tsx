@@ -15,7 +15,6 @@ export function UpdateAllModules(
   >,
 ) {
   const [preserveSettings, setPreserveSettings] = createSignal(true);
-  const [rerunModule, setRerunModule] = createSignal(false);
   const [statuses, setStatuses] = createSignal<Record<string, ModuleStatus>>(
     Object.fromEntries(p.modules.map((m) => [m.id, "pending" as const])),
   );
@@ -31,7 +30,6 @@ export function UpdateAllModules(
         projectId: p.projectId,
         module_id: mod.id,
         preserveSettings: preserveSettings(),
-        rerunModule: rerunModule(),
       });
       setStatuses((prev) => ({
         ...prev,
@@ -81,11 +79,6 @@ export function UpdateAllModules(
               label={t3({ en: "Preserve settings", fr: "Conserver les paramètres" })}
               checked={preserveSettings()}
               onChange={setPreserveSettings}
-            />
-            <Checkbox
-              label={t3({ en: "Re-run modules after update", fr: "Relancer les modules après la mise à jour" })}
-              checked={rerunModule()}
-              onChange={setRerunModule}
             />
           </div>
         </Show>

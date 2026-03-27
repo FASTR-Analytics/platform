@@ -75,6 +75,9 @@ export function getValidatedModuleId(id: string): ModuleId {
   return entry.id;
 }
 
+export const MODULE_SOURCE: "local" | "github" = "github";
+export const MODULES_LOCAL_DIR = "./modules";
+
 export function getPossibleModules(): {
   id: ModuleId;
   label: string;

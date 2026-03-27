@@ -2,6 +2,8 @@ import {
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
   MODULE_REGISTRY,
+  MODULE_SOURCE,
+  MODULES_LOCAL_DIR,
   type APIResponseWithData,
   type DefaultPresentationObject,
   type InstanceLanguage,
@@ -17,10 +19,9 @@ import {
   type TranslatableString,
 } from "lib";
 import { ModuleDefinitionJSONSchema } from "../../lib/types/module_definition_validator.ts";
+import { stripFrontmatter } from "../github/fetch_module.ts";
 import { getTranslateFunc } from "./translation_utils.ts";
 
-const _MODULE_SOURCE = Deno.env.get("MODULE_SOURCE") ?? "local";
-const _MODULES_DIR = Deno.env.get("MODULES_DIR") ?? "./modules";
 const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
 
 export function resolveTS(ts: TranslatableString, lang: InstanceLanguage): string {
@@ -115,12 +116,12 @@ export async function fetchModuleFiles(
     throw new Error(`Module "${moduleId}" not found in registry`);
   }
 
-  if (_MODULE_SOURCE === "local") {
-    const basePath = `${_MODULES_DIR}/${registryEntry.github.path}`;
+  if (MODULE_SOURCE === "local") {
+    const basePath = `${MODULES_LOCAL_DIR}/${registryEntry.github.path}`;
     const definitionText = await Deno.readTextFile(`${basePath}/definition.json`);
-    const script = await Deno.readTextFile(`${basePath}/script.R`);
+    const rawScript = await Deno.readTextFile(`${basePath}/script.R`);
     const definition = JSON.parse(definitionText);
-    return { definition, script, gitRef: "local" };
+    return { definition, script: stripFrontmatter(rawScript), gitRef: "local" };
   }
 
   const { owner, repo, path } = registryEntry.github;
@@ -162,9 +163,9 @@ export async function fetchModuleFiles(
   }
 
   const definition = await defRes.json();
-  const script = await scriptRes.text();
+  const rawScript = await scriptRes.text();
 
-  return { definition, script, gitRef };
+  return { definition, script: stripFrontmatter(rawScript), gitRef };
 }
 
 function validateDefinition(definition: unknown, moduleId: string): ModuleDefinitionJSON {
@@ -210,9 +211,9 @@ function translateResultsObjects(
 export async function getModuleDefinitionDetail(
   id: ModuleId,
   language: InstanceLanguage,
-): Promise<APIResponseWithData<ModuleDefinition>> {
+): Promise<APIResponseWithData<ModuleDefinition & { gitRef?: string }>> {
   try {
-    const { definition: rawDefinition, script } = await fetchModuleFiles(id);
+    const { definition: rawDefinition, script, gitRef } = await fetchModuleFiles(id);
     const definition = validateDefinition(rawDefinition, id);
 
     const tc = getTranslateFunc(language);
@@ -244,7 +245,7 @@ export async function getModuleDefinitionDetail(
       metrics: translatedMetrics,
     };
 
-    return { success: true, data: translatedModule };
+    return { success: true, data: { ...translatedModule, gitRef } };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {

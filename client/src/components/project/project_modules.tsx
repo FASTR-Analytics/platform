@@ -323,37 +323,40 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
             <Match
               when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready"}
             >
-              <div class="flex">
-                <div class="ui-spy-sm flex-1">
-                  <div class="text-success text-xs">
-                    {t3({ en: "Last module install/update", fr: "Dernière installation/mise à jour du module" })}:{" "}
-                    {new Date(
-                      p.thisInstalledModule.installedAt,
-                    ).toLocaleString()}{" "}
-                    {p.thisInstalledModule.installedGitRef ? (
+              {(() => {
+                const installedDate = new Date(p.thisInstalledModule.installedAt);
+                const lastRunDate = new Date(pds.moduleLastRun[p.thisInstalledModule.id]);
+                const resultsStale = installedDate > lastRunDate;
+                return (
+                  <div class="text-neutral flex flex-col gap-1 text-xs">
+                    <div class="flex items-center gap-2">
                       <span>
-                        ({t3({ en: "Commit", fr: "Commit" })}: {p.thisInstalledModule.installedGitRef.slice(0, 6)})
+                        {t3({ en: "Installed", fr: "Installé" })}: {installedDate.toLocaleString()}
                       </span>
-                    ) : (
-                      t3({ en: "No SHA", fr: "Pas de SHA" })
-                    )}
-                  </div>
-                  <div class="text-success text-xs">
-                    {t3({ en: "Last run", fr: "Dernière exécution" })}:{" "}
-                    {new Date(
-                      pds.moduleLastRun[p.thisInstalledModule.id],
-                    ).toLocaleString()}{" "}
-                    {p.thisInstalledModule.lastRunGitRef ? (
+                      <Show when={p.thisInstalledModule.installedGitRef}>
+                        <span class="font-mono">
+                          ({p.thisInstalledModule.installedGitRef!.slice(0, 7)})
+                        </span>
+                      </Show>
+                    </div>
+                    <div class={`flex items-center gap-2 ${resultsStale ? "text-danger" : ""}`}>
                       <span>
-                        ({t3({ en: "Latest run commit", fr: "Dernier commit exécuté" })}:{" "}
-                        {p.thisInstalledModule.lastRunGitRef.slice(0, 6)})
+                        {t3({ en: "Last run", fr: "Dernière exécution" })}: {lastRunDate.toLocaleString()}
                       </span>
-                    ) : (
-                      t3({ en: "No SHA", fr: "Pas de SHA" })
-                    )}
+                      <Show when={p.thisInstalledModule.lastRunGitRef}>
+                        <span class="font-mono">
+                          ({p.thisInstalledModule.lastRunGitRef!.slice(0, 7)})
+                        </span>
+                      </Show>
+                      <Show when={resultsStale}>
+                        <span class="font-700">
+                          {t3({ en: "— results outdated", fr: "— résultats obsolètes" })}
+                        </span>
+                      </Show>
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
             </Match>
             <Match
               when={
