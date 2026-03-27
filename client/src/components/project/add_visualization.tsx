@@ -5,7 +5,6 @@ import {
   PresentationOption,
   get_PRESENTATION_SELECT_OPTIONS,
   getMetricDisplayLabel,
-  getMetricStaticData,
   getStartingConfigForPresentationObject,
   groupMetricsByLabel,
   isFrench,
@@ -66,13 +65,9 @@ export function AddVisualization(
   };
 
   const vizPresets = () => {
-    const id = selectedMetricId();
-    if (!id) return [];
-    try {
-      return getMetricStaticData(id).vizPresets ?? [];
-    } catch {
-      return [];
-    }
+    const metric = selectedMetric();
+    if (!metric) return [];
+    return metric.vizPresets ?? [];
   };
 
   const isPresetSelected = () => {

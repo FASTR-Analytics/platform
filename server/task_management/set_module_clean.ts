@@ -61,17 +61,16 @@ WHERE id = ${etd.moduleId}
 
   const lastRun = new Date().toISOString();
 
-  // Get the current module's commitSha to store as latest_ran_commit_sha
-  const moduleRow = await projectDb<{ module_definition: string }[]>`
-    SELECT module_definition FROM modules WHERE id = ${etd.moduleId}
+  // Copy installed_git_ref to last_run_git_ref on successful run
+  const moduleRow = await projectDb<{ installed_git_ref: string | null }[]>`
+    SELECT installed_git_ref FROM modules WHERE id = ${etd.moduleId}
   `;
-  const moduleDefinition = moduleRow[0] ? JSON.parse(moduleRow[0].module_definition) : null;
-  const commitSha = moduleDefinition?.commitSha ?? null;
+  const installedGitRef = moduleRow[0]?.installed_git_ref ?? null;
 
   await projectDb.begin((sql) => [
     sql`
 UPDATE modules
-SET last_run = ${lastRun}, dirty = 'ready', latest_ran_commit_sha = ${commitSha}
+SET last_run_at = ${lastRun}, dirty = 'ready', last_run_git_ref = ${installedGitRef}
 WHERE id = ${etd.moduleId}
 `,
     sql`

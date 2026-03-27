@@ -41,7 +41,7 @@ function AIProjectWrapperInner(props: AIProjectWrapperProps) {
     // console.log("[WRAPPER] tools memo recomputing, aiContext mode:", aiContext().mode);
     // Touch all properties used by tools (bespoke reader pattern)
     projectDetail.projectModules.forEach(m => {
-      const _v = m.id + m.label + m.configType + m.dateInstalled + m.lastRun + m.dirty;
+      const _v = m.id + m.label + m.hasParameters + m.installedAt + m.lastRunAt + m.dirty;
     });
     projectDetail.metrics.forEach(m => {
       const _v = m.status + m.moduleId + m.label + m.variantLabel + m.id + m.formatAs;

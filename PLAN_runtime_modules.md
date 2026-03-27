@@ -39,17 +39,21 @@ Everything in `definition.json` is **metadata about how to interpret and display
 
 ### Change detection
 
-When a module is updated from GitHub, the server compares the incoming R script content against the stored script content:
+When a module is updated from GitHub, the server compares the incoming definition against the stored one across three **compute-affecting fields**:
 
-- **Script changed** → compute change → must re-run
-- **Script unchanged, definition changed** → presentation-only update → update metadata in place, no re-run
-- **Neither changed** → no-op
+1. **R script content** — the code that runs
+2. **`configRequirements`** — what parameters the script receives (a new param always comes with a script change, but a changed default value doesn't)
+3. **`resultsObjects`** — the schema of what the script produces (column names, types)
 
-This is a simple string comparison on the script content. No need to deep-compare individual definition fields.
+If any of these three differ → Scenario B (compute change, must re-run).
+If none differ but other definition fields changed → Scenario A (presentation-only update).
+If nothing changed → no-op.
+
+The comparison is straightforward: string comparison on script content, `JSON.stringify` comparison on `configRequirements` and `resultsObjects`.
 
 ### Update scenarios
 
-**Scenario A: Presentation-only update (script unchanged, definition changed)**
+**Scenario A: Presentation-only update (compute fields unchanged, other definition fields changed)**
 1. Update `modules.module_definition` with new definition
 2. Delete/recreate `metrics` rows (new labels, vizPresets, etc.)
 3. Delete/recreate `results_objects` metadata rows (descriptions might change)
@@ -57,12 +61,12 @@ This is a simple string comparison on the script content. No need to deep-compar
 5. Do NOT mark dirty
 6. Update default POs if vizPreset configs changed
 
-**Scenario B: Script update (script changed)**
+**Scenario B: Compute change (script, configRequirements, or resultsObjects changed)**
 1. Full reinstall (like current `installModule`)
 2. Drop and recreate results object DATA tables
 3. Mark dirty → `'queued'` → triggers re-run
 
-This maps directly onto the existing code: `updateModuleDefinition()` is Scenario A, `installModule()` is Scenario B. The new logic just decides which path to take based on comparing script content.
+This maps directly onto the existing code: `updateModuleDefinition()` is Scenario A, `installModule()` is Scenario B. The new logic just decides which path to take based on comparing the three compute-affecting fields.
 
 ---
 
@@ -104,7 +108,7 @@ This plan is our opportunity to clean up the `modules` table columns. The curren
 |--------|------|----------|---------|
 | `id` | text PK | — | Module identifier |
 | `module_definition` | text | Install, update | Full `ModuleDefinition` as JSON |
-| `config_type` | text | Install, update | `'none'` / `'parameters'` / `'hfa'` |
+| ~~`config_type`~~ | — | — | **Dropped.** Redundant — derivable from `configRequirements.parameters` in the stored definition. |
 | `config_selections` | text | Install, update, param change | User's current config as JSON |
 | `dirty` | text | Various (existing system, unchanged) | `'queued'` / `'running'` / `'ready'` / `'error'` |
 | `installed_at` | text | Install, update | When the current version was put in place. Updates on every install/update — a quick staleness signal ("this module hasn't been touched since March"). |
@@ -163,6 +167,7 @@ Types to include:
 - `MetricDefinitionJSON`
 - `ResultsObjectDefinitionJSON`
 - `VizPreset`, `VizPresetTextConfig`
+- `ScriptGenerationType` (added by HFA-to-instance migration)
 - `MetricAIDescription`
 - `DataSource`, `ScriptSource`, `ModuleConfigRequirements`
 - All leaf unions: `ValueFunc`, `PeriodOption`, `DisaggregationOption`, etc.
@@ -170,13 +175,15 @@ Types to include:
 
 ### 1b. `lib/types/module_definition_validator.ts`
 
-A Zod schema that validates a parsed JSON object against `ModuleDefinitionJSON`. This runs server-side at install/update time.
+A Zod schema that validates a parsed JSON object against `ModuleDefinitionJSON`. This runs server-side at install/update time. Zod is a new dependency — needed because definitions now arrive as raw JSON from GitHub with no TypeScript compiler in the loop.
 
-Validates:
+The Zod schema validates:
 - All required fields present with correct types
 - Enum values are valid (valueFunc, formatAs, periodOptions, disaggregationOptions, etc.)
 - Metric resultsObjectId references a resultsObject defined in the same module
 - No duplicate metric IDs within the module
+- No duplicate results object IDs within the module
+- Variant label consistency (ported from existing `validateMetrics` in `build_module_definitions.ts`)
 - VizPreset config.d has valid structure
 
 Does NOT validate (left to install-time cross-module check):
@@ -193,6 +200,7 @@ Update `lib/types/module_definitions.ts` and `lib/types/presentation_objects.ts`
 ### Files modified
 - `lib/types/module_definitions.ts` — import shared types from schema file
 - `lib/types/mod.ts` — re-export new files
+- `deno.json` — add `zod` dependency
 
 ### Verification
 - `deno task typecheck` passes
@@ -216,7 +224,14 @@ ALTER TABLE metrics ADD COLUMN important_notes text;  -- resolved string, nullab
 
 Note: `importantNotes` exists on the `ResultsValue` type but is NOT currently in the metrics table and `enrichMetric()` never populates it. Currently it only reaches the client via `getMetricStaticData()`. When Part 3 removes that function, `importantNotes` would silently become `undefined` everywhere unless we add this column now.
 
-Migration file: `server/db/migrations/project/XXX_add_viz_presets_and_hide_to_metrics.sql`
+Migration file: `server/db/migrations/project/009_add_viz_presets_and_hide_to_metrics.sql`
+
+The migration must be **idempotent** (use `ADD COLUMN IF NOT EXISTS`):
+```sql
+ALTER TABLE metrics ADD COLUMN IF NOT EXISTS viz_presets text;
+ALTER TABLE metrics ADD COLUMN IF NOT EXISTS hide boolean DEFAULT false;
+ALTER TABLE metrics ADD COLUMN IF NOT EXISTS important_notes text;
+```
 
 Also update `server/db/project/_project_database.sql` (the base schema for new projects) to include these columns in the `CREATE TABLE metrics` statement.
 
@@ -544,31 +559,51 @@ Flow:
 1. Fetch latest from GitHub
 2. Validate with Zod
 3. Build ModuleDefinition
-4. Compare incoming script content against stored script content
+4. Compare incoming definition against stored definition on the three compute-affecting fields: script content, `configRequirements`, `resultsObjects`
 5. Based on comparison:
-   - **Script unchanged** → Scenario A (presentation-only update via `updateModuleDefinition` path, preserve settings, don't mark dirty). Stamp `installed_at`, `definition_updated_at`, `installed_git_ref`. Only stamp `definition_updated_at` if definition actually differs.
-   - **Script changed** → Scenario B (full update, mark dirty). Stamp `installed_at`, `script_updated_at`, `definition_updated_at`, `installed_git_ref`.
+   - **No compute fields changed** → Scenario A (presentation-only update via `updateModuleDefinition` path, preserve settings, don't mark dirty). Stamp `installed_at`, `definition_updated_at`, `installed_git_ref`. Only stamp `definition_updated_at` if definition actually differs.
+   - **Any compute field changed** → Scenario B (full update, mark dirty). Stamp `installed_at`, `script_updated_at`, `definition_updated_at`, `installed_git_ref`.
 
 ### 5d. Modules table column redesign migration
 
 Apply the full column redesign described in the "Modules Table Column Redesign" section above.
 
-Migration file: `server/db/migrations/project/XXX_modules_column_redesign.sql`
+Migration file: `server/db/migrations/project/010_modules_column_redesign.sql`
+
+The migration must be **idempotent**:
 
 ```sql
--- Rename existing columns
-ALTER TABLE modules RENAME COLUMN date_installed TO installed_at;
-ALTER TABLE modules RENAME COLUMN last_run TO last_run_at;
-ALTER TABLE modules RENAME COLUMN latest_ran_commit_sha TO last_run_git_ref;
+-- Rename existing columns (idempotent: check if old name still exists)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'modules' AND column_name = 'date_installed') THEN
+    ALTER TABLE modules RENAME COLUMN date_installed TO installed_at;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'modules' AND column_name = 'last_run') THEN
+    ALTER TABLE modules RENAME COLUMN last_run TO last_run_at;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'modules' AND column_name = 'latest_ran_commit_sha') THEN
+    ALTER TABLE modules RENAME COLUMN latest_ran_commit_sha TO last_run_git_ref;
+  END IF;
+END $$;
 
--- Drop unused column
+-- Drop unused columns
 ALTER TABLE modules DROP COLUMN IF EXISTS last_updated;
+ALTER TABLE modules DROP COLUMN IF EXISTS config_type;
 
 -- Add new columns
-ALTER TABLE modules ADD COLUMN script_updated_at text;
-ALTER TABLE modules ADD COLUMN definition_updated_at text;
-ALTER TABLE modules ADD COLUMN config_updated_at text;
-ALTER TABLE modules ADD COLUMN installed_git_ref text;
+ALTER TABLE modules ADD COLUMN IF NOT EXISTS script_updated_at text;
+ALTER TABLE modules ADD COLUMN IF NOT EXISTS definition_updated_at text;
+ALTER TABLE modules ADD COLUMN IF NOT EXISTS config_updated_at text;
+ALTER TABLE modules ADD COLUMN IF NOT EXISTS installed_git_ref text;
+
+-- Add missing FK: metrics.results_object_id → results_objects.id
+-- (The old results_values table had this FK; it was missed when metrics table was created)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_metrics_results_object_id') THEN
+    ALTER TABLE metrics ADD CONSTRAINT fk_metrics_results_object_id
+      FOREIGN KEY (results_object_id) REFERENCES results_objects(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 ```
 
 Also update:
@@ -588,7 +623,7 @@ Per module on GitHub:
 ```
 {repo}/modules/m001/
   ├── script.R          # R script
-  └── definition.json   # ModuleDefinitionJSON (validated by Zod)
+  └── definition.json   # ModuleDefinitionJSON (validated by runtime validator)
 ```
 
 ### 5g. `deriveDefaultPresentationObjects` in the new flow
@@ -805,7 +840,7 @@ Extend the existing "Update all modules" dialog to:
 | **Existing project migration** | Column migrations + trigger "update definitions" per project. No separate seeding script. | Leverages existing update flow. Conservative null handling during transition. |
 | **`hide` field** | Add `hide boolean` column to metrics table. Filter in `getMetricsWithStatus()` query. | Minimal change, replaces the current `METRIC_STATIC_DATA` filter. |
 | **Cross-module validation** | At install time, check metric IDs against all other installed modules in the project. | Catches conflicts at the right moment. No global registry needed. |
-| **What drives dirty?** | Script changes and config changes mark dirty. Definition-only changes do not. The `dirty` column is the sole mechanism for dirty detection — timestamps are informational only. | Script and config are the compute drivers. Everything in `definition.json` is metadata about how to interpret results. |
+| **What drives dirty?** | Three compute-affecting fields drive dirty: script content, `configRequirements`, and `resultsObjects`. Changes to any of these mark dirty. Changes to other definition fields (labels, vizPresets, formatting) do not. User config/parameter changes also mark dirty. The `dirty` column is the sole mechanism — timestamps are informational only. | Script content is the code. `configRequirements` determines what the script receives. `resultsObjects` determines the output schema. Everything else in `definition.json` is metadata about how to interpret and display results. |
 | **`installed_git_ref` vs `last_run_git_ref`** | Both stored. Same commit SHA, stamped at different moments. | `installed_git_ref` = what's installed now. `last_run_git_ref` = what produced the current results. When they differ, you know the module was updated but hasn't re-run. |
 
 ---

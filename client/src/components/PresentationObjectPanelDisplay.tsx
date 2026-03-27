@@ -1,7 +1,6 @@
 import {
   createMetricLookup,
   getMetricDisplayLabel,
-  getModuleIdForMetric,
   groupMetricsByLabel,
   InstalledModuleSummary,
   MetricWithStatus,
@@ -77,6 +76,9 @@ type Props = {
 };
 
 export function PresentationObjectPanelDisplay(p: Props) {
+  const metricModuleMap = () =>
+    new Map(p.projectDetail.metrics.map((m) => [m.id, m.moduleId]));
+
   const readyMetricIds = () =>
     new Set(
       p.projectDetail.metrics
@@ -130,8 +132,8 @@ export function PresentationObjectPanelDisplay(p: Props) {
       case "module":
         return p.projectDetail.projectModules.map((m) => ({
           value: m.id,
-          label: m.moduleDefinitionLabel,
-          count: vizs.filter((v) => getModuleIdForMetric(v.metricId) === m.id)
+          label: m.label,
+          count: vizs.filter((v) => metricModuleMap().get(v.metricId) === m.id)
             .length,
         }));
 
@@ -207,7 +209,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         return vizs.filter((v) => v.folderId === group && !v.isDefault);
 
       case "module":
-        return vizs.filter((v) => getModuleIdForMetric(v.metricId) === group);
+        return vizs.filter((v) => metricModuleMap().get(v.metricId) === group);
 
       case "metric": {
         // group is the metric label, find all metric IDs with that label
@@ -233,9 +235,9 @@ export function PresentationObjectPanelDisplay(p: Props) {
     // Sub-group by module for Defaults folder or "default" in ownership
     if (mode === "folders" && group === "_defaults") {
       return {
-        getGroupKey: (po) => getModuleIdForMetric(po.metricId),
+        getGroupKey: (po) => metricModuleMap().get(po.metricId) ?? "",
         getGroupLabel: (key, modules) =>
-          modules.find((m) => m.id === key)?.moduleDefinitionLabel ?? key,
+          modules.find((m) => m.id === key)?.label ?? key,
         getGroupOrder: (modules) => modules.map((m) => m.id),
       };
     }
@@ -1002,7 +1004,7 @@ function VisualizationCard(p: VisualizationCardProps) {
           <PresentationObjectMiniDisplay
             projectId={p.projectId}
             presentationObjectId={p.po.id}
-            moduleId={getModuleIdForMetric(p.po.metricId)}
+            moduleId={p.metrics.find((m) => m.id === p.po.metricId)?.moduleId ?? ""}
             shapeType={"force-aspect-video"}
             scalePixelResolution={0.2}
           />

@@ -27,7 +27,6 @@ import {
 } from "~/components/project_runner/mod";
 import { serverActions } from "~/server_actions";
 import { SettingsForProjectModuleGeneric } from "../project_module_settings/settings_generic";
-import { SettingsForProjectModuleHFA } from "../project_module_settings/settings_hfa";
 import { ViewFiles } from "./view_files";
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
@@ -146,21 +145,9 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
   const rLogs = useRLogs();
 
   async function editSettings() {
-    if (p.thisInstalledModule.configType === "none") {
+    if (!p.thisInstalledModule.hasParameters) {
       const _res = await openAlert({
         text: t3({ en: "There are no settings for this module!", fr: "Ce module n'a aucun paramètre !" }),
-      });
-      return;
-    }
-    if (p.thisInstalledModule.configType === "hfa") {
-      const _res = await p.openEditor({
-        element: SettingsForProjectModuleHFA,
-        props: {
-          projectId: p.projectId,
-          projectIsLocked: p.projectDetail.isLocked,
-          installedModuleId: p.thisInstalledModule.id,
-          installedModuleLabel: p.thisInstalledModule.label,
-        },
       });
       return;
     }
@@ -341,11 +328,11 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                   <div class="text-success text-xs">
                     {t3({ en: "Last module install/update", fr: "Dernière installation/mise à jour du module" })}:{" "}
                     {new Date(
-                      p.thisInstalledModule.dateInstalled,
+                      p.thisInstalledModule.installedAt,
                     ).toLocaleString()}{" "}
-                    {p.thisInstalledModule.commitSha ? (
+                    {p.thisInstalledModule.installedGitRef ? (
                       <span>
-                        ({t3({ en: "Commit", fr: "Commit" })}: {p.thisInstalledModule.commitSha.slice(0, 6)})
+                        ({t3({ en: "Commit", fr: "Commit" })}: {p.thisInstalledModule.installedGitRef.slice(0, 6)})
                       </span>
                     ) : (
                       t3({ en: "No SHA", fr: "Pas de SHA" })
@@ -356,10 +343,10 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                     {new Date(
                       pds.moduleLastRun[p.thisInstalledModule.id],
                     ).toLocaleString()}{" "}
-                    {p.thisInstalledModule.latestRanCommitSha ? (
+                    {p.thisInstalledModule.lastRunGitRef ? (
                       <span>
                         ({t3({ en: "Latest run commit", fr: "Dernier commit exécuté" })}:{" "}
-                        {p.thisInstalledModule.latestRanCommitSha.slice(0, 6)})
+                        {p.thisInstalledModule.lastRunGitRef.slice(0, 6)})
                       </span>
                     ) : (
                       t3({ en: "No SHA", fr: "Pas de SHA" })

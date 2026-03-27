@@ -48,17 +48,17 @@ CREATE INDEX idx_facilities_admin_area_4 ON facilities(admin_area_4);
 CREATE TABLE modules (
   id text PRIMARY KEY NOT NULL,
   module_definition text NOT NULL,
-  date_installed text NOT NULL,
-  config_type text NOT NULL,
   config_selections text NOT NULL,
-  last_updated text NOT NULL,
-  last_run text NOT NULL,
   dirty text NOT NULL,
-  latest_ran_commit_sha text
+  installed_at text NOT NULL,
+  script_updated_at text,
+  definition_updated_at text,
+  config_updated_at text,
+  last_run_at text NOT NULL,
+  installed_git_ref text,
+  last_run_git_ref text
 );
 
-CREATE INDEX idx_modules_last_updated ON modules(last_updated);
-CREATE INDEX idx_modules_last_run ON modules(last_run);
 CREATE INDEX idx_modules_dirty ON modules(dirty);
 
 -- ============================================================================
@@ -93,6 +93,9 @@ CREATE TABLE metrics (
   auto_include_facility_columns boolean DEFAULT false,
   results_object_id text NOT NULL,
   ai_description text,  -- JSON object (nullable)
+  viz_presets text,  -- JSON array (nullable)
+  hide boolean DEFAULT false,
+  important_notes text,  -- resolved string (nullable)
   FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
 );
 

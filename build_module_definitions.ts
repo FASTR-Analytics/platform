@@ -3,8 +3,11 @@ import { join } from "@std/path";
 import type {
   ModuleDefinitionJSON,
   ModuleId,
-  ScriptSource,
 } from "./lib/types/module_definitions.ts";
+
+type ScriptSource =
+  | { type: "local"; filename: string }
+  | { type: "github"; owner: string; repo: string; path: string; commit: string; replacements?: { from: string; to: string }[] };
 
 function stripFrontmatter(script: string): string {
   const lines = script.split("\n");

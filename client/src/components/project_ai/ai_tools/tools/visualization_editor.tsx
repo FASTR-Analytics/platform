@@ -42,7 +42,7 @@ export function getToolsForVizEditor(
         const presentationObjectId = ctx.vizId;
 
         const metric = metrics.find(m => m.id === resultsValue.id);
-        const dataOutput = await getDataFromConfig(projectId, resultsValue.id, config, metric?.aiDescription);
+        const dataOutput = await getDataFromConfig(projectId, resultsValue.id, metrics, config, metric?.aiDescription);
 
         const lines: string[] = [];
 

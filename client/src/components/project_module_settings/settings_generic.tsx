@@ -1,6 +1,6 @@
 import { t3, TC,
   type APIResponseWithData,
-  type ModuleConfigSelectionsParameters,
+  type ModuleConfigSelections,
   type ModuleId } from "lib";
 import {
   Button,
@@ -47,14 +47,10 @@ export function SettingsForProjectModuleGeneric(
     if (!res.success) {
       return res;
     }
-    if (res.data.configSelections.configType === "parameters") {
-      setTempParameters(res.data.configSelections.parameterSelections);
-    } else {
-      return { success: false, err: "Wrong config type" };
-    }
+    setTempParameters(res.data.configSelections.parameterSelections);
     return {
       success: true,
-      data: res.data.configSelections as ModuleConfigSelectionsParameters,
+      data: res.data.configSelections as ModuleConfigSelections,
     };
   }, t3({ en: "Loading module config selections...", fr: "Chargement des configurations du module..." }));
 

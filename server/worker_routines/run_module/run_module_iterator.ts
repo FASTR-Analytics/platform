@@ -4,7 +4,7 @@ import { mergeReadableStreams } from "@std/streams";
 import { stripVTControlCharacters } from "node:util";
 import Papa from "papaparse";
 import { Sql } from "postgres";
-import { getResultsObjectTableName } from "../../db/mod.ts";
+import { getResultsObjectTableName, dbRowToHfaIndicator, type DBHfaIndicator } from "../../db/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
   _ASSETS_DIR_PATH,
@@ -19,6 +19,7 @@ import {
   APIResponseNoData,
   ResultsObjectDefinition,
   throwIfErrNoData,
+  type HfaIndicator,
   type ModuleDetailForRunningScript,
   type RunStreamMsg,
   type InstanceConfigFacilityColumns,
@@ -32,6 +33,7 @@ const _DOCKER_IMAGE_TIDYVERSE_4_0_2 = _IS_PRODUCTION
 export async function* runModuleIterator(
   projectId: string,
   projectDb: Sql,
+  mainDb: Sql,
   moduleDetail: ModuleDetailForRunningScript,
   facilityColumns: InstanceConfigFacilityColumns,
   countryIso3: string | undefined
@@ -99,18 +101,29 @@ export async function* runModuleIterator(
     /////////////
 
     let knownDatasetVariables: Set<string> | undefined;
-    if (moduleDetail.moduleDefinition.configRequirements.configType === "hfa") {
+    let hfaIndicatorsFromInstance: HfaIndicator[] | undefined;
+    if (moduleDetail.moduleDefinition.scriptGenerationType === "hfa") {
       const hfaVarRows = await projectDb<{ var_name: string }[]>`
         SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
       `;
       knownDatasetVariables = new Set(hfaVarRows.map((r) => r.var_name));
+
+      const hfaRows = await mainDb<DBHfaIndicator[]>`
+        SELECT * FROM hfa_indicators ORDER BY sort_order, var_name
+      `;
+      hfaIndicatorsFromInstance = hfaRows.map(dbRowToHfaIndicator);
+
+      if (hfaIndicatorsFromInstance.length === 0) {
+        throw new Error("No HFA indicators configured at the instance level.");
+      }
     }
 
     const scriptWithParameters = getScriptWithParameters(
       moduleDetail.moduleDefinition,
       moduleDetail.configSelections,
       countryIso3,
-      knownDatasetVariables
+      knownDatasetVariables,
+      hfaIndicatorsFromInstance,
     );
     const scriptFilePath = join(moduleDirPath, _MODULE_SCRIPT_FILE_NAME);
     await Deno.writeTextFile(scriptFilePath, scriptWithParameters);

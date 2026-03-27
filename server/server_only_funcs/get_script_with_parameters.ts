@@ -1,23 +1,26 @@
-import type { ModuleConfigSelections, ModuleDefinition } from "lib";
+import type { HfaIndicator, ModuleConfigSelections, ModuleDefinition } from "lib";
 import { getScriptWithParametersHfa } from "./get_script_with_parameters_hfa.ts";
 
 export function getScriptWithParameters(
   moduleDefinition: ModuleDefinition,
   configSelections: ModuleConfigSelections,
   countryIso3: string | undefined,
-  knownDatasetVariables?: Set<string>
+  knownDatasetVariables?: Set<string>,
+  hfaIndicators?: HfaIndicator[],
 ): string {
-  if (
-    moduleDefinition.configRequirements.configType === "hfa" &&
-    configSelections.configType === "hfa"
-  ) {
+  if (moduleDefinition.scriptGenerationType === "hfa") {
     if (!knownDatasetVariables) {
       throw new Error(
         "knownDatasetVariables is required for HFA module script generation"
       );
     }
+    if (!hfaIndicators) {
+      throw new Error(
+        "hfaIndicators is required for HFA module script generation"
+      );
+    }
     return getScriptWithParametersHfa(
-      configSelections.indicators,
+      hfaIndicators,
       knownDatasetVariables
     );
   }
@@ -45,8 +48,7 @@ export function getScriptWithParameters(
   //    Update parameters if necessary    //
   //                                      //
   //////////////////////////////////////////
-  if (configSelections.configType === "parameters") {
-    for (const inputParam of configSelections.parameterDefinitions) {
+  for (const inputParam of configSelections.parameterDefinitions) {
       const mappedParameter =
         configSelections.parameterSelections[
           inputParam.replacementString
@@ -82,7 +84,6 @@ export function getScriptWithParameters(
           mappedParameter ?? "UNSELECTED"
         );
       }
-    }
   }
   /////////////
   //         //

@@ -2,7 +2,6 @@ import {
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
   getFetchConfigFromPresentationObjectConfig,
-  getMetricStaticData,
   getTextRenderingOptions,
   type MetricWithStatus,
   type PresentationObjectConfig,
@@ -172,8 +171,6 @@ async function fetchPreview(
   metric: MetricWithStatus,
   preset: { config: VizPreset["config"] },
 ): Promise<StateHolder<FigureInputs>> {
-  const staticData = getMetricStaticData(metric.id);
-
   const config: PresentationObjectConfig = {
     d: { ...preset.config.d },
     s: { ...DEFAULT_S_CONFIG, ...preset.config.s, scale: (preset.config.s?.scale ?? DEFAULT_S_CONFIG.scale) * 2 },
@@ -190,7 +187,7 @@ async function fetchPreview(
 
   const { data, version } = await _PO_ITEMS_CACHE.get({
     projectId,
-    resultsObjectId: staticData.resultsObjectId,
+    resultsObjectId: metric.resultsObjectId,
     fetchConfig: resFetchConfig.data,
   });
 
@@ -201,9 +198,9 @@ async function fetchPreview(
     const newPromise = poItemsQueue.enqueue(() =>
       serverActions.getPresentationObjectItems({
         projectId,
-        resultsObjectId: staticData.resultsObjectId,
+        resultsObjectId: metric.resultsObjectId,
         fetchConfig: resFetchConfig.data,
-        firstPeriodOption: staticData.periodOptions.at(0),
+        firstPeriodOption: metric.periodOptions.at(0),
       }),
     );
 
@@ -211,7 +208,7 @@ async function fetchPreview(
       newPromise,
       {
         projectId,
-        resultsObjectId: staticData.resultsObjectId,
+        resultsObjectId: metric.resultsObjectId,
         fetchConfig: resFetchConfig.data,
       },
       version,

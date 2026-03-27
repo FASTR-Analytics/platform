@@ -16,6 +16,7 @@ import {
 import { routesAssets } from "./server/routes/instance/assets.ts";
 import { routesDatasets } from "./server/routes/instance/datasets.ts";
 import { routesHealth } from "./server/routes/instance/health.ts";
+import { routesHfaIndicators } from "./server/routes/instance/hfa_indicators.ts";
 import { routesIndicators } from "./server/routes/instance/indicators.ts";
 import { routesIndicatorsDhis2 } from "./server/routes/instance/indicators_dhis2.ts";
 import { routesInstance } from "./server/routes/instance/instance.ts";
@@ -77,6 +78,7 @@ app.route("/", routesAssets);
 app.route("/", routesGeoJsonMaps);
 app.route("/", routesUpload);
 app.route("/", routesDatasets);
+app.route("/", routesHfaIndicators);
 app.route("/", routesIndicators);
 app.route("/", routesIndicatorsDhis2);
 app.route("/", routesModules);

@@ -8,6 +8,7 @@ import {
   toNum0,
 } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
+import { HfaIndicatorsManager } from "./hfa_indicators_manager";
 import { IndicatorsManager } from "../indicators/indicators_manager";
 import { InstanceDatasetHfa } from "../instance_dataset_hfa";
 import { InstanceDatasetHmis } from "../instance_dataset_hmis";
@@ -33,6 +34,13 @@ export function InstanceData(p: Props) {
           backToInstance={() => setSelecteDatasource(undefined)}
           instanceDetail={p.instanceDetail}
           isGlobalAdmin={p.isGlobalAdmin}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "hfa_indicators"}>
+        <HfaIndicatorsManager
+          isGlobalAdmin={p.isGlobalAdmin}
+          instanceDetail={p.instanceDetail}
+          backToInstance={() => setSelecteDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "indicators"}>
@@ -194,6 +202,33 @@ export function InstanceData(p: Props) {
                                 <span class="font-mono">
                                   {toNum0(keyedNumber)}
                                 </span>
+                              </div>
+                            </div>
+                          )}
+                        </Show>
+                      </div>
+                      <div
+                        class="ui-pad ui-hoverable bg-base-100 border-base-300 ui-spy-sm block rounded border"
+                        onClick={() => setSelecteDatasource("hfa_indicators")}
+                      >
+                        <div class="font-700 pb-2">{t3({ en: "HFA Indicators", fr: "Indicateurs HFA" })}</div>
+                        <Show
+                          when={
+                            keyedInstanceDetail.indicators.hfaIndicators > 0 &&
+                            keyedInstanceDetail.indicators.hfaIndicators
+                          }
+                          fallback={
+                            <div class="text-danger text-xs">
+                              {t3({ en: "No HFA indicators configured", fr: "Aucun indicateur HFA configuré" })}
+                            </div>
+                          }
+                          keyed
+                        >
+                          {(keyedNumber) => (
+                            <div class="ui-spy-sm text-success text-xs">
+                              <div class="flex justify-between gap-4">
+                                <span>{t3({ en: "HFA indicators", fr: "Indicateurs HFA" })}:</span>
+                                <span class="font-mono">{toNum0(keyedNumber)}</span>
                               </div>
                             </div>
                           )}

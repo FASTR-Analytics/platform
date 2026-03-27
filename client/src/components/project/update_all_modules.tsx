@@ -103,7 +103,7 @@ export function UpdateAllModules(
                 <div class="w-8 text-center font-mono text-xs">
                   {statusIcon(statuses()[mod.id])}
                 </div>
-                <div>{mod.moduleDefinitionLabel}</div>
+                <div>{mod.label}</div>
               </div>
             )}
           </For>

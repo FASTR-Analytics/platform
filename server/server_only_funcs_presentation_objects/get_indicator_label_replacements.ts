@@ -1,29 +1,19 @@
 import { Sql } from "postgres";
-import { parseJsonOrThrow, type ModuleConfigSelectionsHfa } from "lib";
-import { type DBIndicator_IN_PROJECT } from "../db/mod.ts";
+import { type DBHfaIndicator, type DBIndicator_IN_PROJECT } from "../db/mod.ts";
 
 export async function getIndicatorLabelReplacements(
+  mainDb: Sql,
   projectDb: Sql,
   moduleId: string,
 ): Promise<Record<string, string>> {
   const indicatorLabelReplacements: Record<string, string> = {};
 
   if (moduleId.toLowerCase().startsWith("hfa")) {
-    const rawModule = (
-      await projectDb<{ config_selections: string }[]>`
-        SELECT config_selections FROM modules WHERE id = ${moduleId}
-      `
-    ).at(0);
-
-    if (rawModule) {
-      const configSelections = parseJsonOrThrow<ModuleConfigSelectionsHfa>(
-        rawModule.config_selections,
-      );
-      if (configSelections.configType === "hfa") {
-        for (const indicator of configSelections.indicators) {
-          indicatorLabelReplacements[indicator.varName] = indicator.definition;
-        }
-      }
+    const hfaRows = await mainDb<DBHfaIndicator[]>`
+      SELECT * FROM hfa_indicators
+    `;
+    for (const row of hfaRows) {
+      indicatorLabelReplacements[row.var_name] = row.definition;
     }
   } else {
     const rawIndicators = await projectDb<

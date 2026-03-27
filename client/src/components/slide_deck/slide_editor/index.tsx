@@ -11,7 +11,6 @@ import type {
   SlideType,
 } from "lib";
 import {
-  getMetricStaticData,
   getSlideTitle,
   getTextRenderingOptions,
   t3,
@@ -432,7 +431,6 @@ export function SlideEditor(p: Props) {
     const source = block.source;
 
     try {
-      const metricStaticData = getMetricStaticData(source.metricId);
       const resultsValue = p.projectDetail.metrics.find(
         (m) => m.id === source.metricId,
       );
@@ -449,7 +447,7 @@ export function SlideEditor(p: Props) {
         element: VisualizationEditor,
         props: {
           mode: "ephemeral" as const,
-          label: metricStaticData.label,
+          label: resultsValue.label,
           projectId: p.projectId,
           isGlobalAdmin: p.isGlobalAdmin,
           returnToContext: aiContext(),

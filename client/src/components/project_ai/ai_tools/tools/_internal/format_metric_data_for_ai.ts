@@ -1,11 +1,11 @@
 import {
   type AiMetricQuery,
   type MetricAIDescription,
+  type MetricWithStatus,
   type PresentationObjectConfig,
   type TranslatableString,
   DisaggregationOption,
   GenericLongFormFetchConfig,
-  getMetricStaticData,
   ItemsHolderPresentationObject,
   PeriodOption,
 } from "lib";
@@ -36,6 +36,7 @@ export function inferPeriodFilter(
 export async function getMetricDataForAI(
   projectId: string,
   query: AiMetricQuery,
+  metrics: MetricWithStatus[],
   valuesFilter?: string[],
   aiDescription?: MetricAIDescription,
 ): Promise<string> {
@@ -54,13 +55,13 @@ export async function getMetricDataForAI(
   }[];
   let periodFilter = inferPeriodFilter(startDate, endDate, inputDisaggregations);
 
-  // Get static metric data from build-time map
-  const staticData = getMetricStaticData(metricId);
+  const metric = metrics.find((m) => m.id === metricId);
+  if (!metric) throw new Error(`Metric "${metricId}" not found`);
 
   // Convert period filter to a format the metric supports
-  if (periodFilter && staticData.periodOptions.length > 0) {
-    if (!staticData.periodOptions.includes(periodFilter.periodOption)) {
-      const targetOption = staticData.periodOptions[0];
+  if (periodFilter && metric.periodOptions.length > 0) {
+    if (!metric.periodOptions.includes(periodFilter.periodOption)) {
+      const targetOption = metric.periodOptions[0];
       periodFilter = {
         periodOption: targetOption,
         min: convertPeriodValue(periodFilter.min, targetOption, false),
@@ -70,8 +71,11 @@ export async function getMetricDataForAI(
   }
 
   // Auto-merge required disaggregations (AI doesn't need to specify them)
+  const requiredDisaggregationOptions = metric.disaggregationOptions
+    .filter((opt) => opt.isRequired)
+    .map((opt) => opt.value);
   const allDisaggregations = [
-    ...staticData.requiredDisaggregationOptions,
+    ...requiredDisaggregationOptions,
     ...disaggregations,
   ];
   const uniqueDisaggregations = [
@@ -81,26 +85,26 @@ export async function getMetricDataForAI(
   // Determine which value properties to fetch
   const valuePropsToFetch =
     valuesFilter && valuesFilter.length > 0
-      ? valuesFilter.filter((vf) => staticData.valueProps.includes(vf))
-      : staticData.valueProps;
+      ? valuesFilter.filter((vf) => metric.valueProps.includes(vf))
+      : metric.valueProps;
 
   // Build fetchConfig
   const fetchConfig: GenericLongFormFetchConfig =
-    staticData.postAggregationExpression
+    metric.postAggregationExpression
       ? {
-          values: staticData.postAggregationExpression.ingredientValues,
+          values: metric.postAggregationExpression.ingredientValues,
           groupBys: uniqueDisaggregations,
           filters: filters,
           periodFilter,
           postAggregationExpression:
-            staticData.postAggregationExpression.expression,
+            metric.postAggregationExpression.expression,
           includeNationalForAdminArea2: false,
           includeNationalPosition: undefined,
         }
       : {
           values: valuePropsToFetch.map((prop) => ({
             prop,
-            func: staticData.valueFunc,
+            func: metric.valueFunc,
           })),
           groupBys: uniqueDisaggregations,
           filters: filters,
@@ -110,26 +114,23 @@ export async function getMetricDataForAI(
           includeNationalPosition: undefined,
         };
 
-  // Follow same pattern as getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   const { data, version } = await _PO_ITEMS_CACHE.get({
     projectId,
-    resultsObjectId: staticData.resultsObjectId,
+    resultsObjectId: metric.resultsObjectId,
     fetchConfig,
   });
 
   let itemsHolder: ItemsHolderPresentationObject;
 
   if (data) {
-    // Cache hit
     itemsHolder = data;
   } else {
-    // Cache miss - fetch from server
     const newPromise = poItemsQueue.enqueue(() =>
       serverActions.getPresentationObjectItems({
         projectId,
-        resultsObjectId: staticData.resultsObjectId,
+        resultsObjectId: metric.resultsObjectId,
         fetchConfig,
-        firstPeriodOption: staticData.periodOptions.at(0),
+        firstPeriodOption: metric.periodOptions.at(0),
       }),
     );
 
@@ -137,7 +138,7 @@ export async function getMetricDataForAI(
       newPromise,
       {
         projectId,
-        resultsObjectId: staticData.resultsObjectId,
+        resultsObjectId: metric.resultsObjectId,
         fetchConfig,
       },
       version,
@@ -150,10 +151,9 @@ export async function getMetricDataForAI(
     itemsHolder = res.data;
   }
 
-  // Format as markdown
   return formatItemsAsMarkdown(
     itemsHolder,
-    metricId,
+    metric,
     disaggregations,
     filters,
     periodFilter,
@@ -168,36 +168,35 @@ function toStr(val: TranslatableString): string {
 
 function formatItemsAsMarkdown(
   itemsHolder: ItemsHolderPresentationObject,
-  metricId: string,
+  metric: MetricWithStatus,
   disaggregations: DisaggregationOption[],
   filters?: { col: DisaggregationOption; vals: string[] }[],
   periodFilter?: { periodOption: PeriodOption; min: number; max: number },
   aiDescription?: MetricAIDescription,
 ): string {
   const lines: string[] = [];
-  const staticData = getMetricStaticData(metricId);
 
   lines.push("# METRIC DATA");
   lines.push("=".repeat(80));
   lines.push("");
-  lines.push(`**Metric ID (metricId):** ${metricId}`);
+  lines.push(`**Metric ID (metricId):** ${metric.id}`);
   lines.push(
-    `**Metric Label:** ${staticData.label}${staticData.variantLabel ? ` [${staticData.variantLabel}]` : ""}`,
+    `**Metric Label:** ${metric.label}${metric.variantLabel ? ` [${metric.variantLabel}]` : ""}`,
   );
-  lines.push(`**Format:** ${staticData.formatAs}`);
+  lines.push(`**Format:** ${metric.formatAs}`);
 
-  if (staticData.valueProps.length > 0) {
+  if (metric.valueProps.length > 0) {
     lines.push("");
     lines.push("**Value properties:**");
-    for (const prop of staticData.valueProps) {
-      const propLabel = staticData.valueLabelReplacements?.[prop] || prop;
+    for (const prop of metric.valueProps) {
+      const propLabel = metric.valueLabelReplacements?.[prop] || prop;
       lines.push(`  - ${prop}: ${propLabel}`);
     }
   }
 
-  if (staticData.importantNotes) {
+  if (metric.importantNotes) {
     lines.push("");
-    lines.push(`**IMPORTANT:** ${staticData.importantNotes}`);
+    lines.push(`**IMPORTANT:** ${metric.importantNotes}`);
   }
 
   if (aiDescription) {
@@ -301,7 +300,7 @@ function formatItemsAsMarkdown(
     items,
     columns,
     disaggregations,
-    staticData.formatAs,
+    metric.formatAs,
   );
   lines.push(csvData);
   lines.push("");
@@ -316,7 +315,7 @@ function formatItemsAsMarkdown(
   lines.push("```");
   lines.push("{");
   lines.push('  "type": "from_metric",');
-  lines.push(`  "metricId": "${metricId}",`);
+  lines.push(`  "metricId": "${metric.id}",`);
   lines.push('  "vizPresetId": "<preset_id>",');
   lines.push('  "chartTitle": "Your chart title here",');
   lines.push('  "filters": [{ "col": "<dimension>", "vals": ["<value>"] }],');
@@ -326,7 +325,7 @@ function formatItemsAsMarkdown(
   lines.push("```");
   lines.push("");
   lines.push("**Notes:**");
-  lines.push(`- Use get_available_metrics to see available vizPresetId values for metric "${metricId}"`);
+  lines.push(`- Use get_available_metrics to see available vizPresetId values for metric "${metric.id}"`);
   lines.push("- filters and startDate/endDate are optional");
   lines.push("- Date format depends on the preset (YYYY or YYYYMM — shown in preset listing)");
   lines.push("- Only filter on dimensions listed in the preset's allowedFilters");
@@ -530,6 +529,7 @@ function formatValue(val: any, decimalPlaces: number): string {
 export async function getDataFromConfig(
   projectId: string,
   metricId: string,
+  metrics: MetricWithStatus[],
   config: PresentationObjectConfig,
   aiDescription?: MetricAIDescription,
 ): Promise<string> {
@@ -550,5 +550,5 @@ export async function getDataFromConfig(
     startDate: config.d.periodFilter?.min,
     endDate: config.d.periodFilter?.max,
   };
-  return await getMetricDataForAI(projectId, query, config.d.valuesFilter, aiDescription);
+  return await getMetricDataForAI(projectId, query, metrics, config.d.valuesFilter, aiDescription);
 }

@@ -92,7 +92,7 @@ export function getToolsForSlides(
           slide = cached.data.slide;
         }
 
-        const simplified = await simplifySlideForAI(projectId, slide);
+        const simplified = await simplifySlideForAI(projectId, slide, metrics);
         return simplified;
       },
       inProgressLabel: (input) => `Getting slide ${input.slideId}...`,

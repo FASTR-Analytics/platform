@@ -7,7 +7,7 @@ import type {
   ResultsValueForVisualization,
 } from "lib";
 
-import { DEFAULT_S_CONFIG, DEFAULT_T_CONFIG, getMetricStaticData } from "lib";
+import { DEFAULT_S_CONFIG, DEFAULT_T_CONFIG } from "lib";
 import { validatePresetOverrides } from "~/components/project_ai/ai_tools/validators/content_validators";
 
 type BuildConfigResult =
@@ -30,12 +30,11 @@ export function buildConfigFromPreset(
     return { success: false, error: `Metric "${metricId}" not found` };
   }
 
-  const staticData = getMetricStaticData(metricId);
-  const preset = staticData.vizPresets?.find((p) => p.id === vizPresetId);
+  const preset = resultsValue.vizPresets?.find((p) => p.id === vizPresetId);
 
   if (!preset) {
     const available =
-      staticData.vizPresets?.map((p) => p.id).join(", ") || "none";
+      resultsValue.vizPresets?.map((p) => p.id).join(", ") || "none";
     return {
       success: false,
       error: `Viz preset "${vizPresetId}" not found for metric "${metricId}". Available presets: ${available}`,

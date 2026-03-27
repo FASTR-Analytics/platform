@@ -1,5 +1,4 @@
 import type { MetricWithStatus } from "lib";
-import { getMetricStaticData } from "lib";
 
 export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
   const lines: string[] = [
@@ -23,7 +22,6 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
   const sorted = [...readyMetrics].sort((a, b) => a.id.localeCompare(b.id));
 
   for (const metric of sorted) {
-    const staticData = getMetricStaticData(metric.id);
     const label = metric.variantLabel
       ? `${metric.label} [${metric.variantLabel}]`
       : metric.label;
@@ -34,8 +32,8 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
       lines.push(`  ${getAIStr(metric.aiDescription.summary)}`);
     }
 
-    if (staticData.importantNotes) {
-      lines.push(`  NOTE: ${staticData.importantNotes}`);
+    if (metric.importantNotes) {
+      lines.push(`  NOTE: ${metric.importantNotes}`);
     }
 
     if (metric.valueProps.length > 0) {
@@ -57,9 +55,9 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
       lines.push(`  Optional disaggregations: ${optional.map(opt => opt.value).join(", ")}`);
     }
 
-    if (staticData.vizPresets && staticData.vizPresets.length > 0) {
+    if (metric.vizPresets && metric.vizPresets.length > 0) {
       lines.push(`  Visualization presets:`);
-      for (const preset of staticData.vizPresets) {
+      for (const preset of metric.vizPresets) {
         const dateFormat = preset.config.d.periodOpt === "year" ? "YYYY" : "YYYYMM";
         const filterNote = preset.allowedFilters && preset.allowedFilters.length > 0
           ? ` — filters: ${preset.allowedFilters.join(", ")}`

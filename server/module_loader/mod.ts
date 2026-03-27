@@ -1,1 +1,1 @@
-export { getModuleDefinitionDetail } from "./load_module.ts";
+export { getModuleDefinitionDetail, fetchModuleFiles, resolveTS, deriveDefaultPresentationObjects } from "./load_module.ts";

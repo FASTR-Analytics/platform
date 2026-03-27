@@ -3,7 +3,7 @@ import type {
   FigureBlock,
   MetricWithStatus,
 } from "lib";
-import { getFetchConfigFromPresentationObjectConfig, getMetricStaticData, getReplicateByProp } from "lib";
+import { getFetchConfigFromPresentationObjectConfig, getReplicateByProp } from "lib";
 import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/utils/request_queue";
@@ -34,8 +34,6 @@ export async function resolveFigureFromMetric(
     );
   }
 
-  const staticData = getMetricStaticData(metricId);
-
   const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
     resultsValue,
     config,
@@ -49,7 +47,7 @@ export async function resolveFigureFromMetric(
   if (replicateBy) {
     const replicantRes = await getReplicantOptionsFromCacheOrFetch(
       projectId,
-      staticData.resultsObjectId,
+      resultsValue.resultsObjectId,
       replicateBy,
       fetchConfig,
     );
@@ -81,7 +79,7 @@ export async function resolveFigureFromMetric(
 
   const { data, version } = await _PO_ITEMS_CACHE.get({
     projectId,
-    resultsObjectId: staticData.resultsObjectId,
+    resultsObjectId: resultsValue.resultsObjectId,
     fetchConfig,
   });
 
@@ -92,15 +90,15 @@ export async function resolveFigureFromMetric(
     const newPromise = poItemsQueue.enqueue(() =>
       serverActions.getPresentationObjectItems({
         projectId,
-        resultsObjectId: staticData.resultsObjectId,
+        resultsObjectId: resultsValue.resultsObjectId,
         fetchConfig,
-        firstPeriodOption: staticData.periodOptions.at(0),
+        firstPeriodOption: resultsValue.periodOptions.at(0),
       }),
     );
 
     _PO_ITEMS_CACHE.setPromise(
       newPromise,
-      { projectId, resultsObjectId: staticData.resultsObjectId, fetchConfig },
+      { projectId, resultsObjectId: resultsValue.resultsObjectId, fetchConfig },
       version,
     );
 

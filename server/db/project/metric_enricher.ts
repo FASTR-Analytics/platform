@@ -52,6 +52,7 @@ export async function enrichMetric(
     aiDescription: dbMetric.ai_description
       ? parseJsonOrThrow(dbMetric.ai_description)
       : undefined,
+    importantNotes: dbMetric.important_notes ?? undefined,
   };
 
   return enrichedMetric;
