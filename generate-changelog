@@ -1,0 +1,103 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+VERSION="$1"
+if [ -z "$VERSION" ]; then
+    echo "Usage: generate-changelog <version>"
+    exit 1
+fi
+
+CHANGELOG="$SCRIPT_DIR/CHANGELOG.md"
+TODAY=$(date +%Y-%m-%d)
+
+echo "Generating changelog entry for v$VERSION ($TODAY)..."
+
+# Diff base = last proper "Deploy version" commit (covers all ad-hoc changes in between)
+BASE_COMMIT=$(git log --format="%H" --grep="^Deploy version" -1 2>/dev/null || true)
+
+if [ -z "$BASE_COMMIT" ]; then
+    BASE_COMMIT=$(git log --format="%H" | tail -1)
+    echo "No previous release commit found — diffing from initial commit."
+fi
+
+# Diff TypeScript source only (server, client/src, lib — skip generated/build files)
+DIFF=$(git diff "${BASE_COMMIT}..HEAD" -- \
+    'server/**/*.ts' \
+    'client/src/**/*.tsx' \
+    'client/src/**/*.ts' \
+    'lib/**/*.ts' \
+    ':!deno.lock' \
+    ':!lib/translate/ui_strings.ts' \
+    2>/dev/null || true)
+
+if [ -z "$DIFF" ]; then
+    echo "No source changes since last release. Skipping changelog update."
+    exit 0
+fi
+
+# Cap at ~150KB to keep token usage reasonable
+DIFF_TRIMMED=$(echo "$DIFF" | head -c 150000)
+
+ENTRY=$(claude -p "You are writing a user-facing changelog entry for a data analytics web platform called FASTR Analytics. It is used by health data teams to manage, analyze, and visualize health system data (HMIS, HFA surveys, etc.).
+
+New version: $VERSION
+Date: $TODAY
+
+## Source code diff (all changes since the last release):
+\`\`\`diff
+$DIFF_TRIMMED
+\`\`\`
+
+Write a changelog entry in this exact Keep-a-Changelog format:
+
+## [$VERSION] - $TODAY
+
+### Added
+- (new features users can access)
+
+### Changed
+- (improvements to existing features)
+
+### Fixed
+- (bugs that are now fixed)
+
+Rules:
+- The "user" is a health data analyst using the web app — someone who uploads data, runs analysis modules, creates visualizations, and exports reports
+- Only include changes that directly affect what this user sees or can do in the application
+- Skip anything related to: admin/ops tooling, email notifications, internal logging, deployment scripts, server monitoring, backend infrastructure, API internals, or developer-facing changes
+- Be specific and concise (one line per bullet)
+- Omit section headers (Added/Changed/Fixed) that have no items
+- If there are no meaningful user-facing changes, output exactly: SKIP
+- Do NOT include any explanation outside the format
+- Maximum 8 bullet points total" 2>/dev/null)
+
+if [ -z "$ENTRY" ] || [ "$ENTRY" = "SKIP" ]; then
+    echo "No meaningful user-facing changes. Skipping changelog update."
+    exit 0
+fi
+
+if ! echo "$ENTRY" | grep -q "^\#\# \[$VERSION\]"; then
+    echo "Warning: Claude output did not match expected format. Skipping."
+    echo "--- Claude output: ---"
+    echo "$ENTRY"
+    exit 0
+fi
+
+# Insert new entry immediately before the first ## [ version entry
+if [ -f "$CHANGELOG" ]; then
+    FIRST_ENTRY_LINE=$(grep -n "^## \[" "$CHANGELOG" | head -1 | cut -d: -f1)
+    if [ -n "$FIRST_ENTRY_LINE" ]; then
+        HEAD=$(head -n $((FIRST_ENTRY_LINE - 1)) "$CHANGELOG")
+        TAIL=$(tail -n +"$FIRST_ENTRY_LINE" "$CHANGELOG")
+        printf '%s\n%s\n\n%s\n' "$HEAD" "$ENTRY" "$TAIL" > "$CHANGELOG"
+    else
+        EXISTING=$(cat "$CHANGELOG")
+        printf '%s\n\n%s\n' "$EXISTING" "$ENTRY" > "$CHANGELOG"
+    fi
+else
+    printf '# Changelog\n\nAll notable changes are documented here.\n\n%s\n' "$ENTRY" > "$CHANGELOG"
+fi
+
+echo "Changelog updated for v$VERSION."

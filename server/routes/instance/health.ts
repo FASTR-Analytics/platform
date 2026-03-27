@@ -97,3 +97,12 @@ ORDER BY day
   `;
   return c.json({ activeDays: rows.map((r) => r.day) });
 });
+
+routesHealth.get("/changelog", async (c) => {
+  try {
+    const text = await Deno.readTextFile("./CHANGELOG.md");
+    return c.text(text);
+  } catch {
+    return c.text("", 404);
+  }
+});

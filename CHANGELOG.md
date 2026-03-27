@@ -1,4 +1,8 @@
 # Changelog
+## [1.14.6] - 2026-03-27
+
+### Added
+- Attach images to feedback submissions when reporting bugs or suggestions
 
 All notable changes to the FASTR Analytics Platform will be documented in this file.
 
