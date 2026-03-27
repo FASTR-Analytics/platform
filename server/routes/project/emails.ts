@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { _FEEDBACK_EMAIL_RECIPIENTS } from "lib";
-import { _SEND_GRID_API } from "../../exposed_env_vars.ts";
+import { _INSTANCE_ID, _SEND_GRID_API } from "../../exposed_env_vars.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -91,7 +91,7 @@ defineRoute(
   requireGlobalPermission(),
   log("sendFeedbackEmail"),
   async (c, { body }) => {
-    const { feedbackType, description, projectLabel } = body;
+    const { feedbackType, description, projectLabel, images } = body;
     const userEmail = c.var.globalUser.email;
 
     const typeLabel = feedbackType === "bug" ? "Bug Report" : "Suggestion";
@@ -118,14 +118,17 @@ defineRoute(
   <p style="font-size: 12px; color: #888;"><strong>Your submission:</strong><br>${description.replace(/\n/g, "<br>")}</p>
 </div>`.trim();
 
+    const instanceHtmlLine = `<p><strong>Instance:</strong> ${_INSTANCE_ID}</p>`;
+
     // Email to the preset recipients with the full details
-    const internalPlainText = `New ${typeLabel} from ${userEmail}${projectLine}\n\n${description}`;
+    const internalPlainText = `New ${typeLabel} from ${userEmail}${projectLine} (Instance: ${_INSTANCE_ID})\n\n${description}`;
 
     const internalHtml = `
 <div style="font-family: sans-serif; color: #333;">
   <p><strong>Type:</strong> ${typeLabel}</p>
   <p><strong>From:</strong> ${userEmail}</p>
   ${projectHtmlLine}
+  ${instanceHtmlLine}
   <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
   <p><strong>Description:</strong></p>
   <p>${description.replace(/\n/g, "<br>")}</p>
@@ -136,6 +139,8 @@ defineRoute(
       subject: string,
       plainText: string,
       html: string,
+      replyTo?: string,
+      attachments?: { content: string; filename: string; mimeType: string }[],
     ) {
       const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
         method: "POST",
@@ -149,11 +154,22 @@ defineRoute(
             email: "noreply@fastr-analytics.org",
             name: "FASTR Analytics Platform",
           },
+          ...(replyTo ? { reply_to: { email: replyTo } } : {}),
           subject,
           content: [
             { type: "text/plain", value: plainText },
             { type: "text/html", value: html },
           ],
+          ...(attachments && attachments.length > 0
+            ? {
+                attachments: attachments.map((a) => ({
+                  content: a.content,
+                  filename: a.filename,
+                  type: a.mimeType,
+                  disposition: "attachment",
+                })),
+              }
+            : {}),
         }),
       });
       if (!res.ok) {
@@ -177,6 +193,8 @@ defineRoute(
         `[FASTR] New ${typeLabel} from ${userEmail}`,
         internalPlainText,
         internalHtml,
+        userEmail,
+        images,
       );
     }
 

@@ -71,6 +71,18 @@ routesHealth.get("/health_check", async (c) => {
   });
 });
 
+routesHealth.get("/projects", async (c) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const projects = await mainDb<{ label: string }[]>`SELECT label FROM projects ORDER BY LOWER(label)`;
+  return c.json({ projects: projects.map((p) => p.label) });
+});
+
+routesHealth.get("/user_logs", async (c) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const logs = await mainDb<UserLog[]>`SELECT user_email, endpoint, timestamp FROM user_logs WHERE endpoint = 'getInstanceDetail' ORDER BY timestamp DESC`;
+  return c.json({ logs });
+});
+
 routesHealth.get("/user_activity", async (c) => {
   const email = c.req.query("email");
   if (!email) {
@@ -84,4 +96,13 @@ WHERE user_email = ${email}
 ORDER BY day
   `;
   return c.json({ activeDays: rows.map((r) => r.day) });
+});
+
+routesHealth.get("/changelog", async (c) => {
+  try {
+    const text = await Deno.readTextFile("./CHANGELOG.md");
+    return c.text(text);
+  } catch {
+    return c.text("", 404);
+  }
 });
