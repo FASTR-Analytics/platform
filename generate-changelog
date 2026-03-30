@@ -85,6 +85,19 @@ if ! echo "$ENTRY" | grep -q "^\#\# \[$VERSION\]"; then
     exit 0
 fi
 
+# If an entry for this version already exists, remove it first so we replace it
+if [ -f "$CHANGELOG" ] && grep -q "^\#\# \[$VERSION\]" "$CHANGELOG"; then
+    ENTRY_LINE=$(grep -n "^\#\# \[$VERSION\]" "$CHANGELOG" | head -1 | cut -d: -f1)
+    NEXT_ENTRY_LINE=$(grep -n "^## \[" "$CHANGELOG" | awk -F: -v start="$ENTRY_LINE" '$1 > start {print $1; exit}')
+    if [ -n "$NEXT_ENTRY_LINE" ]; then
+        HEAD=$(head -n $((ENTRY_LINE - 1)) "$CHANGELOG")
+        TAIL=$(tail -n +"$NEXT_ENTRY_LINE" "$CHANGELOG")
+        printf '%s\n%s\n' "$HEAD" "$TAIL" > "$CHANGELOG"
+    else
+        head -n $((ENTRY_LINE - 1)) "$CHANGELOG" > "$CHANGELOG.tmp" && mv "$CHANGELOG.tmp" "$CHANGELOG"
+    fi
+fi
+
 # Insert new entry immediately before the first ## [ version entry
 if [ -f "$CHANGELOG" ]; then
     FIRST_ENTRY_LINE=$(grep -n "^## \[" "$CHANGELOG" | head -1 | cut -d: -f1)
