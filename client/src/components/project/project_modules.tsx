@@ -10,10 +10,12 @@ import {
   Button,
   FrameTop,
   HeadingBar,
+  type MenuItem,
   OpenEditorProps,
   getEditorWrapper,
   openAlert,
   openComponent,
+  showMenu,
   timActionButton,
 } from "panther";
 import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
@@ -246,22 +248,25 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     });
   }
 
-  const disableModule = timActionButton(async () => {
+  async function disableModule() {
     for (const otherMod of getPossibleModules()) {
       if (otherMod.prerequisiteModules.includes(p.thisInstalledModule.id)) {
         if (p.allInstalledModules.some((m) => m.id === otherMod.id)) {
-          return {
-            success: false,
-            err: `${t3({ en: "In order to disable this module you must first disable the modules that depend on it, including", fr: "Pour désactiver ce module, les modules qui en dépendent doivent d'abord être désactivés, y compris :" })} ${otherMod.label}`,
-          };
+          await openAlert({
+            text: `${t3({ en: "In order to disable this module you must first disable the modules that depend on it, including", fr: "Pour désactiver ce module, les modules qui en dépendent doivent d'abord être désactivés, y compris :" })} ${otherMod.label}`,
+          });
+          return;
         }
       }
     }
-    return await serverActions.uninstallModule({
+    const res = await serverActions.uninstallModule({
       projectId: p.projectId,
       module_id: p.thisInstalledModule.id,
     });
-  });
+    if (!res.success) {
+      await openAlert({ text: res.err });
+    }
+  }
 
   async function updateModule() {
     const _res = await openComponent({
@@ -310,12 +315,49 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     });
   }
 
-  const attemptRerunModule = timActionButton(() =>
-    serverActions.rerunModule({
+  async function rerunModule() {
+    const res = await serverActions.rerunModule({
       projectId: p.projectId,
       module_id: p.thisInstalledModule.id,
-    }),
-  );
+    });
+    if (!res.success) {
+      await openAlert({ text: res.err });
+    }
+  }
+
+  function openMoreMenu(e: MouseEvent) {
+    const dirtyState = pds.moduleDirtyStates[p.thisInstalledModule.id];
+    const isReadyOrError = dirtyState === "ready" || dirtyState === "error";
+    const isReady = dirtyState === "ready";
+    const canRun = !p.projectDetail.isLocked && (p.isGlobalAdmin || p.canRunModules);
+    const canConfigure = !p.projectDetail.isLocked && (p.isGlobalAdmin || p.canConfigureModules);
+    const canViewScript = p.isGlobalAdmin || p.canViewScriptCode;
+
+    const items: MenuItem[] = [];
+
+    if (isReadyOrError && canViewScript) {
+      items.push({ label: t3({ en: "Script", fr: "Script" }), icon: "code", onClick: () => showScript() });
+    }
+    if (isReadyOrError) {
+      items.push({ label: t3({ en: "Logs", fr: "Journaux des données" }), icon: "file", onClick: () => showLogs() });
+    }
+    if (isReady) {
+      items.push({ label: t3({ en: "Files", fr: "Fichiers" }), icon: "folder", onClick: () => showFiles() });
+    }
+    if (isReadyOrError && canRun) {
+      items.push({ label: t3({ en: "Re-run", fr: "Relancer" }), icon: "refresh", onClick: () => rerunModule() });
+    }
+    if (canConfigure) {
+      if (items.length > 0) {
+        items.push({ type: "divider" });
+      }
+      items.push({ label: t3({ en: "Disable", fr: "Désactiver" }), icon: "minus", intent: "danger", onClick: () => disableModule() });
+    }
+
+    if (items.length > 0) {
+      showMenu({ x: e.clientX, y: e.clientY, items });
+    }
+  }
 
   return (
     <div class="border-base-300 rounded border">
@@ -346,58 +388,8 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
           })()}
         </div>
         <div class="flex-1"></div>
-        {/* <div class="ui-gap-sm flex flex-wrap justify-end"> */}
-        <Show
-          when={
-            pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready" ||
-            pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"
-          }
-        >
-          <Show when={p.isGlobalAdmin || p.canViewScriptCode}>
-            <Button onClick={showScript} outline>
-              {t3({ en: "Script", fr: "Script" })}
-            </Button>
-          </Show>
-          <Button onClick={showLogs} outline>
-            {t3({ en: "Logs", fr: "Journaux des données" })}
-          </Button>
-        </Show>
-        <Show
-          when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready"}
-        >
-          <Button onClick={showFiles} outline>
-            {t3({ en: "Files", fr: "Fichiers" })}
-          </Button>
-        </Show>
-        <Show
-          when={
-            !p.projectDetail.isLocked && (p.isGlobalAdmin || p.canRunModules)
-          }
-        >
-          <Show
-            when={
-              pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready" ||
-              pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"
-            }
-          >
-            <Button
-              onClick={attemptRerunModule.click}
-              state={attemptRerunModule.state()}
-              outline
-            >
-              {t3({ en: "Re-run", fr: "Relancer" })}
-            </Button>
-          </Show>
-        </Show>
         <Show when={p.isGlobalAdmin || p.canConfigureModules}>
           <Show when={!p.projectDetail.isLocked}>
-            <Button
-              onClick={disableModule.click}
-              state={disableModule.state()}
-              outline
-            >
-              {t3({ en: "Disable", fr: "Désactiver" })}
-            </Button>
             <Button onClick={updateModule} iconName="refresh">
               {t3(TC.update)}
             </Button>
@@ -406,6 +398,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
             {t3(TC.settings)}
           </Button>
         </Show>
+        <Button onClick={openMoreMenu} iconName="moreVertical" outline />
       </div>
       <Show
         when={

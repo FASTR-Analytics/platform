@@ -162,7 +162,8 @@ export async function fetchModuleFiles(
     throw new Error(`Failed to fetch script.R for ${moduleId}: ${scriptRes.status} ${scriptRes.statusText}`);
   }
 
-  const definition = await defRes.json();
+  const rawDefinition = await defRes.json();
+  const definition = validateDefinition(rawDefinition, moduleId);
   const rawScript = await scriptRes.text();
 
   return { definition, script: stripFrontmatter(rawScript), gitRef };
@@ -213,8 +214,7 @@ export async function getModuleDefinitionDetail(
   language: InstanceLanguage,
 ): Promise<APIResponseWithData<ModuleDefinition & { gitRef?: string }>> {
   try {
-    const { definition: rawDefinition, script, gitRef } = await fetchModuleFiles(id);
-    const definition = validateDefinition(rawDefinition, id);
+    const { definition, script, gitRef } = await fetchModuleFiles(id);
 
     const tc = getTranslateFunc(language);
 
