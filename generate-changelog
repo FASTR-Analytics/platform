@@ -9,7 +9,8 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-CHANGELOG="$SCRIPT_DIR/CHANGELOG.md"
+ADMIN_WEBSITE_URL="${ADMIN_WEBSITE_URL:-https://status.fastr-analytics.org}"
+STATUS_API_KEY="${STATUS_API_KEY:?STATUS_API_KEY is required}"
 TODAY=$(date +%Y-%m-%d)
 
 echo "Generating changelog entry for v$VERSION ($TODAY)..."
@@ -37,6 +38,9 @@ if [ -z "$DIFF" ]; then
     exit 0
 fi
 
+# Fetch existing changelog from Admin Website for context
+EXISTING_CHANGELOG=$(curl -sf "$ADMIN_WEBSITE_URL/api/changelog" || true)
+
 # Cap at ~150KB to keep token usage reasonable
 DIFF_TRIMMED=$(echo "$DIFF" | head -c 150000)
 
@@ -44,6 +48,11 @@ ENTRY=$(claude -p "You are writing a user-facing changelog entry for a data anal
 
 New version: $VERSION
 Date: $TODAY
+
+## Existing changelog (for context and consistency):
+\`\`\`
+${EXISTING_CHANGELOG:-"(no existing entries)"}
+\`\`\`
 
 ## Source code diff (all changes since the last release):
 \`\`\`diff
@@ -85,19 +94,16 @@ if ! echo "$ENTRY" | grep -q "^\#\# \[$VERSION\]"; then
     exit 0
 fi
 
-# Insert new entry immediately before the first ## [ version entry
-if [ -f "$CHANGELOG" ]; then
-    FIRST_ENTRY_LINE=$(grep -n "^## \[" "$CHANGELOG" | head -1 | cut -d: -f1)
-    if [ -n "$FIRST_ENTRY_LINE" ]; then
-        HEAD=$(head -n $((FIRST_ENTRY_LINE - 1)) "$CHANGELOG")
-        TAIL=$(tail -n +"$FIRST_ENTRY_LINE" "$CHANGELOG")
-        printf '%s\n%s\n\n%s\n' "$HEAD" "$ENTRY" "$TAIL" > "$CHANGELOG"
-    else
-        EXISTING=$(cat "$CHANGELOG")
-        printf '%s\n\n%s\n' "$EXISTING" "$ENTRY" > "$CHANGELOG"
-    fi
-else
-    printf '# Changelog\n\nAll notable changes are documented here.\n\n%s\n' "$ENTRY" > "$CHANGELOG"
+PAYLOAD=$(printf '{"version":"%s","entry":%s}' "$VERSION" "$(echo "$ENTRY" | jq -Rs .)")
+
+RESPONSE=$(curl -sf -X POST "$ADMIN_WEBSITE_URL/api/changelog/entry" \
+    -H "Authorization: Bearer $STATUS_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "$PAYLOAD")
+
+if [ $? -ne 0 ]; then
+    echo "Failed to post changelog entry to Admin Website."
+    exit 1
 fi
 
 echo "Changelog updated for v$VERSION."
