@@ -8,3 +8,4 @@ export * from "./instance.ts";
 export * from "./structure.ts";
 export * from "./users.ts";
 export * from "./geojson_maps.ts";
+export * from "./hfa_indicators.ts";

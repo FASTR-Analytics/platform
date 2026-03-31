@@ -89,6 +89,7 @@ export type InstanceDetail = {
   indicators: {
     commonIndicators: number;
     rawIndicators: number;
+    hfaIndicators: number;
   };
   assets: AssetInfo[];
   geojsonMaps: GeoJsonMapSummary[];

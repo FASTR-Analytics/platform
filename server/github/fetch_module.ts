@@ -7,7 +7,7 @@ export type GitHubCommit = {
   author: string;
 };
 
-function stripFrontmatter(script: string): string {
+export function stripFrontmatter(script: string): string {
   const lines = script.split("\n");
   const markerIndex = lines.findIndex((line) =>
     line.trimStart().startsWith("#---")

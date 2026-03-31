@@ -14,6 +14,7 @@ import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { ProjectDirtyStateContext } from "./context";
 import { setGlobalPDS } from "./global_pds";
+import { setGlobalModuleMaps } from "./global_module_maps";
 import type { ConnectionState, Props } from "./types";
 import {
   _MAX_CONNECTION_ATTEMPTS,
@@ -76,6 +77,13 @@ export function ProjectRunnerProvider(p: Props) {
     });
     if (res.success) {
       setProjectDetail(reconcile(res.data));
+      const metricToModule: Record<string, string> = {};
+      const resultsObjectToModule: Record<string, string> = {};
+      for (const metric of res.data.metrics) {
+        metricToModule[metric.id] = metric.moduleId;
+        resultsObjectToModule[metric.resultsObjectId] = metric.moduleId;
+      }
+      setGlobalModuleMaps(metricToModule, resultsObjectToModule);
       setProjectFetchState({ status: "ready" });
     } else {
       setProjectFetchState({ status: "error", err: res.err ?? "Failed to load project" });

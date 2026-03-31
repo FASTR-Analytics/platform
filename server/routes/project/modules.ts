@@ -15,8 +15,10 @@ import {
   uninstallModule,
   updateModuleDefinition,
   updateModuleParameters,
+  dbRowToHfaIndicator,
+  type DBHfaIndicator,
 } from "../../db/mod.ts";
-import { _DATASET_LIMIT, throwIfErrWithData } from "lib";
+import { _DATASET_LIMIT, throwIfErrWithData, type HfaIndicator } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
@@ -101,7 +103,7 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
-    if (body.rerunModule) {
+    if (res.data.computeChange) {
       await setModuleDirty(c.var.ppk, params.module_id);
     }
     notifyLastUpdated(
@@ -214,13 +216,19 @@ defineRoute(
     throwIfErrWithData(resCountryIso3);
 
     let knownDatasetVariables: Set<string> | undefined;
-    if (res.data.moduleDefinition.configRequirements.configType === "hfa") {
+    let hfaIndicators: HfaIndicator[] | undefined;
+    if (res.data.moduleDefinition.scriptGenerationType === "hfa") {
       const hfaVarRows = await c.var.ppk.projectDb<{ var_name: string }[]>`
         SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
       `;
       knownDatasetVariables = new Set(
         hfaVarRows.map((r: { var_name: string }) => r.var_name),
       );
+
+      const hfaRows = await c.var.mainDb<DBHfaIndicator[]>`
+        SELECT * FROM hfa_indicators ORDER BY sort_order, var_name
+      `;
+      hfaIndicators = hfaRows.map(dbRowToHfaIndicator);
     }
 
     const script = getScriptWithParameters(
@@ -228,6 +236,7 @@ defineRoute(
       res.data.configSelections,
       resCountryIso3.data.countryIso3,
       knownDatasetVariables,
+      hfaIndicators,
     );
     return c.json({ success: true, data: { script } });
   },

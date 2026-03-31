@@ -47,7 +47,7 @@ export function getToolsForSlideEditor(
         }
 
         const slide = ctx.getTempSlide();
-        const simplified = await simplifySlideForAI(projectId, slide);
+        const simplified = await simplifySlideForAI(projectId, slide, metrics);
 
         const lines: string[] = [];
         lines.push("# SLIDE EDITOR");

@@ -2,7 +2,6 @@ import { Sql } from "postgres";
 import {
   DisaggregationDisplayOption,
   DisaggregationOption,
-  METRIC_TO_MODULE,
   PeriodFilter,
   PresentationOption,
   ProjectUser,
@@ -163,7 +162,6 @@ FROM presentation_objects po
 ORDER BY po.is_default_visualization DESC, po.sort_order, LOWER(po.label)
 `;
     const presentationObjects = rows
-      .filter((row) => row.metric_id in METRIC_TO_MODULE)
       .map<PresentationObjectSummary>((row) => {
         const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
         return configToSummary(row, config);

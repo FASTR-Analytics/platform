@@ -9,7 +9,8 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-CHANGELOG="$SCRIPT_DIR/CHANGELOG.md"
+ADMIN_WEBSITE_URL="${ADMIN_WEBSITE_URL:-https://status.fastr-analytics.org}"
+STATUS_API_KEY="${STATUS_API_KEY:?STATUS_API_KEY is required}"
 TODAY=$(date +%Y-%m-%d)
 
 echo "Generating changelog entry for v$VERSION ($TODAY)..."
@@ -37,6 +38,10 @@ if [ -z "$DIFF" ]; then
     exit 0
 fi
 
+# Fetch existing changelogs from Admin Website for context
+EXISTING_CHANGELOG=$(curl -sf "$ADMIN_WEBSITE_URL/api/changelog" || true)
+EXISTING_CHANGELOG_ADMIN=$(curl -sf -H "Authorization: Bearer $STATUS_API_KEY" "$ADMIN_WEBSITE_URL/api/changelog/superadmin" || true)
+
 # Cap at ~150KB to keep token usage reasonable
 DIFF_TRIMMED=$(echo "$DIFF" | head -c 150000)
 
@@ -44,6 +49,11 @@ ENTRY=$(claude -p "You are writing a user-facing changelog entry for a data anal
 
 New version: $VERSION
 Date: $TODAY
+
+## Existing changelog (for context and consistency):
+\`\`\`
+${EXISTING_CHANGELOG:-"(no existing entries)"}
+\`\`\`
 
 ## Source code diff (all changes since the last release):
 \`\`\`diff
@@ -74,43 +84,73 @@ Rules:
 - Maximum 8 bullet points total" 2>/dev/null)
 
 if [ -z "$ENTRY" ] || [ "$ENTRY" = "SKIP" ]; then
-    echo "No meaningful user-facing changes. Skipping changelog update."
-    exit 0
-fi
-
-if ! echo "$ENTRY" | grep -q "^\#\# \[$VERSION\]"; then
-    echo "Warning: Claude output did not match expected format. Skipping."
-    echo "--- Claude output: ---"
-    echo "$ENTRY"
-    exit 0
-fi
-
-# If an entry for this version already exists, remove it first so we replace it
-if [ -f "$CHANGELOG" ] && grep -q "^\#\# \[$VERSION\]" "$CHANGELOG"; then
-    ENTRY_LINE=$(grep -n "^\#\# \[$VERSION\]" "$CHANGELOG" | head -1 | cut -d: -f1)
-    NEXT_ENTRY_LINE=$(grep -n "^## \[" "$CHANGELOG" | awk -F: -v start="$ENTRY_LINE" '$1 > start {print $1; exit}')
-    if [ -n "$NEXT_ENTRY_LINE" ]; then
-        HEAD=$(head -n $((ENTRY_LINE - 1)) "$CHANGELOG")
-        TAIL=$(tail -n +"$NEXT_ENTRY_LINE" "$CHANGELOG")
-        printf '%s\n%s\n' "$HEAD" "$TAIL" > "$CHANGELOG"
-    else
-        head -n $((ENTRY_LINE - 1)) "$CHANGELOG" > "$CHANGELOG.tmp" && mv "$CHANGELOG.tmp" "$CHANGELOG"
-    fi
-fi
-
-# Insert new entry immediately before the first ## [ version entry
-if [ -f "$CHANGELOG" ]; then
-    FIRST_ENTRY_LINE=$(grep -n "^## \[" "$CHANGELOG" | head -1 | cut -d: -f1)
-    if [ -n "$FIRST_ENTRY_LINE" ]; then
-        HEAD=$(head -n $((FIRST_ENTRY_LINE - 1)) "$CHANGELOG")
-        TAIL=$(tail -n +"$FIRST_ENTRY_LINE" "$CHANGELOG")
-        printf '%s\n%s\n\n%s\n' "$HEAD" "$ENTRY" "$TAIL" > "$CHANGELOG"
-    else
-        EXISTING=$(cat "$CHANGELOG")
-        printf '%s\n\n%s\n' "$EXISTING" "$ENTRY" > "$CHANGELOG"
-    fi
+    echo "No meaningful user-facing changes. Skipping user changelog update."
 else
-    printf '# Changelog\n\nAll notable changes are documented here.\n\n%s\n' "$ENTRY" > "$CHANGELOG"
+    if ! echo "$ENTRY" | grep -q "^\#\# \[$VERSION\]"; then
+        echo "Warning: Claude output did not match expected format. Skipping user changelog."
+        echo "--- Claude output: ---"
+        echo "$ENTRY"
+    else
+        PAYLOAD=$(printf '{"version":"%s","entry":%s}' "$VERSION" "$(echo "$ENTRY" | jq -Rs .)")
+        curl -sf -X POST "$ADMIN_WEBSITE_URL/api/changelog/entry" \
+            -H "Authorization: Bearer $STATUS_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" || echo "Failed to post user changelog entry."
+        echo "User changelog updated for v$VERSION."
+    fi
 fi
 
-echo "Changelog updated for v$VERSION."
+echo "Generating super-admin changelog entry for v$VERSION..."
+
+ADMIN_ENTRY=$(claude -p "You are writing a technical changelog entry for the FASTR Analytics platform. This is for super-admins and developers — it should capture everything that changed, including backend, infrastructure, API, and internal changes.
+
+New version: $VERSION
+Date: $TODAY
+
+## Existing super-admin changelog (for context and consistency):
+\`\`\`
+${EXISTING_CHANGELOG_ADMIN:-"(no existing entries)"}
+\`\`\`
+
+## Source code diff (all changes since the last release):
+\`\`\`diff
+$DIFF_TRIMMED
+\`\`\`
+
+Write a changelog entry in this exact Keep-a-Changelog format:
+
+## [$VERSION] - $TODAY
+
+### Added
+- (new features or endpoints)
+
+### Changed
+- (modifications to existing behaviour, APIs, data structures)
+
+### Fixed
+- (bug fixes)
+
+### Internal
+- (refactoring, logging, infra, deployment, tooling changes)
+
+Rules:
+- Include ALL changes — user-facing, backend, API, database, infrastructure, tooling
+- Be specific and technical (mention route names, table names, component names where relevant)
+- Omit section headers that have no items
+- Do NOT include any explanation outside the format
+- No maximum bullet point limit — include everything noteworthy" 2>/dev/null)
+
+if [ -z "$ADMIN_ENTRY" ] || [ "$ADMIN_ENTRY" = "SKIP" ]; then
+    echo "No admin changelog entry generated."
+elif ! echo "$ADMIN_ENTRY" | grep -q "^\#\# \[$VERSION\]"; then
+    echo "Warning: Claude admin output did not match expected format. Skipping."
+    echo "--- Claude output: ---"
+    echo "$ADMIN_ENTRY"
+else
+    ADMIN_PAYLOAD=$(printf '{"version":"%s","entry":%s}' "$VERSION" "$(echo "$ADMIN_ENTRY" | jq -Rs .)")
+    curl -sf -X POST "$ADMIN_WEBSITE_URL/api/changelog/superadmin/entry" \
+        -H "Authorization: Bearer $STATUS_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "$ADMIN_PAYLOAD" || echo "Failed to post super-admin changelog entry."
+    echo "Super-admin changelog updated for v$VERSION."
+fi

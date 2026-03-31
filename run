@@ -1,13 +1,5 @@
 #!/bin/bash
 
-# Build modules only if dist folder doesn't exist or is empty
-if [ ! -d "module_defs_dist" ] || [ -z "$(ls -A module_defs_dist)" ]; then
-  echo "Building modules..."
-  deno task build:modules
-else
-  echo "Skipping module build (module_defs_dist exists)"
-fi
-
 # Always build translations
 echo "Building translations..."
 deno task build:translations

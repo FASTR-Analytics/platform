@@ -1,4 +1,14 @@
 # Changelog
+## [1.15.0] - 2026-03-27
+
+### Added
+- HFA indicators can now be managed centrally from the Instance Data page (add, edit, delete, bulk delete)
+- Upload and download HFA indicator definitions via CSV from the Instance Data page
+- Attach screenshot images when submitting feedback or bug reports
+
+### Changed
+- HFA indicator configuration is now instance-wide rather than per-project module settings
+
 ## [1.14.6] - 2026-03-27
 
 ### Added

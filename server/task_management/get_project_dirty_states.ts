@@ -51,11 +51,11 @@ export async function getProjectDirtyStates(
     const rawModules = await ppk.projectDb<
       {
         id: string;
-        last_run: string;
+        last_run_at: string;
         dirty: string;
       }[]
     >`
-  SELECT id, last_run, dirty FROM modules
+  SELECT id, last_run_at, dirty FROM modules
   `;
 
     for (const rawModule of rawModules) {
@@ -86,7 +86,7 @@ SELECT * FROM global_last_updated WHERE id = 'any_module_last_run'
     ///////////////////////////
 
     for (const rawModule of rawModules) {
-      pds.moduleLastRun[rawModule.id] = rawModule.last_run;
+      pds.moduleLastRun[rawModule.id] = rawModule.last_run_at;
     }
 
     ////////////////////////
@@ -110,6 +110,18 @@ SELECT dataset_type, last_updated FROM datasets
 `;
         for (const rawDataset of rawDatasets) {
           pds.lastUpdated.datasets[rawDataset.dataset_type] = rawDataset.last_updated;
+        }
+      } else if (tableName === "modules") {
+        const rawItems = await ppk.projectDb<
+          {
+            id: string;
+            installed_at: string;
+          }[]
+        >`
+SELECT id, installed_at FROM modules
+`;
+        for (const rawItem of rawItems) {
+          pds.lastUpdated[tableName][rawItem.id] = rawItem.installed_at;
         }
       } else {
         const rawItems = await ppk.projectDb<

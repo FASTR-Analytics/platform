@@ -1,22 +1,30 @@
 import {
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
+  MODULE_REGISTRY,
+  MODULE_SOURCE,
+  MODULES_LOCAL_DIR,
   type APIResponseWithData,
-  type BuiltModuleDefinitionJSON,
   type DefaultPresentationObject,
   type InstanceLanguage,
   type MetricDefinition,
   type MetricDefinitionJSON,
   type ModuleDefinition,
+  type ModuleDefinitionJSON,
   type ModuleId,
   type PeriodFilter,
   type PeriodOption,
   type ResultsObjectDefinition,
+  type ResultsObjectDefinitionJSON,
   type TranslatableString,
 } from "lib";
+import { ModuleDefinitionJSONSchema } from "../../lib/types/module_definition_validator.ts";
+import { stripFrontmatter } from "../github/fetch_module.ts";
 import { getTranslateFunc } from "./translation_utils.ts";
 
-function resolveTS(ts: TranslatableString, lang: InstanceLanguage): string {
+const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
+
+export function resolveTS(ts: TranslatableString, lang: InstanceLanguage): string {
   return lang === "fr" ? (ts.fr || ts.en) : ts.en;
 }
 
@@ -37,8 +45,7 @@ function computePeriodFilter(periodOpt: PeriodOption, nMonths: number): PeriodFi
 
   if (periodOpt === "quarter_id") {
     const maxQuarter = currentYear * 10 + Math.ceil(currentMonth / 3);
-    const monthsBack = nMonths;
-    const startDate = new Date(currentYear, currentMonth - 1 - monthsBack, 1);
+    const startDate = new Date(currentYear, currentMonth - 1 - nMonths, 1);
     const minQuarter = startDate.getFullYear() * 10 + Math.ceil((startDate.getMonth() + 1) / 3);
     return {
       filterType: "last_n_months",
@@ -61,7 +68,7 @@ function computePeriodFilter(periodOpt: PeriodOption, nMonths: number): PeriodFi
   };
 }
 
-function deriveDefaultPresentationObjects(
+export function deriveDefaultPresentationObjects(
   metrics: MetricDefinition[],
   moduleId: string,
   language: InstanceLanguage,
@@ -101,112 +108,73 @@ function deriveDefaultPresentationObjects(
   return results;
 }
 
-type ModuleManifest = {
-  modules: Record<
-    ModuleId,
-    {
-      label: { en: string; fr: string };
-      versions: string[];
-      latest: string;
-      prerequisites?: ModuleId[];
-    }
-  >;
-  lastBuild: string;
-};
-
-let manifestCache: ModuleManifest | null = null;
-
-async function loadManifest(): Promise<ModuleManifest> {
-  if (manifestCache) {
-    return manifestCache;
+export async function fetchModuleFiles(
+  moduleId: string,
+): Promise<{ definition: ModuleDefinitionJSON; script: string; gitRef?: string }> {
+  const registryEntry = MODULE_REGISTRY.find((m) => m.id === moduleId);
+  if (!registryEntry) {
+    throw new Error(`Module "${moduleId}" not found in registry`);
   }
 
-  const manifestPath = "./module_defs_dist/manifest.json";
-  const manifestText = await Deno.readTextFile(manifestPath);
-  manifestCache = JSON.parse(manifestText);
-  return manifestCache!;
-}
+  if (MODULE_SOURCE === "local") {
+    const basePath = `${MODULES_LOCAL_DIR}/${registryEntry.github.path}`;
+    const definitionText = await Deno.readTextFile(`${basePath}/definition.json`);
+    const rawScript = await Deno.readTextFile(`${basePath}/script.R`);
+    const definition = JSON.parse(definitionText);
+    return { definition, script: stripFrontmatter(rawScript), gitRef: "local" };
+  }
 
-export async function getModuleDefinitionDetail(
-  id: ModuleId,
-  language: InstanceLanguage,
-  version?: string
-): Promise<APIResponseWithData<ModuleDefinition>> {
+  const { owner, repo, path } = registryEntry.github;
+  const ref = "main";
+  const baseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
+
+  const headers: Record<string, string> = {};
+  if (_GITHUB_TOKEN) {
+    headers["Authorization"] = `Bearer ${_GITHUB_TOKEN}`;
+  }
+
+  // Fetch HEAD commit SHA for this path
+  let gitRef: string | undefined;
   try {
-    const manifest = await loadManifest();
-    const moduleInfo = manifest.modules[id];
-
-    if (!moduleInfo) {
-      return {
-        success: false,
-        err: `No module definition with id: ${id}`,
-      };
+    const commitsRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&per_page=1`,
+      { headers },
+    );
+    if (commitsRes.ok) {
+      const commits = await commitsRes.json();
+      if (commits.length > 0) {
+        gitRef = commits[0].sha;
+      }
     }
-
-    const versionToLoad = version ?? moduleInfo.latest;
-    const modulePath = `./module_defs_dist/modules/${id}-${versionToLoad}.json`;
-
-    const moduleText = await Deno.readTextFile(modulePath);
-    const rawModuleJSON: BuiltModuleDefinitionJSON = JSON.parse(moduleText);
-
-    // Load script from local file (all scripts are bundled at build time)
-    if (rawModuleJSON.scriptSource.type !== "local") {
-      throw new Error(
-        `Runtime scriptSource must be local, got: ${rawModuleJSON.scriptSource.type}`
-      );
-    }
-    const scriptPath = `./module_defs_dist/modules/${rawModuleJSON.scriptSource.filename}`;
-    const script = await Deno.readTextFile(scriptPath);
-
-    const tc = getTranslateFunc(language);
-
-    // Add moduleId to resultsObjects (derived from parent)
-    const resultsObjectsWithModuleId: ResultsObjectDefinition[] =
-      rawModuleJSON.resultsObjects.map((ro) => ({
-        ...ro,
-        moduleId: rawModuleJSON.id,
-      }));
-
-    const translatedMetrics = translateMetrics(rawModuleJSON.metrics, tc, language);
-
-    const translatedModule: ModuleDefinition = {
-      id: rawModuleJSON.id,
-      label: resolveTS(rawModuleJSON.label, language),
-      prerequisites: rawModuleJSON.prerequisites,
-      lastScriptUpdate: rawModuleJSON.lastScriptUpdate,
-      commitSha: rawModuleJSON.commitSha,
-      scriptSource: rawModuleJSON.scriptSource,
-      dataSources: rawModuleJSON.dataSources,
-      configRequirements: rawModuleJSON.configRequirements,
-      script,
-      assetsToImport: rawModuleJSON.assetsToImport,
-      resultsObjects: translateResultsObjects(resultsObjectsWithModuleId, tc),
-      defaultPresentationObjects: deriveDefaultPresentationObjects(
-        translatedMetrics,
-        rawModuleJSON.id,
-        language,
-      ),
-      metrics: translatedMetrics,
-    };
-
-    return { success: true, data: translatedModule };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      success: false,
-      err: `Failed to load module ${id}: ${errorMessage}`,
-    };
+  } catch {
+    // Non-fatal — we can still install without a git ref
   }
+
+  const [defRes, scriptRes] = await Promise.all([
+    fetch(`${baseUrl}/definition.json`, { headers }),
+    fetch(`${baseUrl}/script.R`, { headers }),
+  ]);
+
+  if (!defRes.ok) {
+    throw new Error(`Failed to fetch definition.json for ${moduleId}: ${defRes.status} ${defRes.statusText}`);
+  }
+  if (!scriptRes.ok) {
+    throw new Error(`Failed to fetch script.R for ${moduleId}: ${scriptRes.status} ${scriptRes.statusText}`);
+  }
+
+  const definition = await defRes.json();
+  const rawScript = await scriptRes.text();
+
+  return { definition, script: stripFrontmatter(rawScript), gitRef };
 }
 
-function translateResultsObjects(
-  resultsObjects: ResultsObjectDefinition[],
-  tc: (v: string) => string
-): ResultsObjectDefinition[] {
-  return resultsObjects.map((ro) => ({
-    ...ro,
-    description: tc(ro.description),
-  }));
+function validateDefinition(definition: unknown, moduleId: string): ModuleDefinitionJSON {
+  const result = ModuleDefinitionJSONSchema.safeParse(definition);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    throw new Error(`Invalid definition for module "${moduleId}": ${issues}`);
+  }
+  return result.data as ModuleDefinitionJSON;
 }
 
 function translateMetrics(
@@ -230,3 +198,59 @@ function translateMetrics(
   }));
 }
 
+function translateResultsObjects(
+  resultsObjects: ResultsObjectDefinition[],
+  tc: (v: string) => string,
+): ResultsObjectDefinition[] {
+  return resultsObjects.map((ro) => ({
+    ...ro,
+    description: tc(ro.description),
+  }));
+}
+
+export async function getModuleDefinitionDetail(
+  id: ModuleId,
+  language: InstanceLanguage,
+): Promise<APIResponseWithData<ModuleDefinition & { gitRef?: string }>> {
+  try {
+    const { definition: rawDefinition, script, gitRef } = await fetchModuleFiles(id);
+    const definition = validateDefinition(rawDefinition, id);
+
+    const tc = getTranslateFunc(language);
+
+    const resultsObjectsWithModuleId: ResultsObjectDefinition[] =
+      definition.resultsObjects.map((ro: ResultsObjectDefinitionJSON) => ({
+        ...ro,
+        moduleId: id,
+      }));
+
+    const translatedMetrics = translateMetrics(definition.metrics, tc, language);
+
+    const translatedModule: ModuleDefinition = {
+      id,
+      label: resolveTS(definition.label, language),
+      prerequisites: definition.prerequisites as ModuleId[],
+      lastScriptUpdate: new Date().toISOString(),
+      dataSources: definition.dataSources,
+      scriptGenerationType: definition.scriptGenerationType,
+      configRequirements: definition.configRequirements,
+      script,
+      assetsToImport: definition.assetsToImport,
+      resultsObjects: translateResultsObjects(resultsObjectsWithModuleId, tc),
+      defaultPresentationObjects: deriveDefaultPresentationObjects(
+        translatedMetrics,
+        id,
+        language,
+      ),
+      metrics: translatedMetrics,
+    };
+
+    return { success: true, data: { ...translatedModule, gitRef } };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      err: `Failed to load module ${id}: ${errorMessage}`,
+    };
+  }
+}

@@ -38,10 +38,9 @@
     "lib": ["esnext", "dom", "dom.iterable", "deno.ns"]
   },
   "tasks": {
-    "dev": "deno task build:modules && deno run --allow-all --env-file --unstable-broadcast-channel main.ts",
+    "dev": "deno run --allow-all --env-file --unstable-broadcast-channel main.ts",
     "build:client": "cd client && npm run build",
-    "build:server": "deno task build:modules && deno task build:translations",
-    "build:modules": "deno run --allow-read --allow-write --allow-env --allow-net --env-file --unstable-raw-imports build_module_definitions.ts",
+    "build:server": "deno task build:translations",
     "build:translations": "deno run --allow-read --allow-write --allow-env --allow-ffi --env-file build_translations.ts",
     "typecheck": "deno check main.ts && echo '✓ Server typecheck passed' && sh -c 'cd client && npm run typecheck' && echo '✓ Client typecheck passed\n\n'",
     "check": "deno check main.ts",

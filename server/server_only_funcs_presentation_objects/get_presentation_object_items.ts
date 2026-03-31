@@ -3,7 +3,6 @@ import { getResultsObjectTableName, tryCatchDatabaseAsync } from "../db/mod.ts";
 import {
   APIResponseWithData,
   GenericLongFormFetchConfig,
-  getModuleIdForResultsObject,
   getPeriodFilterExactBounds,
   ItemsHolderPresentationObject,
   PeriodOption,
@@ -25,8 +24,11 @@ export async function getPresentationObjectItems(
   moduleLastRun: string,
 ): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Derive moduleId from resultsObjectId
-    const moduleId = getModuleIdForResultsObject(resultsObjectId);
+    const roRow = (await projectDb<{ module_id: string }[]>`
+SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
+`).at(0);
+    if (!roRow) throw new Error(`Unknown results object: ${resultsObjectId}`);
+    const moduleId = roRow.module_id;
 
     const tableName = getResultsObjectTableName(resultsObjectId);
 
@@ -44,6 +46,7 @@ export async function getPresentationObjectItems(
     ///////////////////////////
 
     const indicatorLabelReplacements = await getIndicatorLabelReplacements(
+      mainDb,
       projectDb,
       moduleId,
     );

@@ -68,6 +68,7 @@ async function run(std: { projectId: string; moduleId: string }) {
   const runIter = runModuleIterator(
     std.projectId,
     projectDb,
+    mainDb,
     resModuleDetail.data,
     resFacilityColumns.data,
     resCountryIso3.data.countryIso3

@@ -1,7 +1,5 @@
 import { Hono } from "hono";
 import {
-  getModuleIdForMetric,
-  getModuleIdForResultsObject,
   validateFetchConfig,
 } from "lib";
 import {
@@ -316,14 +314,20 @@ defineRoute(
     );
     validateFetchConfig(body.fetchConfig);
 
-    // Derive moduleId from resultsObjectId (works for both real POs and ad-hoc AI queries)
-    const moduleId = getModuleIdForResultsObject(body.resultsObjectId);
+    // Derive moduleId from resultsObjectId via DB lookup
+    const roRow = (await c.var.ppk.projectDb<{ module_id: string }[]>`
+SELECT module_id FROM results_objects WHERE id = ${body.resultsObjectId}
+`).at(0);
+    if (!roRow) {
+      return c.json({ success: false, err: `Unknown results object: ${body.resultsObjectId}` });
+    }
+    const moduleId = roRow.module_id;
 
     const moduleLastRun = (
-      await c.var.ppk.projectDb<{ last_run: string }[]>`
-SELECT last_run FROM modules WHERE id = ${moduleId}
+      await c.var.ppk.projectDb<{ last_run_at: string }[]>`
+SELECT last_run_at FROM modules WHERE id = ${moduleId}
 `
-    ).at(0)?.last_run;
+    ).at(0)?.last_run_at;
 
     if (!moduleLastRun) {
       return c.json({
@@ -412,15 +416,20 @@ defineRoute(
   async (c, { body }) => {
     const t0 = performance.now();
 
-    // Derive moduleId from metricId
-    const moduleId = getModuleIdForMetric(body.metricId);
+    // Derive moduleId from metricId via DB lookup
+    const metricRow = (await c.var.ppk.projectDb<{ module_id: string }[]>`
+SELECT module_id FROM metrics WHERE id = ${body.metricId}
+`).at(0);
+    if (!metricRow) {
+      return c.json({ success: false, err: `Unknown metric: ${body.metricId}` });
+    }
+    const moduleId = metricRow.module_id;
 
-    // Read moduleLastRun from DB
     const moduleLastRun = (
-      await c.var.ppk.projectDb<{ last_run: string }[]>`
-SELECT last_run FROM modules WHERE id = ${moduleId}
+      await c.var.ppk.projectDb<{ last_run_at: string }[]>`
+SELECT last_run_at FROM modules WHERE id = ${moduleId}
 `
-    ).at(0)?.last_run;
+    ).at(0)?.last_run_at;
 
     if (!moduleLastRun) {
       return c.json({
@@ -522,15 +531,20 @@ defineRoute(
         ? `${body.fetchConfig.filters.length} filters`
         : "no filters";
 
-    // Derive moduleId from resultsObjectId
-    const moduleId = getModuleIdForResultsObject(body.resultsObjectId);
+    // Derive moduleId from resultsObjectId via DB lookup
+    const roRow2 = (await c.var.ppk.projectDb<{ module_id: string }[]>`
+SELECT module_id FROM results_objects WHERE id = ${body.resultsObjectId}
+`).at(0);
+    if (!roRow2) {
+      return c.json({ success: false, err: `Unknown results object: ${body.resultsObjectId}` });
+    }
+    const moduleId = roRow2.module_id;
 
-    // Read moduleLastRun from DB
     const moduleLastRun = (
-      await c.var.ppk.projectDb<{ last_run: string }[]>`
-SELECT last_run FROM modules WHERE id = ${moduleId}
+      await c.var.ppk.projectDb<{ last_run_at: string }[]>`
+SELECT last_run_at FROM modules WHERE id = ${moduleId}
 `
-    ).at(0)?.last_run;
+    ).at(0)?.last_run_at;
 
     if (!moduleLastRun) {
       return c.json({

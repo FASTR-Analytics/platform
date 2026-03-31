@@ -1,4 +1,4 @@
-import type { ContentBlock, Slide } from "lib";
+import type { ContentBlock, MetricWithStatus, Slide } from "lib";
 import type { LayoutNode } from "panther";
 import { getDataFromConfig } from "~/components/project_ai/ai_tools/tools/_internal/format_metric_data_for_ai";
 import { layoutNodeToStructure, type LayoutStructure } from "./layout_spec_helpers";
@@ -41,7 +41,7 @@ export type SimplifiedSlide =
       _layout: { description: string; structure: LayoutStructure | null };
     };
 
-export async function simplifySlideForAI(projectId: string, slide: Slide): Promise<SimplifiedSlide> {
+export async function simplifySlideForAI(projectId: string, slide: Slide, metrics?: MetricWithStatus[]): Promise<SimplifiedSlide> {
   if (slide.type === "cover") {
     return {
       type: "cover",
@@ -78,6 +78,7 @@ export async function simplifySlideForAI(projectId: string, slide: Slide): Promi
             const dataOutput = await getDataFromConfig(
               projectId,
               block.source.metricId,
+              metrics ?? [],
               block.source.config
             );
 

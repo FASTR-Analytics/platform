@@ -1,6 +1,5 @@
 import type { FigureInputs } from "panther";
 import type { PresentationObjectConfig } from "lib";
-import { getMetricStaticData } from "lib";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getStyleFromPresentationObject } from "./get_style_from_po";
 import { getGeoJsonSync } from "~/state/caches/geojson_cache";
@@ -15,7 +14,7 @@ export function stripFigureInputsForStorage(fi: FigureInputs): FigureInputs {
 
 export async function hydrateFigureInputsForRendering(
   fi: FigureInputs,
-  source?: { config: PresentationObjectConfig; metricId: string },
+  source?: { config: PresentationObjectConfig; metricId: string; formatAs?: "percent" | "number" },
 ): Promise<FigureInputs> {
   let hydrated = fi;
 
@@ -29,12 +28,9 @@ export async function hydrateFigureInputsForRendering(
     }
   }
 
-  if (source) {
-    try {
-      const { formatAs } = getMetricStaticData(source.metricId);
-      const style = getStyleFromPresentationObject(source.config, formatAs);
-      hydrated = { ...hydrated, style };
-    } catch { /* keep existing style */ }
+  if (source?.formatAs) {
+    const style = getStyleFromPresentationObject(source.config, source.formatAs);
+    hydrated = { ...hydrated, style };
   }
 
   return hydrated;

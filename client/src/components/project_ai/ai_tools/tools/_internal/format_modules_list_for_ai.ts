@@ -21,9 +21,9 @@ export function formatModulesListForAI(
   for (const module of modules) {
     lines.push(`ID: ${module.id}`);
     lines.push(`Name: ${module.label}`);
-    lines.push(`Config Type: ${module.configType}`);
-    lines.push(`Installed: ${module.dateInstalled}`);
-    lines.push(`Last Run: ${module.lastRun}`);
+    lines.push(`Has Parameters: ${module.hasParameters}`);
+    lines.push(`Installed: ${module.installedAt}`);
+    lines.push(`Last Run: ${module.lastRunAt}`);
 
     const statusText = module.dirty === "ready"
       ? "Up to date"

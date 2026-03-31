@@ -12,15 +12,16 @@ export type DBIndicator_IN_PROJECT = {
 
 export type DBModule = {
   id: string;
-  module_definition: string; // Make results objects its own table
-  date_installed: string;
-  config_type: "none" | "parameters" | "hfa";
+  module_definition: string;
   config_selections: string;
-  //
-  last_updated: string;
-  last_run: string;
   dirty: string;
-  latest_ran_commit_sha: string | null;
+  installed_at: string;
+  script_updated_at: string | null;
+  definition_updated_at: string | null;
+  config_updated_at: string | null;
+  last_run_at: string;
+  installed_git_ref: string | null;
+  last_run_git_ref: string | null;
 };
 
 export type DBMetric = {
@@ -37,6 +38,9 @@ export type DBMetric = {
   post_aggregation_expression: string | null;
   results_object_id: string;
   ai_description: string | null;
+  viz_presets: string | null;
+  hide: boolean;
+  important_notes: string | null;
 };
 
 export type DBPresentationObject = {

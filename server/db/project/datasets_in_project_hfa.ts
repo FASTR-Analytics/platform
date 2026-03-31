@@ -139,6 +139,9 @@ VALUES (
   ${JSON.stringify({ version: version.id })},
   ${lastUpdated}
 )
+ON CONFLICT (dataset_type) DO UPDATE SET
+  info = EXCLUDED.info,
+  last_updated = EXCLUDED.last_updated
 `,
       sql`DELETE FROM facilities`,
       sql`DELETE FROM indicators_hfa`,

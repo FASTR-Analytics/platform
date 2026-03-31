@@ -1,5 +1,4 @@
 import type {
-  HfaIndicator,
   InstalledModuleWithConfigSelections,
   ItemsHolderResultsObject,
   ModuleId,
@@ -30,7 +29,6 @@ export const moduleRouteRegistry = {
     params: {} as { module_id: ModuleId },
     body: {} as {
       preserveSettings: boolean;
-      rerunModule: boolean;
     },
     response: {} as {
       lastUpdated: string;
@@ -43,9 +41,7 @@ export const moduleRouteRegistry = {
     method: "POST",
     params: {} as { module_id: ModuleId },
     body: {} as {
-      newParams:
-        | Record<string, string>
-        | { indicators?: HfaIndicator[]; useSampleWeights?: boolean };
+      newParams: Record<string, string>;
     },
     response: {} as { lastUpdated: string },
     requiresProject: true,

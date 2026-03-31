@@ -154,12 +154,12 @@ else
     echo "Skipping client build"
 fi
 
-# Build modules and translations
-echo "Building modules"
-if ! deno run --allow-read --allow-write --allow-env --allow-net --unstable-raw-imports build_module_definitions.ts; then
-    echo "ERROR: Module build failed!"
-    exit 1
-fi
+# # Build modules and translations
+# echo "Building modules"
+# if ! deno run --allow-read --allow-write --allow-env --allow-net --unstable-raw-imports build_module_definitions.ts; then
+#     echo "ERROR: Module build failed!"
+#     exit 1
+# fi
 
 echo "Building translations"
 if ! deno run --allow-read --allow-write --allow-env --allow-ffi build_translations.ts; then

@@ -18,7 +18,6 @@ export function UpdateModule(
   >,
 ) {
   const [preserveSettings, setPreserveSettings] = createSignal<boolean>(true);
-  const [rerunModule, setRerunModule] = createSignal<boolean>(false);
 
   const save = timActionForm(
     async (e: MouseEvent) => {
@@ -27,7 +26,6 @@ export function UpdateModule(
         projectId: p.projectId,
         module_id: p.moduleId,
         preserveSettings: preserveSettings(),
-        rerunModule: rerunModule(),
       });
     },
     () => p.close(undefined),
@@ -46,11 +44,6 @@ export function UpdateModule(
         label={t3({ en: "Preserve settings", fr: "Conserver les paramètres" })}
         checked={preserveSettings()}
         onChange={setPreserveSettings}
-      />
-      <Checkbox
-        label={t3({ en: "Re-run module after update", fr: "Relancer le module après la mise à jour" })}
-        checked={rerunModule()}
-        onChange={setRerunModule}
       />
     </AlertFormHolder>
   );

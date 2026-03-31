@@ -6,7 +6,6 @@ import {
   PresentationObjectDetail,
   ProjectDetail,
   ResultsValueInfoForPresentationObject,
-  getModuleIdForMetric,
   getReplicateByProp,
   getTextRenderingOptions,
   hasDuplicateDisaggregatorDisplayOptions,
@@ -350,7 +349,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         projectId: projectId,
         presentationObjectId: p.poDetail.id,
         resultsObjectId: p.poDetail.resultsValue.resultsObjectId,
-        moduleId: getModuleIdForMetric(p.poDetail.resultsValue.id),
+        moduleId: p.projectDetail.metrics.find(m => m.id === p.poDetail.resultsValue.id)?.moduleId ?? "",
         isDefault: p.poDetail.isDefault,
         existingLabel: p.poDetail.label,
         currentFolderId: p.poDetail.folderId,
@@ -517,7 +516,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       element: ViewResultsObject,
       props: {
         projectId: projectId,
-        moduleId: getModuleIdForMetric(p.poDetail.resultsValue.id),
+        moduleId: p.projectDetail.metrics.find(m => m.id === p.poDetail.resultsValue.id)?.moduleId ?? "",
         resultsObjectId,
       },
     });

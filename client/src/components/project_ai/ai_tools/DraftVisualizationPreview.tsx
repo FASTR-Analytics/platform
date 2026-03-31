@@ -1,7 +1,6 @@
 import {
   t3,
   getTextRenderingOptions,
-  getMetricStaticData,
   getStartingConfigForSlideDeck,
   type AiFigureFromVisualization,
   type AiFigureFromMetric,
@@ -74,13 +73,16 @@ export function DraftVisualizationPreview(p: Props) {
         return;
       }
       let finalInputs: FigureInputs = figureBlock.figureInputs;
-      if (figureBlock.source?.type === "from_data") {
-        const { formatAs } = getMetricStaticData(figureBlock.source.metricId);
-        const style = getStyleFromPresentationObject(
-          figureBlock.source.config,
-          formatAs,
-        );
-        finalInputs = { ...finalInputs, style };
+      const source = figureBlock.source;
+      if (source?.type === "from_data") {
+        const metric = p.metrics.find((m) => m.id === source.metricId);
+        if (metric) {
+          const style = getStyleFromPresentationObject(
+            source.config,
+            metric.formatAs,
+          );
+          finalInputs = { ...finalInputs, style };
+        }
       }
       setFigureState({ status: "ready", data: finalInputs });
     } catch (err) {

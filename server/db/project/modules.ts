@@ -16,16 +16,14 @@ import {
   parseJsonOrThrow,
   throwIfErrWithData,
   type DirtyOrRunStatus,
-  type HfaIndicator,
   type MetricStatus,
   type MetricWithStatus,
-  METRIC_STATIC_DATA,
   type ModuleConfigSelections,
   type ModuleDetailForRunningScript,
   type ModuleId,
   type ResultsValue,
 } from "lib";
-import { getModuleDefinitionDetail } from "../../module_loader/mod.ts";
+import { getModuleDefinitionDetail, fetchModuleFiles } from "../../module_loader/mod.ts";
 import {
   detectHasAnyRows,
   getResultsObjectTableName,
@@ -34,6 +32,14 @@ import {
 import { DBMetric, DBModule } from "./_project_database_types.ts";
 import { getFacilityColumnsConfig } from "../instance/config.ts";
 import { enrichMetric } from "./metric_enricher.ts";
+
+function parseModuleConfigSelections(json: string): ModuleConfigSelections {
+  const raw = parseJsonOrThrow<Record<string, unknown>>(json);
+  return {
+    parameterDefinitions: (raw.parameterDefinitions ?? []) as ModuleConfigSelections["parameterDefinitions"],
+    parameterSelections: (raw.parameterSelections ?? {}) as ModuleConfigSelections["parameterSelections"],
+  };
+}
 
 //////////////////////////////////////////////////////////////
 //  ______                        __                __  __  //
@@ -51,7 +57,6 @@ import { enrichMetric } from "./metric_enricher.ts";
 export async function installModule(
   projectDb: Sql,
   moduleDefinitionId: ModuleId,
-  // scriptOnly: boolean
 ): Promise<
   APIResponseWithData<{
     lastUpdated: string;
@@ -64,7 +69,22 @@ export async function installModule(
       _INSTANCE_LANGUAGE,
     );
     throwIfErrWithData(modDef);
+    const gitRef = modDef.data.gitRef;
     const lastUpdated = new Date().toISOString();
+
+    // Cross-module metric ID conflict check
+    const incomingMetricIds = modDef.data.metrics.map((m) => m.id);
+    if (incomingMetricIds.length > 0) {
+      const conflicting = await projectDb<{ id: string; module_id: string }[]>`
+        SELECT id, module_id FROM metrics
+        WHERE id = ANY(${incomingMetricIds})
+        AND module_id != ${moduleDefinitionId}
+      `;
+      if (conflicting.length > 0) {
+        const conflicts = conflicting.map((c) => `"${c.id}" (in ${c.module_id})`).join(", ");
+        throw new Error(`Metric ID conflict: ${conflicts}`);
+      }
+    }
 
     const startingConfigSelections = getStartingModuleConfigSelections(
       modDef.data.configRequirements,
@@ -72,7 +92,6 @@ export async function installModule(
 
     const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
 
-    // Get all metric IDs for this module to find related presentation objects
     const metricIds = modDef.data.metrics.map((m) => m.id);
 
     await projectDb.begin(async (sql: Sql) => {
@@ -82,17 +101,19 @@ export async function installModule(
       // Insert module
       await sql`
 INSERT INTO modules
-  (id, module_definition, date_installed, config_type, config_selections, last_updated, last_run, dirty)
+  (id, module_definition, config_selections, dirty, installed_at, script_updated_at, definition_updated_at, config_updated_at, last_run_at, installed_git_ref)
 VALUES
   (
     ${modDef.data.id},
     ${JSON.stringify(modDef.data)},
-    ${lastUpdated},
-    ${modDef.data.configRequirements.configType},
     ${JSON.stringify(startingConfigSelections)},
+    'queued',
     ${lastUpdated},
     ${lastUpdated},
-    'queued'
+    ${lastUpdated},
+    ${lastUpdated},
+    ${lastUpdated},
+    ${gitRef ?? null}
   )
 `;
 
@@ -117,7 +138,7 @@ VALUES (
 INSERT INTO metrics (
   id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
-  results_object_id, ai_description
+  results_object_id, ai_description, viz_presets, hide, important_notes
 )
 VALUES (
   ${metric.id},
@@ -132,7 +153,10 @@ VALUES (
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
   ${metric.resultsObjectId},
-  ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null}
+  ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
+  ${metric.vizPresets ? JSON.stringify(metric.vizPresets) : null},
+  ${metric.hide ?? false},
+  ${metric.importantNotes ?? null}
 )
 `;
       }
@@ -251,10 +275,10 @@ export async function updateModuleDefinition(
   APIResponseWithData<{
     lastUpdated: string;
     presObjIdsWithNewLastUpdateds: string[];
+    computeChange: boolean;
   }>
 > {
   return await tryCatchDatabaseAsync(async () => {
-    // First, check if module exists
     const rawModule = (
       await projectDb<DBModule[]>`
         SELECT * FROM modules WHERE id = ${moduleDefinitionId}
@@ -265,148 +289,167 @@ export async function updateModuleDefinition(
       throw new Error("Module not found");
     }
 
-    // Get the latest module definition
     const modDef = await getModuleDefinitionDetail(
       moduleDefinitionId,
       _INSTANCE_LANGUAGE,
     );
     throwIfErrWithData(modDef);
 
+    const gitRef = modDef.data.gitRef;
     const lastUpdated = new Date().toISOString();
 
-    // Get default presentation objects from the module definition
-    const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
+    // Compute new config selections
+    const oldConfigSelections = parseModuleConfigSelections(rawModule.config_selections);
+    const newConfigSelections = preserveSettings
+      ? getMergedModuleConfigSelections(oldConfigSelections, modDef.data.configRequirements)
+      : getStartingModuleConfigSelections(modDef.data.configRequirements);
 
-    // Get all metric IDs for this module
+    // Change detection: compare compute-affecting fields
+    const storedDef = parseJsonOrThrow<ModuleDefinition>(rawModule.module_definition);
+    const scriptChanged = modDef.data.script !== storedDef.script;
+    const configReqChanged = JSON.stringify(modDef.data.configRequirements) !== JSON.stringify(storedDef.configRequirements);
+    const resultsObjectsChanged = JSON.stringify(modDef.data.resultsObjects) !== JSON.stringify(storedDef.resultsObjects);
+    const configSelectionsChanged = JSON.stringify(newConfigSelections.parameterSelections) !== JSON.stringify(oldConfigSelections.parameterSelections);
+    const computeChange = scriptChanged || configReqChanged || resultsObjectsChanged;
+
+    if (computeChange) {
+      // Scenario B: compute change — full reinstall
+
+      // Delegate to installModule logic (delete + recreate everything)
+      const metricIds = modDef.data.metrics.map((m) => m.id);
+      const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
+
+      await projectDb.begin(async (sql: Sql) => {
+        await sql`DELETE FROM modules WHERE id = ${modDef.data.id}`;
+        await sql`
+INSERT INTO modules
+  (id, module_definition, config_selections, dirty, installed_at, script_updated_at, definition_updated_at, config_updated_at, last_run_at, installed_git_ref)
+VALUES (
+  ${modDef.data.id},
+  ${JSON.stringify(modDef.data)},
+  ${JSON.stringify(newConfigSelections)},
+  'queued',
+  ${lastUpdated},
+  ${scriptChanged ? lastUpdated : rawModule.script_updated_at},
+  ${lastUpdated},
+  ${configSelectionsChanged ? lastUpdated : rawModule.config_updated_at},
+  ${lastUpdated},
+  ${gitRef ?? rawModule.installed_git_ref}
+)`;
+
+        for (const resultsObject of modDef.data.resultsObjects) {
+          const roTableName = getResultsObjectTableName(resultsObject.id);
+          await sql`DROP TABLE IF EXISTS ${sql(roTableName)}`;
+          await sql`
+INSERT INTO results_objects (id, module_id, description, column_definitions)
+VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
+  ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null})`;
+        }
+
+        for (const metric of modDef.data.metrics) {
+          await sql`
+INSERT INTO metrics (
+  id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
+  required_disaggregation_options, value_label_replacements, post_aggregation_expression,
+  results_object_id, ai_description, viz_presets, hide, important_notes
+) VALUES (
+  ${metric.id}, ${modDef.data.id}, ${metric.label}, ${metric.variantLabel ?? null},
+  ${metric.valueFunc}, ${metric.formatAs}, ${JSON.stringify(metric.valueProps)},
+  ${JSON.stringify(metric.periodOptions)}, ${JSON.stringify(metric.requiredDisaggregationOptions)},
+  ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
+  ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
+  ${metric.resultsObjectId}, ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
+  ${metric.vizPresets ? JSON.stringify(metric.vizPresets) : null},
+  ${metric.hide ?? false}, ${metric.importantNotes ?? null})`;
+        }
+
+        if (metricIds.length > 0) {
+          await sql`DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE`;
+        }
+        for (const po of defaultPresentationObjects) {
+          await sql`DELETE FROM presentation_objects WHERE id = ${po.id}`;
+          await sql`
+INSERT INTO presentation_objects (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
+VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(po.config)}, ${lastUpdated}, ${po.sortOrder})`;
+        }
+      });
+
+      if (metricIds.length > 0) {
+        await projectDb`UPDATE presentation_objects SET last_updated = ${lastUpdated} WHERE metric_id = ANY(${metricIds})`;
+      }
+      const allPresObjs = await projectDb<{ id: string }[]>`SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})`;
+      return {
+        success: true,
+        data: { lastUpdated, presObjIdsWithNewLastUpdateds: allPresObjs.map((po) => po.id), computeChange: true },
+      };
+    }
+
+    // Scenario A: presentation-only update — no table drops
+    const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
     const metricIds = modDef.data.metrics.map((m) => m.id);
 
     await projectDb.begin(async (sql: Sql) => {
-      // Update the module definition and last_updated
-      if (preserveSettings) {
-        // Merge existing selections with new config requirements
-        const oldConfigSelections = parseJsonOrThrow<ModuleConfigSelections>(
-          rawModule.config_selections,
-        );
-        const mergedConfigSelections = getMergedModuleConfigSelections(
-          oldConfigSelections,
-          modDef.data.configRequirements,
-        );
+      await sql`
+        UPDATE modules
+        SET
+          module_definition = ${JSON.stringify(modDef.data)},
+          config_selections = ${JSON.stringify(newConfigSelections)},
+          installed_at = ${lastUpdated},
+          definition_updated_at = ${lastUpdated},
+          installed_git_ref = ${gitRef ?? rawModule.installed_git_ref},
+          config_updated_at = ${configSelectionsChanged ? lastUpdated : rawModule.config_updated_at},
+          dirty = ${configSelectionsChanged ? 'queued' : rawModule.dirty}
+        WHERE id = ${moduleDefinitionId}
+      `;
 
-        await sql`
-          UPDATE modules
-          SET
-            module_definition = ${JSON.stringify(modDef.data)},
-            config_selections = ${JSON.stringify(mergedConfigSelections)},
-            date_installed = ${lastUpdated},
-            last_updated = ${lastUpdated}
-          WHERE id = ${moduleDefinitionId}
-        `;
-      } else {
-        // Reset config_selections to default
-        const startingConfigSelections = getStartingModuleConfigSelections(
-          modDef.data.configRequirements,
-        );
-
-        await sql`
-          UPDATE modules
-          SET
-            module_definition = ${JSON.stringify(modDef.data)},
-            config_selections = ${JSON.stringify(startingConfigSelections)},
-            date_installed = ${lastUpdated},
-            last_updated = ${lastUpdated},
-            dirty = 'queued'
-          WHERE id = ${moduleDefinitionId}
-        `;
-      }
-
-      // Delete existing results_objects and metrics (will be recreated)
+      // Delete and recreate metadata rows (not data tables)
       await sql`DELETE FROM results_objects WHERE module_id = ${modDef.data.id}`;
       await sql`DELETE FROM metrics WHERE module_id = ${modDef.data.id}`;
 
-      // Recreate results_objects
       for (const resultsObject of modDef.data.resultsObjects) {
         await sql`
 INSERT INTO results_objects (id, module_id, description, column_definitions)
-VALUES (
-  ${resultsObject.id},
-  ${modDef.data.id},
-  ${resultsObject.description},
-  ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null}
-)
-`;
+VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
+  ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null})`;
       }
 
-      // Recreate metrics
       for (const metric of modDef.data.metrics) {
         await sql`
 INSERT INTO metrics (
   id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
-  results_object_id, ai_description
-)
-VALUES (
-  ${metric.id},
-  ${modDef.data.id},
-  ${metric.label},
-  ${metric.variantLabel ?? null},
-  ${metric.valueFunc},
-  ${metric.formatAs},
-  ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.periodOptions)},
-  ${JSON.stringify(metric.requiredDisaggregationOptions)},
+  results_object_id, ai_description, viz_presets, hide, important_notes
+) VALUES (
+  ${metric.id}, ${modDef.data.id}, ${metric.label}, ${metric.variantLabel ?? null},
+  ${metric.valueFunc}, ${metric.formatAs}, ${JSON.stringify(metric.valueProps)},
+  ${JSON.stringify(metric.periodOptions)}, ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
-  ${metric.resultsObjectId},
-  ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null}
-)
-`;
+  ${metric.resultsObjectId}, ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
+  ${metric.vizPresets ? JSON.stringify(metric.vizPresets) : null},
+  ${metric.hide ?? false}, ${metric.importantNotes ?? null})`;
       }
 
-      // Delete default presentation objects for this module's metrics
       if (metricIds.length > 0) {
-        await sql`
-DELETE FROM presentation_objects
-WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE
-`;
+        await sql`DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE`;
       }
-
-      // Insert default presentation objects
-      for (const presObjectDef of defaultPresentationObjects) {
-        await sql`DELETE FROM presentation_objects WHERE id = ${presObjectDef.id}`;
+      for (const po of defaultPresentationObjects) {
+        await sql`DELETE FROM presentation_objects WHERE id = ${po.id}`;
         await sql`
-INSERT INTO presentation_objects
-  (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
-VALUES
-  (
-    ${presObjectDef.id},
-    ${presObjectDef.metricId},
-    ${true},
-    ${presObjectDef.label},
-    ${JSON.stringify(presObjectDef.config)},
-    ${lastUpdated},
-    ${presObjectDef.sortOrder}
-  )
-`;
+INSERT INTO presentation_objects (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
+VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(po.config)}, ${lastUpdated}, ${po.sortOrder})`;
       }
     });
 
-    // Update last_updated for all presentation objects using this module's metrics
     if (metricIds.length > 0) {
-      await projectDb`
-UPDATE presentation_objects
-SET last_updated = ${lastUpdated}
-WHERE metric_id = ANY(${metricIds})
-`;
+      await projectDb`UPDATE presentation_objects SET last_updated = ${lastUpdated} WHERE metric_id = ANY(${metricIds})`;
     }
-
-    const allPresObjs = await projectDb<{ id: string }[]>`
-SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})
-`;
+    const allPresObjs = await projectDb<{ id: string }[]>`SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})`;
     const presObjIdsWithNewLastUpdateds = allPresObjs.map((po) => po.id);
 
     return {
       success: true,
-      data: { lastUpdated, presObjIdsWithNewLastUpdateds },
+      data: { lastUpdated, presObjIdsWithNewLastUpdateds, computeChange: configSelectionsChanged },
     };
   });
 }
@@ -451,16 +494,17 @@ export async function getAllModulesForProject(
       return {
         id: getValidatedModuleId(rawModule.id),
         label: moduleDefinition.label,
-        moduleDefinitionLastScriptUpdated: moduleDefinition.lastScriptUpdate,
-        moduleDefinitionLabel: moduleDefinition.label,
-        dateInstalled: rawModule.date_installed,
-        lastRun: rawModule.last_run,
         dirty: rawModule.dirty as DirtyOrRunStatus,
-        commitSha: moduleDefinition.commitSha,
-        latestRanCommitSha: rawModule.latest_ran_commit_sha ?? undefined,
+        hasParameters: (moduleDefinition.configRequirements?.parameters?.length ?? 0) > 0,
+        installedAt: rawModule.installed_at,
+        scriptUpdatedAt: rawModule.script_updated_at ?? undefined,
+        definitionUpdatedAt: rawModule.definition_updated_at ?? undefined,
+        configUpdatedAt: rawModule.config_updated_at ?? undefined,
+        lastRunAt: rawModule.last_run_at,
+        installedGitRef: rawModule.installed_git_ref ?? undefined,
+        lastRunGitRef: rawModule.last_run_git_ref ?? undefined,
         moduleDefinitionResultsObjectIds:
           resultsObjectIdsByModule.get(rawModule.id) ?? [],
-        configType: rawModule.config_type,
       };
     });
     return { success: true, data: modules };
@@ -521,9 +565,8 @@ SELECT * FROM modules WHERE id = ${moduleId}
     const module: ModuleDetailForRunningScript = {
       id: getValidatedModuleId(rawModule.id),
       moduleDefinition,
-      dateInstalled: rawModule.date_installed,
-      configSelections: parseJsonOrThrow(rawModule.config_selections),
-      updateAvailable: true, // Need to fix this
+      installedAt: rawModule.installed_at,
+      configSelections: parseModuleConfigSelections(rawModule.config_selections),
     };
     return { success: true, data: module };
   });
@@ -555,14 +598,14 @@ export async function getModuleLastRun(
 ): Promise<APIResponseWithData<string>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawModule = (
-      await projectDb<{ last_run: string }[]>`
-SELECT last_run FROM modules WHERE id = ${moduleId}
+      await projectDb<{ last_run_at: string }[]>`
+SELECT last_run_at FROM modules WHERE id = ${moduleId}
 `
     ).at(0);
     if (rawModule === undefined) {
       throw new Error("No module with this definition id");
     }
-    return { success: true, data: rawModule.last_run };
+    return { success: true, data: rawModule.last_run_at };
   });
 }
 
@@ -815,10 +858,8 @@ export async function getAllMetrics(
       SELECT * FROM metrics ORDER BY label
     `;
 
-    // Enrich each metric, skipping metrics not in current definitions
     const metrics: ResultsValue[] = [];
     for (const dbMetric of rawMetrics) {
-      if (!(dbMetric.id in METRIC_STATIC_DATA)) continue;
       const enrichedMetric = await enrichMetric(
         dbMetric,
         projectDb,
@@ -856,11 +897,9 @@ export async function getMetricsWithStatus(
       SELECT * FROM metrics ORDER BY label
     `;
 
-    // Enrich each metric and determine status, skipping hidden metrics
     const metrics: MetricWithStatus[] = [];
     for (const dbMetric of rawMetrics) {
-      const staticData = METRIC_STATIC_DATA[dbMetric.id];
-      if (!staticData || staticData.hide) continue;
+      if (dbMetric.hide) continue;
 
       const enrichedMetric = await enrichMetric(
         dbMetric,
@@ -891,6 +930,7 @@ export async function getMetricsWithStatus(
         ...enrichedMetric,
         status,
         moduleId,
+        vizPresets: dbMetric.viz_presets ? parseJsonOrThrow(dbMetric.viz_presets) : undefined,
       });
     }
 
@@ -925,9 +965,9 @@ export async function getModulesListForAI(
 
       lines.push(`ID: ${rawModule.id}`);
       lines.push(`Name: ${moduleDefinition.label}`);
-      lines.push(`Config Type: ${rawModule.config_type}`);
-      lines.push(`Installed: ${rawModule.date_installed}`);
-      lines.push(`Last Run: ${rawModule.last_run}`);
+      lines.push(`Has Parameters: ${moduleDefinition.configRequirements.parameters.length > 0}`);
+      lines.push(`Installed: ${rawModule.installed_at}`);
+      lines.push(`Last Run: ${rawModule.last_run_at}`);
       lines.push(
         `Status: ${rawModule.dirty === "true" ? "Needs update" : "Up to date"}`,
       );
@@ -960,28 +1000,14 @@ SELECT * FROM modules WHERE id = ${moduleId}
     const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
       rawModule.module_definition,
     );
-    const configSelections = parseJsonOrThrow<ModuleConfigSelections>(
+    const configSelections = parseModuleConfigSelections(
       rawModule.config_selections,
     );
-
-    // Get HFA indicators if this is HFA module
-    let hfaIndicators:
-      | { var_name: string; example_values: string }[]
-      | undefined;
-    if (moduleDefinition.configRequirements.configType === "hfa") {
-      const hfaIndicatorRows = await projectDb<
-        { var_name: string; example_values: string }[]
-      >`
-        SELECT var_name, example_values FROM indicators_hfa ORDER BY var_name
-      `;
-      hfaIndicators = hfaIndicatorRows;
-    }
 
     const module: InstalledModuleWithConfigSelections = {
       id: getValidatedModuleId(rawModule.id),
       label: moduleDefinition.label,
       configSelections,
-      hfaIndicators,
     };
 
     return { success: true, data: module };
@@ -1007,9 +1033,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
 export async function updateModuleParameters(
   projectDb: Sql,
   moduleId: string,
-  newParams:
-    | Record<string, string>
-    | { indicators?: HfaIndicator[]; useSampleWeights?: boolean },
+  newParams: Record<string, string>,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawModule = (
@@ -1021,43 +1045,23 @@ SELECT * FROM modules WHERE id = ${moduleId}
       throw new Error("No module with this definition id");
     }
     const lastUpdated = new Date().toISOString();
-    const currentConfigSelections = parseJsonOrThrow<ModuleConfigSelections>(
+    const currentConfigSelections = parseModuleConfigSelections(
       rawModule.config_selections,
     );
 
-    let updatedConfigSelections: ModuleConfigSelections;
-
-    if (currentConfigSelections.configType === "parameters") {
-      updatedConfigSelections = {
-        ...currentConfigSelections,
-        parameterSelections: {
-          ...currentConfigSelections.parameterSelections,
-          ...(newParams as Record<string, string>),
-        },
-      };
-    } else if (currentConfigSelections.configType === "hfa") {
-      const hfaParams = newParams as {
-        indicators?: HfaIndicator[];
-        useSampleWeights?: boolean;
-      };
-      updatedConfigSelections = {
-        ...currentConfigSelections,
-        indicators: hfaParams.indicators ?? currentConfigSelections.indicators,
-        useSampleWeights:
-          hfaParams.useSampleWeights ??
-          currentConfigSelections.useSampleWeights,
-      };
-    } else {
-      throw new Error(
-        "Module configuration type does not support parameter updates",
-      );
-    }
+    const updatedConfigSelections: ModuleConfigSelections = {
+      ...currentConfigSelections,
+      parameterSelections: {
+        ...currentConfigSelections.parameterSelections,
+        ...newParams,
+      },
+    };
 
     await projectDb`
 UPDATE modules
 SET
   config_selections = ${JSON.stringify(updatedConfigSelections)},
-  last_updated = ${lastUpdated}
+  config_updated_at = ${lastUpdated}
 WHERE id = ${moduleId}
 `;
     return { success: true, data: { lastUpdated } };

@@ -4,6 +4,7 @@ import { Sql } from "postgres";
 import { _SANDBOX_DIR_PATH } from "../../exposed_env_vars.ts";
 import {
   getPossibleModules,
+  getValidatedModuleId,
   APIResponseNoData,
   APIResponseWithData,
   DatasetInProject,
@@ -354,12 +355,12 @@ export async function addProject(
     }
 
     // Dynamically add prerequisite modules based on getPossibleModules()
-    const modulesWithPrereqs = new Set(modulesToEnable);
+    const modulesWithPrereqs = new Set<ModuleId>(modulesToEnable);
     for (const moduleId of modulesToEnable) {
       const moduleDefinition = getPossibleModules().find((m) => m.id === moduleId);
       if (moduleDefinition?.prerequisiteModules) {
         for (const prereq of moduleDefinition.prerequisiteModules) {
-          modulesWithPrereqs.add(prereq);
+          modulesWithPrereqs.add(getValidatedModuleId(prereq));
         }
       }
     }

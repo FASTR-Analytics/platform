@@ -162,6 +162,14 @@ export async function getInstanceDetail(
       `
       ).at(0)?.total_count ?? 0;
 
+    const hfaIndicatorsCount =
+      (
+        await mainDb<{ total_count: number }[]>`
+        SELECT count(*) AS total_count
+        FROM hfa_indicators
+      `
+      ).at(0)?.total_count ?? 0;
+
     const resAssets = await getAssetsForInstance();
     if (resAssets.success === false) {
       return resAssets;
@@ -252,6 +260,7 @@ ORDER BY LOWER(label)`
       indicators: {
         commonIndicators: commonIndicatorsCount,
         rawIndicators: rawIndicatorsCount,
+        hfaIndicators: hfaIndicatorsCount,
       },
       assets: resAssets.data,
       geojsonMaps: await getGeoJsonMapSummaries(mainDb),

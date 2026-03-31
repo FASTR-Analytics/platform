@@ -1,5 +1,4 @@
 import {
-  getModuleIdForMetric,
   ProjectDetail,
   ReportDetail,
   ReportItemConfig,
@@ -189,7 +188,7 @@ export function ReportItemEditorContent(p: Props) {
                                   projectId={p.projectDetail.id}
                                   moduleId={
                                     keyedPresentationObjectInReportInfo.metricId
-                                      ? getModuleIdForMetric(keyedPresentationObjectInReportInfo.metricId)
+                                      ? p.projectDetail.metrics.find(m => m.id === keyedPresentationObjectInReportInfo.metricId)?.moduleId
                                       : undefined
                                   }
                                   presentationObjectId={

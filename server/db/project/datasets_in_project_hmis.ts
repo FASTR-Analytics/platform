@@ -228,6 +228,9 @@ VALUES (
   ${JSON.stringify(info)},
   ${lastUpdated}
 )
+ON CONFLICT (dataset_type) DO UPDATE SET
+  info = EXCLUDED.info,
+  last_updated = EXCLUDED.last_updated
 `,
       sql`DELETE FROM indicators`,
       sql`DELETE FROM facilities`,

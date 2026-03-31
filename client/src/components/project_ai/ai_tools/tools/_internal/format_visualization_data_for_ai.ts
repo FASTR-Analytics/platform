@@ -20,6 +20,7 @@ export async function getVisualizationDataAsCSV(
   const dataOutput = await getDataFromConfig(
     projectId,
     poDetail.resultsValue.id,
+    metrics,
     config,
     metric?.aiDescription,
   );
