@@ -16,7 +16,13 @@ TODAY=$(date +%Y-%m-%d)
 echo "Generating changelog entry for v$VERSION ($TODAY)..."
 
 # Diff base = last proper "Deploy version" commit (covers all ad-hoc changes in between)
-BASE_COMMIT=$(git log --format="%H" --grep="^Deploy version" -1 2>/dev/null || true)
+# If HEAD is itself a "Deploy version" commit (standalone run after deploy), use the previous one
+HEAD_MSG=$(git log --format="%s" -1 2>/dev/null || true)
+if echo "$HEAD_MSG" | grep -q "^Deploy version"; then
+    BASE_COMMIT=$(git log --format="%H" --grep="^Deploy version" -2 2>/dev/null | tail -1 || true)
+else
+    BASE_COMMIT=$(git log --format="%H" --grep="^Deploy version" -1 2>/dev/null || true)
+fi
 
 if [ -z "$BASE_COMMIT" ]; then
     BASE_COMMIT=$(git log --format="%H" | tail -1)
