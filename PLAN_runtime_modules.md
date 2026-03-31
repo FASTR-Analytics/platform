@@ -726,106 +726,164 @@ For production, the deploy sequence is:
 
 ---
 
-## Part 7: Module Status Indicators
+## Part 7: Update Indicators + Pre-Update Preview
 
-**Goal**: Give users clear visibility into two distinct states: (a) a newer version is available on GitHub, and (b) the installed definition has changed but the module hasn't re-run yet. Surface these at both the individual module level and as project-wide summaries.
+**Goal**: Give users clear visibility into whether module updates are available on GitHub, and show them what changed before they confirm an update. Two concerns: (a) "update available" badges per module, and (b) a pre-update preview modal showing commit history and impact.
 
-### Current state
+### Architecture
 
-The UI currently shows run status per module via the `DirtyStatus` badge: queued, running, ready, error. There's also a project-wide `ProjectRunStatus` indicator that pulses when any module is running. There is no concept of "update available."
+**Client-side state**: A global `createSignal` in `client/src/state/ui.ts` holds the update check results for the SPA session. Fetched once (first navigate to modules page), then reused on subsequent navigates. Cleared on browser refresh. A "Check again" button re-fetches on demand.
 
-### Two new states to surface
+**Server is stateless**: The check endpoint fetches from GitHub every time it's called. No server-side cache. This is acceptable because:
+- `GITHUB_TOKEN` is used for all GitHub API calls → 5000 requests/hr rate limit
+- The endpoint is only called once per SPA session (plus manual "check again")
+- 7 modules × 1 API call each = 7 calls per check
 
-**"Update available"** — the GitHub definition is newer than what's installed. Detected by comparing `installed_git_ref` against what's on GitHub HEAD. This is a *remote check* — requires fetching from GitHub.
+### 7a. Add `GITHUB_TOKEN` to `fetch_module.ts`
 
-**"Needs re-run"** — the script was updated but the module hasn't re-run yet. This is a *local check* — compare `installed_git_ref ≠ last_run_git_ref` on the module row (or check `dirty = 'queued'`). This is a subset of the existing "queued" state, but it's useful to distinguish "queued because data changed" from "queued because the script was updated."
+`fetchCommits()` and `fetchRawScript()` in `server/github/fetch_module.ts` currently make unauthenticated GitHub API calls (60/hr rate limit). Add the `GITHUB_TOKEN` auth header (same pattern as `server/module_loader/load_module.ts`). This raises the rate limit to 5000/hr.
 
-### 7a. Check-for-updates endpoint
+### 7b. Check-for-updates endpoint
 
-`GET /project/:projectId/modules/check-updates`
+New endpoint: `GET /modules/check-updates`
 
-For each installed module:
-1. Fetch HEAD commit SHA from GitHub (lightweight — use `GET /repos/{owner}/{repo}/commits?path={path}&per_page=1` or a HEAD request to raw content)
-2. Compare with stored `installed_git_ref`
-3. If different, fetch the full definition and compare script content to determine whether the update includes a script change or is definition-only
+Instance-level (no project ID needed — GitHub state is the same for all projects). Requires new route files: `server/routes/instance/modules.ts` + `lib/api-routes/instance/modules.ts`. No request body. The server:
+1. For each module in `MODULE_REGISTRY`, looks up GitHub coordinates
+2. Fetches the latest commit for the module path (one API call per module)
+3. Returns the latest commit info for **all** modules in the registry (not just installed ones)
 
-Returns:
+Response:
 ```typescript
-type ModuleUpdateCheck = {
+type ModuleLatestCommits = {
   moduleId: string;
-  updateAvailable: boolean;
-  updateType?: "script" | "definition";  // only if updateAvailable
-};
+  latestCommit: {
+    sha: string;
+    message: string;
+    date: string;
+    author: string;
+  };
+}[];
 ```
 
-This endpoint should be called on-demand (user clicks "check for updates") or periodically in the background — NOT on every page load (GitHub rate limits).
+The server returns what GitHub knows for every module in the registry. The **client** compares `latestCommit.sha` against `installedGitRef` (already on `InstalledModuleSummary`) to determine whether an update is available for installed modules. The response also covers uninstalled modules — useful for showing latest version info on uninstalled module cards. The server does no comparison.
 
-### 7b. Store update-check results
+### 7c. Client-side update state
 
-Cache the check results in memory (server-side, per project) or in a lightweight table/column. The results are ephemeral — they just indicate "as of last check, these modules have updates." No need to persist across restarts.
+In `client/src/state/ui.ts`, add:
 
-Alternatively, store `latest_remote_git_ref` on the module row after each check, and let the client compare with `installed_git_ref`.
-
-### 7c. Per-module indicators
-
-In `project_modules.tsx`, each installed module card gets new visual indicators:
-
-**Update available badge**: Shown when the GitHub version is newer than installed. Two variants:
-- Yellow/amber badge: "Update available (definition only)" — safe to update, won't require re-run
-- Orange badge: "Update available (script change)" — will require re-run after update
-
-**Needs re-run indicator**: Shown when `installed_git_ref ≠ last_run_git_ref` (script was updated but hasn't re-run yet). This overlaps with the existing "queued" dirty state but gives more specific context — e.g. "Script updated — re-run needed" instead of just "Queued."
-
-**Visual layout on module card**:
-```
-┌─────────────────────────────────────────────┐
-│ M1. Data quality assessment    [Ready] [⬆ Update available]  │
-│                                                               │
-│ Last run: 2026-03-04 (abc123)                                │
-│ Installed: 2026-03-01 (def456)                               │
-│ [Update] [Re-run] [Script] [Logs] [Files]                    │
-└───────────────────────────────────────────────────────────────┘
+```typescript
+export const [moduleLatestCommits, setModuleLatestCommits] =
+  createSignal<ModuleLatestCommits | undefined>(undefined);
 ```
 
-### 7d. Project-wide summary
+- `undefined` = not yet checked (first session visit)
+- Populated after first fetch
+- Overwritten by "check again"
+- Reset on browser refresh (SPA reload)
 
-On the project modules page header (and optionally in the project sidebar/nav), show aggregated indicators:
+### 7d. Fetching on modules page
 
-- **"X modules have updates available"** — amber badge, shown when any installed module has a newer GitHub version
-- **"X modules need re-running"** — shown when any module has been updated but not yet re-run
+The signal is fetched in exactly three situations:
 
-These give a quick at-a-glance status without needing to scroll through individual modules.
+1. **First navigate to modules page** — signal is `undefined` → fetch
+2. **Browser refresh** — SPA reloads, signal resets to `undefined` → when user lands on modules page, it's `undefined` → fetch
+3. **"Check again" button** — fetch, overwrite signal regardless of current value
 
-### 7e. "Check for updates" button
+In `ProjectModules` component (`project_modules.tsx`):
 
-Add a button on the modules page: **"Check for updates"**
+```typescript
+onMount(() => {
+  if (moduleLatestCommits() === undefined) {
+    fetchModuleLatestCommits();
+  }
+});
+```
 
-- Calls the check-updates endpoint
-- Shows a loading spinner while fetching from GitHub
-- Updates the per-module and project-wide indicators
-- Optionally: auto-check on page load (but throttled — at most once per N minutes per project)
+The "check again" button calls the same fetch function unconditionally.
 
-### 7f. "Update all" flow
+### 7e. Per-module "update available" badge
 
-Extend the existing "Update all modules" dialog to:
-1. First check for updates (fetch from GitHub)
-2. Show which modules have updates and what type (script change vs definition-only)
-3. Let the user confirm
-4. Apply updates in dependency order
-5. Show per-module progress (reuse existing `update_all_modules.tsx` pattern)
+In `InstalledModulePresentation`, read from `moduleLatestCommits()` to find this module's entry. Compare `latestCommit.sha` against `installedGitRef` on the `InstalledModuleSummary`. If they differ, show an amber badge next to the existing `DirtyStatus`:
+
+- Badge text: "Update available"
+- Positioned next to the module label, after the dirty status badge
+- No commit count or other detail — just a simple indicator
+
+### 7f. "Check again" button
+
+In the `HeadingBar` of the modules page, add a "Check for updates" button:
+
+- Calls the check endpoint with current installed modules
+- Shows loading state while fetching
+- On success, calls `setModuleLatestCommits()` with new results
+- Badges update reactively
+
+### 7g. Project-wide summary
+
+In the `HeadingBar`, show a count when updates are available: "X updates available". Derived by comparing `moduleLatestCommits()` against the installed modules' `installedGitRef` values — count where SHAs differ.
+
+### 7h. Pre-update preview modal
+
+Replace the current `UpdateModule` component (currently just a "preserve settings" checkbox + confirm) with a richer `openComponent` modal. When the user clicks "Update" on a module:
+
+1. Modal opens → calls the preview-update endpoint (7i)
+2. While loading, shows a spinner
+3. When response arrives, shows:
+   - **Commit history since installed version**: list of commits (date, message, author) from the preview-update response
+   - **Impact indicator**: "Will require re-run" or "Definition only (no re-run)" based on the compute-field comparison
+   - **"Preserve settings" checkbox**: existing behavior, carried forward
+4. User confirms or cancels
+5. On confirm → calls the existing update endpoint
+
+### 7i. Impact classification endpoint
+
+New endpoint: `POST /project/:projectId/modules/preview-update`
+
+```typescript
+// Request
+{ moduleId: string }
+
+// Response
+{
+  impactType: "script_change" | "definition_only" | "no_change";
+  commitsSince: { sha: string; message: string; date: string; author: string }[];
+  headGitRef: string;
+}
+```
+
+This endpoint:
+1. Fetches the HEAD definition + script from GitHub
+2. Compares against the stored definition on the three compute-affecting fields
+3. Returns the classification + commit history
+
+Called when the pre-update modal opens. Gives a definitive answer about whether the update will trigger a re-run, which the check endpoint (7b) does not determine (it only knows "different SHA", not "what kind of difference").
+
+### 7j. Route registration
+
+Register new endpoints in `lib/api-routes/` and `route-tracker.ts`:
+- `GET /modules/check-updates` (instance-level — new `lib/api-routes/instance/modules.ts`)
+- `POST /project/:projectId/modules/preview-update` (project-level)
+
+### Files created
+- Possibly `client/src/components/project/update_module_preview.tsx` — new preview modal component (or extend existing `update_module.tsx`)
 
 ### Files modified
-- `client/src/components/project/project_modules.tsx` — per-module badges, check-for-updates button, project summary
-- `client/src/components/DirtyStatus.tsx` — possibly extend or add new badge component
-- `server/routes/project/modules.ts` — check-updates endpoint
-- `lib/types/module_definitions.ts` — add `ModuleUpdateCheck` type (or similar)
-- `client/src/server_actions/` — add check-updates action
+- `server/github/fetch_module.ts` — add `GITHUB_TOKEN` auth header to `fetchCommits()` and `fetchRawScript()`
+- `server/routes/project/modules.ts` (or instance routes) — new check-updates and preview-update endpoints
+- `client/src/state/ui.ts` — add `moduleLatestCommits` signal
+- `client/src/components/project/project_modules.tsx` — per-module badges, "check for updates" button, project-wide summary, onMount fetch
+- `client/src/components/project/update_module.tsx` — richer preview modal with commit history and impact classification
+- `lib/types/modules.ts` — add `ModuleLatestCommits` type
+- `client/src/server_actions/` — add check-updates and preview-update actions
+- `lib/api-routes/` + `route-tracker.ts` — register new endpoints
 
 ### Verification
-- "Check for updates" correctly identifies modules with newer GitHub versions
-- Per-module badges show correct state (update available, needs re-run, ready)
-- Project-wide summary accurately reflects module states
-- UI updates after installing an update (badge disappears)
+- First navigate to modules page fetches update status from GitHub
+- Subsequent navigates reuse the signal (no re-fetch)
+- "Check again" button re-fetches and updates badges
+- Browser refresh clears signal, next modules page visit re-fetches
+- Per-module badges show "Update available"
+- Clicking "Update" opens preview modal showing commit history and impact (script change vs definition-only)
 
 ---
 
@@ -833,7 +891,7 @@ Extend the existing "Update all modules" dialog to:
 
 | Question | Decision | Rationale |
 |----------|----------|-----------|
-| **GitHub auth** | Public repos, unauthenticated. Add `GITHUB_TOKEN` env var support for private repos (optional). | Keep it simple. |
+| **GitHub auth** | Always pass `GITHUB_TOKEN` if set. Required for 5000/hr rate limit (unauthenticated is 60/hr). All GitHub fetch code (`load_module.ts` and `fetch_module.ts`) must include the token. | Update checks hit GitHub on first modules page visit per session. 60/hr is insufficient. |
 | **Version pinning** | Fetch at HEAD by default. Store the fetched commit SHA on the module row (`installed_git_ref`). Support pinning to a tag/commit in future. | HEAD is simplest for the "always latest" workflow. Stored SHA enables "what version am I running?" queries. |
 | **Validation** | Zod schema, mandatory, runs before any DB writes. | Clear error messages, TypeScript-native, catches issues at the boundary. |
 | **VizPresets delivery** | Inline on `MetricWithStatus` via `viz_presets` column on metrics table. | Simplest approach. Payload increase is acceptable — vizPresets are only present on metrics that have them (~15 of ~40 metrics), and the data compresses well. |

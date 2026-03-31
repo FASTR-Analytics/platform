@@ -18,8 +18,16 @@ import {
   dbRowToHfaIndicator,
   type DBHfaIndicator,
 } from "../../db/mod.ts";
-import { _DATASET_LIMIT, throwIfErrWithData, type HfaIndicator } from "lib";
+import {
+  _DATASET_LIMIT,
+  MODULE_REGISTRY,
+  throwIfErrWithData,
+  type HfaIndicator,
+  type ModuleUpdatePreview,
+} from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
+import { fetchCommits } from "../../github/fetch_module.ts";
+import { fetchModuleFiles } from "../../module_loader/load_module.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
   notifyLastUpdated,
@@ -306,5 +314,71 @@ defineRoute(
   async (c) => {
     const res = await getAllMetrics(c.var.mainDb, c.var.ppk.projectDb);
     return c.json(res);
+  },
+);
+
+defineRoute(
+  routesModules,
+  "previewModuleUpdate",
+  requireProjectPermission("can_configure_modules"),
+  async (c, { params }) => {
+    const registryEntry = MODULE_REGISTRY.find((m) => m.id === params.module_id);
+    if (!registryEntry) {
+      return c.json({ success: false, err: `Unknown module: ${params.module_id}` });
+    }
+
+    const stored = await getModuleDetail(c.var.ppk.projectDb, params.module_id);
+    if (stored.success === false) {
+      return c.json(stored);
+    }
+
+    const { definition: incomingDef, script: incomingScript, gitRef } =
+      await fetchModuleFiles(params.module_id);
+
+    const installedGitRef = (await c.var.ppk.projectDb<{ installed_git_ref: string | null }[]>`
+      SELECT installed_git_ref FROM modules WHERE id = ${params.module_id}
+    `).at(0)?.installed_git_ref;
+
+    let impactType: ModuleUpdatePreview["impactType"];
+    if (gitRef && installedGitRef && gitRef === installedGitRef) {
+      impactType = "no_change";
+    } else {
+      const storedDef = stored.data.moduleDefinition;
+      const scriptChanged = incomingScript !== storedDef.script;
+      const configReqChanged =
+        JSON.stringify(incomingDef.configRequirements) !==
+        JSON.stringify(storedDef.configRequirements);
+      const resultsObjChanged =
+        JSON.stringify(incomingDef.resultsObjects) !==
+        JSON.stringify(storedDef.resultsObjects);
+
+      if (scriptChanged || configReqChanged || resultsObjChanged) {
+        impactType = "script_change";
+      } else {
+        impactType = "definition_only";
+      }
+    }
+
+    let commitsSince: ModuleUpdatePreview["commitsSince"] = [];
+    if (impactType !== "no_change") {
+      const { owner, repo, path } = registryEntry.github;
+      const commitsRes = await fetchCommits(owner, repo, path, "main");
+      if (commitsRes.success) {
+        if (installedGitRef) {
+          const idx = commitsRes.data.findIndex((cm) => cm.sha === installedGitRef);
+          commitsSince = idx > 0 ? commitsRes.data.slice(0, idx) : [];
+        } else {
+          commitsSince = commitsRes.data;
+        }
+      }
+    }
+
+    const preview: ModuleUpdatePreview = {
+      impactType,
+      commitsSince,
+      headGitRef: gitRef ?? "",
+    };
+
+    return c.json({ success: true, data: preview });
   },
 );

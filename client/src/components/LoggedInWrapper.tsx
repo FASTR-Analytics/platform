@@ -1,6 +1,14 @@
 import { Clerk } from "@clerk/clerk-js";
 import { clearDataCache } from "~/state/clear_data_cache";
-import { GlobalUser, InstanceLanguage, t, t2, T, createDevGlobalUser, setLanguage } from "lib";
+import {
+  GlobalUser,
+  InstanceLanguage,
+  t,
+  t2,
+  T,
+  createDevGlobalUser,
+  setLanguage,
+} from "lib";
 import { Button, StateHolderWrapper, timQuery } from "panther";
 import { JSX, Show, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -117,7 +125,9 @@ export function LoggedInWrapper(p: Props) {
 }
 
 function ClerkNewLogin() {
-  const storedLang = localStorage.getItem("fastrLanguage") as InstanceLanguage | null;
+  const storedLang = localStorage.getItem(
+    "fastrLanguage",
+  ) as InstanceLanguage | null;
   if (storedLang) {
     setLanguage(storedLang);
   }

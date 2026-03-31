@@ -83,3 +83,19 @@ export type ModuleConfigSelections = {
   parameterDefinitions: ModuleParameter[];
   parameterSelections: Record<string, string>;
 };
+
+export type ModuleLatestCommit = {
+  moduleId: ModuleId;
+  latestCommit: {
+    sha: string;
+    message: string;
+    date: string;
+    author: string;
+  };
+};
+
+export type ModuleUpdatePreview = {
+  impactType: "script_change" | "definition_only" | "no_change";
+  commitsSince: { sha: string; message: string; date: string; author: string }[];
+  headGitRef: string;
+};

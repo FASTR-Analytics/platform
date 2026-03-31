@@ -2,6 +2,7 @@ import type {
   InstalledModuleWithConfigSelections,
   ItemsHolderResultsObject,
   ModuleId,
+  ModuleUpdatePreview,
   ResultsValue,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
@@ -85,6 +86,13 @@ export const moduleRouteRegistry = {
     method: "GET",
     params: {} as { module_id: ModuleId },
     response: {} as InstalledModuleWithConfigSelections,
+    requiresProject: true,
+  }),
+  previewModuleUpdate: route({
+    path: "/module/:module_id/preview_update",
+    method: "GET",
+    params: {} as { module_id: ModuleId },
+    response: {} as ModuleUpdatePreview,
     requiresProject: true,
   }),
 } as const;

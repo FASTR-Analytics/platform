@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import type { SlideDeckGroupingMode, VisualizationGroupingMode } from "lib";
+import type { ModuleLatestCommit, SlideDeckGroupingMode, VisualizationGroupingMode } from "lib";
 
 // ============================================================================
 // Project View State
@@ -172,3 +172,9 @@ export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<"p
 // ============================================================================
 
 export const [showModules, setShowModules] = createSignal<string | undefined>("m001");
+
+// ============================================================================
+// Module Update Status
+// ============================================================================
+
+export const [moduleLatestCommits, setModuleLatestCommits] = createSignal<ModuleLatestCommit[] | undefined>(undefined);

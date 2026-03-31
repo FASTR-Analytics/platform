@@ -161,7 +161,9 @@ export async function getGlobalUser(
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
     const email = auth.sessionClaims.email as string;
 
-    const rawUserResult = await mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${email}`;
+    const rawUserResult = await mainDb<
+      DBUser[]
+    >`SELECT * FROM users WHERE email = ${email}`;
     const rawUser = rawUserResult.at(0);
 
     if (_OPEN_ACCESS && (!rawUser || !rawUser.is_admin)) {
@@ -310,7 +312,7 @@ async function getProjectUser(
     if (
       !rawProjectUserRole ||
       !Object.entries(rawProjectUserRole).some(
-        ([key, value]) => key.startsWith("can_") && value
+        ([key, value]) => key.startsWith("can_") && value,
       )
     ) {
       throw new Error(

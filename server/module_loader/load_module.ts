@@ -22,7 +22,7 @@ import { ModuleDefinitionJSONSchema } from "../../lib/types/module_definition_va
 import { stripFrontmatter } from "../github/fetch_module.ts";
 import { getTranslateFunc } from "./translation_utils.ts";
 
-const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
+import { _GITHUB_TOKEN } from "../exposed_env_vars.ts";
 
 export function resolveTS(ts: TranslatableString, lang: InstanceLanguage): string {
   return lang === "fr" ? (ts.fr || ts.en) : ts.en;
