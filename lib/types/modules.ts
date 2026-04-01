@@ -99,3 +99,27 @@ export type ModuleUpdatePreview = {
   commitsSince: { sha: string; message: string; date: string; author: string }[];
   headGitRef: string;
 };
+
+export type CompareProjectsModuleParameter = {
+  replacementString: string;
+  description: string;
+  value: string;
+};
+
+export type CompareProjectsModule = {
+  id: string;
+  dirty: "queued" | "ready" | "error";
+  installedAt: string;
+  installedGitRef?: string;
+  lastRunAt: string;
+  lastRunGitRef?: string;
+  parameters: CompareProjectsModuleParameter[];
+};
+
+export type CompareProjectsData = {
+  projects: {
+    id: string;
+    label: string;
+    modules: CompareProjectsModule[];
+  }[];
+};

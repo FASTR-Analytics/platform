@@ -33,7 +33,7 @@ import { DBMetric, DBModule } from "./_project_database_types.ts";
 import { getFacilityColumnsConfig } from "../instance/config.ts";
 import { enrichMetric } from "./metric_enricher.ts";
 
-function parseModuleConfigSelections(json: string): ModuleConfigSelections {
+export function parseModuleConfigSelections(json: string): ModuleConfigSelections {
   const raw = parseJsonOrThrow<Record<string, unknown>>(json);
   return {
     parameterDefinitions: (raw.parameterDefinitions ?? []) as ModuleConfigSelections["parameterDefinitions"],

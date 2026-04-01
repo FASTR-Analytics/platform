@@ -1,4 +1,4 @@
-import type { ModuleLatestCommit } from "../../types/mod.ts";
+import type { CompareProjectsData, ModuleLatestCommit } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 export const instanceModuleRouteRegistry = {
@@ -6,5 +6,10 @@ export const instanceModuleRouteRegistry = {
     path: "/modules/check_updates",
     method: "GET",
     response: {} as ModuleLatestCommit[],
+  }),
+  compareProjects: route({
+    path: "/modules/compare_projects",
+    method: "GET",
+    response: {} as CompareProjectsData,
   }),
 } as const;

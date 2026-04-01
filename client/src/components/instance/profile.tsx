@@ -59,9 +59,11 @@ export function ProfileForm(
         ]
       }
     >
-      <StateHolderWrapper state={userDetails.state()}>
+      <StateHolderWrapper state={userDetails.state()} noPad>
         {(keyedUser) => {
-          const [optedIn, setOptedIn] = createSignal(clerk.user?.unsafeMetadata?.emailOptIn === true);
+          const [optedIn, setOptedIn] = createSignal(
+            clerk.user?.unsafeMetadata?.emailOptIn === true,
+          );
 
           async function toggleOptIn(next: boolean) {
             setOptedIn(next);
@@ -77,11 +79,11 @@ export function ProfileForm(
           return (
             <>
               {/* Hero */}
-              <div class="flex flex-col items-center gap-3 border-b border-base-300 pb-6 pt-2">
+              <div class="border-base-300 flex flex-col items-center gap-3 border-b pt-2 pb-6">
                 {clerk.user?.imageUrl && (
                   <button
                     type="button"
-                    class="cursor-pointer rounded-full ring-2 ring-transparent transition hover:ring-primary"
+                    class="hover:ring-primary cursor-pointer rounded-full ring-2 ring-transparent transition"
                     onClick={() => clerk.openUserProfile()}
                     title={t3({ en: "Manage account", fr: "Gérer le compte" })}
                   >
@@ -94,12 +96,14 @@ export function ProfileForm(
                 )}
                 <div class="flex flex-col items-center gap-1">
                   <div class="font-700 text-base-content text-base">
-                    {[keyedUser.firstName, keyedUser.lastName].filter(Boolean).join(" ") || "—"}
+                    {[keyedUser.firstName, keyedUser.lastName]
+                      .filter(Boolean)
+                      .join(" ") || "—"}
                   </div>
                   <div class="text-neutral text-sm">{keyedUser.email}</div>
                   <button
                     type="button"
-                    class="text-primary hover:underline cursor-pointer text-xs mt-1"
+                    class="text-primary mt-1 cursor-pointer text-xs hover:underline"
                     onClick={() => clerk.openUserProfile()}
                   >
                     {t3({ en: "Manage account", fr: "Gérer le compte" })}
@@ -108,11 +112,16 @@ export function ProfileForm(
               </div>
 
               {/* Mailing list */}
-              <SettingsSection header={t3({ en: "Mailing list", fr: "Liste de diffusion" })}>
+              <SettingsSection
+                header={t3({ en: "Mailing list", fr: "Liste de diffusion" })}
+              >
                 <Checkbox
                   checked={optedIn()}
                   onChange={toggleOptIn}
-                  label={t3({ en: "Receive email updates and announcements", fr: "Recevoir des mises à jour et annonces par email" })}
+                  label={t3({
+                    en: "Receive email updates and announcements",
+                    fr: "Recevoir des mises à jour et annonces par email",
+                  })}
                 />
               </SettingsSection>
 
@@ -127,7 +136,10 @@ export function ProfileForm(
                       outline
                       iconName="trash"
                     >
-                      {t3({ en: "Clear data cache", fr: "Vider le cache de données" })}
+                      {t3({
+                        en: "Clear data cache",
+                        fr: "Vider le cache de données",
+                      })}
                     </Button>
                     <Button
                       onClick={clearAiChat.click}
@@ -135,7 +147,10 @@ export function ProfileForm(
                       outline
                       iconName="trash"
                     >
-                      {t3({ en: "Clear AI chat history", fr: "Vider l'historique IA" })}
+                      {t3({
+                        en: "Clear AI chat history",
+                        fr: "Vider l'historique IA",
+                      })}
                     </Button>
                   </div>
                 }

@@ -55,6 +55,13 @@ cleanup() {
 # Set trap for cleanup on failure
 trap cleanup ERR
 
+# Run typecheck first
+echo "Running typecheck..."
+if ! deno task typecheck; then
+    echo "ERROR: Typecheck failed!"
+    exit 1
+fi
+
 # Prerequisites check
 echo "Checking prerequisites..."
 command -v npm >/dev/null 2>&1 || { echo "ERROR: npm not found!"; exit 1; }
