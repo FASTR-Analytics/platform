@@ -79,11 +79,13 @@ export function ProjectRunnerProvider(p: Props) {
       setProjectDetail(reconcile(res.data));
       const metricToModule: Record<string, string> = {};
       const resultsObjectToModule: Record<string, string> = {};
+      const metricToFormatAs: Record<string, "percent" | "number"> = {};
       for (const metric of res.data.metrics) {
         metricToModule[metric.id] = metric.moduleId;
         resultsObjectToModule[metric.resultsObjectId] = metric.moduleId;
+        metricToFormatAs[metric.id] = metric.formatAs;
       }
-      setGlobalModuleMaps(metricToModule, resultsObjectToModule);
+      setGlobalModuleMaps(metricToModule, resultsObjectToModule, metricToFormatAs);
       setProjectFetchState({ status: "ready" });
     } else {
       setProjectFetchState({ status: "error", err: res.err ?? "Failed to load project" });

@@ -3,6 +3,7 @@ import type { PresentationObjectConfig } from "lib";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getStyleFromPresentationObject } from "./get_style_from_po";
 import { getGeoJsonSync } from "~/state/caches/geojson_cache";
+import { getFormatAsForMetric } from "~/components/project_runner/global_module_maps";
 
 export function stripFigureInputsForStorage(fi: FigureInputs): FigureInputs {
   const stripped: any = { ...fi, style: undefined };
@@ -28,8 +29,9 @@ export async function hydrateFigureInputsForRendering(
     }
   }
 
-  if (source?.formatAs) {
-    const style = getStyleFromPresentationObject(source.config, source.formatAs);
+  if (source) {
+    const formatAs = source.formatAs ?? getFormatAsForMetric(source.metricId);
+    const style = getStyleFromPresentationObject(source.config, formatAs);
     hydrated = { ...hydrated, style };
   }
 
