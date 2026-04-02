@@ -4,6 +4,7 @@ import {
   DBUser,
   getCurrentDatasetHfaMaxVersionId,
   getCurrentDatasetHmisMaxVersionId,
+  GetAiUsageLogs,
   getPgConnectionFromCacheOrNew,
   UserLog,
 } from "../../db/mod.ts";
@@ -96,6 +97,12 @@ WHERE user_email = ${email}
 ORDER BY day
   `;
   return c.json({ activeDays: rows.map((r) => r.day) });
+});
+
+routesHealth.get("/ai_usage", async (c) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const logs = await GetAiUsageLogs(mainDb);
+  return c.json({ logs });
 });
 
 routesHealth.get("/changelog", async (c) => {

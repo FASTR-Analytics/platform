@@ -1,4 +1,5 @@
 export * from "./_main_database_types.ts";
+export * from "./ai_usage_logs.ts";
 export * from "./assets.ts";
 export * from "./config.ts";
 export * from "./dataset_hmis.ts";
