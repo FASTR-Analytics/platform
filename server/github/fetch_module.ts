@@ -1,4 +1,15 @@
 import { APIResponseWithData } from "lib";
+import { _GITHUB_TOKEN } from "../exposed_env_vars.ts";
+
+function githubHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github.v3+json",
+  };
+  if (_GITHUB_TOKEN) {
+    headers["Authorization"] = `Bearer ${_GITHUB_TOKEN}`;
+  }
+  return headers;
+}
 
 export type GitHubCommit = {
   sha: string;
@@ -30,9 +41,7 @@ export async function fetchCommits(
     const url = `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&sha=${branch}&per_page=10`;
 
     const response = await fetch(url, {
-      headers: {
-        Accept: "application/vnd.github.v3+json",
-      },
+      headers: githubHeaders(),
     });
 
     if (!response.ok) {
@@ -82,7 +91,9 @@ export async function fetchRawScript(
   try {
     const url = `https://raw.githubusercontent.com/${owner}/${repo}/${commit}/${path}`;
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: githubHeaders(),
+    });
 
     if (!response.ok) {
       if (response.status === 404) {

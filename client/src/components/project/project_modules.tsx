@@ -10,13 +10,16 @@ import {
   Button,
   FrameTop,
   HeadingBar,
+  type MenuItem,
   OpenEditorProps,
   getEditorWrapper,
   openAlert,
   openComponent,
+  showMenu,
   timActionButton,
 } from "panther";
-import { For, Match, Show, Switch } from "solid-js";
+import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
+import { moduleLatestCommits, setModuleLatestCommits } from "~/state/ui";
 import { DirtyStatus } from "~/components/DirtyStatus";
 import {
   useOptimisticSetLastUpdated,
@@ -43,6 +46,47 @@ type Props = {
 export function ProjectModules(p: Props) {
   const projectDetail = useProjectDetail();
   const { openEditor, EditorWrapper } = getEditorWrapper();
+  const [checkingUpdates, setCheckingUpdates] = createSignal(false);
+  const [checkError, setCheckError] = createSignal<string | undefined>(undefined);
+
+  async function fetchLatestCommits() {
+    setCheckingUpdates(true);
+    setCheckError(undefined);
+    try {
+      const res = await serverActions.checkModuleUpdates({});
+      if (res.success) {
+        setModuleLatestCommits(res.data);
+      } else {
+        setCheckError(res.err);
+      }
+    } catch {
+      setCheckError("Failed to check for updates");
+    } finally {
+      setCheckingUpdates(false);
+    }
+  }
+
+  onMount(() => {
+    if (moduleLatestCommits() === undefined) {
+      fetchLatestCommits();
+    }
+  });
+
+  function updatesAvailableCount(): number {
+    const commits = moduleLatestCommits();
+    if (!commits) return 0;
+    let count = 0;
+    for (const mod of projectDetail.projectModules) {
+      const entry = commits.find((c) => c.moduleId === mod.id);
+      if (
+        entry &&
+        (!mod.installedGitRef || entry.latestCommit.sha !== mod.installedGitRef)
+      ) {
+        count++;
+      }
+    }
+    return count;
+  }
 
   async function updateAllModules() {
     await openComponent({
@@ -63,11 +107,44 @@ export function ProjectModules(p: Props) {
             class="border-base-300"
             ensureHeightAsIfButton
           >
-            <Show when={!projectDetail.isLocked && projectDetail.projectModules.length > 0 && (p.isGlobalAdmin || p.canConfigureModules)}>
-              <Button onClick={updateAllModules} iconName="refresh" outline>
-                {t3({ en: "Update all", fr: "Tout mettre à jour" })}
+            <div class="ui-gap-sm flex items-center">
+              <Show when={checkError()}>
+                <span class="text-danger text-sm">
+                  {checkError()}
+                </span>
+              </Show>
+              <Show when={updatesAvailableCount() > 0}>
+                <span class="text-warning font-500 text-sm">
+                  {updatesAvailableCount()}{" "}
+                  {t3({
+                    en: "updates available",
+                    fr: "mises à jour disponibles",
+                  })}
+                </span>
+              </Show>
+              <Button
+                onClick={fetchLatestCommits}
+                iconName="refresh"
+                outline
+                state={checkingUpdates() ? { status: "loading" } : undefined}
+              >
+                {t3({
+                  en: "Check for updates",
+                  fr: "Vérifier les mises à jour",
+                })}
               </Button>
-            </Show>
+              <Show
+                when={
+                  !projectDetail.isLocked &&
+                  projectDetail.projectModules.length > 0 &&
+                  (p.isGlobalAdmin || p.canConfigureModules)
+                }
+              >
+                <Button onClick={updateAllModules} iconName="refresh" outline>
+                  {t3({ en: "Update all", fr: "Tout mettre à jour" })}
+                </Button>
+              </Show>
+            </div>
           </HeadingBar>
         }
       >
@@ -76,7 +153,12 @@ export function ProjectModules(p: Props) {
             {(possibleModuleDef) => {
               return (
                 <Switch>
-                  <Match when={projectDetail.projectModules.find((m) => m.id === possibleModuleDef.id)} keyed>
+                  <Match
+                    when={projectDetail.projectModules.find(
+                      (m) => m.id === possibleModuleDef.id,
+                    )}
+                    keyed
+                  >
                     {(keyedInstalledModule) => {
                       return (
                         <InstalledModulePresentation
@@ -147,7 +229,10 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
   async function editSettings() {
     if (!p.thisInstalledModule.hasParameters) {
       const _res = await openAlert({
-        text: t3({ en: "There are no settings for this module!", fr: "Ce module n'a aucun paramètre !" }),
+        text: t3({
+          en: "There are no settings for this module!",
+          fr: "Ce module n'a aucun paramètre !",
+        }),
       });
       return;
     }
@@ -163,22 +248,25 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     });
   }
 
-  const disableModule = timActionButton(async () => {
+  async function disableModule() {
     for (const otherMod of getPossibleModules()) {
       if (otherMod.prerequisiteModules.includes(p.thisInstalledModule.id)) {
         if (p.allInstalledModules.some((m) => m.id === otherMod.id)) {
-          return {
-            success: false,
-            err: `${t3({ en: "In order to disable this module you must first disable the modules that depend on it, including", fr: "Pour désactiver ce module, les modules qui en dépendent doivent d'abord être désactivés, y compris :" })} ${otherMod.label}`,
-          };
+          await openAlert({
+            text: `${t3({ en: "In order to disable this module you must first disable the modules that depend on it, including", fr: "Pour désactiver ce module, les modules qui en dépendent doivent d'abord être désactivés, y compris :" })} ${otherMod.label}`,
+          });
+          return;
         }
       }
     }
-    return await serverActions.uninstallModule({
+    const res = await serverActions.uninstallModule({
       projectId: p.projectId,
       module_id: p.thisInstalledModule.id,
     });
-  });
+    if (!res.success) {
+      await openAlert({ text: res.err });
+    }
+  }
 
   async function updateModule() {
     const _res = await openComponent({
@@ -227,12 +315,49 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     });
   }
 
-  const attemptRerunModule = timActionButton(() =>
-    serverActions.rerunModule({
+  async function rerunModule() {
+    const res = await serverActions.rerunModule({
       projectId: p.projectId,
       module_id: p.thisInstalledModule.id,
-    }),
-  );
+    });
+    if (!res.success) {
+      await openAlert({ text: res.err });
+    }
+  }
+
+  function openMoreMenu(e: MouseEvent) {
+    const dirtyState = pds.moduleDirtyStates[p.thisInstalledModule.id];
+    const isReadyOrError = dirtyState === "ready" || dirtyState === "error";
+    const isReady = dirtyState === "ready";
+    const canRun = !p.projectDetail.isLocked && (p.isGlobalAdmin || p.canRunModules);
+    const canConfigure = !p.projectDetail.isLocked && (p.isGlobalAdmin || p.canConfigureModules);
+    const canViewScript = p.isGlobalAdmin || p.canViewScriptCode;
+
+    const items: MenuItem[] = [];
+
+    if (isReadyOrError && canViewScript) {
+      items.push({ label: t3({ en: "Script", fr: "Script" }), icon: "code", onClick: () => showScript() });
+    }
+    if (isReadyOrError) {
+      items.push({ label: t3({ en: "Logs", fr: "Journaux des données" }), icon: "file", onClick: () => showLogs() });
+    }
+    if (isReady) {
+      items.push({ label: t3({ en: "Files", fr: "Fichiers" }), icon: "folder", onClick: () => showFiles() });
+    }
+    if (isReadyOrError && canRun) {
+      items.push({ label: t3({ en: "Re-run", fr: "Relancer" }), icon: "refresh", onClick: () => rerunModule() });
+    }
+    if (canConfigure) {
+      if (items.length > 0) {
+        items.push({ type: "divider" });
+      }
+      items.push({ label: t3({ en: "Disable", fr: "Désactiver" }), icon: "minus", intent: "danger", onClick: () => disableModule() });
+    }
+
+    if (items.length > 0) {
+      showMenu({ x: e.clientX, y: e.clientY, items });
+    }
+  }
 
   return (
     <div class="border-base-300 rounded border">
@@ -243,60 +368,28 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
             id={p.thisInstalledModule.id}
             moduleDirtyStates={pds.moduleDirtyStates}
           />
+          {(() => {
+            const commits = moduleLatestCommits();
+            if (!commits) return null;
+            const entry = commits.find(
+              (c) => c.moduleId === p.thisInstalledModule.id,
+            );
+            if (!entry) return null;
+            if (
+              p.thisInstalledModule.installedGitRef &&
+              entry.latestCommit.sha === p.thisInstalledModule.installedGitRef
+            )
+              return null;
+            return (
+              <span class="bg-warning/15 text-warning font-500 ml-2 rounded px-2 py-0.5 text-xs">
+                {t3({ en: "Update available", fr: "Mise à jour disponible" })}
+              </span>
+            );
+          })()}
         </div>
         <div class="flex-1"></div>
-        {/* <div class="ui-gap-sm flex flex-wrap justify-end"> */}
-        <Show
-          when={
-            pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready" ||
-            pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"
-          }
-        >
-          <Show when={p.isGlobalAdmin || p.canViewScriptCode}>
-            <Button onClick={showScript} outline>
-              {t3({ en: "Script", fr: "Script" })}
-            </Button>
-          </Show>
-          <Button onClick={showLogs} outline>
-            {t3({ en: "Logs", fr: "Journaux des données" })}
-          </Button>
-        </Show>
-        <Show
-          when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready"}
-        >
-          <Button onClick={showFiles} outline>
-            {t3({ en: "Files", fr: "Fichiers" })}
-          </Button>
-        </Show>
-        <Show
-          when={
-            !p.projectDetail.isLocked && (p.isGlobalAdmin || p.canRunModules)
-          }
-        >
-          <Show
-            when={
-              pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready" ||
-              pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"
-            }
-          >
-            <Button
-              onClick={attemptRerunModule.click}
-              state={attemptRerunModule.state()}
-              outline
-            >
-              {t3({ en: "Re-run", fr: "Relancer" })}
-            </Button>
-          </Show>
-        </Show>
         <Show when={p.isGlobalAdmin || p.canConfigureModules}>
           <Show when={!p.projectDetail.isLocked}>
-            <Button
-              onClick={disableModule.click}
-              state={disableModule.state()}
-              outline
-            >
-              {t3({ en: "Disable", fr: "Désactiver" })}
-            </Button>
             <Button onClick={updateModule} iconName="refresh">
               {t3(TC.update)}
             </Button>
@@ -305,6 +398,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
             {t3(TC.settings)}
           </Button>
         </Show>
+        <Button onClick={openMoreMenu} iconName="moreVertical" outline />
       </div>
       <Show
         when={
@@ -314,7 +408,10 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
         }
         fallback={
           <div class="ui-pad text-neutral text-xs">
-            {t3({ en: "Waiting for data or upstream modules", fr: "En attente des données ou des modules en amont" })}
+            {t3({
+              en: "Waiting for data or upstream modules",
+              fr: "En attente des données ou des modules en amont",
+            })}
           </div>
         }
       >
@@ -324,14 +421,19 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
               when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready"}
             >
               {(() => {
-                const installedDate = new Date(p.thisInstalledModule.installedAt);
-                const lastRunDate = new Date(pds.moduleLastRun[p.thisInstalledModule.id]);
+                const installedDate = new Date(
+                  p.thisInstalledModule.installedAt,
+                );
+                const lastRunDate = new Date(
+                  pds.moduleLastRun[p.thisInstalledModule.id],
+                );
                 const resultsStale = installedDate > lastRunDate;
                 return (
                   <div class="text-neutral flex flex-col gap-1 text-xs">
                     <div class="flex items-center gap-2">
                       <span>
-                        {t3({ en: "Installed", fr: "Installé" })}: {installedDate.toLocaleString()}
+                        {t3({ en: "Installed", fr: "Installé" })}:{" "}
+                        {installedDate.toLocaleString()}
                       </span>
                       <Show when={p.thisInstalledModule.installedGitRef}>
                         <span class="font-mono">
@@ -339,18 +441,24 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                         </span>
                       </Show>
                     </div>
-                    <div class={`flex items-center gap-2 ${resultsStale ? "text-danger" : ""}`}>
+                    <div
+                      class={`flex items-center gap-2 ${resultsStale ? "text-danger" : ""}`}
+                    >
                       <span>
-                        {t3({ en: "Last run", fr: "Dernière exécution" })}: {lastRunDate.toLocaleString()}
+                        {t3({ en: "Last run", fr: "Dernière exécution" })}:{" "}
+                        {lastRunDate.toLocaleString()}
                       </span>
-                      <Show when={p.thisInstalledModule.lastRunGitRef}>
+                      <Show when={pds.moduleLastRunGitRef[p.thisInstalledModule.id]}>
                         <span class="font-mono">
-                          ({p.thisInstalledModule.lastRunGitRef!.slice(0, 7)})
+                          ({pds.moduleLastRunGitRef[p.thisInstalledModule.id].slice(0, 7)})
                         </span>
                       </Show>
                       <Show when={resultsStale}>
                         <span class="font-700">
-                          {t3({ en: "— results outdated", fr: "— résultats obsolètes" })}
+                          {t3({
+                            en: "— results outdated",
+                            fr: "— résultats obsolètes",
+                          })}
                         </span>
                       </Show>
                     </div>
@@ -371,7 +479,10 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
               when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"}
             >
               <div class="text-danger truncate text-xs">
-                {t3({ en: "View logs to determine the error", fr: "Consultez les journaux pour déterminer l'erreur" })}
+                {t3({
+                  en: "View logs to determine the error",
+                  fr: "Consultez les journaux pour déterminer l'erreur",
+                })}
               </div>
             </Match>
           </Switch>
@@ -442,7 +553,9 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
           (p.isGlobalAdmin || p.canConfigureModules)
         }
         fallback={
-          <div class="font-400 text-neutral text-sm">{t3({ en: "Deactivated", fr: "Désactivé" })}</div>
+          <div class="font-400 text-neutral text-sm">
+            {t3({ en: "Deactivated", fr: "Désactivé" })}
+          </div>
         }
       >
         <div class="">

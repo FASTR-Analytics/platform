@@ -6,6 +6,7 @@ import { hfaIndicatorRouteRegistry } from "./instance/hfa_indicators.ts";
 import { indicatorRouteRegistry } from "./instance/indicators.ts";
 import { indicatorsDhis2RouteRegistry } from "./instance/indicators_dhis2.ts";
 import { instanceRouteRegistry } from "./instance/instance.ts";
+import { instanceModuleRouteRegistry } from "./instance/modules.ts";
 import { structureRouteRegistry } from "./instance/structure.ts";
 import { userRouteRegistry } from "./instance/users.ts";
 import { aiToolsRouteRegistry } from "./project/ai-tools.ts";
@@ -29,6 +30,7 @@ export const routeRegistry = {
   ...indicatorRouteRegistry,
   ...indicatorsDhis2RouteRegistry,
   ...instanceRouteRegistry,
+  ...instanceModuleRouteRegistry,
   ...moduleRouteRegistry,
   ...structureRouteRegistry,
   ...userRouteRegistry,

@@ -48,6 +48,7 @@ WHERE id = ${etd.moduleId}
       ids: [etd.moduleId],
       dirtyOrRunStatus: "error",
       lastRun: undefined,
+      lastRunGitRef: undefined,
     };
     broadcastDirtyStates.postMessage(bm1);
     return;
@@ -74,14 +75,9 @@ SET last_run_at = ${lastRun}, dirty = 'ready', last_run_git_ref = ${installedGit
 WHERE id = ${etd.moduleId}
 `,
     sql`
-DELETE FROM global_last_updated
-WHERE id = 'any_module_last_run'
-`,
-    sql`
-INSERT INTO global_last_updated
-    (id, last_updated)
-VALUES
-    ('any_module_last_run', ${lastRun})
+INSERT INTO global_last_updated (id, last_updated)
+VALUES ('any_module_last_run', ${lastRun})
+ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
 `,
   ]);
 
@@ -91,6 +87,7 @@ VALUES
     ids: [etd.moduleId],
     dirtyOrRunStatus: "ready",
     lastRun,
+    lastRunGitRef: installedGitRef ?? undefined,
   };
   broadcastDirtyStates.postMessage(bm1);
 

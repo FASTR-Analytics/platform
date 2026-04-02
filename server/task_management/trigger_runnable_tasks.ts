@@ -25,6 +25,7 @@ export async function triggerRunnableModules(ppk: ProjectPk) {
     ids: modulesToRun,
     dirtyOrRunStatus: "running",
     lastRun: undefined,
+    lastRunGitRef: undefined,
   };
   broadcastDirtyStates.postMessage(bm1);
 }

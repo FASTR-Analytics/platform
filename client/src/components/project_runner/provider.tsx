@@ -79,11 +79,13 @@ export function ProjectRunnerProvider(p: Props) {
       setProjectDetail(reconcile(res.data));
       const metricToModule: Record<string, string> = {};
       const resultsObjectToModule: Record<string, string> = {};
+      const metricToFormatAs: Record<string, "percent" | "number"> = {};
       for (const metric of res.data.metrics) {
         metricToModule[metric.id] = metric.moduleId;
         resultsObjectToModule[metric.resultsObjectId] = metric.moduleId;
+        metricToFormatAs[metric.id] = metric.formatAs;
       }
-      setGlobalModuleMaps(metricToModule, resultsObjectToModule);
+      setGlobalModuleMaps(metricToModule, resultsObjectToModule, metricToFormatAs);
       setProjectFetchState({ status: "ready" });
     } else {
       setProjectFetchState({ status: "error", err: res.err ?? "Failed to load project" });
@@ -100,6 +102,7 @@ export function ProjectRunnerProvider(p: Props) {
       moduleDirtyStates: {},
       anyModuleLastRun: "",
       moduleLastRun: {},
+      moduleLastRunGitRef: {},
       lastUpdated: {
         datasets: {},
         modules: {},
@@ -225,6 +228,9 @@ export function ProjectRunnerProvider(p: Props) {
         for (const [key, value] of Object.entries(bm.pds.moduleLastRun)) {
           safeSetModuleLastRun(key, value);
         }
+        for (const [key, value] of Object.entries(bm.pds.moduleLastRunGitRef)) {
+          setProjectDirtyStates("moduleLastRunGitRef", key, value);
+        }
         for (const [tableName, tableData] of Object.entries(
           bm.pds.lastUpdated,
         )) {
@@ -248,6 +254,9 @@ export function ProjectRunnerProvider(p: Props) {
           if (bm.dirtyOrRunStatus === "ready" && bm.lastRun) {
             safeSetModuleLastRun(id, bm.lastRun);
             safeSet("anyModuleLastRun", bm.lastRun);
+            if (bm.lastRunGitRef) {
+              setProjectDirtyStates("moduleLastRunGitRef", id, bm.lastRunGitRef);
+            }
           }
           if (bm.dirtyOrRunStatus === "queued") {
             safeSetRLog(id, "Queued to run...");

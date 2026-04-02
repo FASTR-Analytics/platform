@@ -15,10 +15,7 @@ export const _IS_PRODUCTION = !!Deno.env.get("IS_PRODUCTION");
 // Instance Configuration
 ///////////////////////////////////////////////////////////////////////////////
 
-export const _INSTANCE_NAME = Deno.env
-  .get("INSTANCE_NAME")
-  ?.replaceAll("'", "")
-  .replaceAll(`"`, "")!;
+export const _INSTANCE_NAME = Deno.env.get("INSTANCE_NAME")!;
 if (_INSTANCE_NAME === undefined) {
   throw new Error("Could not get INSTANCE_NAME env variable");
 }
@@ -134,6 +131,8 @@ export const _SEND_GRID_API = Deno.env.get("SEND_GRID_API")!;
 if (_SEND_GRID_API === undefined) {
   throw new Error("Could not get SEND_GRID_API env variable");
 }
+
+export const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
 
 ///////////////////////////////////////////////////////////////////////////////
 // Authentication (Optional)

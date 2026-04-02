@@ -22,7 +22,7 @@ import { ModuleDefinitionJSONSchema } from "../../lib/types/module_definition_va
 import { stripFrontmatter } from "../github/fetch_module.ts";
 import { getTranslateFunc } from "./translation_utils.ts";
 
-const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
+import { _GITHUB_TOKEN } from "../exposed_env_vars.ts";
 
 export function resolveTS(ts: TranslatableString, lang: InstanceLanguage): string {
   return lang === "fr" ? (ts.fr || ts.en) : ts.en;
@@ -162,7 +162,8 @@ export async function fetchModuleFiles(
     throw new Error(`Failed to fetch script.R for ${moduleId}: ${scriptRes.status} ${scriptRes.statusText}`);
   }
 
-  const definition = await defRes.json();
+  const rawDefinition = await defRes.json();
+  const definition = validateDefinition(rawDefinition, moduleId);
   const rawScript = await scriptRes.text();
 
   return { definition, script: stripFrontmatter(rawScript), gitRef };
@@ -213,8 +214,7 @@ export async function getModuleDefinitionDetail(
   language: InstanceLanguage,
 ): Promise<APIResponseWithData<ModuleDefinition & { gitRef?: string }>> {
   try {
-    const { definition: rawDefinition, script, gitRef } = await fetchModuleFiles(id);
-    const definition = validateDefinition(rawDefinition, id);
+    const { definition, script, gitRef } = await fetchModuleFiles(id);
 
     const tc = getTranslateFunc(language);
 

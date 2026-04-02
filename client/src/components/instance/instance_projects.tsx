@@ -14,6 +14,7 @@ import {
 } from "panther";
 import { For, Show } from "solid-js";
 import { AddProjectForm } from "./add_project";
+import { CompareProjects } from "./compare_projects";
 
 type Props = {
   isGlobalAdmin: boolean;
@@ -25,6 +26,13 @@ export function InstanceProjects(p: Props) {
   const navigate = useNavigate();
 
   const { openEditor, EditorWrapper } = getEditorWrapper();
+
+  async function compareProjects() {
+    await openEditor({
+      element: CompareProjects,
+      props: {},
+    });
+  }
 
   async function attemptAddProject() {
     const instState = p.instanceDetail.state();
@@ -66,11 +74,18 @@ export function InstanceProjects(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBarMainRibbon heading={t3({ en: "Projects", fr: "Projets" })}>
-            <Show when={p.isGlobalAdmin || p.canCreateProjects}>
-              <Button onClick={attemptAddProject} iconName="plus">
-                {t3({ en: "Create project", fr: "Créer un projet" })}
-              </Button>
-            </Show>
+            <div class="ui-gap-sm flex items-center">
+              <Show when={p.isGlobalAdmin}>
+                <Button onClick={compareProjects} outline intent="base-100">
+                  {t3({ en: "Compare projects", fr: "Comparer les projets" })}
+                </Button>
+              </Show>
+              <Show when={p.isGlobalAdmin || p.canCreateProjects}>
+                <Button onClick={attemptAddProject} iconName="plus">
+                  {t3({ en: "Create project", fr: "Créer un projet" })}
+                </Button>
+              </Show>
+            </div>
           </HeadingBarMainRibbon>
         }
       >

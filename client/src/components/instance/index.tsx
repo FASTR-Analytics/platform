@@ -242,24 +242,26 @@ export default function Instance(p: Props) {
                 </Show>
                 <div class="ui-gap-sm flex flex-0 items-center justify-end">
                   <MenuTriggerWrapper
-                    items={[
-                      {
-                        label: "English",
-                        onClick: () => {
-                          localStorage.setItem("fastrLanguage", "en");
-                          if (!isFrench()) return;
-                          window.location.reload();
+                    items={
+                      [
+                        {
+                          label: "English",
+                          onClick: () => {
+                            localStorage.setItem("fastrLanguage", "en");
+                            if (!isFrench()) return;
+                            window.location.reload();
+                          },
                         },
-                      },
-                      {
-                        label: "Français",
-                        onClick: () => {
-                          localStorage.setItem("fastrLanguage", "fr");
-                          if (isFrench()) return;
-                          window.location.reload();
+                        {
+                          label: "Français",
+                          onClick: () => {
+                            localStorage.setItem("fastrLanguage", "fr");
+                            if (isFrench()) return;
+                            window.location.reload();
+                          },
                         },
-                      },
-                    ] satisfies MenuItem[]}
+                      ] satisfies MenuItem[]
+                    }
                     position="bottom-end"
                   >
                     <Button intent="base-100">
@@ -294,7 +296,7 @@ export default function Instance(p: Props) {
                     <span class="text-primary inline-block w-5">
                       <UserCircleIcon />
                     </span>
-                    <span class="font-400 text-base-content truncate text-sm">
+                    {/* <span class="font-400 text-base-content truncate text-sm">
                       <span class="font-700">
                         {p.globalUser.firstName} {p.globalUser.lastName}
                       </span>
@@ -302,7 +304,7 @@ export default function Instance(p: Props) {
                         {" "}
                         ({t3({ en: "Admin", fr: "Admin" })})
                       </Show>
-                    </span>
+                    </span> */}
                   </div>
                 </div>
               </div>

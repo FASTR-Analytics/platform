@@ -83,3 +83,43 @@ export type ModuleConfigSelections = {
   parameterDefinitions: ModuleParameter[];
   parameterSelections: Record<string, string>;
 };
+
+export type ModuleLatestCommit = {
+  moduleId: ModuleId;
+  latestCommit: {
+    sha: string;
+    message: string;
+    date: string;
+    author: string;
+  };
+};
+
+export type ModuleUpdatePreview = {
+  impactType: "script_change" | "definition_only" | "no_change";
+  commitsSince: { sha: string; message: string; date: string; author: string }[];
+  headGitRef: string;
+};
+
+export type CompareProjectsModuleParameter = {
+  replacementString: string;
+  description: string;
+  value: string;
+};
+
+export type CompareProjectsModule = {
+  id: string;
+  dirty: "queued" | "ready" | "error";
+  installedAt: string;
+  installedGitRef?: string;
+  lastRunAt: string;
+  lastRunGitRef?: string;
+  parameters: CompareProjectsModuleParameter[];
+};
+
+export type CompareProjectsData = {
+  projects: {
+    id: string;
+    label: string;
+    modules: CompareProjectsModule[];
+  }[];
+};

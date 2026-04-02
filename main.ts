@@ -25,6 +25,7 @@ import { routesUpload } from "./server/routes/instance/upload.ts";
 import { routesUsers } from "./server/routes/instance/users.ts";
 import { routesBackups } from "./server/routes/instance/backups.ts";
 import { routesGeoJsonMaps } from "./server/routes/instance/geojson_maps.ts";
+import { routesInstanceModules } from "./server/routes/instance/modules.ts";
 
 // Project routes
 import { routesProject } from "./server/routes/project/project.ts";
@@ -81,6 +82,7 @@ app.route("/", routesDatasets);
 app.route("/", routesHfaIndicators);
 app.route("/", routesIndicators);
 app.route("/", routesIndicatorsDhis2);
+app.route("/", routesInstanceModules);
 app.route("/", routesModules);
 app.route("/", routesReports);
 app.route("/", routesSlideDecks);

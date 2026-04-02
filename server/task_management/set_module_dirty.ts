@@ -51,6 +51,7 @@ UPDATE modules SET dirty = 'queued' WHERE id = ${moduleId}
     ids: moduleIds,
     dirtyOrRunStatus: "queued",
     lastRun: undefined,
+    lastRunGitRef: undefined,
   };
   broadcastDirtyStates.postMessage(bm1);
 
