@@ -1,9 +1,8 @@
 import {
   DEFAULT_PERIOD_END,
   DEFAULT_PERIOD_START,
-  T,
-  t,
-  t2,
+  t3,
+  TC,
   type DatasetHmisWindowingRaw,
   type InstanceConfigFacilityColumns,
 } from "lib";
@@ -87,7 +86,7 @@ export function DeleteData(
         <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
           <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
           <div class="font-700 flex-1 truncate text-xl">
-            {t2(T.FRENCH_UI_STRINGS.delete)}
+            {t3(TC.delete)}
           </div>
         </div>
       }
@@ -105,8 +104,9 @@ export function DeleteData(
         </div>
         <div class="ui-spy-sm">
           <div class="">
-            If you want to delete this data, write{" "}
-            <span class="font-700">yes please delete</span> in the input box
+            {t3({ en: "If you want to delete this data, write", fr: "Pour supprimer ces données, écrivez" })}{" "}
+            <span class="font-700">yes please delete</span>{" "}
+            {t3({ en: "in the input box", fr: "dans le champ de saisie" })}
           </div>
           <div class="w-96">
             <Input value={checkText()} onChange={setCheckText} />
@@ -118,7 +118,7 @@ export function DeleteData(
               disabled={checkText() !== "yes please delete"}
               onClick={attemptDeleteData}
             >
-              Delete
+              {t3(TC.delete)}
             </Button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { t, type DatasetHfaDictionaryTimePoint } from "lib";
+import { t3, TC, type DatasetHfaDictionaryTimePoint } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -18,17 +18,17 @@ export function TimePointsView(
   const columns: TableColumn<DatasetHfaDictionaryTimePoint>[] = [
     {
       key: "timePoint",
-      header: t("Time Point"),
+      header: t3({ en: "Time Point", fr: "Point temporel" }),
       sortable: true,
     },
     {
       key: "timePointLabel",
-      header: t("Label"),
+      header: t3(TC.label),
       sortable: true,
     },
     {
       key: "dateImported",
-      header: t("Date Imported"),
+      header: t3({ en: "Date Imported", fr: "Date d'importation" }),
       sortable: true,
       render: (item) =>
         item.dateImported
@@ -43,7 +43,7 @@ export function TimePointsView(
         <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
           <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
           <div class="font-700 flex-1 truncate text-xl">
-            {t("Time Points")}
+            {t3({ en: "Time Points", fr: "Points temporels" })}
           </div>
         </div>
       }
@@ -53,7 +53,7 @@ export function TimePointsView(
           data={p.timePoints}
           columns={columns}
           keyField="timePoint"
-          noRowsMessage={t("No time points found")}
+          noRowsMessage={t3({ en: "No time points found", fr: "Aucun point temporel trouvé" })}
           fitTableToAvailableHeight
         />
       </div>

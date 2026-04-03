@@ -1,6 +1,6 @@
 import type Uppy from "@uppy/core";
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { t, t2, T, type CsvDetails } from "lib";
+import { t3, TC, type CsvDetails } from "lib";
 import { serverActions } from "~/server_actions";
 import {
   Button,
@@ -26,7 +26,7 @@ export function Step1_Csv(p: Props) {
 
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
-    t2(T.FRENCH_UI_STRINGS.loading_asset_files),
+    t3(TC.loadingAssets),
   );
 
   function updateSelectedFileName(fileName: string) {
@@ -40,7 +40,7 @@ export function Step1_Csv(p: Props) {
     if (!assetFileName) {
       return {
         success: false,
-        err: t("You must select a file"),
+        err: t3({ en: "You must select a file", fr: "Vous devez sélectionner un fichier" }),
       };
     }
 
@@ -74,7 +74,7 @@ export function Step1_Csv(p: Props) {
     <div class="ui-pad ui-spy">
       <div class="">
         <Button id="select-file-button" iconName="upload">
-          {t2(T.FRENCH_UI_STRINGS.upload_new_csv_file_to_use)}
+          {t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser" })}
         </Button>
       </div>
       <div class="w-96">
@@ -82,7 +82,7 @@ export function Step1_Csv(p: Props) {
           {(keyedAssets) => {
             return (
               <Select
-                label={t2(T.FRENCH_UI_STRINGS.existing_csv_file_to_use)}
+                label={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
                 options={getSelectOptions(
                   keyedAssets.filter((a) => a.isCsv).map((a) => a.fileName),
                 )}
@@ -103,7 +103,7 @@ export function Step1_Csv(p: Props) {
           disabled={!needsSaving() || !selectedFileName()}
           iconName="save"
         >
-          {t2(T.FRENCH_UI_STRINGS.save)}
+          {t3(TC.save)}
         </Button>
       </div>
     </div>

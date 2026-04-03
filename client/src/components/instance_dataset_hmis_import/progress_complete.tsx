@@ -1,11 +1,11 @@
-import { t } from "lib";
+import { t3 } from "lib";
 import { Button, type TimActionButton } from "panther";
 
 export function ProgressComplete(p: { deleteSafe: TimActionButton<[]> }) {
   return (
     <div class="ui-spy ui-pad">
       <div class="">
-        This import is complete! You should now remove the upload form.
+        {t3({ en: "This import is complete! You should now remove the upload form.", fr: "Cette importation est terminée ! Vous pouvez maintenant supprimer le formulaire d'importation." })}
       </div>
       <Button
         onClick={p.deleteSafe.click}
@@ -13,7 +13,7 @@ export function ProgressComplete(p: { deleteSafe: TimActionButton<[]> }) {
         intent="success"
         iconName="trash"
       >
-        {t("Remove completed upload form")}
+        {t3({ en: "Remove completed upload form", fr: "Supprimer le formulaire d'importation terminé" })}
       </Button>
     </div>
   );

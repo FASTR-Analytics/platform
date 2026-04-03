@@ -1,4 +1,4 @@
-import { T, t, t2, type DatasetHfaDictionaryTimePoint } from "lib";
+import { t3, TC, type DatasetHfaDictionaryTimePoint } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -53,7 +53,7 @@ export function DeleteData(
         <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
           <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
           <div class="font-700 flex-1 truncate text-xl">
-            {t2(T.FRENCH_UI_STRINGS.delete)}
+            {t3(TC.delete)}
           </div>
         </div>
       }
@@ -66,14 +66,14 @@ export function DeleteData(
               intent={deleteMode() === "all" ? "primary" : undefined}
               outline={deleteMode() !== "all"}
             >
-              {t("Delete all data")}
+              {t3({ en: "Delete all data", fr: "Supprimer toutes les données" })}
             </Button>
             <Button
               onClick={() => setDeleteMode("time_point")}
               intent={deleteMode() === "time_point" ? "primary" : undefined}
               outline={deleteMode() !== "time_point"}
             >
-              {t("Delete by time point")}
+              {t3({ en: "Delete by time point", fr: "Supprimer par point temporel" })}
             </Button>
           </div>
         </Show>
@@ -81,7 +81,7 @@ export function DeleteData(
         <Show when={deleteMode() === "time_point"}>
           <div class="w-96">
             <Select
-              label={t("Select time point to delete")}
+              label={t3({ en: "Select time point to delete", fr: "Sélectionner le point temporel à supprimer" })}
               options={p.timePoints.map((tp) => ({
                 value: tp.timePoint,
                 label: `${tp.timePoint} (${tp.timePointLabel})`,
@@ -94,12 +94,12 @@ export function DeleteData(
         </Show>
 
         <div class="">
-          {t("If you want to delete")}{" "}
+          {t3({ en: "If you want to delete", fr: "Pour supprimer" })}{" "}
           {deleteMode() === "time_point"
-            ? `data for time point "${selectedTimePoint()}"`
-            : "all the data"}
-          , {t("write")} <span class="font-700">yes please delete</span>{" "}
-          {t("in the input box")}
+            ? t3({ en: `data for time point "${selectedTimePoint()}"`, fr: `les données du point temporel « ${selectedTimePoint()} »` })
+            : t3({ en: "all the data", fr: "toutes les données" })}
+          , {t3({ en: "write", fr: "écrivez" })} <span class="font-700">yes please delete</span>{" "}
+          {t3({ en: "in the input box", fr: "dans le champ de saisie" })}
         </div>
         <div class="w-96">
           <Input value={checkText()} onChange={setCheckText} />
@@ -111,7 +111,7 @@ export function DeleteData(
             disabled={!canDelete()}
             onClick={attemptDeleteData}
           >
-            {t2(T.FRENCH_UI_STRINGS.delete)}
+            {t3(TC.delete)}
           </Button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { t } from "lib";
+import { t3 } from "lib";
 import {
   Button,
   ProgressBar,
@@ -31,7 +31,7 @@ export function Step3_Csv(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <div class="font-700 text-lg">{t("Ready to import from csv")}</div>
+      <div class="font-700 text-lg">{t3({ en: "Ready to import from csv", fr: "Prêt à importer depuis le CSV" })}</div>
       <ProgressBar
         progressFrom0To100={progressFrom0To100()}
         progressMsg={progressMsg()}
@@ -45,7 +45,7 @@ export function Step3_Csv(p: Props) {
           state={executeImport.state()}
           iconName="database"
         >
-          {t("Start import")}
+          {t3({ en: "Start import", fr: "Démarrer l'importation" })}
         </Button>
       </div>
     </div>

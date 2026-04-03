@@ -1,9 +1,8 @@
 import { DatasetHmisVersion,
   DatasetCsvStagingResult,
-  DatasetDhis2StagingResult, t2, T } from "lib";
+  DatasetDhis2StagingResult, t3 } from "lib";
 import { Button, EditorComponentProps, FrameTop, toNum0 } from "panther";
 import { Show, For } from "solid-js";
-import { t } from "lib";
 import { CollapsibleSection } from "panther";
 
 export function ImportInformation(
@@ -33,7 +32,7 @@ export function ImportInformation(
         <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
           <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
           <div class="font-700 flex-1 truncate text-xl">
-            {t2(T.FRENCH_UI_STRINGS.import_information)}
+            {t3({ en: "Import information", fr: "Informations sur l'importation" })}
           </div>
           {/* <div class="ui-gap-sm flex items-center">
             <Button iconName="refresh" onClick={versions.fetch} />
@@ -45,15 +44,15 @@ export function ImportInformation(
         <div class="ui-gap grid grid-cols-12 items-start">
           <Show when={p.version.stagingResult}>
             <div class="ui-spy-sm border-base-300 ui-pad col-span-6 rounded border text-sm">
-              <div class="font-700 text-base">{t("Import summary")}</div>
+              <div class="font-700 text-base">{t3({ en: "Import summary", fr: "Résumé de l'importation" })}</div>
               <div class="flex items-center">
-                <div class="w-56 flex-none">{t("Import source")}</div>
+                <div class="w-56 flex-none">{t3({ en: "Import source", fr: "Source de l'importation" })}</div>
                 <div class="flex-1">
-                  {isCSV() ? "CSV Import" : "DHIS2 Import"}
+                  {isCSV() ? t3({ en: "CSV Import", fr: "Importation CSV" }) : t3({ en: "DHIS2 Import", fr: "Importation DHIS2" })}
                 </div>
               </div>
               <div class="flex items-center">
-                <div class="w-56 flex-none">{t2(T.FRENCH_UI_STRINGS.date_imported)}</div>
+                <div class="w-56 flex-none">{t3({ en: "Date imported", fr: "Date d'importation" })}</div>
                 <div class="flex-1">
                   {new Date(
                     p.version.stagingResult!.dateImported,
@@ -62,20 +61,20 @@ export function ImportInformation(
               </div>
               <Show when={csvResult()}>
                 <div class="flex items-center">
-                  <div class="w-56 flex-none">{t("File name")}</div>
+                  <div class="w-56 flex-none">{t3({ en: "File name", fr: "Nom du fichier" })}</div>
                   <div class="flex-1">{csvResult()!.assetFileName}</div>
                 </div>
               </Show>
               <div class="flex items-center">
-                <div class="w-56 flex-none">{t("Rows inserted")}</div>
+                <div class="w-56 flex-none">{t3({ en: "Rows inserted", fr: "Lignes insérées" })}</div>
                 <div class="flex-1">{toNum0(p.version.nRowsInserted ?? 0)}</div>
               </div>
               <div class="flex items-center">
-                <div class="w-56 flex-none">{t("Rows updated")}</div>
+                <div class="w-56 flex-none">{t3({ en: "Rows updated", fr: "Lignes mises à jour" })}</div>
                 <div class="flex-1">{toNum0(p.version.nRowsUpdated ?? 0)}</div>
               </div>
               <div class="flex items-center">
-                <div class="w-56 flex-none">{t("Total rows imported")}</div>
+                <div class="w-56 flex-none">{t3({ en: "Total rows imported", fr: "Total de lignes importées" })}</div>
                 <div class="flex-1">{toNum0(p.version.nRowsTotalImported)}</div>
               </div>
             </div>
@@ -84,21 +83,21 @@ export function ImportInformation(
           {/* CSV-specific statistics */}
           <Show when={csvResult()}>
             <div class="border-base-300 ui-pad ui-spy-sm col-span-6 rounded border text-sm">
-              <div class="font-700 text-base">{t("CSV import details")}</div>
+              <div class="font-700 text-base">{t3({ en: "CSV import details", fr: "Détails de l'importation CSV" })}</div>
               <div class="flex justify-between">
-                <span>{t("Raw rows processed:")}</span>
+                <span>{t3({ en: "Raw rows processed:", fr: "Lignes brutes traitées :" })}</span>
                 <span>{toNum0(csvResult()!.rawCsvRowCount)}</span>
               </div>
               <div class="flex justify-between">
-                <span>{t("Valid rows:")}</span>
+                <span>{t3({ en: "Valid rows:", fr: "Lignes valides :" })}</span>
                 <span>{toNum0(csvResult()!.validCsvRowCount)}</span>
               </div>
               <div class="flex justify-between">
-                <span>{t("Deduplicated rows:")}</span>
+                <span>{t3({ en: "Deduplicated rows:", fr: "Lignes dédupliquées :" })}</span>
                 <span>{toNum0(csvResult()!.dedupedRowCount)}</span>
               </div>
               <div class="flex justify-between">
-                <span>{t("Final staging rows:")}</span>
+                <span>{t3({ en: "Final staging rows:", fr: "Lignes finales de préparation :" })}</span>
                 <span>{toNum0(csvResult()!.finalStagingRowCount)}</span>
               </div>
             </div>
@@ -107,31 +106,31 @@ export function ImportInformation(
           {/* DHIS2-specific statistics */}
           <Show when={dhis2Result()}>
             <div class="border-base-300 ui-pad ui-spy-sm col-span-6 rounded border text-sm">
-              <div class="font-700 text-base">{t("DHIS2 import details")}</div>
+              <div class="font-700 text-base">{t3({ en: "DHIS2 import details", fr: "Détails de l'importation DHIS2" })}</div>
               <div class="flex justify-between">
-                <span>{t("Total indicator-period combinations:")}</span>
+                <span>{t3({ en: "Total indicator-period combinations:", fr: "Total de combinaisons indicateur-période :" })}</span>
                 <span>{toNum0(dhis2Result()!.totalIndicatorPeriodCombos)}</span>
               </div>
               <div class="flex justify-between">
-                <span>{t("Successful fetches:")}</span>
+                <span>{t3({ en: "Successful fetches:", fr: "Récupérations réussies :" })}</span>
                 <span>{toNum0(dhis2Result()!.successfulFetches)}</span>
               </div>
               <Show
                 when={dhis2Result()!.failedFetches.length > 0}
                 fallback={
                   <div class="text-success flex justify-between">
-                    <span>{t("Failed fetches:")}</span>
+                    <span>{t3({ en: "Failed fetches:", fr: "Récupérations échouées :" })}</span>
                     <span>0</span>
                   </div>
                 }
               >
                 <div class="text-danger flex justify-between">
-                  <span>{t("Failed fetches:")}</span>
+                  <span>{t3({ en: "Failed fetches:", fr: "Récupérations échouées :" })}</span>
                   <span>{dhis2Result()!.failedFetches.length}</span>
                 </div>
               </Show>
               <div class="flex justify-between">
-                <span>{t("Final staging rows:")}</span>
+                <span>{t3({ en: "Final staging rows:", fr: "Lignes finales de préparation :" })}</span>
                 <span>{toNum0(dhis2Result()!.finalStagingRowCount)}</span>
               </div>
             </div>
@@ -140,7 +139,7 @@ export function ImportInformation(
 
         {/* Period Indicator Statistics */}
         <Show when={p.version.stagingResult}>
-          <CollapsibleSection title={t("Period-indicator combinations")}>
+          <CollapsibleSection title={t3({ en: "Period-indicator combinations", fr: "Combinaisons période-indicateur" })}>
             <div class="ui-pad max-h-[200px] overflow-auto">
               <For each={p.version.stagingResult?.periodIndicatorStats}>
                 {(stat, index) => (
@@ -165,7 +164,7 @@ export function ImportInformation(
           </CollapsibleSection>
         </Show>
 
-        <CollapsibleSection title={t("Raw import metadata")}>
+        <CollapsibleSection title={t3({ en: "Raw import metadata", fr: "Métadonnées brutes de l'importation" })}>
           <div class="ui-pad whitespace-pre-wrap font-mono text-sm">
             {JSON.stringify(p.version, null, 2)}
           </div>

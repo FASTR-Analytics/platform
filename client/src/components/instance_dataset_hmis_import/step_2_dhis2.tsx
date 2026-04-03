@@ -1,6 +1,6 @@
 import { Dhis2SelectionParams,
   getCalendar,
-  t, t2, T,
+  t3,
   type RawIndicatorWithMappings } from "lib";
 import {
   Button,
@@ -127,23 +127,23 @@ export function Step2_Dhis2(p: Props) {
   // );
   const indicators = timQuery(
     () => serverActions.getIndicators({}),
-    t("Loading indicators..."),
+    t3({ en: "Loading indicators...", fr: "Chargement des indicateurs..." }),
   );
 
   const tableColumns: TableColumn<RawIndicatorWithMappings>[] = [
     {
       key: "raw_indicator_id",
-      header: t("Indicator ID"),
+      header: t3({ en: "Indicator ID", fr: "ID indicateur" }),
       sortable: true,
     },
     {
       key: "raw_indicator_label",
-      header: t("Label"),
+      header: t3({ en: "Label", fr: "Libellé" }),
       sortable: true,
     },
     {
       key: "indicator_common_ids",
-      header: t("Common IDs"),
+      header: t3({ en: "Common IDs", fr: "ID communs" }),
       render: (item) => item.indicator_common_ids.join(", "),
     },
   ];
@@ -171,14 +171,14 @@ export function Step2_Dhis2(p: Props) {
     if (params.rawIndicatorIds.length === 0) {
       return {
         success: false,
-        err: t("Please select at least one indicator"),
+        err: t3({ en: "Please select at least one indicator", fr: "Veuillez sélectionner au moins un indicateur" }),
       };
     }
 
     if (params.startPeriod > params.endPeriod) {
       return {
         success: false,
-        err: t("Start period must be before end period"),
+        err: t3({ en: "Start period must be before end period", fr: "La période de début doit précéder la période de fin" }),
       };
     }
 
@@ -188,11 +188,11 @@ export function Step2_Dhis2(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-700 pb-4 text-lg">{t("DHIS2 Data Selection")}</div>
+        <div class="font-700 pb-4 text-lg">{t3({ en: "DHIS2 Data Selection", fr: "Sélection des données DHIS2" })}</div>
         <div class="ui-gap flex">
           <div class="flex-1">
             <label class="font-700 mb-4 block text-base">
-              {t("Select indicators to import")}
+              {t3({ en: "Select indicators to import", fr: "Sélectionner les indicateurs à importer" })}
             </label>
             <StateHolderWrapper state={indicators.state()} noPad>
               {(keyedIndicators) => (
@@ -202,9 +202,9 @@ export function Step2_Dhis2(p: Props) {
                   keyField="raw_indicator_id"
                   selectedKeys={selectedKeysSet}
                   setSelectedKeys={updateSelectedKeys}
-                  selectionLabel="indicator"
+                  selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
                   tableContentMaxHeight="500px"
-                  noRowsMessage={t("No indicators available")}
+                  noRowsMessage={t3({ en: "No indicators available", fr: "Aucun indicateur disponible" })}
                 />
               )}
             </StateHolderWrapper>
@@ -212,7 +212,7 @@ export function Step2_Dhis2(p: Props) {
 
           <div class="flex-1">
             <label class="font-700 mb-4 block text-base">
-              {t("Select Period Range")}
+              {t3({ en: "Select Period Range", fr: "Sélectionner la plage de périodes" })}
             </label>
             <PeriodSelector
               minPeriodId={periods.min}
@@ -234,11 +234,11 @@ export function Step2_Dhis2(p: Props) {
 
         <div class="border-base-300 mt-12 rounded border p-3 text-sm">
           <div class="text-base-content">
-            {t("Selected")}: {tempIndicators().length} {t2(T.FRENCH_UI_STRINGS.indicators_1)} ×{" "}
-            {getNMonths(tempStartPeriod(), tempEndPeriod())} {t("periods")} ={" "}
+            {t3({ en: "Selected", fr: "Sélectionné" })}: {tempIndicators().length} {t3({ en: "indicators", fr: "indicateurs" })} ×{" "}
+            {getNMonths(tempStartPeriod(), tempEndPeriod())} {t3({ en: "periods", fr: "périodes" })} ={" "}
             {tempIndicators().length *
               getNMonths(tempStartPeriod(), tempEndPeriod())}{" "}
-            {t("data points to fetch")}
+            {t3({ en: "data points to fetch", fr: "points de données à récupérer" })}
           </div>
         </div>
       </div>
@@ -252,7 +252,7 @@ export function Step2_Dhis2(p: Props) {
           disabled={!needsSaving()}
           iconName="save"
         >
-          {t("Save selection")}
+          {t3({ en: "Save selection", fr: "Sauvegarder la sélection" })}
         </Button>
       </div>
     </div>

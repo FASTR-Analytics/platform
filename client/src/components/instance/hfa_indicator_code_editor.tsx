@@ -1,5 +1,4 @@
 import {
-  t,
   t3,
   type HfaDictionaryForValidation,
   type HfaIndicator,
@@ -50,7 +49,7 @@ export function HfaIndicatorCodeEditor(
 ) {
   const codeQuery = timQuery(
     () => serverActions.getHfaIndicatorCode({ varName: p.indicator.varName }),
-    t("Loading code..."),
+    t3({ en: "Loading code...", fr: "Chargement du code..." }),
   );
 
   const [needsSaving, setNeedsSaving] = createSignal(false);
@@ -79,10 +78,10 @@ export function HfaIndicatorCodeEditor(
               iconName="save"
               onClick={handleSaveAndClose}
             >
-              {t("Save and close")}
+              {t3({ en: "Save and close", fr: "Sauvegarder et quitter" })}
             </Button>
             <Button intent="neutral" onClick={() => p.close(undefined)}>
-              {t("Discard")}
+              {t3({ en: "Discard", fr: "Annuler" })}
             </Button>
           </Show>
           <div class="font-700 flex-1 truncate text-xl">
@@ -210,7 +209,7 @@ function EditorInner(p: {
         <div class="ui-pad ui-spy-sm">
           <div class="flex items-end gap-4">
             <Input
-              label={t("Variable name")}
+              label={t3({ en: "Variable name", fr: "Nom de variable" })}
               value={state.varName}
               onChange={(v) => {
                 setState("varName", v);
@@ -219,7 +218,7 @@ function EditorInner(p: {
               mono
             />
             <Input
-              label={t("Category")}
+              label={t3({ en: "Category", fr: "Catégorie" })}
               value={state.category}
               onChange={(v) => {
                 setState("category", v);
@@ -227,20 +226,20 @@ function EditorInner(p: {
               }}
             />
             <RadioGroup
-              label={t("Type")}
+              label={t3({ en: "Type", fr: "Type" })}
               value={state.type}
               onChange={(v) => {
                 setState("type", v as "binary" | "numeric");
                 markDirty();
               }}
               options={[
-                { value: "binary", label: "Boolean" },
-                { value: "numeric", label: "Numeric" },
+                { value: "binary", label: t3({ en: "Boolean", fr: "Booléen" }) },
+                { value: "numeric", label: t3({ en: "Numeric", fr: "Numérique" }) },
               ]}
             />
           </div>
           <Input
-            label={t("Definition")}
+            label={t3({ en: "Definition", fr: "Définition" })}
             value={state.definition}
             onChange={(v) => {
               setState("definition", v);
@@ -253,7 +252,7 @@ function EditorInner(p: {
 
       <div class="flex min-h-0 flex-1">
         <div class="border-base-300 flex h-full w-48 flex-none flex-col overflow-auto border-r">
-          <div class="ui-pad-sm font-700 text-sm">{t("Time points")}</div>
+          <div class="ui-pad-sm font-700 text-sm">{t3({ en: "Time points", fr: "Points temporels" })}</div>
           <For each={p.dictionary.timePoints}>
             {(tp) => {
               const codeEntry = () =>
@@ -271,7 +270,7 @@ function EditorInner(p: {
                   <div>{tp.timePointLabel}</div>
                   <div class="text-base-content/50 text-xs">
                     {tp.timePoint}
-                    {hasCode() ? "" : " (no code)"}
+                    {hasCode() ? "" : ` (${t3({ en: "no code", fr: "aucun code" })})`}
                   </div>
                 </button>
               );
@@ -282,7 +281,7 @@ function EditorInner(p: {
         <div class="flex min-w-0 flex-1 flex-col overflow-auto">
           <Show
             when={currentTpIndex() >= 0}
-            fallback={<div class="ui-pad">{t("Select a time point")}</div>}
+            fallback={<div class="ui-pad">{t3({ en: "Select a time point", fr: "Sélectionner un point temporel" })}</div>}
           >
             <div class="ui-pad ui-gap flex h-full">
               <div class="ui-spy w-1/2">
@@ -356,7 +355,7 @@ function EditorInner(p: {
               </div>
               <div class="flex h-full flex-1 flex-col">
                 <div class="font-700 mb-2 text-sm">
-                  {t("Available variables")}
+                  {t3({ en: "Available variables", fr: "Variables disponibles" })}
                 </div>
                 <div class="bg-base-200 overflow-auto rounded p-2">
                   <Show when={currentTpDict()}>

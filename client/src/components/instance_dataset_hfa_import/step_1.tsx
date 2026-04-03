@@ -1,6 +1,6 @@
 import type Uppy from "@uppy/core";
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { t, t2, T, type DatasetHfaStep1Result } from "lib";
+import { t3, TC, type DatasetHfaStep1Result } from "lib";
 import { serverActions } from "~/server_actions";
 import {
   Button,
@@ -28,7 +28,7 @@ export function Step1(p: Props) {
 
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
-    t2(T.FRENCH_UI_STRINGS.loading_asset_files),
+    t3(TC.loadingAssets),
   );
 
   function updateSelectedCsvFileName(fileName: string) {
@@ -45,12 +45,12 @@ export function Step1(p: Props) {
     const csvAssetFileName = selectedCsvFileName();
     const xlsFormAssetFileName = selectedXlsFormFileName();
     if (!csvAssetFileName) {
-      return { success: false, err: t("You must select a CSV data file") };
+      return { success: false, err: t3({ en: "You must select a CSV data file", fr: "Vous devez sélectionner un fichier de données CSV" }) };
     }
     if (!xlsFormAssetFileName) {
       return {
         success: false,
-        err: t("You must select an XLSForm questionnaire file"),
+        err: t3({ en: "You must select an XLSForm questionnaire file", fr: "Vous devez sélectionner un fichier questionnaire XLSForm" }),
       };
     }
     return serverActions.uploadDatasetHfaCsv({
@@ -92,10 +92,10 @@ export function Step1(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <h3 class="font-700 text-lg">{t("CSV Data File")}</h3>
+      <h3 class="font-700 text-lg">{t3({ en: "CSV Data File", fr: "Fichier de données CSV" })}</h3>
       <div class="">
         <Button id="select-csv-button" iconName="upload">
-          {t2(T.FRENCH_UI_STRINGS.upload_new_csv_file_to_use)}
+          {t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser" })}
         </Button>
       </div>
       <div class="w-96">
@@ -103,7 +103,7 @@ export function Step1(p: Props) {
           {(keyedAssets) => {
             return (
               <Select
-                label={t2(T.FRENCH_UI_STRINGS.existing_csv_file_to_use)}
+                label={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
                 options={getSelectOptions(
                   keyedAssets.filter((a) => a.isCsv).map((a) => a.fileName),
                 )}
@@ -116,10 +116,10 @@ export function Step1(p: Props) {
         </StateHolderWrapper>
       </div>
 
-      <h3 class="font-700 text-lg">{t("XLSForm Questionnaire File")}</h3>
+      <h3 class="font-700 text-lg">{t3({ en: "XLSForm Questionnaire File", fr: "Fichier questionnaire XLSForm" })}</h3>
       <div class="">
         <Button id="select-xlsform-button" iconName="upload">
-          {t("Upload new XLSForm file")}
+          {t3({ en: "Upload new XLSForm file", fr: "Téléverser un nouveau fichier XLSForm" })}
         </Button>
       </div>
       <div class="w-96">
@@ -127,7 +127,7 @@ export function Step1(p: Props) {
           {(keyedAssets) => {
             return (
               <Select
-                label={t("Existing XLSForm file to use")}
+                label={t3({ en: "Existing XLSForm file to use", fr: "Fichier XLSForm existant à utiliser" })}
                 options={getSelectOptions(
                   keyedAssets.filter((a) => a.isXlsx).map((a) => a.fileName),
                 )}
@@ -153,7 +153,7 @@ export function Step1(p: Props) {
           }
           iconName="save"
         >
-          {t2(T.FRENCH_UI_STRINGS.save)}
+          {t3(TC.save)}
         </Button>
       </div>
     </div>

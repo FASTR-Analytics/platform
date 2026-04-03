@@ -7,7 +7,6 @@ import { useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideCard } from "./slide_card";
 import { setShowAi, showAi } from "~/state/ui.ts";
 import { useAIProjectContext } from "~/components/project_ai";
-import { t2 } from "../../../../lib/translate/mod.ts";
 
 type Props = {
   projectDetail: ProjectDetail;
@@ -384,7 +383,7 @@ export function SlideList(p: Props) {
       onClick: () => p.download(),
     },
     {
-      label: t2("Share"),
+      label: t3({ en: "Share", fr: "Partager" }),
       icon: "arrowRight",
       onClick: () => p.share(),
     }

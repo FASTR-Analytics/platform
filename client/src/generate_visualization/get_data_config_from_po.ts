@@ -9,9 +9,8 @@ import {
   getDisaggregatorDisplayProp,
   getFilteredValueProps,
   get_INDICATOR_COMMON_IDS_IN_SORT_ORDER,
-  t,
-  t2,
-  T,
+  t3,
+  TC,
 } from "lib";
 import { getDateLabelReplacements } from "./get_date_label_replacements";
 import { getAdminArea3LabelReplacements } from "./format_admin_area_labels";
@@ -60,8 +59,8 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
       labelReplacementsAfterSorting: {
         ...indicatorLabelReplacements,
         ...adminArea3LabelReplacements,
-        __NATIONAL: t2(T.FRENCH_UI_STRINGS.national),
-        zzNATIONAL: t2(T.FRENCH_UI_STRINGS.national),
+        __NATIONAL: t3(TC.national),
+        zzNATIONAL: t3(TC.national),
       },
     };
     return dataConfig;
@@ -119,8 +118,8 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
         ...indicatorLabelReplacements,
         ...dateLabelReplacements,
         ...adminArea3LabelReplacements,
-        __NATIONAL: t2(T.FRENCH_UI_STRINGS.national),
-        zzNATIONAL: t2(T.FRENCH_UI_STRINGS.national),
+        __NATIONAL: t3(TC.national),
+        zzNATIONAL: t3(TC.national),
       },
     };
     return dataConfig;
@@ -185,8 +184,8 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
         ...indicatorLabelReplacements,
         ...dateLabelReplacements,
         ...adminArea3LabelReplacements,
-        __NATIONAL: t2(T.FRENCH_UI_STRINGS.national),
-        zzNATIONAL: t2(T.FRENCH_UI_STRINGS.national),
+        __NATIONAL: t3(TC.national),
+        zzNATIONAL: t3(TC.national),
       },
     };
     return dataConfig;

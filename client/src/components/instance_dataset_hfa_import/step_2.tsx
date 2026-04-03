@@ -1,6 +1,6 @@
 import { type DatasetHfaStep1Result,
   encodeRawCsvHeader,
-  t, t2, T,
+  t3, TC,
   type HfaCsvMappingParams } from "lib";
 import {
   Button,
@@ -42,19 +42,19 @@ export function Step2(p: Props) {
     if (!mappings.facility_id) {
       return {
         success: false,
-        err: `${t("Missing value for")} facility_id`,
+        err: `${t3({ en: "Missing value for", fr: "Valeur manquante pour" })} facility_id`,
       };
     }
     if (!mappings.timePointId) {
       return {
         success: false,
-        err: t("You must enter a time point ID"),
+        err: t3({ en: "You must enter a time point ID", fr: "Vous devez saisir un identifiant de point temporel" }),
       };
     }
     if (!mappings.timePointLabel) {
       return {
         success: false,
-        err: t("You must enter a time point label"),
+        err: t3({ en: "You must enter a time point label", fr: "Vous devez saisir un libellé de point temporel" }),
       };
     }
     return serverActions.updateDatasetHfaMappings({
@@ -81,10 +81,10 @@ export function Step2(p: Props) {
         </div>
       </div>
       <div class="ui-spy-sm">
-        <h3 class="font-700 text-lg">{t("Time Point")}</h3>
+        <h3 class="font-700 text-lg">{t3({ en: "Time Point", fr: "Point temporel" })}</h3>
         <div class="w-96">
           <Input
-            label={t("Time point ID (e.g. 1, 2, round_1)")}
+            label={t3({ en: "Time point ID (e.g. 1, 2, round_1)", fr: "Identifiant du point temporel (ex. 1, 2, round_1)" })}
             value={tempMappings.timePointId}
             onChange={(val) => {
               setNeedsSaving(true);
@@ -95,7 +95,7 @@ export function Step2(p: Props) {
         </div>
         <div class="w-96">
           <Input
-            label={t("Time point label (e.g. December 2025, Round 3)")}
+            label={t3({ en: "Time point label (e.g. December 2025, Round 3)", fr: "Libellé du point temporel (ex. Décembre 2025, Cycle 3)" })}
             value={tempMappings.timePointLabel}
             onChange={(val) => {
               setNeedsSaving(true);
@@ -114,7 +114,7 @@ export function Step2(p: Props) {
           disabled={!needsSaving()}
           iconName="save"
         >
-          {t2(T.FRENCH_UI_STRINGS.save)}
+          {t3(TC.save)}
         </Button>
       </div>
     </div>

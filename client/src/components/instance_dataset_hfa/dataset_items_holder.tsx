@@ -1,7 +1,5 @@
 import {
-  t,
-  t2,
-  T,
+  t3,
   type HfaVariableRow,
   type ItemsHolderDatasetHfaDisplay,
 } from "lib";
@@ -23,13 +21,13 @@ export function DatasetItemsHolder(p: { cacheHash: string }) {
     StateHolder<ItemsHolderDatasetHfaDisplay>
   >({
     status: "loading",
-    msg: t2(T.FRENCH_UI_STRINGS.fetching_data),
+    msg: t3({ en: "Fetching data...", fr: "Récupération des données..." }),
   });
 
   async function attemptGetDatatable() {
     setItemsHolder({
       status: "loading",
-      msg: t2(T.FRENCH_UI_STRINGS.fetching_data),
+      msg: t3({ en: "Fetching data...", fr: "Récupération des données..." }),
     });
     const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(p.cacheHash);
     if (res.success === false) {
@@ -80,39 +78,39 @@ function DatasetDisplayPresentation(p: {
   const columns: TableColumn<DisplayRow>[] = [
     {
       key: "varName",
-      header: t("Variable"),
+      header: t3({ en: "Variable", fr: "Variable" }),
       sortable: true,
     },
     {
       key: "varType",
-      header: t("Type"),
+      header: t3({ en: "Type", fr: "Type" }),
       sortable: true,
     },
     {
       key: "timePoint",
-      header: t("Time Point"),
+      header: t3({ en: "Time Point", fr: "Point temporel" }),
       sortable: true,
     },
     {
       key: "timePointLabel",
-      header: t("Time Point Label"),
+      header: t3({ en: "Time Point Label", fr: "Libellé du point temporel" }),
       sortable: true,
     },
     {
       key: "varLabel",
-      header: t("Label"),
+      header: t3({ en: "Label", fr: "Libellé" }),
       sortable: true,
     },
     {
       key: "count",
-      header: t("Count"),
+      header: t3({ en: "Count", fr: "Nombre" }),
       sortable: true,
       alignH: "right",
       render: (item) => <>{toNum0(item.count)}</>,
     },
     {
       key: "missing",
-      header: t("Missing"),
+      header: t3({ en: "Missing", fr: "Manquant" }),
       sortable: true,
       alignH: "right",
       render: (item) => (
@@ -123,13 +121,13 @@ function DatasetDisplayPresentation(p: {
     },
     {
       key: "questionnaireValues",
-      header: t("Questionnaire Values"),
+      header: t3({ en: "Questionnaire Values", fr: "Valeurs du questionnaire" }),
       sortable: false,
       render: (item) => <span class="text-xs">{item.questionnaireValues}</span>,
     },
     {
       key: "dataValues",
-      header: t("Data Values"),
+      header: t3({ en: "Data Values", fr: "Valeurs des données" }),
       sortable: false,
       render: (item) => <span class="text-xs">{item.dataValues}</span>,
     },
@@ -140,7 +138,7 @@ function DatasetDisplayPresentation(p: {
       <div class="border-base-300 flex-none border-b p-2">
         <div class="w-96">
           <Input
-            placeholder={t("Search variables...")}
+            placeholder={t3({ en: "Search variables...", fr: "Rechercher des variables..." })}
             value={searchText()}
             onChange={setSearchText}
             searchIcon
@@ -153,7 +151,7 @@ function DatasetDisplayPresentation(p: {
           data={rows()}
           columns={columns}
           keyField="_key"
-          noRowsMessage={t("No variables found")}
+          noRowsMessage={t3({ en: "No variables found", fr: "Aucune variable trouvée" })}
           fitTableToAvailableHeight
           paddingY="compact"
         />

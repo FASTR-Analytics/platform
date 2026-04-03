@@ -1,4 +1,4 @@
-import { t, t2, T, type InstanceConfigFacilityColumns } from "lib";
+import { t3, type InstanceConfigFacilityColumns } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -51,7 +51,7 @@ export function StructureUploadAttemptForm(p: Props) {
           success: true;
           data: StructureUploadAttemptDetail;
         };
-  }, t2(T.FRENCH_UI_STRINGS.loading_import_info));
+  }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation..." }));
 
   // Remove unused instanceDetail query
   // const instanceDetail = timQuery(
@@ -98,7 +98,7 @@ export function StructureUploadAttemptForm(p: Props) {
   // Actions
   async function attemptDeleteStructureUploadAttempt() {
     const deleteAction = timActionDelete(
-      t("Are you sure you want to delete this import?"),
+      t3({ en: "Are you sure you want to delete this import?", fr: "Êtes-vous sûr de vouloir supprimer cette importation ?" }),
       () => serverActions.deleteStructureUploadAttempt({}),
       () => p.close({ needsReload: true }),
     );
@@ -110,7 +110,7 @@ export function StructureUploadAttemptForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeaderBarCanGoBack
-          heading={t("Structure Import")}
+          heading={t3({ en: "Structure Import", fr: "Importation de la structure" })}
           back={() => p.close(undefined)}
         >
           <div class="ui-gap-sm flex flex-none items-center">
@@ -124,7 +124,7 @@ export function StructureUploadAttemptForm(p: Props) {
               intent="danger"
               iconName="trash"
             >
-              {t2(T.FRENCH_UI_STRINGS.discard_upload)}
+              {t3({ en: "Discard upload", fr: "Annuler le téléversement" })}
             </Button>
           </div>
         </HeaderBarCanGoBack>
@@ -133,7 +133,7 @@ export function StructureUploadAttemptForm(p: Props) {
       <StateHolderWrapper
         state={uploadAttempt.state()}
         onErrorButton={{
-          label: t("Back to structure"),
+          label: t3({ en: "Back to structure", fr: "Retour à la structure" }),
           onClick: () => p.close(undefined),
         }}
       >
@@ -142,8 +142,7 @@ export function StructureUploadAttemptForm(p: Props) {
             <Switch
               fallback={
                 <div class="ui-pad text-danger">
-                  {t("Something went wrong")}: Bad step in structure upload
-                  attempt
+                  {t3({ en: "Something went wrong: Bad step in structure upload attempt", fr: "Une erreur est survenue : étape incorrecte lors de la tentative d'importation de structure" })}
                 </div>
               }
             >
@@ -156,7 +155,7 @@ export function StructureUploadAttemptForm(p: Props) {
               >
                 {(errorMsg) => {
                   return (
-                    <div class="ui-pad text-danger">ERROR! {errorMsg}</div>
+                    <div class="ui-pad text-danger">{t3({ en: "ERROR!", fr: "ERREUR !" })} {errorMsg}</div>
                   );
                 }}
               </Match>

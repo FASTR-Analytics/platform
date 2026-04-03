@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { t, t2, T } from "lib";
+import { t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import {
   Button,
@@ -33,7 +33,7 @@ export function Step0(p: Props) {
     if (sourceType !== "csv" && sourceType !== "dhis2") {
       return {
         success: false,
-        err: t("You must select a source type"),
+        err: t3({ en: "You must select a source type", fr: "Vous devez sélectionner un type de source" }),
       };
     }
 
@@ -47,8 +47,8 @@ export function Step0(p: Props) {
       <div class="w-96">
         <RadioGroup
           options={[
-            { value: "csv", label: "Upload CSV file" },
-            { value: "dhis2", label: "Import directly from DHIS2" },
+            { value: "csv", label: t3({ en: "Upload CSV file", fr: "Téléverser un fichier CSV" }) },
+            { value: "dhis2", label: t3({ en: "Import directly from DHIS2", fr: "Importer directement depuis DHIS2" }) },
           ]}
           value={selectedSourceType()}
           onChange={(v) => updateSelectedSourceType(v as "csv" | "dhis2")}
@@ -63,7 +63,7 @@ export function Step0(p: Props) {
           disabled={!needsSaving() || selectedSourceType() === "none"}
           iconName="save"
         >
-          {t2(T.FRENCH_UI_STRINGS.save)}
+          {t3(TC.save)}
         </Button>
       </div>
     </div>

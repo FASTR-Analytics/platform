@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router";
-import { InstanceDetail, T, t, t2 } from "lib";
+import { InstanceDetail, t3, TC } from "lib";
 import {
   Button,
   FrameLeft,
@@ -82,7 +82,7 @@ export default function Project(p: Props) {
     <ProjectRunnerProvider projectId={p.projectId}>
       <StateHolderWrapper
         state={p.instanceDetail.state()}
-        onErrorButton={{ label: t("Go home"), link: "/" }}
+        onErrorButton={{ label: t3({ en: "Go home", fr: "Retour à l'accueil" }), link: "/" }}
       >
         {(keyedInstanceDetail) => {
           const projectDetail = useProjectDetail();
@@ -98,13 +98,13 @@ export default function Project(p: Props) {
 
           const allTabs = [
             ...(projectDetail.thisUserPermissions.can_view_slide_decks
-              ? [{ value: "decks" as const, label: "Slide decks" }]
+              ? [{ value: "decks" as const, label: t3({ en: "Slide decks", fr: "Présentations" }) }]
               : []),
             // ...(projectDetail.thisUserPermissions.can_view_reports
             //   ? [
             //       {
             //         value: "reports" as const,
-            //         label: t2(T.FRENCH_UI_STRINGS.reports),
+            //         label: t3({ en: "Reports", fr: "Rapports" }),
             //       },
             //     ]
             //   : []),
@@ -112,12 +112,12 @@ export default function Project(p: Props) {
               ? [
                   {
                     value: "visualizations" as const,
-                    label: t2(T.FRENCH_UI_STRINGS.visualizations),
+                    label: t3({ en: "Visualizations", fr: "Visualisations" }),
                   },
                 ]
               : []),
             ...(projectDetail.thisUserPermissions.can_view_metrics
-              ? [{ value: "metrics" as const, label: t2("Metrics") }]
+              ? [{ value: "metrics" as const, label: t3({ en: "Metrics", fr: "Indicateurs" }) }]
               : []),
             ...(projectDetail.thisUserPermissions.can_configure_modules ||
             projectDetail.thisUserPermissions.can_run_modules ||
@@ -125,7 +125,7 @@ export default function Project(p: Props) {
               ? [
                   {
                     value: "modules" as const,
-                    label: t2(T.FRENCH_UI_STRINGS.modules),
+                    label: t3({ en: "Modules", fr: "Modules" }),
                   },
                 ]
               : []),
@@ -133,7 +133,7 @@ export default function Project(p: Props) {
               ? [
                   {
                     value: "data" as const,
-                    label: t2(T.FRENCH_UI_STRINGS.data),
+                    label: t3({ en: "Data", fr: "Données" }),
                   },
                 ]
               : []),
@@ -141,7 +141,7 @@ export default function Project(p: Props) {
               ? [
                   {
                     value: "settings" as const,
-                    label: t2(T.FRENCH_UI_STRINGS.settings),
+                    label: t3(TC.settings),
                   },
                 ]
               : []),
@@ -155,7 +155,7 @@ export default function Project(p: Props) {
                   when={allTabs.length > 0}
                   fallback={
                     <div class="ui-pad text-danger">
-                      {t("No accessible tabs for this project.")}
+                      {t3({ en: "No accessible tabs for this project.", fr: "Aucun onglet accessible pour ce projet." })}
                     </div>
                   }
                 >
@@ -202,7 +202,7 @@ export default function Project(p: Props) {
                                 intent="base-100"
                                 outline
                               >
-                                Send feedback
+                                {t3({ en: "Send feedback", fr: "Envoyer un commentaire" })}
                               </Button>
                               <Show when={!showAi()}>
                                 <Button
@@ -211,7 +211,7 @@ export default function Project(p: Props) {
                                   intent="base-100"
                                   outline
                                 >
-                                  {t("AI")}
+                                  {t3({ en: "AI", fr: "IA" })}
                                 </Button>
                               </Show>
                               <ProjectRunStatus />
