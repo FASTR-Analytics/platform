@@ -1,6 +1,6 @@
-import { DatasetHfaUploadAttemptDetail,
-  DatasetHfaUploadAttemptStatus,
-  DatasetHfaUploadAttemptStatusLight,
+import { type DatasetHfaUploadAttemptDetail,
+  type DatasetHfaUploadAttemptStatus,
+  type DatasetHfaUploadAttemptStatusLight,
   t, t2, T } from "lib";
 import {
   Button,

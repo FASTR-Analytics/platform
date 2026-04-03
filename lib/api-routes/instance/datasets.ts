@@ -1,6 +1,5 @@
 import type {
   DatasetHfaDetail,
-  DatasetHfaVersion,
   ItemsHolderDatasetHfaDisplay,
 } from "../../types/dataset_hfa.ts";
 import type {
@@ -118,20 +117,15 @@ export const datasetRouteRegistry = {
     method: "GET",
     response: {} as DatasetHfaDetail,
   }),
-  getDatasetHfaVersions: route({
-    path: "/datasets/hfa/versions",
-    method: "GET",
-    response: {} as DatasetHfaVersion[],
-  }),
   getDatasetHfaDisplayInfo: route({
     path: "/datasets/hfa/data",
     method: "POST",
-    body: {} as { versionId: number },
     response: {} as ItemsHolderDatasetHfaDisplay,
   }),
-  deleteAllDatasetHfaData: route({
+  deleteDatasetHfaData: route({
     path: "/datasets/hfa/data",
     method: "DELETE",
+    body: {} as { timePoint?: string },
   }),
 
   // HFA Upload workflow
@@ -158,7 +152,7 @@ export const datasetRouteRegistry = {
   uploadDatasetHfaCsv: route({
     path: "/dataset-uploads/hfa/csv",
     method: "POST",
-    body: {} as { assetFileName: string },
+    body: {} as { csvAssetFileName: string; xlsFormAssetFileName: string },
   }),
   updateDatasetHfaMappings: route({
     path: "/dataset-uploads/hfa/mappings",

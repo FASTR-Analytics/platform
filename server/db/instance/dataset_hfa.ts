@@ -8,7 +8,7 @@ import {
   parseJsonOrUndefined,
   throwIfErrWithData,
   DatasetHfaDetail,
-  DatasetHfaVersion,
+  DatasetHfaStep1Result,
   ItemsHolderDatasetHfaDisplay,
   DatasetHfaCsvStagingResult,
   DatasetHfaUploadAttemptDetail,
@@ -18,6 +18,7 @@ import {
   DatasetHfaUploadStatusResponse,
 } from "lib";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
+import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 import { instantiateIntegrateHfaDataWorker } from "../../worker_routines/integrate_hfa_data/instantiate_worker.ts";
 import { instantiateStageHfaDataCsvWorker } from "../../worker_routines/stage_hfa_data_csv/instantiate_worker.ts";
 import {
@@ -27,8 +28,15 @@ import {
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import type {
   DBDatasetHfaUploadAttempt,
-  DBDatasetHfaVersion,
 } from "./_main_database_types.ts";
+
+export function computeHfaCacheHash(
+  timePointRows: { time_point: string; date_imported: string | null }[],
+): string {
+  return timePointRows
+    .map((r) => `${r.time_point}:${r.date_imported ?? ""}`)
+    .join("|");
+}
 
 async function getRawUA(
   mainDb: Sql
@@ -71,14 +79,18 @@ export async function getDatasetHfaDetail(
     if (resUploadAttempt.success === false) {
       return resUploadAttempt;
     }
-    const resVersions = await getVersionsForDatasetHfa(mainDb);
-    if (resVersions.success === false) {
-      return resVersions;
-    }
+    const timePointRows = await mainDb<{ time_point: string; time_point_label: string; date_imported: string | null }[]>`
+      SELECT time_point, time_point_label, date_imported FROM dataset_hfa_dictionary_time_points ORDER BY time_point
+    `;
+    const cacheHash = computeHfaCacheHash(timePointRows);
     const dataset: DatasetHfaDetail = {
       uploadAttempt: resUploadAttempt.data,
-      currentVersionId: resVersions.data.at(0)?.id,
-      nVersions: resVersions.data.length,
+      timePoints: timePointRows.map((r) => ({
+        timePoint: r.time_point,
+        timePointLabel: r.time_point_label,
+        dateImported: r.date_imported ?? undefined,
+      })),
+      cacheHash,
     };
     return { success: true, data: dataset };
   });
@@ -97,37 +109,25 @@ export async function getDatasetHfaDetail(
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export async function getVersionsForDatasetHfa(
-  mainDb: Sql
-): Promise<APIResponseWithData<DatasetHfaVersion[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const csvVersions = (
-      await mainDb<
-        DBDatasetHfaVersion[]
-      >`SELECT * FROM dataset_hfa_versions ORDER BY id DESC`
-    ).map<DatasetHfaVersion>((rawDatatableVersion) => {
-      return {
-        id: rawDatatableVersion.id,
-        nRowsTotalImported: rawDatatableVersion.n_rows_total_imported,
-        nRowsInserted: rawDatatableVersion.n_rows_inserted ?? undefined,
-        nRowsUpdated: rawDatatableVersion.n_rows_updated ?? undefined,
-        stagingResult: rawDatatableVersion.staging_result
-          ? parseJsonOrUndefined<DatasetHfaCsvStagingResult>(
-              rawDatatableVersion.staging_result
-            )
-          : undefined,
-      };
-    });
-    return { success: true, data: csvVersions };
-  });
-}
-
-export async function deleteAllDatasetHfaData(
-  mainDb: Sql
+export async function deleteDatasetHfaData(
+  mainDb: Sql,
+  timePoint?: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`DELETE FROM dataset_hfa`;
-    await mainDb`DELETE FROM dataset_hfa_versions`;
+    await mainDb.begin(async (sql) => {
+      if (timePoint) {
+        await sql`DELETE FROM dataset_hfa WHERE time_point = ${timePoint}`;
+        await sql`DELETE FROM dataset_hfa_dictionary_vars WHERE time_point = ${timePoint}`;
+        await sql`DELETE FROM hfa_indicator_code WHERE time_point = ${timePoint}`;
+        await sql`DELETE FROM dataset_hfa_dictionary_time_points WHERE time_point = ${timePoint}`;
+      } else {
+        await sql`DELETE FROM dataset_hfa`;
+        await sql`DELETE FROM dataset_hfa_dictionary_values`;
+        await sql`DELETE FROM dataset_hfa_dictionary_vars`;
+        await sql`DELETE FROM hfa_indicator_code`;
+        await sql`DELETE FROM dataset_hfa_dictionary_time_points`;
+      }
+    });
     return { success: true };
   });
 }
@@ -153,56 +153,149 @@ export async function deleteAllDatasetHfaData(
 
 export async function getDatasetHfaItemsForDisplay(
   mainDb: Sql,
-  versionId: number | undefined
 ): Promise<APIResponseWithData<ItemsHolderDatasetHfaDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
-    const datasetTableName = "dataset_hfa";
-
-    // For HFA, group by var_name and time_point
-    const vizItems = await mainDb<Record<string, string | number>[]>`
-SELECT COUNT(*) AS count, var_name, time_point
-FROM ${mainDb(datasetTableName)} d
-GROUP BY var_name, time_point
-`;
-
-    const variables = (
-      await mainDb<{ var_name: string }[]>`
-SELECT DISTINCT var_name
-FROM ${mainDb(datasetTableName)}
-ORDER BY var_name
-`
-    ).map<{ value: string; label: string }>((v) => {
-      return {
-        value: v.var_name,
-        label: v.var_name,
-      };
-    });
-
-    const adminArea2s = (
-      await mainDb<
-        { admin_area_2: string }[]
-      >`SELECT admin_area_2 FROM admin_areas_2 ORDER BY LOWER(admin_area_2)`
-    ).map<{ value: string; label: string }>((aa) => {
-      return {
-        value: aa.admin_area_2,
-        label: aa.admin_area_2,
-      };
-    });
-
-    const variableLabels: Record<string, string> = {};
-    for (const v of variables) {
-      variableLabels[v.value] = v.label;
+    // Time point labels
+    const timePointRows = await mainDb<{ time_point: string; time_point_label: string; date_imported: string | null }[]>`
+      SELECT time_point, time_point_label, date_imported
+      FROM dataset_hfa_dictionary_time_points
+      ORDER BY time_point
+    `;
+    const tpLabelMap: Record<string, string> = {};
+    for (const r of timePointRows) {
+      tpLabelMap[r.time_point] = r.time_point_label;
     }
 
-    const ih: ItemsHolderDatasetHfaDisplay = {
-      versionId,
-      vizItems,
-      variableLabels,
-      variables,
-      adminArea2s,
-    };
+    // Variable labels per (time_point, var_name)
+    const dictVarRows = await mainDb<{ time_point: string; var_name: string; var_label: string; var_type: string }[]>`
+      SELECT time_point, var_name, var_label, var_type
+      FROM dataset_hfa_dictionary_vars
+      ORDER BY var_name, time_point
+    `;
 
-    return { success: true, data: ih };
+    // Questionnaire values per (time_point, var_name) — only for select vars
+    const dictValueRows = await mainDb<{ time_point: string; var_name: string; value: string; value_label: string }[]>`
+      SELECT time_point, var_name, value, value_label
+      FROM dataset_hfa_dictionary_values
+      ORDER BY var_name, time_point, value
+    `;
+    // Build map: "tp|var_name" → "1: Yes, 2: No, ..."
+    const questionnaireValuesMap = new Map<string, string>();
+    const varsWithChoices = new Set<string>();
+    {
+      const grouped = new Map<string, string[]>();
+      for (const r of dictValueRows) {
+        const key = `${r.time_point}|${r.var_name}`;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push(`${r.value}: ${r.value_label}`);
+        varsWithChoices.add(`${r.time_point}|${r.var_name}`);
+      }
+      for (const [key, parts] of grouped) {
+        questionnaireValuesMap.set(key, parts.join(", "));
+      }
+    }
+
+    // Counts, missing, and stats per (var_name, time_point) from data
+    // Counts and missing per (var_name, time_point)
+    const statsRows = await mainDb<{
+      var_name: string;
+      time_point: string;
+      total_count: string;
+      missing_count: string;
+    }[]>`
+      SELECT
+        var_name,
+        time_point,
+        COUNT(*) AS total_count,
+        COUNT(*) FILTER (WHERE value = '') AS missing_count
+      FROM dataset_hfa
+      GROUP BY var_name, time_point
+      ORDER BY var_name, time_point
+    `;
+
+    // Distinct data values for ALL variables
+    const dataValueRows = await mainDb<{ time_point: string; var_name: string; value: string }[]>`
+      SELECT DISTINCT d.time_point, d.var_name, d.value
+      FROM dataset_hfa d
+      WHERE d.value != ''
+      ORDER BY d.var_name, d.time_point, d.value
+    `;
+    const dataValuesMap = new Map<string, string>();
+    {
+      const grouped = new Map<string, string[]>();
+      for (const r of dataValueRows) {
+        const key = `${r.time_point}|${r.var_name}`;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push(r.value);
+      }
+      for (const [key, vals] of grouped) {
+        // Sort numerically if all values are numeric, otherwise alphabetically
+        const allNumeric = vals.every((v) => /^-?\d*\.?\d+$/.test(v));
+        if (allNumeric) {
+          vals.sort((a, b) => Number(a) - Number(b));
+        }
+        // Compact format: show all if <=10, otherwise first 3... last
+        if (vals.length <= 10) {
+          dataValuesMap.set(key, vals.join(", "));
+        } else {
+          const first = vals.slice(0, 3).join(", ");
+          const last = vals[vals.length - 1];
+          dataValuesMap.set(key, `${first}... ${last}`);
+        }
+      }
+    }
+
+    // Build stats lookup
+    const statsMap = new Map<string, { count: number; missing: number }>();
+    for (const r of statsRows) {
+      const key = `${r.time_point}|${r.var_name}`;
+      statsMap.set(key, {
+        count: Number(r.total_count),
+        missing: Number(r.missing_count),
+      });
+    }
+
+    // Build rows — use dictionary vars if available, otherwise fall back to stats
+    const rows: import("lib").HfaVariableRow[] = [];
+
+    if (dictVarRows.length > 0) {
+      // Dictionary exists: one row per dictionary var + time_point
+      for (const dv of dictVarRows) {
+        const key = `${dv.time_point}|${dv.var_name}`;
+        const stats = statsMap.get(key);
+
+        rows.push({
+          varName: dv.var_name,
+          varType: dv.var_type,
+          timePoint: dv.time_point,
+          timePointLabel: tpLabelMap[dv.time_point] ?? dv.time_point,
+          varLabel: dv.var_label,
+          count: stats?.count ?? 0,
+          missing: stats?.missing ?? 0,
+          questionnaireValues: questionnaireValuesMap.get(key) ?? "",
+          dataValues: dataValuesMap.get(key) ?? "",
+        });
+      }
+    } else {
+      // No dictionary: fall back to data stats directly
+      for (const r of statsRows) {
+        const key = `${r.time_point}|${r.var_name}`;
+        rows.push({
+          varName: r.var_name,
+          varType: "",
+          timePoint: r.time_point,
+          timePointLabel: tpLabelMap[r.time_point] ?? r.time_point,
+          varLabel: r.var_name,
+          count: Number(r.total_count),
+          missing: Number(r.missing_count),
+          questionnaireValues: "",
+          dataValues: dataValuesMap.get(key) ?? "",
+        });
+      }
+    }
+
+    const cacheHash = computeHfaCacheHash(timePointRows);
+    return { success: true, data: { rows, cacheHash } };
   });
 }
 
@@ -384,18 +477,33 @@ export async function deleteDatasetHfaUploadAttempt(
 
 export async function updateDatasetHfaUploadAttempt_Step1CsvUpload(
   mainDb: Sql,
-  assetFileName: string
+  csvAssetFileName: string,
+  xlsFormAssetFileName: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await getRawUAOrThrow(mainDb); // Verify exists
-    const assetFilePath = join(_ASSETS_DIR_PATH, assetFileName);
-    const resCsvDetails = await getCsvDetails(assetFilePath, assetFileName);
+    await getRawUAOrThrow(mainDb);
+    const csvAssetFilePath = join(_ASSETS_DIR_PATH, csvAssetFileName);
+    const resCsvDetails = await getCsvDetails(csvAssetFilePath, csvAssetFileName);
     throwIfErrWithData(resCsvDetails);
+    const xlsFormFilePath = join(_ASSETS_DIR_PATH, xlsFormAssetFileName);
+    const sheetNames = getXlsxSheetNamesRaw(xlsFormFilePath);
+    if (!sheetNames.includes("survey") || !sheetNames.includes("choices")) {
+      throw new Error(
+        "XLSForm file must contain both 'survey' and 'choices' sheets",
+      );
+    }
+    const step1Result: DatasetHfaStep1Result = {
+      csv: resCsvDetails.data,
+      xlsForm: {
+        fileName: xlsFormAssetFileName,
+        filePath: xlsFormFilePath,
+      },
+    };
     await mainDb`
   UPDATE dataset_hfa_upload_attempts
   SET
     step = 2,
-    step_1_result = ${JSON.stringify(resCsvDetails.data)},
+    step_1_result = ${JSON.stringify(step1Result)},
     step_2_result = NULL,
     step_3_result = NULL
     `;
@@ -500,7 +608,7 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
 }
 
 export async function updateDatasetHfaUploadAttempt_Step4Integrate(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawDUA = await getRawUAOrThrow(mainDb);
@@ -592,40 +700,3 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-export async function getCurrentDatasetHfaMaxVersionId(
-  mainDb: Sql
-): Promise<number | undefined> {
-  const maxId = (
-    await mainDb<{ max_id: number }[]>`
-SELECT MAX(id) AS max_id FROM dataset_hfa_versions
-`
-  ).at(0)?.max_id;
-  return typeof maxId === "number" ? maxId : undefined;
-}
-
-export async function getCurrentDatasetHfaVersion(
-  mainDb: Sql
-): Promise<DatasetHfaVersion | undefined> {
-  const rawDatasetVersion = (
-    await mainDb<DBDatasetHfaVersion[]>`
-SELECT * FROM dataset_hfa_versions
-ORDER BY id DESC
-LIMIT 1
-`
-  ).at(0);
-  if (!rawDatasetVersion) {
-    return undefined;
-  }
-  const datasetVersion: DatasetHfaVersion = {
-    id: rawDatasetVersion.id,
-    nRowsTotalImported: rawDatasetVersion.n_rows_total_imported,
-    nRowsInserted: rawDatasetVersion.n_rows_inserted ?? undefined,
-    nRowsUpdated: rawDatasetVersion.n_rows_updated ?? undefined,
-    stagingResult: rawDatasetVersion.staging_result
-      ? parseJsonOrUndefined<DatasetHfaCsvStagingResult>(
-          rawDatasetVersion.staging_result
-        )
-      : undefined,
-  };
-  return datasetVersion;
-}

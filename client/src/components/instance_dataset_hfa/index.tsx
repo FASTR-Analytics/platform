@@ -1,4 +1,4 @@
-import { t, t2, T, type DatasetUploadAttemptSummary, type InstanceDetail } from "lib";
+import { t, t2, T, type DatasetHfaDictionaryTimePoint, type DatasetUploadAttemptSummary, type InstanceDetail } from "lib";
 import {
   Button,
   FrameRight,
@@ -22,7 +22,7 @@ import {
 import { DatasetHfaUploadAttemptForm } from "~/components/instance_dataset_hfa_import";
 import { serverActions } from "~/server_actions";
 import { DeleteData } from "./_delete_data";
-import { PreviousImports } from "./_previous_imports";
+import { TimePointsView } from "./_time_points";
 import { DatasetItemsHolder } from "./dataset_items_holder";
 
 type Props = {
@@ -109,20 +109,21 @@ export function InstanceDatasetHfa(p: Props) {
     });
   }
 
-  async function viewPreviousImports() {
+  async function viewTimePoints(timePoints: DatasetHfaDictionaryTimePoint[]) {
     const _res = await openEditor({
-      element: PreviousImports,
+      element: TimePointsView,
       props: {
-        isGlobalAdmin: p.isGlobalAdmin,
+        timePoints,
       },
     });
   }
 
-  async function deleteData() {
+  async function deleteData(timePoints: DatasetHfaDictionaryTimePoint[]) {
     const _res = await openEditor({
       element: DeleteData,
       props: {
         isGlobalAdmin: p.isGlobalAdmin,
+        timePoints,
         silentFetch: async () => {
           await datasetDetail.silentFetch();
           await p.instanceDetail.silentFetch();
@@ -273,7 +274,7 @@ export function InstanceDatasetHfa(p: Props) {
                                 }}
                               </Match>
                             </Switch>
-                            <Show when={keyedDatasetDetail.nVersions > 0}>
+                            <Show when={keyedDatasetDetail.timePoints.length > 0}>
                               <div class="ui-spy text-sm">
                                 {/* <div class="">
                             {keyedDatasetDetail.nVersions} previous import
@@ -281,17 +282,17 @@ export function InstanceDatasetHfa(p: Props) {
                           </div> */}
                                 <div class="">
                                   <Button
-                                    onClick={viewPreviousImports}
+                                    onClick={() => viewTimePoints(keyedDatasetDetail.timePoints)}
                                     outline
                                     fullWidth
                                     iconName="folder"
                                   >
-                                    View previous imports
+                                    {t("View time points")}
                                   </Button>
                                 </div>
                                 <div class="">
                                   <Button
-                                    onClick={deleteData}
+                                    onClick={() => deleteData(keyedDatasetDetail.timePoints)}
                                     intent="danger"
                                     iconName="trash"
                                     outline
@@ -308,12 +309,10 @@ export function InstanceDatasetHfa(p: Props) {
                     >
                       <div class="h-full w-full">
                         <Show
-                          when={keyedDatasetDetail.currentVersionId}
+                          when={keyedDatasetDetail.timePoints.length > 0}
                           fallback={<div class="ui-pad">{t("No data")}</div>}
                         >
-                          <DatasetItemsHolder
-                            versionId={keyedDatasetDetail.currentVersionId!}
-                          />
+                          <DatasetItemsHolder cacheHash={keyedDatasetDetail.cacheHash} />
                         </Show>
                       </div>
                     </FrameRight>

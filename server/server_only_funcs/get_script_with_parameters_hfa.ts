@@ -1,14 +1,14 @@
-import type { HfaIndicator } from "lib";
+import type { HfaIndicator, HfaIndicatorCode } from "lib";
 import {
-  extractDependencies,
-  buildDependencyGraph,
+  extractDependenciesFromCode,
+  buildUnionDependencyGraph,
   topologicalSort,
   formatCycles,
 } from "./hfa_dependency_analyzer.ts";
 
 function generateMissingnessCheck(qids: string[]): string {
   const missingChecks = qids.map(
-    (varName) => `is.na(${varName}) | ${varName} == -99`
+    (varName) => `is.na(${varName}) | ${varName} == -99`,
   );
 
   if (missingChecks.length === 0) {
@@ -20,94 +20,116 @@ function generateMissingnessCheck(qids: string[]): string {
   }
 }
 
-function getFinalMutateExpression(
-  rCode: string,
-  qids: string[],
-  rFilterCode: string | undefined,
-  type: "binary" | "numeric"
+function buildPerTimePointMutateExpression(
+  indicator: HfaIndicator,
+  codeSnippets: HfaIndicatorCode[],
+  allIndicatorVarNames: Set<string>,
+  knownDatasetVariables: Set<string>,
 ): string {
-  const cleanRCode = rCode.trim();
-  const cleanRFilterCode = rFilterCode?.trim() ?? "";
-  const missingnessCheck = generateMissingnessCheck(qids);
-  const hasFilter = cleanRFilterCode !== "";
+  const timePointBranches: string[] = [];
 
-  if (type === "numeric") {
-    if (hasFilter) {
-      return `case_when(
-    ${missingnessCheck} ~ NA_real_,
-    !(${cleanRFilterCode}) ~ NA_real_,
-    TRUE ~ ${cleanRCode}
-  )`;
+  for (const snippet of codeSnippets) {
+    const rCode = snippet.rCode.trim();
+    if (!rCode) continue;
+
+    const rFilterCode = snippet.rFilterCode?.trim() ?? "";
+    const deps = extractDependenciesFromCode(
+      rCode,
+      snippet.rFilterCode,
+      allIndicatorVarNames,
+      knownDatasetVariables,
+    );
+    const missingnessCheck = generateMissingnessCheck(deps.qids);
+
+    if (indicator.type === "numeric") {
+      if (rFilterCode) {
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" & (${missingnessCheck}) ~ NA_real_`,
+        );
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" & !(${rFilterCode}) ~ NA_real_`,
+        );
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" ~ ${rCode}`,
+        );
+      } else {
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" & (${missingnessCheck}) ~ NA_real_`,
+        );
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" ~ ${rCode}`,
+        );
+      }
+    } else {
+      if (rFilterCode) {
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" & (${missingnessCheck}) ~ NA_real_`,
+        );
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" & !(${rFilterCode}) ~ NA_real_`,
+        );
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" & (${rCode}) ~ 1`,
+        );
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" ~ 0`,
+        );
+      } else {
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" & (${missingnessCheck}) ~ NA_real_`,
+        );
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" & (${rCode}) ~ 1`,
+        );
+        timePointBranches.push(
+          `    time_point == "${snippet.timePoint}" ~ 0`,
+        );
+      }
     }
-    return `case_when(
-    ${missingnessCheck} ~ NA_real_,
-    TRUE ~ ${cleanRCode}
-  )`;
   }
 
-  if (hasFilter) {
-    return `case_when(
-    ${missingnessCheck} ~ NA_real_,
-    !(${cleanRFilterCode}) ~ NA_real_,
-    ${cleanRCode} ~ 1,
-    TRUE ~ 0
-  )`;
-  }
+  timePointBranches.push("    TRUE ~ NA_real_");
 
-  return `case_when(
-    ${missingnessCheck} ~ NA_real_,
-    ${cleanRCode} ~ 1,
-    TRUE ~ 0
-  )`;
+  return `case_when(\n${timePointBranches.join(",\n")}\n  )`;
 }
 
 export function getScriptWithParametersHfa(
   indicators: HfaIndicator[],
-  knownDatasetVariables: Set<string>
+  indicatorCode: HfaIndicatorCode[],
+  knownDatasetVariables: Set<string>,
 ): string {
   const allIndicatorVarNames = new Set(indicators.map((ind) => ind.varName));
 
-  const validationErrors: string[] = [];
-  for (const indicator of indicators) {
-    if (!indicator.rCode || indicator.rCode.trim() === "") {
-      validationErrors.push(
-        `Indicator "${indicator.varName}": rCode is empty or missing.`
-      );
+  // Group code by indicator
+  const codeByIndicator = new Map<string, HfaIndicatorCode[]>();
+  for (const code of indicatorCode) {
+    if (!codeByIndicator.has(code.varName)) {
+      codeByIndicator.set(code.varName, []);
     }
-
-    const deps = extractDependencies(
-      indicator,
-      allIndicatorVarNames,
-      knownDatasetVariables
-    );
-
-    if (deps.unknownVariables.length > 0) {
-      validationErrors.push(
-        `Indicator "${indicator.varName}": Unknown variables [${deps.unknownVariables.join(", ")}] in rCode/rFilterCode. Not found in dataset variables or other indicators.`
-      );
-    }
+    codeByIndicator.get(code.varName)!.push(code);
   }
 
-  if (validationErrors.length > 0) {
-    throw new Error(
-      `Invalid indicator definitions:\n${validationErrors.join("\n")}`
-    );
-  }
-
-  const graphResult = buildDependencyGraph(
+  // Build union dependency graph and validate
+  const graphResult = buildUnionDependencyGraph(
     indicators,
+    codeByIndicator,
     allIndicatorVarNames,
-    knownDatasetVariables
+    knownDatasetVariables,
   );
+
+  if (graphResult.validationErrors.length > 0) {
+    throw new Error(
+      `Invalid indicator definitions:\n${graphResult.validationErrors.join("\n")}`,
+    );
+  }
 
   const { ordered, cycles } = topologicalSort(indicators, graphResult);
   if (cycles.length > 0) {
     throw new Error(
-      `Circular dependencies detected:\n${formatCycles(cycles)}`
+      `Circular dependencies detected:\n${formatCycles(cycles)}`,
     );
   }
 
-  const orderedIndicators = ordered;
   const script = `
 library(dplyr)
 library(tidyr)
@@ -128,37 +150,34 @@ data_wide <- data_wide %>%
 
 # Calculate indicators
 results <- data_wide %>%
-${orderedIndicators
+${ordered
   .map((indicator) => {
-    const deps = extractDependencies(
-      indicator,
-      allIndicatorVarNames,
-      knownDatasetVariables
+    const snippets = codeByIndicator.get(indicator.varName) ?? [];
+    const activeSnippets = snippets.filter(
+      (s) => s.rCode && s.rCode.trim() !== "",
     );
-    return `  mutate(${indicator.varName} = ${getFinalMutateExpression(
-      indicator.rCode,
-      deps.qids,
-      indicator.rFilterCode,
-      indicator.type
-    )})`;
+    if (activeSnippets.length === 0) {
+      return `  mutate(${indicator.varName} = NA_real_)`;
+    }
+    const expr = buildPerTimePointMutateExpression(
+      indicator,
+      activeSnippets,
+      allIndicatorVarNames,
+      knownDatasetVariables,
+    );
+    return `  mutate(${indicator.varName} = ${expr})`;
   })
   .join(" %>%\n")}
 
 # Select only indicator columns
-indicator_cols <- c(${orderedIndicators
-    .map((ind) => `"${ind.varName}"`)
-    .join(", ")})
+indicator_cols <- c(${ordered.map((ind) => `"${ind.varName}"`).join(", ")})
 results_final <- results %>%
   select(all_of(indicator_cols))
 
 # Create category mapping
 indicator_categories <- data.frame(
-  hfa_indicator = c(${orderedIndicators
-    .map((indicator) => `"${indicator.varName}"`)
-    .join(", ")}),
-  hfa_category = c(${orderedIndicators
-    .map((indicator) => `"${indicator.category}"`)
-    .join(", ")})
+  hfa_indicator = c(${ordered.map((indicator) => `"${indicator.varName}"`).join(", ")}),
+  hfa_category = c(${ordered.map((indicator) => `"${indicator.category}"`).join(", ")})
 )
 
 # Pivot back to long format and add categories

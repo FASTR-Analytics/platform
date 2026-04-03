@@ -1,35 +1,24 @@
 import {
-  getAbcQualScale,
-  getCalendar,
   t,
   t2,
   T,
+  type HfaVariableRow,
   type ItemsHolderDatasetHfaDisplay,
 } from "lib";
 import {
-  FigureInputs,
-  ChartHolder,
-  Csv,
-  FrameLeft,
-  MultiSelect,
-  RadioGroup,
-  Slider,
+  Input,
   StateHolder,
   StateHolderWrapper,
-  TableFromCsv,
-  getSelectOptionsWithFirstCapital,
+  Table,
   toNum0,
-  type CustomFigureStyleOptions,
+  type TableColumn,
 } from "panther";
 import { createEffect, createMemo, createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
 import { getDatasetHfaDisplayInfoFromCacheOrFetch } from "~/state/dataset_cache";
 
-type Props = {
-  versionId: number;
-};
+type DisplayRow = HfaVariableRow & { _key: string };
 
-export function DatasetItemsHolder(p: Props) {
+export function DatasetItemsHolder(p: { cacheHash: string }) {
   const [itemsHolder, setItemsHolder] = createSignal<
     StateHolder<ItemsHolderDatasetHfaDisplay>
   >({
@@ -37,18 +26,18 @@ export function DatasetItemsHolder(p: Props) {
     msg: t2(T.FRENCH_UI_STRINGS.fetching_data),
   });
 
-  async function attemptGetDatatable(versionId: number) {
+  async function attemptGetDatatable() {
     setItemsHolder({
       status: "loading",
       msg: t2(T.FRENCH_UI_STRINGS.fetching_data),
     });
-    const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(versionId);
+    const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(p.cacheHash);
     if (res.success === false) {
       setItemsHolder({ status: "error", err: res.err });
       return;
     }
-    if (res.data.vizItems.length === 0) {
-      setItemsHolder({ status: "error", err: "No rows" });
+    if (!res.data.rows || res.data.rows.length === 0) {
+      setItemsHolder({ status: "error", err: "No data" });
       return;
     }
     setItemsHolder({
@@ -58,145 +47,117 @@ export function DatasetItemsHolder(p: Props) {
   }
 
   createEffect(() => {
-    attemptGetDatatable(p.versionId);
+    attemptGetDatatable();
   });
 
   return (
     <StateHolderWrapper state={itemsHolder()}>
-      {(keyedDatasetItems) => {
-        return <DatasetDisplayPresentation displayItems={keyedDatasetItems} />;
-      }}
+      {(data) => <DatasetDisplayPresentation displayItems={data} />}
     </StateHolderWrapper>
   );
 }
 
-type DatasetDisplayPresentationProps = {
+function DatasetDisplayPresentation(p: {
   displayItems: ItemsHolderDatasetHfaDisplay;
-};
+}) {
+  const [searchText, setSearchText] = createSignal("");
 
-function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
-  const [vizConfig, setVizConfig] = createStore({
-    // value: "count" as "count" | "sum",
-    figureType: "chart" as "table" | "chart",
-    scale: 1,
-    // indicators: p.displayItems.indicators.map((ind) => ind.value),
+  const rows = createMemo<DisplayRow[]>(() => {
+    const search = searchText().toLowerCase();
+    const allRows: DisplayRow[] = p.displayItems.rows.map((r) => ({
+      ...r,
+      _key: `${r.varName}|${r.timePoint}`,
+    }));
+    if (!search) return allRows;
+    return allRows.filter(
+      (r) =>
+        r.varName.toLowerCase().includes(search) ||
+        r.varLabel.toLowerCase().includes(search) ||
+        r.questionnaireValues.toLowerCase().includes(search),
+    );
   });
 
-  // const filteredVizItems = createMemo(() => {
-  //   const indicatorsToVizualize = vizConfig.indicators;
-  //   if (p.displayItems.indicators.length === indicatorsToVizualize.length) {
-  //     return p.displayItems.vizItems;
-  //   }
-  //   return p.displayItems.vizItems.filter((row) => {
-  //     return (
-  //       indicatorsToVizualize?.includes(row["indicator_common_id"]) ?? true
-  //     );
-  //   });
-  // });
-  const csv = createMemo(() => {
-    const csvData = Csv.fromObjects(p.displayItems.vizItems).reorderCols([
-      "var_name",
-      "count",
-    ]);
-    // Notify parent when CSV is ready
-    return csvData;
-  });
-
-  const figureInputs = createMemo<FigureInputs>(() => {
-    const jsonArray = p.displayItems.vizItems;
-    // const value = vizConfig.value;
-    const figureType = vizConfig.figureType;
-    const scale = vizConfig.scale;
-
-    const style: CustomFigureStyleOptions = {
-      legend: {
-        maxLegendItemsInOneColumn: 6,
-      },
-      scale: scale,
-      seriesColorFunc: (info: any) => getAbcQualScale(info.i_series),
-      yScaleAxis: {
-        tickLabelFormatter: toNum0,
-      },
-      xPeriodAxis: {
-        calendar: getCalendar(),
-      },
-      content: {
-        withDataLabels: false,
-        lines: {
-          joinAcrossGaps: false,
-          defaults: {
-            show: true,
-          },
-        },
-      },
-      table: {
-        cellValueFormatter: (v) => toNum0(v),
-      },
-    };
-
-    const figureData: FigureInputs = {
-      tableData: {
-        jsonArray,
-        jsonDataConfig: {
-          valueProps: ["count"],
-          rowProp: "var_name",
-        },
-      },
-      style,
-    };
-    return figureData;
-  });
+  const columns: TableColumn<DisplayRow>[] = [
+    {
+      key: "varName",
+      header: t("Variable"),
+      sortable: true,
+    },
+    {
+      key: "varType",
+      header: t("Type"),
+      sortable: true,
+    },
+    {
+      key: "timePoint",
+      header: t("Time Point"),
+      sortable: true,
+    },
+    {
+      key: "timePointLabel",
+      header: t("Time Point Label"),
+      sortable: true,
+    },
+    {
+      key: "varLabel",
+      header: t("Label"),
+      sortable: true,
+    },
+    {
+      key: "count",
+      header: t("Count"),
+      sortable: true,
+      alignH: "right",
+      render: (item) => <>{toNum0(item.count)}</>,
+    },
+    {
+      key: "missing",
+      header: t("Missing"),
+      sortable: true,
+      alignH: "right",
+      render: (item) => (
+        <span class={item.missing > 0 ? "text-danger" : ""}>
+          {toNum0(item.missing)}
+        </span>
+      ),
+    },
+    {
+      key: "questionnaireValues",
+      header: t("Questionnaire Values"),
+      sortable: false,
+      render: (item) => <span class="text-xs">{item.questionnaireValues}</span>,
+    },
+    {
+      key: "dataValues",
+      header: t("Data Values"),
+      sortable: false,
+      render: (item) => <span class="text-xs">{item.dataValues}</span>,
+    },
+  ];
 
   return (
-    <FrameLeft
-    // panelChildren={
-    //   <div class="ui-pad ui-spy h-full w-72 border-r border-base-300">
-    //     {/* <RadioGroup
-    //       label="Value"
-    //       options={[
-    //         { value: "count", label: "Number of records" },
-    //         { value: "sum", label: "Number of service counts" },
-    //       ]}
-    //       value={vizConfig.value}
-    //       onChange={(v) => setVizConfig("value", v as "count" | "sum")}
-    //     />
-    //     <RadioGroup
-    //       label="Format"
-    //       options={getSelectOptionsWithFirstCapital(["chart", "table"])}
-    //       value={vizConfig.figureType}
-    //       onChange={(v) => setVizConfig("figureType", v as "table" | "chart")}
-    //     /> */}
-    //     {/* <MultiSelect
-    //       label="Indicators"
-    //       options={p.displayItems.indicators}
-    //       values={vizConfig.indicators}
-    //       onChange={(v) => setVizConfig("indicators", v)}
-    //       showSelectAll
-    //     /> */}
-    //     <Slider
-    //       label={t2(T.FRENCH_UI_STRINGS.scale)}
-    //       min={0.1}
-    //       max={2}
-    //       step={0.1}
-    //       value={vizConfig.scale}
-    //       onChange={(v) => setVizConfig("scale", v)}
-    //       fullWidth
-    //       showValueInLabel
-    //     />
-    //   </div>
-    // }
-    >
-      <div class="h-full w-full">
-        <TableFromCsv
-          csv={csv()}
-          knownTotalCount={p.displayItems.vizItems.length}
-          alignText="left"
-        />
-        {/* <ChartHolder
-          chartInputs={figureInputs()}
-          height={vizConfig.figureType === "chart" ? "flex" : "ideal"}
-        /> */}
+    <div class="flex h-full w-full flex-col">
+      <div class="border-base-300 flex-none border-b p-2">
+        <div class="w-96">
+          <Input
+            placeholder={t("Search variables...")}
+            value={searchText()}
+            onChange={setSearchText}
+            searchIcon
+            fullWidth
+          />
+        </div>
       </div>
-    </FrameLeft>
+      <div class="ui-pad min-h-0 flex-1">
+        <Table
+          data={rows()}
+          columns={columns}
+          keyField="_key"
+          noRowsMessage={t("No variables found")}
+          fitTableToAvailableHeight
+          paddingY="compact"
+        />
+      </div>
+    </div>
   );
 }

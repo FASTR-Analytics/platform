@@ -1,4 +1,9 @@
-import { t3, TC, type HfaIndicator, type InstanceDetail } from "lib";
+import {
+  t3,
+  TC,
+  type HfaIndicator,
+  type InstanceDetail,
+} from "lib";
 import {
   Button,
   FrameTop,
@@ -15,6 +20,7 @@ import {
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { EditHfaIndicator } from "../forms_editors/edit_hfa_indicator";
+import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
 import { HfaIndicatorsCsvUploadForm } from "./hfa_indicators_csv_upload_form";
 
 type Props = {
@@ -48,16 +54,18 @@ export function HfaIndicatorsManager(p: Props) {
     });
   }
 
-  async function handleEdit(indicator: HfaIndicator) {
-    const st = indicators.state();
-    const sortOrder = st.status === "ready"
-      ? st.data.findIndex((i: HfaIndicator) => i.varName === indicator.varName)
-      : 0;
-    await openComponent({
-      element: EditHfaIndicator,
+  async function handleOpenCodeEditor(
+    indicator: HfaIndicator,
+    allIndicators: HfaIndicator[],
+  ) {
+    const dictRes = await serverActions.getHfaDictionaryForValidation({});
+    if (!dictRes.success) return;
+    await openEditor({
+      element: HfaIndicatorCodeEditor,
       props: {
-        existingIndicator: indicator,
-        sortOrder: sortOrder >= 0 ? sortOrder : 0,
+        indicator,
+        dictionary: dictRes.data,
+        allIndicatorVarNames: allIndicators.map((i) => i.varName),
         silentRefreshIndicators,
       },
     });
@@ -91,14 +99,12 @@ export function HfaIndicatorsManager(p: Props) {
   }
 
   function handleDownloadCsv(data: HfaIndicator[]) {
-    const headers = ["varName", "category", "definition", "type", "rCode", "rFilterCode"];
+    const headers = ["varName", "category", "definition", "type"];
     const rows = data.map((ind) => [
       ind.varName,
       ind.category,
       ind.definition,
       ind.type,
-      ind.rCode,
-      ind.rFilterCode ?? "",
     ]);
     const csvContent = [
       headers.join(","),
@@ -147,16 +153,6 @@ export function HfaIndicatorsManager(p: Props) {
       sortable: true,
       render: (ind) => <span>{ind.type === "binary" ? "Boolean" : "Numeric"}</span>,
     },
-    {
-      key: "rCode",
-      header: t3({ en: "R Code", fr: "Code R" }),
-      render: (ind) => <span class="font-mono text-xs">{ind.rCode}</span>,
-    },
-    {
-      key: "rFilterCode",
-      header: t3({ en: "Filter Code", fr: "Code filtre" }),
-      render: (ind) => <span class="font-mono text-xs">{ind.rFilterCode ?? ""}</span>,
-    },
   ];
 
   if (p.isGlobalAdmin) {
@@ -167,7 +163,7 @@ export function HfaIndicatorsManager(p: Props) {
       render: (ind) => (
         <div class="ui-gap-sm flex justify-end">
           <Button
-            onClick={(e: MouseEvent) => { e.stopPropagation(); handleEdit(ind); }}
+            onClick={(e: MouseEvent) => { e.stopPropagation(); const st = indicators.state(); handleOpenCodeEditor(ind, st.status === "ready" ? st.data : []); }}
             iconName="pencil"
             intent="base-100"
           />
@@ -235,7 +231,6 @@ export function HfaIndicatorsManager(p: Props) {
                     bulkActions={bulkActions}
                     selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
                     fitTableToAvailableHeight
-                    onRowClick={(ind: HfaIndicator) => { if (p.isGlobalAdmin) handleEdit(ind); }}
                   />
                 </div>
               </div>

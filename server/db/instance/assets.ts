@@ -22,6 +22,8 @@ export async function getAssetsForInstance(): Promise<
     const stat = await Deno.stat(filePath);
     const lowerName = dirEntry.name.toLowerCase();
     const isCsv = lowerName.endsWith(".csv");
+    const isXlsx =
+      lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls");
     const isImage =
       lowerName.endsWith(".png") ||
       lowerName.endsWith(".jpg") ||
@@ -34,6 +36,7 @@ export async function getAssetsForInstance(): Promise<
       lastModified: stat.mtime?.getTime() ?? 0,
       isDirectory: stat.isDirectory,
       isCsv,
+      isXlsx,
       isImage,
     });
   }

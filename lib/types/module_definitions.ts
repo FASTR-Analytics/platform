@@ -14,6 +14,8 @@ export type {
   DataSourceResultsObject,
   ModuleConfigRequirements,
   HfaIndicator,
+  HfaIndicatorCode,
+  HfaDictionaryForValidation,
   ModuleParameter,
   ResultsObjectDefinitionJSON,
   ValueFunc,

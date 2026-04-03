@@ -8,5 +8,6 @@ export type AssetInfo = {
   lastModified: number;
   isDirectory: boolean;
   isCsv: boolean;
+  isXlsx: boolean;
   isImage: boolean;
 };

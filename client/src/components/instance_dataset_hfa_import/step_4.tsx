@@ -26,9 +26,9 @@ export function Step4(p: Props) {
             </span>
           </div>
           <div class="flex flex-col">
-            <span class="text-base-content text-sm">{t("Staging Table")}</span>
+            <span class="text-base-content text-sm">{t("Time Point")}</span>
             <span class="font-mono text-base">
-              {p.step3Result.stagingTableName}
+              {p.step3Result.timePointValue}
             </span>
           </div>
         </div>
@@ -100,6 +100,56 @@ export function Step4(p: Props) {
             </div>
           </div>
         )}
+      </div>
+
+      <div class="ui-pad bg-base-200 rounded">
+        <h3 class="font-700 mb-4 text-lg">{t("Data Dictionary")}</h3>
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
+          <div class="flex flex-col">
+            <span class="text-base-content text-sm">
+              {t("Variable labels extracted")}
+            </span>
+            <span class="font-700 font-mono text-xl">
+              {toNum0(p.step3Result.nDictionaryVars)}
+            </span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-base-content text-sm">
+              {t("Value labels extracted")}
+            </span>
+            <span class="font-700 font-mono text-xl">
+              {toNum0(p.step3Result.nDictionaryValues)}
+            </span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-base-content text-sm">
+              {t("select_multiple questions expanded")}
+            </span>
+            <span class="font-700 font-mono text-xl">
+              {toNum0(p.step3Result.nSelectMultipleExpanded)}
+            </span>
+          </div>
+          {p.step3Result.nXlsFormVarsNotInCsv > 0 && (
+            <div class="flex flex-col">
+              <span class="text-base-content text-sm">
+                {t("XLSForm vars not in CSV (ok)")}
+              </span>
+              <span class="font-700 font-mono text-xl">
+                {toNum0(p.step3Result.nXlsFormVarsNotInCsv)}
+              </span>
+            </div>
+          )}
+          {p.step3Result.nCsvColsNotInXlsForm > 0 && (
+            <div class="flex flex-col">
+              <span class="text-base-content text-sm">
+                {t("CSV columns not in XLSForm (skipped)")}
+              </span>
+              <span class="font-700 font-mono text-xl">
+                {toNum0(p.step3Result.nCsvColsNotInXlsForm)}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div class="ui-gap-sm flex">

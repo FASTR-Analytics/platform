@@ -28,7 +28,6 @@ import {
   getCountryIso3Config,
 } from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
-import { getCurrentDatasetHfaMaxVersionId } from "./dataset_hfa.ts";
 
 export async function getIndicatorMappingsVersion(mainDb: Sql): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
@@ -223,7 +222,7 @@ ORDER BY LOWER(label)`
     }
 
     const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
-    const hfaVersion = await getCurrentDatasetHfaMaxVersionId(mainDb);
+    const hfaTimePointCount = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM dataset_hfa_dictionary_time_points`)[0].count;
 
     const structureLastUpdatedRow = (
       await mainDb<{ config_json_value: string }[]>`
@@ -267,7 +266,7 @@ ORDER BY LOWER(label)`
       datasetsWithData,
       datasetVersions: {
         hmis: hmisVersion,
-        hfa: hfaVersion,
+        hfa: hfaTimePointCount > 0 ? hfaTimePointCount : undefined,
       },
       projects: projectSummaries,
       users,

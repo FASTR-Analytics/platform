@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import {
   DBProject,
   DBUser,
-  getCurrentDatasetHfaMaxVersionId,
   getCurrentDatasetHmisMaxVersionId,
   getPgConnectionFromCacheOrNew,
   UserLog,
@@ -32,7 +31,7 @@ routesHealth.get("/health_check", async (c) => {
   >`SELECT id, label FROM projects ORDER BY LOWER(label)`;
 
   const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
-  const hfaVersion = await getCurrentDatasetHfaMaxVersionId(mainDb);
+  const hfaTimePointCount = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM dataset_hfa_dictionary_time_points`)[0].count;
 
   const [lastLog] = await mainDb<
     UserLog[]
@@ -66,7 +65,7 @@ routesHealth.get("/health_check", async (c) => {
             versionId: hmisVersion,
           }
         : null,
-      hfa: hfaVersion ? { versionId: hfaVersion } : null,
+      hfa: hfaTimePointCount > 0 ? { timePoints: hfaTimePointCount } : null,
     },
   });
 });
