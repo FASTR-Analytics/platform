@@ -1,5 +1,5 @@
 import { LayoutNode } from "@timroberton/panther";
-import { T, t2 } from "../translate/mod.ts";
+import { t3 } from "../translate/mod.ts";
 import { PresentationObjectInReportInfo } from "./presentation_objects.ts";
 
 // ============================================================================
@@ -42,16 +42,16 @@ export function get_REPORT_TYPE_SELECT_OPTIONS(): {
   label: string;
 }[] {
   return [
-    { value: "slide_deck", label: t2(T.FRENCH_UI_STRINGS.slide_deck) },
-    { value: "policy_brief", label: t2(T.FRENCH_UI_STRINGS.policy_brief) },
+    { value: "slide_deck", label: t3({ en: "Slide deck", fr: "Présentation (diapositives)" }) },
+    { value: "policy_brief", label: t3({ en: "Policy brief", fr: "Note politique" }) },
     // { value: "long_form", label: "Long-form report" },  // TODO: Re-enable
   ];
 }
 
 export function get_REPORT_TYPE_MAP(): Record<ReportType, string> {
   return {
-    slide_deck: t2(T.FRENCH_UI_STRINGS.slide_deck),
-    policy_brief: t2(T.FRENCH_UI_STRINGS.policy_brief),
+    slide_deck: t3({ en: "Slide deck", fr: "Présentation (diapositives)" }),
+    policy_brief: t3({ en: "Policy brief", fr: "Note politique" }),
     // long_form: "Long-form report",  // TODO: Re-enable
   };
 }
@@ -222,9 +222,9 @@ export function get_REPORT_ITEM_TYPE_SELECT_OPTIONS(): {
   label: string;
 }[] {
   return [
-    { value: "cover", label: t2(T.FRENCH_UI_STRINGS.cover) },
-    { value: "section", label: t2(T.FRENCH_UI_STRINGS.section) },
-    { value: "freeform", label: t2(T.FRENCH_UI_STRINGS.freeform) },
+    { value: "cover", label: t3({ en: "Cover", fr: "Couverture" }) },
+    { value: "section", label: t3({ en: "Section", fr: "Section" }) },
+    { value: "freeform", label: t3({ en: "Freeform", fr: "Libre" }) },
   ];
 }
 

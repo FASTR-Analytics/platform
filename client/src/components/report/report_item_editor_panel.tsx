@@ -3,10 +3,7 @@ import {
   ReportDetail,
   ReportItemConfig,
   ReportItemType,
-  T,
   get_REPORT_ITEM_TYPE_SELECT_OPTIONS,
-  t,
-  t2
 } from "lib";
 import {
   Button,
@@ -54,7 +51,7 @@ type Props = {
 export function ReportItemEditorPanel(p: Props) {
   async function attemptDeleteReportItem() {
     const deleteAction = timActionDelete(
-      `${t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet)} ${p.reportDetail.reportType === "slide_deck" ? t2(T.FRENCH_UI_STRINGS.slide) : t2(T.FRENCH_UI_STRINGS.page)}?`,
+      `Are you sure you want to delete this ${p.reportDetail.reportType === "slide_deck" ? "slide" : "page"}?`,
       async () => {
         const res = await serverActions.deleteReportItem({
           projectId: p.projectDetail.id,
@@ -79,12 +76,8 @@ export function ReportItemEditorPanel(p: Props) {
       await openAlert({
         text:
           p.reportDetail.reportType === "slide_deck"
-            ? t(
-              "In order to be duplicated, slides cannot have any unsaved changes",
-            )
-            : t(
-              "In order to be duplicated, pages cannot have any unsaved changes",
-            ),
+            ? "In order to be duplicated, slides cannot have any unsaved changes"
+            : "In order to be duplicated, pages cannot have any unsaved changes",
       });
       return;
     }
@@ -113,17 +106,17 @@ export function ReportItemEditorPanel(p: Props) {
           <div class="flex items-center gap-2 text-sm">
             <Switch>
               <Match when={p.saveStatus === "saved"}>
-                <span class="text-success">{t2(T.Reports.saved)} ✓</span>
+                <span class="text-success">{"Saved"} ✓</span>
               </Match>
               <Match when={p.saveStatus === "pending"}>
-                <span class="text-neutral">{t("Saving soon...")}</span>
+                <span class="text-neutral">{"Saving soon..."}</span>
               </Match>
               <Match when={p.saveStatus === "saving"}>
-                <span class="text-primary animate-pulse">{t("Saving...")}</span>
+                <span class="text-primary animate-pulse">{"Saving..."}</span>
               </Match>
               <Match when={p.saveStatus === "error"}>
                 <span class="text-danger" title={p.saveError}>
-                  ⚠ {t("Save failed")}
+                  ⚠ {"Save failed"}
                 </span>
               </Match>
             </Switch>
@@ -144,7 +137,7 @@ export function ReportItemEditorPanel(p: Props) {
         <Show when={p.reportDetail.reportType === "slide_deck"}>
           <div class="">
             <Select
-              label={t2(T.FRENCH_UI_STRINGS.slide_type)}
+              label="Slide type"
               options={get_REPORT_ITEM_TYPE_SELECT_OPTIONS()}
               value={p.tempReportItemConfig.type}
               onChange={(v) =>
@@ -187,8 +180,8 @@ export function ReportItemEditorPanel(p: Props) {
                   value={headerOrContent()}
                   onChange={setHeaderOrContent}
                   options={[
-                    { label: t2(T.FRENCH_UI_STRINGS.content), value: "content" },
-                    { label: t2(T.FRENCH_UI_STRINGS.header__footer), value: "slideHeader" },
+                    { label: "Content", value: "content" },
+                    { label: "Header / footer", value: "slideHeader" },
                   ]}
                   fullWidth
                 />
@@ -225,9 +218,9 @@ export function ReportItemEditorPanel(p: Props) {
               value={policyHeaderOrContent()}
               onChange={setPolicyHeaderOrContent}
               options={[
-                { label: t2(T.FRENCH_UI_STRINGS.content), value: "content" },
+                { label: "Content", value: "content" },
                 {
-                  label: t2(T.FRENCH_UI_STRINGS.header__footer),
+                  label: "Header / footer",
                   value: "policyHeaderFooter",
                 },
               ]}

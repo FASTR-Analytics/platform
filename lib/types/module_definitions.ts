@@ -1,4 +1,4 @@
-import { t2, T } from "../translate/mod.ts";
+import { t3 } from "../translate/mod.ts";
 import type { TranslatableString } from "../translate/types.ts";
 import type { ModuleId } from "./module_registry.ts";
 import type {
@@ -156,9 +156,9 @@ export type TranslatableAIString = TranslatableString;
 
 export function get_PERIOD_OPTION_MAP(): Record<PeriodOption, string> {
   return {
-    period_id: t2(T.FRENCH_UI_STRINGS.monthly),
-    quarter_id: t2(T.FRENCH_UI_STRINGS.quarterly),
-    year: t2(T.FRENCH_UI_STRINGS.yearly),
+    period_id: t3({ en: "Monthly", fr: "Mensuel" }),
+    quarter_id: t3({ en: "Quarterly", fr: "Trimestriel" }),
+    year: t3({ en: "Yearly", fr: "Annuellement" }),
   };
 }
 

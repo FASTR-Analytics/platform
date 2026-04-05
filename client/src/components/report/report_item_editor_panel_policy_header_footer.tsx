@@ -1,8 +1,7 @@
-import { ReportDetail, ReportItemConfig, ReportConfig, t2, T } from "lib";
+import { ReportDetail, ReportItemConfig, ReportConfig } from "lib";
 import { Checkbox, LabelHolder, MultiSelect, TextArea, TimActionButton } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { t } from "lib";
 
 type Props = {
   projectId: string;
@@ -16,14 +15,14 @@ export function ReportItemEditorPolicyHeaderFooter(p: Props) {
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
         <Checkbox
-          label={t2(T.FRENCH_UI_STRINGS.use_policy_brief_header)}
+          label="Use policy brief header"
           checked={!!p.tempReportItemConfig.freeform.useHeader}
           onChange={(v) =>
             p.setTempReportItemConfig("freeform", "useHeader", v)
           }
         />
         <Show when={p.tempReportItemConfig.freeform.useHeader}>
-          <LabelHolder label={t2(T.FRENCH_UI_STRINGS.header_logos)}>
+          <LabelHolder label="Header logos">
             {(p.reportDetail.config).logos && (p.reportDetail.config).logos.length > 0 ? (
               <MultiSelect
                 values={p.tempReportItemConfig.freeform.headerLogos ?? []}
@@ -37,12 +36,12 @@ export function ReportItemEditorPolicyHeaderFooter(p: Props) {
               />
             ) : (
               <div class="text-xs text-neutral">
-                {t2(T.FRENCH_UI_STRINGS.no_logos_set_in_report_setting)}
+                {"No logos set in report settings"}
               </div>
             )}
           </LabelHolder>
           <TextArea
-            label={t2(T.FRENCH_UI_STRINGS.header_text)}
+            label="Header text"
             value={p.tempReportItemConfig.freeform.headerText ?? ""}
             onChange={(v) =>
               p.setTempReportItemConfig("freeform", "headerText", v)
@@ -51,7 +50,7 @@ export function ReportItemEditorPolicyHeaderFooter(p: Props) {
             height="80px"
           />
           <TextArea
-            label={t2(T.FRENCH_UI_STRINGS.subheader_text)}
+            label="Sub-header text"
             value={p.tempReportItemConfig.freeform.subHeaderText ?? ""}
             onChange={(v) =>
               p.setTempReportItemConfig("freeform", "subHeaderText", v)
@@ -60,7 +59,7 @@ export function ReportItemEditorPolicyHeaderFooter(p: Props) {
             height="80px"
           />
           <TextArea
-            label={t2(T.FRENCH_UI_STRINGS.date_text)}
+            label="Date text"
             value={p.tempReportItemConfig.freeform.dateText ?? ""}
             onChange={(v) =>
               p.setTempReportItemConfig("freeform", "dateText", v)
@@ -72,7 +71,7 @@ export function ReportItemEditorPolicyHeaderFooter(p: Props) {
       </div>
       <div class="ui-spy-sm">
         <Checkbox
-          label={t2(T.FRENCH_UI_STRINGS.use_policy_brief_footer)}
+          label="Use policy brief footer"
           checked={!!p.tempReportItemConfig.freeform.useFooter}
           onChange={(v) =>
             p.setTempReportItemConfig("freeform", "useFooter", v)
@@ -80,7 +79,7 @@ export function ReportItemEditorPolicyHeaderFooter(p: Props) {
         />
         <Show when={p.tempReportItemConfig.freeform.useFooter}>
           <TextArea
-            label={t2(T.FRENCH_UI_STRINGS.footer_text)}
+            label="Footer text"
             value={p.tempReportItemConfig.freeform.footerText ?? ""}
             onChange={(v) =>
               p.setTempReportItemConfig("freeform", "footerText", v)
@@ -88,7 +87,7 @@ export function ReportItemEditorPolicyHeaderFooter(p: Props) {
             fullWidth
             height="80px"
           />
-          <LabelHolder label={t2(T.FRENCH_UI_STRINGS.footer_logos)}>
+          <LabelHolder label="Footer logos">
             {(p.reportDetail.config).logos && (p.reportDetail.config).logos.length > 0 ? (
               <MultiSelect
                 values={p.tempReportItemConfig.freeform.footerLogos ?? []}
@@ -102,7 +101,7 @@ export function ReportItemEditorPolicyHeaderFooter(p: Props) {
               />
             ) : (
               <div class="text-xs text-neutral">
-                {t2(T.FRENCH_UI_STRINGS.no_logos_set_in_report_setting)}
+                {"No logos set in report settings"}
               </div>
             )}
           </LabelHolder>

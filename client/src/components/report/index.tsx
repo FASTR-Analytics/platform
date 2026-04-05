@@ -3,9 +3,6 @@ import {
   LongFormReportConfig,
   ProjectDetail,
   ReportDetail,
-  t,
-  t2,
-  T,
 } from "lib";
 import {
   Button,
@@ -89,7 +86,7 @@ export function Report(p: Props) {
 
   const [reportDetail, setReportDetail] = createSignal<
     StateHolder<ReportDetail>
-  >({ status: "loading", msg: t2(T.FRENCH_UI_STRINGS.loading_report) });
+  >({ status: "loading", msg: "Loading report..." });
 
   // For long_form and ai_slide_deck reports: track lastUpdated to detect external changes
   // This mirrors the pattern used in visualization/index.tsx
@@ -174,11 +171,11 @@ export function Report(p: Props) {
       props: {
         projectId: p.projectDetail.id,
         config: rd.data.config,
-        heading: t2(T.FRENCH_UI_STRINGS.report_settings),
-        nameLabel: t2(T.FRENCH_UI_STRINGS.report_name),
+        heading: "Report settings",
+        nameLabel: "Report name",
         showPageNumbersSuffix:
           rd.data.reportType === "slide_deck"
-            ? t2(T.FRENCH_UI_STRINGS.except_on_cover_and_section_sl)
+            ? "(except on cover and section slides)"
             : undefined,
         saveConfig: (config) =>
           serverActions.updateReportConfig({
@@ -188,9 +185,9 @@ export function Report(p: Props) {
           }),
         onSaved: () => silentGetReportDetail(),
         deleteAction: {
-          confirmText: t("Are you sure you want to delete this report?"),
+          confirmText: "Are you sure you want to delete this report?",
           itemLabel: rd.data.config.label,
-          deleteButtonLabel: t2(T.FRENCH_UI_STRINGS.delete_report),
+          deleteButtonLabel: "Delete report",
           onDelete: () =>
             serverActions.deleteReport({
               projectId: p.projectDetail.id,
@@ -314,11 +311,11 @@ export function Report(p: Props) {
                       options={[
                         {
                           value: "fit-within",
-                          label: t2(T.FRENCH_UI_STRINGS.fitwithin),
+                          label: "Fit-within",
                         },
                         {
                           value: "fit-width",
-                          label: t2(T.FRENCH_UI_STRINGS.maxwidth),
+                          label: "Max-width",
                         },
                       ]}
                       value={fitWithin()}
@@ -328,18 +325,18 @@ export function Report(p: Props) {
                   </Show>
                   <Show when={!p.projectDetail.isLocked}>
                     <Button onClick={duplicate} iconName="copy" outline>
-                      {t2(T.FRENCH_UI_STRINGS.duplicate_report)}
+                      {"Duplicate report"}
                     </Button>
                     <Button
                       onClick={openReportSettings}
                       iconName="settings"
                       outline
                     >
-                      {t2(T.FRENCH_UI_STRINGS.report_settings)}
+                      {"Report settings"}
                     </Button>
                   </Show>
                   <Button onClick={download} iconName="download">
-                    {t2(T.FRENCH_UI_STRINGS.download)}
+                    {"Download"}
                   </Button>
                 </div>
               </div>
@@ -377,10 +374,10 @@ export function Report(p: Props) {
                               iconName="plus"
                               fullWidth
                             >
-                              {t2(T.FRENCH_UI_STRINGS.add_1)}{" "}
+                              {"Add"}{" "}
                               {keyedReportDetail.reportType === "slide_deck"
-                                ? t2(T.FRENCH_UI_STRINGS.slide)
-                                : t2(T.FRENCH_UI_STRINGS.page)}
+                                ? "slide"
+                                : "page"}
                             </Button>
                             <Show
                               when={keyedReportDetail.itemIdsInOrder.length > 1}
@@ -391,8 +388,8 @@ export function Report(p: Props) {
                                 fullWidth
                               >
                                 {keyedReportDetail.reportType === "slide_deck"
-                                  ? t2(T.Reports.organize_slides)
-                                  : t("Organize pages")}
+                                  ? "Organize slides"
+                                  : "Organize pages"}
                               </Button>
                             </Show>
                           </div>
@@ -403,8 +400,8 @@ export function Report(p: Props) {
                             fallback={
                               <div class="text-neutral text-sm">
                                 {keyedReportDetail.reportType === "slide_deck"
-                                  ? t2(T.FRENCH_UI_STRINGS.no_slides)
-                                  : t("No pages")}
+                                  ? "No slides"
+                                  : "No pages"}
                               </div>
                             }
                           >

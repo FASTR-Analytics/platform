@@ -3,9 +3,9 @@ import {
   getFetchConfigFromPresentationObjectConfig,
   PresentationObjectConfig,
   PresentationObjectDetail,
-  t,
   t3,
   TC,
+  translateIndicatorId,
   throwIfErrWithData,
 } from "lib";
 import {
@@ -86,7 +86,7 @@ export function ReplicateByOptionsPresentationObject(
                     ...opt,
                     label:
                       p.replicateBy === "indicator_common_id"
-                        ? t(opt.value).toUpperCase()
+                        ? translateIndicatorId(opt.value).toUpperCase()
                         : opt.label,
                   }));
 
@@ -164,7 +164,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
                         value: pv,
                         label:
                           p.replicateBy === "indicator_common_id"
-                            ? t(pv).toUpperCase()
+                            ? translateIndicatorId(pv).toUpperCase()
                             : pv,
                       };
                     })}

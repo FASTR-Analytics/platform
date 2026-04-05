@@ -1,8 +1,7 @@
 import { ColorTheme,
   ReportConfig,
   _COLOR_THEMES,
-  getColorDetailsForColorTheme,
-  t2, T } from "lib";
+  getColorDetailsForColorTheme } from "lib";
 import {
   Button,
   Checkbox,
@@ -22,7 +21,6 @@ import {
 import { For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { t } from "lib";
 
 export type ReportSettingsProps = {
   projectId: string;
@@ -45,7 +43,7 @@ type Props = EditorComponentProps<ReportSettingsProps, "AFTER_DELETE">;
 export function ReportSettings(p: Props) {
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
-    t2(T.FRENCH_UI_STRINGS.loading_files),
+    "Loading files...",
   );
 
   const [tempConfig, setTempConfig] = createStore<ReportConfig>(
@@ -105,14 +103,14 @@ export function ReportSettings(p: Props) {
               intent="success"
               iconName="save"
             >
-              {t2(T.FRENCH_UI_STRINGS.save)}
+              {"Save"}
             </Button>
             <Button
               onClick={() => p.close(undefined)}
               intent="neutral"
               iconName="x"
             >
-              {t2(T.FRENCH_UI_STRINGS.cancel)}
+              {"Cancel"}
             </Button>
           </div>
         </HeadingBar>
@@ -120,7 +118,7 @@ export function ReportSettings(p: Props) {
     >
       <div class="ui-pad ui-spy">
         <div class="ui-gap flex flex-wrap">
-          <SettingsSection header={t2(T.FRENCH_UI_STRINGS.general)}>
+          <SettingsSection header="General">
             <div class="w-96">
               <Input
                 label={p.nameLabel}
@@ -130,12 +128,12 @@ export function ReportSettings(p: Props) {
               />
             </div>
           </SettingsSection>
-          <SettingsSection header={t2(T.FRENCH_UI_STRINGS.style)}>
+          <SettingsSection header="Style">
             <div class="ui-gap flex">
               <div class="ui-spy-sm">
                 <div class="w-96">
                   <Select
-                    label={t2(T.FRENCH_UI_STRINGS.report_color_theme)}
+                    label="Report color theme"
                     value={tempConfig.colorTheme}
                     options={_COLOR_THEMES.map((theme) => {
                       const cDetails = getColorDetailsForColorTheme(theme);
@@ -152,7 +150,7 @@ export function ReportSettings(p: Props) {
                 </div>
                 <div class="w-96">
                   <Select
-                    label={t2(T.FRENCH_UI_STRINGS.background_detail)}
+                    label="Background detail"
                     value={tempConfig.overlay}
                     options={[
                       { value: "none", label: "None" },
@@ -195,7 +193,7 @@ export function ReportSettings(p: Props) {
               </div>
             </div>
           </SettingsSection>
-          <SettingsSection header={t2(T.FRENCH_UI_STRINGS.logos)}>
+          <SettingsSection header="Logos">
             <StateHolderWrapper state={assetListing.state()} noPad>
               {(keyedAssets) => {
                 return (
@@ -222,37 +220,37 @@ export function ReportSettings(p: Props) {
                               outline
                               iconName="trash"
                             >
-                              {t2(T.FRENCH_UI_STRINGS.delete)}
+                              {"Delete"}
                             </Button>
                           </div>
                         );
                       }}
                     </For>
                     <Button onClick={addLogo} iconName="plus">
-                      {t2(T.FRENCH_UI_STRINGS.add_logo)}
+                      {"Add logo"}
                     </Button>
                   </div>
                 );
               }}
             </StateHolderWrapper>
           </SettingsSection>
-          <SettingsSection header={t("Page details")}>
+          <SettingsSection header="Page details">
             <div class="max-w-96">
               <Checkbox
-                label={`${t2(T.FRENCH_UI_STRINGS.show_page_numbers)}${p.showPageNumbersSuffix ? ` ${p.showPageNumbersSuffix}` : ""}`}
+                label={`Show page numbers${p.showPageNumbersSuffix ? ` ${p.showPageNumbersSuffix}` : ""}`}
                 checked={tempConfig.showPageNumbers}
                 onChange={(v) => setTempConfig("showPageNumbers", v)}
               />
             </div>
             <div class="ui-spy-sm w-96">
               <Checkbox
-                label={t2(T.FRENCH_UI_STRINGS.add_watermark)}
+                label="Add watermark"
                 checked={tempConfig.useWatermark}
                 onChange={(v) => setTempConfig("useWatermark", v)}
               />
               <Show when={tempConfig.useWatermark}>
                 <Input
-                  label={t2(T.FRENCH_UI_STRINGS.watermark_text)}
+                  label="Watermark text"
                   value={tempConfig.watermarkText ?? ""}
                   onChange={(v) => setTempConfig("watermarkText", v)}
                   fullWidth

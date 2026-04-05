@@ -1,5 +1,5 @@
 import { getNextAvailableDisaggregationDisplayOption } from "../get_disaggregator_display_prop.ts";
-import { T, t2, t3 } from "../translate/mod.ts";
+import { t3 } from "../translate/mod.ts";
 import { PeriodOption, ResultsValue } from "./module_definitions.ts";
 import type { OptionalFacilityColumn } from "./instance.ts";
 import {
@@ -262,44 +262,44 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
     Record<DisaggregationDisplayOption, string>
   > = {
     timeseries: {
-      series: t2(T.FRENCH_UI_STRINGS.lines),
-      cell: t2(T.FRENCH_UI_STRINGS.grid),
-      row: t2(T.FRENCH_UI_STRINGS.rows),
-      col: t2(T.FRENCH_UI_STRINGS.columns),
-      replicant: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
+      series: t3({ en: "Lines", fr: "Lignes" }),
+      cell: t3({ en: "Grid", fr: "Grille" }),
+      row: t3({ en: "Rows", fr: "Rangées" }),
+      col: t3({ en: "Columns", fr: "Colonnes" }),
+      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)" }),
       rowGroup: "",
       colGroup: "",
       indicator: "",
       mapArea: "",
     },
     table: {
-      row: t2(T.FRENCH_UI_STRINGS.rows),
-      col: t2(T.FRENCH_UI_STRINGS.columns),
-      rowGroup: t2(T.FRENCH_UI_STRINGS.row_groups),
-      colGroup: t2(T.FRENCH_UI_STRINGS.column_groups),
-      replicant: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
+      row: t3({ en: "Rows", fr: "Rangées" }),
+      col: t3({ en: "Columns", fr: "Colonnes" }),
+      rowGroup: t3({ en: "Row groups", fr: "Catégories de rangées" }),
+      colGroup: t3({ en: "Column groups", fr: "Groupes de colonnes" }),
+      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)" }),
       series: "",
       cell: "",
       indicator: "",
       mapArea: "",
     },
     chart: {
-      indicator: t2(T.FRENCH_UI_STRINGS.bars),
-      series: t2(T.FRENCH_UI_STRINGS.series_subbars),
-      cell: t2(T.FRENCH_UI_STRINGS.grid),
-      row: t2(T.FRENCH_UI_STRINGS.rows),
-      col: t2(T.FRENCH_UI_STRINGS.columns),
-      replicant: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
+      indicator: t3({ en: "Bars", fr: "Barres" }),
+      series: t3({ en: "Series (sub-bars)", fr: "Series (sub-bars)" }),
+      cell: t3({ en: "Grid", fr: "Grille" }),
+      row: t3({ en: "Rows", fr: "Rangées" }),
+      col: t3({ en: "Columns", fr: "Colonnes" }),
+      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)" }),
       rowGroup: "",
       colGroup: "",
       mapArea: "",
     },
     map: {
       mapArea: t3({ en: "Map regions", fr: "Régions de la carte" }),
-      cell: t2(T.FRENCH_UI_STRINGS.grid),
-      row: t2(T.FRENCH_UI_STRINGS.rows),
-      col: t2(T.FRENCH_UI_STRINGS.columns),
-      replicant: t2(T.FRENCH_UI_STRINGS.different_charts_replicants),
+      cell: t3({ en: "Grid", fr: "Grille" }),
+      row: t3({ en: "Rows", fr: "Rangées" }),
+      col: t3({ en: "Columns", fr: "Colonnes" }),
+      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)" }),
       series: "",
       indicator: "",
       rowGroup: "",
@@ -424,9 +424,9 @@ export function get_PRESENTATION_SELECT_OPTIONS(
   label: string;
 }[] {
   const all = [
-    { value: "table" as const, label: t2(T.FRENCH_UI_STRINGS.table) },
-    { value: "timeseries" as const, label: t2(T.FRENCH_UI_STRINGS.timeseries) },
-    { value: "chart" as const, label: t2(T.FRENCH_UI_STRINGS.bar_chart) },
+    { value: "table" as const, label: t3({ en: "Table", fr: "Tableau" }) },
+    { value: "timeseries" as const, label: t3({ en: "Timeseries", fr: "Série chronologique" }) },
+    { value: "chart" as const, label: t3({ en: "Bar chart", fr: "Graphique à barres" }) },
     { value: "map" as const, label: t3({ en: "Map", fr: "Carte" }) },
   ];
   if (!disaggregationOptions) return all;
@@ -445,9 +445,9 @@ export function get_PRESENTATION_OPTIONS_MAP(): Record<
   string
 > {
   return {
-    table: t2(T.FRENCH_UI_STRINGS.table),
-    timeseries: t2(T.FRENCH_UI_STRINGS.timeseries),
-    chart: t2(T.FRENCH_UI_STRINGS.bar_chart),
+    table: t3({ en: "Table", fr: "Tableau" }),
+    timeseries: t3({ en: "Timeseries", fr: "Série chronologique" }),
+    chart: t3({ en: "Bar chart", fr: "Graphique à barres" }),
     map: t3({ en: "Map", fr: "Carte" }),
   };
 }

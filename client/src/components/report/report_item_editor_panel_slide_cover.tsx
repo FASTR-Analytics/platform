@@ -1,4 +1,4 @@
-import { ReportDetail, ReportItemConfig, t, t2, T } from "lib";
+import { ReportDetail, ReportItemConfig } from "lib";
 import { LabelHolder, MultiSelect, Slider, TextArea } from "panther";
 import { SetStoreFunction } from "solid-js/store";
 
@@ -14,7 +14,7 @@ export function ReportItemEditorSlideCover(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <LabelHolder label={t2(T.FRENCH_UI_STRINGS.logos_to_use)}>
+      <LabelHolder label="Logos to use">
         {config.logos && config.logos.length > 0 ? (
           <MultiSelect
             values={p.tempReportItemConfig.cover.logos ?? []}
@@ -28,20 +28,20 @@ export function ReportItemEditorSlideCover(p: Props) {
           />
         ) : (
           <div class="text-xs text-neutral">
-            {t2(T.FRENCH_UI_STRINGS.no_logos_set_in_report_setting)}
+            {"No logos set in report settings"}
           </div>
         )}
       </LabelHolder>
       <div class="ui-spy-sm">
         <TextArea
-          label={t2(T.FRENCH_UI_STRINGS.main_title_text)}
+          label="Main title text"
           value={p.tempReportItemConfig.cover.titleText ?? ""}
           onChange={(v) => p.setTempReportItemConfig("cover", "titleText", v)}
           fullWidth
           height="80px"
         />
         <Slider
-          label={t("Main title text font size")}
+          label="Main title text font size"
           min={5}
           max={20}
           step={1}
@@ -53,7 +53,7 @@ export function ReportItemEditorSlideCover(p: Props) {
           showValueInLabel
         />
         <TextArea
-          label={t2(T.FRENCH_UI_STRINGS.subtitle_text)}
+          label="Sub-title text"
           value={p.tempReportItemConfig.cover.subTitleText ?? ""}
           onChange={(v) =>
             p.setTempReportItemConfig("cover", "subTitleText", v)
@@ -62,7 +62,7 @@ export function ReportItemEditorSlideCover(p: Props) {
           height="60px"
         />
         <Slider
-          label={t("Sub-title title text font size")}
+          label="Sub-title title text font size"
           min={3}
           max={12}
           step={1}
@@ -74,7 +74,7 @@ export function ReportItemEditorSlideCover(p: Props) {
           showValueInLabel
         />
         <TextArea
-          label={t2(T.FRENCH_UI_STRINGS.presenters_text)}
+          label="Presenters text"
           value={p.tempReportItemConfig.cover.presenterText ?? ""}
           onChange={(v) =>
             p.setTempReportItemConfig("cover", "presenterText", v)
@@ -83,7 +83,7 @@ export function ReportItemEditorSlideCover(p: Props) {
           height="80px"
         />
         <Slider
-          label={t("Presenters text font size")}
+          label="Presenters text font size"
           min={2}
           max={12}
           step={1}
@@ -95,14 +95,14 @@ export function ReportItemEditorSlideCover(p: Props) {
           showValueInLabel
         />
         <TextArea
-          label={t2(T.FRENCH_UI_STRINGS.date_text)}
+          label="Date text"
           value={p.tempReportItemConfig.cover.dateText ?? ""}
           onChange={(v) => p.setTempReportItemConfig("cover", "dateText", v)}
           fullWidth
           height="60px"
         />
         <Slider
-          label={t("Date text font size")}
+          label="Date text font size"
           min={2}
           max={10}
           step={1}
