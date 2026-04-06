@@ -60,7 +60,7 @@ The server-side pattern: mutation routes post typed messages to a `BroadcastChan
 - Only mutations that change shared/finalized instance data
 - Upload workflow intermediate steps (step 0-3 for structure/datasets) do NOT trigger SSE - these are transient per-user workflow state
 - Final import steps (step 4), deletes, and all other mutations DO trigger SSE
-- TUS file uploads: after Uppy reports upload success, the client calls a "notify asset uploaded" endpoint which builds the updated asset list and broadcasts `assets_updated`. The TUS handler itself doesn't have DB access to build the asset list, so client-initiated notification is the simpler path.
+- TUS file uploads: notification is triggered directly in the TUS PATCH handler when upload completes (`upload.offset >= upload.size`). Assets are files on disk (no DB access needed), so the handler calls `getAssetsForInstance()` and broadcasts `assets_updated`.
 
 ### Upload attempts are NOT instance state
 
@@ -120,6 +120,10 @@ type InstanceSseMessage =
 
 ```typescript
 type InstanceState = {
+  // Client and server share one type. The server sends `isReady: true` in the
+  // `starting` message. The client initializes the store with `isReady: false`
+  // and applies the full starting payload via `reconcile()`, which flips it to
+  // true in a single atomic update. No special client-side logic needed.
   isReady: boolean;
 
   // Immutable (set from env vars at server startup, never changes at runtime,
@@ -254,9 +258,14 @@ These are the routes that need `notifyInstanceUpdate()` calls after their mutati
 
 - All create/update/delete/batch operations -> `notifyInstanceUpdate({ type: "indicators_updated", data: { indicators: newCounts, indicatorMappingsVersion: newHash } })`
 
-**HFA Indicators** (`server/routes/instance/hfa_indicators.ts`) - 6 endpoints:
+**HFA Indicators** (`server/routes/instance/hfa_indicators.ts`) - 5 of 6 mutation endpoints:
 
-- All create/update/delete/batch operations -> `notifyInstanceUpdate({ type: "indicators_updated", data: { indicators: newCounts, indicatorMappingsVersion: newHash } })`
+- `createHfaIndicator` -> `notifyInstanceUpdate({ type: "indicators_updated", data: { indicators: newCounts, indicatorMappingsVersion: newHash } })`
+- `updateHfaIndicator` -> same
+- `deleteHfaIndicators` -> same
+- `batchUploadHfaIndicators` -> same
+- `saveHfaIndicatorFull` -> same (updates both indicator metadata and code in one operation)
+- `updateHfaIndicatorCode` -> **NO notification**. This endpoint only updates R script code (`r_code`, `r_filter_code`) in the `hfa_indicator_code` table. Nothing in `InstanceState` changes: the `hfaIndicators` count is unchanged, and `indicatorMappingsVersion` does not include HFA tables (it only hashes `indicators`, `indicators_raw`, and `indicator_mappings` — see `server/db/instance/instance.ts:32-44`). Module execution is unaffected because HFA modules always read live code from the database at runtime (`server/worker_routines/run_module/run_module_iterator.ts:113-122`) — the R script is generated dynamically with current code, no caching or dirty-marking needed. The HFA code editor fetches its own data independently on open via `timQuery`, so multi-user code editor sync is not expected or needed.
 
 **Datasets** (`server/routes/instance/datasets.ts`) - only finalization and deletes:
 
@@ -273,11 +282,17 @@ These are the routes that need `notifyInstanceUpdate()` calls after their mutati
 **Assets** (`server/routes/instance/assets.ts`) - 1 endpoint + TUS:
 
 - `deleteAssets` -> `notifyInstanceUpdate({ type: "assets_updated", data: updatedList })`
-- TUS upload completion (in `server/routes/instance/upload.ts`): when a file upload completes, need to trigger `assets_updated`. Options: (a) add notification directly in the TUS PATCH handler on completion, or (b) have the client call a "notify asset uploaded" endpoint after Uppy reports success. Option (b) is simpler since the TUS handler doesn't currently have DB access to build the asset list.
+- TUS upload completion (in `server/routes/instance/upload.ts`): when a file upload completes (PATCH handler, `upload.offset >= upload.size`), call `getAssetsForInstance()` and `notifyInstanceUpdate({ type: "assets_updated", data: updatedList })` directly in the handler. Assets are files on disk (no DB needed), so the TUS handler can build the list. This also means other connected clients see new assets immediately without relying on the uploader's client to trigger a refresh.
 
-**Projects** - project creation/deletion happens via project routes but affects instance state:
+**Projects** (`server/routes/project/project.ts`) - routes that change the instance project list:
 
-- Need to identify where project creation/deletion occurs and add `notifyInstanceUpdate({ type: "projects_updated", data: updatedList })`
+- `createProject` (addProject) -> `notifyInstanceUpdate({ type: "projects_updated", data: updatedList })`
+- `deleteProject` -> same
+- `copyProject` (copyProjectInBackground) -> same, after async copy completes
+- `updateProject` (label/settings changes) -> same (changes `ProjectSummary` fields displayed in the list)
+- `setProjectLockStatus` -> same (changes lock status visible in list)
+
+Note: `addProjectUserRole` does NOT need this — all projects are sent to all users regardless of permissions (per design decision in Resolved Questions #2).
 
 ### 1.5 Client: Global instance store
 
@@ -317,7 +332,7 @@ export function getDatasetVersionHmis(): number | undefined {
 
 ```typescript
 export function initInstanceState(data: InstanceState): void {
-  setInstanceState(reconcile({ ...data, isReady: true }));
+  setInstanceState(reconcile(data));
 }
 
 export function updateInstanceConfig(data: InstanceConfig): void {
@@ -517,8 +532,12 @@ type ProjectState = {
   rLogs: Record<string, { latest: string }>;
 
   // Per-user data (NOT broadcast via SSE - resolved on initial connection,
-  // re-fetched when project_users_updated event arrives)
-  thisUserRole: ProjectUserRoleType;
+  // re-derived client-side when project_users_updated event arrives)
+  // NOTE: thisUserRole is intentionally excluded. No client code reads it —
+  // all access control uses thisUserPermissions (granular per-capability booleans).
+  // The server also has a pre-existing bug where it hardcodes thisUserRole: "viewer"
+  // (server/db/project/projects.ts:190) instead of using the calculated value (line 114).
+  // Removing it rather than fixing dead code.
   thisUserPermissions: ProjectUserPermissions;
 };
 ```
@@ -786,10 +805,10 @@ All of this collapses into `client/src/state/project_state.ts` + `client/src/sta
 
 2. **Permissions / per-user data**: SSE broadcasts shared data only. SSE stays a dumb pipe - no per-connection filtering in the message forwarding path.
    - **Instance level**: All projects are sent to all users (it's fine for users to see project names they can't access). The client already hides UI based on permissions. No filtering needed.
-   - **Project level**: `thisUserRole` and `thisUserPermissions` are per-user metadata, not shared project state. They live in the `ProjectState` store on the client, but they are NOT included in broadcast SSE events. They are populated per-connection in the `starting` message (since the server knows who's connecting). When a `project_users_updated` event arrives, the client derives its own permissions from the broadcast data — `ProjectUser` already includes all `ProjectUserPermissions` fields, so the client finds its own email in the updated `ProjectUser[]` and extracts `role` and permissions directly. No extra HTTP request needed. If the user's email is not in the list, they've been removed from the project — navigate back to instance view. This keeps the SSE broadcast path simple (dumb pipe for all events except the initial `starting`).
+   - **Project level**: `thisUserPermissions` is per-user metadata, not shared project state. It lives in the `ProjectState` store on the client, but is NOT included in broadcast SSE events. It is populated per-connection in the `starting` message (since the server knows who's connecting). When a `project_users_updated` event arrives, the client derives its own permissions from the broadcast data — `ProjectUser` already includes all `ProjectUserPermissions` fields, so the client finds its own email in the updated `ProjectUser[]` and extracts permissions directly. No extra HTTP request needed. If the user's email is not in the list, they've been removed from the project — navigate back to instance view. This keeps the SSE broadcast path simple (dumb pipe for all events except the initial `starting`). Note: `thisUserRole` is intentionally excluded from `ProjectState` — no client code reads it (all access control uses the granular `thisUserPermissions` booleans), and the server has a pre-existing bug hardcoding it to `"viewer"` anyway.
    - **Rule**: SSE broadcasts shared data. Per-user data is resolved on initial connection and re-fetched on relevant events.
 
-3. **Project creation/deletion notification**: Project creation (`addProject`) and deletion (`deleteProject`) are in `server/routes/project/project.ts`. These routes need to call `notifyInstanceUpdate({ type: "projects_updated", data: updatedList })` after their mutations. Same for `addProjectUserRole` since that can affect which projects appear in the list. Straightforward wiring.
+3. **Project list notification**: Routes in `server/routes/project/project.ts` that change the project list need `notifyInstanceUpdate({ type: "projects_updated", data: updatedList })`: `createProject`, `deleteProject`, `copyProject` (after async copy), `updateProject` (label/settings), `setProjectLockStatus`. `addProjectUserRole` does NOT need this — all projects are sent to all users regardless of permissions (see #2 above).
 
 4. **SSE connection lifecycle**: Connect after authentication completes (in `LoggedInWrapper.tsx`), stays open for the entire session. Instance data changes are infrequent so the connection is near-zero cost. Project views also benefit from up-to-date instance state (e.g. the project list). Disconnect on sign-out.
 
