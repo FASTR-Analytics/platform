@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS dataset_hfa_dictionary_values (
   FOREIGN KEY (time_point, var_name) REFERENCES dataset_hfa_dictionary_vars(time_point, var_name) ON DELETE CASCADE
 );
 
+DELETE FROM dataset_hfa_upload_attempts;
+DELETE FROM dataset_hfa;
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -32,5 +35,3 @@ BEGIN
       ON DELETE RESTRICT DEFERRABLE;
   END IF;
 END $$;
-
-DELETE FROM dataset_hfa_upload_attempts;

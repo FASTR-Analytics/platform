@@ -4,7 +4,7 @@
  */
 
 import { RetryOptions, withRetry } from "./retry_utils.ts";
-import { type Dhis2Credentials } from "lib";
+import { type Dhis2Credentials, type TranslatableString } from "lib";
 
 export interface FetchOptions extends RequestInit {
   retryOptions?: RetryOptions;
@@ -177,10 +177,10 @@ async function createDHIS2Error(
 
 export type Dhis2ValidationResult =
   | { valid: true }
-  | { valid: false; reason: "dhis2_unavailable"; message: string }
-  | { valid: false; reason: "invalid_url"; message: string }
-  | { valid: false; reason: "bad_credentials"; message: string }
-  | { valid: false; reason: "server_error"; message: string };
+  | { valid: false; reason: "dhis2_unavailable"; message: TranslatableString }
+  | { valid: false; reason: "invalid_url"; message: TranslatableString }
+  | { valid: false; reason: "bad_credentials"; message: TranslatableString }
+  | { valid: false; reason: "server_error"; message: TranslatableString };
 
 const VALIDATION_TIMEOUT = 10000;
 
@@ -218,16 +218,20 @@ export async function validateDhis2Connection(
       return {
         valid: false,
         reason: "invalid_url",
-        message:
-          "This URL does not point to a valid DHIS2 instance. Please check the base URL (e.g. https://dhis2.example.org).",
+        message: {
+          en: "This URL does not point to a valid DHIS2 instance. Please check the base URL (e.g. https://dhis2.example.org).",
+          fr: "Cette URL ne pointe pas vers une instance DHIS2 valide. Veuillez vérifier l'URL de base (ex. https://dhis2.example.org).",
+        },
       };
     }
   } catch {
     return {
       valid: false,
       reason: "dhis2_unavailable",
-      message:
-        "Could not connect to a DHIS2 server at this URL. Check that the URL is correct and that the DHIS2 instance is running.",
+      message: {
+        en: "Could not connect to a DHIS2 server at this URL. Check that the URL is correct and that the DHIS2 instance is running.",
+        fr: "Impossible de se connecter à un serveur DHIS2 à cette URL. Vérifiez que l'URL est correcte et que l'instance DHIS2 est en cours d'exécution.",
+      },
     };
   } finally {
     clearTimeout(phase1Timeout);
@@ -254,15 +258,20 @@ export async function validateDhis2Connection(
       return {
         valid: false,
         reason: "bad_credentials",
-        message:
-          "A DHIS2 server was found and is online, but authentication failed. Check your username and password, and verify that the URL is correct.",
+        message: {
+          en: "A DHIS2 server was found and is online, but authentication failed. Check your username and password, and verify that the URL is correct.",
+          fr: "Un serveur DHIS2 a été trouvé et est en ligne, mais l'authentification a échoué. Vérifiez votre nom d'utilisateur et votre mot de passe, et confirmez que l'URL est correcte.",
+        },
       };
     }
     if (!response.ok) {
       return {
         valid: false,
         reason: "server_error",
-        message: `The DHIS2 server was reached but returned an unexpected error (status ${response.status}). Please try again.`,
+        message: {
+          en: `The DHIS2 server was reached but returned an unexpected error (status ${response.status}). Please try again.`,
+          fr: `Le serveur DHIS2 a été atteint mais a renvoyé une erreur inattendue (statut ${response.status}). Veuillez réessayer.`,
+        },
       };
     }
     return { valid: true };
@@ -270,8 +279,10 @@ export async function validateDhis2Connection(
     return {
       valid: false,
       reason: "server_error",
-      message:
-        "Connection to DHIS2 failed during authentication. Please try again.",
+      message: {
+        en: "Connection to DHIS2 failed during authentication. Please try again.",
+        fr: "La connexion à DHIS2 a échoué lors de l'authentification. Veuillez réessayer.",
+      },
     };
   } finally {
     clearTimeout(phase2Timeout);

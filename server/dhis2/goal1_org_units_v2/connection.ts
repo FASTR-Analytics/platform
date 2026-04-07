@@ -5,12 +5,13 @@ import {
 } from "../common/base_fetcher.ts";
 import { DHIS2PagedResponse, DHIS2OrgUnit } from "./types.ts";
 import { getOrgUnitLevels } from "./get_metadata.ts";
+import type { TranslatableString } from "lib";
 
 export async function testDHIS2Connection(
   options: FetchOptions,
 ): Promise<{
   success: boolean;
-  message: string;
+  message: TranslatableString;
   details?: {
     orgUnitCount?: number;
     levels?: number;
@@ -45,7 +46,7 @@ export async function testDHIS2Connection(
 
     return {
       success: true,
-      message: "Successfully connected to DHIS2",
+      message: { en: "Successfully connected to DHIS2", fr: "Connexion à DHIS2 réussie" },
       details: {
         orgUnitCount: testOrgUnits.pager?.total,
         levels: levels.length,
@@ -53,11 +54,13 @@ export async function testDHIS2Connection(
       },
     };
   } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      message: `Failed to connect to DHIS2: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      message: {
+        en: `Failed to connect to DHIS2: ${detail}`,
+        fr: `Échec de la connexion à DHIS2 : ${detail}`,
+      },
     };
   }
 }

@@ -5,6 +5,7 @@ import {
   searchIndicatorsFromDHIS2,
   testIndicatorsConnection,
 } from "../../dhis2/mod.ts";
+import { t3 } from "lib";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -159,7 +160,7 @@ defineRoute(
       const result = await testIndicatorsConnection(options);
 
       if (!result.success) {
-        return c.json({ success: false, err: result.message });
+        return c.json({ success: false, err: t3(result.message) });
       }
       return c.json({ success: true, data: result.details });
     } catch (error) {

@@ -16,6 +16,7 @@ import type {
   DHIS2Indicator,
   DHIS2IndicatorGroup,
   DHIS2PagedResponse,
+  TranslatableString,
 } from "lib";
 import {
   getDHIS2,
@@ -260,7 +261,7 @@ export async function searchAllIndicatorsAndDataElements(
 
 export async function testIndicatorsConnection(options: FetchOptions): Promise<{
   success: boolean;
-  message: string;
+  message: TranslatableString;
   details?: {
     dataElementCount?: number;
     indicatorCount?: number;
@@ -303,7 +304,7 @@ export async function testIndicatorsConnection(options: FetchOptions): Promise<{
 
     return {
       success: true,
-      message: "Successfully connected to DHIS2 indicators API",
+      message: { en: "Successfully connected to DHIS2 indicators API", fr: "Connexion à l'API des indicateurs DHIS2 réussie" },
       details: {
         dataElementCount: dataElements.pager?.total,
         indicatorCount: indicators.pager?.total,
@@ -312,11 +313,13 @@ export async function testIndicatorsConnection(options: FetchOptions): Promise<{
       },
     };
   } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      message: `Failed to connect to DHIS2 indicators API: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      message: {
+        en: `Failed to connect to DHIS2 indicators API: ${detail}`,
+        fr: `Échec de la connexion à l'API des indicateurs DHIS2 : ${detail}`,
+      },
     };
   }
 }

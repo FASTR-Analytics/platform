@@ -1,6 +1,6 @@
 import { stringifyCsvWithHeaders } from "@timroberton/panther";
 import { Hono } from "hono";
-import { _DATASET_LIMIT, type Dhis2Credentials } from "lib";
+import { _DATASET_LIMIT, t3, type Dhis2Credentials } from "lib";
 import {
   addStructureUploadAttempt,
   deleteAllStructureData,
@@ -254,7 +254,7 @@ defineRoute(
     const connectionTest = await testDHIS2Connection(fetchOptions);
 
     if (!connectionTest.success) {
-      return c.json({ success: false, err: connectionTest.message });
+      return c.json({ success: false, err: t3(connectionTest.message) });
     }
 
     // Update database with credentials

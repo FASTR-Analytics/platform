@@ -55,13 +55,10 @@ export const indicatorsDhis2RouteRegistry = {
       dhis2Credentials: Dhis2Credentials;
     },
     response: {} as {
-      message: string;
-      details?: {
-        dataElementCount?: number;
-        indicatorCount?: number;
-        dataElementGroups?: number;
-        indicatorGroups?: number;
-      };
+      dataElementCount?: number;
+      indicatorCount?: number;
+      dataElementGroups?: number;
+      indicatorGroups?: number;
     },
   }),
 } as const;

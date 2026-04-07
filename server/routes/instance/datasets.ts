@@ -39,6 +39,7 @@ import {
 } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { validateDhis2Connection } from "../../dhis2/mod.ts";
+import { t3 } from "lib";
 
 export const routesDatasets = new Hono();
 
@@ -273,7 +274,7 @@ defineRoute(
     const validation = await validateDhis2Connection(body);
     console.log("[dhis2ConfirmCredentials] Result:", JSON.stringify(validation));
     if (!validation.valid) {
-      return c.json({ success: false, err: validation.message });
+      return c.json({ success: false, err: t3(validation.message) });
     }
     const res = await updateDatasetUploadAttempt_Step1Dhis2Confirm(
       c.var.mainDb,
