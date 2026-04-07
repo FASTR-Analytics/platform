@@ -1,4 +1,4 @@
-import { ProjectDirtyStates, t, t2, T } from "lib";
+import { ProjectDirtyStates } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -78,7 +78,7 @@ export function DownloadReport(
 
   return (
     <ModalContainer
-      title={t("Download report")}
+      title="Download report"
       width="sm"
       leftButtons={
         pct() > 0
@@ -90,20 +90,20 @@ export function DownloadReport(
                 intent="success"
                 iconName="download"
               >
-                {t2(T.FRENCH_UI_STRINGS.download)}
+                {"Download"}
               </Button>,
               <Button
                 onClick={() => p.close(undefined)}
                 intent="neutral"
                 iconName="x"
               >
-                {t2(T.FRENCH_UI_STRINGS.done)}
+                {"Done"}
               </Button>,
             ]
       }
     >
       <div class="ui-spy-sm">
-        <div class="">{t("PDF")}</div>
+        <div class="">{"PDF"}</div>
         <RadioGroup
           options={[{ value: "vector", label: "PDF" }]}
           value={exportFormat()}
@@ -111,7 +111,7 @@ export function DownloadReport(
         />
       </div>
       <div class="ui-spy-sm">
-        <div class="">{t("PPTX")}</div>
+        <div class="">{"PPTX"}</div>
         <RadioGroup
           options={[{ value: "pptx", label: "PPTX" }]}
           value={exportFormat()}
@@ -119,9 +119,9 @@ export function DownloadReport(
         />
       </div>
       <div class="ui-spy-sm">
-        <div class="">{t2(T.FRENCH_UI_STRINGS.backup)}</div>
+        <div class="">{"Backup"}</div>
         <RadioGroup
-          options={[{ value: "json", label: t("JSON file") }]}
+          options={[{ value: "json", label: "JSON file" }]}
           value={exportFormat()}
           onChange={setExportFormat}
         />

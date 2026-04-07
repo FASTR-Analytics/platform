@@ -1,7 +1,6 @@
-import { ReportDetail, ReportItemConfig, t2, T } from "lib";
+import { ReportDetail, ReportItemConfig } from "lib";
 import { Slider, TextArea, TimActionButton } from "panther";
 import { SetStoreFunction } from "solid-js/store";
-import { t } from "lib";
 
 type Props = {
   projectId: string;
@@ -15,7 +14,7 @@ export function ReportItemEditorSlideSection(p: Props) {
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
         <TextArea
-          label={t2(T.FRENCH_UI_STRINGS.main_section_text)}
+          label="Main section text"
           value={p.tempReportItemConfig.section.sectionText ?? ""}
           onChange={(v) =>
             p.setTempReportItemConfig("section", "sectionText", v)
@@ -24,7 +23,7 @@ export function ReportItemEditorSlideSection(p: Props) {
           height="80px"
         />
         <Slider
-          label={t("Main section text font size")}
+          label="Main section text font size"
           min={5}
           max={20}
           step={1}
@@ -36,7 +35,7 @@ export function ReportItemEditorSlideSection(p: Props) {
           showValueInLabel
         />
         <TextArea
-          label={t2(T.FRENCH_UI_STRINGS.secondary_section_text)}
+          label="Secondary section text"
           value={p.tempReportItemConfig.section.smallerSectionText ?? ""}
           onChange={(v) =>
             p.setTempReportItemConfig("section", "smallerSectionText", v)
@@ -45,7 +44,7 @@ export function ReportItemEditorSlideSection(p: Props) {
           height="80px"
         />
         <Slider
-          label={t("Secondary section text font size")}
+          label="Secondary section text font size"
           min={2}
           max={12}
           step={1}

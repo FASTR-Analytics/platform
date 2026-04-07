@@ -3,7 +3,8 @@ import {
   // HFA imports
   addDatasetHfaUploadAttempt,
   addDatasetHmisUploadAttempt,
-  deleteAllDatasetHfaData,
+  computeHfaCacheHash,
+  deleteDatasetHfaData,
   deleteAllDatasetHmisData,
   deleteDatasetHfaUploadAttempt,
   deleteDatasetHmisUploadAttempt,
@@ -15,7 +16,6 @@ import {
   getDatasetHmisItemsForDisplay,
   getDatasetHmisUploadAttemptDetail,
   getDatasetHmisUploadStatus,
-  getVersionsForDatasetHfa,
   getVersionsForDatasetHmis,
   updateDatasetHfaUploadAttempt_Step1CsvUpload,
   updateDatasetHfaUploadAttempt_Step2Mappings,
@@ -303,17 +303,6 @@ defineRoute(
   },
 );
 
-defineRoute(
-  routesDatasets,
-  "getDatasetHfaVersions",
-  requireGlobalPermission("can_view_data"),
-  log("getDatasetHfaVersions"),
-  async (c) => {
-    const res = await getVersionsForDatasetHfa(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
 /////////////////////////
 //                     //
 //    HFA Dataset items    //
@@ -325,10 +314,15 @@ defineRoute(
   "getDatasetHfaDisplayInfo",
   requireGlobalPermission("can_view_data"),
   log("getDatasetHfaDisplayInfo"),
-  async (c, { body }) => {
+  async (c) => {
+    const tpRows = await c.var.mainDb<{ time_point: string; date_imported: string | null }[]>`
+      SELECT time_point, date_imported FROM dataset_hfa_dictionary_time_points ORDER BY time_point
+    `;
+    const hash = computeHfaCacheHash(tpRows);
+
     const existing = await _FETCH_CACHE_DATASET_HFA_ITEMS.get(
       {},
-      { versionId: body.versionId },
+      { hash },
     );
 
     if (existing) {
@@ -337,15 +331,12 @@ defineRoute(
 
     const newPromise = getDatasetHfaItemsForDisplay(
       c.var.mainDb,
-      body.versionId,
     );
 
     _FETCH_CACHE_DATASET_HFA_ITEMS.setPromise(
       newPromise,
       {},
-      {
-        versionId: body.versionId,
-      },
+      { hash },
     );
 
     const res = await newPromise;
@@ -355,11 +346,11 @@ defineRoute(
 
 defineRoute(
   routesDatasets,
-  "deleteAllDatasetHfaData",
+  "deleteDatasetHfaData",
   requireGlobalPermission("can_configure_data"),
-  log("deleteAllDatasetHfaData"),
-  async (c) => {
-    const res = await deleteAllDatasetHfaData(c.var.mainDb);
+  log("deleteDatasetHfaData"),
+  async (c, { body }) => {
+    const res = await deleteDatasetHfaData(c.var.mainDb, body.timePoint);
     return c.json(res);
   },
 );
@@ -426,7 +417,8 @@ defineRoute(
   async (c, { body }) => {
     const res = await updateDatasetHfaUploadAttempt_Step1CsvUpload(
       c.var.mainDb,
-      body.assetFileName,
+      body.csvAssetFileName,
+      body.xlsFormAssetFileName,
     );
     return c.json(res);
   },

@@ -1,6 +1,6 @@
 import type Uppy from "@uppy/core";
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { t, t2, T, type CsvDetails } from "lib";
+import { t3, TC, type DatasetHfaStep1Result } from "lib";
 import { serverActions } from "~/server_actions";
 import {
   Button,
@@ -14,62 +14,88 @@ import {
 import { cleanupUppy, createUppyInstance } from "~/upload/uppy_file_upload";
 
 type Props = {
-  step1Result: CsvDetails | undefined;
+  step1Result: DatasetHfaStep1Result | undefined;
   silentFetch: () => Promise<void>;
 };
 
 export function Step1(p: Props) {
-  const [selectedFileName, setSelectedFileName] = createSignal<string>(
-    p.step1Result?.fileName ?? "",
+  const [selectedCsvFileName, setSelectedCsvFileName] = createSignal<string>(
+    p.step1Result?.csv.fileName ?? "",
   );
+  const [selectedXlsFormFileName, setSelectedXlsFormFileName] =
+    createSignal<string>(p.step1Result?.xlsForm.fileName ?? "");
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step1Result);
 
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
-    t2(T.FRENCH_UI_STRINGS.loading_asset_files),
+    t3(TC.loadingAssets),
   );
 
-  function updateSelectedFileName(fileName: string) {
+  function updateSelectedCsvFileName(fileName: string) {
     setNeedsSaving(true);
-    setSelectedFileName(fileName);
+    setSelectedCsvFileName(fileName);
+  }
+
+  function updateSelectedXlsFormFileName(fileName: string) {
+    setNeedsSaving(true);
+    setSelectedXlsFormFileName(fileName);
   }
 
   const save = timActionForm(async () => {
-    const assetFileName = selectedFileName();
-    if (!assetFileName) {
-      return { success: false, err: t("You must select a file") };
+    const csvAssetFileName = selectedCsvFileName();
+    const xlsFormAssetFileName = selectedXlsFormFileName();
+    if (!csvAssetFileName) {
+      return { success: false, err: t3({ en: "You must select a CSV data file", fr: "Vous devez sélectionner un fichier de données CSV" }) };
+    }
+    if (!xlsFormAssetFileName) {
+      return {
+        success: false,
+        err: t3({ en: "You must select an XLSForm questionnaire file", fr: "Vous devez sélectionner un fichier questionnaire XLSForm" }),
+      };
     }
     return serverActions.uploadDatasetHfaCsv({
-      assetFileName,
+      csvAssetFileName,
+      xlsFormAssetFileName,
     });
   }, p.silentFetch);
 
-  let uppy: Uppy | undefined = undefined;
+  let uppyCsv: Uppy | undefined = undefined;
+  let uppyXlsForm: Uppy | undefined = undefined;
 
   onMount(() => {
-    uppy = createUppyInstance({
-      triggerId: "#select-file-button",
+    uppyCsv = createUppyInstance({
+      triggerId: "#select-csv-button",
       onModalClosed: () => {
         assetListing.fetch();
       },
       onUploadSuccess: (file) => {
-        if (!file) {
-          return;
-        }
-        updateSelectedFileName(file.name as string);
+        if (!file) return;
+        updateSelectedCsvFileName(file.name as string);
+      },
+    });
+    uppyXlsForm = createUppyInstance({
+      triggerId: "#select-xlsform-button",
+      onModalClosed: () => {
+        assetListing.fetch();
+      },
+      onUploadSuccess: (file) => {
+        if (!file) return;
+        updateSelectedXlsFormFileName(file.name as string);
       },
     });
   });
 
   onCleanup(() => {
-    cleanupUppy(uppy);
+    cleanupUppy(uppyCsv);
+    cleanupUppy(uppyXlsForm);
   });
 
   return (
     <div class="ui-pad ui-spy">
+      <h3 class="font-700 text-lg">{t3({ en: "CSV Data File", fr: "Fichier de données CSV" })}</h3>
       <div class="">
-        <Button id="select-file-button" iconName="upload">
-          {t2(T.FRENCH_UI_STRINGS.upload_new_csv_file_to_use)}
+        <Button id="select-csv-button" iconName="upload">
+          {t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser" })}
         </Button>
       </div>
       <div class="w-96">
@@ -77,28 +103,57 @@ export function Step1(p: Props) {
           {(keyedAssets) => {
             return (
               <Select
-                label={t2(T.FRENCH_UI_STRINGS.existing_csv_file_to_use)}
+                label={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
                 options={getSelectOptions(
                   keyedAssets.filter((a) => a.isCsv).map((a) => a.fileName),
                 )}
-                value={selectedFileName()}
-                onChange={updateSelectedFileName}
+                value={selectedCsvFileName()}
+                onChange={updateSelectedCsvFileName}
                 fullWidth
               />
             );
           }}
         </StateHolderWrapper>
       </div>
+
+      <h3 class="font-700 text-lg">{t3({ en: "XLSForm Questionnaire File", fr: "Fichier questionnaire XLSForm" })}</h3>
+      <div class="">
+        <Button id="select-xlsform-button" iconName="upload">
+          {t3({ en: "Upload new XLSForm file", fr: "Téléverser un nouveau fichier XLSForm" })}
+        </Button>
+      </div>
+      <div class="w-96">
+        <StateHolderWrapper state={assetListing.state()} noPad>
+          {(keyedAssets) => {
+            return (
+              <Select
+                label={t3({ en: "Existing XLSForm file to use", fr: "Fichier XLSForm existant à utiliser" })}
+                options={getSelectOptions(
+                  keyedAssets.filter((a) => a.isXlsx).map((a) => a.fileName),
+                )}
+                value={selectedXlsFormFileName()}
+                onChange={updateSelectedXlsFormFileName}
+                fullWidth
+              />
+            );
+          }}
+        </StateHolderWrapper>
+      </div>
+
       <StateHolderFormError state={save.state()} />
       <div class="ui-gap-sm flex">
         <Button
           onClick={save.click}
           intent="success"
           state={save.state()}
-          disabled={!needsSaving() || !selectedFileName()}
+          disabled={
+            !needsSaving() ||
+            !selectedCsvFileName() ||
+            !selectedXlsFormFileName()
+          }
           iconName="save"
         >
-          {t2(T.FRENCH_UI_STRINGS.save)}
+          {t3(TC.save)}
         </Button>
       </div>
     </div>

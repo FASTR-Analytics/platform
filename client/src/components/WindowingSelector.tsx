@@ -3,19 +3,17 @@ import {
   _KEY_COLORS_DANGER,
   _KEY_COLORS_SUCCESS,
   getCalendar,
-  t,
-  t2,
-  T,
+  t3,
   type DatasetHmisWindowing,
   type DatasetHmisWindowingRaw,
   type InstanceConfigFacilityColumns,
+  type TranslatableString,
 } from "lib";
 import {
   ChartHolder,
   Checkbox,
   MultiSelect,
   StateHolderWrapper,
-  capitalizeFirstLetter,
   getSelectOptions,
   getTimeFromPeriodId,
   getTimeseriesDataJsonTransformed,
@@ -70,7 +68,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
         p.indicatorMappingsVersion,
         p.facilityColumns,
       ),
-    t2(T.FRENCH_UI_STRINGS.fetching_data),
+    t3({ en: "Fetching data...", fr: "Récupération des données..." }),
   );
 
   return (
@@ -120,9 +118,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 periodProp: "period_id",
                 periodType: "year-month",
                 seriesProp: "indicator_id",
-                yScaleAxisLabel: t2(
-                  T.FRENCH_UI_STRINGS.number_of_facility_records,
-                ),
+                yScaleAxisLabel: t3({ en: "Number of facility records", fr: "Nombre d'enregistrements d'établissements de santé" }),
               },
               false,
             );
@@ -240,7 +236,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
           <div class="ui-gap flex flex-col xl:grid xl:grid-cols-12 xl:items-start xl:space-y-0">
             <div class="ui-spy-sm ui-pad border-base-300 flex-none rounded border xl:col-span-8">
               <div class="text-md font-700">
-                {t2(T.FRENCH_UI_STRINGS.time_period)}
+                {t3({ en: "Time period", fr: "Période" })}
               </div>
               <Show when={figureInputs()} keyed>
                 {(figInputs) => {
@@ -258,7 +254,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               />
             </div>
             <ToggledMultiSelect
-              itemLabelPluralLower="indicators"
+              heading={{ en: "Indicators", fr: "Indicateurs" }}
+              toggleAllLabel={isDelete ? { en: "Delete all indicators", fr: "Supprimer tous les indicateurs" } : { en: "Include all indicators", fr: "Inclure tous les indicateurs" }}
               takeAll={p.tempWindowing.takeAllIndicators}
               setTakeAll={(v) =>
                 (p.setTempWindowing as any)("takeAllIndicators", v)
@@ -270,7 +267,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             />
             <Show when={!isDelete}>
               <ToggledMultiSelect
-                itemLabelPluralLower="admin areas"
+                heading={{ en: "Admin areas", fr: "Unités administratives" }}
+                toggleAllLabel={{ en: "Include all admin areas", fr: "Inclure toutes les unités administratives" }}
                 takeAll={p.tempWindowing.takeAllAdminArea2s}
                 setTakeAll={(v) =>
                   (p.setTempWindowing as any)("takeAllAdminArea2s", v)
@@ -285,7 +283,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             </Show>
             <Show when={!isDelete && p.facilityColumns.includeOwnership}>
               <ToggledMultiSelect
-                itemLabelPluralLower="facility ownership categories"
+                heading={{ en: "Facility ownership categories", fr: "Catégories de propriété des établissements" }}
+                toggleAllLabel={{ en: "Include all facility ownership categories", fr: "Inclure toutes les catégories de propriété" }}
                 takeAll={p.tempWindowing.takeAllFacilityOwnerships ?? true}
                 setTakeAll={(v) =>
                   (p.setTempWindowing as any)("takeAllFacilityOwnerships", v)
@@ -302,7 +301,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             </Show>
             <Show when={!isDelete && p.facilityColumns.includeTypes}>
               <ToggledMultiSelect
-                itemLabelPluralLower="facility types"
+                heading={{ en: "Facility types", fr: "Types d'établissements" }}
+                toggleAllLabel={{ en: "Include all facility types", fr: "Inclure tous les types d'établissements" }}
                 takeAll={p.tempWindowing.takeAllFacilityTypes ?? true}
                 setTakeAll={(v) =>
                   (p.setTempWindowing as any)("takeAllFacilityTypes", v)
@@ -327,7 +327,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
 type ToggledMultiSelectProps = {
   isDelete: boolean;
   takeAll: boolean;
-  itemLabelPluralLower: string;
+  heading: TranslatableString;
+  toggleAllLabel: TranslatableString;
   itemOptions: SelectOption<string>[];
   itemsToTake: string[];
   setTakeAll: (v: boolean) => void;
@@ -338,14 +339,10 @@ function ToggledMultiSelect(p: ToggledMultiSelectProps) {
   return (
     <div class="ui-spy-sm ui-pad border-base-300 max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
       <div class="text-md font-700">
-        {t(capitalizeFirstLetter(p.itemLabelPluralLower))}
+        {t3(p.heading)}
       </div>
       <Checkbox
-        label={
-          p.isDelete
-            ? t(`Delete all ${p.itemLabelPluralLower}`)
-            : t(`Include all ${p.itemLabelPluralLower}`)
-        }
+        label={t3(p.toggleAllLabel)}
         checked={p.takeAll}
         onChange={p.setTakeAll}
       />

@@ -76,7 +76,6 @@ export function HfaCsvUploadForm(p: Props) {
         "category",
         "definition",
         "varName",
-        "rCode",
         "type",
       ];
       const headers = Object.keys(rows[0]);
@@ -133,10 +132,8 @@ export function HfaCsvUploadForm(p: Props) {
           category: row.category || "",
           definition: row.definition || "",
           varName,
-          rCode: row.rCode || "",
           type: normalizedType,
-          ...(row.rFilterCode &&
-            row.rFilterCode.trim() && { rFilterCode: row.rFilterCode }),
+          sortOrder: i,
         };
 
         indicators.push(indicator);
@@ -171,12 +168,12 @@ export function HfaCsvUploadForm(p: Props) {
             fr: "Téléversez un fichier CSV avec les en-têtes suivants :",
           })}
           <div class="font-700 mt-2 ml-3 font-mono">
-            category, definition, varName, rCode, type, rFilterCode
+            category, definition, varName, type
           </div>
           <div class="mt-2 text-xs opacity-60">
             {t3({
-              en: 'Note: "type" can be "binary"/"Boolean" or "numeric"/"Numeric". "rFilterCode" is optional.',
-              fr: 'Remarque : "type" peut être "binary"/"Boolean" ou "numeric"/"Numeric". "rFilterCode" est optionnel.',
+              en: 'Note: "type" can be "binary"/"Boolean" or "numeric"/"Numeric".',
+              fr: 'Remarque : "type" peut être "binary"/"Boolean" ou "numeric"/"Numeric".',
             })}
           </div>
         </div>

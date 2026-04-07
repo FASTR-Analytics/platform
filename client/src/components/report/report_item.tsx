@@ -7,8 +7,6 @@ import {
   ReportItemConfig,
   ReportItemContentItem,
   getTextRenderingOptions,
-  t2,
-  T,
 } from "lib";
 import {
   APIResponseWithData,
@@ -93,7 +91,7 @@ export function ReportItemEditor(p: ReportItemEditorProps) {
   //     {(keyedLastUpate) => {
   const [reportItem, setReportItem] = createSignal<StateHolder<ReportItem>>({
     status: "loading",
-    msg: t2(T.FRENCH_UI_STRINGS.loading_report_item),
+    msg: "Loading report item...",
   });
 
   async function silentFetchReportItem() {
@@ -166,7 +164,7 @@ export function ReportItemEditorInner(p: Props) {
 
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
-    msg: t2(T.FRENCH_UI_STRINGS.loading_1),
+    msg: "Loading...",
   });
 
   // Sub-state updater

@@ -12,7 +12,6 @@ import {
   throwIfErrNoData,
   throwIfErrWithData,
 } from "lib";
-import { getCurrentDatasetHfaVersion } from "../instance/dataset_hfa.ts";
 import {
   getFacilityColumnsConfig,
   getMaxAdminAreaConfig,
@@ -32,8 +31,10 @@ export async function addDatasetHfaToProject(
     throwIfErrNoData(res);
 
     if (onProgress) await onProgress(0.2, "Validating configuration...");
-    const version = await getCurrentDatasetHfaVersion(mainDb);
-    assertNotUndefined(version, "Cannot get hfa version");
+    const hasData = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM dataset_hfa LIMIT 1`)[0].count > 0;
+    if (!hasData) {
+      throw new Error("No HFA data available to add to project");
+    }
 
     // Get facility columns configuration
     const facilityColumnsRes = await getFacilityColumnsConfig(mainDb);
@@ -136,7 +137,7 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
 INSERT INTO datasets (dataset_type, info, last_updated)
 VALUES (
   'hfa',
-  ${JSON.stringify({ version: version.id })},
+  ${JSON.stringify({})},
   ${lastUpdated}
 )
 ON CONFLICT (dataset_type) DO UPDATE SET

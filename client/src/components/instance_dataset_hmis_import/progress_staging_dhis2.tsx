@@ -1,4 +1,4 @@
-import { t } from "lib";
+import { t3 } from "lib";
 import type { DatasetUploadAttemptStatus } from "lib";
 import { to100Pct0 } from "panther";
 import { ProgressBar } from "panther";
@@ -20,7 +20,7 @@ export function ProgressStaging_Dhis2(p: {
   return (
     <div class="ui-pad ui-spy">
       <div class="flex items-center justify-between">
-        <div class="font-700 text-xl">{t("Staging DHIS2 Data")}</div>
+        <div class="font-700 text-xl">{t3({ en: "Staging DHIS2 Data", fr: "Préparation des données DHIS2" })}</div>
         <div class="font-700 text-2xl">{to100Pct0(p.status.progress)}</div>
       </div>
 
@@ -28,17 +28,17 @@ export function ProgressStaging_Dhis2(p: {
 
       <div class="mt-4 grid grid-cols-3 gap-4">
         <div class="border-base-300 rounded border p-4 text-center">
-          <div class="text-base-content text-sm">Total indicator-months</div>
+          <div class="text-base-content text-sm">{t3({ en: "Total indicator-months", fr: "Total indicateurs-mois" })}</div>
           <div class="font-700 text-xl">{p.status.totalWorkItems}</div>
         </div>
         <div class="border-base-300 rounded border p-4 text-center">
-          <div class="text-success text-sm">Completed indicator-months</div>
+          <div class="text-success text-sm">{t3({ en: "Completed indicator-months", fr: "Indicateurs-mois terminés" })}</div>
           <div class="font-700 text-success text-xl">
             {p.status.completedWorkItems}
           </div>
         </div>
         <div class="border-base-300 rounded border p-4 text-center">
-          <div class="text-danger text-sm">Failed indicator-months</div>
+          <div class="text-danger text-sm">{t3({ en: "Failed indicator-months", fr: "Indicateurs-mois échoués" })}</div>
           <div class="font-700 text-danger text-xl">
             {p.status.failedWorkItems}
           </div>
@@ -48,7 +48,7 @@ export function ProgressStaging_Dhis2(p: {
       {p.status.activeWorkItems.length > 0 && (
         <div class="mt-6">
           <div class="font-700 mb-3">
-            Active indicator-months ({p.status.activeWorkItems.length})
+            {t3({ en: "Active indicator-months", fr: "Indicateurs-mois actifs" })} ({p.status.activeWorkItems.length})
           </div>
           <div class="space-y-3">
             <For each={p.status.activeWorkItems}>
@@ -61,10 +61,10 @@ export function ProgressStaging_Dhis2(p: {
                     <div class="mb-3 flex items-start justify-between">
                       <div>
                         <span class="font-mono text-sm">
-                          Indicator: {item.indicatorId}
+                          {t3({ en: "Indicator", fr: "Indicateur" })}: {item.indicatorId}
                         </span>
                         <span class="ml-6 font-mono text-sm">
-                          Month: {item.periodId}
+                          {t3({ en: "Month", fr: "Mois" })}: {item.periodId}
                         </span>
                       </div>
                       <span class="text-base-content text-sm">

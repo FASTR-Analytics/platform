@@ -1,4 +1,4 @@
-import { t, type Dhis2Credentials } from "lib";
+import { t3, type Dhis2Credentials } from "lib";
 import { Checkbox, Input } from "panther";
 import type { Accessor, Setter } from "solid-js";
 import { Show, createSignal, onMount } from "solid-js";
@@ -46,7 +46,7 @@ export function Dhis2CredentialsEditor(p: Props) {
       data-fullWidth={!!p.fullWidth}
     >
       <Input
-        label={t("DHIS2 URL")}
+        label={t3({ en: "DHIS2 URL", fr: "URL DHIS2" })}
         value={p.credentials().url}
         onChange={(v) => handleCredentialChange("url", v)}
         placeholder="https://example.dhis2.org"
@@ -54,7 +54,7 @@ export function Dhis2CredentialsEditor(p: Props) {
         disabled={p.disabled}
       />
       <Input
-        label={t("DHIS2 Username")}
+        label={t3({ en: "DHIS2 Username", fr: "Nom d'utilisateur DHIS2" })}
         type="password"
         value={p.credentials().username}
         onChange={(v) => handleCredentialChange("username", v)}
@@ -63,7 +63,7 @@ export function Dhis2CredentialsEditor(p: Props) {
         disabled={p.disabled}
       />
       <Input
-        label={t("DHIS2 Password")}
+        label={t3({ en: "DHIS2 Password", fr: "Mot de passe DHIS2" })}
         type="password"
         value={p.credentials().password}
         onChange={(v) => handleCredentialChange("password", v)}
@@ -77,7 +77,7 @@ export function Dhis2CredentialsEditor(p: Props) {
           <Checkbox
             checked={!!p.saveToSession?.()}
             onChange={(v) => p.setSaveToSession?.(v)}
-            label={t("Save credentials for this session")}
+            label={t3({ en: "Save credentials for this session", fr: "Enregistrer les identifiants pour cette session" })}
             disabled={p.disabled}
           />
         </div>

@@ -1,4 +1,4 @@
-import { t, type DatasetStagingResult } from "lib";
+import { t3, type DatasetStagingResult } from "lib";
 import { Button, RadioGroup, timActionButton, toNum0 } from "panther";
 import { Match, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -29,40 +29,34 @@ export function Step3(p: Props) {
   return (
     <div class="ui-spy ui-pad">
       <div class="ui-spy-sm">
-        <div class="font-700 text-lg">{t("Data Staging")}</div>
+        <div class="font-700 text-lg">{t3({ en: "Data Staging", fr: "Préparation des données" })}</div>
         <Switch>
           <Match when={!p.step3Result}>
             <div class="border-base-300 rounded border p-4">
               <Switch>
                 <Match when={isCSV()}>
                   <div class="">
-                    {t(
-                      "Ready to stage CSV data. This will validate and prepare the data for import.",
-                    )}
+                    {t3({ en: "Ready to stage CSV data. This will validate and prepare the data for import.", fr: "Prêt à préparer les données CSV. Cela validera et préparera les données pour l'importation." })}
                   </div>
                 </Match>
                 <Match when={true}>
                   <div class="ui-spy">
                     <div class="">
-                      {t(
-                        "Ready to fetch data from DHIS2. This will retrieve the selected indicators and periods.",
-                      )}
+                      {t3({ en: "Ready to fetch data from DHIS2. This will retrieve the selected indicators and periods.", fr: "Prêt à récupérer les données depuis DHIS2. Cela récupérera les indicateurs et périodes sélectionnés." })}
                     </div>
                     <div class="ui-spy-sm">
                       <div class="">
-                        What should happen if any period-indicator combination
-                        fails?
+                        {t3({ en: "What should happen if any period-indicator combination fails?", fr: "Que faire si une combinaison période-indicateur échoue ?" })}
                       </div>
                       <RadioGroup
                         options={[
                           {
                             value: "fail-fast",
-                            label: "Abort the entire import attempt",
+                            label: t3({ en: "Abort the entire import attempt", fr: "Abandonner la totalité de l'importation" }),
                           },
                           {
                             value: "continue-on-error",
-                            label:
-                              "Keep any period-indicator combindations that succeed, and report the errors",
+                            label: t3({ en: "Keep any period-indicator combinations that succeed, and report the errors", fr: "Conserver les combinaisons période-indicateur réussies et signaler les erreurs" }),
                           },
                         ]}
                         value={failFastMode()}
@@ -80,12 +74,12 @@ export function Step3(p: Props) {
                 <span>✓</span>
                 <span>
                   {isCSV()
-                    ? t("CSV data staged successfully")
-                    : t("DHIS2 data fetched successfully")}
+                    ? t3({ en: "CSV data staged successfully", fr: "Données CSV préparées avec succès" })
+                    : t3({ en: "DHIS2 data fetched successfully", fr: "Données DHIS2 récupérées avec succès" })}
                 </span>
               </div>
               <div class="text-success mt-2 text-sm">
-                {t("Total rows staged")}:{" "}
+                {t3({ en: "Total rows staged", fr: "Total de lignes préparées" })}:{" "}
                 {toNum0(p.step3Result!.finalStagingRowCount)}
               </div>
             </div>
@@ -100,7 +94,7 @@ export function Step3(p: Props) {
           disabled={!needsSaving()}
           iconName="database"
         >
-          {isCSV() ? t("Start staging") : t("Start fetching from DHIS2")}
+          {isCSV() ? t3({ en: "Start staging", fr: "Commencer la préparation" }) : t3({ en: "Start fetching from DHIS2", fr: "Commencer la récupération depuis DHIS2" })}
         </Button>
       </div>
     </div>

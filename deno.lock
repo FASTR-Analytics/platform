@@ -1063,6 +1063,7 @@
       "npm:parse-multipart@^1.0.4",
       "npm:postgres@^3.4.5",
       "npm:redis@^4.7.0",
+      "npm:xlsx@0.18.5",
       "npm:zod@^3.22.4"
     ],
     "members": {

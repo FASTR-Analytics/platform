@@ -49,7 +49,7 @@ export function ProjectVisualizations(p: Props) {
         props: {
           mode: "create" as const,
           projectId: projectDetail.id,
-          label: `Copy of ${poDetailRes.data.label}`,
+          label: `${t3({ en: "Copy of", fr: "Copie de" })} ${poDetailRes.data.label}`,
           isGlobalAdmin: p.isGlobalAdmin,
           returnToContext: aiContext(),
           ...snapshotForVizEditor({

@@ -2,9 +2,8 @@ import {
   ItemsHolderDatasetHmisDisplay,
   getAbcQualScale,
   getCalendar,
-  t,
-  t2,
-  T,
+  t3,
+  TC,
   type IndicatorType,
   type InstanceConfigFacilityColumns,
 } from "lib";
@@ -47,7 +46,7 @@ export function DatasetItemsHolder(p: Props) {
     StateHolder<ItemsHolderDatasetHmisDisplay>
   >({
     status: "loading",
-    msg: t2(T.FRENCH_UI_STRINGS.fetching_data),
+    msg: t3({ en: "Fetching data...", fr: "Récupération des données..." }),
   });
 
   async function attemptGetDatatable(
@@ -57,7 +56,7 @@ export function DatasetItemsHolder(p: Props) {
   ) {
     setItemsHolder({
       status: "loading",
-      msg: t2(T.FRENCH_UI_STRINGS.fetching_data),
+      msg: t3({ en: "Fetching data...", fr: "Récupération des données..." }),
     });
     const res = await getDatasetHmisDisplayInfoFromCacheOrFetch(
       rawOrCommonIndicators,
@@ -179,8 +178,8 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
                   p.displayItems.indicatorLabelReplacements,
                 yScaleAxisLabel:
                   value === "count"
-                    ? t2(T.FRENCH_UI_STRINGS.number_of_records)
-                    : t("Number of service counts"),
+                    ? t3({ en: "Number of records", fr: "Nombre d'enregistrements" })
+                    : t3({ en: "Number of service counts", fr: "Nombre de prestations de services" }),
               },
             },
             style,
@@ -209,38 +208,38 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
       panelChildren={
         <div class="ui-pad ui-spy border-base-300 h-full w-full border-r">
           <RadioGroup
-            label="Common or DHIS2 indicators"
+            label={t3({ en: "Common or DHIS2 indicators", fr: "Indicateurs communs ou DHIS2" })}
             options={[
-              { value: "common", label: "Common indicators" },
-              { value: "raw", label: "DHIS2 indicators" },
+              { value: "common", label: t3({ en: "Common indicators", fr: "Indicateurs communs" }) },
+              { value: "raw", label: t3({ en: "DHIS2 indicators", fr: "Indicateurs DHIS2" }) },
             ]}
             value={p.rawOrCommon}
             onChange={(v) => p.setRawOrCommon(v as IndicatorType)}
           />
           <RadioGroup
-            label="Value"
+            label={t3({ en: "Value", fr: "Valeur" })}
             options={[
-              { value: "count", label: "Number of records" },
-              { value: "sum", label: "Number of service counts" },
+              { value: "count", label: t3({ en: "Number of records", fr: "Nombre d'enregistrements" }) },
+              { value: "sum", label: t3({ en: "Number of service counts", fr: "Nombre de prestations de services" }) },
             ]}
             value={vizConfig.value}
             onChange={(v) => setVizConfig("value", v as "count" | "sum")}
           />
           <RadioGroup
-            label="Format"
+            label={t3({ en: "Format", fr: "Format" })}
             options={getSelectOptionsWithFirstCapital(["chart", "table"])}
             value={vizConfig.figureType}
             onChange={(v) => setVizConfig("figureType", v as "table" | "chart")}
           />
           <MultiSelect
-            label="Indicators"
+            label={t3({ en: "Indicators", fr: "Indicateurs" })}
             options={p.displayItems.indicators}
             values={vizConfig.indicators}
             onChange={(v) => setVizConfig("indicators", v)}
             showSelectAll
           />
           <Slider
-            label={t2(T.FRENCH_UI_STRINGS.scale)}
+            label={t3(TC.scale)}
             min={0.1}
             max={2}
             step={0.1}
@@ -256,7 +255,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
         <Show
           when={vizConfig.indicators.length > 0}
           fallback={
-            <span class="text-sm">You must select at least one indicator</span>
+            <span class="text-sm">{t3({ en: "You must select at least one indicator", fr: "Vous devez sélectionner au moins un indicateur" })}</span>
           }
         >
           <StateHolderWrapper state={figureInputs()}>

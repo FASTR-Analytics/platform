@@ -1,8 +1,7 @@
-import { DirtyOrRunStatus, t2, T } from "lib";
+import { DirtyOrRunStatus, t3 } from "lib";
 import { capitalizeFirstLetter, type Intent } from "panther";
 import { Show, createMemo } from "solid-js";
 import { useAnyRunning } from "~/components/project_runner/mod";
-import { t } from "lib";
 
 type ProjectRunStatusProps = {
   // moduleDirtyStates: Record<string, DirtyOrRunStatus>;
@@ -19,7 +18,7 @@ export function ProjectRunStatus(p: ProjectRunStatusProps) {
         data-border={false}
         data-running={anyRunning()}
       >
-        {t2(T.FRENCH_UI_STRINGS.running)}
+        {t3({ en: "Running", fr: "En cours d'exécution" })}
       </div>
     </Show>
   );
@@ -31,13 +30,14 @@ type Props = {
 };
 
 export function DirtyStatus(p: Props) {
+  const rawStatus = createMemo(() => p.moduleDirtyStates[p.id]);
   const ds = createMemo(() => getDirtyOrRunStatus(p.id, p.moduleDirtyStates));
   const intent = createMemo<Intent>(() => {
-    const goodDs = ds();
-    if (goodDs === "Error") {
+    const s = rawStatus();
+    if (s === "error") {
       return "danger";
     }
-    if (goodDs === "Ready") {
+    if (s === "ready") {
       return "success";
     }
     return "neutral";
@@ -47,9 +47,9 @@ export function DirtyStatus(p: Props) {
       class="ui-intent-fill ui-intent-outline data-[running=true]:ui-running font-400 inline-flex flex-none select-none items-center justify-center whitespace-nowrap rounded border border-[currentColor] px-3 py-1.5 align-middle text-sm leading-none data-[width=true]:w-full"
       data-intent={intent()}
       data-outline={true}
-      data-running={ds() === "Running"}
+      data-running={rawStatus() === "running"}
     >
-      {t(ds())}
+      {ds()}
     </div>
   );
 }
@@ -60,10 +60,19 @@ export function getDirtyOrRunStatus(
 ): string {
   const s = moduleDirtyStates[id];
   if (!s) {
-    return t("Bad status");
+    return t3({ en: "Bad status", fr: "Statut invalide" });
   }
   if (s === "queued") {
-    return t2(T.FRENCH_UI_STRINGS.pending);
+    return t3({ en: "Pending", fr: "En attente" });
+  }
+  if (s === "ready") {
+    return t3({ en: "Ready", fr: "Prêt" });
+  }
+  if (s === "running") {
+    return t3({ en: "Running", fr: "En cours d'exécution" });
+  }
+  if (s === "error") {
+    return t3({ en: "Error", fr: "Erreur" });
   }
   return capitalizeFirstLetter(s);
 }

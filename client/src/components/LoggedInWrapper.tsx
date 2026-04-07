@@ -3,9 +3,8 @@ import { clearDataCache } from "~/state/clear_data_cache";
 import {
   GlobalUser,
   InstanceLanguage,
-  t,
-  t2,
-  T,
+  t3,
+  TC,
   createDevGlobalUser,
   setLanguage,
 } from "lib";
@@ -64,7 +63,7 @@ export function LoggedInWrapper(p: Props) {
             }
           : timQuery(
               () => serverActions.getCurrentUser({}),
-              t2(T.FRENCH_UI_STRINGS.loading_1),
+              t3(TC.loading),
             );
 
         onMount(async () => {
@@ -107,7 +106,7 @@ export function LoggedInWrapper(p: Props) {
                 <Show
                   when={globalUserOrUndefined}
                   fallback={
-                    <div>{t("Not yet approved for this instance")}</div>
+                    <div>{t3({ en: "Not yet approved for this instance", fr: "Pas encore approuvé pour cette instance" })}</div>
                   }
                 >
                   {(_) => {
@@ -134,7 +133,7 @@ function ClerkNewLogin() {
 
   const instanceMeta = timQuery(
     () => serverActions.getInstanceMeta({}),
-    t2(T.FRENCH_UI_STRINGS.loading_1),
+    t3(TC.loading),
   );
 
   return (
@@ -151,7 +150,7 @@ function ClerkNewLogin() {
                     class="mx-auto mb-6 h-6"
                   />
                   <div class="font-700 text-4xl">
-                    {t("FASTR Analytics Platform")}
+                    {t3({ en: "FASTR Analytics Platform", fr: "Plateforme analytique FASTR" })}
                   </div>
                   <div class="font-700 text-xl">
                     {keyedInstanceMeta.instanceName}
@@ -161,13 +160,13 @@ function ClerkNewLogin() {
                       href={`${clerkSignInFlow}?redirect_url=${keyedInstanceMeta.instanceRedirectUrl}`}
                       iconName="login"
                     >
-                      {t("Sign in")}
+                      {t3({ en: "Sign in", fr: "Se connecter" })}
                     </Button>
                     <Button
                       href={`${clerkSignUpFlow}?redirect_url=${keyedInstanceMeta.instanceRedirectUrl}`}
                       iconName="userPlus"
                     >
-                      {t("Sign up")}
+                      {t3({ en: "Sign up", fr: "S'inscrire" })}
                     </Button>
                   </div>
                 </div>

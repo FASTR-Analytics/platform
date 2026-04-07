@@ -1,6 +1,6 @@
 import { CsvDetails,
   encodeRawCsvHeader,
-  t, t2, T,
+  t3, TC,
   type HmisCsvMappingParams } from "lib";
 import {
   Button,
@@ -59,7 +59,7 @@ export function Step2_Csv(p: Props) {
       if (!mappings[hmisSqlColName]) {
         return {
           success: false,
-          err: `${t("Missing value for")} ${hmisSqlColName}`,
+          err: `${t3({ en: "Missing value for", fr: "Valeur manquante pour" })} ${hmisSqlColName}`,
         };
       }
     }
@@ -99,7 +99,7 @@ export function Step2_Csv(p: Props) {
           disabled={!needsSaving()}
           iconName="save"
         >
-          {t2(T.FRENCH_UI_STRINGS.save)}
+          {t3(TC.save)}
         </Button>
       </div>
     </div>

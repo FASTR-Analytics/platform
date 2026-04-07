@@ -1,26 +1,49 @@
 import {
-  DatasetHfaCsvStagingResult,
   DatasetHfaUploadAttemptSummary,
 } from "./dataset_hfa_import.ts";
 
-export type DatasetHfaDetail = {
-  uploadAttempt: DatasetHfaUploadAttemptSummary | undefined;
-  currentVersionId: number | undefined;
-  nVersions: number;
+// ============================================================================
+// Dictionary Types
+// ============================================================================
+
+export type DatasetHfaDictionaryTimePoint = {
+  timePoint: string;
+  timePointLabel: string;
+  dateImported: string | undefined;
 };
 
-export type DatasetHfaVersion = {
-  id: number;
-  nRowsTotalImported: number;
-  nRowsInserted: number | undefined;
-  nRowsUpdated: number | undefined;
-  stagingResult: DatasetHfaCsvStagingResult | undefined;
+export type DatasetHfaDictionaryVar = {
+  timePoint: string;
+  varName: string;
+  varLabel: string;
+};
+
+export type DatasetHfaDictionaryValue = {
+  timePoint: string;
+  varName: string;
+  value: string;
+  valueLabel: string;
+};
+
+export type DatasetHfaDetail = {
+  uploadAttempt: DatasetHfaUploadAttemptSummary | undefined;
+  timePoints: DatasetHfaDictionaryTimePoint[];
+  cacheHash: string;
+};
+
+export type HfaVariableRow = {
+  varName: string;
+  varType: string;
+  timePoint: string;
+  timePointLabel: string;
+  varLabel: string;
+  count: number;
+  missing: number;
+  questionnaireValues: string;
+  dataValues: string;
 };
 
 export type ItemsHolderDatasetHfaDisplay = {
-  versionId: number | undefined;
-  vizItems: Record<string, string | number>[];
-  variableLabels: Record<string, string>;
-  variables: { value: string; label: string }[];
-  adminArea2s: { value: string; label: string }[];
+  rows: HfaVariableRow[];
+  cacheHash: string;
 };

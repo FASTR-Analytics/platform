@@ -1,7 +1,7 @@
 import { For, Match, Switch, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import {
-  t,
+  t3,
   type CsvDetails,
   type StructureColumnMappings,
   type InstanceConfigFacilityColumns,
@@ -63,7 +63,7 @@ export function Step2_Csv(p: Props) {
     // Validate all required columns
     for (const column of requiredColumns()) {
       if (!mappings[column]) {
-        return { success: false, err: t(`${column} mapping is required`) };
+        return { success: false, err: t3({ en: `${column} mapping is required`, fr: `Le mappage ${column} est requis` }) };
       }
     }
 
@@ -112,12 +112,12 @@ export function Step2_Csv(p: Props) {
               state={save.state()}
               iconName="save"
             >
-              {t("Save and continue")}
+              {t3({ en: "Save and continue", fr: "Sauvegarder et continuer" })}
             </Button>
           </Match>
           <Match when={true}>
             <div class="text-success">
-              {t("Column mappings saved successfully")}
+              {t3({ en: "Column mappings saved successfully", fr: "Mappages de colonnes sauvegardés avec succès" })}
             </div>
           </Match>
         </Switch>

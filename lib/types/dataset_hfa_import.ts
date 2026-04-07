@@ -1,6 +1,18 @@
 import { CsvDetails } from "./instance.ts";
 
 // ============================================================================
+// Step 1 Result Type (combined CSV + XLSForm)
+// ============================================================================
+
+export type DatasetHfaStep1Result = {
+  csv: CsvDetails;
+  xlsForm: {
+    fileName: string;
+    filePath: string;
+  };
+};
+
+// ============================================================================
 // Upload Attempt Status Types
 // ============================================================================
 
@@ -22,7 +34,6 @@ export type DatasetHfaUploadAttemptStatus =
     }
   | {
       status: "complete";
-      versionId?: number;
       nRowsIntegrated?: number;
     }
   | {
@@ -69,8 +80,8 @@ export type DatasetHfaUploadAttemptDetail = {
   step: 1 | 2 | 3 | 4;
   status: DatasetHfaUploadAttemptStatus;
   sourceType: "csv";
-  // Step 1: CSV upload details
-  step1Result: CsvDetails | undefined;
+  // Step 1: CSV + XLSForm upload details
+  step1Result: DatasetHfaStep1Result | undefined;
   // Step 2: CSV column mappings
   step2Result: HfaCsvMappingParams | undefined;
   // Step 3: CSV staging result
@@ -79,7 +90,8 @@ export type DatasetHfaUploadAttemptDetail = {
 
 export type HfaCsvMappingParams = {
   facility_id: string;
-  time_point: string;
+  timePointId: string;
+  timePointLabel: string;
 };
 
 // ============================================================================
@@ -88,6 +100,8 @@ export type HfaCsvMappingParams = {
 
 export type DatasetHfaCsvStagingResult = {
   stagingTableName: string;
+  dictionaryVarsStagingTableName: string;
+  dictionaryValuesStagingTableName: string;
   dateImported: string;
   assetFileName: string;
   nRowsInFile: number;
@@ -97,6 +111,12 @@ export type DatasetHfaCsvStagingResult = {
   nRowsDuplicated: number;
   nRowsTotal: number;
   byVariable: [];
+  timePointValue: string;
+  nDictionaryVars: number;
+  nDictionaryValues: number;
+  nXlsFormVarsNotInCsv: number;
+  nCsvColsNotInXlsForm: number;
+  nSelectMultipleExpanded: number;
 };
 
 // ============================================================================

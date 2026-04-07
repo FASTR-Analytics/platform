@@ -3,19 +3,19 @@ import {
   getFetchConfigFromPresentationObjectConfig,
   PresentationObjectConfig,
   PresentationObjectDetail,
-  t2,
-  T,
+  t3,
+  TC,
+  translateIndicatorId,
   throwIfErrWithData,
 } from "lib";
 import {
   Select,
+  SelectList,
   StateHolderWrapper,
   timQuery,
   getSelectOptions,
 } from "panther";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/replicant_options_cache";
-import { t } from "lib";
-import { SelectList } from "panther";
 import { createEffect, Match, Switch } from "solid-js";
 import { trackDeep } from "@solid-primitives/deep";
 
@@ -55,7 +55,7 @@ export function ReplicateByOptionsPresentationObject(
       p.replicateBy,
       resFetchConfig.data,
     );
-  }, "Loading...");
+  }, t3(TC.loading));
 
   createEffect(() => {
     trackDeep(p.config.d.filterBy);
@@ -70,12 +70,12 @@ export function ReplicateByOptionsPresentationObject(
             <Switch>
               <Match when={keyedReplicantOptions.status === "too_many_values"}>
                 <div class="text-sm w-36">
-                  {t("Too many replicant values (over 500). Use filter options to narrow down.")}
+                  {t3({ en: "Too many replicant values (over 500). Use filter options to narrow down.", fr: "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner." })}
                 </div>
               </Match>
               <Match when={keyedReplicantOptions.status === "no_values_available"}>
                 <div class="text-sm w-36">
-                  {t("No data available with current filter selection.")}
+                  {t3({ en: "No data available with current filter selection.", fr: "Aucune donnée disponible avec la sélection de filtre actuelle." })}
                 </div>
               </Match>
               <Match when={keyedReplicantOptions.status === "ok"}>
@@ -86,7 +86,7 @@ export function ReplicateByOptionsPresentationObject(
                     ...opt,
                     label:
                       p.replicateBy === "indicator_common_id"
-                        ? t(opt.value).toUpperCase()
+                        ? translateIndicatorId(opt.value).toUpperCase()
                         : opt.label,
                   }));
 
@@ -95,7 +95,7 @@ export function ReplicateByOptionsPresentationObject(
                       options={options}
                       value={p.selectedReplicantValue}
                       onChange={(v: string) => p.setSelectedReplicant(v)}
-                      emptyMessage={t("No replicant options")}
+                      emptyMessage={t3({ en: "No replicant options", fr: "Aucune option de réplicant" })}
                     />
                   );
                 })()}
@@ -124,7 +124,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
       p.replicateBy,
       resFetchConfig.data,
     );
-  }, t2(T.FRENCH_UI_STRINGS.loading_1));
+  }, t3(TC.loading));
 
   createEffect(() => {
     trackDeep(p.config.d.filterBy);
@@ -145,12 +145,12 @@ export function ReplicateByOptionsPresentationObjectSelect(
           <Switch>
             <Match when={keyedReplicantOptions.status === "too_many_values"}>
               <div class="text-sm w-36">
-                {t("Too many replicant values (over 500). Use filter options to narrow down.")}
+                {t3({ en: "Too many replicant values (over 500). Use filter options to narrow down.", fr: "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner." })}
               </div>
             </Match>
             <Match when={keyedReplicantOptions.status === "no_values_available"}>
               <div class="text-sm w-36">
-                {t("No data available with current filter selection.")}
+                {t3({ en: "No data available with current filter selection.", fr: "Aucune donnée disponible avec la sélection de filtre actuelle." })}
               </div>
             </Match>
             <Match when={keyedReplicantOptions.status === "ok"}>
@@ -164,14 +164,14 @@ export function ReplicateByOptionsPresentationObjectSelect(
                         value: pv,
                         label:
                           p.replicateBy === "indicator_common_id"
-                            ? t(pv).toUpperCase()
+                            ? translateIndicatorId(pv).toUpperCase()
                             : pv,
                       };
                     })}
                     value={p.selectedReplicantValue}
                     onChange={(v) => p.setSelectedReplicant(v, possibleValues)}
                     fullWidth={p.fullWidth}
-                    placeholder={t2(T.FRENCH_UI_STRINGS.needs_selection)}
+                    placeholder={t3({ en: "Needs selection", fr: "Nécessite une sélection" })}
                   />
                 );
               })()}

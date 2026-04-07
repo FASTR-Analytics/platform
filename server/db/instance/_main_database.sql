@@ -272,23 +272,14 @@ CREATE INDEX idx_dataset_hmis_upload_attempts_date_started ON dataset_hmis_uploa
 -- DATASET HMIS MANAGEMENT
 -- ============================================================================
 
-CREATE TABLE dataset_hfa_versions (
-  id integer PRIMARY KEY NOT NULL,
-  n_rows_total_imported integer NOT NULL,
-  n_rows_inserted integer,
-  n_rows_updated integer,
-  staging_result text
-);
-
 CREATE TABLE dataset_hfa (
   facility_id text NOT NULL,
   time_point text NOT NULL,
   var_name text NOT NULL,
   value text NOT NULL,
-  version_id integer NOT NULL,
   PRIMARY KEY (facility_id, time_point, var_name),
   FOREIGN KEY (facility_id) REFERENCES facilities(facility_id) ON DELETE RESTRICT DEFERRABLE,
-  FOREIGN KEY (version_id) REFERENCES dataset_hfa_versions(id) ON DELETE RESTRICT
+  FOREIGN KEY (time_point, var_name) REFERENCES dataset_hfa_dictionary_vars(time_point, var_name) ON DELETE RESTRICT DEFERRABLE
 );
 
 CREATE TABLE dataset_hfa_upload_attempts (
@@ -306,7 +297,6 @@ CREATE TABLE dataset_hfa_upload_attempts (
 -- Indexes for dataset_hfa
 CREATE INDEX idx_dataset_hfa_var_name ON dataset_hfa(var_name);
 CREATE INDEX idx_dataset_hfa_facility_id ON dataset_hfa(facility_id);
-CREATE INDEX idx_dataset_hfa_version_id ON dataset_hfa(version_id);
 CREATE INDEX idx_dataset_hfa_var_facility ON dataset_hfa(var_name, facility_id);
 CREATE INDEX idx_dataset_hfa_value ON dataset_hfa(value) WHERE LENGTH(value) <= 50;
 CREATE INDEX idx_dataset_hfa_covering ON dataset_hfa(var_name, facility_id, time_point) INCLUDE (value);
@@ -317,6 +307,33 @@ CREATE INDEX idx_dataset_hfa_upload_attempts_status_type ON dataset_hfa_upload_a
 CREATE INDEX idx_dataset_hfa_upload_attempts_date_started ON dataset_hfa_upload_attempts(date_started);
 
 -- ============================================================================
+-- HFA DATA DICTIONARY
+-- ============================================================================
+
+CREATE TABLE dataset_hfa_dictionary_time_points (
+  time_point text NOT NULL PRIMARY KEY,
+  time_point_label text NOT NULL,
+  date_imported text
+);
+
+CREATE TABLE dataset_hfa_dictionary_vars (
+  time_point text NOT NULL,
+  var_name text NOT NULL,
+  var_label text NOT NULL,
+  var_type text NOT NULL,
+  PRIMARY KEY (time_point, var_name)
+);
+
+CREATE TABLE dataset_hfa_dictionary_values (
+  time_point text NOT NULL,
+  var_name text NOT NULL,
+  value text NOT NULL,
+  value_label text NOT NULL,
+  PRIMARY KEY (time_point, var_name, value),
+  FOREIGN KEY (time_point, var_name) REFERENCES dataset_hfa_dictionary_vars(time_point, var_name) ON DELETE CASCADE
+);
+
+-- ============================================================================
 -- HFA INDICATORS
 -- ============================================================================
 
@@ -324,11 +341,19 @@ CREATE TABLE IF NOT EXISTS hfa_indicators (
   var_name TEXT PRIMARY KEY NOT NULL,
   category TEXT NOT NULL DEFAULT '',
   definition TEXT NOT NULL DEFAULT '',
-  r_code TEXT NOT NULL DEFAULT '',
-  r_filter_code TEXT,
   type TEXT NOT NULL CHECK (type IN ('binary', 'numeric')),
   sort_order INTEGER NOT NULL DEFAULT 0,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS hfa_indicator_code (
+  var_name text NOT NULL,
+  time_point text NOT NULL,
+  r_code text NOT NULL DEFAULT '',
+  r_filter_code text,
+  PRIMARY KEY (var_name, time_point),
+  FOREIGN KEY (var_name) REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
+  FOREIGN KEY (time_point) REFERENCES dataset_hfa_dictionary_time_points(time_point) ON DELETE RESTRICT
 );
 
 -- ============================================================================

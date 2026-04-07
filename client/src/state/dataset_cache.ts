@@ -93,32 +93,34 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
 
 const _DATASET_HFA_DISPLAY_INFO_CACHE = createReactiveCache<
   {
-    versionId: number;
+    cacheHash: string;
   },
   ItemsHolderDatasetHfaDisplay
 >({
   name: "dataset_hfa_display_info",
   uniquenessKeys: () => ["hfa"],
-  versionKey: (params, _pds) => `${params.versionId}`,
+  versionKey: (params) => params.cacheHash,
   pdsNotRequired: true,
 });
 
 export async function getDatasetHfaDisplayInfoFromCacheOrFetch(
-  versionId: number,
+  cacheHash: string,
 ) {
   const { data, version } = await _DATASET_HFA_DISPLAY_INFO_CACHE.get({
-    versionId,
+    cacheHash,
   });
 
   if (data) {
     return { success: true, data } as const;
   }
 
-  const newPromise = serverActions.getDatasetHfaDisplayInfo({
-    versionId,
-  });
+  const newPromise = serverActions.getDatasetHfaDisplayInfo({});
 
-  _DATASET_HFA_DISPLAY_INFO_CACHE.setPromise(newPromise, { versionId }, version);
+  _DATASET_HFA_DISPLAY_INFO_CACHE.setPromise(
+    newPromise,
+    { cacheHash },
+    version,
+  );
 
   return await newPromise;
 }

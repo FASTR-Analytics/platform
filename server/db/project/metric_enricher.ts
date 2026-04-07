@@ -5,8 +5,6 @@ import {
   ResultsValue,
   type InstanceConfigFacilityColumns,
   type TranslatableString,
-  t2,
-  T,
   parseJsonOrThrow,
 } from "lib";
 import { detectColumnExists, getResultsObjectTableName } from "../utils.ts";
@@ -70,46 +68,46 @@ function getDisaggregationMetadata(
 
   const metadata: Record<string, DisaggregationMetadata> = {
     period_id: {
-      label: T.Visualizations.year_month,
+      label: { en: "Year/Month", fr: "Année/Mois" },
       allowedPresentationOptions: timeBasedOptions,
     },
     quarter_id: {
-      label: T.Visualizations.year_quarter,
+      label: { en: "Year/Quarter", fr: "Année/Trimestre" },
       allowedPresentationOptions: timeBasedOptions,
     },
     year: {
-      label: T.Visualizations.year,
+      label: { en: "Year", fr: "Année" },
       allowedPresentationOptions: timeBasedOptions,
     },
     month: {
-      label: T.Visualizations.month,
+      label: { en: "Month", fr: "Mois" },
       allowedPresentationOptions: timeBasedOptions,
     },
-    admin_area_2: { label: T.FRENCH_UI_STRINGS.admin_area_2 },
-    admin_area_3: { label: T.FRENCH_UI_STRINGS.admin_area_3 },
-    admin_area_4: { label: T.FRENCH_UI_STRINGS.admin_area_4 },
-    indicator_common_id: { label: T.FRENCH_UI_STRINGS.indicator },
-    denominator: { label: T.Visualizations.denominator },
-    denominator_best_or_survey: { label: T.Visualizations.denominator_best_or_survey },
-    source_indicator: { label: T.Visualizations.source_indicator },
-    target_population: { label: T.Visualizations.target_population },
-    ratio_type: { label: T.Visualizations.ratio_type },
-    hfa_indicator: { label: T.Visualizations.hfa_indicator },
-    hfa_category: { label: T.Visualizations.hfa_category },
+    admin_area_2: { label: { en: "Admin area 2", fr: "Unité administrative 2" } },
+    admin_area_3: { label: { en: "Admin area 3", fr: "Unité administrative 3" } },
+    admin_area_4: { label: { en: "Admin area 4", fr: "Unité administrative 4" } },
+    indicator_common_id: { label: { en: "Indicator", fr: "Indicateur" } },
+    denominator: { label: { en: "Denominator", fr: "Denominator" } },
+    denominator_best_or_survey: { label: { en: "Denominator (best or survey)", fr: "Denominator (best or survey)" } },
+    source_indicator: { label: { en: "Source indicator", fr: "Source indicator" } },
+    target_population: { label: { en: "Target population", fr: "Target population" } },
+    ratio_type: { label: { en: "Ratio type", fr: "Type de ratio" } },
+    hfa_indicator: { label: { en: "HFA indicator", fr: "HFA indicator" } },
+    hfa_category: { label: { en: "HFA category", fr: "HFA category" } },
     time_point: {
-      label: T.Visualizations.time_point,
+      label: { en: "Time point", fr: "Time point" },
       allowedPresentationOptions: timeBasedOptions,
     },
-    facility_type: { label: T.Visualizations.facility_type },
-    facility_ownership: { label: T.Visualizations.facility_ownership },
-    facility_custom_1: { label: T.Visualizations.facility_custom_1 },
-    facility_custom_2: { label: T.Visualizations.facility_custom_2 },
-    facility_custom_3: { label: T.Visualizations.facility_custom_3 },
-    facility_custom_4: { label: T.Visualizations.facility_custom_4 },
-    facility_custom_5: { label: T.Visualizations.facility_custom_5 },
+    facility_type: { label: { en: "Facility type", fr: "Facility type" } },
+    facility_ownership: { label: { en: "Facility ownership", fr: "Facility ownership" } },
+    facility_custom_1: { label: { en: "Facility custom 1", fr: "Facility custom 1" } },
+    facility_custom_2: { label: { en: "Facility custom 2", fr: "Facility custom 2" } },
+    facility_custom_3: { label: { en: "Facility custom 3", fr: "Facility custom 3" } },
+    facility_custom_4: { label: { en: "Facility custom 4", fr: "Facility custom 4" } },
+    facility_custom_5: { label: { en: "Facility custom 5", fr: "Facility custom 5" } },
   };
 
-  return metadata[disOpt] || { label: String(disOpt) };
+  return metadata[disOpt] || { label: { en: String(disOpt), fr: String(disOpt) } };
 }
 
 async function buildDisaggregationOptions(

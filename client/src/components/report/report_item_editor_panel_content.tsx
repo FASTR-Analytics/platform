@@ -4,9 +4,6 @@ import {
   ReportItemConfig,
   ReportItemContentItem,
   ReportItemContentItemType,
-  t,
-  t2,
-  T,
 } from "lib";
 import {
   Button,
@@ -84,7 +81,7 @@ export function ReportItemEditorContent(p: Props) {
   }
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
-    t2(T.FRENCH_UI_STRINGS.loading_files),
+    "Loading files...",
   );
 
   async function updatePresentationObjectId() {
@@ -139,14 +136,14 @@ export function ReportItemEditorContent(p: Props) {
               <div class="ui-spy">
                 <div class="">
                   <Select
-                    label={t2(T.FRENCH_UI_STRINGS.content_type)}
+                    label="Content type"
                     options={[
                       {
                         value: "figure",
-                        label: t2(T.FRENCH_UI_STRINGS.visualization_1),
+                        label: "Visualization",
                       },
-                      { value: "image", label: t2(T.FRENCH_UI_STRINGS.image) },
-                      { value: "text", label: t2(T.FRENCH_UI_STRINGS.text) },
+                      { value: "image", label: "Image" },
+                      { value: "text", label: "Text" },
                     ]}
                     value={keyedItem.type}
                     onChange={(v) =>
@@ -165,7 +162,7 @@ export function ReportItemEditorContent(p: Props) {
                           when={keyedItem.presentationObjectInReportInfo}
                           fallback={
                             <div class="text-danger">
-                              {t("Select a visualization to display")}
+                              {"Select a visualization to display"}
                             </div>
                           }
                           keyed
@@ -236,26 +233,22 @@ export function ReportItemEditorContent(p: Props) {
                             iconName="pencil"
                           >
                             {keyedItem.presentationObjectInReportInfo
-                              ? t2(T.FRENCH_UI_STRINGS.change)
-                              : t2(T.FRENCH_UI_STRINGS.select)}{" "}
-                            {t("visualization")}
+                              ? "Change"
+                              : "Select"}{" "}
+                            {"visualization"}
                           </Button>
                         </div>
                       </div>
                       <div class="ui-spy-sm">
                         <Checkbox
-                          label={t2(
-                            T.FRENCH_UI_STRINGS.allow_visualization_to_shrink,
-                          )}
+                          label="Allow visualization to shrink or stretch"
                           checked={keyedItem.stretch}
                           onChange={(ch) =>
                             updateContentProperty("stretch", ch)
                           }
                         />
                         <Checkbox
-                          label={t2(
-                            T.FRENCH_UI_STRINGS.use_additional_visualization_s,
-                          )}
+                          label="Use additional visualization scaling"
                           checked={keyedItem.useFigureAdditionalScale}
                           onChange={(ch) =>
                             updateContentProperty(
@@ -266,7 +259,7 @@ export function ReportItemEditorContent(p: Props) {
                         />
                         <Show when={keyedItem.useFigureAdditionalScale}>
                           <Slider
-                            label={t2(T.FRENCH_UI_STRINGS.scale)}
+                            label="Scale"
                             min={0.1}
                             max={5}
                             step={0.1}
@@ -279,27 +272,21 @@ export function ReportItemEditorContent(p: Props) {
                           />
                         </Show>
                         <Checkbox
-                          label={t2(
-                            T.FRENCH_UI_STRINGS.hide_visualization_caption,
-                          )}
+                          label="Hide visualization caption"
                           checked={keyedItem.hideFigureCaption}
                           onChange={(ch) =>
                             updateHides(ch, "hideFigureCaption")
                           }
                         />
                         <Checkbox
-                          label={t2(
-                            T.FRENCH_UI_STRINGS.hide_visualization_subcaption,
-                          )}
+                          label="Hide visualization sub-caption"
                           checked={keyedItem.hideFigureSubCaption}
                           onChange={(ch) =>
                             updateHides(ch, "hideFigureSubCaption")
                           }
                         />
                         <Checkbox
-                          label={t2(
-                            T.FRENCH_UI_STRINGS.hide_visualization_footnote,
-                          )}
+                          label="Hide visualization footnote"
                           checked={keyedItem.hideFigureFootnote}
                           onChange={(ch) =>
                             updateHides(ch, "hideFigureFootnote")
@@ -311,7 +298,7 @@ export function ReportItemEditorContent(p: Props) {
                   <Match when={keyedItem.type === "text"}>
                     <div class="ui-spy-sm">
                       <TextArea
-                        label={t2(T.FRENCH_UI_STRINGS.text)}
+                        label="Text"
                         value={keyedItem.markdown ?? ""}
                         onChange={(v) => updateContentProperty("markdown", v)}
                         fullWidth
@@ -319,7 +306,7 @@ export function ReportItemEditorContent(p: Props) {
                       />
                       <div class="ui-gap-sm flex">
                         <Select
-                          label={t2(T.FRENCH_UI_STRINGS.text_background)}
+                          label="Text background"
                           options={[
                             { value: "none", label: "None" },
                             { value: "primary", label: "Report theme color" },
@@ -334,7 +321,7 @@ export function ReportItemEditorContent(p: Props) {
                           fullWidth
                         />
                         <Select
-                          label={t2(T.FRENCH_UI_STRINGS.text_size)}
+                          label="Text size"
                           options={[
                             { value: "0.41", label: "3XS" },
                             { value: "0.51", label: "2XS" },
@@ -358,7 +345,7 @@ export function ReportItemEditorContent(p: Props) {
                       </div>
                       <Show when={keyedItem.textBackground !== "none"}>
                         <Checkbox
-                          label={t("Fill shading to available area")}
+                          label="Fill shading to available area"
                           checked={keyedItem.fillArea}
                           onChange={(ch) =>
                             updateContentProperty("fillArea", ch)
@@ -373,7 +360,7 @@ export function ReportItemEditorContent(p: Props) {
                         {(keyedAssets) => {
                           return (
                             <Select
-                              label={t2(T.FRENCH_UI_STRINGS.image_file)}
+                              label="Image file"
                               options={getSelectOptions(
                                 keyedAssets
                                   .filter((f) => f.isImage)
@@ -391,7 +378,7 @@ export function ReportItemEditorContent(p: Props) {
                       <Show when={keyedItem.imgFile}>
                         {/* <Show when={keyedItem.imgFit === "inside"}> */}
                         <Checkbox
-                          label={t2(T.Reports.stretch_to_fit)}
+                          label="Stretch to fit available space"
                           checked={keyedItem.imgStretch}
                           onChange={(ch) =>
                             updateContentProperty("imgStretch", ch)
@@ -409,7 +396,7 @@ export function ReportItemEditorContent(p: Props) {
                         /> */}
                         <Show when={!keyedItem.imgStretch}>
                           <Slider
-                            label={t("Height")}
+                            label="Height"
                             min={50}
                             max={1500}
                             step={50}
@@ -422,16 +409,16 @@ export function ReportItemEditorContent(p: Props) {
                           />
                         </Show>
                         <RadioGroup
-                          label={t2(T.FRENCH_UI_STRINGS.image_fit)}
+                          label="Image fit"
                           value={keyedItem.imgFit}
                           options={[
                             {
                               value: "cover",
-                              label: t2(T.FRENCH_UI_STRINGS.cover_whole_area),
+                              label: "Cover whole area",
                             },
                             {
                               value: "inside",
-                              label: t2(T.FRENCH_UI_STRINGS.fit_inside_area),
+                              label: "Fit inside area",
                             },
                           ]}
                           onChange={(v) => updateContentProperty("imgFit", v as "cover" | "inside")}

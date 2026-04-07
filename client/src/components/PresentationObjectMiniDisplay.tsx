@@ -1,4 +1,4 @@
-import { ReplicantValueOverride, getTextRenderingOptions, t, t2, T } from "lib";
+import { ReplicantValueOverride, getTextRenderingOptions, t3 } from "lib";
 import { FigureInputs, ChartHolder, Loading, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
 import { useProjectDirtyStates } from "~/components/project_runner/mod";
@@ -19,7 +19,7 @@ export function PresentationObjectMiniDisplay(p: Props) {
 
   const [figureInputs, setFigureInputs] = createSignal<StateHolder<FigureInputs>>({
     status: "loading",
-    msg: t2(T.FRENCH_UI_STRINGS.fetching_data),
+    msg: t3({ en: "Fetching data...", fr: "Récupération des données..." }),
   });
 
   async function attemptGetFigureInputs() {
@@ -82,17 +82,17 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
     <Switch>
       <Match when={moduleDirtyStatus() === "running"}>
         <div class="text-success aspect-video text-xs" onClick={p.onClick}>
-          {t("Module running...")}
+          {t3({ en: "Module running...", fr: "Module en cours d'exécution..." })}
         </div>
       </Match>
       <Match when={moduleDirtyStatus() === "error"}>
         <div class="text-danger aspect-video text-xs" onClick={p.onClick}>
-          {t("Module error")}
+          {t3({ en: "Module error", fr: "Erreur du module" })}
         </div>
       </Match>
       <Match when={moduleDirtyStatus() === "queued"}>
         <div class="aspect-video text-xs text-[orange]" onClick={p.onClick}>
-          {t("Pending...")}
+          {t3({ en: "Pending...", fr: "En attente..." })}
         </div>
       </Match>
       <Match when={true}>
@@ -104,7 +104,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
           </Match>
           <Match when={p.state.status === "error"}>
             <div class="text-danger aspect-video text-xs" onClick={p.onClick}>
-              {(p.state as { err?: string }).err ?? "Error"}
+              {(p.state as { err?: string }).err ?? t3({ en: "Error", fr: "Erreur" })}
             </div>
           </Match>
           <Match

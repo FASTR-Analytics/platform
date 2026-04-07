@@ -3,7 +3,7 @@ import { DatasetUploadAttemptDetail,
   DatasetUploadAttemptDetailDhis2,
   DatasetUploadAttemptStatus,
   DatasetUploadAttemptStatusLight,
-  t, t2, T } from "lib";
+  t3 } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -55,7 +55,7 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
           success: true;
           data: DatasetUploadAttemptDetail;
         };
-  }, "Loading import info...");
+  }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation..." }));
 
   // Temp state
 
@@ -158,7 +158,7 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
 
   async function attemptDeleteUploadAttempt() {
     const deleteAction = timActionDelete(
-      "Are you sure you want to delete this import?",
+      t3({ en: "Are you sure you want to delete this import?", fr: "Voulez-vous vraiment supprimer cette importation ?" }),
       () => serverActions.deleteDatasetUploadAttempt({}),
       p.silentFetch,
       () => p.close(undefined),
@@ -180,8 +180,8 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
           back={() => p.close(undefined)}
           heading={
             <>
-              {t2(T.FRENCH_UI_STRINGS.import_in_progress)}
-              <span class="font-400 ml-4">HMIS Data</span>
+              {t3({ en: "IMPORT IN PROGRESS", fr: "IMPORTATION EN COURS" })}
+              <span class="font-400 ml-4">{t3({ en: "HMIS Data", fr: "Données HMIS" })}</span>
             </>
           }
         >
@@ -196,7 +196,7 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
               intent="danger"
               iconName="trash"
             >
-              {t2(T.FRENCH_UI_STRINGS.discard_import)}
+              {t3({ en: "Discard import", fr: "Annuler l'importation" })}
             </Button>
           </div>
         </HeaderBarCanGoBack>
@@ -205,7 +205,7 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
       <StateHolderWrapper
         state={uploadAttempt.state()}
         onErrorButton={{
-          label: "Back to dataset",
+          label: t3({ en: "Back to dataset", fr: "Retour au jeu de données" }),
           onClick: () => p.close(undefined),
         }}
       >
@@ -214,9 +214,7 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
             <Switch
               fallback={
                 <div class="ui-pad text-danger">
-                  {t(
-                    "Something went wrong: Bad step in dataset upload attempt",
-                  )}
+                  {t3({ en: "Something went wrong: Bad step in dataset upload attempt", fr: "Une erreur est survenue : étape incorrecte dans la tentative d'importation" })}
                 </div>
               }
             >

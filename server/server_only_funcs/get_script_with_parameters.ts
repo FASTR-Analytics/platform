@@ -1,4 +1,4 @@
-import type { HfaIndicator, ModuleConfigSelections, ModuleDefinition } from "lib";
+import type { HfaIndicator, HfaIndicatorCode, ModuleConfigSelections, ModuleDefinition } from "lib";
 import { getScriptWithParametersHfa } from "./get_script_with_parameters_hfa.ts";
 
 export function getScriptWithParameters(
@@ -7,6 +7,7 @@ export function getScriptWithParameters(
   countryIso3: string | undefined,
   knownDatasetVariables?: Set<string>,
   hfaIndicators?: HfaIndicator[],
+  hfaIndicatorCode?: HfaIndicatorCode[],
 ): string {
   if (moduleDefinition.scriptGenerationType === "hfa") {
     if (!knownDatasetVariables) {
@@ -21,7 +22,8 @@ export function getScriptWithParameters(
     }
     return getScriptWithParametersHfa(
       hfaIndicators,
-      knownDatasetVariables
+      hfaIndicatorCode ?? [],
+      knownDatasetVariables,
     );
   }
 

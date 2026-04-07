@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { t, t2, T } from "lib";
+import { t3 } from "lib";
 import {
   Button,
   RadioGroup,
@@ -28,7 +28,7 @@ export function Step0(p: Props) {
     const sourceType = selectedSourceType();
 
     if (sourceType !== "csv" && sourceType !== "dhis2") {
-      return { success: false, err: t("You must select an import method") };
+      return { success: false, err: t3({ en: "You must select an import method", fr: "Vous devez sélectionner une méthode d'importation" }) };
     }
     return serverActions.structureStep0_SetSourceType({
       sourceType,
@@ -37,12 +37,12 @@ export function Step0(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <div class="font-700 mb-4 text-lg">{t("Select Import Method")}</div>
+      <div class="font-700 mb-4 text-lg">{t3({ en: "Select Import Method", fr: "Sélectionner la méthode d'importation" })}</div>
       <div class="w-96">
         <RadioGroup
           options={[
-            { value: "csv", label: t("Upload CSV file") },
-            { value: "dhis2", label: t("Import directly from DHIS2") },
+            { value: "csv", label: t3({ en: "Upload CSV file", fr: "Téléverser un fichier CSV" }) },
+            { value: "dhis2", label: t3({ en: "Import directly from DHIS2", fr: "Importer directement depuis DHIS2" }) },
           ]}
           value={selectedSourceType()}
           onChange={(v) => updateSelectedSourceType(v as "csv" | "dhis2")}
@@ -57,7 +57,7 @@ export function Step0(p: Props) {
           disabled={!needsSaving() || selectedSourceType() === "none"}
           iconName="save"
         >
-          {t2(T.FRENCH_UI_STRINGS.continue)}
+          {t3({ en: "Continue", fr: "Continuer" })}
         </Button>
       </div>
     </div>

@@ -144,14 +144,6 @@ export type DBDatasetHmisUploadAttempt = {
   step_3_result: string | null;
 };
 
-export type DBDatasetHfaVersion = {
-  id: number;
-  n_rows_total_imported: number;
-  n_rows_inserted: number | null;
-  n_rows_updated: number | null;
-  staging_result: string | null;
-};
-
 export type DBDatasetHfaUploadAttempt = {
   date_started: string;
   step: number;

@@ -1,4 +1,4 @@
-import { ReportType, t, t2, T } from "lib";
+import { ReportType } from "lib";
 import {
   AlertComponentProps,
   Button,
@@ -55,7 +55,7 @@ export function ReorderPages(
         <HeaderBarCanGoBack
           heading={
             <>
-              {t("Organize")}{" "}
+              {"Organize"}{" "}
               {p.reportType === "slide_deck" ? "slides" : "pages"}
             </>
           }
@@ -67,14 +67,14 @@ export function ReorderPages(
               intent="success"
               iconName="save"
             >
-              {t2(T.FRENCH_UI_STRINGS.save)}
+              {"Save"}
             </Button>
             <Button
               onClick={() => p.close(undefined)}
               intent="neutral"
               iconName="x"
             >
-              {t2(T.FRENCH_UI_STRINGS.cancel)}
+              {"Cancel"}
             </Button>
           </div>
         </HeaderBarCanGoBack>

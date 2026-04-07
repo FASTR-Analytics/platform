@@ -1,4 +1,4 @@
-import type { HfaIndicator } from "../../types/mod.ts";
+import type { HfaDictionaryForValidation, HfaIndicator, HfaIndicatorCode } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 export const hfaIndicatorRouteRegistry = {
@@ -11,13 +11,13 @@ export const hfaIndicatorRouteRegistry = {
   createHfaIndicator: route({
     path: "/hfa-indicators",
     method: "POST",
-    body: {} as { indicator: HfaIndicator; sortOrder: number },
+    body: {} as { indicator: HfaIndicator },
   }),
 
   updateHfaIndicator: route({
     path: "/hfa-indicators/update",
     method: "POST",
-    body: {} as { oldVarName: string; indicator: HfaIndicator; sortOrder: number },
+    body: {} as { oldVarName: string; indicator: HfaIndicator },
   }),
 
   deleteHfaIndicators: route({
@@ -30,5 +30,34 @@ export const hfaIndicatorRouteRegistry = {
     path: "/hfa-indicators/batch",
     method: "POST",
     body: {} as { indicators: HfaIndicator[]; replaceAll: boolean },
+  }),
+
+  getHfaIndicatorCode: route({
+    path: "/hfa-indicators/code",
+    method: "POST",
+    body: {} as { varName: string },
+    response: {} as HfaIndicatorCode[],
+  }),
+
+  updateHfaIndicatorCode: route({
+    path: "/hfa-indicators/code/update",
+    method: "POST",
+    body: {} as { varName: string; timePoint: string; rCode: string; rFilterCode: string | undefined },
+  }),
+
+  saveHfaIndicatorFull: route({
+    path: "/hfa-indicators/save-full",
+    method: "POST",
+    body: {} as {
+      oldVarName: string;
+      indicator: HfaIndicator;
+      code: { timePoint: string; rCode: string; rFilterCode: string | undefined }[];
+    },
+  }),
+
+  getHfaDictionaryForValidation: route({
+    path: "/hfa-indicators/dictionary",
+    method: "GET",
+    response: {} as HfaDictionaryForValidation,
   }),
 } as const;

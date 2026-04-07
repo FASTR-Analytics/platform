@@ -1,7 +1,6 @@
 import {
-  t,
-  t2,
-  T,
+  t3,
+  TC,
   type DatasetUploadAttemptSummary,
   type InstanceDetail,
 } from "lib";
@@ -46,7 +45,10 @@ export function InstanceDatasetHmis(p: Props) {
 
   const datasetDetail = timQuery(
     () => serverActions.getDatasetHmisDetail({}),
-    "Loading data source...",
+    t3({
+      en: "Loading data source...",
+      fr: "Chargement de la source de données...",
+    }),
   );
 
   // Signal for upload attempt with polling
@@ -158,8 +160,10 @@ export function InstanceDatasetHmis(p: Props) {
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={p.backToInstance} />
             <div class="font-700 flex-1 truncate text-xl">
-              {t2(T.FRENCH_UI_STRINGS.data_source)}
-              <span class="font-400 ml-4">HMIS Data</span>
+              {t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES" })}
+              <span class="font-400 ml-4">
+                {t3({ en: "HMIS Data", fr: "Données HMIS" })}
+              </span>
             </div>
             <div class="ui-gap-sm flex items-center">
               <Button iconName="refresh" onClick={datasetDetail.fetch} />
@@ -170,7 +174,7 @@ export function InstanceDatasetHmis(p: Props) {
         <StateHolderWrapper
           state={p.instanceDetail.state()}
           onErrorButton={{
-            label: t("Go back to project"),
+            label: t3(TC.goBackToProject),
             onClick: p.backToInstance,
           }}
         >
@@ -179,7 +183,7 @@ export function InstanceDatasetHmis(p: Props) {
               <StateHolderWrapper
                 state={datasetDetail.state()}
                 onErrorButton={{
-                  label: t("Go back to project"),
+                  label: t3(TC.goBackToProject),
                   onClick: p.backToInstance,
                 }}
               >
@@ -190,7 +194,7 @@ export function InstanceDatasetHmis(p: Props) {
                         <Show when={p.isGlobalAdmin}>
                           <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
                             <div class="font-700 text-lg">
-                              {t2(T.FRENCH_UI_STRINGS.imports)}
+                              {t3({ en: "Imports", fr: "Importations" })}
                             </div>
                             <Switch>
                               <Match when={!uploadAttempt()}>
@@ -201,7 +205,10 @@ export function InstanceDatasetHmis(p: Props) {
                                     iconName="upload"
                                     fullWidth
                                   >
-                                    {t2(T.FRENCH_UI_STRINGS.start_new_import)}
+                                    {t3({
+                                      en: "Start new import",
+                                      fr: "Nouvelle importation",
+                                    })}
                                   </Button>
                                 </div>
                               </Match>
@@ -220,8 +227,10 @@ export function InstanceDatasetHmis(p: Props) {
                                           }
                                         >
                                           <div class="text-sm">
-                                            Import is complete! Click to view
-                                            and remove.
+                                            {t3({
+                                              en: "Import is complete! Click to view and remove.",
+                                              fr: "Importation terminée ! Cliquez pour consulter et supprimer.",
+                                            })}
                                           </div>
                                         </Match>
                                         <Match
@@ -231,7 +240,10 @@ export function InstanceDatasetHmis(p: Props) {
                                           }
                                         >
                                           <div class="text-danger text-sm">
-                                            Error with upload. Click to view.
+                                            {t3({
+                                              en: "Error with upload. Click to view.",
+                                              fr: "Erreur lors du téléversement. Cliquez pour consulter.",
+                                            })}
                                           </div>
                                         </Match>
                                         <Match
@@ -242,7 +254,12 @@ export function InstanceDatasetHmis(p: Props) {
                                           keyed
                                         >
                                           <div class="ui-spy-sm text-center">
-                                            <div class="">Staging underway</div>
+                                            <div class="">
+                                              {t3({
+                                                en: "Staging underway",
+                                                fr: "Préparation en cours",
+                                              })}
+                                            </div>
                                             <div class="font-700 text-lg">
                                               {toPct0(
                                                 ((
@@ -251,8 +268,10 @@ export function InstanceDatasetHmis(p: Props) {
                                               )}
                                             </div>
                                             <div class="text-xs">
-                                              This number will automatically
-                                              update. No need to refresh.
+                                              {t3({
+                                                en: "This number will automatically update. No need to refresh.",
+                                                fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.",
+                                              })}
                                             </div>
                                           </div>
                                         </Match>
@@ -265,7 +284,10 @@ export function InstanceDatasetHmis(p: Props) {
                                         >
                                           <div class="ui-spy-sm text-center">
                                             <div class="">
-                                              Integrating underway
+                                              {t3({
+                                                en: "Integrating underway",
+                                                fr: "Intégration en cours",
+                                              })}
                                             </div>
                                             <div class="font-700 text-lg">
                                               {toPct0(
@@ -276,15 +298,19 @@ export function InstanceDatasetHmis(p: Props) {
                                               )}
                                             </div>
                                             <div class="text-xs">
-                                              This number will automatically
-                                              update. No need to refresh.
+                                              {t3({
+                                                en: "This number will automatically update. No need to refresh.",
+                                                fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.",
+                                              })}
                                             </div>
                                           </div>
                                         </Match>
                                         <Match when={true}>
                                           <div class="text-sm">
-                                            Import in draft stage. Click to
-                                            continue.
+                                            {t3({
+                                              en: "Import in draft stage. Click to continue.",
+                                              fr: "Importation en cours de préparation. Cliquez pour continuer.",
+                                            })}
                                           </div>
                                         </Match>
                                       </Switch>
@@ -306,7 +332,10 @@ export function InstanceDatasetHmis(p: Props) {
                                     fullWidth
                                     iconName="folder"
                                   >
-                                    View previous imports
+                                    {t3({
+                                      en: "View previous imports",
+                                      fr: "Importations précédentes",
+                                    })}
                                   </Button>
                                 </div>
                                 <div class="">
@@ -317,7 +346,10 @@ export function InstanceDatasetHmis(p: Props) {
                                     outline
                                     fullWidth
                                   >
-                                    Delete data
+                                    {t3({
+                                      en: "Delete data",
+                                      fr: "Supprimer les données",
+                                    })}
                                   </Button>
                                 </div>
                               </div>
@@ -329,7 +361,11 @@ export function InstanceDatasetHmis(p: Props) {
                       <div class="h-full w-full">
                         <Show
                           when={keyedDatasetDetail.currentVersionId}
-                          fallback={<div class="ui-pad">{t("No data")}</div>}
+                          fallback={
+                            <div class="ui-pad">
+                              {t3({ en: "No data", fr: "Aucune donnée" })}
+                            </div>
+                          }
                         >
                           <DatasetItemsHolder
                             versionId={keyedDatasetDetail.currentVersionId!}

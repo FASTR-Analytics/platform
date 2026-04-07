@@ -4,7 +4,7 @@ import { mergeReadableStreams } from "@std/streams";
 import { stripVTControlCharacters } from "node:util";
 import Papa from "papaparse";
 import { Sql } from "postgres";
-import { getResultsObjectTableName, dbRowToHfaIndicator, type DBHfaIndicator } from "../../db/mod.ts";
+import { getResultsObjectTableName, dbRowToHfaIndicator, getAllHfaIndicatorCode, type DBHfaIndicator } from "../../db/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
   _ASSETS_DIR_PATH,
@@ -20,6 +20,7 @@ import {
   ResultsObjectDefinition,
   throwIfErrNoData,
   type HfaIndicator,
+  type HfaIndicatorCode,
   type ModuleDetailForRunningScript,
   type RunStreamMsg,
   type InstanceConfigFacilityColumns,
@@ -102,6 +103,7 @@ export async function* runModuleIterator(
 
     let knownDatasetVariables: Set<string> | undefined;
     let hfaIndicatorsFromInstance: HfaIndicator[] | undefined;
+    let hfaIndicatorCodeFromInstance: HfaIndicatorCode[] | undefined;
     if (moduleDetail.moduleDefinition.scriptGenerationType === "hfa") {
       const hfaVarRows = await projectDb<{ var_name: string }[]>`
         SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
@@ -116,6 +118,8 @@ export async function* runModuleIterator(
       if (hfaIndicatorsFromInstance.length === 0) {
         throw new Error("No HFA indicators configured at the instance level.");
       }
+
+      hfaIndicatorCodeFromInstance = await getAllHfaIndicatorCode(mainDb);
     }
 
     const scriptWithParameters = getScriptWithParameters(
@@ -124,6 +128,7 @@ export async function* runModuleIterator(
       countryIso3,
       knownDatasetVariables,
       hfaIndicatorsFromInstance,
+      hfaIndicatorCodeFromInstance,
     );
     const scriptFilePath = join(moduleDirPath, _MODULE_SCRIPT_FILE_NAME);
     await Deno.writeTextFile(scriptFilePath, scriptWithParameters);

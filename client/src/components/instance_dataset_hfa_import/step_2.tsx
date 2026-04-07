@@ -1,62 +1,61 @@
-import { CsvDetails,
+import { type DatasetHfaStep1Result,
   encodeRawCsvHeader,
-  t, t2, T,
+  t3, TC,
   type HfaCsvMappingParams } from "lib";
 import {
   Button,
+  Input,
   Select,
   StateHolderFormError,
   getSelectOptions,
   timActionForm,
 } from "panther";
-import { For, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 
 type Props = {
-  step1Result: CsvDetails;
+  step1Result: DatasetHfaStep1Result;
   step2Result: Record<string, string> | undefined;
   silentFetch: () => Promise<void>;
 };
 
 export function Step2(p: Props) {
-  const _HMIS_SQL_COL_NAMES: (keyof HfaCsvMappingParams)[] = [
-    "facility_id",
-    "time_point",
-  ];
-
   const [tempMappings, setTempMappings] = createStore<HfaCsvMappingParams>(
     p.step2Result
       ? (structuredClone(p.step2Result) as HfaCsvMappingParams)
       : {
           facility_id: "",
-          time_point: "",
+          timePointId: "",
+          timePointLabel: "",
         },
   );
 
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);
 
   const csvHeaders = () => {
-    return p.step1Result.headers.map((v, i) => encodeRawCsvHeader(i, v));
+    return p.step1Result.csv.headers.map((v, i) => encodeRawCsvHeader(i, v));
   };
-
-  function updateMappings(
-    hmisSqlColName: keyof HfaCsvMappingParams,
-    csvCol: string,
-  ) {
-    setNeedsSaving(true);
-    setTempMappings(hmisSqlColName, csvCol);
-  }
 
   const save = timActionForm(async () => {
     const mappings = unwrap(tempMappings);
-    for (const hmisSqlColName of _HMIS_SQL_COL_NAMES) {
-      if (!mappings[hmisSqlColName]) {
-        return {
-          success: false,
-          err: `${t("Missing value for")} ${hmisSqlColName}`,
-        };
-      }
+    if (!mappings.facility_id) {
+      return {
+        success: false,
+        err: `${t3({ en: "Missing value for", fr: "Valeur manquante pour" })} facility_id`,
+      };
+    }
+    if (!mappings.timePointId) {
+      return {
+        success: false,
+        err: t3({ en: "You must enter a time point ID", fr: "Vous devez saisir un identifiant de point temporel" }),
+      };
+    }
+    if (!mappings.timePointLabel) {
+      return {
+        success: false,
+        err: t3({ en: "You must enter a time point label", fr: "Vous devez saisir un libellé de point temporel" }),
+      };
     }
     return serverActions.updateDatasetHfaMappings({
       mappings,
@@ -66,23 +65,45 @@ export function Step2(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
-        <For each={_HMIS_SQL_COL_NAMES}>
-          {(hmisSqlColName) => {
-            return (
-              <div class="flex items-center">
-                <div class="w-[40%] flex-none">{hmisSqlColName}</div>
-                <div class="flex-1">
-                  <Select
-                    options={getSelectOptions(csvHeaders())}
-                    value={tempMappings[hmisSqlColName]}
-                    onChange={(val) => updateMappings(hmisSqlColName, val)}
-                    fullWidth
-                  />
-                </div>
-              </div>
-            );
-          }}
-        </For>
+        <div class="flex items-center">
+          <div class="w-[40%] flex-none">facility_id</div>
+          <div class="flex-1">
+            <Select
+              options={getSelectOptions(csvHeaders())}
+              value={tempMappings.facility_id}
+              onChange={(val) => {
+                setNeedsSaving(true);
+                setTempMappings("facility_id", val);
+              }}
+              fullWidth
+            />
+          </div>
+        </div>
+      </div>
+      <div class="ui-spy-sm">
+        <h3 class="font-700 text-lg">{t3({ en: "Time Point", fr: "Point temporel" })}</h3>
+        <div class="w-96">
+          <Input
+            label={t3({ en: "Time point ID (e.g. 1, 2, round_1)", fr: "Identifiant du point temporel (ex. 1, 2, round_1)" })}
+            value={tempMappings.timePointId}
+            onChange={(val) => {
+              setNeedsSaving(true);
+              setTempMappings("timePointId", val);
+            }}
+            fullWidth
+          />
+        </div>
+        <div class="w-96">
+          <Input
+            label={t3({ en: "Time point label (e.g. December 2025, Round 3)", fr: "Libellé du point temporel (ex. Décembre 2025, Cycle 3)" })}
+            value={tempMappings.timePointLabel}
+            onChange={(val) => {
+              setNeedsSaving(true);
+              setTempMappings("timePointLabel", val);
+            }}
+            fullWidth
+          />
+        </div>
       </div>
       <StateHolderFormError state={save.state()} />
       <div class="ui-gap-sm flex">
@@ -93,7 +114,7 @@ export function Step2(p: Props) {
           disabled={!needsSaving()}
           iconName="save"
         >
-          {t2(T.FRENCH_UI_STRINGS.save)}
+          {t3(TC.save)}
         </Button>
       </div>
     </div>

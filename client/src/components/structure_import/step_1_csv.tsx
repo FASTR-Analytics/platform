@@ -1,6 +1,6 @@
 import type Uppy from "@uppy/core";
 import { Match, Switch, createSignal, onCleanup, onMount } from "solid-js";
-import { t, t2, T, type CsvDetails } from "lib";
+import { t3, TC, type CsvDetails } from "lib";
 import {
   Button,
   Select,
@@ -26,7 +26,7 @@ export function Step1_Csv(p: Props) {
 
   const assetListing = timQuery(
     () => serverActions.getAssets({}),
-    t2(T.FRENCH_UI_STRINGS.loading_asset_files),
+    t3(TC.loadingAssets),
   );
 
   function updateSelectedFileName(fileName: string) {
@@ -37,7 +37,7 @@ export function Step1_Csv(p: Props) {
   const save = timActionForm(async () => {
     const assetFileName = selectedFileName();
     if (!assetFileName) {
-      return { success: false, err: t("You must select a file") };
+      return { success: false, err: t3({ en: "You must select a file", fr: "Vous devez sélectionner un fichier" }) };
     }
     return serverActions.structureStep1Csv_UploadFile({
       assetFileName: assetFileName,
@@ -69,7 +69,7 @@ export function Step1_Csv(p: Props) {
     <div class="ui-pad ui-spy">
       <div class="">
         <Button id="select-file-button" iconName="upload">
-          {t2(T.FRENCH_UI_STRINGS.upload_new_csv_file_to_use)}
+          {t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser" })}
         </Button>
       </div>
       <div class="w-96">
@@ -77,7 +77,7 @@ export function Step1_Csv(p: Props) {
           {(keyedAssets) => {
             return (
               <Select
-                label={t2(T.FRENCH_UI_STRINGS.existing_csv_file_to_use)}
+                label={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
                 options={getSelectOptions(
                   keyedAssets.filter((a) => a.isCsv).map((a) => a.fileName),
                 )}
@@ -100,12 +100,12 @@ export function Step1_Csv(p: Props) {
               disabled={!selectedFileName()}
               iconName="save"
             >
-              {t("Save and continue")}
+              {t3({ en: "Save and continue", fr: "Sauvegarder et continuer" })}
             </Button>
           </Match>
           <Match when={true}>
             <div class="text-success">
-              {t("CSV file uploaded successfully")}
+              {t3({ en: "CSV file uploaded successfully", fr: "Fichier CSV téléversé avec succès" })}
             </div>
           </Match>
         </Switch>

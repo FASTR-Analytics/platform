@@ -1,4 +1,4 @@
-import { t, t2, T, type DatasetHmisVersion } from "lib";
+import { t3, type DatasetHmisVersion } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -26,19 +26,19 @@ export function PreviousImports(
 
   const versions = timQuery(
     () => serverActions.getDatasetHmisVersions({}),
-    "Loading import information...",
+    t3({ en: "Loading import information...", fr: "Chargement des informations d'importation..." }),
   );
 
   const columns: TableColumn<DatasetHmisVersion>[] = [
     {
       key: "id",
-      header: t("Version ID"),
+      header: t3({ en: "Version ID", fr: "ID de version" }),
       sortable: true,
       // width: "100px",
     },
     {
       key: "sourceType",
-      header: t("Source Type"),
+      header: t3({ en: "Source Type", fr: "Type de source" }),
       sortable: true,
       render: (item) =>
         item.stagingResult?.sourceType
@@ -47,16 +47,16 @@ export function PreviousImports(
     },
     {
       key: "workItems",
-      header: t("DHIS2 Failures"),
+      header: t3({ en: "DHIS2 Failures", fr: "Échecs DHIS2" }),
       sortable: true,
       render: (item) =>
         item.stagingResult?.sourceType === "dhis2"
-          ? `${toNum0(item.stagingResult.failedFetches.length)} failures`
+          ? `${toNum0(item.stagingResult.failedFetches.length)} ${t3({ en: "failures", fr: "échecs" })}`
           : "",
     },
     {
       key: "dateImported",
-      header: t("Date Data was Imported"),
+      header: t3({ en: "Date Data was Imported", fr: "Date d'importation des données" }),
       sortable: true,
       render: (item) =>
         item.stagingResult?.dateImported
@@ -65,21 +65,21 @@ export function PreviousImports(
     },
     {
       key: "nNewRowsAdded",
-      header: t("New Rows Inserted"),
+      header: t3({ en: "New Rows Inserted", fr: "Nouvelles lignes insérées" }),
       sortable: true,
       alignH: "right",
-      render: (item) => item.nRowsInserted?.toLocaleString() ?? "Unknown",
+      render: (item) => item.nRowsInserted?.toLocaleString() ?? t3({ en: "Unknown", fr: "Inconnu" }),
     },
     {
       key: "nNewRowsAdded",
-      header: t2(T.FRENCH_UI_STRINGS.old_rows_updated),
+      header: t3({ en: "Old rows updated", fr: "Lignes précédentes modifiées" }),
       sortable: true,
       alignH: "right",
-      render: (item) => item.nRowsUpdated?.toLocaleString() ?? "Unknown",
+      render: (item) => item.nRowsUpdated?.toLocaleString() ?? t3({ en: "Unknown", fr: "Inconnu" }),
     },
     {
       key: "nNewRowsAdded",
-      header: t("Total Rows Inserted or Updated"),
+      header: t3({ en: "Total Rows Inserted or Updated", fr: "Total de lignes insérées ou mises à jour" }),
       sortable: true,
       alignH: "right",
       render: (item) => item.nRowsTotalImported.toLocaleString(),
@@ -107,7 +107,7 @@ export function PreviousImports(
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
             <div class="font-700 flex-1 truncate text-xl">
-              {t2(T.FRENCH_UI_STRINGS.previous_imports)}
+              {t3({ en: "Previous imports", fr: "Importations précédentes" })}
             </div>
             <div class="ui-gap-sm flex items-center">
               <Button iconName="refresh" onClick={versions.fetch} />
@@ -123,7 +123,7 @@ export function PreviousImports(
                   data={keyedVersions}
                   columns={columns}
                   keyField="id"
-                  noRowsMessage={t("No previous imports found")}
+                  noRowsMessage={t3({ en: "No previous imports found", fr: "Aucune importation précédente trouvée" })}
                   onRowClick={(version) =>
                     viewImportInformation(version, false)
                   }

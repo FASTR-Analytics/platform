@@ -7,10 +7,7 @@ import {
   _CF_RED,
   PeriodOption,
   PresentationObjectConfig,
-  t,
-  t2,
   t3,
-  T,
   TranslatableString,
 } from "lib";
 
@@ -186,29 +183,29 @@ export function getLegendItemsFromConfig(
   if (config.s.content === "areas" && config.s.diffAreas) {
     if (config.s.diffInverted) {
       return [
-        { label: t("Actual"), color: "#000000", pointStyle: "as-line" },
+        { label: t3({ en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },
         {
-          label: t("Expected"),
+          label: t3({ en: "Expected", fr: "Attendu" }),
           color: "#000000",
           pointStyle: "as-line",
           lineDash: "dashed",
           lineStrokeWidthScaleFactor: 0.5,
         },
-        { label: t("Excess"), color: _CF_RED },
-        { label: t("Reduction"), color: _CF_GREEN },
+        { label: t3({ en: "Excess", fr: "Excès" }), color: _CF_RED },
+        { label: t3({ en: "Reduction", fr: "Réduction" }), color: _CF_GREEN },
       ];
     }
     return [
-      { label: t("Actual"), color: "#000000", pointStyle: "as-line" },
+      { label: t3({ en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },
       {
-        label: t("Expected"),
+        label: t3({ en: "Expected", fr: "Attendu" }),
         color: "#000000",
         pointStyle: "as-line",
         lineDash: "dashed",
         lineStrokeWidthScaleFactor: 0.5,
       },
-      { label: t2(T.FRENCH_UI_STRINGS.surplus), color: _CF_GREEN },
-      { label: t2(T.FRENCH_UI_STRINGS.disruption), color: _CF_RED },
+      { label: t3({ en: "Surplus", fr: "Excédent" }), color: _CF_GREEN },
+      { label: t3({ en: "Disruption", fr: "Perturbation" }), color: _CF_RED },
     ];
   }
   switch (config.s.conditionalFormatting) {
@@ -216,42 +213,42 @@ export function getLegendItemsFromConfig(
       return undefined;
     case "fmt-80-70":
       return [
-        { label: t("80% or above"), color: _CF_LIGHTER_GREEN },
-        { label: t("70% to 79%"), color: _CF_LIGHTER_YELLOW },
-        { label: t("Below 70%"), color: _CF_LIGHTER_RED },
+        { label: t3({ en: "80% or above", fr: "80 % ou plus" }), color: _CF_LIGHTER_GREEN },
+        { label: t3({ en: "70% to 79%", fr: "70 % à 79 %" }), color: _CF_LIGHTER_YELLOW },
+        { label: t3({ en: "Below 70%", fr: "Inférieur à 70 %" }), color: _CF_LIGHTER_RED },
       ];
     case "fmt-90-80":
       return [
-        { label: t("90% or above"), color: _CF_LIGHTER_GREEN },
-        { label: t("80% to 89%"), color: _CF_LIGHTER_YELLOW },
-        { label: t("Below 80%"), color: _CF_LIGHTER_RED },
+        { label: t3({ en: "90% or above", fr: "90 % ou plus" }), color: _CF_LIGHTER_GREEN },
+        { label: t3({ en: "80% to 89%", fr: "80 % à 89 %" }), color: _CF_LIGHTER_YELLOW },
+        { label: t3({ en: "Below 80%", fr: "Inférieur à 80 %" }), color: _CF_LIGHTER_RED },
       ];
     case "fmt-10-20":
       return [
-        { label: t("20% or above"), color: _CF_LIGHTER_RED },
-        { label: t("10% to 19%"), color: _CF_LIGHTER_YELLOW },
-        { label: t("Below 10%"), color: _CF_LIGHTER_GREEN },
+        { label: t3({ en: "20% or above", fr: "20 % ou plus" }), color: _CF_LIGHTER_RED },
+        { label: t3({ en: "10% to 19%", fr: "10 % à 19 %" }), color: _CF_LIGHTER_YELLOW },
+        { label: t3({ en: "Below 10%", fr: "Inférieur à 10 %" }), color: _CF_LIGHTER_GREEN },
       ];
     case "fmt-05-10":
       return [
-        { label: t("10% or above"), color: _CF_LIGHTER_RED },
-        { label: t("5% to 9%"), color: _CF_LIGHTER_YELLOW },
-        { label: t("Below 5%"), color: _CF_LIGHTER_GREEN },
+        { label: t3({ en: "10% or above", fr: "10 % ou plus" }), color: _CF_LIGHTER_RED },
+        { label: t3({ en: "5% to 9%", fr: "5 % à 9 %" }), color: _CF_LIGHTER_YELLOW },
+        { label: t3({ en: "Below 5%", fr: "Inférieur à 5 %" }), color: _CF_LIGHTER_GREEN },
       ];
     case "fmt-01-03":
       return [
-        { label: t("3% or above"), color: _CF_LIGHTER_RED },
-        { label: t("1% to 2%"), color: _CF_LIGHTER_YELLOW },
-        { label: t("Below 1%"), color: _CF_LIGHTER_GREEN },
+        { label: t3({ en: "3% or above", fr: "3 % ou plus" }), color: _CF_LIGHTER_RED },
+        { label: t3({ en: "1% to 2%", fr: "1 % à 2 %" }), color: _CF_LIGHTER_YELLOW },
+        { label: t3({ en: "Below 1%", fr: "Inférieur à 1 %" }), color: _CF_LIGHTER_GREEN },
       ];
     case "fmt-neg10-pos10":
       return [
-        { label: t("More than 10% above"), color: _CF_LIGHTER_GREEN },
+        { label: t3({ en: "More than 10% above", fr: "Supérieur de plus de 10 %" }), color: _CF_LIGHTER_GREEN },
         {
-          label: t2(T.FRENCH_UI_STRINGS["10_to_10"]),
+          label: t3({ en: "-10% to +10%", fr: "-10% à +10%" }),
           color: { key: "base200" },
         },
-        { label: t("More than 10% below"), color: _CF_LIGHTER_RED },
+        { label: t3({ en: "More than 10% below", fr: "Inférieur de plus de 10 %" }), color: _CF_LIGHTER_RED },
       ];
     default:
       return undefined;

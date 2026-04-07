@@ -8,6 +8,7 @@ import { parseJsonOrThrow } from "lib";
 import {
   DatasetHfaCsvStagingResult,
   DatasetHfaUploadAttemptStatus,
+  HfaCsvMappingParams,
 } from "lib";
 import { UPLOADED_HFA_DATA_STAGING_TABLE_NAME } from "../../exposed_env_vars.ts";
 
@@ -23,7 +24,9 @@ import { UPLOADED_HFA_DATA_STAGING_TABLE_NAME } from "../../exposed_env_vars.ts"
 
 let alreadyRunning = false;
 
-async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
+async function run(std: {
+  rawDUA: DBDatasetHfaUploadAttempt;
+}) {
   if (alreadyRunning) {
     self.close();
     return;
@@ -32,17 +35,15 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
 
   const { rawDUA } = std;
 
-  // Use fixed table name for staging
   const stagingTableName = UPLOADED_HFA_DATA_STAGING_TABLE_NAME;
   const datasetTableName = "dataset_hfa";
 
   const importDb = createBulkImportConnection("main");
   const mainDb = createWorkerReadConnection("main");
 
-  // Helper function to update integration progress
   async function updateIntegrationProgress(
     progress: number,
-    result?: { versionId: number; nRowsIntegrated: number }
+    result?: { versionId: number; nRowsIntegrated: number },
   ) {
     const status: DatasetHfaUploadAttemptStatus = result
       ? { status: "complete", ...result }
@@ -50,39 +51,44 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
 
     await mainDb`
       UPDATE dataset_hfa_upload_attempts
-      SET 
+      SET
         status = ${JSON.stringify(status)},
         status_type = ${result ? "complete" : "integrating"}
     `;
   }
 
   try {
-    if (!rawDUA.step_3_result) {
+    if (!rawDUA.step_2_result || !rawDUA.step_3_result) {
       throw new Error("Not yet ready for integration step");
     }
 
-    // Parse staging result
+    const mappings = parseJsonOrThrow<HfaCsvMappingParams>(rawDUA.step_2_result);
+    const timePointLabel = mappings.timePointLabel;
+
     const stagingResult = parseJsonOrThrow<DatasetHfaCsvStagingResult>(
-      rawDUA.step_3_result
+      rawDUA.step_3_result,
     );
+
+    const timePointValue = stagingResult.timePointValue;
+    const dictVarsStagingTable = stagingResult.dictionaryVarsStagingTableName;
+    const dictValuesStagingTable =
+      stagingResult.dictionaryValuesStagingTableName;
 
     // Verify staging table exists
     const stagingTableCheck = await importDb<{ exists: boolean }[]>`
       SELECT EXISTS (
-        SELECT FROM information_schema.tables 
+        SELECT FROM information_schema.tables
         WHERE table_name = ${stagingTableName}
       ) as exists
     `;
 
     if (!stagingTableCheck[0]?.exists) {
       throw new Error(
-        `Staging table ${stagingTableName} not found - staging may have failed or been cleaned up`
+        `Staging table ${stagingTableName} not found - staging may have failed or been cleaned up`,
       );
     }
 
-    console.log("Staging table verified, checking facility validity...");
-
-    // Check for any facility_ids in staging that don't exist in facilities
+    // Check for invalid facilities
     const invalidFacilities = await importDb`
       SELECT DISTINCT s.facility_id
       FROM ${importDb(stagingTableName)} s
@@ -96,160 +102,93 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
         .join(", ");
       throw new Error(
         `Cannot integrate: The following facilities in the staged data no longer exist: ${facilityList}. ` +
-          `Please re-run staging or update the facilities list.`
+          `Please re-run staging or update the facilities list.`,
       );
     }
 
-    console.log("Facility validation passed, beginning integration...");
-
-    // Update progress: 10% - Tables verified
     await updateIntegrationProgress(10);
 
-    // Get next version ID
-    const maxVersionResult = await mainDb<{ max_id: number | null }[]>`
-      SELECT MAX(id) as max_id FROM dataset_hfa_versions
-    `;
-    const nextVersionId = (maxVersionResult[0].max_id ?? 0) + 1;
-
-    // Update table statistics for optimal query planning
     await importDb`ANALYZE ${importDb(stagingTableName)}`;
-    await mainDb`ANALYZE ${mainDb(datasetTableName)}`;
 
-    // Update progress: 20% - Starting transaction
     await updateIntegrationProgress(20);
 
-    // Begin transaction
+    const dateImported = new Date().toISOString();
+
+    // Single transaction: delete existing time_point data + insert new data + dictionary
     await mainDb.begin(async (sql) => {
-      // Increase memory for this transaction to improve sort/join performance
       await sql`SET LOCAL work_mem = '256MB'`;
       await sql`SET LOCAL synchronous_commit = OFF`;
       await sql`SET LOCAL maintenance_work_mem = '512MB'`;
 
-      // Create version record first (needed for FK constraint)
-      await sql`
-        INSERT INTO dataset_hfa_versions
-        (
-          id, 
-          n_rows_total_imported,
-          n_rows_inserted,
-          n_rows_updated,
-          staging_result
-        )
-        VALUES
-        (
-          ${nextVersionId}, 
-          ${stagingResult.nRowsTotal},
-          0,  -- Will update after counting
-          0,  -- Will update after counting
-          ${JSON.stringify(stagingResult)}
-        )
-      `;
+      // Delete existing data for this time_point (preserve time_point row for indicator code FK)
+      await sql`DELETE FROM dataset_hfa WHERE time_point = ${timePointValue}`;
+      await sql`DELETE FROM dataset_hfa_dictionary_vars WHERE time_point = ${timePointValue}`;
 
-      console.log(`Version record ${nextVersionId} created`);
-
-      // Update progress: 30% - Version record created
       await updateIntegrationProgress(30);
 
-      // Track row counts separately
-      let rowsUpdated = 0;
-      let rowsInserted = 0;
-
-      // First, update existing rows (much faster than ON CONFLICT)
-      const updateResult = await sql`
-        UPDATE ${sql(datasetTableName)} dt
-        SET
-          value = s.value,
-          version_id = ${nextVersionId}::INTEGER
-        FROM ${sql(stagingTableName)} s
-        WHERE
-          dt.facility_id = s.facility_id
-          AND dt.time_point = s.time_point
-          AND dt.var_name = s.var_name
-      `;
-
-      rowsUpdated = updateResult.count;
-      console.log(
-        `Updated ${rowsUpdated} existing rows in ${datasetTableName}`
-      );
-
-      // Update progress: 40% - Updates complete
-      await updateIntegrationProgress(40);
-
-      // Delete the rows we just updated from the staging table
+      // UPSERT time_point (preserves hfa_indicator_code FK references)
       await sql`
-        DELETE FROM ${sql(stagingTableName)} s
-        WHERE EXISTS (
-          SELECT 1
-          FROM ${sql(datasetTableName)} dt
-          WHERE dt.facility_id = s.facility_id
-            AND dt.time_point = s.time_point
-            AND dt.var_name = s.var_name
-            AND dt.version_id = ${nextVersionId}
-        )
+        INSERT INTO dataset_hfa_dictionary_time_points (time_point, time_point_label, date_imported)
+        VALUES (${timePointValue}, ${timePointLabel}, ${dateImported})
+        ON CONFLICT (time_point) DO UPDATE SET
+          time_point_label = EXCLUDED.time_point_label,
+          date_imported = EXCLUDED.date_imported
       `;
 
-      console.log("Staging table now contains only new rows to insert");
+      // Auto-copy indicator code from most recent existing time_point
+      await sql`
+        INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
+        SELECT var_name, ${timePointValue}, r_code, r_filter_code
+        FROM hfa_indicator_code
+        WHERE time_point = (
+          SELECT tp.time_point FROM dataset_hfa_dictionary_time_points tp
+          WHERE tp.time_point != ${timePointValue}
+          ORDER BY tp.date_imported DESC NULLS LAST
+          LIMIT 1
+        )
+        ON CONFLICT DO NOTHING
+      `;
 
-      // Update progress: 50% - Staging table cleaned
+      // Insert dictionary vars from staging
+      await sql.unsafe(`
+        INSERT INTO dataset_hfa_dictionary_vars (time_point, var_name, var_label, var_type)
+        SELECT time_point, var_name, var_label, var_type FROM ${dictVarsStagingTable}
+      `);
+
+      // Insert dictionary values from staging
+      await sql.unsafe(`
+        INSERT INTO dataset_hfa_dictionary_values (time_point, var_name, value, value_label)
+        SELECT time_point, var_name, value, value_label FROM ${dictValuesStagingTable}
+      `);
+
       await updateIntegrationProgress(50);
 
-      // Insert all remaining rows from staging (they're all new)
-      const insertResult = await sql`
+      // Insert all HFA data
+      await sql`
         INSERT INTO ${sql(datasetTableName)}
-        (facility_id, time_point, var_name, value, version_id)
-        SELECT
-          facility_id,
-          time_point,
-          var_name,
-          value,
-          ${nextVersionId}::INTEGER as version_id
+        (facility_id, time_point, var_name, value)
+        SELECT facility_id, time_point, var_name, value
         FROM ${sql(stagingTableName)}
       `;
 
-      rowsInserted = insertResult.count;
-      const totalRowsAffected = rowsUpdated + rowsInserted;
-
-      console.log(
-        `Integration complete: ${totalRowsAffected} rows affected (${rowsUpdated} updated, ${rowsInserted} inserted) for version ${nextVersionId}`
-      );
-
-      // Update progress: 60% - Inserts complete
-      await updateIntegrationProgress(60);
-
-      // Update version record with actual counts
-      await sql`
-        UPDATE dataset_hfa_versions
-        SET 
-          n_rows_total_imported = ${totalRowsAffected},
-          n_rows_inserted = ${rowsInserted},
-          n_rows_updated = ${rowsUpdated}
-        WHERE id = ${nextVersionId}
-      `;
-
-      console.log(`Version record ${nextVersionId} updated with actual counts`);
-
-      // Update progress: 70% - Version record updated
-      await updateIntegrationProgress(70);
+      await updateIntegrationProgress(80);
     });
 
-    // Update progress: 80% - Data integrated
-    await updateIntegrationProgress(80);
+    await updateIntegrationProgress(85);
 
-    // Drop the staging table
+    // Drop all staging tables
     await importDb.unsafe(`DROP TABLE IF EXISTS ${stagingTableName}`);
+    await importDb.unsafe(`DROP TABLE IF EXISTS ${dictVarsStagingTable}`);
+    await importDb.unsafe(`DROP TABLE IF EXISTS ${dictValuesStagingTable}`);
 
-    console.log("Staging table cleaned up");
-
-    // Update progress: 90% - Cleanup complete
     await updateIntegrationProgress(90);
 
-    // Mark upload attempt as complete
+    // Mark as complete
     await mainDb`
       UPDATE dataset_hfa_upload_attempts
-      SET 
+      SET
         status = ${JSON.stringify({
           status: "complete",
-          versionId: nextVersionId,
           nRowsIntegrated: stagingResult.nRowsTotal,
         })},
         status_type = 'complete'
@@ -259,11 +198,10 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
   } catch (error) {
     console.error("Error in integration worker:", error);
 
-    // Update status to error
     try {
       await mainDb`
         UPDATE dataset_hfa_upload_attempts
-        SET 
+        SET
           status = ${JSON.stringify({
             status: "error",
             err: error instanceof Error ? error.message : String(error),
@@ -276,7 +214,6 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
 
     throw error;
   } finally {
-    // Clean up connections
     await importDb.end();
     await mainDb.end();
     self.close();

@@ -1,4 +1,4 @@
-import { ResultsValue, t2, t3 } from "lib";
+import { ResultsValue, t3 } from "lib";
 import { Button, ModalContainer, type AlertComponentProps } from "panther";
 import { For, Show } from "solid-js";
 
@@ -41,24 +41,24 @@ export function MetricDetailsModal(
         <div class="bg-base-200 ui-spy-sm rounded p-3">
           <div>
             <div class="font-700 text-sm">{t3({ en: "Summary", fr: "Résumé" })}</div>
-            <div class="text-sm">{t2(p.metric.aiDescription!.summary)}</div>
+            <div class="text-sm">{t3(p.metric.aiDescription!.summary)}</div>
           </div>
           <div>
             <div class="font-700 text-sm">{t3({ en: "Methodology", fr: "Méthodologie" })}</div>
-            <div class="text-sm">{t2(p.metric.aiDescription!.methodology)}</div>
+            <div class="text-sm">{t3(p.metric.aiDescription!.methodology)}</div>
           </div>
           <div>
             <div class="font-700 text-sm">{t3({ en: "Interpretation", fr: "Interprétation" })}</div>
-            <div class="text-sm">{t2(p.metric.aiDescription!.interpretation)}</div>
+            <div class="text-sm">{t3(p.metric.aiDescription!.interpretation)}</div>
           </div>
           <div>
             <div class="font-700 text-sm">{t3({ en: "Typical range", fr: "Plage typique" })}</div>
-            <div class="text-sm">{t2(p.metric.aiDescription!.typicalRange)}</div>
+            <div class="text-sm">{t3(p.metric.aiDescription!.typicalRange)}</div>
           </div>
           <Show when={p.metric.aiDescription!.caveats}>
             <div>
               <div class="font-700 text-sm">{t3({ en: "Caveats", fr: "Mises en garde" })}</div>
-              <div class="text-sm">{t2(p.metric.aiDescription!.caveats!)}</div>
+              <div class="text-sm">{t3(p.metric.aiDescription!.caveats!)}</div>
             </div>
           </Show>
         </div>
@@ -138,9 +138,7 @@ export function MetricDetailsModal(
                 <div class="border-base-300 flex items-start gap-2 rounded border p-2">
                   <div class="flex-1">
                     <div class="font-700 text-sm">
-                      {typeof disOpt.label === "string"
-                        ? disOpt.label
-                        : t2(disOpt.label)}
+                      {t3(disOpt.label)}
                     </div>
                     <div class="font-mono text-neutral text-xs">
                       {disOpt.value}

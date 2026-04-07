@@ -10,9 +10,7 @@ import {
   SlideDeckSummary,
   VisualizationFolder,
   VisualizationGroupingMode,
-  t2,
   t3,
-  T,
   TC,
 } from "lib";
 import {
@@ -294,7 +292,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
 
     const items: MenuItem[] = [
       {
-        label: "Rename / Change color...",
+        label: t3({ en: "Rename / Change color...", fr: "Renommer / Changer la couleur..." }),
         icon: "pencil",
         onClick: async () => {
           await openComponent({
@@ -307,12 +305,12 @@ export function PresentationObjectPanelDisplay(p: Props) {
         },
       },
       {
-        label: "Delete folder",
+        label: t3({ en: "Delete folder", fr: "Supprimer le dossier" }),
         icon: "trash",
         intent: "danger",
         onClick: async () => {
           const deleteAction = timActionDelete(
-            "Are you sure you want to delete this folder? Visualizations will be moved to General.",
+            t3({ en: "Are you sure you want to delete this folder? Visualizations will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les visualisations seront déplacées dans Général." }),
             () =>
               serverActions.deleteVisualizationFolder({
                 projectId: p.projectDetail.id,
@@ -379,7 +377,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
               fullWidth
             />
             <Checkbox
-              label="Hide unavailable"
+              label={t3({ en: "Hide unavailable", fr: "Masquer les indisponibles" })}
               checked={hideUnreadyVisualizations()}
               onChange={setHideUnreadyVisualizations}
             />
@@ -405,7 +403,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
                     });
                   }}
                 >
-                  New folder
+                  {t3({ en: "New folder", fr: "Nouveau dossier" })}
                 </Button>
               </div>
             </Show>
@@ -666,8 +664,8 @@ function VisualizationGrid(p: VisualizationGridProps) {
 
     if (hasReplicated && vizsToCreate.length > 1) {
       await openAlert({
-        title: "Cannot batch create slides",
-        text: "Batch slide creation is only supported for non-replicated visualizations. Please deselect replicated visualizations or create them individually.",
+        title: t3({ en: "Cannot batch create slides", fr: "Création de diapositives en lot impossible" }),
+        text: t3({ en: "Batch slide creation is only supported for non-replicated visualizations. Please deselect replicated visualizations or create them individually.", fr: "La création de diapositives en lot n'est possible que pour les visualisations non répliquées. Veuillez désélectionner les visualisations répliquées ou les créer individuellement." }),
         intent: "danger",
       });
       return;
@@ -728,8 +726,8 @@ function VisualizationGrid(p: VisualizationGridProps) {
     const idsToDelete = shouldDeleteMultiple ? Array.from(selected) : [po.id];
     const confirmText =
       idsToDelete.length > 1
-        ? `Are you sure you want to delete ${idsToDelete.length} visualizations?`
-        : t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1);
+        ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} visualizations?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} visualisations ?` })
+        : t3({ en: "Are you sure you want to delete this visualization?", fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?" });
 
     const deleteAction = timActionDelete(
       confirmText,
@@ -783,8 +781,8 @@ function VisualizationGrid(p: VisualizationGridProps) {
   const emptyMessage = () => (
     <div class="text-neutral text-sm">
       {p.searchText.length >= 3
-        ? t2(T.FRENCH_UI_STRINGS.no_matching_visualizations)
-        : t2(T.FRENCH_UI_STRINGS.no_visualizations)}
+        ? t3({ en: "No matching visualizations", fr: "Aucune visualisation correspondante" })
+        : t3({ en: "No visualizations", fr: "Aucune visualisation" })}
     </div>
   );
 
@@ -896,32 +894,32 @@ function VisualizationCard(p: VisualizationCardProps) {
     const isMultiSelect = p.isSelected && p.selectedCount > 1;
 
     const deleteLabel = isMultiSelect
-      ? `Delete ${p.selectedCount} visualizations`
-      : "Delete";
+      ? t3({ en: `Delete ${p.selectedCount} visualizations`, fr: `Supprimer ${p.selectedCount} visualisations` })
+      : t3(TC.delete);
 
     const createSlidesLabel = isMultiSelect
-      ? `Create ${p.selectedCount} slides...`
-      : "Create slide...";
+      ? t3({ en: `Create ${p.selectedCount} slides...`, fr: `Créer ${p.selectedCount} diapositives...` })
+      : t3({ en: "Create slide...", fr: "Créer une diapositive..." });
 
     const moveToFolderLabel = isMultiSelect
-      ? `Move ${p.selectedCount} visualizations to folder...`
-      : "Move to folder...";
+      ? t3({ en: `Move ${p.selectedCount} visualizations to folder...`, fr: `Déplacer ${p.selectedCount} visualisations vers un dossier...` })
+      : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier..." });
 
     const duplicateLabel = isMultiSelect
-      ? `Duplicate ${p.selectedCount} visualizations...`
-      : "Duplicate...";
+      ? t3({ en: `Duplicate ${p.selectedCount} visualizations...`, fr: `Dupliquer ${p.selectedCount} visualisations...` })
+      : t3({ en: "Duplicate...", fr: "Dupliquer..." });
 
     const items: MenuItem[] = [];
 
     if (isMultiSelect) {
       items.push({
-        label: "Edit common properties...",
+        label: t3({ en: "Edit common properties...", fr: "Modifier les propriétés communes..." }),
         icon: "pencil",
         onClick: p.onEditCommonProperties,
       });
     } else {
       items.push({
-        label: "Edit visualization",
+        label: t3({ en: "Edit visualization", fr: "Modifier la visualisation" }),
         icon: "pencil",
         onClick: p.onClick,
       });
@@ -967,7 +965,7 @@ function VisualizationCard(p: VisualizationCardProps) {
         when={isReady()}
         fallback={
           <div class="border-base-300 bg-base-200 flex aspect-video items-center justify-center rounded border p-2">
-            <span class="text-neutral text-xs">Not available</span>
+            <span class="text-neutral text-xs">{t3({ en: "Not available", fr: "Non disponible" })}</span>
           </div>
         }
       >
@@ -1013,7 +1011,7 @@ function VisualizationCard(p: VisualizationCardProps) {
       <div class="ui-gap-sm flex items-start justify-end pt-1 select-none">
         <Show when={p.po.replicateBy && !p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t2(T.FRENCH_UI_STRINGS.replicated)}:{" "}
+            {t3({ en: "REPLICATED", fr: "RÉPLIQUÉ" })}:{" "}
             {p.po.replicateBy === "admin_area_2"
               ? "AA2"
               : p.po.replicateBy === "admin_area_3"
@@ -1023,12 +1021,12 @@ function VisualizationCard(p: VisualizationCardProps) {
         </Show>
         <Show when={!p.po.replicateBy && p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t2(T.FRENCH_UI_STRINGS.filtered)}
+            {t3({ en: "FILTERED", fr: "FILTRÉ" })}
           </div>
         </Show>
         <Show when={p.po.replicateBy && p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t2(T.FRENCH_UI_STRINGS.repl__filt)}
+            {t3({ en: "REPL. & FILT.", fr: "REMPL. & FILT." })}
           </div>
         </Show>
         <Show when={p.po.createdByAI}>
@@ -1038,12 +1036,12 @@ function VisualizationCard(p: VisualizationCardProps) {
         </Show>
         <Show when={!p.po.createdByAI && p.po.isDefault}>
           <div class="bg-success font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t2(T.FRENCH_UI_STRINGS.default)}
+            {t3({ en: "Default", fr: "Par défaut" })}
           </div>
         </Show>
         <Show when={!p.po.createdByAI && !p.po.isDefault}>
           <div class="font-400 text-base-100 rounded bg-[orange] px-1 py-0.5 text-xs">
-            User
+            {t3({ en: "User", fr: "Utilisateur" })}
           </div>
         </Show>
       </div>

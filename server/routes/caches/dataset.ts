@@ -41,11 +41,11 @@ export const _FETCH_CACHE_DATASET_HMIS_ITEMS = new TimCacheC<
 
 export const _FETCH_CACHE_DATASET_HFA_ITEMS = new TimCacheC<
   {},
-  { versionId: number },
+  { hash: string },
   APIResponseWithData<ItemsHolderDatasetHfaDisplay>
 >("ds_hfa", {
   uniquenessHashFromParams: () => "hfa",
-  versionHashFromParams: (params) => `${params.versionId}`,
+  versionHashFromParams: (params) => params.hash,
   parseData: (res) => {
     if (res.success === false) {
       return {
@@ -57,7 +57,7 @@ export const _FETCH_CACHE_DATASET_HFA_ITEMS = new TimCacheC<
     return {
       shouldStore: true,
       uniquenessHash: "hfa",
-      versionHash: `${res.data.versionId}`,
+      versionHash: res.data.cacheHash,
     };
   },
 });

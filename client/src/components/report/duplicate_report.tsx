@@ -1,4 +1,4 @@
-import { InstanceDetail, ReportDetail, ReportType, isFrench, t2, T } from "lib";
+import { InstanceDetail, ReportDetail, ReportType, isFrench } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -9,7 +9,6 @@ import {
 } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { t } from "lib";
 
 export function DuplicateReport(
   p: AlertComponentProps<
@@ -48,7 +47,7 @@ export function DuplicateReport(
       if (!label) {
         return {
           success: false,
-          err: t("You must enter a name"),
+          err: "You must enter a name",
         };
       }
 
@@ -79,23 +78,23 @@ export function DuplicateReport(
   return (
     <AlertFormHolder
       formId="duplicate-report"
-      header={`${t2(T.FRENCH_UI_STRINGS.duplicate)} ${p.reportType === "slide_deck" ? t("slide deck") : t("policy brief")}`}
+      header={`Duplicate ${p.reportType === "slide_deck" ? "slide deck" : "policy brief"}`}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
       french={isFrench()}
     >
       <Input
-        label={t("New report name")}
+        label="New report name"
         value={tempLabel()}
         onChange={setTempLabel}
         fullWidth
         autoFocus
       />
       <Select
-        label={t2(T.FRENCH_UI_STRINGS.which_project_should_this_repo)}
+        label="Which project should this report be duplicated into?"
         options={[
-          { value: "this_project", label: t2(T.FRENCH_UI_STRINGS.this_project) },
+          { value: "this_project", label: "This project" },
           ...otherProjects.map((project) => {
             return {
               value: project.id,
@@ -108,10 +107,10 @@ export function DuplicateReport(
         onChange={setTempNewProjectId}
       />
       <RadioGroup
-        label={t2(T.FRENCH_UI_STRINGS.what_do_you_want_to_do_after_d)}
+        label="What do you want to do after duplicating?"
         options={[
-          { value: "go_to_new_report", label: t2(T.FRENCH_UI_STRINGS.go_to_new_report) },
-          { value: "stay_here", label: t2(T.FRENCH_UI_STRINGS.stay_on_this_report) },
+          { value: "go_to_new_report", label: "Go to new report" },
+          { value: "stay_here", label: "Stay on this report" },
         ]}
         value={postAction()}
         onChange={setPostAction}

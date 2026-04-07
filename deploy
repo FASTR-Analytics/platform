@@ -205,7 +205,8 @@ echo "Docker image pushed successfully"
 # Generate changelog entry for release deploys only
 if [ "$ADHOC_MODE" = "false" ]; then
     echo "Generating changelog..."
-    ./generate-changelog "$VERSION" || echo "Warning: Changelog generation skipped, continuing deploy..."
+    STATUS_API_KEY="$(grep -m1 '^STATUS_API_KEY=' "$SCRIPT_DIR/.env" | cut -d= -f2-)" \
+        ./generate-changelog "$VERSION" || echo "Warning: Changelog generation skipped, continuing deploy..."
 fi
 
 # Commit to git

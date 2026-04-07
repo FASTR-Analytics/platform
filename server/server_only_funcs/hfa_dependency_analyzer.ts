@@ -1,4 +1,4 @@
-import type { HfaIndicator } from "lib";
+import type { HfaIndicator, HfaIndicatorCode } from "lib";
 
 const R_KEYWORDS = new Set([
   "TRUE",
@@ -70,21 +70,24 @@ export type ExtractedDependencies = {
   unknownVariables: string[];
 };
 
-export function extractDependencies(
-  indicator: HfaIndicator,
+export function extractDependenciesFromCode(
+  rCode: string,
+  rFilterCode: string | undefined,
   allIndicatorVarNames: Set<string>,
-  knownDatasetVariables: Set<string>
+  knownDatasetVariables: Set<string>,
 ): ExtractedDependencies {
   const allVariables = new Set<string>();
 
-  const rCode = indicator.rCode.trim();
-  const rCodeVars = extractVariablesFromRCode(rCode);
-  rCodeVars.forEach((v) => allVariables.add(v));
+  const rCodeTrimmed = rCode.trim();
+  if (rCodeTrimmed) {
+    extractVariablesFromRCode(rCodeTrimmed).forEach((v) => allVariables.add(v));
+  }
 
-  const rFilterCode = indicator.rFilterCode?.trim() ?? "";
-  if (rFilterCode !== "") {
-    const filterVars = extractVariablesFromRCode(rFilterCode);
-    filterVars.forEach((v) => allVariables.add(v));
+  const rFilterTrimmed = rFilterCode?.trim() ?? "";
+  if (rFilterTrimmed) {
+    extractVariablesFromRCode(rFilterTrimmed).forEach((v) =>
+      allVariables.add(v)
+    );
   }
 
   const qids: string[] = [];
@@ -101,13 +104,6 @@ export function extractDependencies(
     }
   }
 
-  const inBothCategories = qids.filter((q) => dependencies.includes(q));
-  if (inBothCategories.length > 0) {
-    throw new Error(
-      `Internal error in indicator "${indicator.varName}": Variables [${inBothCategories.join(", ")}] found in both dataset variables AND indicator varNames. This indicates a naming conflict.`
-    );
-  }
-
   return {
     qids: qids.sort(),
     dependencies: dependencies.sort(),
@@ -115,22 +111,45 @@ export function extractDependencies(
   };
 }
 
-export function buildDependencyGraph(
+export function buildUnionDependencyGraph(
   indicators: HfaIndicator[],
+  codeByIndicator: Map<string, HfaIndicatorCode[]>,
   allIndicatorVarNames: Set<string>,
-  knownDatasetVariables: Set<string>
-): { graph: Map<string, string[]>; dependenciesMap: Map<string, string[]> } {
+  knownDatasetVariables: Set<string>,
+): {
+  graph: Map<string, string[]>;
+  dependenciesMap: Map<string, string[]>;
+  validationErrors: string[];
+} {
   const graph = new Map<string, string[]>();
   const dependenciesMap = new Map<string, string[]>();
+  const validationErrors: string[] = [];
 
   for (const indicator of indicators) {
     graph.set(indicator.varName, []);
-    const deps = extractDependencies(
-      indicator,
-      allIndicatorVarNames,
-      knownDatasetVariables
-    );
-    dependenciesMap.set(indicator.varName, deps.dependencies);
+    const unionDeps = new Set<string>();
+
+    const codeSnippets = codeByIndicator.get(indicator.varName) ?? [];
+    for (const snippet of codeSnippets) {
+      if (!snippet.rCode || snippet.rCode.trim() === "") continue;
+
+      const deps = extractDependenciesFromCode(
+        snippet.rCode,
+        snippet.rFilterCode,
+        allIndicatorVarNames,
+        knownDatasetVariables,
+      );
+
+      if (deps.unknownVariables.length > 0) {
+        validationErrors.push(
+          `Indicator "${indicator.varName}" (time_point "${snippet.timePoint}"): Unknown variables [${deps.unknownVariables.join(", ")}].`,
+        );
+      }
+
+      deps.dependencies.forEach((d) => unionDeps.add(d));
+    }
+
+    dependenciesMap.set(indicator.varName, [...unionDeps].sort());
   }
 
   for (const [varName, dependencies] of dependenciesMap.entries()) {
@@ -142,7 +161,7 @@ export function buildDependencyGraph(
     }
   }
 
-  return { graph, dependenciesMap };
+  return { graph, dependenciesMap, validationErrors };
 }
 
 type TopologicalSortResult = {
@@ -152,7 +171,10 @@ type TopologicalSortResult = {
 
 export function topologicalSort(
   indicators: HfaIndicator[],
-  graphResult: { graph: Map<string, string[]>; dependenciesMap: Map<string, string[]> }
+  graphResult: {
+    graph: Map<string, string[]>;
+    dependenciesMap: Map<string, string[]>;
+  },
 ): TopologicalSortResult {
   const { graph, dependenciesMap } = graphResult;
   const indicatorMap = new Map<string, HfaIndicator>();
@@ -193,7 +215,7 @@ export function topologicalSort(
 
   if (ordered.length !== indicators.length) {
     const remaining = indicators.filter(
-      (ind) => !ordered.find((o) => o.varName === ind.varName)
+      (ind) => !ordered.find((o) => o.varName === ind.varName),
     );
     const cycles = detectCycles(remaining, dependenciesMap);
     return { ordered: [], cycles };
@@ -204,7 +226,7 @@ export function topologicalSort(
 
 function detectCycles(
   indicators: HfaIndicator[],
-  dependenciesMap: Map<string, string[]>
+  dependenciesMap: Map<string, string[]>,
 ): string[][] {
   const cycles: string[][] = [];
   const visited = new Set<string>();
@@ -240,7 +262,5 @@ function detectCycles(
 }
 
 export function formatCycles(cycles: string[][]): string {
-  return cycles
-    .map((cycle) => cycle.join(" → "))
-    .join("\n");
+  return cycles.map((cycle) => cycle.join(" → ")).join("\n");
 }

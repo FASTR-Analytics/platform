@@ -1,4 +1,4 @@
-import { t, t2, T, type DatasetUploadAttemptSummary, type InstanceDetail } from "lib";
+import { t3, TC, type DatasetHfaDictionaryTimePoint, type DatasetUploadAttemptSummary, type InstanceDetail } from "lib";
 import {
   Button,
   FrameRight,
@@ -22,7 +22,7 @@ import {
 import { DatasetHfaUploadAttemptForm } from "~/components/instance_dataset_hfa_import";
 import { serverActions } from "~/server_actions";
 import { DeleteData } from "./_delete_data";
-import { PreviousImports } from "./_previous_imports";
+import { TimePointsView } from "./_time_points";
 import { DatasetItemsHolder } from "./dataset_items_holder";
 
 type Props = {
@@ -40,7 +40,7 @@ export function InstanceDatasetHfa(p: Props) {
 
   const datasetDetail = timQuery(
     () => serverActions.getDatasetHfaDetail({}),
-    "Loading data source...",
+    t3({ en: "Loading data source...", fr: "Chargement de la source de données..." }),
   );
 
   // Signal for upload attempt with polling
@@ -109,20 +109,21 @@ export function InstanceDatasetHfa(p: Props) {
     });
   }
 
-  async function viewPreviousImports() {
+  async function viewTimePoints(timePoints: DatasetHfaDictionaryTimePoint[]) {
     const _res = await openEditor({
-      element: PreviousImports,
+      element: TimePointsView,
       props: {
-        isGlobalAdmin: p.isGlobalAdmin,
+        timePoints,
       },
     });
   }
 
-  async function deleteData() {
+  async function deleteData(timePoints: DatasetHfaDictionaryTimePoint[]) {
     const _res = await openEditor({
       element: DeleteData,
       props: {
         isGlobalAdmin: p.isGlobalAdmin,
+        timePoints,
         silentFetch: async () => {
           await datasetDetail.silentFetch();
           await p.instanceDetail.silentFetch();
@@ -140,8 +141,8 @@ export function InstanceDatasetHfa(p: Props) {
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={p.backToInstance} />
             <div class="font-700 flex-1 truncate text-xl">
-              {t2(T.FRENCH_UI_STRINGS.data_source)}
-              <span class="font-400 ml-4">Health Facility Assessment Data</span>
+              {t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES" })}
+              <span class="font-400 ml-4">{t3({ en: "Health Facility Assessment Data", fr: "Données d'évaluation des établissements de santé" })}</span>
             </div>
             <div class="ui-gap-sm flex items-center">
               <Button iconName="refresh" onClick={datasetDetail.fetch} />
@@ -152,7 +153,7 @@ export function InstanceDatasetHfa(p: Props) {
         <StateHolderWrapper
           state={p.instanceDetail.state()}
           onErrorButton={{
-            label: t("Go back to project"),
+            label: t3(TC.goBackToProject),
             onClick: p.backToInstance,
           }}
         >
@@ -161,7 +162,7 @@ export function InstanceDatasetHfa(p: Props) {
               <StateHolderWrapper
                 state={datasetDetail.state()}
                 onErrorButton={{
-                  label: t("Go back to project"),
+                  label: t3(TC.goBackToProject),
                   onClick: p.backToInstance,
                 }}
               >
@@ -171,7 +172,7 @@ export function InstanceDatasetHfa(p: Props) {
                       panelChildren={
                         <Show when={p.isGlobalAdmin}>
                           <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
-                            <div class="font-700 text-lg">{t2(T.FRENCH_UI_STRINGS.imports)}</div>
+                            <div class="font-700 text-lg">{t3({ en: "Imports", fr: "Importations" })}</div>
                             <Switch>
                               <Match when={!uploadAttempt()}>
                                 <div class="">
@@ -181,7 +182,7 @@ export function InstanceDatasetHfa(p: Props) {
                                     iconName="upload"
                                     fullWidth
                                   >
-                                    {t2(T.FRENCH_UI_STRINGS.start_new_import)}
+                                    {t3({ en: "Start new import", fr: "Nouvelle importation" })}
                                   </Button>
                                 </div>
                               </Match>
@@ -200,8 +201,7 @@ export function InstanceDatasetHfa(p: Props) {
                                           }
                                         >
                                           <div class="text-sm">
-                                            Import is complete! Click to view
-                                            and remove.
+                                            {t3({ en: "Import is complete! Click to view and remove.", fr: "Importation terminée ! Cliquez pour consulter et supprimer." })}
                                           </div>
                                         </Match>
                                         <Match
@@ -211,7 +211,7 @@ export function InstanceDatasetHfa(p: Props) {
                                           }
                                         >
                                           <div class="text-danger text-sm">
-                                            Error with upload. Click to view.
+                                            {t3({ en: "Error with upload. Click to view.", fr: "Erreur lors du téléversement. Cliquez pour consulter." })}
                                           </div>
                                         </Match>
                                         <Match
@@ -222,7 +222,7 @@ export function InstanceDatasetHfa(p: Props) {
                                           keyed
                                         >
                                           <div class="ui-spy-sm text-center">
-                                            <div class="">Staging underway</div>
+                                            <div class="">{t3({ en: "Staging underway", fr: "Préparation en cours" })}</div>
                                             <div class="font-700 text-lg">
                                               {toPct0(
                                                 ((
@@ -231,8 +231,7 @@ export function InstanceDatasetHfa(p: Props) {
                                               )}
                                             </div>
                                             <div class="text-xs">
-                                              This number will automatically
-                                              update. No need to refresh.
+                                              {t3({ en: "This number will automatically update. No need to refresh.", fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser." })}
                                             </div>
                                           </div>
                                         </Match>
@@ -245,7 +244,7 @@ export function InstanceDatasetHfa(p: Props) {
                                         >
                                           <div class="ui-spy-sm text-center">
                                             <div class="">
-                                              Integrating underway
+                                              {t3({ en: "Integrating underway", fr: "Intégration en cours" })}
                                             </div>
                                             <div class="font-700 text-lg">
                                               {toPct0(
@@ -256,15 +255,13 @@ export function InstanceDatasetHfa(p: Props) {
                                               )}
                                             </div>
                                             <div class="text-xs">
-                                              This number will automatically
-                                              update. No need to refresh.
+                                              {t3({ en: "This number will automatically update. No need to refresh.", fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser." })}
                                             </div>
                                           </div>
                                         </Match>
                                         <Match when={true}>
                                           <div class="text-sm">
-                                            Import in draft stage. Click to
-                                            continue.
+                                            {t3({ en: "Import in draft stage. Click to continue.", fr: "Importation en cours de préparation. Cliquez pour continuer." })}
                                           </div>
                                         </Match>
                                       </Switch>
@@ -273,7 +270,7 @@ export function InstanceDatasetHfa(p: Props) {
                                 }}
                               </Match>
                             </Switch>
-                            <Show when={keyedDatasetDetail.nVersions > 0}>
+                            <Show when={keyedDatasetDetail.timePoints.length > 0}>
                               <div class="ui-spy text-sm">
                                 {/* <div class="">
                             {keyedDatasetDetail.nVersions} previous import
@@ -281,23 +278,23 @@ export function InstanceDatasetHfa(p: Props) {
                           </div> */}
                                 <div class="">
                                   <Button
-                                    onClick={viewPreviousImports}
+                                    onClick={() => viewTimePoints(keyedDatasetDetail.timePoints)}
                                     outline
                                     fullWidth
                                     iconName="folder"
                                   >
-                                    View previous imports
+                                    {t3({ en: "View time points", fr: "Voir les points temporels" })}
                                   </Button>
                                 </div>
                                 <div class="">
                                   <Button
-                                    onClick={deleteData}
+                                    onClick={() => deleteData(keyedDatasetDetail.timePoints)}
                                     intent="danger"
                                     iconName="trash"
                                     outline
                                     fullWidth
                                   >
-                                    Delete data
+                                    {t3({ en: "Delete data", fr: "Supprimer les données" })}
                                   </Button>
                                 </div>
                               </div>
@@ -308,12 +305,10 @@ export function InstanceDatasetHfa(p: Props) {
                     >
                       <div class="h-full w-full">
                         <Show
-                          when={keyedDatasetDetail.currentVersionId}
-                          fallback={<div class="ui-pad">{t("No data")}</div>}
+                          when={keyedDatasetDetail.timePoints.length > 0}
+                          fallback={<div class="ui-pad">{t3({ en: "No data", fr: "Aucune donnée" })}</div>}
                         >
-                          <DatasetItemsHolder
-                            versionId={keyedDatasetDetail.currentVersionId!}
-                          />
+                          <DatasetItemsHolder cacheHash={keyedDatasetDetail.cacheHash} />
                         </Show>
                       </div>
                     </FrameRight>

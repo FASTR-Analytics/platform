@@ -17,12 +17,9 @@ import {
   ProjectDetail,
   getReplicateByProp,
   isFrench,
-  t2,
-  T,
 } from "lib";
 import { useProjectDirtyStates } from "~/components/project_runner/mod";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
-import { t } from "lib";
 
 export function SelectPresentationObject(
   p: EditorComponentProps<
@@ -45,7 +42,7 @@ export function SelectPresentationObject(
     const presObjSummary = selectedPresObj();
     if (presObjSummary === undefined) {
       await openAlert({
-        text: t("You must select a visualization in order to save"),
+        text: "You must select a visualization in order to save",
       });
       return;
     }
@@ -64,7 +61,7 @@ export function SelectPresentationObject(
     const goodSelectedReplicant = selectedReplicant();
     if (replicateBy && !goodSelectedReplicant) {
       await openAlert({
-        text: t2(T.FRENCH_UI_STRINGS.you_must_select_a_replicant),
+        text: "You must select a replicant",
         intent: "danger",
       });
       return;
@@ -83,7 +80,7 @@ export function SelectPresentationObject(
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={t2(T.FRENCH_UI_STRINGS.select_visualization)}
+          heading="Select visualization"
           searchText={searchText()}
           setSearchText={setSearchText}
           french={isFrench()}
@@ -95,14 +92,14 @@ export function SelectPresentationObject(
               disabled={!selectedPresObj()}
               iconName="save"
             >
-              {t2(T.FRENCH_UI_STRINGS.select)}
+              {"Select"}
             </Button>
             <Button
               onClick={() => p.close(undefined)}
               intent="neutral"
               iconName="x"
             >
-              {t2(T.FRENCH_UI_STRINGS.cancel)}
+              {"Cancel"}
             </Button>
           </div>
         </HeadingBar>
@@ -121,7 +118,7 @@ export function SelectPresentationObject(
             when={selectedPresObj()}
             fallback={
               <div class="text-base-100">
-                {t2(T.FRENCH_UI_STRINGS.select_a_visualization)}
+                {"Select a visualization"}
               </div>
             }
             keyed
@@ -156,7 +153,7 @@ function Side(p: SideProps) {
   const pds = useProjectDirtyStates();
   const poDetail = timQuery(async () => {
     return await getPODetailFromCacheorFetch(p.projectId, p.presObjId);
-  }, t2(T.FRENCH_UI_STRINGS.loading_1));
+  }, "Loading...");
 
   return (
     <StateHolderWrapper state={poDetail.state()}>
@@ -179,7 +176,7 @@ function Side(p: SideProps) {
               {(keyedReplicateBy) => {
                 return (
                   <div class="">
-                    <div class="pb-1">{t2(T.FRENCH_UI_STRINGS.replicant)}</div>
+                    <div class="pb-1">{"Replicant"}</div>
                     <ReplicateByOptionsPresentationObjectSelect
                       replicateBy={keyedReplicateBy}
                       config={keyedPoDetail.config}

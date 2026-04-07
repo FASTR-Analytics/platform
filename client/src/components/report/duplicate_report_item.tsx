@@ -7,9 +7,8 @@ import {
   timActionForm,
 } from "panther";
 import { Show, createSignal } from "solid-js";
-import { ProjectDetail, ReportType, isFrench, t2, T } from "lib";
+import { ProjectDetail, ReportType, isFrench } from "lib";
 import { serverActions } from "~/server_actions";
-import { t } from "lib";
 
 export function DuplicateReportItem(
   p: AlertComponentProps<
@@ -59,7 +58,7 @@ export function DuplicateReportItem(
   return (
     <AlertFormHolder
       formId="duplicate-report-item"
-      header={`${t2(T.FRENCH_UI_STRINGS.duplicate)} ${p.reportType === "slide_deck" ? t2(T.FRENCH_UI_STRINGS.slide) : t2(T.FRENCH_UI_STRINGS.page)}`}
+      header={`Duplicate ${p.reportType === "slide_deck" ? "slide" : "page"}`}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -68,11 +67,11 @@ export function DuplicateReportItem(
       <Select
         label={
           p.reportType === "slide_deck"
-            ? t2(T.FRENCH_UI_STRINGS.which_report_should_this_slide)
-            : t2(T.FRENCH_UI_STRINGS.which_report_should_this_page)
+            ? "Which report should this slide be duplicated into?"
+            : "Which report should this page be duplicated into?"
         }
         options={[
-          { value: "this_report", label: t2(T.FRENCH_UI_STRINGS.this_report) },
+          { value: "this_report", label: "This report" },
           ...p.projectDetail.reports
             .filter(
               (report) =>
@@ -94,9 +93,9 @@ export function DuplicateReportItem(
           options={[
             {
               value: "next",
-              label: `${t2(T.FRENCH_UI_STRINGS.add_immediately_after_this)} ${p.reportType === "slide_deck" ? t2(T.FRENCH_UI_STRINGS.slide) : t2(T.FRENCH_UI_STRINGS.page)}`,
+              label: `Add immediately after this ${p.reportType === "slide_deck" ? "slide" : "page"}`,
             },
-            { value: "end", label: t2(T.FRENCH_UI_STRINGS.add_to_end) },
+            { value: "end", label: "Add to end" },
           ]}
           value={tempNextOrEnd()}
           onChange={setTempNextOrEnd}
