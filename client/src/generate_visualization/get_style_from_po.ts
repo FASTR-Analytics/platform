@@ -106,7 +106,11 @@ export function getStyleFromPresentationObject(
     /////////////////////
     surrounds: {
       backgroundColor: "none",
-      legendPosition: config.s.hideLegend ? "none" : undefined,
+      legendPosition: config.s.hideLegend
+        ? "none"
+        : config.d.type === "map"
+          ? undefined
+          : undefined,
     },
     //////////////////
     //              //
@@ -321,6 +325,8 @@ export function getStyleFromPresentationObject(
                 dataLabel: {
                   show: config.s.showDataLabels,
                   backgroundColor: { key: "base100" },
+                  rectRadius: 5,
+                  padding: 4,
                 },
               },
               textFormatter: (info: MapRegionInfo) => {
@@ -494,7 +500,9 @@ function getMapValuesColorFunc(
     preset === "custom"
       ? [config.s.mapColorFrom ?? "#fee0d2", config.s.mapColorTo ?? "#de2d26"]
       : (MAP_COLOR_PRESETS[preset] ?? MAP_COLOR_PRESETS["red-green"]);
-  const [fromColor, toColor] = config.s.mapColorReverse ? [rawTo, rawFrom] : [rawFrom, rawTo];
+  const [fromColor, toColor] = config.s.mapColorReverse
+    ? [rawTo, rawFrom]
+    : [rawFrom, rawTo];
 
   const fixedMin =
     config.s.mapDomainType === "fixed" ? config.s.mapDomainMin : undefined;

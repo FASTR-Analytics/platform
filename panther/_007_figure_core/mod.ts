@@ -6,7 +6,10 @@
 export * from "./_axes/x_period/types.ts";
 export * from "./_axes/x_text/types.ts";
 export { estimateMinYAxisWidth } from "./_axes/y_scale/measure.ts";
+export { generateScaleLegendPrimitive } from "./_legend/generate_scale_legend_primitive.ts";
 export * from "./_legend/measure_legend.ts";
+export * from "./_legend/measure_scale_legend.ts";
+export { resolveAutoScaleLegend } from "./_legend/resolve_auto_scale_legend.ts";
 export * from "./_legend/scale_legend_types.ts";
 export * from "./_legend/types.ts";
 export * from "./_legend/utils.ts";

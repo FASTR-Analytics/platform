@@ -19,17 +19,11 @@ import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
 import { InstanceUsers } from "~/components/instance/instance_users";
-import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 import Project from "../project";
 import { FeedbackForm } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
 import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
-import {
-  clearDhis2SessionCredentials,
-  getDhis2SessionCredentials,
-  setDhis2SessionCredentials,
-} from "~/state/dhis2-session-storage";
 import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
 
@@ -76,30 +70,6 @@ export default function Instance(p: Props) {
     });
   }
 
-  async function handleDhis2Credentials() {
-    const credentials = getDhis2SessionCredentials();
-
-    const result = await openComponent({
-      element: Dhis2CredentialsForm,
-      props: {
-        existingCredentials: credentials ?? undefined,
-        allowClear: credentials !== null,
-      },
-    });
-
-    if (result === undefined) {
-      return;
-    }
-
-    if (result.shouldClear) {
-      clearDhis2SessionCredentials();
-      return;
-    }
-
-    if (result.credentials) {
-      setDhis2SessionCredentials(result.credentials);
-    }
-  }
 
   return (
     <>
@@ -262,13 +232,6 @@ export default function Instance(p: Props) {
                       intent="base-100"
                     >
                       {/* {t2(T.Platform.platforme)} */}
-                    </Button>
-                    <Button
-                      onClick={handleDhis2Credentials}
-                      iconName="database"
-                      intent="base-100"
-                    >
-                      {/* {t("DHIS2")} */}
                     </Button>
                   </Show>
                   <div

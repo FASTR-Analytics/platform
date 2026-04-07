@@ -43,7 +43,7 @@ export function measureChart<
   const transformedData = config.transformedData;
   const dataProps = config.dataProps;
 
-  const legend = inputs.legend ??
+  const legend = config.resolvedLegend ?? inputs.legend ??
     dataProps.seriesHeaders;
 
   const measuredSurrounds = measureSurrounds(

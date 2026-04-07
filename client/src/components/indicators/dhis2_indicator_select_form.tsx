@@ -9,6 +9,7 @@ import {
   Button,
   Table,
   TableColumn,
+  StateHolderFormError,
   timActionForm,
   type EditorComponentProps,
   timActionButton,
@@ -261,6 +262,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                 {t3({ en: "Search", fr: "Recherche" })}
               </Button>
             </form>
+            <StateHolderFormError state={search.state()} />
           </div>
 
           {/* Results Section */}

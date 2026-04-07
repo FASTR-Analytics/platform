@@ -158,8 +158,10 @@ defineRoute(
 
       const result = await testIndicatorsConnection(options);
 
-      // The testIndicatorsConnection function should return APIResponseWithData format
-      return c.json(result);
+      if (!result.success) {
+        return c.json({ success: false, err: result.message });
+      }
+      return c.json({ success: true, data: result.details });
     } catch (error) {
       console.error("Error testing DHIS2 connection:", error);
       return c.json({

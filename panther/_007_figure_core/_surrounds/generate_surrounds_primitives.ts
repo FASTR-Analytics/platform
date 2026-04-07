@@ -5,6 +5,7 @@
 
 import type { Primitive } from "../deps.ts";
 import { generateLegendPrimitive } from "../_legend/generate_legend_primitive.ts";
+import { generateScaleLegendPrimitive } from "../_legend/generate_scale_legend_primitive.ts";
 import { generateCaptionsPrimitives } from "./generate_captions_primitives.ts";
 import type { MeasuredSurrounds } from "./measure_surrounds.ts";
 
@@ -17,18 +18,26 @@ import type { MeasuredSurrounds } from "./measure_surrounds.ts";
 export function generateSurroundsPrimitives(
   mSurrounds: MeasuredSurrounds,
 ): Primitive[] {
-  // Generate caption primitives (title, subtitle, footnotes)
   const captionsPrimitives = generateCaptionsPrimitives(mSurrounds);
 
-  // Generate legend primitive (if legend exists and should be rendered)
-  const legendPrimitive =
-    mSurrounds.legend && !mSurrounds.s.legend.legendNoRender
-      ? generateLegendPrimitive(
+  let legendPrimitive: Primitive | undefined = undefined;
+  if (mSurrounds.legend) {
+    if (mSurrounds.legend.type === "items") {
+      if (!mSurrounds.s.legend.legendNoRender) {
+        legendPrimitive = generateLegendPrimitive(
+          mSurrounds.legend.rcd.topLeftCoords(),
+          mSurrounds.legend.mLegend,
+          mSurrounds.legend.rcd,
+        );
+      }
+    } else {
+      legendPrimitive = generateScaleLegendPrimitive(
         mSurrounds.legend.rcd.topLeftCoords(),
-        mSurrounds.legend.mLegend,
+        mSurrounds.legend.mScaleLegend,
         mSurrounds.legend.rcd,
-      )
-      : undefined;
+      );
+    }
+  }
 
   return [
     ...captionsPrimitives,

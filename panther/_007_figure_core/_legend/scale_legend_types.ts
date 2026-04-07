@@ -21,11 +21,35 @@ export type ScaleLegendSteppedConfig = {
   noData?: { color: ColorKeyOrString; label: string };
 };
 
+export type ScaleLegendGradientAutoConfig = {
+  type: "gradient-auto";
+  nTicks?: number;
+  domain?: { min: number; max: number };
+  format?: "number" | "percent";
+  labelFormatter?: (value: number) => string;
+  noData?: { color: ColorKeyOrString; label: string };
+};
+
+export type ScaleLegendSteppedAutoConfig = {
+  type: "stepped-auto";
+  nSteps: number;
+  domain?: { min: number; max: number };
+  format?: "number" | "percent";
+  labelFormatter?: (value: number) => string;
+  noData?: { color: ColorKeyOrString; label: string };
+};
+
 export type ScaleLegendConfig =
   | ScaleLegendGradientConfig
-  | ScaleLegendSteppedConfig;
+  | ScaleLegendSteppedConfig
+  | ScaleLegendGradientAutoConfig
+  | ScaleLegendSteppedAutoConfig;
 
 export type LegendInput = LegendItem[] | string[] | ScaleLegendConfig;
+
+export type ConcreteScaleLegendConfig =
+  | ScaleLegendGradientConfig
+  | ScaleLegendSteppedConfig;
 
 export function isScaleLegendConfig(
   v: unknown,
@@ -34,6 +58,29 @@ export function isScaleLegendConfig(
     typeof v === "object" &&
     v !== null &&
     "type" in v &&
+    (v.type === "gradient" || v.type === "stepped" ||
+      v.type === "gradient-auto" || v.type === "stepped-auto")
+  );
+}
+
+export function isConcreteScaleLegendConfig(
+  v: unknown,
+): v is ConcreteScaleLegendConfig {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    "type" in v &&
     (v.type === "gradient" || v.type === "stepped")
+  );
+}
+
+export function isAutoScaleLegendConfig(
+  v: unknown,
+): v is ScaleLegendGradientAutoConfig | ScaleLegendSteppedAutoConfig {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    "type" in v &&
+    (v.type === "gradient-auto" || v.type === "stepped-auto")
   );
 }

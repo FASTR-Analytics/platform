@@ -38,6 +38,7 @@ import {
   _FETCH_CACHE_DATASET_HMIS_ITEMS,
 } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { validateDhis2Connection } from "../../dhis2/mod.ts";
 
 export const routesDatasets = new Hono();
 
@@ -268,6 +269,12 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("dhis2ConfirmCredentials"),
   async (c, { body }) => {
+    console.log("[dhis2ConfirmCredentials] Validating URL:", body.url);
+    const validation = await validateDhis2Connection(body);
+    console.log("[dhis2ConfirmCredentials] Result:", JSON.stringify(validation));
+    if (!validation.valid) {
+      return c.json({ success: false, err: validation.message });
+    }
     const res = await updateDatasetUploadAttempt_Step1Dhis2Confirm(
       c.var.mainDb,
       body,

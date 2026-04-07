@@ -17,7 +17,11 @@ import type {
   DHIS2IndicatorGroup,
   DHIS2PagedResponse,
 } from "lib";
-import { getDHIS2, FetchOptions } from "../common/base_fetcher.ts";
+import {
+  getDHIS2,
+  FetchOptions,
+  validateDhis2Connection,
+} from "../common/base_fetcher.ts";
 
 // ============================================================================
 // Data Elements Functions
@@ -264,8 +268,12 @@ export async function testIndicatorsConnection(options: FetchOptions): Promise<{
     indicatorGroups?: number;
   };
 }> {
+  const validation = await validateDhis2Connection(options.dhis2Credentials);
+  if (!validation.valid) {
+    return { success: false, message: validation.message };
+  }
+
   try {
-    // Test data elements endpoint
     const deParams = new URLSearchParams();
     deParams.set("fields", "id");
     deParams.set("pageSize", "1");

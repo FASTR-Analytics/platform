@@ -20,6 +20,8 @@ import type {
   RenderContext,
   SankeyLinkPrimitive,
   SankeyNodePrimitive,
+  ScaleLegendGradientPrimitive,
+  ScaleLegendSteppedPrimitive,
   TableBorderPrimitive,
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
@@ -272,6 +274,14 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       }
       break;
 
+    case "scale-legend-gradient":
+      renderScaleLegendGradientPrimitive(rc, primitive);
+      break;
+
+    case "scale-legend-stepped":
+      renderScaleLegendSteppedPrimitive(rc, primitive);
+      break;
+
     default: {
       const _exhaustive: never = primitive;
       throw new Error(`Unknown primitive type: ${(primitive as any).type}`);
@@ -395,6 +405,103 @@ function renderLegendPrimitive(
         break;
     }
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Scale Legend Rendering                                                   //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderScaleLegendGradientPrimitive(
+  rc: RenderContext,
+  primitive: ScaleLegendGradientPrimitive,
+): void {
+  const N = 50;
+  const barX = primitive.barRect.x();
+  const barY = primitive.barRect.y();
+  const barW = primitive.barRect.w();
+  const barH = primitive.barRect.h();
+  const sliceW = barW / N;
+
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1);
+    const color = interpolateColorStops(primitive.colorStops, t);
+    rc.rRect(
+      new RectCoordsDims({
+        x: barX + i * sliceW,
+        y: barY,
+        w: sliceW + 0.5,
+        h: barH,
+      }),
+      { fillColor: color },
+    );
+  }
+
+  for (const tick of primitive.ticks) {
+    rc.rLine(
+      [
+        new Coordinates({ x: barX + tick.pixelOffset, y: barY + barH }),
+        new Coordinates({ x: barX + tick.pixelOffset, y: barY + barH + 4 }),
+      ],
+      { strokeColor: "#000000", strokeWidth: 1, lineDash: "solid" },
+    );
+    rc.rText(tick.mText, tick.labelPosition, "center");
+  }
+
+  if (primitive.noData) {
+    rc.rRect(primitive.noData.rect, primitive.noData.style);
+    rc.rText(primitive.noData.mText, primitive.noData.labelPosition, "left");
+  }
+}
+
+function renderScaleLegendSteppedPrimitive(
+  rc: RenderContext,
+  primitive: ScaleLegendSteppedPrimitive,
+): void {
+  for (const step of primitive.steps) {
+    rc.rRect(step.rect, step.style);
+  }
+
+  for (const label of primitive.labels) {
+    rc.rText(label.mText, label.position, "center");
+  }
+
+  if (primitive.noData) {
+    rc.rRect(primitive.noData.rect, primitive.noData.style);
+    rc.rText(primitive.noData.mText, primitive.noData.labelPosition, "left");
+  }
+}
+
+function interpolateColorStops(
+  stops: { t: number; color: string }[],
+  t: number,
+): string {
+  if (stops.length === 0) return "#000000";
+  if (t <= stops[0].t) return stops[0].color;
+  if (t >= stops[stops.length - 1].t) return stops[stops.length - 1].color;
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (t >= stops[i].t && t <= stops[i + 1].t) {
+      const segT = (t - stops[i].t) / (stops[i + 1].t - stops[i].t);
+      return lerpHex(stops[i].color, stops[i + 1].color, segT);
+    }
+  }
+  return stops[stops.length - 1].color;
+}
+
+function lerpHex(a: string, b: string, t: number): string {
+  const ar = parseInt(a.slice(1, 3), 16);
+  const ag = parseInt(a.slice(3, 5), 16);
+  const ab = parseInt(a.slice(5, 7), 16);
+  const br = parseInt(b.slice(1, 3), 16);
+  const bg = parseInt(b.slice(3, 5), 16);
+  const bb = parseInt(b.slice(5, 7), 16);
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return `#${r.toString(16).padStart(2, "0")}${
+    g.toString(16).padStart(2, "0")
+  }${bl.toString(16).padStart(2, "0")}`;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

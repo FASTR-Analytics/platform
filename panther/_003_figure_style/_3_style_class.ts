@@ -41,6 +41,7 @@ import {
   msOrNone,
   msPadding,
   type TextInfo,
+  type ValuesColorFunc,
 } from "./deps.ts";
 import {
   getAreaStyleFunc,
@@ -307,6 +308,10 @@ export class CustomFigureStyle {
         d.scaleLegend.noDataSwatchWidth,
       ),
     };
+  }
+
+  getValuesColorFunc(): ValuesColorFunc {
+    return m(this._c.valuesColorFunc, this._g.valuesColorFunc, this._d.valuesColorFunc);
   }
 
   /////////////////////////////////////////////////////////////////

@@ -280,6 +280,26 @@ export function getFigureInputsFromPresentationObject(
             ih.dateRange,
           ),
           style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
+          legend: config.s.hideLegend ? undefined
+            : config.s.mapScaleType === "discrete"
+            ? {
+              type: "stepped-auto" as const,
+              nSteps: config.s.mapDiscreteSteps ?? 5,
+              domain: config.s.mapDomainType === "fixed"
+                ? { min: config.s.mapDomainMin, max: config.s.mapDomainMax }
+                : undefined,
+              format: resultsValue.formatAs ?? "number",
+              noData: { color: "#f0f0f0", label: "No data" },
+            }
+            : {
+              type: "gradient-auto" as const,
+              nTicks: 5,
+              domain: config.s.mapDomainType === "fixed"
+                ? { min: config.s.mapDomainMin, max: config.s.mapDomainMax }
+                : undefined,
+              format: resultsValue.formatAs ?? "number",
+              noData: { color: "#f0f0f0", label: "No data" },
+            },
         },
       };
     }

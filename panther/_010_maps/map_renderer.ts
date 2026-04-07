@@ -6,11 +6,15 @@
 import {
   type ChartComponentSizes,
   CustomFigureStyle,
+  estimateMinSurroundsWidth,
   type HeightConstraints,
+  isAutoScaleLegendConfig,
+  type LegendInput,
   measureChartWithAutofit,
   type RectCoordsDims,
   type RenderContext,
   type Renderer,
+  resolveAutoScaleLegend,
 } from "./deps.ts";
 import type { MapInputs, MeasuredMap } from "./types.ts";
 import { measureMap } from "./_internal/measure_map.ts";
@@ -65,13 +69,21 @@ export const MapRenderer: Renderer<MapInputs, MeasuredMap> = {
 };
 
 function getMapComponentSizes(
-  _rc: RenderContext,
+  rc: RenderContext,
   item: MapInputs,
   scale: number,
 ): ChartComponentSizes {
   const customFigureStyle = new CustomFigureStyle(item.style, scale);
   const mergedStyle = customFigureStyle.getMergedMapStyle();
   const transformedData = getMapDataTransformed(item.mapData);
+  const resolvedLegendLabels: LegendInput | undefined =
+    isAutoScaleLegendConfig(item.legend)
+      ? resolveAutoScaleLegend(
+        item.legend,
+        customFigureStyle.getValuesColorFunc(),
+        transformedData.valueRange,
+      )
+      : item.legend;
 
   return {
     customFigureStyle,
@@ -84,8 +96,12 @@ function getMapComponentSizes(
     xAxisHeight: 0,
     paneHeaderHeight: 0,
     minYAxisWidth: 0,
-    surroundsMinWidth: 0,
-    resolvedLegendLabels: item.legend,
+    surroundsMinWidth: estimateMinSurroundsWidth(
+      rc,
+      customFigureStyle,
+      resolvedLegendLabels,
+    ),
+    resolvedLegendLabels,
   };
 }
 

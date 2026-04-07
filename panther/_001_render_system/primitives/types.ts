@@ -472,6 +472,41 @@ export type MapLabelPrimitive = BasePrimitive & {
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+//    Scale Legend Primitives                                                  //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type ScaleLegendGradientPrimitive = BasePrimitive & {
+  type: "scale-legend-gradient";
+  colorStops: { t: number; color: string }[];
+  barRect: RectCoordsDims;
+  ticks: {
+    pixelOffset: number;
+    mText: MeasuredText;
+    labelPosition: Coordinates;
+  }[];
+  noData?: {
+    rect: RectCoordsDims;
+    style: RectStyle;
+    mText: MeasuredText;
+    labelPosition: Coordinates;
+  };
+};
+
+export type ScaleLegendSteppedPrimitive = BasePrimitive & {
+  type: "scale-legend-stepped";
+  steps: { rect: RectCoordsDims; style: RectStyle }[];
+  labels: { mText: MeasuredText; position: Coordinates }[];
+  noData?: {
+    rect: RectCoordsDims;
+    style: RectStyle;
+    mText: MeasuredText;
+    labelPosition: Coordinates;
+  };
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
 //    Table Primitives                                                        //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -600,6 +635,9 @@ export type Primitive =
   // Map primitives
   | MapRegionPrimitive
   | MapLabelPrimitive
+  // Scale legend primitives
+  | ScaleLegendGradientPrimitive
+  | ScaleLegendSteppedPrimitive
   // Table primitives
   | TableCellPrimitive
   | TableRowHeaderPrimitive

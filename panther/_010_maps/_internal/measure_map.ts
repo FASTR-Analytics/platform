@@ -5,11 +5,13 @@
 
 import {
   CustomFigureStyle,
+  isAutoScaleLegendConfig,
   measureChart,
   type MergedMapStyle,
   type Primitive,
   type RectCoordsDims,
   type RenderContext,
+  resolveAutoScaleLegend,
   type SimplifiedChartConfig,
 } from "../deps.ts";
 import { getMapDataTransformed } from "../get_map_data.ts";
@@ -46,6 +48,13 @@ export function measureMap(
     xAxisConfig: { type: "none" },
     yAxisConfig: { type: "none" },
     orientation: "vertical",
+    resolvedLegend: isAutoScaleLegendConfig(inputs.legend)
+      ? resolveAutoScaleLegend(
+        inputs.legend,
+        customFigureStyle.getValuesColorFunc(),
+        transformedData.valueRange,
+      )
+      : undefined,
   };
 
   const chartMeasured = measureChart(

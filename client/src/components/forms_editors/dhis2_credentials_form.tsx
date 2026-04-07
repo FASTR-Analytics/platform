@@ -9,6 +9,7 @@ import {
 import { createStore } from "solid-js/store";
 import { createSignal } from "solid-js";
 import { Dhis2CredentialsEditor } from "../Dhis2CredentialsEditor";
+import { serverActions } from "~/server_actions";
 
 export function Dhis2CredentialsForm(
   p: AlertComponentProps<
@@ -45,16 +46,22 @@ export function Dhis2CredentialsForm(
       return { success: false, err: t3({ en: "Password is required", fr: "Le mot de passe est requis" }) };
     }
 
-    // Add 300ms delay for loading effect
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const creds = {
+      url: tempCredentials.url.trim(),
+      username: tempCredentials.username.trim(),
+      password: tempCredentials.password.trim(),
+    };
 
-    // Return the credentials
+    const testResult = await serverActions.testDhis2IndicatorsConnection({
+      dhis2Credentials: creds,
+    });
+
+    if (!testResult.success) {
+      return { success: false, err: testResult.err };
+    }
+
     p.close({
-      credentials: {
-        url: tempCredentials.url.trim(),
-        username: tempCredentials.username.trim(),
-        password: tempCredentials.password.trim(),
-      },
+      credentials: creds,
       shouldSave: !p.showSaveCheckbox || saveToSession(),
     });
 

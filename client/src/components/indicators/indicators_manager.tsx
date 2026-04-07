@@ -114,31 +114,26 @@ export function IndicatorsManager(p: Props) {
   }
 
   async function handleDhis2IndicatorSelect() {
-    let credentials = getDhis2SessionCredentials();
+    const result = await openComponent({
+      element: Dhis2CredentialsForm,
+      props: {
+        existingCredentials: getDhis2SessionCredentials() ?? undefined,
+        showSaveCheckbox: true,
+      },
+    });
 
-    if (!credentials) {
-      const result = await openComponent({
-        element: Dhis2CredentialsForm,
-        props: {
-          showSaveCheckbox: true,
-        },
-      });
+    if (!result || result.shouldClear || !result.credentials) {
+      return;
+    }
 
-      if (!result || result.shouldClear || !result.credentials) {
-        return;
-      }
-
-      credentials = result.credentials;
-
-      if (result.shouldSave) {
-        setDhis2SessionCredentials(result.credentials);
-      }
+    if (result.shouldSave) {
+      setDhis2SessionCredentials(result.credentials);
     }
 
     await openEditor({
       element: Dhis2IndicatorSelectForm,
       props: {
-        credentials,
+        credentials: result.credentials,
       },
     });
   }

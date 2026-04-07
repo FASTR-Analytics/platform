@@ -33,6 +33,7 @@ export interface SimplifiedChartConfig<
   xAxisConfig: XAxisConfig;
   yAxisConfig: YAxisConfig;
   orientation: "vertical" | "horizontal";
+  resolvedLegend?: LegendInput;
 }
 
 export interface MeasurePaneConfig<TData> {

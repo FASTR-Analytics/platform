@@ -1,9 +1,13 @@
-import { getDHIS2, FetchOptions } from "../common/base_fetcher.ts";
+import {
+  getDHIS2,
+  FetchOptions,
+  validateDhis2Connection,
+} from "../common/base_fetcher.ts";
 import { DHIS2PagedResponse, DHIS2OrgUnit } from "./types.ts";
 import { getOrgUnitLevels } from "./get_metadata.ts";
 
 export async function testDHIS2Connection(
-  options: FetchOptions
+  options: FetchOptions,
 ): Promise<{
   success: boolean;
   message: string;
@@ -13,6 +17,11 @@ export async function testDHIS2Connection(
     version?: string;
   };
 }> {
+  const validation = await validateDhis2Connection(options.dhis2Credentials);
+  if (!validation.valid) {
+    return { success: false, message: validation.message };
+  }
+
   try {
     const systemInfo = await getDHIS2<{
       version?: string;
@@ -25,11 +34,11 @@ export async function testDHIS2Connection(
     testParams.set("pageSize", "1");
     testParams.set("page", "1");
     testParams.set("paging", "true");
-    
+
     const testOrgUnits = await getDHIS2<DHIS2PagedResponse<DHIS2OrgUnit>>(
       "/api/organisationUnits.json",
       options,
-      testParams
+      testParams,
     );
 
     const levels = await getOrgUnitLevels(options);
