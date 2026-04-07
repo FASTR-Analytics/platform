@@ -6,7 +6,6 @@ import {
   ResultsValueInfoForPresentationObject,
   t3,
   TC,
-  type InstanceDetail,
 } from "lib";
 import { AlertComponentProps, StateHolderWrapper, timQuery } from "panther";
 import { Match, Switch } from "solid-js";
@@ -29,7 +28,7 @@ type EditModeProps = {
   mode: "edit";
   presentationObjectId: string;
   projectId: string;
-  instanceDetail: InstanceDetail;
+
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
   returnToContext?: AIContext;
@@ -42,7 +41,7 @@ type CreateModeProps = {
   resultsValue: ResultsValue;
   config: PresentationObjectConfig;
   projectId: string;
-  instanceDetail: InstanceDetail;
+
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
   returnToContext?: AIContext;
@@ -55,7 +54,7 @@ type EphemeralModeProps = {
   resultsValue: ResultsValue;
   config: PresentationObjectConfig;
   projectId: string;
-  instanceDetail: InstanceDetail;
+
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
   returnToContext?: AIContext;
@@ -156,7 +155,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
         return (
           <VisualizationEditorInner
             mode="edit"
-            instanceDetail={p.instanceDetail}
+
             projectDetail={p.projectDetail}
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={keyedCombinedData.poDetail}
@@ -197,7 +196,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
         return (
           <VisualizationEditorInner
             mode="create"
-            instanceDetail={p.instanceDetail}
+
             projectDetail={p.projectDetail}
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={syntheticPoDetail}
@@ -238,7 +237,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
         return (
           <VisualizationEditorInner
             mode="ephemeral"
-            instanceDetail={p.instanceDetail}
+
             projectDetail={p.projectDetail}
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={syntheticPoDetail}

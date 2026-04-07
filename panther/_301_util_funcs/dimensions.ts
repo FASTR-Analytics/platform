@@ -3,6 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { clamp } from "./deps.ts";
+
 export function getPixelsFromPctClientWidth(
   pct: string,
   fallback = 300,
@@ -18,7 +20,7 @@ export function getPixelsFromPctClientWidth(
     return fallback;
   }
 
-  const clamped = Math.max(0, Math.min(100, percentage));
+  const clamped = clamp(percentage, 0, 100);
   return Math.round((window.innerWidth * clamped) / 100);
 }
 
@@ -37,6 +39,6 @@ export function getPixelsFromPctClientHeight(
     return fallback;
   }
 
-  const clamped = Math.max(0, Math.min(100, percentage));
+  const clamped = clamp(percentage, 0, 100);
   return Math.round((window.innerHeight * clamped) / 100);
 }

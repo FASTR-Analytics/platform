@@ -150,17 +150,16 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
         calendar: getCalendar(),
       },
       content: {
-        withDataLabels: false,
         lines: {
           joinAcrossGaps: false,
-          defaults: {
+          func: {
             show: true,
             color: showLegend ? 666 : { key: "base300" },
           },
         },
-      },
-      table: {
-        cellValueFormatter: (v) => toNum0(v),
+        tableCells: {
+          textFormatter: (info) => toNum0(info.value),
+        },
       },
     };
 

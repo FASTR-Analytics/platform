@@ -3,8 +3,8 @@
 Data tables with rich formatting, cell styling, and automatic layout.
 
 Table is a **Figure** (but not a Chart). Unlike Charts (Timeseries, ChartOV),
-Table does NOT use the pane/tier/lane grid system. See `FIGURE_ARCHITECTURE.md`
-for the Figure taxonomy.
+Table does NOT use the pane/tier/lane grid system. See
+`DOC_FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
 
 ## Purpose
 

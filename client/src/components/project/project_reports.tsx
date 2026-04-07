@@ -1,5 +1,4 @@
 import {
-  InstanceDetail,
   ProjectDetail,
   ReportDetail,
   ReportItem,
@@ -44,7 +43,6 @@ type Props = {
 };
 
 type ExtendedProps = Props & {
-  instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
 };
 
@@ -60,7 +58,6 @@ export function ProjectReports(p: ExtendedProps) {
       props: {
         reportId,
         projectDetail: projectDetail,
-        instanceDetail: p.instanceDetail,
         isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
       },

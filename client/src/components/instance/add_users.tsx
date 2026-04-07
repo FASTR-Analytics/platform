@@ -9,7 +9,7 @@ import { serverActions } from "~/server_actions";
 import { isFrench, t3, TC } from "lib";
 
 export function AddUserForm(
-  p: AlertComponentProps<{ silentFetch: () => Promise<void> }, undefined>,
+  p: AlertComponentProps<{}, undefined>,
 ) {
   // Temp state
 
@@ -38,7 +38,7 @@ export function AddUserForm(
         isGlobalAdmin: false,
       });
     },
-    p.silentFetch,
+    async () => {},
     () => p.close(undefined),
   );
 

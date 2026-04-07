@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import {
   getHfaIndicators,
+  getInstanceIndicatorsSummary,
   createHfaIndicator,
   updateHfaIndicator,
   deleteHfaIndicators,
@@ -11,6 +12,7 @@ import {
   getHfaDictionaryForValidation,
 } from "../../db/mod.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesHfaIndicators = new Hono();
@@ -31,6 +33,9 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
     const res = await createHfaIndicator(c.var.mainDb, body.indicator);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -41,6 +46,9 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
     const res = await updateHfaIndicator(c.var.mainDb, body.oldVarName, body.indicator);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -51,6 +59,9 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
     const res = await deleteHfaIndicators(c.var.mainDb, body.varNames);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -61,6 +72,9 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
     const res = await batchUploadHfaIndicators(c.var.mainDb, body.indicators, body.replaceAll);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -91,6 +105,9 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
     const res = await saveHfaIndicatorFull(c.var.mainDb, body.oldVarName, body.indicator, body.code);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );

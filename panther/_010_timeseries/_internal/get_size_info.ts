@@ -49,7 +49,7 @@ export function getTimeseriesComponentSizes(
     ? data.nTimePoints * tickLabelHeight * 0.5
     : data.nTimePoints * tickLabelHeight;
 
-  const resolvedLegendLabels = inputs.legendItemsOrLabels ?? data.seriesHeaders;
+  const resolvedLegendLabels = inputs.legend ?? data.seriesHeaders;
 
   return {
     customFigureStyle: cs,

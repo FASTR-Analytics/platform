@@ -18,13 +18,11 @@ import {
   LabelHolder,
   MultiSelect,
   RadioGroup,
-  StateHolderWrapper,
   getSelectOptions,
-  timQuery,
   Slider,
 } from "panther";
 import { createSignal, Match, Setter, Show, Switch } from "solid-js";
-import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance_state";
 import { SetStoreFunction } from "solid-js/store";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
 
@@ -447,28 +445,19 @@ function ImageBlockEditor(p: {
   block: () => ImageBlock;
   updateSelectedBlock: (updater: (block: ContentBlock) => ContentBlock) => void;
 }) {
-  const assetListing = timQuery(
-    () => serverActions.getAssets({}),
-    t3(TC.loadingFiles),
-  );
-
   return (
     <div class="ui-spy">
-      <StateHolderWrapper state={assetListing.state()} noPad>
-        {(keyedAssets) => (
-          <Select
-            label={t3({ en: "Image file", fr: "Fichier image" })}
-            options={getSelectOptions(
-              keyedAssets.filter((f) => f.isImage).map((f) => f.fileName),
-            )}
-            value={p.block().imgFile}
-            onChange={(v: string) =>
-              p.updateSelectedBlock((b) => ({ ...b, imgFile: v }))
-            }
-            fullWidth
-          />
+      <Select
+        label={t3({ en: "Image file", fr: "Fichier image" })}
+        options={getSelectOptions(
+          instanceState.assets.filter((f) => f.isImage).map((f) => f.fileName),
         )}
-      </StateHolderWrapper>
+        value={p.block().imgFile}
+        onChange={(v: string) =>
+          p.updateSelectedBlock((b) => ({ ...b, imgFile: v }))
+        }
+        fullWidth
+      />
       <Show when={p.block().imgFile}>
         <RadioGroup
           label={t3({ en: "Image fit", fr: "Ajustement de l'image" })}

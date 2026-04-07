@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  clamp,
   getColor,
   Padding,
   PANTHER_DEBUG,
@@ -12,6 +13,7 @@ import {
 } from "../deps.ts";
 import type { LayoutStyleConfig } from "../optimizer.ts";
 import type {
+  ContainerDecorationOptions,
   ContainerStyleOptions,
   HeightConstraints,
   ItemHeightMeasurer,
@@ -20,6 +22,7 @@ import type {
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,
   MeasuredRowsLayoutNode,
+  ResolvedContainerDecoration,
   ResolvedContainerStyle,
 } from "../types.ts";
 
@@ -48,7 +51,7 @@ function resolveContainerStyle(
 
   const padding = nodeStyle?.padding
     ? new Padding(nodeStyle.padding).toScaled(sf)
-    : defaults?.padding ?? new Padding(0);
+    : (defaults?.padding ?? new Padding(0));
 
   const borderWidth = nodeStyle?.borderWidth
     ? nodeStyle.borderWidth * sf
@@ -62,7 +65,38 @@ function resolveContainerStyle(
     ? getColor(nodeStyle.borderColor)
     : (defaults?.borderColor ?? "none");
 
-  return { padding, borderWidth, backgroundColor, borderColor };
+  const rectRadius = nodeStyle?.rectRadius
+    ? nodeStyle.rectRadius * sf
+    : (defaults?.rectRadius ?? 0);
+
+  const decoration = resolveDecoration(nodeStyle?.decoration, sf);
+
+  const backgroundExtent = nodeStyle?.backgroundExtent ?? "content";
+
+  return {
+    padding,
+    borderWidth,
+    backgroundColor,
+    borderColor,
+    rectRadius,
+    decoration,
+    backgroundExtent,
+  };
+}
+
+function resolveDecoration(
+  dec: ContainerDecorationOptions | undefined,
+  sf: number,
+): ResolvedContainerDecoration {
+  if (!dec) return { type: "none" };
+  const size = (dec.size ?? 40) * sf;
+  const topMargin = dec.topMargin ?? size * 0.3;
+  return {
+    type: "quote",
+    color: getColor(dec.color ?? "black"),
+    size,
+    topMargin,
+  };
 }
 
 // =============================================================================
@@ -92,7 +126,9 @@ export function getHeightConstraints<T, U>(
     // Add padding to convert content heights to total heights
     minH = result.minH + paddingAndBorder;
     idealH = result.idealH + paddingAndBorder;
-    maxH = result.maxH + paddingAndBorder;
+    maxH = node.alignV || resolved.backgroundExtent === "fill"
+      ? Infinity
+      : result.maxH + paddingAndBorder;
     if (PANTHER_DEBUG) {
       console.log(
         `  ITEM: minH=${minH.toFixed(1)}, idealH=${idealH.toFixed(1)}, maxH=${
@@ -109,13 +145,7 @@ export function getHeightConstraints<T, U>(
       maxH = 0;
     } else {
       const childResults = node.children.map((child) =>
-        getHeightConstraints(
-          mctx,
-          child,
-          width,
-          availableColumns,
-          startColumn,
-        )
+        getHeightConstraints(mctx, child, width, availableColumns, startColumn)
       );
       const totalGaps = (node.children.length - 1) * mctx.gapY;
       minH = sum(childResults.map((r) => r.minH)) + totalGaps;
@@ -180,7 +210,7 @@ export function getHeightConstraints<T, U>(
   // Ensure maxH >= minH after overrides
   maxH = Math.max(minH, maxH);
   // Ensure idealH is within bounds
-  idealH = Math.max(minH, Math.min(idealH, maxH));
+  idealH = clamp(idealH, minH, maxH);
 
   return { minH, idealH, maxH };
 }
@@ -306,7 +336,7 @@ function measureRowNode<T, U>(
     ? currentY - bounds.y() - mctx.gapY
     : 0;
   const rpd = bounds.getAdjusted({
-    h: Math.max(0, Math.min(actualTotalHeight, bounds.h())),
+    h: clamp(actualTotalHeight, 0, bounds.h()),
   });
 
   // Calculate span as max of children (rows stack vertically, occupy same columns)
@@ -468,17 +498,54 @@ function measureItemNode<T, U>(
     maxH = node.maxH;
   }
   maxH = Math.max(minH, maxH);
-  idealH = Math.max(minH, Math.min(idealH, maxH));
+  idealH = clamp(idealH, minH, maxH);
 
   const span = node.span ?? mctx.parentAvailableSpan;
   const { style: _style, ...nodeWithoutStyle } = node;
+
+  let contentRpd: RectCoordsDims;
+  let styleRpd: RectCoordsDims;
+
+  if (node.alignV) {
+    const contentH = constraints.idealH;
+    const availableH = innerBounds.h();
+    const yOffset = node.alignV === "middle"
+      ? Math.max(0, (availableH - contentH) / 2)
+      : node.alignV === "bottom"
+      ? Math.max(0, availableH - contentH)
+      : 0;
+
+    contentRpd = new RectCoordsDims({
+      x: innerBounds.x(),
+      y: innerBounds.y() + yOffset,
+      w: innerBounds.w(),
+      h: contentH,
+    });
+
+    if (resolved.backgroundExtent === "fill") {
+      const inset = borderWidth / 2;
+      styleRpd = bounds.getPadded(new Padding(inset));
+    } else {
+      styleRpd = new RectCoordsDims({
+        x: bounds.x(),
+        y: innerBounds.y() + yOffset - pad.pt() - borderWidth / 2,
+        w: bounds.w(),
+        h: contentH + pad.totalPy() + borderWidth,
+      });
+    }
+  } else {
+    contentRpd = innerBounds;
+    const inset = borderWidth / 2;
+    styleRpd = bounds.getPadded(new Padding(inset));
+  }
 
   return {
     ...nodeWithoutStyle,
     type: "item",
     resolvedStyle: resolved,
     rpd: bounds,
-    contentRpd: innerBounds,
+    contentRpd,
+    styleRpd,
     idealH,
     maxH,
     neededScalingToFitWidth: constraints.neededScalingToFitWidth,

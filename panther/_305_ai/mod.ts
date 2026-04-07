@@ -28,7 +28,7 @@ export { createAITool } from "./_core/tool_helpers.ts";
 export { createAskUserQuestionsTool } from "./_components/ask_user_questions.tsx";
 export { createSDKClient } from "./_core/sdk_client.ts";
 export { callAI } from "./_core/one_shot.ts";
-export { BETA_HEADERS, getBetaHeaders } from "./_core/beta_headers.ts";
+export { getBetaHeaders } from "./_core/beta_headers.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES
@@ -56,12 +56,23 @@ export type {
   WebSearchToolConfig,
 } from "./_core/builtin_tools.ts";
 
-// Re-export commonly used types from _110_ai_types for consumer convenience
+// Re-export commonly used types and consts from _110_ai_types
 export type {
   AnthropicModel,
   AnthropicModelConfig,
   ContentBlock,
   DocumentContentBlock,
   MessageParam,
+  ModelPricing,
   Usage,
+} from "../_110_ai_types/mod.ts";
+
+export {
+  BETA_HEADERS,
+  BUILTIN_TOOL_TYPES,
+  DEFAULT_PRICING,
+  MAX_OUTPUT_TOKENS,
+  MODEL_OPTIONS,
+  MODEL_PRICING,
+  SERVER_TOOL_LABELS,
 } from "../_110_ai_types/mod.ts";

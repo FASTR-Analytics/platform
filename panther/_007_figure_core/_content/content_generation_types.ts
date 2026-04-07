@@ -34,6 +34,7 @@ export type ContentGenerationContext = {
   seriesHeaders: string[];
   contentStyle: MergedContentStyle;
   dataLabelsTextStyle: TextInfoUnkeyed;
+  valueRange: { minVal: number; maxVal: number };
   mappedBoundsUb?: MappedValueCoordinate[][];
   mappedBoundsLb?: MappedValueCoordinate[][];
 };
@@ -60,6 +61,8 @@ export function buildValueInfo(
   seriesInfo: ChartSeriesInfo,
   val: number,
   i_val: number,
+  valueMin: number,
+  valueMax: number,
 ): ChartValueInfo {
   return {
     ...seriesInfo,
@@ -67,5 +70,7 @@ export function buildValueInfo(
     i_val,
     isFirstVal: i_val === 0,
     isLastVal: i_val === seriesInfo.nVals - 1,
+    valueMin,
+    valueMax,
   };
 }

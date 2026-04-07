@@ -143,7 +143,10 @@ export function buildStyleForSlide(
     cover: {
       backgroundColor: primaryColor,
       logoGapX: 80,
-      gapY: 60,
+      logoBottomPadding: 60,
+      titleBottomPadding: 60,
+      subTitleBottomPadding: 60,
+      authorBottomPadding: 60,
     },
     section: {
       backgroundColor: primaryColor,

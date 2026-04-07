@@ -76,7 +76,6 @@ type Props = {
   projectId: string | null;
   projectLabel: string;
   email: string;
-  silentFetch: () => Promise<void>;
 };
 
 export function ProjectPermissionForm(p: AlertComponentProps<Props, undefined>) {
@@ -147,7 +146,6 @@ export function ProjectPermissionForm(p: AlertComponentProps<Props, undefined>) 
     },
     async () => {
       setOriginalPermissions(permissions());
-      await p.silentFetch();
     },
   );
 

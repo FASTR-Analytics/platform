@@ -70,7 +70,11 @@ export const ImageRenderer: Renderer<ImageInputs, MeasuredImage> = {
       return false;
     }
     const img = (item as ImageInputs).image;
-    return typeof img === "string" || img instanceof HTMLImageElement;
+    return typeof img === "string" ||
+      (typeof HTMLImageElement !== "undefined" &&
+        img instanceof HTMLImageElement) ||
+      (img != null && typeof img === "object" && "src" in img &&
+        "width" in img && "height" in img);
   },
 
   measure: measureImage,

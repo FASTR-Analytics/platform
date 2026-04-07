@@ -21,7 +21,7 @@ export function renderCoverSlide(
   pptx: PptxGenJSInstance,
   measured: MeasuredCoverPage,
   createCanvasRenderContext: CreateCanvasRenderContext,
-): void {
+): PptxSlide {
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const item = measured.item;
   const bounds = measured.bounds;
@@ -65,14 +65,28 @@ export function renderCoverSlide(
   const dateH = measured.mDate ? measured.mDate.dims.h() : 0;
 
   let totalH = 0;
+  let lastBottomPadding = 0;
   if (item.titleLogos && item.titleLogos.length > 0 && logoH > 0) {
-    totalH += logoH + s.cover.gapY;
+    totalH += logoH + s.cover.logoBottomPadding;
+    lastBottomPadding = s.cover.logoBottomPadding;
   }
-  if (measured.mTitle && titleH > 0) totalH += titleH + s.cover.gapY;
-  if (measured.mSubTitle && subTitleH > 0) totalH += subTitleH + s.cover.gapY;
-  if (measured.mAuthor && authorH > 0) totalH += authorH + s.cover.gapY;
-  if (measured.mDate && dateH > 0) totalH += dateH + s.cover.gapY;
-  totalH -= s.cover.gapY; // Remove last gap
+  if (measured.mTitle && titleH > 0) {
+    totalH += titleH + s.cover.titleBottomPadding;
+    lastBottomPadding = s.cover.titleBottomPadding;
+  }
+  if (measured.mSubTitle && subTitleH > 0) {
+    totalH += subTitleH + s.cover.subTitleBottomPadding;
+    lastBottomPadding = s.cover.subTitleBottomPadding;
+  }
+  if (measured.mAuthor && authorH > 0) {
+    totalH += authorH + s.cover.authorBottomPadding;
+    lastBottomPadding = s.cover.authorBottomPadding;
+  }
+  if (measured.mDate && dateH > 0) {
+    totalH += dateH;
+  } else {
+    totalH -= lastBottomPadding;
+  }
 
   let currentY = bounds.y() + (bounds.h() - totalH) / 2;
 
@@ -97,7 +111,7 @@ export function renderCoverSlide(
       });
       currentX += logoWidth + s.cover.logoGapX;
     }
-    currentY += logoH + s.cover.gapY;
+    currentY += logoH + s.cover.logoBottomPadding;
   }
 
   // Render each text element at its measured position
@@ -109,7 +123,7 @@ export function renderCoverSlide(
       bounds.w(),
       currentY,
     );
-    currentY += titleH + s.cover.gapY;
+    currentY += titleH + s.cover.titleBottomPadding;
   }
 
   if (measured.mSubTitle && subTitleH > 0) {
@@ -120,7 +134,7 @@ export function renderCoverSlide(
       bounds.w(),
       currentY,
     );
-    currentY += subTitleH + s.cover.gapY;
+    currentY += subTitleH + s.cover.subTitleBottomPadding;
   }
 
   if (measured.mAuthor && authorH > 0) {
@@ -131,7 +145,7 @@ export function renderCoverSlide(
       bounds.w(),
       currentY,
     );
-    currentY += authorH + s.cover.gapY;
+    currentY += authorH + s.cover.authorBottomPadding;
   }
 
   if (measured.mDate && dateH > 0) {
@@ -163,6 +177,8 @@ export function renderCoverSlide(
       margin: 0,
     });
   }
+
+  return slide;
 }
 
 function addMeasuredTextToSlide(

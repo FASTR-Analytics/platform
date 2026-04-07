@@ -37,7 +37,7 @@ export function measureSankey(
     item.caption,
     item.subCaption,
     item.footnote,
-    item.legendItemsOrLabels,
+    item.legend,
   );
 
   const sankeyStyle = getMergedSankeyStyle(customFigureStyle);

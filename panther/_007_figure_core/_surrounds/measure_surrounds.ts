@@ -16,12 +16,13 @@ import {
   measureLegend,
 } from "../_legend/measure_legend.ts";
 import { isArrayOfLegendItems } from "../_legend/types.ts";
+import type { LegendInput } from "../_legend/scale_legend_types.ts";
 import type { LegendItem } from "../types.ts";
 
 export function estimateMinSurroundsWidth(
   rc: RenderContext,
   cs: CustomFigureStyle,
-  legendLabels: LegendItem[] | string[] | undefined,
+  legendLabels: LegendInput | undefined,
 ): number {
   const sSurrounds = cs.getMergedSurroundsStyle();
 
@@ -114,7 +115,7 @@ export function measureSurrounds(
   caption: string | undefined,
   subCaption: string | undefined,
   footnote: string | string[] | undefined,
-  legendLabels: LegendItem[] | string[] | undefined,
+  legendLabels: LegendInput | undefined,
 ): MeasuredSurrounds {
   const sSurrounds = cs.getMergedSurroundsStyle();
   const innerRcd = rcd.getPadded(sSurrounds.padding);

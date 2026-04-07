@@ -8,38 +8,21 @@ import {
   type AnthropicModel,
   type AnthropicModelConfig,
   Button,
-  Checkbox,
   createSignal,
+  MAX_OUTPUT_TOKENS,
   ModalContainer,
+  MODEL_OPTIONS,
   Select,
-  type SelectOption,
   Show,
   Slider,
 } from "../deps.ts";
 
 export type AIChatSettingsValues = Pick<
   AnthropicModelConfig,
-  "model" | "max_tokens" | "temperature" | "context1M"
+  "model" | "max_tokens" | "temperature"
 >;
 
 export type AIChatSettingsField = keyof AIChatSettingsValues;
-
-const MODEL_OPTIONS: SelectOption<AnthropicModel>[] = [
-  { value: "claude-opus-4-6", label: "Claude Opus 4.6" },
-  { value: "claude-opus-4-5-20251101", label: "Claude Opus 4.5" },
-  { value: "claude-sonnet-4-5-20250929", label: "Claude Sonnet 4.5" },
-  { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
-  { value: "claude-opus-4-1-20250805", label: "Claude Opus 4.1" },
-  { value: "claude-opus-4-20250514", label: "Claude Opus 4" },
-  { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
-  { value: "claude-3-7-sonnet-20250219", label: "Claude 3.7 Sonnet" },
-];
-
-const CONTEXT_1M_SUPPORTED_MODELS = new Set([
-  "claude-opus-4-6",
-  "claude-sonnet-4-5-20250929",
-  "claude-sonnet-4-20250514",
-]);
 
 export type AIChatSettingsPanelProps = {
   initialValues: AIChatSettingsValues;
@@ -54,7 +37,7 @@ type Props = AlertComponentProps<
 
 export function AIChatSettingsPanel(p: Props) {
   const fields = new Set(
-    p.adjustable ?? ["model", "context1M"] as AIChatSettingsField[],
+    p.adjustable ?? ["model"] as AIChatSettingsField[],
   );
 
   const modelOptions = p.allowedModels
@@ -71,11 +54,6 @@ export function AIChatSettingsPanel(p: Props) {
     p.initialValues.temperature ?? 1,
   );
   const [maxTokens, setMaxTokens] = createSignal(p.initialValues.max_tokens);
-  const [context1M, setContext1M] = createSignal(
-    p.initialValues.context1M ?? false,
-  );
-
-  const supportsContext1M = () => CONTEXT_1M_SUPPORTED_MODELS.has(model());
 
   return (
     <ModalContainer
@@ -91,7 +69,6 @@ export function AIChatSettingsPanel(p: Props) {
                 model: model(),
                 temperature: temperature(),
                 max_tokens: maxTokens(),
-                context1M: context1M(),
               })}
           >
             Apply
@@ -107,12 +84,7 @@ export function AIChatSettingsPanel(p: Props) {
           label="Model"
           value={model()}
           options={modelOptions}
-          onChange={(v) => {
-            setModel(v);
-            if (!CONTEXT_1M_SUPPORTED_MODELS.has(v)) {
-              setContext1M(false);
-            }
-          }}
+          onChange={setModel}
           fullWidth
         />
       </Show>
@@ -133,20 +105,13 @@ export function AIChatSettingsPanel(p: Props) {
           label="Max tokens"
           value={maxTokens()}
           onChange={(v) => setMaxTokens(Math.round(v))}
-          min={256}
-          max={128000}
-          step={256}
+          min={MAX_OUTPUT_TOKENS.MIN}
+          max={MAX_OUTPUT_TOKENS.MAX}
+          step={MAX_OUTPUT_TOKENS.STEP}
           showValueInLabel
           valueInLabelFormatter={(v) =>
             v >= 1000 ? `${(v / 1000).toFixed(1)}K` : String(v)}
           fullWidth
-        />
-      </Show>
-      <Show when={fields.has("context1M") && supportsContext1M()}>
-        <Checkbox
-          label="Enable 1M context window (beta)"
-          checked={context1M()}
-          onChange={setContext1M}
         />
       </Show>
     </ModalContainer>

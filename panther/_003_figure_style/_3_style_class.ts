@@ -19,6 +19,7 @@ import type {
   MergedGridStyle,
   MergedLegendStyle,
   MergedMapStyle,
+  MergedScaleLegendStyle,
   MergedPaneStyle,
   MergedSankeyStyle,
   MergedSimpleVizStyle,
@@ -48,7 +49,9 @@ import {
   getConfidenceBandStyleFunc,
   getErrorBarStyleFunc,
   getLineStyleFunc,
+  getMapRegionStyleFunc,
   getPointStyleFunc,
+  getTableCellStyleFunc,
 } from "./style_func_types.ts";
 import { FIGURE_TEXT_STYLE_KEYS } from "./text_style_keys.ts";
 
@@ -76,6 +79,10 @@ export class CustomFigureStyle {
     );
   }
 
+  get sf(): number {
+    return this._sf;
+  }
+
   ////////////////////////////////////////////////////////////////////////////////////////////////
   //   ______                                                                     __            //
   //  /      \                                                                   /  |           //
@@ -90,8 +97,8 @@ export class CustomFigureStyle {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   getMergedSurroundsStyle(): MergedSurroundsStyle {
     const sf = this._sf;
-    const c = this._c ?? {};
-    const g = this._g ?? {};
+    const c = this._c;
+    const g = this._g;
     const d = this._d;
     const baseText = this._baseText;
     return {
@@ -146,6 +153,21 @@ export class CustomFigureStyle {
         g.surrounds?.legendPosition,
         d.surrounds.legendPosition,
       ),
+      captionAlignH: m(
+        c.surrounds?.captionAlignH,
+        g.surrounds?.captionAlignH,
+        d.surrounds.captionAlignH,
+      ),
+      subCaptionAlignH: m(
+        c.surrounds?.subCaptionAlignH,
+        g.surrounds?.subCaptionAlignH,
+        d.surrounds.subCaptionAlignH,
+      ),
+      footnoteAlignH: m(
+        c.surrounds?.footnoteAlignH,
+        g.surrounds?.footnoteAlignH,
+        d.surrounds.footnoteAlignH,
+      ),
 
       // Nested style objects
       legend: this.getMergedLegendStyle(),
@@ -169,8 +191,8 @@ export class CustomFigureStyle {
   //////////////////////////////////////////////////////////////////
   private getMergedLegendStyle(): MergedLegendStyle {
     const sf = this._sf;
-    const c = this._c ?? {};
-    const g = this._g ?? {};
+    const c = this._c;
+    const g = this._g;
     const d = this._d;
     const baseText = this._baseText;
     return {
@@ -235,6 +257,54 @@ export class CustomFigureStyle {
         c.legend?.legendNoRender,
         g.legend?.legendNoRender,
         d.legend.legendNoRender,
+      ),
+    };
+  }
+
+  getMergedScaleLegendStyle(): MergedScaleLegendStyle {
+    const sf = this._sf;
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const baseText = this._baseText;
+    return {
+      alreadyScaledValue: sf,
+      text: getTextInfo(c.text?.legend, g.text?.legend, baseText),
+      barHeight: ms(
+        sf,
+        c.scaleLegend?.barHeight,
+        g.scaleLegend?.barHeight,
+        d.scaleLegend.barHeight,
+      ),
+      tickLength: ms(
+        sf,
+        c.scaleLegend?.tickLength,
+        g.scaleLegend?.tickLength,
+        d.scaleLegend.tickLength,
+      ),
+      labelGap: ms(
+        sf,
+        c.scaleLegend?.labelGap,
+        g.scaleLegend?.labelGap,
+        d.scaleLegend.labelGap,
+      ),
+      blockGap: ms(
+        sf,
+        c.scaleLegend?.blockGap,
+        g.scaleLegend?.blockGap,
+        d.scaleLegend.blockGap,
+      ),
+      noDataGap: ms(
+        sf,
+        c.scaleLegend?.noDataGap,
+        g.scaleLegend?.noDataGap,
+        d.scaleLegend.noDataGap,
+      ),
+      noDataSwatchWidth: ms(
+        sf,
+        c.scaleLegend?.noDataSwatchWidth,
+        g.scaleLegend?.noDataSwatchWidth,
+        d.scaleLegend.noDataSwatchWidth,
       ),
     };
   }
@@ -306,6 +376,12 @@ export class CustomFigureStyle {
           g.lanes?.headerAlignH,
           d.lanes.headerAlignH,
         ),
+        headerGap: ms(
+          sf,
+          c.lanes?.headerGap,
+          g.lanes?.headerGap,
+          d.lanes.headerGap,
+        ),
       },
       tiers: {
         hideHeaders: m(
@@ -341,6 +417,17 @@ export class CustomFigureStyle {
           g.tiers?.headerAlignV,
           d.tiers.headerAlignV,
         ),
+        headerPosition: m(
+          c.tiers?.headerPosition,
+          g.tiers?.headerPosition,
+          d.tiers.headerPosition,
+        ),
+        headerGap: ms(
+          sf,
+          c.tiers?.headerGap,
+          g.tiers?.headerGap,
+          d.tiers.headerGap,
+        ),
       },
       content: this.getMergedContentStyle(),
       grid: this.getMergedGridStyle(),
@@ -372,94 +459,24 @@ export class CustomFigureStyle {
     return {
       ...this.getMergedChartStyleBase(),
       map: {
-        projection: c.map?.projection ?? g.map?.projection ?? d.map.projection,
-        colorScale: c.map?.colorScale ?? g.map?.colorScale ?? d.map.colorScale,
-        regionStrokeColor: getColor(
-          m(
-            c.map?.regionStrokeColor,
-            g.map?.regionStrokeColor,
-            d.map.regionStrokeColor,
-          ),
+        projection: m(c.map?.projection, g.map?.projection, d.map.projection),
+        fit: m(c.map?.fit, g.map?.fit, d.map.fit),
+        boundingBox: m(
+          c.map?.boundingBox,
+          g.map?.boundingBox,
+          d.map.boundingBox,
         ),
-        regionStrokeWidth: ms(
+        dataLabelMode: m(
+          c.map?.dataLabelMode,
+          g.map?.dataLabelMode,
+          d.map.dataLabelMode,
+        ),
+        calloutMargin: ms(
           sf,
-          c.map?.regionStrokeWidth,
-          g.map?.regionStrokeWidth,
-          d.map.regionStrokeWidth,
+          c.map?.calloutMargin,
+          g.map?.calloutMargin,
+          d.map.calloutMargin,
         ),
-        noDataColor: getColor(
-          m(c.map?.noDataColor, g.map?.noDataColor, d.map.noDataColor),
-        ),
-        padding: ms(sf, c.map?.padding, g.map?.padding, d.map.padding),
-        valueRange: m(c.map?.valueRange, g.map?.valueRange, d.map.valueRange),
-        boundingBox: c.map?.boundingBox ?? g.map?.boundingBox,
-        includeAreaIds: c.map?.includeAreaIds ?? g.map?.includeAreaIds,
-        featureFilter: c.map?.featureFilter ?? g.map?.featureFilter,
-        dataLabels: {
-          mode: m(
-            c.map?.dataLabels?.mode,
-            g.map?.dataLabels?.mode,
-            d.map.dataLabels.mode,
-          ),
-          formatter: c.map?.dataLabels?.formatter ??
-            g.map?.dataLabels?.formatter,
-          nameProp: c.map?.dataLabels?.nameProp ??
-            g.map?.dataLabels?.nameProp,
-          showValue: m(
-            c.map?.dataLabels?.showValue,
-            g.map?.dataLabels?.showValue,
-            d.map.dataLabels.showValue,
-          ),
-          valueFormatter: m(
-            c.map?.dataLabels?.valueFormatter,
-            g.map?.dataLabels?.valueFormatter,
-            d.map.dataLabels.valueFormatter,
-          ),
-          centroidOffsets: c.map?.dataLabels?.centroidOffsets ??
-            g.map?.dataLabels?.centroidOffsets,
-          halo: {
-            color: getColor(
-              m(
-                c.map?.dataLabels?.halo?.color,
-                g.map?.dataLabels?.halo?.color,
-                d.map.dataLabels.halo.color,
-              ),
-            ),
-            width: ms(
-              sf,
-              c.map?.dataLabels?.halo?.width,
-              g.map?.dataLabels?.halo?.width,
-              d.map.dataLabels.halo.width,
-            ),
-          },
-          leaderLine: {
-            strokeColor: getColor(
-              m(
-                c.map?.dataLabels?.leaderLine?.strokeColor,
-                g.map?.dataLabels?.leaderLine?.strokeColor,
-                d.map.dataLabels.leaderLine.strokeColor,
-              ),
-            ),
-            strokeWidth: ms(
-              sf,
-              c.map?.dataLabels?.leaderLine?.strokeWidth,
-              g.map?.dataLabels?.leaderLine?.strokeWidth,
-              d.map.dataLabels.leaderLine.strokeWidth,
-            ),
-            gap: ms(
-              sf,
-              c.map?.dataLabels?.leaderLine?.gap,
-              g.map?.dataLabels?.leaderLine?.gap,
-              d.map.dataLabels.leaderLine.gap,
-            ),
-          },
-          calloutMargin: ms(
-            sf,
-            c.map?.dataLabels?.calloutMargin,
-            g.map?.dataLabels?.calloutMargin,
-            d.map.dataLabels.calloutMargin,
-          ),
-        },
       },
     };
   }
@@ -526,11 +543,14 @@ export class CustomFigureStyle {
         g.table?.maxHeightForVerticalColHeaders,
         d.table.maxHeightForVerticalColHeaders,
       ),
-      cellValueFormatter: m(
-        c.table?.cellValueFormatter,
-        g.table?.cellValueFormatter,
-        d.table.cellValueFormatter,
-      ),
+      tableCells: {
+        getStyle: getTableCellStyleFunc(sf, c, g, d),
+        textFormatter: m(
+          c.content?.tableCells?.textFormatter,
+          g.content?.tableCells?.textFormatter,
+          d.content.tableCells.textFormatter,
+        ),
+      },
       colHeaderPadding: msPadding(
         sf,
         c.table?.colHeaderPadding,
@@ -553,11 +573,6 @@ export class CustomFigureStyle {
         c.table?.alignV,
         g.table?.alignV,
         d.table.alignV,
-      ),
-      cellBackgroundColorFormatter: m(
-        c.table?.cellBackgroundColorFormatter,
-        g.table?.cellBackgroundColorFormatter,
-        d.table.cellBackgroundColorFormatter,
       ),
       colHeaderBackgroundColor: getColor(
         m(
@@ -703,8 +718,8 @@ export class CustomFigureStyle {
 
   private getMergedXTextAxisStyle(): MergedXTextAxisStyle {
     const sf = this._sf;
-    const c = this._c ?? {};
-    const g = this._g ?? {};
+    const c = this._c;
+    const g = this._g;
     const d = this._d;
     const baseText = this._baseText;
     return {
@@ -758,8 +773,8 @@ export class CustomFigureStyle {
 
   private getMergedXPeriodAxisStyle(): MergedXPeriodAxisStyle {
     const sf = this._sf;
-    const c = this._c ?? {};
-    const g = this._g ?? {};
+    const c = this._c;
+    const g = this._g;
     const d = this._d;
     const baseText = this._baseText;
     return {
@@ -814,8 +829,8 @@ export class CustomFigureStyle {
   ////////////////////////////////////////
 
   private getMergedGridStyle(): MergedGridStyle {
-    const c = this._c ?? {};
-    const g = this._g ?? {};
+    const c = this._c;
+    const g = this._g;
     const d = this._d;
     return {
       showGrid: m(c.grid?.showGrid, g.grid?.showGrid, d.grid.showGrid),
@@ -861,8 +876,8 @@ export class CustomFigureStyle {
   ////////////////////////////////////////////
 
   private getMergedPaneStyle(): MergedPaneStyle {
-    const c = this._c ?? {};
-    const g = this._g ?? {};
+    const c = this._c;
+    const g = this._g;
     const d = this._d;
     const sf = this._sf;
     return {
@@ -915,34 +930,26 @@ export class CustomFigureStyle {
   ////////////////////////////////////////////////////////////////////////////
 
   private getMergedContentStyle(): MergedContentStyle {
-    const c = this._c ?? {};
-    const g = this._g ?? {};
+    const c = this._c;
+    const g = this._g;
     const d = this._d;
     const sf = this._sf;
     const baseText = this._baseText;
     return {
       points: {
-        getStyle: getPointStyleFunc(
-          m(
-            c.content?.points?.func,
-            g.content?.points?.func,
-            d.content.points.func,
-          ),
-          sf,
-          c.content?.points?.defaults,
-          g.content?.points?.defaults,
-          d.content.points.defaults,
-          m(c.seriesColorFunc, g.seriesColorFunc, d.seriesColorFunc),
+        getStyle: getPointStyleFunc(sf, c, g, d),
+        textFormatter: m(
+          c.content?.points?.textFormatter,
+          g.content?.points?.textFormatter,
+          d.content.points.textFormatter,
         ),
       },
       bars: {
-        getStyle: getBarStyleFunc(
-          m(c.content?.bars?.func, g.content?.bars?.func, d.content.bars.func),
-          sf,
-          c.content?.bars?.defaults,
-          g.content?.bars?.defaults,
-          d.content.bars.defaults,
-          m(c.seriesColorFunc, g.seriesColorFunc, d.seriesColorFunc),
+        getStyle: getBarStyleFunc(sf, c, g, d),
+        textFormatter: m(
+          c.content?.bars?.textFormatter,
+          g.content?.bars?.textFormatter,
+          d.content.bars.textFormatter,
         ),
         stacking: m(
           c.content?.bars?.stacking,
@@ -957,17 +964,11 @@ export class CustomFigureStyle {
         ),
       },
       lines: {
-        getStyle: getLineStyleFunc(
-          m(
-            c.content?.lines?.func,
-            g.content?.lines?.func,
-            d.content.lines.func,
-          ),
-          sf,
-          c.content?.lines?.defaults,
-          g.content?.lines?.defaults,
-          d.content.lines.defaults,
-          m(c.seriesColorFunc, g.seriesColorFunc, d.seriesColorFunc),
+        getStyle: getLineStyleFunc(sf, c, g, d),
+        textFormatter: m(
+          c.content?.lines?.textFormatter,
+          g.content?.lines?.textFormatter,
+          d.content.lines.textFormatter,
         ),
         joinAcrossGaps: m(
           c.content?.lines?.joinAcrossGaps,
@@ -976,18 +977,7 @@ export class CustomFigureStyle {
         ),
       },
       areas: {
-        getStyle: getAreaStyleFunc(
-          m(
-            c.content?.areas?.func,
-            g.content?.areas?.func,
-            d.content.areas.func,
-          ),
-          sf,
-          c.content?.areas?.defaults,
-          g.content?.areas?.defaults,
-          d.content.areas.defaults,
-          m(c.seriesColorFunc, g.seriesColorFunc, d.seriesColorFunc),
-        ),
+        getStyle: getAreaStyleFunc(sf, c, g, d),
         joinAcrossGaps: m(
           c.content?.areas?.joinAcrossGaps,
           g.content?.areas?.joinAcrossGaps,
@@ -1002,60 +992,32 @@ export class CustomFigureStyle {
         },
       },
       errorBars: {
-        getStyle: getErrorBarStyleFunc(
-          m(
-            c.content?.errorBars?.func,
-            g.content?.errorBars?.func,
-            d.content.errorBars.func,
-          ),
-          sf,
-          c.content?.errorBars?.defaults,
-          g.content?.errorBars?.defaults,
-          d.content.errorBars.defaults,
-        ),
+        getStyle: getErrorBarStyleFunc(sf, c, g, d),
       },
       confidenceBands: {
-        getStyle: getConfidenceBandStyleFunc(
-          m(
-            c.content?.confidenceBands?.func,
-            g.content?.confidenceBands?.func,
-            d.content.confidenceBands.func,
-          ),
-          sf,
-          c.content?.confidenceBands?.defaults,
-          g.content?.confidenceBands?.defaults,
-          d.content.confidenceBands.defaults,
-          m(c.seriesColorFunc, g.seriesColorFunc, d.seriesColorFunc),
-        ),
+        getStyle: getConfidenceBandStyleFunc(sf, c, g, d),
       },
-      withDataLabels: m(
-        c.content?.withDataLabels,
-        g.content?.withDataLabels,
-        d.content.withDataLabels,
-      ),
-      dataLabelFormatter: m(
-        c.content?.dataLabelFormatter,
-        g.content?.dataLabelFormatter,
-        d.content.dataLabelFormatter,
-      ),
       cascadeArrows: {
         text: {
           labels: getTextInfo(
-            c.text?.cascadeArrowLabels,
-            g.text?.cascadeArrowLabels,
+            c.text?.dataLabels,
+            g.text?.dataLabels,
             baseText,
           ),
         },
-        getStyle: getCascadeArrowStyleFunc(
-          m(
-            c.content?.cascadeArrows?.func,
-            g.content?.cascadeArrows?.func,
-            d.content.cascadeArrows.func,
-          ),
-          sf,
-          c.content?.cascadeArrows?.defaults,
-          g.content?.cascadeArrows?.defaults,
-          d.content.cascadeArrows.defaults,
+        getStyle: getCascadeArrowStyleFunc(sf, c, g, d),
+        textFormatter: m(
+          c.content?.cascadeArrows?.textFormatter,
+          g.content?.cascadeArrows?.textFormatter,
+          d.content.cascadeArrows.textFormatter,
+        ),
+      },
+      mapRegions: {
+        getStyle: getMapRegionStyleFunc(sf, c, g, d),
+        textFormatter: m(
+          c.content?.mapRegions?.textFormatter,
+          g.content?.mapRegions?.textFormatter,
+          d.content.mapRegions.textFormatter,
         ),
       },
     };
@@ -1092,7 +1054,7 @@ export class CustomFigureStyle {
   //                             $$/                                         //
   /////////////////////////////////////////////////////////////////////////////
 
-  simpleviz(): MergedSimpleVizStyle {
+  getMergedSimpleVizStyle(): MergedSimpleVizStyle {
     const c = this._c;
     const g = this._g;
     const d = this._d;
@@ -1125,7 +1087,7 @@ export class CustomFigureStyle {
         ),
         secondary: getTextInfo(
           c.text?.simplevizBoxTextSecondary,
-          { ...g.text?.simplevizBoxTextSecondary, relFontSize: 0.8 },
+          g.text?.simplevizBoxTextSecondary,
           baseText,
         ),
         base: baseText,
@@ -1234,7 +1196,7 @@ export class CustomFigureStyle {
   //                                                  $$$$$$/                 //
   /////////////////////////////////////////////////////////////////////////////
 
-  sankey(): MergedSankeyStyle {
+  getMergedSankeyStyle(): MergedSankeyStyle {
     const c = this._c;
     const g = this._g;
     const d = this._d;
@@ -1248,8 +1210,11 @@ export class CustomFigureStyle {
         d.sankey.nodeWidth,
       ),
       nodeGap: ms(sf, c.sankey?.nodeGap, g.sankey?.nodeGap, d.sankey.nodeGap),
-      columnGap: c.sankey?.columnGap ?? g.sankey?.columnGap ??
+      columnGap: m(
+        c.sankey?.columnGap,
+        g.sankey?.columnGap,
         d.sankey.columnGap,
+      ),
       labelGap: ms(
         sf,
         c.sankey?.labelGap,

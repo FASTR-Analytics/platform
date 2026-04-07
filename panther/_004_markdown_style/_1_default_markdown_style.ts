@@ -3,10 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ColorKeyOrString } from "./deps.ts";
+import type { AlignH, ColorKeyOrString } from "./deps.ts";
 
 const _DS = {
   scale: 1,
+  alignH: "left" as AlignH,
 
   headingRelFontSizes: {
     h1: 1.5,
@@ -54,7 +55,7 @@ const _DS = {
       right: 0,
     },
     paragraphGapEm: 0.5,
-    alignH: "left" as "left" | "center" | "right",
+    alignH: "left" as AlignH,
     backgroundColor: "none" as ColorKeyOrString | "none",
   },
 

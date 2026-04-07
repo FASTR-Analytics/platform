@@ -25,7 +25,7 @@ export function renderSectionSlide(
   pptx: PptxGenJSInstance,
   measured: MeasuredSectionPage,
   createCanvasRenderContext: CreateCanvasRenderContext,
-): void {
+): PptxSlide {
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const item = measured.item;
   const bounds = measured.bounds;
@@ -68,7 +68,9 @@ export function renderSectionSlide(
     : 0;
 
   const totalH = sectionTitleH +
-    (sectionSubTitleH > 0 ? sectionSubTitleH + s.section.gapY : 0);
+    (sectionSubTitleH > 0
+      ? s.section.sectionTitleBottomPadding + sectionSubTitleH
+      : 0);
   let currentY = bounds.y() + (bounds.h() - totalH) / 2;
 
   // Render each text element at its measured position
@@ -80,7 +82,7 @@ export function renderSectionSlide(
       bounds.w(),
       currentY,
     );
-    currentY += sectionTitleH + s.section.gapY;
+    currentY += sectionTitleH + s.section.sectionTitleBottomPadding;
   }
 
   if (measured.mSectionSubTitle && sectionSubTitleH > 0) {
@@ -112,6 +114,8 @@ export function renderSectionSlide(
       margin: 0,
     });
   }
+
+  return slide;
 }
 
 function addMeasuredTextToSlide(

@@ -7,6 +7,7 @@ import type {
   CustomFigureStyle,
   FigureInputsBase,
   JsonArray,
+  LegendInput,
   LegendItem,
   Measured,
   MeasuredSurrounds,
@@ -120,6 +121,6 @@ export type MeasuredTimeseries = Measured<TimeseriesInputs> & {
   caption?: string;
   subCaption?: string;
   footnote?: string | string[];
-  legendItemsOrLabels?: LegendItem[] | string[];
+  legend?: LegendInput;
   primitives: Primitive[];
 };

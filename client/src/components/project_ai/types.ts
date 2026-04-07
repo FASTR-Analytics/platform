@@ -1,6 +1,5 @@
 import type {
   AiContentSlideInput,
-  InstanceDetail,
   PresentationObjectConfig,
   ResultsValue,
   Slide,
@@ -120,5 +119,4 @@ export type AIProjectContextValue = {
   notifyAI: (interaction: AIUserInteraction) => void;
   getPendingInteractionsMessage: () => string | null;
   clearPendingInteractions: () => void;
-  instanceDetail: InstanceDetail;
 };

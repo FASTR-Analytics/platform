@@ -10,7 +10,8 @@ import {
   RectCoordsDims,
   type RenderContext,
 } from "./deps.ts";
-import type { FigureInputsBase, LegendItem } from "./types.ts";
+import type { FigureInputsBase } from "./types.ts";
+import type { LegendInput } from "./_legend/scale_legend_types.ts";
 import {
   findOptimalScaleForBounds,
   resolveFigureAutofitOptions,
@@ -30,7 +31,7 @@ export type ChartComponentSizes = {
   paneHeaderHeight: number;
   minYAxisWidth: number;
   surroundsMinWidth: number;
-  resolvedLegendLabels: LegendItem[] | string[] | undefined;
+  resolvedLegendLabels: LegendInput | undefined;
 };
 
 export function calculateChartMinWidth(info: ChartComponentSizes): number {
@@ -152,10 +153,12 @@ export function getChartHeightConstraints(
   width: number,
   inputs: FigureInputsBase,
   getChartComponentSizes: (scale: number) => ChartComponentSizes,
+  responsiveScale?: number,
 ): HeightConstraints {
   const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
 
-  const info = getChartComponentSizes(1.0);
+  const baseScale = responsiveScale ?? 1.0;
+  const info = getChartComponentSizes(baseScale);
   const idealH = calculateChartIdealHeight(rc, width, info, inputs);
 
   const minComfortableWidth = calculateChartMinWidth(info);

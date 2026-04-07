@@ -57,7 +57,7 @@ export function getChartOVComponentSizes(
     ? nIndicators * maxWordWidth
     : nIndicators * maxWordWidth + gridStrokeWidth * (nIndicators + 1);
 
-  const resolvedLegendLabels = inputs.legendItemsOrLabels ?? data.seriesHeaders;
+  const resolvedLegendLabels = inputs.legend ?? data.seriesHeaders;
 
   return {
     customFigureStyle: cs,

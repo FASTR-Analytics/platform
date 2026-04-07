@@ -11,6 +11,7 @@ import type {
   RectCoordsDims,
 } from "./deps.ts";
 import type { LegendItem } from "./_legend/types.ts";
+import type { LegendInput } from "./_legend/scale_legend_types.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
 import type { XAxisConfig, YAxisConfig } from "./_axes/axis_configs.ts";
 
@@ -69,6 +70,6 @@ export interface MeasuredChartBase<TInputs, TData, TStyle> {
   caption?: string;
   subCaption?: string;
   footnote?: string | string[];
-  legendItemsOrLabels?: string[] | LegendItem[];
+  legend?: LegendInput;
   primitives: Primitive[];
 }

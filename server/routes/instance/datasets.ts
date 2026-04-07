@@ -28,9 +28,11 @@ import {
   updateDatasetUploadAttempt_Step2Mappings,
   updateDatasetUploadAttempt_Step3Staging,
   updateDatasetUploadAttempt_Step4Integrate,
+  getInstanceDatasetsSummary,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
 import {
   _FETCH_CACHE_DATASET_HFA_ITEMS,
   _FETCH_CACHE_DATASET_HMIS_ITEMS,
@@ -127,6 +129,9 @@ defineRoute(
   log("deleteAllDatasetHmisData"),
   async (c, { body }) => {
     const res = await deleteAllDatasetHmisData(c.var.mainDb, body.windowing);
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -249,6 +254,9 @@ defineRoute(
   log("finalizeDatasetIntegration"),
   async (c) => {
     const res = await updateDatasetUploadAttempt_Step4Integrate(c.var.mainDb);
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -351,6 +359,9 @@ defineRoute(
   log("deleteDatasetHfaData"),
   async (c, { body }) => {
     const res = await deleteDatasetHfaData(c.var.mainDb, body.timePoint);
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -461,6 +472,9 @@ defineRoute(
     const res = await updateDatasetHfaUploadAttempt_Step4Integrate(
       c.var.mainDb,
     );
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );

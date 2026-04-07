@@ -176,23 +176,53 @@ function normalizeLayoutInternal<U>(
     };
   }
 
-  // Cols: rescale children to sum to available span
-  const preliminaryChildren = layout.children.map((child) =>
-    normalizeLayoutInternal(child, child.span ?? 1)
-  );
+  // Cols: keep explicit spans as absolute values, distribute remainder to implicit children
+  const implicitIndices: number[] = [];
+  const explicitTotal = layout.children.reduce((sum, child, i) => {
+    if (child.span === undefined) {
+      implicitIndices.push(i);
+      return sum;
+    }
+    return sum + child.span;
+  }, 0);
 
-  const childSpans = preliminaryChildren.map((c) => c.span!);
-  const finalSpans = rescaleSpans(childSpans, availableSpan);
+  if (implicitIndices.length > 0) {
+    const remaining = Math.max(
+      implicitIndices.length,
+      availableSpan - explicitTotal,
+    );
+    const implicitSpans = rescaleSpans(
+      new Array(implicitIndices.length).fill(1),
+      remaining,
+    );
 
-  const normalizedChildren = preliminaryChildren.map((child, i) =>
-    finalSpans[i] === child.span
-      ? child
-      : normalizeLayoutInternal(child, finalSpans[i])
-  );
+    let implicitIdx = 0;
+    const normalizedChildren = layout.children.map((child) => {
+      if (child.span !== undefined) {
+        return normalizeLayoutInternal(child, child.span);
+      }
+      const childSpan = implicitSpans[implicitIdx];
+      implicitIdx++;
+      return normalizeLayoutInternal(child, childSpan);
+    });
 
-  return {
-    ...layout,
-    children: normalizedChildren,
-    span: availableSpan,
-  };
+    return {
+      ...layout,
+      children: normalizedChildren,
+      span: availableSpan,
+    };
+  } else {
+    const childSpans = layout.children.map((c) => c.span!);
+    const finalSpans = rescaleSpans(childSpans, availableSpan);
+
+    const normalizedChildren = layout.children.map((child, i) =>
+      normalizeLayoutInternal(child, finalSpans[i])
+    );
+
+    return {
+      ...layout,
+      children: normalizedChildren,
+      span: availableSpan,
+    };
+  }
 }

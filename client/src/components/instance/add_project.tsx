@@ -1,9 +1,8 @@
-import { InstanceDetail, OtherUser, isFrench, t3, getPossibleModules } from "lib";
+import { OtherUser, isFrench, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
   Input,
-  TimQuery,
   timActionForm,
 } from "panther";
 import { createSignal } from "solid-js";
@@ -12,7 +11,6 @@ import { serverActions } from "~/server_actions";
 export function AddProjectForm(
   p: AlertComponentProps<
     {
-      instanceDetail: TimQuery<InstanceDetail>;
       users: OtherUser[];
     },
     { newProjectId: string }
@@ -70,7 +68,7 @@ export function AddProjectForm(
         projectViewers: [],
       });
     },
-    () => p.instanceDetail.silentFetch(),
+    async () => {},
     (data) => p.close({ newProjectId: data!.newProjectId }),
   );
 

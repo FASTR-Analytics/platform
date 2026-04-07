@@ -16,7 +16,7 @@ import type {
   RenderContext,
   TextInfoUnkeyed,
 } from "./deps.ts";
-import { Coordinates, Padding, RectCoordsDims, Z_INDEX } from "./deps.ts";
+import { Padding, RectCoordsDims, Z_INDEX } from "./deps.ts";
 import type { MeasurePaneConfig } from "./measure_types.ts";
 import type { YAxisWidthInfoBase } from "./types.ts";
 import { generatePaneContentPrimitives } from "./generate_pane_content_primitives.ts";
@@ -30,12 +30,15 @@ export function measurePane<TData>(
   const tierHeaders = config.dataProps.tierHeaders;
   const laneHeaders = config.dataProps.laneHeaders;
   const nTiers = tierHeaders.length;
+  const headerPosition = baseStyle.tiers.headerPosition;
 
   const maxTierHeaderWidth = config.geometry.contentRcd.w() *
     baseStyle.tiers.maxHeaderWidthAsPctOfChart;
 
+  const headerGap = baseStyle.tiers.headerGap;
+
   const {
-    value: tierHeaderAndLabelGapWidth,
+    value: measuredTierHeaderGapWidth,
     measuredTexts: measuredTierHeaders,
   } = baseStyle.tiers.hideHeaders
     ? { value: 0, measuredTexts: [] }
@@ -44,11 +47,22 @@ export function measurePane<TData>(
       nTiers,
       tierHeaders,
       baseStyle.text.tierHeaders,
-      config.yAxisConfig.type === "scale"
-        ? config.yAxisConfig.axisStyle.labelGap
-        : 0,
+      headerGap,
       maxTierHeaderWidth,
     );
+
+  const tierHeaderAndLabelGapWidth = headerPosition !== "left"
+    ? 0
+    : measuredTierHeaderGapWidth;
+
+  let tierHeaderAndLabelGapHeight = 0;
+  if (headerPosition !== "left" && measuredTierHeaders.length > 0) {
+    let maxH = 0;
+    for (const mt of measuredTierHeaders) {
+      maxH = Math.max(maxH, mt.dims.h());
+    }
+    tierHeaderAndLabelGapHeight = maxH + headerGap;
+  }
 
   const yAxisWidthInfo = measureYAxisWidthInfo(
     rc,
@@ -78,15 +92,20 @@ export function measurePane<TData>(
     baseStyle.grid,
   );
 
-  const { value: topHeightForLaneHeaders, measuredTexts: measuredLaneHeaders } =
-    baseStyle.lanes.hideHeaders
-      ? { value: 0, measuredTexts: [] }
-      : measureLaneHeaders(
-        rc,
-        subChartAreaWidth,
-        laneHeaders,
-        baseStyle,
-      );
+  const {
+    value: laneHeaderTextHeight,
+    measuredTexts: measuredLaneHeaders,
+  } = baseStyle.lanes.hideHeaders
+    ? { value: 0, measuredTexts: [] }
+    : measureLaneHeaders(
+      rc,
+      subChartAreaWidth,
+      laneHeaders,
+      baseStyle,
+    );
+  const topHeightForLaneHeaders = laneHeaderTextHeight > 0
+    ? laneHeaderTextHeight + baseStyle.lanes.headerGap
+    : 0;
 
   const { yAxisRcd, subChartAreaHeight } = measureYAxisLayout(
     topHeightForLaneHeaders,
@@ -95,6 +114,7 @@ export function measurePane<TData>(
     baseStyle.tiers,
     config.geometry.contentRcd,
     nTiers,
+    tierHeaderAndLabelGapHeight,
   );
 
   const measured = {
@@ -104,26 +124,26 @@ export function measurePane<TData>(
     subChartAreaHeight,
     subChartAreaWidth,
     topHeightForLaneHeaders,
+    tierHeaderAndLabelGapHeight,
   };
 
   const labelPrimitives: Primitive[] = [];
 
   if (config.paneHeader) {
     const panePadding = new Padding(baseStyle.panes.padding);
-    const position = new Coordinates([
-      baseStyle.panes.headerAlignH === "left"
-        ? config.geometry.outerRcd.x() + panePadding.pl()
-        : config.geometry.outerRcd.centerX(),
-      config.geometry.outerRcd.y() + panePadding.pt(),
-    ]);
+    const paneHeaderBounds = new RectCoordsDims({
+      x: config.geometry.outerRcd.x() + panePadding.pl(),
+      y: config.geometry.outerRcd.y() + panePadding.pt(),
+      w: config.geometry.outerRcd.w() - panePadding.pl() - panePadding.pr(),
+      h: config.paneHeader.dims.h(),
+    });
     labelPrimitives.push({
       type: "chart-label",
       key: `pane-header-${i_pane}`,
-      bounds: config.geometry.outerRcd,
+      bounds: paneHeaderBounds,
       zIndex: Z_INDEX.LABEL,
       meta: { labelType: "pane", paneIndex: i_pane },
       mText: config.paneHeader,
-      position,
       alignment: { h: baseStyle.panes.headerAlignH, v: "top" },
     });
   }
@@ -134,7 +154,10 @@ export function measurePane<TData>(
       yAxisWidthInfo,
       yAxisRcd,
       subChartAreaHeight,
+      tierHeaderAndLabelGapWidth,
+      tierHeaderAndLabelGapHeight,
       baseStyle.tiers,
+      config.geometry.contentRcd,
       i_pane,
     ),
   );
@@ -143,7 +166,7 @@ export function measurePane<TData>(
     x: xAxisMeasuredInfo.xAxisRcd.x(),
     y: config.geometry.contentRcd.y(),
     w: config.geometry.contentRcd.rightX() - xAxisMeasuredInfo.xAxisRcd.x(),
-    h: topHeightForLaneHeaders,
+    h: laneHeaderTextHeight,
   });
   labelPrimitives.push(
     ...laneHeaderLabelPrimitives(
@@ -212,34 +235,72 @@ function tierHeaderLabelPrimitives(
   yAxisWidthInfo: YAxisWidthInfoBase,
   yAxisRcd: RectCoordsDims,
   subChartAreaHeight: number,
+  tierHeaderAndLabelGapWidth: number,
+  tierHeaderAndLabelGapHeight: number,
   tiers: {
     paddingTop: number;
     gapY: number;
+    headerGap: number;
     headerAlignH: "left" | "center" | "right";
     headerAlignV: "top" | "middle";
+    headerPosition: "left" | "above-axis" | "above-plot-area";
   },
+  contentRcd: RectCoordsDims,
   i_pane: number,
 ): ChartLabelPrimitive[] {
   if (measuredTexts.length === 0) return [];
 
   const primitives: ChartLabelPrimitive[] = [];
-  let currentY = yAxisRcd.y() + tiers.paddingTop;
 
-  for (let i_tier = 0; i_tier < measuredTexts.length; i_tier++) {
-    const y = tiers.headerAlignV === "middle"
-      ? currentY + subChartAreaHeight / 2
-      : currentY - yAxisWidthInfo.halfYAxisTickLabelH;
-    primitives.push({
-      type: "chart-label",
-      key: `tier-header-${i_pane}-${i_tier}`,
-      bounds: yAxisRcd,
-      zIndex: Z_INDEX.LABEL,
-      meta: { labelType: "tier", paneIndex: i_pane, tierIndex: i_tier },
-      mText: measuredTexts[i_tier],
-      position: new Coordinates([yAxisRcd.x(), y]),
-      alignment: { h: tiers.headerAlignH, v: tiers.headerAlignV },
-    });
-    currentY += subChartAreaHeight + tiers.gapY;
+  if (tiers.headerPosition !== "left") {
+    const boundsX = tiers.headerPosition === "above-axis"
+      ? yAxisRcd.x()
+      : yAxisRcd.rightX();
+    const boundsW = contentRcd.rightX() - boundsX;
+    let currentY = yAxisRcd.y() + tiers.paddingTop;
+
+    for (let i_tier = 0; i_tier < measuredTexts.length; i_tier++) {
+      const tierBounds = new RectCoordsDims({
+        x: boundsX,
+        y: currentY,
+        w: boundsW,
+        h: tierHeaderAndLabelGapHeight,
+      });
+      primitives.push({
+        type: "chart-label",
+        key: `tier-header-${i_pane}-${i_tier}`,
+        bounds: tierBounds,
+        zIndex: Z_INDEX.LABEL,
+        meta: { labelType: "tier", paneIndex: i_pane, tierIndex: i_tier },
+        mText: measuredTexts[i_tier],
+        alignment: { h: tiers.headerAlignH, v: "top" },
+      });
+      currentY += tierHeaderAndLabelGapHeight + subChartAreaHeight + tiers.gapY;
+    }
+  } else {
+    let currentY = yAxisRcd.y() + tiers.paddingTop;
+
+    for (let i_tier = 0; i_tier < measuredTexts.length; i_tier++) {
+      const tierY = tiers.headerAlignV === "top"
+        ? currentY - yAxisWidthInfo.halfYAxisTickLabelH
+        : currentY;
+      const tierBounds = new RectCoordsDims({
+        x: yAxisRcd.x(),
+        y: tierY,
+        w: tierHeaderAndLabelGapWidth - tiers.headerGap,
+        h: subChartAreaHeight,
+      });
+      primitives.push({
+        type: "chart-label",
+        key: `tier-header-${i_pane}-${i_tier}`,
+        bounds: tierBounds,
+        zIndex: Z_INDEX.LABEL,
+        meta: { labelType: "tier", paneIndex: i_pane, tierIndex: i_tier },
+        mText: measuredTexts[i_tier],
+        alignment: { h: tiers.headerAlignH, v: tiers.headerAlignV },
+      });
+      currentY += subChartAreaHeight + tiers.gapY;
+    }
   }
 
   return primitives;
@@ -260,19 +321,19 @@ function laneHeaderLabelPrimitives(
   let currentX = laneHeaderRcd.x() + lanePaddingLeft;
 
   for (let i_lane = 0; i_lane < measuredTexts.length; i_lane++) {
-    const x = headerAlignH === "left"
-      ? currentX
-      : headerAlignH === "right"
-      ? currentX + subChartAreaWidth
-      : currentX + subChartAreaWidth / 2;
+    const laneBounds = new RectCoordsDims({
+      x: currentX,
+      y: laneHeaderRcd.y(),
+      w: subChartAreaWidth,
+      h: laneHeaderRcd.h(),
+    });
     primitives.push({
       type: "chart-label",
       key: `lane-header-${i_pane}-${i_lane}`,
-      bounds: laneHeaderRcd,
+      bounds: laneBounds,
       zIndex: Z_INDEX.LABEL,
       meta: { labelType: "lane", paneIndex: i_pane, laneIndex: i_lane },
       mText: measuredTexts[i_lane],
-      position: new Coordinates([x, laneHeaderRcd.bottomY()]),
       alignment: { h: headerAlignH, v: "bottom" },
     });
     currentX += subChartAreaWidth + laneGapX;

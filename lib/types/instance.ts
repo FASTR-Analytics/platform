@@ -8,7 +8,7 @@ import {
   PeriodBounds,
 } from "./presentation_objects.ts";
 import { ProjectSummary, ProjectUserRoleType } from "./projects.ts";
-import type { StructureUploadAttemptDetail } from "./structure.ts";
+
 
 // ============================================================================
 // API Response Types
@@ -84,7 +84,6 @@ export type InstanceDetail = {
         facilities: number;
       }
     | undefined;
-  structureUploadAttempt: StructureUploadAttemptDetail | undefined;
   structureLastUpdated?: string;
   indicators: {
     commonIndicators: number;
@@ -100,15 +99,6 @@ export type InstanceDetail = {
   };
   projects: ProjectSummary[];
   users: OtherUser[];
-  cacheVersions: {
-    indicatorMappings: string;
-    facilities: string | undefined;
-    adminAreas: string | undefined;
-    projects: string | undefined;
-    datasets: string | undefined;
-    modules: string | undefined;
-    users: string | undefined;
-  };
 };
 
 export type InstanceConfigMaxAdminArea = {
@@ -207,7 +197,7 @@ export type ProjectUser = {
 export type OtherUser = {
   email: string;
   isGlobalAdmin: boolean;
-};
+} & UserPermissions;
 
 export type UserLog = {
   id: number;

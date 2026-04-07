@@ -256,17 +256,22 @@ export function getSpecialScorecardTableFigureInputs(
   );
   jsonDataConfig.colGroupProp = "group";
   const style = getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number");
-  style.table!.cellBackgroundColorFormatter = (v, info) => {
-    const thresholdType = _SCORECARD_LABEL_TO_THRESHOLD.get(info.colHeader);
-    if (thresholdType === "80-60") {
-      return getCutoffColorFunc(80, 60, v);
-    }
-    if (thresholdType === "10-20") {
-      return getCutoffColorFuncReverse(10, 20, v);
-    }
-    return { key: "base100" };
+  style.content = {
+    ...style.content,
+    tableCells: {
+      func: (info) => {
+        const thresholdType = _SCORECARD_LABEL_TO_THRESHOLD.get(info.colHeader);
+        if (thresholdType === "80-60") {
+          return { backgroundColor: getCutoffColorFunc(80, 60, info.valueAsNumber) };
+        }
+        if (thresholdType === "10-20") {
+          return { backgroundColor: getCutoffColorFuncReverse(10, 20, info.valueAsNumber) };
+        }
+        return { backgroundColor: { key: "base100" } };
+      },
+      textFormatter: (info) => to100Pct0(info.value),
+    },
   };
-  style.table!.cellValueFormatter = (v) => to100Pct0(v);
   style.surrounds!.legendPosition = "bottom-left";
   style.legend!.maxLegendItemsInOneColumn = 1;
   return {
@@ -275,7 +280,7 @@ export function getSpecialScorecardTableFigureInputs(
       jsonDataConfig,
     },
     style,
-    legendItemsOrLabels: [
+    legend: [
       { label: "On track", color: _CF_LIGHTER_GREEN },
       { label: "Progress", color: _CF_LIGHTER_YELLOW },
       { label: "Not on track", color: _CF_LIGHTER_RED },

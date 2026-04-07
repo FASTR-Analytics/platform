@@ -4,6 +4,7 @@ import { _DATASET_LIMIT, type Dhis2Credentials } from "lib";
 import {
   addStructureUploadAttempt,
   deleteAllStructureData,
+  getInstanceStructureSummary,
   deleteStructureUploadAttempt,
   getStructureItems,
   getStructureUploadAttempt,
@@ -24,6 +25,7 @@ import {
 } from "../../dhis2/goal1_org_units_v2/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import { notifyInstanceStructureUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
 
@@ -53,6 +55,9 @@ defineRoute(
   log("deleteAllStructureData"),
   async (c) => {
     const res = await deleteAllStructureData(c.var.mainDb);
+    if (res.success) {
+      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -217,6 +222,9 @@ defineRoute(
   log("structureStep4_ImportData"),
   async (c, { body }) => {
     const res = await structureStep4_ImportData(c.var.mainDb, body.strategy);
+    if (res.success) {
+      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );

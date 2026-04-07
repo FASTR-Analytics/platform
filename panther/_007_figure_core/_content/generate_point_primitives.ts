@@ -4,9 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  Coordinates,
   type DataLabel,
+  getAdjustedFont,
+  getColor,
   type Primitive,
   RectCoordsDims,
+  type TextInfoUnkeyed,
   Z_INDEX,
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
@@ -31,29 +35,81 @@ export function generatePointPrimitives(
       if (mappedVal === undefined) continue;
 
       const seriesInfo = buildSeriesInfo(ctx, i_series, mapped);
-      const valueInfo = buildValueInfo(seriesInfo, mappedVal.val, i_val);
+      const valueInfo = buildValueInfo(
+        seriesInfo,
+        mappedVal.val,
+        i_val,
+        ctx.valueRange.minVal,
+        ctx.valueRange.maxVal,
+      );
       const pointStyle = s.points.getStyle(valueInfo);
       if (!pointStyle.show) continue;
 
       let dataLabel: DataLabel | undefined;
       if (labelOwner[i_series][i_val] === "points") {
-        const labelStr = s.dataLabelFormatter(valueInfo);
-        if (labelStr?.trim()) {
-          const mText = ctx.rc.mText(labelStr, ctx.dataLabelsTextStyle, 9999);
-          const offset = mText.ti.fontSize * 0.3;
-          const relPos = pointStyle.dataLabelPosition === "top"
-            ? { rx: 0.5, dy: -(pointStyle.radius + offset) }
+        const dl = pointStyle.dataLabel;
+        const labelStr = s.points.textFormatter !== "none"
+          ? s.points.textFormatter(valueInfo)
+          : String(mappedVal.val);
+
+        const textStyle: TextInfoUnkeyed = {
+          ...ctx.dataLabelsTextStyle,
+          ...(dl.color !== undefined ? { color: getColor(dl.color) } : {}),
+          ...(dl.relFontSize !== undefined
+            ? { fontSize: ctx.dataLabelsTextStyle.fontSize * dl.relFontSize }
+            : {}),
+          ...(dl.font !== undefined
+            ? { font: getAdjustedFont(ctx.dataLabelsTextStyle.font, dl.font) }
+            : {}),
+        };
+
+        const mText = ctx.rc.mText(labelStr, textStyle, 9999);
+        const hasDecoration = dl.backgroundColor !== "none" ||
+          dl.border !== "none";
+
+        if (labelStr.trim() || hasDecoration) {
+          const cx = mappedVal.coords.x();
+          const cy = mappedVal.coords.y();
+          const off = pointStyle.radius + dl.offset;
+          const pos = pointStyle.dataLabelPosition === "top"
+            ? new Coordinates([cx, cy - off])
             : pointStyle.dataLabelPosition === "bottom"
-            ? { rx: 0.5, dy: pointStyle.radius + offset }
+            ? new Coordinates([cx, cy + off])
             : pointStyle.dataLabelPosition === "left"
-            ? { dx: -(pointStyle.radius + offset), ry: 0.5 }
+            ? new Coordinates([cx - off, cy])
             : pointStyle.dataLabelPosition === "right"
-            ? { dx: pointStyle.radius + offset, ry: 0.5 }
-            : { rx: 0.5, ry: 0.5 };
+            ? new Coordinates([cx + off, cy])
+            : mappedVal.coords;
+          const alignH = pointStyle.dataLabelPosition === "left"
+            ? "right" as const
+            : pointStyle.dataLabelPosition === "right"
+            ? "left" as const
+            : "center" as const;
+          const alignV = pointStyle.dataLabelPosition === "top"
+            ? "bottom" as const
+            : pointStyle.dataLabelPosition === "bottom"
+            ? "top" as const
+            : "middle" as const;
           dataLabel = {
-            text: labelStr,
             mText,
-            relativePosition: relPos,
+            position: pos,
+            alignH,
+            alignV,
+            style: hasDecoration
+              ? {
+                backgroundColor: dl.backgroundColor !== "none"
+                  ? getColor(dl.backgroundColor)
+                  : undefined,
+                padding: dl.padding,
+                border: dl.border !== "none"
+                  ? {
+                    color: getColor(dl.border.color),
+                    width: dl.border.width,
+                  }
+                  : undefined,
+                rectRadius: dl.rectRadius,
+              }
+              : undefined,
           };
         }
       }
@@ -72,6 +128,7 @@ export function generatePointPrimitives(
         bounds: pointBounds,
         zIndex: Z_INDEX.CONTENT_POINT,
         meta: { value: valueInfo },
+        annotationGroup: pointStyle.annotationGroup,
         coords: mappedVal.coords,
         style: pointStyle,
         dataLabel,

@@ -4,14 +4,17 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  MapDataLabelMode,
   MapLabelPrimitive,
-  MergedMapDataLabelsStyle,
+  MapRegionInfoFunc,
+  MapRegionStyle,
   MergedMapStyle,
   Primitive,
   RectCoordsDims,
   RenderContext,
+  TextInfoUnkeyed,
 } from "../deps.ts";
-import { Coordinates, Z_INDEX } from "../deps.ts";
+import { Coordinates, getColor, Z_INDEX } from "../deps.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 import type { FittedProjection } from "./fit_projection.ts";
 import {
@@ -25,13 +28,16 @@ type LabelInfo = {
   feature: GeoJSONFeature;
   value: number | undefined;
   screenPos: { x: number; y: number };
-  screenBBox: {
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-  } | undefined;
+  screenBBox:
+    | {
+      minX: number;
+      minY: number;
+      maxX: number;
+      maxY: number;
+    }
+    | undefined;
   mText: ReturnType<RenderContext["mText"]>;
+  regionStyle: MapRegionStyle;
 };
 
 export function generateMapLabelPrimitives(
@@ -42,36 +48,61 @@ export function generateMapLabelPrimitives(
   areaMatchProp: string,
   mergedStyle: MergedMapStyle,
   fitted: FittedProjection,
+  shownFeatureStyles: Map<string, MapRegionStyle>,
+  textFormatter: MapRegionInfoFunc<string | undefined> | "none",
   paneIndex: number,
   tierIndex: number,
   laneIndex: number,
 ): Primitive[] {
-  const dlStyle = mergedStyle.map.dataLabels;
-  if (dlStyle.mode === "none") return [];
-
-  const textStyle = mergedStyle.text.dataLabels;
+  const dlMode = mergedStyle.map.dataLabelMode;
+  if (dlMode === "none") return [];
+  const baseTextStyle = mergedStyle.text.dataLabels;
   const labelInfos: LabelInfo[] = [];
 
   for (const feature of filteredFeatures) {
     const featureId = getFeatureMatchKey(feature, areaMatchProp);
     const value = valueMap[featureId];
 
-    const labelText = resolveDataLabelText(
+    const regionStyle = shownFeatureStyles.get(featureId);
+    if (!regionStyle) continue;
+    const dlStyle = regionStyle.dataLabel;
+    if (!dlStyle.show) continue;
+
+    const mapRegionInfo = {
       featureId,
-      feature.properties,
       value,
-      dlStyle,
-    );
+      valueMin: 0,
+      valueMax: 0,
+      featureProperties: feature.properties,
+      paneIndex,
+      tierIndex,
+      laneIndex,
+    };
+    const labelText = textFormatter !== "none"
+      ? textFormatter(mapRegionInfo)
+      : value !== undefined
+      ? String(value)
+      : featureId;
     if (!labelText) continue;
 
     const geoCentroid = computeGeoCentroid(feature.geometry);
     if (!geoCentroid) continue;
 
-    const offset = dlStyle.centroidOffsets?.[featureId];
+    const offset = regionStyle.centroidOffset;
     const screenPos = projectCentroid(geoCentroid, fitted, offset);
-    const screenBBox = dlStyle.mode === "auto"
+    const screenBBox = dlMode === "auto"
       ? computeScreenBBox(feature.geometry, fitted)
       : undefined;
+
+    const textStyle: TextInfoUnkeyed = {
+      ...baseTextStyle,
+      ...(dlStyle.color !== undefined
+        ? { color: getColor(dlStyle.color) }
+        : {}),
+      ...(dlStyle.relFontSize !== undefined
+        ? { fontSize: baseTextStyle.fontSize * dlStyle.relFontSize }
+        : {}),
+    };
 
     const mText = rc.mText(labelText, textStyle, cellRcd.w() * 0.4);
 
@@ -82,6 +113,7 @@ export function generateMapLabelPrimitives(
       screenPos,
       screenBBox,
       mText,
+      regionStyle,
     });
   }
 
@@ -89,17 +121,10 @@ export function generateMapLabelPrimitives(
   const calloutInfos: LabelInfo[] = [];
 
   for (const info of labelInfos) {
-    const placement = resolvePlacement(dlStyle.mode, info);
+    const placement = resolvePlacement(dlMode, info);
     if (placement === "centroid") {
       primitives.push(
-        createCentroidLabel(
-          info,
-          cellRcd,
-          dlStyle,
-          paneIndex,
-          tierIndex,
-          laneIndex,
-        ),
+        createCentroidLabel(info, cellRcd, paneIndex, tierIndex, laneIndex),
       );
     } else {
       calloutInfos.push(info);
@@ -111,7 +136,7 @@ export function generateMapLabelPrimitives(
       ...createCalloutLabels(
         calloutInfos,
         cellRcd,
-        dlStyle,
+        mergedStyle.map.calloutMargin,
         paneIndex,
         tierIndex,
         laneIndex,
@@ -122,42 +147,13 @@ export function generateMapLabelPrimitives(
   return primitives;
 }
 
-function resolveDataLabelText(
-  featureId: string,
-  featureProperties: Record<string, unknown>,
-  value: number | undefined,
-  dlStyle: MergedMapDataLabelsStyle,
-): string | undefined {
-  if (dlStyle.formatter) {
-    return dlStyle.formatter({ featureId, featureProperties, value });
-  }
-
-  const parts: string[] = [];
-
-  if (dlStyle.nameProp) {
-    const name = featureProperties[dlStyle.nameProp];
-    if (name !== undefined && name !== null) {
-      parts.push(String(name));
-    }
-  } else {
-    parts.push(featureId);
-  }
-
-  if (dlStyle.showValue && value !== undefined) {
-    parts.push(dlStyle.valueFormatter(value));
-  }
-
-  return parts.length > 0 ? parts.join("\n") : undefined;
-}
-
 function resolvePlacement(
-  mode: MergedMapDataLabelsStyle["mode"],
+  mode: MapDataLabelMode,
   info: LabelInfo,
 ): "centroid" | "callout" {
   if (mode === "centroid") return "centroid";
   if (mode === "callout") return "callout";
 
-  // Auto: check if text fits inside the region's screen bounding box
   if (!info.screenBBox) return "centroid";
 
   const textW = info.mText.dims.w();
@@ -171,11 +167,11 @@ function resolvePlacement(
 function createCentroidLabel(
   info: LabelInfo,
   cellRcd: RectCoordsDims,
-  dlStyle: MergedMapDataLabelsStyle,
   paneIndex: number,
   tierIndex: number,
   laneIndex: number,
 ): MapLabelPrimitive {
+  const dl = info.regionStyle.dataLabel;
   return {
     type: "map-label",
     key: `map-label-${paneIndex}-${tierIndex}-${laneIndex}-${info.featureId}`,
@@ -191,8 +187,12 @@ function createCentroidLabel(
     mText: info.mText,
     position: new Coordinates([info.screenPos.x, info.screenPos.y]),
     alignment: { h: "center", v: "middle" },
-    halo: dlStyle.halo.width > 0
-      ? { color: dlStyle.halo.color, width: dlStyle.halo.width }
+    halo: dl.backgroundColor !== "none"
+      ? {
+        color: getColor(dl.backgroundColor),
+        width: dl.padding.pt(),
+        rectRadius: dl.rectRadius,
+      }
       : undefined,
   };
 }
@@ -200,7 +200,7 @@ function createCentroidLabel(
 function createCalloutLabels(
   infos: LabelInfo[],
   cellRcd: RectCoordsDims,
-  dlStyle: MergedMapDataLabelsStyle,
+  calloutMargin: number,
   paneIndex: number,
   tierIndex: number,
   laneIndex: number,
@@ -218,7 +218,7 @@ function createCalloutLabels(
   placeCalloutSide(
     leftItems,
     cellRcd,
-    dlStyle,
+    calloutMargin,
     "left",
     paneIndex,
     tierIndex,
@@ -228,7 +228,7 @@ function createCalloutLabels(
   placeCalloutSide(
     rightItems,
     cellRcd,
-    dlStyle,
+    calloutMargin,
     "right",
     paneIndex,
     tierIndex,
@@ -242,7 +242,7 @@ function createCalloutLabels(
 function placeCalloutSide(
   items: LabelInfo[],
   cellRcd: RectCoordsDims,
-  dlStyle: MergedMapDataLabelsStyle,
+  calloutMargin: number,
   side: "left" | "right",
   paneIndex: number,
   tierIndex: number,
@@ -251,17 +251,18 @@ function placeCalloutSide(
 ): void {
   if (items.length === 0) return;
 
-  const margin = dlStyle.calloutMargin;
   const labelX = side === "left"
-    ? cellRcd.x() + margin * 0.3
-    : cellRcd.rightX() - margin * 0.3;
-  const alignH = side === "left" ? "left" as const : "right" as const;
+    ? cellRcd.x() + calloutMargin * 0.3
+    : cellRcd.rightX() - calloutMargin * 0.3;
+  const alignH = side === "left" ? ("left" as const) : ("right" as const);
 
   const totalH = cellRcd.h();
   const spacing = totalH / (items.length + 1);
 
   for (let i = 0; i < items.length; i++) {
     const info = items[i];
+    const rs = info.regionStyle;
+    const dlStyle = rs.dataLabel;
     const labelY = cellRcd.y() + spacing * (i + 1);
 
     const centroidCoords = new Coordinates([
@@ -285,15 +286,19 @@ function placeCalloutSide(
       mText: info.mText,
       position: labelCoords,
       alignment: { h: alignH, v: "middle" },
-      halo: dlStyle.halo.width > 0
-        ? { color: dlStyle.halo.color, width: dlStyle.halo.width }
+      halo: dlStyle.backgroundColor !== "none"
+        ? {
+          color: getColor(dlStyle.backgroundColor),
+          width: dlStyle.padding.pt(),
+          rectRadius: dlStyle.rectRadius,
+        }
         : undefined,
       leaderLine: {
         from: centroidCoords,
         to: labelCoords,
-        strokeColor: dlStyle.leaderLine.strokeColor,
-        strokeWidth: dlStyle.leaderLine.strokeWidth,
-        gap: dlStyle.leaderLine.gap,
+        strokeColor: getColor(rs.leaderLineStrokeColor),
+        strokeWidth: rs.leaderLineStrokeWidth,
+        gap: rs.leaderLineGap,
       },
     });
   }

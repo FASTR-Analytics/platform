@@ -1,15 +1,12 @@
-import { H_USERS, InstanceDetail, t3, TC } from "lib";
+import { H_USERS, t3, TC } from "lib";
 import {
   Button,
   Csv,
   FrameTop,
   HeadingBarMainRibbon,
-  StateHolderWrapper,
-  TimQuery,
   downloadCsv,
   openAlert,
   openComponent,
-  openConfirm,
   timActionButton,
   timActionDelete,
   timQuery,
@@ -23,40 +20,29 @@ import { User } from "./user";
 import { Table, TableColumn, BulkAction } from "panther";
 import { serverActions } from "~/server_actions";
 import type { UserLog } from "lib";
+import { instanceState } from "~/state/instance_state";
 
 type Props = {
   thisLoggedInUserEmail: string;
-  instanceDetail: TimQuery<InstanceDetail>;
 };
 
 export function InstanceUsers(p: Props) {
-  // Temp state
   const userLogs = timQuery(() => serverActions.getAllUserLogs({}));
 
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
     undefined,
   );
-  const [logFilterUser, setLogFilterUser] = createSignal<string | undefined>(
-    undefined,
-  );
-
-  // Actions
-
   async function attemptAddUser() {
     await openComponent({
       element: AddUserForm,
-      props: {
-        silentFetch: p.instanceDetail.silentFetch,
-      },
+      props: {},
     });
   }
 
   async function attemptBatchUploadUsers() {
     await openComponent({
       element: BatchUploadUsersForm,
-      props: {
-        silentRefreshUsers: p.instanceDetail.silentFetch,
-      },
+      props: {},
     });
   }
 
@@ -70,100 +56,91 @@ export function InstanceUsers(p: Props) {
     return true;
   }
 
+  function downloadUsersCSV() {
+    const csv = new Csv({
+      colHeaders: ["email", "is_global_admin"],
+      aoa: instanceState.users.map((user) => [
+        user.email,
+        String(user.isGlobalAdmin),
+      ]),
+    });
+    const today = new Date()
+      .toISOString()
+      .split("T")[0]
+      .replace(/-/g, "_");
+    const filename = `users_export_${today}.csv`;
+    downloadCsv(csv.stringify(), filename);
+  }
+
   return (
-    <StateHolderWrapper state={p.instanceDetail.state()}>
-      {(keyedInstanceDetail) => {
-        function downloadUsersCSV() {
-          const csv = new Csv({
-            colHeaders: ["email", "is_global_admin"],
-            aoa: keyedInstanceDetail.users.map((user) => [
-              user.email,
-              String(user.isGlobalAdmin),
-            ]),
-          });
-          const today = new Date()
-            .toISOString()
-            .split("T")[0]
-            .replace(/-/g, "_");
-          const filename = `users_export_${today}.csv`;
-          downloadCsv(csv.stringify(), filename);
-        }
-        return (
-          <Switch>
-            <Match
-              when={keyedInstanceDetail.users.find(
-                (u) => u.email === selectedUser(),
-              )}
-              keyed
+    <Switch>
+      <Match
+        when={instanceState.users.find(
+          (u) => u.email === selectedUser(),
+        )}
+        keyed
+      >
+        {(keyedUser) => {
+          return (
+            <User
+              user={keyedUser}
+              thisLoggedInUserEmail={p.thisLoggedInUserEmail}
+              close={() => setSelectedUser(undefined)}
+              projects={instanceState.projects}
+            />
+          );
+        }}
+      </Match>
+      <Match when={true}>
+        <FrameTop
+          panelChildren={
+            <HeadingBarMainRibbon
+              heading={t3({ en: "Users", fr: "Utilisateurs" })}
             >
-              {(keyedUser) => {
+              <div class="ui-gap-sm flex items-center">
+                <Button onClick={downloadUsersCSV} iconName="download">
+                  {t3({
+                    en: "Download users",
+                    fr: "Télécharger les utilisateurs",
+                  })}
+                </Button>
+                <Button
+                  onClick={attemptBatchUploadUsers}
+                  iconName="upload"
+                >
+                  {t3({
+                    en: "Batch import from CSV",
+                    fr: "Importation groupée depuis CSV",
+                  })}
+                </Button>
+                <Button onClick={attemptAddUser} iconName="plus">
+                  {t3({
+                    en: "Add users",
+                    fr: "Ajouter des utilisateurs",
+                  })}
+                </Button>
+              </div>
+            </HeadingBarMainRibbon>
+          }
+        >
+          <div class="ui-pad flex h-full w-full flex-col gap-4">
+            <div class="min-h-0 flex-1">
+              {(() => {
+                const logState = userLogs.state();
                 return (
-                  <User
-                    user={keyedUser}
-                    thisLoggedInUserEmail={p.thisLoggedInUserEmail}
-                    close={() => setSelectedUser(undefined)}
-                    silentFetch={p.instanceDetail.silentFetch}
-                    projects={keyedInstanceDetail.projects}
+                  <UserTable
+                    users={instanceState.users}
+                    logs={logState.status === "ready" ? logState.data : undefined}
+                    onUserClick={(user) => setSelectedUser(user.email)}
+                    showCommingSoon={showCommingSoon}
                   />
                 );
-              }}
-            </Match>
-            <Match when={true}>
-              <FrameTop
-                panelChildren={
-                  <HeadingBarMainRibbon
-                    heading={t3({ en: "Users", fr: "Utilisateurs" })}
-                  >
-                    <div class="ui-gap-sm flex items-center">
-                      <Button onClick={downloadUsersCSV} iconName="download">
-                        {t3({
-                          en: "Download users",
-                          fr: "Télécharger les utilisateurs",
-                        })}
-                      </Button>
-                      <Button
-                        onClick={attemptBatchUploadUsers}
-                        iconName="upload"
-                      >
-                        {t3({
-                          en: "Batch import from CSV",
-                          fr: "Importation groupée depuis CSV",
-                        })}
-                      </Button>
-                      <Button onClick={attemptAddUser} iconName="plus">
-                        {t3({
-                          en: "Add users",
-                          fr: "Ajouter des utilisateurs",
-                        })}
-                      </Button>
-                    </div>
-                  </HeadingBarMainRibbon>
-                }
-              >
-                <StateHolderWrapper state={userLogs.state()}>
-                  {(keyedUserLogs) => {
-                    return (
-                      <div class="ui-pad flex h-full w-full flex-col gap-4">
-                        <div class="min-h-0 flex-1">
-                          <UserTable
-                            users={keyedInstanceDetail.users}
-                            logs={keyedUserLogs}
-                            onUserClick={(user) => setSelectedUser(user.email)}
-                            onViewLogs={(email) => setLogFilterUser(email)}
-                            showCommingSoon={showCommingSoon}
-                            silentFetch={p.instanceDetail.silentFetch}
-                          />
-                        </div>
-                      </div>
-                    );
-                  }}
-                </StateHolderWrapper>
-              </FrameTop>
-            </Match>
-          </Switch>
-        );
-      }}
-    </StateHolderWrapper>
+              })()}
+            </div>
+          </div>
+        </FrameTop>
+      </Match>
+    </Switch>
   );
 }
 
@@ -201,15 +178,13 @@ function formatTimeAgo(date: Date): string {
 
 function UserTable(p: {
   users: UserData[];
-  logs: UserLog[];
+  logs: UserLog[] | undefined;
   onUserClick: (user: UserData) => void;
-  onViewLogs: (email: string) => void;
   showCommingSoon: () => Promise<boolean>;
-  silentFetch: () => Promise<void>;
 }) {
   const userRows = (): UserTableData[] => {
     const map = new Map<string, number>();
-    for (const log of p.logs) {
+    for (const log of p.logs ?? []) {
       try {
         const logDate = new Date(log.timestamp);
         if (isNaN(logDate.getTime())) continue;
@@ -244,7 +219,7 @@ function UserTable(p: {
         if (user.lastActiveTs === -1) {
           return (
             <span class="text-neutral text-sm">
-              {t3({ en: "Never", fr: "Jamais" })}
+              {p.logs === undefined ? "..." : t3({ en: "Never", fr: "Jamais" })}
             </span>
           );
         }
@@ -286,14 +261,6 @@ function UserTable(p: {
           <Button
             onClick={(e: MouseEvent) => {
               e.stopPropagation();
-              p.onViewLogs(user.email);
-            }}
-            intent="base-100"
-            iconName="document"
-          />
-          <Button
-            onClick={(e: MouseEvent) => {
-              e.stopPropagation();
               p.onUserClick(user);
             }}
             intent="base-100"
@@ -309,7 +276,6 @@ function UserTable(p: {
       const emails = selectedUsers.map((u) => u.email);
       return serverActions.toggleUserAdmin({ emails, makeAdmin: true });
     },
-    p.silentFetch,
   );
 
   const bulkMakeNonAdmin = timActionButton(
@@ -317,7 +283,6 @@ function UserTable(p: {
       const emails = selectedUsers.map((u) => u.email);
       return serverActions.toggleUserAdmin({ emails, makeAdmin: false });
     },
-    p.silentFetch,
   );
 
   async function handleBulkRemoveUsers(selectedUsers: UserTableData[]) {
@@ -337,7 +302,6 @@ function UserTable(p: {
         itemList: emails,
       },
       () => serverActions.deleteUser({ emails }),
-      p.silentFetch,
     );
 
     await deleteAction.click();
@@ -347,7 +311,7 @@ function UserTable(p: {
     const emails = selectedUsers.map((u) => u.email);
     await openComponent({
       element: BulkEditPermissionsForm,
-      props: { emails, silentFetch: p.silentFetch },
+      props: { emails },
     });
   }
 
@@ -357,7 +321,7 @@ function UserTable(p: {
     const emails = selectedUsers.map((u) => u.email);
     await openComponent({
       element: BulkEditDefaultProjectPermissionsForm,
-      props: { emails, silentFetch: p.silentFetch },
+      props: { emails },
     });
   }
 
@@ -433,118 +397,4 @@ function UserTable(p: {
       fitTableToAvailableHeight
     />
   );
-}
-
-function UserLogsTable(p: {
-  logs: UserLog[];
-  filterByUser?: string;
-  onFilterByUser: (email: string | undefined) => void;
-}) {
-  const filteredLogs = () => {
-    if (!p.filterByUser) return p.logs;
-    return p.logs.filter((log) => log.user_email === p.filterByUser);
-  };
-
-  const columns: TableColumn<UserLog>[] = [
-    {
-      key: "timestamp",
-      header: t3({ en: "Timestamp", fr: "Horodatage" }),
-      sortable: true,
-      render: (log) => (
-        <span class="text-sm">{new Date(log.timestamp).toLocaleString()}</span>
-      ),
-    },
-    {
-      key: "user_email",
-      header: t3({ en: "User", fr: "Utilisateur" }),
-      sortable: true,
-      render: (log) => (
-        <button
-          class="hover:text-primary cursor-pointer text-left hover:underline"
-          onClick={(e) => {
-            e.stopPropagation();
-            p.onFilterByUser(
-              p.filterByUser === log.user_email ? undefined : log.user_email,
-            );
-          }}
-        >
-          {log.user_email}
-        </button>
-      ),
-    },
-    {
-      key: "endpoint",
-      header: t3({ en: "Endpoint Accessed", fr: "Point d'accès" }),
-      sortable: true,
-    },
-    {
-      key: "endpoint_result",
-      header: t3({ en: "Status", fr: "Statut" }),
-      sortable: true,
-    },
-    {
-      key: "details",
-      header: t3({ en: "Details", fr: "Détails" }),
-      render: (log) => (
-        <Show when={log.details}>
-          <Button
-            intent="base-100"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              openAlert({
-                title: t3({
-                  en: "Request Details",
-                  fr: "Détails de la requête",
-                }),
-                text: (
-                  <div class="max-h-96 overflow-auto font-mono text-sm whitespace-pre-wrap">
-                    {formatJsonDetails(log.details!)}
-                  </div>
-                ),
-              });
-            }}
-          >
-            {t3({ en: "View", fr: "Voir" })}
-          </Button>
-        </Show>
-      ),
-    },
-  ];
-
-  return (
-    <div class="flex h-full flex-col">
-      <Show when={p.filterByUser}>
-        <div class="mb-2 flex items-center gap-2 text-sm">
-          <span class="text-neutral">
-            {t3({ en: "Filtering by", fr: "Filtré par" })}:
-          </span>
-          <span class="font-medium">{p.filterByUser}</span>
-          <Button
-            size="sm"
-            intent="base-100"
-            iconName="x"
-            onClick={() => p.onFilterByUser(undefined)}
-          />
-        </div>
-      </Show>
-      <Table
-        data={filteredLogs()}
-        columns={columns}
-        defaultSort={{ key: "timestamp", direction: "desc" }}
-        keyField="id"
-        noRowsMessage={t3({ en: "No logs", fr: "Aucun journal" })}
-        fitTableToAvailableHeight
-      />
-    </div>
-  );
-}
-
-function formatJsonDetails(details: string): string {
-  try {
-    const parsed = JSON.parse(details);
-    return JSON.stringify(parsed, null, 2);
-  } catch {
-    return details;
-  }
 }

@@ -208,8 +208,21 @@ type TimFontOption =
   | "InterDisplay_900"
   | "InterDisplay_300_Italic"
   // Inter Variable
-  | "InterVariable_400"
   | "InterVariable_400_Italic"
+  | "InterVariable_400"
+  // Josefin Sans
+  | "JosefinSans_500"
+  | "JosefinSans_200_Italic"
+  | "JosefinSans_600_Italic"
+  | "JosefinSans_400"
+  | "JosefinSans_400_Italic"
+  | "JosefinSans_200"
+  | "JosefinSans_600"
+  | "JosefinSans_700"
+  | "JosefinSans_300"
+  | "JosefinSans_300_Italic"
+  | "JosefinSans_700_Italic"
+  | "JosefinSans_500_Italic"
   // Martina Plantijn
   | "MartinaPlantijn_700"
   // Merriweather
@@ -361,11 +374,10 @@ type TimFontOption =
   | "SourceSerif4_300"
   | "SourceSerif4_400"
   | "SourceSerif4_800_Italic"
-  // Söhne Kräftig
-  | "SöhneKräftig_500"
-  // Söhne Leicht
-  | "SöhneLeicht_300_Italic"
-  | "SöhneLeicht_300"
+  // Söhne
+  | "Söhne_300_Italic"
+  | "Söhne_500"
+  | "Söhne_300"
   // Tiempos Headline
   | "TiemposHeadline_500_Italic"
   | "TiemposHeadline_600"
@@ -1342,14 +1354,76 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
   },
 
   // Inter Variable
+  InterVariable_400_Italic: {
+    fontFamily: "Inter Variable",
+    weight: 400,
+    italic: true,
+  },
   InterVariable_400: {
     fontFamily: "Inter Variable",
     weight: 400,
     italic: false,
   },
-  InterVariable_400_Italic: {
-    fontFamily: "Inter Variable",
+
+  // Josefin Sans
+  JosefinSans_500: {
+    fontFamily: "Josefin Sans",
+    weight: 500,
+    italic: false,
+  },
+  JosefinSans_200_Italic: {
+    fontFamily: "Josefin Sans",
+    weight: 200,
+    italic: true,
+  },
+  JosefinSans_600_Italic: {
+    fontFamily: "Josefin Sans",
+    weight: 600,
+    italic: true,
+  },
+  JosefinSans_400: {
+    fontFamily: "Josefin Sans",
     weight: 400,
+    italic: false,
+  },
+  JosefinSans_400_Italic: {
+    fontFamily: "Josefin Sans",
+    weight: 400,
+    italic: true,
+  },
+  JosefinSans_200: {
+    fontFamily: "Josefin Sans",
+    weight: 200,
+    italic: false,
+  },
+  JosefinSans_600: {
+    fontFamily: "Josefin Sans",
+    weight: 600,
+    italic: false,
+  },
+  JosefinSans_700: {
+    fontFamily: "Josefin Sans",
+    weight: 700,
+    italic: false,
+  },
+  JosefinSans_300: {
+    fontFamily: "Josefin Sans",
+    weight: 300,
+    italic: false,
+  },
+  JosefinSans_300_Italic: {
+    fontFamily: "Josefin Sans",
+    weight: 300,
+    italic: true,
+  },
+  JosefinSans_700_Italic: {
+    fontFamily: "Josefin Sans",
+    weight: 700,
+    italic: true,
+  },
+  JosefinSans_500_Italic: {
+    fontFamily: "Josefin Sans",
+    weight: 500,
     italic: true,
   },
 
@@ -2066,21 +2140,19 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
     italic: true,
   },
 
-  // Söhne Kräftig
-  SöhneKräftig_500: {
-    fontFamily: "Söhne Kräftig",
-    weight: 500,
-    italic: false,
-  },
-
-  // Söhne Leicht
-  SöhneLeicht_300_Italic: {
-    fontFamily: "Söhne Leicht",
+  // Söhne
+  Söhne_300_Italic: {
+    fontFamily: "Söhne",
     weight: 300,
     italic: true,
   },
-  SöhneLeicht_300: {
-    fontFamily: "Söhne Leicht",
+  Söhne_500: {
+    fontFamily: "Söhne",
+    weight: 500,
+    italic: false,
+  },
+  Söhne_300: {
+    fontFamily: "Söhne",
     weight: 300,
     italic: false,
   },

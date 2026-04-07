@@ -31,7 +31,7 @@ export function generateCaptionsPrimitives(
       mText: mSurrounds.caption.mCaption,
       position: mSurrounds.caption.rcd.topLeftCoords(),
       alignment: {
-        h: "left",
+        h: mSurrounds.s.captionAlignH,
         v: "top",
       },
       zIndex: Z_INDEX.CAPTION,
@@ -51,7 +51,7 @@ export function generateCaptionsPrimitives(
       mText: mSurrounds.subCaption.mSubCaption,
       position: mSurrounds.subCaption.rcd.topLeftCoords(),
       alignment: {
-        h: "left",
+        h: mSurrounds.s.subCaptionAlignH,
         v: "top",
       },
       zIndex: Z_INDEX.CAPTION,
@@ -66,7 +66,10 @@ export function generateCaptionsPrimitives(
       primitives.push({
         type: "chart-caption",
         key: `footnote-${i}`,
-        bounds: mSurrounds.footnote.rcd,
+        bounds: mSurrounds.footnote.rcd.getAdjusted({
+          y: currentY,
+          h: mText.dims.h(),
+        }),
         meta: {
           captionType: "footnote",
           // Figure-level caption - no paneIndex
@@ -74,7 +77,7 @@ export function generateCaptionsPrimitives(
         mText,
         position: new Coordinates([mSurrounds.footnote.rcd.x(), currentY]),
         alignment: {
-          h: "left",
+          h: mSurrounds.s.footnoteAlignH,
           v: "top",
         },
         zIndex: Z_INDEX.CAPTION,

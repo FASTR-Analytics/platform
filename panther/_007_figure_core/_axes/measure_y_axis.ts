@@ -50,6 +50,7 @@ export function measureYAxisLayout(
   tiers: { paddingTop: number; paddingBottom: number; gapY: number },
   contentRcd: RectCoordsDims,
   tierCount: number,
+  tierHeaderAndLabelGapHeight: number,
 ): { yAxisRcd: RectCoordsDims; subChartAreaHeight: number } {
   return measureYScaleAxis(
     topHeightForLaneHeaders,
@@ -58,6 +59,7 @@ export function measureYAxisLayout(
     tiers,
     contentRcd,
     tierCount,
+    tierHeaderAndLabelGapHeight,
   );
 }
 

@@ -5,6 +5,7 @@
 
 export {
   type CustomPageStyleOptions,
+  type PageNumberBackground,
   setGlobalPageStyle,
 } from "./_2_custom_page_style_options.ts";
 export * from "./_3_merged_style_return_types.ts";

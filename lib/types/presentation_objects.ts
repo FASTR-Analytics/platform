@@ -386,6 +386,7 @@ export type PresentationObjectConfig = {
     sortIndicatorValues: "ascending" | "descending" | "none";
     formatAdminArea3Labels: boolean;
     mapColorPreset: "red" | "blue" | "green" | "red-green" | "custom";
+    mapColorReverse: boolean;
     mapColorFrom: string;
     mapColorTo: string;
     mapProjection: "equirectangular" | "mercator" | "naturalEarth1";

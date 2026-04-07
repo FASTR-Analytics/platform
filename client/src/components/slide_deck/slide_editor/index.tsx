@@ -3,7 +3,6 @@ import type {
   ContentBlock,
   ContentSlide,
   CoverSlide,
-  InstanceDetail,
   ProjectDetail,
   SectionSlide,
   Slide,
@@ -98,7 +97,6 @@ type SlideEditorInnerProps = {
   slideId: string;
   slide: Slide;
   lastUpdated: string;
-  instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
   deckConfig: SlideDeckConfig;
@@ -453,7 +451,6 @@ export function SlideEditor(p: Props) {
           returnToContext: aiContext(),
           ...snapshotForVizEditor({
             projectDetail: p.projectDetail,
-            instanceDetail: p.instanceDetail,
             resultsValue,
             config: source.config,
           }),

@@ -1,9 +1,11 @@
 import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
 import { Hono } from "hono";
+import { getAssetsForInstance } from "../../db/mod.ts";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { notifyInstanceAssetsUpdated } from "../../task_management/notify_instance_updated.ts";
 
 export const routesUpload = new Hono();
 
@@ -265,6 +267,13 @@ routesUpload.patch(
 
         // Delete the upload record immediately
         uploads.delete(uploadId);
+
+        // Notify all connected clients about new asset
+        getAssetsForInstance().then((assetsRes) => {
+          if (assetsRes.success) {
+            notifyInstanceAssetsUpdated(assetsRes.data);
+          }
+        });
 
         // Return success response with all necessary information
         c.status(204);

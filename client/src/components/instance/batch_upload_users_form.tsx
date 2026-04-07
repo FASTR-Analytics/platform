@@ -6,21 +6,18 @@ import {
   Button,
   Select,
   StateHolderFormError,
-  StateHolderWrapper,
   getSelectOptions,
   timActionForm,
-  timQuery,
   type EditorComponentProps,
   FrameTop,
   HeaderBarCanGoBack,
   Checkbox,
 } from "panther";
 import { cleanupUppy, createUppyInstance } from "~/upload/uppy_file_upload";
+import { instanceState } from "~/state/instance_state";
 
 type Props = EditorComponentProps<
-  {
-    silentRefreshUsers: () => Promise<void>;
-  },
+  {},
   undefined
 >;
 
@@ -28,11 +25,6 @@ export function BatchUploadUsersForm(p: Props) {
   const [selectedFileName, setSelectedFileName] = createSignal<string>("");
   const [replaceAllExisting, setReplaceAllExisting] =
     createSignal<boolean>(false);
-
-  const assetListing = timQuery(
-    () => serverActions.getAssets({}),
-    t3(TC.loadingAssets),
-  );
 
   function updateSelectedFileName(fileName: string) {
     setSelectedFileName(fileName);
@@ -52,7 +44,6 @@ export function BatchUploadUsersForm(p: Props) {
       });
     },
     async () => {
-      await p.silentRefreshUsers();
       p.close(undefined);
     },
   );
@@ -62,9 +53,6 @@ export function BatchUploadUsersForm(p: Props) {
   onMount(() => {
     uppy = createUppyInstance({
       triggerId: "#select-csv-file-button",
-      onModalClosed: () => {
-        assetListing.fetch();
-      },
       onUploadSuccess: (file) => {
         if (!file) {
           return;
@@ -104,21 +92,15 @@ export function BatchUploadUsersForm(p: Props) {
         </div>
 
         <div class="w-96">
-          <StateHolderWrapper state={assetListing.state()} noPad>
-            {(keyedAssets) => {
-              return (
-                <Select
-                  label={t3({ en: "Or select existing CSV file", fr: "Ou sélectionner un fichier CSV existant" })}
-                  options={getSelectOptions(
-                    keyedAssets.filter((a) => a.isCsv).map((a) => a.fileName),
-                  )}
-                  value={selectedFileName()}
-                  onChange={updateSelectedFileName}
-                  fullWidth
-                />
-              );
-            }}
-          </StateHolderWrapper>
+          <Select
+            label={t3({ en: "Or select existing CSV file", fr: "Ou sélectionner un fichier CSV existant" })}
+            options={getSelectOptions(
+              instanceState.assets.filter((a) => a.isCsv).map((a) => a.fileName),
+            )}
+            value={selectedFileName()}
+            onChange={updateSelectedFileName}
+            fullWidth
+          />
         </div>
 
         <div class="">

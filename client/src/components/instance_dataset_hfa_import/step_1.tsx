@@ -6,12 +6,11 @@ import {
   Button,
   Select,
   StateHolderFormError,
-  StateHolderWrapper,
   getSelectOptions,
   timActionForm,
-  timQuery,
 } from "panther";
 import { cleanupUppy, createUppyInstance } from "~/upload/uppy_file_upload";
+import { instanceState } from "~/state/instance_state";
 
 type Props = {
   step1Result: DatasetHfaStep1Result | undefined;
@@ -25,11 +24,6 @@ export function Step1(p: Props) {
   const [selectedXlsFormFileName, setSelectedXlsFormFileName] =
     createSignal<string>(p.step1Result?.xlsForm.fileName ?? "");
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step1Result);
-
-  const assetListing = timQuery(
-    () => serverActions.getAssets({}),
-    t3(TC.loadingAssets),
-  );
 
   function updateSelectedCsvFileName(fileName: string) {
     setNeedsSaving(true);
@@ -65,9 +59,6 @@ export function Step1(p: Props) {
   onMount(() => {
     uppyCsv = createUppyInstance({
       triggerId: "#select-csv-button",
-      onModalClosed: () => {
-        assetListing.fetch();
-      },
       onUploadSuccess: (file) => {
         if (!file) return;
         updateSelectedCsvFileName(file.name as string);
@@ -75,9 +66,6 @@ export function Step1(p: Props) {
     });
     uppyXlsForm = createUppyInstance({
       triggerId: "#select-xlsform-button",
-      onModalClosed: () => {
-        assetListing.fetch();
-      },
       onUploadSuccess: (file) => {
         if (!file) return;
         updateSelectedXlsFormFileName(file.name as string);
@@ -99,21 +87,15 @@ export function Step1(p: Props) {
         </Button>
       </div>
       <div class="w-96">
-        <StateHolderWrapper state={assetListing.state()} noPad>
-          {(keyedAssets) => {
-            return (
-              <Select
-                label={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
-                options={getSelectOptions(
-                  keyedAssets.filter((a) => a.isCsv).map((a) => a.fileName),
-                )}
-                value={selectedCsvFileName()}
-                onChange={updateSelectedCsvFileName}
-                fullWidth
-              />
-            );
-          }}
-        </StateHolderWrapper>
+        <Select
+          label={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
+          options={getSelectOptions(
+            instanceState.assets.filter((a) => a.isCsv).map((a) => a.fileName),
+          )}
+          value={selectedCsvFileName()}
+          onChange={updateSelectedCsvFileName}
+          fullWidth
+        />
       </div>
 
       <h3 class="font-700 text-lg">{t3({ en: "XLSForm Questionnaire File", fr: "Fichier questionnaire XLSForm" })}</h3>
@@ -123,21 +105,15 @@ export function Step1(p: Props) {
         </Button>
       </div>
       <div class="w-96">
-        <StateHolderWrapper state={assetListing.state()} noPad>
-          {(keyedAssets) => {
-            return (
-              <Select
-                label={t3({ en: "Existing XLSForm file to use", fr: "Fichier XLSForm existant à utiliser" })}
-                options={getSelectOptions(
-                  keyedAssets.filter((a) => a.isXlsx).map((a) => a.fileName),
-                )}
-                value={selectedXlsFormFileName()}
-                onChange={updateSelectedXlsFormFileName}
-                fullWidth
-              />
-            );
-          }}
-        </StateHolderWrapper>
+        <Select
+          label={t3({ en: "Existing XLSForm file to use", fr: "Fichier XLSForm existant à utiliser" })}
+          options={getSelectOptions(
+            instanceState.assets.filter((a) => a.isXlsx).map((a) => a.fileName),
+          )}
+          value={selectedXlsFormFileName()}
+          onChange={updateSelectedXlsFormFileName}
+          fullWidth
+        />
       </div>
 
       <StateHolderFormError state={save.state()} />

@@ -1,6 +1,4 @@
 import {
-  InstanceDetail,
-  ProjectDetail,
   _POSSIBLE_DATASETS,
   getCalendar,
   t3,
@@ -20,12 +18,12 @@ import {
 } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance_state";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { SettingsForProjectDatasetHmis } from "./settings_for_project_dataset_hmis";
 import { useProjectDetail } from "~/components/project_runner/mod";
 
 type Props = {
-  instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
 };
 
@@ -51,7 +49,7 @@ export function ProjectData(p: Props) {
                   >
                     {(keyedProjectDatasetHmis) => {
                       const projectVersion = () => keyedProjectDatasetHmis.info.version.id;
-                      const instanceVersion = () => p.instanceDetail.datasetVersions.hmis;
+                      const instanceVersion = () => instanceState.datasetVersions.hmis;
 
                       const stalenessCheck = () => {
                         const reasons: string[] = [];
@@ -65,16 +63,16 @@ export function ProjectData(p: Props) {
 
                         // Structure (facilities/admin areas)
                         if (
-                          p.instanceDetail.structureLastUpdated &&
+                          instanceState.structureLastUpdated &&
                           keyedProjectDatasetHmis.info.structureLastUpdated &&
-                          p.instanceDetail.structureLastUpdated > keyedProjectDatasetHmis.info.structureLastUpdated
+                          instanceState.structureLastUpdated > keyedProjectDatasetHmis.info.structureLastUpdated
                         ) {
                           reasons.push(t3({ en: "Facilities or admin areas changed", fr: "Établissements ou unités administratives modifiés" }));
                         }
 
                         // Indicators
                         if (
-                          p.instanceDetail.cacheVersions.indicatorMappings !== keyedProjectDatasetHmis.info.indicatorMappingsVersion
+                          instanceState.indicatorMappingsVersion !== keyedProjectDatasetHmis.info.indicatorMappingsVersion
                         ) {
                           reasons.push(t3({ en: "Indicators or mappings changed", fr: "Indicateurs ou correspondances modifiés" }));
                         }
@@ -82,7 +80,7 @@ export function ProjectData(p: Props) {
                         // Facility config
                         if (
                           keyedProjectDatasetHmis.info.facilityColumnsConfig &&
-                          JSON.stringify(p.instanceDetail.facilityColumns) !== JSON.stringify(keyedProjectDatasetHmis.info.facilityColumnsConfig)
+                          JSON.stringify(instanceState.facilityColumns) !== JSON.stringify(keyedProjectDatasetHmis.info.facilityColumnsConfig)
                         ) {
                           reasons.push(t3({ en: "Facility configuration changed", fr: "Configuration des établissements modifiée" }));
                         }
@@ -90,7 +88,7 @@ export function ProjectData(p: Props) {
                         // Max admin area
                         if (
                           keyedProjectDatasetHmis.info.maxAdminArea !== undefined &&
-                          p.instanceDetail.maxAdminArea !== keyedProjectDatasetHmis.info.maxAdminArea
+                          instanceState.maxAdminArea !== keyedProjectDatasetHmis.info.maxAdminArea
                         ) {
                           reasons.push(t3({ en: "Admin area structure changed", fr: "Structure des unités administratives modifiée" }));
                         }
@@ -105,9 +103,9 @@ export function ProjectData(p: Props) {
                           element: SettingsForProjectDatasetHmis,
                           props: {
                             projectDetail: projectDetail,
-                            facilityColumns: p.instanceDetail.facilityColumns,
+                            facilityColumns: instanceState.facilityColumns,
                             indicatorMappingsVersion:
-                              p.instanceDetail.cacheVersions.indicatorMappings,
+                              instanceState.indicatorMappingsVersion,
                             hmisInfo: keyedProjectDatasetHmis.info,
                             autoTriggerSave: autoTriggerSave,
                           },
@@ -242,7 +240,7 @@ export function ProjectData(p: Props) {
                               </div>
                               <Show
                                 when={
-                                  p.instanceDetail.facilityColumns
+                                  instanceState.facilityColumns
                                     .includeOwnership
                                 }
                               >
@@ -263,7 +261,7 @@ export function ProjectData(p: Props) {
                               </Show>
                               <Show
                                 when={
-                                  p.instanceDetail.facilityColumns.includeTypes
+                                  instanceState.facilityColumns.includeTypes
                                 }
                               >
                                 <div class="grid grid-cols-12 text-sm">
@@ -308,7 +306,7 @@ export function ProjectData(p: Props) {
                   >
                     {(keyedProjectDatasetHfa) => {
                       const projectVersion = () => 999999; // TODO: Need to figure out how to handle this
-                      const instanceVersion = () => p.instanceDetail.datasetVersions.hfa;
+                      const instanceVersion = () => instanceState.datasetVersions.hfa;
                       const isStale = () => {
                         const inst = instanceVersion();
                         const proj = projectVersion();
@@ -402,7 +400,7 @@ export function ProjectData(p: Props) {
                     {(_) => {
                       async function enableDatasetHmis() {
                         if (
-                          !p.instanceDetail.datasetsWithData.includes(
+                          !instanceState.datasetsWithData.includes(
                             possibleDataset.datasetType,
                           )
                         ) {
@@ -417,9 +415,9 @@ export function ProjectData(p: Props) {
                           element: SettingsForProjectDatasetHmis,
                           props: {
                             projectDetail: projectDetail,
-                            facilityColumns: p.instanceDetail.facilityColumns,
+                            facilityColumns: instanceState.facilityColumns,
                             indicatorMappingsVersion:
-                              p.instanceDetail.cacheVersions.indicatorMappings,
+                              instanceState.indicatorMappingsVersion,
                             hmisInfo: undefined,
                           },
                         });
@@ -427,7 +425,7 @@ export function ProjectData(p: Props) {
 
                       const enableDatasetOther = timActionButton(async () => {
                         if (
-                          !p.instanceDetail.datasetsWithData.includes(
+                          !instanceState.datasetsWithData.includes(
                             possibleDataset.datasetType,
                           )
                         ) {

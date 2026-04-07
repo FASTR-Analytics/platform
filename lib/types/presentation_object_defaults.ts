@@ -34,6 +34,7 @@ export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   sortIndicatorValues: "none",
   formatAdminArea3Labels: false,
   mapColorPreset: "red-green",
+  mapColorReverse: false,
   mapColorFrom: "#fee0d2",
   mapColorTo: "#de2d26",
   mapProjection: "equirectangular",

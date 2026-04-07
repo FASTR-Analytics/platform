@@ -26,6 +26,8 @@ export type ChartValueInfo = ChartSeriesInfo & {
   i_val: number;
   isFirstVal: boolean;
   isLastVal: boolean;
+  valueMin: number;
+  valueMax: number;
 };
 
 export type ChartValueInfoFunc<T> = (info: ChartValueInfo) => T;
@@ -37,9 +39,38 @@ export type CascadeArrowInfo = ChartSeriesInfo & {
   isLastArrow: boolean;
   fromVal: number;
   toVal: number;
-  dropoff: number;
-  retention: number;
+  absDropoff: number;
+  relDropoff: number;
+  relRetention: number;
   isBiggestDropoff: boolean;
 };
 
 export type CascadeArrowInfoFunc<T> = (info: CascadeArrowInfo) => T;
+
+export type MapRegionInfo = {
+  featureId: string;
+  value: number | undefined;
+  valueMin: number;
+  valueMax: number;
+  featureProperties: Record<string, unknown>;
+  paneIndex: number;
+  tierIndex: number;
+  laneIndex: number;
+};
+
+export type MapRegionInfoFunc<T> = (info: MapRegionInfo) => T;
+
+export type TableCellInfo = {
+  value: string | number;
+  valueAsNumber: number | undefined;
+  valueMin: number;
+  valueMax: number;
+  i_row: number;
+  i_col: number;
+  nRows: number;
+  nCols: number;
+  rowHeader: string;
+  colHeader: string;
+};
+
+export type TableCellInfoFunc<T> = (info: TableCellInfo) => T;

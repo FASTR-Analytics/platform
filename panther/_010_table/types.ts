@@ -7,6 +7,7 @@ import type {
   CustomFigureStyle,
   FigureInputsBase,
   JsonArray,
+  LegendInput,
   LegendItem,
   Measured,
   MeasuredSurrounds,
@@ -14,6 +15,8 @@ import type {
   MergedTableStyle,
   Primitive,
   RectCoordsDims,
+  TableCellInfo,
+  TableCellStyle,
 } from "./deps.ts";
 
 export type TableInputs = FigureInputsBase & {
@@ -140,10 +143,16 @@ export type RowHeaderInfo = {
   index: number | "group-header";
 };
 
+export type MeasuredCellInfo = {
+  mText: MeasuredText;
+  cellStyle: TableCellStyle;
+  cellInfo: TableCellInfo;
+};
+
 export type MeasuredRowInfo = {
   rowHeaderInfo: RowHeaderInfo;
-  cellTexts: MeasuredText[]; // One per column, empty for group-header rows
-  rowContentHeight: number; // Max height of row header and all cells
+  cells: MeasuredCellInfo[];
+  rowContentHeight: number;
 };
 
 export type ColGroupHeaderInfo = {
@@ -193,9 +202,10 @@ export type MeasuredTable = Measured<TableInputs> & {
   transformedData: TableDataTransformed;
   customFigureStyle: CustomFigureStyle;
   mergedTableStyle: MergedTableStyle;
+  columnMinMax: Map<number, { min: number; max: number }>;
   // Display data
   caption?: string;
   subCaption?: string;
   footnote?: string | string[];
-  legendItemsOrLabels?: LegendItem[] | string[];
+  legend?: LegendInput;
 };

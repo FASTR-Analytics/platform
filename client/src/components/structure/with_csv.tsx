@@ -1,7 +1,8 @@
 import { ItemsHolderStructure, t3, TC } from "lib";
 import { Csv, StateHolder, StateHolderWrapper, TableFromCsv } from "panther";
 import { createEffect, createMemo, createSignal } from "solid-js";
-import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance_state";
+import { getStructureItemsFromCacheOrFetch } from "~/state/instance_data_caches";
 
 type Props = {
   onCsvReady?: (csv: Csv<any>) => void;
@@ -15,12 +16,19 @@ export function StructureWithCsv(p: Props) {
     msg: t3(TC.fetchingData),
   });
 
-  async function attemptGeStructureItems() {
+  async function attemptGetStructureItems() {
     seStructureItems({
       status: "loading",
       msg: t3(TC.fetchingData),
     });
-    const res = await serverActions.getStructureItems({});
+    const lastUpdated = instanceState.structureLastUpdated;
+    if (!lastUpdated) {
+      seStructureItems({ status: "error", err: "No structure data" });
+      return;
+    }
+    const maxAA = instanceState.maxAdminArea;
+    const fcHash = Object.values(instanceState.facilityColumns).sort().join("_");
+    const res = await getStructureItemsFromCacheOrFetch(lastUpdated, maxAA, fcHash);
     if (res.success === false) {
       seStructureItems({ status: "error", err: res.err });
       return;
@@ -36,7 +44,7 @@ export function StructureWithCsv(p: Props) {
   }
 
   createEffect(() => {
-    attemptGeStructureItems();
+    attemptGetStructureItems();
   });
 
   return (

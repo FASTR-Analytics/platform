@@ -8,9 +8,16 @@ export type KeyColors = {
   base200: string;
   base300: string;
   baseContent: string;
-  baseContentLessVisible: string;
   primary: string;
   primaryContent: string;
+  neutral: string;
+  neutralContent: string;
+  success: string;
+  successContent: string;
+  warning: string;
+  warningContent: string;
+  danger: string;
+  dangerContent: string;
 };
 
 export type KeyColorsKey = keyof KeyColors;

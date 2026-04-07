@@ -32,7 +32,6 @@ function cycleTriState(current: TriState): TriState {
 
 type Props = {
   emails: string[];
-  silentFetch: () => Promise<void>;
 };
 
 export function BulkEditPermissionsForm(
@@ -59,7 +58,7 @@ export function BulkEditPermissionsForm(
         permissions,
       });
     },
-    p.silentFetch,
+    async () => {},
     () => p.close(undefined),
   );
 

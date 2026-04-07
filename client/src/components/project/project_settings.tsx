@@ -1,6 +1,5 @@
 import {
   ProjectDetail,
-  InstanceDetail,
   ProjectUser,
   t3,
   TC,
@@ -72,9 +71,7 @@ interface BackupInfo {
 
 type Props = {
   isGlobalAdmin: boolean;
-  silentRefreshInstance: () => Promise<void>;
   backToHome: () => void;
-  instanceDetail: InstanceDetail;
 };
 
 export function ProjectSettings(p: Props) {
@@ -87,7 +84,6 @@ export function ProjectSettings(p: Props) {
       element: CopyProjectForm,
       props: {
         projectId: projectDetail.id,
-        silentFetch: p.silentRefreshInstance,
       },
     });
     if (res) {
@@ -185,7 +181,6 @@ export function ProjectSettings(p: Props) {
         lockAction: "lock",
       }),
     async () => {
-      await p.silentRefreshInstance();
     },
   );
 
@@ -197,7 +192,6 @@ export function ProjectSettings(p: Props) {
         lockAction: "unlock",
       }),
     async () => {
-      await p.silentRefreshInstance();
     },
   );
 
@@ -215,7 +209,7 @@ export function ProjectSettings(p: Props) {
           project_id: projectDetail.id,
           projectId: projectDetail.id,
         }),
-      p.silentRefreshInstance,
+      async () => {},
       p.backToHome,
     );
 
@@ -336,7 +330,6 @@ export function ProjectSettings(p: Props) {
         <SettingsSection header={t3({ en: "Backups", fr: "Sauvegardes" })}>
           <ProjectBackups
             projectId={projectDetail.id}
-            instanceDetail={p.instanceDetail}
           />
         </SettingsSection>
 
@@ -597,7 +590,6 @@ interface GroupedBackups {
 
 function ProjectBackups(props: {
   projectId: string;
-  instanceDetail: InstanceDetail;
 }) {
   const [expandedGroups, setExpandedGroups] = createSignal<Set<string>>(
     new Set(),

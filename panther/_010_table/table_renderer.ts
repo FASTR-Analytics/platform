@@ -15,6 +15,7 @@ import {
   type Renderer,
   resolveFigureAutofitOptions,
   sum,
+  type TableCellInfo,
 } from "./deps.ts";
 import { getTableDataTransformed } from "./get_table_data.ts";
 import type { TableInputs } from "./mod.ts";
@@ -63,6 +64,44 @@ function getMinComfortableWidth(
     }
   }
 
+  // Compute column min/max for TableCellInfo
+  const nRows = d.aoa.length;
+  const allColIndices: number[] = [];
+  for (const colGroup of d.colGroups) {
+    for (const col of colGroup.cols) {
+      allColIndices.push(col.index);
+    }
+  }
+  const columnMinMax = new Map<number, { min: number; max: number }>();
+  for (const colIdx of allColIndices) {
+    let min = 0;
+    let max = 0;
+    let hasNumeric = false;
+    for (let r = 0; r < nRows; r++) {
+      const val = d.aoa[r][colIdx];
+      const num = Number(val);
+      if (!isNaN(num)) {
+        if (!hasNumeric) {
+          min = num;
+          max = num;
+          hasNumeric = true;
+        } else {
+          if (num < min) min = num;
+          if (num > max) max = num;
+        }
+      }
+    }
+    columnMinMax.set(colIdx, { min, max });
+  }
+
+  // Build row header lookup for TableCellInfo
+  const rowHeaderLabels: string[] = [];
+  for (const rowGroup of d.rowGroups) {
+    for (const row of rowGroup.rows) {
+      rowHeaderLabels[row.index] = row.label ?? "";
+    }
+  }
+
   // Calculate minimum column width (widest word in header or cells)
   let minColWidth = 0;
   for (const colGroup of d.colGroups) {
@@ -76,17 +115,26 @@ function getMinComfortableWidth(
         getWidestWord(rc, col.label, s.text.colHeaders),
       );
       // Check cell values for this column
-      for (const row of d.aoa) {
-        const val = row[col.index];
+      const mm = columnMinMax.get(col.index);
+      for (let rowIndex = 0; rowIndex < nRows; rowIndex++) {
+        const val = d.aoa[rowIndex][col.index];
         const valAsNum = Number(val);
-        const valStr = isNaN(valAsNum)
-          ? String(val)
-          : s.cellValueFormatter(valAsNum, {
-            colHeader: col.label ?? "",
-            colIndex: col.index,
-            rowHeader: "",
-            rowIndex: 0,
-          });
+        const cellInfo: TableCellInfo = {
+          value: val,
+          valueAsNumber: isNaN(valAsNum) ? undefined : valAsNum,
+          valueMin: mm?.min ?? 0,
+          valueMax: mm?.max ?? 0,
+          i_row: rowIndex,
+          i_col: col.index,
+          nRows,
+          nCols,
+          rowHeader: rowHeaderLabels[rowIndex] ?? "",
+          colHeader: col.label ?? "",
+        };
+        const textFormatter = s.tableCells.textFormatter;
+        const valStr = textFormatter === "none"
+          ? ""
+          : (textFormatter(cellInfo) ?? "");
         minColWidth = Math.max(
           minColWidth,
           getWidestWord(rc, valStr, s.text.cells),
@@ -112,7 +160,7 @@ function getMinComfortableWidth(
   const surroundsMinWidth = estimateMinSurroundsWidth(
     rc,
     customFigureStyle,
-    item.legendItemsOrLabels,
+    item.legend,
   );
   return (
     rowHeaderTotalWidth +
@@ -249,14 +297,15 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     rc: RenderContext,
     width: number,
     item: TableInputs,
-    _responsiveScale?: number,
+    responsiveScale?: number,
   ): HeightConstraints {
     const autofitOpts = resolveFigureAutofitOptions(item.autofit);
 
-    const idealH = getIdealHeightAtScale(rc, width, item, 1.0);
+    const baseScale = responsiveScale ?? 1.0;
+    const idealH = getIdealHeightAtScale(rc, width, item, baseScale);
 
     // Width-based scaling for optimizer scoring
-    const minComfortableWidth = getMinComfortableWidth(rc, item, 1.0);
+    const minComfortableWidth = getMinComfortableWidth(rc, item, baseScale);
     const neededScalingToFitWidth = width >= minComfortableWidth
       ? 1.0
       : width / minComfortableWidth;

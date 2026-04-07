@@ -13,6 +13,7 @@ import type {
   LineStyle,
   MarkdownRendererInput,
   Measured,
+  MeasuredImage,
   MeasuredLayoutNode,
   MeasuredText,
   MergedPageStyle,
@@ -84,14 +85,43 @@ export type PageContentItem =
   | PageSpacerInputs;
 
 // =============================================================================
+// Page Annotations
+// =============================================================================
+
+export type PageAnnotation = PageAnnotationRect;
+
+export type PageAnnotationRect = {
+  rect: string;
+  borderWidth?: number;
+  borderColor?: ColorKeyOrString;
+  rectRadius?: number;
+};
+
+export function isRectAnnotation(
+  ann: PageAnnotation,
+): ann is PageAnnotationRect {
+  return "rect" in ann;
+}
+
+// =============================================================================
 // Page Input Types
 // =============================================================================
+
+export type SplitImageInputs = {
+  image?: HTMLImageElement;
+  backgroundColor?: ColorKeyOrString;
+  placement: "left" | "right" | "top" | "bottom";
+  sizeAsPctOfPage: number;
+};
 
 // Base properties shared by all page input types
 export type PageInputsBase = {
   overlay?: HTMLImageElement;
   watermark?: string;
   style?: CustomPageStyleOptions;
+  annotations?: PageAnnotation[];
+  pageNumber?: string;
+  splitImage?: SplitImageInputs;
 };
 
 // Cover page specific inputs
@@ -121,7 +151,6 @@ export type FreeformPageInputs = PageInputsBase & {
   headerLogos?: HTMLImageElement[];
   footerLogos?: HTMLImageElement[];
   content: LayoutNode<PageContentItem>;
-  pageNumber?: string;
 };
 
 // Discriminated union of all page input types
@@ -141,6 +170,11 @@ type MeasuredPageBase = Measured<PageInputs> & {
   mergedPageStyle: MergedPageStyle;
   responsiveScale?: number;
   overflow: boolean;
+  fullPageBounds: RectCoordsDims;
+  mWatermark?: MeasuredText;
+  measuredSplitImage?: MeasuredImage;
+  splitImageBounds?: RectCoordsDims;
+  splitImageBackgroundColor?: ColorKeyOrString;
 };
 
 // Cover page specific measured data

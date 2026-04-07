@@ -112,6 +112,7 @@ export function generateContentPrimitives(
     seriesHeaders: d.seriesHeaders,
     contentStyle: s,
     dataLabelsTextStyle: params.dataLabelsTextStyle,
+    valueRange,
     mappedBoundsUb,
     mappedBoundsLb,
   };

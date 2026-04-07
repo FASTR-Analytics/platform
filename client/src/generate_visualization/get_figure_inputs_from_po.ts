@@ -93,7 +93,7 @@ export function getFigureInputsFromPresentationObject(
             ih.dateRange,
           ),
           style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
-          legendItemsOrLabels: getLegendItemsFromConfig(config),
+          legend: getLegendItemsFromConfig(config),
         },
       };
     }
@@ -142,7 +142,7 @@ export function getFigureInputsFromPresentationObject(
             ih.dateRange,
           ),
           style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
-          legendItemsOrLabels: getLegendItemsFromConfig(config),
+          legend: getLegendItemsFromConfig(config),
         },
       };
     }

@@ -12,20 +12,15 @@ export function renderFreeform(
   rc: RenderContext,
   measured: MeasuredFreeformPage,
 ): void {
-  const inputs = measured.item;
   const s = measured.mergedPageStyle;
 
-  // Render background if needed
   if (s.content.backgroundColor !== "none") {
     rc.rRect(measured.bounds, {
       fillColor: s.content.backgroundColor,
     });
   }
 
-  renderPagePrimitives(
-    rc,
-    measured.primitives.filter((p) => p.id !== "freeformWatermark"),
-  );
+  renderPagePrimitives(rc, measured.primitives);
 
   renderContent(
     rc,
@@ -36,19 +31,5 @@ export function renderFreeform(
       overflow: measured.overflow,
       gaps: measured.gaps,
     },
-    inputs,
-    s,
   );
-
-  const watermarkPrim = measured.primitives.find(
-    (p) => p.id === "freeformWatermark",
-  );
-  if (watermarkPrim && watermarkPrim.type === "text") {
-    rc.rText(
-      watermarkPrim.mText,
-      [watermarkPrim.x, watermarkPrim.y],
-      watermarkPrim.alignH,
-      watermarkPrim.alignV,
-    );
-  }
 }

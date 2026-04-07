@@ -141,6 +141,11 @@ export function generateXTextAxisPrimitive(
     },
     ticks,
     axisLine,
+    tickStyle: {
+      strokeColor: sg.axisColor,
+      strokeWidth: sg.gridStrokeWidth,
+      lineDash: "solid",
+    },
     zIndex: (Z_INDEX as any).AXIS,
   };
 }
@@ -373,6 +378,11 @@ export function generateXPeriodAxisPrimitive(
     },
     ticks,
     axisLine,
+    tickStyle: {
+      strokeColor: sg.axisColor,
+      strokeWidth: sg.gridStrokeWidth,
+      lineDash: "solid",
+    },
     zIndex: (Z_INDEX as any).AXIS,
   };
 }
@@ -458,6 +468,24 @@ export function generateYScaleAxisPrimitive(
     },
   };
 
+  let axisLabel: ChartAxisPrimitive["axisLabel"];
+  if (dy.yScaleAxisLabel) {
+    const mLabel = rc.mText(
+      dy.yScaleAxisLabel,
+      sy.text.yScaleAxisLabel,
+      Number.POSITIVE_INFINITY,
+      { rotation: "anticlockwise" },
+    );
+    axisLabel = {
+      mText: mLabel,
+      position: new Coordinates([
+        yAxisRcd.x() + my.tierHeaderAndLabelGapWidth,
+        subChartAreaY + subChartAreaHeight / 2,
+      ]),
+      alignment: { h: "left", v: "middle" },
+    };
+  }
+
   return {
     type: "chart-axis",
     key: `y-scale-axis-${i_pane}-${i_tier}`,
@@ -470,6 +498,12 @@ export function generateYScaleAxisPrimitive(
     },
     ticks,
     axisLine,
+    tickStyle: {
+      strokeColor: sg.axisColor,
+      strokeWidth: sg.gridStrokeWidth,
+      lineDash: "solid",
+    },
+    axisLabel,
     zIndex: (Z_INDEX as any).AXIS,
   };
 }

@@ -93,5 +93,6 @@ export function measureLayout<T, U>(
     measureCtx.dividerPositions,
     measureCtx.globalSnapPositions,
   );
+
   return { measured, overflow: overflowTracker.overflow, gaps };
 }

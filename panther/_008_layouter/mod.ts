@@ -5,6 +5,7 @@
 
 export type {
   ColsLayoutNode,
+  ContainerDecorationOptions,
   ContainerLayoutNode,
   ContainerStyleOptions,
   HeightConstraints,
@@ -23,6 +24,7 @@ export type {
   MeasuredLayoutNode,
   MeasuredRowsLayoutNode,
   MeasureLayoutResult,
+  ResolvedContainerDecoration,
   ResolvedContainerStyle,
   RowsLayoutNode,
 } from "./types.ts";

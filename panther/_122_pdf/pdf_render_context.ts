@@ -419,12 +419,12 @@ export class PdfRenderContext implements RenderContext {
       }
 
       // Draw the rect with appropriate mode
-      if (hasFill && hasStroke) {
-        this._jsPdf.rect(r.x(), r.y(), r.w(), r.h(), "FD"); // Fill and Draw
-      } else if (hasFill) {
-        this._jsPdf.rect(r.x(), r.y(), r.w(), r.h(), "F"); // Fill only
+      const rad = s.rectRadius ?? 0;
+      const mode = hasFill && hasStroke ? "FD" : hasFill ? "F" : "S";
+      if (rad > 0) {
+        this._jsPdf.roundedRect(r.x(), r.y(), r.w(), r.h(), rad, rad, mode);
       } else {
-        this._jsPdf.rect(r.x(), r.y(), r.w(), r.h(), "S"); // Stroke only
+        this._jsPdf.rect(r.x(), r.y(), r.w(), r.h(), mode);
       }
     } catch (e) {
       throw e;
@@ -644,7 +644,8 @@ export class PdfRenderContext implements RenderContext {
               throw new Error("Failed to create temporary canvas context");
             }
             tempCtx.drawImage(gfxImage, 0, 0, dw, dh);
-            this._jsPdf.addImage(tempCanvas, "PNG", dx, dy, dw, dh);
+            const dataUrl = tempCanvas.toDataURL("png");
+            this._jsPdf.addImage(dataUrl, "PNG", dx, dy, dw, dh);
           }
         } else {
           // Regular HTMLImageElement or HTMLCanvasElement
@@ -680,8 +681,9 @@ export class PdfRenderContext implements RenderContext {
         // Draw the cropped portion of the source image
         tempCtx.drawImage(actualImage as any, sx, sy, sw, sh, 0, 0, dw, dh);
 
-        // Add to PDF using canvas directly
-        this._jsPdf.addImage(tempCanvas, "PNG", dx, dy, dw, dh);
+        // Convert temp canvas to data URL for jspdf
+        const dataUrl = tempCanvas.toDataURL("png");
+        this._jsPdf.addImage(dataUrl, "PNG", dx, dy, dw, dh);
       } else {
         throw new Error(
           `Invalid number of arguments for rImage: ${args.length + 1}`,

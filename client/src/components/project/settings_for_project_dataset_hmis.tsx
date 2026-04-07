@@ -28,6 +28,7 @@ import {
 } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance_state";
 import { WindowingSelector } from "../WindowingSelector";
 
 export function SettingsForProjectDatasetHmis(
@@ -68,19 +69,12 @@ export function SettingsForProjectDatasetHmis(
 
   onMount(async () => {
     if (!p.hmisInfo) {
-      setIsLoadingVersion(true);
-      try {
-        const res = await serverActions.getDatasetHmisDetail({});
-        if (res.success && res.data.currentVersionId) {
-          setHmisVersionId(res.data.currentVersionId);
-          setNeedsSave(false);
-        } else {
-          setFetchError(t3({ en: "No HMIS version available", fr: "Aucune version HMIS disponible" }));
-        }
-      } catch (e: any) {
-        setFetchError(e.message || t3({ en: "Failed to fetch HMIS version", fr: "Échec de récupération de la version HMIS" }));
-      } finally {
-        setIsLoadingVersion(false);
+      const versionId = instanceState.datasetVersions.hmis;
+      if (versionId) {
+        setHmisVersionId(versionId);
+        setNeedsSave(false);
+      } else {
+        setFetchError(t3({ en: "No HMIS version available", fr: "Aucune version HMIS disponible" }));
       }
     }
 

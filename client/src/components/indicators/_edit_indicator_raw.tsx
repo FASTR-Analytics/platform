@@ -24,7 +24,6 @@ export function EditIndicatorRawForm(
     {
       commonIndicators: CommonIndicatorWithMappings[];
       existingRawIndicator?: RawIndicatorWithMappings;
-      silentRefreshIndicators: () => Promise<void>;
     },
     undefined
   >,
@@ -95,7 +94,6 @@ export function EditIndicatorRawForm(
         });
       }
     },
-    p.silentRefreshIndicators,
     () => p.close(undefined),
   );
 

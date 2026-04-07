@@ -121,7 +121,10 @@ export function getStyle_SlideDeck(
     cover: {
       backgroundColor: cDetails.primaryBackgroundColor,
       logoGapX: 80,
-      gapY: 60,
+      logoBottomPadding: 60,
+      titleBottomPadding: 60,
+      subTitleBottomPadding: 60,
+      authorBottomPadding: 60,
       // logoWidth: cDetails.logoSize,
     },
     header: {

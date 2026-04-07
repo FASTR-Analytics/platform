@@ -6,6 +6,8 @@
 import type {
   AlignH,
   AlignV,
+  MeasuredImage,
+  MeasuredText,
   MergedPageStyle,
   RectCoordsDims,
   RenderContext,
@@ -22,7 +24,10 @@ export function measureSection(
   bounds: RectCoordsDims,
   item: SectionPageInputs,
   s: MergedPageStyle,
-  responsiveScale?: number,
+  responsiveScale: number | undefined,
+  fullPageBounds: RectCoordsDims,
+  measuredSplitImage: MeasuredImage | undefined,
+  mWatermark: MeasuredText | undefined,
 ): MeasuredSectionPage {
   const textMaxWidth = bounds.w() - s.section.padding.totalPx();
 
@@ -38,17 +43,12 @@ export function measureSection(
     )
     : undefined;
 
-  const mWatermark = item.watermark?.trim()
-    ? rc.mText(item.watermark.trim(), s.text.watermark, bounds.w())
-    : undefined;
-
   const { primitives, totalH } = buildSectionPrimitives(
     bounds,
     item,
     s,
     mSectionTitle,
     mSectionSubTitle,
-    mWatermark,
   );
 
   return {
@@ -58,6 +58,9 @@ export function measureSection(
     mergedPageStyle: s,
     responsiveScale,
     overflow: totalH > bounds.h(),
+    fullPageBounds,
+    measuredSplitImage,
+    mWatermark,
     primitives,
     mSectionTitle,
     mSectionSubTitle,
@@ -101,7 +104,6 @@ function buildSectionPrimitives(
   s: MergedPageStyle,
   mSectionTitle?: import("../../deps.ts").MeasuredText,
   mSectionSubTitle?: import("../../deps.ts").MeasuredText,
-  mWatermark?: import("../../deps.ts").MeasuredText,
 ): { primitives: PagePrimitive[]; totalH: number } {
   const primitives: PagePrimitive[] = [];
   const alignH = s.section.alignH;
@@ -132,7 +134,9 @@ function buildSectionPrimitives(
   const sectionSubTitleH = mSectionSubTitle ? mSectionSubTitle.dims.h() : 0;
 
   const totalH = sectionTitleH +
-    (sectionSubTitleH > 0 ? sectionSubTitleH + s.section.gapY : 0);
+    (sectionSubTitleH > 0
+      ? s.section.sectionTitleBottomPadding + sectionSubTitleH
+      : 0);
 
   const textX = getTextX(bounds, s.section.padding, alignH);
   let currentY = getStartY(bounds, s.section.padding, alignV, totalH);
@@ -151,7 +155,7 @@ function buildSectionPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
-    currentY += sectionTitleH + s.section.gapY;
+    currentY += sectionTitleH + s.section.sectionTitleBottomPadding;
   }
 
   // Section Subtitle
@@ -165,19 +169,6 @@ function buildSectionPrimitives(
       alignH: alignH,
       alignV: "top",
       maxWidth: textMaxWidth,
-    });
-  }
-
-  // Watermark (always centered on page)
-  if (mWatermark) {
-    primitives.push({
-      type: "text",
-      id: "sectionWatermark",
-      mText: mWatermark,
-      x: bounds.centerX(),
-      y: bounds.centerY(),
-      alignH: "center",
-      alignV: "middle",
     });
   }
 

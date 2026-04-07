@@ -18,7 +18,11 @@ export async function loadImage(
 
     // Read the file and convert to data URL for PPTX compatibility
     const imageData = await Deno.readFile(imagePath);
-    const base64 = btoa(String.fromCharCode(...imageData));
+    const chunks: string[] = [];
+    for (let i = 0; i < imageData.length; i += 8192) {
+      chunks.push(String.fromCharCode(...imageData.subarray(i, i + 8192)));
+    }
+    const base64 = btoa(chunks.join(""));
     const ext = imagePath.toLowerCase().endsWith(".png") ? "png" : "jpeg";
     const dataUrl = `data:image/${ext};base64,${base64}`;
 

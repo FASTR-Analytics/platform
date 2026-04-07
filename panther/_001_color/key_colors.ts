@@ -4,29 +4,38 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Color, type ColorOptions, type ColorRgb } from "./color_class.ts";
-import { assert } from "./deps.ts";
-import { TIM_COLOR_SETS } from "./tim_colors.ts";
+import {
+  KEY_COLOR_THEMES,
+  type KeyColorThemeName,
+} from "./key_color_themes.ts";
 import type { ColorKeyOrString, KeyColors, KeyColorsKey } from "./types.ts";
 
+const _defaultTheme = KEY_COLOR_THEMES["dark-blue"].colors;
+
 const _KEY_COLORS = new Map<KeyColorsKey, string>([
-  ["base100", TIM_COLOR_SETS.DarkBlue.base100],
-  ["base200", TIM_COLOR_SETS.DarkBlue.base200],
-  ["base300", TIM_COLOR_SETS.DarkBlue.base300],
-  ["baseContent", TIM_COLOR_SETS.DarkBlue.baseContent],
-  ["baseContentLessVisible", TIM_COLOR_SETS.DarkBlue.baseContentLessVisible],
-  ["primary", TIM_COLOR_SETS.DarkBlue.primary],
-  ["primaryContent", TIM_COLOR_SETS.DarkBlue.primaryContent],
+  ["base100", _defaultTheme.base100],
+  ["base200", _defaultTheme.base200],
+  ["base300", _defaultTheme.base300],
+  ["baseContent", _defaultTheme.baseContent],
+  ["primary", _defaultTheme.primary],
+  ["primaryContent", _defaultTheme.primaryContent],
+  ["neutral", _defaultTheme.neutral],
+  ["neutralContent", _defaultTheme.neutralContent],
+  ["success", _defaultTheme.success],
+  ["successContent", _defaultTheme.successContent],
+  ["warning", _defaultTheme.warning],
+  ["warningContent", _defaultTheme.warningContent],
+  ["danger", _defaultTheme.danger],
+  ["dangerContent", _defaultTheme.dangerContent],
 ]);
 
-export function setKeyColors(kc: KeyColors) {
-  _KEY_COLORS.clear();
-  _KEY_COLORS.set("base100", kc.base100);
-  _KEY_COLORS.set("base200", kc.base200);
-  _KEY_COLORS.set("base300", kc.base300);
-  _KEY_COLORS.set("baseContent", kc.baseContent);
-  _KEY_COLORS.set("baseContentLessVisible", kc.baseContentLessVisible);
-  _KEY_COLORS.set("primary", kc.primary);
-  _KEY_COLORS.set("primaryContent", kc.primaryContent);
+export function setKeyColors(kc: Partial<KeyColors> | KeyColorThemeName) {
+  const colors = typeof kc === "string" ? KEY_COLOR_THEMES[kc].colors : kc;
+  for (
+    const [key, value] of Object.entries(colors) as [KeyColorsKey, string][]
+  ) {
+    _KEY_COLORS.set(key, value);
+  }
 }
 
 export function getColor(colorKey: ColorKeyOrString): string {
@@ -34,14 +43,20 @@ export function getColor(colorKey: ColorKeyOrString): string {
     return "none";
   }
   if (typeof colorKey === "string") {
-    return colorKey;
+    return normalizeToHex(colorKey);
   }
   const finalColor = _KEY_COLORS.get(colorKey.key);
   if (!finalColor) {
-    console.log(finalColor);
     throw new Error("No color for this color key");
   }
-  return finalColor;
+  return normalizeToHex(finalColor);
+}
+
+function normalizeToHex(color: string): string {
+  if (color === "none" || color === "transparent" || color.at(0) === "#") {
+    return color;
+  }
+  return new Color(color).css();
 }
 
 export function getColorAsRgb(colorKey: ColorKeyOrString): ColorRgb {
@@ -58,49 +73,50 @@ export function getColorAsRgb(colorKey: ColorKeyOrString): ColorRgb {
   return new Color(finalColor).rgb();
 }
 
-export function generateKeyColors(
-  color: ColorOptions,
-  nForContrast: number,
-  whiteStartIndex: number,
-  blackStartIndex: number,
+export function generateKeyColorsFromPrimary(
+  primary: ColorOptions,
+  mode: "light" | "dark",
 ): KeyColors {
-  const n = nForContrast;
-  const iw = whiteStartIndex;
-  const ib = blackStartIndex;
-  assert(
-    n > iw + 2 && n > ib + 4,
-    "nForContrast must be higher to allow for start indexes",
-  );
-  const primaryColor = new Color(color);
-  const scaleFromWhite = Color.scale("#fff", primaryColor, n);
-  const scaleFromBlack = Color.scale("#000", primaryColor, n);
+  const n = 20;
+  const primaryColor = new Color(primary);
 
-  const base100 = scaleFromWhite[iw];
-  const base200 = scaleFromWhite[iw + 1];
-  const base300 = scaleFromWhite[iw + 2];
-  const baseContent = scaleFromBlack[ib];
-  const baseContentLessVisible = scaleFromBlack[ib + 4];
-  const primary = primaryColor.css();
-  const primaryContent = scaleFromWhite[iw];
+  if (mode === "light") {
+    const scaleFromWhite = Color.scale("#fff", primaryColor, n);
+    const scaleFromBlack = Color.scale("#000", primaryColor, n);
+    return {
+      base100: scaleFromWhite[0],
+      base200: scaleFromWhite[1],
+      base300: scaleFromWhite[2],
+      baseContent: scaleFromBlack[4],
+      primary: primaryColor.css(),
+      primaryContent: scaleFromWhite[0],
+      neutral: "#6b7280",
+      neutralContent: "#ffffff",
+      success: "#059669",
+      successContent: "#ffffff",
+      warning: "#d97706",
+      warningContent: "#ffffff",
+      danger: "#dc2626",
+      dangerContent: "#ffffff",
+    };
+  }
 
-  console.log("%cbase100 XXXXXXXXXXXXXXXXX", `color: ${base100}`);
-  console.log("%cbase200 XXXXXXXXXXXXXXXXX", `color: ${base200}`);
-  console.log("%cbase300 XXXXXXXXXXXXXXXXX", `color: ${base300}`);
-  console.log("%cbaseContent XXXXXXXXXXXXX", `color: ${baseContent}`);
-  console.log(
-    "%cbaseContentLessVisible XX",
-    `color: ${baseContentLessVisible}`,
-  );
-  console.log("%cprimary XXXXXXXXXXXXXXXXX", `color: ${primary}`);
-  console.log("%cprimaryContent XXXXXXXXXX", `color: ${primaryContent}`);
-
+  const scaleToDark = Color.scale(primaryColor, "#000", n);
+  const scaleToLight = Color.scale(primaryColor, "#fff", n);
   return {
-    base100,
-    base200,
-    base300,
-    baseContent,
-    baseContentLessVisible,
-    primary,
-    primaryContent,
+    base100: scaleToDark[n - 3],
+    base200: scaleToDark[n - 4],
+    base300: scaleToDark[n - 6],
+    baseContent: scaleToLight[n - 1],
+    primary: scaleToLight[n - 3],
+    primaryContent: scaleToDark[n - 2],
+    neutral: "#a1a1aa",
+    neutralContent: "#18181b",
+    success: "#4ade80",
+    successContent: "#052e16",
+    warning: "#facc15",
+    warningContent: "#422006",
+    danger: "#f87171",
+    dangerContent: "#450a0a",
   };
 }

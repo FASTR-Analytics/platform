@@ -49,7 +49,10 @@ export function measureContent(
   const layoutStyle: LayoutStyleConfig = {
     gapX: s.content.gapX,
     gapY: s.content.gapY,
-    containerDefaults: s.layoutContainers,
+    containerDefaults: {
+      ...s.layoutContainers,
+      backgroundExtent: "content" as const,
+    },
     alreadyScaledValue: s.alreadyScaledValue,
   };
 
@@ -73,32 +76,11 @@ export function measureContent(
 export function renderContent(
   rc: RenderContext,
   measured: MeasuredContent,
-  inputs: FreeformPageInputs,
-  s: MergedPageStyle,
 ): void {
-  const padContent = new Padding(s.content.padding);
-
   walkLayout(measured.mLayout, (node) => {
     renderContainerStyle(rc, node);
     if (node.type === "item") {
       renderItem(rc, node);
     }
   });
-
-  if (inputs.pageNumber) {
-    const mText = rc.mText(
-      inputs.pageNumber,
-      s.text.pageNumber,
-      measured.rcdContentOuter.w() * 0.3,
-    );
-    rc.rText(
-      mText,
-      [
-        measured.rcdContentOuter.getPadded(padContent).rightX(),
-        measured.rcdContentOuter.getPadded(padContent).bottomY(),
-      ],
-      "right",
-      "bottom",
-    );
-  }
 }

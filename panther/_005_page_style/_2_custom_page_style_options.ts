@@ -12,6 +12,8 @@ import {
 } from "./deps.ts";
 import type { PageTextStyleOptions } from "./text_style_keys.ts";
 
+export type PageNumberBackground = "none" | "triangle" | "circle" | "rect";
+
 export type CustomPageStyleOptions = {
   scale?: number;
   text?: PageTextStyleOptions;
@@ -20,14 +22,17 @@ export type CustomPageStyleOptions = {
     backgroundColor?: ColorKeyOrString;
     logoHeight?: number;
     logoGapX?: number;
-    gapY?: number;
+    logoBottomPadding?: number;
+    titleBottomPadding?: number;
+    subTitleBottomPadding?: number;
+    authorBottomPadding?: number;
     alignH?: AlignH;
     alignV?: AlignV;
   };
   section?: {
     padding?: PaddingOptions;
     backgroundColor?: ColorKeyOrString;
-    gapY?: number;
+    sectionTitleBottomPadding?: number;
     alignH?: AlignH;
     alignV?: AlignV;
   };
@@ -42,12 +47,14 @@ export type CustomPageStyleOptions = {
     subHeaderBottomPadding?: number;
     bottomBorderStrokeWidth?: number;
     bottomBorderColor?: ColorKeyOrString;
+    alignH?: AlignH;
   };
   footer?: {
     padding?: PaddingOptions;
     logoHeight?: number;
     logoGapX?: number;
     backgroundColor?: ColorKeyOrString;
+    alignH?: AlignH;
   };
   content?: {
     padding?: PaddingOptions;
@@ -60,6 +67,13 @@ export type CustomPageStyleOptions = {
     backgroundColor?: ColorKeyOrString;
     borderColor?: ColorKeyOrString;
     borderWidth?: number;
+    rectRadius?: number;
+  };
+  pageNumber?: {
+    placement?: "bottom-right" | "bottom-left" | "bottom-center";
+    padding?: PaddingOptions;
+    background?: PageNumberBackground;
+    backgroundColor?: ColorKeyOrString;
   };
 };
 

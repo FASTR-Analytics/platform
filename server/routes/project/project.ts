@@ -24,6 +24,8 @@ import {
   setModulesDirtyForDataset,
 } from "../../task_management/mod.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
+import { notifyInstanceProjectsUpdated } from "../../task_management/notify_instance_updated.ts";
+import { getAllProjectSummaries } from "../../db/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
 import { GetLogsByProject } from "../../db/instance/user_logs.ts";
@@ -66,6 +68,7 @@ defineRoute(
         enabledDataset.lastUpdated,
       );
     }
+    notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
     return c.json(res);
   },
 );
@@ -175,6 +178,9 @@ defineRoute(
       body.label,
       body.aiContext,
     );
+    if (res.success) {
+      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -261,6 +267,9 @@ defineRoute(
   log("deleteProject"),
   async (c, { params }) => {
     const res = await deleteProject(c.var.mainDb, params.project_id);
+    if (res.success) {
+      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -276,6 +285,9 @@ defineRoute(
       params.project_id,
       body.lockAction,
     );
+    if (res.success) {
+      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -304,10 +316,14 @@ defineRoute(
       c.var.globalUser,
     );
     if (res.success) {
+      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
       await closePgConnection(params.project_id);
-      copyProjectInBackground(params.project_id, res.data.newProjectId).catch(
-        () => {},
-      );
+      copyProjectInBackground(params.project_id, res.data.newProjectId)
+        .then(async () => {
+          const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+          notifyInstanceProjectsUpdated(await getAllProjectSummaries(mainDb));
+        })
+        .catch(() => {});
     }
     return c.json(res);
   },

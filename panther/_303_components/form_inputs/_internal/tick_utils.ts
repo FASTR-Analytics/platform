@@ -30,9 +30,11 @@ export function generateMinorsBetweenMajors(
   return minors;
 }
 
+import { normalizeTo01 } from "../../deps.ts";
+
 export function tickPosition(value: number, min: number, max: number): number {
   if (max === min) return 0;
-  const pos = ((value - min) / (max - min)) * 100;
+  const pos = normalizeTo01(value, min, max) * 100;
   return Math.round(pos * 100) / 100;
 }
 

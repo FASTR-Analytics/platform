@@ -1,47 +1,34 @@
-import { type GeoJsonMapSummary, type InstanceDetail, t3 } from "lib";
+import { type GeoJsonMapSummary, t3 } from "lib";
 import {
   Button,
   FrameTop,
-  StateHolderWrapper,
   Table,
   type TableColumn,
-  type TimQuery,
   getEditorWrapper,
   timActionDelete,
-  timQuery,
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { clearGeoJsonMemoryCache } from "~/state/caches/geojson_cache";
+import { instanceState } from "~/state/instance_state";
 import { GeoJsonUploadWizard } from "./geojson_upload_wizard";
 
 type Props = {
   isGlobalAdmin: boolean;
-  instanceDetail: TimQuery<InstanceDetail>;
   backToInstance: () => void;
 };
 
 export function GeoJsonManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const geojsonQuery = timQuery(
-    () => serverActions.getGeoJsonMaps({}),
-    t3({
-      en: "Loading GeoJSON maps...",
-      fr: "Chargement des cartes GeoJSON...",
-    }),
-  );
-
-  const silentRefresh = () => {
-    clearGeoJsonMemoryCache();
-    geojsonQuery.fetch();
-    p.instanceDetail.fetch();
-  };
-
   async function handleUpload() {
     await openEditor({
       element: GeoJsonUploadWizard,
-      props: { silentRefresh },
+      props: {
+        silentRefresh: () => {
+          clearGeoJsonMemoryCache();
+        },
+      },
     });
   }
 
@@ -77,7 +64,7 @@ export function GeoJsonManager(p: Props) {
             serverActions.deleteGeoJsonMap({
               adminAreaLevel: item.adminAreaLevel,
             }),
-          silentRefresh,
+          () => clearGeoJsonMemoryCache(),
         );
         return (
           <Show when={p.isGlobalAdmin}>
@@ -108,37 +95,32 @@ export function GeoJsonManager(p: Props) {
                 {t3({ en: "Upload GeoJSON", fr: "Télécharger GeoJSON" })}
               </Button>
             </Show>
-            <Button iconName="refresh" onClick={() => geojsonQuery.fetch()} />
           </div>
         }
       >
-        <StateHolderWrapper state={geojsonQuery.state()}>
-          {(data) => (
-            <div class="ui-pad ui-spy">
-              <Show
-                when={data.length > 0}
-                fallback={
-                  <div class="text-base-500 py-8 text-center">
-                    {t3({
-                      en: "No GeoJSON maps uploaded yet. Upload a GeoJSON file to enable map visualizations.",
-                      fr: "Aucune carte GeoJSON téléchargée. Téléchargez un fichier GeoJSON pour activer les visualisations cartographiques.",
-                    })}
-                  </div>
-                }
-              >
-                <Table
-                  data={data}
-                  columns={columns}
-                  keyField="adminAreaLevel"
-                  noRowsMessage={t3({
-                    en: "No GeoJSON maps",
-                    fr: "Aucune carte GeoJSON",
-                  })}
-                />
-              </Show>
-            </div>
-          )}
-        </StateHolderWrapper>
+        <div class="ui-pad ui-spy">
+          <Show
+            when={instanceState.geojsonMaps.length > 0}
+            fallback={
+              <div class="text-base-500 py-8 text-center">
+                {t3({
+                  en: "No GeoJSON maps uploaded yet. Upload a GeoJSON file to enable map visualizations.",
+                  fr: "Aucune carte GeoJSON téléchargée. Téléchargez un fichier GeoJSON pour activer les visualisations cartographiques.",
+                })}
+              </div>
+            }
+          >
+            <Table
+              data={instanceState.geojsonMaps}
+              columns={columns}
+              keyField="adminAreaLevel"
+              noRowsMessage={t3({
+                en: "No GeoJSON maps",
+                fr: "Aucune carte GeoJSON",
+              })}
+            />
+          </Show>
+        </div>
       </FrameTop>
     </EditorWrapper>
   );

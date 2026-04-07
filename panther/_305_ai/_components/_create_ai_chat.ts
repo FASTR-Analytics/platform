@@ -26,10 +26,10 @@ import {
 } from "../_core/conversation_store.ts";
 import { saveConversation } from "../_core/persistence.ts";
 import { getDisplayItemsFromMessage } from "../_core/display_items.ts";
+import { SERVER_TOOL_LABELS } from "../deps.ts";
 import {
   getInProgressItems,
   processToolUses,
-  SERVER_TOOL_LABELS,
   ToolRegistry,
   type ToolResult,
 } from "../_core/tool_engine.ts";
@@ -339,7 +339,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       allTools.length > 0,
       hasWebFetchTool(config.builtInTools),
       messagesContainDocuments(),
-      config.modelConfig.context1M,
     );
     const messagesForAPI = stripEphemeralContext(currentMessages);
     const stream = config.sdkClient.beta.messages.stream({
@@ -602,7 +601,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       model: mc.model,
       max_tokens: mc.max_tokens,
       temperature: mc.temperature,
-      context1M: mc.context1M,
     });
   }
 
@@ -661,13 +659,11 @@ function getBetasArray(
   hasTools: boolean,
   hasWebFetch: boolean,
   hasDocuments: boolean,
-  context1M?: boolean,
 ): string[] | undefined {
   const headers = getBetaHeaders({
     hasTools,
     hasWebFetch,
     hasDocuments,
-    context1M,
   });
   if (!headers) return undefined;
   return headers["anthropic-beta"].split(",");

@@ -6,6 +6,7 @@ import {
   bulkUpdateUserDefaultProjectPermissions,
   bulkUpdateUserPermissions,
   deleteUser,
+  getInstanceUsers,
   getOtherUser,
   getUserDefaultProjectPermissions,
   getUserPermissions,
@@ -15,6 +16,7 @@ import {
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import { notifyInstanceUsersUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesUsers = new Hono();
@@ -51,6 +53,9 @@ defineRoute(
       body.emails,
       body.isGlobalAdmin,
     );
+    if (resUser.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
     return c.json(resUser);
   },
 );
@@ -74,6 +79,9 @@ defineRoute(
       body.emails,
       body.makeAdmin,
     );
+    if (resUser.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
     return c.json(resUser);
   },
 );
@@ -93,6 +101,9 @@ defineRoute(
       );
     }
     const res = await deleteUser(c.var.mainDb, body.emails);
+    if (res.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -116,6 +127,9 @@ defineRoute(
       body.replace_all_existing,
       c.var.globalUser.email,
     );
+    if (res.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -153,6 +167,9 @@ defineRoute(
       body.email,
       body.permissions,
     );
+    if (res.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -194,6 +211,9 @@ defineRoute(
       body.emails,
       body.permissions,
     );
+    if (res.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
     return c.json(res);
   },
 );

@@ -12,17 +12,22 @@ import {
   type ChartValueInfoFunc,
   type ColorAdjustmentStrategy,
   type ColorKeyOrString,
+  type MapRegionInfoFunc,
   type PaddingOptions,
+  type TableCellInfoFunc,
+  type ValuesColorFunc,
 } from "./deps.ts";
 import type {
   GenericAreaStyleOptions,
   GenericBarStyleOptions,
   GenericCascadeArrowStyleOptions,
   GenericConfidenceBandStyleOptions,
+  GenericDataLabelStyleOptions,
   GenericErrorBarStyleOptions,
   GenericLineStyleOptions,
+  GenericMapRegionStyleOptions,
   GenericPointStyleOptions,
-  TableCellFormatterFunc,
+  GenericTableCellStyleOptions,
 } from "./style_func_types.ts";
 import type { FigureTextStyleOptions } from "./text_style_keys.ts";
 import type { LegendPosition } from "./types.ts";
@@ -30,6 +35,7 @@ import type { LegendPosition } from "./types.ts";
 export type CustomFigureStyleOptions = {
   scale?: number;
   seriesColorFunc?: ChartSeriesInfoFunc<ColorKeyOrString>;
+  valuesColorFunc?: ValuesColorFunc;
 
   ///////////////////////////////////////////
   //  ________                     __      //
@@ -64,6 +70,9 @@ export type CustomFigureStyleOptions = {
     captionGap?: number;
     subCaptionTopPadding?: number;
     footnoteGap?: number;
+    captionAlignH?: "left" | "center" | "right";
+    subCaptionAlignH?: "left" | "center" | "right";
+    footnoteAlignH?: "left" | "center" | "right";
   };
   //////////////////////////////////////////////////////////////////
   //  __                                                      __  //
@@ -92,6 +101,14 @@ export type CustomFigureStyleOptions = {
     legendLineStrokeWidth?: number;
     legendPointInnerColorStrategy?: ColorAdjustmentStrategy;
   };
+  scaleLegend?: {
+    barHeight?: number;
+    tickLength?: number;
+    labelGap?: number;
+    blockGap?: number;
+    noDataGap?: number;
+    noDataSwatchWidth?: number;
+  };
   ///////////////////////////////////////////////
   //  ________         __        __            //
   // /        |       /  |      /  |           //
@@ -114,16 +131,6 @@ export type CustomFigureStyleOptions = {
     alignV?: "top" | "middle" | "bottom";
     colHeaderBackgroundColor?: ColorKeyOrString | "none";
     colGroupHeaderBackgroundColor?: ColorKeyOrString | "none";
-    cellBackgroundColorFormatter?:
-      | "none"
-      | TableCellFormatterFunc<
-        string | number | null | undefined,
-        ColorKeyOrString
-      >;
-    cellValueFormatter?: TableCellFormatterFunc<
-      string | number | null | undefined,
-      string
-    >;
     headerBorderWidth?: number;
     gridLineWidth?: number;
     borderWidth?: number;
@@ -151,6 +158,8 @@ export type CustomFigureStyleOptions = {
     maxHeaderWidthAsPctOfChart?: number;
     headerAlignH?: "left" | "center" | "right";
     headerAlignV?: "top" | "middle";
+    headerPosition?: "left" | "above-axis" | "above-plot-area";
+    headerGap?: number;
   };
   lanes?: {
     hideHeaders?: boolean;
@@ -158,6 +167,7 @@ export type CustomFigureStyleOptions = {
     paddingRight?: number;
     gapX?: number;
     headerAlignH?: "left" | "center" | "right";
+    headerGap?: number;
   };
   xTextAxis?: {
     verticalTickLabels?: boolean;
@@ -234,13 +244,20 @@ export type CustomFigureStyleOptions = {
   //                                                                        //
   ////////////////////////////////////////////////////////////////////////////
   content?: {
+    dataLabel?: GenericDataLabelStyleOptions;
     points?: {
-      defaults?: GenericPointStyleOptions;
-      func?: ChartValueInfoFunc<GenericPointStyleOptions> | "none";
+      func?:
+        | GenericPointStyleOptions
+        | ChartValueInfoFunc<GenericPointStyleOptions>
+        | "none";
+      textFormatter?: ChartValueInfoFunc<string> | "none";
     };
     bars?: {
-      defaults?: GenericBarStyleOptions;
-      func?: ChartValueInfoFunc<GenericBarStyleOptions> | "none";
+      func?:
+        | GenericBarStyleOptions
+        | ChartValueInfoFunc<GenericBarStyleOptions>
+        | "none";
+      textFormatter?: ChartValueInfoFunc<string> | "none";
       stacking?:
         | "none"
         | "stacked"
@@ -249,31 +266,55 @@ export type CustomFigureStyleOptions = {
       maxBarWidth?: number;
     };
     lines?: {
-      defaults?: GenericLineStyleOptions;
-      func?: ChartSeriesInfoFunc<GenericLineStyleOptions> | "none";
+      func?:
+        | GenericLineStyleOptions
+        | ChartSeriesInfoFunc<GenericLineStyleOptions>
+        | "none";
+      textFormatter?: ChartValueInfoFunc<string> | "none";
       joinAcrossGaps?: boolean;
     };
     areas?: {
-      defaults?: GenericAreaStyleOptions;
-      func?: ChartSeriesInfoFunc<GenericAreaStyleOptions> | "none";
+      func?:
+        | GenericAreaStyleOptions
+        | ChartSeriesInfoFunc<GenericAreaStyleOptions>
+        | "none";
       joinAcrossGaps?: boolean;
       diff?: {
         enabled?: boolean;
       };
     };
     errorBars?: {
-      defaults?: GenericErrorBarStyleOptions;
-      func?: ChartValueInfoFunc<GenericErrorBarStyleOptions> | "none";
+      func?:
+        | GenericErrorBarStyleOptions
+        | ChartValueInfoFunc<GenericErrorBarStyleOptions>
+        | "none";
     };
     confidenceBands?: {
-      defaults?: GenericConfidenceBandStyleOptions;
-      func?: ChartSeriesInfoFunc<GenericConfidenceBandStyleOptions> | "none";
+      func?:
+        | GenericConfidenceBandStyleOptions
+        | ChartSeriesInfoFunc<GenericConfidenceBandStyleOptions>
+        | "none";
     };
-    withDataLabels?: boolean;
-    dataLabelFormatter?: ChartValueInfoFunc<string | undefined>;
     cascadeArrows?: {
-      defaults?: GenericCascadeArrowStyleOptions;
-      func?: CascadeArrowInfoFunc<GenericCascadeArrowStyleOptions> | "none";
+      func?:
+        | GenericCascadeArrowStyleOptions
+        | CascadeArrowInfoFunc<GenericCascadeArrowStyleOptions>
+        | "none";
+      textFormatter?: CascadeArrowInfoFunc<string> | "none";
+    };
+    mapRegions?: {
+      func?:
+        | GenericMapRegionStyleOptions
+        | MapRegionInfoFunc<GenericMapRegionStyleOptions>
+        | "none";
+      textFormatter?: MapRegionInfoFunc<string> | "none";
+    };
+    tableCells?: {
+      func?:
+        | GenericTableCellStyleOptions
+        | TableCellInfoFunc<GenericTableCellStyleOptions>
+        | "none";
+      textFormatter?: TableCellInfoFunc<string> | "none";
     };
   };
   ////////////////////////////////////////
@@ -386,38 +427,10 @@ export type CustomFigureStyleOptions = {
   };
   map?: {
     projection?: "equirectangular" | "mercator" | "naturalEarth1";
-    colorScale?: import("./_3_merged_style_return_types.ts").MapColorScale;
-    regionStrokeColor?: ColorKeyOrString | "none";
-    regionStrokeWidth?: number;
-    noDataColor?: ColorKeyOrString | "none";
-    padding?: number;
-    valueRange?: { min: number; max: number } | "auto";
+    fit?: "all-regions" | "only-regions-in-data";
     boundingBox?: [number, number, number, number];
-    includeAreaIds?: string[];
-    featureFilter?: (
-      feature: { properties?: Record<string, unknown> },
-    ) => boolean;
-    dataLabels?: {
-      mode?: import("./_3_merged_style_return_types.ts").MapDataLabelMode;
-      formatter?: (
-        info:
-          import("./_3_merged_style_return_types.ts").MapDataLabelFormatterInfo,
-      ) => string;
-      nameProp?: string;
-      showValue?: boolean;
-      valueFormatter?: (value: number) => string;
-      centroidOffsets?: Record<string, { dx: number; dy: number }>;
-      halo?: {
-        color?: ColorKeyOrString;
-        width?: number;
-      };
-      leaderLine?: {
-        strokeColor?: ColorKeyOrString;
-        strokeWidth?: number;
-        gap?: number;
-      };
-      calloutMargin?: number;
-    };
+    dataLabelMode?: "none" | "centroid" | "callout" | "auto";
+    calloutMargin?: number;
   };
 };
 

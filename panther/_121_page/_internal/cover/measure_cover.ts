@@ -6,6 +6,8 @@
 import type {
   AlignH,
   AlignV,
+  MeasuredImage,
+  MeasuredText,
   MergedPageStyle,
   RectCoordsDims,
   RenderContext,
@@ -22,7 +24,10 @@ export function measureCover(
   bounds: RectCoordsDims,
   item: CoverPageInputs,
   s: MergedPageStyle,
-  responsiveScale?: number,
+  responsiveScale: number | undefined,
+  fullPageBounds: RectCoordsDims,
+  measuredSplitImage: MeasuredImage | undefined,
+  mWatermark: MeasuredText | undefined,
 ): MeasuredCoverPage {
   const textMaxWidth = bounds.w() - s.cover.padding.totalPx();
 
@@ -42,10 +47,6 @@ export function measureCover(
     ? rc.mText(item.date.trim(), s.text.coverDate, textMaxWidth)
     : undefined;
 
-  const mWatermark = item.watermark?.trim()
-    ? rc.mText(item.watermark.trim(), s.text.watermark, bounds.w())
-    : undefined;
-
   const { primitives, totalH } = buildCoverPrimitives(
     bounds,
     item,
@@ -54,7 +55,6 @@ export function measureCover(
     mSubTitle,
     mAuthor,
     mDate,
-    mWatermark,
   );
 
   return {
@@ -64,6 +64,9 @@ export function measureCover(
     mergedPageStyle: s,
     responsiveScale,
     overflow: totalH > bounds.h(),
+    fullPageBounds,
+    measuredSplitImage,
+    mWatermark,
     primitives,
     mTitle,
     mSubTitle,
@@ -111,7 +114,6 @@ function buildCoverPrimitives(
   mSubTitle?: import("../../deps.ts").MeasuredText,
   mAuthor?: import("../../deps.ts").MeasuredText,
   mDate?: import("../../deps.ts").MeasuredText,
-  mWatermark?: import("../../deps.ts").MeasuredText,
 ): { primitives: PagePrimitive[]; totalH: number } {
   const primitives: PagePrimitive[] = [];
   const alignH = s.cover.alignH;
@@ -147,23 +149,27 @@ function buildCoverPrimitives(
   const dateH = mDate ? mDate.dims.h() : 0;
 
   let totalH = 0;
+  let lastBottomPadding = 0;
   if (item.titleLogos && item.titleLogos.length > 0 && logoH > 0) {
-    totalH += logoH + s.cover.gapY;
+    totalH += logoH + s.cover.logoBottomPadding;
+    lastBottomPadding = s.cover.logoBottomPadding;
   }
   if (mTitle && titleH > 0) {
-    totalH += titleH + s.cover.gapY;
+    totalH += titleH + s.cover.titleBottomPadding;
+    lastBottomPadding = s.cover.titleBottomPadding;
   }
   if (mSubTitle && subTitleH > 0) {
-    totalH += subTitleH + s.cover.gapY;
+    totalH += subTitleH + s.cover.subTitleBottomPadding;
+    lastBottomPadding = s.cover.subTitleBottomPadding;
   }
   if (mAuthor && authorH > 0) {
-    totalH += authorH + s.cover.gapY;
+    totalH += authorH + s.cover.authorBottomPadding;
+    lastBottomPadding = s.cover.authorBottomPadding;
   }
   if (mDate && dateH > 0) {
-    totalH += dateH + s.cover.gapY;
-  }
-  if (totalH > 0) {
-    totalH -= s.cover.gapY;
+    totalH += dateH;
+  } else {
+    totalH -= lastBottomPadding;
   }
 
   const textX = getTextX(bounds, s.cover.padding, alignH);
@@ -203,7 +209,7 @@ function buildCoverPrimitives(
       });
       currentX += logoWidth + s.cover.logoGapX;
     }
-    currentY += logoH + s.cover.gapY;
+    currentY += logoH + s.cover.logoBottomPadding;
   }
 
   const textMaxWidth = bounds.w() - s.cover.padding.totalPx();
@@ -220,7 +226,7 @@ function buildCoverPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
-    currentY += titleH + s.cover.gapY;
+    currentY += titleH + s.cover.titleBottomPadding;
   }
 
   // Subtitle
@@ -235,7 +241,7 @@ function buildCoverPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
-    currentY += subTitleH + s.cover.gapY;
+    currentY += subTitleH + s.cover.subTitleBottomPadding;
   }
 
   // Author
@@ -250,7 +256,7 @@ function buildCoverPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
-    currentY += authorH + s.cover.gapY;
+    currentY += authorH + s.cover.authorBottomPadding;
   }
 
   // Date
@@ -264,19 +270,6 @@ function buildCoverPrimitives(
       alignH: alignH,
       alignV: "top",
       maxWidth: textMaxWidth,
-    });
-  }
-
-  // Watermark (always centered on page)
-  if (mWatermark) {
-    primitives.push({
-      type: "text",
-      id: "coverWatermark",
-      mText: mWatermark,
-      x: bounds.centerX(),
-      y: bounds.centerY(),
-      alignH: "center",
-      alignV: "middle",
     });
   }
 

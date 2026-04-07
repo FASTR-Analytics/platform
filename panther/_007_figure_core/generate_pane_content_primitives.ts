@@ -34,6 +34,7 @@ export function generatePaneContentPrimitives<TData>(
     subChartAreaHeight: number;
     subChartAreaWidth: number;
     topHeightForLaneHeaders: number;
+    tierHeaderAndLabelGapHeight: number;
   },
 ): Primitive[] {
   const allPrimitives: Primitive[] = [];
@@ -59,7 +60,8 @@ export function generatePaneContentPrimitives<TData>(
       lb: (number | undefined)[][][][][];
     };
   };
-  let currentPlotAreaY = measured.yAxisRcd.y() + baseStyle.tiers.paddingTop;
+  let currentPlotAreaY = measured.yAxisRcd.y() + baseStyle.tiers.paddingTop +
+    measured.tierHeaderAndLabelGapHeight;
 
   for (let i_tier = 0; i_tier < tierHeaders.length; i_tier++) {
     let currentPlotAreaX = measured.yAxisRcd.rightX() +
@@ -221,7 +223,8 @@ export function generatePaneContentPrimitives<TData>(
       currentPlotAreaX += measured.subChartAreaWidth + baseStyle.lanes.gapX;
     }
 
-    currentPlotAreaY += measured.subChartAreaHeight + baseStyle.tiers.gapY;
+    currentPlotAreaY += measured.subChartAreaHeight + baseStyle.tiers.gapY +
+      measured.tierHeaderAndLabelGapHeight;
   }
 
   return allPrimitives;

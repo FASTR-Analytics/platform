@@ -35,7 +35,6 @@ type Props = {
   user: OtherUser;
   thisLoggedInUserEmail: string;
   close: () => void;
-  silentFetch: () => Promise<void>;
   projects: ProjectSummary[];
 };
 
@@ -95,7 +94,7 @@ export function User(p: Props) {
         emails: [p.user.email],
         makeAdmin: true,
       }),
-    () => p.silentFetch(),
+    async () => {},
   );
   const attemptMakeNonAdmin = timActionButton(
     () =>
@@ -103,7 +102,7 @@ export function User(p: Props) {
         emails: [p.user.email],
         makeAdmin: false,
       }),
-    () => p.silentFetch(),
+    async () => {},
   );
 
   async function attemptDeleteUser() {
@@ -113,7 +112,7 @@ export function User(p: Props) {
         itemList: [p.user.email],
       },
       () => serverActions.deleteUser({ emails: [p.user.email] }),
-      () => p.silentFetch(),
+      async () => {},
       () => p.close(),
     );
 
@@ -123,7 +122,7 @@ export function User(p: Props) {
   async function openProjectPermissions(projectId: string | null, projectLabel: string) {
     await openComponent({
       element: ProjectPermissionForm,
-      props: { projectId, projectLabel, email: p.user.email, silentFetch: p.silentFetch },
+      props: { projectId, projectLabel, email: p.user.email },
     });
   }
 

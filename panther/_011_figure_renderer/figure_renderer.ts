@@ -6,6 +6,7 @@
 import {
   type ChartOVInputs,
   ChartOVRenderer,
+  generateAnnotationPrimitives,
   type HeightConstraints,
   type MapInputs,
   MapRenderer,
@@ -105,7 +106,18 @@ function measureFigure(
   responsiveScale?: number,
 ): MeasuredFigure {
   const renderer = getRendererForFigureItem(item);
-  return renderer.measure(rc, bounds, item as any, responsiveScale);
+  const measured = renderer.measure(rc, bounds, item as any, responsiveScale);
+  if (item.annotations?.length) {
+    const sf = measured.customFigureStyle.sf;
+    const annotationPrimitives = generateAnnotationPrimitives(
+      rc,
+      item.annotations,
+      measured.primitives,
+      sf,
+    );
+    measured.primitives = [...measured.primitives, ...annotationPrimitives];
+  }
+  return measured;
 }
 
 function renderFigure(rc: RenderContext, measured: MeasuredFigure): void {

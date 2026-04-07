@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  MeasuredImage,
   MeasuredText,
   MergedPageStyle,
   RectCoordsDims,
@@ -23,7 +24,10 @@ export function measureFreeform(
   rcdOuter: RectCoordsDims,
   inputs: FreeformPageInputs,
   s: MergedPageStyle,
-  responsiveScale?: number,
+  responsiveScale: number | undefined,
+  fullPageBounds: RectCoordsDims,
+  measuredSplitImage: MeasuredImage | undefined,
+  mWatermark: MeasuredText | undefined,
 ): MeasuredFreeformPage {
   // Measure header
   const header = measureHeader(rc, rcdOuter, inputs, s);
@@ -41,18 +45,7 @@ export function measureFreeform(
     footer?.rcdFooterOuter.h() ?? 0,
   );
 
-  const mWatermark = inputs.watermark?.trim()
-    ? rc.mText(inputs.watermark.trim(), s.text.watermark, rcdOuter.w())
-    : undefined;
-
-  const primitives = buildFreeformPrimitives(
-    header,
-    footer,
-    inputs,
-    s,
-    rcdOuter,
-    mWatermark,
-  );
+  const primitives = buildFreeformPrimitives(header, footer, inputs, s);
 
   return {
     type: "freeform",
@@ -61,6 +54,9 @@ export function measureFreeform(
     mergedPageStyle: s,
     responsiveScale,
     overflow: content.overflow,
+    fullPageBounds,
+    measuredSplitImage,
+    mWatermark,
     primitives,
     header,
     footer,
@@ -76,8 +72,6 @@ function buildFreeformPrimitives(
   footer: ReturnType<typeof measureFooter>,
   inputs: FreeformPageInputs,
   s: MergedPageStyle,
-  bounds: RectCoordsDims,
-  mWatermark?: MeasuredText,
 ): PagePrimitive[] {
   const primitives: PagePrimitive[] = [];
 
@@ -87,18 +81,6 @@ function buildFreeformPrimitives(
 
   if (footer) {
     primitives.push(...buildFooterPrimitives(footer, inputs, s));
-  }
-
-  if (mWatermark) {
-    primitives.push({
-      type: "text",
-      id: "freeformWatermark",
-      mText: mWatermark,
-      x: bounds.centerX(),
-      y: bounds.centerY(),
-      alignH: "center",
-      alignV: "middle",
-    });
   }
 
   return primitives;

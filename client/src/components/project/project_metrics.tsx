@@ -2,7 +2,6 @@ import {
   t3,
   getPossibleModules,
   groupMetricsByLabel,
-  type InstanceDetail,
   type MetricGroup,
   type MetricWithStatus,
   type ModuleId,
@@ -24,7 +23,6 @@ import { useAIProjectContext } from "~/components/project_ai/context";
 import { snapshotForVizEditor } from "~/utils/snapshot";
 
 type Props = {
-  instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
@@ -87,7 +85,6 @@ export function ProjectMetrics(p: Props) {
                       metricGroup={metricGroup}
                       projectId={projectDetail.id}
                       projectDetail={projectDetail}
-                      instanceDetail={p.instanceDetail}
                       isGlobalAdmin={p.isGlobalAdmin}
                       openProjectEditor={p.openProjectEditor}
                     />
@@ -109,7 +106,6 @@ type MetricGroupCardProps = {
   };
   projectId: string;
   projectDetail: ProjectDetail;
-  instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
@@ -151,7 +147,6 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         returnToContext: aiContext(),
         ...snapshotForVizEditor({
           projectDetail: p.projectDetail,
-          instanceDetail: p.instanceDetail,
           resultsValue: res.resultsValue,
           config: res.config,
         }),

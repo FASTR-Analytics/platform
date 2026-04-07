@@ -3,18 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ContentBlock } from "../deps.ts";
+import { type ContentBlock, SERVER_TOOL_LABELS } from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
 import type { AIToolWithMetadata, ToolUIMetadata } from "./tool_helpers.ts";
-
-////////////////////////////////////////////////////////////////////////////////
-// SERVER TOOL LABELS (for built-in tools like web_search)
-////////////////////////////////////////////////////////////////////////////////
-
-export const SERVER_TOOL_LABELS: Record<string, string> = {
-  web_search: "Searching the web...",
-  str_replace_based_edit_tool: "Editing document...",
-};
 
 export type ToolResult = {
   type: "tool_result";

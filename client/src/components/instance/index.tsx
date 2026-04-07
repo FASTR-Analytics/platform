@@ -1,6 +1,6 @@
 import { useSearchParams } from "@solidjs/router";
-import { GlobalUser, isFrench, t3, TC } from "lib";
-import { preloadGeoJson } from "~/state/caches/geojson_cache";
+import { isFrench, t3, TC } from "lib";
+import { instanceState } from "~/state/instance_state";
 import {
   AlertProvider,
   Button,
@@ -12,7 +12,6 @@ import {
   getEditorWrapper,
   getFirstString,
   openComponent,
-  timQuery,
   type MenuItem,
 } from "panther";
 import { Match, Show, Switch, createSignal, onMount } from "solid-js";
@@ -20,7 +19,6 @@ import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
 import { InstanceUsers } from "~/components/instance/instance_users";
-import { serverActions } from "~/server_actions";
 import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 import Project from "../project";
 import { FeedbackForm } from "./feedback_form";
@@ -36,7 +34,6 @@ import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
 
 type Props = {
-  globalUser: GlobalUser;
   attemptSignOut: () => Promise<void>;
 };
 
@@ -104,28 +101,13 @@ export default function Instance(p: Props) {
     }
   }
 
-  const instanceDetail = timQuery(
-    async () => {
-      const res = await serverActions.getInstanceDetail({});
-      if (res.success && res.data.geojsonMaps.length > 0) {
-        await preloadGeoJson(res.data.geojsonMaps);
-      }
-      return res;
-    },
-    t3({
-      en: "Loading instance info...",
-      fr: "Chargement des informations de l'instance...",
-    }),
-  );
-
   return (
     <>
       <Switch>
         <Match when={getFirstString(searchParams.p)}>
           <Project
             projectId={getFirstString(searchParams.p)!}
-            isGlobalAdmin={p.globalUser.isGlobalAdmin}
-            instanceDetail={instanceDetail}
+            isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
           />
         </Match>
         <Match when={true}>
@@ -134,7 +116,7 @@ export default function Instance(p: Props) {
               <div class="ui-pad ui-gap bg-base-100 text-base-content flex items-center">
                 <div class="flex flex-0 items-center">
                   <div class="border-base-300 font-700 border-r pr-4 text-2xl text-nowrap antialiased">
-                    {p.globalUser.instanceName}
+                    {instanceState.instanceName}
                   </div>
                   <div class="w-24 flex-none pl-4">
                     <img
@@ -143,7 +125,7 @@ export default function Instance(p: Props) {
                     />
                   </div>
                 </div>
-                <Show when={p.globalUser.approved}>
+                <Show when={instanceState.currentUserApproved}>
                   <div class="flex flex-1 justify-center xl:hidden">
                     <ButtonGroup
                       value={tab()}
@@ -161,9 +143,9 @@ export default function Instance(p: Props) {
                           value: "assets",
                           iconName: "package",
                         },
-                        ...(p.globalUser.isGlobalAdmin ||
-                        p.globalUser.thisUserPermissions.can_configure_users ||
-                        p.globalUser.thisUserPermissions.can_view_users
+                        ...(instanceState.currentUserIsGlobalAdmin ||
+                        instanceState.currentUserPermissions.can_configure_users ||
+                        instanceState.currentUserPermissions.can_view_users
                           ? [
                               {
                                 value: "users",
@@ -171,7 +153,7 @@ export default function Instance(p: Props) {
                               },
                             ]
                           : ([] as any)),
-                        ...(p.globalUser.isGlobalAdmin
+                        ...(instanceState.currentUserIsGlobalAdmin
                           ? [
                               {
                                 value: "settings",
@@ -193,9 +175,9 @@ export default function Instance(p: Props) {
                           label: t3({ en: "Projects", fr: "Projets" }),
                           iconName: "folder",
                         },
-                        ...(p.globalUser.isGlobalAdmin ||
-                        p.globalUser.thisUserPermissions.can_view_data ||
-                        p.globalUser.thisUserPermissions.can_configure_data
+                        ...(instanceState.currentUserIsGlobalAdmin ||
+                        instanceState.currentUserPermissions.can_view_data ||
+                        instanceState.currentUserPermissions.can_configure_data
                           ? [
                               {
                                 value: "data",
@@ -204,8 +186,8 @@ export default function Instance(p: Props) {
                               },
                             ]
                           : ([] as any)),
-                        ...(p.globalUser.isGlobalAdmin ||
-                        p.globalUser.thisUserPermissions.can_configure_assets
+                        ...(instanceState.currentUserIsGlobalAdmin ||
+                        instanceState.currentUserPermissions.can_configure_assets
                           ? [
                               {
                                 value: "assets",
@@ -214,9 +196,9 @@ export default function Instance(p: Props) {
                               },
                             ]
                           : ([] as any)),
-                        ...(p.globalUser.isGlobalAdmin ||
-                        p.globalUser.thisUserPermissions.can_configure_users ||
-                        p.globalUser.thisUserPermissions.can_view_users
+                        ...(instanceState.currentUserIsGlobalAdmin ||
+                        instanceState.currentUserPermissions.can_configure_users ||
+                        instanceState.currentUserPermissions.can_view_users
                           ? [
                               {
                                 value: "users",
@@ -225,8 +207,8 @@ export default function Instance(p: Props) {
                               },
                             ]
                           : ([] as any)),
-                        ...(p.globalUser.isGlobalAdmin ||
-                        p.globalUser.thisUserPermissions.can_configure_settings
+                        ...(instanceState.currentUserIsGlobalAdmin ||
+                        instanceState.currentUserPermissions.can_configure_settings
                           ? [
                               {
                                 value: "settings",
@@ -268,7 +250,7 @@ export default function Instance(p: Props) {
                       {isFrench() ? "FR" : "EN"}
                     </Button>
                   </MenuTriggerWrapper>
-                  <Show when={p.globalUser.approved}>
+                  <Show when={instanceState.currentUserApproved}>
                     <Button
                       onClick={openFeedback}
                       iconName="help"
@@ -300,7 +282,7 @@ export default function Instance(p: Props) {
                       <span class="font-700">
                         {p.globalUser.firstName} {p.globalUser.lastName}
                       </span>
-                      <Show when={p.globalUser.isGlobalAdmin}>
+                      <Show when={instanceState.currentUserIsGlobalAdmin}>
                         {" "}
                         ({t3({ en: "Admin", fr: "Admin" })})
                       </Show>
@@ -312,7 +294,7 @@ export default function Instance(p: Props) {
           >
             <EditorWrapper>
               <Show
-                when={p.globalUser.approved}
+                when={instanceState.currentUserApproved}
                 fallback={
                   <div class="ui-pad">
                     {t3({
@@ -325,62 +307,57 @@ export default function Instance(p: Props) {
                 <Switch fallback={t3({ en: "Bad tab", fr: "Onglet invalide" })}>
                   <Match when={tab() === "projects"}>
                     <InstanceProjects
-                      isGlobalAdmin={p.globalUser.isGlobalAdmin}
+                      isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
                       canCreateProjects={
-                        p.globalUser.thisUserPermissions.can_create_projects
+                        instanceState.currentUserPermissions.can_create_projects
                       }
-                      instanceDetail={instanceDetail}
                     />
                   </Match>
                   <Match
                     when={
                       tab() === "data" &&
-                      (p.globalUser.isGlobalAdmin ||
-                        p.globalUser.thisUserPermissions.can_view_data ||
-                        p.globalUser.thisUserPermissions.can_configure_data)
+                      (instanceState.currentUserIsGlobalAdmin ||
+                        instanceState.currentUserPermissions.can_view_data ||
+                        instanceState.currentUserPermissions.can_configure_data)
                     }
                   >
                     <InstanceData
-                      isGlobalAdmin={p.globalUser.isGlobalAdmin}
-                      instanceDetail={instanceDetail}
+                      isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
                     />
                   </Match>
                   <Match
                     when={
                       tab() === "assets" &&
-                      (p.globalUser.isGlobalAdmin ||
-                        p.globalUser.thisUserPermissions.can_configure_assets)
+                      (instanceState.currentUserIsGlobalAdmin ||
+                        instanceState.currentUserPermissions.can_configure_assets)
                     }
                   >
                     <InstanceAssets
-                      isGlobalAdmin={p.globalUser.isGlobalAdmin}
-                      instanceDetail={instanceDetail}
+                      isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
                     />
                   </Match>
                   <Match
                     when={
-                      (p.globalUser.isGlobalAdmin ||
-                        p.globalUser.thisUserPermissions.can_configure_users ||
-                        p.globalUser.thisUserPermissions.can_view_users) &&
+                      (instanceState.currentUserIsGlobalAdmin ||
+                        instanceState.currentUserPermissions.can_configure_users ||
+                        instanceState.currentUserPermissions.can_view_users) &&
                       tab() === "users"
                     }
                   >
                     <InstanceUsers
-                      thisLoggedInUserEmail={p.globalUser.email}
-                      instanceDetail={instanceDetail}
+                      thisLoggedInUserEmail={instanceState.currentUserEmail}
                     />
                   </Match>
                   <Match
                     when={
-                      (p.globalUser.isGlobalAdmin ||
-                        p.globalUser.thisUserPermissions
+                      (instanceState.currentUserIsGlobalAdmin ||
+                        instanceState.currentUserPermissions
                           .can_configure_settings) &&
                       tab() === "settings"
                     }
                   >
                     <InstanceSettings
-                      thisLoggedInUserEmail={p.globalUser.email}
-                      instanceDetail={instanceDetail}
+                      thisLoggedInUserEmail={instanceState.currentUserEmail}
                     />
                   </Match>
                 </Switch>

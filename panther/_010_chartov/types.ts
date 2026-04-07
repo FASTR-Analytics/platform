@@ -8,6 +8,7 @@ import type {
   CustomFigureStyle,
   FigureInputsBase,
   JsonArray,
+  LegendInput,
   LegendItem,
   Measured,
   MeasuredSurrounds,
@@ -47,6 +48,7 @@ export type ChartOVJsonDataConfig = {
   sortIndicatorValues?: "ascending" | "descending" | "none";
   labelReplacementsBeforeSorting?: Record<string, string>;
   labelReplacementsAfterSorting?: Record<string, string>;
+  yScaleAxisLabel?: string;
 };
 
 ///////////////////////
@@ -162,6 +164,6 @@ export type MeasuredChartOV = Measured<ChartOVInputs> & {
   caption?: string;
   subCaption?: string;
   footnote?: string | string[];
-  legendItemsOrLabels?: LegendItem[] | string[];
+  legend?: LegendInput;
   primitives: Primitive[];
 };

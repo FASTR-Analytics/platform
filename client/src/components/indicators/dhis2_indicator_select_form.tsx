@@ -19,7 +19,6 @@ import { serverActions } from "~/server_actions";
 type Props = EditorComponentProps<
   {
     credentials: Dhis2Credentials;
-    silentRefreshIndicators: () => Promise<void>;
   },
   undefined
 >;
@@ -104,7 +103,6 @@ export function Dhis2IndicatorSelectForm(p: Props) {
         indicators: newRawIndicators,
       });
     },
-    p.silentRefreshIndicators,
     () => p.close(undefined),
   );
 

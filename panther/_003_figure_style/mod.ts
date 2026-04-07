@@ -11,3 +11,10 @@ export * from "./_3_merged_style_return_types.ts";
 export { CustomFigureStyle } from "./_3_style_class.ts";
 export * from "./style_func_types.ts";
 export * from "./types.ts";
+export {
+  laneColorScale,
+  paneColorScale,
+  seriesColorScale,
+  tierColorScale,
+  valuesColorScale,
+} from "./color_scale_helpers.ts";

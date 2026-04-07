@@ -11,6 +11,10 @@ export type ColorAdjustmentStrategy =
   | ColorAdjustmentStrategyOpacity
   | ColorAdjustmentStrategyBrighten
   | ColorAdjustmentStrategyDarken
+  | ColorAdjustmentStrategyDesaturate
+  | ColorAdjustmentStrategyTint
+  | ColorAdjustmentStrategyTone
+  | ColorAdjustmentStrategyLightDark
   | ColorKeyOrString;
 
 type ColorAdjustmentStrategyOpacity = {
@@ -21,6 +25,19 @@ type ColorAdjustmentStrategyBrighten = {
 };
 type ColorAdjustmentStrategyDarken = {
   darken: number;
+};
+type ColorAdjustmentStrategyDesaturate = {
+  desaturate: number;
+};
+type ColorAdjustmentStrategyTint = {
+  tint: number;
+};
+type ColorAdjustmentStrategyTone = {
+  tone: number;
+};
+type ColorAdjustmentStrategyLightDark = {
+  ifLight: ColorKeyOrString;
+  ifDark: ColorKeyOrString;
 };
 
 export function getAdjustedColor(
@@ -41,6 +58,28 @@ export function getAdjustedColor(
     return new Color(getColor(color))
       .opacity((strategy as ColorAdjustmentStrategyOpacity).opacity)
       .css();
+  }
+  if (
+    (strategy as ColorAdjustmentStrategyDesaturate).desaturate !== undefined
+  ) {
+    return new Color(getColor(color))
+      .desaturate((strategy as ColorAdjustmentStrategyDesaturate).desaturate)
+      .css();
+  }
+  if ((strategy as ColorAdjustmentStrategyTint).tint !== undefined) {
+    return new Color(getColor(color))
+      .tint((strategy as ColorAdjustmentStrategyTint).tint)
+      .css();
+  }
+  if ((strategy as ColorAdjustmentStrategyTone).tone !== undefined) {
+    return new Color(getColor(color))
+      .tone((strategy as ColorAdjustmentStrategyTone).tone)
+      .css();
+  }
+  if ((strategy as ColorAdjustmentStrategyLightDark).ifLight !== undefined) {
+    const s = strategy as ColorAdjustmentStrategyLightDark;
+    const baseColor = new Color(getColor(color));
+    return baseColor.isLight() ? getColor(s.ifLight) : getColor(s.ifDark);
   }
   return getColor(strategy as ColorKeyOrString);
 }

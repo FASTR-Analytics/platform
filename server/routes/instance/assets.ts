@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { deleteAssets, getAssetsForInstance } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { notifyInstanceAssetsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesAssets = new Hono();
@@ -31,6 +32,12 @@ defineRoute(
     }
 
     const res = await deleteAssets(body.assetFileNames);
+    if (res.success) {
+      const assetsRes = await getAssetsForInstance();
+      if (assetsRes.success) {
+        notifyInstanceAssetsUpdated(assetsRes.data);
+      }
+    }
     return c.json(res);
   },
 );

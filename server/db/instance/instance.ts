@@ -4,18 +4,16 @@ import {
   InstanceDetail,
   OtherUser,
   ProjectSummary,
-  StructureUploadAttemptDetail,
-  StructureUploadAttemptStatus,
-  parseJsonOrThrow,
-  parseJsonOrUndefined,
   throwIfErrWithData,
   type DatasetType,
   type GlobalUser,
+  type InstanceDatasetsSummary,
+  type InstanceIndicatorsSummary,
+  type InstanceStructureSummary,
 } from "lib";
 import { _INSTANCE_ID, _INSTANCE_NAME } from "../../exposed_env_vars.ts";
 import { detectHasAnyRows, tryCatchDatabaseAsync } from "./../utils.ts";
 import {
-  DBStructureUploadAttempt,
   DBUser,
   type DBProject,
   type DBProjectUserRole,
@@ -28,6 +26,17 @@ import {
   getCountryIso3Config,
 } from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
+import { computeHfaCacheHash } from "./dataset_hfa.ts";
+
+export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
+  const result = await mainDb<{ version: string | null }[]>`
+    SELECT MD5(
+      COALESCE((SELECT MAX(updated_at) FROM hfa_indicators)::text, '') || '|' ||
+      (SELECT COUNT(*) FROM hfa_indicators)::text
+    ) as version
+  `;
+  return result[0]?.version ?? "none";
+}
 
 export async function getIndicatorMappingsVersion(mainDb: Sql): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
@@ -41,6 +50,121 @@ export async function getIndicatorMappingsVersion(mainDb: Sql): Promise<string> 
     ) as version
   `;
   return result[0]?.version ?? "none";
+}
+
+export async function getInstanceUsers(mainDb: Sql): Promise<OtherUser[]> {
+  return (await mainDb<DBUser[]>`SELECT * FROM users`).map<OtherUser>(
+    (rawUser) => {
+      if (rawUser.is_admin) {
+        return {
+          email: rawUser.email,
+          isGlobalAdmin: true,
+          can_configure_users: true,
+          can_view_users: true,
+          can_view_logs: true,
+          can_configure_settings: true,
+          can_configure_assets: true,
+          can_configure_data: true,
+          can_view_data: true,
+          can_create_projects: true,
+        };
+      }
+      return {
+        email: rawUser.email,
+        isGlobalAdmin: false,
+        can_configure_users: rawUser.can_configure_users,
+        can_view_users: rawUser.can_view_users,
+        can_view_logs: rawUser.can_view_logs,
+        can_configure_settings: rawUser.can_configure_settings,
+        can_configure_assets: rawUser.can_configure_assets,
+        can_configure_data: rawUser.can_configure_data,
+        can_view_data: rawUser.can_view_data,
+        can_create_projects: rawUser.can_create_projects,
+      };
+    },
+  );
+}
+
+export async function getInstanceIndicatorsSummary(
+  mainDb: Sql,
+): Promise<InstanceIndicatorsSummary> {
+  const commonIndicators =
+    (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM indicators`)[0]?.count ?? 0;
+  const rawIndicators =
+    (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM indicators_raw`)[0]?.count ?? 0;
+  const hfaIndicators =
+    (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM hfa_indicators`)[0]?.count ?? 0;
+  const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
+  const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
+  return {
+    indicators: { commonIndicators, rawIndicators, hfaIndicators },
+    indicatorMappingsVersion,
+    hfaIndicatorsVersion,
+  };
+}
+
+export async function getInstanceStructureSummary(
+  mainDb: Sql,
+): Promise<InstanceStructureSummary> {
+  const adminArea1s = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM admin_areas_1`)[0]?.count ?? 0;
+  const hasData = adminArea1s > 0;
+  if (!hasData) {
+    return { structure: undefined, structureLastUpdated: undefined };
+  }
+  const adminArea2s = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM admin_areas_2`)[0]?.count ?? 0;
+  const adminArea3s = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM admin_areas_3`)[0]?.count ?? 0;
+  const adminArea4s = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM admin_areas_4`)[0]?.count ?? 0;
+  const facilities = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM facilities`)[0]?.count ?? 0;
+  const lastUpdatedRow = (
+    await mainDb<{ config_json_value: string }[]>`
+      SELECT config_json_value FROM instance_config WHERE config_key = 'structure_last_updated'
+    `
+  ).at(0);
+  return {
+    structure: { adminArea1s, adminArea2s, adminArea3s, adminArea4s, facilities },
+    structureLastUpdated: lastUpdatedRow ? JSON.parse(lastUpdatedRow.config_json_value) : undefined,
+  };
+}
+
+export async function getInstanceDatasetsSummary(
+  mainDb: Sql,
+): Promise<InstanceDatasetsSummary> {
+  const datasetsWithData: DatasetType[] = [];
+  if (await detectHasAnyRows(mainDb, "dataset_hmis")) {
+    datasetsWithData.push("hmis");
+  }
+  if (await detectHasAnyRows(mainDb, "dataset_hfa")) {
+    datasetsWithData.push("hfa");
+  }
+  const hmis = await getCurrentDatasetHmisMaxVersionId(mainDb);
+  const hmisNVersions = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM dataset_hmis_versions`)[0]?.count ?? 0;
+  const hfaTimePointRows = await mainDb<{ time_point: string; time_point_label: string; date_imported: string | null }[]>`
+    SELECT time_point, time_point_label, date_imported FROM dataset_hfa_dictionary_time_points ORDER BY time_point
+  `;
+  const hfaCacheHash = computeHfaCacheHash(hfaTimePointRows);
+  return {
+    datasetsWithData,
+    datasetVersions: { hmis, hfa: hfaTimePointRows.length > 0 ? hfaTimePointRows.length : undefined },
+    hmisNVersions,
+    hfaTimePoints: hfaTimePointRows.map((r) => ({
+      timePoint: r.time_point,
+      timePointLabel: r.time_point_label,
+      dateImported: r.date_imported ?? undefined,
+    })),
+    hfaCacheHash,
+  };
+}
+
+export async function getAllProjectSummaries(mainDb: Sql): Promise<ProjectSummary[]> {
+  return (
+    await mainDb<DBProject[]>`SELECT * FROM projects ORDER BY LOWER(label)`
+  ).map<ProjectSummary>((p) => ({
+    id: p.id,
+    label: p.label,
+    thisUserRole: "editor",
+    isLocked: p.is_locked,
+    status: p.status as ProjectSummary["status"],
+  }));
 }
 
 export async function getInstanceDetail(
@@ -96,52 +220,6 @@ export async function getInstanceDetail(
         adminArea4s: adminArea4s[0]?.count ?? 0,
         facilities: facilities[0]?.count ?? 0,
       };
-    }
-
-    // Get structure upload attempt if it exists
-    const structureUploadAttemptRaw = await mainDb<DBStructureUploadAttempt[]>`
-      SELECT * FROM structure_upload_attempts
-    `;
-    let structureUploadAttempt: StructureUploadAttemptDetail | undefined =
-      undefined;
-    if (structureUploadAttemptRaw.length > 0) {
-      const rawUA = structureUploadAttemptRaw[0];
-      const baseData = {
-        id: "single_row",
-        dateStarted: rawUA.date_started,
-        status: parseJsonOrThrow(rawUA.status) as StructureUploadAttemptStatus,
-      };
-
-      // Return discriminated union based on step and source_type
-      if (rawUA.step === 0) {
-        structureUploadAttempt = {
-          ...baseData,
-          step: 0,
-          sourceType: undefined,
-          step1Result: undefined,
-          step2Result: undefined,
-          step3Result: undefined,
-        };
-      } else if (rawUA.source_type === "dhis2") {
-        structureUploadAttempt = {
-          ...baseData,
-          step: rawUA.step as 1 | 2 | 3 | 4,
-          sourceType: "dhis2",
-          step1Result: parseJsonOrUndefined(rawUA.step_1_result),
-          step2Result: parseJsonOrUndefined(rawUA.step_2_result),
-          step3Result: parseJsonOrUndefined(rawUA.step_3_result),
-        };
-      } else {
-        // Default to CSV
-        structureUploadAttempt = {
-          ...baseData,
-          step: rawUA.step as 1 | 2 | 3 | 4,
-          sourceType: "csv",
-          step1Result: parseJsonOrUndefined(rawUA.step_1_result),
-          step2Result: parseJsonOrUndefined(rawUA.step_2_result),
-          step3Result: parseJsonOrUndefined(rawUA.step_3_result),
-        };
-      }
     }
 
     // Get indicator counts (both common and raw)
@@ -235,17 +313,7 @@ ORDER BY LOWER(label)`
       ? JSON.parse(structureLastUpdatedRow.config_json_value)
       : undefined;
 
-    const users = (await mainDb<DBUser[]>`SELECT * FROM users`).map<OtherUser>(
-      (rawUser) => {
-        return {
-          email: rawUser.email,
-          isGlobalAdmin: rawUser.is_admin,
-        };
-      }
-    );
-
-    // Get cache version for indicators (includes counts to detect deletions)
-    const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
+    const users = await getInstanceUsers(mainDb);
 
     const instanceDetails: InstanceDetail = {
       instanceId: _INSTANCE_ID,
@@ -254,7 +322,6 @@ ORDER BY LOWER(label)`
       countryIso3,
       facilityColumns,
       structure,
-      structureUploadAttempt,
       structureLastUpdated,
       indicators: {
         commonIndicators: commonIndicatorsCount,
@@ -270,15 +337,6 @@ ORDER BY LOWER(label)`
       },
       projects: projectSummaries,
       users,
-      cacheVersions: {
-        indicatorMappings: indicatorMappingsVersion,
-        facilities: undefined,
-        adminAreas: undefined,
-        projects: undefined,
-        datasets: undefined,
-        modules: undefined,
-        users: undefined,
-      },
     };
     return { success: true, data: instanceDetails };
   });

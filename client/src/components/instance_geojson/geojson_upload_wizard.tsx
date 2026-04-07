@@ -4,14 +4,13 @@ import {
   Button,
   Select,
   StateHolderFormError,
-  StateHolderWrapper,
   getSelectOptions,
   timActionForm,
-  timQuery,
 } from "panther";
 import { For, Match, Show, Switch, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { cleanupUppy, createUppyInstance } from "~/upload/uppy_file_upload";
+import { instanceState } from "~/state/instance_state";
 
 type Props = {
   silentRefresh: () => void;
@@ -33,19 +32,11 @@ export function GeoJsonUploadWizard(p: Props) {
   const [adminAreaNames, setAdminAreaNames] = createSignal<string[]>([]);
   const [adminAreasLoading, setAdminAreasLoading] = createSignal(false);
 
-  const assetListing = timQuery(
-    () => serverActions.getAssets({}),
-    t3(TC.loadingAssets),
-  );
-
   let uppy: Uppy | undefined = undefined;
 
   onMount(() => {
     uppy = createUppyInstance({
       triggerId: "#select-geojson-file-button",
-      onModalClosed: () => {
-        assetListing.fetch();
-      },
       onUploadSuccess: (file) => {
         if (!file) return;
         setSelectedFileName(file.name as string);
@@ -201,21 +192,17 @@ export function GeoJsonUploadWizard(p: Props) {
             </Button>
 
             <div class="w-96">
-              <StateHolderWrapper state={assetListing.state()} noPad>
-                {(keyedAssets) => (
-                  <Select
-                    label={t3({ en: "Or select existing file", fr: "Ou sélectionner un fichier existant" })}
-                    options={getSelectOptions(
-                      keyedAssets
-                        .filter((a) => a.fileName.endsWith(".geojson") || a.fileName.endsWith(".json"))
-                        .map((a) => a.fileName),
-                    )}
-                    value={selectedFileName()}
-                    onChange={setSelectedFileName}
-                    fullWidth
-                  />
+              <Select
+                label={t3({ en: "Or select existing file", fr: "Ou sélectionner un fichier existant" })}
+                options={getSelectOptions(
+                  instanceState.assets
+                    .filter((a) => a.fileName.endsWith(".geojson") || a.fileName.endsWith(".json"))
+                    .map((a) => a.fileName),
                 )}
-              </StateHolderWrapper>
+                value={selectedFileName()}
+                onChange={setSelectedFileName}
+                fullWidth
+              />
             </div>
 
             <StateHolderFormError state={analyzeAction.state()} />

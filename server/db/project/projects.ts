@@ -23,7 +23,10 @@ import {
   DBUser,
   type DBProjectUserRole,
 } from "../instance/_main_database_types.ts";
-import { getPgConnectionFromCacheOrNew, createWorkerConnection } from "../postgres/mod.ts";
+import {
+  getPgConnectionFromCacheOrNew,
+  createWorkerConnection,
+} from "../postgres/mod.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { DBDataset_IN_PROJECT } from "./_project_database_types.ts";
 import { addDatasetHmisToProject } from "./datasets_in_project_hmis.ts";
@@ -181,7 +184,10 @@ export async function getProjectDetail(
       await projectDb<
         { indicator_common_id: string; indicator_common_label: string }[]
       >`SELECT indicator_common_id, indicator_common_label FROM indicators ORDER BY indicator_common_label`
-    ).map((row) => ({ id: row.indicator_common_id, label: row.indicator_common_label }));
+    ).map((row) => ({
+      id: row.indicator_common_id,
+      label: row.indicator_common_label,
+    }));
 
     const projectDetail: ProjectDetail = {
       id: projectId,
@@ -269,7 +275,9 @@ export async function addProject(
     `;
 
     // Auto-add all non-admin, non-creator users who have at least one non-false default project permission
-    const usersToAutoAdd = await mainDb<{ email: string; [key: string]: boolean | string }[]>`
+    const usersToAutoAdd = await mainDb<
+      { email: string; [key: string]: boolean | string }[]
+    >`
       SELECT
         email,
         default_project_can_configure_settings,
@@ -317,11 +325,14 @@ export async function addProject(
       sql`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${projectLabel}, '')`,
       sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)
        VALUES (${globalUser.email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`,
-      ...usersToAutoAdd.map((user: { email: string; [key: string]: boolean | string }) => {
-        const g = (k: string): boolean => (user[`default_project_${k}`] as boolean) ?? false;
-        return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)
+      ...usersToAutoAdd.map(
+        (user: { email: string; [key: string]: boolean | string }) => {
+          const g = (k: string): boolean =>
+            (user[`default_project_${k}`] as boolean) ?? false;
+          return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)
          VALUES (${user.email}, ${newProjectId}, 'viewer', ${g("can_configure_settings")}, ${g("can_create_backups")}, ${g("can_restore_backups")}, ${g("can_configure_modules")}, ${g("can_run_modules")}, ${g("can_configure_users")}, ${g("can_configure_visualizations")}, ${g("can_view_visualizations")}, ${g("can_configure_reports")}, ${g("can_view_reports")}, ${g("can_configure_slide_decks")}, ${g("can_view_slide_decks")}, ${g("can_configure_data")}, ${g("can_view_data")}, ${g("can_view_metrics")}, ${g("can_view_logs")}, ${g("can_view_script_code")})`;
-      }),
+        },
+      ),
     ]);
     const datasetLastUpdateds: {
       datasetType: DatasetType;
@@ -357,7 +368,9 @@ export async function addProject(
     // Dynamically add prerequisite modules based on getPossibleModules()
     const modulesWithPrereqs = new Set<ModuleId>(modulesToEnable);
     for (const moduleId of modulesToEnable) {
-      const moduleDefinition = getPossibleModules().find((m) => m.id === moduleId);
+      const moduleDefinition = getPossibleModules().find(
+        (m) => m.id === moduleId,
+      );
       if (moduleDefinition?.prerequisiteModules) {
         for (const prereq of moduleDefinition.prerequisiteModules) {
           modulesWithPrereqs.add(getValidatedModuleId(prereq));
@@ -401,13 +414,18 @@ export async function deleteProject(
   return await tryCatchDatabaseAsync(async () => {
     // !!!!! We don't delete project data, only the record in main.db !!!!!
 
+    // Step 1.
     // await mainDb`DROP DATABASE IF EXISTS ${mainDb(projectId)} WITH (FORCE)`;
+
+    // Step 2.
     // const sandboxDir = join(_SANDBOX_DIR_PATH, projectId);
     // try {
     //   await Deno.remove(sandboxDir, { recursive: true });
     // } catch {
     //   //
     // }
+
+    // Step 3.
     await mainDb`DELETE FROM projects WHERE id = ${projectId}`;
     return { success: true };
   });
@@ -534,7 +552,6 @@ export async function addProjectUserRole(
     return { success: true };
   });
 }
-
 
 export async function updateProjectUserPermissions(
   mainDb: Sql,
@@ -786,7 +803,10 @@ export async function copyProjectInBackground(
       await cleanupDb`DELETE FROM projects WHERE id = ${newProjectId}`;
       await cleanupDb`DROP DATABASE IF EXISTS ${cleanupDb(newProjectId)}`;
     } catch (cleanupErr) {
-      console.error("Failed to clean up after copy project failure:", cleanupErr);
+      console.error(
+        "Failed to clean up after copy project failure:",
+        cleanupErr,
+      );
     }
   } finally {
     await dedicatedDb.end();

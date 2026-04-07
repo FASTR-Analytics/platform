@@ -1,4 +1,5 @@
-import { InstanceDetail, ReportDetail, ReportType, isFrench } from "lib";
+import { ReportDetail, ReportType, isFrench } from "lib";
+import { instanceState } from "~/state/instance_state";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -17,7 +18,6 @@ export function DuplicateReport(
       reportId: string;
       currentReportLabel: string;
       reportType: ReportType | undefined;
-      instanceDetail: InstanceDetail;
     },
     {
       newReportId: string;
@@ -71,7 +71,7 @@ export function DuplicateReport(
     },
   );
 
-  const otherProjects = p.instanceDetail.projects.filter(
+  const otherProjects = instanceState.projects.filter(
     (project) => project.id !== p.projectId,
   );
 

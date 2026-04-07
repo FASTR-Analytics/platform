@@ -339,6 +339,7 @@ export function getChartOVDataJsonTransformed(
     bounds: finalBounds,
     yScaleAxisData: {
       paneLimits,
+      yScaleAxisLabel: jsonDataConfig.yScaleAxisLabel?.trim(),
     },
   };
 }

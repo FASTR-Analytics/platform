@@ -4,11 +4,14 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AlignH,
+  AlignV,
   ChartSeriesInfo,
   ChartValueInfo,
   ColorAdjustmentStrategy,
   ColorKeyOrString,
   Coordinates,
+  Padding,
   RectCoordsDims,
 } from "../deps.ts";
 import type {
@@ -53,6 +56,14 @@ export const Z_INDEX = {
   // Sankey defaults
   SANKEY_LINK: 300,
   SANKEY_NODE: 400,
+  // Table layers (ordered back-to-front)
+  TABLE_HEADER_BG: 50,
+  TABLE_CELL_BG: 100,
+  TABLE_GRID_LINE: 200,
+  TABLE_HEADER_AXIS: 250,
+  TABLE_BORDER: 300,
+  TABLE_TEXT: 400,
+  ANNOTATION_RECT: 750,
 } as const;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -66,19 +77,9 @@ export type BasePrimitive = {
   key: string;
   bounds: RectCoordsDims;
   zIndex?: number;
+  annotationGroup?: string;
+  annotationBounds?: RectCoordsDims;
 };
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    Relative Positioning                                                    //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-export type RelativePosition =
-  | { dx: number; dy: number } // Absolute pixel offsets from bounds origin
-  | { rx: number; ry: number } // Relative 0-1 within bounds (0.5 = center)
-  | { dx: number; ry: number } // Mixed: absolute x offset, relative y
-  | { rx: number; dy: number }; // Mixed: relative x, absolute y offset
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -92,9 +93,16 @@ export type RelativePosition =
 // hierarchy prevents these types from living in _007_figure_core.
 
 export type DataLabel = {
-  text: string;
   mText: MeasuredText;
-  relativePosition: RelativePosition;
+  position: Coordinates;
+  alignH: "left" | "center" | "right";
+  alignV: "top" | "middle" | "bottom";
+  style?: {
+    backgroundColor?: string;
+    padding?: Padding;
+    border?: { color: string; width: number };
+    rectRadius?: number;
+  };
 };
 
 export type BarStackingMode = "stacked" | "imposed" | "diff" | "grouped";
@@ -227,7 +235,13 @@ export type ChartAxisPrimitive = BasePrimitive & {
     };
     value: number | string;
   }>;
-  axisLine?: { coords: Coordinates[]; style: LineStyle };
+  axisLine: { coords: Coordinates[]; style: LineStyle };
+  tickStyle: LineStyle;
+  axisLabel?: {
+    mText: MeasuredText;
+    position: Coordinates;
+    alignment: { h: AlignH; v: AlignV };
+  };
 };
 
 export type ChartGridPrimitive = BasePrimitive & {
@@ -300,8 +314,6 @@ export type ChartLabelPrimitive = BasePrimitive & {
     laneIndex?: number; // Only for lane labels
   };
   mText: MeasuredText;
-  // Pure data - fully serializable
-  position: Coordinates;
   alignment: {
     h: "left" | "center" | "right";
     v: "top" | "middle" | "bottom";
@@ -398,7 +410,7 @@ export type CascadeArrowPrimitive = BasePrimitive & {
     i_fromStage: number;
     i_toStage: number;
     i_series: number;
-    retention: number;
+    relRetention: number;
   };
   pathSegments: PathSegment[];
   pathStyle: PathStyle;
@@ -407,10 +419,7 @@ export type CascadeArrowPrimitive = BasePrimitive & {
     angle: number;
     size: number;
   };
-  label?: {
-    mText: MeasuredText;
-    position: Coordinates;
-  };
+  dataLabel?: DataLabel;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -450,6 +459,7 @@ export type MapLabelPrimitive = BasePrimitive & {
   halo?: {
     color: string;
     width: number;
+    rectRadius?: number;
   };
   leaderLine?: {
     from: Coordinates;
@@ -457,6 +467,105 @@ export type MapLabelPrimitive = BasePrimitive & {
     strokeColor: string;
     strokeWidth: number;
     gap: number;
+  };
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Table Primitives                                                        //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type TableCellPrimitive = BasePrimitive & {
+  type: "table-cell";
+  meta: {
+    i_row: number;
+    i_col: number;
+    rowHeader: string;
+    colHeader: string;
+  };
+  backgroundColor: ColorKeyOrString | "none";
+  mText: MeasuredText;
+  textPosition: Coordinates;
+  textAlignH: "left" | "center" | "right";
+  textAlignV: "top" | "middle" | "bottom";
+};
+
+export type TableRowHeaderPrimitive = BasePrimitive & {
+  type: "table-row-header";
+  meta: {
+    i_row: number | "group-header";
+    label: string;
+    isGroupHeader: boolean;
+  };
+  mText: MeasuredText;
+  textPosition: Coordinates;
+  textAlignH: "left" | "center" | "right";
+};
+
+export type TableColHeaderPrimitive = BasePrimitive & {
+  type: "table-col-header";
+  meta: {
+    i_col: number | undefined;
+    label: string;
+    isGroupHeader: boolean;
+    i_colGroup?: number;
+  };
+  backgroundColor: ColorKeyOrString | "none";
+  mText?: MeasuredText;
+  textPosition?: Coordinates;
+  textAlignH: "left" | "center" | "right";
+  textAlignV: "top" | "middle" | "bottom";
+};
+
+export type TableBorderPrimitive = BasePrimitive & {
+  type: "table-border";
+  meta: Record<PropertyKey, never>;
+  horizontalLines: { y: number; x1: number; x2: number }[];
+  verticalLines: { x: number; y1: number; y2: number }[];
+  style: {
+    strokeColor: ColorKeyOrString;
+    strokeWidth: number;
+  };
+};
+
+export type TableGridPrimitive = BasePrimitive & {
+  type: "table-grid";
+  meta: Record<PropertyKey, never>;
+  horizontalLines: { y: number; x1: number; x2: number }[];
+  verticalLines: { x: number; y1: number; y2: number }[];
+  style: {
+    strokeColor: ColorKeyOrString;
+    strokeWidth: number;
+  };
+};
+
+export type TableHeaderAxisPrimitive = BasePrimitive & {
+  type: "table-header-axis";
+  meta: Record<PropertyKey, never>;
+  horizontalLines: { y: number; x1: number; x2: number }[];
+  verticalLines: { x: number; y1: number; y2: number }[];
+  style: {
+    strokeColor: ColorKeyOrString;
+    strokeWidth: number;
+  };
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Annotation Primitives                                                   //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type AnnotationRectPrimitive = BasePrimitive & {
+  type: "annotation-rect";
+  meta: { group: string };
+  style: RectStyle;
+  text?: {
+    mText: MeasuredText;
+    position: Coordinates;
+    alignH: "left" | "center" | "right";
+    alignV: "top" | "middle" | "bottom";
   };
 };
 
@@ -490,4 +599,13 @@ export type Primitive =
   | CascadeArrowPrimitive
   // Map primitives
   | MapRegionPrimitive
-  | MapLabelPrimitive;
+  | MapLabelPrimitive
+  // Table primitives
+  | TableCellPrimitive
+  | TableRowHeaderPrimitive
+  | TableColHeaderPrimitive
+  | TableBorderPrimitive
+  | TableGridPrimitive
+  | TableHeaderAxisPrimitive
+  // Annotation primitives
+  | AnnotationRectPrimitive;

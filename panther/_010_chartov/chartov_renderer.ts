@@ -62,13 +62,14 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
     rc: RenderContext,
     width: number,
     item: ChartOVInputs,
-    _responsiveScale?: number,
+    responsiveScale?: number,
   ): HeightConstraints {
     return getChartHeightConstraints(
       rc,
       width,
       item,
       (scale) => getChartOVComponentSizes(rc, item, scale),
+      responsiveScale,
     );
   },
 };

@@ -10,6 +10,7 @@ export * from "./datasets.ts";
 export * from "./datasets_in_project.ts";
 export * from "./indicators.ts";
 export * from "./instance.ts";
+export * from "./instance_sse.ts";
 export * from "./module_definitions.ts";
 export * from "./module_registry.ts";
 export * from "./modules.ts";

@@ -3,8 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { CustomFigureStyleOptions } from "./deps.ts";
+import type {
+  ColorKeyOrString,
+  CustomFigureStyleOptions,
+  PaddingOptions,
+  TextInfoUnkeyed,
+} from "./deps.ts";
 import type { LegendItem } from "./_legend/types.ts";
+import type { LegendInput } from "./_legend/scale_legend_types.ts";
 import type { YTextAxisWidthInfo } from "./_axes/y_text/types.ts";
 export type { YTextAxisWidthInfo };
 
@@ -19,13 +25,32 @@ export type FigureAutofitOptions = {
   maxScale?: number;
 };
 
+export type FigureAnnotation = {
+  group: string;
+  rect?: AnnotationRectStyle;
+};
+
+export type AnnotationRectTextPlacement = "above" | "below" | "center";
+
+export type AnnotationRectStyle = {
+  strokeColor?: ColorKeyOrString;
+  strokeWidth?: number;
+  padding?: PaddingOptions;
+  rectRadius?: number;
+  fillColor?: ColorKeyOrString;
+  text?: string;
+  textPlacement?: AnnotationRectTextPlacement;
+  textStyle?: TextInfoUnkeyed;
+};
+
 export type FigureInputsBase = {
   caption?: string | undefined;
   subCaption?: string | undefined;
   footnote?: string | string[] | undefined;
-  legendItemsOrLabels?: LegendItem[] | string[] | undefined;
+  legend?: LegendInput | undefined;
   style?: CustomFigureStyleOptions | undefined;
   autofit?: boolean | FigureAutofitOptions;
+  annotations?: FigureAnnotation[];
 };
 
 export type YScaleAxisData = {

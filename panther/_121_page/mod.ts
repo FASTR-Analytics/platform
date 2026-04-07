@@ -18,6 +18,8 @@ export type {
   MeasuredFreeformPage,
   MeasuredPage,
   MeasuredSectionPage,
+  PageAnnotation,
+  PageAnnotationRect,
   PageContentItem,
   PageContentItemType,
   PageImageInputs,
@@ -25,11 +27,15 @@ export type {
   PageInputsBase,
   PageSpacerInputs,
   SectionPageInputs,
+  SplitImageInputs,
 } from "./types.ts";
-export { isSpacerItem } from "./types.ts";
+export { isRectAnnotation, isSpacerItem } from "./types.ts";
 
 export { buildFreeformPages } from "./build_freeform_pages.ts";
-export type { FreeformPagesConfig } from "./build_freeform_pages.ts";
+export type {
+  FreeformPagesConfig,
+  PageNumberFormat,
+} from "./build_freeform_pages.ts";
 
 export { buildHitRegions, findHitTarget } from "./hit_regions.ts";
 export type {

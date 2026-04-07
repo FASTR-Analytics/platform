@@ -4,117 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { AnthropicModel, Usage } from "../deps.ts";
+import { DEFAULT_PRICING, MODEL_PRICING } from "../deps.ts";
 import type { CostEstimate } from "./types.ts";
-
-////////////////////////////////////////////////////////////////////////////////
-// PRICING
-////////////////////////////////////////////////////////////////////////////////
-
-type ModelPricing = {
-  inputPer1M: number;
-  outputPer1M: number;
-  cacheWritePer1M: number;
-  cacheReadPer1M: number;
-};
-
-const PRICING: Record<string, ModelPricing> = {
-  // Claude 4.6 models (2026 - latest)
-  "claude-opus-4-6": {
-    inputPer1M: 5.00,
-    outputPer1M: 25.00,
-    cacheWritePer1M: 6.25,
-    cacheReadPer1M: 0.50,
-  },
-  // Claude 4.5 models
-  "claude-opus-4-5-20251101": {
-    inputPer1M: 5.00,
-    outputPer1M: 25.00,
-    cacheWritePer1M: 6.25,
-    cacheReadPer1M: 0.50,
-  },
-  "claude-sonnet-4-5-20250929": {
-    inputPer1M: 3.00,
-    outputPer1M: 15.00,
-    cacheWritePer1M: 3.75,
-    cacheReadPer1M: 0.30,
-  },
-  "claude-haiku-4-5-20251001": {
-    inputPer1M: 1.00,
-    outputPer1M: 5.00,
-    cacheWritePer1M: 1.25,
-    cacheReadPer1M: 0.10,
-  },
-  // Claude 4.x models
-  "claude-opus-4-1-20250805": {
-    inputPer1M: 15.00,
-    outputPer1M: 75.00,
-    cacheWritePer1M: 18.75,
-    cacheReadPer1M: 1.50,
-  },
-  "claude-opus-4-20250514": {
-    inputPer1M: 15.00,
-    outputPer1M: 75.00,
-    cacheWritePer1M: 18.75,
-    cacheReadPer1M: 1.50,
-  },
-  "claude-sonnet-4-20250514": {
-    inputPer1M: 3.00,
-    outputPer1M: 15.00,
-    cacheWritePer1M: 3.75,
-    cacheReadPer1M: 0.30,
-  },
-  // Claude 3.7
-  "claude-3-7-sonnet-20250219": {
-    inputPer1M: 3.00,
-    outputPer1M: 15.00,
-    cacheWritePer1M: 3.75,
-    cacheReadPer1M: 0.30,
-  },
-  // Claude 3.x models (2024)
-  "claude-3-5-sonnet-20241022": {
-    inputPer1M: 3.00,
-    outputPer1M: 15.00,
-    cacheWritePer1M: 3.75,
-    cacheReadPer1M: 0.30,
-  },
-  "claude-3-5-sonnet-20240620": {
-    inputPer1M: 3.00,
-    outputPer1M: 15.00,
-    cacheWritePer1M: 3.75,
-    cacheReadPer1M: 0.30,
-  },
-  "claude-3-5-haiku-20241022": {
-    inputPer1M: 0.80,
-    outputPer1M: 4.00,
-    cacheWritePer1M: 1.00,
-    cacheReadPer1M: 0.08,
-  },
-  "claude-3-opus-20240229": {
-    inputPer1M: 15.00,
-    outputPer1M: 75.00,
-    cacheWritePer1M: 18.75,
-    cacheReadPer1M: 1.50,
-  },
-  "claude-3-sonnet-20240229": {
-    inputPer1M: 3.00,
-    outputPer1M: 15.00,
-    cacheWritePer1M: 3.75,
-    cacheReadPer1M: 0.30,
-  },
-  "claude-3-haiku-20240307": {
-    inputPer1M: 0.25,
-    outputPer1M: 1.25,
-    cacheWritePer1M: 0.31,
-    cacheReadPer1M: 0.03,
-  },
-};
-
-const DEFAULT_PRICING: ModelPricing = {
-  inputPer1M: 3.00,
-  outputPer1M: 15.00,
-  cacheWritePer1M: 3.75,
-  cacheReadPer1M: 0.30,
-};
 
 ////////////////////////////////////////////////////////////////////////////////
 // COST CALCULATION
@@ -124,7 +15,7 @@ export function calculateCost(
   usage: Usage,
   model: AnthropicModel,
 ): CostEstimate {
-  const pricing = PRICING[model] ?? DEFAULT_PRICING;
+  const pricing = MODEL_PRICING[model] ?? DEFAULT_PRICING;
 
   const inputTokens = usage.input_tokens ?? 0;
   const outputTokens = usage.output_tokens ?? 0;

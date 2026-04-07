@@ -6,93 +6,114 @@
 import {
   type AnchorPoint,
   type CalendarType,
+  type CascadeArrowInfo,
   type CascadeArrowInfoFunc,
   type ChartSeriesInfoFunc,
   type ChartValueInfoFunc,
+  Color,
   type ColorAdjustmentStrategy,
   type ColorKeyOrString,
+  getColor,
+  type MapRegionInfoFunc,
+  normalizeTo01,
   type PaddingOptions,
-  toPct1,
+  type TableCellInfoFunc,
+  toPct0,
+  type ValuesColorFunc,
 } from "./deps.ts";
 import type {
   GenericAreaStyle,
-  GenericAreaStyleOptions,
   GenericBarStyle,
-  GenericBarStyleOptions,
   GenericCascadeArrowStyle,
-  GenericCascadeArrowStyleOptions,
   GenericConfidenceBandStyle,
-  GenericConfidenceBandStyleOptions,
+  GenericDataLabelStyle,
   GenericErrorBarStyle,
-  GenericErrorBarStyleOptions,
   GenericLineStyle,
-  GenericLineStyleOptions,
+  GenericMapRegionStyle,
   GenericPointStyle,
-  TableCellFormatterFunc,
+  GenericTableCellStyle,
 } from "./style_func_types.ts";
 import type { LegendPosition } from "./types.ts";
+
+function typed<T>(value: T): T {
+  return value;
+}
 
 const _DS = {
   scale: 1,
 
-  seriesColorFunc: (() => ({
+  seriesColorFunc: typed<ChartSeriesInfoFunc<ColorKeyOrString>>(() => ({
     key: "baseContent",
-  })) as ChartSeriesInfoFunc<ColorKeyOrString>,
+  })),
+
+  valuesColorFunc: typed<ValuesColorFunc>((v, min, max) => {
+    if (v === undefined) return "#f0f0f0";
+    const t = normalizeTo01(v, min, max);
+    return Color.scaledPct(
+      getColor({ key: "base200" }),
+      getColor({ key: "baseContent" }),
+      t,
+    );
+  }),
 
   // Surrounds
   surrounds: {
-    padding: 0 as PaddingOptions,
-    backgroundColor: "none" as ColorKeyOrString | "none",
+    padding: typed<PaddingOptions>(0),
+    backgroundColor: typed<ColorKeyOrString | "none">("none"),
     legendGap: 15,
-    legendPosition: "bottom-left" as LegendPosition,
+    legendPosition: typed<LegendPosition>("bottom-left"),
     captionGap: 15,
     subCaptionTopPadding: 7,
     footnoteGap: 15,
+    captionAlignH: typed<"left" | "center" | "right">("left"),
+    subCaptionAlignH: typed<"left" | "center" | "right">("left"),
+    footnoteAlignH: typed<"left" | "center" | "right">("left"),
   },
   // Legend
   legend: {
     legendNoRender: false,
-    maxLegendItemsInOneColumn: 3 as number | number[],
+    maxLegendItemsInOneColumn: typed<number | number[]>(3),
     legendColorBoxWidth: 40,
     legendItemVerticalGap: 5,
     legendLabelGap: 10,
     legendPointRadius: 8,
     legendPointStrokeWidth: 3,
     legendLineStrokeWidth: 3,
-    legendPointInnerColorStrategy: {
+    legendPointInnerColorStrategy: typed<ColorAdjustmentStrategy>({
       opacity: 0.3,
-    } as ColorAdjustmentStrategy,
+    }),
     reverseOrder: false,
+  },
+  // Scale legend
+  scaleLegend: {
+    barHeight: 12,
+    tickLength: 4,
+    labelGap: 4,
+    blockGap: 1,
+    noDataGap: 8,
+    noDataSwatchWidth: 24,
   },
   // Table
   table: {
     rowHeaderIndentIfRowGroups: 20,
-    verticalColHeaders: "auto" as "never" | "always" | "auto",
+    verticalColHeaders: typed<"never" | "always" | "auto">("auto"),
     maxHeightForVerticalColHeaders: 180,
-    colHeaderPadding: 5 as PaddingOptions,
-    rowHeaderPadding: [5, 10] as PaddingOptions,
-    cellPadding: 5 as PaddingOptions,
-    alignV: "top" as "top" | "middle" | "bottom",
-    colHeaderBackgroundColor: { key: "base100" } as ColorKeyOrString | "none",
-    colGroupHeaderBackgroundColor: { key: "base200" } as
-      | ColorKeyOrString
-      | "none",
-    cellBackgroundColorFormatter: "none" as
-      | "none"
-      | TableCellFormatterFunc<
-        string | number | null | undefined,
-        ColorKeyOrString
-      >,
-    cellValueFormatter: ((v) => toPct1(v)) as TableCellFormatterFunc<
-      string | number | null | undefined,
-      string
-    >,
+    colHeaderPadding: typed<PaddingOptions>(5),
+    rowHeaderPadding: typed<PaddingOptions>([5, 10]),
+    cellPadding: typed<PaddingOptions>(5),
+    alignV: typed<"top" | "middle" | "bottom">("top"),
+    colHeaderBackgroundColor: typed<ColorKeyOrString | "none">({
+      key: "base100",
+    }),
+    colGroupHeaderBackgroundColor: typed<ColorKeyOrString | "none">({
+      key: "base200",
+    }),
     headerBorderWidth: 1,
     gridLineWidth: 1,
     borderWidth: 1,
-    headerBorderColor: { key: "baseContent" } as ColorKeyOrString,
-    gridLineColor: { key: "base300" } as ColorKeyOrString,
-    borderColor: { key: "base300" } as ColorKeyOrString,
+    headerBorderColor: typed<ColorKeyOrString>({ key: "baseContent" }),
+    gridLineColor: typed<ColorKeyOrString>({ key: "base300" }),
+    borderColor: typed<ColorKeyOrString>({ key: "base300" }),
   },
   // Lanes
   lanes: {
@@ -100,12 +121,13 @@ const _DS = {
     paddingLeft: 0,
     paddingRight: 0,
     gapX: 10,
-    headerAlignH: "center" as "left" | "center" | "right",
+    headerAlignH: typed<"left" | "center" | "right">("center"),
+    headerGap: 5,
   },
   // X Axis
   xTextAxis: {
     verticalTickLabels: false,
-    tickPosition: "sides" as "sides" | "center",
+    tickPosition: typed<"sides" | "center">("sides"),
     tickHeight: 10,
     tickLabelGap: 10,
   },
@@ -114,7 +136,7 @@ const _DS = {
     showEveryNthTick: 1,
     periodLabelSmallTopPadding: 5,
     periodLabelLargeTopPadding: 5,
-    calendar: "gregorian" as CalendarType,
+    calendar: typed<CalendarType>("gregorian"),
   },
   // Y Axis
   yTextAxis: {
@@ -124,8 +146,8 @@ const _DS = {
     labelGap: 10,
     tickWidth: 10,
     tickLabelGap: 10,
-    logicTickLabelWidth: "auto" as "auto" | "fixed",
-    logicColGroupLabelWidth: "auto" as "auto" | "fixed",
+    logicTickLabelWidth: typed<"auto" | "fixed">("auto"),
+    logicColGroupLabelWidth: typed<"auto" | "fixed">("auto"),
     maxTickLabelWidthAsPctOfChart: 0.3,
     maxColGroupLabelWidthAsPctOfChart: 0.1,
     colGroupGap: 0,
@@ -136,20 +158,28 @@ const _DS = {
     verticalColGroupLabels: true,
   },
   yScaleAxis: {
-    max: "auto" as number | "auto" | ((i_series: number) => number),
-    min: 0 as number | "auto" | ((i_series: number) => number),
+    max: typed<number | "auto" | ((i_series: number) => number)>("auto"),
+    min: typed<number | "auto" | ((i_series: number) => number)>(0),
     labelGap: 10,
     tickWidth: 10,
     tickLabelGap: 5,
     tickLabelFormatter: (v: number): string => (v * 100).toFixed(0) + "%",
-    forceTopOverhangHeight: "none" as "none" | number,
-    exactAxisX: "none" as "none" | number,
+    forceTopOverhangHeight: typed<"none" | number>("none"),
+    exactAxisX: typed<"none" | number>("none"),
     allowIndividualTierLimits: false,
   },
   // Content
   content: {
+    dataLabel: typed<GenericDataLabelStyle>({
+      show: false,
+      offset: 3,
+      backgroundColor: "none",
+      padding: 0,
+      border: "none",
+      rectRadius: 0,
+    }),
     points: {
-      defaults: {
+      func: typed<GenericPointStyle>({
         show: false,
         pointStyle: "circle",
         radius: 5,
@@ -157,80 +187,127 @@ const _DS = {
         strokeWidth: 2,
         innerColorStrategy: { opacity: 0.5 },
         dataLabelPosition: "top",
-      } as GenericPointStyle,
-      func: "none" as ChartValueInfoFunc<GenericPointStyle> | "none",
+        dataLabel: {
+          show: false,
+          offset: 3,
+          backgroundColor: "none",
+          padding: 0,
+          border: "none",
+          rectRadius: 0,
+        },
+      }),
+      textFormatter: typed<ChartValueInfoFunc<string> | "none">("none"),
     },
     bars: {
-      defaults: {
+      func: typed<GenericBarStyle>({
         show: false,
         fillColor: 666,
-      } as GenericBarStyle,
-      func: "none" as ChartValueInfoFunc<GenericBarStyleOptions> | "none",
-      stacking: "none" as "none" | "stacked" | "imposed" | "diff",
+        dataLabel: {
+          show: false,
+          offset: 3,
+          backgroundColor: "none",
+          padding: 0,
+          border: "none",
+          rectRadius: 0,
+        },
+      }),
+      textFormatter: typed<ChartValueInfoFunc<string> | "none">("none"),
+      stacking: typed<"none" | "stacked" | "imposed" | "diff">("none"),
       maxBarWidth: 200,
     },
     lines: {
-      defaults: {
+      func: typed<GenericLineStyle>({
         show: false,
         strokeWidth: 3,
         color: 666,
         lineDash: "solid",
-      } as GenericLineStyle,
-      func: "none" as ChartSeriesInfoFunc<GenericLineStyleOptions> | "none",
+        dataLabel: {
+          show: false,
+          offset: 3,
+          backgroundColor: "none",
+          padding: 0,
+          border: "none",
+          rectRadius: 0,
+        },
+      }),
+      textFormatter: typed<ChartValueInfoFunc<string> | "none">("none"),
       joinAcrossGaps: true,
     },
     areas: {
-      defaults: {
+      func: typed<GenericAreaStyle>({
         show: false,
         to: "zero-line",
         fillColor: 666,
         fillColorAdjustmentStrategy: { opacity: 0.5 },
-      } as GenericAreaStyle,
-      func: "none" as ChartSeriesInfoFunc<GenericAreaStyleOptions> | "none",
+      }),
       joinAcrossGaps: true,
       diff: {
         enabled: false,
       },
     },
     errorBars: {
-      defaults: {
+      func: typed<GenericErrorBarStyle>({
         show: true,
         strokeColor: { key: "baseContent" },
         strokeWidth: 3,
         capWidthProportion: 0.4,
-      } as GenericErrorBarStyle,
-      func: "none" as
-        | ChartValueInfoFunc<GenericErrorBarStyleOptions>
-        | "none",
+      }),
     },
     confidenceBands: {
-      defaults: {
+      func: typed<GenericConfidenceBandStyle>({
         show: true,
         fillColor: 666,
         fillColorAdjustmentStrategy: { opacity: 0.15 },
-      } as GenericConfidenceBandStyle,
-      func: "none" as
-        | ChartSeriesInfoFunc<GenericConfidenceBandStyleOptions>
-        | "none",
+      }),
     },
-    withDataLabels: true,
-    dataLabelFormatter: ((v) => toPct1(v.val)) as ChartValueInfoFunc<
-      string | undefined
-    >,
     cascadeArrows: {
-      defaults: {
+      func: typed<GenericCascadeArrowStyle>({
         show: false,
-        strokeColor: { key: "baseContent" } as ColorKeyOrString,
+        strokeColor: { key: "baseContent" },
         strokeWidth: 1.5,
         arrowHeadLength: 6,
         showArrowhead: true,
         arrowLengthPctOfSpace: 0.7,
         arrowLabelGap: 4,
-        labelFormatter: (r: number): string => `${(r * 100).toFixed(0)}%`,
-      } as GenericCascadeArrowStyle,
-      func: "none" as
-        | CascadeArrowInfoFunc<GenericCascadeArrowStyleOptions>
-        | "none",
+        dataLabel: {
+          show: true,
+          offset: 3,
+          backgroundColor: "none",
+          padding: 0,
+          border: "none",
+          rectRadius: 0,
+        },
+      }),
+      textFormatter: typed<CascadeArrowInfoFunc<string> | "none">(
+        (info: CascadeArrowInfo) => toPct0(info.relRetention),
+      ),
+    },
+    mapRegions: {
+      func: typed<GenericMapRegionStyle>({
+        show: true,
+        fillColor: 777,
+        strokeColor: { key: "baseContent" },
+        strokeWidth: 1,
+        dataLabel: {
+          show: false,
+          offset: 0,
+          backgroundColor: "#ffffff",
+          padding: 3,
+          border: "none",
+          rectRadius: 0,
+        },
+        leaderLineStrokeColor: "#666666",
+        leaderLineStrokeWidth: 1,
+        leaderLineGap: 4,
+      }),
+      textFormatter: typed<MapRegionInfoFunc<string> | "none">("none"),
+    },
+    tableCells: {
+      func: typed<GenericTableCellStyle>({
+        backgroundColor: "none",
+        textColorStrategy: "none",
+      }),
+      textFormatter: typed<TableCellInfoFunc<string> | "none">("none"),
     },
   },
   // Grid
@@ -238,9 +315,9 @@ const _DS = {
     showGrid: true,
     axisStrokeWidth: 3,
     gridStrokeWidth: 1,
-    axisColor: { key: "baseContent" } as ColorKeyOrString,
-    gridColor: { key: "base300" } as ColorKeyOrString,
-    backgroundColor: "none" as ColorKeyOrString | "none",
+    axisColor: typed<ColorKeyOrString>({ key: "baseContent" }),
+    gridColor: typed<ColorKeyOrString>({ key: "base300" }),
+    backgroundColor: typed<ColorKeyOrString | "none">("none"),
   },
   // Tiers
   tiers: {
@@ -249,44 +326,44 @@ const _DS = {
     paddingBottom: 10,
     gapY: 50,
     maxHeaderWidthAsPctOfChart: 0.3,
-    headerAlignH: "left" as "left" | "center" | "right",
-    headerAlignV: "top" as "top" | "middle",
+    headerAlignH: typed<"left" | "center" | "right">("left"),
+    headerAlignV: typed<"top" | "middle">("top"),
+    headerPosition: typed<"left" | "above-axis" | "above-plot-area">("left"),
+    headerGap: 5,
   },
   // Panes
   panes: {
     hideHeaders: false,
     padding: 0,
-    backgroundColor: "none" as ColorKeyOrString | "none",
-    headerAlignH: "left" as "left" | "center" | "right",
+    backgroundColor: typed<ColorKeyOrString | "none">("none"),
+    headerAlignH: typed<"left" | "center" | "right">("left"),
     headerGap: 5,
     gapX: 15,
     gapY: 15,
-    nCols: "auto" as number | "auto",
+    nCols: typed<number | "auto">("auto"),
   },
   // SimpleViz
   simpleviz: {
     layerGap: 150,
     orderGap: 100,
-    layerAlign: "left" as
-      | "left"
-      | "center"
-      | "right"
-      | Array<"left" | "center" | "right">,
+    layerAlign: typed<
+      "left" | "center" | "right" | Array<"left" | "center" | "right">
+    >("left"),
     boxes: {
-      fillColor: { key: "base200" } as ColorKeyOrString,
-      strokeColor: { key: "baseContent" } as ColorKeyOrString,
+      fillColor: typed<ColorKeyOrString>({ key: "base200" }),
+      strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
       strokeWidth: 1,
-      alignH: "center" as "left" | "center" | "right",
-      alignV: "middle" as "top" | "middle" | "bottom",
+      alignH: typed<"left" | "center" | "right">("center"),
+      alignV: typed<"top" | "middle" | "bottom">("middle"),
       textGap: 10,
-      padding: 10 as PaddingOptions,
-      arrowStartPoint: "center" as AnchorPoint,
-      arrowEndPoint: "center" as AnchorPoint,
+      padding: typed<PaddingOptions>(10),
+      arrowStartPoint: typed<AnchorPoint>("center"),
+      arrowEndPoint: typed<AnchorPoint>("center"),
     },
     arrows: {
-      strokeColor: { key: "baseContent" } as ColorKeyOrString,
+      strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
       strokeWidth: 2,
-      lineDash: "solid" as "solid" | "dashed",
+      lineDash: typed<"solid" | "dashed">("solid"),
       truncateStart: 10,
       truncateEnd: 10,
     },
@@ -295,48 +372,21 @@ const _DS = {
   sankey: {
     nodeWidth: 20,
     nodeGap: 10,
-    columnGap: "auto" as number | "auto",
+    columnGap: typed<number | "auto">("auto"),
     labelGap: 8,
     linkOpacity: 0.5,
-    defaultNodeColor: { key: "baseContent" } as ColorKeyOrString,
-    defaultLinkColor: { key: "base300" } as ColorKeyOrString,
-    layoutMode: "flow" as "flow" | "tiered",
+    defaultNodeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
+    defaultLinkColor: typed<ColorKeyOrString>({ key: "base300" }),
+    layoutMode: typed<"flow" | "tiered">("flow"),
   },
   map: {
-    projection: "equirectangular" as
-      | "equirectangular"
-      | "mercator"
-      | "naturalEarth1",
-    colorScale: {
-      type: "sequential",
-      colors: ["#f7fbff", "#08306b"],
-    } as import("./_3_merged_style_return_types.ts").MapColorScale,
-    regionStrokeColor: "#999999" as ColorKeyOrString | "none",
-    regionStrokeWidth: 0.5,
-    noDataColor: "#f0f0f0" as ColorKeyOrString | "none",
-    padding: 5,
-    valueRange: "auto" as { min: number; max: number } | "auto",
-    dataLabels: {
-      mode: "none" as
-        | "none"
-        | "centroid"
-        | "callout"
-        | "auto",
-      showValue: false,
-      valueFormatter: ((v: number) => v.toFixed(1)) as (
-        value: number,
-      ) => string,
-      halo: {
-        color: "#ffffff" as ColorKeyOrString,
-        width: 3,
-      },
-      leaderLine: {
-        strokeColor: "#666666" as ColorKeyOrString,
-        strokeWidth: 1,
-        gap: 4,
-      },
-      calloutMargin: 30,
-    },
+    projection: typed<"equirectangular" | "mercator" | "naturalEarth1">(
+      "equirectangular",
+    ),
+    fit: typed<"all-regions" | "only-regions-in-data">("all-regions"),
+    boundingBox: typed<[number, number, number, number] | undefined>(undefined),
+    dataLabelMode: typed<"none" | "centroid" | "callout" | "auto">("centroid"),
+    calloutMargin: 30,
   },
 };
 

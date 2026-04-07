@@ -12,12 +12,7 @@ import {
 } from "panther";
 import { serverActions } from "~/server_actions";
 
-type Props = EditorComponentProps<
-  {
-    silentRefreshIndicators: () => Promise<void>;
-  },
-  undefined
->;
+type Props = EditorComponentProps<{}, undefined>;
 
 export function HfaIndicatorsCsvUploadForm(p: Props) {
   const [uploadMode, setUploadMode] = createSignal<"replace" | "add">("add");
@@ -117,7 +112,6 @@ export function HfaIndicatorsCsvUploadForm(p: Props) {
         replaceAll: uploadMode() === "replace",
       });
     },
-    p.silentRefreshIndicators,
     () => p.close(undefined),
   );
 

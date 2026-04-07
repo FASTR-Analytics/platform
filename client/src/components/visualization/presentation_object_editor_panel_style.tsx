@@ -499,6 +499,11 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             />
           </Show>
         </div>
+        <Checkbox
+          label={t3({ en: "Reverse scale", fr: "Inverser l'échelle" })}
+          checked={p.tempConfig.s.mapColorReverse}
+          onChange={(v) => p.setTempConfig("s", "mapColorReverse", v)}
+        />
         <RadioGroup
           label={t3({ en: "Scale type", fr: "Type d'échelle" })}
           options={[

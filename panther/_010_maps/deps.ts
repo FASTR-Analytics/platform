@@ -3,35 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { Color, getColor } from "../_001_color/mod.ts";
-export type { ColorKeyOrString } from "../_001_color/mod.ts";
+export { getColor } from "../_001_color/mod.ts";
+export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export { Z_INDEX } from "../_001_render_system/mod.ts";
-export type {
-  HeightConstraints,
-  MapLabelPrimitive,
-  MapRegionPrimitive,
-  PathSegment,
-  Primitive,
-  RenderContext,
-  Renderer,
-} from "../_001_render_system/mod.ts";
+export type { HeightConstraints, MapLabelPrimitive, MapRegionInfoFunc, MapRegionPrimitive, PathSegment, Primitive, RenderContext, Renderer } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
-export type {
-  MapColorScale,
-  MergedMapDataLabelsStyle,
-  MergedMapStyle,
-} from "../_003_figure_style/mod.ts";
-export {
-  measureChart,
-  measureChartWithAutofit,
-  renderFigureBackground,
-  renderFigurePrimitives,
-} from "../_007_figure_core/mod.ts";
-export type {
-  ChartComponentSizes,
-  FigureInputsBase,
-  JsonArray,
-  MeasuredChartBase,
-  SimplifiedChartConfig,
-} from "../_007_figure_core/mod.ts";
+export type { MapDataLabelMode, MapRegionStyle, MergedMapStyle } from "../_003_figure_style/mod.ts";
+export { measureChart, measureChartWithAutofit, renderFigureBackground, renderFigurePrimitives } from "../_007_figure_core/mod.ts";
+export type { ChartComponentSizes, FigureInputsBase, JsonArray, MeasuredChartBase, SimplifiedChartConfig } from "../_007_figure_core/mod.ts";

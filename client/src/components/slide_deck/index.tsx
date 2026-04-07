@@ -1,4 +1,5 @@
-import { type InstanceDetail, type ProjectDetail, type Slide, type SlideDeckConfig, getStartingConfigForSlideDeck, t3 } from "lib";
+import { type ProjectDetail, type Slide, type SlideDeckConfig, getStartingConfigForSlideDeck, t3 } from "lib";
+import { instanceState } from "~/state/instance_state";
 import {
   createAIChat,
   EditorComponentProps,
@@ -22,7 +23,6 @@ type SlideDeckModalReturn = undefined;
 
 type Props = EditorComponentProps<
   {
-    instanceDetail: InstanceDetail;
     projectDetail: ProjectDetail;
     deckId: string;
     reportLabel: string;
@@ -94,7 +94,6 @@ export function ProjectAiSlideDeck(p: Props) {
   return (
     <ProjectAiSlideDeckInner
       projectDetail={p.projectDetail}
-      instanceDetail={p.instanceDetail}
       isGlobalAdmin={p.isGlobalAdmin}
       deckId={p.deckId}
       deckLabel={deckLabel()}
@@ -110,7 +109,6 @@ export function ProjectAiSlideDeck(p: Props) {
 
 function ProjectAiSlideDeckInner(p: {
   projectDetail: ProjectDetail;
-  instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
   deckId: string;
   deckLabel: string;
@@ -167,7 +165,7 @@ function ProjectAiSlideDeckInner(p: {
         projectId: p.projectDetail.id,
         deckId: p.deckId,
         deckLabel: p.deckLabel,
-        userEmails: p.instanceDetail.users.map((u) => u.email),
+        userEmails: instanceState.users.map((u) => u.email),
       },
     });
   }
@@ -202,7 +200,6 @@ function ProjectAiSlideDeckInner(p: {
         returnToContext: aiContext(),
         ...snapshotForSlideEditor({
           projectDetail: p.projectDetail,
-          instanceDetail: p.instanceDetail,
           deckConfig: p.deckConfig,
         }),
       },

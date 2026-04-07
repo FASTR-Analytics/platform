@@ -3,36 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Coordinates, RectCoordsDims } from "../deps.ts";
-import type { RelativePosition } from "./types.ts";
-
-export function resolvePosition(
-  relPos: RelativePosition,
-  bounds: RectCoordsDims,
-): Coordinates {
-  if ("rx" in relPos && "ry" in relPos) {
-    return new Coordinates([
-      bounds.x() + relPos.rx * bounds.w(),
-      bounds.y() + relPos.ry * bounds.h(),
-    ]);
-  }
-  if ("dx" in relPos && "dy" in relPos) {
-    return new Coordinates([
-      bounds.x() + relPos.dx,
-      bounds.y() + relPos.dy,
-    ]);
-  }
-  if ("dx" in relPos && "ry" in relPos) {
-    return new Coordinates([
-      bounds.x() + relPos.dx,
-      bounds.y() + relPos.ry * bounds.h(),
-    ]);
-  }
-  return new Coordinates([
-    bounds.x() + relPos.rx * bounds.w(),
-    bounds.y() + relPos.dy,
-  ]);
-}
+import { type Coordinates, RectCoordsDims } from "../deps.ts";
 
 export function computeBoundsForPoint(
   coords: Coordinates,

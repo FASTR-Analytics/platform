@@ -98,6 +98,7 @@ export class CustomMarkdownStyle {
 
     return {
       alreadyScaledValue: sf,
+      alignH: m(c.alignH, g.alignH, d.alignH),
       text: {
         paragraph: paragraphText,
         h1: h1Text,

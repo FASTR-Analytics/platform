@@ -7,9 +7,16 @@ export const _KEY_COLORS = {
   base200: "#F2F2F2",
   base300: "#CACACA",
   baseContent: "#2A2A2A",
-  baseContentLessVisible: "rgb(12, 23, 33)",
   primary: _PRIMARY_GFF,
   primaryContent: "white",
+  neutral: "rgb(161, 161, 161)",
+  neutralContent: "#ffffff",
+  success: "#009F70",
+  successContent: "#ffffff",
+  warning: "#d97706",
+  warningContent: "#ffffff",
+  danger: "#F04D44",
+  dangerContent: "#ffffff",
 };
 
 export const _SLIDE_BACKGROUND_COLOR = _NIGERIA_GREEN;

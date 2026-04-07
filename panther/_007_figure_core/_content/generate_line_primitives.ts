@@ -7,7 +7,10 @@ import {
   computeBoundsForPath,
   Coordinates,
   type DataLabel,
+  getAdjustedFont,
+  getColor,
   type Primitive,
+  type TextInfoUnkeyed,
   Z_INDEX,
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
@@ -74,17 +77,59 @@ export function generateLinePrimitives(
       currentSeg.valueIndices.push(i_val);
 
       if (labelOwner[i_series][i_val] === "lines") {
-        const valueInfo = buildValueInfo(seriesInfo, mappedVal.val, i_val);
-        const labelStr = s.dataLabelFormatter(valueInfo);
-        if (labelStr?.trim()) {
-          const mText = ctx.rc.mText(labelStr, ctx.dataLabelsTextStyle, 9999);
-          const offset = mText.ti.fontSize * 0.3;
+        const dl = lineStyle.dataLabel;
+        const valueInfo = buildValueInfo(
+          seriesInfo,
+          mappedVal.val,
+          i_val,
+          ctx.valueRange.minVal,
+          ctx.valueRange.maxVal,
+        );
+        const labelStr = s.lines.textFormatter !== "none"
+          ? s.lines.textFormatter(valueInfo)
+          : String(mappedVal.val);
+
+        const textStyle: TextInfoUnkeyed = {
+          ...ctx.dataLabelsTextStyle,
+          ...(dl.color !== undefined ? { color: getColor(dl.color) } : {}),
+          ...(dl.relFontSize !== undefined
+            ? { fontSize: ctx.dataLabelsTextStyle.fontSize * dl.relFontSize }
+            : {}),
+          ...(dl.font !== undefined
+            ? { font: getAdjustedFont(ctx.dataLabelsTextStyle.font, dl.font) }
+            : {}),
+        };
+
+        const mText = ctx.rc.mText(labelStr, textStyle, 9999);
+        const hasDecoration = dl.backgroundColor !== "none" ||
+          dl.border !== "none";
+
+        if (labelStr.trim() || hasDecoration) {
           currentSeg.pointLabels.push({
             coordIndex: currentSeg.coords.length - 1,
             dataLabel: {
-              text: labelStr,
               mText,
-              relativePosition: { rx: 0.5, dy: -offset },
+              position: new Coordinates([
+                mappedVal.coords.x(),
+                mappedVal.coords.y() - dl.offset,
+              ]),
+              alignH: "center",
+              alignV: "bottom",
+              style: hasDecoration
+                ? {
+                  backgroundColor: dl.backgroundColor !== "none"
+                    ? getColor(dl.backgroundColor)
+                    : undefined,
+                  padding: dl.padding,
+                  border: dl.border !== "none"
+                    ? {
+                      color: getColor(dl.border.color),
+                      width: dl.border.width,
+                    }
+                    : undefined,
+                  rectRadius: dl.rectRadius,
+                }
+                : undefined,
             },
           });
         }
@@ -118,6 +163,7 @@ export function generateLinePrimitives(
           series: seriesInfo,
           valueIndices: seg.valueIndices,
         },
+        annotationGroup: lineStyle.annotationGroup,
         coords: seg.coords,
         style: lineStyle,
         pointLabels: seg.pointLabels,

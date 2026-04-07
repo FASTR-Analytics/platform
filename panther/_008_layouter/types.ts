@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AlignV,
   ColorKeyOrString,
   HeightConstraints,
   Padding,
@@ -17,11 +18,30 @@ export type LayoutNodeId = string;
 
 export type IdGenerator = () => LayoutNodeId;
 
+export type ContainerDecorationOptions = {
+  type: "quote";
+  color?: ColorKeyOrString;
+  size?: number;
+  topMargin?: number;
+};
+
+export type ResolvedContainerDecoration =
+  | { type: "none" }
+  | {
+    type: "quote";
+    color: string;
+    size: number;
+    topMargin: number;
+  };
+
 export type ContainerStyleOptions = {
   padding?: PaddingOptions;
   backgroundColor?: ColorKeyOrString;
   borderColor?: ColorKeyOrString;
   borderWidth?: number;
+  rectRadius?: number;
+  decoration?: ContainerDecorationOptions;
+  backgroundExtent?: "content" | "fill";
 };
 
 export type ResolvedContainerStyle = {
@@ -29,6 +49,9 @@ export type ResolvedContainerStyle = {
   backgroundColor: string;
   borderColor: string;
   borderWidth: number;
+  rectRadius: number;
+  decoration?: ResolvedContainerDecoration;
+  backgroundExtent: "content" | "fill";
 };
 
 export type LayoutNodeBase = {
@@ -52,6 +75,7 @@ export type ItemLayoutNode<U> = LayoutNodeBase & {
   type: "item";
   data: U;
   style?: ContainerStyleOptions;
+  alignV?: AlignV;
 };
 
 export type LayoutNode<U> =
@@ -84,6 +108,7 @@ export type MeasuredItemLayoutNode<U> = Omit<ItemLayoutNode<U>, "style"> & {
   resolvedStyle: ResolvedContainerStyle;
   rpd: RectCoordsDims;
   contentRpd: RectCoordsDims;
+  styleRpd: RectCoordsDims;
   idealH: number;
   maxH: number;
   neededScalingToFitWidth?: "none" | number;

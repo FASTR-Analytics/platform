@@ -1,11 +1,15 @@
 import { Hono } from "hono";
-import { InstanceMeta } from "lib";
+import { InstanceMeta, type InstanceConfig } from "lib";
 import {
+  getCountryIso3Config,
+  getFacilityColumnsConfig,
   getInstanceDetail,
+  getMaxAdminAreaConfig,
   updateCountryIso3Config,
   updateFacilityColumnsConfig,
   updateMaxAdminArea,
 } from "../../db/mod.ts";
+import { notifyInstanceConfigUpdated } from "../../task_management/notify_instance_updated.ts";
 import {
   _DATABASE_FOLDER,
   _INSTANCE_CALENDAR,
@@ -67,6 +71,9 @@ defineRoute(
   log("updateMaxAdminArea"),
   async (c, { body }) => {
     const res = await updateMaxAdminArea(c.var.mainDb, body.maxAdminArea);
+    if (res.success) {
+      await notifyConfigUpdated(c.var.mainDb);
+    }
     return c.json(res);
   },
 );
@@ -78,6 +85,9 @@ defineRoute(
   log("updateFacilityColumnsConfig"),
   async (c, { body }) => {
     const res = await updateFacilityColumnsConfig(c.var.mainDb, body);
+    if (res.success) {
+      await notifyConfigUpdated(c.var.mainDb);
+    }
     return c.json(res);
   },
 );
@@ -89,6 +99,25 @@ defineRoute(
   log("updateCountryIso3"),
   async (c, { body }) => {
     const res = await updateCountryIso3Config(c.var.mainDb, body.countryIso3);
+    if (res.success) {
+      await notifyConfigUpdated(c.var.mainDb);
+    }
     return c.json(res);
   },
 );
+
+async function notifyConfigUpdated(mainDb: Parameters<typeof getMaxAdminAreaConfig>[0]) {
+  const [maxRes, fcRes, isoRes] = await Promise.all([
+    getMaxAdminAreaConfig(mainDb),
+    getFacilityColumnsConfig(mainDb),
+    getCountryIso3Config(mainDb),
+  ]);
+  if (maxRes.success && fcRes.success && isoRes.success) {
+    const config: InstanceConfig = {
+      maxAdminArea: maxRes.data.maxAdminArea,
+      facilityColumns: fcRes.data,
+      countryIso3: isoRes.data.countryIso3,
+    };
+    notifyInstanceConfigUpdated(config);
+  }
+}

@@ -161,6 +161,7 @@ export class CustomPageStyle {
             d.header.bottomBorderColor,
           ),
         ),
+        alignH: m(c.header?.alignH, g.header?.alignH, d.header.alignH),
       },
       footer: {
         padding: msPadding(
@@ -188,6 +189,7 @@ export class CustomPageStyle {
             d.footer.backgroundColor,
           ),
         ),
+        alignH: m(c.footer?.alignH, g.footer?.alignH, d.footer.alignH),
       },
       content: {
         padding: msPadding(
@@ -232,7 +234,30 @@ export class CustomPageStyle {
           g.cover?.logoGapX,
           d.cover.logoGapX,
         ),
-        gapY: ms(sf, c.cover?.gapY, g.cover?.gapY, d.cover.gapY),
+        logoBottomPadding: ms(
+          sf,
+          c.cover?.logoBottomPadding,
+          g.cover?.logoBottomPadding,
+          d.cover.logoBottomPadding,
+        ),
+        titleBottomPadding: ms(
+          sf,
+          c.cover?.titleBottomPadding,
+          g.cover?.titleBottomPadding,
+          d.cover.titleBottomPadding,
+        ),
+        subTitleBottomPadding: ms(
+          sf,
+          c.cover?.subTitleBottomPadding,
+          g.cover?.subTitleBottomPadding,
+          d.cover.subTitleBottomPadding,
+        ),
+        authorBottomPadding: ms(
+          sf,
+          c.cover?.authorBottomPadding,
+          g.cover?.authorBottomPadding,
+          d.cover.authorBottomPadding,
+        ),
         alignH: m(c.cover?.alignH, g.cover?.alignH, d.cover.alignH),
         alignV: m(c.cover?.alignV, g.cover?.alignV, d.cover.alignV),
       },
@@ -250,7 +275,12 @@ export class CustomPageStyle {
             d.section.backgroundColor,
           ),
         ),
-        gapY: ms(sf, c.section?.gapY, g.section?.gapY, d.section.gapY),
+        sectionTitleBottomPadding: ms(
+          sf,
+          c.section?.sectionTitleBottomPadding,
+          g.section?.sectionTitleBottomPadding,
+          d.section.sectionTitleBottomPadding,
+        ),
         alignH: m(c.section?.alignH, g.section?.alignH, d.section.alignH),
         alignV: m(c.section?.alignV, g.section?.alignV, d.section.alignV),
       },
@@ -280,6 +310,37 @@ export class CustomPageStyle {
           c.layoutContainers?.borderWidth,
           g.layoutContainers?.borderWidth,
           d.layoutContainers.borderWidth,
+        ),
+        rectRadius: ms(
+          sf,
+          c.layoutContainers?.rectRadius,
+          g.layoutContainers?.rectRadius,
+          d.layoutContainers.rectRadius,
+        ),
+      },
+      pageNumber: {
+        placement: m(
+          c.pageNumber?.placement,
+          g.pageNumber?.placement,
+          d.pageNumber.placement,
+        ),
+        padding: msPadding(
+          sf,
+          c.pageNumber?.padding,
+          g.pageNumber?.padding,
+          d.pageNumber.padding,
+        ),
+        background: m(
+          c.pageNumber?.background,
+          g.pageNumber?.background,
+          d.pageNumber.background,
+        ),
+        backgroundColor: getColor(
+          m(
+            c.pageNumber?.backgroundColor,
+            g.pageNumber?.backgroundColor,
+            d.pageNumber.backgroundColor,
+          ),
         ),
       },
     };

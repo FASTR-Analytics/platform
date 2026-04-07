@@ -80,7 +80,7 @@ function measure(
     item.caption,
     item.subCaption,
     item.footnote,
-    item.legendItemsOrLabels,
+    item.legend,
   );
 
   const sankeyStyle = getMergedSankeyStyle(customFigureStyle);
@@ -200,7 +200,7 @@ function getIdealHeight(
     item.caption,
     item.subCaption,
     item.footnote,
-    item.legendItemsOrLabels,
+    item.legend,
   );
 
   const bbox = getInputBoundingBox(item.nodes, item.links);

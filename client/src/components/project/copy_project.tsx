@@ -12,7 +12,6 @@ export function CopyProjectForm(
   p: AlertComponentProps<
     {
       projectId: string;
-      silentFetch: () => Promise<void>;
     },
     { newProjectId: string }
   >,
@@ -35,7 +34,7 @@ export function CopyProjectForm(
         newProjectLabel: goodLabel,
       });
     },
-    () => p.silentFetch(),
+    async () => {},
     (data) => p.close({ newProjectId: data!.newProjectId }),
   );
 

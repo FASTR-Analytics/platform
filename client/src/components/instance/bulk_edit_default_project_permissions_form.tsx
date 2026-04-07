@@ -77,7 +77,6 @@ function cycleTriState(current: TriState): TriState {
 
 type Props = {
   emails: string[];
-  silentFetch: () => Promise<void>;
 };
 
 export function BulkEditDefaultProjectPermissionsForm(
@@ -104,7 +103,7 @@ export function BulkEditDefaultProjectPermissionsForm(
         permissions,
       });
     },
-    p.silentFetch,
+    async () => {},
     () => p.close(undefined),
   );
 

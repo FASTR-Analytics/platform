@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import type { PageNumberBackground } from "./_2_custom_page_style_options.ts";
 import type {
   AlignH,
   AlignV,
@@ -18,14 +19,17 @@ const _DS = {
     backgroundColor: { key: "base300" } as ColorKeyOrString,
     logoHeight: 320,
     logoGapX: 40,
-    gapY: 30,
+    logoBottomPadding: 30,
+    titleBottomPadding: 30,
+    subTitleBottomPadding: 30,
+    authorBottomPadding: 30,
     alignH: "center" as AlignH,
     alignV: "middle" as AlignV,
   },
   section: {
     padding: [200, 300] as PaddingOptions,
     backgroundColor: { key: "base300" } as ColorKeyOrString,
-    gapY: 30,
+    sectionTitleBottomPadding: 30,
     alignH: "center" as AlignH,
     alignV: "middle" as AlignV,
   },
@@ -40,12 +44,14 @@ const _DS = {
     subHeaderBottomPadding: 20,
     bottomBorderStrokeWidth: 0,
     bottomBorderColor: { key: "primary" } as ColorKeyOrString,
+    alignH: "left" as AlignH,
   },
   footer: {
     padding: 60 as PaddingOptions,
     logoHeight: 200,
     logoGapX: 40,
     backgroundColor: { key: "base200" } as ColorKeyOrString,
+    alignH: "left" as AlignH,
   },
   content: {
     padding: 60 as PaddingOptions,
@@ -58,6 +64,16 @@ const _DS = {
     backgroundColor: "none" as ColorKeyOrString,
     borderColor: "none" as ColorKeyOrString,
     borderWidth: 0,
+    rectRadius: 0,
+  },
+  pageNumber: {
+    placement: "bottom-right" as
+      | "bottom-right"
+      | "bottom-left"
+      | "bottom-center",
+    padding: 15 as PaddingOptions,
+    background: "none" as PageNumberBackground,
+    backgroundColor: { key: "base100" } as ColorKeyOrString,
   },
 };
 

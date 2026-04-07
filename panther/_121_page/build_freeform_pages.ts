@@ -7,12 +7,17 @@ import type { CustomPageStyleOptions, LayoutNode } from "./deps.ts";
 import { createRowsNode } from "./deps.ts";
 import type { FreeformPageInputs, PageContentItem } from "./types.ts";
 
+export type PageNumberFormat =
+  | "number"
+  | "n-of-total"
+  | ((page: number, total: number) => string);
+
 export type FreeformPagesConfig = {
   header?: string;
   subHeader?: string;
   footer?: string;
   date?: string;
-  pageNumbers?: boolean;
+  pageNumbers?: boolean | PageNumberFormat;
   firstPageHeader?: string;
   firstPageSubHeader?: string;
   skipHeaderOnFirstPage?: boolean;
@@ -23,6 +28,7 @@ export function buildFreeformPages<T extends PageContentItem>(
   pageContents: LayoutNode<T>[][],
   config: FreeformPagesConfig,
 ): FreeformPageInputs[] {
+  const total = pageContents.length;
   return pageContents.map((content, i) => {
     const isFirstPage = i === 0;
 
@@ -44,9 +50,20 @@ export function buildFreeformPages<T extends PageContentItem>(
       subHeader,
       footer: config.footer,
       date: config.date,
-      pageNumber: config.pageNumbers ? String(i + 1) : undefined,
+      pageNumber: formatPageNumber(config.pageNumbers, i + 1, total),
       content: createRowsNode(content) as LayoutNode<PageContentItem>,
       style: config.style,
     };
   });
+}
+
+function formatPageNumber(
+  format: boolean | PageNumberFormat | undefined,
+  page: number,
+  total: number,
+): string | undefined {
+  if (!format) return undefined;
+  if (format === true || format === "number") return String(page);
+  if (format === "n-of-total") return `${page} of ${total}`;
+  return format(page, total);
 }

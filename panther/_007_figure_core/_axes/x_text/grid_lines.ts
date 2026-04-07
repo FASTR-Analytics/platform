@@ -32,7 +32,9 @@ export function calculateVerticalGridLinesForLaneXText(
       verticalGridLines.push({ x: currentX });
     }
 
-    currentX += mx.indicatorAreaInnerWidth + gridStrokeWidth;
+    currentX += centeredTicks
+      ? mx.indicatorAreaInnerWidth
+      : mx.indicatorAreaInnerWidth + gridStrokeWidth;
   }
 
   // Add final grid line at right edge (only for non-centered ticks)

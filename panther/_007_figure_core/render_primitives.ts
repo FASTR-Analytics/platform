@@ -13,14 +13,18 @@ import type {
   ChartGridPrimitive,
   ChartLabelPrimitive,
   ChartLegendPrimitive,
+  DataLabel,
   LineStyle,
   MapLabelPrimitive,
   Primitive,
   RenderContext,
   SankeyLinkPrimitive,
   SankeyNodePrimitive,
+  TableBorderPrimitive,
+  TableGridPrimitive,
+  TableHeaderAxisPrimitive,
 } from "./deps.ts";
-import { Coordinates, RectCoordsDims, resolvePosition } from "./deps.ts";
+import { Coordinates, Padding, RectCoordsDims } from "./deps.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,51 +59,61 @@ export function renderFigurePrimitives(
   }
 }
 
+function renderDataLabel(rc: RenderContext, dl: DataLabel): void {
+  if (dl.style) {
+    const textW = dl.mText.dims.w();
+    const textH = dl.mText.dims.h();
+    const pad = dl.style.padding ?? new Padding(0);
+
+    let bgX = dl.position.x() - pad.pl();
+    let bgY = dl.position.y() - pad.pt();
+    const bgW = textW + pad.pl() + pad.pr();
+    const bgH = textH + pad.pt() + pad.pb();
+
+    if (dl.alignH === "center") bgX -= textW / 2;
+    else if (dl.alignH === "right") bgX -= textW;
+    if (dl.alignV === "middle") bgY -= textH / 2;
+    else if (dl.alignV === "bottom") bgY -= textH;
+
+    const bgRcd = new RectCoordsDims({
+      x: bgX,
+      y: bgY,
+      w: bgW,
+      h: bgH,
+    });
+
+    if (dl.style.backgroundColor || dl.style.border) {
+      rc.rRect(bgRcd, {
+        fillColor: dl.style.backgroundColor ?? "transparent",
+        ...(dl.style.border
+          ? {
+            strokeColor: dl.style.border.color,
+            strokeWidth: dl.style.border.width,
+          }
+          : {}),
+        rectRadius: dl.style.rectRadius,
+      });
+    }
+  }
+
+  rc.rText(dl.mText, dl.position, dl.alignH, dl.alignV);
+}
+
 function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
   switch (primitive.type) {
-    case "chart-data-point":
+    case "chart-data-point": {
       rc.rPoint(primitive.coords, primitive.style);
       if (primitive.dataLabel) {
-        const labelPos = resolvePosition(
-          primitive.dataLabel.relativePosition,
-          primitive.bounds,
-        );
-        const alignH = "dx" in primitive.dataLabel.relativePosition &&
-            primitive.dataLabel.relativePosition.dx < 0
-          ? "right"
-          : "dx" in primitive.dataLabel.relativePosition &&
-              primitive.dataLabel.relativePosition.dx > 0
-          ? "left"
-          : "center";
-        const alignV = "dy" in primitive.dataLabel.relativePosition &&
-            primitive.dataLabel.relativePosition.dy < 0
-          ? "bottom"
-          : "dy" in primitive.dataLabel.relativePosition &&
-              primitive.dataLabel.relativePosition.dy > 0
-          ? "top"
-          : "middle";
-        rc.rText(primitive.dataLabel.mText, labelPos, alignH, alignV);
+        renderDataLabel(rc, primitive.dataLabel);
       }
       break;
+    }
 
     case "chart-line-series":
       rc.rLine(primitive.coords, primitive.style);
       if (primitive.pointLabels) {
         for (const pointLabel of primitive.pointLabels) {
-          const coords = primitive.coords[pointLabel.coordIndex];
-          if (coords) {
-            const pointBounds = new RectCoordsDims({
-              x: coords.x(),
-              y: coords.y(),
-              w: 0,
-              h: 0,
-            });
-            const labelPos = resolvePosition(
-              pointLabel.dataLabel.relativePosition,
-              pointBounds,
-            );
-            rc.rText(pointLabel.dataLabel.mText, labelPos, "center", "bottom");
-          }
+          renderDataLabel(rc, pointLabel.dataLabel);
         }
       }
       break;
@@ -111,11 +125,7 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
     case "chart-bar":
       rc.rRect(primitive.bounds, primitive.style);
       if (primitive.dataLabel) {
-        const labelPos = resolvePosition(
-          primitive.dataLabel.relativePosition,
-          primitive.bounds,
-        );
-        rc.rText(primitive.dataLabel.mText, labelPos, "center", "bottom");
+        renderDataLabel(rc, primitive.dataLabel);
       }
       break;
 
@@ -214,6 +224,54 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       renderMapLabelPrimitive(rc, primitive);
       break;
 
+    case "table-cell":
+      if (primitive.backgroundColor !== "none") {
+        rc.rRect(primitive.bounds, { fillColor: primitive.backgroundColor });
+      }
+      rc.rText(
+        primitive.mText,
+        primitive.textPosition,
+        primitive.textAlignH,
+        primitive.textAlignV,
+      );
+      break;
+
+    case "table-row-header":
+      rc.rText(primitive.mText, primitive.textPosition, primitive.textAlignH);
+      break;
+
+    case "table-col-header":
+      if (primitive.backgroundColor !== "none") {
+        rc.rRect(primitive.bounds, { fillColor: primitive.backgroundColor });
+      }
+      if (primitive.mText && primitive.textPosition) {
+        rc.rText(
+          primitive.mText,
+          primitive.textPosition,
+          primitive.textAlignH,
+          primitive.textAlignV,
+        );
+      }
+      break;
+
+    case "table-border":
+    case "table-grid":
+    case "table-header-axis":
+      renderTableLinePrimitive(rc, primitive);
+      break;
+
+    case "annotation-rect":
+      rc.rRect(primitive.bounds, primitive.style);
+      if (primitive.text) {
+        rc.rText(
+          primitive.text.mText,
+          primitive.text.position,
+          primitive.text.alignH,
+          primitive.text.alignV,
+        );
+      }
+      break;
+
     default: {
       const _exhaustive: never = primitive;
       throw new Error(`Unknown primitive type: ${(primitive as any).type}`);
@@ -279,19 +337,13 @@ function renderAxisPrimitive(
   primitive: ChartAxisPrimitive,
 ): void {
   // Draw axis line
-  if (primitive.axisLine) {
-    rc.rLine(primitive.axisLine.coords, primitive.axisLine.style);
-  }
+  rc.rLine(primitive.axisLine.coords, primitive.axisLine.style);
 
   // Draw ticks and labels
   for (const tick of primitive.ticks) {
     // Draw tick line (if present)
     if (tick.tickLine) {
-      rc.rLine([tick.tickLine.start, tick.tickLine.end], {
-        strokeColor: "black",
-        strokeWidth: 1,
-        lineDash: "solid",
-      });
+      rc.rLine([tick.tickLine.start, tick.tickLine.end], primitive.tickStyle);
     }
 
     // Draw tick label
@@ -303,6 +355,16 @@ function renderAxisPrimitive(
         tick.label.alignment.v,
       );
     }
+  }
+
+  // Draw axis label
+  if (primitive.axisLabel) {
+    rc.rText(
+      primitive.axisLabel.mText,
+      primitive.axisLabel.position,
+      primitive.axisLabel.alignment.h,
+      primitive.axisLabel.alignment.v,
+    );
   }
 }
 
@@ -347,7 +409,7 @@ function renderCaptionPrimitive(
 ): void {
   rc.rText(
     primitive.mText,
-    primitive.position,
+    primitive.bounds,
     primitive.alignment.h,
     primitive.alignment.v,
   );
@@ -365,7 +427,7 @@ function renderLabelPrimitive(
 ): void {
   rc.rText(
     primitive.mText,
-    primitive.position,
+    primitive.bounds,
     primitive.alignment.h,
     primitive.alignment.v,
   );
@@ -546,8 +608,8 @@ function renderCascadeArrowPrimitive(
     );
   }
 
-  if (primitive.label) {
-    rc.rText(primitive.label.mText, primitive.label.position, "center", "top");
+  if (primitive.dataLabel) {
+    renderDataLabel(rc, primitive.dataLabel);
   }
 }
 
@@ -600,7 +662,10 @@ function renderMapLabelPrimitive(
         w: textW + haloW * 2,
         h: textH + haloW * 2,
       }),
-      { fillColor: primitive.halo.color },
+      {
+        fillColor: primitive.halo.color,
+        rectRadius: primitive.halo.rectRadius,
+      },
     );
   }
 
@@ -610,4 +675,42 @@ function renderMapLabelPrimitive(
     primitive.alignment.h,
     primitive.alignment.v,
   );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Table Line Rendering                                                    //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderTableLinePrimitive(
+  rc: RenderContext,
+  primitive:
+    | TableBorderPrimitive
+    | TableGridPrimitive
+    | TableHeaderAxisPrimitive,
+): void {
+  const lineStyle = {
+    strokeColor: primitive.style.strokeColor,
+    strokeWidth: primitive.style.strokeWidth,
+    lineDash: "solid" as const,
+  };
+  for (const line of primitive.horizontalLines) {
+    rc.rLine(
+      [
+        [line.x1, line.y],
+        [line.x2, line.y],
+      ],
+      lineStyle,
+    );
+  }
+  for (const line of primitive.verticalLines) {
+    rc.rLine(
+      [
+        [line.x, line.y1],
+        [line.x, line.y2],
+      ],
+      lineStyle,
+    );
+  }
 }

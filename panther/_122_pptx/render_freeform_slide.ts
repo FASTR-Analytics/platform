@@ -37,7 +37,7 @@ export function renderFreeformSlide(
   pptx: PptxGenJSInstance,
   measured: MeasuredFreeformPage,
   createCanvasRenderContext: CreateCanvasRenderContext,
-): void {
+): PptxSlide {
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const item = measured.item;
   const bounds = measured.bounds;
@@ -88,6 +88,8 @@ export function renderFreeformSlide(
       margin: 0,
     });
   }
+
+  return slide;
 }
 
 function renderHeader(
@@ -326,31 +328,6 @@ function renderContent(
       addContentItem(rc, slide, node, createCanvasRenderContext);
     }
   });
-
-  // Page number
-  const inputs = measured.item;
-  const s = measured.mergedPageStyle;
-  if (inputs.pageNumber) {
-    const padContent = new Padding(s.content.padding);
-    const paddedContent = measured.rcdContentOuter.getPadded(padContent);
-    const mText = rc.mText(
-      inputs.pageNumber,
-      s.text.pageNumber,
-      measured.rcdContentOuter.w() * 0.3,
-    );
-    slide.addText(inputs.pageNumber, {
-      x: pixelsToInches(paddedContent.rightX() - mText.dims.w()),
-      y: pixelsToInches(paddedContent.bottomY() - mText.dims.h()),
-      w: pixelsToInches(mText.dims.w()),
-      h: pixelsToInches(mText.dims.h()),
-      fontFace: mText.ti.font.fontFamily,
-      fontSize: pixelsToPoints(mText.ti.fontSize),
-      color: Color.toHexNoHash(mText.ti.color),
-      align: "right",
-      valign: "bottom",
-      margin: 0,
-    });
-  }
 }
 
 function renderContainerStyle(
@@ -365,17 +342,26 @@ function renderContainerStyle(
 
   if (!hasBackground && !hasBorder) return;
 
-  const inset = rs.borderWidth / 2;
-  const insetPad = new Padding(inset);
-  const renderBounds = node.rpd.getPadded(insetPad);
+  const renderBounds = node.styleRpd;
 
   const pos = rcdToSlidePosition(renderBounds);
 
   const borderWidthPts = pixelsToPoints(rs.borderWidth);
 
+  const shapeType = rs.rectRadius > 0 ? "roundRect" : "rect";
+  const radiusOpts = rs.rectRadius > 0
+    ? {
+      rectRadius: Math.min(
+        rs.rectRadius / (Math.min(renderBounds.w(), renderBounds.h()) / 2),
+        1,
+      ),
+    }
+    : {};
+
   if (hasBackground && hasBorder) {
-    slide.addShape("rect", {
+    slide.addShape(shapeType, {
       ...pos,
+      ...radiusOpts,
       fill: { color: Color.toHexNoHash(rs.backgroundColor) },
       line: {
         color: Color.toHexNoHash(rs.borderColor),
@@ -383,14 +369,16 @@ function renderContainerStyle(
       },
     });
   } else if (hasBackground) {
-    slide.addShape("rect", {
+    slide.addShape(shapeType, {
       ...pos,
+      ...radiusOpts,
       fill: { color: Color.toHexNoHash(rs.backgroundColor) },
       line: { width: 0 },
     });
   } else {
-    slide.addShape("rect", {
+    slide.addShape(shapeType, {
       ...pos,
+      ...radiusOpts,
       fill: { type: "none" },
       line: {
         color: Color.toHexNoHash(rs.borderColor),

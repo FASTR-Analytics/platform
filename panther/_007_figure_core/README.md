@@ -33,7 +33,7 @@ with panes, tiers, and lanes:
 - **Chart types**: Timeseries (`_010_timeseries/`), ChartOV (`_010_chartov/`)
 - **Non-Chart Figures**: SimpleViz (`_010_simpleviz/`), Table (`_010_table/`)
 
-See `FIGURE_ARCHITECTURE.md` for detailed taxonomy.
+See `DOC_FIGURE_ARCHITECTURE.md` for detailed taxonomy.
 
 ## Architecture: Primitives System
 

@@ -20,17 +20,15 @@ import {
   MultiSelect,
   Select,
   SettingsSection,
-  StateHolderWrapper,
   TextArea,
   getSelectOptions,
   timActionDelete,
   timActionButton,
-  timQuery,
   APIResponseWithData,
 } from "panther";
 import { For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
-import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance_state";
 
 export type SlideDeckSettingsProps = {
   projectId: string;
@@ -53,11 +51,6 @@ export type SlideDeckSettingsProps = {
 type Props = EditorComponentProps<SlideDeckSettingsProps, "AFTER_DELETE">;
 
 export function SlideDeckSettings(p: Props) {
-  const assetListing = timQuery(
-    () => serverActions.getAssets({}),
-    t3(TC.loadingFiles),
-  );
-
   const [tempConfig, setTempConfig] = createStore<SlideDeckConfig>(
     structuredClone(p.config),
   );
@@ -142,43 +135,37 @@ export function SlideDeckSettings(p: Props) {
             />
           </SettingsSection>
           <SettingsSection header={t3({ en: "Logos", fr: "Logos" })}>
-            <StateHolderWrapper state={assetListing.state()} noPad>
-              {(keyedAssets) => {
-                return (
-                  <div class="ui-spy-sm">
-                    <For each={tempConfig.logos}>
-                      {(logo, i_logo) => {
-                        return (
-                          <div class="ui-gap-sm flex items-center">
-                            <Select
-                              options={getSelectOptions(
-                                keyedAssets
-                                  .filter((f) => f.isImage)
-                                  .map((f) => f.fileName),
-                              )}
-                              value={logo}
-                              onChange={(v) =>
-                                setTempConfig("logos", i_logo(), v)
-                              }
-                              fullWidth
-                            />
-                            <Button
-                              intent="danger"
-                              onClick={() => removeLogo(i_logo())}
-                              outline
-                              iconName="trash"
-                            ></Button>
-                          </div>
-                        );
-                      }}
-                    </For>
-                    <Button onClick={addLogo} iconName="plus">
-                      {t3({ en: "Add logo", fr: "Ajouter un logo" })}
-                    </Button>
-                  </div>
-                );
-              }}
-            </StateHolderWrapper>
+            <div class="ui-spy-sm">
+              <For each={tempConfig.logos}>
+                {(logo, i_logo) => {
+                  return (
+                    <div class="ui-gap-sm flex items-center">
+                      <Select
+                        options={getSelectOptions(
+                          instanceState.assets
+                            .filter((f) => f.isImage)
+                            .map((f) => f.fileName),
+                        )}
+                        value={logo}
+                        onChange={(v) =>
+                          setTempConfig("logos", i_logo(), v)
+                        }
+                        fullWidth
+                      />
+                      <Button
+                        intent="danger"
+                        onClick={() => removeLogo(i_logo())}
+                        outline
+                        iconName="trash"
+                      ></Button>
+                    </div>
+                  );
+                }}
+              </For>
+              <Button onClick={addLogo} iconName="plus">
+                {t3({ en: "Add logo", fr: "Ajouter un logo" })}
+              </Button>
+            </div>
           </SettingsSection>
           {/* <div class="col-span-2"> */}
           <SettingsSection header={t3({ en: "Style", fr: "Style" })}>

@@ -126,6 +126,7 @@ export function measureYScaleAxis(
   tiers: { paddingTop: number; paddingBottom: number; gapY: number },
   contentRcd: RectCoordsDims,
   tierCount: number,
+  tierHeaderAndLabelGapHeight: number,
 ): {
   yAxisRcd: RectCoordsDims;
   subChartAreaHeight: number;
@@ -141,7 +142,8 @@ export function measureYScaleAxis(
   const subChartAreaHeight = (yAxisRcd.h() -
     (tiers.paddingTop +
       (tierCount - 1) * tiers.gapY +
-      tiers.paddingBottom)) /
+      tiers.paddingBottom +
+      tierCount * tierHeaderAndLabelGapHeight)) /
     tierCount;
 
   return { yAxisRcd, subChartAreaHeight };

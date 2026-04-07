@@ -14,15 +14,13 @@ import {
   RadioGroup,
   Select,
   Slider,
-  StateHolderWrapper,
   TextArea,
   getSelectOptions,
-  timQuery,
 } from "panther";
 import { Match, Setter, Show, Switch, createMemo } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMiniDisplay";
-import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance_state";
 // TODO: Re-enable when nested layout UI is implemented
 // import { ReportItemEditorPanelContentBox } from "./report_item_editor_panel_content_box";
 import { SelectPresentationObject } from "./select_presentation_object";
@@ -79,11 +77,6 @@ export function ReportItemEditorContent(p: Props) {
   async function updateItemType(type: ReportItemContentItemType) {
     updateSelectedItemData((data) => ({ ...data, type }));
   }
-  const assetListing = timQuery(
-    () => serverActions.getAssets({}),
-    "Loading files...",
-  );
-
   async function updatePresentationObjectId() {
     const res = await p.openEditor({
       element: SelectPresentationObject,
@@ -356,25 +349,19 @@ export function ReportItemEditorContent(p: Props) {
                   </Match>
                   <Match when={keyedItem.type === "image"}>
                     <div class="space-y-4">
-                      <StateHolderWrapper state={assetListing.state()} noPad>
-                        {(keyedAssets) => {
-                          return (
-                            <Select
-                              label="Image file"
-                              options={getSelectOptions(
-                                keyedAssets
-                                  .filter((f) => f.isImage)
-                                  .map((f) => f.fileName),
-                              )}
-                              value={keyedItem.imgFile}
-                              onChange={(v) =>
-                                updateContentProperty("imgFile", v)
-                              }
-                              fullWidth
-                            />
-                          );
-                        }}
-                      </StateHolderWrapper>
+                      <Select
+                        label="Image file"
+                        options={getSelectOptions(
+                          instanceState.assets
+                            .filter((f) => f.isImage)
+                            .map((f) => f.fileName),
+                        )}
+                        value={keyedItem.imgFile}
+                        onChange={(v) =>
+                          updateContentProperty("imgFile", v)
+                        }
+                        fullWidth
+                      />
                       <Show when={keyedItem.imgFile}>
                         {/* <Show when={keyedItem.imgFit === "inside"}> */}
                         <Checkbox

@@ -23,7 +23,6 @@ export function EditIndicatorCommonForm(
     {
       rawIndicators: RawIndicatorWithMappings[];
       existingCommonIndicator?: CommonIndicatorWithMappings;
-      silentRefreshIndicators: () => Promise<void>;
     },
     undefined
   >,
@@ -95,7 +94,6 @@ export function EditIndicatorCommonForm(
         });
       }
     },
-    p.silentRefreshIndicators,
     () => p.close(undefined),
   );
 

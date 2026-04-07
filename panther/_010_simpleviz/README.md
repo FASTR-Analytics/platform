@@ -7,7 +7,7 @@ Unlike Charts (Timeseries, ChartOV), SimpleViz does NOT use the pane/tier/lane
 grid system. It provides a straightforward way to create diagrams from explicit
 coordinate-based data with **automatic box sizing** and **intelligent scaling**.
 
-See `FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
+See `DOC_FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
 
 ## Core Concept
 

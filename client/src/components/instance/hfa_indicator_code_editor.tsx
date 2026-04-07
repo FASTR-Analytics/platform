@@ -42,7 +42,6 @@ export function HfaIndicatorCodeEditor(
       indicator: HfaIndicator;
       dictionary: HfaDictionaryForValidation;
       allIndicatorVarNames: string[];
-      silentRefreshIndicators: () => Promise<void>;
     },
     undefined
   >,
@@ -98,7 +97,6 @@ export function HfaIndicatorCodeEditor(
             dictionary={p.dictionary}
             allIndicatorVarNames={p.allIndicatorVarNames}
             initialCodeSnippets={codeSnippets}
-            silentRefreshIndicators={p.silentRefreshIndicators}
             setNeedsSaving={setNeedsSaving}
             registerSave={(fn) => {
               doSave = fn;
@@ -115,7 +113,6 @@ function EditorInner(p: {
   dictionary: HfaDictionaryForValidation;
   allIndicatorVarNames: string[];
   initialCodeSnippets: HfaIndicatorCode[];
-  silentRefreshIndicators: () => Promise<void>;
   setNeedsSaving: (v: boolean) => void;
   registerSave: (fn: () => Promise<void>) => void;
 }) {
@@ -196,7 +193,6 @@ function EditorInner(p: {
         rFilterCode: c.rFilterCode.trim() || undefined,
       })),
     });
-    await p.silentRefreshIndicators();
   });
 
   function markDirty() {

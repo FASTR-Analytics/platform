@@ -15,7 +15,6 @@ export function EditHfaIndicator(
     {
       existingIndicator?: HfaIndicator;
       sortOrder: number;
-      silentRefreshIndicators: () => Promise<void>;
     },
     undefined
   >,
@@ -55,7 +54,6 @@ export function EditHfaIndicator(
         });
       }
     },
-    p.silentRefreshIndicators,
     () => p.close(undefined),
   );
 

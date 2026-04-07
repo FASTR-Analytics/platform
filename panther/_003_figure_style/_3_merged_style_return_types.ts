@@ -13,17 +13,21 @@ import type {
   ColorAdjustmentStrategy,
   ColorKeyOrString,
   LineStyle,
+  MapRegionInfoFunc,
   Padding,
   PointStyle,
   RectStyle,
+  TableCellInfoFunc,
   TextInfo,
   TextInfoUnkeyed,
 } from "./deps.ts";
 import type {
   CascadeArrowStyle,
   ConfidenceBandStyle,
+  DataLabelStyle,
   ErrorBarStyle,
-  TableCellFormatterFunc,
+  MapRegionStyle,
+  TableCellStyle,
 } from "./style_func_types.ts";
 import type { LegendPosition } from "./types.ts";
 
@@ -53,6 +57,9 @@ export type MergedSurroundsStyle = {
   footnoteGap: number;
   legendGap: number;
   legendPosition: LegendPosition;
+  captionAlignH: "left" | "center" | "right";
+  subCaptionAlignH: "left" | "center" | "right";
+  footnoteAlignH: "left" | "center" | "right";
 
   // Nested style objects
   legend: MergedLegendStyle;
@@ -89,6 +96,17 @@ export type MergedLegendStyle = {
   legendNoRender: boolean;
 };
 
+export type MergedScaleLegendStyle = {
+  alreadyScaledValue: number;
+  text: TextInfoUnkeyed;
+  barHeight: number;
+  tickLength: number;
+  labelGap: number;
+  blockGap: number;
+  noDataGap: number;
+  noDataSwatchWidth: number;
+};
+
 /////////////////////////////////////////////////////////////////////////////
 //   ______   __                              __       ______   __     __  //
 //  /      \ /  |                            /  |     /      \ /  |   /  | //
@@ -113,6 +131,7 @@ export type MergedChartStyleBase = {
     paddingRight: number;
     gapX: number;
     headerAlignH: "left" | "center" | "right";
+    headerGap: number;
   };
   tiers: {
     hideHeaders: boolean;
@@ -122,6 +141,8 @@ export type MergedChartStyleBase = {
     maxHeaderWidthAsPctOfChart: number;
     headerAlignH: "left" | "center" | "right";
     headerAlignV: "top" | "middle";
+    headerPosition: "left" | "above-axis" | "above-plot-area";
+    headerGap: number;
   };
   text: {
     paneHeaders: TextInfoUnkeyed;
@@ -133,62 +154,15 @@ export type MergedChartStyleBase = {
 
 export type MapDataLabelMode = "none" | "centroid" | "callout" | "auto";
 
-export type MapDataLabelFormatterInfo = {
-  featureId: string;
-  featureProperties: Record<string, unknown>;
-  value: number | undefined;
-};
-
-export type MergedMapDataLabelsStyle = {
-  mode: MapDataLabelMode;
-  formatter?: (info: MapDataLabelFormatterInfo) => string;
-  nameProp?: string;
-  showValue: boolean;
-  valueFormatter: (value: number) => string;
-  centroidOffsets?: Record<string, { dx: number; dy: number }>;
-  halo: {
-    color: string;
-    width: number;
-  };
-  leaderLine: {
-    strokeColor: string;
-    strokeWidth: number;
-    gap: number;
-  };
-  calloutMargin: number;
-};
-
 export type MergedMapStyle = MergedChartStyleBase & {
   map: {
     projection: "equirectangular" | "mercator" | "naturalEarth1";
-    colorScale: MapColorScale;
-    regionStrokeColor: string;
-    regionStrokeWidth: number;
-    noDataColor: string;
-    padding: number;
-    valueRange: { min: number; max: number } | "auto";
+    fit: "all-regions" | "only-regions-in-data";
     boundingBox?: [number, number, number, number];
-    includeAreaIds?: string[];
-    featureFilter?: (
-      feature: { properties?: Record<string, unknown> },
-    ) => boolean;
-    dataLabels: MergedMapDataLabelsStyle;
+    dataLabelMode: MapDataLabelMode;
+    calloutMargin: number;
   };
 };
-
-export type MapColorScale =
-  | { type: "sequential"; colors: [ColorKeyOrString, ColorKeyOrString] }
-  | {
-    type: "diverging";
-    colors: [ColorKeyOrString, ColorKeyOrString, ColorKeyOrString];
-    midpoint?: number;
-  }
-  | { type: "threshold"; thresholds: number[]; colors: ColorKeyOrString[] }
-  | { type: "quantile"; nQuantiles: number; colors: ColorKeyOrString[] }
-  | {
-    type: "custom";
-    fn: (value: number, min: number, max: number) => ColorKeyOrString;
-  };
 
 export type MergedChartOVStyle = MergedChartStyleBase & {
   yScaleAxis: MergedYScaleAxisStyle;
@@ -200,6 +174,7 @@ export type MergedCascadeArrowStyle = {
     labels: TextInfoUnkeyed;
   };
   getStyle: CascadeArrowInfoFunc<CascadeArrowStyle>;
+  textFormatter: CascadeArrowInfoFunc<string> | "none";
 };
 
 export type MergedYTextAxisStyle = {
@@ -253,16 +228,10 @@ export type MergedTableStyle = {
   rowHeaderIndentIfRowGroups: number;
   verticalColHeaders: "never" | "always" | "auto";
   maxHeightForVerticalColHeaders: number;
-  cellValueFormatter: TableCellFormatterFunc<
-    string | number | null | undefined,
-    string
-  >;
-  cellBackgroundColorFormatter:
-    | "none"
-    | TableCellFormatterFunc<
-      string | number | null | undefined,
-      ColorKeyOrString
-    >;
+  tableCells: {
+    getStyle: TableCellInfoFunc<TableCellStyle>;
+    textFormatter: TableCellInfoFunc<string> | "none";
+  };
   colHeaderPadding: Padding;
   rowHeaderPadding: Padding;
   cellPadding: Padding;
@@ -338,10 +307,16 @@ export type MergedPaneStyle = {
 
 export type MergedContentStyle = {
   points: {
-    getStyle: ChartValueInfoFunc<PointStyle>;
+    getStyle: ChartValueInfoFunc<
+      PointStyle & { dataLabel: DataLabelStyle; annotationGroup?: string }
+    >;
+    textFormatter: ChartValueInfoFunc<string> | "none";
   };
   bars: {
-    getStyle: ChartValueInfoFunc<RectStyle>;
+    getStyle: ChartValueInfoFunc<
+      RectStyle & { dataLabel: DataLabelStyle; annotationGroup?: string }
+    >;
+    textFormatter: ChartValueInfoFunc<string> | "none";
     stacking:
       | "none"
       | "stacked"
@@ -350,11 +325,16 @@ export type MergedContentStyle = {
     maxBarWidth: number;
   };
   lines: {
-    getStyle: ChartSeriesInfoFunc<LineStyle>;
+    getStyle: ChartSeriesInfoFunc<
+      LineStyle & { dataLabel: DataLabelStyle; annotationGroup?: string }
+    >;
+    textFormatter: ChartValueInfoFunc<string> | "none";
     joinAcrossGaps: boolean;
   };
   areas: {
-    getStyle: ChartSeriesInfoFunc<AreaStyle>;
+    getStyle: ChartSeriesInfoFunc<
+      AreaStyle & { annotationGroup?: string }
+    >;
     joinAcrossGaps: boolean;
     diff: {
       enabled: boolean;
@@ -362,9 +342,11 @@ export type MergedContentStyle = {
   };
   errorBars: MergedErrorBarStyle;
   confidenceBands: MergedConfidenceBandStyle;
-  withDataLabels: boolean;
-  dataLabelFormatter: ChartValueInfoFunc<string | undefined>;
   cascadeArrows: MergedCascadeArrowStyle;
+  mapRegions: {
+    getStyle: MapRegionInfoFunc<MapRegionStyle>;
+    textFormatter: MapRegionInfoFunc<string> | "none";
+  };
 };
 
 export type MergedErrorBarStyle = {

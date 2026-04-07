@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type AlignH,
   Coordinates,
   type MergedMarkdownStyle,
   RectCoordsDims,
@@ -35,6 +36,7 @@ export function measureMarkdownItems(
   bounds: RectCoordsDims,
   parsed: ParsedMarkdown,
   style: MergedMarkdownStyle,
+  alignH: AlignH,
   _debug = false,
 ): MeasuredMarkdownItemsResult {
   const items: MeasuredMarkdownItem[] = [];
@@ -63,6 +65,7 @@ export function measureMarkdownItems(
       currentY,
       maxWidth,
       style,
+      alignH,
     );
     items.push(item);
 
@@ -162,14 +165,15 @@ function measureItem(
   y: number,
   maxWidth: number,
   style: MergedMarkdownStyle,
+  alignH: "left" | "center" | "right",
 ): MeasuredMarkdownItem {
   switch (item.type) {
     case "paragraph":
-      return measureParagraph(rc, item, x, y, maxWidth, style);
+      return measureParagraph(rc, item, x, y, maxWidth, style, alignH);
     case "heading":
-      return measureHeading(rc, item, x, y, maxWidth, style);
+      return measureHeading(rc, item, x, y, maxWidth, style, alignH);
     case "list-item":
-      return measureListItem(rc, item, x, y, maxWidth, style);
+      return measureListItem(rc, item, x, y, maxWidth, style, alignH);
     case "blockquote":
       return measureBlockquote(rc, item, x, y, maxWidth, style);
     case "horizontal-rule":
@@ -180,8 +184,6 @@ function measureItem(
       return measureMathBlock(rc, item, x, y, maxWidth, style);
     case "image":
     case "table":
-      // Images and tables are handled separately via groupDocElementsByContentType
-      // and rendered through ImageRenderer/TableRenderer, not MarkdownRenderer
       throw new Error(
         `${item.type} items should not be measured directly - use groupDocElementsByContentType first`,
       );
@@ -195,6 +197,7 @@ function measureParagraph(
   y: number,
   maxWidth: number,
   style: MergedMarkdownStyle,
+  alignH: AlignH,
 ): MeasuredMarkdownParagraph {
   const textInfo = style.text.paragraph;
   const formattedText = inlinesToFormattedText(item.content, textInfo);
@@ -202,7 +205,7 @@ function measureParagraph(
     rc,
     formattedText,
     maxWidth,
-    "left",
+    alignH,
     style.link.color,
     style.link.underline,
   );
@@ -228,6 +231,7 @@ function measureHeading(
   y: number,
   maxWidth: number,
   style: MergedMarkdownStyle,
+  alignH: AlignH,
 ): MeasuredMarkdownHeading {
   const levelKey = `h${item.level}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   const textInfo = style.text[levelKey];
@@ -236,7 +240,7 @@ function measureHeading(
     rc,
     formattedText,
     maxWidth,
-    "left",
+    alignH,
     style.link.color,
     style.link.underline,
   );
@@ -265,6 +269,7 @@ function measureListItem(
   y: number,
   maxWidth: number,
   style: MergedMarkdownStyle,
+  alignH: AlignH,
 ): MeasuredMarkdownListItem {
   const listConfig = item.listType === "bullet"
     ? style.bulletList
@@ -290,7 +295,7 @@ function measureListItem(
     rc,
     formattedText,
     contentWidth,
-    "left",
+    alignH,
     style.link.color,
     style.link.underline,
   );

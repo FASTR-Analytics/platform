@@ -14,6 +14,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import { clamp } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
 
 type FrameProps = {
@@ -29,6 +30,7 @@ type ResizableFrameProps = FrameProps & {
   preventPanelResizeOnParentResize?: boolean;
   isShown?: boolean;
   onToggleShow?: () => void;
+  hoverOffset?: number;
 };
 
 type ThreeColumnResizableProps = {
@@ -133,7 +135,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
   const minWidth = p.minWidth ?? 100;
   const maxWidth = p.maxWidth ?? 600;
   const [width, setWidth] = createSignal(
-    Math.max(minWidth, Math.min(maxWidth, p.startingWidth)),
+    clamp(p.startingWidth, minWidth, maxWidth),
   );
   const [targetPercentage, setTargetPercentage] = createSignal<number>(0);
   const [containerWidth, setContainerWidth] = createSignal<number>(0);
@@ -154,9 +156,10 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
         for (const entry of entries) {
           const newContainerWidth = entry.contentRect.width;
           setContainerWidth(newContainerWidth);
-          const newWidth = Math.max(
+          const newWidth = clamp(
+            targetPercentage() * newContainerWidth,
             minWidth,
-            Math.min(maxWidth, targetPercentage() * newContainerWidth),
+            maxWidth,
           );
           setWidth(newWidth);
         }
@@ -177,10 +180,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
       if (!isDragging) return;
 
       const deltaX = e.clientX - startX;
-      const newWidth = Math.max(
-        minWidth,
-        Math.min(maxWidth, startWidth + deltaX),
-      );
+      const newWidth = clamp(startWidth + deltaX, minWidth, maxWidth);
       setWidth(newWidth);
 
       if (!p.preventPanelResizeOnParentResize && containerWidth() > 0) {
@@ -242,7 +242,7 @@ export function FrameRightResizable(p: ResizableFrameProps) {
   const minWidth = p.minWidth ?? 100;
   const maxWidth = p.maxWidth ?? 600;
   const [actualWidth, setActualWidth] = createSignal(
-    Math.max(minWidth, Math.min(maxWidth, p.startingWidth)),
+    clamp(p.startingWidth, minWidth, maxWidth),
   );
   const displayWidth = createMemo(() =>
     p.isShown === false ? 0 : actualWidth()
@@ -266,9 +266,10 @@ export function FrameRightResizable(p: ResizableFrameProps) {
         for (const entry of entries) {
           const newContainerWidth = entry.contentRect.width;
           setContainerWidth(newContainerWidth);
-          const newWidth = Math.max(
+          const newWidth = clamp(
+            targetPercentage() * newContainerWidth,
             minWidth,
-            Math.min(maxWidth, targetPercentage() * newContainerWidth),
+            maxWidth,
           );
           setActualWidth(newWidth);
         }
@@ -289,10 +290,7 @@ export function FrameRightResizable(p: ResizableFrameProps) {
       if (!isDragging) return;
 
       const deltaX = startX - e.clientX; // Reversed for right panel
-      const newWidth = Math.max(
-        minWidth,
-        Math.min(maxWidth, startWidth + deltaX),
-      );
+      const newWidth = clamp(startWidth + deltaX, minWidth, maxWidth);
       setActualWidth(newWidth);
 
       if (!p.preventPanelResizeOnParentResize && containerWidth() > 0) {
@@ -361,13 +359,13 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   const maxWidths = p.maxWidths ?? [2000, 2000, 2000];
 
   const [leftWidth, setLeftWidth] = createSignal(
-    Math.max(minWidths[0], Math.min(maxWidths[0], p.startingWidths[0])),
+    clamp(p.startingWidths[0], minWidths[0], maxWidths[0]),
   );
   const [centerWidth, setCenterWidth] = createSignal(
-    Math.max(minWidths[1], Math.min(maxWidths[1], p.startingWidths[1])),
+    clamp(p.startingWidths[1], minWidths[1], maxWidths[1]),
   );
   const [rightWidth, setRightWidth] = createSignal(
-    Math.max(minWidths[2], Math.min(maxWidths[2], p.startingWidths[2])),
+    clamp(p.startingWidths[2], minWidths[2], maxWidths[2]),
   );
 
   const [leftPercent, setLeftPercent] = createSignal<number>(0);
@@ -383,14 +381,14 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   let resizeObserver: ResizeObserver | undefined;
   let rafId: number | null = null;
 
-  const hasLeft = createMemo(() =>
-    p.leftChild !== undefined && p.leftChild !== null
+  const hasLeft = createMemo(
+    () => p.leftChild !== undefined && p.leftChild !== null,
   );
-  const hasCenter = createMemo(() =>
-    p.centerChild !== undefined && p.centerChild !== null
+  const hasCenter = createMemo(
+    () => p.centerChild !== undefined && p.centerChild !== null,
   );
-  const hasRight = createMemo(() =>
-    p.rightChild !== undefined && p.rightChild !== null
+  const hasRight = createMemo(
+    () => p.rightChild !== undefined && p.rightChild !== null,
   );
 
   const normalizeWidths = () => {
@@ -411,10 +409,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     if (hasLeft()) {
       const normalizedWidth = (originalWidths[0] / totalOriginalWidth) *
         currentContainerWidth;
-      const clampedWidth = Math.max(
-        minWidths[0],
-        Math.min(maxWidths[0], normalizedWidth),
-      );
+      const clampedWidth = clamp(normalizedWidth, minWidths[0], maxWidths[0]);
       setLeftWidth(clampedWidth);
       setLeftPercent(clampedWidth / currentContainerWidth);
     }
@@ -422,10 +417,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     if (hasCenter()) {
       const normalizedWidth = (originalWidths[1] / totalOriginalWidth) *
         currentContainerWidth;
-      const clampedWidth = Math.max(
-        minWidths[1],
-        Math.min(maxWidths[1], normalizedWidth),
-      );
+      const clampedWidth = clamp(normalizedWidth, minWidths[1], maxWidths[1]);
       setCenterWidth(clampedWidth);
       setCenterPercent(clampedWidth / currentContainerWidth);
     }
@@ -433,10 +425,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     if (hasRight()) {
       const normalizedWidth = (originalWidths[2] / totalOriginalWidth) *
         currentContainerWidth;
-      const clampedWidth = Math.max(
-        minWidths[2],
-        Math.min(maxWidths[2], normalizedWidth),
-      );
+      const clampedWidth = clamp(normalizedWidth, minWidths[2], maxWidths[2]);
       setRightWidth(clampedWidth);
       setRightPercent(clampedWidth / currentContainerWidth);
     }
@@ -463,21 +452,24 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           setContainerWidth(newContainerWidth);
 
           setLeftWidth(
-            Math.max(
+            clamp(
+              leftPercent() * newContainerWidth,
               minWidths[0],
-              Math.min(maxWidths[0], leftPercent() * newContainerWidth),
+              maxWidths[0],
             ),
           );
           setCenterWidth(
-            Math.max(
+            clamp(
+              centerPercent() * newContainerWidth,
               minWidths[1],
-              Math.min(maxWidths[1], centerPercent() * newContainerWidth),
+              maxWidths[1],
             ),
           );
           setRightWidth(
-            Math.max(
+            clamp(
+              rightPercent() * newContainerWidth,
               minWidths[2],
-              Math.min(maxWidths[2], rightPercent() * newContainerWidth),
+              maxWidths[2],
             ),
           );
         }
@@ -508,13 +500,15 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
         const deltaX = e.clientX - startX;
 
         if (activeHandle === "left") {
-          const newLeftWidth = Math.max(
+          const newLeftWidth = clamp(
+            startLeftWidth + deltaX,
             minWidths[0],
-            Math.min(maxWidths[0], startLeftWidth + deltaX),
+            maxWidths[0],
           );
-          const newCenterWidth = Math.max(
+          const newCenterWidth = clamp(
+            startCenterWidth - deltaX,
             minWidths[1],
-            Math.min(maxWidths[1], startCenterWidth - deltaX),
+            maxWidths[1],
           );
 
           setLeftWidth(newLeftWidth);
@@ -525,13 +519,15 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
             setCenterPercent(newCenterWidth / containerWidth());
           }
         } else if (activeHandle === "right") {
-          const newCenterWidth = Math.max(
+          const newCenterWidth = clamp(
+            startCenterWidth + deltaX,
             minWidths[1],
-            Math.min(maxWidths[1], startCenterWidth + deltaX),
+            maxWidths[1],
           );
-          const newRightWidth = Math.max(
+          const newRightWidth = clamp(
+            startRightWidth - deltaX,
             minWidths[2],
-            Math.min(maxWidths[2], startRightWidth - deltaX),
+            maxWidths[2],
           );
 
           setCenterWidth(newCenterWidth);

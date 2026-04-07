@@ -178,12 +178,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 },
                 content: {
                   points: {
-                    defaults: {
-                      show: true,
-                      radius: 6,
-                      color: _KEY_COLORS_SUCCESS,
-                      innerColorStrategy: "transparent",
-                    },
                     func: !isDelete
                       ? (pointInfo) => {
                           const inPeriodRange =
@@ -197,11 +191,16 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                           const isGreen = inPeriodRange && inSelectedIndicators;
                           return isGreen
                             ? {
+                                show: true,
+                                radius: 6,
                                 color: _KEY_COLORS_SUCCESS,
                                 innerColorStrategy: _KEY_COLORS_SUCCESS,
                               }
                             : {
+                                show: true,
+                                radius: 6,
                                 color: _COLOR_WATERMARK_GREY,
+                                innerColorStrategy: "transparent",
                               };
                         }
                       : (pointInfo) => {
@@ -216,13 +215,18 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                           const isRed = inPeriodRange && inSelectedIndicators;
                           return isRed
                             ? {
+                                show: true,
+                                radius: 6,
                                 color: _KEY_COLORS_DANGER,
                                 innerColorStrategy: _KEY_COLORS_DANGER,
                               }
-                            : {};
+                            : {
+                                show: true,
+                                radius: 6,
+                                innerColorStrategy: "transparent",
+                              };
                         },
                   },
-                  withDataLabels: false,
                 },
               },
             };

@@ -1,8 +1,8 @@
 import { AIChatProvider, type AIChatConfig, FrameRightResizable, useConversations } from "panther";
 import { createMemo, onCleanup, onMount, type ParentProps } from "solid-js";
-import type { InstanceDetail } from "lib";
 import { DEFAULT_MODEL_CONFIG, createProjectSDKClient } from "./ai_configs/defaults";
 import { AIProjectContextProvider, useAIProjectContext } from "./context";
+import { instanceState } from "~/state/instance_state";
 import { ConsolidatedChatPane } from "./chat_pane";
 import { buildToolsForContext } from "./build_tools";
 import { buildSystemPromptForContext } from "./build_system_prompt";
@@ -13,21 +13,17 @@ import { useAIDocuments } from "./ai_documents";
 export { useAIProjectContext } from "./context";
 
 
-type AIProjectWrapperProps = ParentProps<{
-  instanceDetail: InstanceDetail;
-}>;
-
-export function AIProjectWrapper(props: AIProjectWrapperProps) {
+export function AIProjectWrapper(props: ParentProps) {
   return (
-    <AIProjectContextProvider instanceDetail={props.instanceDetail}>
-      <AIProjectWrapperInner instanceDetail={props.instanceDetail}>
+    <AIProjectContextProvider>
+      <AIProjectWrapperInner>
         {props.children}
       </AIProjectWrapperInner>
     </AIProjectContextProvider>
   );
 }
 
-function AIProjectWrapperInner(props: AIProjectWrapperProps) {
+function AIProjectWrapperInner(props: ParentProps) {
   const { aiContext, notifyAI, getPendingInteractionsMessage, clearPendingInteractions } = useAIProjectContext();
   const projectDetail = useProjectDetail();
   const addListener = useLastUpdatedListener();
@@ -91,7 +87,7 @@ function AIProjectWrapperInner(props: AIProjectWrapperProps) {
   const systemPrompt = createMemo(() =>
     buildSystemPromptForContext(
       aiContext(),
-      props.instanceDetail,
+      instanceState,
       projectDetail
     )
   );

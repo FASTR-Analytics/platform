@@ -200,9 +200,13 @@ export function buildHeaderPrimitives(
     }
   }
 
-  const x = measured.rcdHeaderOuter.getPadded(padHeader).x();
-  let currentY = measured.rcdHeaderOuter.getPadded(padHeader).y() +
-    measured.yOffsetHeader;
+  const paddedRcd = measured.rcdHeaderOuter.getPadded(padHeader);
+  const x = s.header.alignH === "center"
+    ? paddedRcd.x() + measured.maxWidthForHeaderText / 2
+    : s.header.alignH === "right"
+    ? paddedRcd.x() + measured.maxWidthForHeaderText
+    : paddedRcd.x();
+  let currentY = paddedRcd.y() + measured.yOffsetHeader;
 
   // Left-placed logos
   if (
@@ -210,7 +214,7 @@ export function buildHeaderPrimitives(
     inputs.headerLogos &&
     inputs.headerLogos.length > 0
   ) {
-    let currentX = x;
+    let currentX = paddedRcd.x();
     for (let i = 0; i < inputs.headerLogos.length; i++) {
       const logo = inputs.headerLogos[i];
       const logoWidth = (s.header.logoHeight * logo.width) / logo.height;
@@ -233,7 +237,7 @@ export function buildHeaderPrimitives(
       mText: measured.mHeader,
       x,
       y: currentY,
-      alignH: "left",
+      alignH: s.header.alignH,
       alignV: "top",
       maxWidth: measured.maxWidthForHeaderText,
     });
@@ -248,7 +252,7 @@ export function buildHeaderPrimitives(
       mText: measured.mSubHeader,
       x,
       y: currentY,
-      alignH: "left",
+      alignH: s.header.alignH,
       alignV: "top",
       maxWidth: measured.maxWidthForHeaderText,
     });
@@ -263,7 +267,7 @@ export function buildHeaderPrimitives(
       mText: measured.mDate,
       x,
       y: currentY,
-      alignH: "left",
+      alignH: s.header.alignH,
       alignV: "top",
       maxWidth: measured.maxWidthForHeaderText,
     });
@@ -275,9 +279,8 @@ export function buildHeaderPrimitives(
     inputs.headerLogos &&
     inputs.headerLogos.length > 0
   ) {
-    let currentX = measured.rcdHeaderOuter.getPadded(padHeader).rightX();
-    const y = measured.rcdHeaderOuter.getPadded(padHeader).y() +
-      measured.yOffsetRightPlacementLogos;
+    let currentX = paddedRcd.rightX();
+    const y = paddedRcd.y() + measured.yOffsetRightPlacementLogos;
 
     for (let i = 0; i < inputs.headerLogos.length; i++) {
       const logo = inputs.headerLogos[i];

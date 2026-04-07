@@ -9,17 +9,8 @@ import {
   renderFigurePrimitives,
 } from "../deps.ts";
 import type { MeasuredTable } from "../types.ts";
-import {
-  renderColAndColGroupHeaders,
-  renderLines,
-  renderRows,
-} from "./render_helpers.ts";
 
 export function renderTable(rc: RenderContext, mTable: MeasuredTable) {
   renderFigureBackground(rc, mTable.measuredSurrounds);
   renderFigurePrimitives(rc, mTable.primitives);
-  //
-  renderColAndColGroupHeaders(rc, mTable);
-  renderRows(rc, mTable);
-  renderLines(rc, mTable);
 }

@@ -4,4 +4,5 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { type MeasuredLegend, measureLegend } from "./measure_legend.ts";
+export * from "./scale_legend_types.ts";
 export { isArrayOfLegendItems, type LegendItem } from "./types.ts";

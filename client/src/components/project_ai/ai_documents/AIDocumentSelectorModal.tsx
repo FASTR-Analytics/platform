@@ -1,4 +1,4 @@
-import { t3, type AssetInfo } from "lib";
+import { t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -7,8 +7,8 @@ import {
   timActionForm,
 } from "panther";
 import { createMemo, createSignal, onMount, Show } from "solid-js";
-import { serverActions } from "~/server_actions";
 import { uploadAssetToAnthropic } from "~/server_actions/ai_files";
+import { instanceState } from "~/state/instance_state";
 import {
   addDocumentToProject,
   getDocumentsForProject,
@@ -25,7 +25,6 @@ type ReturnType = ProjectDocument[] | undefined;
 export function AIDocumentSelectorModal(
   p: AlertComponentProps<Props, ReturnType>
 ) {
-  const [assets, setAssets] = createSignal<AssetInfo[]>([]);
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedFiles, setSelectedFiles] = createSignal<string[]>([]);
   const [existingDocs, setExistingDocs] = createSignal<ProjectDocument[]>(
@@ -33,7 +32,7 @@ export function AIDocumentSelectorModal(
   );
 
   const pdfAssets = () =>
-    assets().filter((a) => a.fileName.toLowerCase().endsWith(".pdf"));
+    instanceState.assets.filter((a) => a.fileName.toLowerCase().endsWith(".pdf"));
 
   const pdfOptions = createMemo(() =>
     pdfAssets().map((asset) => ({
@@ -43,14 +42,8 @@ export function AIDocumentSelectorModal(
   );
 
   onMount(async () => {
-    const [assetsRes, existing] = await Promise.all([
-      serverActions.getAssets({}),
-      getDocumentsForProject(p.projectId),
-    ]);
+    const existing = await getDocumentsForProject(p.projectId);
 
-    if (assetsRes.success) {
-      setAssets(assetsRes.data);
-    }
     setExistingDocs(existing);
 
     const alreadySelected = existing.map((d) => d.assetFilename);

@@ -6,9 +6,16 @@
 import {
   assert,
   assertNumberBetween0And1,
+  clamp,
   createArray,
   divideOrZero,
+  normalizeTo01,
 } from "./deps.ts";
+import type {
+  ContinuousScaleConfig,
+  ScaleConfig,
+} from "./color_scale_funcs.ts";
+import { resolveScale } from "./palettes.ts";
 
 export type ColorRgb = {
   r: number;
@@ -240,6 +247,42 @@ export class Color {
     return n;
   }
 
+  MUTATE_desaturate(amount0To1: number): void {
+    const { l, s, h } = this.hsl();
+    const rgb = new Color({ h, s: s * (1 - amount0To1), l }).rgb();
+    this.MUTATE_setRgb(rgb);
+  }
+
+  desaturate(amount0To1: number): Color {
+    const n = this.copy();
+    n.MUTATE_desaturate(amount0To1);
+    return n;
+  }
+
+  MUTATE_tint(amount0To1: number): void {
+    this._r = Math.round(this._r + (255 - this._r) * amount0To1);
+    this._g = Math.round(this._g + (255 - this._g) * amount0To1);
+    this._b = Math.round(this._b + (255 - this._b) * amount0To1);
+  }
+
+  tint(amount0To1: number): Color {
+    const n = this.copy();
+    n.MUTATE_tint(amount0To1);
+    return n;
+  }
+
+  MUTATE_tone(amount0To1: number): void {
+    this._r = Math.round(this._r + (128 - this._r) * amount0To1);
+    this._g = Math.round(this._g + (128 - this._g) * amount0To1);
+    this._b = Math.round(this._b + (128 - this._b) * amount0To1);
+  }
+
+  tone(amount0To1: number): Color {
+    const n = this.copy();
+    n.MUTATE_tone(amount0To1);
+    return n;
+  }
+
   MUTATE_rotateHue(rot360: number): void {
     const { l, c, h: oh } = this.lch();
     const rgb = new Color({ l, c, h: (oh + rot360) % 360 }).rgb();
@@ -428,6 +471,55 @@ export class Color {
     });
   }
 
+  static scaleContinuous(
+    config: ContinuousScaleConfig,
+    val: number,
+    min?: number,
+    max?: number,
+  ): string {
+    const { stops, category } = resolveScale(config);
+    if (category === "qualitative") {
+      throw new Error(
+        "Cannot use scaleContinuous with a qualitative palette. Use scaleDiscrete instead.",
+      );
+    }
+    const lo = min ?? 0;
+    const hi = max ?? 1;
+    const t = lo === hi ? 0.5 : normalizeTo01(val, lo, hi);
+    const nSegments = stops.length - 1;
+    if (t >= 1) return stops[stops.length - 1];
+    const segmentIndex = Math.floor(t * nSegments);
+    const segmentT = t * nSegments - segmentIndex;
+    return Color.scaledPct(
+      stops[segmentIndex],
+      stops[segmentIndex + 1],
+      segmentT,
+    );
+  }
+
+  static scaleDiscrete(
+    config: ScaleConfig,
+    index: number,
+    n?: number,
+  ): string {
+    const { stops, category } = resolveScale(config);
+    const i = clamp(index, 0, n !== undefined ? n - 1 : stops.length - 1);
+    if (category === "qualitative") {
+      return stops[i % stops.length];
+    }
+    const count = n ?? stops.length;
+    const t = count > 1 ? i / (count - 1) : 0.5;
+    const nSegments = stops.length - 1;
+    if (t >= 1) return stops[stops.length - 1];
+    const segmentIndex = Math.floor(t * nSegments);
+    const segmentT = t * nSegments - segmentIndex;
+    return Color.scaledPct(
+      stops[segmentIndex],
+      stops[segmentIndex + 1],
+      segmentT,
+    );
+  }
+
   // ================================================================================
   // STATIC CONV
   // ================================================================================
@@ -549,9 +641,9 @@ export class Color {
     r *= 255;
     g *= 255;
     b *= 255;
-    r = Math.max(0, Math.min(255, Math.round(r))); // Tim added this to clamp appropriately
-    g = Math.max(0, Math.min(255, Math.round(g))); // Tim added this to clamp appropriately
-    b = Math.max(0, Math.min(255, Math.round(b))); // Tim added this to clamp appropriately
+    r = clamp(Math.round(r), 0, 255);
+    g = clamp(Math.round(g), 0, 255);
+    b = clamp(Math.round(b), 0, 255);
     return { r, g, b };
   }
 
@@ -719,9 +811,9 @@ export class Color {
     g *= 255;
     b *= 255;
 
-    r = Math.max(0, Math.min(255, Math.round(r))); // Tim added this to clamp appropriately
-    g = Math.max(0, Math.min(255, Math.round(g))); // Tim added this to clamp appropriately
-    b = Math.max(0, Math.min(255, Math.round(b))); // Tim added this to clamp appropriately
+    r = clamp(Math.round(r), 0, 255);
+    g = clamp(Math.round(g), 0, 255);
+    b = clamp(Math.round(b), 0, 255);
 
     return { r, g, b };
   }
@@ -756,9 +848,9 @@ export class Color {
     let bl = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
     const gamma = (x: number) =>
       x >= 0.0031308 ? 1.055 * Math.pow(x, 1 / 2.4) - 0.055 : 12.92 * x;
-    r = Math.max(0, Math.min(255, Math.round(gamma(r) * 255)));
-    g = Math.max(0, Math.min(255, Math.round(gamma(g) * 255)));
-    bl = Math.max(0, Math.min(255, Math.round(gamma(bl) * 255)));
+    r = clamp(Math.round(gamma(r) * 255), 0, 255);
+    g = clamp(Math.round(gamma(g) * 255), 0, 255);
+    bl = clamp(Math.round(gamma(bl) * 255), 0, 255);
     return { r, g, b: bl };
   }
 

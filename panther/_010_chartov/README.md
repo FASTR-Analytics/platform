@@ -4,7 +4,7 @@
 based data.
 
 ChartOV is a **Chart** (Figure with panes/tiers/lanes support), not just a
-simple Figure. See `FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
+simple Figure. See `DOC_FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
 
 ## Purpose
 

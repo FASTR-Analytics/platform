@@ -1,5 +1,4 @@
 import {
-  InstanceDetail,
   SlideDeckGroupingMode,
   SlideDeckSummary,
   isFrench,
@@ -53,7 +52,6 @@ type GroupOption = {
 };
 
 type ExtendedProps = {
-  instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
@@ -82,7 +80,6 @@ export function ProjectDecks(p: ExtendedProps) {
         deckId,
         reportLabel: deckLabel,
         projectDetail,
-        instanceDetail: p.instanceDetail,
         isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
       },

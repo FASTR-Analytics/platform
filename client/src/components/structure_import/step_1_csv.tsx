@@ -5,13 +5,12 @@ import {
   Button,
   Select,
   StateHolderFormError,
-  StateHolderWrapper,
   getSelectOptions,
   timActionForm,
-  timQuery,
 } from "panther";
 import { cleanupUppy, createUppyInstance } from "~/upload/uppy_file_upload";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance_state";
 
 type Props = {
   step1Result: CsvDetails | undefined;
@@ -23,11 +22,6 @@ export function Step1_Csv(p: Props) {
     p.step1Result?.fileName ?? "",
   );
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step1Result);
-
-  const assetListing = timQuery(
-    () => serverActions.getAssets({}),
-    t3(TC.loadingAssets),
-  );
 
   function updateSelectedFileName(fileName: string) {
     setNeedsSaving(true);
@@ -49,9 +43,6 @@ export function Step1_Csv(p: Props) {
   onMount(() => {
     uppy = createUppyInstance({
       triggerId: "#select-file-button",
-      onModalClosed: () => {
-        assetListing.fetch();
-      },
       onUploadSuccess: (file) => {
         if (!file) {
           return;
@@ -73,21 +64,15 @@ export function Step1_Csv(p: Props) {
         </Button>
       </div>
       <div class="w-96">
-        <StateHolderWrapper state={assetListing.state()} noPad>
-          {(keyedAssets) => {
-            return (
-              <Select
-                label={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
-                options={getSelectOptions(
-                  keyedAssets.filter((a) => a.isCsv).map((a) => a.fileName),
-                )}
-                value={selectedFileName()}
-                onChange={updateSelectedFileName}
-                fullWidth
-              />
-            );
-          }}
-        </StateHolderWrapper>
+        <Select
+          label={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
+          options={getSelectOptions(
+            instanceState.assets.filter((a) => a.isCsv).map((a) => a.fileName),
+          )}
+          value={selectedFileName()}
+          onChange={updateSelectedFileName}
+          fullWidth
+        />
       </div>
       <StateHolderFormError state={save.state()} />
       <div class="ui-gap-sm flex">

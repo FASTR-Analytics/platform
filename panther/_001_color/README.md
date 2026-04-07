@@ -55,22 +55,24 @@ getAdjustedColor(
 ): Color
 ```
 
-### Key Colors System (`key_colors.ts`)
+### Key Colors System (`key_colors.ts`, `key_color_themes.ts`)
 
 Manage a global palette of named colors:
 
 ```typescript
-setKeyColors(colors: KeyColors): void
+setKeyColors(colors: Partial<KeyColors> | KeyColorThemeName): void
 getColor(key: string): Color
 getColorAsRgb(key: string): string
-generateKeyColors(): KeyColors
+generateKeyColorsFromPrimary(primary: ColorOptions, mode: "light" | "dark"): KeyColors
+KEY_COLOR_THEMES: Record<KeyColorThemeName, KeyColorTheme>
+KEY_COLOR_THEME_OPTIONS: KeyColorThemeOption[]
+RECOMMENDED_PALETTES: Record<KeyColorThemeName, { qualitative; sequential; diverging }>
 ```
 
 ### Pre-defined Colors (`tim_colors.ts`)
 
 ```typescript
-TIM_COLORS: Record<string, Color>;
-TIM_COLOR_SETS: Record<string, Color[]>;
+TIM_COLORS: Record<string, string>;
 ```
 
 ## Usage Example

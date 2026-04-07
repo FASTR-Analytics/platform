@@ -1,15 +1,10 @@
 import { createContext, useContext, createSignal, type ParentProps } from "solid-js";
-import type { InstanceDetail } from "lib";
 import type { AIContext, AIProjectContextValue, AIUserInteraction, DraftContent } from "./types";
 import { reduceInteractions, formatInteraction } from "./interactions";
 
 const AIProjectContext = createContext<AIProjectContextValue>();
 
-type AIProjectContextProviderProps = ParentProps<{
-  instanceDetail: InstanceDetail;
-}>;
-
-export function AIProjectContextProvider(props: AIProjectContextProviderProps) {
+export function AIProjectContextProvider(props: ParentProps) {
   const [aiContext, setAIContextInternal] = createSignal<AIContext>({ mode: "viewing_visualizations" });
   const [draftContent, setDraftContent] = createSignal<DraftContent>(null);
   const [pendingInteractions, setPendingInteractions] = createSignal<AIUserInteraction[]>([]);
@@ -45,7 +40,6 @@ export function AIProjectContextProvider(props: AIProjectContextProviderProps) {
     notifyAI,
     getPendingInteractionsMessage,
     clearPendingInteractions,
-    instanceDetail: props.instanceDetail,
   };
 
   return (

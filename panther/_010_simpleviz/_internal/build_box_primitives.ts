@@ -30,7 +30,7 @@ export function buildBoxPrimitives(
   customFigureStyle: CustomFigureStyle,
 ): Primitive[] {
   const primitives: Primitive[] = [];
-  const mergedSimpleVizStyle = customFigureStyle.simpleviz();
+  const mergedSimpleVizStyle = customFigureStyle.getMergedSimpleVizStyle();
 
   ////////////////////////////////////////////////////////////////////////////////
   //                                                                            //

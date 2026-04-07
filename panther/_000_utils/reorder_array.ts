@@ -3,6 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { clamp } from "./numbers.ts";
+
 export function getWithMovedElement<T>(
   arr: T[],
   fromIndex: number,
@@ -22,7 +24,7 @@ export function getWithElementMovedToPrev<T>(arr: T[], elIndex: number): T[] {
   if (elIndex < 0 || elIndex >= arr.length) {
     return [...arr];
   }
-  const toIndex = Math.min(arr.length - 1, Math.max(0, elIndex - 1));
+  const toIndex = clamp(elIndex - 1, 0, arr.length - 1);
   return getWithMovedElement(arr, elIndex, toIndex);
 }
 
@@ -30,6 +32,6 @@ export function getWithElementMovedToNext<T>(arr: T[], elIndex: number): T[] {
   if (elIndex < 0 || elIndex >= arr.length) {
     return [...arr];
   }
-  const toIndex = Math.min(arr.length - 1, Math.max(0, elIndex + 1));
+  const toIndex = clamp(elIndex + 1, 0, arr.length - 1);
   return getWithMovedElement(arr, elIndex, toIndex);
 }

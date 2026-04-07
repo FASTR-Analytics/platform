@@ -8,11 +8,18 @@ import type {
   CascadeArrowPrimitive,
   CascadeArrowStyle,
   ChartBarPrimitive,
+  DataLabel,
   MergedCascadeArrowStyle,
   PathSegment,
   RenderContext,
 } from "../deps.ts";
-import { Coordinates, getColor, RectCoordsDims, Z_INDEX } from "../deps.ts";
+import {
+  Coordinates,
+  getAdjustedFont,
+  getColor,
+  RectCoordsDims,
+  Z_INDEX,
+} from "../deps.ts";
 
 export function generateCascadeArrowPrimitives(
   barPrimitives: ChartBarPrimitive[],
@@ -66,8 +73,9 @@ export function generateCascadeArrowPrimitives(
         continue;
       }
 
-      const retention = toVal / fromVal;
-      const dropoff = fromVal - toVal;
+      const absDropoff = fromVal - toVal;
+      const relDropoff = absDropoff / fromVal;
+      const relRetention = toVal / fromVal;
 
       const cascadeArrowInfo: CascadeArrowInfo = {
         ...fromBar.meta.value,
@@ -77,8 +85,9 @@ export function generateCascadeArrowPrimitives(
         isLastArrow: i === nArrows - 1,
         fromVal,
         toVal,
-        dropoff,
-        retention,
+        absDropoff,
+        relDropoff,
+        relRetention,
         isBiggestDropoff: i === biggestDropoffIdx,
       };
 
@@ -90,9 +99,7 @@ export function generateCascadeArrowPrimitives(
       const arrow = computeCascadeArrow(
         fromBar,
         toBar,
-        retention,
-        fromVal,
-        toVal,
+        cascadeArrowInfo,
         s,
         arrowStyle,
         rc,
@@ -107,13 +114,12 @@ export function generateCascadeArrowPrimitives(
 function computeCascadeArrow(
   fromBar: ChartBarPrimitive,
   toBar: ChartBarPrimitive,
-  retention: number,
-  fromVal: number,
-  toVal: number,
+  cascadeArrowInfo: CascadeArrowInfo,
   s: CascadeArrowStyle,
   arrowStyle: MergedCascadeArrowStyle,
   rc: RenderContext,
 ): CascadeArrowPrimitive {
+  const { relRetention } = cascadeArrowInfo;
   const sw = s.strokeWidth;
 
   const fromX = fromBar.bounds.rightX() - sw / 2;
@@ -133,7 +139,89 @@ function computeCascadeArrow(
   let cpX: number;
   let cpY: number;
 
-  if (diffY < lengthOfArrowWithGracefulTrunk + arrowGap) {
+  if (diffY < 0) {
+    const absDiffY = -diffY;
+    const diffX = toX - fromX;
+
+    if (diffX < lengthOfArrowWithGracefulTrunk + arrowGap) {
+      // Tight arrival: not enough horizontal room for arrowhead
+      const hypot = lengthOfArrowWithGracefulTrunk + arrowGap;
+      const arrowGapPct = arrowGap / hypot;
+      const yShiftUp = Math.sqrt(hypot * hypot - diffX * diffX);
+      const arrowGapX = arrowGapPct * diffX;
+      const arrowGapY = arrowGapPct * yShiftUp;
+      cpX = fromX;
+      cpY = toY - yShiftUp;
+      arrowEndX = toX - arrowGapX;
+      arrowEndY = toY - arrowGapY;
+
+      pathSegments = [
+        { type: "moveTo", x: fromX, y: fromY - arrowGap },
+        {
+          type: "bezierCurveTo",
+          cp1x: cpX,
+          cp1y: cpY,
+          cp2x: cpX,
+          cp2y: cpY,
+          x: arrowEndX,
+          y: arrowEndY,
+        },
+      ];
+    } else if (absDiffY < lengthOfArrowWithGracefulTrunk + arrowGap) {
+      // Tight departure: not enough vertical room for graceful start
+      const hypot = lengthOfArrowWithGracefulTrunk + arrowGap;
+      const arrowGapPct = arrowGap / hypot;
+      const xShiftRight = Math.sqrt(hypot * hypot - absDiffY * absDiffY);
+      const arrowGapX = arrowGapPct * xShiftRight;
+      const arrowGapY = arrowGapPct * absDiffY;
+      cpX = fromX + xShiftRight;
+      cpY = toY;
+      arrowEndX = toX - arrowGap;
+      arrowEndY = toY;
+
+      pathSegments = [
+        { type: "moveTo", x: fromX + arrowGapX, y: fromY - arrowGapY },
+        {
+          type: "bezierCurveTo",
+          cp1x: cpX,
+          cp1y: cpY,
+          cp2x: cpX,
+          cp2y: cpY,
+          x: arrowEndX,
+          y: arrowEndY,
+        },
+      ];
+    } else {
+      // Generous: enough room in both directions
+      cpX = fromX;
+      cpY = toY;
+      arrowEndX = toX - arrowGap;
+      arrowEndY = toY;
+
+      pathSegments = [
+        { type: "moveTo", x: fromX, y: fromY - arrowGap },
+        {
+          type: "bezierCurveTo",
+          cp1x: cpX,
+          cp1y: cpY,
+          cp2x: cpX,
+          cp2y: cpY,
+          x: arrowEndX,
+          y: arrowEndY,
+        },
+      ];
+    }
+  } else if (diffY === 0) {
+    cpX = midX;
+    cpY = fromY;
+    arrowEndX = toX - arrowGap;
+    arrowEndY = fromY;
+
+    pathSegments = [
+      { type: "moveTo", x: fromX + arrowGap, y: fromY },
+      { type: "lineTo", x: arrowEndX, y: arrowEndY },
+    ];
+  } else if (diffY < lengthOfArrowWithGracefulTrunk + arrowGap) {
     const hypot = lengthOfArrowWithGracefulTrunk + arrowGap;
     const arrowGapPct = arrowGap / hypot;
     const xShiftLeft = Math.sqrt(hypot * hypot - diffY * diffY);
@@ -178,22 +266,73 @@ function computeCascadeArrow(
 
   const angle = Math.atan2(arrowEndY - cpY, arrowEndX - cpX);
 
-  const labelText = s.labelFormatter(retention, fromVal, toVal);
-  const labelTextInfo = (s.labelColor || s.labelRelFontSize)
-    ? {
-      ...arrowStyle.text.labels,
-      ...(s.labelColor ? { color: getColor(s.labelColor) } : {}),
-      ...(s.labelRelFontSize
-        ? { fontSize: arrowStyle.text.labels.fontSize * s.labelRelFontSize }
-        : {}),
-    }
-    : arrowStyle.text.labels;
-  const mText = rc.mText(labelText, labelTextInfo, Infinity);
-  const labelY = fromY -
-    (sw / 2 + mText.dims.h() + s.arrowLabelGap);
+  const dl = s.dataLabel;
+  const labelText = dl.show
+    ? arrowStyle.textFormatter !== "none"
+      ? arrowStyle.textFormatter(cascadeArrowInfo)
+      : String(cascadeArrowInfo.relRetention)
+    : undefined;
+  const labelTextInfo =
+    (dl.color !== undefined || dl.relFontSize !== undefined ||
+        dl.font !== undefined)
+      ? {
+        ...arrowStyle.text.labels,
+        ...(dl.color !== undefined ? { color: getColor(dl.color) } : {}),
+        ...(dl.relFontSize !== undefined
+          ? {
+            fontSize: arrowStyle.text.labels.fontSize * dl.relFontSize,
+          }
+          : {}),
+        ...(dl.font !== undefined
+          ? {
+            font: getAdjustedFont(arrowStyle.text.labels.font, dl.font),
+          }
+          : {}),
+      }
+      : arrowStyle.text.labels;
+  const mText = labelText
+    ? rc.mText(labelText, labelTextInfo, Infinity)
+    : undefined;
+  const highestY = Math.min(fromY, toY);
+  const dlPadTop = dl.padding.pt();
+  const dlPadBottom = dl.padding.pb();
+  const dlBorderHalf = dl.border !== "none" ? dl.border.width / 2 : 0;
+  const labelY = mText
+    ? highestY -
+      (sw / 2 + mText.dims.h() + dlPadBottom + dlBorderHalf +
+        s.arrowLabelGap + dl.offset)
+    : highestY;
+
+  let dataLabel: DataLabel | undefined;
+  if (mText) {
+    const hasDecoration = dl.backgroundColor !== "none" ||
+      dl.border !== "none";
+    dataLabel = {
+      mText,
+      position: new Coordinates({ x: midX, y: labelY }),
+      alignH: "center",
+      alignV: "top",
+      style: hasDecoration
+        ? {
+          backgroundColor: dl.backgroundColor !== "none"
+            ? getColor(dl.backgroundColor)
+            : undefined,
+          padding: dl.padding,
+          border: dl.border !== "none"
+            ? {
+              color: getColor(dl.border.color),
+              width: dl.border.width,
+            }
+            : undefined,
+          rectRadius: dl.rectRadius,
+        }
+        : undefined,
+    };
+  }
 
   const minX = Math.min(fromX + arrowGap, arrowEndX) - sw;
-  const minY = Math.min(fromY, arrowEndY, labelY) - sw;
+  const labelTopY = mText ? labelY - dlPadTop - dlBorderHalf : labelY;
+  const minY = Math.min(fromY, arrowEndY, labelTopY) - sw;
   const maxX = Math.max(fromX + arrowGap, arrowEndX) + sw;
   const maxY = Math.max(fromY, arrowEndY) + sw;
   const bounds = new RectCoordsDims({
@@ -213,7 +352,7 @@ function computeCascadeArrow(
       i_fromStage: fromBar.meta.value.i_val,
       i_toStage: toBar.meta.value.i_val,
       i_series: fromBar.meta.value.i_series,
-      retention,
+      relRetention,
     },
     pathSegments,
     pathStyle: {
@@ -229,9 +368,6 @@ function computeCascadeArrow(
         size: s.arrowHeadLength,
       }
       : undefined,
-    label: {
-      mText,
-      position: new Coordinates({ x: midX, y: labelY }),
-    },
+    dataLabel,
   };
 }

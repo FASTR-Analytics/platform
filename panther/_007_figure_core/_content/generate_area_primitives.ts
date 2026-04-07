@@ -140,6 +140,7 @@ export function generateAreaPrimitives(
             series: seriesInfo,
             valueIndices: areaData.valueIndices,
           },
+          annotationGroup: areaStyle.annotationGroup,
           coords: lineCoordArray,
           style: areaStyle,
         });
@@ -287,6 +288,7 @@ export function generateAreaPrimitives(
           series: seriesInfo,
           valueIndices: [],
         },
+        annotationGroup: areaStyle.annotationGroup,
         coords: lineCoordArray,
         style: areaStyle,
       });

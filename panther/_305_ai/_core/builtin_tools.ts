@@ -3,6 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { BUILTIN_TOOL_TYPES } from "../deps.ts";
+
 ////////////////////////////////////////////////////////////////////////////////
 // BUILT-IN TOOLS
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,7 +72,7 @@ export interface BuiltInToolsConfig {
 ////////////////////////////////////////////////////////////////////////////////
 
 interface WebSearchToolSDK {
-  type: "web_search_20250305";
+  type: typeof BUILTIN_TOOL_TYPES.WEB_SEARCH;
   name: "web_search";
   max_uses?: number;
   allowed_domains?: string[];
@@ -79,7 +81,7 @@ interface WebSearchToolSDK {
 }
 
 interface WebFetchToolSDK {
-  type: "web_fetch_20250910";
+  type: typeof BUILTIN_TOOL_TYPES.WEB_FETCH;
   name: "web_fetch";
   max_uses?: number;
   allowed_domains?: string[];
@@ -89,12 +91,12 @@ interface WebFetchToolSDK {
 }
 
 interface BashToolSDK {
-  type: "bash_20250124";
+  type: typeof BUILTIN_TOOL_TYPES.BASH;
   name: "bash";
 }
 
 interface TextEditorToolSDK {
-  type: "text_editor_20250728";
+  type: typeof BUILTIN_TOOL_TYPES.TEXT_EDITOR;
   name: "str_replace_based_edit_tool";
 }
 
@@ -120,7 +122,7 @@ export function resolveBuiltInTools(
       ? config.webSearch
       : {};
     tools.push({
-      type: "web_search_20250305",
+      type: BUILTIN_TOOL_TYPES.WEB_SEARCH,
       name: "web_search",
       ...webSearchConfig,
     });
@@ -131,7 +133,7 @@ export function resolveBuiltInTools(
       ? config.webFetch
       : {};
     tools.push({
-      type: "web_fetch_20250910",
+      type: BUILTIN_TOOL_TYPES.WEB_FETCH,
       name: "web_fetch",
       ...webFetchConfig,
     });
@@ -139,14 +141,14 @@ export function resolveBuiltInTools(
 
   if (config.bash) {
     tools.push({
-      type: "bash_20250124",
+      type: BUILTIN_TOOL_TYPES.BASH,
       name: "bash",
     });
   }
 
   if (config.textEditor) {
     tools.push({
-      type: "text_editor_20250728",
+      type: BUILTIN_TOOL_TYPES.TEXT_EDITOR,
       name: "str_replace_based_edit_tool",
     });
   }

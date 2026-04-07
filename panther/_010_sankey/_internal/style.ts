@@ -8,5 +8,5 @@ import type { CustomFigureStyle, MergedSankeyStyle } from "../deps.ts";
 export function getMergedSankeyStyle(
   customFigureStyle: CustomFigureStyle,
 ): MergedSankeyStyle {
-  return customFigureStyle.sankey();
+  return customFigureStyle.getMergedSankeyStyle();
 }

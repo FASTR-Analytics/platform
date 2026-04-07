@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { assert, type ColorKeyOrString } from "./deps.ts";
+import { type AlignH, assert, type ColorKeyOrString } from "./deps.ts";
 import type { MarkdownTextStyleOptions } from "./text_style_keys.ts";
 
 export type MarginOptionsEm = {
@@ -23,6 +23,7 @@ export type ListLevelOptionsEm = {
 
 export type CustomMarkdownStyleOptions = {
   scale?: number;
+  alignH?: AlignH;
 
   text?: MarkdownTextStyleOptions;
 
@@ -64,7 +65,7 @@ export type CustomMarkdownStyleOptions = {
       right?: number; // em multiplier
     };
     paragraphGapEm?: number; // em multiplier for gap between paragraphs within blockquote
-    alignH?: "left" | "center" | "right";
+    alignH?: AlignH;
     backgroundColor?: ColorKeyOrString | "none";
   };
 

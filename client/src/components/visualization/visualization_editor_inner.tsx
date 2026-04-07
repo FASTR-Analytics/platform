@@ -11,7 +11,6 @@ import {
   hasDuplicateDisaggregatorDisplayOptions,
   t3,
   TC,
-  type InstanceDetail
 } from "lib";
 import {
   APIResponseWithData,
@@ -70,7 +69,6 @@ import type { AIContext } from "../project_ai/types";
 
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
-  instanceDetail: InstanceDetail;
   projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
   poDetail: PresentationObjectDetail;

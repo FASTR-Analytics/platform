@@ -26,6 +26,7 @@ import { routesUsers } from "./server/routes/instance/users.ts";
 import { routesBackups } from "./server/routes/instance/backups.ts";
 import { routesGeoJsonMaps } from "./server/routes/instance/geojson_maps.ts";
 import { routesInstanceModules } from "./server/routes/instance/modules.ts";
+import { routesInstanceSSE } from "./server/routes/instance/instance-sse.ts";
 
 // Project routes
 import { routesProject } from "./server/routes/project/project.ts";
@@ -70,6 +71,7 @@ app.use("*", corsMiddleware);
 
 app.route("/", routesHealth);
 app.route("/", routesInstance);
+app.route("/", routesInstanceSSE);
 app.route("/", routesUsers);
 app.route("/", routesProject);
 app.route("/", routesProjectSSE);

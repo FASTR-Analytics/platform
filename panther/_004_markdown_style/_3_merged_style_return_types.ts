@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { TextInfoUnkeyed } from "./deps.ts";
+import type { AlignH, TextInfoUnkeyed } from "./deps.ts";
 
 export type MergedMargin = {
   top: number;
@@ -22,6 +22,7 @@ export type MergedListLevel = {
 
 export type MergedMarkdownStyle = {
   alreadyScaledValue: number;
+  alignH: AlignH;
 
   text: {
     paragraph: TextInfoUnkeyed;
@@ -72,7 +73,7 @@ export type MergedMarkdownStyle = {
     paddingLeft: number;
     paddingRight: number;
     paragraphGap: number;
-    alignH: "left" | "center" | "right";
+    alignH: AlignH;
     backgroundColor: string | "none";
   };
 

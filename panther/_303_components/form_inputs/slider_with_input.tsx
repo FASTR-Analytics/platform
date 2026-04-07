@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createSignal, type JSX, Match, Show, Switch } from "solid-js";
+import { clamp } from "../deps.ts";
 import { ComparisonSlider } from "./comparison_slider.tsx";
 import { Slider } from "./slider.tsx";
 
@@ -100,7 +101,7 @@ export function SliderWithInput(p: SliderWithInputProps) {
     if (inputText() === "" || isNaN(Number(inputText()))) {
       p.onChange(min());
     } else if (isInvalid()) {
-      const clamped = Math.max(min(), Math.min(max(), p.value));
+      const clamped = clamp(p.value, min(), max());
       p.onChange(clamped);
     }
 

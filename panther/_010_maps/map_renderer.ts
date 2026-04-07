@@ -85,7 +85,7 @@ function getMapComponentSizes(
     paneHeaderHeight: 0,
     minYAxisWidth: 0,
     surroundsMinWidth: 0,
-    resolvedLegendLabels: item.legendItemsOrLabels,
+    resolvedLegendLabels: item.legend,
   };
 }
 

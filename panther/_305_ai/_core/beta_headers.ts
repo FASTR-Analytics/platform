@@ -3,17 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-////////////////////////////////////////////////////////////////////////////////
-// BETA HEADER CONSTANTS
-////////////////////////////////////////////////////////////////////////////////
-
-export const BETA_HEADERS = {
-  WEB_FETCH: "web-fetch-2025-09-10",
-  STRUCTURED_OUTPUTS: "structured-outputs-2025-11-13",
-  INTERLEAVED_THINKING: "interleaved-thinking-2025-05-14",
-  FILES_API: "files-api-2025-04-14",
-  CONTEXT_1M: "context-1m-2025-08-07",
-} as const;
+import { BETA_HEADERS } from "../deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // BETA HEADER HELPERS
@@ -24,7 +14,6 @@ export type BetaHeaderConfig = {
   hasWebFetch?: boolean;
   interleavedThinking?: boolean;
   hasDocuments?: boolean;
-  context1M?: boolean;
 };
 
 export function getBetaHeaders(
@@ -32,29 +21,20 @@ export function getBetaHeaders(
 ): Record<string, string> | undefined {
   const headers: string[] = [];
 
-  // Always include structured outputs when tools are present (strict mode)
   if (config.hasTools) {
     headers.push(BETA_HEADERS.STRUCTURED_OUTPUTS);
   }
 
-  // Web fetch requires its own beta header
   if (config.hasWebFetch) {
     headers.push(BETA_HEADERS.WEB_FETCH);
   }
 
-  // Interleaved thinking (thinking between tool calls)
   if (config.interleavedThinking) {
     headers.push(BETA_HEADERS.INTERLEAVED_THINKING);
   }
 
-  // Files API for document uploads
   if (config.hasDocuments) {
     headers.push(BETA_HEADERS.FILES_API);
-  }
-
-  // 1M token context window (Opus 4.6, Sonnet 4.5, Sonnet 4)
-  if (config.context1M) {
-    headers.push(BETA_HEADERS.CONTEXT_1M);
   }
 
   if (headers.length === 0) {

@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import type { PageNumberBackground } from "./_2_custom_page_style_options.ts";
 import type { AlignH, AlignV, Padding, TextInfoUnkeyed } from "./deps.ts";
 
 export type MergedPageStyle = {
@@ -28,14 +29,17 @@ export type MergedPageStyle = {
     backgroundColor: string;
     logoHeight: number;
     logoGapX: number;
-    gapY: number;
+    logoBottomPadding: number;
+    titleBottomPadding: number;
+    subTitleBottomPadding: number;
+    authorBottomPadding: number;
     alignH: AlignH;
     alignV: AlignV;
   };
   section: {
     padding: Padding;
     backgroundColor: string;
-    gapY: number;
+    sectionTitleBottomPadding: number;
     alignH: AlignH;
     alignV: AlignV;
   };
@@ -50,12 +54,14 @@ export type MergedPageStyle = {
     subHeaderBottomPadding: number;
     bottomBorderStrokeWidth: number;
     bottomBorderColor: string;
+    alignH: AlignH;
   };
   footer: {
     padding: Padding;
     logoHeight: number;
     logoGapX: number;
     backgroundColor: string;
+    alignH: AlignH;
   };
   content: {
     padding: Padding;
@@ -68,5 +74,12 @@ export type MergedPageStyle = {
     backgroundColor: string;
     borderColor: string;
     borderWidth: number;
+    rectRadius: number;
+  };
+  pageNumber: {
+    placement: "bottom-right" | "bottom-left" | "bottom-center";
+    padding: Padding;
+    background: PageNumberBackground;
+    backgroundColor: string;
   };
 };

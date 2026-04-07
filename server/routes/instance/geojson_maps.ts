@@ -10,6 +10,7 @@ import {
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { notifyInstanceGeoJsonMapsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import {
   analyzeGeoJson,
@@ -84,6 +85,9 @@ defineRoute(
         adminAreaLevel,
         processedGeoJson,
       );
+      if (res.success) {
+        notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
+      }
       return c.json(res);
     } catch (e) {
       return c.json({
@@ -101,6 +105,9 @@ defineRoute(
   log("deleteGeoJsonMap"),
   async (c, { body }) => {
     const res = await deleteGeoJsonMap(c.var.mainDb, body.adminAreaLevel);
+    if (res.success) {
+      notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
+    }
     return c.json(res);
   },
 );

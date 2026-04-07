@@ -102,13 +102,18 @@ export function buildFooterPrimitives(
 
   // Footer text
   if (measured.mFooter) {
+    const x = s.footer.alignH === "center"
+      ? paddedRcd.x() + measured.maxWidthForFooterText / 2
+      : s.footer.alignH === "right"
+      ? paddedRcd.x() + measured.maxWidthForFooterText
+      : paddedRcd.x();
     primitives.push({
       type: "text",
       id: "footerText",
       mText: measured.mFooter,
-      x: paddedRcd.x(),
+      x,
       y: paddedRcd.y(),
-      alignH: "left",
+      alignH: s.footer.alignH,
       alignV: "top",
       maxWidth: measured.maxWidthForFooterText,
     });

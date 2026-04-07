@@ -5,7 +5,7 @@ import {
   ColorKeyOrString,
   CustomFigureStyleOptions,
   FontInfo,
-  MapColorScale,
+  MapRegionInfo,
   getAdjustedColor,
   getFormatterFunc,
   toPct0,
@@ -63,17 +63,11 @@ export function getStyleFromPresentationObject(
       },
       subCaption: {
         relFontSize: config.t.subCaptionRelFontSize ?? 1.3,
-        color: getAdjustedColor(
-          { key: "baseContentLessVisible" },
-          { opacity: 0.5 },
-        ),
+        color: getAdjustedColor({ key: "baseContent" }, { brighten: 0.5 }),
       },
       footnote: {
         relFontSize: config.t.footnoteRelFontSize ?? 0.9,
-        color: getAdjustedColor(
-          { key: "baseContentLessVisible" },
-          { opacity: 0.5 },
-        ),
+        color: getAdjustedColor({ key: "baseContent" }, { brighten: 0.5 }),
       },
       legend: {
         relFontSize: 0.8,
@@ -182,51 +176,104 @@ export function getStyleFromPresentationObject(
     ///////////////////
     content: {
       points: {
-        defaults: {
+        func: {
           show:
             config.s.content === "points" ||
             (config.d.type === "timeseries" && config.s.specialCoverageChart),
           innerColorStrategy: { brighten: 0.5 },
+          dataLabel: {
+            show: config.s.showDataLabels || config.s.specialCoverageChart,
+          },
         },
+        textFormatter: config.s.specialCoverageChart
+          ? (info: ChartValueInfo) => {
+              const thisSeries = info.seriesValArrays.at(info.i_series);
+              if (!thisSeries) return "";
+              let lastGoodIndex = 0;
+              for (let i = 0; i < thisSeries.length; i++) {
+                if (thisSeries[i] !== undefined) lastGoodIndex = i;
+              }
+              return info.i_val === lastGoodIndex ? toPct0(info.val) : "";
+            }
+          : (info: ChartValueInfo) =>
+              getFormatterFunc(
+                dataFormat,
+                config.s.decimalPlaces ?? 0,
+              )(info.val),
       },
       bars: {
-        defaults: {
-          show: config.s.content === "bars",
-        },
         func:
           config.s.content !== "bars"
-            ? undefined
+            ? { show: false }
             : config.s.specialBarChart
               ? (info) => {
                   const diff = getSpecialBarChartDiff(info);
                   const threshold =
                     config.s.specialBarChartDiffThreshold ?? 0.1;
                   if (diff === undefined) {
-                    return { show: true, fillColor: _CF_COMPARISON };
+                    return {
+                      show: true,
+                      fillColor: _CF_COMPARISON,
+                      dataLabel: { show: config.s.showDataLabels },
+                    };
                   }
                   if (diff > threshold) {
-                    return { show: true, fillColor: config.s.specialBarChartInverted ? _CF_RED :_CF_GREEN };
+                    return {
+                      show: true,
+                      fillColor: config.s.specialBarChartInverted
+                        ? _CF_RED
+                        : _CF_GREEN,
+                      dataLabel: { show: config.s.showDataLabels },
+                    };
                   }
                   if (diff < -1 * threshold) {
-                    return { show: true, fillColor: config.s.specialBarChartInverted ? _CF_GREEN : _CF_RED };
+                    return {
+                      show: true,
+                      fillColor: config.s.specialBarChartInverted
+                        ? _CF_GREEN
+                        : _CF_RED,
+                      dataLabel: { show: config.s.showDataLabels },
+                    };
                   }
-                  return { show: true, fillColor: _CF_COMPARISON };
+                  return {
+                    show: true,
+                    fillColor: _CF_COMPARISON,
+                    dataLabel: { show: config.s.showDataLabels },
+                  };
                 }
-              : !colorFuncGivenCF
-                ? undefined
-                : (info) => ({
+              : colorFuncGivenCF
+                ? (info) => ({
                     show: true,
                     color: colorFuncGivenCF(info.val),
-                  }),
+                    dataLabel: { show: config.s.showDataLabels },
+                  })
+                : { show: true, dataLabel: { show: config.s.showDataLabels } },
+        textFormatter: config.s.specialBarChart
+          ? (info: ChartValueInfo) => {
+              const diff = getSpecialBarChartDiff(info);
+              const threshold = config.s.specialBarChartDiffThreshold ?? 0.1;
+              const formatter = getFormatterFunc(
+                "percent",
+                config.s.decimalPlaces ?? 0,
+              );
+              if (diff === undefined) return "";
+              if (diff < -1 * threshold) return formatter(diff);
+              if (diff > threshold) return "+" + formatter(diff);
+              if (config.s.specialBarChartDataLabels === "all-values")
+                return formatter(diff);
+              return "";
+            }
+          : (info: ChartValueInfo) =>
+              getFormatterFunc(
+                dataFormat,
+                config.s.decimalPlaces ?? 0,
+              )(info.val),
         stacking:
           config.s.content === "bars" && config.s.barsStacked
             ? "stacked"
             : "none",
       },
       lines: {
-        defaults: {
-          show: config.s.content === "lines" || config.s.content === "areas",
-        },
         func: goodDiffAreas
           ? (info) => {
               return {
@@ -234,12 +281,19 @@ export function getStyleFromPresentationObject(
                 color: "#000000",
                 lineDash: info.i_series === 0 ? "solid" : "dashed",
                 strokeWidth: info.i_series === 0 ? 3 : 1.5,
+                dataLabel: { show: config.s.showDataLabelsLineCharts },
               };
             }
-          : undefined,
+          : {
+              show:
+                config.s.content === "lines" || config.s.content === "areas",
+              dataLabel: { show: config.s.showDataLabelsLineCharts },
+            },
+        textFormatter: (info: ChartValueInfo) =>
+          getFormatterFunc(dataFormat, config.s.decimalPlaces ?? 0)(info.val),
       },
       areas: {
-        defaults: {
+        func: {
           show: config.s.content === "areas",
         },
         diff: {
@@ -247,64 +301,37 @@ export function getStyleFromPresentationObject(
           // order: config.s.diffAreasOrder,
         },
       },
-      withDataLabels: (
-        (config.s.content === "bars" || config.s.content === "points") 
-      && !!config.s.showDataLabels
-    ) || 
-      (
-        (config.s.content === "lines" || config.s.content === "areas") 
-      && !!config.s.showDataLabelsLineCharts
-    ),
-      dataLabelFormatter: config.s.specialCoverageChart
-        ? (info) => {
-            const thisSeries = info.seriesValArrays.at(info.i_series);
-            if (!thisSeries) {
-              return undefined;
+      tableCells: {
+        func: colorFuncGivenCF
+          ? (info) => ({
+              backgroundColor: colorFuncGivenCF(info.valueAsNumber),
+            })
+          : undefined,
+        textFormatter: (info) =>
+          getFormatterFunc(dataFormat, config.s.decimalPlaces ?? 0)(info.value),
+      },
+      mapRegions:
+        config.d.type === "map"
+          ? {
+              func: {
+                show: true,
+                fillColor: 777,
+                strokeColor: "#666",
+                strokeWidth: 0.5,
+                dataLabel: {
+                  show: config.s.showDataLabels,
+                  backgroundColor: { key: "base100" },
+                },
+              },
+              textFormatter: (info: MapRegionInfo) => {
+                if (info.value === undefined) return "";
+                return getFormatterFunc(
+                  dataFormat,
+                  config.s.decimalPlaces ?? 0,
+                )(info.value);
+              },
             }
-            let lastGoodIndex = 0;
-            for (let i = 0; i < thisSeries.length; i++) {
-              if (thisSeries[i] !== undefined) {
-                lastGoodIndex = i;
-              }
-            }
-            if (info.i_val === lastGoodIndex) {
-              return toPct0(info.val);
-            }
-            return undefined;
-            // }
-            // const lastIndex = thisSeries.length - 1;
-            // if (info.i_val === lastIndex) {
-            //   return toPct0(info.val);
-            // }
-            // return undefined;
-          }
-        : config.s.specialBarChart
-          ? (info) => {
-              const diff = getSpecialBarChartDiff(info);
-              const threshold = config.s.specialBarChartDiffThreshold ?? 0.1;
-              const formatter = getFormatterFunc(
-                "percent",
-                config.s.decimalPlaces ?? 0,
-              );
-              if (diff === undefined) {
-                return undefined;
-              }
-              if (diff < -1 * threshold) {
-                return formatter(diff);
-              }
-              if (diff > threshold) {
-                return "+" + formatter(diff);
-              }
-              if (config.s.specialBarChartDataLabels === "all-values") {
-                return formatter(diff);
-              }
-              return undefined;
-            }
-          : (info) =>
-              getFormatterFunc(
-                dataFormat,
-                config.s.decimalPlaces ?? 0,
-              )(info.val),
+          : undefined,
     },
     /////////////////
     //             //
@@ -312,28 +339,24 @@ export function getStyleFromPresentationObject(
     //             //
     /////////////////
     table: {
-      // colHeaderBackgroundColor: {key: "base100"},
-      gridLineColor: config.s.conditionalFormatting === "none" ? undefined : {key: "base100"},
-      rowHeaderPadding: config.s.conditionalFormatting === "none" ? undefined  : [5, 10,5,0],
-      borderWidth: config.s.conditionalFormatting === "none" ? undefined  : 0,
-      cellBackgroundColorFormatter: colorFuncGivenCF,
-      cellValueFormatter: getFormatterFunc(
-        dataFormat,
-        config.s.decimalPlaces ?? 0,
-      ),
+      gridLineColor:
+        config.s.conditionalFormatting === "none"
+          ? undefined
+          : { key: "base100" },
+      rowHeaderPadding:
+        config.s.conditionalFormatting === "none" ? undefined : [5, 10, 5, 0],
+      borderWidth: config.s.conditionalFormatting === "none" ? undefined : 0,
       verticalColHeaders: config.s.allowVerticalColHeaders ? "auto" : "never",
     },
-    map: config.d.type === "map" ? {
-      projection: config.s.mapProjection ?? "equirectangular",
-      colorScale: getMapColorScale(config),
-      valueRange: config.s.mapDomainType === "fixed"
-        ? { min: config.s.mapDomainMin, max: config.s.mapDomainMax }
-        : "auto",
-      regionStrokeColor: "#666",
-      regionStrokeWidth: 0.5,
-      noDataColor: "#f0f0f0",
-      padding: 10,
-    } : undefined,
+    valuesColorFunc:
+      config.d.type === "map" ? getMapValuesColorFunc(config) : undefined,
+    map:
+      config.d.type === "map"
+        ? {
+            projection: config.s.mapProjection ?? "equirectangular",
+            dataLabelMode: "centroid",
+          }
+        : undefined,
   };
 
   return style;
@@ -458,32 +481,46 @@ function getN(
 
 const MAP_COLOR_PRESETS: Record<string, [string, string]> = {
   "red-green": ["#de2d26", "#31a354"],
-  "red": ["#fee0d2", "#de2d26"],
-  "blue": ["#deebf7", "#3182bd"],
-  "green": ["#e5f5e0", "#31a354"],
+  red: ["#fee0d2", "#de2d26"],
+  blue: ["#deebf7", "#3182bd"],
+  green: ["#e5f5e0", "#31a354"],
 };
 
-function getMapColorScale(
+function getMapValuesColorFunc(
   config: PresentationObjectConfig,
-): MapColorScale {
+): (value: number | undefined, min: number, max: number) => ColorKeyOrString {
   const preset = config.s.mapColorPreset ?? "red-green";
-  const [fromColor, toColor] = preset === "custom"
-    ? [config.s.mapColorFrom ?? "#fee0d2", config.s.mapColorTo ?? "#de2d26"]
-    : MAP_COLOR_PRESETS[preset] ?? MAP_COLOR_PRESETS["red-green"];
+  const [rawFrom, rawTo] =
+    preset === "custom"
+      ? [config.s.mapColorFrom ?? "#fee0d2", config.s.mapColorTo ?? "#de2d26"]
+      : (MAP_COLOR_PRESETS[preset] ?? MAP_COLOR_PRESETS["red-green"]);
+  const [fromColor, toColor] = config.s.mapColorReverse ? [rawTo, rawFrom] : [rawFrom, rawTo];
+
+  const fixedMin =
+    config.s.mapDomainType === "fixed" ? config.s.mapDomainMin : undefined;
+  const fixedMax =
+    config.s.mapDomainType === "fixed" ? config.s.mapDomainMax : undefined;
 
   if (config.s.mapScaleType === "discrete") {
     const nSteps = config.s.mapDiscreteSteps ?? 5;
-    return {
-      type: "custom" as const,
-      fn: (value: number, min: number, max: number) => {
-        if (max === min) return fromColor;
-        const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
-        const stepIndex = Math.min(nSteps - 1, Math.floor(t * nSteps));
-        const stepT = nSteps === 1 ? 0.5 : stepIndex / (nSteps - 1);
-        return Color.scaledPct(fromColor, toColor, stepT);
-      },
+    return (value, min, max) => {
+      if (value === undefined) return "#f0f0f0";
+      const lo = fixedMin ?? min;
+      const hi = fixedMax ?? max;
+      if (hi === lo) return fromColor;
+      const t = Math.max(0, Math.min(1, (value - lo) / (hi - lo)));
+      const stepIndex = Math.min(nSteps - 1, Math.floor(t * nSteps));
+      const stepT = nSteps === 1 ? 0.5 : stepIndex / (nSteps - 1);
+      return Color.scaledPct(fromColor, toColor, stepT);
     };
   }
 
-  return { type: "sequential" as const, colors: [fromColor, toColor] };
+  return (value, min, max) => {
+    if (value === undefined) return "#f0f0f0";
+    const lo = fixedMin ?? min;
+    const hi = fixedMax ?? max;
+    const t =
+      hi === lo ? 0 : Math.max(0, Math.min(1, (value - lo) / (hi - lo)));
+    return Color.scaledPct(fromColor, toColor, t);
+  };
 }

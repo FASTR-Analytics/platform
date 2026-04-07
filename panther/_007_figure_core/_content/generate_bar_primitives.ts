@@ -5,10 +5,13 @@
 
 import {
   type ChartBarPrimitive,
+  Coordinates,
   type DataLabel,
+  getAdjustedFont,
   getColor,
   type Primitive,
   RectCoordsDims,
+  type TextInfoUnkeyed,
   Z_INDEX,
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
@@ -37,7 +40,13 @@ export function generateBarPrimitives(
       if (mappedVal === undefined) continue;
 
       const seriesInfo = buildSeriesInfo(ctx, i_series, mapped);
-      const valueInfo = buildValueInfo(seriesInfo, mappedVal.val, i_val);
+      const valueInfo = buildValueInfo(
+        seriesInfo,
+        mappedVal.val,
+        i_val,
+        ctx.valueRange.minVal,
+        ctx.valueRange.maxVal,
+      );
       const barStyle = s.bars.getStyle(valueInfo);
       if (!barStyle.show) continue;
 
@@ -205,22 +214,62 @@ export function generateBarPrimitives(
         labelOwner[i_series][i_val] === "bars";
 
       if (shouldShowLabel) {
-        const labelStr = s.dataLabelFormatter(valueInfo);
-        if (labelStr?.trim()) {
-          const mText = ctx.rc.mText(
-            labelStr,
-            ctx.dataLabelsTextStyle,
-            barRcd.w(),
-          );
-          const offset = mText.ti.fontSize * 0.3;
+        const dl = barStyle.dataLabel;
+        const labelStr = s.bars.textFormatter !== "none"
+          ? s.bars.textFormatter(valueInfo)
+          : String(mappedVal.val);
 
+        const textStyle: TextInfoUnkeyed = {
+          ...ctx.dataLabelsTextStyle,
+          ...(dl.color !== undefined ? { color: getColor(dl.color) } : {}),
+          ...(dl.relFontSize !== undefined
+            ? { fontSize: ctx.dataLabelsTextStyle.fontSize * dl.relFontSize }
+            : {}),
+          ...(dl.font !== undefined
+            ? { font: getAdjustedFont(ctx.dataLabelsTextStyle.font, dl.font) }
+            : {}),
+        };
+
+        const mText = ctx.rc.mText(labelStr, textStyle, barRcd.w());
+        const hasDecoration = dl.backgroundColor !== "none" ||
+          dl.border !== "none";
+
+        if (labelStr.trim() || hasDecoration) {
           dataLabel = {
-            text: labelStr,
             mText,
-            relativePosition: { rx: 0.5, dy: -offset },
+            position: new Coordinates([
+              barRcd.centerX(),
+              barRcd.y() - dl.offset,
+            ]),
+            alignH: "center",
+            alignV: "bottom",
+            style: hasDecoration
+              ? {
+                backgroundColor: dl.backgroundColor !== "none"
+                  ? getColor(dl.backgroundColor)
+                  : undefined,
+                padding: dl.padding,
+                border: dl.border !== "none"
+                  ? {
+                    color: getColor(dl.border.color),
+                    width: dl.border.width,
+                  }
+                  : undefined,
+                rectRadius: dl.rectRadius,
+              }
+              : undefined,
           };
         }
       }
+
+      const annotationBounds = barStyle.annotationGroup
+        ? new RectCoordsDims({
+          x: barRcd.x(),
+          y: ctx.subChartRcd.y(),
+          w: barRcd.w(),
+          h: ctx.subChartRcd.h(),
+        })
+        : undefined;
 
       primitives.push({
         type: "chart-bar",
@@ -229,6 +278,8 @@ export function generateBarPrimitives(
         bounds: barRcd,
         zIndex: Z_INDEX.CONTENT_BAR,
         meta: { value: valueInfo },
+        annotationGroup: barStyle.annotationGroup,
+        annotationBounds,
         stackingMode: s.bars.stacking === "stacked"
           ? "stacked"
           : s.bars.stacking === "imposed"

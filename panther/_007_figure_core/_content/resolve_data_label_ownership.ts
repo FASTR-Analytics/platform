@@ -23,28 +23,34 @@ export function resolveDataLabelOwnership(
     const row: DataLabelOwner[] = [];
     for (let i_val = 0; i_val < ctx.nVals; i_val++) {
       const mappedVal = mapped[i_series][i_val];
-      if (mappedVal === undefined || !s.withDataLabels) {
+      if (mappedVal === undefined) {
         row.push("none");
         continue;
       }
 
       const seriesInfo = buildSeriesInfo(ctx, i_series, mapped);
-      const valueInfo = buildValueInfo(seriesInfo, mappedVal.val, i_val);
+      const valueInfo = buildValueInfo(
+        seriesInfo,
+        mappedVal.val,
+        i_val,
+        ctx.valueRange.minVal,
+        ctx.valueRange.maxVal,
+      );
 
       const pointStyle = s.points.getStyle(valueInfo);
-      if (pointStyle.show) {
+      if (pointStyle.show && pointStyle.dataLabel.show) {
         row.push("points");
         continue;
       }
 
       const barStyle = s.bars.getStyle(valueInfo);
-      if (barStyle.show) {
+      if (barStyle.show && barStyle.dataLabel.show) {
         row.push("bars");
         continue;
       }
 
       const lineStyle = s.lines.getStyle(seriesInfo);
-      if (lineStyle.show) {
+      if (lineStyle.show && lineStyle.dataLabel.show) {
         row.push("lines");
         continue;
       }

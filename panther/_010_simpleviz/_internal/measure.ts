@@ -29,7 +29,7 @@ export function measureSimpleViz(
     responsiveScale,
   );
 
-  const legendItemsOrLabels = item.legendItemsOrLabels;
+  const legend = item.legend;
 
   const measuredSurrounds = measureSurrounds(
     rc,
@@ -38,7 +38,7 @@ export function measureSimpleViz(
     caption,
     subCaption,
     footnote,
-    legendItemsOrLabels,
+    legend,
   );
   const extraHeightDueToSurrounds = measuredSurrounds.extraHeightDueToSurrounds;
   const contentRcd = measuredSurrounds.contentRcd;
@@ -56,7 +56,7 @@ export function measureSimpleViz(
     item.simpleVizData.arrows,
     item.simpleVizData.boxes,
     boxPrimitives.filter((p) => p.type === "simpleviz-box"),
-    customFigureStyle.simpleviz(),
+    customFigureStyle.getMergedSimpleVizStyle(),
   );
 
   // Generate surrounds primitives (captions and legend)

@@ -66,13 +66,14 @@ export const TimeseriesRenderer: Renderer<
     rc: RenderContext,
     width: number,
     item: TimeseriesInputs,
-    _responsiveScale?: number,
+    responsiveScale?: number,
   ): HeightConstraints {
     return getChartHeightConstraints(
       rc,
       width,
       item,
       (scale) => getTimeseriesComponentSizes(rc, item, scale),
+      responsiveScale,
     );
   },
 };

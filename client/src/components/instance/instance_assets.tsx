@@ -2,22 +2,20 @@ import {
   Button,
   FrameTop,
   HeadingBarMainRibbon,
-  StateHolderWrapper,
-  TimQuery,
   timActionDelete,
   type BulkAction,
 } from "panther";
 import { Show, onCleanup, onMount, createMemo } from "solid-js";
-import { AssetInfo, InstanceDetail, t3, TC } from "lib";
+import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions/config";
 import { createUppyInstance, cleanupUppy } from "~/upload/uppy_file_upload";
 import type Uppy from "@uppy/core";
 import { Table, TableColumn } from "panther";
+import { instanceState } from "~/state/instance_state";
 
 type Props = {
   isGlobalAdmin: boolean;
-  instanceDetail: TimQuery<InstanceDetail>;
 };
 
 export function InstanceAssets(p: Props) {
@@ -26,18 +24,13 @@ export function InstanceAssets(p: Props) {
   onMount(() => {
     uppy = createUppyInstance({
       triggerId: "#select-file-button",
-      onModalClosed: () => {
-        p.instanceDetail.fetch();
-      },
-      maxNumberOfFiles: 0, // No limit on number of files
+      maxNumberOfFiles: 0,
     });
   });
 
   onCleanup(() => {
     cleanupUppy(uppy);
   });
-
-  // Actions
 
   async function attemptDeleteAssetFile(assetFileName: string) {
     const deleteAction = timActionDelete(
@@ -46,7 +39,6 @@ export function InstanceAssets(p: Props) {
         itemList: [assetFileName],
       },
       () => serverActions.deleteAssets({ assetFileNames: [assetFileName] }),
-      p.instanceDetail.silentFetch,
     );
 
     await deleteAction.click();
@@ -64,20 +56,13 @@ export function InstanceAssets(p: Props) {
         </HeadingBarMainRibbon>
       }
     >
-      <StateHolderWrapper state={p.instanceDetail.state()}>
-        {(keyedInstanceDetail) => {
-          return (
-            <div class="ui-pad h-full w-full">
-              <AssetTable
-                assets={keyedInstanceDetail.assets}
-                isGlobalAdmin={p.isGlobalAdmin}
-                onDelete={attemptDeleteAssetFile}
-                silentFetch={p.instanceDetail.silentFetch}
-              />
-            </div>
-          );
-        }}
-      </StateHolderWrapper>
+      <div class="ui-pad h-full w-full">
+        <AssetTable
+          assets={instanceState.assets}
+          isGlobalAdmin={p.isGlobalAdmin}
+          onDelete={attemptDeleteAssetFile}
+        />
+      </div>
     </FrameTop>
   );
 }
@@ -88,7 +73,6 @@ function AssetTable(p: {
   assets: AssetInfo[];
   isGlobalAdmin: boolean;
   onDelete: (fileName: string) => void;
-  silentFetch: () => Promise<void>;
 }) {
   function getFileType(asset: AssetInfo): string {
     if (asset.isCsv) return "CSV";
@@ -96,7 +80,6 @@ function AssetTable(p: {
     return t3({ en: "Other", fr: "Autre" });
   }
 
-  // Transform assets to include fileType for sorting
   const assetsWithType = createMemo(() =>
     p.assets.map((asset) => ({
       ...asset,
@@ -116,7 +99,6 @@ function AssetTable(p: {
     return new Date(timestamp).toLocaleDateString();
   }
 
-  // Bulk delete assets
   async function handleBulkDeleteAssets(selectedAssets: AssetWithType[]) {
     const assetFileNames = selectedAssets.map((asset) => asset.fileName);
     const assetCount = assetFileNames.length;
@@ -129,7 +111,6 @@ function AssetTable(p: {
         itemList: assetFileNames,
       },
       () => serverActions.deleteAssets({ assetFileNames }),
-      p.silentFetch,
     );
 
     await deleteAction.click();
@@ -197,7 +178,6 @@ function AssetTable(p: {
     },
   ];
 
-  // Bulk actions (only if admin)
   const bulkActions: BulkAction<AssetWithType>[] = p.isGlobalAdmin
     ? [
         {

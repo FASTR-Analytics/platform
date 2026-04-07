@@ -6,18 +6,22 @@
 import {
   CustomFigureStyle,
   generateSurroundsPrimitives,
+  getAdjustedColor,
   measureSurrounds,
   type RectCoordsDims,
   type RenderContext,
   sum,
+  type TableCellInfo,
 } from "../deps.ts";
 import { getTableDataTransformed } from "../get_table_data.ts";
 import type {
+  MeasuredCellInfo,
   MeasuredRowInfo,
   MeasuredTable,
   TableInputs,
   TableMeasuredInfo,
 } from "../types.ts";
+import { generateTablePrimitives } from "./generate_table_primitives.ts";
 import {
   getColGroupHeaderInfos,
   getColHeaderInfos,
@@ -45,7 +49,7 @@ export function measureTable(
   const transformedData = getTableDataTransformed(inputs.tableData);
 
   // Add legend items manually
-  const legendItemsOrLabels = inputs.legendItemsOrLabels;
+  const legend = inputs.legend;
 
   const s = mergedTableStyle;
   const d = transformedData;
@@ -57,7 +61,7 @@ export function measureTable(
     caption,
     subCaption,
     footnote,
-    legendItemsOrLabels,
+    legend,
   );
   const extraHeightDueToSurrounds = measuredSurrounds.extraHeightDueToSurrounds;
   const contentRcd = measuredSurrounds!.contentRcd;
@@ -118,9 +122,18 @@ export function measureTable(
   const rowCellPaddingT = Math.max(s.rowHeaderPadding.pt(), s.cellPadding.pt());
   const rowCellPaddingB = Math.max(s.rowHeaderPadding.pb(), s.cellPadding.pb());
 
+  const nRows = d.aoa.length;
+  const allColIndices: number[] = [];
+  for (const colGroup of d.colGroups) {
+    for (const col of colGroup.cols) {
+      allColIndices.push(col.index);
+    }
+  }
+  const columnMinMax = computeColumnMinMax(d.aoa, nRows, allColIndices);
+
   // Measure all cell content for each row and compute row heights
   const measuredRows: MeasuredRowInfo[] = rowHeaderInfos.map((rhi) => {
-    const cellTexts: ReturnType<typeof rc.mText>[] = [];
+    const cells: MeasuredCellInfo[] = [];
     let maxCellHeight = rhi.mText?.dims.h() ?? 0;
 
     if (rhi.index !== "group-header") {
@@ -129,18 +142,39 @@ export function measureTable(
         colGroup.cols.forEach((col) => {
           const val = d.aoa[rowIndex][col.index];
           const valAsNum = Number(val);
-          const cellStr = isNaN(valAsNum)
-            ? (val as string)
-            : s.cellValueFormatter(valAsNum, {
-              colHeader: col.label ?? "",
-              colIndex: col.index,
-              rowHeader: rhi.label ?? "",
-              rowIndex: rowIndex,
-            });
+          const mm = columnMinMax.get(col.index);
+          const cellInfo: TableCellInfo = {
+            value: val,
+            valueAsNumber: isNaN(valAsNum) ? undefined : valAsNum,
+            valueMin: mm?.min ?? 0,
+            valueMax: mm?.max ?? 0,
+            i_row: rowIndex,
+            i_col: col.index,
+            nRows,
+            nCols,
+            rowHeader: rhi.label ?? "",
+            colHeader: col.label ?? "",
+          };
+          const textFormatter = s.tableCells.textFormatter;
+          const cellStr = textFormatter === "none"
+            ? String(cellInfo.value)
+            : (textFormatter(cellInfo) ?? "");
           const cellContentWidth = colInnerWidth - s.cellPadding.pl() -
             s.cellPadding.pr();
-          const mText = rc.mText(cellStr, s.text.cells, cellContentWidth);
-          cellTexts.push(mText);
+          const cellStyle = s.tableCells.getStyle(cellInfo);
+          let cellTextInfo = s.text.cells;
+          if (
+            cellStyle.textColorStrategy !== "none" &&
+            cellStyle.backgroundColor !== "none"
+          ) {
+            const adjustedColor = getAdjustedColor(
+              cellStyle.backgroundColor,
+              cellStyle.textColorStrategy,
+            );
+            cellTextInfo = { ...cellTextInfo, color: adjustedColor };
+          }
+          const mText = rc.mText(cellStr, cellTextInfo, cellContentWidth);
+          cells.push({ mText, cellStyle, cellInfo });
           maxCellHeight = Math.max(maxCellHeight, mText.dims.h());
         });
       });
@@ -148,7 +182,7 @@ export function measureTable(
 
     return {
       rowHeaderInfo: rhi,
-      cellTexts,
+      cells,
       rowContentHeight: maxCellHeight,
     };
   });
@@ -211,7 +245,7 @@ export function measureTable(
     extraBottomPaddingForRowsAndAllHeaders,
   };
 
-  const primitives = generateSurroundsPrimitives(measuredSurrounds);
+  const surroundsPrimitives = generateSurroundsPrimitives(measuredSurrounds);
 
   const mTable: MeasuredTable = {
     item: inputs,
@@ -219,15 +253,48 @@ export function measureTable(
     measuredInfo,
     measuredSurrounds,
     extraHeightDueToSurrounds,
-    primitives,
+    primitives: [],
     transformedData,
     customFigureStyle,
     mergedTableStyle,
+    columnMinMax,
     caption,
     subCaption,
     footnote,
-    legendItemsOrLabels,
+    legend,
   };
 
+  const tablePrimitives = generateTablePrimitives(mTable);
+  mTable.primitives = [...surroundsPrimitives, ...tablePrimitives];
+
   return mTable;
+}
+
+function computeColumnMinMax(
+  aoa: (string | number)[][],
+  nRows: number,
+  colIndices: number[],
+): Map<number, { min: number; max: number }> {
+  const result = new Map<number, { min: number; max: number }>();
+  for (const colIdx of colIndices) {
+    let min = 0;
+    let max = 0;
+    let hasNumeric = false;
+    for (let r = 0; r < nRows; r++) {
+      const val = aoa[r][colIdx];
+      const num = Number(val);
+      if (!isNaN(num)) {
+        if (!hasNumeric) {
+          min = num;
+          max = num;
+          hasNumeric = true;
+        } else {
+          if (num < min) min = num;
+          if (num > max) max = num;
+        }
+      }
+    }
+    result.set(colIdx, { min, max });
+  }
+  return result;
 }

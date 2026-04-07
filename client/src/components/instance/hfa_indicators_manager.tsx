@@ -2,7 +2,6 @@ import {
   t3,
   TC,
   type HfaIndicator,
-  type InstanceDetail,
 } from "lib";
 import {
   Button,
@@ -13,43 +12,49 @@ import {
   getEditorWrapper,
   openComponent,
   timActionDelete,
-  timQuery,
   type BulkAction,
-  type TimQuery,
+  type StateHolder,
 } from "panther";
-import { Show } from "solid-js";
+import { Show, createEffect, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance_state";
+import { getHfaIndicatorsFromCacheOrFetch } from "~/state/instance_data_caches";
 import { EditHfaIndicator } from "../forms_editors/edit_hfa_indicator";
 import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
 import { HfaIndicatorsCsvUploadForm } from "./hfa_indicators_csv_upload_form";
 
 type Props = {
   isGlobalAdmin: boolean;
-  instanceDetail: TimQuery<InstanceDetail>;
   backToInstance: () => void;
 };
 
 export function HfaIndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const indicators = timQuery(
-    () => serverActions.getHfaIndicators({}),
-    t3({ en: "Loading HFA indicators...", fr: "Chargement des indicateurs HFA..." }),
-  );
+  const [indicators, setIndicators] = createSignal<StateHolder<HfaIndicator[]>>({
+    status: "loading",
+    msg: t3({ en: "Loading HFA indicators...", fr: "Chargement des indicateurs HFA..." }),
+  });
 
-  async function silentRefreshIndicators() {
-    await p.instanceDetail.silentFetch();
-    await indicators.silentFetch();
-  }
+  createEffect(async () => {
+    const version = instanceState.hfaIndicatorsVersion;
+    if (!version) return;
+    setIndicators({ status: "loading", msg: t3({ en: "Loading HFA indicators...", fr: "Chargement des indicateurs HFA..." }) });
+    const res = await getHfaIndicatorsFromCacheOrFetch(version);
+    if (res.success) {
+      setIndicators({ status: "ready", data: res.data });
+    } else {
+      setIndicators({ status: "error", err: res.err });
+    }
+  });
 
   async function handleCreate() {
-    const st = indicators.state();
+    const st = indicators();
     const sortOrder = st.status === "ready" ? st.data.length : 0;
     await openComponent({
       element: EditHfaIndicator,
       props: {
         sortOrder,
-        silentRefreshIndicators,
       },
     });
   }
@@ -66,7 +71,6 @@ export function HfaIndicatorsManager(p: Props) {
         indicator,
         dictionary: dictRes.data,
         allIndicatorVarNames: allIndicators.map((i) => i.varName),
-        silentRefreshIndicators,
       },
     });
   }
@@ -78,7 +82,6 @@ export function HfaIndicatorsManager(p: Props) {
         itemList: [indicator.varName],
       },
       () => serverActions.deleteHfaIndicators({ varNames: [indicator.varName] }),
-      silentRefreshIndicators,
     );
     await deleteAction.click();
   }
@@ -93,7 +96,6 @@ export function HfaIndicatorsManager(p: Props) {
         itemList: varNames,
       },
       () => serverActions.deleteHfaIndicators({ varNames }),
-      silentRefreshIndicators,
     );
     await deleteAction.click();
   }
@@ -124,9 +126,7 @@ export function HfaIndicatorsManager(p: Props) {
   async function handleCsvUpload() {
     await openEditor({
       element: HfaIndicatorsCsvUploadForm,
-      props: {
-        silentRefreshIndicators,
-      },
+      props: {},
     });
   }
 
@@ -163,7 +163,7 @@ export function HfaIndicatorsManager(p: Props) {
       render: (ind) => (
         <div class="ui-gap-sm flex justify-end">
           <Button
-            onClick={(e: MouseEvent) => { e.stopPropagation(); const st = indicators.state(); handleOpenCodeEditor(ind, st.status === "ready" ? st.data : []); }}
+            onClick={(e: MouseEvent) => { e.stopPropagation(); const st = indicators(); handleOpenCodeEditor(ind, st.status === "ready" ? st.data : []); }}
             iconName="pencil"
             intent="base-100"
           />
@@ -199,13 +199,12 @@ export function HfaIndicatorsManager(p: Props) {
                   {t3({ en: "Add", fr: "Ajouter" })}
                 </Button>
               </Show>
-              <Button iconName="refresh" onClick={indicators.fetch} />
             </div>
           </div>
         }
       >
         <div class="ui-pad h-full w-full overflow-auto">
-          <StateHolderWrapper state={indicators.state()} noPad>
+          <StateHolderWrapper state={indicators()} noPad>
             {(keyedIndicators) => (
               <div class="flex h-full flex-col">
                 <div class="ui-gap-sm flex flex-none items-center pb-4">

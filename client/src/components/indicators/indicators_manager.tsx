@@ -1,6 +1,6 @@
 import { t3, TC,
   type CommonIndicatorWithMappings,
-  type InstanceDetail,
+  type InstanceIndicatorDetails,
   type RawIndicatorWithMappings } from "lib";
 import {
   Button,
@@ -11,12 +11,13 @@ import {
   getEditorWrapper,
   openComponent,
   timActionDelete,
-  timQuery,
   type BulkAction,
-  type TimQuery,
+  type StateHolder,
 } from "panther";
-import { Show } from "solid-js";
+import { Show, createEffect, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance_state";
+import { getIndicatorsFromCacheOrFetch } from "~/state/instance_data_caches";
 import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 import { EditIndicatorCommonForm } from "./_edit_indicator_common";
 import { EditIndicatorRawForm } from "./_edit_indicator_raw";
@@ -29,18 +30,28 @@ import {
 
 type Props = {
   isGlobalAdmin: boolean;
-  instanceDetail: TimQuery<InstanceDetail>;
   backToInstance: () => void;
 };
 
 export function IndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  // Query for indicators
-  const indicators = timQuery(
-    () => serverActions.getIndicators({}),
-    t3({ en: "Loading indicators...", fr: "Chargement des indicateurs..." }),
-  );
+  const [indicators, setIndicators] = createSignal<StateHolder<InstanceIndicatorDetails>>({
+    status: "loading",
+    msg: t3({ en: "Loading indicators...", fr: "Chargement des indicateurs..." }),
+  });
+
+  createEffect(async () => {
+    const version = instanceState.indicatorMappingsVersion;
+    if (!version) return;
+    setIndicators({ status: "loading", msg: t3({ en: "Loading indicators...", fr: "Chargement des indicateurs..." }) });
+    const res = await getIndicatorsFromCacheOrFetch(version);
+    if (res.success) {
+      setIndicators({ status: "ready", data: res.data });
+    } else {
+      setIndicators({ status: "error", err: res.err });
+    }
+  });
 
   function handleDownloadCommonCsv(
     commonIndicators: CommonIndicatorWithMappings[],
@@ -98,20 +109,13 @@ export function IndicatorsManager(p: Props) {
   async function handleBatchUpload() {
     await openEditor({
       element: BatchUploadForm,
-      props: {
-        silentRefreshIndicators: async () => {
-          await p.instanceDetail.silentFetch();
-          await indicators.silentFetch();
-        },
-      },
+      props: {},
     });
   }
 
   async function handleDhis2IndicatorSelect() {
-    // Check if credentials exist in session storage
     let credentials = getDhis2SessionCredentials();
 
-    // If no credentials, prompt user to enter them
     if (!credentials) {
       const result = await openComponent({
         element: Dhis2CredentialsForm,
@@ -121,11 +125,9 @@ export function IndicatorsManager(p: Props) {
       });
 
       if (!result || result.shouldClear || !result.credentials) {
-        // User cancelled, don't proceed
         return;
       }
 
-      // Store credentials in session storage
       credentials = result.credentials;
 
       if (result.shouldSave) {
@@ -137,10 +139,6 @@ export function IndicatorsManager(p: Props) {
       element: Dhis2IndicatorSelectForm,
       props: {
         credentials,
-        silentRefreshIndicators: async () => {
-          await p.instanceDetail.silentFetch();
-          await indicators.silentFetch();
-        },
       },
     });
   }
@@ -158,13 +156,12 @@ export function IndicatorsManager(p: Props) {
                   {t3({ en: "Batch import from CSV", fr: "Importation groupée depuis CSV" })}
                 </Button>
               </Show>
-              <Button iconName="refresh" onClick={indicators.fetch} />
             </div>
           </div>
         }
       >
         <div class="ui-pad ui-spy h-full w-full overflow-auto xl:flex xl:gap-x-12 xl:space-y-0">
-          <StateHolderWrapper state={indicators.state()} noPad>
+          <StateHolderWrapper state={indicators()} noPad>
             {(keyedIndicators) => (
               <>
                 <div class="h-full xl:flex-1">
@@ -173,10 +170,6 @@ export function IndicatorsManager(p: Props) {
                     rawIndicators={keyedIndicators.rawIndicators}
                     isGlobalAdmin={p.isGlobalAdmin}
                     handleDownloadCsv={handleDownloadCommonCsv}
-                    silentRefreshIndicators={async () => {
-                      await p.instanceDetail.silentFetch();
-                      await indicators.silentFetch();
-                    }}
                   />
                 </div>
                 <div class="h-full xl:flex-1">
@@ -186,10 +179,6 @@ export function IndicatorsManager(p: Props) {
                     isGlobalAdmin={p.isGlobalAdmin}
                     handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
                     handleDownloadCsv={handleDownloadRawCsv}
-                    silentRefreshIndicators={async () => {
-                      await p.instanceDetail.silentFetch();
-                      await indicators.silentFetch();
-                    }}
                   />
                 </div>
               </>
@@ -219,32 +208,26 @@ function CommonIndicatorsTable(p: {
   rawIndicators: RawIndicatorWithMappings[];
   isGlobalAdmin: boolean;
   handleDownloadCsv: (commonIndicators: CommonIndicatorWithMappings[]) => void;
-  silentRefreshIndicators: () => Promise<void>;
 }) {
-  // Create new indicator
   async function handleCreateIndicator() {
     const _res = await openComponent({
       element: EditIndicatorCommonForm,
       props: {
         rawIndicators: p.rawIndicators,
-        silentRefreshIndicators: p.silentRefreshIndicators,
       },
     });
   }
 
-  // Update indicator
   async function handleUpdateIndicator(indicator: CommonIndicatorWithMappings) {
     const _res = await openComponent({
       element: EditIndicatorCommonForm,
       props: {
         rawIndicators: p.rawIndicators,
         existingCommonIndicator: indicator,
-        silentRefreshIndicators: p.silentRefreshIndicators,
       },
     });
   }
 
-  // Delete indicator
   async function handleDeleteIndicator(indicator: CommonIndicatorWithMappings) {
     const deleteAction = timActionDelete(
       {
@@ -255,13 +238,11 @@ function CommonIndicatorsTable(p: {
         serverActions.deleteCommonIndicators({
           indicator_common_ids: [indicator.indicator_common_id],
         }),
-      p.silentRefreshIndicators,
     );
 
     await deleteAction.click();
   }
 
-  // Bulk delete indicators
   async function handleBulkDeleteIndicators(
     selectedIndicators: CommonIndicatorWithMappings[],
   ) {
@@ -284,7 +265,6 @@ function CommonIndicatorsTable(p: {
         serverActions.deleteCommonIndicators({
           indicator_common_ids: indicatorIds,
         }),
-      p.silentRefreshIndicators,
     );
 
     await deleteAction.click();
@@ -322,7 +302,6 @@ function CommonIndicatorsTable(p: {
     },
   ];
 
-  // Add actions column if admin
   if (p.isGlobalAdmin) {
     columns.push({
       key: "actions",
@@ -337,9 +316,7 @@ function CommonIndicatorsTable(p: {
             }}
             iconName="pencil"
             intent="base-100"
-          >
-            {/* {t2(T.FRENCH_UI_STRINGS.edit)} */}
-          </Button>
+          />
           <Button
             onClick={(e: MouseEvent) => {
               e.stopPropagation();
@@ -347,15 +324,12 @@ function CommonIndicatorsTable(p: {
             }}
             iconName="trash"
             intent="base-100"
-          >
-            {/* {t2(T.FRENCH_UI_STRINGS.delete)} */}
-          </Button>
+          />
         </div>
       ),
     });
   }
 
-  // Bulk actions (only if admin)
   const bulkActions: BulkAction<CommonIndicatorWithMappings>[] = p.isGlobalAdmin
     ? [
         {
@@ -420,17 +394,14 @@ function RawIndicatorsTable(p: {
   commonIndicators: CommonIndicatorWithMappings[];
   rawIndicators: RawIndicatorWithMappings[];
   isGlobalAdmin: boolean;
-  silentRefreshIndicators: () => Promise<void>;
   handleDhis2IndicatorSelect: () => Promise<void>;
   handleDownloadCsv: (rawIndicators: RawIndicatorWithMappings[]) => void;
 }) {
-  // Handlers for mapping CRUD operations
   async function handleCreateMapping() {
     const _res = await openComponent({
       element: EditIndicatorRawForm,
       props: {
         commonIndicators: p.commonIndicators,
-        silentRefreshIndicators: p.silentRefreshIndicators,
       },
     });
   }
@@ -441,7 +412,6 @@ function RawIndicatorsTable(p: {
       props: {
         commonIndicators: p.commonIndicators,
         existingRawIndicator: indicator,
-        silentRefreshIndicators: p.silentRefreshIndicators,
       },
     });
   }
@@ -456,13 +426,11 @@ function RawIndicatorsTable(p: {
         serverActions.deleteRawIndicators({
           indicator_raw_ids: [indicator.raw_indicator_id],
         }),
-      p.silentRefreshIndicators,
     );
 
     await deleteAction.click();
   }
 
-  // Bulk delete raw indicators
   async function handleBulkDeleteRawIndicators(
     selectedIndicators: RawIndicatorWithMappings[],
   ) {
@@ -483,7 +451,6 @@ function RawIndicatorsTable(p: {
       },
       () =>
         serverActions.deleteRawIndicators({ indicator_raw_ids: indicatorIds }),
-      p.silentRefreshIndicators,
     );
 
     await deleteAction.click();
@@ -513,7 +480,6 @@ function RawIndicatorsTable(p: {
     },
   ];
 
-  // Add actions column if admin
   if (p.isGlobalAdmin) {
     columns.push({
       key: "actions",
@@ -529,9 +495,7 @@ function RawIndicatorsTable(p: {
               }}
               iconName="pencil"
               intent="base-100"
-            >
-              {/* {t2(T.FRENCH_UI_STRINGS.edit)} */}
-            </Button>
+            />
             <Button
               onClick={(e: MouseEvent) => {
                 e.stopPropagation();
@@ -539,16 +503,13 @@ function RawIndicatorsTable(p: {
               }}
               iconName="trash"
               intent="base-100"
-            >
-              {/* {t2(T.FRENCH_UI_STRINGS.delete)} */}
-            </Button>
+            />
           </div>
         );
       },
     });
   }
 
-  // Bulk actions (only if admin)
   const bulkActions: BulkAction<RawIndicatorWithMappings>[] = p.isGlobalAdmin
     ? [
         {

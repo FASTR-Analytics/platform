@@ -1,4 +1,4 @@
-import { InstanceDetail, PresentationObjectSummary, isFrench, t3 } from "lib";
+import { PresentationObjectSummary, isFrench, t3 } from "lib";
 import {
   Button,
   FrameTop,
@@ -18,7 +18,6 @@ import { useAIProjectContext } from "~/components/project_ai/context";
 import { snapshotForVizEditor } from "~/utils/snapshot";
 
 type Props = {
-  instanceDetail: InstanceDetail;
   isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
@@ -54,7 +53,7 @@ export function ProjectVisualizations(p: Props) {
           returnToContext: aiContext(),
           ...snapshotForVizEditor({
             projectDetail,
-            instanceDetail: p.instanceDetail,
+
             resultsValue: poDetailRes.data.resultsValue,
             config: poDetailRes.data.config,
           }),
@@ -81,7 +80,7 @@ export function ProjectVisualizations(p: Props) {
         returnToContext: aiContext(),
         ...snapshotForVizEditor({
           projectDetail,
-          instanceDetail: p.instanceDetail,
+
         }),
       },
     });
@@ -111,7 +110,7 @@ export function ProjectVisualizations(p: Props) {
         returnToContext: aiContext(),
         ...snapshotForVizEditor({
           projectDetail,
-          instanceDetail: p.instanceDetail,
+
           resultsValue: res.resultsValue,
           config: res.config,
         }),

@@ -43,7 +43,7 @@ export function measureChart<
   const transformedData = config.transformedData;
   const dataProps = config.dataProps;
 
-  const legendItemsOrLabels = inputs.legendItemsOrLabels ??
+  const legend = inputs.legend ??
     dataProps.seriesHeaders;
 
   const measuredSurrounds = measureSurrounds(
@@ -53,7 +53,7 @@ export function measureChart<
     caption,
     subCaption,
     footnote,
-    legendItemsOrLabels,
+    legend,
   );
   const extraHeightDueToSurrounds = measuredSurrounds.extraHeightDueToSurrounds;
 
@@ -158,7 +158,7 @@ export function measureChart<
     caption,
     subCaption,
     footnote,
-    legendItemsOrLabels,
+    legend,
     primitives,
   };
 }

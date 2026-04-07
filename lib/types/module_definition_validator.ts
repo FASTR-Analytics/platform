@@ -203,6 +203,7 @@ const configS = z
     sortIndicatorValues: z.enum(["ascending", "descending", "none"]),
     formatAdminArea3Labels: z.boolean(),
     mapColorPreset: z.enum(["red", "blue", "green", "red-green", "custom"]),
+    mapColorReverse: z.boolean(),
     mapColorFrom: z.string(),
     mapColorTo: z.string(),
     mapProjection: z.enum(["equirectangular", "mercator", "naturalEarth1"]),

@@ -1,5 +1,4 @@
 import {
-  InstanceDetail,
   LongFormReportConfig,
   ProjectDetail,
   ReportDetail,
@@ -52,7 +51,6 @@ type Props = EditorComponentProps<
     isGlobalAdmin: boolean;
     projectDetail: ProjectDetail;
     reportId: string;
-    instanceDetail: InstanceDetail;
     returnToContext?: AIContext;
   },
   ReportModalReturn
@@ -226,7 +224,6 @@ export function Report(p: Props) {
         reportId: p.reportId,
         currentReportLabel: reportLabel(),
         reportType: reportType(),
-        instanceDetail: p.instanceDetail,
       },
     });
     if (res === undefined) {

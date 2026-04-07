@@ -13,12 +13,29 @@ export function addRect(
   if (s.show === false) {
     return;
   }
-  ctx.fillStyle = getColor(s.fillColor);
-  ctx.fillRect(rcd.x(), rcd.y(), rcd.w(), rcd.h());
+  const x = rcd.x();
+  const y = rcd.y();
+  const w = rcd.w();
+  const h = rcd.h();
+  const r = s.rectRadius ?? 0;
 
-  if (s.strokeColor && s.strokeWidth) {
-    ctx.strokeStyle = getColor(s.strokeColor);
-    ctx.lineWidth = s.strokeWidth;
-    ctx.strokeRect(rcd.x(), rcd.y(), rcd.w(), rcd.h());
+  if (r > 0) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    ctx.fillStyle = getColor(s.fillColor);
+    ctx.fill();
+    if (s.strokeColor && s.strokeWidth) {
+      ctx.strokeStyle = getColor(s.strokeColor);
+      ctx.lineWidth = s.strokeWidth;
+      ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = getColor(s.fillColor);
+    ctx.fillRect(x, y, w, h);
+    if (s.strokeColor && s.strokeWidth) {
+      ctx.strokeStyle = getColor(s.strokeColor);
+      ctx.lineWidth = s.strokeWidth;
+      ctx.strokeRect(x, y, w, h);
+    }
   }
 }

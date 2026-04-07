@@ -110,6 +110,7 @@ export type ToolDefinition = {
 export type AnthropicModel =
   // Claude 4.6 family (latest)
   | "claude-opus-4-6"
+  | "claude-sonnet-4-6"
   // Claude 4.5 family
   | "claude-opus-4-5-20251101"
   | "claude-haiku-4-5-20251001"

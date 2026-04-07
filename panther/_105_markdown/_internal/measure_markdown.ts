@@ -21,7 +21,14 @@ export function measureMarkdown(
   const parsed = parseMarkdown(input.markdown);
   const styleInstance = new CustomMarkdownStyle(input.style);
   const style = styleInstance.getMergedMarkdownStyle();
-  const result = measureMarkdownItems(rc, bounds, parsed, style, _debug);
+  const result = measureMarkdownItems(
+    rc,
+    bounds,
+    parsed,
+    style,
+    style.alignH,
+    _debug,
+  );
   return {
     item: input,
     bounds: result.bounds,

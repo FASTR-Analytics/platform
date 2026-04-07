@@ -56,11 +56,9 @@ export function measureMap(
     responsiveScale,
   );
 
-  const dlMode = mergedStyle.map.dataLabels.mode;
+  const dlMode = mergedStyle.map.dataLabelMode;
   const needsCalloutMargin = dlMode === "callout" || dlMode === "auto";
-  const effectivePadding = needsCalloutMargin
-    ? mergedStyle.map.padding + mergedStyle.map.dataLabels.calloutMargin
-    : mergedStyle.map.padding;
+  const calloutPadding = needsCalloutMargin ? mergedStyle.map.calloutMargin : 0;
 
   const mapPrimitives: Primitive[] = [];
   for (const prim of chartMeasured.primitives) {
@@ -70,20 +68,20 @@ export function measureMap(
       const valueMap =
         transformedData.valueMaps[paneIndex][tierIndex][laneIndex];
 
-      const { regionPrimitives, fitted, filteredFeatures } =
+      const { regionPrimitives, fitted, shownFeatures, shownFeatureStyles } =
         generateMapRegionPrimitives(
           cellRcd,
           transformedData.geoFeatures,
           valueMap,
-          mergedStyle.map.valueRange === "auto"
-            ? transformedData.valueRange
-            : mergedStyle.map.valueRange,
+          transformedData.valueRange,
           transformedData.areaMatchProp,
-          mergedStyle,
+          mergedStyle.map.projection,
+          mergedStyle.map.fit,
+          mergedStyle.content.mapRegions.getStyle,
           paneIndex,
           tierIndex,
           laneIndex,
-          effectivePadding,
+          calloutPadding,
         );
       mapPrimitives.push(...regionPrimitives);
 
@@ -92,11 +90,13 @@ export function measureMap(
           ...generateMapLabelPrimitives(
             rc,
             cellRcd,
-            filteredFeatures,
+            shownFeatures,
             valueMap,
             transformedData.areaMatchProp,
             mergedStyle,
             fitted,
+            shownFeatureStyles,
+            mergedStyle.content.mapRegions.textFormatter,
             paneIndex,
             tierIndex,
             laneIndex,

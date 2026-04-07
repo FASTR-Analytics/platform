@@ -20,9 +20,7 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   "yScaleAxisTickLabels",
   "yTextAxisLabel",
   "yScaleAxisLabel",
-  "colGroupLabels",
   "dataLabels",
-  "arrowLabels",
   "legend",
   // Table
   "colHeaders",
@@ -37,8 +35,6 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   // SimpleViz
   "simplevizBoxTextPrimary",
   "simplevizBoxTextSecondary",
-  // Cascade
-  "cascadeArrowLabels",
 ] as const;
 
 // Extract the type from the const array

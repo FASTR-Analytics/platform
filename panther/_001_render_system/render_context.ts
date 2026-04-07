@@ -39,6 +39,7 @@ export type RectStyle = {
   fillColor: ColorKeyOrString;
   strokeColor?: ColorKeyOrString;
   strokeWidth?: number;
+  rectRadius?: number;
 };
 
 export type AreaStyle = {

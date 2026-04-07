@@ -4,8 +4,9 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  MapRegionInfoFunc,
   MapRegionPrimitive,
-  MergedMapStyle,
+  MapRegionStyle,
   Primitive,
   RectCoordsDims,
 } from "../deps.ts";
@@ -14,12 +15,12 @@ import type { GeoJSONFeature } from "./geojson_types.ts";
 import { getProjectionFn } from "./projections.ts";
 import { fitProjection, type FittedProjection } from "./fit_projection.ts";
 import { geoToPathSegments } from "./geo_to_path_segments.ts";
-import { resolveColor } from "./color_scale.ts";
 
 export type MapRegionResult = {
   regionPrimitives: Primitive[];
   fitted: FittedProjection;
-  filteredFeatures: GeoJSONFeature[];
+  shownFeatures: GeoJSONFeature[];
+  shownFeatureStyles: Map<string, MapRegionStyle>;
 };
 
 export function generateMapRegionPrimitives(
@@ -28,35 +29,52 @@ export function generateMapRegionPrimitives(
   valueMap: Record<string, number | undefined>,
   valueRange: { min: number; max: number },
   areaMatchProp: string,
-  mergedStyle: MergedMapStyle,
+  projection: "equirectangular" | "mercator" | "naturalEarth1",
+  fit: "all-regions" | "only-regions-in-data",
+  getStyle: MapRegionInfoFunc<MapRegionStyle>,
   paneIndex: number,
   tierIndex: number,
   laneIndex: number,
-  effectivePadding?: number,
+  padding: number,
 ): MapRegionResult {
-  const mapStyle = mergedStyle.map;
-  const projectionFn = getProjectionFn(mapStyle.projection);
+  const projectionFn = getProjectionFn(projection);
 
-  const filteredFeatures = filterFeatures(geoFeatures, areaMatchProp, mapStyle);
+  const featuresForFitting = fit === "only-regions-in-data"
+    ? geoFeatures.filter(
+      (f) => getFeatureMatchKey(f, areaMatchProp) in valueMap,
+    )
+    : geoFeatures;
 
   const fitted = fitProjection(
-    filteredFeatures,
+    featuresForFitting,
     projectionFn,
     cellRcd,
-    effectivePadding ?? mapStyle.padding,
+    padding,
   );
 
   const regionPrimitives: Primitive[] = [];
+  const shownFeatures: GeoJSONFeature[] = [];
+  const shownFeatureStyles = new Map<string, MapRegionStyle>();
 
-  for (const feature of filteredFeatures) {
+  for (const feature of geoFeatures) {
     const featureId = getFeatureMatchKey(feature, areaMatchProp);
     const value = valueMap[featureId];
-    const fillColor = resolveColor(
+
+    const style = getStyle({
+      featureId,
       value,
-      valueRange,
-      mapStyle.colorScale,
-      mapStyle.noDataColor,
-    );
+      valueMin: valueRange.min,
+      valueMax: valueRange.max,
+      featureProperties: feature.properties,
+      paneIndex,
+      tierIndex,
+      laneIndex,
+    });
+
+    if (!style.show) continue;
+
+    shownFeatures.push(feature);
+    shownFeatureStyles.set(featureId, style);
 
     const pathSegments = geoToPathSegments(feature.geometry, fitted);
     if (pathSegments.length === 0) continue;
@@ -69,43 +87,22 @@ export function generateMapRegionPrimitives(
       meta: { featureId, paneIndex, tierIndex, laneIndex, value },
       pathSegments,
       pathStyle: {
-        fill: {
-          color: fillColor,
+        fill: style.fillColor === "none" ? undefined : {
+          color: style.fillColor,
           fillRule: "evenodd",
         },
-        stroke: mapStyle.regionStrokeWidth > 0
-          ? {
-            color: mapStyle.regionStrokeColor,
-            width: mapStyle.regionStrokeWidth,
-          }
-          : undefined,
+        stroke: style.strokeColor === "none" || style.strokeWidth <= 0
+          ? undefined
+          : {
+            color: style.strokeColor,
+            width: style.strokeWidth,
+          },
       },
     };
     regionPrimitives.push(prim);
   }
 
-  return { regionPrimitives, fitted, filteredFeatures };
-}
-
-function filterFeatures(
-  features: GeoJSONFeature[],
-  areaMatchProp: string,
-  mapStyle: MergedMapStyle["map"],
-): GeoJSONFeature[] {
-  let filtered = features;
-
-  if (mapStyle.includeAreaIds) {
-    const ids = new Set(mapStyle.includeAreaIds);
-    filtered = filtered.filter((f) =>
-      ids.has(getFeatureMatchKey(f, areaMatchProp))
-    );
-  }
-
-  if (mapStyle.featureFilter) {
-    filtered = filtered.filter(mapStyle.featureFilter);
-  }
-
-  return filtered;
+  return { regionPrimitives, fitted, shownFeatures, shownFeatureStyles };
 }
 
 function getFeatureMatchKey(

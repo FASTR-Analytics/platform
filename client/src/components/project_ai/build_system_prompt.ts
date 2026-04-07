@@ -3,7 +3,7 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
   getCountryLabel,
-  type InstanceDetail,
+  type InstanceState,
   type ProjectDetail,
 } from "lib";
 import type { AIContext } from "./types";
@@ -12,13 +12,13 @@ import type { AIContext } from "./types";
 
 export function buildSystemPromptForContext(
   aiContext: AIContext,
-  instanceDetail: InstanceDetail,
+  instance: InstanceState,
   projectDetail: ProjectDetail,
 ): string {
   const currentDate = new Date().toISOString().split("T")[0];
   const dateHeader = `**CURRENT DATE: ${currentDate}**\n\n---\n\n`;
 
-  const contextSection = buildAISystemContext(instanceDetail, projectDetail);
+  const contextSection = buildAISystemContext(instance, projectDetail);
   const baseInstructions = getBaseInstructions();
   const modeInstructions = getModeInstructions(aiContext);
 
@@ -28,7 +28,7 @@ export function buildSystemPromptForContext(
 // ── Project context ──
 
 function buildAISystemContext(
-  instanceDetail: InstanceDetail,
+  instance: InstanceState,
   projectDetail: ProjectDetail,
 ): string {
   const sections: string[] = [];
@@ -36,21 +36,21 @@ function buildAISystemContext(
   sections.push("# Instance Information");
   sections.push("");
 
-  if (instanceDetail.countryIso3) {
+  if (instance.countryIso3) {
     sections.push(
-      `**Country:** ${getCountryLabel(instanceDetail.countryIso3)} (${instanceDetail.countryIso3})`,
+      `**Country:** ${getCountryLabel(instance.countryIso3)} (${instance.countryIso3})`,
     );
   }
 
-  sections.push(`**Instance:** ${instanceDetail.instanceName}`);
+  sections.push(`**Instance:** ${instance.instanceName}`);
   sections.push("");
 
   sections.push("# Terminology");
   sections.push("");
   sections.push("**Geographic levels:**");
   sections.push("- admin_area_1 is always the national level");
-  if (instanceDetail.maxAdminArea >= 2) {
-    const aa = instanceDetail.maxAdminArea;
+  if (instance.maxAdminArea >= 2) {
+    const aa = instance.maxAdminArea;
     const sub =
       aa >= 4
         ? "admin_area_2, admin_area_3, admin_area_4 etc."
@@ -92,8 +92,8 @@ function buildAISystemContext(
     );
   }
   sections.push("");
-  const hasHmis = instanceDetail.datasetsWithData.includes("hmis");
-  const hasHfa = instanceDetail.datasetsWithData.includes("hfa");
+  const hasHmis = instance.datasetsWithData.includes("hmis");
+  const hasHfa = instance.datasetsWithData.includes("hfa");
   if (hasHmis || hasHfa) {
     sections.push("**Data sources:**");
     if (hasHmis) {
@@ -146,15 +146,15 @@ function buildAISystemContext(
     );
   }
 
-  if (instanceDetail.structure) {
+  if (instance.structure) {
     sections.push("");
     sections.push("**Data coverage:**");
-    sections.push(`- ${instanceDetail.structure.facilities} facilities`);
-    if (instanceDetail.structure.adminArea2s > 0) {
-      sections.push(`- ${instanceDetail.structure.adminArea2s} admin area 2s`);
+    sections.push(`- ${instance.structure.facilities} facilities`);
+    if (instance.structure.adminArea2s > 0) {
+      sections.push(`- ${instance.structure.adminArea2s} admin area 2s`);
     }
-    if (instanceDetail.structure.adminArea3s > 0) {
-      sections.push(`- ${instanceDetail.structure.adminArea3s} admin area 3s`);
+    if (instance.structure.adminArea3s > 0) {
+      sections.push(`- ${instance.structure.adminArea3s} admin area 3s`);
     }
   }
 

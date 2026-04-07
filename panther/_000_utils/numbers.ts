@@ -56,6 +56,15 @@ export function getValidNumberOrUndefined(val: unknown): number | undefined {
   return num;
 }
 
+export function clamp(val: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, val));
+}
+
+export function normalizeTo01(val: number, min: number, max: number): number {
+  if (max === min) return 0.5;
+  return clamp((val - min) / (max - min), 0, 1);
+}
+
 export function divideOrZero(numerator: number, denominator: number): number {
   if (denominator === 0) {
     return 0;

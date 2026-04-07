@@ -1,6 +1,7 @@
 import { LoggedInWrapper } from "~/components/LoggedInWrapper";
 import Instance from "~/components/instance/index";
 import { InstanceLanguage, setCalendar, setLanguage } from "lib";
+import { InstanceSSEBoundary } from "~/state/instance_sse";
 
 export default function InstanceLoggedInWrapper() {
   return (
@@ -10,7 +11,9 @@ export default function InstanceLoggedInWrapper() {
         setLanguage(storedLang ?? globalUser.instanceLanguage);
         setCalendar(globalUser.instanceCalendar);
         return (
-          <Instance globalUser={globalUser} attemptSignOut={attemptSignOut} />
+          <InstanceSSEBoundary>
+            <Instance attemptSignOut={attemptSignOut} />
+          </InstanceSSEBoundary>
         );
       }}
     </LoggedInWrapper>
