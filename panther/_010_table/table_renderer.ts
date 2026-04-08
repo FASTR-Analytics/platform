@@ -132,7 +132,8 @@ function getMinComfortableWidth(
           colHeader: col.label ?? "",
         };
         const textFormatter = s.tableCells.textFormatter;
-        const valStr = textFormatter === "none"
+        const valStr = textFormatter === "none" ||
+            cellInfo.valueAsNumber === undefined
           ? ""
           : (textFormatter(cellInfo) ?? "");
         minColWidth = Math.max(

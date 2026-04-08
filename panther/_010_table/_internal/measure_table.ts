@@ -156,7 +156,8 @@ export function measureTable(
             colHeader: col.label ?? "",
           };
           const textFormatter = s.tableCells.textFormatter;
-          const cellStr = textFormatter === "none"
+          const cellStr = textFormatter === "none" ||
+              cellInfo.valueAsNumber === undefined
             ? String(cellInfo.value)
             : (textFormatter(cellInfo) ?? "");
           const cellContentWidth = colInnerWidth - s.cellPadding.pl() -
