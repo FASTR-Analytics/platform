@@ -3,6 +3,7 @@ import {
   PresentationObjectDetail,
   t3,
 } from "lib";
+import { instanceState } from "~/state/instance_state";
 import {
   Checkbox,
   LabelHolder,
@@ -119,7 +120,7 @@ export function SharedControlsBottom(p: SharedBottomProps) {
           label={t3({ en: "Hide legend", fr: "Masquer la légende" })}
         />
       </Show>
-      <Show when={p.includesAdminArea3()}>
+      <Show when={instanceState.countryIso3 === "NIG" && p.includesAdminArea3()}>
         <Checkbox
           checked={p.tempConfig.s.formatAdminArea3Labels}
           onChange={(v) => p.setTempConfig("s", "formatAdminArea3Labels", v)}
