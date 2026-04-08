@@ -1,9 +1,9 @@
 import {
   InstanceCalendar,
-  InstanceLanguage,
   setCalendar,
   setLanguage,
 } from "lib";
+import type { Language } from "@timroberton/panther";
 
 ///////////////////////////////////////////////////////////////////////////////
 // Environment Indicator
@@ -37,7 +37,7 @@ export const _INSTANCE_LANGUAGE =
   (Deno.env
     .get("INSTANCE_LANGUAGE")
     ?.replaceAll("'", "")
-    .replaceAll(`"`, "") as InstanceLanguage) ?? "en";
+    .replaceAll(`"`, "") as Language) ?? "en";
 if (
   _INSTANCE_LANGUAGE === undefined ||
   !["en", "fr"].includes(_INSTANCE_LANGUAGE)

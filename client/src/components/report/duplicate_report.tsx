@@ -1,4 +1,4 @@
-import { ReportDetail, ReportType, isFrench } from "lib";
+import { ReportDetail, ReportType } from "lib";
 import { instanceState } from "~/state/instance_state";
 import {
   AlertComponentProps,
@@ -82,7 +82,6 @@ export function DuplicateReport(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
     >
       <Input
         label="New report name"

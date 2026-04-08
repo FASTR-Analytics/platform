@@ -178,6 +178,7 @@ function AIProjectWrapperInner(props: ParentProps) {
         minWidth={300}
         startingWidth={600}
         maxWidth={1200}
+        hoverOffset="offset-for-border-1-on-right"
         isShown={showAi()}
         onToggleShow={() => setShowAi(false)}
         panelChildren={<ConsolidatedChatPane aiDocs={aiDocs} getSystemPrompt={systemPrompt} />}>

@@ -15,6 +15,7 @@ import {
   openComponent,
 } from "panther";
 import { For, Show } from "solid-js";
+import { getInstanceCountryIso3 } from "~/state/instance_state";
 import { VisualizationEditor } from "../visualization";
 import { MetricDetailsModal } from "./metric_details_modal";
 import { AddVisualization } from "./add_visualization";
@@ -47,7 +48,7 @@ export function ProjectMetrics(p: Props) {
     }
 
     const result: MetricsByModule[] = [];
-    for (const possibleModule of getPossibleModules()) {
+    for (const possibleModule of getPossibleModules(getInstanceCountryIso3())) {
       const moduleMetrics = moduleMap.get(possibleModule.id);
       if (moduleMetrics) {
         result.push({

@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { t3 } from "../deps.ts";
 import { Intent } from "../types.ts";
 
 type Props = {
@@ -20,7 +21,7 @@ export function Loading(p: Props) {
       class="data-[no-pad=false]:ui-pad h-full w-full"
       data-no-pad={!!p.noPad}
     >
-      {p.msg ?? "Loading..."}
+      {p.msg ?? t3({ en: "Loading...", fr: "Chargement..." })}
     </div>
   );
 }

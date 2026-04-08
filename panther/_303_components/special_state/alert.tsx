@@ -5,6 +5,7 @@
 
 import { createSignal, JSX, Match, Show, Switch } from "solid-js";
 import { Dynamic } from "solid-js/web";
+import { t3 } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
 import { Input } from "../form_inputs/input.tsx";
 import { Intent } from "../types.ts";
@@ -268,7 +269,7 @@ export default function AlertProvider() {
                                     }}
                                     intent={ass.intent}
                                   >
-                                    {ass.closeButtonLabel ?? "Close"}
+                                    {ass.closeButtonLabel ?? t3({ en: "Close", fr: "Fermer" })}
                                   </Button>,
                                 ];
                               }
@@ -282,7 +283,7 @@ export default function AlertProvider() {
                                     }}
                                     intent={ass.intent}
                                   >
-                                    {ass.confirmButtonLabel ?? "Confirm"}
+                                    {ass.confirmButtonLabel ?? t3({ en: "Confirm", fr: "Confirmer" })}
                                   </Button>,
                                   <Button
                                     onClick={() => {
@@ -292,7 +293,7 @@ export default function AlertProvider() {
                                     intent="neutral"
                                     autofocus
                                   >
-                                    Cancel
+                                    {t3({ en: "Cancel", fr: "Annuler" })}
                                   </Button>,
                                 ];
                               }
@@ -304,7 +305,7 @@ export default function AlertProvider() {
                                     form="promptForm"
                                     intent={ass.intent}
                                   >
-                                    {ass.saveButtonLabel ?? "Confirm"}
+                                    {ass.saveButtonLabel ?? t3({ en: "Confirm", fr: "Confirmer" })}
                                   </Button>,
                                   <Button
                                     type="button"
@@ -314,7 +315,7 @@ export default function AlertProvider() {
                                     }}
                                     intent="neutral"
                                   >
-                                    Cancel
+                                    {t3({ en: "Cancel", fr: "Annuler" })}
                                   </Button>,
                                 ];
                               }

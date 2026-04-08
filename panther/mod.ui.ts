@@ -10,6 +10,7 @@
 ////////////////////////
 
 export * from "./_000_consts/mod.ts";
+export * from "./_000_translate/mod.ts";
 export * from "./_000_utils/mod.ts";
 export * from "./_001_color/mod.ts";
 export * from "./_001_font/mod.ts";

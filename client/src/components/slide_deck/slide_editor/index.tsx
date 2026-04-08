@@ -763,6 +763,7 @@ export function SlideEditor(p: Props) {
           startingWidth={400}
           minWidth={300}
           maxWidth={600}
+          hoverOffset="offset-for-border-1-on-left"
           panelChildren={
             <SlideEditorPanel
               projectId={p.projectId}

@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { type Component, Show } from "solid-js";
-import { Button, TextArea } from "../deps.ts";
+import { Button, t3, TextArea } from "../deps.ts";
 
 type Props = {
   value: string;
@@ -34,7 +34,7 @@ export const MessageInput: Component<Props> = (props) => {
           onChange={props.onChange}
           onKeyDown={handleKeyDown}
           placeholder={props.placeholder ??
-            "Type your message... (Shift+Enter for new line)"}
+            t3({ en: "Type your message... (Shift+Enter for new line)", fr: "Tapez votre message... (Maj+Entrée pour un saut de ligne)" })}
           height={props.height ?? "100px"}
           // mono
           fullWidth
@@ -49,11 +49,11 @@ export const MessageInput: Component<Props> = (props) => {
           disabled={props.disabled}
           intent="primary"
         >
-          {props.submitLabel ?? "Submit"}
+          {props.submitLabel ?? t3({ en: "Submit", fr: "Envoyer" })}
         </Button>
         <Show when={props.isGenerating && props.onStop}>
           <Button onClick={() => props.onStop!()} intent="neutral">
-            Stop
+            {t3({ en: "Stop", fr: "Arrêter" })}
           </Button>
         </Show>
       </div>

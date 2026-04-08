@@ -6,7 +6,7 @@ import {
 } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { isFrench, t3, TC } from "lib";
+import { t3, TC } from "lib";
 
 export function AddUserForm(
   p: AlertComponentProps<{}, undefined>,
@@ -49,7 +49,6 @@ export function AddUserForm(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
     >
       <TextArea
         label={t3(TC.email)}

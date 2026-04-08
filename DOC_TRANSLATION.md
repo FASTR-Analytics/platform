@@ -2,11 +2,23 @@
 
 ## Overview
 
-The app supports English and French. All user-visible strings in client-side code must be wrapped with `t3()` so they render in the user's selected language.
+The app supports English and French. All user-visible strings must be wrapped with `t3()` so they render in the user's selected language.
 
-## How it works
+## Core types and functions (from panther)
 
-`t3()` accepts a `TranslatableString` (`{ en: string, fr: string }`) and returns the appropriate string based on the current language setting.
+The translation system lives in panther's `_000_translate` module. These are re-exported through `lib` for convenience:
+
+- `Language` -- `"en" | "fr"`
+- `TranslatableString` -- `{ en: string; fr: string }`
+- `t3(val: TranslatableString): string` -- returns the string for the current language (reads global state)
+- `resolveTS(val: TranslatableString, lang: Language): string` -- explicit parameter version, used server-side
+- `setLanguage(language: Language): void` -- sets the global language (called at app init)
+- `getLanguage(): Language` -- returns current language
+- `isFrench(): boolean` -- shorthand for `getLanguage() === "fr"`
+
+Panther components (alerts, headings, tables, etc.) translate their own built-in strings internally via `t3()`. No `french` prop is needed.
+
+## Usage
 
 ```tsx
 import { t3, TC } from "lib";
@@ -18,11 +30,11 @@ t3({ en: "Project is locked", fr: "Le projet est verrouillé" })
 t3(TC.save)  // "Save" / "Sauvegarder"
 ```
 
-## Key files
+## App-specific files
 
-- `lib/translate/t-func.ts` -- `t3()` function, `isFrench()`, language/calendar getters
+- `lib/translate/t-func.ts` -- re-exports `t3`, `isFrench`, `setLanguage`, `getLanguage` from panther; defines `setCalendar()`, `getCalendar()`, `getTextRenderingOptions()`
+- `lib/translate/types.ts` -- re-exports `TranslatableString` from panther
 - `lib/translate/common.ts` -- `TC` object with shared translations (cancel, save, delete, etc.)
-- `lib/translate/types.ts` -- `TranslatableString` type definition
 
 ## TC constants
 
@@ -61,7 +73,6 @@ t3({ en: `${count} items`, fr: `${count} éléments` })
 - `console.log` / `console.error` messages
 - Error messages in `throw` statements or `{ err: "..." }` responses
 - `key`, `id`, `class`, `type`, `method`, `name` HTML attributes
-- Server-side code or module definitions
 
 ## Translation guidelines
 
@@ -71,6 +82,7 @@ t3({ en: `${count} items`, fr: `${count} éléments` })
 
 ## Other translation utilities
 
-- `isFrench()` -- returns `true` if the current language is French. Use sparingly for conditional logic, not for string translation.
+- `isFrench()` -- returns `true` if the current language is French. Use for conditional logic (e.g. layout widths), not for string translation.
+- `resolveTS(val, lang)` -- used server-side where explicit language parameter is preferred over global state.
 - `setLanguage()` / `setCalendar()` -- called at app init. Do not use in components.
 - `getCalendar()` -- returns the calendar type. Do not modify.

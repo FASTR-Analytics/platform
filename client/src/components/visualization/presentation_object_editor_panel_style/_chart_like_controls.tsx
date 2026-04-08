@@ -1,0 +1,239 @@
+import { PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
+import {
+  Button,
+  Checkbox,
+  RadioGroup,
+  Select,
+  getSelectOptionsWithFirstCapital,
+} from "panther";
+import { Show } from "solid-js";
+import { SetStoreFunction } from "solid-js/store";
+
+type Props = {
+  poDetail: PresentationObjectDetail;
+  tempConfig: PresentationObjectConfig;
+  setTempConfig: SetStoreFunction<PresentationObjectConfig>;
+  editCustomSeriesStyles: () => Promise<void>;
+  isColorOverridden: () => boolean;
+};
+
+export function ChartLikeControls(p: Props) {
+  return (
+    <>
+      <Show when={!p.isColorOverridden()}>
+        <div class="ui-spy-sm">
+          <RadioGroup
+            label={t3({ en: "Color scale", fr: "Échelle de couleurs" })}
+            options={[
+              {
+                value: "pastel-discrete",
+                label: t3({ en: "Discrete 1", fr: "Discret 1" }),
+              },
+              {
+                value: "alt-discrete",
+                label: t3({ en: "Discrete 2", fr: "Discret 2" }),
+              },
+              {
+                value: "red-green",
+                label: t3({ en: "Red-green", fr: "Rouge-vert" }),
+              },
+              {
+                value: "blue-green",
+                label: t3({ en: "Blue-green", fr: "Bleu-vert" }),
+              },
+              {
+                value: "single-grey",
+                label: t3({ en: "Single grey", fr: "Gris simple" }),
+              },
+              {
+                value: "custom",
+                label: t3({
+                  en: "Custom colours",
+                  fr: "Couleurs personnalisées",
+                }),
+              },
+            ]}
+            value={p.tempConfig.s.colorScale}
+            onChange={(v) =>
+              p.setTempConfig(
+                "s",
+                "colorScale",
+                v as
+                  | "pastel-discrete"
+                  | "alt-discrete"
+                  | "red-green"
+                  | "blue-green"
+                  | "single-grey"
+                  | "custom",
+              )
+            }
+          />
+          <Show when={p.tempConfig.s.colorScale === "custom"}>
+            <div class="text-right">
+              <Button onClick={p.editCustomSeriesStyles} iconName="settings">
+                {t3({
+                  en: "Set custom colours",
+                  fr: "Définir des couleurs personnalisées",
+                })}
+              </Button>
+            </div>
+          </Show>
+          <Select
+            label={t3({
+              en: "Color scale mapping",
+              fr: "Correspondance de l'échelle de couleurs",
+            })}
+            options={
+              p.tempConfig.d.type === "timeseries"
+                ? [
+                    {
+                      value: "series",
+                      label: t3({
+                        en: "Series (lines/bars)",
+                        fr: "Séries (lignes/barres)",
+                      }),
+                    },
+                    {
+                      value: "cell",
+                      label: t3({
+                        en: "Grid cells",
+                        fr: "Cellules de la grille",
+                      }),
+                    },
+                    {
+                      value: "col",
+                      label: t3({
+                        en: "Column groups",
+                        fr: "Groupes de colonnes",
+                      }),
+                    },
+                    {
+                      value: "row",
+                      label: t3({ en: "Row groups", fr: "Groupes de lignes" }),
+                    },
+                  ]
+                : [
+                    {
+                      value: "series",
+                      label: t3({
+                        en: "Series (sub-bars)",
+                        fr: "Series (sub-bars)",
+                      }),
+                    },
+                    {
+                      value: "cell",
+                      label: t3({
+                        en: "Grid cells",
+                        fr: "Cellules de la grille",
+                      }),
+                    },
+                    {
+                      value: "col",
+                      label: t3({
+                        en: "Column groups",
+                        fr: "Groupes de colonnes",
+                      }),
+                    },
+                    {
+                      value: "row",
+                      label: t3({ en: "Row groups", fr: "Groupes de lignes" }),
+                    },
+                  ]
+            }
+            value={p.tempConfig.s.seriesColorFuncPropToUse}
+            onChange={(v) =>
+              p.setTempConfig(
+                "s",
+                "seriesColorFuncPropToUse",
+                v as "series" | "cell" | "col" | "row",
+              )
+            }
+            fullWidth
+          />
+        </div>
+        <RadioGroup
+          label={t3({
+            en: "Conditional formatting",
+            fr: "Mise en forme conditionnelle",
+          })}
+          options={getSelectOptionsWithFirstCapital([
+            "none",
+            "fmt-90-80",
+            "fmt-80-70",
+            "fmt-10-20",
+            "fmt-05-10",
+            "fmt-01-03",
+            "fmt-neg10-pos10",
+            "fmt-thresholds-1-2-5",
+            "fmt-thresholds-2-5-10",
+            "fmt-thresholds-5-10-20",
+          ])}
+          value={p.tempConfig.s.conditionalFormatting}
+          onChange={(v) =>
+            p.setTempConfig("s", "conditionalFormatting", v as "none" | string)
+          }
+        />
+      </Show>
+      <Show
+        when={
+          p.tempConfig.s.content === "bars" ||
+          p.tempConfig.s.content === "points"
+        }
+      >
+        <Checkbox
+          checked={p.tempConfig.s.showDataLabels}
+          onChange={(v) => p.setTempConfig("s", "showDataLabels", v)}
+          label={t3({
+            en: "Show data labels",
+            fr: "Afficher les étiquettes de données",
+          })}
+        />
+      </Show>
+      <Show
+        when={
+          p.tempConfig.s.content === "lines" ||
+          p.tempConfig.s.content === "areas"
+        }
+      >
+        <Checkbox
+          checked={p.tempConfig.s.showDataLabelsLineCharts}
+          onChange={(v) =>
+            p.setTempConfig("s", "showDataLabelsLineCharts", v)
+          }
+          label={t3({
+            en: "Show data labels in line charts",
+            fr: "Afficher les étiquettes de données dans les graphiques en ligne",
+          })}
+        />
+      </Show>
+      <Show
+        when={p.poDetail.resultsValue.formatAs === "percent"}
+      >
+        <Checkbox
+          label={t3({
+            en: "Force y-axis max of 100%",
+            fr: "Forcer le maximum de l'axe Y à 100 %",
+          })}
+          checked={p.tempConfig.s.forceYMax1}
+          onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
+        />
+      </Show>
+      <Checkbox
+        label={t3({
+          en: "Allow auto y-axis min",
+          fr: "Autoriser le minimum automatique de l'axe Y",
+        })}
+        checked={p.tempConfig.s.forceYMinAuto}
+        onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
+      />
+      <Checkbox
+        label={t3({
+          en: "Allow individual row limits",
+          fr: "Autoriser des limites par ligne",
+        })}
+        checked={p.tempConfig.s.allowIndividualRowLimits}
+        onChange={(v) => p.setTempConfig("s", "allowIndividualRowLimits", v)}
+      />
+    </>
+  );
+}

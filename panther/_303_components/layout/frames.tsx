@@ -23,6 +23,26 @@ type FrameProps = {
   allowShowHide?: boolean;
 };
 
+export type HoverOffset =
+  | "offset-for-border-1-on-left"
+  | "offset-for-border-2-on-left"
+  | "offset-for-border-1-on-right"
+  | "offset-for-border-2-on-right";
+
+const HOVER_OFFSET_PX: Record<HoverOffset, number> = {
+  "offset-for-border-1-on-left": -0.5,
+  "offset-for-border-2-on-left": -1,
+  "offset-for-border-1-on-right": 0.5,
+  "offset-for-border-2-on-right": 1,
+};
+
+function hoverOffsetStyle(
+  offset: HoverOffset | undefined,
+): JSX.CSSProperties | undefined {
+  if (!offset) return undefined;
+  return { transform: `translateX(${HOVER_OFFSET_PX[offset]}px)` };
+}
+
 type ResizableFrameProps = FrameProps & {
   startingWidth: number;
   minWidth?: number;
@@ -30,7 +50,7 @@ type ResizableFrameProps = FrameProps & {
   preventPanelResizeOnParentResize?: boolean;
   isShown?: boolean;
   onToggleShow?: () => void;
-  hoverOffset?: number;
+  hoverOffset?: HoverOffset;
 };
 
 type ThreeColumnResizableProps = {
@@ -48,6 +68,8 @@ type ThreeColumnResizableProps = {
   maxWidths?: [number, number, number];
   resetKey?: string | number;
   hiddenTabColor?: string;
+  leftHandleHoverOffset?: HoverOffset;
+  rightHandleHoverOffset?: HoverOffset;
 };
 
 export function FrameLeft(p: FrameProps) {
@@ -229,6 +251,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
           <div class="h-full overflow-auto">{p.panelChildren}</div>
           <div
             class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+            style={hoverOffsetStyle(p.hoverOffset)}
             onMouseDown={handleMouseDown}
           />
         </div>
@@ -340,7 +363,10 @@ export function FrameRightResizable(p: ResizableFrameProps) {
           <div
             class="hover:bg-primary/20 active:bg-primary/20 absolute -left-1 top-0 z-50 h-full w-2 cursor-col-resize"
             onMouseDown={handleMouseDown}
-            style={{ display: p.isShown === false ? "none" : "block" }}
+            style={{
+              display: p.isShown === false ? "none" : "block",
+              ...hoverOffsetStyle(p.hoverOffset),
+            }}
           />
           <div
             class="h-full overflow-auto"
@@ -612,6 +638,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
             <Show when={hasCenter() || hasRight()}>
               <div
                 class="absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+                style={hoverOffsetStyle(p.leftHandleHoverOffset)}
                 onMouseDown={handleMouseDown("left")}
               />
             </Show>
@@ -631,6 +658,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
             <Show when={hasRight()}>
               <div
                 class="absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+                style={hoverOffsetStyle(p.rightHandleHoverOffset)}
                 onMouseDown={handleMouseDown("right")}
               />
             </Show>

@@ -2,6 +2,7 @@ import { join } from "@std/path";
 import { getUnique } from "@timroberton/panther";
 import { Sql } from "postgres";
 import { _SANDBOX_DIR_PATH } from "../../exposed_env_vars.ts";
+import { getCountryIso3Config } from "../instance/config.ts";
 import {
   getPossibleModules,
   getValidatedModuleId,
@@ -366,9 +367,11 @@ export async function addProject(
     }
 
     // Dynamically add prerequisite modules based on getPossibleModules()
+    const countryIso3Res = await getCountryIso3Config(mainDb);
+    const countryIso3 = countryIso3Res.success ? countryIso3Res.data.countryIso3 : undefined;
     const modulesWithPrereqs = new Set<ModuleId>(modulesToEnable);
     for (const moduleId of modulesToEnable) {
-      const moduleDefinition = getPossibleModules().find(
+      const moduleDefinition = getPossibleModules(countryIso3).find(
         (m) => m.id === moduleId,
       );
       if (moduleDefinition?.prerequisiteModules) {

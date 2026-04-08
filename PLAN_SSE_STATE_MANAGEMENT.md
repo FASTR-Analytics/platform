@@ -147,9 +147,20 @@ type InstanceState = {
   indicators: { commonIndicators: number; rawIndicators: number; hfaIndicators: number };
   datasetsWithData: DatasetType[];
   datasetVersions: { hmis?: number; hfa?: number };
+  hmisNVersions: number;
+  hfaTimePoints: DatasetHfaDictionaryTimePoint[];
+  hfaCacheHash: string;
 
   // Cache versioning (regular fields, read by dataset caches as version keys)
   indicatorMappingsVersion: string;
+  hfaIndicatorsVersion: string;
+
+  // Per-connection current user (populated by server in starting message,
+  // re-derived client-side on users_updated by finding current user in list)
+  currentUserEmail: string;
+  currentUserApproved: boolean;
+  currentUserIsGlobalAdmin: boolean;
+  currentUserPermissions: UserPermissions;
 };
 ```
 
@@ -170,11 +181,15 @@ type InstanceStructureSummary = {
 type InstanceIndicatorsSummary = {
   indicators: { commonIndicators: number; rawIndicators: number; hfaIndicators: number };
   indicatorMappingsVersion: string;
+  hfaIndicatorsVersion: string;
 };
 
 type InstanceDatasetsSummary = {
   datasetsWithData: DatasetType[];
   datasetVersions: { hmis?: number; hfa?: number };
+  hmisNVersions: number;
+  hfaTimePoints: DatasetHfaDictionaryTimePoint[];
+  hfaCacheHash: string;
 };
 ```
 
@@ -588,12 +603,12 @@ Each route handler that currently calls `notifyProjectUpdated()` is updated to c
 
 Update `server/routes/project/project-sse.ts`:
 
-- Build full `ProjectState` for the `starting` message (merge current PDS build from `server/task_management/get_project_dirty_states.ts` + ProjectDetail fetch)
-- Forward granular messages (no change to BroadcastChannel subscription logic)
+- Apply the same subscribe-before-build ordering from 1.3: subscribe to BroadcastChannel FIRST (queuing messages), build full `ProjectState` (merge current PDS build from `server/task_management/get_project_dirty_states.ts` + ProjectDetail fetch), send `starting` message, drain queued messages. This fixes the existing race condition where messages broadcast during state building are lost.
+- Forward granular messages
 
 ### 2.5 Client: Global project store with reset semantics
 
-**File: `client/src/state/project_state.ts`**
+**File: `client/src/state/project/t1_store.ts`**
 
 Same pattern as instance store, but with one critical difference: **project state must be fully reset when switching projects.**
 
@@ -624,7 +639,7 @@ Reconnection and failure semantics (same as instance):
 
 ### 2.6 Client: SSE connection manager and boundary component
 
-**File: `client/src/state/project_sse.ts`**
+**File: `client/src/state/project/t1_sse.tsx`**
 
 Same pattern as instance SSE, but with reset semantics:
 
@@ -728,8 +743,8 @@ Each level (instance, project) has the same 5-file structure, one file per conce
 | What's in the state? What events exist? | `lib/types/instance_sse.ts` | `lib/types/project_sse.ts` |
 | How does the server send notifications? | `server/task_management/notify_instance_updated.ts` | `server/task_management/notify_project_updated.ts` |
 | How does data get to the client (SSE endpoint)? | `server/routes/instance/instance-sse.ts` | `server/routes/project/project-sse.ts` |
-| Where is the client state? How do I read/write it? | `client/src/state/instance_state.ts` | `client/src/state/project_state.ts` |
-| How does the SSE connection get managed? | `client/src/state/instance_sse.ts` | `client/src/state/project_sse.ts` |
+| Where is the client state? How do I read/write it? | `client/src/state/instance/t1_store.ts` | `client/src/state/project/t1_store.ts` |
+| How does the SSE connection get managed? | `client/src/state/instance/t1_sse.tsx` | `client/src/state/project/t1_sse.tsx` |
 
 ### What each file contains
 
@@ -749,7 +764,7 @@ Each level (instance, project) has the same 5-file structure, one file per conce
 - Builds initial state on connection, sends `starting` message
 - Subscribes to BroadcastChannel, forwards messages (dumb pipe)
 
-**Client state** (`client/src/state/{instance,project}_state.ts`):
+**Client state** (`client/src/state/{instance,project}/t1_store.ts`):
 - `createStore()` at module level (global, no Provider)
 - Setter functions per event type (called by SSE handler only)
 - Reactive export of the store (for components)
@@ -757,7 +772,7 @@ Each level (instance, project) has the same 5-file structure, one file per conce
 - Derived lookup tables recomputed from state (e.g. metric→module maps in project)
 - **Rule: each level has one state file that exports ALL access patterns.** If you need data from instance or project state - reactive, non-reactive, or derived - you look in one file.
 
-**Client SSE connection + boundary** (`client/src/state/{instance,project}_sse.ts`):
+**Client SSE connection + boundary** (`client/src/state/{instance,project}/t1_sse.tsx`):
 - `connect*SSE()` / `disconnect*SSE()`
 - EventSource management, message parsing, routing to setters
 - Retry with exponential backoff
@@ -773,9 +788,9 @@ The current project SSE has its logic scattered across 6+ files in `client/src/c
 - `global_pds.ts` - Non-reactive access for async contexts
 - `utils.ts` - `validateTimestamp()`
 
-All of this collapses into `client/src/state/project_state.ts` + `client/src/state/project_sse.ts`.
+All of this collapses into `client/src/state/project/t1_store.ts` + `client/src/state/project/t1_sse.tsx`.
 
-`global_module_maps.ts` is also deleted - its derived lookup tables and getter functions move into `project_state.ts`.
+`global_module_maps.ts` is also deleted - its derived lookup tables and getter functions move into `project/t1_store.ts`.
 
 ---
 

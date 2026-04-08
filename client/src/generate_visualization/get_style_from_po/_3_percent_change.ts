@@ -1,0 +1,136 @@
+import {
+  ChartValueInfo,
+  CustomFigureStyleOptions,
+  getFormatterFunc,
+} from "panther";
+import {
+  _CF_COMPARISON,
+  _CF_GREEN,
+  _CF_RED,
+  getCalendar,
+  PresentationObjectConfig,
+} from "lib";
+import {
+  getMapRegionsContent,
+  getMapValuesColorFunc,
+  getStandardSeriesColorFunc,
+  getTableCellsContent,
+  getTableLayoutStyle,
+  getTextStyle,
+} from "./_0_common";
+
+export function buildPercentChangeChartStyle(
+  config: PresentationObjectConfig,
+  formatAs: "percent" | "number",
+): CustomFigureStyleOptions {
+  const threshold = config.s.specialBarChartDiffThreshold ?? 0.1;
+  const inverted = config.s.specialBarChartInverted;
+
+  return {
+    scale: config.s.scale,
+    seriesColorFunc: getStandardSeriesColorFunc(config),
+    text: getTextStyle(config),
+    surrounds: {
+      backgroundColor: "none",
+    },
+    legend: { reverseOrder: false },
+    grid: { showGrid: true },
+    panes: { nCols: config.s.nColsInCellDisplay, headerGap: 9, gapX: 30, gapY: 30 },
+    lanes: { paddingLeft: 8 },
+    tiers: { paddingBottom: 8 },
+    xTextAxis: { tickLabelGap: 5, tickHeight: 7 },
+    xPeriodAxis: { forceSideTicksWhenYear: true, calendar: getCalendar() },
+    yScaleAxis: {
+      allowIndividualTierLimits: config.s.allowIndividualRowLimits,
+      max: config.s.forceYMax1 ? 1 : undefined,
+      min: config.s.forceYMinAuto ? "auto" : undefined,
+      tickLabelFormatter: getFormatterFunc(
+        formatAs,
+        config.s.decimalPlaces ?? 0,
+      ),
+    },
+    content: {
+      points: {
+        func: { show: false, innerColorStrategy: { brighten: 0.5 }, dataLabel: { show: false } },
+        textFormatter: () => "",
+      },
+      bars: {
+        func: (info) => {
+          const diff = getSpecialBarChartDiff(info);
+          if (diff === undefined) {
+            return {
+              show: true,
+              fillColor: _CF_COMPARISON,
+              dataLabel: { show: config.s.showDataLabels },
+            };
+          }
+          if (diff > threshold) {
+            return {
+              show: true,
+              fillColor: inverted ? _CF_RED : _CF_GREEN,
+              dataLabel: { show: config.s.showDataLabels },
+            };
+          }
+          if (diff < -1 * threshold) {
+            return {
+              show: true,
+              fillColor: inverted ? _CF_GREEN : _CF_RED,
+              dataLabel: { show: config.s.showDataLabels },
+            };
+          }
+          return {
+            show: true,
+            fillColor: _CF_COMPARISON,
+            dataLabel: { show: config.s.showDataLabels },
+          };
+        },
+        textFormatter: (info: ChartValueInfo) => {
+          const diff = getSpecialBarChartDiff(info);
+          const formatter = getFormatterFunc(
+            "percent",
+            config.s.decimalPlaces ?? 0,
+          );
+          if (diff === undefined) return "";
+          if (diff < -1 * threshold) return formatter(diff);
+          if (diff > threshold) return "+" + formatter(diff);
+          if (config.s.specialBarChartDataLabels === "all-values")
+            return formatter(diff);
+          return "";
+        },
+        stacking: "none",
+      },
+      lines: {
+        func: { show: false, dataLabel: { show: false } },
+        textFormatter: () => "",
+      },
+      areas: {
+        func: { show: false },
+        diff: { enabled: false },
+      },
+      tableCells: getTableCellsContent(config, formatAs),
+      mapRegions: getMapRegionsContent(config, formatAs),
+    },
+    table: getTableLayoutStyle(config),
+    valuesColorFunc:
+      config.d.type === "map" ? getMapValuesColorFunc(config) : undefined,
+    map:
+      config.d.type === "map"
+        ? { projection: config.s.mapProjection ?? "equirectangular", dataLabelMode: "centroid" }
+        : undefined,
+  };
+}
+
+function getSpecialBarChartDiff(info: ChartValueInfo) {
+  const currentV = info.val;
+  if (currentV === undefined) {
+    return undefined;
+  }
+  const prevV = info.seriesValArrays.at(info.i_series)?.[
+    // Must use square brackets here (otherwise negative 1 issue)
+    info.i_val - 1
+  ];
+  if (prevV !== undefined && prevV !== 0) {
+    return currentV / prevV - 1;
+  }
+  return undefined;
+}

@@ -1,5 +1,5 @@
 import { AlertComponentProps, AlertFormHolder, timActionForm } from "panther";
-import { APIResponseNoData, t3, isFrench } from "lib";
+import { APIResponseNoData, t3 } from "lib";
 import { createSignal } from "solid-js";
 
 export function CreateRestoreFromFileForm(
@@ -44,7 +44,6 @@ export function CreateRestoreFromFileForm(
             savingState={save.state()}
             saveFunc={save.click}
             cancelFunc={() => p.close(undefined)}
-            french={isFrench()}
         >
             <div class="flex flex-col gap-2">
                 <label class="text-sm font-medium">

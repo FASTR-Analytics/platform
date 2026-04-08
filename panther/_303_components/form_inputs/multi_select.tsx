@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createMemo, For, JSX, Show } from "solid-js";
+import { t3 } from "../deps.ts";
 import type { Intent } from "../types.ts";
 import { SelectOption } from "./types.ts";
 import { Checkbox } from "./checkbox.tsx";
@@ -77,7 +78,7 @@ export function MultiSelect<T extends string>(p: MultiSelectProps<T>) {
         >
           <div class="">
             <Checkbox
-              label="Select All"
+              label={t3({ en: "Select All", fr: "Tout sélectionner" })}
               checked={allSelected()}
               indeterminate={someSelected()}
               onChange={toggleSelectAll}

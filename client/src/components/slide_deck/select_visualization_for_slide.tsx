@@ -15,7 +15,6 @@ import {
   PresentationObjectSummary,
   ProjectDetail,
   getReplicateByProp,
-  isFrench,
   t3,
   TC,
 } from "lib";
@@ -66,7 +65,6 @@ export function SelectVisualizationForSlide(
           heading={t3({ en: "Select visualization", fr: "Sélectionner la visualisation" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          french={isFrench()}
         >
           <div class="ui-gap-sm flex">
             <Button onClick={save} intent="success" disabled={!selectedPresObj()} iconName="check">

@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createSignal, type JSX, Show } from "solid-js";
+import { t3 } from "../deps.ts";
 import type { SetStoreFunction } from "solid-js/store";
 import { Button } from "./button.tsx";
 import SortableVendor from "./solid_sortablejs_vendored.tsx";
@@ -86,10 +87,10 @@ export function TimSortableGrid<T extends { id: string }>(p: {
               // iconName="trash"
               outline
             >
-              {"Remove"}
+              {t3({ en: "Remove", fr: "Supprimer" })}
             </Button>
             <Button onClick={handleClearSelection} outline intent="neutral">
-              {"Clear selection"}
+              {t3({ en: "Clear selection", fr: "Effacer la sélection" })}
             </Button>
           </div>
         )}

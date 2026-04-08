@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { ErrorBoundary, type JSX, Match, Show, Switch } from "solid-js";
+import { t3 } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
 import { Loading, Spinner } from "../form_inputs/mod.ts";
 import type {
@@ -72,7 +73,7 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
       <Match when={p.state.status === "error"}>
         <div class="data-[no-pad=false]:ui-pad ui-spy" data-no-pad={!!p.noPad}>
           <div class="text-danger">
-            Error: {(p.state as { err: string }).err}
+            {t3({ en: "Error: ", fr: "Erreur : " })}{(p.state as { err: string }).err}
           </div>
           <div class="ui-gap-sm flex">
             <Switch>
@@ -171,7 +172,7 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
             fallback={(err) => (
               <div class="data-[no-pad=false]:ui-pad" data-no-pad={!!p.noPad}>
                 <div class="text-danger">
-                  Error: {err instanceof Error ? err.message : String(err)}
+                  {t3({ en: "Error: ", fr: "Erreur : " })}{err instanceof Error ? err.message : String(err)}
                 </div>
               </div>
             )}

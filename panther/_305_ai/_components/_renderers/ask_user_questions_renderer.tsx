@@ -10,6 +10,7 @@ import {
   onCleanup,
   onMount,
   Show,
+  t3,
 } from "../../deps.ts";
 import type {
   AskUserQuestionsAnswer,
@@ -76,7 +77,7 @@ export function AskUserQuestionsRenderer(p: Props) {
     <div ref={containerRef} class="border-base-300 rounded border p-3">
       <div class="font-700 mb-2 text-sm">{p.input.question}</div>
       <Show when={p.input.allowMultiple}>
-        <div class="text-neutral mb-2 text-xs">Select all that apply</div>
+        <div class="text-neutral mb-2 text-xs">{t3({ en: "Select all that apply", fr: "Sélectionnez toutes les réponses applicables" })}</div>
       </Show>
       <div class="space-y-1.5">
         <For each={options()}>
@@ -115,14 +116,14 @@ export function AskUserQuestionsRenderer(p: Props) {
             disabled={!allAnswered()}
             onClick={handleSubmit}
           >
-            Submit
+            {t3({ en: "Submit", fr: "Envoyer" })}
           </Button>
           <button
             type="button"
             onClick={handleCancel}
             class="text-neutral hover:text-base-content cursor-pointer text-xs"
           >
-            Cancel
+            {t3({ en: "Cancel", fr: "Annuler" })}
           </button>
         </div>
       </Show>

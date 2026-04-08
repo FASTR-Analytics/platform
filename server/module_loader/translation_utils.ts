@@ -1,4 +1,4 @@
-import { type InstanceLanguage } from "lib";
+import type { Language } from "@timroberton/panther";
 import { _LANGAUGE_MAP_CONTENT } from "./language_map_content.ts";
 
 /**
@@ -7,7 +7,7 @@ import { _LANGAUGE_MAP_CONTENT } from "./language_map_content.ts";
  * @returns A function that translates text, or returns the original text for English
  */
 export function getTranslateFunc(
-  language: InstanceLanguage
+  language: Language
 ): (text: string) => string {
   if (language === "en") {
     return (v: string) => v;

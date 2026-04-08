@@ -1,4 +1,1 @@
-export type TranslatableString = {
-  en: string;
-  fr: string;
-};
+export type { TranslatableString } from "@timroberton/panther";

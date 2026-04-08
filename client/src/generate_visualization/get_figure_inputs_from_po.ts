@@ -3,6 +3,7 @@ import {
   PeriodType,
   formatPeriod,
   getTimeseriesDataTransformed,
+  t3,
   type GeoJSONFeatureCollection,
 } from "panther";
 import {
@@ -11,7 +12,6 @@ import {
   PresentationObjectConfig,
   ResultsValueForVisualization,
   getCalendar,
-  isFrench,
   withReplicant,
 } from "lib";
 import { getLegendItemsFromConfig } from "./conditional_formatting";
@@ -343,7 +343,7 @@ function withDateRange(
   }
   const d =
     formatPeriod(dateRange.min, periodType, calendar) +
-    (isFrench() ? " à " : " to ") +
+    t3({ en: " to ", fr: " à " }) +
     formatPeriod(dateRange.max, periodType, calendar);
   return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d);
 }

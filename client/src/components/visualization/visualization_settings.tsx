@@ -1,4 +1,4 @@
-import { APIResponseNoData, isFrench, t3, TC, VisualizationFolder } from "lib";
+import { APIResponseNoData, t3, TC, VisualizationFolder } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -101,7 +101,6 @@ export function VisualizationSettings(
       saveFunc={p.isDefault ? undefined : save.click}
       cancelFunc={closeButton}
       cancelButtonText={p.isDefault ? t3({ en: "Close", fr: "Fermer" }) : t3(TC.cancel)}
-      french={isFrench()}
     >
       <div class="ui-spy">
         <Show when={!p.isDefault}>

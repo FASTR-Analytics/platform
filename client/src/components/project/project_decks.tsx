@@ -1,7 +1,6 @@
 import {
   SlideDeckGroupingMode,
   SlideDeckSummary,
-  isFrench,
   t3,
   TC,
 } from "lib";
@@ -459,7 +458,6 @@ export function ProjectDecks(p: ExtendedProps) {
           heading={t3({ en: "Slide decks", fr: "Présentations" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          french={isFrench()}
           class="border-base-300"
         >
           <Show
@@ -487,6 +485,7 @@ export function ProjectDecks(p: ExtendedProps) {
           startingWidth={180}
           minWidth={170}
           maxWidth={300}
+          hoverOffset="offset-for-border-1-on-left"
           panelChildren={
             <div class="border-base-300 flex h-full w-full flex-col border-r">
               <div class="border-base-300 border-b p-3">

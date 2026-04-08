@@ -1,4 +1,4 @@
-import { APIResponseNoData, APIResponseWithData, isFrench, t3, TC } from "lib";
+import { APIResponseNoData, APIResponseWithData, t3, TC } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -57,7 +57,6 @@ export function EditLabelForm(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
     >
       <Switch>
         <Match when={!p.textArea}>

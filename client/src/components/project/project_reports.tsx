@@ -4,7 +4,6 @@ import {
   ReportItem,
   ReportSummary,
   get_REPORT_TYPE_MAP,
-  isFrench,
   parseJsonOrThrow,
   t3,
 } from "lib";
@@ -177,7 +176,6 @@ export function ProjectReports(p: ExtendedProps) {
           heading={t3({ en: "Reports", fr: "Rapports" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          french={isFrench()}
           class="border-base-300"
         >
           <Show

@@ -151,6 +151,34 @@ export function getColorFuncGivenConditionalFormatting(
 export function getLegendItemsFromConfig(
   config: PresentationObjectConfig,
 ): LegendItem[] | undefined {
+  if (config.s.specialCoverageChart) {
+    return [
+      {
+        label: t3({
+          en: "Administrative data",
+          fr: "Données administratives",
+        }),
+        color: "#CED4DB",
+        pointStyle: "as-line",
+      },
+      {
+        label: t3({
+          en: "Survey-based estimate",
+          fr: "Estimation basée sur des enquêtes",
+        }),
+        color: "#000000",
+        pointStyle: "as-line",
+      },
+      {
+        label: t3({
+          en: "Projected estimate",
+          fr: "Estimation projetée",
+        }),
+        color: "#F04D44",
+        pointStyle: "as-line",
+      },
+    ];
+  }
   if (config.s.content === "bars" && config.s.specialBarChart) {
     const labels = getPeriodChangeLabels(
       config.d.periodOpt,
@@ -180,7 +208,7 @@ export function getLegendItemsFromConfig(
       },
     ];
   }
-  if (config.s.content === "areas" && config.s.diffAreas) {
+  if (config.s.specialDisruptionsChart || (config.s.content === "areas" && config.s.diffAreas)) { // Legacy adapter — remove once all configs migrated
     if (config.s.diffInverted) {
       return [
         { label: t3({ en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },

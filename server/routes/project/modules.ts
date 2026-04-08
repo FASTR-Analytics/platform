@@ -21,6 +21,7 @@ import {
 import {
   _DATASET_LIMIT,
   MODULE_REGISTRY,
+  isModuleAllowedForCountry,
   throwIfErrWithData,
   type HfaIndicator,
   type ModuleUpdatePreview,
@@ -54,6 +55,14 @@ defineRoute(
   ),
   log("installModule"),
   async (c, { params }) => {
+    const registryEntry = MODULE_REGISTRY.find((m) => m.id === params.module_id);
+    if (registryEntry) {
+      const countryRes = await getCountryIso3Config(c.var.mainDb);
+      const countryIso3 = countryRes.success ? countryRes.data.countryIso3 : undefined;
+      if (!isModuleAllowedForCountry(registryEntry, countryIso3)) {
+        return c.json({ success: false as const, err: "This module is not available for this country" });
+      }
+    }
     const res = await installModule(c.var.ppk.projectDb, params.module_id);
     if (res.success === false) {
       return c.json(res);

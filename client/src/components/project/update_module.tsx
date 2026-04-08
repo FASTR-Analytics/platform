@@ -1,4 +1,4 @@
-import { isFrench, t3, TC, type ModuleId, type ModuleUpdatePreview } from "lib";
+import { t3, TC, type ModuleId, type ModuleUpdatePreview } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -50,7 +50,6 @@ export function UpdateModule(
       saveFunc={save.click}
       saveButtonText={t3(TC.update)}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
     >
       <StateHolderWrapper state={preview.state()} noPad>
         {(data: ModuleUpdatePreview) => {

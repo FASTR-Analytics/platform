@@ -7,7 +7,6 @@ import {
   getMetricDisplayLabel,
   getStartingConfigForPresentationObject,
   groupMetricsByLabel,
-  isFrench,
   t3,
   type CreateModeVisualizationData,
   type MetricWithStatus,
@@ -161,7 +160,6 @@ export function AddVisualization(
       cancelFunc={() => p.close(undefined)}
       width="lg"
       disableSaveButton={!readyToSave()}
-      french={isFrench()}
     >
       <Show when={preselectedMetric}>
         <div class="text-sm">

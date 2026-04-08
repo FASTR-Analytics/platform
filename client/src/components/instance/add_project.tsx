@@ -1,4 +1,4 @@
-import { OtherUser, isFrench, t3 } from "lib";
+import { OtherUser, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -79,7 +79,6 @@ export function AddProjectForm(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
       wider
     >
       {/* <Switch>
@@ -121,7 +120,7 @@ export function AddProjectForm(
                 />
                 <MultiSelect
                   label={t("Enable modules")}
-                  options={getSelectOptionsFromIdLabel(getPossibleModules())}
+                  options={getSelectOptionsFromIdLabel(getPossibleModules(getInstanceCountryIso3()))}
                   values={tempModulesToEnable()}
                   onChange={setTempModulesToEnable}
                 />

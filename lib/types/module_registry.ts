@@ -1,13 +1,31 @@
 import { t3 } from "../translate/t-func.ts";
 
-export const MODULE_REGISTRY = [
+export type ModuleId =
+  | "m001"
+  | "m002"
+  | "m003"
+  | "m004"
+  | "m005"
+  | "m006"
+  | "m007"
+  | "hfa001";
+
+export type ModuleRegistryEntry = {
+  id: ModuleId;
+  label: { en: string; fr: string };
+  prerequisites: ModuleId[];
+  github: { owner: string; repo: string; path: string };
+  allowedCountries?: string[];
+};
+
+export const MODULE_REGISTRY: ModuleRegistryEntry[] = [
   {
     id: "m001",
     label: {
       en: "M1. Data quality assessment",
       fr: "M1. Évaluation de la qualité des données",
     },
-    prerequisites: [] as string[],
+    prerequisites: [],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m001" },
   },
   {
@@ -56,18 +74,25 @@ export const MODULE_REGISTRY = [
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m006" },
   },
   {
+    id: "m007",
+    label: {
+      en: "M7. Scorecard",
+      fr: "M7. Scorecard",
+    },
+    prerequisites: ["m002"],
+    github: { owner: "FASTR-Analytics", repo: "modules", path: "m007" },
+    allowedCountries: ["NIG"],
+  },
+  {
     id: "hfa001",
     label: {
       en: "HFA001. Health facility assessment",
       fr: "HFA001. Évaluation des établissements de santé",
     },
-    prerequisites: [] as string[],
+    prerequisites: [],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "hfa001" },
   },
-] as const;
-
-export type ModuleRegistryEntry = (typeof MODULE_REGISTRY)[number];
-export type ModuleId = ModuleRegistryEntry["id"];
+];
 
 export function getValidatedModuleId(id: string): ModuleId {
   const entry = MODULE_REGISTRY.find((m) => m.id === id);
@@ -78,12 +103,23 @@ export function getValidatedModuleId(id: string): ModuleId {
 export const MODULE_SOURCE: "local" | "github" = "github";
 export const MODULES_LOCAL_DIR = "./modules";
 
-export function getPossibleModules(): {
+export function isModuleAllowedForCountry(
+  m: ModuleRegistryEntry,
+  countryIso3: string | undefined,
+): boolean {
+  if (!m.allowedCountries || m.allowedCountries.length === 0) return true;
+  if (!countryIso3) return false;
+  return m.allowedCountries.includes(countryIso3);
+}
+
+export function getPossibleModules(countryIso3: string | undefined): {
   id: ModuleId;
   label: string;
   prerequisiteModules: string[];
 }[] {
-  return MODULE_REGISTRY.map((m) => ({
+  return MODULE_REGISTRY.filter((m) =>
+    isModuleAllowedForCountry(m, countryIso3),
+  ).map((m) => ({
     id: m.id,
     label: t3(m.label),
     prerequisiteModules: [...m.prerequisites],

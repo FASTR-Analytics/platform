@@ -1,4 +1,4 @@
-import { isFrench, SlideDeckFolder, t3, TC } from "lib";
+import { SlideDeckFolder, t3, TC } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -48,7 +48,6 @@ export function AddDeckForm(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
     >
       <div class="ui-spy">
         <Input

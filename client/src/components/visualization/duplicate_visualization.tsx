@@ -1,4 +1,4 @@
-import { isFrench, t3, TC, VisualizationFolder } from "lib";
+import { t3, TC, VisualizationFolder } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -153,7 +153,6 @@ export function DuplicateVisualization(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
       disableSaveButton={
         isCreatingFolder()
           ? !newFolderLabel().trim()

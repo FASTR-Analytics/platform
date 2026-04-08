@@ -400,7 +400,6 @@ export function SlideList(p: Props) {
       panelChildren={
         <HeadingBar
           heading={p.deckLabel}
-          french={false}
           leftChildren={
             <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
           }

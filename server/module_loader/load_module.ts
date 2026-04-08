@@ -4,9 +4,10 @@ import {
   MODULE_REGISTRY,
   MODULE_SOURCE,
   MODULES_LOCAL_DIR,
+  resolveTS,
   type APIResponseWithData,
   type DefaultPresentationObject,
-  type InstanceLanguage,
+  type Language,
   type MetricDefinition,
   type MetricDefinitionJSON,
   type ModuleDefinition,
@@ -23,10 +24,6 @@ import { stripFrontmatter } from "../github/fetch_module.ts";
 import { getTranslateFunc } from "./translation_utils.ts";
 
 import { _GITHUB_TOKEN } from "../exposed_env_vars.ts";
-
-export function resolveTS(ts: TranslatableString, lang: InstanceLanguage): string {
-  return lang === "fr" ? (ts.fr || ts.en) : ts.en;
-}
 
 function computePeriodFilter(periodOpt: PeriodOption, nMonths: number): PeriodFilter {
   const now = new Date();
@@ -71,7 +68,7 @@ function computePeriodFilter(periodOpt: PeriodOption, nMonths: number): PeriodFi
 export function deriveDefaultPresentationObjects(
   metrics: MetricDefinition[],
   moduleId: string,
-  language: InstanceLanguage,
+  language: Language,
 ): DefaultPresentationObject[] {
   const results: DefaultPresentationObject[] = [];
   let sortOrder = 0;
@@ -181,7 +178,7 @@ function validateDefinition(definition: unknown, moduleId: string): ModuleDefini
 function translateMetrics(
   metrics: MetricDefinitionJSON[],
   tc: (v: string) => string,
-  language: InstanceLanguage,
+  language: Language,
 ): MetricDefinition[] {
   return metrics.map((m) => ({
     ...m,
@@ -211,7 +208,7 @@ function translateResultsObjects(
 
 export async function getModuleDefinitionDetail(
   id: ModuleId,
-  language: InstanceLanguage,
+  language: Language,
 ): Promise<APIResponseWithData<ModuleDefinition & { gitRef?: string }>> {
   try {
     const { definition, script, gitRef } = await fetchModuleFiles(id);

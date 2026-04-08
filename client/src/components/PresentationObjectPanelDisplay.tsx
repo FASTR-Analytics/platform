@@ -365,6 +365,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
       startingWidth={180}
       minWidth={170}
       maxWidth={300}
+      hoverOffset="offset-for-border-1-on-left"
       panelChildren={
         <div class="border-base-300 flex h-full w-full flex-col border-r">
           <div class="border-base-300 flex flex-col gap-2 border-b p-3">

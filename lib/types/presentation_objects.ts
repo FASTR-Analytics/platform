@@ -200,6 +200,7 @@ export const VIZ_TYPE_CONFIG: Record<
     styleResets: {
       specialBarChart: false,
       specialCoverageChart: false,
+      specialDisruptionsChart: false,
       diffAreas: false,
       sortIndicatorValues: "none",
       verticalTickLabels: false,
@@ -220,6 +221,7 @@ export const VIZ_TYPE_CONFIG: Record<
     styleResets: {
       specialScorecardTable: false,
       specialCoverageChart: false,
+      specialDisruptionsChart: false,
       specialBarChart: false,
       diffAreas: false,
     },
@@ -244,6 +246,7 @@ export const VIZ_TYPE_CONFIG: Record<
       specialScorecardTable: false,
       specialBarChart: false,
       specialCoverageChart: false,
+      specialDisruptionsChart: false,
       specialBarChartInverted: false,
       diffAreas: false,
       barsStacked: false,
@@ -375,6 +378,7 @@ export type PresentationObjectConfig = {
     specialBarChartDiffThreshold: number;
     specialBarChartDataLabels: "all-values" | "threshold-values";
     specialCoverageChart: boolean;
+    specialDisruptionsChart: boolean;
     specialScorecardTable: boolean;
     verticalTickLabels: boolean;
     allowVerticalColHeaders: boolean;

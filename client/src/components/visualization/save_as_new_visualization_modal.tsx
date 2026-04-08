@@ -1,5 +1,4 @@
 import {
-  isFrench,
   PresentationObjectConfig,
   PresentationObjectDetail,
   t3,
@@ -77,7 +76,6 @@ export function SaveAsNewVisualizationModal(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
     >
       <div class="ui-spy">
         <Input

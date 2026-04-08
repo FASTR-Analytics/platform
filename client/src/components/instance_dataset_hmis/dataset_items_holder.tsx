@@ -204,6 +204,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
     <FrameLeftResizable
       startingWidth={300}
       maxWidth={800}
+      hoverOffset="offset-for-border-1-on-left"
       panelChildren={
         <div class="ui-pad ui-spy border-base-300 h-full w-full border-r">
           <RadioGroup

@@ -7,7 +7,7 @@ import {
   timActionForm,
 } from "panther";
 import { Show, createSignal } from "solid-js";
-import { ProjectDetail, ReportType, isFrench } from "lib";
+import { ProjectDetail, ReportType } from "lib";
 import { serverActions } from "~/server_actions";
 
 export function DuplicateReportItem(
@@ -62,7 +62,6 @@ export function DuplicateReportItem(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
     >
       <Select
         label={

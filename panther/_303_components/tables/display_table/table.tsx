@@ -13,6 +13,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import { t3 } from "../../deps.ts";
 import type {
   BulkAction,
   ProcessedData,
@@ -143,8 +144,8 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
       <Show when={enableSelection() && selectedItems().length > 0}>
         <div class="ui-pad ui-gap bg-base-100 border-base-300 mb-4 flex items-center rounded border">
           <span class="font-700 flex-none text-sm">
-            {selectedItems().length} {p.selectionLabel || "item"}
-            {selectedItems().length !== 1 ? "s" : ""} selected
+            {selectedItems().length} {p.selectionLabel || t3({ en: "item", fr: "élément" })}
+            {selectedItems().length !== 1 ? "s" : ""} {selectedItems().length !== 1 ? t3({ en: "selected", fr: "sélectionnés" }) : t3({ en: "selected", fr: "sélectionné" })}
           </span>
           <div class="flex items-center gap-2">
             <For each={p.bulkActions}>
@@ -166,7 +167,7 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
               intent="neutral"
               outline
             >
-              Clear selection
+              {t3({ en: "Clear selection", fr: "Effacer la sélection" })}
             </Button>
           </div>
         </div>
@@ -244,7 +245,7 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
                       colspan={p.columns.length + (enableSelection() ? 1 : 0)}
                       class="text-neutral px-4 py-8 text-center text-sm"
                     >
-                      {p.noRowsMessage || "No data available"}
+                      {p.noRowsMessage || t3({ en: "No data available", fr: "Aucune donnée disponible" })}
                     </td>
                   </tr>
                 </Match>

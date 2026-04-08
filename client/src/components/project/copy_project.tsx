@@ -1,4 +1,4 @@
-import { isFrench, t3 } from "lib";
+import { t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -45,7 +45,6 @@ export function CopyProjectForm(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
     >
       <div class="ui-spy">
         <Input

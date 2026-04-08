@@ -16,7 +16,6 @@ import {
   PresentationObjectSummary,
   ProjectDetail,
   getReplicateByProp,
-  isFrench,
 } from "lib";
 import { useProjectDirtyStates } from "~/components/project_runner/mod";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
@@ -83,7 +82,6 @@ export function SelectPresentationObject(
           heading="Select visualization"
           searchText={searchText()}
           setSearchText={setSearchText}
-          french={isFrench()}
         >
           <div class="ui-gap-sm flex">
             <Button

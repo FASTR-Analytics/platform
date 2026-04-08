@@ -20,6 +20,7 @@ import {
 } from "panther";
 import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { moduleLatestCommits, setModuleLatestCommits } from "~/state/ui";
+import { getInstanceCountryIso3 } from "~/state/instance_state";
 import { DirtyStatus } from "~/components/DirtyStatus";
 import {
   useOptimisticSetLastUpdated,
@@ -149,7 +150,7 @@ export function ProjectModules(p: Props) {
         }
       >
         <div class="ui-pad ui-spy">
-          <For each={getPossibleModules()}>
+          <For each={getPossibleModules(getInstanceCountryIso3())}>
             {(possibleModuleDef) => {
               return (
                 <Switch>
@@ -249,7 +250,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
   }
 
   async function disableModule() {
-    for (const otherMod of getPossibleModules()) {
+    for (const otherMod of getPossibleModules(getInstanceCountryIso3())) {
       if (otherMod.prerequisiteModules.includes(p.thisInstalledModule.id)) {
         if (p.allInstalledModules.some((m) => m.id === otherMod.id)) {
           await openAlert({
@@ -520,7 +521,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
     for (const prereq of p.thisUninstalledModulePrerequisiteModules) {
       if (!p.currentModules.some((m) => m.id === prereq)) {
         const missingModLabel =
-          getPossibleModules().find((m) => m.id === prereq)?.label ?? prereq;
+          getPossibleModules(getInstanceCountryIso3()).find((m) => m.id === prereq)?.label ?? prereq;
         return {
           success: false,
           err: `${t3({ en: "In order to install this module you must first install the module", fr: "Pour installer ce module, vous devez d'abord installer le module" })} ${missingModLabel}`,

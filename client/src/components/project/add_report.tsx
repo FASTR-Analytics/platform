@@ -1,4 +1,4 @@
-import { ReportType, get_REPORT_TYPE_SELECT_OPTIONS, isFrench, t3 } from "lib";
+import { ReportType, get_REPORT_TYPE_SELECT_OPTIONS, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -45,7 +45,6 @@ export function AddReportForm(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
     >
       <Input
         label={t3({ en: "Report name", fr: "Nom du rapport" })}

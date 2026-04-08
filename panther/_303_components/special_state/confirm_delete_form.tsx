@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, type JSX, Show } from "solid-js";
+import { t3 } from "../deps.ts";
 import { timActionForm } from "../../_302_query/mod.ts";
 import type {
   APIResponseNoData,
@@ -39,7 +40,7 @@ export function ConfirmDeleteForm<T>(
     <ModalContainer
       width="md"
       topPanel={
-        <div class="font-700 text-danger text-lg leading-none">Warning</div>
+        <div class="font-700 text-danger text-lg leading-none">{t3({ en: "Warning", fr: "Avertissement" })}</div>
       }
       leftButtons={
         // eslint-disable-next-line jsx-key
@@ -49,10 +50,10 @@ export function ConfirmDeleteForm<T>(
             intent="danger"
             state={confirm.state()}
           >
-            Confirm
+            {t3({ en: "Confirm", fr: "Confirmer" })}
           </Button>,
           <Button onClick={() => p.close(undefined)} intent="neutral" autofocus>
-            Cancel
+            {t3({ en: "Cancel", fr: "Annuler" })}
           </Button>,
         ]
       }

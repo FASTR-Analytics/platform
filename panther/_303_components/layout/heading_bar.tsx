@@ -6,6 +6,7 @@
 import { JSX, Show } from "solid-js";
 import { Input } from "../form_inputs/input.tsx";
 import { Button } from "../form_inputs/button.tsx";
+import { t3 } from "../deps.ts";
 
 type Props = {
   heading: string;
@@ -13,7 +14,6 @@ type Props = {
   leftChildren?: JSX.Element;
   setSearchText?: (v: string) => void;
   searchText?: string;
-  french?: boolean;
   class?: string;
   ensureHeightAsIfButton?: boolean;
 };
@@ -40,7 +40,7 @@ export function HeadingBar(p: Props) {
               onChange={p.setSearchText}
               value={p.searchText ?? ""}
               fullWidth
-              label={p.french ? "Recherche" : "Search"}
+              label={t3({ en: "Search", fr: "Recherche" })}
               searchIcon
             />
             <Show when={p.searchText}>

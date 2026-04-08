@@ -5,7 +5,7 @@ import {
   timActionForm,
 } from "panther";
 import { createSignal } from "solid-js";
-import { t3, isFrench, APIResponseNoData } from "lib";
+import { t3, APIResponseNoData } from "lib";
 
 function getTimestamp() {
   const now = new Date();
@@ -65,7 +65,6 @@ export function CreateBackupForm(
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      french={isFrench()}
     >
       <Input
         label={t3({ en: "Backup name", fr: "Nom de la sauvegarde" })}

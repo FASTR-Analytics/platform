@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createSignal, onCleanup } from "solid-js";
+import { t3 } from "../deps.ts";
 import type { Intent } from "../types.ts";
 import { Button } from "./button.tsx";
 
@@ -153,7 +154,7 @@ export function CopyToClipboardButton(p: CopyToClipboardButtonProps) {
       size={p.size}
       disabled={p.disabled}
       iconName={showSuccess() ? "check" : "copy"}
-      ariaLabel={p.ariaLabel ?? "Copy to clipboard"}
+      ariaLabel={p.ariaLabel ?? t3({ en: "Copy to clipboard", fr: "Copier dans le presse-papiers" })}
     >
       {p.children}
     </Button>

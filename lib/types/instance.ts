@@ -8,6 +8,7 @@ import {
   PeriodBounds,
 } from "./presentation_objects.ts";
 import { ProjectSummary, ProjectUserRoleType } from "./projects.ts";
+import type { Language } from "@timroberton/panther";
 
 
 // ============================================================================
@@ -50,13 +51,12 @@ export function throwIfErrNoData(
 // Instance Configuration Types
 // ============================================================================
 
-export type InstanceLanguage = "en" | "fr";
 export type InstanceCalendar = "gregorian" | "ethiopian";
 
 export type InstanceMeta = {
   instanceName: string;
   instanceRedirectUrl: string;
-  instanceLanguage: InstanceLanguage;
+  instanceLanguage: Language;
   instanceCalendar: InstanceCalendar;
   openAccess: boolean;
   serverVersion: string;
@@ -177,7 +177,7 @@ export function getEnabledOptionalFacilityColumns(
 
 export type GlobalUser = {
   instanceName: string;
-  instanceLanguage: InstanceLanguage;
+  instanceLanguage: Language;
   instanceCalendar: InstanceCalendar;
   openAccess: boolean;
   email: string;
@@ -215,7 +215,7 @@ export type UserLog = {
 
 export function createDevGlobalUser(
   instanceName: string,
-  instanceLanguage: InstanceLanguage,
+  instanceLanguage: Language,
   instanceCalendar: InstanceCalendar,
 ): GlobalUser {
   return {

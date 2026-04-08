@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { Component } from "solid-js";
+import { t3 } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 import { SpinningCursor } from "./spinning_cursor.tsx";
 
@@ -13,7 +14,7 @@ export const ToolLoadingRenderer: Component<{
   return (
     <div class="text-sm text-neutral italic">
       <SpinningCursor class="mr-1 inline-block" />
-      {props.item.label ?? `Processing ${props.item.toolName}...`}
+      {props.item.label ?? t3({ en: `Processing ${props.item.toolName}...`, fr: `Traitement de ${props.item.toolName}...` })}
     </div>
   );
 };

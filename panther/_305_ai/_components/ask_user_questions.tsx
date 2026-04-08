@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { t3 } from "../deps.ts";
 import { createAITool } from "../_core/tool_helpers.ts";
 import type { AIToolWithMetadata } from "../_core/tool_helpers.ts";
 import {
@@ -54,8 +55,8 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
           rejectAnswer?.(new Error("User cancelled the question"))}
       />
     ),
-    inProgressLabel: "Waiting for your response...",
-    successMessage: "User responded to question",
+    inProgressLabel: t3({ en: "Waiting for your response...", fr: "En attente de votre réponse..." }),
+    successMessage: t3({ en: "User responded to question", fr: "L'utilisateur a répondu à la question" }),
   });
 }
 

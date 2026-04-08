@@ -57,6 +57,7 @@ export function DocsViewer(p: DocsViewerProps) {
           minWidth={240}
           startingWidth={320}
           maxWidth={500}
+          hoverOffset="offset-for-border-1-on-left"
           preventPanelResizeOnParentResize
           panelChildren={
             <DocsSidebar

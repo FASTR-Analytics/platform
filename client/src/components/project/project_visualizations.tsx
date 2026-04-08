@@ -1,4 +1,4 @@
-import { PresentationObjectSummary, isFrench, t3 } from "lib";
+import { PresentationObjectSummary, t3 } from "lib";
 import {
   Button,
   FrameTop,
@@ -168,7 +168,6 @@ export function ProjectVisualizations(p: Props) {
           heading={t3({ en: "Visualizations", fr: "Visualisations" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          french={isFrench()}
           class="border-base-300"
         >
           <Show

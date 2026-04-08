@@ -8,6 +8,7 @@ import {
   ChevronRightIcon,
   createSignal,
   Show,
+  t3,
 } from "../../deps.ts";
 import type { Component } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
@@ -35,14 +36,14 @@ export const ToolErrorRenderer: Component<{
       <Show when={expanded()}>
         <div class="ml-5 mt-1 space-y-2">
           <div>
-            <div class="mb-1 text-xs font-medium">Error:</div>
+            <div class="mb-1 text-xs font-medium">{t3({ en: "Error:", fr: "Erreur :" })}</div>
             <div class="text-xs">{props.item.errorDetails}</div>
           </div>
 
           <Show when={props.item.errorStack}>
             <div class="border-danger/20 border-t pt-2">
               <div class="text-danger/60 mb-1 text-xs font-medium">
-                Stack trace:
+                {t3({ en: "Stack trace:", fr: "Trace de la pile :" })}
               </div>
               <pre class="text-danger/80 bg-danger/5 overflow-x-auto whitespace-pre-wrap rounded p-2 font-mono text-[10px]">
                 {props.item.errorStack}
