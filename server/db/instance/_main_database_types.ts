@@ -38,6 +38,18 @@ export type UserLog = {
   project_id?: string;
 };
 
+export type AiUsageLog = {
+  id: number;
+  timestamp: Date;
+  user_email: string;
+  project_id: string | null;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens: number;
+  cache_creation_input_tokens: number;
+};
+
 export type DBInstanceConfig = {
   config_key: string;
   config_json_value: string;

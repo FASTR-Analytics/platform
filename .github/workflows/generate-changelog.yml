@@ -1,0 +1,31 @@
+name: Generate Changelog
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/**/*.ts'
+      - 'client/src/**/*.tsx'
+      - 'client/src/**/*.ts'
+      - 'lib/**/*.ts'
+      - 'VERSION'
+
+permissions:
+  contents: write
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: bash .github/scripts/generate-changelog.sh
