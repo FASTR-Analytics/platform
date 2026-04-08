@@ -8,15 +8,15 @@ The platform proxies all chatbot requests through `server/routes/project/ai_prox
 
 ## Files to Create/Modify (Platform)
 
-| File | Action |
-|---|---|
-| `server/db/migrations/instance/012_add_ai_usage_logs.sql` | Create (new migration) |
-| `server/db/instance/_main_database.sql` | Update (add table definition) |
-| `server/db/instance/_main_database_types.ts` | Update (add `AiUsageLog` type) |
-| `server/db/instance/ai_usage_logs.ts` | Create (new DB access module) |
-| `server/db/instance/mod.ts` | Update (export new module) |
-| `server/routes/project/ai_proxy.ts` | Update (capture and log usage) |
-| `server/routes/instance/health.ts` | Update (add `/ai_usage` endpoint) |
+| File                                                      | Action                            |
+|-----------------------------------------------------------|-----------------------------------|
+| `server/db/migrations/instance/012_add_ai_usage_logs.sql` | Create (new migration)            |
+| `server/db/instance/_main_database.sql`                   | Update (add table definition)     |
+| `server/db/instance/_main_database_types.ts`              | Update (add `AiUsageLog` type)    |
+| `server/db/instance/ai_usage_logs.ts`                     | Create (new DB access module)     |
+| `server/db/instance/mod.ts`                               | Update (export new module)        |
+| `server/routes/project/ai_proxy.ts`                       | Update (capture and log usage)    |
+| `server/routes/instance/health.ts`                        | Update (add `/ai_usage` endpoint) |
 
 ---
 
@@ -102,6 +102,7 @@ export async function GetAiUsageLogs(mainDb: Sql): Promise<AiUsageLog[]> {
 ```
 
 Export from `server/db/instance/mod.ts`:
+
 ```typescript
 export * from "./ai_usage_logs.ts";
 ```
@@ -127,6 +128,7 @@ Import `GetAiUsageLogs` and `AiUsageLog` from `"../../db/mod.ts"`.
 ## Step 5 — Update `ai_proxy.ts`
 
 Get context at the start of the handler:
+
 ```typescript
 const userEmail = c.var.globalUser.email;
 const projectId = c.var.ppk.projectId;
@@ -134,6 +136,7 @@ const mainDb = c.var.mainDb;
 ```
 
 **Non-streaming path** — after `response.json()`, fire-and-forget log:
+
 ```typescript
 const data = await response.json();
 const u = data.usage ?? {};
@@ -145,6 +148,7 @@ return c.json(data);
 ```
 
 **Streaming path** — wrap `response.body` in a `TransformStream` that intercepts SSE lines, accumulates token counts from `message_start` and `message_delta` events, then logs on `flush`:
+
 ```typescript
 let inputTokens = 0, outputTokens = 0, cacheReadTokens = 0, cacheCreationTokens = 0;
 let buffer = "";
@@ -192,18 +196,22 @@ return new Response(response.body!.pipeThrough(transformStream), {
 ## Admin website: cost calculation
 
 ### 1. Fetch token rows
+
 ```
 GET {platform_url}/health/ai_usage
 → { logs: AiUsageLog[] }
 ```
 
 ### 2. Fetch LiteLLM pricing JSON
+
 ```
 GET https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json
 ```
+
 Keep a local bundled fallback copy to use if the GitHub fetch fails (e.g. in network-restricted deployments).
 
 ### 3. Calculate cost per row
+
 ```typescript
 function computeCost(log: AiUsageLog, pricing: Record<string, ModelPricing>): number {
   const p = pricing[log.model];
@@ -218,6 +226,7 @@ function computeCost(log: AiUsageLog, pricing: Record<string, ModelPricing>): nu
 LiteLLM uses bare Anthropic model IDs as keys (e.g. `claude-sonnet-4-5-20250929`), matching what the platform stores.
 
 ### 4. Aggregate as needed
+
 - Total cost per user: group by `user_email`, sum costs
 - Total cost per project: group by `project_id`, sum costs
 - Total cost per period: group by day/month using `timestamp`
