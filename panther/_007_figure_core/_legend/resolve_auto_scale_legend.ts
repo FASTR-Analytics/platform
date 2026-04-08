@@ -172,14 +172,11 @@ function buildAutoFormatter(
 }
 
 function computeDecimalPlaces(values: number[]): number {
-  let maxDp = 0;
-  for (const v of values) {
-    const s = Math.abs(v).toPrecision(10);
-    const dotIndex = s.indexOf(".");
-    if (dotIndex === -1) continue;
-    const trimmed = s.replace(/0+$/, "");
-    const dp = trimmed.length - dotIndex - 1;
-    if (dp > maxDp) maxDp = dp;
+  if (values.length <= 1) return 0;
+  for (let dp = 0; dp <= 3; dp++) {
+    const factor = Math.pow(10, dp);
+    const rounded = new Set(values.map((v) => Math.round(v * factor)));
+    if (rounded.size === values.length) return dp;
   }
-  return maxDp;
+  return 3;
 }
