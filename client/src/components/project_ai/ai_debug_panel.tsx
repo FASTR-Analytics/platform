@@ -13,8 +13,8 @@ import { formatVisualizationsListForAI } from "./ai_tools/tools/_internal/format
 type DebugView = "metrics" | "visualizations";
 
 const DEBUG_VIEW_OPTIONS: SelectOption<DebugView>[] = [
-  { value: "metrics", label: "Available metrics (get_available_metrics)" },
-  { value: "visualizations", label: "Available visualizations (get_available_visualizations)" },
+  { value: "metrics", label: t3({ en: "Available metrics (get_available_metrics)", fr: "Métriques disponibles (get_available_metrics)" }) },
+  { value: "visualizations", label: t3({ en: "Available visualizations (get_available_visualizations)", fr: "Visualisations disponibles (get_available_visualizations)" }) },
 ];
 
 export type AIDebugPanelProps = {

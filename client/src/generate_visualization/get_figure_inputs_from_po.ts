@@ -289,7 +289,7 @@ export function getFigureInputsFromPresentationObject(
                 ? { min: config.s.mapDomainMin, max: config.s.mapDomainMax }
                 : undefined,
               format: resultsValue.formatAs ?? "number",
-              noData: { color: "#f0f0f0", label: "No data" },
+              noData: { color: "#f0f0f0", label: t3({ en: "No data", fr: "Aucune donnée" }) },
             }
             : {
               type: "gradient-auto" as const,
@@ -298,7 +298,7 @@ export function getFigureInputsFromPresentationObject(
                 ? { min: config.s.mapDomainMin, max: config.s.mapDomainMax }
                 : undefined,
               format: resultsValue.formatAs ?? "number",
-              noData: { color: "#f0f0f0", label: "No data" },
+              noData: { color: "#f0f0f0", label: t3({ en: "No data", fr: "Aucune donnée" }) },
             },
         },
       };

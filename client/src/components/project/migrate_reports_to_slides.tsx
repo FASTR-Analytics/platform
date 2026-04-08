@@ -69,7 +69,7 @@ export function MigrateReportsToSlides(
     try {
       const folderRes = await serverActions.createSlideDeckFolder({
         projectId: p.projectDetail.id,
-        label: "Old reports",
+        label: t3({ en: "Old reports", fr: "Anciens rapports" }),
       });
       if (!folderRes.success) {
         setErr("Failed to create folder: " + folderRes.err);

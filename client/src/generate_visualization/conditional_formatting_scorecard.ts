@@ -9,6 +9,7 @@ import {
   _CF_LIGHTER_GREEN,
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
+  t3,
 } from "lib";
 import { toNum0, toNum1, to100Pct0, type FigureInputs } from "panther";
 import {
@@ -281,9 +282,9 @@ export function getSpecialScorecardTableFigureInputs(
     },
     style,
     legend: [
-      { label: "On track", color: _CF_LIGHTER_GREEN },
-      { label: "Progress", color: _CF_LIGHTER_YELLOW },
-      { label: "Not on track", color: _CF_LIGHTER_RED },
+      { label: t3({ en: "On track", fr: "En bonne voie" }), color: _CF_LIGHTER_GREEN },
+      { label: t3({ en: "Progress", fr: "En progrès" }), color: _CF_LIGHTER_YELLOW },
+      { label: t3({ en: "Not on track", fr: "Pas en bonne voie" }), color: _CF_LIGHTER_RED },
     ],
   };
 }

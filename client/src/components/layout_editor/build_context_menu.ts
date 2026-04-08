@@ -12,6 +12,7 @@ import {
   findById,
   findFirstItem,
 } from "panther";
+import { t3 } from "lib";
 
 export type BlockType =
   | "text"
@@ -77,14 +78,14 @@ export function buildLayoutContextMenu<T>(
   if (isEmptyFigure) {
     if (callbacks.onSelectVisualization) {
       items.push({
-        label: "Select visualization",
+        label: t3({ en: "Select visualization", fr: "Sélectionner la visualisation" }),
         icon: "chart",
         onClick: () => callbacks.onSelectVisualization!(targetId),
       });
     }
     if (callbacks.onCreateVisualization) {
       items.push({
-        label: "Create new visualization",
+        label: t3({ en: "Create new visualization", fr: "Créer une nouvelle visualisation" }),
         icon: "plus",
         onClick: () => callbacks.onCreateVisualization!(targetId),
       });
@@ -99,7 +100,7 @@ export function buildLayoutContextMenu<T>(
 
     if (isFigureWithSource && callbacks.onEditVisualization) {
       items.push({
-        label: "Edit visualization",
+        label: t3({ en: "Edit visualization", fr: "Modifier la visualisation" }),
         icon: "pencil",
         onClick: () => callbacks.onEditVisualization!(targetId),
       });
@@ -107,7 +108,7 @@ export function buildLayoutContextMenu<T>(
 
     if (callbacks.onReplaceVisualization) {
       items.push({
-        label: "Switch visualization",
+        label: t3({ en: "Switch visualization", fr: "Changer de visualisation" }),
         icon: "switchHorizontal",
         onClick: () => callbacks.onReplaceVisualization!(targetId),
       });
@@ -115,7 +116,7 @@ export function buildLayoutContextMenu<T>(
 
     if (callbacks.onCreateVisualization) {
       items.push({
-        label: "Create new visualization",
+        label: t3({ en: "Create new visualization", fr: "Créer une nouvelle visualisation" }),
         icon: "plus",
         onClick: () => callbacks.onCreateVisualization!(targetId),
       });
@@ -123,7 +124,7 @@ export function buildLayoutContextMenu<T>(
 
     if (callbacks.onRemoveVisualization) {
       items.push({
-        label: "Remove visualization",
+        label: t3({ en: "Remove visualization", fr: "Supprimer la visualisation" }),
         icon: "trash",
         intent: "danger",
         onClick: () => callbacks.onRemoveVisualization!(targetId),
@@ -148,7 +149,7 @@ export function buildLayoutContextMenu<T>(
 
     if (blockType !== "text" && callbacks.onConvertToText) {
       conversionItems.push({
-        label: "Text",
+        label: t3({ en: "Text", fr: "Texte" }),
         icon: "text",
         onClick: () => callbacks.onConvertToText!(targetId),
       });
@@ -156,7 +157,7 @@ export function buildLayoutContextMenu<T>(
 
     if (blockType !== "figure" && callbacks.onConvertToFigure) {
       conversionItems.push({
-        label: "Visualization",
+        label: t3({ en: "Visualization", fr: "Visualisation" }),
         icon: "chart",
         onClick: () => callbacks.onConvertToFigure!(targetId),
       });
@@ -164,7 +165,7 @@ export function buildLayoutContextMenu<T>(
 
     if (blockType !== "image" && callbacks.onConvertToImage) {
       conversionItems.push({
-        label: "Image",
+        label: t3({ en: "Image", fr: "Image" }),
         icon: "photo",
         onClick: () => callbacks.onConvertToImage!(targetId),
       });
@@ -173,7 +174,7 @@ export function buildLayoutContextMenu<T>(
     if (conversionItems.length > 0) {
       items.push({
         type: "sub-item",
-        label: "Change to",
+        label: t3({ en: "Change to", fr: "Convertir en" }),
         icon: "switchHorizontal",
         subMenu: conversionItems,
       });
@@ -186,7 +187,7 @@ export function buildLayoutContextMenu<T>(
 
   if (isOnlyNode || parentType === "cols") {
     splitItems.push({
-      label: "Into rows",
+      label: t3({ en: "Into rows", fr: "En lignes" }),
       icon: "plus",
       onClick: () => {
         const newBlock = callbacks.createNewBlock();
@@ -199,7 +200,7 @@ export function buildLayoutContextMenu<T>(
 
   if (isOnlyNode || parentType === "rows") {
     splitItems.push({
-      label: "Into columns",
+      label: t3({ en: "Into columns", fr: "En colonnes" }),
       icon: "plus",
       onClick: () => {
         const newBlock = callbacks.createNewBlock();
@@ -213,7 +214,7 @@ export function buildLayoutContextMenu<T>(
   if (splitItems.length > 0) {
     items.push({
       type: "sub-item",
-      label: "Split",
+      label: t3({ en: "Split", fr: "Diviser" }),
       icon: "plus",
       subMenu: splitItems,
     });
@@ -222,11 +223,11 @@ export function buildLayoutContextMenu<T>(
   // === ADD/INSERT OPERATIONS ===
   items.push({
     type: "sub-item",
-    label: "Add",
+    label: t3({ en: "Add", fr: "Ajouter" }),
     icon: "plus",
     subMenu: [
       {
-        label: "Col to left",
+        label: t3({ en: "Col to left", fr: "Colonne à gauche" }),
         icon: "plus",
         onClick: () => {
           const newBlock = callbacks.createNewBlock();
@@ -236,7 +237,7 @@ export function buildLayoutContextMenu<T>(
         },
       },
       {
-        label: "Col to right",
+        label: t3({ en: "Col to right", fr: "Colonne à droite" }),
         icon: "plus",
         onClick: () => {
           const newBlock = callbacks.createNewBlock();
@@ -246,7 +247,7 @@ export function buildLayoutContextMenu<T>(
         },
       },
       {
-        label: "Row above",
+        label: t3({ en: "Row above", fr: "Ligne au-dessus" }),
         icon: "plus",
         onClick: () => {
           const newBlock = callbacks.createNewBlock();
@@ -256,7 +257,7 @@ export function buildLayoutContextMenu<T>(
         },
       },
       {
-        label: "Row below",
+        label: t3({ en: "Row below", fr: "Ligne en dessous" }),
         icon: "plus",
         onClick: () => {
           const newBlock = callbacks.createNewBlock();
@@ -279,7 +280,7 @@ export function buildLayoutContextMenu<T>(
 
   if (canMoveLeft) {
     moveItems.push({
-      label: "Left",
+      label: t3({ en: "Left", fr: "Gauche" }),
       icon: "arrowLeft",
       onClick: () => {
         const result = moveNodeLeft(layout, targetId);
@@ -290,7 +291,7 @@ export function buildLayoutContextMenu<T>(
 
   if (canMoveRight) {
     moveItems.push({
-      label: "Right",
+      label: t3({ en: "Right", fr: "Droite" }),
       icon: "arrowRight",
       onClick: () => {
         const result = moveNodeRight(layout, targetId);
@@ -301,7 +302,7 @@ export function buildLayoutContextMenu<T>(
 
   if (canMoveUp) {
     moveItems.push({
-      label: "Up",
+      label: t3({ en: "Up", fr: "Haut" }),
       icon: "arrowUp",
       onClick: () => {
         const result = moveNodeUp(layout, targetId);
@@ -312,7 +313,7 @@ export function buildLayoutContextMenu<T>(
 
   if (canMoveDown) {
     moveItems.push({
-      label: "Down",
+      label: t3({ en: "Down", fr: "Bas" }),
       icon: "arrowDown",
       onClick: () => {
         const result = moveNodeDown(layout, targetId);
@@ -324,7 +325,7 @@ export function buildLayoutContextMenu<T>(
   if (moveItems.length > 0) {
     items.push({
       type: "sub-item",
-      label: "Move",
+      label: t3({ en: "Move", fr: "Déplacer" }),
       icon: "move",
       subMenu: moveItems,
     });
@@ -334,7 +335,7 @@ export function buildLayoutContextMenu<T>(
   if (!isOnlyNode) {
     items.push({ type: "divider" });
     items.push({
-      label: "Delete this cell",
+      label: t3({ en: "Delete this cell", fr: "Supprimer cette cellule" }),
       icon: "trash",
       intent: "danger",
       onClick: () => {
