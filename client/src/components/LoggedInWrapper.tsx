@@ -70,7 +70,7 @@ export function LoggedInWrapper(p: Props) {
   return (
     <Show
       when={clerkLoaded()}
-      fallback={<div class="ui-pad">{t3(TC.loading)}</div>}
+      fallback={<div />}
     >
       <Show
         when={bypassAuth || clerkUser()}
