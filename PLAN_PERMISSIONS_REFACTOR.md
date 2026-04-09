@@ -278,7 +278,7 @@ export const PERMISSION_PRESETS: {
 ];
 ```
 
-Update all call sites that reference `preset.label` to use `t3(preset.label)`.
+Update all call sites that reference `preset.label` to use `t3(preset.label)`. This includes removing inline type annotations in files 2, 3, and 5 that annotate the `preset` parameter as `{ label: string; ... }` — these become type errors once `label` is `TranslatableString`.
 
 ### Step 5: Update client files to use shared definitions
 
@@ -306,11 +306,11 @@ Each file goes from ~40 lines of local definitions to 1-2 imports.
 
 **File 6 (`bulk_edit_permissions_form.tsx` — instance permissions):**
 
-Delete local `PERMISSION_LABELS`. Replace with:
+Delete local `PERMISSION_LABELS` (which uses `() => string` getter format to work around the t3() bug). Replace with:
 
 ```ts
 import { INSTANCE_PERMISSION_LABELS } from "lib";
-// Usage:
+// Usage (note: no more () invocation — t3() returns the string directly):
 t3(INSTANCE_PERMISSION_LABELS[key])
 ```
 
@@ -356,6 +356,10 @@ This also standardizes the wording to match the rest of the app.
 **File 8 (`instance/user.tsx`):**
 
 Delete the local `USER_PERMISSIONS` array export (moved to `lib/types/permissions.ts` in Step 1). Update `user.tsx` and `bulk_edit_permissions_form.tsx` to import `USER_PERMISSIONS` from `lib` instead.
+
+Also update the permission checkbox labels in `user.tsx` (line 198) — currently uses `key.replaceAll("_", " ")` which produces un-translated lowercase labels like "can view data". Replace with `t3(INSTANCE_PERMISSION_LABELS[key])`.
+
+Remove the `export` keyword from `makeDefaultProjectPermissions` in `project_permission_form.tsx` — it's only used within that file.
 
 ### Step 6: Simplify server permission building
 
