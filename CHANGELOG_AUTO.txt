@@ -1,3 +1,9 @@
+[TBD] [user] [changed] - Users without the "configure users" permission no longer see bulk admin actions (Make admin, Make non-admin, Edit permissions, Edit default project permissions, Remove) in the user table
+[TBD] [user] [changed] - Instance permissions, user permissions, project permissions sections, and the "Remove this user" button on individual user pages are now hidden for users who lack the "configure users" permission or global admin role
+[TBD] [admin] [changed] - UserTable component in instance_users.tsx now conditionally renders bulk actions (Make admin, Make non-admin, Edit permissions, Edit default project permissions, Remove) based on `canConfigureUsers` flag derived from `currentUserIsGlobalAdmin` or `can_configure_users` permission
+[TBD] [admin] [changed] - User component in user.tsx now gates Instance permissions, User Permissions, Project permissions sections, and Remove user button behind `instanceState.currentUserIsGlobalAdmin || instanceState.currentUserPermissions.can_configure_users` check
+[TBD] [admin] [added] - Import of `instanceState` from `~/state/instance_state` in user.tsx to support permission-based UI gating
+[TBD] [admin] [internal] - Bulk action array in instance_users.tsx refactored to use spread operator with conditional arrays and `as const` type assertions for intent properties to satisfy TypeScript type narrowing
 [1.17.3] [user] [changed] - Instance users list now displays specific permission summaries (e.g., "Can configure data, Can view logs") instead of just "User" for non-admin users
 [1.17.3] [user] [added] - Project users with all permissions are now labeled "Project Admin" with highlighted styling instead of listing every permission
 [1.17.3] [user] [changed] - Edit button for global admin users in project user table is now hidden instead of shown as disabled
