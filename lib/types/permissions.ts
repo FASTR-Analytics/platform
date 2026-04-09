@@ -1,3 +1,5 @@
+import type { TranslatableString } from "../translate/types.ts";
+
 export type UserPermissions = {
   can_configure_users: boolean;
   can_view_users: boolean;
@@ -33,6 +35,24 @@ export type ProjectUserPermissions = {
 
 export type ProjectPermission = keyof ProjectUserPermissions;
 
+export const USER_PERMISSIONS = [
+  "can_configure_users",
+  "can_view_users",
+  "can_view_logs",
+  "can_configure_settings",
+  "can_configure_assets",
+  "can_configure_data",
+  "can_view_data",
+  "can_create_projects",
+] as const satisfies readonly UserPermission[];
+
+type _AssertUserExhaustive =
+  Exclude<UserPermission, (typeof USER_PERMISSIONS)[number]> extends never
+    ? true
+    : "ERROR: USER_PERMISSIONS array is missing a permission key";
+const _userCheck: _AssertUserExhaustive = true;
+void _userCheck;
+
 export const PROJECT_PERMISSIONS = [
   "can_configure_settings",
   "can_create_backups",
@@ -51,7 +71,64 @@ export const PROJECT_PERMISSIONS = [
   "can_view_metrics",
   "can_view_logs",
   "can_view_script_code",
-] satisfies readonly ProjectPermission[];
+] as const satisfies readonly ProjectPermission[];
+
+type _AssertProjectExhaustive =
+  Exclude<ProjectPermission, (typeof PROJECT_PERMISSIONS)[number]> extends never
+    ? true
+    : "ERROR: PROJECT_PERMISSIONS array is missing a permission key";
+const _projectCheck: _AssertProjectExhaustive = true;
+void _projectCheck;
+
+export const _USER_PERMISSIONS_DEFAULT_NO_ACCESS: UserPermissions = {
+  can_configure_users: false,
+  can_view_users: false,
+  can_view_logs: false,
+  can_configure_settings: false,
+  can_configure_assets: false,
+  can_configure_data: false,
+  can_view_data: false,
+  can_create_projects: false,
+};
+
+export const _USER_PERMISSIONS_DEFAULT_FULL_ACCESS: UserPermissions = {
+  can_configure_users: true,
+  can_view_users: true,
+  can_view_logs: true,
+  can_configure_settings: true,
+  can_configure_assets: true,
+  can_configure_data: true,
+  can_view_data: true,
+  can_create_projects: true,
+};
+
+export function buildUserPermissionsFromRow(
+  row: Record<string, unknown>,
+): UserPermissions {
+  return Object.fromEntries(
+    USER_PERMISSIONS.map((k) => {
+      const val = row[k];
+      if (val === undefined) {
+        console.warn(`buildUserPermissionsFromRow: missing column "${k}" — defaulting to false`);
+      }
+      return [k, !!val];
+    }),
+  ) as UserPermissions;
+}
+
+export function buildProjectPermissionsFromRow(
+  row: Record<string, unknown>,
+): ProjectUserPermissions {
+  return Object.fromEntries(
+    PROJECT_PERMISSIONS.map((k) => {
+      const val = row[k];
+      if (val === undefined) {
+        console.warn(`buildProjectPermissionsFromRow: missing column "${k}" — defaulting to false`);
+      }
+      return [k, !!val];
+    }),
+  ) as ProjectUserPermissions;
+}
 
 export const _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS = {
   can_configure_settings: false,
@@ -94,15 +171,15 @@ export const _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS = {
 };
 
 export const PERMISSION_PRESETS: {
-  label: string;
+  label: TranslatableString;
   permissions: Record<ProjectPermission, boolean>;
 }[] = [
   {
-    label: "No access",
+    label: { en: "No access", fr: "Aucun accès" },
     permissions: _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   },
   {
-    label: "Viewer",
+    label: { en: "Viewer", fr: "Lecteur" },
     permissions: {
       can_configure_settings: false,
       can_create_backups: false,
@@ -124,7 +201,7 @@ export const PERMISSION_PRESETS: {
     },
   },
   {
-    label: "Editor",
+    label: { en: "Editor", fr: "Éditeur" },
     permissions: {
       can_configure_settings: false,
       can_create_backups: false,
@@ -146,7 +223,7 @@ export const PERMISSION_PRESETS: {
     },
   },
   {
-    label: "Admin",
+    label: { en: "Admin", fr: "Administrateur" },
     permissions: _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
   },
 ];

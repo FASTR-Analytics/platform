@@ -4,6 +4,8 @@ import {
   t3,
   TC,
   UserPermission,
+  USER_PERMISSIONS,
+  INSTANCE_PERMISSION_LABELS,
 } from "lib";
 import {
   Button,
@@ -19,17 +21,6 @@ import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { ProjectPermissionForm } from "./project_permission_form.tsx";
 
-
-export const USER_PERMISSIONS = [
-  "can_configure_users",
-  "can_view_users",
-  "can_view_logs",
-  "can_configure_settings",
-  "can_configure_assets",
-  "can_configure_data",
-  "can_view_data",
-  "can_create_projects"
-] as const satisfies readonly UserPermission[];
 
 type Props = {
   user: OtherUser;
@@ -192,10 +183,10 @@ export function User(p: Props) {
             <Show when={permissions()} fallback={<div>{t3(TC.loading)}</div>}>
               {(perms) => (
                 <div class="space-y-2">
-                  <For each={Object.keys(perms()) as UserPermission[]}>
+                  <For each={USER_PERMISSIONS as readonly UserPermission[]}>
                     {(key) =>(
                       <Checkbox
-                        label={key.replaceAll("_", " ")}
+                        label={t3(INSTANCE_PERMISSION_LABELS[key])}
                         checked={perms()[key]}
                         onChange={() => togglePermission(key)}
                       />

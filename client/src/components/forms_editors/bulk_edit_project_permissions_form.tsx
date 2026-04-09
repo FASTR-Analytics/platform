@@ -7,67 +7,9 @@ import {
 import { For } from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { t3, TC, type ProjectPermission, PROJECT_PERMISSIONS, PERMISSION_PRESETS } from "lib";
+import { t3, TC, type ProjectPermission, PROJECT_PERMISSIONS, PERMISSION_PRESETS, PROJECT_PERMISSION_LABELS, PROJECT_PERMISSION_CATEGORIES } from "lib";
 
 type TriState = true | false | "unchanged";
-
-const PERMISSION_LABELS: Record<ProjectPermission, string> = {
-  can_view_visualizations: t3({ en: "can view visualizations", fr: "peut voir les visualisations" }),
-  can_configure_visualizations: t3({ en: "can create and edit visualizations", fr: "peut créer et modifier les visualisations" }),
-  can_view_reports: t3({ en: "can view reports", fr: "peut voir les rapports" }),
-  can_configure_reports: t3({ en: "can create and edit reports", fr: "peut créer et modifier les rapports" }),
-  can_view_slide_decks: t3({ en: "can view slide decks", fr: "peut voir les présentations" }),
-  can_configure_slide_decks: t3({ en: "can create and edit slide decks", fr: "peut créer et modifier les présentations" }),
-  can_configure_data: t3({ en: "can configure data", fr: "peut configurer les données" }),
-  can_view_data: t3({ en: "can view data", fr: "peut voir les données" }),
-  can_view_metrics: t3({ en: "can view metrics", fr: "peut voir les métriques" }),
-  can_configure_modules: t3({ en: "can configure modules", fr: "peut configurer les modules" }),
-  can_run_modules: t3({ en: "can run modules", fr: "peut exécuter les modules" }),
-  can_configure_settings: t3({ en: "can configure settings", fr: "peut configurer les paramètres" }),
-  can_configure_users: t3({ en: "can configure users", fr: "peut configurer les utilisateurs" }),
-  can_view_logs: t3({ en: "can view logs", fr: "peut voir les journaux" }),
-  can_create_backups: t3({ en: "can create backups", fr: "peut créer des sauvegardes" }),
-  can_restore_backups: t3({ en: "can restore backups", fr: "peut restaurer des sauvegardes" }),
-  can_view_script_code: t3({ en: "can view script code", fr: "peut voir le code des scripts" }),
-};
-
-const PERMISSION_CATEGORIES: {
-  label: string;
-  permissions: readonly ProjectPermission[];
-}[] = [
-  {
-    label: t3({ en: "Analytical Products", fr: "Produits analytiques" }),
-    permissions: [
-      "can_view_visualizations",
-      "can_configure_visualizations",
-      "can_view_reports",
-      "can_configure_reports",
-      "can_view_slide_decks",
-      "can_configure_slide_decks",
-    ],
-  },
-  {
-    label: t3({ en: "Data & Modules", fr: "Données et modules" }),
-    permissions: [
-      "can_view_data",
-      "can_configure_data",
-      "can_view_metrics",
-      "can_view_script_code",
-      "can_configure_modules",
-      "can_run_modules",
-    ],
-  },
-  {
-    label: t3({ en: "Project Administration", fr: "Administration du projet" }),
-    permissions: [
-      "can_configure_settings",
-      "can_configure_users",
-      "can_view_logs",
-      "can_create_backups",
-      "can_restore_backups",
-    ],
-  },
-];
 
 function cycleTriState(current: TriState): TriState {
   if (current === "unchanged") return true;
@@ -127,7 +69,7 @@ export function BulkEditProjectPermissionsForm(
           <div class="font-600 text-sm">{t3({ en: "Permission presets", fr: "Préréglages de permissions" })}</div>
           <div class="flex gap-2">
             <For each={PERMISSION_PRESETS}>
-              {(preset: { label: string; permissions: Record<ProjectPermission, boolean> }) => (
+              {(preset) => (
                 <Button
                   onClick={() =>
                     setState(
@@ -139,21 +81,21 @@ export function BulkEditProjectPermissionsForm(
                   intent="neutral"
                   size="sm"
                 >
-                  {preset.label}
+                  {t3(preset.label)}
                 </Button>
               )}
             </For>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
-          <For each={PERMISSION_CATEGORIES}>
-            {(category: { label: string; permissions: readonly ProjectPermission[] }) => (
+          <For each={PROJECT_PERMISSION_CATEGORIES}>
+            {(category) => (
               <div class="space-y-2">
-                <div class="font-600 text-sm">{category.label}</div>
+                <div class="font-600 text-sm">{t3(category.label)}</div>
                 <For each={category.permissions}>
-                  {(key: ProjectPermission) => (
+                  {(key) => (
                     <TriStateCheckbox
-                      label={PERMISSION_LABELS[key]}
+                      label={t3(PROJECT_PERMISSION_LABELS[key])}
                       value={state[key]}
                       onChange={() => setState(key, cycleTriState(state[key]))}
                     />

@@ -12,7 +12,15 @@ import {
 import type { DBProjectUserRole, DBUser } from "./db/mod.ts";
 import { getPgConnectionFromCacheOrNew } from "./db/mod.ts";
 import type { GlobalUser, ProjectUser, ProjectPermission } from "lib";
-import { createDevGlobalUser, createDevProjectUser } from "lib";
+import {
+  createDevGlobalUser,
+  createDevProjectUser,
+  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+  _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  buildUserPermissionsFromRow,
+  buildProjectPermissionsFromRow,
+} from "lib";
 import { ProjectPk } from "./server_only_types/mod.ts";
 
 type RequireProjectPermissionOptions = {
@@ -179,37 +187,10 @@ export async function getGlobalUser(
 
     // Admins get all permissions, others get their configured permissions
     const thisUserPermissions: GlobalUser["thisUserPermissions"] = isGlobalAdmin
-      ? {
-          can_configure_users: true,
-          can_view_users: true,
-          can_view_logs: true,
-          can_configure_settings: true,
-          can_configure_assets: true,
-          can_configure_data: true,
-          can_view_data: true,
-          can_create_projects: true,
-        }
+      ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
       : rawUser
-        ? {
-            can_configure_users: rawUser.can_configure_users,
-            can_view_users: rawUser.can_view_users,
-            can_view_logs: rawUser.can_view_logs,
-            can_configure_settings: rawUser.can_configure_settings,
-            can_configure_assets: rawUser.can_configure_assets,
-            can_configure_data: rawUser.can_configure_data,
-            can_view_data: rawUser.can_view_data,
-            can_create_projects: rawUser.can_create_projects,
-          }
-        : {
-            can_configure_users: false,
-            can_view_users: false,
-            can_view_logs: false,
-            can_configure_settings: false,
-            can_configure_assets: false,
-            can_configure_data: false,
-            can_view_data: false,
-            can_create_projects: false,
-          };
+        ? buildUserPermissionsFromRow(rawUser)
+        : _USER_PERMISSIONS_DEFAULT_NO_ACCESS;
 
     const globalUser: GlobalUser = {
       instanceName: _INSTANCE_NAME,
@@ -283,23 +264,7 @@ async function getProjectUser(
           email: globalUser.email,
           role: "editor", // deprecated
           isGlobalAdmin: true,
-          can_configure_settings: true,
-          can_create_backups: true,
-          can_restore_backups: true,
-          can_configure_modules: true,
-          can_run_modules: true,
-          can_configure_users: true,
-          can_configure_visualizations: true,
-          can_view_visualizations: true,
-          can_configure_reports: true,
-          can_view_reports: true,
-          can_configure_slide_decks: true,
-          can_view_slide_decks: true,
-          can_configure_data: true,
-          can_view_data: true,
-          can_view_metrics: true,
-          can_view_logs: true,
-          can_view_script_code: true,
+          ..._PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
         },
       };
     }
@@ -327,24 +292,7 @@ async function getProjectUser(
         email: globalUser.email,
         role: rawProjectUserRole.role === "editor" ? "editor" : "viewer", // deprecated
         isGlobalAdmin: false,
-        can_configure_settings: rawProjectUserRole.can_configure_settings,
-        can_create_backups: rawProjectUserRole.can_create_backups,
-        can_restore_backups: rawProjectUserRole.can_restore_backups,
-        can_configure_modules: rawProjectUserRole.can_configure_modules,
-        can_run_modules: rawProjectUserRole.can_run_modules,
-        can_configure_users: rawProjectUserRole.can_configure_users,
-        can_configure_visualizations:
-          rawProjectUserRole.can_configure_visualizations,
-        can_view_visualizations: rawProjectUserRole.can_view_visualizations,
-        can_configure_reports: rawProjectUserRole.can_configure_reports,
-        can_view_reports: rawProjectUserRole.can_view_reports,
-        can_configure_slide_decks: rawProjectUserRole.can_configure_slide_decks,
-        can_view_slide_decks: rawProjectUserRole.can_view_slide_decks,
-        can_configure_data: rawProjectUserRole.can_configure_data,
-        can_view_data: rawProjectUserRole.can_view_data,
-        can_view_metrics: rawProjectUserRole.can_view_metrics,
-        can_view_logs: rawProjectUserRole.can_view_logs,
-        can_view_script_code: rawProjectUserRole.can_view_script_code,
+        ...buildProjectPermissionsFromRow(rawProjectUserRole),
       },
     };
   } catch (error) {

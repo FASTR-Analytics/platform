@@ -1,11 +1,12 @@
 import {
   ProjectDetail,
   ProjectUser,
+  PROJECT_PERMISSIONS,
+  PROJECT_PERMISSION_LABELS,
   t3,
   TC,
   H_USERS,
 } from "lib";
-import type { TranslatableString } from "lib";
 import {
   Button,
   ChevronDownIcon,
@@ -385,94 +386,17 @@ export function ProjectSettings(p: Props) {
   );
 }
 
-const permissionLabels: {
-  key: keyof ProjectUser;
-  label: TranslatableString;
-}[] = [
-  {
-    key: "can_view_reports",
-    label: { en: "View reports", fr: "Consulter les rapports" },
-  },
-  {
-    key: "can_view_visualizations",
-    label: { en: "View visualizations", fr: "Consulter les visualisations" },
-  },
-  {
-    key: "can_view_slide_decks",
-    label: { en: "View slide decks", fr: "Consulter les présentations" },
-  },
-  {
-    key: "can_view_data",
-    label: { en: "View data", fr: "Consulter les données" },
-  },
-  {
-    key: "can_view_metrics",
-    label: { en: "View metrics", fr: "Consulter les métriques" },
-  },
-  {
-    key: "can_view_script_code",
-    label: { en: "View script code", fr: "Consulter le code des scripts" },
-  },
-  {
-    key: "can_view_logs",
-    label: { en: "View logs", fr: "Consulter les journaux" },
-  },
-  {
-    key: "can_configure_settings",
-    label: { en: "Configure settings", fr: "Configurer les paramètres" },
-  },
-  {
-    key: "can_configure_modules",
-    label: { en: "Configure modules", fr: "Configurer les modules" },
-  },
-  {
-    key: "can_run_modules",
-    label: { en: "Run modules", fr: "Exécuter les modules" },
-  },
-  {
-    key: "can_configure_users",
-    label: { en: "Configure users", fr: "Configurer les utilisateurs" },
-  },
-  {
-    key: "can_configure_visualizations",
-    label: {
-      en: "Configure visualizations",
-      fr: "Configurer les visualisations",
-    },
-  },
-  {
-    key: "can_configure_reports",
-    label: { en: "Configure reports", fr: "Configurer les rapports" },
-  },
-  {
-    key: "can_configure_slide_decks",
-    label: { en: "Configure slide decks", fr: "Configurer les présentations" },
-  },
-  {
-    key: "can_configure_data",
-    label: { en: "Configure data", fr: "Configurer les données" },
-  },
-  {
-    key: "can_create_backups",
-    label: { en: "Create backups", fr: "Créer des sauvegardes" },
-  },
-  {
-    key: "can_restore_backups",
-    label: { en: "Restore backups", fr: "Restaurer des sauvegardes" },
-  },
-];
-
 function hasPermissions(user: ProjectUser): boolean {
-  return permissionLabels.some((p) => user[p.key]);
+  return PROJECT_PERMISSIONS.some((k) => user[k]);
 }
 
 function getPermissionSummary(user: ProjectUser): string {
-  const active = permissionLabels.filter((p) => user[p.key]);
+  const active = PROJECT_PERMISSIONS.filter((k) => user[k]);
   if (active.length === 0)
     return t3({ en: "Does not have access", fr: "N'a pas accès" });
   const shown = active
     .slice(0, 5)
-    .map((p) => t3(p.label))
+    .map((k) => t3(PROJECT_PERMISSION_LABELS[k]))
     .join(", ");
   if (active.length > 5)
     return `${shown}, +${active.length - 5} ${t3({ en: "more", fr: "de plus" })}`;
