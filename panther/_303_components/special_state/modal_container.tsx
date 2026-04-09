@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type JSX, Show } from "solid-js";
+import { children, type JSX, Show } from "solid-js";
 
 export type ModalContainerWidth = "sm" | "md" | "lg" | "xl" | "2xl";
 export type ModalContainerScroll = "content" | "page";
@@ -29,19 +29,20 @@ const WIDTH_CLASSES: Record<ModalContainerWidth, string> = {
 export function ModalContainer(p: ModalContainerProps) {
   const widthClass = () => WIDTH_CLASSES[p.width ?? "md"];
   const scroll = () => p.scroll ?? "content";
+  const resolvedTopPanel = children(() => p.topPanel);
 
   return (
     <div
       class={`flex flex-col ${widthClass()}`}
       classList={{ "max-h-[80vh]": scroll() === "content" }}
     >
-      <Show when={p.title || p.topPanel}>
+      <Show when={p.title || resolvedTopPanel()}>
         <div class="border-base-300 border-b px-6 py-5 leading-none">
           <Show
-            when={p.topPanel}
+            when={resolvedTopPanel()}
             fallback={<h2 class="font-700 text-lg leading-none">{p.title}</h2>}
           >
-            {p.topPanel}
+            {resolvedTopPanel()}
           </Show>
         </div>
       </Show>

@@ -6,7 +6,6 @@ import {
   HeadingBarMainRibbon,
   LockIcon,
   getEditorWrapper,
-  openAlert,
   openComponent,
 } from "panther";
 import { For, Show } from "solid-js";
@@ -32,16 +31,6 @@ export function InstanceProjects(p: Props) {
   }
 
   async function attemptAddProject() {
-    if (instanceState.datasetsWithData.length === 0) {
-      await openAlert({
-        text: t3({
-          en: "You need to add data to the instance before you can create a project",
-          fr: "Vous devez ajouter des données à l'instance avant de pouvoir créer un projet",
-        }),
-        intent: "danger",
-      });
-      return;
-    }
     const res = await openComponent({
       element: AddProjectForm,
       props: {

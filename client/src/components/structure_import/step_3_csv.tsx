@@ -27,7 +27,7 @@ export function Step3_Csv(p: Props) {
       await p.silentRefresUploadAttempt();
     }
     return res;
-  }, p.silentRefreshInstance);
+  }, p.silentRefresUploadAttempt, p.silentRefreshInstance);
 
   return (
     <div class="ui-pad ui-spy">
