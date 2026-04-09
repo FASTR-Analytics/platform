@@ -1,3 +1,9 @@
+[1.17.4] [user] [changed] - Clerk authentication screens now display in French when the instance language is set to French, improving the login experience for French-speaking users
+[1.17.4] [user] [fixed] - Language preference is now applied earlier on page load, reducing flicker where the interface might briefly show the wrong language before switching
+[1.17.4] [admin] [internal] - Extracted hardcoded `"fastrLanguage"` localStorage key into a shared constant `LANGUAGE_STORAGE_KEY` in `lib/translate/t-func.ts`, replacing all usages across `LoggedInWrapper`, `Instance`, and `routes/index.tsx`
+[1.17.4] [admin] [changed] - Moved language initialization from `ClerkNewLogin` component to the top of `LoggedInWrapper` component so stored language preference is applied earlier in the lifecycle
+[1.17.4] [admin] [changed] - Clerk authentication now loads with French (`frFR`) localization when the resolved language is `"fr"`, using `@clerk/localizations` import
+[1.17.4] [admin] [changed] - `LoggedInWrapper.onMount` now fetches `instanceMeta` via `serverActions.getInstanceMeta` to determine language before Clerk loads, falling back to server-provided `instanceLanguage` when no stored language preference exists
 [1.17.4] [user] [changed] - Edit button in the project user table now shows a pencil icon instead of text label
 [1.17.4] [admin] [internal] - Reformatted empty async callbacks in `lockProject` and `unlockProject` action buttons to single-line style in `ProjectSettings`
 [1.17.4] [admin] [changed] - Replaced text-based edit Button with icon-only button (iconName="pencil") in `ProjectUserTable` component
