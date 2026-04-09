@@ -3,12 +3,15 @@ import {
   getPgConnectionFromCacheOrNew,
   getReportItemsThatDependOnPresentationObjects,
 } from "../db/mod.ts";
-import { DirtyOrRunStatus, ProjectSseUpdateMessage } from "lib";
+import { ProjectSseUpdateMessage } from "lib";
 import { EndingTaskData } from "../server_only_types/mod.ts";
 import { hasRunningModule, removeRunningModule } from "./running_tasks_map.ts";
 import { triggerRunnableModules } from "./trigger_runnable_tasks.ts";
 import { getPresentationObjectsThatDependOnModule } from "./get_dependents.ts";
-import { notifyLastUpdated, notifyProjectUpdated } from "./notify_last_updated.ts";
+import {
+  notifyLastUpdated,
+  notifyProjectUpdated,
+} from "./notify_last_updated.ts";
 
 const broadcastTaskEnded = new BroadcastChannel("task_ended");
 const broadcastDirtyStates = new BroadcastChannel("dirty_states");
@@ -22,7 +25,7 @@ broadcastTaskEnded.addEventListener("message", async (evt) => {
   }
   const projectDb = getPgConnectionFromCacheOrNew(
     etd.projectId,
-    "READ_AND_WRITE"
+    "READ_AND_WRITE",
   );
   removeRunningModule(etd.projectId, etd.moduleId);
   await setModuleClean(projectDb, etd);
@@ -105,7 +108,7 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
     etd.projectId,
     projectDb,
     etd.moduleId,
-    lastRun
+    lastRun,
   );
 
   notifyProjectUpdated(etd.projectId, lastRun);
@@ -115,7 +118,7 @@ async function setAllModuleDependentsLastUpdatedAndNotify(
   projectId: string,
   projectDb: Sql,
   moduleId: string,
-  lastUpdated: string
+  lastUpdated: string,
 ) {
   const presentationObjectsThatDependOnModule =
     await getPresentationObjectsThatDependOnModule(projectDb, moduleId);
@@ -127,7 +130,7 @@ async function setAllModuleDependentsLastUpdatedAndNotify(
   const reportItemsThatDependOnPresentationObjects =
     await getReportItemsThatDependOnPresentationObjects(
       projectDb,
-      presentationObjectsThatDependOnModule
+      presentationObjectsThatDependOnModule,
     );
 
   await projectDb.begin(async (sql) => {
@@ -151,7 +154,7 @@ WHERE id = ${reportItemId}
     projectId,
     "presentation_objects",
     presentationObjectsThatDependOnModule,
-    lastUpdated
+    lastUpdated,
   );
 
   if (reportItemsThatDependOnPresentationObjects.length > 0) {
@@ -159,7 +162,7 @@ WHERE id = ${reportItemId}
       projectId,
       "report_items",
       reportItemsThatDependOnPresentationObjects,
-      lastUpdated
+      lastUpdated,
     );
   }
 }
