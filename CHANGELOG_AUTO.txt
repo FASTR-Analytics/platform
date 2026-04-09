@@ -1,3 +1,10 @@
+[1.17.5] [user] [added] - Project cards now display how long ago the last activity occurred (e.g., "5m ago", "3d ago")
+[1.17.5] [user] [changed] - Login page left panel border removed for a cleaner appearance
+[1.17.5] [admin] [changed] - Added `lastActivityAt` field (string | undefined) to `ProjectSummary` type in `lib/types/projects.ts`
+[1.17.5] [admin] [changed] - `getAllProjectSummaries` in `server/db/instance/instance.ts` now performs a LEFT JOIN against a `user_logs` subquery (aggregating `MAX(timestamp)` per `project_id`) to populate `last_activity_at` on each project summary
+[1.17.5] [admin] [changed] - `getInstanceDetail` admin branch query in `server/db/instance/instance.ts` updated to LEFT JOIN `user_logs` subquery for `last_activity_at`, with fully qualified table aliases (`p.*`, `la.last_activity_at`)
+[1.17.5] [admin] [changed] - `getInstanceDetail` non-admin (per-user role) branch query in `server/db/instance/instance.ts` updated to LEFT JOIN `user_logs` subquery for `last_activity_at`, with all column references qualified via `pur.*`, `p.*`, and `la.*` aliases
+[1.17.5] [admin] [internal] - All three project summary SQL queries now use explicit table aliases (`p`, `pur`, `la`) and fully qualified column references for `project_user_roles` permission checks and `ORDER BY` clause
 [1.17.5] [user] [changed] - Loading indicator text removed during initial authentication check, now shows a blank screen instead of "Loading..." message
 [1.17.5] [admin] [changed] - LoggedInWrapper component: replaced loading text fallback with empty div when Clerk auth is not yet loaded, removing dependency on translation string TC.loading
 [1.17.5] [user] [changed] - The login/sign-up page now displays a redesigned split-screen layout with a decorative side panel showing the instance name and branding, replacing the previous centered page with separate Sign in/Sign up buttons
