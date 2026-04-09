@@ -355,51 +355,59 @@ function UserTable(p: {
     downloadCsv(csv.stringify(), filename);
   }
 
+  const canConfigureUsers =
+    instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_configure_users;
+
   const bulkActions: BulkAction<UserTableData>[] = [
-    {
-      label: t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur" }),
-      intent: "primary",
-      onClick: bulkMakeAdmin.click,
-      state: bulkMakeAdmin.state,
-      outline: true,
-    },
-    {
-      label: t3({
-        en: "Make non-admin",
-        fr: "Retirer le rôle d'administrateur",
-      }),
-      intent: "primary",
-      onClick: bulkMakeNonAdmin.click,
-      state: bulkMakeNonAdmin.state,
-      outline: true,
-    },
-    {
-      label: t3({ en: "Edit permissions", fr: "Modifier les droits d'accès" }),
-      intent: "primary",
-      outline: true,
-      onClick: handleBulkEditPermissions,
-    },
-    {
-      label: t3({
-        en: "Edit default project permissions",
-        fr: "Modifier les permissions de projet par défaut",
-      }),
-      intent: "primary",
-      outline: true,
-      onClick: handleBulkEditDefaultProjectPermissions,
-    },
+    ...(canConfigureUsers ? [
+      {
+        label: t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur" }),
+        intent: "primary" as const,
+        onClick: bulkMakeAdmin.click,
+        state: bulkMakeAdmin.state,
+        outline: true,
+      },
+      {
+        label: t3({
+          en: "Make non-admin",
+          fr: "Retirer le rôle d'administrateur",
+        }),
+        intent: "primary" as const,
+        onClick: bulkMakeNonAdmin.click,
+        state: bulkMakeNonAdmin.state,
+        outline: true,
+      },
+      {
+        label: t3({ en: "Edit permissions", fr: "Modifier les droits d'accès" }),
+        intent: "primary" as const,
+        outline: true,
+        onClick: handleBulkEditPermissions,
+      },
+      {
+        label: t3({
+          en: "Edit default project permissions",
+          fr: "Modifier les permissions de projet par défaut",
+        }),
+        intent: "primary" as const,
+        outline: true,
+        onClick: handleBulkEditDefaultProjectPermissions,
+      },
+    ] : []),
     {
       label: t3({ en: "Download users", fr: "Télécharger les utilisateurs" }),
       intent: "primary",
       outline: true,
       onClick: handleBulkDownloadCSV,
     },
-    {
-      label: t3({ en: "Remove", fr: "Supprimer" }),
-      intent: "danger",
-      outline: true,
-      onClick: handleBulkRemoveUsers,
-    },
+    ...(canConfigureUsers ? [
+      {
+        label: t3({ en: "Remove", fr: "Supprimer" }),
+        intent: "danger" as const,
+        outline: true,
+        onClick: handleBulkRemoveUsers,
+      },
+    ] : []),
   ];
 
   return (

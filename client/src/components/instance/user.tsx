@@ -20,6 +20,7 @@ import {
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { ProjectPermissionForm } from "./project_permission_form.tsx";
+import { instanceState } from "~/state/instance_state";
 
 
 type Props = {
@@ -133,102 +134,104 @@ export function User(p: Props) {
             <div class="flex-1">{p.user.email}</div>
           </div>
         </SettingsSection>
-        <SettingsSection
-          header={t3({ en: "Instance permissions", fr: "Droits d'accès à l'instance" })}
-          rightChildren={
-            <div class="ui-gap-sm flex">
-              <Switch>
-                <Match when={p.user.isGlobalAdmin}>
-                  <Button
-                    onClick={attemptMakeNonAdmin.click}
-                    state={attemptMakeNonAdmin.state()}
-                    outline
-                  >
-                    {t3({ en: "Make non-admin", fr: "Retirer le rôle d'administrateur" })}
-                  </Button>
-                </Match>
-                <Match when={true}>
-                  <Button
-                    onClick={attemptMakeAdmin.click}
-                    state={attemptMakeAdmin.state()}
-                    outline
-                  >
-                    {t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur" })}
-                  </Button>
-                </Match>
-              </Switch>
-            </div>
-          }
-        >
-          <div class="flex">
-            <div class="w-48 flex-none">{t3({ en: "Instance admin", fr: "Administrateur de l'instance" })}:</div>
-            <div class="flex-1">
-              {p.user.isGlobalAdmin ? t3({ en: "Yes", fr: "Oui" }) : t3({ en: "No", fr: "Non" })}
-            </div>
-          </div>
-        </SettingsSection>
-        <Show when={p.user.isGlobalAdmin === false}>
+        <Show when={instanceState.currentUserIsGlobalAdmin || instanceState.currentUserPermissions.can_configure_users}>
           <SettingsSection
-            header={t3({ en: "User Permissions", fr: "Droits d'accès de l'utilisateur" })}
+            header={t3({ en: "Instance permissions", fr: "Droits d'accès à l'instance" })}
             rightChildren={
-              <Show when={hasChanges()}>
-                <Button
-                  onClick={savePermissions.click}
-                  state={savePermissions.state()}>
-                  {t3({ en: "Save Changes", fr: "Sauvegarder les modifications" })}
-                </Button>
-              </Show>
+              <div class="ui-gap-sm flex">
+                <Switch>
+                  <Match when={p.user.isGlobalAdmin}>
+                    <Button
+                      onClick={attemptMakeNonAdmin.click}
+                      state={attemptMakeNonAdmin.state()}
+                      outline
+                    >
+                      {t3({ en: "Make non-admin", fr: "Retirer le rôle d'administrateur" })}
+                    </Button>
+                  </Match>
+                  <Match when={true}>
+                    <Button
+                      onClick={attemptMakeAdmin.click}
+                      state={attemptMakeAdmin.state()}
+                      outline
+                    >
+                      {t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur" })}
+                    </Button>
+                  </Match>
+                </Switch>
+              </div>
             }
           >
-            <Show when={permissions()} fallback={<div>{t3(TC.loading)}</div>}>
-              {(perms) => (
-                <div class="space-y-2">
-                  <For each={USER_PERMISSIONS as readonly UserPermission[]}>
-                    {(key) =>(
-                      <Checkbox
-                        label={t3(INSTANCE_PERMISSION_LABELS[key])}
-                        checked={perms()[key]}
-                        onChange={() => togglePermission(key)}
-                      />
-                    )}
-                  </For>
-                </div>
-              )}
-            </Show>
-          </SettingsSection>
-        </Show>
-        <Show when={p.user.isGlobalAdmin === false}>
-          <SettingsSection
-            header={t3({ en: "Project permissions", fr: "Permissions par projet" })}
-          >
-            <div class="grid grid-cols-3 gap-2">
-              {p.projects.map((project) => (
-                <button
-                  type="button"
-                  class="ui-pad ui-hoverable border-base-300 min-h-[60px] rounded border text-left text-sm font-semibold"
-                  onClick={() => openProjectPermissions(project.id, project.label)}
-                >
-                  {project.label}
-                </button>
-              ))}
-              <button
-                type="button"
-                class="ui-pad ui-hoverable border-base-300 col-span-full min-h-[40px] rounded border text-left text-sm italic text-neutral"
-                onClick={() => openProjectPermissions(null, t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)" }))}
-              >
-                {t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)" })}
-              </button>
+            <div class="flex">
+              <div class="w-48 flex-none">{t3({ en: "Instance admin", fr: "Administrateur de l'instance" })}:</div>
+              <div class="flex-1">
+                {p.user.isGlobalAdmin ? t3({ en: "Yes", fr: "Oui" }) : t3({ en: "No", fr: "Non" })}
+              </div>
             </div>
           </SettingsSection>
+          <Show when={p.user.isGlobalAdmin === false}>
+            <SettingsSection
+              header={t3({ en: "User Permissions", fr: "Droits d'accès de l'utilisateur" })}
+              rightChildren={
+                <Show when={hasChanges()}>
+                  <Button
+                    onClick={savePermissions.click}
+                    state={savePermissions.state()}>
+                    {t3({ en: "Save Changes", fr: "Sauvegarder les modifications" })}
+                  </Button>
+                </Show>
+              }
+            >
+              <Show when={permissions()} fallback={<div>{t3(TC.loading)}</div>}>
+                {(perms) => (
+                  <div class="space-y-2">
+                    <For each={USER_PERMISSIONS as readonly UserPermission[]}>
+                      {(key) =>(
+                        <Checkbox
+                          label={t3(INSTANCE_PERMISSION_LABELS[key])}
+                          checked={perms()[key]}
+                          onChange={() => togglePermission(key)}
+                        />
+                      )}
+                    </For>
+                  </div>
+                )}
+              </Show>
+            </SettingsSection>
+          </Show>
+          <Show when={p.user.isGlobalAdmin === false}>
+            <SettingsSection
+              header={t3({ en: "Project permissions", fr: "Permissions par projet" })}
+            >
+              <div class="grid grid-cols-3 gap-2">
+                {p.projects.map((project) => (
+                  <button
+                    type="button"
+                    class="ui-pad ui-hoverable border-base-300 min-h-[60px] rounded border text-left text-sm font-semibold"
+                    onClick={() => openProjectPermissions(project.id, project.label)}
+                  >
+                    {project.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  class="ui-pad ui-hoverable border-base-300 col-span-full min-h-[40px] rounded border text-left text-sm italic text-neutral"
+                  onClick={() => openProjectPermissions(null, t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)" }))}
+                >
+                  {t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)" })}
+                </button>
+              </div>
+            </SettingsSection>
+          </Show>
+          <Button
+            onClick={attemptDeleteUser}
+            intent="danger"
+            outline
+            iconName="trash"
+          >
+            {t3({ en: "Remove this user", fr: "Supprimer cet utilisateur" })}
+          </Button>
         </Show>
-        <Button
-          onClick={attemptDeleteUser}
-          intent="danger"
-          outline
-          iconName="trash"
-        >
-          {t3({ en: "Remove this user", fr: "Supprimer cet utilisateur" })}
-        </Button>
       </div>
     </FrameTop>
   );
