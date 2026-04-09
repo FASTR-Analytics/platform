@@ -1,0 +1,14 @@
+[1.17.3] [user] [changed] - Instance users list now displays specific permission summaries (e.g., "Can configure data, Can view logs") instead of just "User" for non-admin users
+[1.17.3] [user] [added] - Project users with all permissions are now labeled "Project Admin" with highlighted styling instead of listing every permission
+[1.17.3] [user] [changed] - Edit button for global admin users in project user table is now hidden instead of shown as disabled
+[1.17.3] [admin] [internal] - Refactored `getInstanceUsers` in `server/db/instance/instance.ts` to use shared `_USER_PERMISSIONS_DEFAULT_FULL_ACCESS` and `buildUserPermissionsFromRow` helpers instead of inline permission mapping
+[1.17.3] [admin] [internal] - Refactored `getOtherUser` in `server/db/instance/users.ts` to use shared `_USER_PERMISSIONS_DEFAULT_FULL_ACCESS` and `buildUserPermissionsFromRow` helpers, eliminating duplicated admin/non-admin permission construction
+[1.17.3] [admin] [changed] - `getInstanceUsers` now returns `isGlobalAdmin` directly from `rawUser.is_admin` instead of hardcoding `true`/`false` in separate branches
+[1.17.3] [admin] [changed] - `getOtherUser` now returns `isGlobalAdmin` directly from `rawUser.is_admin` instead of using ternary with hardcoded boolean values
+[1.17.3] [admin] [added] - Imported `_USER_PERMISSIONS_DEFAULT_FULL_ACCESS` and `buildUserPermissionsFromRow` from lib in both `server/db/instance/instance.ts` and `server/db/instance/users.ts`
+[1.17.3] [admin] [added] - Added `indicatorMappingsVersion` cache version retrieval via `getIndicatorMappingsVersion` call in instance detail assembly in `server/db/instance/instance.ts`
+[1.17.3] [admin] [internal] - Extended `UserData` type in `instance_users.tsx` with `Record<UserPermission, boolean>` to support per-permission display
+[1.17.3] [admin] [added] - Added `hasGlobalPermissions` and `getGlobalPermissionSummary` helper functions in `instance_users.tsx` to display instance-level permission summaries for non-admin users
+[1.17.3] [admin] [added] - Added `isProjectAdmin` function in `project_settings.tsx` that checks if a user has all project permissions via `PROJECT_PERMISSIONS.every`
+[1.17.3] [admin] [changed] - Project user table in `project_settings.tsx` now shows "Project Admin" label with `text-primary` styling when user has all project permissions
+[1.17.3] [admin] [changed] - Edit button for global admin users in `ProjectUserTable` changed from `disabled` prop to wrapping div with `invisible` class to maintain layout while hiding interaction
