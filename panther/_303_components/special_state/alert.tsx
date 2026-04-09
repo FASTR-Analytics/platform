@@ -245,18 +245,16 @@ export default function AlertProvider() {
                         <div class="ui-never-focusable bg-base-100 z-50 mx-12 rounded shadow-lg outline-none">
                           <ModalContainer
                             width="sm"
-                            topPanel={
-                              <Show when={keyedACPState.title} keyed>
-                                {(keyedTitle) => (
-                                  <h2
-                                    class="ui-text-heading data-primary:text-primary data-neutral:text-neutral data-success:text-success data-danger:text-danger leading-none"
-                                    data-intent={keyedACPState.intent}
-                                  >
-                                    {keyedTitle}
-                                  </h2>
-                                )}
-                              </Show>
-                            }
+                            topPanel={keyedACPState.title
+                              ? (
+                                <h2
+                                  class="ui-text-heading data-primary:text-primary data-neutral:text-neutral data-success:text-success data-danger:text-danger leading-none"
+                                  data-intent={keyedACPState.intent}
+                                >
+                                  {keyedACPState.title}
+                                </h2>
+                              )
+                              : undefined}
                             leftButtons={(() => {
                               const ass = keyedACPState;
                               if (isAlertState(ass)) {
