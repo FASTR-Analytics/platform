@@ -1,3 +1,5 @@
+[1.17.5] [user] [changed] - Loading indicator text removed during initial authentication check, now shows a blank screen instead of "Loading..." message
+[1.17.5] [admin] [changed] - LoggedInWrapper component: replaced loading text fallback with empty div when Clerk auth is not yet loaded, removing dependency on translation string TC.loading
 [1.17.5] [user] [changed] - The login/sign-up page now displays a redesigned split-screen layout with a decorative side panel showing the instance name and branding, replacing the previous centered page with separate Sign in/Sign up buttons
 [1.17.5] [user] [changed] - Sign-in and sign-up forms are now embedded directly on the login page using Clerk components instead of redirecting to external Clerk-hosted sign-in/sign-up pages
 [1.17.5] [user] [fixed] - Authentication state now reactively updates when the user signs in or out, preventing stale UI where the app might not detect a user session change
