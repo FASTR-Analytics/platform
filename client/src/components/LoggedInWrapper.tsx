@@ -1,15 +1,20 @@
 import { Clerk } from "@clerk/clerk-js";
 import { frFR } from "@clerk/localizations";
 import { clearDataCache } from "~/state/clear_data_cache";
-import { GlobalUser, t3, TC, createDevGlobalUser, setLanguage, LANGUAGE_STORAGE_KEY } from "lib";
+import {
+  GlobalUser,
+  t3,
+  TC,
+  createDevGlobalUser,
+  setLanguage,
+  LANGUAGE_STORAGE_KEY,
+} from "lib";
 import type { Language } from "panther";
-import { Button, StateHolderWrapper, timQuery } from "panther";
-import { JSX, Show, createSignal, onMount } from "solid-js";
+import { StateHolderWrapper, timQuery } from "panther";
+import { JSX, Show, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const clerkSignInFlow = import.meta.env.VITE_CLERK_SIGN_IN_FLOW;
-const clerkSignUpFlow = import.meta.env.VITE_CLERK_SIGN_UP_FLOW;
 
 // Only allow bypass auth if:
 // 1. VITE_BYPASS_AUTH is set to true
@@ -34,12 +39,15 @@ type Props = {
 ///////////////////////////////////////////////////////////////////////////////////
 
 export function LoggedInWrapper(p: Props) {
-  const storedLang = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Language | null;
+  const storedLang = localStorage.getItem(
+    LANGUAGE_STORAGE_KEY,
+  ) as Language | null;
   if (storedLang) {
     setLanguage(storedLang);
   }
 
   const [clerkLoaded, setClerkLoaded] = createSignal(bypassAuth);
+  const [clerkUser, setClerkUser] = createSignal(clerk.user);
 
   onMount(async () => {
     if (!bypassAuth) {
@@ -54,6 +62,7 @@ export function LoggedInWrapper(p: Props) {
       await clerk.load({
         localization: lang === "fr" ? frFR : undefined,
       });
+      clerk.addListener((e) => setClerkUser(e.user ?? null));
       setClerkLoaded(true);
     }
   });
@@ -63,7 +72,10 @@ export function LoggedInWrapper(p: Props) {
       when={clerkLoaded()}
       fallback={<div class="ui-pad">{t3(TC.loading)}</div>}
     >
-      <Show when={bypassAuth || clerk.user} fallback={<ClerkNewLogin />}>
+      <Show
+        when={bypassAuth || clerkUser()}
+        fallback={<ClerkNewLogin />}
+      >
         {(_) => {
           ///////////////////////////////////////////////////////////////////////////////////
           ///////////////////////////////////////////////////////////////////////////////////
@@ -145,54 +157,89 @@ export function LoggedInWrapper(p: Props) {
 }
 
 function ClerkNewLogin() {
-  const instanceMeta = timQuery(
-    () => serverActions.getInstanceMeta({}),
-    t3(TC.loading),
-  );
+  let authEl!: HTMLDivElement;
+
+  const isSignUp = new URLSearchParams(window.location.search).get("mode") === "sign-up";
+  const [meta, setMeta] = createSignal<{ instanceName: string; instanceLanguage: Language } | null>(null);
+
+  onMount(async () => {
+    const res = await serverActions.getInstanceMeta({});
+    if (res.success) {
+      if (!localStorage.getItem(LANGUAGE_STORAGE_KEY)) {
+        setLanguage(res.data.instanceLanguage);
+      }
+      setMeta(res.data);
+      if (isSignUp) {
+        clerk.mountSignUp(authEl, { signInUrl: "/", fallbackRedirectUrl: "/" });
+      } else {
+        clerk.mountSignIn(authEl, { signUpUrl: "/?mode=sign-up" });
+      }
+    }
+  });
+
+  onCleanup(() => {
+    if (isSignUp) {
+      clerk.unmountSignUp(authEl);
+    } else {
+      clerk.unmountSignIn(authEl);
+    }
+  });
 
   return (
-    <div class="h-full w-full overflow-y-auto">
-      <div class="flex min-h-full w-full items-center justify-center">
-        <div class="w-full pt-12 pb-72">
-          <StateHolderWrapper state={instanceMeta.state()} spinner>
-            {(keyedInstanceMeta) => {
-              if (!localStorage.getItem(LANGUAGE_STORAGE_KEY)) {
-                setLanguage(keyedInstanceMeta.instanceLanguage);
-              }
-              return (
-                <div class="ui-spy px-4 text-center">
-                  <img
-                    src="/images/logo.png"
-                    alt="Logo"
-                    class="mx-auto mb-6 h-6"
-                  />
-                  <div class="font-700 text-4xl">
-                    {t3({
-                      en: "FASTR Analytics Platform",
-                      fr: "Plateforme analytique FASTR",
-                    })}
-                  </div>
-                  <div class="font-700 text-xl">
-                    {keyedInstanceMeta.instanceName}
-                  </div>
-                  <div class="ui-gap flex justify-center">
-                    <Button
-                      href={`${clerkSignInFlow}?redirect_url=${keyedInstanceMeta.instanceRedirectUrl}`}
-                      iconName="login"
-                    >
-                      {t3({ en: "Sign in", fr: "Se connecter" })}
-                    </Button>
-                    <Button
-                      href={`${clerkSignUpFlow}?redirect_url=${keyedInstanceMeta.instanceRedirectUrl}`}
-                      iconName="userPlus"
-                    >
-                      {t3({ en: "Sign up", fr: "S'inscrire" })}
-                    </Button>
-                  </div>
+    <div class="flex h-full w-full">
+      <div class="relative hidden w-2/5 overflow-hidden border-r border-[#d0e2de] bg-[#ebf3f1] lg:flex">
+        <div class="absolute -bottom-1/4 -left-1/4 h-[80%] w-[80%] rounded-full bg-[#d6e8e4]" />
+        <div class="absolute -top-1/4 -right-1/4 h-[60%] w-[60%] rounded-full bg-[#ddecea]" />
+        <div class="relative z-10 flex w-full flex-col justify-between p-10">
+          <div>
+            <img
+              src="/images/logo.png"
+              alt="Logo"
+              class="h-8"
+            />
+          </div>
+          <Show when={meta()}>
+            {(m) => (
+              <div>
+                <div class="text-base-content font-800 text-5xl leading-tight">
+                  {m().instanceName}
                 </div>
-              );
-            }}
-          </StateHolderWrapper>
+                <div class="text-base-content/50 mt-3 text-lg">
+                  {t3({
+                    en: "Analytics platform",
+                    fr: "Plateforme analytique",
+                  })}
+                </div>
+              </div>
+            )}
+          </Show>
+          <div class="text-neutral text-xs">
+            {t3({
+              en: "Powered by FASTR",
+              fr: "Propulsé par FASTR",
+            })}
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-1 items-center justify-center overflow-y-auto">
+        <div class="w-full max-w-md px-8 py-12">
+          <Show when={meta()}>
+            {(m) => (
+              <div class="mb-8 text-center lg:hidden">
+                <img src="/images/logo.png" alt="Logo" class="mx-auto mb-2 h-8" />
+                <div class="font-700 text-xl">
+                  {m().instanceName}
+                </div>
+                <div class="text-neutral text-sm">
+                  {t3({
+                    en: "Analytics platform",
+                    fr: "Plateforme analytique",
+                  })}
+                </div>
+              </div>
+            )}
+          </Show>
+          <div ref={authEl} />
         </div>
       </div>
     </div>

@@ -57,10 +57,6 @@ export function InstanceMetaForm(
                       <div class="flex-1">{keyedMeta.instanceName}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Redirect URL", fr: "URL de redirection" })}:</div>
-                      <div class="flex-1">{keyedMeta.instanceRedirectUrl}</div>
-                    </div>
-                    <div class="flex">
                       <div class="w-36 flex-none">{t3({ en: "Language", fr: "Langue" })}:</div>
                       <div class="flex-1">{keyedMeta.instanceLanguage}</div>
                     </div>

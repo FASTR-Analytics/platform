@@ -15,7 +15,6 @@ import {
   _INSTANCE_CALENDAR,
   _INSTANCE_LANGUAGE,
   _INSTANCE_NAME,
-  _INSTANCE_REDIRECT_URL,
   _IS_PRODUCTION,
   _OPEN_ACCESS,
   _SERVER_VERSION,
@@ -35,7 +34,6 @@ defineRoute(routesInstance, "getInstanceMeta", async (c) => {
   const instance: InstanceMeta = {
     instanceName: _INSTANCE_NAME,
     instanceCalendar: _INSTANCE_CALENDAR,
-    instanceRedirectUrl: _INSTANCE_REDIRECT_URL,
     instanceLanguage: _INSTANCE_LANGUAGE,
     openAccess: _OPEN_ACCESS,
     serverVersion: _SERVER_VERSION,

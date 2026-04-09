@@ -55,7 +55,6 @@ export type InstanceCalendar = "gregorian" | "ethiopian";
 
 export type InstanceMeta = {
   instanceName: string;
-  instanceRedirectUrl: string;
   instanceLanguage: Language;
   instanceCalendar: InstanceCalendar;
   openAccess: boolean;

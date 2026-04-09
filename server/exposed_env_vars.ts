@@ -28,10 +28,6 @@ if (_INSTANCE_ID === undefined) {
   throw new Error("Could not get INSTANCE_ID env variable");
 }
 
-export const _INSTANCE_REDIRECT_URL = Deno.env.get("INSTANCE_REDIRECT_URL")!;
-if (_INSTANCE_REDIRECT_URL === undefined) {
-  throw new Error("Could not get INSTANCE_REDIRECT_URL env variable");
-}
 
 export const _INSTANCE_LANGUAGE =
   (Deno.env

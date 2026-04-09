@@ -114,7 +114,7 @@ type InstanceSseMessage =
 **`InstanceState`** is the unified client-side state type. It replaces `InstanceDetail` (defined in `lib/types/instance.ts`) as the live source of truth for shared instance data.
 
 **Relationship to other types:**
-- **`InstanceMeta`** (`lib/types/instance.ts`) - stays as-is. Used pre-auth for the login page (`instanceName`, `instanceRedirectUrl`) and on-demand for server info dialog (`serverVersion`, `uptimeMs`, `isHealthy`). Neither use case fits SSE.
+- **`InstanceMeta`** (`lib/types/instance.ts`) - stays as-is. Used pre-auth for the login page (`instanceName`) and on-demand for server info dialog (`serverVersion`, `uptimeMs`, `isHealthy`). Neither use case fits SSE.
 - **`GlobalUser`** (`lib/types/instance.ts`) - stays as-is. It's bootstrap data for the current user, fetched once at auth time. It includes `instanceLanguage` and `instanceCalendar` because these are needed immediately to render the app before SSE connects. It also includes per-user fields (`email`, `isGlobalAdmin`, `thisUserPermissions`, `approved`). Minor overlap with `InstanceState` on `instanceName` is accepted - `GlobalUser` is the bootstrap snapshot, `InstanceState` is the live source of truth.
 - **`InstanceDetail`** - fully replaced by `InstanceState`. Removed after migration.
 
