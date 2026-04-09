@@ -1,3 +1,8 @@
+[1.17.4] [user] [changed] - Edit button in the project user table now shows a pencil icon instead of text label
+[1.17.4] [admin] [internal] - Reformatted empty async callbacks in `lockProject` and `unlockProject` action buttons to single-line style in `ProjectSettings`
+[1.17.4] [admin] [changed] - Replaced text-based edit Button with icon-only button (iconName="pencil") in `ProjectUserTable` component
+[1.17.4] [admin] [internal] - Reformatted `ProjectBackups` component props and JSX usage to single-line where appropriate
+[1.17.4] [admin] [internal] - Reformatted long `fetch` calls for `/api/all-projects-backups`, `/api/backups/{folder}/{fileName}`, and `/api/create-backup/{backupName}` to comply with line-length formatting standards
 [1.17.4] [user] [changed] - Loading indicator now shows while the authentication system initializes instead of a blank screen
 [1.17.4] [user] [fixed] - Login page now automatically uses the instance's default language when no language preference is stored
 [1.17.4] [user] [changed] - Project connection status message now always displays during loading instead of sometimes showing a blank screen
