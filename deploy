@@ -203,6 +203,10 @@ if ! git commit -m "$COMMIT_MSG" --allow-empty; then
     exit 1
 fi
 
+# A GitHub Action generates a CHANGELOG_AUTO.txt commit on the remote after
+# each push. This means the remote is almost always 1 commit ahead by the
+# time we deploy again. We auto-rebase over changelog-only commits, but abort
+# if there are any other unexpected commits on the remote.
 git fetch origin main
 LOCAL=$(git rev-parse HEAD)
 REMOTE=$(git rev-parse origin/main)
