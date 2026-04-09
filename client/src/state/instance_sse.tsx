@@ -135,11 +135,7 @@ export function InstanceSSEBoundary(props: { children: JSX.Element }) {
         <Show
           when={connectionFailed()}
           fallback={
-            <div class="flex h-full w-full items-center justify-center">
-              <div class="text-base-content/50">
-                {t3({ en: "Loading...", fr: "Chargement..." })}
-              </div>
-            </div>
+            <div class="ui-pad">{t3({ en: "Loading...", fr: "Chargement..." })}</div>
           }
         >
           <div class="flex h-full w-full items-center justify-center">

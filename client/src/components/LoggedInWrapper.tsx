@@ -1,15 +1,9 @@
 import { Clerk } from "@clerk/clerk-js";
 import { clearDataCache } from "~/state/clear_data_cache";
-import {
-  GlobalUser,
-  t3,
-  TC,
-  createDevGlobalUser,
-  setLanguage,
-} from "lib";
+import { GlobalUser, t3, TC, createDevGlobalUser, setLanguage } from "lib";
 import type { Language } from "panther";
 import { Button, StateHolderWrapper, timQuery } from "panther";
-import { JSX, Show, onMount } from "solid-js";
+import { JSX, Show, createSignal, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -27,11 +21,6 @@ const bypassAuth =
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 export const clerk = new Clerk(publishableKey);
-if (!bypassAuth) {
-  await clerk.load({
-    // Set load options here
-  });
-}
 
 type Props = {
   children: (
@@ -44,89 +33,103 @@ type Props = {
 ///////////////////////////////////////////////////////////////////////////////////
 
 export function LoggedInWrapper(p: Props) {
+  const [clerkLoaded, setClerkLoaded] = createSignal(bypassAuth);
+
+  onMount(async () => {
+    if (!bypassAuth) {
+      await clerk.load({});
+      setClerkLoaded(true);
+    }
+  });
+
   return (
-    <Show when={bypassAuth || clerk.user} fallback={<ClerkNewLogin />}>
-      {(_) => {
-        ///////////////////////////////////////////////////////////////////////////////////
-        ///////////////////////////////////////////////////////////////////////////////////
-        ///////////////////////////////////////////////////////////////////////////////////
-        const loggedInInfo = bypassAuth
-          ? {
-              state: () => ({
-                status: "ready" as const,
-                data: createDevGlobalUser(
-                  "Offline Development",
-                  "en",
-                  "gregorian",
-                ),
-              }),
-            }
-          : timQuery(
-              () => serverActions.getCurrentUser({}),
-              t3(TC.loading),
-            );
-
-        onMount(async () => {
-          if (bypassAuth) return;
-          try {
-            const res = await serverActions.getInstanceMeta({});
-            if (res.success) {
-              const serverVersion = res.data.serverVersion;
-              const storedVersion = localStorage.getItem("serverVersion");
-
-              if (storedVersion && storedVersion !== serverVersion) {
-                console.log(
-                  `Server version changed from ${storedVersion} to ${serverVersion}, clearing cache...`,
-                );
-                await clearDataCache();
+    <Show
+      when={clerkLoaded()}
+      fallback={<div class="ui-pad">{t3(TC.loading)}</div>}
+    >
+      <Show when={bypassAuth || clerk.user} fallback={<ClerkNewLogin />}>
+        {(_) => {
+          ///////////////////////////////////////////////////////////////////////////////////
+          ///////////////////////////////////////////////////////////////////////////////////
+          ///////////////////////////////////////////////////////////////////////////////////
+          const loggedInInfo = bypassAuth
+            ? {
+                state: () => ({
+                  status: "ready" as const,
+                  data: createDevGlobalUser(
+                    "Offline Development",
+                    "en",
+                    "gregorian",
+                  ),
+                }),
               }
-              localStorage.setItem("serverVersion", serverVersion);
+            : timQuery(() => serverActions.getCurrentUser({}), t3(TC.loading));
+
+          onMount(async () => {
+            if (bypassAuth) return;
+            try {
+              const res = await serverActions.getInstanceMeta({});
+              if (res.success) {
+                const serverVersion = res.data.serverVersion;
+                const storedVersion = localStorage.getItem("serverVersion");
+
+                if (storedVersion && storedVersion !== serverVersion) {
+                  console.log(
+                    `Server version changed from ${storedVersion} to ${serverVersion}, clearing cache...`,
+                  );
+                  await clearDataCache();
+                }
+                localStorage.setItem("serverVersion", serverVersion);
+              }
+            } catch (err) {
+              console.error("Failed to check server version:", err);
             }
-          } catch (err) {
-            console.error("Failed to check server version:", err);
-          }
-        });
-        ///////////////////////////////////////////////////////////////////////////////////
-        ///////////////////////////////////////////////////////////////////////////////////
-        ///////////////////////////////////////////////////////////////////////////////////
+          });
+          ///////////////////////////////////////////////////////////////////////////////////
+          ///////////////////////////////////////////////////////////////////////////////////
+          ///////////////////////////////////////////////////////////////////////////////////
 
-        async function attemptSignOut(): Promise<void> {
-          // Note: Can't update loggedInInfo loading state with timQuery
-          // but page will reload anyway
-          if (!bypassAuth) {
-            await clerk.signOut();
+          async function attemptSignOut(): Promise<void> {
+            // Note: Can't update loggedInInfo loading state with timQuery
+            // but page will reload anyway
+            if (!bypassAuth) {
+              await clerk.signOut();
+            }
+            window.location.reload();
           }
-          window.location.reload();
-        }
 
-        return (
-          <StateHolderWrapper state={loggedInInfo.state()}>
-            {(globalUserOrUndefined) => {
-              return (
-                <Show
-                  when={globalUserOrUndefined}
-                  fallback={
-                    <div>{t3({ en: "Not yet approved for this instance", fr: "Pas encore approuvé pour cette instance" })}</div>
-                  }
-                >
-                  {(_) => {
-                    console.log(globalUserOrUndefined);
-                    return p.children(globalUserOrUndefined, attemptSignOut);
-                  }}
-                </Show>
-              );
-            }}
-          </StateHolderWrapper>
-        );
-      }}
+          return (
+            <StateHolderWrapper state={loggedInInfo.state()}>
+              {(globalUserOrUndefined) => {
+                return (
+                  <Show
+                    when={globalUserOrUndefined}
+                    fallback={
+                      <div class="ui-pad">
+                        {t3({
+                          en: "Not yet approved for this instance",
+                          fr: "Pas encore approuvé pour cette instance",
+                        })}
+                      </div>
+                    }
+                  >
+                    {(_) => {
+                      console.log(globalUserOrUndefined);
+                      return p.children(globalUserOrUndefined, attemptSignOut);
+                    }}
+                  </Show>
+                );
+              }}
+            </StateHolderWrapper>
+          );
+        }}
+      </Show>
     </Show>
   );
 }
 
 function ClerkNewLogin() {
-  const storedLang = localStorage.getItem(
-    "fastrLanguage",
-  ) as Language | null;
+  const storedLang = localStorage.getItem("fastrLanguage") as Language | null;
   if (storedLang) {
     setLanguage(storedLang);
   }
@@ -142,6 +145,9 @@ function ClerkNewLogin() {
         <div class="w-full pt-12 pb-72">
           <StateHolderWrapper state={instanceMeta.state()} spinner>
             {(keyedInstanceMeta) => {
+              if (!storedLang) {
+                setLanguage(keyedInstanceMeta.instanceLanguage);
+              }
               return (
                 <div class="ui-spy px-4 text-center">
                   <img
@@ -150,7 +156,10 @@ function ClerkNewLogin() {
                     class="mx-auto mb-6 h-6"
                   />
                   <div class="font-700 text-4xl">
-                    {t3({ en: "FASTR Analytics Platform", fr: "Plateforme analytique FASTR" })}
+                    {t3({
+                      en: "FASTR Analytics Platform",
+                      fr: "Plateforme analytique FASTR",
+                    })}
                   </div>
                   <div class="font-700 text-xl">
                     {keyedInstanceMeta.instanceName}

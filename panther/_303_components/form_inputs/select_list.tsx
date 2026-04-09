@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, type JSX, Show } from "solid-js";
+import { t3 } from "../deps.ts";
 import type { SelectListItem, SelectOption } from "./types.ts";
 import type { Intent } from "../types.ts";
 
@@ -44,7 +45,7 @@ export function SelectList<T extends string = string>(p: SelectListProps<T>) {
       <Show
         when={p.options.length > 0}
         fallback={
-          <div class="text-sm">{p.emptyMessage || "No options available"}</div>
+          <div class="text-sm">{p.emptyMessage || t3({ en: "No options available", fr: "Aucune option disponible" })}</div>
         }
       >
         <For each={p.options}>

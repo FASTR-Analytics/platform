@@ -371,19 +371,17 @@ export function ProjectRunnerProvider(p: Props) {
       <Show
         when={projectDirtyStates.isReady && projectFetchState().status === "ready"}
         fallback={
-          projectFetchState().status === "loading"
-            ? <div class="ui-pad">
-                {connectionState() === "connecting"
-                  ? t3({ en: "Connecting to project", fr: "Connexion au projet" })
-                  : connectionState() === "failed"
-                    ? t3({ en: "Connection failed", fr: "Échec de la connexion" })
-                    : t3({ en: "Connecting to project", fr: "Connexion au projet" })}
-                {connectAttempts() > 1
-                  ? ` (${t3({ en: "retrying", fr: "réessayer" })} ${connectAttempts() - 1})`
-                  : ""}
-                ...
-              </div>
-            : undefined
+          <div class="ui-pad">
+            {connectionState() === "connecting"
+              ? t3({ en: "Connecting to project", fr: "Connexion au projet" })
+              : connectionState() === "failed"
+                ? t3({ en: "Connection failed", fr: "Échec de la connexion" })
+                : t3({ en: "Connecting to project", fr: "Connexion au projet" })}
+            {connectAttempts() > 1
+              ? ` (${t3({ en: "retrying", fr: "réessayer" })} ${connectAttempts() - 1})`
+              : ""}
+            ...
+          </div>
         }
       >
         <ProjectDirtyStateContext.Provider

@@ -11,6 +11,7 @@ import {
   createSignal,
   ModalContainer,
   Show,
+  t3,
   Table,
   type TableColumn,
 } from "../deps.ts";
@@ -61,9 +62,9 @@ export function AIChatConversationSelector(
         minute: "2-digit",
       });
     } else if (diffDays === 1) {
-      return "Yesterday";
+      return t3({ en: "Yesterday", fr: "Hier" });
     } else if (diffDays < 7) {
-      return `${diffDays} days ago`;
+      return t3({ en: `${diffDays} days ago`, fr: `Il y a ${diffDays} jours` });
     } else {
       return date.toLocaleDateString([], {
         month: "short",
@@ -102,14 +103,14 @@ export function AIChatConversationSelector(
 
     if (selectedKeys().size === 1) {
       actions.push({
-        label: "Switch to Conversation",
+        label: t3({ en: "Switch to Conversation", fr: "Changer de conversation" }),
         intent: "primary",
         onClick: handleBulkSwitch,
       });
     }
 
     actions.push({
-      label: "Delete Selected",
+      label: t3({ en: "Delete Selected", fr: "Supprimer la sélection" }),
       intent: "danger",
       outline: true,
       onClick: handleBulkDelete,
@@ -121,7 +122,7 @@ export function AIChatConversationSelector(
   const columns: TableColumn<ConversationMetadata>[] = [
     {
       key: "title",
-      header: "Conversation",
+      header: t3({ en: "Conversation", fr: "Conversation" }),
       sortable: true,
       render: (conv) => (
         <div class="flex min-w-0 items-center gap-2">
@@ -142,7 +143,7 @@ export function AIChatConversationSelector(
     },
     {
       key: "lastMessageAt",
-      header: "Last Active",
+      header: t3({ en: "Last Active", fr: "Dernière activité" }),
       sortable: true,
       render: (conv) => (
         <span class="text-neutral text-sm">
@@ -174,21 +175,21 @@ export function AIChatConversationSelector(
 
   return (
     <ModalContainer
-      title="Conversations"
+      title={t3({ en: "Conversations", fr: "Conversations" })}
       width="lg"
       leftButtons={[
         <Button intent="primary" onClick={handleNew} iconName="plus">
-          New Conversation
+          {t3({ en: "New Conversation", fr: "Nouvelle conversation" })}
         </Button>,
         <Button intent="neutral" onClick={() => p.close(undefined)}>
-          Close
+          {t3({ en: "Close", fr: "Fermer" })}
         </Button>,
       ]}
     >
       <Show
         when={conversations.conversations().length > 0}
         fallback={
-          <div class="text-neutral py-8 text-center">No conversations yet</div>
+          <div class="text-neutral py-8 text-center">{t3({ en: "No conversations yet", fr: "Aucune conversation pour le moment" })}</div>
         }
       >
         <Table
@@ -198,7 +199,7 @@ export function AIChatConversationSelector(
           defaultSort={{ key: "lastMessageAt", direction: "desc" }}
           onRowClick={handleSelect}
           bulkActions={bulkActions()}
-          selectionLabel="conversation"
+          selectionLabel={t3({ en: "conversation", fr: "conversation" })}
           selectedKeys={selectedKeys}
           setSelectedKeys={setSelectedKeys}
           paddingY="comfortable"

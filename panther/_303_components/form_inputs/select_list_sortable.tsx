@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createEffect, createSignal, type JSX, Show } from "solid-js";
+import { t3 } from "../deps.ts";
 import type { SelectOption } from "./types.ts";
 import SortableVendor from "./solid_sortablejs_vendored.tsx";
 import { GripVerticalIcon } from "../icons/icons.tsx";
@@ -43,7 +44,7 @@ export function SelectListSortable<T extends string = string>(
       <Show
         when={orderedOptions().length > 0}
         fallback={
-          <div class="text-sm">{p.emptyMessage || "No options available"}</div>
+          <div class="text-sm">{p.emptyMessage || t3({ en: "No options available", fr: "Aucune option disponible" })}</div>
         }
       >
         <Show when={showSortable()} keyed>

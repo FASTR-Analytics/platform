@@ -15,6 +15,7 @@ import {
   Select,
   Show,
   Slider,
+  t3,
 } from "../deps.ts";
 
 export type AIChatSettingsValues = Pick<
@@ -57,7 +58,7 @@ export function AIChatSettingsPanel(p: Props) {
 
   return (
     <ModalContainer
-      title="AI settings"
+      title={t3({ en: "AI settings", fr: "Paramètres IA" })}
       width="sm"
       leftButtons={
         // eslint-disable-next-line jsx-key
@@ -71,17 +72,17 @@ export function AIChatSettingsPanel(p: Props) {
                 max_tokens: maxTokens(),
               })}
           >
-            Apply
+            {t3({ en: "Apply", fr: "Appliquer" })}
           </Button>,
           <Button intent="neutral" onClick={() => p.close(undefined)}>
-            Cancel
+            {t3({ en: "Cancel", fr: "Annuler" })}
           </Button>,
         ]
       }
     >
       <Show when={fields.has("model")}>
         <Select
-          label="Model"
+          label={t3({ en: "Model", fr: "Modèle" })}
           value={model()}
           options={modelOptions}
           onChange={setModel}
@@ -90,7 +91,7 @@ export function AIChatSettingsPanel(p: Props) {
       </Show>
       <Show when={fields.has("temperature")}>
         <Slider
-          label="Temperature"
+          label={t3({ en: "Temperature", fr: "Température" })}
           value={temperature()}
           onChange={setTemperature}
           min={0}
@@ -102,7 +103,7 @@ export function AIChatSettingsPanel(p: Props) {
       </Show>
       <Show when={fields.has("max_tokens")}>
         <Slider
-          label="Max tokens"
+          label={t3({ en: "Max tokens", fr: "Tokens maximum" })}
           value={maxTokens()}
           onChange={(v) => setMaxTokens(Math.round(v))}
           min={MAX_OUTPUT_TOKENS.MIN}
