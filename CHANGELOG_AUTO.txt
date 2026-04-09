@@ -1,3 +1,16 @@
+[1.17.5] [user] [changed] - The login/sign-up page now displays a redesigned split-screen layout with a decorative side panel showing the instance name and branding, replacing the previous centered page with separate Sign in/Sign up buttons
+[1.17.5] [user] [changed] - Sign-in and sign-up forms are now embedded directly on the login page using Clerk components instead of redirecting to external Clerk-hosted sign-in/sign-up pages
+[1.17.5] [user] [fixed] - Authentication state now reactively updates when the user signs in or out, preventing stale UI where the app might not detect a user session change
+[1.17.5] [admin] [changed] - Removed `instanceRedirectUrl` field from `InstanceMeta` type in `lib/types/instance.ts`
+[1.17.5] [admin] [changed] - Removed `_INSTANCE_REDIRECT_URL` import and usage from `getInstanceMeta` route handler in `server/routes/instance/instance.ts`
+[1.17.5] [admin] [changed] - Removed `VITE_CLERK_SIGN_IN_FLOW` and `VITE_CLERK_SIGN_UP_FLOW` environment variables from client-side authentication flow
+[1.17.5] [admin] [changed] - Authentication login/signup now uses Clerk's embedded `mountSignIn`/`mountSignUp` components instead of redirect-based flow via external Clerk URLs
+[1.17.5] [admin] [changed] - Sign-up mode is now determined by `?mode=sign-up` query parameter on the current URL rather than a separate Clerk-hosted sign-up page
+[1.17.5] [admin] [changed] - Added `clerk.addListener` to reactively track Clerk user state changes via a `clerkUser` signal, replacing direct `clerk.user` property access in the `Show` guard
+[1.17.5] [admin] [internal] - Added `onCleanup` lifecycle hook in `ClerkNewLogin` to properly unmount Clerk sign-in/sign-up components when the component is destroyed
+[1.17.5] [admin] [internal] - Replaced `timQuery`/`StateHolderWrapper` pattern in `ClerkNewLogin` with direct `onMount` async fetch of instance metadata via `serverActions.getInstanceMeta`
+[1.17.5] [admin] [internal] - Removed unused `Button` import from `panther` in `LoggedInWrapper.tsx`
+[1.17.5] [admin] [changed] - Removed redirect URL display row from `InstanceMetaForm` component in `instance_meta_form.tsx`
 [1.17.4] [user] [changed] - Clerk authentication screens now display in French when the instance language is set to French, improving the login experience for French-speaking users
 [1.17.4] [user] [fixed] - Language preference is now applied earlier on page load, reducing flicker where the interface might briefly show the wrong language before switching
 [1.17.4] [admin] [internal] - Extracted hardcoded `"fastrLanguage"` localStorage key into a shared constant `LANGUAGE_STORAGE_KEY` in `lib/translate/t-func.ts`, replacing all usages across `LoggedInWrapper`, `Instance`, and `routes/index.tsx`
