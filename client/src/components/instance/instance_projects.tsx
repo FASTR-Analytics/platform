@@ -18,6 +18,20 @@ type Props = {
   canCreateProjects: boolean;
 };
 
+function formatTimeAgo(isoString: string): string {
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60_000);
+  const diffHours = Math.floor(diffMs / 3_600_000);
+  const diffDays = Math.floor(diffMs / 86_400_000);
+  if (diffMins < 1) return t3({ en: "Just now", fr: "À l'instant" });
+  if (diffMins < 60) return t3({ en: `${diffMins}m ago`, fr: `Il y a ${diffMins}m` });
+  if (diffHours < 24) return t3({ en: `${diffHours}h ago`, fr: `Il y a ${diffHours}h` });
+  if (diffDays < 30) return t3({ en: `${diffDays}d ago`, fr: `Il y a ${diffDays}j` });
+  return date.toLocaleDateString();
+}
+
 export function InstanceProjects(p: Props) {
   const navigate = useNavigate();
 
@@ -91,9 +105,9 @@ export function InstanceProjects(p: Props) {
               return (
                 <a
                   href={`/?p=${project.id}`}
-                  class="ui-pad ui-hoverable border-base-300 min-h-[150px] rounded border"
+                  class="ui-pad ui-hoverable border-base-300 flex min-h-[150px] flex-col justify-between rounded border"
                 >
-                  <div class="ui-spy-sm col-span-1">
+                  <div class="ui-spy-sm">
                     <div class="font-700">{project.label}</div>
                     <Show when={project.isLocked}>
                       <div class="ui-gap-sm text-primary flex text-sm">
@@ -107,6 +121,13 @@ export function InstanceProjects(p: Props) {
                       </div>
                     </Show>
                   </div>
+                  <Show when={project.lastActivityAt}>
+                    {(ts) => (
+                      <div class="text-neutral text-xs">
+                        {formatTimeAgo(ts())}
+                      </div>
+                    )}
+                  </Show>
                 </a>
               );
             }}

@@ -138,13 +138,24 @@ export async function getInstanceDatasetsSummary(
 
 export async function getAllProjectSummaries(mainDb: Sql): Promise<ProjectSummary[]> {
   return (
-    await mainDb<DBProject[]>`SELECT * FROM projects ORDER BY LOWER(label)`
+    await mainDb<(DBProject & { last_activity_at: string | null })[]>`
+      SELECT p.*, la.last_activity_at
+      FROM projects p
+      LEFT JOIN (
+        SELECT project_id, MAX(timestamp) as last_activity_at
+        FROM user_logs
+        WHERE project_id IS NOT NULL
+        GROUP BY project_id
+      ) la ON la.project_id = p.id
+      ORDER BY LOWER(p.label)
+    `
   ).map<ProjectSummary>((p) => ({
     id: p.id,
     label: p.label,
     thisUserRole: "editor",
     isLocked: p.is_locked,
     status: p.status as ProjectSummary["status"],
+    lastActivityAt: p.last_activity_at ?? undefined,
   }));
 }
 
@@ -236,8 +247,16 @@ export async function getInstanceDetail(
     const projectSummaries = globalUser.isGlobalAdmin
       ? (
           await mainDb<
-            DBProject[]
-          >`SELECT * FROM projects ORDER BY LOWER(label)`
+            (DBProject & { last_activity_at: string | null })[]
+          >`SELECT p.*, la.last_activity_at
+FROM projects p
+LEFT JOIN (
+  SELECT project_id, MAX(timestamp) as last_activity_at
+  FROM user_logs
+  WHERE project_id IS NOT NULL
+  GROUP BY project_id
+) la ON la.project_id = p.id
+ORDER BY LOWER(p.label)`
         ).map<ProjectSummary>((p) => {
           return {
             id: p.id,
@@ -245,23 +264,31 @@ export async function getInstanceDetail(
             thisUserRole: "editor",
             isLocked: p.is_locked,
             status: p.status as ProjectSummary["status"],
+            lastActivityAt: p.last_activity_at ?? undefined,
           };
         })
       : (
           await mainDb<
-            (DBProject & DBProjectUserRole)[]
-          >`SELECT * FROM project_user_roles
-JOIN projects ON project_user_roles.project_id = projects.id
-WHERE email = ${globalUser.email}
+            (DBProject & DBProjectUserRole & { last_activity_at: string | null })[]
+          >`SELECT pur.*, p.*, la.last_activity_at
+FROM project_user_roles pur
+JOIN projects p ON pur.project_id = p.id
+LEFT JOIN (
+  SELECT project_id, MAX(timestamp) as last_activity_at
+  FROM user_logs
+  WHERE project_id IS NOT NULL
+  GROUP BY project_id
+) la ON la.project_id = p.id
+WHERE pur.email = ${globalUser.email}
 AND (
-  can_configure_settings OR can_create_backups OR can_restore_backups OR
-  can_configure_modules OR can_run_modules OR can_configure_users OR
-  can_configure_visualizations OR can_view_visualizations OR
-  can_configure_reports OR can_view_reports OR
-  can_configure_slide_decks OR can_view_slide_decks OR
-  can_configure_data OR can_view_data OR can_view_metrics OR can_view_logs
+  pur.can_configure_settings OR pur.can_create_backups OR pur.can_restore_backups OR
+  pur.can_configure_modules OR pur.can_run_modules OR pur.can_configure_users OR
+  pur.can_configure_visualizations OR pur.can_view_visualizations OR
+  pur.can_configure_reports OR pur.can_view_reports OR
+  pur.can_configure_slide_decks OR pur.can_view_slide_decks OR
+  pur.can_configure_data OR pur.can_view_data OR pur.can_view_metrics OR pur.can_view_logs
 )
-ORDER BY LOWER(label)`
+ORDER BY LOWER(p.label)`
         ).map<ProjectSummary>((p) => {
           return {
             id: p.id,
@@ -269,6 +296,7 @@ ORDER BY LOWER(label)`
             thisUserRole: p.role === "editor" ? "editor" : "viewer",
             isLocked: p.is_locked,
             status: p.status as ProjectSummary["status"],
+            lastActivityAt: p.last_activity_at ?? undefined,
           };
         });
 

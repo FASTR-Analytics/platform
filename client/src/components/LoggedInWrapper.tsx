@@ -187,7 +187,7 @@ function ClerkNewLogin() {
 
   return (
     <div class="flex h-full w-full">
-      <div class="relative hidden w-2/5 overflow-hidden border-r border-[#d0e2de] bg-[#ebf3f1] lg:flex">
+      <div class="relative hidden w-2/5 overflow-hidden bg-[#ebf3f1] lg:flex">
         <div class="absolute -bottom-1/4 -left-1/4 h-[80%] w-[80%] rounded-full bg-[#d6e8e4]" />
         <div class="absolute -top-1/4 -right-1/4 h-[60%] w-[60%] rounded-full bg-[#ddecea]" />
         <div class="relative z-10 flex w-full flex-col justify-between p-10">
