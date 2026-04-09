@@ -4,6 +4,8 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   OtherUser,
+  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  buildUserPermissionsFromRow,
   type ProjectUserRole,
   type BatchUser,
   type UserPermission,
@@ -52,28 +54,12 @@ export async function getOtherUser(
               : "viewer",
       };
     });
-    const user: OtherUser = rawUser.is_admin ? {
+    const user: OtherUser = {
       email,
-      isGlobalAdmin: true,
-      can_configure_users: true,
-      can_view_users: true,
-      can_view_logs: true,
-      can_configure_settings: true,
-      can_configure_assets: true,
-      can_configure_data: true,
-      can_view_data: true,
-      can_create_projects: true,
-    } : {
-      email,
-      isGlobalAdmin: false,
-      can_configure_users: rawUser.can_configure_users,
-      can_view_users: rawUser.can_view_users,
-      can_view_logs: rawUser.can_view_logs,
-      can_configure_settings: rawUser.can_configure_settings,
-      can_configure_assets: rawUser.can_configure_assets,
-      can_configure_data: rawUser.can_configure_data,
-      can_view_data: rawUser.can_view_data,
-      can_create_projects: rawUser.can_create_projects,
+      isGlobalAdmin: rawUser.is_admin,
+      ...(rawUser.is_admin
+        ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
+        : buildUserPermissionsFromRow(rawUser)),
     };
     return { success: true, data: { user, projectUserRoles } };
   });

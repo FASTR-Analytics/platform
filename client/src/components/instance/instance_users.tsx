@@ -1,4 +1,4 @@
-import { H_USERS, t3, TC } from "lib";
+import { H_USERS, t3, TC, USER_PERMISSIONS, INSTANCE_PERMISSION_LABELS, type UserPermission } from "lib";
 import {
   Button,
   Csv,
@@ -147,11 +147,26 @@ export function InstanceUsers(p: Props) {
 type UserData = {
   email: string;
   isGlobalAdmin: boolean;
-};
+} & Record<UserPermission, boolean>;
 
-type UserTableData = {
-  email: string;
-  isGlobalAdmin: boolean;
+function hasGlobalPermissions(user: UserData): boolean {
+  return USER_PERMISSIONS.some((k) => user[k]);
+}
+
+function getGlobalPermissionSummary(user: UserData): string {
+  const active = USER_PERMISSIONS.filter((k) => user[k]);
+  if (active.length === 0)
+    return t3({ en: "No special permissions", fr: "Aucune permission spéciale" });
+  const shown = active
+    .slice(0, 5)
+    .map((k) => t3(INSTANCE_PERMISSION_LABELS[k]))
+    .join(", ");
+  if (active.length > 5)
+    return `${shown}, +${active.length - 5} ${t3({ en: "more", fr: "de plus" })}`;
+  return shown;
+}
+
+type UserTableData = UserData & {
   lastActiveTs: number;
 };
 
@@ -238,8 +253,10 @@ function UserTable(p: {
         <Show
           when={user.isGlobalAdmin}
           fallback={
-            <span class="text-neutral text-sm">
-              {t3({ en: "User", fr: "Utilisateur" })}
+            <span
+              class={`text-sm ${!hasGlobalPermissions(user) ? "text-neutral" : ""}`}
+            >
+              {getGlobalPermissionSummary(user)}
             </span>
           }
         >

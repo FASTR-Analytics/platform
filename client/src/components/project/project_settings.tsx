@@ -390,6 +390,10 @@ function hasPermissions(user: ProjectUser): boolean {
   return PROJECT_PERMISSIONS.some((k) => user[k]);
 }
 
+function isProjectAdmin(user: ProjectUser): boolean {
+  return PROJECT_PERMISSIONS.every((k) => user[k]);
+}
+
 function getPermissionSummary(user: ProjectUser): string {
   const active = PROJECT_PERMISSIONS.filter((k) => user[k]);
   if (active.length === 0)
@@ -436,11 +440,20 @@ function ProjectUserTable(p: {
         <Show
           when={user.isGlobalAdmin}
           fallback={
-            <span
-              class={`text-sm ${!hasPermissions(user) ? "text-neutral" : ""}`}
+            <Show
+              when={isProjectAdmin(user)}
+              fallback={
+                <span
+                  class={`text-sm ${!hasPermissions(user) ? "text-neutral" : ""}`}
+                >
+                  {getPermissionSummary(user)}
+                </span>
+              }
             >
-              {getPermissionSummary(user)}
-            </span>
+              <span class="text-primary text-sm">
+                {t3({ en: "Project Admin", fr: "Administrateur du projet" })}
+              </span>
+            </Show>
           }
         >
           <span class="text-primary">
@@ -457,16 +470,17 @@ function ProjectUserTable(p: {
       header: "",
       alignH: "right",
       render: (user) => (
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            p.onUserClick?.([user]);
-          }}
-          intent="base-100"
-          disabled={user.isGlobalAdmin}
-        >
-          {t3(TC.edit)}
-        </Button>
+        <div class={user.isGlobalAdmin ? "invisible" : ""}>
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              p.onUserClick?.([user]);
+            }}
+            intent="base-100"
+          >
+            {t3(TC.edit)}
+          </Button>
+        </div>
       ),
     },
   ];
