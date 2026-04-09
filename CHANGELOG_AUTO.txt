@@ -1,3 +1,14 @@
+[1.17.4] [user] [changed] - Loading indicator now shows while the authentication system initializes instead of a blank screen
+[1.17.4] [user] [fixed] - Login page now automatically uses the instance's default language when no language preference is stored
+[1.17.4] [user] [changed] - Project connection status message now always displays during loading instead of sometimes showing a blank screen
+[1.17.4] [admin] [changed] - Moved Clerk SDK initialization (`clerk.load()`) from top-level `await` (module scope) into `onMount` inside `LoggedInWrapper` component, preventing blocking module evaluation
+[1.17.4] [admin] [changed] - Added `clerkLoaded` signal in `LoggedInWrapper` to gate rendering on Clerk readiness, with a loading fallback UI
+[1.17.4] [admin] [changed] - `ClerkNewLogin` now sets language from `instanceLanguage` when no stored language preference exists, using `keyedInstanceMeta.instanceLanguage` as default
+[1.17.4] [admin] [internal] - Reformatted imports in `LoggedInWrapper.tsx` (collapsed multi-line imports to single line)
+[1.17.4] [admin] [changed] - Added `createSignal` import from `solid-js` in `LoggedInWrapper` to support `clerkLoaded` reactive state
+[1.17.4] [admin] [changed] - Simplified fallback in `ProjectRunnerProvider` by removing conditional check on `projectFetchState().status === "loading"` — connection status message now always renders in fallback
+[1.17.4] [admin] [changed] - Replaced centered flex loading layout in `InstanceSSEBoundary` with simplified `ui-pad` class div for loading state fallback
+[1.17.4] [admin] [internal] - Added `ui-pad` CSS class consistently to loading/fallback states across `LoggedInWrapper`, `InstanceSSEBoundary`, and `ProjectRunnerProvider` for uniform padding
 [1.17.4] [user] [changed] - Users without the "configure users" permission no longer see bulk admin actions (Make admin, Make non-admin, Edit permissions, Edit default project permissions, Remove) in the user table
 [1.17.4] [user] [changed] - Instance permissions, user permissions, project permissions sections, and the "Remove this user" button on individual user pages are now hidden for users who lack the "configure users" permission or global admin role
 [1.17.4] [admin] [changed] - UserTable component in instance_users.tsx now conditionally renders bulk actions (Make admin, Make non-admin, Edit permissions, Edit default project permissions, Remove) based on `canConfigureUsers` flag derived from `currentUserIsGlobalAdmin` or `can_configure_users` permission
