@@ -1,5 +1,5 @@
 import { useSearchParams } from "@solidjs/router";
-import { TC, isFrench, t3 } from "lib";
+import { TC, isFrench, t3, LANGUAGE_STORAGE_KEY } from "lib";
 import {
   AlertProvider,
   Button,
@@ -217,7 +217,7 @@ export default function Instance(p: Props) {
                         {
                           label: "English",
                           onClick: () => {
-                            localStorage.setItem("fastrLanguage", "en");
+                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
                             if (!isFrench()) return;
                             window.location.reload();
                           },
@@ -225,7 +225,7 @@ export default function Instance(p: Props) {
                         {
                           label: "Français",
                           onClick: () => {
-                            localStorage.setItem("fastrLanguage", "fr");
+                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
                             if (isFrench()) return;
                             window.location.reload();
                           },

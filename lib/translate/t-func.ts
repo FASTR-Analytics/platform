@@ -3,6 +3,8 @@ import { InstanceCalendar } from "../types/mod.ts";
 
 export { isFrench, setLanguage, getLanguage, t3 } from "@timroberton/panther";
 
+export const LANGUAGE_STORAGE_KEY = "fastrLanguage";
+
 const _CALENDAR: { cal: InstanceCalendar } = { cal: "gregorian" };
 
 export function setCalendar(cal: InstanceCalendar) {

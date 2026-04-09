@@ -1,6 +1,7 @@
 import { Clerk } from "@clerk/clerk-js";
+import { frFR } from "@clerk/localizations";
 import { clearDataCache } from "~/state/clear_data_cache";
-import { GlobalUser, t3, TC, createDevGlobalUser, setLanguage } from "lib";
+import { GlobalUser, t3, TC, createDevGlobalUser, setLanguage, LANGUAGE_STORAGE_KEY } from "lib";
 import type { Language } from "panther";
 import { Button, StateHolderWrapper, timQuery } from "panther";
 import { JSX, Show, createSignal, onMount } from "solid-js";
@@ -33,11 +34,26 @@ type Props = {
 ///////////////////////////////////////////////////////////////////////////////////
 
 export function LoggedInWrapper(p: Props) {
+  const storedLang = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Language | null;
+  if (storedLang) {
+    setLanguage(storedLang);
+  }
+
   const [clerkLoaded, setClerkLoaded] = createSignal(bypassAuth);
 
   onMount(async () => {
     if (!bypassAuth) {
-      await clerk.load({});
+      let lang = storedLang;
+      if (!lang) {
+        const res = await serverActions.getInstanceMeta({});
+        if (res.success) {
+          lang = res.data.instanceLanguage;
+          setLanguage(lang);
+        }
+      }
+      await clerk.load({
+        localization: lang === "fr" ? frFR : undefined,
+      });
       setClerkLoaded(true);
     }
   });
@@ -129,11 +145,6 @@ export function LoggedInWrapper(p: Props) {
 }
 
 function ClerkNewLogin() {
-  const storedLang = localStorage.getItem("fastrLanguage") as Language | null;
-  if (storedLang) {
-    setLanguage(storedLang);
-  }
-
   const instanceMeta = timQuery(
     () => serverActions.getInstanceMeta({}),
     t3(TC.loading),
@@ -145,7 +156,7 @@ function ClerkNewLogin() {
         <div class="w-full pt-12 pb-72">
           <StateHolderWrapper state={instanceMeta.state()} spinner>
             {(keyedInstanceMeta) => {
-              if (!storedLang) {
+              if (!localStorage.getItem(LANGUAGE_STORAGE_KEY)) {
                 setLanguage(keyedInstanceMeta.instanceLanguage);
               }
               return (
