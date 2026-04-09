@@ -203,6 +203,24 @@ if ! git commit -m "$COMMIT_MSG" --allow-empty; then
     exit 1
 fi
 
+git fetch origin main
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse origin/main)
+
+if [ "$LOCAL" != "$REMOTE" ]; then
+    NON_CHANGELOG=$(git log "$LOCAL..$REMOTE" --format="%s" | grep -v "^chore: update CHANGELOG_AUTO.txt" || true)
+    if [ -n "$NON_CHANGELOG" ]; then
+        echo "ERROR: Remote has non-changelog commits. Review and pull manually:"
+        git log "$LOCAL..$REMOTE" --oneline
+        exit 1
+    fi
+    echo "Rebasing over changelog commit(s)..."
+    if ! git pull --rebase; then
+        echo "ERROR: Rebase failed!"
+        exit 1
+    fi
+fi
+
 if ! git push; then
     echo "ERROR: Git push failed!"
     exit 1
