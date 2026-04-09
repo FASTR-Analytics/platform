@@ -175,9 +175,6 @@ function hasGlobalPermissions(user: UserData): boolean {
   return globalPermissionLabels.some((p) => user[p.key]);
 }
 
-function isInstanceAdmin(user: UserData): boolean {
-  return globalPermissionLabels.every((p) => user[p.key]);
-}
 
 function getGlobalPermissionSummary(user: UserData): string {
   const active = globalPermissionLabels.filter((p) => user[p.key]);
@@ -279,20 +276,11 @@ function UserTable(p: {
         <Show
           when={user.isGlobalAdmin}
           fallback={
-            <Show
-              when={isInstanceAdmin(user)}
-              fallback={
-                <span
-                  class={`text-sm ${!hasGlobalPermissions(user) ? "text-neutral" : ""}`}
-                >
-                  {getGlobalPermissionSummary(user)}
-                </span>
-              }
+            <span
+              class={`text-sm ${!hasGlobalPermissions(user) ? "text-neutral" : ""}`}
             >
-              <span class="text-primary text-sm">
-                {t3({ en: "Instance Admin", fr: "Administrateur d'instance" })}
-              </span>
-            </Show>
+              {getGlobalPermissionSummary(user)}
+            </span>
           }
         >
           <span class="text-primary text-sm">
