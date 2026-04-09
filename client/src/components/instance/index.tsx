@@ -34,9 +34,26 @@ type Props = {
 export default function Instance(p: Props) {
   const [searchParams] = useSearchParams();
   const { openEditor, EditorWrapper } = getEditorWrapper();
-  const [tab, setTab] = createSignal<
+  const [_tab, setTab] = createSignal<
     "projects" | "users" | "data" | "assets" | "settings"
   >("projects");
+
+  const p_ = () => instanceState.currentUserPermissions;
+  const a_ = () => instanceState.currentUserIsGlobalAdmin;
+  const tab = (): "projects" | "users" | "data" | "assets" | "settings" => {
+    const t = _tab();
+    const admin = a_();
+    const perms = p_();
+    const canData = admin || perms.can_view_data || perms.can_configure_data;
+    const canAssets = admin || perms.can_configure_assets;
+    const canUsers = admin || perms.can_configure_users || perms.can_view_users;
+    const canSettings = admin || perms.can_configure_settings;
+    if (t === "data" && !canData) return "projects";
+    if (t === "assets" && !canAssets) return "projects";
+    if (t === "users" && !canUsers) return "projects";
+    if (t === "settings" && !canSettings) return "projects";
+    return t;
+  };
 
   // email opt in modal
   onMount(async () => {
@@ -69,7 +86,6 @@ export default function Instance(p: Props) {
       props: {},
     });
   }
-
 
   return (
     <>
@@ -114,7 +130,8 @@ export default function Instance(p: Props) {
                           iconName: "package",
                         },
                         ...(instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions.can_configure_users ||
+                        instanceState.currentUserPermissions
+                          .can_configure_users ||
                         instanceState.currentUserPermissions.can_view_users
                           ? [
                               {
@@ -157,7 +174,8 @@ export default function Instance(p: Props) {
                             ]
                           : ([] as any)),
                         ...(instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions.can_configure_assets
+                        instanceState.currentUserPermissions
+                          .can_configure_assets
                           ? [
                               {
                                 value: "assets",
@@ -167,7 +185,8 @@ export default function Instance(p: Props) {
                             ]
                           : ([] as any)),
                         ...(instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions.can_configure_users ||
+                        instanceState.currentUserPermissions
+                          .can_configure_users ||
                         instanceState.currentUserPermissions.can_view_users
                           ? [
                               {
@@ -178,7 +197,8 @@ export default function Instance(p: Props) {
                             ]
                           : ([] as any)),
                         ...(instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions.can_configure_settings
+                        instanceState.currentUserPermissions
+                          .can_configure_settings
                           ? [
                               {
                                 value: "settings",
@@ -230,9 +250,7 @@ export default function Instance(p: Props) {
                       onClick={openInstanceMeta}
                       iconName="versions"
                       intent="base-100"
-                    >
-                      {/* {t2(T.Platform.platforme)} */}
-                    </Button>
+                    />
                   </Show>
                   <div
                     class="ui-hoverable ui-gap-sm ui-pad-sm flex items-center rounded"
@@ -241,15 +259,6 @@ export default function Instance(p: Props) {
                     <span class="text-primary inline-block w-5">
                       <UserCircleIcon />
                     </span>
-                    {/* <span class="font-400 text-base-content truncate text-sm">
-                      <span class="font-700">
-                        {p.globalUser.firstName} {p.globalUser.lastName}
-                      </span>
-                      <Show when={instanceState.currentUserIsGlobalAdmin}>
-                        {" "}
-                        ({t3({ en: "Admin", fr: "Admin" })})
-                      </Show>
-                    </span> */}
                   </div>
                 </div>
               </div>
@@ -267,15 +276,7 @@ export default function Instance(p: Props) {
                   </div>
                 }
               >
-                <Switch fallback={t3({ en: "Bad tab", fr: "Onglet invalide" })}>
-                  <Match when={tab() === "projects"}>
-                    <InstanceProjects
-                      isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
-                      canCreateProjects={
-                        instanceState.currentUserPermissions.can_create_projects
-                      }
-                    />
-                  </Match>
+                <Switch>
                   <Match
                     when={
                       tab() === "data" &&
@@ -292,7 +293,8 @@ export default function Instance(p: Props) {
                     when={
                       tab() === "assets" &&
                       (instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions.can_configure_assets)
+                        instanceState.currentUserPermissions
+                          .can_configure_assets)
                     }
                   >
                     <InstanceAssets
@@ -302,7 +304,8 @@ export default function Instance(p: Props) {
                   <Match
                     when={
                       (instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions.can_configure_users ||
+                        instanceState.currentUserPermissions
+                          .can_configure_users ||
                         instanceState.currentUserPermissions.can_view_users) &&
                       tab() === "users"
                     }
@@ -321,6 +324,14 @@ export default function Instance(p: Props) {
                   >
                     <InstanceSettings
                       thisLoggedInUserEmail={instanceState.currentUserEmail}
+                    />
+                  </Match>
+                  <Match when={true}>
+                    <InstanceProjects
+                      isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
+                      canCreateProjects={
+                        instanceState.currentUserPermissions.can_create_projects
+                      }
                     />
                   </Match>
                 </Switch>
