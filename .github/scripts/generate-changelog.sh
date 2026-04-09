@@ -51,13 +51,22 @@ if [ "$VERSION_CHANGED" = "false" ] && [ "$SOURCE_CHANGED" = "false" ]; then
 fi
 
 VERSION="$(cat VERSION)"
-echo "Version: $VERSION | VERSION_CHANGED=$VERSION_CHANGED | SOURCE_CHANGED=$SOURCE_CHANGED"
+
+# Is this a deploy commit?
+COMMIT_MSG="$(git log -1 --format=%s)"
+IS_DEPLOY=false
+if [[ "$COMMIT_MSG" == "Deploy version"* ]]; then
+    IS_DEPLOY=true
+fi
+
+echo "Version: $VERSION | VERSION_CHANGED=$VERSION_CHANGED | SOURCE_CHANGED=$SOURCE_CHANGED | IS_DEPLOY=$IS_DEPLOY"
 
 # ---------------------------------------------------------------------------
-# 2. Stamp any existing [TBD] entries if this is a version-bump push
+# 2. Stamp any existing [TBD] entries if this is a deploy
 # ---------------------------------------------------------------------------
 
-python3 << PYEOF
+if [ "$IS_DEPLOY" = "true" ]; then
+    python3 << PYEOF
 import re, os
 version = os.environ.get('VERSION') or open('VERSION').read().strip()
 path = 'CHANGELOG_AUTO.txt'
@@ -72,6 +81,7 @@ if os.path.exists(path):
 else:
     print('CHANGELOG_AUTO.txt does not exist yet — nothing to stamp')
 PYEOF
+fi
 
 # ---------------------------------------------------------------------------
 # 3. Generate changelog entries for source changes
@@ -80,7 +90,11 @@ PYEOF
 if [ "$SOURCE_CHANGED" = "false" ]; then
     echo "No source file changes — skipping AI generation."
 else
-    VERSION_TAG="$VERSION"
+    if [ "$IS_DEPLOY" = "true" ]; then
+        VERSION_TAG="$VERSION"
+    else
+        VERSION_TAG="TBD"
+    fi
 
     echo "Tagging new entries as [$VERSION_TAG]"
 
