@@ -221,10 +221,8 @@ fi
 
 git config user.name  "github-actions[bot]"
 git config user.email "github-actions[bot]@users.noreply.github.com"
-
-CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 git stash --include-untracked
-git pull --rebase origin "$CURRENT_BRANCH"
+git pull --rebase origin main
 git stash pop
 git add CHANGELOG_AUTO.txt
 
@@ -234,4 +232,4 @@ if git diff --cached --quiet; then
 fi
 
 git commit -m "chore: update CHANGELOG_AUTO.txt for v${VERSION} [skip ci]"
-git push origin "$CURRENT_BRANCH"
+git push origin main
