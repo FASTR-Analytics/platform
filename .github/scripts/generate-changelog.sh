@@ -57,8 +57,7 @@ echo "Version: $VERSION | VERSION_CHANGED=$VERSION_CHANGED | SOURCE_CHANGED=$SOU
 # 2. Stamp any existing [TBD] entries if this is a version-bump push
 # ---------------------------------------------------------------------------
 
-if [ "$VERSION_CHANGED" = "true" ]; then
-    python3 << PYEOF
+python3 << PYEOF
 import re, os
 version = os.environ.get('VERSION') or open('VERSION').read().strip()
 path = 'CHANGELOG_AUTO.txt'
@@ -73,7 +72,6 @@ if os.path.exists(path):
 else:
     print('CHANGELOG_AUTO.txt does not exist yet — nothing to stamp')
 PYEOF
-fi
 
 # ---------------------------------------------------------------------------
 # 3. Generate changelog entries for source changes
@@ -82,12 +80,7 @@ fi
 if [ "$SOURCE_CHANGED" = "false" ]; then
     echo "No source file changes — skipping AI generation."
 else
-    # Version tag to use for new entries
-    if [ "$VERSION_CHANGED" = "true" ]; then
-        VERSION_TAG="$VERSION"
-    else
-        VERSION_TAG="TBD"
-    fi
+    VERSION_TAG="$VERSION"
 
     echo "Tagging new entries as [$VERSION_TAG]"
 
