@@ -181,8 +181,7 @@ export function ProjectSettings(p: Props) {
         projectId: projectDetail.id,
         lockAction: "lock",
       }),
-    async () => {
-    },
+    async () => {},
   );
 
   const unlockProject = timActionButton(
@@ -192,8 +191,7 @@ export function ProjectSettings(p: Props) {
         projectId: projectDetail.id,
         lockAction: "unlock",
       }),
-    async () => {
-    },
+    async () => {},
   );
 
   async function attemptDeleteProject() {
@@ -329,9 +327,7 @@ export function ProjectSettings(p: Props) {
         </Switch>
 
         <SettingsSection header={t3({ en: "Backups", fr: "Sauvegardes" })}>
-          <ProjectBackups
-            projectId={projectDetail.id}
-          />
+          <ProjectBackups projectId={projectDetail.id} />
         </SettingsSection>
 
         <Show
@@ -477,9 +473,8 @@ function ProjectUserTable(p: {
               p.onUserClick?.([user]);
             }}
             intent="base-100"
-          >
-            {t3(TC.edit)}
-          </Button>
+            iconName="pencil"
+          />
         </div>
       ),
     },
@@ -526,9 +521,7 @@ interface GroupedBackups {
   backups: ProjectBackupInfo[];
 }
 
-function ProjectBackups(props: {
-  projectId: string;
-}) {
+function ProjectBackups(props: { projectId: string }) {
   const [expandedGroups, setExpandedGroups] = createSignal<Set<string>>(
     new Set(),
   );
@@ -552,7 +545,9 @@ function ProjectBackups(props: {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${_SERVER_HOST}/api/all-projects-backups`, { headers });
+    const response = await fetch(`${_SERVER_HOST}/api/all-projects-backups`, {
+      headers,
+    });
 
     if (!response.ok) {
       return {
@@ -662,9 +657,12 @@ function ProjectBackups(props: {
         headers["Authorization"] = `Bearer ${token}`;
       }
       console.log("Downloading file:", folder, fileName);
-      const response = await fetch(`${_SERVER_HOST}/api/backups/${folder}/${fileName}`, {
-        headers,
-      });
+      const response = await fetch(
+        `${_SERVER_HOST}/api/backups/${folder}/${fileName}`,
+        {
+          headers,
+        },
+      );
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -731,10 +729,13 @@ function ProjectBackups(props: {
           if (token) {
             headers["Authorization"] = `Bearer ${token}`;
           }
-          const response = await fetch(`${_SERVER_HOST}/api/create-backup/${backupName}`, {
-            method: "POST",
-            headers,
-          });
+          const response = await fetch(
+            `${_SERVER_HOST}/api/create-backup/${backupName}`,
+            {
+              method: "POST",
+              headers,
+            },
+          );
 
           if (!response.ok) {
             return { success: false as const, err: "Failed to create backup" };
