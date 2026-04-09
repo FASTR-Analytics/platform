@@ -12,10 +12,12 @@ import { formatVisualizationsListForAI } from "./ai_tools/tools/_internal/format
 
 type DebugView = "metrics" | "visualizations";
 
-const DEBUG_VIEW_OPTIONS: SelectOption<DebugView>[] = [
-  { value: "metrics", label: t3({ en: "Available metrics (get_available_metrics)", fr: "Métriques disponibles (get_available_metrics)" }) },
-  { value: "visualizations", label: t3({ en: "Available visualizations (get_available_visualizations)", fr: "Visualisations disponibles (get_available_visualizations)" }) },
-];
+function getDebugViewOptions(): SelectOption<DebugView>[] {
+  return [
+    { value: "metrics", label: t3({ en: "Available metrics (get_available_metrics)", fr: "Métriques disponibles (get_available_metrics)" }) },
+    { value: "visualizations", label: t3({ en: "Available visualizations (get_available_visualizations)", fr: "Visualisations disponibles (get_available_visualizations)" }) },
+  ];
+}
 
 export type AIDebugPanelProps = {
   metrics: MetricWithStatus[];
@@ -50,7 +52,7 @@ export function AIDebugPanel(p: Props) {
       <div class="flex flex-col gap-3">
         <Select
           value={view()}
-          options={DEBUG_VIEW_OPTIONS}
+          options={getDebugViewOptions()}
           onChange={(v) => setView(v as DebugView)}
           fullWidth
         />

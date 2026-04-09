@@ -353,19 +353,19 @@ export function SlideList(p: Props) {
     {
       label: t3({ en: "Cover slide", fr: "Diapositive de couverture" }),
       icon: "plus",
-      onClick: () => addSlide({ type: "cover", title: "Title", subtitle: "Subtitle" }),
+      onClick: () => addSlide({ type: "cover", title: t3({ en: "Title", fr: "Titre" }), subtitle: t3({ en: "Subtitle", fr: "Sous-titre" }) }),
     },
     {
       label: t3({ en: "Section slide", fr: "Diapositive de section" }),
       icon: "plus",
-      onClick: () => addSlide({ type: "section", sectionTitle: "Section" }),
+      onClick: () => addSlide({ type: "section", sectionTitle: t3({ en: "Section", fr: "Section" }) }),
     },
     {
       label: t3({ en: "Content slide", fr: "Diapositive de contenu" }),
       icon: "plus",
       onClick: () => addSlide({
         type: "content",
-        header: "New slide",
+        header: t3({ en: "New slide", fr: "Nouvelle diapositive" }),
         layout: { type: "item", id: "a1a", data: { type: "text", markdown: "" } },
       }),
     },

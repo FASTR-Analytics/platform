@@ -45,14 +45,15 @@ import { CreateSlideFromVisualizationModal } from "./visualization/create_slide_
 import { EditCommonPropertiesModal } from "./visualization/edit_common_properties_modal";
 import { useAIProjectContext } from "~/components/project_ai";
 
-const GROUPING_OPTIONS: { value: VisualizationGroupingMode; label: string }[] =
-  [
+function getGroupingOptions(): { value: VisualizationGroupingMode; label: string }[] {
+  return [
     { value: "folders", label: t3({ en: "By folder", fr: "Par dossier" }) },
     { value: "module", label: t3({ en: "By module", fr: "Par module" }) },
     { value: "metric", label: t3({ en: "By metric", fr: "Par métrique" }) },
     // { value: "ownership", label: t3({ en: "By ownership", fr: "Par propriétaire" }) },
     { value: "flat", label: t3({ en: "Flat list", fr: "Liste plate" }) },
   ];
+}
 
 type GroupOption = {
   value: string;
@@ -370,7 +371,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         <div class="border-base-300 flex h-full w-full flex-col border-r">
           <div class="border-base-300 flex flex-col gap-2 border-b p-3">
             <Select
-              options={GROUPING_OPTIONS}
+              options={getGroupingOptions()}
               value={vizGroupingMode()}
               onChange={(v) =>
                 setVizGroupingMode(v as VisualizationGroupingMode)
