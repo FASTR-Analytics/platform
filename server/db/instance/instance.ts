@@ -313,7 +313,25 @@ ORDER BY LOWER(label)`
       ? JSON.parse(structureLastUpdatedRow.config_json_value)
       : undefined;
 
-    const users = await getInstanceUsers(mainDb);
+    const users = (await mainDb<DBUser[]>`SELECT * FROM users`).map<OtherUser>(
+      (rawUser) => {
+        return {
+          email: rawUser.email,
+          isGlobalAdmin: rawUser.is_admin,
+          can_configure_users: rawUser.can_configure_users,
+          can_view_users: rawUser.can_view_users,
+          can_view_logs: rawUser.can_view_logs,
+          can_configure_settings: rawUser.can_configure_settings,
+          can_configure_assets: rawUser.can_configure_assets,
+          can_configure_data: rawUser.can_configure_data,
+          can_view_data: rawUser.can_view_data,
+          can_create_projects: rawUser.can_create_projects,
+        };
+      }
+    );
+
+    // Get cache version for indicators (includes counts to detect deletions)
+    const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
 
     const instanceDetails: InstanceDetail = {
       instanceId: _INSTANCE_ID,

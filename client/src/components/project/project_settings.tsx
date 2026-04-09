@@ -466,6 +466,10 @@ function hasPermissions(user: ProjectUser): boolean {
   return permissionLabels.some((p) => user[p.key]);
 }
 
+function isProjectAdmin(user: ProjectUser): boolean {
+  return permissionLabels.every((p) => user[p.key]);
+}
+
 function getPermissionSummary(user: ProjectUser): string {
   const active = permissionLabels.filter((p) => user[p.key]);
   if (active.length === 0)
@@ -512,11 +516,20 @@ function ProjectUserTable(p: {
         <Show
           when={user.isGlobalAdmin}
           fallback={
-            <span
-              class={`text-sm ${!hasPermissions(user) ? "text-neutral" : ""}`}
+            <Show
+              when={isProjectAdmin(user)}
+              fallback={
+                <span
+                  class={`text-sm ${!hasPermissions(user) ? "text-neutral" : ""}`}
+                >
+                  {getPermissionSummary(user)}
+                </span>
+              }
             >
-              {getPermissionSummary(user)}
-            </span>
+              <span class="text-primary text-sm">
+                {t3({ en: "Project Admin", fr: "Administrateur du projet" })}
+              </span>
+            </Show>
           }
         >
           <span class="text-primary">

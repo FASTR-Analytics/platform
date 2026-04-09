@@ -147,11 +147,52 @@ export function InstanceUsers(p: Props) {
 type UserData = {
   email: string;
   isGlobalAdmin: boolean;
+  can_configure_users: boolean;
+  can_view_users: boolean;
+  can_view_logs: boolean;
+  can_configure_settings: boolean;
+  can_configure_assets: boolean;
+  can_configure_data: boolean;
+  can_view_data: boolean;
+  can_create_projects: boolean;
 };
 
-type UserTableData = {
-  email: string;
-  isGlobalAdmin: boolean;
+const globalPermissionLabels: {
+  key: keyof UserData;
+  label: { en: string; fr: string };
+}[] = [
+  { key: "can_configure_users", label: { en: "Configure users", fr: "Configurer les utilisateurs" } },
+  { key: "can_view_users", label: { en: "View users", fr: "Consulter les utilisateurs" } },
+  { key: "can_view_logs", label: { en: "View logs", fr: "Consulter les journaux" } },
+  { key: "can_configure_settings", label: { en: "Configure settings", fr: "Configurer les paramètres" } },
+  { key: "can_configure_assets", label: { en: "Configure assets", fr: "Configurer les ressources" } },
+  { key: "can_configure_data", label: { en: "Configure data", fr: "Configurer les données" } },
+  { key: "can_view_data", label: { en: "View data", fr: "Consulter les données" } },
+  { key: "can_create_projects", label: { en: "Create projects", fr: "Créer des projets" } },
+];
+
+function hasGlobalPermissions(user: UserData): boolean {
+  return globalPermissionLabels.some((p) => user[p.key]);
+}
+
+function isInstanceAdmin(user: UserData): boolean {
+  return globalPermissionLabels.every((p) => user[p.key]);
+}
+
+function getGlobalPermissionSummary(user: UserData): string {
+  const active = globalPermissionLabels.filter((p) => user[p.key]);
+  if (active.length === 0)
+    return t3({ en: "Does not have access", fr: "N'a pas accès" });
+  const shown = active
+    .slice(0, 5)
+    .map((p) => t3(p.label))
+    .join(", ");
+  if (active.length > 5)
+    return `${shown}, +${active.length - 5} ${t3({ en: "more", fr: "de plus" })}`;
+  return shown;
+}
+
+type UserTableData = UserData & {
   lastActiveTs: number;
 };
 
@@ -238,9 +279,20 @@ function UserTable(p: {
         <Show
           when={user.isGlobalAdmin}
           fallback={
-            <span class="text-neutral text-sm">
-              {t3({ en: "User", fr: "Utilisateur" })}
-            </span>
+            <Show
+              when={isInstanceAdmin(user)}
+              fallback={
+                <span
+                  class={`text-sm ${!hasGlobalPermissions(user) ? "text-neutral" : ""}`}
+                >
+                  {getGlobalPermissionSummary(user)}
+                </span>
+              }
+            >
+              <span class="text-primary text-sm">
+                {t3({ en: "Instance Admin", fr: "Administrateur d'instance" })}
+              </span>
+            </Show>
           }
         >
           <span class="text-primary text-sm">

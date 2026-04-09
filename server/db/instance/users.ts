@@ -65,7 +65,7 @@ export async function getOtherUser(
       can_create_projects: true,
     } : {
       email,
-      isGlobalAdmin: false,
+      isGlobalAdmin: rawUser.is_admin,
       can_configure_users: rawUser.can_configure_users,
       can_view_users: rawUser.can_view_users,
       can_view_logs: rawUser.can_view_logs,
