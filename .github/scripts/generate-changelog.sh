@@ -103,17 +103,21 @@ else
 import json, os
 diff = open('/tmp/changelog_diff.txt', 'r', errors='replace').read()
 prompt = (
-    "You are analysing a TypeScript diff for FASTR Analytics, a web platform used by "
-    "health data analysts (HMIS/HFA data management, analysis, visualisation).\n\n"
+    "You are writing release notes for FASTR Analytics, a data analysis platform used by "
+    "health data analysts who are not technical.\n\n"
     "Source diff:\n\`\`\`diff\n" + diff + "\n\`\`\`\n\n"
-    "Output ONLY lines for changes a health data analyst would directly notice or care about "
-    "(new screens, fixed UI bugs, improved workflows, new export options, etc.).\n\n"
+    "Output ONLY lines for changes a non-technical user would directly notice or benefit from "
+    "(new features, fixed issues, improved workflows, new export options, visual changes, etc.).\n\n"
     "Format — each line must be exactly:\n"
     "[user] [added] - Description\n"
     "[user] [changed] - Description\n"
     "[user] [fixed] - Description\n\n"
     "Rules:\n"
-    "- Skip anything backend-only, infra, tooling, logging, deployment-related\n"
+    "- Write in plain English — no code names, no technical jargon, no component/function names\n"
+    "- Describe what the user can now do or what problem is solved, not what code changed\n"
+    "- Bad example: 'Fixed NaN propagation in aggregation pipeline' — Good example: 'Fixed incorrect totals appearing in summary tables'\n"
+    "- Bad example: 'Added useMemo to DataGrid component' — Good example: 'Improved loading speed on large datasets'\n"
+    "- Skip anything backend-only, infra, tooling, logging, or deployment-related\n"
     "- If no user-facing changes, output exactly: SKIP\n"
     "- No preamble, no markdown, no explanation. Maximum 8 lines."
 )
@@ -146,20 +150,23 @@ print(resp['content'][0]['text'].strip())
 import json, os
 diff = open('/tmp/changelog_diff.txt', 'r', errors='replace').read()
 prompt = (
-    "You are analysing a TypeScript diff for FASTR Analytics, a full-stack Deno/SolidJS platform "
-    "for health data management.\n\n"
+    "You are writing release notes for FASTR Analytics admins — people who manage instances "
+    "but are not necessarily developers.\n\n"
     "Source diff:\n\`\`\`diff\n" + diff + "\n\`\`\`\n\n"
-    "Output ONLY technical/admin-facing changelog lines covering: API routes, database schema changes, "
-    "backend logic, authentication, infrastructure, tooling, refactoring, and internal improvements.\n\n"
+    "Output lines for admin-relevant changes: new capabilities, configuration options, fixed issues, "
+    "performance improvements, and anything that affects how the platform behaves or is managed.\n\n"
     "Format — each line must be exactly:\n"
     "[admin] [added] - Description\n"
     "[admin] [changed] - Description\n"
     "[admin] [fixed] - Description\n"
     "[admin] [internal] - Description\n\n"
     "Rules:\n"
-    "- Be specific: mention route paths, table names, middleware names, component names where relevant\n"
+    "- Write in plain English — avoid raw code names, function names, and developer jargon\n"
+    "- Describe what changed in terms of behaviour or capability, not what code was edited\n"
+    "- Bad example: 'Refactored aggregation middleware to use async iterators' — Good example: 'Improved performance when processing large datasets'\n"
+    "- Bad example: 'Added index to project_datasets table' — Good example: 'Faster dataset loading for projects with many uploads'\n"
     "- Include everything noteworthy — no maximum line limit\n"
-    "- If no meaningful technical changes, output exactly: SKIP\n"
+    "- If no meaningful changes, output exactly: SKIP\n"
     "- No preamble, no markdown, no explanation."
 )
 body = {
