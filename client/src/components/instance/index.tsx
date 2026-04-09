@@ -1,6 +1,5 @@
 import { useSearchParams } from "@solidjs/router";
-import { isFrench, t3, TC } from "lib";
-import { instanceState } from "~/state/instance_state";
+import { TC, isFrench, t3 } from "lib";
 import {
   AlertProvider,
   Button,
@@ -9,23 +8,23 @@ import {
   MenuTriggerWrapper,
   PopoverMenuProvider,
   UserCircleIcon,
-  getEditorWrapper,
   getFirstString,
   openComponent,
   type MenuItem,
 } from "panther";
 import { Match, Show, Switch, createSignal, onMount } from "solid-js";
+import { clerk } from "~/components/LoggedInWrapper";
+import { EmailOptInModal } from "~/components/email_opt_in_modal";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
 import { InstanceUsers } from "~/components/instance/instance_users";
+import { instanceState } from "~/state/instance_state";
 import Project from "../project";
 import { FeedbackForm } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
 import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
-import { clerk } from "~/components/LoggedInWrapper";
-import { EmailOptInModal } from "~/components/email_opt_in_modal";
 
 type Props = {
   attemptSignOut: () => Promise<void>;
@@ -33,7 +32,6 @@ type Props = {
 
 export default function Instance(p: Props) {
   const [searchParams] = useSearchParams();
-  const { openEditor, EditorWrapper } = getEditorWrapper();
   const [_tab, setTab] = createSignal<
     "projects" | "users" | "data" | "assets" | "settings"
   >("projects");
@@ -264,79 +262,76 @@ export default function Instance(p: Props) {
               </div>
             }
           >
-            <EditorWrapper>
-              <Show
-                when={instanceState.currentUserApproved}
-                fallback={
-                  <div class="ui-pad">
-                    {t3({
-                      en: "You are not yet approved. Wait for an administrator to add you to the platform.",
-                      fr: "Vous n'êtes pas encore approuvé. Veuillez attendre qu'un administrateur vous ajoute à la plateforme.",
-                    })}
-                  </div>
-                }
-              >
-                <Switch>
-                  <Match
-                    when={
-                      tab() === "data" &&
-                      (instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions.can_view_data ||
-                        instanceState.currentUserPermissions.can_configure_data)
+            <Show
+              when={instanceState.currentUserApproved}
+              fallback={
+                <div class="ui-pad">
+                  {t3({
+                    en: "You are not yet approved. Wait for an administrator to add you to the platform.",
+                    fr: "Vous n'êtes pas encore approuvé. Veuillez attendre qu'un administrateur vous ajoute à la plateforme.",
+                  })}
+                </div>
+              }
+            >
+              <Switch>
+                <Match
+                  when={
+                    tab() === "data" &&
+                    (instanceState.currentUserIsGlobalAdmin ||
+                      instanceState.currentUserPermissions.can_view_data ||
+                      instanceState.currentUserPermissions.can_configure_data)
+                  }
+                >
+                  <InstanceData
+                    isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
+                  />
+                </Match>
+                <Match
+                  when={
+                    tab() === "assets" &&
+                    (instanceState.currentUserIsGlobalAdmin ||
+                      instanceState.currentUserPermissions.can_configure_assets)
+                  }
+                >
+                  <InstanceAssets
+                    isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
+                  />
+                </Match>
+                <Match
+                  when={
+                    (instanceState.currentUserIsGlobalAdmin ||
+                      instanceState.currentUserPermissions
+                        .can_configure_users ||
+                      instanceState.currentUserPermissions.can_view_users) &&
+                    tab() === "users"
+                  }
+                >
+                  <InstanceUsers
+                    thisLoggedInUserEmail={instanceState.currentUserEmail}
+                  />
+                </Match>
+                <Match
+                  when={
+                    (instanceState.currentUserIsGlobalAdmin ||
+                      instanceState.currentUserPermissions
+                        .can_configure_settings) &&
+                    tab() === "settings"
+                  }
+                >
+                  <InstanceSettings
+                    thisLoggedInUserEmail={instanceState.currentUserEmail}
+                  />
+                </Match>
+                <Match when={true}>
+                  <InstanceProjects
+                    isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
+                    canCreateProjects={
+                      instanceState.currentUserPermissions.can_create_projects
                     }
-                  >
-                    <InstanceData
-                      isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
-                    />
-                  </Match>
-                  <Match
-                    when={
-                      tab() === "assets" &&
-                      (instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions
-                          .can_configure_assets)
-                    }
-                  >
-                    <InstanceAssets
-                      isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
-                    />
-                  </Match>
-                  <Match
-                    when={
-                      (instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions
-                          .can_configure_users ||
-                        instanceState.currentUserPermissions.can_view_users) &&
-                      tab() === "users"
-                    }
-                  >
-                    <InstanceUsers
-                      thisLoggedInUserEmail={instanceState.currentUserEmail}
-                    />
-                  </Match>
-                  <Match
-                    when={
-                      (instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions
-                          .can_configure_settings) &&
-                      tab() === "settings"
-                    }
-                  >
-                    <InstanceSettings
-                      thisLoggedInUserEmail={instanceState.currentUserEmail}
-                    />
-                  </Match>
-                  <Match when={true}>
-                    <InstanceProjects
-                      isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
-                      canCreateProjects={
-                        instanceState.currentUserPermissions.can_create_projects
-                      }
-                    />
-                  </Match>
-                </Switch>
-              </Show>
-            </EditorWrapper>
+                  />
+                </Match>
+              </Switch>
+            </Show>
           </FrameTop>
         </Match>
       </Switch>
