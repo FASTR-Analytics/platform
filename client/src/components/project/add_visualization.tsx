@@ -215,7 +215,6 @@ export function AddVisualization(
         {(metric) => {
           const presets = vizPresets();
           const hasPresets = presets.length > 0;
-
           return (
             <>
               <Show when={hasPresets}>

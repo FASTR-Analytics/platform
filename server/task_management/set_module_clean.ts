@@ -8,7 +8,7 @@ import { EndingTaskData } from "../server_only_types/mod.ts";
 import { hasRunningModule, removeRunningModule } from "./running_tasks_map.ts";
 import { triggerRunnableModules } from "./trigger_runnable_tasks.ts";
 import { getPresentationObjectsThatDependOnModule } from "./get_dependents.ts";
-import { notifyLastUpdated } from "./notify_last_updated.ts";
+import { notifyLastUpdated, notifyProjectUpdated } from "./notify_last_updated.ts";
 
 const broadcastTaskEnded = new BroadcastChannel("task_ended");
 const broadcastDirtyStates = new BroadcastChannel("dirty_states");
@@ -107,6 +107,8 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
     etd.moduleId,
     lastRun
   );
+
+  notifyProjectUpdated(etd.projectId, lastRun);
 }
 
 async function setAllModuleDependentsLastUpdatedAndNotify(
