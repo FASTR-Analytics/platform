@@ -1,4 +1,5 @@
 import { t3 } from "../translate/t-func.ts";
+import { CountryCodes } from "./instance.ts";
 
 export type ModuleId =
   | "m001"
@@ -81,7 +82,7 @@ export const MODULE_REGISTRY: ModuleRegistryEntry[] = [
     },
     prerequisites: ["m002"],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m007" },
-    allowedCountries: ["NIG"],
+    allowedCountries: [CountryCodes.Nigeria],
   },
   {
     id: "hfa001",

@@ -51,6 +51,10 @@ export function throwIfErrNoData(
 // Instance Configuration Types
 // ============================================================================
 
+export const CountryCodes = {
+  Nigeria: "NGA",
+};
+
 export type InstanceCalendar = "gregorian" | "ethiopian";
 
 export type InstanceMeta = {
