@@ -1,3 +1,17 @@
+[TBD] [user] [added] - You can now save your work without closing the editor using a new "Save" button alongside the existing "Save and close" button in both the slide editor and visualization editor
+[TBD] [user] [changed] - The left settings panel in the visualization editor can now be resized by dragging its edge, giving you more room for the chart or more room for the settings
+[TBD] [user] [changed] - The "Filter" section in the visualization data panel is now labeled "Filter (subset)" to better explain its purpose
+[TBD] [user] [changed] - The "Disaggregate" section in the visualization data panel is now labeled "Display (disaggregate)" to be clearer about what it does
+[TBD] [user] [changed] - The conflict resolution dialog that appears when someone else edits at the same time is now wider for easier reading
+[TBD] [user] [fixed] - After resolving a conflict when saving, the editor now correctly tracks the latest version so subsequent saves work without showing false conflicts
+[TBD] [admin] [changed] - The slide editor now has separate "Save and close" and "Save" buttons, allowing you to save your work without leaving the editor
+[TBD] [admin] [changed] - The visualization editor's left settings panel is now resizable, so you can drag to adjust its width between 300px and 600px
+[TBD] [admin] [changed] - The "Filter" section in the visualization data editor is now labeled "Filter (subset)" for clarity
+[TBD] [admin] [changed] - The "Disaggregate" section in the visualization data editor is now labeled "Display (disaggregate)" for clarity
+[TBD] [admin] [changed] - The conflict resolution modal is now slightly wider for better readability
+[TBD] [admin] [fixed] - Conflict resolution when saving slides and visualizations now behaves more consistently — choosing "Keep editing" correctly keeps you in the editor without closing it
+[TBD] [admin] [fixed] - After resolving a save conflict by overwriting or saving as new, the editor now correctly tracks the latest server timestamp, preventing repeated false conflict warnings
+[TBD] [admin] [changed] - The visualization editor panel tabs (Data, Presentation, Text) now have improved styling with better text truncation and a visible right border on the panel
 [TBD] [admin] [internal] - Standardized internal country code references to use a centralized registry instead of hardcoded values, reducing risk of inconsistencies across the platform
 [TBD] [user] [added] - The user management table now displays each user's first and last name alongside their email address
 [TBD] [admin] [added] - The instance users table now displays each user's first and last name in a new "Name" column, making it easier to identify users at a glance
