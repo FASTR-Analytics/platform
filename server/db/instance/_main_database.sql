@@ -13,6 +13,8 @@ CREATE TABLE users (
   can_configure_data boolean NOT NULL DEFAULT FALSE,
   can_view_data boolean NOT NULL DEFAULT FALSE,
   can_create_projects boolean NOT NULL DEFAULT FALSE,
+  first_name text,
+  last_name text,
   default_project_can_configure_settings boolean NOT NULL DEFAULT FALSE,
   default_project_can_create_backups boolean NOT NULL DEFAULT FALSE,
   default_project_can_restore_backups boolean NOT NULL DEFAULT FALSE,
