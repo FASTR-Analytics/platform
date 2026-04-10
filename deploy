@@ -203,6 +203,10 @@ if ! git commit -m "$COMMIT_MSG" --allow-empty; then
     exit 1
 fi
 
+if [ "$ADHOC_MODE" = "false" ]; then
+    git tag -a "v$VERSION" -m "Release v$VERSION"
+fi
+
 # A GitHub Action generates a CHANGELOG_AUTO.txt commit on the remote after
 # each push. This means the remote is almost always 1 commit ahead by the
 # time we deploy again. We auto-rebase over changelog-only commits, but abort
@@ -225,7 +229,7 @@ if [ "$LOCAL" != "$REMOTE" ]; then
     fi
 fi
 
-if ! git push; then
+if ! git push --follow-tags; then
     echo "ERROR: Git push failed!"
     exit 1
 fi
