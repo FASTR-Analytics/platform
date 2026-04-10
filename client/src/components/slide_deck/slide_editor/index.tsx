@@ -9,15 +9,15 @@ import type {
   SlideDeckConfig,
   SlideType,
 } from "lib";
-import {
-  getSlideTitle,
-  getTextRenderingOptions,
-  t3,
-  TC,
-} from "lib";
-import type { DividerDragUpdate, LayoutItemSwapUpdate, LayoutNode } from "panther";
+import { getSlideTitle, getTextRenderingOptions, t3, TC } from "lib";
+import type {
+  DividerDragUpdate,
+  LayoutItemSwapUpdate,
+  LayoutNode,
+} from "panther";
 import {
   AlertComponentProps,
+  APIResponseWithData,
   Button,
   FrameLeftResizable,
   FrameTop,
@@ -35,6 +35,7 @@ import {
   openAlert,
   openComponent,
   showMenu,
+  timActionButton,
 } from "panther";
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import {
@@ -50,7 +51,10 @@ import { AddVisualization } from "~/components/project/add_visualization";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import type { AIContext } from "~/components/project_ai/types";
 import { VisualizationEditor } from "~/components/visualization";
-import { getFigureInputsFromPresentationObject, stripFigureInputsForStorage } from "~/generate_visualization/mod";
+import {
+  getFigureInputsFromPresentationObject,
+  stripFigureInputsForStorage,
+} from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
@@ -114,7 +118,7 @@ export function SlideEditor(p: Props) {
   const normalizedSlide = p.slide;
 
   const [needsSave, setNeedsSave] = createSignal(false);
-  const [isSaving, setIsSaving] = createSignal(false);
+  const [lastKnownServerTimestamp, setLastKnownServerTimestamp] = createSignal(p.lastUpdated);
   const [tempSlide, setTempSlide] = createStore<Slide>(
     structuredClone(normalizedSlide),
   );
@@ -199,26 +203,30 @@ export function SlideEditor(p: Props) {
     }
   });
 
-  async function handleSave(overwriteIfConflict?: boolean) {
-    if (!needsSave()) {
-      p.close(false);
-      return;
-    }
+  type SaveFuncData = {
+    lastUpdated: string;
+    conflictResolutionDecision?:
+      | "user_chose_view_theirs"
+      | "user_chose_cancel"
+      | "user_chose_save_as_new";
+  };
 
-    setIsSaving(true);
+  async function saveFunc(
+    overwriteIfConflict?: boolean,
+  ): Promise<APIResponseWithData<SaveFuncData>> {
+    if (!needsSave()) {
+      return { success: true, data: { lastUpdated: lastKnownServerTimestamp() } };
+    }
 
     const updateRes = await serverActions.updateSlide({
       projectId: p.projectId,
       slide_id: p.slideId,
       slide: unwrap(tempSlide),
-      expectedLastUpdated: p.lastUpdated,
+      expectedLastUpdated: lastKnownServerTimestamp(),
       overwrite: overwriteIfConflict,
     });
 
     if (updateRes.success === false && updateRes.err === "CONFLICT") {
-      setIsSaving(false);
-
-      // Show modal with options
       const userChoice = await openComponent({
         element: ConflictResolutionModal,
         props: {
@@ -227,18 +235,17 @@ export function SlideEditor(p: Props) {
       });
 
       if (userChoice === "view_theirs") {
-        // Close editor, parent will show their changes
-        p.close(false);
-        return;
+        return {
+          success: true,
+          data: { lastUpdated: lastKnownServerTimestamp(), conflictResolutionDecision: "user_chose_view_theirs" },
+        };
       }
 
       if (userChoice === "overwrite") {
-        // Retry with overwrite flag
-        return handleSave(true);
+        return saveFunc(true);
       }
 
       if (userChoice === "save_as_new") {
-        // Create new slide with user's edited content
         const createRes = await serverActions.createSlide({
           projectId: p.projectId,
           deck_id: p.deckId,
@@ -247,8 +254,7 @@ export function SlideEditor(p: Props) {
         });
 
         if (createRes.success === false) {
-          setIsSaving(false);
-          return;
+          return createRes;
         }
 
         optimisticSetLastUpdated(
@@ -257,38 +263,59 @@ export function SlideEditor(p: Props) {
           createRes.data.lastUpdated,
         );
 
-        p.close(true);
-        return;
+        return {
+          success: true,
+          data: { lastUpdated: createRes.data.lastUpdated, conflictResolutionDecision: "user_chose_save_as_new" },
+        };
       }
 
-      // userChoice === "cancel" - stay in editor
-      return;
+      return {
+        success: true,
+        data: { lastUpdated: lastKnownServerTimestamp(), conflictResolutionDecision: "user_chose_cancel" },
+      };
     }
 
-    if (updateRes.success) {
-      optimisticSetLastUpdated("slides", p.slideId, updateRes.data.lastUpdated);
-
-      // Immediate cache update for instant thumbnail refresh
-      const cached = await _SLIDE_CACHE.get({
-        projectId: p.projectId,
-        slideId: p.slideId,
-      });
-      const promise = serverActions.getSlide({
-        projectId: p.projectId,
-        slide_id: p.slideId,
-      });
-      await _SLIDE_CACHE.setPromise(
-        promise,
-        { projectId: p.projectId, slideId: p.slideId },
-        cached.version,
-      );
-      await promise;
-
-      p.close(true);
-    } else {
-      setIsSaving(false);
+    if (updateRes.success === false) {
+      return updateRes;
     }
+
+    optimisticSetLastUpdated("slides", p.slideId, updateRes.data.lastUpdated);
+
+    const cached = await _SLIDE_CACHE.get({
+      projectId: p.projectId,
+      slideId: p.slideId,
+    });
+    const promise = serverActions.getSlide({
+      projectId: p.projectId,
+      slide_id: p.slideId,
+    });
+    await _SLIDE_CACHE.setPromise(
+      promise,
+      { projectId: p.projectId, slideId: p.slideId },
+      cached.version,
+    );
+    await promise;
+
+    setNeedsSave(false);
+    setLastKnownServerTimestamp(updateRes.data.lastUpdated);
+
+    return { success: true, data: { lastUpdated: updateRes.data.lastUpdated } };
   }
+
+  const saveAndClose = timActionButton(
+    () => saveFunc(),
+    (data) => {
+      if (data.conflictResolutionDecision === "user_chose_cancel") return;
+      p.close(data.conflictResolutionDecision === "user_chose_view_theirs" ? false : true);
+    },
+  );
+
+  const save = timActionButton(
+    () => saveFunc(),
+    (data) => {
+      if (data.conflictResolutionDecision === "user_chose_view_theirs") p.close(false);
+    },
+  );
 
   function handleCancel() {
     p.close(false);
@@ -584,7 +611,9 @@ export function SlideEditor(p: Props) {
         blockId,
         () => ({
           type: "figure" as const,
-          figureInputs: structuredClone(stripFigureInputsForStorage(figureInputsRes.data)),
+          figureInputs: structuredClone(
+            stripFigureInputsForStorage(figureInputsRes.data),
+          ),
           source: {
             type: "from_data" as const,
             metricId: poDetailRes.data.resultsValue.id,
@@ -720,9 +749,16 @@ export function SlideEditor(p: Props) {
                 <div class="ui-gap-sm flex items-center">
                   <Button
                     intent="success"
-                    onClick={() => handleSave()}
-                    disabled={isSaving()}
-                    loading={isSaving()}
+                    onClick={saveAndClose.click}
+                    state={saveAndClose.state()}
+                    iconName="save"
+                  >
+                    {t3({ en: "Save and close", fr: "Sauvegarder et quitter" })}
+                  </Button>
+                  <Button
+                    intent="success"
+                    onClick={save.click}
+                    state={save.state()}
                     iconName="save"
                   >
                     {t3(TC.save)}
@@ -737,9 +773,18 @@ export function SlideEditor(p: Props) {
             <div class="ui-gap-sm flex items-center">
               <Select
                 options={[
-                  { value: "cover", label: t3({ en: "Cover", fr: "Couverture" }) },
-                  { value: "section", label: t3({ en: "Section", fr: "Section" }) },
-                  { value: "content", label: t3({ en: "Content", fr: "Contenu" }) },
+                  {
+                    value: "cover",
+                    label: t3({ en: "Cover", fr: "Couverture" }),
+                  },
+                  {
+                    value: "section",
+                    label: t3({ en: "Section", fr: "Section" }),
+                  },
+                  {
+                    value: "content",
+                    label: t3({ en: "Content", fr: "Contenu" }),
+                  },
                 ]}
                 value={tempSlide.type}
                 onChange={(v: string) =>
@@ -786,7 +831,12 @@ export function SlideEditor(p: Props) {
           <div class="ui-pad bg-base-200 h-full w-full overflow-auto">
             <Show when={pageInputs().status === "loading"}>
               <div class="flex h-full items-center justify-center">
-                <div class="text-base-content/70">{t3({ en: "Rendering slide...", fr: "Rendu de la diapositive..." })}</div>
+                <div class="text-base-content/70">
+                  {t3({
+                    en: "Rendering slide...",
+                    fr: "Rendu de la diapositive...",
+                  })}
+                </div>
               </div>
             </Show>
             <Show when={pageInputs().status === "error"}>

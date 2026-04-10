@@ -1,4 +1,3 @@
-
 import { trackStore } from "@solid-primitives/deep";
 import {
   ItemsHolderPresentationObject,
@@ -18,6 +17,7 @@ import {
   ChartHolder,
   Csv,
   FigureInputs,
+  FrameLeftResizable,
   FrameTop,
   StateHolder,
   StateHolderWrapper,
@@ -28,7 +28,7 @@ import {
   openComponent,
   saveAs,
   timActionButton,
-  timActionDelete
+  timActionDelete,
 } from "panther";
 import {
   Match,
@@ -56,7 +56,7 @@ import type { GeoJSONFeatureCollection } from "panther";
 import { serverActions } from "~/server_actions";
 import {
   getPresentationObjectItemsFromCacheOrFetch,
-  getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
+  getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
 } from "~/state/po_cache";
 import { setShowAi, showAi } from "~/state/ui";
 import type { CreateModeReturn, EditModeReturn, EphemeralModeReturn } from ".";
@@ -75,19 +75,26 @@ type InnerProps = {
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   returnToContext?: AIContext;
   onClose:
-  | ((result: EditModeReturn) => void)
-  | ((result: CreateModeReturn) => void)
-  | ((result: EphemeralModeReturn) => void);
+    | ((result: EditModeReturn) => void)
+    | ((result: CreateModeReturn) => void)
+    | ((result: EphemeralModeReturn) => void);
 };
 
 export function VisualizationEditorInner(p: InnerProps) {
-  const defaultHeight = p.poDetail.config.d.type === "table" ? "ideal" as const : "flex" as const;
-  const [editorHeight, setEditorHeight] = createSignal<"flex" | "ideal">(defaultHeight);
+  const defaultHeight =
+    p.poDetail.config.d.type === "table"
+      ? ("ideal" as const)
+      : ("flex" as const);
+  const [editorHeight, setEditorHeight] = createSignal<"flex" | "ideal">(
+    defaultHeight,
+  );
   const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
   const { setAIContext, notifyAI } = useAIProjectContext();
 
-  const [lastKnownServerTimestamp, setLastKnownServerTimestamp] = createSignal(p.poDetail.lastUpdated);
+  const [lastKnownServerTimestamp, setLastKnownServerTimestamp] = createSignal(
+    p.poDetail.lastUpdated,
+  );
 
   // Extract static values from stores to prevent external reactivity
   const projectId = p.projectDetail.id;
@@ -105,7 +112,9 @@ export function VisualizationEditorInner(p: InnerProps) {
     structuredClone(p.poDetail.config),
   );
 
-  const manuallyUpdateTempConfig: SetStoreFunction<PresentationObjectConfig> = (...args: any[]) => {
+  const manuallyUpdateTempConfig: SetStoreFunction<PresentationObjectConfig> = (
+    ...args: any[]
+  ) => {
     (setTempConfig as any)(...args);
     notifyAI({ type: "edited_viz_locally" });
   };
@@ -118,7 +127,10 @@ export function VisualizationEditorInner(p: InnerProps) {
     }>
   >({
     status: "loading",
-    msg: t3({ en: "Fetching data to be visualized...", fr: "Récupération des données à visualiser..." }),
+    msg: t3({
+      en: "Fetching data to be visualized...",
+      fr: "Récupération des données à visualiser...",
+    }),
   });
 
   // Sub-state updater
@@ -133,7 +145,9 @@ export function VisualizationEditorInner(p: InnerProps) {
         p.poDetail,
         config,
       );
-      let lastState: typeof itemsHolder extends () => infer T ? T : never = { status: "loading" };
+      let lastState: typeof itemsHolder extends () => infer T ? T : never = {
+        status: "loading",
+      };
       for await (const state of iter) {
         lastState = state;
         setItemsHolder(state);
@@ -221,7 +235,6 @@ export function VisualizationEditorInner(p: InnerProps) {
     setNeedsSave(true);
   });
 
-
   // Actions
 
   // Create mode: open modal to get name and folder, then create
@@ -247,10 +260,17 @@ export function VisualizationEditorInner(p: InnerProps) {
     }
   }
 
-  // Edit mode: save existing presentation object
-  async function saveFunc(overwriteIfConflict?: boolean): Promise<
-    APIResponseWithData<{ lastUpdated: string }>
-  > {
+  type SaveFuncData = {
+    lastUpdated: string;
+    conflictResolutionDecision?:
+      | "user_chose_view_theirs"
+      | "user_chose_cancel"
+      | "user_chose_save_as_new";
+  };
+
+  async function saveFunc(
+    overwriteIfConflict?: boolean,
+  ): Promise<APIResponseWithData<SaveFuncData>> {
     const unwrappedTempConfig = unwrap(tempConfig);
 
     const res = await serverActions.updatePresentationObjectConfig({
@@ -262,26 +282,28 @@ export function VisualizationEditorInner(p: InnerProps) {
     });
 
     if (res.success === false && res.err === "CONFLICT") {
-      // Show modal with options
       const userChoice = await openComponent({
         element: ConflictResolutionModal,
         props: {
-          itemName: "visualization"
+          itemName: "visualization",
         },
       });
 
       if (userChoice === "view_theirs") {
-        (p.onClose as (result: EditModeReturn) => void)(undefined);
-        return res;
+        return {
+          success: true,
+          data: {
+            lastUpdated: lastKnownServerTimestamp(),
+            conflictResolutionDecision: "user_chose_view_theirs",
+          },
+        };
       }
 
       if (userChoice === "overwrite") {
-        // Retry with overwrite flag
         return saveFunc(true);
       }
 
       if (userChoice === "save_as_new") {
-        // Create new visualization with user's edited config
         const createRes = await serverActions.createPresentationObject({
           projectId: projectId,
           label: `${p.poDetail.label} (copy)`,
@@ -302,12 +324,22 @@ export function VisualizationEditorInner(p: InnerProps) {
         );
         optimisticSetProjectLastUpdated(createRes.data.lastUpdated);
 
-        (p.onClose as (result: EditModeReturn) => void)({ saved: true });
-        return createRes;
+        return {
+          success: true,
+          data: {
+            lastUpdated: createRes.data.lastUpdated,
+            conflictResolutionDecision: "user_chose_save_as_new",
+          },
+        };
       }
 
-      // userChoice === "cancel" - stay in editor
-      return res;
+      return {
+        success: true,
+        data: {
+          lastUpdated: lastKnownServerTimestamp(),
+          conflictResolutionDecision: "user_chose_cancel",
+        },
+      };
     }
 
     if (res.success === false) {
@@ -324,20 +356,37 @@ export function VisualizationEditorInner(p: InnerProps) {
     );
     optimisticSetProjectLastUpdated(res.data.lastUpdated);
 
-    return res;
+    return { success: true, data: { lastUpdated: res.data.lastUpdated } };
   }
 
   const saveAndClose = timActionButton(
     () => saveFunc(),
-    () => (p.onClose as (result: EditModeReturn) => void)({ saved: true }),
+    (data) => {
+      if (data.conflictResolutionDecision === "user_chose_cancel") return;
+      (p.onClose as (result: EditModeReturn) => void)(
+        data.conflictResolutionDecision === "user_chose_view_theirs"
+          ? undefined
+          : { saved: true },
+      );
+    },
   );
 
-  const save = timActionButton(() => saveFunc());
+  const save = timActionButton(
+    () => saveFunc(),
+    (data) => {
+      if (data.conflictResolutionDecision === "user_chose_view_theirs") {
+        (p.onClose as (result: EditModeReturn) => void)(undefined);
+      }
+    },
+  );
 
   async function attemptUpdateLabel() {
     if (needsSave()) {
       await openAlert({
-        text: t3({ en: "You must save before editing the visualization name", fr: "Vous devez sauvegarder avant de modifier le nom de la visualisation" }),
+        text: t3({
+          en: "You must save before editing the visualization name",
+          fr: "Vous devez sauvegarder avant de modifier le nom de la visualisation",
+        }),
       });
       return;
     }
@@ -347,12 +396,15 @@ export function VisualizationEditorInner(p: InnerProps) {
         projectId: projectId,
         presentationObjectId: p.poDetail.id,
         resultsObjectId: p.poDetail.resultsValue.resultsObjectId,
-        moduleId: p.projectDetail.metrics.find(m => m.id === p.poDetail.resultsValue.id)?.moduleId ?? "",
+        moduleId:
+          p.projectDetail.metrics.find(
+            (m) => m.id === p.poDetail.resultsValue.id,
+          )?.moduleId ?? "",
         isDefault: p.poDetail.isDefault,
         existingLabel: p.poDetail.label,
         currentFolderId: p.poDetail.folderId,
         folders: p.projectDetail.visualizationFolders,
-        silentFetchPoDetail: async () => { },
+        silentFetchPoDetail: async () => {},
         mutateFunc: async (newLabel) =>
           serverActions.updatePresentationObjectLabel({
             projectId: projectId,
@@ -366,7 +418,10 @@ export function VisualizationEditorInner(p: InnerProps) {
   async function duplicate() {
     if (needsSave() && !p.poDetail.isDefault) {
       await openAlert({
-        text: t3({ en: "In order to be duplicated, visualizations cannot have any unsaved changes", fr: "Pour être dupliquées, les visualisations ne doivent pas avoir de modifications non sauvegardées" }),
+        text: t3({
+          en: "In order to be duplicated, visualizations cannot have any unsaved changes",
+          fr: "Pour être dupliquées, les visualisations ne doivent pas avoir de modifications non sauvegardées",
+        }),
       });
       return;
     }
@@ -374,7 +429,13 @@ export function VisualizationEditorInner(p: InnerProps) {
       element: DuplicateVisualization,
       props: {
         projectId: projectId,
-        poDetails: [{ id: p.poDetail.id, label: p.poDetail.label, folderId: p.poDetail.folderId }],
+        poDetails: [
+          {
+            id: p.poDetail.id,
+            label: p.poDetail.label,
+            folderId: p.poDetail.folderId,
+          },
+        ],
         folders: p.projectDetail.visualizationFolders,
       },
     });
@@ -386,7 +447,10 @@ export function VisualizationEditorInner(p: InnerProps) {
     (p.onClose as (result: EditModeReturn) => void)({ saved: true });
 
     await openAlert({
-      text: t3({ en: "Visualization duplicated. Opening new visualization...", fr: "Visualisation dupliquée. Ouverture de la nouvelle visualisation..." }),
+      text: t3({
+        en: "Visualization duplicated. Opening new visualization...",
+        fr: "Visualisation dupliquée. Ouverture de la nouvelle visualisation...",
+      }),
       intent: "success",
     });
   }
@@ -394,7 +458,10 @@ export function VisualizationEditorInner(p: InnerProps) {
   async function download() {
     if (needsSave()) {
       await openAlert({
-        text: t3({ en: "You must save before downloading figures", fr: "Sauvegarde nécessaire avant téléchargement des figures" }),
+        text: t3({
+          en: "You must save before downloading figures",
+          fr: "Sauvegarde nécessaire avant téléchargement des figures",
+        }),
       });
       return;
     }
@@ -497,7 +564,10 @@ export function VisualizationEditorInner(p: InnerProps) {
       return;
     }
     const deleteAction = timActionDelete(
-      t3({ en: "Are you sure you want to delete this visualization?", fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?" }),
+      t3({
+        en: "Are you sure you want to delete this visualization?",
+        fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?",
+      }),
       () =>
         serverActions.deletePresentationObject({
           projectId: projectId,
@@ -514,7 +584,10 @@ export function VisualizationEditorInner(p: InnerProps) {
       element: ViewResultsObject,
       props: {
         projectId: projectId,
-        moduleId: p.projectDetail.metrics.find(m => m.id === p.poDetail.resultsValue.id)?.moduleId ?? "",
+        moduleId:
+          p.projectDetail.metrics.find(
+            (m) => m.id === p.poDetail.resultsValue.id,
+          )?.moduleId ?? "",
         resultsObjectId,
       },
     });
@@ -539,7 +612,11 @@ export function VisualizationEditorInner(p: InnerProps) {
                   >
                     <Button
                       intent="success"
-                      onClick={() => (p.onClose as (result: EphemeralModeReturn) => void)({ updated: { config: unwrap(tempConfig) } })}
+                      onClick={() =>
+                        (p.onClose as (result: EphemeralModeReturn) => void)({
+                          updated: { config: unwrap(tempConfig) },
+                        })
+                      }
                       iconName="check"
                     >
                       {t3({ en: "Apply", fr: "Appliquer" })}
@@ -567,7 +644,10 @@ export function VisualizationEditorInner(p: InnerProps) {
                         onClick={saveAsNewVisualization}
                         iconName="save"
                       >
-                        {t3({ en: "Save as new visualization", fr: "Sauver comme nouvelle viz." })}
+                        {t3({
+                          en: "Save as new visualization",
+                          fr: "Sauver comme nouvelle viz.",
+                        })}
                       </Button>
                     </Match>
                     <Match when={true}>
@@ -578,7 +658,10 @@ export function VisualizationEditorInner(p: InnerProps) {
                           state={saveAndClose.state()}
                           iconName="save"
                         >
-                          {t3({ en: "Save and close", fr: "Sauvegarder et quitter" })}
+                          {t3({
+                            en: "Save and close",
+                            fr: "Sauvegarder et quitter",
+                          })}
                         </Button>
                         <Button
                           intent="success"
@@ -621,28 +704,26 @@ export function VisualizationEditorInner(p: InnerProps) {
                   onClick={attemptUpdateLabel}
                   iconName="settings"
                   outline
-                >
-                </Button>
-                <Button onClick={duplicate} iconName="copy" outline>
-                </Button>
+                ></Button>
+                <Button onClick={duplicate} iconName="copy" outline></Button>
                 <Show when={!p.poDetail.isDefault}>
                   <Button
                     onClick={attemptDeletePresentationObjectDetail}
                     iconName="trash"
                     outline
-                  >
-                  </Button>
+                  ></Button>
                 </Show>
               </Show>
               <Button onClick={download} iconName="download">
                 {t3(TC.download)}
               </Button>
               <Button
-                onClick={() => setEditorHeight(editorHeight() === "flex" ? "ideal" : "flex")}
+                onClick={() =>
+                  setEditorHeight(editorHeight() === "flex" ? "ideal" : "flex")
+                }
                 iconName={editorHeight() === "flex" ? "maximize" : "minimize"}
                 outline
-              >
-              </Button>
+              ></Button>
               <Show when={!showAi()}>
                 <Button
                   onClick={() => setShowAi(true)}
@@ -656,8 +737,12 @@ export function VisualizationEditorInner(p: InnerProps) {
           </div>
         }
       >
-        <div class="flex h-full w-full">
-          <div class="h-full w-96 flex-none border-r">
+        <FrameLeftResizable
+          startingWidth={384}
+          minWidth={300}
+          maxWidth={600}
+          hoverOffset="offset-for-border-1-on-left"
+          panelChildren={
             <PresentationObjectEditorPanel
               projectDetail={p.projectDetail}
               poDetail={p.poDetail}
@@ -666,23 +751,24 @@ export function VisualizationEditorInner(p: InnerProps) {
               setTempConfig={manuallyUpdateTempConfig}
               viewResultsObject={viewResultsObject}
             />
-          </div>
-          <Show when={getReplicateByProp(tempConfig)} keyed>
-            {(keyedReplicateBy) => {
-              return (
-                <ReplicateByOptionsPresentationObject
-                  replicateBy={keyedReplicateBy}
-                  config={tempConfig}
-                  poDetail={p.poDetail}
-                  selectedReplicantValue={tempConfig.d.selectedReplicantValue}
-                  setSelectedReplicant={(v) =>
-                    manuallyUpdateTempConfig("d", "selectedReplicantValue", v)
-                  }
-                />
-              );
-            }}
-          </Show>
-          <div class="h-full w-0 flex-1">
+          }
+        >
+          <div class="flex h-full w-full">
+            <Show when={getReplicateByProp(tempConfig)} keyed>
+              {(keyedReplicateBy) => {
+                return (
+                  <ReplicateByOptionsPresentationObject
+                    replicateBy={keyedReplicateBy}
+                    config={tempConfig}
+                    poDetail={p.poDetail}
+                    selectedReplicantValue={tempConfig.d.selectedReplicantValue}
+                    setSelectedReplicant={(v) =>
+                      manuallyUpdateTempConfig("d", "selectedReplicantValue", v)
+                    }
+                  />
+                );
+              }}
+            </Show>
             <Show
               when={
                 !hasDuplicateDisaggregatorDisplayOptions(
@@ -692,7 +778,10 @@ export function VisualizationEditorInner(p: InnerProps) {
               }
               fallback={
                 <div class="ui-pad">
-                  {t3({ en: "You have two disaggregators with the same display option", fr: "Vous disposez de deux désagrégateurs avec la même option d'affichage" })}
+                  {t3({
+                    en: "You have two disaggregators with the same display option",
+                    fr: "Vous disposez de deux désagrégateurs avec la même option d'affichage",
+                  })}
                 </div>
               }
             >
@@ -703,7 +792,10 @@ export function VisualizationEditorInner(p: InnerProps) {
                 }
                 fallback={
                   <div class="ui-pad">
-                    {t3({ en: "You must select a replicant", fr: "Un réplicant doit être sélectionné" })}
+                    {t3({
+                      en: "You must select a replicant",
+                      fr: "Un réplicant doit être sélectionné",
+                    })}
                   </div>
                 }
               >
@@ -711,53 +803,83 @@ export function VisualizationEditorInner(p: InnerProps) {
                   {(keyedItemsHolder) => {
                     return (
                       <Switch>
-                        <Match when={keyedItemsHolder.ih.status === "too_many_items"}>
+                        <Match
+                          when={keyedItemsHolder.ih.status === "too_many_items"}
+                        >
                           <div class="ui-pad">
-                            {t3({ en: "Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.", fr: "Trop de points de données sélectionnés. Veuillez ajouter des filtres ou réduire les options de désagrégation pour afficher moins de 20 000 points de données." })}
+                            {t3({
+                              en: "Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.",
+                              fr: "Trop de points de données sélectionnés. Veuillez ajouter des filtres ou réduire les options de désagrégation pour afficher moins de 20 000 points de données.",
+                            })}
                           </div>
                         </Match>
-                        <Match when={keyedItemsHolder.ih.status === "no_data_available"}>
+                        <Match
+                          when={
+                            keyedItemsHolder.ih.status === "no_data_available"
+                          }
+                        >
                           <div class="ui-pad">
-                            {t3({ en: "No data available with current filter selection.", fr: "Aucune donnée disponible avec la sélection de filtre actuelle." })}
+                            {t3({
+                              en: "No data available with current filter selection.",
+                              fr: "Aucune donnée disponible avec la sélection de filtre actuelle.",
+                            })}
                           </div>
                         </Match>
                         <Match when={keyedItemsHolder.ih.status === "ok"}>
                           {(() => {
-                            const figureInputs = createMemo<StateHolder<FigureInputs>>(
-                              () => {
-                                // Check for empty items array (shouldn't happen with new discriminated union, but keeping for safety)
-                                if (keyedItemsHolder.ih.status === "ok" && keyedItemsHolder.ih.items.length === 0) {
+                            const figureInputs = createMemo<
+                              StateHolder<FigureInputs>
+                            >(() => {
+                              // Check for empty items array (shouldn't happen with new discriminated union, but keeping for safety)
+                              if (
+                                keyedItemsHolder.ih.status === "ok" &&
+                                keyedItemsHolder.ih.items.length === 0
+                              ) {
+                                return {
+                                  status: "error",
+                                  err: t3({
+                                    en: "No rows returned from database for this filter configuration",
+                                    fr: "Aucune ligne retournée de la base de données pour cette configuration de filtre",
+                                  }),
+                                };
+                              }
+                              // ddddddddddddddddddddddddddddd
+                              const _type = tempConfig.d.type;
+                              // sssssssssssssssssssssssssssss
+                              for (const k in tempConfig.s) {
+                                //@ts-ignore
+                                const _v = tempConfig.s[k];
+                              }
+                              // ttttttttttttttttttttttttttttt
+                              for (const k in tempConfig.t) {
+                                //@ts-ignore
+                                const _v = tempConfig.t[k];
+                              }
+                              if (
+                                _type === "timeseries" &&
+                                keyedItemsHolder.ih.status === "ok" &&
+                                keyedItemsHolder.ih.items.length > 0
+                              ) {
+                                const periodProp = tempConfig.d.periodOpt;
+                                if (
+                                  !(periodProp in keyedItemsHolder.ih.items[0])
+                                ) {
                                   return {
-                                    status: "error",
-                                    err: t3({ en: "No rows returned from database for this filter configuration", fr: "Aucune ligne retournée de la base de données pour cette configuration de filtre" }),
+                                    status: "loading",
+                                    msg: t3({
+                                      en: "Re-fetching data...",
+                                      fr: "Récupération des données...",
+                                    }),
                                   };
                                 }
-                                // ddddddddddddddddddddddddddddd
-                                const _type = tempConfig.d.type;
-                                // sssssssssssssssssssssssssssss
-                                for (const k in tempConfig.s) {
-                                  //@ts-ignore
-                                  const _v = tempConfig.s[k];
-                                }
-                                // ttttttttttttttttttttttttttttt
-                                for (const k in tempConfig.t) {
-                                  //@ts-ignore
-                                  const _v = tempConfig.t[k];
-                                }
-                                if (_type === "timeseries" && keyedItemsHolder.ih.status === "ok" && keyedItemsHolder.ih.items.length > 0) {
-                                  const periodProp = tempConfig.d.periodOpt;
-                                  if (!(periodProp in keyedItemsHolder.ih.items[0])) {
-                                    return { status: "loading", msg: t3({ en: "Re-fetching data...", fr: "Récupération des données..." }) };
-                                  }
-                                }
-                                return getFigureInputsFromPresentationObject(
-                                  p.poDetail.resultsValue,
-                                  keyedItemsHolder.ih,
-                                  keyedItemsHolder.config,
-                                  keyedItemsHolder.geoJson,
-                                );
-                              },
-                            );
+                              }
+                              return getFigureInputsFromPresentationObject(
+                                p.poDetail.resultsValue,
+                                keyedItemsHolder.ih,
+                                keyedItemsHolder.config,
+                                keyedItemsHolder.geoJson,
+                              );
+                            });
 
                             return (
                               <div class="ui-pad h-full w-full overflow-auto">
@@ -785,7 +907,7 @@ export function VisualizationEditorInner(p: InnerProps) {
               </Show>
             </Show>
           </div>
-        </div>
+        </FrameLeftResizable>
       </FrameTop>
     </EditorWrapperForResultsObject>
   );

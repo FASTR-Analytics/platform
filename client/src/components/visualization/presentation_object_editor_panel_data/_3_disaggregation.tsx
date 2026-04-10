@@ -22,7 +22,7 @@ type DisaggregationSectionProps = {
 export function DisaggregationSection(p: DisaggregationSectionProps) {
   return (
     <div class="ui-spy-sm">
-      <div class="text-md font-700">{t3({ en: "Disaggregate", fr: "Désagréger" })}</div>
+      <div class="text-md font-700">{t3({ en: "Display (disaggregate)", fr: "Affichage (désagréger)" })}</div>
       <Show
         when={
           getFilteredValueProps(
