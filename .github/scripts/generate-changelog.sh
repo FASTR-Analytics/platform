@@ -234,9 +234,11 @@ fi
 
 git config user.name  "github-actions[bot]"
 git config user.email "github-actions[bot]@users.noreply.github.com"
-git stash --include-untracked
+STASH_OUTPUT=$(git stash --include-untracked 2>&1)
 git pull --rebase origin main
-git stash pop
+if [[ "$STASH_OUTPUT" != "No local changes to save" ]]; then
+    git stash pop
+fi
 git add CHANGELOG_AUTO.txt
 
 if git diff --cached --quiet; then
