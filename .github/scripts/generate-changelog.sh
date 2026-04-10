@@ -52,9 +52,10 @@ fi
 
 VERSION="$(cat VERSION)"
 
-# Is this a deploy commit? (deploy script pushes an annotated vX.Y.Z tag)
+# Is this a deploy commit?
 IS_DEPLOY=false
-if git tag --points-at HEAD | grep -qE '^v[0-9]'; then
+COMMIT_MSG="$(git log -1 --format=%s)"
+if [[ "$COMMIT_MSG" == "Deploy version"* ]]; then
     IS_DEPLOY=true
 fi
 
