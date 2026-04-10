@@ -196,6 +196,8 @@ export type ProjectUser = {
 export type OtherUser = {
   email: string;
   isGlobalAdmin: boolean;
+  firstName?: string;
+  lastName?: string;
 } & UserPermissions;
 
 export type UserLog = {

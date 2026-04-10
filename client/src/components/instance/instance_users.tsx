@@ -147,6 +147,8 @@ export function InstanceUsers(p: Props) {
 type UserData = {
   email: string;
   isGlobalAdmin: boolean;
+  firstName?: string;
+  lastName?: string;
 } & Record<UserPermission, boolean>;
 
 function hasGlobalPermissions(user: UserData): boolean {
@@ -221,6 +223,17 @@ function UserTable(p: {
   };
 
   const columns: TableColumn<UserTableData>[] = [
+    {
+      key: "firstName",
+      header: t3({ en: "Name", fr: "Nom" }),
+      sortable: true,
+      render: (user) => {
+        const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+        return name
+          ? <span class="text-sm">{name}</span>
+          : <span class="text-neutral text-sm">—</span>;
+      },
+    },
     {
       key: "email",
       header: t3(TC.email),
