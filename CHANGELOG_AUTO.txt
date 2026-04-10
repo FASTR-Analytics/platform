@@ -1,3 +1,5 @@
+[TBD] [user] [added] - The user management table now displays each user's first and last name alongside their email address
+[TBD] [admin] [added] - The instance users table now displays each user's first and last name in a new "Name" column, making it easier to identify users at a glance
 [1.17.6] [user] [fixed] - Project timestamps now update correctly when data processing completes, so you always see the latest "last updated" time for your project
 [1.17.6] [admin] [fixed] - Project-level last updated notifications are now sent when a module finishes running, ensuring dashboards and views reflect the most recent data processing time
 [1.17.5] [user] [added] - Project cards now display how long ago the last activity occurred (e.g., "5m ago", "3d ago")
