@@ -31,6 +31,7 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/dataset_cache";
+import { instanceState } from "~/state/instance_state";
 
 type Props = {
   versionId: number;
@@ -63,6 +64,7 @@ export function DatasetItemsHolder(p: Props) {
       versionId,
       indicatorMappingsVersion,
       p.facilityColumns,
+      instanceState.maxAdminArea,
     );
     if (res.success === false) {
       setItemsHolder({ status: "error", err: res.err });

@@ -3,6 +3,7 @@ import {
   _KEY_COLORS_DANGER,
   _KEY_COLORS_SUCCESS,
   getCalendar,
+  makeAa3CompositeKey,
   t3,
   type DatasetHmisWindowing,
   type DatasetHmisWindowingRaw,
@@ -13,18 +14,22 @@ import {
   ChartHolder,
   Checkbox,
   MultiSelect,
+  NestedMultiSelect,
   StateHolderWrapper,
   getSelectOptions,
   getTimeFromPeriodId,
   getTimeseriesDataJsonTransformed,
   timQuery,
   toNum0,
+  type NestedSelectLeafNode,
+  type NestedSelectNode,
   type SelectOption,
   type TimeseriesInputs,
 } from "panther";
 import { Show, batch, createMemo, onMount } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/dataset_cache";
+import { instanceState } from "~/state/instance_state";
 import { PeriodSelector } from "./PeriodSelector";
 
 type Props<T extends DatasetHmisWindowing> = {
@@ -67,6 +72,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
         p.hmisVersionId,
         p.indicatorMappingsVersion,
         p.facilityColumns,
+        instanceState.maxAdminArea,
       ),
     t3({ en: "Fetching data...", fr: "Récupération des données..." }),
   );
@@ -76,6 +82,35 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
       {(keyedItemsHolder) => {
         // console.log(keyedItemsHolder);
         const isDelete = p.includeOrDelete === "delete";
+
+        const adminAreaTree = createMemo(() => {
+          const aa3s = keyedItemsHolder.adminArea3s;
+          if (!aa3s || aa3s.length === 0) return undefined;
+          const grouped = new Map<
+            string,
+            { admin_area_3: string; admin_area_2: string }[]
+          >();
+          for (const item of aa3s) {
+            const list = grouped.get(item.admin_area_2) ?? [];
+            list.push(item);
+            grouped.set(item.admin_area_2, list);
+          }
+          const nodes: NestedSelectNode<string>[] = [];
+          for (const [aa2, districts] of grouped) {
+            nodes.push({
+              key: aa2,
+              label: aa2,
+              children: districts.map(
+                (d): NestedSelectLeafNode<string> => ({
+                  key: makeAa3CompositeKey(d.admin_area_3, d.admin_area_2),
+                  label: d.admin_area_3,
+                  value: makeAa3CompositeKey(d.admin_area_3, d.admin_area_2),
+                }),
+              ),
+            });
+          }
+          return nodes;
+        });
 
         // Auto-correct bounds once when component mounts
         onMount(() => {
@@ -270,20 +305,41 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               isDelete={isDelete}
             />
             <Show when={!isDelete}>
-              <ToggledMultiSelect
-                heading={{ en: "Admin areas", fr: "Unités administratives" }}
-                toggleAllLabel={{ en: "Include all admin areas", fr: "Inclure toutes les unités administratives" }}
-                takeAll={p.tempWindowing.takeAllAdminArea2s}
-                setTakeAll={(v) =>
-                  (p.setTempWindowing as any)("takeAllAdminArea2s", v)
+              <Show
+                when={adminAreaTree()}
+                fallback={
+                  <ToggledMultiSelect
+                    heading={{ en: "Admin areas", fr: "Unités administratives" }}
+                    toggleAllLabel={{ en: "Include all admin areas", fr: "Inclure toutes les unités administratives" }}
+                    takeAll={p.tempWindowing.takeAllAdminArea2s}
+                    setTakeAll={(v) =>
+                      (p.setTempWindowing as any)("takeAllAdminArea2s", v)
+                    }
+                    itemOptions={getSelectOptions(keyedItemsHolder.adminArea2s)}
+                    itemsToTake={p.tempWindowing.adminArea2sToInclude}
+                    setItemsToTake={(v) =>
+                      (p.setTempWindowing as any)("adminArea2sToInclude", v)
+                    }
+                    isDelete={isDelete}
+                  />
                 }
-                itemOptions={getSelectOptions(keyedItemsHolder.adminArea2s)}
-                itemsToTake={p.tempWindowing.adminArea2sToInclude}
-                setItemsToTake={(v) =>
-                  (p.setTempWindowing as any)("adminArea2sToInclude", v)
-                }
-                isDelete={isDelete}
-              />
+              >
+                {(tree) => (
+                  <ToggledNestedMultiSelect
+                    heading={{ en: "Admin areas", fr: "Unités administratives" }}
+                    toggleAllLabel={{ en: "Include all admin areas", fr: "Inclure toutes les unités administratives" }}
+                    takeAll={p.tempWindowing.takeAllAdminArea3s ?? true}
+                    setTakeAll={(v) =>
+                      (p.setTempWindowing as any)("takeAllAdminArea3s", v)
+                    }
+                    nodes={tree()}
+                    itemsToTake={p.tempWindowing.adminArea3sToInclude ?? []}
+                    setItemsToTake={(v) =>
+                      (p.setTempWindowing as any)("adminArea3sToInclude", v)
+                    }
+                  />
+                )}
+              </Show>
             </Show>
             <Show when={!isDelete && p.facilityColumns.includeOwnership}>
               <ToggledMultiSelect
@@ -354,6 +410,40 @@ function ToggledMultiSelect(p: ToggledMultiSelectProps) {
         <div class="pl-4">
           <MultiSelect
             options={p.itemOptions}
+            values={p.itemsToTake}
+            onChange={p.setItemsToTake}
+          />
+        </div>
+      </Show>
+    </div>
+  );
+}
+
+type ToggledNestedMultiSelectProps = {
+  heading: TranslatableString;
+  toggleAllLabel: TranslatableString;
+  takeAll: boolean;
+  setTakeAll: (v: boolean) => void;
+  nodes: NestedSelectNode<string>[];
+  itemsToTake: string[];
+  setItemsToTake: (v: string[]) => void;
+};
+
+function ToggledNestedMultiSelect(p: ToggledNestedMultiSelectProps) {
+  return (
+    <div class="ui-spy-sm ui-pad border-base-300 max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
+      <div class="text-md font-700">
+        {t3(p.heading)}
+      </div>
+      <Checkbox
+        label={t3(p.toggleAllLabel)}
+        checked={p.takeAll}
+        onChange={p.setTakeAll}
+      />
+      <Show when={!p.takeAll}>
+        <div class="pl-4">
+          <NestedMultiSelect
+            nodes={p.nodes}
             values={p.itemsToTake}
             onChange={p.setItemsToTake}
           />

@@ -45,7 +45,13 @@ export function SelectList<T extends string = string>(p: SelectListProps<T>) {
       <Show
         when={p.options.length > 0}
         fallback={
-          <div class="text-sm">{p.emptyMessage || t3({ en: "No options available", fr: "Aucune option disponible" })}</div>
+          <div class="text-sm">
+            {p.emptyMessage ||
+              t3({
+                en: "No options available",
+                fr: "Aucune option disponible",
+              })}
+          </div>
         }
       >
         <For each={p.options}>

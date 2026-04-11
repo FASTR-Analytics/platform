@@ -9,42 +9,83 @@ HMIS dataset windowing currently filters by:
 - **Facility ownership** (optional, all or selected)
 - **Facility types** (optional, all or selected)
 
-The admin area filter is hardcoded to AA2 level only. There's no option to
-filter at the AA3 (district) level.
+The admin area filter is hardcoded to AA2 level only, using a flat `MultiSelect`.
+There's no option to filter at the AA3 (district) level.
 
-## Design Decision: `adminAreaFilterLevel`
+## Design Decision: NestedMultiSelect
 
-Rather than a generic `filterAdminAreaBy: "aa2" | "aa3" | "none"`, I'd
-recommend keeping the existing `takeAllAdminArea2s` / `adminArea2sToInclude`
-fields and **adding** AA3 fields alongside them. Reason: when filtering by AA3,
-you still implicitly filter by AA2 (AA3 is a subset of AA2). The user might
-want to select "Province A" and then drill into specific districts, or they
-might want to pick districts across multiple provinces.
+**Depends on**: `NestedMultiSelect` component in panther — **implemented** at
+`panther/_303_components/form_inputs/nested_multi_select.tsx`.
 
-**Proposed approach**: Add a toggle that controls whether the admin area
-multi-select shows AA2 options or AA3 options. When set to AA3, the filter
-applies at the AA3 level (which is more granular and subsumes AA2 filtering).
+The actual node types are a discriminated union (not optional fields):
+
+```typescript
+type NestedSelectBranchNode<T extends string> = {
+  key: string;
+  label: string | JSX.Element;
+  children: NestedSelectNode<T>[];
+};
+
+type NestedSelectLeafNode<T extends string> = {
+  key: string;
+  label: string | JSX.Element;
+  value: T;
+};
+
+type NestedSelectNode<T extends string> =
+  | NestedSelectLeafNode<T>
+  | NestedSelectBranchNode<T>;
+```
+
+When `maxAdminArea >= 3`, replace the flat AA2 `MultiSelect` with a
+`NestedMultiSelect` tree:
 
 ```
-adminAreaFilterLevel: "aa2" | "aa3"   // new field, defaults to "aa2"
-takeAllAdminArea3s: boolean           // new field
-adminArea3sToInclude: string[]        // new field
+[▶] [☐] Province A          (branch — tri-state, no value)
+      [☐] District 1        (leaf — selectable)
+      [☐] District 2        (leaf — selectable)
+[▶] [☐] Province B
+      [☐] District 3
 ```
 
-When `adminAreaFilterLevel === "aa2"`: existing behavior (filter by AA2).
-When `adminAreaFilterLevel === "aa3"`: filter by AA3 instead.
+Branches are AA2s (derived tri-state). Leaves are AA3s (selectable). Checking a
+province checks all its districts. The component only returns leaf (AA3) values.
 
-The old AA2 fields remain for backward compatibility with existing project
-configs. The `adminAreaFilterLevel` defaults to `"aa2"` when absent.
+When `maxAdminArea < 3`, the existing flat AA2 `MultiSelect` is unchanged.
 
-**Alternative considered**: A single unified `adminAreasToInclude` array with a
-level selector. Rejected because it would break existing stored configs and
-require migration.
+### Composite Keys for AA3 Values
 
-### When to show the AA3 option
+AA3 names are **not globally unique** — two provinces can have districts with the
+same name. The `admin_areas_3` PK is `(admin_area_3, admin_area_2, admin_area_1)`.
 
-Only when `maxAdminArea >= 3` (available on `instanceState`). If the instance
-only has AA1/AA2 levels, the toggle doesn't appear and behavior is unchanged.
+To disambiguate, leaf values use composite keys: `"aa3_name|||aa2_name"`.
+
+The server parses these into `(admin_area_3, admin_area_2)` pairs for SQL
+filtering, using a `VALUES` clause instead of a simple `IN`:
+
+```sql
+(f.admin_area_3, f.admin_area_2) IN (VALUES ('District Central','Province A'), ('District North','Province B'))
+```
+
+### SQL Safety
+
+The existing AA2 filtering code uses string interpolation with single quotes:
+`'${aa}'`. This is vulnerable if admin area names contain `'` (e.g. N'Djamena).
+
+All SQL string interpolation for admin area and facility filter values must
+escape single quotes by doubling them: `aa.replace(/'/g, "''")`. This applies
+to both the new AA3 code and the existing AA2/facility ownership/facility type
+code. The plan's code samples include this escaping.
+
+### Backward Compatibility
+
+- Old configs have `takeAllAdminArea2s` / `adminArea2sToInclude` — these
+  continue to work. The server checks AA3 fields first, falls back to AA2.
+- When a user opens settings on an instance with `maxAdminArea >= 3`, the UI
+  shows the nested tree. On save, AA3 fields are populated and AA2 fields are
+  reset to "take all" so only one filter path is active.
+- No `adminAreaFilterLevel` toggle is needed — the nested tree subsumes AA2
+  filtering (selecting all districts of a province = filtering by that province).
 
 ---
 
@@ -63,10 +104,9 @@ type DatasetHmisWindowingBase = {
   takeAllIndicators: boolean;
   takeAllAdminArea2s: boolean;
   adminArea2sToInclude: string[];
-  // NEW
-  adminAreaFilterLevel?: "aa2" | "aa3";  // defaults to "aa2" if absent
+  // NEW — used when maxAdminArea >= 3
   takeAllAdminArea3s?: boolean;          // defaults to true if absent
-  adminArea3sToInclude?: string[];       // defaults to [] if absent
+  adminArea3sToInclude?: string[];       // composite "aa3|||aa2" keys, defaults to [] if absent
   //
   takeAllFacilityOwnerships?: boolean;
   takeAllFacilityTypes?: boolean;
@@ -78,42 +118,126 @@ type DatasetHmisWindowingBase = {
 All new fields are optional to maintain backward compatibility with existing
 stored configs.
 
-### 2. Server: Display Info Endpoint
+### 2. Shared Constant: Composite Key Separator
+
+**File**: `lib/types/dataset_hmis.ts`
+
+```typescript
+export const AA3_SEPARATOR = "|||";
+
+export function makeAa3CompositeKey(aa3: string, aa2: string): string {
+  return `${aa3}${AA3_SEPARATOR}${aa2}`;
+}
+
+export function parseAa3CompositeKey(key: string): { aa3: string; aa2: string } {
+  const i = key.indexOf(AA3_SEPARATOR);
+  if (i === -1) {
+    throw new Error(`Invalid AA3 composite key (missing separator): ${key}`);
+  }
+  return { aa3: key.slice(0, i), aa2: key.slice(i + AA3_SEPARATOR.length) };
+}
+```
+
+Used by both server (SQL building) and client (tree node construction).
+`parseAa3CompositeKey` throws on malformed input rather than silently producing
+garbage.
+
+### 3. SQL Escape Helper
+
+**File**: `server/db/shared/sql_utils.ts` (or inline where used)
+
+```typescript
+function escapeSqlString(s: string): string {
+  return s.replace(/'/g, "''");
+}
+```
+
+Apply to **all 10 existing string interpolation sites** plus new AA3 code:
+
+**`server/db/instance/dataset_hmis.ts`** (3 sites):
+- Line 159: indicator raw IDs — `'${escapeSqlString(ind)}'`
+- Line 171: AA2 names (count query) — `'${escapeSqlString(aa)}'`
+- Line 208: AA2 names (delete query) — `'${escapeSqlString(aa)}'`
+
+**`server/db/project/datasets_in_project_hmis.ts`** (7 sites):
+- Line 168: AA2 names (facilities query) — `'${escapeSqlString(aa)}'`
+- Line 182: facility ownership (facilities query) — `'${escapeSqlString(fo)}'`
+- Line 196: facility types (facilities query) — `'${escapeSqlString(ft)}'`
+- Line 322: AA2 names (export statement) — `'${escapeSqlString(aa)}'`
+- Line 336: facility ownership (export statement) — `'${escapeSqlString(fo)}'`
+- Line 350: facility types (export statement) — `'${escapeSqlString(ft)}'`
+- Line 391: indicator common IDs — `'${escapeSqlString(ite)}'`
+
+This fixes the pre-existing vulnerability for names with `'` (e.g. N'Djamena)
+and prevents it for new AA3 code.
+
+All code samples below use this helper.
+
+### 4. Server: Display Info Endpoint
 
 **File**: `server/db/instance/dataset_hmis.ts`
 
-The `getDatasetHmisItemsForDisplay` function currently queries AA2 list:
+The `getDatasetHmisItemsForDisplay` function (line 289) currently queries AA2
+list (line 303-307). It does not have `maxAdminArea` — call
+`getMaxAdminAreaConfig(mainDb)` inside the function. This function is exported
+from `server/db/instance/config.ts` (line 71), which is already imported in
+`dataset_hmis.ts` (line 45 imports `getFacilityColumnsConfig` from the same
+file). Just add `getMaxAdminAreaConfig` to the existing import.
+
+Add an AA3 query conditionally:
 
 ```typescript
-const adminArea2s = (
-  await mainDb<{ admin_area_2: string }[]>`
-    SELECT admin_area_2 FROM admin_areas_2 ORDER BY LOWER(admin_area_2)`
-).map<string>((aa) => aa.admin_area_2);
-```
+const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
+throwIfErrWithData(resMaxAdminArea);
+const maxAdminArea = resMaxAdminArea.data.maxAdminArea;
 
-**Add**: Query AA3 list alongside it:
-
-```typescript
-const adminArea3s = (
-  await mainDb<{ admin_area_3: string; admin_area_2: string }[]>`
+let adminArea3s: { admin_area_3: string; admin_area_2: string }[] | undefined;
+if (maxAdminArea >= 3) {
+  adminArea3s = await mainDb<{ admin_area_3: string; admin_area_2: string }[]>`
     SELECT admin_area_3, admin_area_2 FROM admin_areas_3
-    ORDER BY LOWER(admin_area_2), LOWER(admin_area_3)`
-).map((aa) => ({ value: aa.admin_area_3, label: `${aa.admin_area_3} (${aa.admin_area_2})` }));
+    ORDER BY LOWER(admin_area_2), LOWER(admin_area_3)`;
+}
 ```
 
-**Update**: `SharedDataForDisplay` type and return objects to include
-`adminArea3s`.
+Note: the query omits `admin_area_1`. This is safe because the app is
+single-country (one AA1). If multiple AA1 values existed, AA3 names could
+collide across AA1 boundaries — not a concern here.
 
-**Update**: The API response type (in `lib/api-routes/instance/datasets.ts` or
-wherever `DatasetHmisDisplayInfo` is defined) to include `adminArea3s`.
+**Update `SharedDataForDisplay`** (line 282-287):
 
-### 3. Server: Data Export (CSV Generation)
+```typescript
+type SharedDataForDisplay = {
+  facilityColumns: InstanceConfigFacilityColumns;
+  adminArea2s: string[];
+  adminArea3s?: { admin_area_3: string; admin_area_2: string }[];  // NEW
+  facilityTypes?: string[];
+  facilityOwnership?: string[];
+};
+```
+
+**Update `ItemsHolderDatasetHmisDisplay`** in `lib/types/instance.ts` (line
+348-361):
+
+```typescript
+export type ItemsHolderDatasetHmisDisplay = {
+  // ... existing fields ...
+  adminArea2s: string[];
+  adminArea3s?: { admin_area_3: string; admin_area_2: string }[];  // NEW
+  // ...
+};
+```
+
+**Update both** `getDatasetHmisItemsForDisplayRaw` (line 425) and
+`getDatasetHmisItemsForDisplayCommon` (line 511) to include
+`adminArea3s: sharedData.adminArea3s` in the returned object.
+
+### 5. Server: Data Export (CSV Generation)
 
 **File**: `server/db/project/datasets_in_project_hmis.ts`
 
-#### 3a. `getDatasetHmisExportStatement()`
+#### 5a. `getDatasetHmisExportStatement()` (line 308)
 
-Currently has:
+Currently has (line 319-325):
 
 ```typescript
 if (!w.takeAllAdminArea2s && w.adminArea2sToInclude.length > 0) {
@@ -123,141 +247,333 @@ if (!w.takeAllAdminArea2s && w.adminArea2sToInclude.length > 0) {
 }
 ```
 
-**Change to**:
+**Replace with** (AA3 takes priority, if/else — not both):
 
 ```typescript
-const filterLevel = w.adminAreaFilterLevel ?? "aa2";
-
-if (filterLevel === "aa3") {
-  // Filter by AA3
-  const takeAll = w.takeAllAdminArea3s ?? true;
-  const items = w.adminArea3sToInclude ?? [];
-  if (!takeAll && items.length > 0) {
-    whereConditions.push(
-      `f.admin_area_3 IN (${items.map((aa) => `'${aa}'`).join(", ")})`
-    );
-  }
-} else {
-  // Filter by AA2 (existing behavior)
-  if (!w.takeAllAdminArea2s && w.adminArea2sToInclude.length > 0) {
-    whereConditions.push(
-      `f.admin_area_2 IN (${w.adminArea2sToInclude.map((aa) => `'${aa}'`).join(", ")})`
-    );
-  }
+const aa3Items = w.adminArea3sToInclude ?? [];
+if (!(w.takeAllAdminArea3s ?? true) && aa3Items.length > 0) {
+  // AA3 filtering — parse composite keys into (aa3, aa2) pairs
+  const pairs = aa3Items.map((key) => parseAa3CompositeKey(key));
+  whereConditions.push(
+    `(f.admin_area_3, f.admin_area_2) IN (VALUES ${pairs
+      .map((p) => `('${escapeSqlString(p.aa3)}', '${escapeSqlString(p.aa2)}')`)
+      .join(", ")})`
+  );
+} else if (!w.takeAllAdminArea2s && w.adminArea2sToInclude.length > 0) {
+  // Fallback to AA2 for old configs
+  whereConditions.push(
+    `f.admin_area_2 IN (${w.adminArea2sToInclude
+      .map((aa) => `'${escapeSqlString(aa)}'`)
+      .join(", ")})`
+  );
 }
 ```
 
-#### 3b. Facilities export query (same file, ~line 158)
+#### 5b. Facilities export query (line 157-203)
 
-Same pattern: check `adminAreaFilterLevel` and filter facilities by AA3 when
-appropriate. The existing AA2 filter block gets wrapped in the same
-`if/else` as above.
+Same if/else pattern. Note: this query uses **unaliased** column names (no `f.`
+prefix — the query is `SELECT * FROM facilities` without an alias):
 
-### 4. Server: Delete windowing (if applicable)
+```typescript
+const aa3Items = startingWindowing.adminArea3sToInclude ?? [];
+if (!(startingWindowing.takeAllAdminArea3s ?? true) && aa3Items.length > 0) {
+  const pairs = aa3Items.map((key) => parseAa3CompositeKey(key));
+  facilityWhereConditions.push(
+    `(admin_area_3, admin_area_2) IN (VALUES ${pairs
+      .map((p) => `('${escapeSqlString(p.aa3)}', '${escapeSqlString(p.aa2)}')`)
+      .join(", ")})`
+  );
+} else if (
+  !startingWindowing.takeAllAdminArea2s &&
+  startingWindowing.adminArea2sToInclude.length > 0
+) {
+  facilityWhereConditions.push(
+    `admin_area_2 IN (${startingWindowing.adminArea2sToInclude
+      .map((aa) => `'${escapeSqlString(aa)}'`)
+      .join(", ")})`
+  );
+}
+```
+
+#### 5c. Default windowing fallback (line 101-108)
+
+No change needed — the fallback creates a windowing without AA3 fields, and
+`takeAllAdminArea3s ?? true` defaults correctly.
+
+### 6. Server: Delete Windowing
 
 **File**: `server/db/instance/dataset_hmis.ts`
 
-The `deleteDatasetHmisDataByWindowing` function also filters by AA2. Apply the
-same `adminAreaFilterLevel` check there.
+The `deleteAllDatasetHmisData` function (line 141-260) filters by AA2 in both
+the count query (line 166-183) and delete query (line 203-226).
 
-### 5. Client: Windowing Selector
+**Note**: Admin area filtering is currently hidden in the delete UI
+(`WindowingSelector` wraps it in `<Show when={!isDelete}>`), so the delete
+windowing always sends `takeAllAdminArea2s: true` and the AA2 filter path is
+dead code. Apply the same AA3-first/AA2-fallback pattern here for
+defensiveness, but this is low priority — it only matters if delete UI later
+exposes admin area filtering.
+
+### 7. Client: WindowingSelector
 
 **File**: `client/src/components/WindowingSelector.tsx`
 
-Currently renders a `ToggledMultiSelect` for admin areas with AA2 options.
+Currently renders a flat `ToggledMultiSelect` for admin areas (line 272-286).
 
 **Changes**:
 
-1. Add a `RadioGroup` or `ButtonGroup` above the admin area section to toggle
-   between "Filter by AA2" / "Filter by AA3". Only show this toggle when
-   `maxAdminArea >= 3` (pass from parent or read from `instanceState`).
+1. Import `NestedMultiSelect` and types from panther, and helpers from lib:
 
-2. When toggle is "aa2": show existing AA2 multi-select (unchanged).
+   ```typescript
+   import {
+     NestedMultiSelect,
+     type NestedSelectNode,
+     type NestedSelectBranchNode,
+     type NestedSelectLeafNode,
+   } from "panther";
+   import { makeAa3CompositeKey } from "lib";
+   ```
 
-3. When toggle is "aa3": show AA3 multi-select with the new `adminArea3s` data
-   from the display info endpoint. The AA3 options should show the parent AA2
-   in the label for context (e.g., "District X (Province Y)").
+   No need to import `instanceState` — the decision is driven by server data
+   (presence of `adminArea3s` in the response), not by reading `maxAdminArea`
+   directly.
 
-4. When the user switches the toggle, reset the other level's selection to
-   "take all" to avoid stale filters.
+2. Build tree nodes from `keyedItemsHolder.adminArea3s` (inside the
+   `StateHolderWrapper` callback, alongside other memos):
 
-**Rough JSX**:
+   ```typescript
+   const adminAreaTree = createMemo(() => {
+     const aa3s = keyedItemsHolder.adminArea3s;
+     if (!aa3s || aa3s.length === 0) return undefined;
+     const grouped = new Map<string, { admin_area_3: string; admin_area_2: string }[]>();
+     for (const item of aa3s) {
+       const list = grouped.get(item.admin_area_2) ?? [];
+       list.push(item);
+       grouped.set(item.admin_area_2, list);
+     }
+     const nodes: NestedSelectNode<string>[] = [];
+     for (const [aa2, districts] of grouped) {
+       nodes.push({
+         key: aa2,
+         label: aa2,
+         children: districts.map((d): NestedSelectLeafNode<string> => ({
+           key: makeAa3CompositeKey(d.admin_area_3, d.admin_area_2),
+           label: d.admin_area_3,
+           value: makeAa3CompositeKey(d.admin_area_3, d.admin_area_2),
+         })),
+       });
+     }
+     return nodes;
+   });
+   ```
 
-```tsx
-<Show when={!isDelete}>
-  <div class="ui-spy-sm ui-pad border-base-300 max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
-    <div class="text-md font-700">
-      {t3({ en: "Admin areas", fr: "Unités administratives" })}
-    </div>
-    <Show when={maxAdminArea >= 3}>
-      <RadioGroup
-        label={t3({ en: "Filter level", fr: "Niveau de filtre" })}
-        value={filterLevel()}
-        onChange={(v) => {
-          setTempWindowing("adminAreaFilterLevel", v);
-          // Reset both to "take all" when switching
-          setTempWindowing("takeAllAdminArea2s", true);
-          setTempWindowing("takeAllAdminArea3s", true);
-        }}
-        options={[
-          { value: "aa2", label: t3({ en: "By province/region", fr: "Par province/région" }) },
-          { value: "aa3", label: t3({ en: "By district", fr: "Par district" }) },
-        ]}
-      />
-    </Show>
-    <Switch>
-      <Match when={filterLevel() === "aa2"}>
-        {/* Existing AA2 Checkbox + MultiSelect */}
-      </Match>
-      <Match when={filterLevel() === "aa3"}>
-        {/* New AA3 Checkbox + MultiSelect */}
-      </Match>
-    </Switch>
-  </div>
-</Show>
-```
+   Returns `undefined` when AA3 data is absent or empty — this ensures the
+   fallback to flat AA2 renders correctly (empty array is truthy, `undefined`
+   is not).
 
-### 6. Client: Settings Component
+3. Replace the admin areas section (line 272-286):
+
+   ```tsx
+   <Show when={!isDelete}>
+     <Show when={adminAreaTree()} fallback={
+       <ToggledMultiSelect
+         heading={{ en: "Admin areas", fr: "Unites administratives" }}
+         toggleAllLabel={{ en: "Include all admin areas", fr: "Inclure toutes les unites administratives" }}
+         takeAll={p.tempWindowing.takeAllAdminArea2s}
+         setTakeAll={(v) => (p.setTempWindowing as any)("takeAllAdminArea2s", v)}
+         itemOptions={getSelectOptions(keyedItemsHolder.adminArea2s)}
+         itemsToTake={p.tempWindowing.adminArea2sToInclude}
+         setItemsToTake={(v) => (p.setTempWindowing as any)("adminArea2sToInclude", v)}
+         isDelete={isDelete}
+       />
+     }>
+       {(tree) => (
+         <ToggledNestedMultiSelect
+           heading={{ en: "Admin areas", fr: "Unites administratives" }}
+           toggleAllLabel={{ en: "Include all admin areas", fr: "Inclure toutes les unites administratives" }}
+           takeAll={p.tempWindowing.takeAllAdminArea3s ?? true}
+           setTakeAll={(v) => (p.setTempWindowing as any)("takeAllAdminArea3s", v)}
+           nodes={tree()}
+           itemsToTake={p.tempWindowing.adminArea3sToInclude ?? []}
+           setItemsToTake={(v) => (p.setTempWindowing as any)("adminArea3sToInclude", v)}
+         />
+       )}
+     </Show>
+   </Show>
+   ```
+
+4. Add a `ToggledNestedMultiSelect` wrapper (same file, alongside existing
+   `ToggledMultiSelect`):
+
+   ```tsx
+   function ToggledNestedMultiSelect(p: {
+     heading: TranslatableString;
+     toggleAllLabel: TranslatableString;
+     takeAll: boolean;
+     setTakeAll: (v: boolean) => void;
+     nodes: NestedSelectNode<string>[];
+     itemsToTake: string[];
+     setItemsToTake: (v: string[]) => void;
+   }) {
+     return (
+       <div class="ui-spy-sm ui-pad border-base-300 max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
+         <div class="text-md font-700">{t3(p.heading)}</div>
+         <Checkbox
+           label={t3(p.toggleAllLabel)}
+           checked={p.takeAll}
+           onChange={p.setTakeAll}
+         />
+         <Show when={!p.takeAll}>
+           <div class="pl-4">
+             <NestedMultiSelect
+               nodes={p.nodes}
+               values={p.itemsToTake}
+               onChange={p.setItemsToTake}
+             />
+           </div>
+         </Show>
+       </div>
+     );
+   }
+   ```
+
+### 8. Client: Settings Component
 
 **File**: `client/src/components/project/settings_for_project_dataset_hmis.tsx`
 
-**Update default windowing** to include new fields:
+**Update default windowing** (line 59-67) to include new fields:
 
 ```typescript
-const [tempWindowing, setTempWindowing] = createStore<DatasetHmisWindowingCommon>({
-  // ... existing fields ...
-  adminAreaFilterLevel: "aa2",
+{
+  indicatorType: "common",
+  start: DEFAULT_PERIOD_START,
+  end: DEFAULT_PERIOD_END,
+  takeAllIndicators: true,
+  takeAllAdminArea2s: true,
+  adminArea2sToInclude: [],
+  commonIndicatorsToInclude: [],
+  // NEW
   takeAllAdminArea3s: true,
   adminArea3sToInclude: [],
-});
-```
-
-**Update validation** in the save handler:
-
-```typescript
-const filterLevel = newWindowing.adminAreaFilterLevel ?? "aa2";
-
-if (filterLevel === "aa3") {
-  if (!(newWindowing.takeAllAdminArea3s ?? true) &&
-      (!newWindowing.adminArea3sToInclude || newWindowing.adminArea3sToInclude.length === 0)) {
-    return { success: false, err: t3({ en: "You must select at least one admin area", ... }) };
-  }
-} else {
-  if (!newWindowing.takeAllAdminArea2s && newWindowing.adminArea2sToInclude.length === 0) {
-    return { success: false, err: t3({ en: "You must select at least one admin area", ... }) };
-  }
 }
 ```
 
-### 7. Pass `maxAdminArea` to WindowingSelector
+**Update validation** in the save handler (line 116-123). Use if/else — AA3
+check takes priority, skip AA2 check when AA3 is active:
 
-The `WindowingSelector` needs to know whether AA3 exists. Options:
+```typescript
+const aa3Active = !(newWindowing.takeAllAdminArea3s ?? true);
+const aa3Items = newWindowing.adminArea3sToInclude ?? [];
 
-- Read from `instanceState.maxAdminArea` directly (already available on client).
-- Or pass as prop from parent.
+if (aa3Active) {
+  if (aa3Items.length === 0) {
+    return { success: false, err: t3({ en: "You must select at least one admin area", fr: "..." }) };
+  }
+} else if (!newWindowing.takeAllAdminArea2s && newWindowing.adminArea2sToInclude.length === 0) {
+  return { success: false, err: t3({ en: "You must select at least one admin area", fr: "..." }) };
+}
+```
 
-Simplest: read from `instanceState` inside `WindowingSelector` since it's
-already a global signal.
+**Reset AA2 fields in the submission spread** (line 163-176), not by mutating
+`newWindowing`. The existing code already uses a spread to override facility
+fields before sending to the server. Follow the same pattern:
+
+```typescript
+return await serverActions.addDatasetToProject(
+  {
+    projectId: p.projectDetail.id,
+    datasetType: "hmis",
+    windowing: {
+      ...newWindowing,
+      // Reset AA2 when AA3 is active, so server uses AA3 path only
+      ...(aa3Active
+        ? { takeAllAdminArea2s: true, adminArea2sToInclude: [] }
+        : {}),
+      takeAllFacilityOwnerships,
+      facilityOwnwershipsToInclude,
+      takeAllFacilityTypes,
+      facilityTypesToInclude,
+    },
+  },
+  onProgress,
+);
+```
+
+Note: `newWindowing` comes from `unwrap(tempWindowing)` — it's a plain object,
+but direct mutation would work. However, the spread pattern is consistent with
+how the existing code handles facility field overrides at submission time.
+
+### 9. Client: Delete Data Component
+
+**File**: `client/src/components/instance_dataset_hmis/_delete_data.tsx`
+
+**Update default windowing** (line 33-44) to include AA3 defaults:
+
+```typescript
+{
+  indicatorType: "raw",
+  start: DEFAULT_PERIOD_START,
+  end: DEFAULT_PERIOD_END,
+  takeAllIndicators: true,
+  takeAllAdminArea2s: true,
+  rawIndicatorsToInclude: [],
+  adminArea2sToInclude: [],
+  // NEW
+  takeAllAdminArea3s: true,
+  adminArea3sToInclude: [],
+}
+```
+
+Admin area filtering is hidden in delete mode (`<Show when={!isDelete}>`), so
+these defaults just ensure type compatibility. No validation changes needed.
+
+### 10. Cache Key Update
+
+**File**: `client/src/state/dataset_cache.ts`
+
+The HMIS display cache (line 24-41) uses a `createReactiveCache` with:
+- `uniquenessKeys`: `[rawOrCommonIndicators, facilityColumnsHash]`
+- `versionKey`: `` `${versionId}_${indicatorMappingsVersion}` ``
+
+If `maxAdminArea` changes (e.g., structure re-imported to add AA3), neither key
+changes, so the cache serves stale data without the AA3 list.
+
+**Fix**: Add `maxAdminArea` to the cache params and `versionKey`:
+
+```typescript
+const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
+  {
+    rawOrCommonIndicators: IndicatorType;
+    facilityColumns: InstanceConfigFacilityColumns;
+    versionId: number;
+    indicatorMappingsVersion: string;
+    maxAdminArea: number;  // NEW
+  },
+  ItemsHolderDatasetHmisDisplay
+>({
+  name: "dataset_hmis_display_info",
+  uniquenessKeys: (params) => {
+    const fcHash = Object.values(params.facilityColumns).sort().join("_");
+    return [params.rawOrCommonIndicators, fcHash];
+  },
+  versionKey: (params, _pds) =>
+    `${params.versionId}_${params.indicatorMappingsVersion}_${params.maxAdminArea}`,
+  pdsNotRequired: true,
+});
+```
+
+Then update `getDatasetHmisDisplayInfoFromCacheOrFetch` to accept a new
+`maxAdminArea: number` parameter (5th argument) and pass it into the cache
+params and the server action call. Both callers need updating:
+
+- **`client/src/components/WindowingSelector.tsx`** (line 65): add
+  `instanceState.maxAdminArea` as the 5th argument. Requires adding
+  `import { instanceState } from "~/state/instance_state";` (not currently
+  imported).
+- **`client/src/components/instance_dataset_hmis/dataset_items_holder.tsx`**
+  (line 61): same — add `instanceState.maxAdminArea` as the 5th argument.
+  Requires adding `import { instanceState } from "~/state/instance_state";`
+  (not currently imported).
 
 ---
 
@@ -265,31 +581,47 @@ already a global signal.
 
 | File | Change |
 |------|--------|
-| `lib/types/dataset_hmis.ts` | Add `adminAreaFilterLevel`, `takeAllAdminArea3s`, `adminArea3sToInclude` to `DatasetHmisWindowingBase` |
-| `server/db/instance/dataset_hmis.ts` | Query AA3 list in `getDatasetHmisItemsForDisplay`, add to response |
-| `server/db/project/datasets_in_project_hmis.ts` | Branch on `adminAreaFilterLevel` in export SQL + facilities query |
-| `client/src/components/WindowingSelector.tsx` | Add level toggle, AA3 multi-select |
-| `client/src/components/project/settings_for_project_dataset_hmis.tsx` | Default values, validation |
-| API response type (wherever `DatasetHmisDisplayInfo` lives) | Add `adminArea3s` field |
+| `lib/types/dataset_hmis.ts` | Add `takeAllAdminArea3s`, `adminArea3sToInclude` to base type; add `AA3_SEPARATOR`, `makeAa3CompositeKey`, `parseAa3CompositeKey` |
+| `lib/types/instance.ts` | Add `adminArea3s?` field to `ItemsHolderDatasetHmisDisplay` |
+| `server/db/instance/dataset_hmis.ts` | Query AA3 list via `getMaxAdminAreaConfig` in `getDatasetHmisItemsForDisplay`; update `SharedDataForDisplay`; add to both display response builders; update delete function |
+| `server/db/project/datasets_in_project_hmis.ts` | AA3-first/AA2-fallback in export SQL (section 5a) + facilities query (section 5b); add `escapeSqlString` to all string-interpolated SQL values |
+| `client/src/components/WindowingSelector.tsx` | Build tree from AA3 data; show `NestedMultiSelect` when tree is present and non-empty, flat `MultiSelect` otherwise; add `ToggledNestedMultiSelect` wrapper |
+| `client/src/components/project/settings_for_project_dataset_hmis.tsx` | Default values; if/else validation (AA3 priority, skip AA2 when AA3 active); reset AA2 before sending |
+| `client/src/components/instance_dataset_hmis/_delete_data.tsx` | Add AA3 defaults for type compatibility |
+| `client/src/state/dataset_cache.ts` | Add `maxAdminArea` to cache params and `versionKey`; update `getDatasetHmisDisplayInfoFromCacheOrFetch` signature |
+| `client/src/components/instance_dataset_hmis/dataset_items_holder.tsx` | Import `instanceState`; pass `maxAdminArea` to cache fetch (line 61) |
 
 ## No Migration Needed
 
 All new fields are optional with sensible defaults. Existing stored configs
-continue to work — `adminAreaFilterLevel` defaults to `"aa2"`, and the existing
-`takeAllAdminArea2s` / `adminArea2sToInclude` fields are used.
+continue to work — `takeAllAdminArea3s` defaults to `true` (no filter), and the
+server falls back to the existing AA2 fields.
 
 ## Edge Cases
 
-- **AA3 names are not globally unique**: Two provinces can have districts with
-  the same name. The SQL filter uses the `admin_area_3` column value, which in
-  the current schema is just a string. If AA3 names collide across AA2s, the
-  filter will include all matching AA3s regardless of parent. This matches how
-  AA2 filtering works today (no composite key in the filter). If this becomes
-  a problem, we'd need to filter on `(admin_area_3, admin_area_2)` pairs
-  instead of just AA3 strings. **Check your data to see if this is an issue.**
+- **AA3 name collisions across AA2s**: Solved by composite keys
+  (`"aa3|||aa2"`). SQL uses tuple `IN` with `VALUES` clause. The
+  `parseAa3CompositeKey` function throws on malformed input.
 
-- **Switching levels clears selection**: When the user toggles between AA2/AA3,
-  both selections reset to "take all". This prevents orphaned filters.
+- **Single quotes in admin area names** (e.g. N'Djamena): All SQL string
+  interpolation uses `escapeSqlString` to double single quotes. This fixes a
+  pre-existing vulnerability in the AA2 code as well.
 
-- **maxAdminArea < 3**: The toggle simply doesn't appear. No code path reaches
-  the AA3 logic.
+- **Existing configs with AA2 filters**: Continue to work. Server checks AA3
+  first, falls back to AA2. When user re-opens settings and saves, AA3 fields
+  take over and AA2 fields are reset.
+
+- **maxAdminArea < 3**: No AA3 data returned from server. `adminAreaTree()`
+  returns `undefined`. Fallback renders existing flat AA2 multi-select. No code
+  path reaches AA3 logic.
+
+- **maxAdminArea >= 3 but admin_areas_3 table is empty**: Server returns empty
+  array. `adminAreaTree()` memo checks `aa3s.length === 0` and returns
+  `undefined`, so the flat AA2 multi-select renders as fallback.
+
+- **Delete mode**: Admin area filtering remains hidden. AA3 defaults ensure
+  type compatibility. Server-side AA3 support in delete is defensive only.
+
+- **admin_area_1 not included in AA3 query**: Safe because the app is
+  single-country (one AA1 value). If multiple AA1s existed, AA3 names could
+  collide across AA1 boundaries — not a concern for this deployment.

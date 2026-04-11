@@ -355,6 +355,7 @@ export type ItemsHolderDatasetHmisDisplay = {
   indicatorLabelReplacements: Record<string, string>;
   indicators: { value: string; label: string }[];
   adminArea2s: string[];
+  adminArea3s?: { admin_area_3: string; admin_area_2: string }[];
   //
   facilityTypes?: string[];
   facilityOwnership?: string[];

@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type AlertComponentProps, Button, ModalContainer, t3 } from "../deps.ts";
+import {
+  type AlertComponentProps,
+  Button,
+  ModalContainer,
+  t3,
+} from "../deps.ts";
 
 export type AIChatSystemPromptPanelProps = {
   systemPrompt: string | Array<{ type: "text"; text: string }>;

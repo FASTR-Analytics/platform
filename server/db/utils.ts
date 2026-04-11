@@ -31,6 +31,10 @@ function cleanUuidForTableNames(str: string): string {
   return str.replaceAll("-", "_").replaceAll(".", "_").toLowerCase();
 }
 
+export function escapeSqlString(s: string): string {
+  return s.replace(/'/g, "''");
+}
+
 // ============================================================================
 // Database Detection Utilities
 // ============================================================================

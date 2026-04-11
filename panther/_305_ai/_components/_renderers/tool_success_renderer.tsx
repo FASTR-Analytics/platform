@@ -35,7 +35,9 @@ export const ToolSuccessRenderer: Component<{
 
       <Show when={expanded()}>
         <div class="ml-5 mt-1">
-          <div class="text-success/60 mb-1 text-xs font-medium">{t3({ en: "Result:", fr: "Résultat :" })}</div>
+          <div class="text-success/60 mb-1 text-xs font-medium">
+            {t3({ en: "Result:", fr: "Résultat :" })}
+          </div>
           <div class="text-success/80 bg-success/5 whitespace-pre-wrap rounded p-2 font-mono text-xs">
             {props.item.result}
           </div>

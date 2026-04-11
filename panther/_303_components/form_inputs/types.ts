@@ -14,3 +14,19 @@ export type SelectListItem<T extends string> =
   | SelectOption<T>
   | { type: "divider" }
   | { type: "header"; label: string };
+
+export type NestedSelectBranchNode<T extends string> = {
+  key: string;
+  label: string | JSX.Element;
+  children: NestedSelectNode<T>[];
+};
+
+export type NestedSelectLeafNode<T extends string> = {
+  key: string;
+  label: string | JSX.Element;
+  value: T;
+};
+
+export type NestedSelectNode<T extends string> =
+  | NestedSelectLeafNode<T>
+  | NestedSelectBranchNode<T>;

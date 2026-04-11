@@ -14,7 +14,11 @@ export const ToolLoadingRenderer: Component<{
   return (
     <div class="text-sm text-neutral italic">
       <SpinningCursor class="mr-1 inline-block" />
-      {props.item.label ?? t3({ en: `Processing ${props.item.toolName}...`, fr: `Traitement de ${props.item.toolName}...` })}
+      {props.item.label ??
+        t3({
+          en: `Processing ${props.item.toolName}...`,
+          fr: `Traitement de ${props.item.toolName}...`,
+        })}
     </div>
   );
 };

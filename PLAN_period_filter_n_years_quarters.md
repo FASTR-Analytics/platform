@@ -37,7 +37,21 @@ Extract two helpers from the existing inline logic:
 
 Existing `last_calendar_year` and `last_calendar_quarter` cases call the helpers and return directly (same behavior as today).
 
-**Defensive guard**: All four calendar-based branches (`last_calendar_year`, `last_calendar_quarter`, `last_n_calendar_years`, `last_n_calendar_quarters`) must guard against `quarter_id` periodOption at the top: `if (periodBounds.periodOption === "quarter_id") return periodBounds;`. This prevents garbage output for any legacy data where `last_calendar_year` was stored with `quarter_id` periodOption (a pre-existing bug).
+**Defensive guard (bug fix)**: Add a single guard before all calendar-based branches. Currently `last_calendar_year` is reachable with `quarter_id` periodOption, which produces garbage. Fix with one check covering all four calendar filter types:
+
+```typescript
+if (
+  periodBounds.periodOption === "quarter_id" &&
+  (periodFilter.filterType === "last_calendar_year" ||
+   periodFilter.filterType === "last_calendar_quarter" ||
+   periodFilter.filterType === "last_n_calendar_years" ||
+   periodFilter.filterType === "last_n_calendar_quarters")
+) {
+  return periodBounds;
+}
+```
+
+Place this before the `last_n_months` branch (after the `year` early-return at line 112). This returns unfiltered bounds as a safe fallback — the UI changes in section 4 prevent new POs from reaching this state.
 
 New cases:
 
@@ -66,6 +80,8 @@ New cases:
 - Gregorian quarter 201601-201603, N=3: `getTimeFromPeriodId(201601)=1392`, `1392-6=1386`, `getPeriodIdFromTime(1386)=201507`. Covers Q3'15, Q4'15, Q1'16. Correct.
 - Ethiopian quarter 201602-201604, N=2: `getTimeFromPeriodId(201602)=1393`, `1393-3=1390`, `getPeriodIdFromTime(1390)=201511`. Covers Eth Q1 (11-1) + Q2 (2-4). Correct.
 
+**No clamping**: If N exceeds the available data range, the extended `min` will be before `periodBounds.min`. This is correct — the SQL query returns whatever data exists in that range, same as "custom" filter with a min before the data start.
+
 #### 2b. Hash function (line 287) — fix cache collision bug
 
 `hashFetchConfig` currently hashes `filterType` and `nMonths` but NOT `nYears` or `nQuarters`. Two POs with `last_n_calendar_years` but different N values would produce identical hashes → stale cached data.
@@ -93,6 +109,11 @@ Currently a binary ternary using `p.resultsValueInfo.periodBounds?.periodOption 
 - `"year"` → `["last_n_months", "custom"]` (unchanged)
 - `"period_id"` → `["last_n_months", "from_month", "last_n_calendar_years", "last_n_calendar_quarters", "custom"]`
 - `"quarter_id"` → `["last_n_months", "from_month", "custom"]` (no calendar options)
+
+**Radio labels** for the new options:
+
+- `last_n_calendar_years`: `t3({ en: "Last N full calendar years", fr: "Dernières N années civiles complètes" })`
+- `last_n_calendar_quarters`: `t3({ en: "Last N full calendar quarters", fr: "Derniers N trimestres civils complets" })`
 
 **RadioGroup value (line 181) — backwards compat mapping:**
 
@@ -173,6 +194,8 @@ Same changes as _2_filters.tsx with these differences:
 
 Same pattern for `NQuartersSelector` inline with `"last_n_calendar_quarters"`, `nQuarters`, min=1, max=20.
 
+**Bug fix: nMonths slider max** (line 153): Change `max={60}` to `max={24}`. Currently the slider allows values up to 60, but `getPeriodFilterExactBounds` throws for `nMonths > 24`. This lets users save a value that crashes on resolution.
+
 ## Backwards compatibility
 
 - Old stored `last_calendar_year` / `last_calendar_quarter` continue to resolve correctly via existing logic in `getPeriodFilterExactBounds` (those code paths are untouched)
@@ -180,6 +203,12 @@ Same pattern for `NQuartersSelector` inline with `"last_n_calendar_quarters"`, `
 - Defensive guard in resolution logic returns `periodBounds` unchanged for `quarter_id` + calendar filter combos (prevents garbage from legacy data)
 - When user interacts (changes N or re-selects), the new filterType is written
 - No migration needed
+
+## Bug fixes included
+
+1. **`quarter_id` + calendar filter produces garbage** (get_fetch_config_from_po.ts): `last_calendar_year` / `last_calendar_quarter` branches assumed YYYYMM period IDs but were reachable with `quarter_id` periodOption. Fixed with a single guard before all calendar branches.
+2. **`quarter_id` shown calendar filter options in UI** (_2_filters.tsx): The 2-way branch at line 183 showed `last_calendar_year` for both `period_id` and `quarter_id`. Fixed by restructuring to a 3-way branch that excludes calendar options for `quarter_id`.
+3. **nMonths slider max=60 vs validation max=24** (edit_common_properties_modal.tsx): Slider allowed values that would throw on resolution. Fixed by changing slider max to 24.
 
 ## Out of scope (noted for future)
 
@@ -190,3 +219,4 @@ Same pattern for `NQuartersSelector` inline with `"last_n_calendar_quarters"`, `
 - N years range: 1-10
 - N quarters range: 1-20
 - All calendar-based options (`last_n_calendar_years`, `last_n_calendar_quarters`) only shown for `period_id` periodOption — resolution logic assumes YYYYMM format and produces garbage for `quarter_id`. Also fixes pre-existing bug where `last_calendar_year` was offered for `quarter_id`.
+- `last_calendar_quarter` was previously commented out in the _2_filters.tsx UI. Re-enabling in its N-based form (`last_n_calendar_quarters`) since the backend logic (lines 202-256) is fully implemented and correct.

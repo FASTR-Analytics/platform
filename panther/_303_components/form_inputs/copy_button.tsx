@@ -154,7 +154,8 @@ export function CopyToClipboardButton(p: CopyToClipboardButtonProps) {
       size={p.size}
       disabled={p.disabled}
       iconName={showSuccess() ? "check" : "copy"}
-      ariaLabel={p.ariaLabel ?? t3({ en: "Copy to clipboard", fr: "Copier dans le presse-papiers" })}
+      ariaLabel={p.ariaLabel ??
+        t3({ en: "Copy to clipboard", fr: "Copier dans le presse-papiers" })}
     >
       {p.children}
     </Button>

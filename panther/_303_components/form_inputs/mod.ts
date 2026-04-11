@@ -15,6 +15,7 @@ export * from "./input.tsx";
 export * from "./label_holder.tsx";
 export * from "./loading_el.tsx";
 export * from "./multi_select.tsx";
+export * from "./nested_multi_select.tsx";
 export * from "./progress_bar.tsx";
 export * from "./radio_group.tsx";
 export * from "./select.tsx";

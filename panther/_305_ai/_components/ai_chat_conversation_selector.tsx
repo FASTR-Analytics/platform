@@ -103,7 +103,10 @@ export function AIChatConversationSelector(
 
     if (selectedKeys().size === 1) {
       actions.push({
-        label: t3({ en: "Switch to Conversation", fr: "Changer de conversation" }),
+        label: t3({
+          en: "Switch to Conversation",
+          fr: "Changer de conversation",
+        }),
         intent: "primary",
         onClick: handleBulkSwitch,
       });
@@ -189,7 +192,12 @@ export function AIChatConversationSelector(
       <Show
         when={conversations.conversations().length > 0}
         fallback={
-          <div class="text-neutral py-8 text-center">{t3({ en: "No conversations yet", fr: "Aucune conversation pour le moment" })}</div>
+          <div class="text-neutral py-8 text-center">
+            {t3({
+              en: "No conversations yet",
+              fr: "Aucune conversation pour le moment",
+            })}
+          </div>
         }
       >
         <Table

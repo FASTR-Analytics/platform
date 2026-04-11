@@ -36,7 +36,9 @@ export const ToolErrorRenderer: Component<{
       <Show when={expanded()}>
         <div class="ml-5 mt-1 space-y-2">
           <div>
-            <div class="mb-1 text-xs font-medium">{t3({ en: "Error:", fr: "Erreur :" })}</div>
+            <div class="mb-1 text-xs font-medium">
+              {t3({ en: "Error:", fr: "Erreur :" })}
+            </div>
             <div class="text-xs">{props.item.errorDetails}</div>
           </div>
 

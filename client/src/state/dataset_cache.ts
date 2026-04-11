@@ -27,6 +27,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
     facilityColumns: InstanceConfigFacilityColumns;
     versionId: number;
     indicatorMappingsVersion: string;
+    maxAdminArea: number;
   },
   ItemsHolderDatasetHmisDisplay
 >({
@@ -36,7 +37,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
     return [params.rawOrCommonIndicators, fcHash];
   },
   versionKey: (params, _pds) =>
-    `${params.versionId}_${params.indicatorMappingsVersion}`,
+    `${params.versionId}_${params.indicatorMappingsVersion}_${params.maxAdminArea}`,
   pdsNotRequired: true,
 });
 
@@ -45,12 +46,14 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   versionId: number,
   indicatorMappingsVersion: string,
   facilityColumns: InstanceConfigFacilityColumns,
+  maxAdminArea: number,
 ) {
   const { data, version } = await _DATASET_HMIS_DISPLAY_INFO_CACHE.get({
     rawOrCommonIndicators,
     facilityColumns,
     versionId,
     indicatorMappingsVersion,
+    maxAdminArea,
   });
 
   if (data) {
@@ -71,6 +74,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
       facilityColumns,
       versionId,
       indicatorMappingsVersion,
+      maxAdminArea,
     },
     version,
   );

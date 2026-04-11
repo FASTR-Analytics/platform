@@ -34,7 +34,10 @@ export const MessageInput: Component<Props> = (props) => {
           onChange={props.onChange}
           onKeyDown={handleKeyDown}
           placeholder={props.placeholder ??
-            t3({ en: "Type your message... (Shift+Enter for new line)", fr: "Tapez votre message... (Maj+Entrée pour un saut de ligne)" })}
+            t3({
+              en: "Type your message... (Shift+Enter for new line)",
+              fr: "Tapez votre message... (Maj+Entrée pour un saut de ligne)",
+            })}
           height={props.height ?? "100px"}
           // mono
           fullWidth

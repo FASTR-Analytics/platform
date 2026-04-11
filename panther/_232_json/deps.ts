@@ -3,5 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { InvalidFileContentError, handleFileError, validateFilePath } from "../_230_file_utils/mod.ts";
+export {
+  handleFileError,
+  InvalidFileContentError,
+  validateFilePath,
+} from "../_230_file_utils/mod.ts";
 export { join } from "@std/path";

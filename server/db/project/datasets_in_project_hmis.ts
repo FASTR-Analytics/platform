@@ -13,6 +13,7 @@ import {
   getEnabledOptionalFacilityColumns,
   InstanceConfigFacilityColumns,
   isValidPeriodId,
+  parseAa3CompositeKey,
   throwIfErrNoData,
   throwIfErrWithData,
   type DatasetHmisInfoInProject,
@@ -25,7 +26,7 @@ import {
 } from "../instance/config.ts";
 import { getCurrentDatasetHmisVersion } from "../instance/dataset_hmis.ts";
 import { getIndicatorMappingsVersion } from "../instance/instance.ts";
-import { tryCatchDatabaseAsync } from "./../utils.ts";
+import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
 
 export async function addDatasetHmisToProject(
   mainDb: Sql,
@@ -158,14 +159,28 @@ SELECT * FROM indicators
     let facilitiesQuery = `SELECT * FROM facilities`;
     const facilityWhereConditions: string[] = [];
 
-    // Filter by admin areas if specified
+    // Filter by admin areas — AA3 takes priority over AA2
+    const facAa3Items = startingWindowing.adminArea3sToInclude ?? [];
     if (
+      !(startingWindowing.takeAllAdminArea3s ?? true) &&
+      facAa3Items.length > 0
+    ) {
+      const pairs = facAa3Items.map((key) => parseAa3CompositeKey(key));
+      facilityWhereConditions.push(
+        `(admin_area_3, admin_area_2) IN (VALUES ${pairs
+          .map(
+            (p) =>
+              `('${escapeSqlString(p.aa3)}', '${escapeSqlString(p.aa2)}')`
+          )
+          .join(", ")})`
+      );
+    } else if (
       !startingWindowing.takeAllAdminArea2s &&
       startingWindowing.adminArea2sToInclude.length > 0
     ) {
       facilityWhereConditions.push(
         `admin_area_2 IN (${startingWindowing.adminArea2sToInclude
-          .map((aa) => `'${aa}'`)
+          .map((aa) => `'${escapeSqlString(aa)}'`)
           .join(", ")})`
       );
     }
@@ -179,7 +194,7 @@ SELECT * FROM indicators
     ) {
       facilityWhereConditions.push(
         `facility_ownership IN (${startingWindowing.facilityOwnwershipsToInclude
-          .map((fo) => `'${fo}'`)
+          .map((fo) => `'${escapeSqlString(fo)}'`)
           .join(", ")})`
       );
     }
@@ -193,7 +208,7 @@ SELECT * FROM indicators
     ) {
       facilityWhereConditions.push(
         `facility_type IN (${startingWindowing.facilityTypesToInclude
-          .map((ft) => `'${ft}'`)
+          .map((ft) => `'${escapeSqlString(ft)}'`)
           .join(", ")})`
       );
     }
@@ -315,11 +330,22 @@ async function getDatasetHmisExportStatement(
   // Build WHERE conditions array for better query optimization
   const whereConditions = [];
 
-  // Add admin area filter if specified - apply to facilities table for better performance
-  if (!w.takeAllAdminArea2s && w.adminArea2sToInclude.length > 0) {
+  // Add admin area filter — AA3 takes priority over AA2
+  const aa3Items = w.adminArea3sToInclude ?? [];
+  if (!(w.takeAllAdminArea3s ?? true) && aa3Items.length > 0) {
+    const pairs = aa3Items.map((key) => parseAa3CompositeKey(key));
+    whereConditions.push(
+      `(f.admin_area_3, f.admin_area_2) IN (VALUES ${pairs
+        .map(
+          (p) =>
+            `('${escapeSqlString(p.aa3)}', '${escapeSqlString(p.aa2)}')`
+        )
+        .join(", ")})`
+    );
+  } else if (!w.takeAllAdminArea2s && w.adminArea2sToInclude.length > 0) {
     whereConditions.push(
       `f.admin_area_2 IN (${w.adminArea2sToInclude
-        .map((aa) => `'${aa}'`)
+        .map((aa) => `'${escapeSqlString(aa)}'`)
         .join(", ")})`
     );
   }
@@ -333,7 +359,7 @@ async function getDatasetHmisExportStatement(
   ) {
     whereConditions.push(
       `f.facility_ownership IN (${w.facilityOwnwershipsToInclude
-        .map((fo) => `'${fo}'`)
+        .map((fo) => `'${escapeSqlString(fo)}'`)
         .join(", ")})`
     );
   }
@@ -347,7 +373,7 @@ async function getDatasetHmisExportStatement(
   ) {
     whereConditions.push(
       `f.facility_type IN (${w.facilityTypesToInclude
-        .map((ft) => `'${ft}'`)
+        .map((ft) => `'${escapeSqlString(ft)}'`)
         .join(", ")})`
     );
   }
@@ -388,7 +414,7 @@ aggregated AS (
     !w.takeAllIndicators && w.commonIndicatorsToInclude.length > 0
       ? `
   WHERE im.indicator_common_id IN (${w.commonIndicatorsToInclude
-    .map((ite) => `'${ite}'`)
+    .map((ite) => `'${escapeSqlString(ite)}'`)
     .join(", ")})`
       : ""
   }

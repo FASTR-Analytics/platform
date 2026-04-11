@@ -19,9 +19,9 @@ import type {
   MergedGridStyle,
   MergedLegendStyle,
   MergedMapStyle,
-  MergedScaleLegendStyle,
   MergedPaneStyle,
   MergedSankeyStyle,
+  MergedScaleLegendStyle,
   MergedSimpleVizStyle,
   MergedTableStyle,
   MergedTimeseriesStyle,
@@ -311,7 +311,11 @@ export class CustomFigureStyle {
   }
 
   getValuesColorFunc(): ValuesColorFunc {
-    return m(this._c.valuesColorFunc, this._g.valuesColorFunc, this._d.valuesColorFunc);
+    return m(
+      this._c.valuesColorFunc,
+      this._g.valuesColorFunc,
+      this._d.valuesColorFunc,
+    );
   }
 
   /////////////////////////////////////////////////////////////////

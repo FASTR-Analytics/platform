@@ -20,6 +20,7 @@ import {
   DatasetUploadAttemptSummary,
   DatasetUploadStatusResponse,
   Dhis2SelectionParams,
+  parseAa3CompositeKey,
   PeriodBounds,
   parseJsonOrThrow,
   parseJsonOrUndefined,
@@ -37,12 +38,12 @@ import {
   getHmisWorker,
   setHmisWorker,
 } from "../../worker_routines/worker_store.ts";
-import { tryCatchDatabaseAsync } from "../utils.ts";
+import { escapeSqlString, tryCatchDatabaseAsync } from "../utils.ts";
 import type {
   DBDatasetHmisUploadAttempt,
   DBDatasetHmisVersion,
 } from "./_main_database_types.ts";
-import { getFacilityColumnsConfig } from "./config.ts";
+import { getFacilityColumnsConfig, getMaxAdminAreaConfig } from "./config.ts";
 
 async function getRawUA(
   mainDb: Sql
@@ -156,35 +157,44 @@ export async function deleteAllDatasetHmisData(
       windowing.rawIndicatorsToInclude.length > 0
     ) {
       const indicatorList = windowing.rawIndicatorsToInclude
-        .map((ind) => `'${ind}'`)
+        .map((ind) => `'${escapeSqlString(ind)}'`)
         .join(", ");
       conditions.push(`indicator_raw_id IN (${indicatorList})`);
     }
 
-    // Count rows that will be deleted
-    let countQuery;
-    if (
+    // Build admin area facility subquery — AA3 takes priority over AA2
+    let facilitySubquery: string | undefined;
+    const delAa3Items = windowing.adminArea3sToInclude ?? [];
+    if (!(windowing.takeAllAdminArea3s ?? true) && delAa3Items.length > 0) {
+      const pairs = delAa3Items.map((key) => parseAa3CompositeKey(key));
+      facilitySubquery = `SELECT facility_id FROM facilities WHERE (admin_area_3, admin_area_2) IN (VALUES ${pairs
+        .map(
+          (p) =>
+            `('${escapeSqlString(p.aa3)}', '${escapeSqlString(p.aa2)}')`
+        )
+        .join(", ")})`;
+    } else if (
       !windowing.takeAllAdminArea2s &&
       windowing.adminArea2sToInclude.length > 0
     ) {
       const adminAreaList = windowing.adminArea2sToInclude
-        .map((aa) => `'${aa}'`)
+        .map((aa) => `'${escapeSqlString(aa)}'`)
         .join(", ");
-      // Count using facility join for admin area filtering
+      facilitySubquery = `SELECT facility_id FROM facilities WHERE admin_area_2 IN (${adminAreaList})`;
+    }
+
+    // Count rows that will be deleted
+    let countQuery;
+    if (facilitySubquery) {
       countQuery = mainDb.unsafe(`
-        SELECT COUNT(*) as count 
+        SELECT COUNT(*) as count
         FROM dataset_hmis
-        WHERE facility_id IN (
-          SELECT facility_id 
-          FROM facilities 
-          WHERE admin_area_2 IN (${adminAreaList})
-        )
+        WHERE facility_id IN (${facilitySubquery})
         AND ${conditions.join(" AND ")}
       `);
     } else {
-      // Count without admin area filtering
       countQuery = mainDb.unsafe(`
-        SELECT COUNT(*) as count 
+        SELECT COUNT(*) as count
         FROM dataset_hmis
         WHERE ${conditions.join(" AND ")}
       `);
@@ -198,27 +208,15 @@ export async function deleteAllDatasetHmisData(
       return { success: true };
     }
 
-    // Admin area filtering - need to join with facilities table
+    // Execute delete
     let deleteQuery;
-    if (
-      !windowing.takeAllAdminArea2s &&
-      windowing.adminArea2sToInclude.length > 0
-    ) {
-      const adminAreaList = windowing.adminArea2sToInclude
-        .map((aa) => `'${aa}'`)
-        .join(", ");
-      // Delete using facility join for admin area filtering
+    if (facilitySubquery) {
       deleteQuery = mainDb.unsafe(`
         DELETE FROM dataset_hmis
-        WHERE facility_id IN (
-          SELECT facility_id 
-          FROM facilities 
-          WHERE admin_area_2 IN (${adminAreaList})
-        )
+        WHERE facility_id IN (${facilitySubquery})
         AND ${conditions.join(" AND ")}
       `);
     } else {
-      // Delete without admin area filtering
       deleteQuery = mainDb.unsafe(`
         DELETE FROM dataset_hmis
         WHERE ${conditions.join(" AND ")}
@@ -282,6 +280,7 @@ export async function deleteAllDatasetHmisData(
 type SharedDataForDisplay = {
   facilityColumns: InstanceConfigFacilityColumns;
   adminArea2s: string[];
+  adminArea3s?: { admin_area_3: string; admin_area_2: string }[];
   facilityTypes?: string[];
   facilityOwnership?: string[];
 };
@@ -305,6 +304,18 @@ export async function getDatasetHmisItemsForDisplay(
         { admin_area_2: string }[]
       >`SELECT admin_area_2 FROM admin_areas_2 ORDER BY LOWER(admin_area_2)`
     ).map<string>((aa) => aa.admin_area_2);
+
+    const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
+    throwIfErrWithData(resMaxAdminArea);
+    let adminArea3s:
+      | { admin_area_3: string; admin_area_2: string }[]
+      | undefined;
+    if (resMaxAdminArea.data.maxAdminArea >= 3) {
+      adminArea3s = await mainDb<
+        { admin_area_3: string; admin_area_2: string }[]
+      >`SELECT admin_area_3, admin_area_2 FROM admin_areas_3
+        ORDER BY LOWER(admin_area_2), LOWER(admin_area_3)`;
+    }
 
     // Conditionally query facility types if enabled
     let facilityTypes: string[] | undefined;
@@ -333,6 +344,7 @@ export async function getDatasetHmisItemsForDisplay(
     const sharedData: SharedDataForDisplay = {
       facilityColumns,
       adminArea2s,
+      adminArea3s,
       facilityTypes,
       facilityOwnership,
     };
@@ -423,6 +435,7 @@ async function getDatasetHmisItemsForDisplayRaw(
       indicatorLabelReplacements,
       indicators,
       adminArea2s: sharedData.adminArea2s,
+      adminArea3s: sharedData.adminArea3s,
       periodBounds,
       facilityTypes: sharedData.facilityTypes,
       facilityOwnership: sharedData.facilityOwnership,
@@ -509,6 +522,7 @@ async function getDatasetHmisItemsForDisplayCommon(
       indicatorLabelReplacements,
       indicators,
       adminArea2s: sharedData.adminArea2s,
+      adminArea3s: sharedData.adminArea3s,
       periodBounds,
       facilityTypes: sharedData.facilityTypes,
       facilityOwnership: sharedData.facilityOwnership,

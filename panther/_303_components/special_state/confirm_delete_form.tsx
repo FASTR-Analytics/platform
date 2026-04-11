@@ -40,7 +40,9 @@ export function ConfirmDeleteForm<T>(
     <ModalContainer
       width="md"
       topPanel={
-        <div class="font-700 text-danger text-lg leading-none">{t3({ en: "Warning", fr: "Avertissement" })}</div>
+        <div class="font-700 text-danger text-lg leading-none">
+          {t3({ en: "Warning", fr: "Avertissement" })}
+        </div>
       }
       leftButtons={
         // eslint-disable-next-line jsx-key

@@ -27,6 +27,8 @@ type DatasetHmisWindowingBase = {
   takeAllIndicators: boolean;
   takeAllAdminArea2s: boolean;
   adminArea2sToInclude: string[];
+  takeAllAdminArea3s?: boolean;
+  adminArea3sToInclude?: string[];
   //
   takeAllFacilityOwnerships?: boolean;
   takeAllFacilityTypes?: boolean;
@@ -47,3 +49,20 @@ export type DatasetHmisWindowingCommon = DatasetHmisWindowingBase & {
 export type DatasetHmisWindowing =
   | DatasetHmisWindowingRaw
   | DatasetHmisWindowingCommon;
+
+export const AA3_SEPARATOR = "|||";
+
+export function makeAa3CompositeKey(aa3: string, aa2: string): string {
+  return `${aa3}${AA3_SEPARATOR}${aa2}`;
+}
+
+export function parseAa3CompositeKey(key: string): {
+  aa3: string;
+  aa2: string;
+} {
+  const i = key.indexOf(AA3_SEPARATOR);
+  if (i === -1) {
+    throw new Error(`Invalid AA3 composite key (missing separator): ${key}`);
+  }
+  return { aa3: key.slice(0, i), aa2: key.slice(i + AA3_SEPARATOR.length) };
+}

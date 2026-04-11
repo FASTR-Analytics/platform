@@ -267,7 +267,8 @@ export default function AlertProvider() {
                                     }}
                                     intent={ass.intent}
                                   >
-                                    {ass.closeButtonLabel ?? t3({ en: "Close", fr: "Fermer" })}
+                                    {ass.closeButtonLabel ??
+                                      t3({ en: "Close", fr: "Fermer" })}
                                   </Button>,
                                 ];
                               }
@@ -281,7 +282,8 @@ export default function AlertProvider() {
                                     }}
                                     intent={ass.intent}
                                   >
-                                    {ass.confirmButtonLabel ?? t3({ en: "Confirm", fr: "Confirmer" })}
+                                    {ass.confirmButtonLabel ??
+                                      t3({ en: "Confirm", fr: "Confirmer" })}
                                   </Button>,
                                   <Button
                                     onClick={() => {
@@ -303,7 +305,8 @@ export default function AlertProvider() {
                                     form="promptForm"
                                     intent={ass.intent}
                                   >
-                                    {ass.saveButtonLabel ?? t3({ en: "Confirm", fr: "Confirmer" })}
+                                    {ass.saveButtonLabel ??
+                                      t3({ en: "Confirm", fr: "Confirmer" })}
                                   </Button>,
                                   <Button
                                     type="button"

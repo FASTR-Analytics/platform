@@ -77,7 +77,12 @@ export function AskUserQuestionsRenderer(p: Props) {
     <div ref={containerRef} class="border-base-300 rounded border p-3">
       <div class="font-700 mb-2 text-sm">{p.input.question}</div>
       <Show when={p.input.allowMultiple}>
-        <div class="text-neutral mb-2 text-xs">{t3({ en: "Select all that apply", fr: "Sélectionnez toutes les réponses applicables" })}</div>
+        <div class="text-neutral mb-2 text-xs">
+          {t3({
+            en: "Select all that apply",
+            fr: "Sélectionnez toutes les réponses applicables",
+          })}
+        </div>
       </Show>
       <div class="space-y-1.5">
         <For each={options()}>

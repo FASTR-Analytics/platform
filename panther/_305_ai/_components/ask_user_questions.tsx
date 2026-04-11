@@ -55,8 +55,14 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
           rejectAnswer?.(new Error("User cancelled the question"))}
       />
     ),
-    inProgressLabel: t3({ en: "Waiting for your response...", fr: "En attente de votre réponse..." }),
-    successMessage: t3({ en: "User responded to question", fr: "L'utilisateur a répondu à la question" }),
+    inProgressLabel: t3({
+      en: "Waiting for your response...",
+      fr: "En attente de votre réponse...",
+    }),
+    successMessage: t3({
+      en: "User responded to question",
+      fr: "L'utilisateur a répondu à la question",
+    }),
   });
 }
 

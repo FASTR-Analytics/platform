@@ -44,7 +44,13 @@ export function SelectListSortable<T extends string = string>(
       <Show
         when={orderedOptions().length > 0}
         fallback={
-          <div class="text-sm">{p.emptyMessage || t3({ en: "No options available", fr: "Aucune option disponible" })}</div>
+          <div class="text-sm">
+            {p.emptyMessage ||
+              t3({
+                en: "No options available",
+                fr: "Aucune option disponible",
+              })}
+          </div>
         }
       >
         <Show when={showSortable()} keyed>

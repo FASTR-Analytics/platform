@@ -40,6 +40,8 @@ export function DeleteData(
         takeAllAdminArea2s: true,
         rawIndicatorsToInclude: [],
         adminArea2sToInclude: [],
+        takeAllAdminArea3s: true,
+        adminArea3sToInclude: [],
       }),
     );
 

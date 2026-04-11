@@ -64,6 +64,8 @@ export function SettingsForProjectDatasetHmis(
           takeAllAdminArea2s: true,
           adminArea2sToInclude: [],
           commonIndicatorsToInclude: [],
+          takeAllAdminArea3s: true,
+          adminArea3sToInclude: [],
         },
     );
 
@@ -113,7 +115,16 @@ export function SettingsForProjectDatasetHmis(
         };
       }
 
-      if (
+      const aa3Active = !(newWindowing.takeAllAdminArea3s ?? true);
+      const aa3Items = newWindowing.adminArea3sToInclude ?? [];
+      if (aa3Active) {
+        if (aa3Items.length === 0) {
+          return {
+            success: false,
+            err: t3({ en: "You must select at least one admin area", fr: "Vous devez sélectionner au moins une zone administrative" }),
+          };
+        }
+      } else if (
         !newWindowing.takeAllAdminArea2s &&
         newWindowing.adminArea2sToInclude.length === 0
       ) {
@@ -166,6 +177,9 @@ export function SettingsForProjectDatasetHmis(
           datasetType: "hmis",
           windowing: {
             ...newWindowing,
+            ...(aa3Active
+              ? { takeAllAdminArea2s: true, adminArea2sToInclude: [] }
+              : {}),
             takeAllFacilityOwnerships,
             facilityOwnwershipsToInclude,
             takeAllFacilityTypes,
