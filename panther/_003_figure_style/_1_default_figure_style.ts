@@ -97,7 +97,7 @@ const _DS = {
   table: {
     rowHeaderIndentIfRowGroups: 20,
     verticalColHeaders: typed<"never" | "always" | "auto">("auto"),
-    maxHeightForVerticalColHeaders: 180,
+    maxHeightForVerticalColHeaders: 300,
     colHeaderPadding: typed<PaddingOptions>(5),
     rowHeaderPadding: typed<PaddingOptions>([5, 10]),
     cellPadding: typed<PaddingOptions>(5),

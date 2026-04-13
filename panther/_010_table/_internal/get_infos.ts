@@ -121,8 +121,10 @@ export function getColHeaderInfos(
   // Now we know that it must be VERTICAL
 
   const maxHeightOptions = [
+    s.maxHeightForVerticalColHeaders * 0.33,
     s.maxHeightForVerticalColHeaders * 0.5,
-    s.maxHeightForVerticalColHeaders * 0.75,
+    s.maxHeightForVerticalColHeaders * 0.67,
+    s.maxHeightForVerticalColHeaders * 0.85,
   ];
 
   for (const maxHeight of maxHeightOptions) {
