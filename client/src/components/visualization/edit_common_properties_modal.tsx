@@ -97,12 +97,19 @@ export function EditCommonPropertiesModal(
 
           <Show when={enablePeriodFilter() && p.periodBounds} keyed>
             {(keyedBounds) => {
+              const displayFilterType = () => {
+                const ft = tempPeriodFilter.filterType;
+                if (ft === "last_calendar_year") return "last_n_calendar_years";
+                if (ft === "last_calendar_quarter") return "last_n_calendar_quarters";
+                return ft;
+              };
+              const periodOption = keyedBounds.periodOption;
               return (
                 <div class="ui-spy-sm pb-4 pl-4">
                   <RadioGroup
-                    value={tempPeriodFilter.filterType}
+                    value={displayFilterType()}
                     options={
-                      p.periodBounds?.periodOption === "year"
+                      periodOption === "year"
                         ? [
                           {
                             value: "last_n_months",
@@ -113,33 +120,54 @@ export function EditCommonPropertiesModal(
                             label: t3({ en: "Custom", fr: "Personnalisé" }),
                           },
                         ]
-                        : [
-                          {
-                            value: "last_n_months",
-                            label: t3({ en: "Last N months", fr: "Derniers N mois" }),
-                          },
-                          {
-                            value: "from_month",
-                            label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui" }),
-                          },
-                          {
-                            value: "last_calendar_year",
-                            label: t3({ en: "Last full calendar year", fr: "Dernière année civile complète" }),
-                          },
-                          {
-                            value: "custom",
-                            label: t3({ en: "Custom", fr: "Personnalisé" }),
-                          },
-                        ]
+                        : periodOption === "quarter_id"
+                          ? [
+                            {
+                              value: "last_n_months",
+                              label: t3({ en: "Last N quarters", fr: "Derniers N trimestres" }),
+                            },
+                            {
+                              value: "from_month",
+                              label: t3({ en: "From specific quarter", fr: "À partir d'un trimestre spécifique" }),
+                            },
+                            {
+                              value: "custom",
+                              label: t3({ en: "Custom", fr: "Personnalisé" }),
+                            },
+                          ]
+                          : [
+                            {
+                              value: "last_n_months",
+                              label: t3({ en: "Last N months", fr: "Derniers N mois" }),
+                            },
+                            {
+                              value: "from_month",
+                              label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui" }),
+                            },
+                            {
+                              value: "last_n_calendar_years",
+                              label: t3({ en: "Last N full calendar years", fr: "Dernières N années civiles complètes" }),
+                            },
+                            {
+                              value: "last_n_calendar_quarters",
+                              label: t3({ en: "Last N full calendar quarters", fr: "Derniers N trimestres civils complets" }),
+                            },
+                            {
+                              value: "custom",
+                              label: t3({ en: "Custom", fr: "Personnalisé" }),
+                            },
+                          ]
                     }
                     onChange={(v) => {
-                      setTempPeriodFilter("filterType", v as "last_n_months" | "from_month" | "last_calendar_year" | "custom");
+                      setTempPeriodFilter("filterType", v as PeriodFilter["filterType"]);
+                      if (v === "last_n_calendar_years") setTempPeriodFilter("nYears", 1);
+                      if (v === "last_n_calendar_quarters") setTempPeriodFilter("nQuarters", 1);
                     }}
                   />
                   <Show
                     when={
-                      tempPeriodFilter?.filterType === "last_n_months" &&
-                      p.periodBounds?.periodOption !== "year"
+                      tempPeriodFilter.filterType === "last_n_months" &&
+                      periodOption !== "year"
                     }
                   >
                     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
@@ -150,7 +178,47 @@ export function EditCommonPropertiesModal(
                           setTempPeriodFilter("nMonths", nMonths);
                         }}
                         min={1}
-                        max={60}
+                        max={24}
+                        step={1}
+                      />
+                    </div>
+                  </Show>
+                  <Show
+                    when={
+                      tempPeriodFilter.filterType === "last_n_calendar_years" ||
+                      tempPeriodFilter.filterType === "last_calendar_year"
+                    }
+                  >
+                    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+                      <label class="text-sm">{t3({ en: "Number of years", fr: "Nombre d'années" })}: {tempPeriodFilter.nYears ?? 1}</label>
+                      <Slider
+                        value={tempPeriodFilter.nYears ?? 1}
+                        onChange={(nYears) => {
+                          setTempPeriodFilter("filterType", "last_n_calendar_years");
+                          setTempPeriodFilter("nYears", nYears);
+                        }}
+                        min={1}
+                        max={10}
+                        step={1}
+                      />
+                    </div>
+                  </Show>
+                  <Show
+                    when={
+                      tempPeriodFilter.filterType === "last_n_calendar_quarters" ||
+                      tempPeriodFilter.filterType === "last_calendar_quarter"
+                    }
+                  >
+                    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+                      <label class="text-sm">{t3({ en: "Number of quarters", fr: "Nombre de trimestres" })}: {tempPeriodFilter.nQuarters ?? 1}</label>
+                      <Slider
+                        value={tempPeriodFilter.nQuarters ?? 1}
+                        onChange={(nQuarters) => {
+                          setTempPeriodFilter("filterType", "last_n_calendar_quarters");
+                          setTempPeriodFilter("nQuarters", nQuarters);
+                        }}
+                        min={1}
+                        max={20}
                         step={1}
                       />
                     </div>

@@ -99,8 +99,12 @@ export type PeriodFilter = {
     | "from_month"
     | "last_calendar_year"
     | "last_calendar_quarter"
+    | "last_n_calendar_years"
+    | "last_n_calendar_quarters"
     | "custom";
   nMonths?: number;
+  nYears?: number;
+  nQuarters?: number;
 } & PeriodBounds;
 
 // Status for disaggregation possible values (used in filter dropdowns)

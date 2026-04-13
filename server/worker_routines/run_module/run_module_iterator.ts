@@ -381,9 +381,13 @@ COPY ${tableName} FROM '${roCsvFilePathFromWithinPostgres}'
 ENCODING 'UTF8' CSV HEADER NULL 'NA'
 `;
 
-    const baseColumnsToExclude = csvHeaders.includes("period_id")
+    const hasPeriodId = csvHeaders.includes("period_id");
+    const hasQuarterId = !hasPeriodId && csvHeaders.includes("quarter_id");
+    const baseColumnsToExclude = hasPeriodId
       ? ["month", "quarter_id", "year"]
-      : ["month", "quarter_id"];
+      : hasQuarterId
+        ? ["month", "year"]
+        : ["month", "quarter_id"];
 
     // Get enabled optional facility columns to exclude if present in CSV
     const enabledFacilityColumns =

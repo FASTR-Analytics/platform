@@ -27,6 +27,15 @@ export const PERIOD_COLUMN_EXPRESSIONS = {
   END)::int`,
 } as const;
 
+/**
+ * SQL expressions for generating columns from quarter_id.
+ * Used when quarter_id is the primary time column (no period_id).
+ * quarter_id format: YYYYQQ (e.g. 202301 = Q1 2023, 202304 = Q4 2023)
+ */
+export const QUARTER_ID_COLUMN_EXPRESSIONS = {
+  year: "(quarter_id / 100)::int",
+} as const;
+
 // ============================================================================
 // Period Column Detection and CTE Building
 // ============================================================================

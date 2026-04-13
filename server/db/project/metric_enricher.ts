@@ -183,18 +183,41 @@ async function buildDisaggregationOptions(
 
   // Time columns
   const hasPeriodId = await detectColumnExists(projectDb, tableName, "period_id");
-  const periodDerivedColumns: DisaggregationOption[] = hasPeriodId
-    ? ["year", "month", "quarter_id", "period_id"]
-    : [];
-
-  for (const disOpt of periodDerivedColumns) {
-    const metadata = getDisaggregationMetadata(disOpt);
-    disaggregationOptions.push({
-      value: disOpt,
-      label: metadata.label,
-      isRequired: requiredOptions.includes(disOpt),
-      allowedPresentationOptions: metadata.allowedPresentationOptions,
-    });
+  if (hasPeriodId) {
+    const periodDerivedColumns: DisaggregationOption[] = ["year", "month", "quarter_id", "period_id"];
+    for (const disOpt of periodDerivedColumns) {
+      const metadata = getDisaggregationMetadata(disOpt);
+      disaggregationOptions.push({
+        value: disOpt,
+        label: metadata.label,
+        isRequired: requiredOptions.includes(disOpt),
+        allowedPresentationOptions: metadata.allowedPresentationOptions,
+      });
+    }
+  } else {
+    const hasQuarterId = await detectColumnExists(projectDb, tableName, "quarter_id");
+    if (hasQuarterId) {
+      for (const disOpt of ["quarter_id", "year"] as DisaggregationOption[]) {
+        const metadata = getDisaggregationMetadata(disOpt);
+        disaggregationOptions.push({
+          value: disOpt,
+          label: metadata.label,
+          isRequired: requiredOptions.includes(disOpt),
+          allowedPresentationOptions: metadata.allowedPresentationOptions,
+        });
+      }
+    } else {
+      const hasYear = await detectColumnExists(projectDb, tableName, "year");
+      if (hasYear) {
+        const metadata = getDisaggregationMetadata("year");
+        disaggregationOptions.push({
+          value: "year",
+          label: metadata.label,
+          isRequired: requiredOptions.includes("year"),
+          allowedPresentationOptions: metadata.allowedPresentationOptions,
+        });
+      }
+    }
   }
 
   return disaggregationOptions;

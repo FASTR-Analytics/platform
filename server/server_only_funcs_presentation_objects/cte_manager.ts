@@ -1,4 +1,4 @@
-import { PERIOD_COLUMN_EXPRESSIONS } from "./period_helpers.ts";
+import { PERIOD_COLUMN_EXPRESSIONS, QUARTER_ID_COLUMN_EXPRESSIONS } from "./period_helpers.ts";
 import type { QueryConfigV2 } from "./types.ts";
 
 // ============================================================================
@@ -71,17 +71,22 @@ export class CTEManager {
     if (queryContext.needsPeriodCTE) {
       const selectColumns: string[] = ["*"];
 
-      // Generate columns from period_id
-      if (queryContext.neededPeriodColumns.has("year")) {
-        selectColumns.push(`${PERIOD_COLUMN_EXPRESSIONS.year} AS year`);
-      }
-      if (queryContext.neededPeriodColumns.has("month")) {
-        selectColumns.push(`${PERIOD_COLUMN_EXPRESSIONS.month} AS month`);
-      }
-      if (queryContext.neededPeriodColumns.has("quarter_id")) {
-        selectColumns.push(
-          `${PERIOD_COLUMN_EXPRESSIONS.quarter_id} AS quarter_id`
-        );
+      if (queryContext.hasPeriodId) {
+        if (queryContext.neededPeriodColumns.has("year")) {
+          selectColumns.push(`${PERIOD_COLUMN_EXPRESSIONS.year} AS year`);
+        }
+        if (queryContext.neededPeriodColumns.has("month")) {
+          selectColumns.push(`${PERIOD_COLUMN_EXPRESSIONS.month} AS month`);
+        }
+        if (queryContext.neededPeriodColumns.has("quarter_id")) {
+          selectColumns.push(
+            `${PERIOD_COLUMN_EXPRESSIONS.quarter_id} AS quarter_id`
+          );
+        }
+      } else if (queryContext.hasQuarterId) {
+        if (queryContext.neededPeriodColumns.has("year")) {
+          selectColumns.push(`${QUARTER_ID_COLUMN_EXPRESSIONS.year} AS year`);
+        }
       }
 
       const periodDefinition = `SELECT ${selectColumns.join(

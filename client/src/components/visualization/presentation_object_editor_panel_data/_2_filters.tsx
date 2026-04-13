@@ -175,12 +175,19 @@ function PeriodFilter(p: PeriodFilterProps) {
       />
       <Show when={p.tempConfig.d.periodFilter} keyed>
         {(keyedPeriodFilter) => {
+          const displayFilterType = () => {
+            const ft = p.tempConfig.d.periodFilter?.filterType;
+            if (ft === "last_calendar_year") return "last_n_calendar_years";
+            if (ft === "last_calendar_quarter") return "last_n_calendar_quarters";
+            return ft;
+          };
+          const periodOption = p.keyedPeriodBounds.periodOption;
           return (
             <div class="ui-spy-sm pb-4 pl-4">
               <RadioGroup
-                value={p.tempConfig.d.periodFilter?.filterType}
+                value={displayFilterType()}
                 options={
-                  p.resultsValueInfo.periodBounds?.periodOption === "year"
+                  periodOption === "year"
                     ? [
                       {
                         value: "last_n_months",
@@ -191,42 +198,59 @@ function PeriodFilter(p: PeriodFilterProps) {
                         label: t3({ en: "Custom", fr: "Personnalisé" }),
                       },
                     ]
-                    : [
-                      {
-                        value: "last_n_months",
-                        label: t3({ en: "Last N months", fr: "Derniers N mois" }),
-                      },
-                      {
-                        value: "from_month",
-                        label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui" }),
-                      },
-                      {
-                        value: "last_calendar_year",
-                        label: t3({ en: "Last full calendar year", fr: "Dernière année civile complète" }),
-                      },
-                      // {
-                      //   value: "last_calendar_quarter",
-                      //   label: "Last full calendar quarter",
-                      // },
-                      {
-                        value: "custom",
-                        label: t3({ en: "Custom", fr: "Personnalisé" }),
-                      },
-                    ]
+                    : periodOption === "quarter_id"
+                      ? [
+                        {
+                          value: "last_n_months",
+                          label: t3({ en: "Last N quarters", fr: "Derniers N trimestres" }),
+                        },
+                        {
+                          value: "from_month",
+                          label: t3({ en: "From specific quarter", fr: "À partir d'un trimestre spécifique" }),
+                        },
+                        {
+                          value: "custom",
+                          label: t3({ en: "Custom", fr: "Personnalisé" }),
+                        },
+                      ]
+                      : [
+                        {
+                          value: "last_n_months",
+                          label: t3({ en: "Last N months", fr: "Derniers N mois" }),
+                        },
+                        {
+                          value: "from_month",
+                          label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui" }),
+                        },
+                        {
+                          value: "last_n_calendar_years",
+                          label: t3({ en: "Last N full calendar years", fr: "Dernières N années civiles complètes" }),
+                        },
+                        {
+                          value: "last_n_calendar_quarters",
+                          label: t3({ en: "Last N full calendar quarters", fr: "Derniers N trimestres civils complets" }),
+                        },
+                        {
+                          value: "custom",
+                          label: t3({ en: "Custom", fr: "Personnalisé" }),
+                        },
+                      ]
                 }
-                onChange={(v) =>
+                onChange={(v) => {
                   p.setTempConfig(
                     "d",
                     "periodFilter",
                     "filterType",
-                    v as "last_n_months" | "from_month" | "last_calendar_year" | "last_calendar_quarter" | "custom",
-                  )
-                }
+                    v as NonNullable<PresentationObjectConfig["d"]["periodFilter"]>["filterType"],
+                  );
+                  if (v === "last_n_calendar_years") p.setTempConfig("d", "periodFilter", "nYears", 1);
+                  if (v === "last_n_calendar_quarters") p.setTempConfig("d", "periodFilter", "nQuarters", 1);
+                }}
               />
               <Show
                 when={
                   p.tempConfig.d.periodFilter?.filterType === "last_n_months" &&
-                  p.keyedPeriodBounds.periodOption !== "year"
+                  periodOption !== "year"
                 }
               >
                 <NMonthsSelector
@@ -234,6 +258,34 @@ function PeriodFilter(p: PeriodFilterProps) {
                   onUpdate={(nMonths) =>
                     p.setTempConfig("d", "periodFilter", "nMonths", nMonths)
                   }
+                />
+              </Show>
+              <Show
+                when={
+                  p.tempConfig.d.periodFilter?.filterType === "last_n_calendar_years" ||
+                  p.tempConfig.d.periodFilter?.filterType === "last_calendar_year"
+                }
+              >
+                <NYearsSelector
+                  nYears={keyedPeriodFilter.nYears}
+                  onUpdate={(nYears) => {
+                    p.setTempConfig("d", "periodFilter", "filterType", "last_n_calendar_years");
+                    p.setTempConfig("d", "periodFilter", "nYears", nYears);
+                  }}
+                />
+              </Show>
+              <Show
+                when={
+                  p.tempConfig.d.periodFilter?.filterType === "last_n_calendar_quarters" ||
+                  p.tempConfig.d.periodFilter?.filterType === "last_calendar_quarter"
+                }
+              >
+                <NQuartersSelector
+                  nQuarters={keyedPeriodFilter.nQuarters}
+                  onUpdate={(nQuarters) => {
+                    p.setTempConfig("d", "periodFilter", "filterType", "last_n_calendar_quarters");
+                    p.setTempConfig("d", "periodFilter", "nQuarters", nQuarters);
+                  }}
                 />
               </Show>
               <Show
@@ -572,6 +624,94 @@ export function NMonthsSelector(p: NMonthsSelectorProps) {
         }}
         min={1}
         max={24}
+        fullWidth
+      />
+      <Show when={needsSave()}>
+        <div class="flex justify-end">
+          <Button onClick={save} intent="success">
+            {t3(TC.update)}
+          </Button>
+        </div>
+      </Show>
+    </div>
+  );
+}
+
+export type NYearsSelectorProps = {
+  nYears: number | undefined;
+  onUpdate: (nYears: number) => void;
+};
+
+export function NYearsSelector(p: NYearsSelectorProps) {
+  const [tempNYears, setTempNYears] = createSignal<number>(
+    p.nYears ?? 1,
+  );
+  const [needsSave, setNeedsSave] = createSignal<boolean>(false);
+
+  function save() {
+    p.onUpdate(tempNYears());
+    setNeedsSave(false);
+  }
+
+  return (
+    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+      <Slider
+        label={t3({ en: "Number of years", fr: "Nombre d'années" })}
+        showValueInLabel
+        valueInLabelFormatter={v => String(v)}
+        value={tempNYears()}
+        onChange={(val) => {
+          if (val >= 1 && val <= 10) {
+            setTempNYears(val);
+            setNeedsSave(true);
+          }
+        }}
+        min={1}
+        max={10}
+        fullWidth
+      />
+      <Show when={needsSave()}>
+        <div class="flex justify-end">
+          <Button onClick={save} intent="success">
+            {t3(TC.update)}
+          </Button>
+        </div>
+      </Show>
+    </div>
+  );
+}
+
+export type NQuartersSelectorProps = {
+  nQuarters: number | undefined;
+  onUpdate: (nQuarters: number) => void;
+};
+
+export function NQuartersSelector(p: NQuartersSelectorProps) {
+  const [tempNQuarters, setTempNQuarters] = createSignal<number>(
+    p.nQuarters ?? 1,
+  );
+  const [needsSave, setNeedsSave] = createSignal<boolean>(false);
+
+  function save() {
+    p.onUpdate(tempNQuarters());
+    setNeedsSave(false);
+  }
+
+  return (
+    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+      <Slider
+        label={t3({ en: "Number of quarters", fr: "Nombre de trimestres" })}
+        showValueInLabel
+        valueInLabelFormatter={v => String(v)}
+        value={tempNQuarters()}
+        onChange={(val) => {
+          if (val >= 1 && val <= 20) {
+            setTempNQuarters(val);
+            setNeedsSave(true);
+          }
+        }}
+        min={1}
+        max={20}
         fullWidth
       />
       <Show when={needsSave()}>

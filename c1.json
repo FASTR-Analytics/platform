@@ -1,0 +1,60 @@
+{
+  "id": "n8w",
+  "label": "Copy of Coverage timeseries (national)",
+  "metricId": "m4-01-01",
+  "config": {
+    "d": {
+      "type": "chart",
+      "periodOpt": "year",
+      "valuesDisDisplayOpt": "indicator",
+      "disaggregateBy": [
+        {
+          "disOpt": "indicator_common_id",
+          "disDisplayOpt": "replicant"
+        }
+      ],
+      "filterBy": [],
+      "selectedReplicantValue": "anc1"
+    },
+    "s": {
+      "scale": 3,
+      "content": "bars",
+      "conditionalFormatting": "none",
+      "allowIndividualRowLimits": true,
+      "colorScale": "pastel-discrete",
+      "decimalPlaces": 0,
+      "hideLegend": false,
+      "showDataLabels": false,
+      "showDataLabelsLineCharts": false,
+      "barsStacked": false,
+      "specialCoverageChart": false,
+      "diffAreas": false,
+      "diffAreasOrder": "actual-expected",
+      "diffInverted": false,
+      "specialBarChart": false,
+      "specialBarChartInverted": false,
+      "specialBarChartDiffThreshold": 0.1,
+      "specialBarChartDataLabels": "threshold-values",
+      "specialScorecardTable": false,
+      "idealAspectRatio": "none",
+      "verticalTickLabels": false,
+      "allowVerticalColHeaders": true,
+      "forceYMax1": false,
+      "forceYMinAuto": false,
+      "customSeriesStyles": [],
+      "nColsInCellDisplay": "auto",
+      "seriesColorFuncPropToUse": "series",
+      "sortIndicatorValues": "none",
+      "formatAdminArea3Labels": false,
+      "specialDisruptionsChart": false
+    },
+    "t": {
+      "caption": "Coverage estimates for REPLICANT",
+      "captionRelFontSize": 2,
+      "subCaption": "DATE_RANGE\nDISCLAIMER: These results use routine data to provide rigorous, but not official estimates. They should be interpreted considering any data quality or representation limitations, including data quality findings and any other country specific factors.",
+      "subCaptionRelFontSize": 1.3,
+      "footnote": "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.",
+      "footnoteRelFontSize": 0.9
+    }
+  }
+}

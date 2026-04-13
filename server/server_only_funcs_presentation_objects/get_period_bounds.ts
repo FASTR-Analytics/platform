@@ -1,7 +1,7 @@
 import type { Sql } from "postgres";
-import { detectHasPeriodId } from "../db/utils.ts";
+import { detectColumnExists, detectHasPeriodId } from "../db/utils.ts";
 import type { PeriodBounds, PeriodOption } from "lib";
-import { PERIOD_COLUMN_EXPRESSIONS } from "./period_helpers.ts";
+import { PERIOD_COLUMN_EXPRESSIONS, QUARTER_ID_COLUMN_EXPRESSIONS } from "./period_helpers.ts";
 
 export async function getPeriodBounds(
   projectDb: Sql,
@@ -76,10 +76,18 @@ ${whereClause}`;
 FROM ${sourceTable}
 ${whereClause}`;
     } else {
-      // Year column should exist directly
-      query = `SELECT MIN(year) as min_year, MAX(year) as max_year
+      // No period_id — check if year can be derived from quarter_id
+      const hasQuarterIdCol = await detectColumnExists(projectDb, tableName, "quarter_id");
+      if (hasQuarterIdCol) {
+        query = `SELECT MIN(${QUARTER_ID_COLUMN_EXPRESSIONS.year}) as min_year, MAX(${QUARTER_ID_COLUMN_EXPRESSIONS.year}) as max_year
 FROM ${tableName}
 ${whereClause}`;
+      } else {
+        // Year column should exist directly
+        query = `SELECT MIN(year) as min_year, MAX(year) as max_year
+FROM ${tableName}
+${whereClause}`;
+      }
     }
 
     const res = (
@@ -91,6 +99,24 @@ ${whereClause}`;
         periodOption: "year",
         min: res.min_year,
         max: res.max_year,
+      };
+    }
+  }
+
+  if (firstPeriodOption === "quarter_id") {
+    const query = `SELECT MIN(quarter_id) as min_quarter_id, MAX(quarter_id) as max_quarter_id
+FROM ${tableName}
+${whereClause}`;
+
+    const res = (
+      await projectDb.unsafe<{ min_quarter_id: number; max_quarter_id: number }[]>(query)
+    ).at(0);
+
+    if (res) {
+      return {
+        periodOption: "quarter_id",
+        min: res.min_quarter_id,
+        max: res.max_quarter_id,
       };
     }
   }

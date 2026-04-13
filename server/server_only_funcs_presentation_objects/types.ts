@@ -27,6 +27,7 @@ export interface CombinedQueryResultV2 {
 
 export interface QueryContext {
   hasPeriodId: boolean;
+  hasQuarterId: boolean;
   facilityConfig?: InstanceConfigFacilityColumns;
   enabledFacilityColumns: OptionalFacilityColumn[];
   requestedOptionalFacilityColumns: OptionalFacilityColumn[];

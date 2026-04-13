@@ -1,6 +1,6 @@
 import { Sql } from "postgres";
 import { getFacilityColumnsConfig } from "../db/instance/config.ts";
-import { detectHasPeriodId } from "../db/mod.ts";
+import { detectColumnExists, detectHasPeriodId } from "../db/mod.ts";
 import {
   GenericLongFormFetchConfig,
   getEnabledOptionalFacilityColumns,
@@ -40,10 +40,13 @@ export async function buildQueryContext(
 
   const needsFacilityJoin = requestedOptionalFacilityColumns.length > 0;
 
-  // Check if period_id exists in the table
+  // Check which time column exists in the table
   const hasPeriodId = await detectHasPeriodId(projectDb, tableName);
+  const hasQuarterId = !hasPeriodId && await detectColumnExists(projectDb, tableName, "quarter_id");
   const neededPeriodColumns = detectNeededPeriodColumns(fetchConfig);
-  const needsPeriodCTE = hasPeriodId && neededPeriodColumns.size > 0;
+  const needsPeriodCTE =
+    (hasPeriodId && neededPeriodColumns.size > 0) ||
+    (hasQuarterId && neededPeriodColumns.has("year"));
 
   const facilityFilters = fetchConfig.filters.filter((filter) =>
     enabledFacilityColumns.includes(filter.col as OptionalFacilityColumn)
@@ -56,6 +59,7 @@ export async function buildQueryContext(
 
   return {
     hasPeriodId,
+    hasQuarterId,
     facilityConfig,
     enabledFacilityColumns,
     requestedOptionalFacilityColumns,

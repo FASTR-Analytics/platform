@@ -1,5 +1,9 @@
 # Plan: Last N Full Calendar Years / Quarters Period Filter
 
+## Prerequisites
+
+Implement PLAN_period_column_handling.md steps 1-8 first. That plan establishes `hasQuarterId` in QueryContext, fixes the server-side period infrastructure, and defers client-side UI changes to this plan.
+
 ## Goal
 
 Replace the singular "Last full calendar year" and "Last full calendar quarter" UI options with "Last N full calendar years" and "Last N full calendar quarters". Keep old filterType values working for backwards compat — in the UI, auto-map them to the new N-based options with N=1.
@@ -96,9 +100,9 @@ fc.periodFilter?.nQuarters?.toString() ?? "",    // ADD
 fc.periodFilter?.periodOption ?? "",
 ```
 
-### 3. `lib/types/module_definition_validator.ts` (line 116)
+### 3. `lib/types/module_definition_validator.ts` (line 116) — SKIP FOR NOW
 
-Add `"last_n_calendar_years"` and `"last_n_calendar_quarters"` to the zod enum only. Do NOT add `nYears`/`nQuarters` fields here — this validator validates module definition JSON (with different field names like `minPeriodId`/`maxPeriodId`), not runtime PO configs. It doesn't have `nMonths` either.
+The zod enum at line 116 validates `filterType` values in PO configs embedded in module definition JSON. No module definition currently uses the new filter types, so adding them is premature. Revisit when `defaultPeriodFilterForDefaultVisualizations` is extended to support these types.
 
 ### 4. `client/src/components/visualization/presentation_object_editor_panel_data/_2_filters.tsx`
 
