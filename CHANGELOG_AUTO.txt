@@ -1,3 +1,12 @@
+[1.18.5] [user] [changed] - Nigeria admin area labels are now automatically formatted for both Admin Area 3 and Admin Area 4 (e.g., removing "State" and "Local Government Area" prefixes) without needing to enable a setting
+[1.18.5] [user] [changed] - The "Format Nigeria Admin Area 3 labels" checkbox has been removed from the style settings panel, as this formatting now happens automatically for Nigeria instances
+[1.18.5] [admin] [changed] - Nigeria admin area label formatting (e.g., removing "State" prefix codes) is now applied automatically for all Nigeria instances instead of requiring a manual checkbox in the visualization style settings
+[1.18.5] [admin] [added] - Nigeria admin area label formatting now also applies to Admin Area 4 labels, not just Admin Area 3
+[1.18.5] [admin] [added] - Nigeria admin area label formatting now removes "Local Government Area" text in addition to "State" from labels
+[1.18.5] [admin] [changed] - The "Format Nigeria Admin Area 3 labels" checkbox has been removed from the visualization style editor since formatting is now automatic for Nigeria instances
+[1.18.5] [admin] [changed] - Period options for metrics are now automatically inferred from available disaggregation options rather than requiring explicit configuration in module definitions
+[1.18.5] [admin] [changed] - The periodOptions field in module definitions is now optional, simplifying metric configuration
+[1.18.5] [admin] [fixed] - Queries using identity value functions now correctly include those value columns in group-by clauses, which may resolve incorrect aggregation in certain visualizations
 [1.18.4] [user] [added] - You can now filter data by district-level admin areas (admin area 3) using a nested, expandable selector grouped by parent admin area
 [1.18.4] [user] [added] - New time filter options let you select "Last N full calendar years" or "Last N full calendar quarters" with an adjustable slider
 [1.18.4] [user] [changed] - The "Last full calendar year" filter now lets you choose how many years to include instead of being limited to just one
