@@ -255,6 +255,8 @@ function PeriodFilter(p: PeriodFilterProps) {
               >
                 <NMonthsSelector
                   nMonths={keyedPeriodFilter.nMonths}
+                  label={periodOption === "quarter_id" ? t3({ en: "Number of quarters", fr: "Nombre de trimestres" }) : undefined}
+                  max={periodOption === "quarter_id" ? 20 : 24}
                   onUpdate={(nMonths) =>
                     p.setTempConfig("d", "periodFilter", "nMonths", nMonths)
                   }
@@ -292,10 +294,10 @@ function PeriodFilter(p: PeriodFilterProps) {
                 when={p.tempConfig.d.periodFilter?.filterType === "from_month"}
               >
                 <div class="ui-gap-sm ui-pad border-base-300 rounded border">
-                  {/* <label class="text-sm">Starting month:</label> */}
                   <PeriodFilterPeriodIdSingle
                     periodBounds={p.keyedPeriodBounds}
                     periodFilter={keyedPeriodFilter}
+                    periodType={periodOption === "quarter_id" ? "year-quarter" : "year-month"}
                     onUpdate={(v) =>
                       p.setTempConfig("d", "periodFilter", {
                         periodOption: p.keyedPeriodBounds.periodOption,
@@ -311,17 +313,17 @@ function PeriodFilter(p: PeriodFilterProps) {
                 <Match
                   when={
                     p.tempConfig.d.periodFilter?.filterType === "custom" &&
-                    p.keyedPeriodBounds.periodOption === "period_id" &&
-                    p.tempConfig.d.periodFilter?.periodOption === "period_id"
+                    (periodOption === "period_id" || periodOption === "quarter_id")
                   }
                 >
                   <div class="ui-gap-sm ui-pad border-base-300 rounded border">
                     <PeriodFilterPeriodId
                       periodBounds={p.keyedPeriodBounds}
                       periodFilter={keyedPeriodFilter}
+                      periodType={periodOption === "quarter_id" ? "year-quarter" : "year-month"}
                       onUpdate={(v) =>
                         p.setTempConfig("d", "periodFilter", {
-                          periodOption: "period_id",
+                          periodOption: p.keyedPeriodBounds.periodOption,
                           min: v.minPeriodId,
                           max: v.maxPeriodId,
                         })
@@ -467,6 +469,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
 export type PeriodFilterPropsPeriodId = {
   periodBounds: PeriodBounds;
   periodFilter: PeriodBounds;
+  periodType: "year-month" | "year-quarter";
   onUpdate: (v: { minPeriodId: number; maxPeriodId: number }) => void;
 };
 
@@ -474,21 +477,21 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
   const [tempMinTime, setTempMinTime] = createSignal<number>(
     getTimeFromPeriodId(
       Math.max(p.periodFilter.min, p.periodBounds.min),
-      "year-month",
+      p.periodType,
     ),
   );
   const [tempMaxTime, setTempMaxTime] = createSignal<number>(
     getTimeFromPeriodId(
       Math.min(p.periodFilter.max, p.periodBounds.max),
-      "year-month",
+      p.periodType,
     ),
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
   function save() {
     p.onUpdate({
-      minPeriodId: getPeriodIdFromTime(tempMinTime(), "year-month"),
-      maxPeriodId: getPeriodIdFromTime(tempMaxTime(), "year-month"),
+      minPeriodId: getPeriodIdFromTime(tempMinTime(), p.periodType),
+      maxPeriodId: getPeriodIdFromTime(tempMaxTime(), p.periodType),
     });
     setNeedsSave(false);
   }
@@ -496,8 +499,8 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
   return (
     <div class="">
       <DoubleSlider
-        min={getTimeFromPeriodId(p.periodBounds.min, "year-month")}
-        max={getTimeFromPeriodId(p.periodBounds.max, "year-month")}
+        min={getTimeFromPeriodId(p.periodBounds.min, p.periodType)}
+        max={getTimeFromPeriodId(p.periodBounds.max, p.periodType)}
         increment={1}
         valueLow={tempMinTime()}
         valueHigh={tempMaxTime()}
@@ -513,14 +516,14 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
       <div class="ui-gap-sm flex pt-1 text-sm">
         <div class="flex-1 truncate">
           {formatPeriod(
-            getPeriodIdFromTime(tempMinTime(), "year-month"),
-            "year-month",
+            getPeriodIdFromTime(tempMinTime(), p.periodType),
+            p.periodType,
             getCalendar(),
           )}{" "}
           {t3({ en: "to", fr: "à" })}{" "}
           {formatPeriod(
-            getPeriodIdFromTime(tempMaxTime(), "year-month"),
-            "year-month",
+            getPeriodIdFromTime(tempMaxTime(), p.periodType),
+            p.periodType,
             getCalendar(),
           )}
         </div>
@@ -539,6 +542,7 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
 export type PeriodFilterPropsPeriodIdSingle = {
   periodBounds: PeriodBounds;
   periodFilter: PeriodBounds;
+  periodType: "year-month" | "year-quarter";
   onUpdate: (v: { minPeriodId: number; maxPeriodId: number }) => void;
 };
 
@@ -546,14 +550,14 @@ export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
   const [tempTime, setTempTime] = createSignal<number>(
     getTimeFromPeriodId(
       Math.max(p.periodFilter.min, p.periodBounds.min),
-      "year-month",
+      p.periodType,
     ),
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
   function save() {
     p.onUpdate({
-      minPeriodId: getPeriodIdFromTime(tempTime(), "year-month"),
+      minPeriodId: getPeriodIdFromTime(tempTime(), p.periodType),
       maxPeriodId: p.periodBounds.max,
     });
     setNeedsSave(false);
@@ -567,8 +571,8 @@ export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
           setTempTime(v);
           setNeedsSave(true);
         }}
-        min={getTimeFromPeriodId(p.periodBounds.min, "year-month")}
-        max={getTimeFromPeriodId(p.periodBounds.max, "year-month")}
+        min={getTimeFromPeriodId(p.periodBounds.min, p.periodType)}
+        max={getTimeFromPeriodId(p.periodBounds.max, p.periodType)}
         step={1}
         fullWidth
       />
@@ -576,8 +580,8 @@ export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
         <div class="flex-1 truncate">
           {t3({ en: "From:", fr: "De :" })}{" "}
           {formatPeriod(
-            getPeriodIdFromTime(tempTime(), "year-month"),
-            "year-month",
+            getPeriodIdFromTime(tempTime(), p.periodType),
+            p.periodType,
             getCalendar(),
           )}
         </div>
@@ -595,10 +599,13 @@ export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
 
 export type NMonthsSelectorProps = {
   nMonths: number | undefined;
+  label?: string;
+  max?: number;
   onUpdate: (nMonths: number) => void;
 };
 
 export function NMonthsSelector(p: NMonthsSelectorProps) {
+  const max = p.max ?? 24;
   const [tempNMonths, setTempNMonths] = createSignal<number>(
     p.nMonths ?? 12,
   );
@@ -612,18 +619,18 @@ export function NMonthsSelector(p: NMonthsSelectorProps) {
   return (
     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
       <Slider
-        label={t3({ en: "Number of months", fr: "Nombre de mois" })}
+        label={p.label ?? t3({ en: "Number of months", fr: "Nombre de mois" })}
         showValueInLabel
         valueInLabelFormatter={v => String(v)}
         value={tempNMonths()}
         onChange={(val) => {
-          if (val >= 1 && val <= 24) {
+          if (val >= 1 && val <= max) {
             setTempNMonths(val);
             setNeedsSave(true);
           }
         }}
         min={1}
-        max={24}
+        max={max}
         fullWidth
       />
       <Show when={needsSave()}>

@@ -3,6 +3,7 @@ import {
   PresentationObjectDetail,
   ProjectDetail,
   ResultsValueInfoForPresentationObject,
+  getPeriodFilterExactBounds,
   hasOnlyOneFilteredValue,
 } from "lib";
 import { SetStoreFunction } from "solid-js/store";
@@ -36,10 +37,23 @@ export function PresentationObjectEditorPanelData(p: Props) {
     });
   };
 
-  const allowedDisaggregationOptions = () =>
-    allowedFilterOptions().filter((disOpt) => {
-      return !hasOnlyOneFilteredValue(p.tempConfig, disOpt.value);
+  const TIME_COLUMNS = new Set(["period_id", "quarter_id", "year", "month"]);
+
+  const periodFilterIsOneValue = (): boolean => {
+    const pf = p.tempConfig.d.periodFilter;
+    if (!pf) return false;
+    const resolved = getPeriodFilterExactBounds(pf, p.resultsValueInfo.periodBounds);
+    return !!resolved && resolved.min === resolved.max;
+  };
+
+  const allowedDisaggregationOptions = () => {
+    const singlePeriod = periodFilterIsOneValue();
+    return allowedFilterOptions().filter((disOpt) => {
+      if (hasOnlyOneFilteredValue(p.tempConfig, disOpt.value)) return false;
+      if (singlePeriod && TIME_COLUMNS.has(disOpt.value)) return false;
+      return true;
     });
+  };
 
   return (
     <div class="ui-pad ui-spy h-full w-full overflow-auto">
