@@ -1,3 +1,10 @@
+[1.18.7] [user] [fixed] - Charts and tables no longer show unnecessary breakdowns (like "Year") when your data only covers a single year
+[1.18.7] [user] [fixed] - Visualizations no longer display redundant groupings for filters that have only one selected value
+[1.18.7] [user] [fixed] - The "Year" option is now correctly hidden from the breakdown menu when your selected time period falls within a single year
+[1.18.7] [user] [fixed] - Calendar settings now work correctly regardless of language, rather than being overridden when using French
+[1.18.7] [admin] [fixed] - Visualizations no longer show unnecessary groupings (e.g., legend items or column groups) when the data only spans a single period or a single year
+[1.18.7] [admin] [fixed] - The disaggregation option for "year" is now automatically hidden in the editor when the selected period filter falls within a single year
+[1.18.7] [admin] [fixed] - Calendar type is now determined solely by the instance calendar setting, no longer incorrectly overridden by the display language being set to French
 [1.18.6] [user] [added] - Quarter-based time periods are now fully supported in period filters, including custom range selection and "from" filters
 [1.18.6] [user] [changed] - When filtering by quarters, the slider label now reads "Number of quarters" instead of "Number of months," and allows up to 20 quarters
 [1.18.6] [user] [fixed] - Time-related breakdown options (such as period, quarter, year, and month) are now automatically hidden when your data is filtered to a single time period
