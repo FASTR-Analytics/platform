@@ -1,3 +1,9 @@
+[1.18.6] [user] [added] - Quarter-based time periods are now fully supported in period filters, including custom range selection and "from" filters
+[1.18.6] [user] [changed] - When filtering by quarters, the slider label now reads "Number of quarters" instead of "Number of months," and allows up to 20 quarters
+[1.18.6] [user] [fixed] - Time-related breakdown options (such as period, quarter, year, and month) are now automatically hidden when your data is filtered to a single time period
+[1.18.6] [admin] [added] - Quarter-based period filtering is now fully supported in the visualization editor, including custom range selection, "from" filters, and "last N quarters" controls
+[1.18.6] [admin] [changed] - The "Number of months" slider now displays as "Number of quarters" with a maximum of 20 when using quarter-based period filtering
+[1.18.6] [admin] [fixed] - Time-based disaggregation options (period, quarter, year, month) are now automatically hidden when the period filter is set to a single value, reducing irrelevant choices in the editor
 [1.18.5] [user] [changed] - Nigeria admin area labels are now automatically formatted for both Admin Area 3 and Admin Area 4 (e.g., removing "State" and "Local Government Area" prefixes) without needing to enable a setting
 [1.18.5] [user] [changed] - The "Format Nigeria Admin Area 3 labels" checkbox has been removed from the style settings panel, as this formatting now happens automatically for Nigeria instances
 [1.18.5] [admin] [changed] - Nigeria admin area label formatting (e.g., removing "State" prefix codes) is now applied automatically for all Nigeria instances instead of requiring a manual checkbox in the visualization style settings
