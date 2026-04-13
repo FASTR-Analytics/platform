@@ -1,3 +1,8 @@
+[1.19.1] [user] [fixed] - The "Last N months" time filter now correctly separates quarter and month controls, so choosing quarters gives you a dedicated quarter slider and choosing months gives you a dedicated month slider
+[1.19.1] [user] [fixed] - Location labels for Nigeria now correctly remove "Local Government Area" from displayed names, even when the phrase spans multiple words
+[1.19.1] [admin] [changed] - Period filter now uses a dedicated quarters slider when grouping by quarter, separate from the months slider, allowing independent control over the number of quarters displayed
+[1.19.1] [admin] [fixed] - The months slider in period filters no longer incorrectly appears when grouping by year
+[1.19.1] [admin] [fixed] - Nigeria admin area labels now correctly remove multi-word phrases like "Local Government Area" instead of failing to strip them in some cases
 [1.19.0] [user] [changed] - Admin areas in project dataset details now display sub-areas grouped under their parent area for clearer location information
 [1.19.0] [user] [fixed] - The save button in dataset settings is now disabled while saving is in progress, preventing accidental double-clicks
 [1.19.0] [user] [fixed] - Adding a dataset to a project can no longer be accidentally triggered twice at the same time, preventing potential errors
