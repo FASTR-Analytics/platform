@@ -21,6 +21,21 @@ import {
   DBUser,
 } from "./_main_database_types.ts";
 
+// Writes the user's name from Clerk on their first login. The WHERE first_name IS NULL
+// ensures this is a no-op on every subsequent call, so it's safe to fire-and-forget.
+export async function syncUserName(
+  mainDb: Sql,
+  email: string,
+  firstName: string | null,
+  lastName: string | null,
+): Promise<void> {
+  await mainDb`
+    UPDATE users
+    SET first_name = ${firstName}, last_name = ${lastName}
+    WHERE email = ${email} AND first_name IS NULL
+  `;
+}
+
 export async function getOtherUser(
   mainDb: Sql,
   email: string,

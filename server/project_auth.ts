@@ -183,15 +183,6 @@ export async function getGlobalUser(
       `.catch(() => {}); // Ignore errors on this insert
     }
 
-    if (rawUser && rawUser.first_name === null) {
-      const firstName = (auth.sessionClaims.firstName as string | undefined) ?? null;
-      const lastName = (auth.sessionClaims.lastName as string | undefined) ?? null;
-      mainDb`
-        UPDATE users SET first_name = ${firstName}, last_name = ${lastName}
-        WHERE email = ${email}
-      `.catch(() => {});
-    }
-
     const isGlobalAdmin = _OPEN_ACCESS || (!!rawUser && rawUser.is_admin);
 
     // Admins get all permissions, others get their configured permissions
