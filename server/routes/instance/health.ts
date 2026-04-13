@@ -79,7 +79,7 @@ routesHealth.get("/projects", async (c) => {
 
 routesHealth.get("/user_logs", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const logs = await mainDb<UserLog[]>`SELECT user_email, endpoint, timestamp FROM user_logs WHERE endpoint = 'getInstanceDetail' ORDER BY timestamp DESC`;
+  const logs = await mainDb<UserLog[]>`SELECT user_email, endpoint, timestamp FROM user_logs WHERE endpoint = 'getCurrentUser' ORDER BY timestamp DESC`;
   return c.json({ logs });
 });
 
@@ -102,13 +102,4 @@ routesHealth.get("/ai_usage", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const logs = await GetAiUsageLogs(mainDb);
   return c.json({ logs });
-});
-
-routesHealth.get("/changelog", async (c) => {
-  try {
-    const text = await Deno.readTextFile("./CHANGELOG.md");
-    return c.text(text);
-  } catch {
-    return c.text("", 404);
-  }
 });

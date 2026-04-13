@@ -42,7 +42,7 @@ export async function DeleteOldLogs(
         await mainDb`
 DELETE FROM user_logs
 WHERE timestamp < NOW() - INTERVAL '7 days'
-  AND endpoint != 'getInstanceDetail'
+  AND endpoint != 'getCurrentUser'
         `;
         return { success: true };
     });
