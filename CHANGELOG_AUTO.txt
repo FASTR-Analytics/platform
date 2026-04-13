@@ -1,3 +1,16 @@
+[TBD] [user] [added] - You can now filter data by district-level admin areas (admin area 3) using a nested, expandable selector grouped by parent admin area
+[TBD] [user] [added] - New time filter options let you select "Last N full calendar years" or "Last N full calendar quarters" with an adjustable slider
+[TBD] [user] [changed] - The "Last full calendar year" filter now lets you choose how many years to include instead of being limited to just one
+[TBD] [user] [added] - Quarterly data is now supported as a time period option throughout the platform, including filters and visualizations
+[TBD] [user] [fixed] - Fixed a potential security issue where special characters in filter selections could cause errors
+[TBD] [admin] [added] - Admin area filtering now supports a third administrative level (admin area 3), allowing more granular geographic selection when configuring project datasets or deleting data
+[TBD] [admin] [added] - When admin area 3 data is available, the admin area selector displays a nested tree grouped by admin area 2, making it easier to browse and select specific sub-regions
+[TBD] [admin] [added] - Period filter options now include "Last N full calendar years" and "Last N full calendar quarters" with adjustable sliders, replacing the previous single "Last full calendar year" option
+[TBD] [admin] [added] - Quarter-based datasets are now fully supported as a primary time column, enabling disaggregation, filtering, and period bounds detection for data organized by quarters rather than months
+[TBD] [admin] [changed] - The "Last N months" slider maximum has been reduced from 60 to 24 months in the common visualization properties editor
+[TBD] [admin] [changed] - Existing visualizations using the old "Last full calendar year" or "Last full calendar quarter" filter will automatically migrate to the new "Last N" equivalents with a count of 1
+[TBD] [admin] [fixed] - SQL injection protection added to admin area, facility ownership, facility type, and indicator filters used in data deletion, project dataset windowing, and data exports
+[TBD] [admin] [internal] - Dataset display cache now accounts for the maximum admin area level configured on the instance, ensuring the cache refreshes when this setting changes
 [1.18.3] [user] [added] - Your name now automatically appears in your account based on your login details the first time you sign in
 [1.18.3] [admin] [added] - User first and last names from Clerk are now automatically saved to the database on their first login
 [1.18.3] [admin] [changed] - Activity tracking now logs user sessions based on the current user endpoint instead of the instance detail endpoint, improving accuracy of user activity reports
