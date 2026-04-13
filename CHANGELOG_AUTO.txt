@@ -1,3 +1,7 @@
+[TBD] [user] [added] - Your name now automatically appears in your account based on your login details the first time you sign in
+[TBD] [admin] [added] - User first and last names from Clerk are now automatically saved to the database on their first login
+[TBD] [admin] [changed] - Activity tracking now logs user sessions based on the current user endpoint instead of the instance detail endpoint, improving accuracy of user activity reports
+[TBD] [admin] [changed] - The changelog endpoint has been removed from the server health routes
 [1.18.1] [user] [added] - You can now save your work without closing the editor using a new "Save" button alongside the existing "Save and close" button in both the slide editor and visualization editor
 [1.18.1] [user] [changed] - The left settings panel in the visualization editor can now be resized by dragging its edge, giving you more room for the chart or more room for the settings
 [1.18.1] [user] [changed] - The "Filter" section in the visualization data panel is now labeled "Filter (subset)" to better explain its purpose
