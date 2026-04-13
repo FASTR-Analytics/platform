@@ -129,8 +129,9 @@ export type MetricWithStatus = ResultsValue & {
 
 export type ResultsValueDefinition = Omit<
   ResultsValue,
-  "disaggregationOptions"
+  "disaggregationOptions" | "periodOptions"
 > & {
+  periodOptions?: PeriodOption[];
   requiredDisaggregationOptions: DisaggregationOption[];
 };
 
@@ -141,7 +142,7 @@ export type MetricDefinition = {
   valueProps: string[];
   valueFunc: ValueFunc;
   formatAs: "percent" | "number";
-  periodOptions: PeriodOption[];
+  periodOptions?: PeriodOption[];
   requiredDisaggregationOptions: DisaggregationOption[];
   valueLabelReplacements?: Record<string, string>;
   postAggregationExpression?: PostAggregationExpression;

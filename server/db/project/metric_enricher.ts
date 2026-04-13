@@ -1,6 +1,7 @@
 import { Sql } from "postgres";
 import {
   DisaggregationOption,
+  type PeriodOption,
   PresentationOption,
   ResultsValue,
   type InstanceConfigFacilityColumns,
@@ -46,7 +47,7 @@ export async function enrichMetric(
     variantLabel: dbMetric.variant_label ?? undefined,
     formatAs: dbMetric.format_as as "percent" | "number",
     disaggregationOptions,
-    periodOptions: parseJsonOrThrow(dbMetric.period_options),
+    periodOptions: inferPeriodOptions(disaggregationOptions),
     aiDescription: dbMetric.ai_description
       ? parseJsonOrThrow(dbMetric.ai_description)
       : undefined,
@@ -221,4 +222,12 @@ async function buildDisaggregationOptions(
   }
 
   return disaggregationOptions;
+}
+
+function inferPeriodOptions(disaggregationOptions: ResultsValue["disaggregationOptions"]): PeriodOption[] {
+  const disOpts = disaggregationOptions.map(d => d.value);
+  if (disOpts.includes("period_id")) return ["period_id"];
+  if (disOpts.includes("quarter_id")) return ["quarter_id"];
+  if (disOpts.includes("year")) return ["year"];
+  return [];
 }

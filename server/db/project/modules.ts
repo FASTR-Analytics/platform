@@ -148,7 +148,7 @@ VALUES (
   ${metric.valueFunc},
   ${metric.formatAs},
   ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.periodOptions)},
+  ${JSON.stringify(metric.periodOptions ?? [])},
   ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
@@ -355,7 +355,7 @@ INSERT INTO metrics (
 ) VALUES (
   ${metric.id}, ${modDef.data.id}, ${metric.label}, ${metric.variantLabel ?? null},
   ${metric.valueFunc}, ${metric.formatAs}, ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.periodOptions)}, ${JSON.stringify(metric.requiredDisaggregationOptions)},
+  ${JSON.stringify(metric.periodOptions ?? [])}, ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
   ${metric.resultsObjectId}, ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
@@ -422,7 +422,7 @@ INSERT INTO metrics (
 ) VALUES (
   ${metric.id}, ${modDef.data.id}, ${metric.label}, ${metric.variantLabel ?? null},
   ${metric.valueFunc}, ${metric.formatAs}, ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.periodOptions)}, ${JSON.stringify(metric.requiredDisaggregationOptions)},
+  ${JSON.stringify(metric.periodOptions ?? [])}, ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
   ${metric.resultsObjectId}, ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
@@ -749,7 +749,7 @@ export async function getMetricsListForAI(
           }
 
           lines.push(
-            `    Period options: ${firstVariant.periodOptions.join(", ")}`,
+            `    Period options: ${(firstVariant.periodOptions ?? []).join(", ")}`,
           );
           lines.push("");
         } else {
@@ -798,7 +798,7 @@ export async function getMetricsListForAI(
           }
 
           lines.push(
-            `    Period options: ${firstVariant.periodOptions.join(", ")}`,
+            `    Period options: ${(firstVariant.periodOptions ?? []).join(", ")}`,
           );
           lines.push("");
           lines.push(`    Available at:`);

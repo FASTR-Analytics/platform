@@ -1,5 +1,4 @@
-import { CountryCodes, PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
-import { instanceState } from "~/state/instance_state";
+import { PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
 import {
   Checkbox,
   LabelHolder,
@@ -77,7 +76,6 @@ export function SharedControlsTop(p: SharedTopProps) {
 type SharedBottomProps = {
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
-  includesAdminArea3: () => boolean;
 };
 
 export function SharedControlsBottom(p: SharedBottomProps) {
@@ -114,18 +112,6 @@ export function SharedControlsBottom(p: SharedBottomProps) {
           checked={p.tempConfig.s.hideLegend}
           onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
           label={t3({ en: "Hide legend", fr: "Masquer la légende" })}
-        />
-      </Show>
-      <Show
-        when={instanceState.countryIso3 === CountryCodes.Nigeria && p.includesAdminArea3()}
-      >
-        <Checkbox
-          checked={p.tempConfig.s.formatAdminArea3Labels}
-          onChange={(v) => p.setTempConfig("s", "formatAdminArea3Labels", v)}
-          label={t3({
-            en: "Format Nigeria Admin Area 3 labels (e.g., 'ab Abia State' → 'Abia')",
-            fr: "Formater les libellés de zone administrative 3 du Nigeria (ex. : 'ab Abia State' → 'Abia')",
-          })}
         />
       </Show>
     </>

@@ -169,7 +169,7 @@ async function migrateToMetricsTables(
               ${rv.valueFunc},
               ${rv.formatAs},
               ${JSON.stringify(rv.valueProps)},
-              ${JSON.stringify(rv.periodOptions)},
+              ${JSON.stringify(rv.periodOptions ?? [])},
               ${JSON.stringify(
                 rv.requiredDisaggregationOptions ??
                   rv.disaggregationOptions

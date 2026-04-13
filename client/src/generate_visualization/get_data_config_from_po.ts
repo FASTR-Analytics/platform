@@ -4,6 +4,7 @@ import {
   TimeseriesJsonDataConfig,
 } from "panther";
 import {
+  CountryCodes,
   PresentationObjectConfig,
   ResultsValueForVisualization,
   getDisaggregatorDisplayProp,
@@ -12,8 +13,9 @@ import {
   t3,
   TC,
 } from "lib";
+import { instanceState } from "../state/instance_state";
 import { getDateLabelReplacements } from "./get_date_label_replacements";
-import { getAdminArea3LabelReplacements } from "./format_admin_area_labels";
+import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels";
 
 export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
@@ -32,9 +34,9 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
           ? "year-quarter"
           : "year";
 
-    const adminArea3LabelReplacements =
-      config.s.formatAdminArea3Labels && jsonArray
-        ? getAdminArea3LabelReplacements(jsonArray)
+    const nigeriaAdminAreaLabelReplacements =
+      instanceState.countryIso3 === CountryCodes.Nigeria && jsonArray
+        ? getNigeriaAdminAreaLabelReplacements(jsonArray)
         : {};
 
     const dataConfig: TimeseriesJsonDataConfig = {
@@ -58,7 +60,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
       labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
       labelReplacementsAfterSorting: {
         ...indicatorLabelReplacements,
-        ...adminArea3LabelReplacements,
+        ...nigeriaAdminAreaLabelReplacements,
         __NATIONAL: t3(TC.national),
         zzNATIONAL: t3(TC.national),
       },
@@ -98,9 +100,9 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
         ])
       : {};
 
-    const adminArea3LabelReplacements =
-      config.s.formatAdminArea3Labels && jsonArray
-        ? getAdminArea3LabelReplacements(jsonArray)
+    const nigeriaAdminAreaLabelReplacements =
+      instanceState.countryIso3 === CountryCodes.Nigeria && jsonArray
+        ? getNigeriaAdminAreaLabelReplacements(jsonArray)
         : {};
 
     const dataConfig: TableJsonDataConfig = {
@@ -117,7 +119,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
       labelReplacementsAfterSorting: {
         ...indicatorLabelReplacements,
         ...dateLabelReplacements,
-        ...adminArea3LabelReplacements,
+        ...nigeriaAdminAreaLabelReplacements,
         __NATIONAL: t3(TC.national),
         zzNATIONAL: t3(TC.national),
       },
@@ -162,9 +164,9 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
         ])
       : {};
 
-    const adminArea3LabelReplacements =
-      config.s.formatAdminArea3Labels && jsonArray
-        ? getAdminArea3LabelReplacements(jsonArray)
+    const nigeriaAdminAreaLabelReplacements =
+      instanceState.countryIso3 === CountryCodes.Nigeria && jsonArray
+        ? getNigeriaAdminAreaLabelReplacements(jsonArray)
         : {};
 
     const dataConfig: ChartOVJsonDataConfig = {
@@ -183,7 +185,7 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
       labelReplacementsAfterSorting: {
         ...indicatorLabelReplacements,
         ...dateLabelReplacements,
-        ...adminArea3LabelReplacements,
+        ...nigeriaAdminAreaLabelReplacements,
         __NATIONAL: t3(TC.national),
         zzNATIONAL: t3(TC.national),
       },

@@ -59,8 +59,6 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       "cell",
     ]);
 
-  const includesAdminArea3 = () =>
-    p.tempConfig.d.disaggregateBy.some((d) => d.disOpt === "admin_area_3");
 
   return (
     <div class="ui-pad ui-spy h-full w-full overflow-auto">
@@ -106,7 +104,6 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       <SharedControlsBottom
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}
-        includesAdminArea3={includesAdminArea3}
       />
     </div>
   );

@@ -1,5 +1,5 @@
-export function getAdminArea3LabelReplacements(
-  jsonArray: any[]
+export function getNigeriaAdminAreaLabelReplacements(
+  jsonArray: any[],
 ): Record<string, string> {
   const replacements: Record<string, string> = {};
 
@@ -8,10 +8,13 @@ export function getAdminArea3LabelReplacements(
     if (item.admin_area_3) {
       uniqueValues.add(item.admin_area_3);
     }
+    if (item.admin_area_4) {
+      uniqueValues.add(item.admin_area_4);
+    }
   }
 
   for (const value of uniqueValues) {
-    const formatted = formatAdminArea3Label(value);
+    const formatted = formatNigeriaAdminAreaLabel(value);
     if (formatted !== value) {
       replacements[value] = formatted;
     }
@@ -20,7 +23,7 @@ export function getAdminArea3LabelReplacements(
   return replacements;
 }
 
-function formatAdminArea3Label(label: string): string {
+function formatNigeriaAdminAreaLabel(label: string): string {
   // Split by space and trim each word
   let words = label
     .split(" ")
@@ -32,8 +35,10 @@ function formatAdminArea3Label(label: string): string {
     words = words.slice(1);
   }
 
-  // Remove "State" (case-insensitive)
-  words = words.filter((word) => word.toLowerCase() !== "state");
+  // Remove "State" and "Local Government Area" (case-insensitive)
+  words = words
+    .filter((word) => word.toLowerCase() !== "state")
+    .filter((word) => word.toLowerCase() !== "local government area");
 
   return words.join(" ");
 }

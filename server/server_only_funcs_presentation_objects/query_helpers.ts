@@ -20,13 +20,17 @@ export function buildMainQuery(
 ): string {
   const aggregateColumns = buildAggregateColumns(fetchConfig.values, false);
 
+  const identityValueProps = fetchConfig.values
+    .filter((v) => v.func === "identity")
+    .map((v) => v.prop);
+
   return buildSelectQueryV2(
     sourceTable,
     fetchConfig,
     {
       selectColumns: fetchConfig.groupBys,
       aggregateColumns,
-      groupByColumns: fetchConfig.groupBys,
+      groupByColumns: [...fetchConfig.groupBys, ...identityValueProps],
     },
     queryContext,
     facilityCTEName,

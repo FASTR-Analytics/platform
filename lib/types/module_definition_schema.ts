@@ -140,7 +140,7 @@ export type MetricDefinitionJSON = {
   valueProps: string[];
   valueFunc: ValueFunc;
   formatAs: "percent" | "number";
-  periodOptions: PeriodOption[];
+  periodOptions?: PeriodOption[];
   requiredDisaggregationOptions: DisaggregationOption[];
   valueLabelReplacements?: Record<string, string>;
   postAggregationExpression?: PostAggregationExpression;

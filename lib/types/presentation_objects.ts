@@ -392,7 +392,6 @@ export type PresentationObjectConfig = {
     nColsInCellDisplay: "auto" | number;
     seriesColorFuncPropToUse: "series" | "cell" | "col" | "row" | undefined;
     sortIndicatorValues: "ascending" | "descending" | "none";
-    formatAdminArea3Labels: boolean;
     mapColorPreset: "red" | "blue" | "green" | "red-green" | "custom";
     mapColorReverse: boolean;
     mapColorFrom: string;
