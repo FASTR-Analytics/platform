@@ -49,11 +49,29 @@ export function getFigureInputsFromPresentationObject(
     throw new Error("getFigureInputsFromPresentationObject called with non-ok status");
   }
 
+  // Strip single-value disaggregations so the renderer doesn't show
+  // useless column groups, legend items, etc.
+  const TIME_COLUMNS = new Set(["period_id", "quarter_id", "year", "month"]);
+  const singlePeriod = ih.dateRange && ih.dateRange.min === ih.dateRange.max;
+  const singleYear = ih.dateRange && Math.floor(ih.dateRange.min / 100) === Math.floor(ih.dateRange.max / 100);
+  const effectiveConfig: PresentationObjectConfig = {
+    ...config,
+    d: {
+      ...config.d,
+      disaggregateBy: config.d.disaggregateBy.filter((d) => {
+        if (singlePeriod && TIME_COLUMNS.has(d.disOpt)) return false;
+        if (singleYear && d.disOpt === "year") return false;
+        if (config.d.filterBy.find((f) => f.disOpt === d.disOpt)?.values.length === 1) return false;
+        return true;
+      }),
+    },
+  };
+
   try {
-    if (config.d.type === "timeseries") {
+    if (effectiveConfig.d.type === "timeseries") {
       const j = getTimeseriesJsonDataConfigFromPresentationObjectConfig(
         resultsValue,
-        config,
+        effectiveConfig,
         ih.indicatorLabelReplacements,
         ih.items,
       );
@@ -62,7 +80,7 @@ export function getFigureInputsFromPresentationObject(
           jsonArray: ih.items,
           jsonDataConfig: j,
         },
-        config.s.content === "bars" && config.s.barsStacked,
+        effectiveConfig.s.content === "bars" && effectiveConfig.s.barsStacked,
       );
       return {
         status: "ready",
@@ -98,11 +116,11 @@ export function getFigureInputsFromPresentationObject(
       };
     }
 
-    if (config.d.type === "table") {
-      if (config.s.specialScorecardTable) {
+    if (effectiveConfig.d.type === "table") {
+      if (effectiveConfig.s.specialScorecardTable) {
         return {
           status: "ready",
-          data: getSpecialScorecardTableFigureInputs(resultsValue, ih, config),
+          data: getSpecialScorecardTableFigureInputs(resultsValue, ih, effectiveConfig),
         };
       }
       return {
@@ -112,7 +130,7 @@ export function getFigureInputsFromPresentationObject(
             jsonArray: ih.items,
             jsonDataConfig: getTableJsonDataConfigFromPresentationObjectConfig(
               resultsValue,
-              config,
+              effectiveConfig,
               ih.indicatorLabelReplacements,
               ih.items,
             ),
@@ -147,7 +165,7 @@ export function getFigureInputsFromPresentationObject(
       };
     }
 
-    if (config.d.type === "chart") {
+    if (effectiveConfig.d.type === "chart") {
       return {
         status: "ready",
         data: {
@@ -156,7 +174,7 @@ export function getFigureInputsFromPresentationObject(
             jsonDataConfig:
               getChartOVJsonDataConfigFromPresentationObjectConfig(
                 resultsValue,
-                config,
+                effectiveConfig,
                 ih.indicatorLabelReplacements,
                 ih.items,
               ),
@@ -190,13 +208,13 @@ export function getFigureInputsFromPresentationObject(
       };
     }
 
-    if (config.d.type === "map") {
+    if (effectiveConfig.d.type === "map") {
       if (!geoJson) {
         return { status: "error", err: "GeoJSON data required for map visualization" };
       }
       const mapDataConfig = getMapJsonDataConfigFromPresentationObjectConfig(
         resultsValue,
-        config,
+        effectiveConfig,
         ih.indicatorLabelReplacements,
       );
 

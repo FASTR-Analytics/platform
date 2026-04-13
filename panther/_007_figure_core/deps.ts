@@ -13,6 +13,7 @@ export {
   sortAlphabetical,
   sum,
 } from "../_000_utils/mod.ts";
+export { isFrench } from "../_000_translate/mod.ts";
 export type { CalendarType, PeriodType } from "../_000_utils/mod.ts";
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString, ValuesColorFunc } from "../_001_color/mod.ts";

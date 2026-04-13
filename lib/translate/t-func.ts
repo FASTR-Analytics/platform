@@ -1,4 +1,4 @@
-import { TextRenderingOptions, type CalendarType, isFrench } from "@timroberton/panther";
+import { TextRenderingOptions, type CalendarType } from "@timroberton/panther";
 import { InstanceCalendar } from "../types/mod.ts";
 
 export { isFrench, setLanguage, getLanguage, t3 } from "@timroberton/panther";
@@ -12,9 +12,6 @@ export function setCalendar(cal: InstanceCalendar) {
 }
 
 export function getCalendar(): CalendarType {
-  if (isFrench()) {
-    return "french";
-  }
   return _CALENDAR.cal;
 }
 

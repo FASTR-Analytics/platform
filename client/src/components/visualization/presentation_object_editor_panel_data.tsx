@@ -39,18 +39,20 @@ export function PresentationObjectEditorPanelData(p: Props) {
 
   const TIME_COLUMNS = new Set(["period_id", "quarter_id", "year", "month"]);
 
-  const periodFilterIsOneValue = (): boolean => {
+  const resolvedPeriodBounds = () => {
     const pf = p.tempConfig.d.periodFilter;
-    if (!pf) return false;
-    const resolved = getPeriodFilterExactBounds(pf, p.resultsValueInfo.periodBounds);
-    return !!resolved && resolved.min === resolved.max;
+    if (!pf) return undefined;
+    return getPeriodFilterExactBounds(pf, p.resultsValueInfo.periodBounds);
   };
 
   const allowedDisaggregationOptions = () => {
-    const singlePeriod = periodFilterIsOneValue();
+    const resolved = resolvedPeriodBounds();
+    const singlePeriod = !!resolved && resolved.min === resolved.max;
+    const singleYear = !!resolved && Math.floor(resolved.min / 100) === Math.floor(resolved.max / 100);
     return allowedFilterOptions().filter((disOpt) => {
       if (hasOnlyOneFilteredValue(p.tempConfig, disOpt.value)) return false;
       if (singlePeriod && TIME_COLUMNS.has(disOpt.value)) return false;
+      if (singleYear && disOpt.value === "year") return false;
       return true;
     });
   };

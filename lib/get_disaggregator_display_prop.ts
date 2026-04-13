@@ -1,6 +1,5 @@
 import {
   getFilteredValueProps,
-  hasOnlyOneFilteredValue,
 } from "./get_fetch_config_from_po.ts";
 import {
   DisaggregationDisplayOption,
@@ -9,6 +8,10 @@ import {
   ResultsValueForVisualization,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
 } from "./types/mod.ts";
+
+// These functions assume config.d.disaggregateBy has been pre-cleaned:
+// single-value disaggregations (both period-filtered and regular-filtered)
+// should already be stripped before calling these functions.
 
 export function getDisaggregatorDisplayProp(
   resultsValue: ResultsValueForVisualization,
@@ -26,10 +29,7 @@ export function getDisaggregatorDisplayProp(
   }
   for (const dis of config.d.disaggregateBy) {
     if (props.includes(dis.disDisplayOpt)) {
-      const onlyOneFilteredItem = hasOnlyOneFilteredValue(config, dis.disOpt);
-      if (!onlyOneFilteredItem) {
-        return dis.disOpt;
-      }
+      return dis.disOpt;
     }
   }
   return undefined;
@@ -40,10 +40,7 @@ export function getReplicateByProp(
 ): DisaggregationOption | undefined {
   for (const dis of config.d.disaggregateBy) {
     if (dis.disDisplayOpt === "replicant") {
-      const onlyOneFilteredItem = hasOnlyOneFilteredValue(config, dis.disOpt);
-      if (!onlyOneFilteredItem) {
-        return dis.disOpt;
-      }
+      return dis.disOpt;
     }
   }
   return undefined;
@@ -62,13 +59,10 @@ export function hasDuplicateDisaggregatorDisplayOptions(
     disDisplayOpts.push(config.d.valuesDisDisplayOpt);
   }
   for (const dis of config.d.disaggregateBy) {
-    const onlyOneFilteredItem = hasOnlyOneFilteredValue(config, dis.disOpt);
-    if (!onlyOneFilteredItem) {
-      if (disDisplayOpts.includes(dis.disDisplayOpt)) {
-        return true;
-      }
-      disDisplayOpts.push(dis.disDisplayOpt);
+    if (disDisplayOpts.includes(dis.disDisplayOpt)) {
+      return true;
     }
+    disDisplayOpts.push(dis.disDisplayOpt);
   }
   return false;
 }

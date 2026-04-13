@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { assert } from "./assert.ts";
+import { isFrench } from "../_000_translate/mod.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -16,8 +17,7 @@ export type PeriodType = "year-month" | "year-quarter" | "year";
 export type CalendarType =
   | "gregorian"
   | "ethiopian"
-  | "ethiopian-to-gregorian"
-  | "french";
+  | "ethiopian-to-gregorian";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -132,7 +132,7 @@ function get_MONTHS_THREE_CHARS(calendar?: CalendarType) {
       "Neh",
     ];
   }
-  if (calendar === "french") {
+  if (isFrench()) {
     return [
       "Janv",
       "Févr",
@@ -183,7 +183,8 @@ export function formatPeriod(
     return month + " " + str.slice(0, 4);
   }
   if (periodType === "year-quarter") {
-    return str.slice(0, 4) + " / Q" + str.slice(4, 6);
+    const prefix = isFrench() ? "T" : "Q";
+    return str.slice(0, 4) + " / " + prefix + str.slice(5, 6);
   }
   return str;
 }

@@ -3,6 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import {
+  isFrench,
+} from "../../deps.ts";
 import type {
   CalendarType,
   MergedGridStyle,
@@ -35,7 +38,7 @@ export function get_MONTHS_THREE_CHARS(calendar?: CalendarType) {
       "Neh",
     ];
   }
-  if (calendar === "french") {
+  if (isFrench()) {
     return [
       "Janv",
       "Févr",
@@ -74,8 +77,8 @@ export function get_MONTHS_ONE_CHARS(calendar?: CalendarType) {
   return ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 }
 
-export function get_QUARTERS_TWO_CHARS(calendar?: CalendarType) {
-  if (calendar === "french") {
+export function get_QUARTERS_TWO_CHARS() {
+  if (isFrench()) {
     return ["T1", "T2", "T3", "T4"];
   }
   return ["Q1", "Q2", "Q3", "Q4"];
@@ -102,7 +105,7 @@ export function getSmallPeriodLabelIfAny(
   }
   if (periodAxisType === "quarter-two-year") {
     const smallIndex = Number(str.slice(4, 6)) - 1;
-    return get_QUARTERS_TWO_CHARS(calendar)[smallIndex] ?? "?";
+    return get_QUARTERS_TWO_CHARS()[smallIndex] ?? "?";
   }
   if (periodAxisType === "quarter-one-year") {
     const smallIndex = Number(str.slice(4, 6)) - 1;
@@ -250,7 +253,7 @@ export function getPeriodAxisInfo(
   ///////////////////
 
   if (periodType === "year-quarter") {
-    const _QUARTERS_TWO_CHARS = get_QUARTERS_TWO_CHARS(axisStyle.calendar);
+    const _QUARTERS_TWO_CHARS = get_QUARTERS_TWO_CHARS();
     if (
       getMaxWidthWord(rc, axisStyle, _QUARTERS_TWO_CHARS) + _PIXEL_PAD <
         periodIncrementWidth
