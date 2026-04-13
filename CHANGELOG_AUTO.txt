@@ -1,3 +1,11 @@
+[1.19.0] [user] [changed] - Admin areas in project dataset details now display sub-areas grouped under their parent area for clearer location information
+[1.19.0] [user] [fixed] - The save button in dataset settings is now disabled while saving is in progress, preventing accidental double-clicks
+[1.19.0] [user] [fixed] - Adding a dataset to a project can no longer be accidentally triggered twice at the same time, preventing potential errors
+[1.19.0] [user] [fixed] - Dataset upload notifications now correctly reflect when the integration process has fully completed
+[1.19.0] [admin] [changed] - Admin area display in project data settings now supports three-level admin areas (admin area 3), grouping them under their parent admin area 2 for clearer readability
+[1.19.0] [admin] [fixed] - The save button in HMIS dataset settings is now properly disabled while a save is already in progress, preventing accidental duplicate submissions
+[1.19.0] [admin] [fixed] - Dataset integration notifications (for both HMIS and HFA) are now sent only after integration fully completes, rather than when integration merely starts successfully — ensuring dashboards reflect the actual finished state
+[1.19.0] [admin] [fixed] - Adding a dataset to a project now prevents concurrent operations on the same project and dataset type, avoiding potential data corruption if the same action is triggered multiple times simultaneously
 [1.18.7] [user] [fixed] - Charts and tables no longer show unnecessary breakdowns (like "Year") when your data only covers a single year
 [1.18.7] [user] [fixed] - Visualizations no longer display redundant groupings for filters that have only one selected value
 [1.18.7] [user] [fixed] - The "Year" option is now correctly hidden from the breakdown menu when your selected time period falls within a single year
