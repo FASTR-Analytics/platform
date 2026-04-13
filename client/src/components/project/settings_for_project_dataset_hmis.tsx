@@ -201,7 +201,7 @@ export function SettingsForProjectDatasetHmis(
               onClick={save.click}
               state={save.state()}
               intent="success"
-              // disabled={!needsSave()}
+              disabled={save.state().status === "loading"}
               iconName={needsSave() ? "save" : "refresh"}
             >
               {(needsSave() || p.hmisInfo === undefined)

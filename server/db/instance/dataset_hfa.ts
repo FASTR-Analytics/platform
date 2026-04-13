@@ -609,6 +609,7 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
 
 export async function updateDatasetHfaUploadAttempt_Step4Integrate(
   mainDb: Sql,
+  onComplete?: () => void,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawDUA = await getRawUAOrThrow(mainDb);
@@ -675,9 +676,14 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
     });
 
     // Handle successful completion
-    worker.addEventListener("message", (e) => {
+    worker.addEventListener("message", async (e) => {
       if (e.data === "COMPLETED") {
         setHfaWorker(null);
+        try {
+          await onComplete?.();
+        } catch (err) {
+          console.error("HFA integration onComplete callback failed:", err);
+        }
       }
     });
 

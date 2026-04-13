@@ -255,10 +255,12 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("finalizeDatasetIntegration"),
   async (c) => {
-    const res = await updateDatasetUploadAttempt_Step4Integrate(c.var.mainDb);
-    if (res.success) {
-      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
-    }
+    const res = await updateDatasetUploadAttempt_Step4Integrate(
+      c.var.mainDb,
+      async () => {
+        notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+      },
+    );
     return c.json(res);
   },
 );
@@ -479,10 +481,10 @@ defineRoute(
   async (c) => {
     const res = await updateDatasetHfaUploadAttempt_Step4Integrate(
       c.var.mainDb,
+      async () => {
+        notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+      },
     );
-    if (res.success) {
-      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
-    }
     return c.json(res);
   },
 );

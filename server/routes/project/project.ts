@@ -35,6 +35,8 @@ import { requireGlobalPermission } from "../../middleware/mod.ts";
 
 export const routesProject = new Hono();
 
+const _datasetLocks = new Set<string>();
+
 defineRoute(
   routesProject,
   "createProject",
@@ -195,42 +197,53 @@ defineRoute(
   log("addDatasetToProject"),
   (c, { body }) => {
     return streamResponse<{ lastUpdated: string }>(c, async (writer) => {
-      await writer.progress(0, "Starting dataset addition...");
+      const lockKey = `${c.var.ppk.projectId}_${body.datasetType}`;
+      if (_datasetLocks.has(lockKey)) {
+        await writer.error("A dataset operation is already in progress for this project. Please wait for it to complete.");
+        return;
+      }
+      _datasetLocks.add(lockKey);
 
-      const res =
-        body.datasetType === "hmis"
-          ? await addDatasetHmisToProject(
-              c.var.mainDb,
-              c.var.ppk.projectDb,
-              c.var.ppk.projectId,
-              body.windowing,
-              writer.progress.bind(writer),
-            )
-          : body.datasetType === "hfa"
-            ? await addDatasetHfaToProject(
+      try {
+        await writer.progress(0, "Starting dataset addition...");
+
+        const res =
+          body.datasetType === "hmis"
+            ? await addDatasetHmisToProject(
                 c.var.mainDb,
                 c.var.ppk.projectDb,
                 c.var.ppk.projectId,
+                body.windowing,
                 writer.progress.bind(writer),
               )
-            : { success: false as const, err: "Can only do hmis and hfa" };
+            : body.datasetType === "hfa"
+              ? await addDatasetHfaToProject(
+                  c.var.mainDb,
+                  c.var.ppk.projectDb,
+                  c.var.ppk.projectId,
+                  writer.progress.bind(writer),
+                )
+              : { success: false as const, err: "Can only do hmis and hfa" };
 
-      if (res.success === false) {
-        await writer.error(res.err);
-        return;
+        if (res.success === false) {
+          await writer.error(res.err);
+          return;
+        }
+
+        await writer.progress(0.9, "Updating module dependencies...");
+        await setModulesDirtyForDataset(c.var.ppk, body.datasetType);
+        notifyLastUpdated(
+          c.var.ppk.projectId,
+          "datasets",
+          [body.datasetType],
+          res.data.lastUpdated,
+        );
+        notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+
+        await writer.complete(res.data);
+      } finally {
+        _datasetLocks.delete(lockKey);
       }
-
-      await writer.progress(0.9, "Updating module dependencies...");
-      await setModulesDirtyForDataset(c.var.ppk, body.datasetType);
-      notifyLastUpdated(
-        c.var.ppk.projectId,
-        "datasets",
-        [body.datasetType],
-        res.data.lastUpdated,
-      );
-      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-
-      await writer.complete(res.data);
     });
   },
 );

@@ -908,7 +908,8 @@ SET
 }
 
 export async function updateDatasetUploadAttempt_Step4Integrate(
-  mainDb: Sql
+  mainDb: Sql,
+  onComplete?: () => void,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawDUA = await getRawUAOrThrow(mainDb);
@@ -976,9 +977,14 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
     });
 
     // Handle successful completion
-    worker.addEventListener("message", (e) => {
+    worker.addEventListener("message", async (e) => {
       if (e.data === "COMPLETED") {
         setHmisWorker(null);
+        try {
+          await onComplete?.();
+        } catch (err) {
+          console.error("HMIS integration onComplete callback failed:", err);
+        }
       }
     });
 

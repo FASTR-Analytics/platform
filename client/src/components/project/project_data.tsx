@@ -1,6 +1,7 @@
 import {
   _POSSIBLE_DATASETS,
   getCalendar,
+  parseAa3CompositeKey,
   t3,
   TC,
 } from "lib";
@@ -229,13 +230,23 @@ export function ProjectData(p: Props) {
                                   {t3({ en: "Admin areas", fr: "Unités administratives" })}
                                 </div>
                                 <div class="col-span-8">
-                                  {keyedProjectDatasetHmis.info.windowing
-                                    .takeAllAdminArea2s
-                                    ? t3({ en: "All admin areas", fr: "Toutes les unités administratives" })
-                                    : (keyedProjectDatasetHmis.info.windowing.adminArea2sToInclude?.join(
-                                      ", ",
-                                    ) ??
-                                      t3({ en: "All admin areas", fr: "Toutes les unités administratives" }))}
+                                  {!(keyedProjectDatasetHmis.info.windowing.takeAllAdminArea3s ?? true) &&
+                                    (keyedProjectDatasetHmis.info.windowing.adminArea3sToInclude?.length ?? 0) > 0
+                                    ? (() => {
+                                      const grouped = new Map<string, string[]>();
+                                      for (const k of keyedProjectDatasetHmis.info.windowing.adminArea3sToInclude!) {
+                                        const { aa3, aa2 } = parseAa3CompositeKey(k);
+                                        if (!grouped.has(aa2)) grouped.set(aa2, []);
+                                        grouped.get(aa2)!.push(aa3);
+                                      }
+                                      return Array.from(grouped.entries())
+                                        .map(([aa2, aa3s]) => `${aa3s.join(", ")} (${aa2})`)
+                                        .join("; ");
+                                    })()
+                                    : !keyedProjectDatasetHmis.info.windowing.takeAllAdminArea2s &&
+                                        (keyedProjectDatasetHmis.info.windowing.adminArea2sToInclude?.length ?? 0) > 0
+                                      ? keyedProjectDatasetHmis.info.windowing.adminArea2sToInclude!.join(", ")
+                                      : t3({ en: "All admin areas", fr: "Toutes les unités administratives" })}
                                 </div>
                               </div>
                               <Show
