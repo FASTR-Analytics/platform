@@ -36,9 +36,11 @@ function formatNigeriaAdminAreaLabel(label: string): string {
   }
 
   // Remove "State" and "Local Government Area" (case-insensitive)
-  words = words
-    .filter((word) => word.toLowerCase() !== "state")
-    .filter((word) => word.toLowerCase() !== "local government area");
+  words = words.filter((word) => word.toLowerCase() !== "state");
 
-  return words.join(" ");
+  return words
+    .join(" ")
+    .replace(/local government area/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }

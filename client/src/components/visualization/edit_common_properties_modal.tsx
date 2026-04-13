@@ -167,7 +167,26 @@ export function EditCommonPropertiesModal(
                   <Show
                     when={
                       tempPeriodFilter.filterType === "last_n_months" &&
-                      periodOption !== "year"
+                      periodOption === "quarter_id"
+                    }
+                  >
+                    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+                      <label class="text-sm">{t3({ en: "Number of quarters", fr: "Nombre de trimestres" })}: {tempPeriodFilter.nQuarters ?? 4}</label>
+                      <Slider
+                        value={tempPeriodFilter.nQuarters ?? 4}
+                        onChange={(nQuarters) => {
+                          setTempPeriodFilter("nQuarters", nQuarters);
+                        }}
+                        min={1}
+                        max={20}
+                        step={1}
+                      />
+                    </div>
+                  </Show>
+                  <Show
+                    when={
+                      tempPeriodFilter.filterType === "last_n_months" &&
+                      periodOption === "period_id"
                     }
                   >
                     <div class="ui-gap-sm ui-pad border-base-300 rounded border">

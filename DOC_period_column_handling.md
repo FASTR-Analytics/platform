@@ -1,6 +1,6 @@
 # Period Column Handling
 
-How time/period columns work across the system, for all three scenarios. This document describes the intended behaviour after the plan in PLAN_period_column_handling.md is implemented.
+How time/period columns work across the system, for all three scenarios.
 
 ## The Three Scenarios
 
@@ -83,11 +83,17 @@ When loading a metric, the enricher checks which time column exists in the table
 
 Each time-based option gets `allowedPresentationOptions: ["table", "chart"]` — excluded from timeseries (where time is the X-axis) and map views.
 
+## Code Path: Inferring periodOptions
+
+**File**: `server/db/project/metric_enricher.ts` — `inferPeriodOptions()`
+
+`periodOptions` tells the system which time column format the data uses (e.g. `["period_id"]`, `["quarter_id"]`, `["year"]`). It is inferred from the disaggregation options that the enricher already built, not read from the module definition or DB. Priority: `period_id` > `quarter_id` > `year`. Module definitions can optionally specify `periodOptions` but it is ignored by the enricher.
+
 ## Code Path: Period Bounds
 
 **File**: `server/server_only_funcs_presentation_objects/get_period_bounds.ts`
 
-Returns `{ periodOption, min, max }` for the time slider in the filter UI. The `firstPeriodOption` comes from the metric's `periodOptions[0]`.
+Returns `{ periodOption, min, max }` for the time slider in the filter UI. The `firstPeriodOption` comes from the enricher's inferred `periodOptions[0]`.
 
 - `firstPeriodOption === "period_id"`: `SELECT MIN(period_id), MAX(period_id)`
 - `firstPeriodOption === "quarter_id"`: `SELECT MIN(quarter_id), MAX(quarter_id)` (always physical in this scenario)
@@ -132,13 +138,14 @@ Integer columns (year, month, quarter_id, period_id) use direct numeric comparis
 
 **File**: `lib/get_fetch_config_from_po.ts` — `getPeriodFilterExactBounds()`
 
-Converts user-facing filter settings (like "Last N months") into exact min/max bounds. Branches by `periodOption`:
+Converts user-facing filter settings into exact min/max bounds. Branches by `periodOption`:
 
 - `"year"`: returns last year as min=max=periodBounds.max
-- `"period_id"`: uses panther's `getTimeFromPeriodId` / `getPeriodIdFromTime` with period type `"year-month"` to calculate offsets
-- `"quarter_id"`: uses the same functions with period type `"year-quarter"` and divides nMonths by 3 to get quarter count
+- `"period_id"` with `last_n_months`: uses `nMonths` and panther's `getTimeFromPeriodId`/`getPeriodIdFromTime` with `"year-month"` period type
+- `"quarter_id"` with `last_n_months`: uses `nQuarters` (NOT `nMonths`) and `"year-quarter"` period type
+- `"period_id"` with `last_n_calendar_years`/`last_n_calendar_quarters`: uses extracted helper functions `getLastFullYearBounds`/`getLastFullQuarterBounds`
 
-The `last_n_months` and `from_month` filter types work correctly for all three scenarios. However, `last_calendar_year` and `last_calendar_quarter` use period_id month-based math (checking month suffixes like "12", "10") which produces wrong bounds for quarter_id data. These filter types are therefore not offered in the UI for quarter_id metrics.
+Calendar-based filters (`last_n_calendar_years`, `last_n_calendar_quarters`, `last_calendar_year`, `last_calendar_quarter`) use period_id month-based math. A defensive guard returns unfiltered bounds if these are reached with `quarter_id` data. The UI prevents this by not offering calendar options for quarter_id.
 
 ## Code Path: Client Filter UI
 
@@ -149,11 +156,15 @@ When `periodBounds` exists, the Filters component:
 1. Excludes `["year", "period_id", "quarter_id", "month"]` from the regular filter list
 2. Shows a `PeriodFilter` component instead, which provides slider-based time range selection
 
-The PeriodFilter UI adapts based on `periodBounds.periodOption`:
+The PeriodFilter UI adapts based on `periodBounds.periodOption` (3-way branch):
 
 - `"year"`: shows "Last year" and "Custom" options
-- `"quarter_id"`: shows "Last N quarters", "From specific quarter", "Custom"
-- `"period_id"`: shows "Last N months", "From specific month", "Last calendar year", "Custom"
+- `"quarter_id"`: shows "Last N quarters" (with `NQuartersSelector`), "From specific quarter", "Custom"
+- `"period_id"`: shows "Last N months" (with `NMonthsSelector`), "From specific month", "Last N full calendar years" (with `NYearsSelector`), "Last N full calendar quarters" (with `NQuartersSelector`), "Custom"
+
+The "From specific quarter/month" and "Custom" sliders use panther's `getTimeFromPeriodId`/`getPeriodIdFromTime`/`formatPeriod` with the appropriate period type (`"year-month"` for period_id, `"year-quarter"` for quarter_id).
+
+Old filter types (`last_calendar_year`, `last_calendar_quarter`) are auto-mapped to new N-based equivalents via `displayFilterType()` for backwards compatibility.
 
 ## Code Path: Client Disaggregation Options
 
@@ -164,6 +175,32 @@ The `allowedFilterOptions()` function filters `disaggregationOptions` by:
 1. `allowedPresentationOptions` — must include the current viz type (e.g. "chart", "table")
 2. `disaggregationPossibleValues[option]` — must exist and not be "no_values_available"
 
-`allowedDisaggregationOptions()` further removes options filtered to exactly one value.
+`allowedDisaggregationOptions()` further removes:
 
-If either check fails, the option is hidden from the editor — even if it's in the config and the chart renders correctly. This is why bugs in the server-side possible-values path cause options to silently disappear.
+- Non-period options filtered to exactly one value (via `hasOnlyOneFilteredValue` checking `config.d.filterBy`)
+- All time columns when the resolved period filter is a single value (`min === max`)
+- `year` specifically when the resolved period filter spans a single year (`Math.floor(min / 100) === Math.floor(max / 100)`)
+
+## Code Path: Single-Value Disaggregation Stripping (Renderer)
+
+**File**: `client/src/generate_visualization/get_figure_inputs_from_po.ts`
+
+Before passing config to the data config builders, `getFigureInputsFromPresentationObject` creates an `effectiveConfig` that strips disaggregations that would only have one value:
+
+- All time columns (`period_id`, `quarter_id`, `year`, `month`) when `ih.dateRange.min === ih.dateRange.max`
+- `year` specifically when `Math.floor(ih.dateRange.min / 100) === Math.floor(ih.dateRange.max / 100)`
+- Any non-period disaggregation where `config.d.filterBy` has exactly one value for it
+
+The `effectiveConfig` is used for all data config builder calls (which determine series/rows/cols/cells). The original `config` is preserved for text/captions/style. This ensures the renderer doesn't show useless column groups, legend items, or series for single-value disaggregations.
+
+The display prop functions in `lib/get_disaggregator_display_prop.ts` (`getDisaggregatorDisplayProp`, `getReplicateByProp`, `hasDuplicateDisaggregatorDisplayOptions`) trust that the config they receive has been pre-cleaned. They do not independently check for single-value disaggregations.
+
+## Code Path: Type Switching
+
+**File**: `lib/convert_visualization_type.ts`
+
+When switching presentation type (e.g. timeseries → chart), `convertVisualizationType`:
+
+1. Removes disaggregations not allowed for the new type (e.g. `year` removed when switching to timeseries, since `allowedPresentationOptions` is `["table", "chart"]`)
+2. Adds required disaggregations that become allowed for the new type (e.g. `year` added when switching from timeseries to chart, if the metric has `year` as required)
+3. Remaps display options (series/row/col/etc.) to valid options for the new type

@@ -250,13 +250,24 @@ function PeriodFilter(p: PeriodFilterProps) {
               <Show
                 when={
                   p.tempConfig.d.periodFilter?.filterType === "last_n_months" &&
-                  periodOption !== "year"
+                  periodOption === "quarter_id"
+                }
+              >
+                <NQuartersSelector
+                  nQuarters={keyedPeriodFilter.nQuarters}
+                  onUpdate={(nQuarters) => {
+                    p.setTempConfig("d", "periodFilter", "nQuarters", nQuarters);
+                  }}
+                />
+              </Show>
+              <Show
+                when={
+                  p.tempConfig.d.periodFilter?.filterType === "last_n_months" &&
+                  periodOption === "period_id"
                 }
               >
                 <NMonthsSelector
                   nMonths={keyedPeriodFilter.nMonths}
-                  label={periodOption === "quarter_id" ? t3({ en: "Number of quarters", fr: "Nombre de trimestres" }) : undefined}
-                  max={periodOption === "quarter_id" ? 20 : 24}
                   onUpdate={(nMonths) =>
                     p.setTempConfig("d", "periodFilter", "nMonths", nMonths)
                   }

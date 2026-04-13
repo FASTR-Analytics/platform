@@ -124,26 +124,26 @@ export function getPeriodFilterExactBounds(
   }
 
   if (periodFilter.filterType === "last_n_months") {
-    const nMonths = periodFilter.nMonths ?? 12;
+    if (periodBounds.periodOption === "quarter_id") {
+      const nQuarters = periodFilter.nQuarters ?? 4;
+      if (nQuarters < 1 || nQuarters > 20) {
+        throw new Error(`nQuarters must be between 1 and 20, got ${nQuarters}`);
+      }
+      const time = getTimeFromPeriodId(periodBounds.max, "year-quarter");
+      const min = getPeriodIdFromTime(time - (nQuarters - 1), "year-quarter");
+      return {
+        periodOption: periodBounds.periodOption,
+        min,
+        max: periodBounds.max,
+      };
+    }
 
+    const nMonths = periodFilter.nMonths ?? 12;
     if (nMonths < 1 || nMonths > 24) {
       throw new Error(`nMonths must be between 1 and 24, got ${nMonths}`);
     }
-
-    const periodType =
-      periodBounds.periodOption === "period_id"
-        ? "year-month"
-        : "year-quarter";
-
-    const time = getTimeFromPeriodId(periodBounds.max, periodType);
-
-    const periodsToSubtract =
-      periodBounds.periodOption === "period_id"
-        ? nMonths - 1
-        : Math.ceil(nMonths / 3) - 1;
-
-    const min = getPeriodIdFromTime(time - periodsToSubtract, periodType);
-
+    const time = getTimeFromPeriodId(periodBounds.max, "year-month");
+    const min = getPeriodIdFromTime(time - (nMonths - 1), "year-month");
     return {
       periodOption: periodBounds.periodOption,
       min,
