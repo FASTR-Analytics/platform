@@ -195,6 +195,8 @@ export type ProjectUser = {
   email: string;
   role: ProjectUserRoleType; // delete after implementing new system
   isGlobalAdmin: boolean;
+  firstName?: string;
+  lastName?: string;
 } & ProjectUserPermissions;
 
 export type OtherUser = {
