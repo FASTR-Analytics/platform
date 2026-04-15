@@ -56,6 +56,13 @@ export async function tryCatchServer<
             body.err?.includes("not authorized") ||
             body.err?.includes("not authenticated")
           ) {
+            console.error("[AUTH] Signing out due to 401", {
+              url: input instanceof Request ? input.url : String(input),
+              body,
+              clerkSessionStatus: clerk.session?.status,
+              clerkSessionExpiry: clerk.session?.expireAt,
+              clerkSessionLastActive: clerk.session?.lastActiveAt,
+            });
             await clerk.signOut();
             window.location.href = "/";
             return { success: false, err: "Not authenticated" } as T;
