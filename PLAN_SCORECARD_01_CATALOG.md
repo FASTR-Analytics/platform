@@ -6,7 +6,14 @@ At the end of this phase the app has an editable instance-level catalog of score
 
 ## 1.1 — Data model
 
-**Migration:** `server/db/migrations/instance/019_scorecard_indicators.sql`. Next free number (current max is `018_add_hfa_indicator_aggregation.sql`).
+**Two files to update together.** The codebase keeps schema in two places:
+
+1. **Canonical schema:** [`server/db/instance/_main_database.sql`](server/db/instance/_main_database.sql) — used by fresh installs. Contains the latest shape of every instance table.
+2. **Migrations:** `server/db/migrations/instance/NNN_*.sql` — used by existing installs to catch up. Auto-run at startup via [`db_startup.ts`](server/db/startup/db_startup.ts).
+
+Both must stay in sync. Add the `CREATE TABLE` to `_main_database.sql` alongside the existing `hfa_indicators` definition (around line 342), and ship a migration as `server/db/migrations/instance/019_add_scorecard_indicators.sql`. Next free number (current max is `018_add_hfa_indicator_aggregation.sql`).
+
+**One migration file, not two.** The table definition and the seed rows live together:
 
 ```sql
 CREATE TABLE IF NOT EXISTS scorecard_indicators (
@@ -15,13 +22,15 @@ CREATE TABLE IF NOT EXISTS scorecard_indicators (
   group_label                TEXT NOT NULL DEFAULT '',
   sort_order                 INTEGER NOT NULL DEFAULT 0,
 
-  -- Computation (structural — see D3 in the overview)
+  -- Computation (structural — see D3 in the overview).
+  -- `denom_population_fraction` is the ANNUAL fraction of population relevant
+  -- to the indicator (e.g. 0.04 births, 0.22 women 15-49, 1.0 whole pop).
+  -- The consuming module applies its own period scaling — see phase 2 §2.9.
   num_indicator_id           TEXT NOT NULL,
   denom_kind                 TEXT NOT NULL
                              CHECK (denom_kind IN ('indicator', 'population')),
   denom_indicator_id         TEXT,
-  denom_population_factor    REAL,
-  denom_period_fraction      REAL,
+  denom_population_fraction  REAL,
 
   -- Formatting (read in phase 3; seeded here with sensible defaults)
   format_as                  TEXT NOT NULL DEFAULT 'percent'
@@ -39,13 +48,11 @@ CREATE TABLE IF NOT EXISTS scorecard_indicators (
   CHECK (
     (denom_kind = 'indicator'
        AND denom_indicator_id IS NOT NULL
-       AND denom_population_factor IS NULL
-       AND denom_period_fraction   IS NULL)
+       AND denom_population_fraction IS NULL)
     OR
     (denom_kind = 'population'
        AND denom_indicator_id IS NULL
-       AND denom_population_factor IS NOT NULL
-       AND denom_period_fraction   IS NOT NULL)
+       AND denom_population_fraction IS NOT NULL)
   )
 );
 ```
@@ -57,7 +64,9 @@ CREATE TABLE IF NOT EXISTS scorecard_indicators (
 
 **Soft references, not SQL foreign keys.** `num_indicator_id` and `denom_indicator_id` refer to `indicators.indicator_common_id` but without a FK. If a common indicator is renamed or deleted, the scorecard row survives and the editor flags it with a broken-reference badge. Cascade-deletion is too destructive for an indirect, optional coupling.
 
-**Migration style** matches the existing HFA indicators table at [011_add_hfa_indicators_table.sql](server/db/migrations/instance/011_add_hfa_indicators_table.sql): `IF NOT EXISTS`, `TEXT PRIMARY KEY`, inline `CHECK` constraints, `TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`.
+**Style matches existing HFA indicators table** at [011_add_hfa_indicators_table.sql](server/db/migrations/instance/011_add_hfa_indicators_table.sql): `IF NOT EXISTS`, `TEXT PRIMARY KEY`, inline `CHECK` constraints, `TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`.
+
+**Idempotency.** `CREATE TABLE IF NOT EXISTS` + `INSERT ... ON CONFLICT (scorecard_indicator_id) DO NOTHING` for the seed rows (see §1.9). The migration is safe to re-run after dev DB resets or migration-tracker drift — matches the convention the rest of the codebase uses.
 
 ## 1.2 — Shared type
 
@@ -73,7 +82,7 @@ export type ScorecardIndicator = {
   num_indicator_id: string;
   denom:
     | { kind: "indicator"; indicator_id: string }
-    | { kind: "population"; population_factor: number; period_fraction: number };
+    | { kind: "population"; population_fraction: number };
 
   format_as: "percent" | "number" | "rate_per_10k";
   decimal_places: number;
@@ -255,7 +264,7 @@ Columns:
 | Label | text |
 | Group | text |
 | Numerator | `num_indicator_id`, monospace |
-| Denominator | if `denom.kind === "indicator"`: `denom.indicator_id` (monospace); else: `pop × {factor} × {period_fraction}` |
+| Denominator | if `denom.kind === "indicator"`: `denom.indicator_id` (monospace); else: `pop × {population_fraction}` |
 | Format | `format_as` |
 | Thresholds | `{direction} · {green}/{yellow}` |
 | Actions | pencil + trash, admin-only |
@@ -277,8 +286,7 @@ Editor fields:
 | Numerator indicator | searchable dropdown of common indicators |
 | Denominator kind | radio: "Another indicator" / "Population-based" |
 | Denominator indicator | dropdown, shown when kind = indicator |
-| Population factor | number 0–1, shown when kind = population, helper *"fraction of the population relevant to this indicator (e.g. 0.04 for children under 1, 0.22 for women 15–49)"* |
-| Period fraction | number 0–1, shown when kind = population, helper *"fraction of the annual rate that falls in one period (0.25 for quarterly)"* |
+| Population fraction | number 0–1, shown when kind = population, helper *"annual fraction of the population relevant to this indicator (0.04 for children under 1, 0.22 for women 15–49, 1.0 for the whole population). The module applies its own period scaling."* |
 | Format | select: Percent / Number / Rate per 10,000 |
 | Decimal places | number 0–3 |
 | Threshold direction | radio: "Higher is better" / "Lower is better" |
@@ -291,7 +299,7 @@ Editor fields:
 - Label is unique across the catalog (check against fetched catalog; backend enforces too).
 - Numerator indicator resolves to an existing common indicator.
 - When kind = indicator: denominator indicator resolves.
-- When kind = population: both factor and period_fraction are positive numbers ≤ 1.
+- When kind = population: `population_fraction` is a positive number ≤ 1.
 - Threshold cutoffs are numbers (no constraint on magnitude — direction handles interpretation).
 
 **Live preview.** One-row sample showing what the formatted output will look like: a synthetic value of 0.73 rendered as `73%`, `0.73`, or `7,300 per 10k` based on format. For thresholds, a three-swatch preview showing green / yellow / red for three example values (min, middle, max of green / yellow / red bucket). Catches "I picked rate_per_10k but meant percent" and "my cutoffs are on the wrong scale" mistakes before saving.
@@ -300,7 +308,7 @@ Editor fields:
 
 ## 1.9 — Seed the 10 current indicators
 
-Second migration: `server/db/migrations/instance/020_scorecard_indicators_seed.sql`. Inserts the 10 indicators m007 produces today in structural form.
+Seed rows are **appended to the same migration** from §1.1 (`019_add_scorecard_indicators.sql`), not a separate file. One migration creates the table and inserts the seed in one atomic step. Each row uses `INSERT ... ON CONFLICT (scorecard_indicator_id) DO NOTHING` so the migration stays idempotent — re-running is a no-op, and an admin-edited row is never clobbered by a replay.
 
 Labels are copied verbatim from [m007 definition.json valueLabelReplacements](../wb-fastr-modules/m007/definition.json) — they're unique and already human-readable. Group labels are invented (there's no authoritative source; `conditional_formatting_scorecard.ts` has unrelated aspirational groupings). **Threshold cutoffs are dummies** — the admin will set real values later via the editor UI.
 
@@ -311,21 +319,22 @@ Labels are copied verbatim from [m007 definition.json valueLabelReplacements](..
 | `anc4_anc1_before20_ratio` | ANC4 / ANC1 <20wks | Maternal & Newborn Health | `anc4` | indicator: `anc1_before20` | percent | higher / 80 / 70 |
 | `anc4_anc1_ratio` | ANC4 / ANC1 | Maternal & Newborn Health | `anc4` | indicator: `anc1` | percent | higher / 80 / 70 |
 | `skilled_birth_attendance` | Skilled Birth Attendant / Reported Deliveries | Maternal & Newborn Health | `sba` | indicator: `delivery` | percent | higher / 80 / 70 |
-| `new_fp_acceptors_rate` | New FP Acceptors / Women of Reproductive Age | Reproductive Health | `new_fp` | pop: 0.22 × 0.25 | percent | higher / 80 / 70 |
+| `new_fp_acceptors_rate` | New FP Acceptors / Women of Reproductive Age | Reproductive Health | `new_fp` | pop: 0.22 | percent | higher / 80 / 70 |
 | `act_malaria_treatment` | ACT for Uncomplicated Malaria | Child Health | `mal_treatment` | indicator: `mal_confirmed_uncomplicated` | percent | higher / 80 / 70 |
-| `penta3_coverage` | Penta 3 | Immunization | `penta3` | pop: 0.04 × 0.25 | percent | higher / 80 / 70 |
-| `fully_immunized_coverage` | Fully Immunized | Immunization | `fully_immunized` | pop: 0.04 × 0.25 | percent | higher / 80 / 70 |
-| `htn_new_per_10000` | HTN New per 10,000 person-years | Non-Communicable Diseases | `hypertension_new` | pop: 1.0 × 0.25 | rate_per_10k | lower / 10 / 20 |
-| `diabetes_new_per_10000` | Diabetes New per 10,000 person-years | Non-Communicable Diseases | `diabetes_new` | pop: 1.0 × 0.25 | rate_per_10k | lower / 10 / 20 |
+| `penta3_coverage` | Penta 3 | Immunization | `penta3` | pop: 0.04 | percent | higher / 80 / 70 |
+| `fully_immunized_coverage` | Fully Immunized | Immunization | `fully_immunized` | pop: 0.04 | percent | higher / 80 / 70 |
+| `htn_new_per_10000` | HTN New per 10,000 person-years | Non-Communicable Diseases | `hypertension_new` | pop: 1.0 | rate_per_10k | lower / 10 / 20 |
+| `diabetes_new_per_10000` | Diabetes New per 10,000 person-years | Non-Communicable Diseases | `diabetes_new` | pop: 1.0 | rate_per_10k | lower / 10 / 20 |
 | `nhmis_data_timeliness_final` | NHMIS reports on time with content | HMIS Reporting | `nhmis_timely_and_data` | indicator: `nhmis_expected_reports` | percent | higher / 90 / 80 |
 
 Dummy threshold values are chosen to be *plausible* so that freshly-installed instances render with reasonable colours out of the box, but they are **not** domain-authoritative — admins are expected to set real cutoffs via the editor in due course.
 
-Note on HTN and diabetes: the denominator is `population × 1.0 × 0.25` (whole population, quarterly). The `× 10000` scaling that m007 bakes into the numerator moves into the format layer as `rate_per_10k` — see overview D6.
+Note on HTN and diabetes: the stored `denom_population_fraction` is `1.0` (whole population). m008's R script multiplies by its module-level `PERIOD_FRACTION = 0.25` (quarterly) at run time — see phase 2 §2.9. The `× 10000` scaling that m007 bakes into the numerator moves into the format layer as `rate_per_10k` — see overview D6.
 
 ## Definition of done
 
-- [ ] Migrations `019_scorecard_indicators.sql` and `020_scorecard_indicators_seed.sql` merged and auto-run on startup
+- [ ] Single migration `019_add_scorecard_indicators.sql` (table + seed in one file, idempotent via `IF NOT EXISTS` and `ON CONFLICT DO NOTHING`) merged and auto-run on startup
+- [ ] `server/db/instance/_main_database.sql` updated in lockstep with the migration (fresh-install path mirrors the migrated state)
 - [ ] `ScorecardIndicator` type exists in `lib/types/indicators.ts` as a discriminated union
 - [ ] DB access layer (`server/db/instance/scorecard_indicators.ts`) exposes get / create / update / delete / version functions
 - [ ] CRUD routes registered in `route-tracker.ts` (via the new `scorecardIndicatorRouteRegistry`) and gated by `can_configure_data`

@@ -35,12 +35,13 @@ A new table `scorecard_indicator` in the instance DB, managed through the indica
 Each `scorecard_indicator` row stores **typed fields**, not free-text R expressions:
 
 ```text
-num_indicator_id         -- soft ref to the common_indicator that provides the numerator
-denom_kind               -- 'indicator' | 'population'
-denom_indicator_id       -- soft ref, when denom_kind='indicator'
-denom_population_factor  -- e.g. 0.04 for under-1s, 0.22 for women 15-49
-denom_period_fraction    -- e.g. 0.25 for quarterly
+num_indicator_id           -- soft ref to the common_indicator that provides the numerator
+denom_kind                 -- 'indicator' | 'population'
+denom_indicator_id         -- soft ref, when denom_kind='indicator'
+denom_population_fraction  -- when denom_kind='population'; e.g. 0.04 for under-1s, 0.22 for women 15-49, 1.0 for whole population
 ```
+
+Note that `denom_population_fraction` is the **annual** fraction of population. The consuming module applies its own period scaling (e.g. m008 multiplies by `0.25` because it produces quarterly scorecards). This keeps the catalog module-agnostic — a hypothetical monthly scorecard module would use `1/12` without the catalog needing any changes.
 
 All 10 current m007 indicators fit this schema cleanly (see [§1.6 seed](PLAN_SCORECARD_01_CATALOG.md)).
 
@@ -68,7 +69,7 @@ No phase writes hardcoded indicator logic into m008. Phase 1 seeds the catalog w
 m007 expresses HTN and diabetes as `(hypertension_new / (total_population * 0.25)) * 10000`. The `* 10000` is a display choice — "cases per 10,000 people" — not epidemiology. Moving it into the format layer means:
 
 - Numerator stays `hypertension_new` (no scaling).
-- Denominator is `population * 1.0 * 0.25` (whole population, quarterly).
+- Denominator is `population * 1.0` in the catalog (whole population), with m008's R script multiplying by `0.25` (its module-level period constant) to get the quarterly denominator.
 - `format_as: 'rate_per_10k'` renders the value as `value * 10000` with a " per 10k" suffix at display time.
 - The underlying metric value is a pure rate, which is what it should be.
 

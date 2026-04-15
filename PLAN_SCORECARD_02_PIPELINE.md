@@ -78,8 +78,7 @@ SELECT
   num_indicator_id,
   denom_kind,
   denom_indicator_id,
-  denom_population_factor,
-  denom_period_fraction,
+  denom_population_fraction,
   format_as,
   decimal_places,
   threshold_direction,
@@ -158,9 +157,11 @@ Simpler than HMIS (no structure check, no facility config check, no indicator ma
 
 Copy `wb-fastr-modules/m007/` to `wb-fastr-modules/m008/`. Rename `m7*` / `M7_*` IDs to `m8*` / `M8_*`. Update `definition.json` module ID, label, and description.
 
-**Parameters to delete from `definition.json`:** `BIRTHS_PCT`, `WOMEN_15_49_PCT`. Both are now catalog fields (`denom_population_factor` and `denom_period_fraction`), so the module-level constants are dead.
+**Parameters to delete from `definition.json`:** `BIRTHS_PCT`, `WOMEN_15_49_PCT`. Both are replaced by `denom_population_fraction` in the catalog, so the module-level constants are dead.
 
 **Parameters to keep:** `SELECTED_COUNT_VARIABLE`, `INTERPOLATE_POPULATION`. These remain genuine module knobs — how to read HMIS counts, how to interpolate population between reference years.
+
+**New module-level constant in `script.R`:** `PERIOD_FRACTION <- 0.25`. This is m008's temporal choice (quarterly scorecards), applied to every population-based denominator at compute time. It's not a catalog field and it's not a user-configurable parameter — it's a fixed part of what m008 *is*. A hypothetical monthly scorecard module would set `PERIOD_FRACTION <- 1/12` and consume the same unchanged catalog. See §2.9.
 
 `assetsToImport` keeps pointing at `total_population_NGA.csv`. m008 shares the population asset with m007.
 
@@ -265,6 +266,10 @@ The **only** new logic replaces m007's `calculate_scorecard()` (lines 243-303) a
 ```r
 library(readr)
 
+# m008 produces quarterly scorecards; every population-based denominator
+# is scaled by this factor. A monthly scorecard module would use 1/12.
+PERIOD_FRACTION <- 0.25
+
 SCORECARD_DEFS_FILE <- SCORECARD_INDICATORS_FILE  # substituted by getScriptWithParameters
 defs <- read_csv(SCORECARD_DEFS_FILE, show_col_types = FALSE)
 
@@ -291,8 +296,8 @@ build_num_denom_rows <- function(data, geo_cols) {
       denom <- data[[denom_col]]
     } else {  # "population"
       denom <- data$total_population *
-               def$denom_population_factor *
-               def$denom_period_fraction
+               def$denom_population_fraction *
+               PERIOD_FRACTION
     }
 
     rows[[sid]] <- data %>%
@@ -307,6 +312,8 @@ build_num_denom_rows <- function(data, geo_cols) {
   bind_rows(rows)
 }
 ```
+
+`PERIOD_FRACTION` is a module-level constant, not a catalog field. The catalog stores the indicator's annual population fraction (e.g. `0.22` for women 15-49); m008 multiplies by `0.25` to get the quarterly denominator. This keeps the catalog module-agnostic — see overview D3.
 
 No `eval`. No `parse`. No sealed environment. No custom parser. Structural dispatch on `denom_kind`. Roughly fifteen lines of actual logic.
 
