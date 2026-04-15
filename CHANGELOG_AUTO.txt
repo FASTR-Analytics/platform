@@ -1,9 +1,32 @@
-[TBD] [user] [added] - Maps now have a "Show region labels" option to display region names directly on the map
-[TBD] [user] [changed] - Map data labels can now show both region names and data values together when both options are enabled
-[TBD] [user] [changed] - The "User" badge is no longer displayed on visualization cards
-[TBD] [admin] [added] - Map visualizations now support a "Show region labels" option that displays region names on the map
-[TBD] [admin] [changed] - Map data labels can now show region names, data values, or both together depending on the selected options
-[TBD] [admin] [changed] - The "User" badge on visualization cards is no longer displayed in the visualization panel
+[1.20.0] [user] [added] - HFA indicators now support choosing an aggregation method (Sum or Average) when creating or editing indicators
+[1.20.0] [user] [added] - The HFA indicator code editor now shows variable value labels alongside variable names, making it easier to understand what each value represents
+[1.20.0] [user] [added] - You can now search and filter available variables by name or label in the HFA indicator code editor
+[1.20.0] [user] [added] - A new "Apply to other rounds" button lets you copy indicator code from the current time point to all other time points at once
+[1.20.0] [user] [added] - The code editor now shows whether all rounds have identical code or differ, helping you spot inconsistencies
+[1.20.0] [user] [added] - Syntax checking now highlights errors like unmatched parentheses or unterminated strings in indicator code
+[1.20.0] [user] [changed] - Downloading and uploading HFA indicators via CSV now includes aggregation settings and R code for each time point
+[1.20.0] [user] [fixed] - Clicking a variable name in the code editor now inserts it with proper spacing instead of running into adjacent text
+[1.20.0] [admin] [added] - HFA indicators now support an "aggregation" setting, allowing you to choose between "Sum" and "Average" when creating or editing indicators
+[1.20.0] [admin] [added] - The HFA indicator code editor now includes a search bar to filter available variables by name or label
+[1.20.0] [admin] [added] - The HFA indicator code editor now displays value labels for referenced variables in both the R code and filter code panels
+[1.20.0] [admin] [added] - The HFA indicator code editor now shows syntax error detection for R code, including unmatched brackets and unterminated strings
+[1.20.0] [admin] [added] - The HFA indicator code editor warns when a single equals sign is used, suggesting double equals for comparisons
+[1.20.0] [admin] [added] - The HFA indicator code editor now has an "Apply to other rounds" button to copy R code and filter code from the current time point to all others
+[1.20.0] [admin] [added] - The HFA indicator code editor shows whether all rounds have identical code or differ, with a visual consistency indicator
+[1.20.0] [admin] [changed] - HFA indicator CSV upload and download now include the aggregation column and R code columns for each time point, enabling full round-trip editing of indicator definitions via CSV
+[1.20.0] [admin] [changed] - HFA indicator CSV download now exports R code and filter code for all time points alongside indicator metadata
+[1.20.0] [admin] [changed] - HFA indicator CSV upload now accepts R code columns (r_code_1, r_filter_code_1, etc.) mapped to sorted time points
+[1.20.0] [admin] [changed] - The required CSV headers for HFA indicator upload have changed to: varName, category, definition, type, aggregation (plus optional R code columns per time point)
+[1.20.0] [admin] [fixed] - HFA indicator CSV upload now properly detects and rejects duplicate variable names within the same file
+[1.20.0] [admin] [fixed] - Clicking a variable name in the HFA code editor now inserts it with proper spacing instead of appending directly to existing text
+[1.20.0] [admin] [internal] - Internal code reorganization of state management and caching modules — no changes to admin-facing behavior
+[1.20.0] [admin] [internal] - Consolidated server action modules and removed unused archived cache implementations
+[1.20.0] [user] [added] - Maps now have a "Show region labels" option to display region names directly on the map
+[1.20.0] [user] [changed] - Map data labels can now show both region names and data values together when both options are enabled
+[1.20.0] [user] [changed] - The "User" badge is no longer displayed on visualization cards
+[1.20.0] [admin] [added] - Map visualizations now support a "Show region labels" option that displays region names on the map
+[1.20.0] [admin] [changed] - Map data labels can now show region names, data values, or both together depending on the selected options
+[1.20.0] [admin] [changed] - The "User" badge on visualization cards is no longer displayed in the visualization panel
 [1.19.1] [user] [fixed] - The "Last N months" time filter now correctly separates quarter and month controls, so choosing quarters gives you a dedicated quarter slider and choosing months gives you a dedicated month slider
 [1.19.1] [user] [fixed] - Location labels for Nigeria now correctly remove "Local Government Area" from displayed names, even when the phrase spans multiple words
 [1.19.1] [admin] [changed] - Period filter now uses a dedicated quarters slider when grouping by quarter, separate from the months slider, allowing independent control over the number of quarters displayed
