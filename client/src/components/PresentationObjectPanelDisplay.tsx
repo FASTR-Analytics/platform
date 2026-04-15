@@ -45,7 +45,10 @@ import { CreateSlideFromVisualizationModal } from "./visualization/create_slide_
 import { EditCommonPropertiesModal } from "./visualization/edit_common_properties_modal";
 import { useAIProjectContext } from "~/components/project_ai";
 
-function getGroupingOptions(): { value: VisualizationGroupingMode; label: string }[] {
+function getGroupingOptions(): {
+  value: VisualizationGroupingMode;
+  label: string;
+}[] {
   return [
     { value: "folders", label: t3({ en: "By folder", fr: "Par dossier" }) },
     { value: "module", label: t3({ en: "By module", fr: "Par module" }) },
@@ -293,7 +296,10 @@ export function PresentationObjectPanelDisplay(p: Props) {
 
     const items: MenuItem[] = [
       {
-        label: t3({ en: "Rename / Change color...", fr: "Renommer / Changer la couleur..." }),
+        label: t3({
+          en: "Rename / Change color...",
+          fr: "Renommer / Changer la couleur...",
+        }),
         icon: "pencil",
         onClick: async () => {
           await openComponent({
@@ -311,7 +317,10 @@ export function PresentationObjectPanelDisplay(p: Props) {
         intent: "danger",
         onClick: async () => {
           const deleteAction = timActionDelete(
-            t3({ en: "Are you sure you want to delete this folder? Visualizations will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les visualisations seront déplacées dans Général." }),
+            t3({
+              en: "Are you sure you want to delete this folder? Visualizations will be moved to General.",
+              fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les visualisations seront déplacées dans Général.",
+            }),
             () =>
               serverActions.deleteVisualizationFolder({
                 projectId: p.projectDetail.id,
@@ -379,7 +388,10 @@ export function PresentationObjectPanelDisplay(p: Props) {
               fullWidth
             />
             <Checkbox
-              label={t3({ en: "Hide unavailable", fr: "Masquer les indisponibles" })}
+              label={t3({
+                en: "Hide unavailable",
+                fr: "Masquer les indisponibles",
+              })}
               checked={hideUnreadyVisualizations()}
               onChange={setHideUnreadyVisualizations}
             />
@@ -666,8 +678,14 @@ function VisualizationGrid(p: VisualizationGridProps) {
 
     if (hasReplicated && vizsToCreate.length > 1) {
       await openAlert({
-        title: t3({ en: "Cannot batch create slides", fr: "Création de diapositives en lot impossible" }),
-        text: t3({ en: "Batch slide creation is only supported for non-replicated visualizations. Please deselect replicated visualizations or create them individually.", fr: "La création de diapositives en lot n'est possible que pour les visualisations non répliquées. Veuillez désélectionner les visualisations répliquées ou les créer individuellement." }),
+        title: t3({
+          en: "Cannot batch create slides",
+          fr: "Création de diapositives en lot impossible",
+        }),
+        text: t3({
+          en: "Batch slide creation is only supported for non-replicated visualizations. Please deselect replicated visualizations or create them individually.",
+          fr: "La création de diapositives en lot n'est possible que pour les visualisations non répliquées. Veuillez désélectionner les visualisations répliquées ou les créer individuellement.",
+        }),
         intent: "danger",
       });
       return;
@@ -728,8 +746,14 @@ function VisualizationGrid(p: VisualizationGridProps) {
     const idsToDelete = shouldDeleteMultiple ? Array.from(selected) : [po.id];
     const confirmText =
       idsToDelete.length > 1
-        ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} visualizations?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} visualisations ?` })
-        : t3({ en: "Are you sure you want to delete this visualization?", fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?" });
+        ? t3({
+            en: `Are you sure you want to delete ${idsToDelete.length} visualizations?`,
+            fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} visualisations ?`,
+          })
+        : t3({
+            en: "Are you sure you want to delete this visualization?",
+            fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?",
+          });
 
     const deleteAction = timActionDelete(
       confirmText,
@@ -783,7 +807,10 @@ function VisualizationGrid(p: VisualizationGridProps) {
   const emptyMessage = () => (
     <div class="text-neutral text-sm">
       {p.searchText.length >= 3
-        ? t3({ en: "No matching visualizations", fr: "Aucune visualisation correspondante" })
+        ? t3({
+            en: "No matching visualizations",
+            fr: "Aucune visualisation correspondante",
+          })
         : t3({ en: "No visualizations", fr: "Aucune visualisation" })}
     </div>
   );
@@ -896,32 +923,50 @@ function VisualizationCard(p: VisualizationCardProps) {
     const isMultiSelect = p.isSelected && p.selectedCount > 1;
 
     const deleteLabel = isMultiSelect
-      ? t3({ en: `Delete ${p.selectedCount} visualizations`, fr: `Supprimer ${p.selectedCount} visualisations` })
+      ? t3({
+          en: `Delete ${p.selectedCount} visualizations`,
+          fr: `Supprimer ${p.selectedCount} visualisations`,
+        })
       : t3(TC.delete);
 
     const createSlidesLabel = isMultiSelect
-      ? t3({ en: `Create ${p.selectedCount} slides...`, fr: `Créer ${p.selectedCount} diapositives...` })
+      ? t3({
+          en: `Create ${p.selectedCount} slides...`,
+          fr: `Créer ${p.selectedCount} diapositives...`,
+        })
       : t3({ en: "Create slide...", fr: "Créer une diapositive..." });
 
     const moveToFolderLabel = isMultiSelect
-      ? t3({ en: `Move ${p.selectedCount} visualizations to folder...`, fr: `Déplacer ${p.selectedCount} visualisations vers un dossier...` })
+      ? t3({
+          en: `Move ${p.selectedCount} visualizations to folder...`,
+          fr: `Déplacer ${p.selectedCount} visualisations vers un dossier...`,
+        })
       : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier..." });
 
     const duplicateLabel = isMultiSelect
-      ? t3({ en: `Duplicate ${p.selectedCount} visualizations...`, fr: `Dupliquer ${p.selectedCount} visualisations...` })
+      ? t3({
+          en: `Duplicate ${p.selectedCount} visualizations...`,
+          fr: `Dupliquer ${p.selectedCount} visualisations...`,
+        })
       : t3({ en: "Duplicate...", fr: "Dupliquer..." });
 
     const items: MenuItem[] = [];
 
     if (isMultiSelect) {
       items.push({
-        label: t3({ en: "Edit common properties...", fr: "Modifier les propriétés communes..." }),
+        label: t3({
+          en: "Edit common properties...",
+          fr: "Modifier les propriétés communes...",
+        }),
         icon: "pencil",
         onClick: p.onEditCommonProperties,
       });
     } else {
       items.push({
-        label: t3({ en: "Edit visualization", fr: "Modifier la visualisation" }),
+        label: t3({
+          en: "Edit visualization",
+          fr: "Modifier la visualisation",
+        }),
         icon: "pencil",
         onClick: p.onClick,
       });
@@ -967,7 +1012,9 @@ function VisualizationCard(p: VisualizationCardProps) {
         when={isReady()}
         fallback={
           <div class="border-base-300 bg-base-200 flex aspect-video items-center justify-center rounded border p-2">
-            <span class="text-neutral text-xs">{t3({ en: "Not available", fr: "Non disponible" })}</span>
+            <span class="text-neutral text-xs">
+              {t3({ en: "Not available", fr: "Non disponible" })}
+            </span>
           </div>
         }
       >
@@ -1004,7 +1051,9 @@ function VisualizationCard(p: VisualizationCardProps) {
           <PresentationObjectMiniDisplay
             projectId={p.projectId}
             presentationObjectId={p.po.id}
-            moduleId={p.metrics.find((m) => m.id === p.po.metricId)?.moduleId ?? ""}
+            moduleId={
+              p.metrics.find((m) => m.id === p.po.metricId)?.moduleId ?? ""
+            }
             shapeType={"force-aspect-video"}
             scalePixelResolution={0.2}
           />
@@ -1041,11 +1090,11 @@ function VisualizationCard(p: VisualizationCardProps) {
             {t3({ en: "Default", fr: "Par défaut" })}
           </div>
         </Show>
-        <Show when={!p.po.createdByAI && !p.po.isDefault}>
+        {/* <Show when={!p.po.createdByAI && !p.po.isDefault}>
           <div class="font-400 text-base-100 rounded bg-[orange] px-1 py-0.5 text-xs">
             {t3({ en: "User", fr: "Utilisateur" })}
           </div>
-        </Show>
+        </Show> */}
       </div>
     </div>
   );

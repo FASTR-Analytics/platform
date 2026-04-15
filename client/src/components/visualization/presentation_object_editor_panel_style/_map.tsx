@@ -165,14 +165,24 @@ export function MapStyleControls(p: Props) {
           </div>
         </Show>
       </div>
-      <Checkbox
-        checked={p.tempConfig.s.showDataLabels}
-        onChange={(v) => p.setTempConfig("s", "showDataLabels", v)}
-        label={t3({
-          en: "Show data labels",
-          fr: "Afficher les étiquettes de données",
-        })}
-      />
+      <div class="ui-spy-sm">
+        <Checkbox
+          checked={p.tempConfig.s.mapShowRegionLabels ?? false}
+          onChange={(v) => p.setTempConfig("s", "mapShowRegionLabels", v)}
+          label={t3({
+            en: "Show region labels",
+            fr: "Afficher les noms de région",
+          })}
+        />
+        <Checkbox
+          checked={p.tempConfig.s.showDataLabels}
+          onChange={(v) => p.setTempConfig("s", "showDataLabels", v)}
+          label={t3({
+            en: "Show data labels",
+            fr: "Afficher les étiquettes de données",
+          })}
+        />
+      </div>
     </>
   );
 }

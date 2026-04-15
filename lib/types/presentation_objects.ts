@@ -402,6 +402,7 @@ export type PresentationObjectConfig = {
     mapDomainType: "auto" | "fixed";
     mapDomainMin: number;
     mapDomainMax: number;
+    mapShowRegionLabels?: boolean;
   };
   // Text
   t: {

@@ -7,6 +7,7 @@ import {
   TableCellInfo,
   getAdjustedColor,
   getFormatterFunc,
+  type CustomFigureStyleOptions,
 } from "panther";
 import {
   _CF_COMPARISON,
@@ -25,7 +26,9 @@ const _Inter_800: FontInfo = {
   italic: false,
 };
 
-export function getTextStyle(config: PresentationObjectConfig) {
+export function getTextStyle(
+  config: PresentationObjectConfig,
+): CustomFigureStyleOptions["text"] {
   return {
     base: { fontSize: 14 },
     caption: {
@@ -47,6 +50,10 @@ export function getTextStyle(config: PresentationObjectConfig) {
     paneHeaders: { relFontSize: 1.1, font: _Inter_800 },
     tierHeaders: { relFontSize: 1.1, font: _Inter_800 },
     laneHeaders: { relFontSize: 1.1, font: _Inter_800 },
+    dataLabels: {
+      lineBreakGap: 0.2,
+      // lineHeight: 1,
+    },
   };
 }
 
@@ -88,6 +95,8 @@ export function getMapRegionsContent(
   formatAs: "percent" | "number",
 ) {
   if (config.d.type !== "map") return undefined;
+  const showRegion = config.s.mapShowRegionLabels ?? false;
+  const showData = config.s.showDataLabels;
   return {
     func: {
       show: true,
@@ -95,18 +104,20 @@ export function getMapRegionsContent(
       strokeColor: "#666",
       strokeWidth: 0.5,
       dataLabel: {
-        show: config.s.showDataLabels,
+        show: showRegion || showData,
         backgroundColor: { key: "base100" as const },
         rectRadius: 5,
         padding: 4,
       },
     },
     textFormatter: (info: MapRegionInfo) => {
-      if (info.value === undefined) return "";
-      return getFormatterFunc(
-        formatAs,
-        config.s.decimalPlaces ?? 0,
-      )(info.value);
+      const regionText = showRegion ? info.featureId : "";
+      const dataText =
+        showData && info.value !== undefined
+          ? getFormatterFunc(formatAs, config.s.decimalPlaces ?? 0)(info.value)
+          : "";
+      if (regionText && dataText) return `${regionText}\n${dataText}`;
+      return regionText || dataText;
     },
   };
 }
