@@ -166,30 +166,35 @@ defineRoute(
 
 ## 1.5 — SSE invalidation
 
-Add a new SSE event type to `lib/types/instance_sse.ts`:
+**Extend the existing `indicators_updated` event**, do not invent a new event type. The codebase's `InstanceIndicatorsSummary` at [lib/types/instance_sse.ts:92-100](lib/types/instance_sse.ts#L92-L100) already bundles common + raw + hfa indicator counts plus their separate version fields, and fires one `indicators_updated` event for any of them. Bundling scorecard indicators into the same summary matches the established pattern; clients cache-key off separate version fields so there's no over-invalidation in practice.
+
+Changes to `lib/types/instance_sse.ts`:
 
 ```ts
-| { type: "scorecard_indicators_updated"; data: InstanceScorecardIndicatorsSummary }
-
-export type InstanceScorecardIndicatorsSummary = {
-  count: number;
-  version: string;
+// Extend InstanceState.indicators to include scorecardIndicators
+indicators: {
+  commonIndicators: number;
+  rawIndicators: number;
+  hfaIndicators: number;
+  scorecardIndicators: number;  // NEW
 };
+
+// Add scorecardIndicatorsVersion alongside the existing version fields
+indicatorMappingsVersion: string;
+hfaIndicatorsVersion: string;
+scorecardIndicatorsVersion: string;  // NEW
+
+// InstanceIndicatorsSummary mirrors the two additions above
 ```
 
-Add to [server/task_management/notify_instance_updated.ts](server/task_management/notify_instance_updated.ts):
+Changes to `server/db/instance/instance.ts`:
 
-```ts
-export function notifyInstanceScorecardIndicatorsUpdated(
-  data: InstanceScorecardIndicatorsSummary,
-) {
-  notifyInstanceUpdate({ type: "scorecard_indicators_updated", data });
-}
-```
+- New `getScorecardIndicatorsVersion(mainDb)` function mirroring `getHfaIndicatorsVersion` — MD5 of `MAX(updated_at) + COUNT(*)` over `scorecard_indicators`.
+- `getInstanceIndicatorsSummary` extended to include the new count and version.
 
-Add `getInstanceScorecardIndicatorsSummary(mainDb)` helper alongside the existing summary functions.
+**No new notify function.** Scorecard CRUD routes call the existing `notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb))` — same pattern HFA and common-indicator routes use today.
 
-**Client state:** add `scorecardIndicatorsVersion: string` to the instance store at [client/src/state/instance/t1_store.ts](client/src/state/instance/t1_store.ts). Wire the SSE message handler to update it via a new `updateInstanceScorecardIndicators` function (mirrors `updateInstanceIndicators`).
+**Client state:** `client/src/state/instance/t1_store.ts` picks up the new `scorecardIndicatorsVersion` field automatically because the store is typed off `InstanceState`. The existing SSE handler for `indicators_updated` in [client/src/state/instance/t1_store.ts](client/src/state/instance/t1_store.ts) needs to be extended to copy the new version field into state — mirror the HFA version update logic.
 
 ## 1.6 — Client cache + fetch
 
@@ -341,7 +346,7 @@ Note on HTN and diabetes: the stored `denom_population_fraction` is `1.0` (whole
 - [ ] All verbs are POST (no PUT or DELETE)
 - [ ] No delete guard — unconditional delete
 - [ ] Label uniqueness enforced at DB level (`UNIQUE` constraint) and editor level (live validation)
-- [ ] New `scorecard_indicators_updated` SSE event type; `notifyInstanceScorecardIndicatorsUpdated` called after every mutation; `instanceState.scorecardIndicatorsVersion` updated on receipt
+- [ ] `InstanceIndicatorsSummary` and `InstanceState.indicators` extended with `scorecardIndicators` count + `scorecardIndicatorsVersion`; existing `notifyInstanceIndicatorsUpdated` called after every scorecard mutation; client store handler updates the new version field on `indicators_updated` receipt
 - [ ] `getScorecardIndicatorsFromCacheOrFetch` exists and version-invalidates on SSE
 - [ ] Indicators manager is a three-tab layout using panther `getTabs` / `TabsNavigation`; common and raw tabs unchanged internally
 - [ ] Scorecard tab supports add / edit / duplicate / delete / reorder with live preview, broken-reference badges, and label-uniqueness enforcement

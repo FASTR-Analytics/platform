@@ -37,7 +37,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   geojsonMaps: [],
   structure: undefined,
   structureLastUpdated: undefined,
-  indicators: { commonIndicators: 0, rawIndicators: 0, hfaIndicators: 0 },
+  indicators: { commonIndicators: 0, rawIndicators: 0, hfaIndicators: 0, scorecardIndicators: 0 },
   datasetsWithData: [],
   datasetVersions: {},
   hmisNVersions: 0,
@@ -45,6 +45,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   hfaCacheHash: "",
   indicatorMappingsVersion: "",
   hfaIndicatorsVersion: "",
+  scorecardIndicatorsVersion: "",
   currentUserEmail: "",
   currentUserApproved: false,
   currentUserIsGlobalAdmin: false,
@@ -106,6 +107,10 @@ export function getHfaIndicatorsVersion(): string {
   return unwrap(instanceState).hfaIndicatorsVersion;
 }
 
+export function getScorecardIndicatorsVersion(): string {
+  return unwrap(instanceState).scorecardIndicatorsVersion;
+}
+
 // ============================================================================
 // Setters (called by SSE handler only, never by components)
 // ============================================================================
@@ -145,6 +150,7 @@ export function updateInstanceIndicators(data: InstanceIndicatorsSummary): void 
   setInstanceState("indicators", reconcile(data.indicators));
   setInstanceState("indicatorMappingsVersion", data.indicatorMappingsVersion);
   setInstanceState("hfaIndicatorsVersion", data.hfaIndicatorsVersion);
+  setInstanceState("scorecardIndicatorsVersion", data.scorecardIndicatorsVersion);
 }
 
 export function updateInstanceDatasets(data: InstanceDatasetsSummary): void {

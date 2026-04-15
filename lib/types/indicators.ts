@@ -29,6 +29,29 @@ export type BatchIndicator = {
 };
 
 // ============================================================================
+// Scorecard Indicators
+// ============================================================================
+
+export type ScorecardIndicator = {
+  scorecard_indicator_id: string;
+  label: string;
+  group_label: string;
+  sort_order: number;
+
+  num_indicator_id: string;
+  denom:
+    | { kind: "indicator"; indicator_id: string }
+    | { kind: "population"; population_fraction: number };
+
+  format_as: "percent" | "number" | "rate_per_10k";
+  decimal_places: number;
+
+  threshold_direction: "higher_is_better" | "lower_is_better";
+  threshold_green: number;
+  threshold_yellow: number;
+};
+
+// ============================================================================
 // Type Definitions
 // ============================================================================
 

@@ -40,6 +40,16 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   return result[0]?.version ?? "none";
 }
 
+export async function getScorecardIndicatorsVersion(mainDb: Sql): Promise<string> {
+  const result = await mainDb<{ version: string | null }[]>`
+    SELECT MD5(
+      COALESCE((SELECT MAX(updated_at) FROM scorecard_indicators)::text, '') || '|' ||
+      (SELECT COUNT(*) FROM scorecard_indicators)::text
+    ) as version
+  `;
+  return result[0]?.version ?? "none";
+}
+
 export async function getIndicatorMappingsVersion(mainDb: Sql): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
@@ -77,12 +87,16 @@ export async function getInstanceIndicatorsSummary(
     (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM indicators_raw`)[0]?.count ?? 0;
   const hfaIndicators =
     (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM hfa_indicators`)[0]?.count ?? 0;
+  const scorecardIndicators =
+    (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM scorecard_indicators`)[0]?.count ?? 0;
   const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
   const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
+  const scorecardIndicatorsVersion = await getScorecardIndicatorsVersion(mainDb);
   return {
-    indicators: { commonIndicators, rawIndicators, hfaIndicators },
+    indicators: { commonIndicators, rawIndicators, hfaIndicators, scorecardIndicators },
     indicatorMappingsVersion,
     hfaIndicatorsVersion,
+    scorecardIndicatorsVersion,
   };
 }
 

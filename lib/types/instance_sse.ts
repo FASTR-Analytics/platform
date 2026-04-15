@@ -47,6 +47,7 @@ export type InstanceState = {
     commonIndicators: number;
     rawIndicators: number;
     hfaIndicators: number;
+    scorecardIndicators: number;
   };
   datasetsWithData: DatasetType[];
   datasetVersions: { hmis?: number; hfa?: number };
@@ -57,6 +58,7 @@ export type InstanceState = {
   // Cache versioning (regular fields, read by dataset caches as version keys)
   indicatorMappingsVersion: string;
   hfaIndicatorsVersion: string;
+  scorecardIndicatorsVersion: string;
 
   // Per-connection current user (populated by server in starting message,
   // re-derived on users_updated — different for each connected client)
@@ -94,9 +96,11 @@ export type InstanceIndicatorsSummary = {
     commonIndicators: number;
     rawIndicators: number;
     hfaIndicators: number;
+    scorecardIndicators: number;
   };
   indicatorMappingsVersion: string;
   hfaIndicatorsVersion: string;
+  scorecardIndicatorsVersion: string;
 };
 
 export type InstanceDatasetsSummary = {

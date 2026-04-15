@@ -1,4 +1,4 @@
-import type { HfaIndicator, InstanceIndicatorDetails } from "lib";
+import type { HfaIndicator, InstanceIndicatorDetails, ScorecardIndicator } from "lib";
 import { serverActions } from "~/server_actions";
 import { createReactiveCache } from "../_infra/reactive_cache";
 
@@ -59,6 +59,37 @@ export async function getHfaIndicatorsFromCacheOrFetch(
   _HFA_INDICATORS_CACHE.setPromise(
     promise,
     { hfaIndicatorsVersion },
+    version,
+  );
+  return await promise;
+}
+
+// ============================================================================
+// Scorecard Indicators
+// ============================================================================
+
+const _SCORECARD_INDICATORS_CACHE = createReactiveCache<
+  { scorecardIndicatorsVersion: string },
+  ScorecardIndicator[]
+>({
+  name: "instance_scorecard_indicators",
+  uniquenessKeys: () => ["scorecard_indicators"],
+  versionKey: (params) => params.scorecardIndicatorsVersion,
+  pdsNotRequired: true,
+});
+
+export async function getScorecardIndicatorsFromCacheOrFetch(
+  scorecardIndicatorsVersion: string,
+) {
+  const { data, version } = await _SCORECARD_INDICATORS_CACHE.get({
+    scorecardIndicatorsVersion,
+  });
+  if (data) return { success: true, data } as const;
+
+  const promise = serverActions.getScorecardIndicators({});
+  _SCORECARD_INDICATORS_CACHE.setPromise(
+    promise,
+    { scorecardIndicatorsVersion },
     version,
   );
   return await promise;
