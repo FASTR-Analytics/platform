@@ -1,3 +1,9 @@
+[TBD] [user] [added] - Maps now have a "Show region labels" option to display region names directly on the map
+[TBD] [user] [changed] - Map data labels can now show both region names and data values together when both options are enabled
+[TBD] [user] [changed] - The "User" badge is no longer displayed on visualization cards
+[TBD] [admin] [added] - Map visualizations now support a "Show region labels" option that displays region names on the map
+[TBD] [admin] [changed] - Map data labels can now show region names, data values, or both together depending on the selected options
+[TBD] [admin] [changed] - The "User" badge on visualization cards is no longer displayed in the visualization panel
 [1.19.1] [user] [fixed] - The "Last N months" time filter now correctly separates quarter and month controls, so choosing quarters gives you a dedicated quarter slider and choosing months gives you a dedicated month slider
 [1.19.1] [user] [fixed] - Location labels for Nigeria now correctly remove "Local Government Area" from displayed names, even when the phrase spans multiple words
 [1.19.1] [admin] [changed] - Period filter now uses a dedicated quarters slider when grouping by quarter, separate from the months slider, allowing independent control over the number of quarters displayed
