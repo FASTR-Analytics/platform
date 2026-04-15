@@ -1,3 +1,7 @@
+[TBD] [user] [added] - Scorecard indicators are now supported, allowing you to define, edit, and delete indicators used in scorecards with configurable thresholds, grouping, and display formats
+[TBD] [admin] [added] - Scorecard indicators are now supported as a new indicator type, allowing you to create, edit, and delete scorecard indicators from the data configuration area
+[TBD] [admin] [added] - The instance dashboard now tracks and displays the count of scorecard indicators alongside common, raw, and HFA indicators
+[TBD] [admin] [added] - Managing scorecard indicators requires the "can configure data" permission, consistent with other indicator management
 [1.20.0] [user] [added] - HFA indicators now support choosing an aggregation method (Sum or Average) when creating or editing indicators
 [1.20.0] [user] [added] - The HFA indicator code editor now shows variable value labels alongside variable names, making it easier to understand what each value represents
 [1.20.0] [user] [added] - You can now search and filter available variables by name or label in the HFA indicator code editor
