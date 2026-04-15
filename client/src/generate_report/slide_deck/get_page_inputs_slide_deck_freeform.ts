@@ -7,7 +7,7 @@ import {
 import { PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
 import { getRowsForFreeform } from "../get_rows_for_freeform";
 import { getStyle_SlideDeck } from "./get_style_slide_deck";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

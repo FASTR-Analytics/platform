@@ -11,7 +11,7 @@ import { InstanceDatasetHfa } from "../instance_dataset_hfa";
 import { InstanceDatasetHmis } from "../instance_dataset_hmis";
 import { Structure } from "../structure";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   isGlobalAdmin: boolean;

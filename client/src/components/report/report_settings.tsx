@@ -18,7 +18,7 @@ import {
 } from "panther";
 import { For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 
 export type ReportSettingsProps = {
   projectId: string;

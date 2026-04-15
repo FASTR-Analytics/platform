@@ -28,8 +28,8 @@ import {
 } from "panther";
 import { Show, batch, createMemo, onMount } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
-import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/dataset_cache";
-import { instanceState } from "~/state/instance_state";
+import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
+import { instanceState } from "~/state/instance/t1_store";
 import { PeriodSelector } from "./PeriodSelector";
 
 type Props<T extends DatasetHmisWindowing> = {

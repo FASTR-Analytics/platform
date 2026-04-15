@@ -35,7 +35,7 @@ import {
   setVizSelectedGroup,
   hideUnreadyVisualizations,
   setHideUnreadyVisualizations,
-} from "~/state/ui";
+} from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
 import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
 import { EditFolderModal } from "./project/edit_folder_modal";

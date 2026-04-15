@@ -31,6 +31,7 @@ export type HfaIndicator = {
   category: string;
   definition: string;
   type: "binary" | "numeric";
+  aggregation: "sum" | "avg";
   sortOrder: number;
 };
 
@@ -161,4 +162,3 @@ export type ModuleDefinitionJSON = {
   resultsObjects: ResultsObjectDefinitionJSON[];
   metrics: MetricDefinitionJSON[];
 };
-

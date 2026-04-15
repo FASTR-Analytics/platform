@@ -20,7 +20,7 @@ import { User } from "./user";
 import { Table, TableColumn, BulkAction } from "panther";
 import { serverActions } from "~/server_actions";
 import type { UserLog } from "lib";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   thisLoggedInUserEmail: string;

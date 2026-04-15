@@ -11,13 +11,13 @@ import { FigureInputs, StateHolder, type GeoJSONFeatureCollection } from "panthe
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
-import { getGeoJsonSync } from "./caches/geojson_cache";
+import { getGeoJsonSync } from "./instance/t2_geojson";
 import {
   _PO_DETAIL_CACHE,
   _PO_ITEMS_CACHE,
   _METRIC_INFO_CACHE,
 } from "./caches/visualizations";
-import { poItemsQueue, resultsValueInfoQueue } from "~/utils/request_queue";
+import { poItemsQueue, resultsValueInfoQueue } from "~/state/_infra/request_queue";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  _______    ______         __     __                     __            __        __                  __             ______           //

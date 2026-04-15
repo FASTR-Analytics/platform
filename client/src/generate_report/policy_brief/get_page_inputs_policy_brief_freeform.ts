@@ -5,7 +5,7 @@ import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
 } from "panther";
 import { withReplicantForReport } from "lib";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
 import { getRowsForFreeform } from "../get_rows_for_freeform";
 import { getStyle_PolicyBrief } from "./get_style_policy_brief";

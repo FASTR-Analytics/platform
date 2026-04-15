@@ -23,7 +23,7 @@ import {
   policyHeaderOrContent,
   setHeaderOrContent,
   setPolicyHeaderOrContent,
-} from "~/state/ui";
+} from "~/state/t4_ui";
 import { DuplicateReportItem } from "./duplicate_report_item";
 import { ReportItemEditorContent } from "./report_item_editor_panel_content";
 import { ReportItemEditorPolicyHeaderFooter } from "./report_item_editor_panel_policy_header_footer";

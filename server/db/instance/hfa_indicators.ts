@@ -13,6 +13,7 @@ export type DBHfaIndicator = {
   category: string;
   definition: string;
   type: "binary" | "numeric";
+  aggregation: "sum" | "avg";
   sort_order: number;
   updated_at: string;
 };
@@ -30,6 +31,7 @@ export function dbRowToHfaIndicator(row: DBHfaIndicator): HfaIndicator {
     category: row.category,
     definition: row.definition,
     type: row.type,
+    aggregation: row.aggregation,
     sortOrder: row.sort_order,
   };
 }
@@ -60,8 +62,8 @@ export async function createHfaIndicator(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`
-      INSERT INTO hfa_indicators (var_name, category, definition, type, sort_order, updated_at)
-      VALUES (${indicator.varName}, ${indicator.category}, ${indicator.definition}, ${indicator.type}, ${indicator.sortOrder}, CURRENT_TIMESTAMP)
+      INSERT INTO hfa_indicators (var_name, category, definition, type, aggregation, sort_order, updated_at)
+      VALUES (${indicator.varName}, ${indicator.category}, ${indicator.definition}, ${indicator.type}, ${indicator.aggregation}, ${indicator.sortOrder}, CURRENT_TIMESTAMP)
     `;
     return { success: true };
   });
@@ -79,6 +81,7 @@ export async function updateHfaIndicator(
           category = ${indicator.category},
           definition = ${indicator.definition},
           type = ${indicator.type},
+          aggregation = ${indicator.aggregation},
           sort_order = ${indicator.sortOrder},
           updated_at = CURRENT_TIMESTAMP
       WHERE var_name = ${oldVarName}
@@ -105,6 +108,7 @@ export async function deleteHfaIndicators(
 export async function batchUploadHfaIndicators(
   mainDb: Sql,
   indicators: HfaIndicator[],
+  code: HfaIndicatorCode[],
   replaceAll: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
@@ -115,15 +119,27 @@ export async function batchUploadHfaIndicators(
       for (let i = 0; i < indicators.length; i++) {
         const ind = indicators[i];
         await sql`
-          INSERT INTO hfa_indicators (var_name, category, definition, type, sort_order, updated_at)
-          VALUES (${ind.varName}, ${ind.category}, ${ind.definition}, ${ind.type}, ${i}, CURRENT_TIMESTAMP)
+          INSERT INTO hfa_indicators (var_name, category, definition, type, aggregation, sort_order, updated_at)
+          VALUES (${ind.varName}, ${ind.category}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${i}, CURRENT_TIMESTAMP)
           ON CONFLICT (var_name)
           DO UPDATE SET
             category = EXCLUDED.category,
             definition = EXCLUDED.definition,
             type = EXCLUDED.type,
+            aggregation = EXCLUDED.aggregation,
             sort_order = EXCLUDED.sort_order,
             updated_at = CURRENT_TIMESTAMP
+        `;
+      }
+      const uploadedVarNames = new Set(indicators.map((i) => i.varName));
+      for (const varName of uploadedVarNames) {
+        await sql`DELETE FROM hfa_indicator_code WHERE var_name = ${varName}`;
+      }
+      for (const c of code) {
+        if (!c.rCode.trim()) continue;
+        await sql`
+          INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
+          VALUES (${c.varName}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
         `;
       }
     });
@@ -145,6 +161,7 @@ export async function saveHfaIndicatorFull(
             category = ${indicator.category},
             definition = ${indicator.definition},
             type = ${indicator.type},
+            aggregation = ${indicator.aggregation},
             sort_order = ${indicator.sortOrder},
             updated_at = CURRENT_TIMESTAMP
         WHERE var_name = ${oldVarName}

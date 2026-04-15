@@ -8,9 +8,9 @@ import {
   getSelectOptions,
   timActionForm,
 } from "panther";
-import { cleanupUppy, createUppyInstance } from "~/upload/uppy_file_upload";
+import { cleanupUppy, createUppyInstance } from "~/components/_uppy_file_upload";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   step1Result: CsvDetails | undefined;

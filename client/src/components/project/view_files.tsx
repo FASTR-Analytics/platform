@@ -9,7 +9,7 @@ import {
 } from "panther";
 import { For } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { _SERVER_HOST } from "~/server_actions";
 
 export function ViewFiles(
   p: EditorComponentProps<

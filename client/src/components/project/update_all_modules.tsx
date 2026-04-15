@@ -2,7 +2,7 @@ import { t3, type InstalledModuleSummary } from "lib";
 import { AlertComponentProps, Button, Checkbox, ModalContainer, ProgressBar } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { moduleLatestCommits } from "~/state/ui";
+import { moduleLatestCommits } from "~/state/t4_ui";
 
 type ModuleStatus = "pending" | "skipped" | "updating" | "done" | "error";
 

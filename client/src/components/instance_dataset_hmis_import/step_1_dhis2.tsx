@@ -3,7 +3,7 @@ import { t3, type Dhis2Credentials } from "lib";
 import { serverActions } from "~/server_actions";
 import { Button, StateHolderFormError, timActionForm } from "panther";
 import { Dhis2CredentialsEditor } from "../Dhis2CredentialsEditor";
-import { setDhis2SessionCredentials } from "~/state/dhis2-session-storage";
+import { setDhis2SessionCredentials } from "~/state/instance/t4_dhis2_session";
 
 type Props = {
   step1Result: Dhis2Credentials | undefined;

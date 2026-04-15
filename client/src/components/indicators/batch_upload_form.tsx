@@ -14,8 +14,8 @@ import {
   Checkbox,
   RadioGroup,
 } from "panther";
-import { cleanupUppy, createUppyInstance } from "~/upload/uppy_file_upload";
-import { instanceState } from "~/state/instance_state";
+import { cleanupUppy, createUppyInstance } from "~/components/_uppy_file_upload";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = EditorComponentProps<{}, undefined>;
 

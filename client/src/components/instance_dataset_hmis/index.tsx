@@ -20,7 +20,7 @@ import {
 } from "solid-js";
 import { DatasetHmisUploadAttemptForm } from "~/components/instance_dataset_hmis_import";
 import { serverActions } from "~/server_actions";
-import { instanceState, getIndicatorMappingsVersion, getInstanceFacilityColumns } from "~/state/instance_state";
+import { instanceState, getIndicatorMappingsVersion, getInstanceFacilityColumns } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
 import { PreviousImports } from "./_previous_imports";
 import { DatasetItemsHolder } from "./dataset_items_holder";

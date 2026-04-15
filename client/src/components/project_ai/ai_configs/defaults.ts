@@ -1,6 +1,6 @@
 import { DEFAULT_ANTHROPIC_MODEL } from "lib";
 import { createSDKClient } from "panther";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { _SERVER_HOST } from "~/server_actions";
 
 export const DEFAULT_MODEL_CONFIG = {
   model: DEFAULT_ANTHROPIC_MODEL,

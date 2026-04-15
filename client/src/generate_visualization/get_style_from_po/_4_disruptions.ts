@@ -24,21 +24,10 @@ export function buildDisruptionsChartStyle(
     scale: config.s.scale,
     seriesColorFunc: getDisruptionsSeriesColorFunc(inverted),
     text: getTextStyle(config),
-    surrounds: {
-      backgroundColor: "none",
-    },
-    legend: { reverseOrder: false },
-    grid: { showGrid: true },
     panes: {
       nCols: config.s.nColsInCellDisplay,
-      headerGap: 9,
-      gapX: 30,
-      gapY: 30,
     },
-    lanes: { paddingLeft: 8 },
-    tiers: { paddingBottom: 8 },
-    xTextAxis: { tickLabelGap: 5, tickHeight: 7 },
-    xPeriodAxis: { forceSideTicksWhenYear: false, calendar: getCalendar() },
+    xPeriodAxis: { calendar: getCalendar() },
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 ? 1 : undefined,
@@ -52,7 +41,6 @@ export function buildDisruptionsChartStyle(
       points: {
         func: {
           show: false,
-          innerColorStrategy: { brighten: 0.5 },
           dataLabel: { show: false },
         },
         textFormatter: () => "",

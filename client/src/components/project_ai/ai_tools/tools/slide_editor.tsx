@@ -27,7 +27,7 @@ import {
 } from "~/components/slide_deck/slide_ai/layout_spec_helpers";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
-import { createIdGeneratorForLayout } from "~/utils/id_generation";
+import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 
 export function getToolsForSlideEditor(
   projectId: string,

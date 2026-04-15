@@ -17,7 +17,7 @@ import {
 } from "solid-js";
 import { DatasetHfaUploadAttemptForm } from "~/components/instance_dataset_hfa_import";
 import { serverActions } from "~/server_actions";
-import { instanceState, getHfaCacheHash } from "~/state/instance_state";
+import { instanceState, getHfaCacheHash } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
 import { TimePointsView } from "./_time_points";
 import { DatasetItemsHolder } from "./dataset_items_holder";

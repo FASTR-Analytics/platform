@@ -25,6 +25,7 @@ export function EditHfaIndicator(
   const [category, setCategory] = createSignal(p.existingIndicator?.category ?? "");
   const [definition, setDefinition] = createSignal(p.existingIndicator?.definition ?? "");
   const [type, setType] = createSignal<"binary" | "numeric">(p.existingIndicator?.type ?? "binary");
+  const [aggregation, setAggregation] = createSignal<"sum" | "avg">(p.existingIndicator?.aggregation ?? "sum");
 
   const save = timActionForm(
     async (e: MouseEvent) => {
@@ -40,6 +41,7 @@ export function EditHfaIndicator(
         category: category().trim(),
         definition: definition().trim(),
         type: type(),
+        aggregation: aggregation(),
         sortOrder: p.sortOrder,
       };
 
@@ -98,6 +100,15 @@ export function EditHfaIndicator(
           options={[
             { value: "binary", label: t3({ en: "Boolean (for percentages)", fr: "Booléen (pour les pourcentages)" }) },
             { value: "numeric", label: t3({ en: "Numeric (for averages/sums)", fr: "Numérique (pour les moyennes/sommes)" }) },
+          ]}
+        />
+        <RadioGroup
+          label={t3({ en: "Aggregation", fr: "Agrégation" })}
+          value={aggregation()}
+          onChange={(v) => setAggregation(v as "sum" | "avg")}
+          options={[
+            { value: "sum", label: t3({ en: "Sum", fr: "Somme" }) },
+            { value: "avg", label: t3({ en: "Average", fr: "Moyenne" }) },
           ]}
         />
       </div>

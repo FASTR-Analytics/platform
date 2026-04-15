@@ -9,7 +9,7 @@ import {
   timQuery,
 } from "panther";
 import { createMemo, Match, Switch } from "solid-js";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { _SERVER_HOST } from "~/server_actions";
 import { serverActions } from "~/server_actions";
 
 export function ViewResultsObject(

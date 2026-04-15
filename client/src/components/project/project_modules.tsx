@@ -19,8 +19,8 @@ import {
   timActionButton,
 } from "panther";
 import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
-import { moduleLatestCommits, setModuleLatestCommits } from "~/state/ui";
-import { getInstanceCountryIso3 } from "~/state/instance_state";
+import { moduleLatestCommits, setModuleLatestCommits } from "~/state/t4_ui";
+import { getInstanceCountryIso3 } from "~/state/instance/t1_store";
 import { DirtyStatus } from "~/components/DirtyStatus";
 import {
   useOptimisticSetLastUpdated,

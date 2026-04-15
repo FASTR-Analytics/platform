@@ -16,7 +16,7 @@ import {
 } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   thisLoggedInUserEmail: string;

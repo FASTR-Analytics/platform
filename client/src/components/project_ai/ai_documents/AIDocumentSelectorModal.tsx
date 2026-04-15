@@ -7,8 +7,8 @@ import {
   timActionForm,
 } from "panther";
 import { createMemo, createSignal, onMount, Show } from "solid-js";
-import { uploadAssetToAnthropic } from "~/server_actions/ai_files";
-import { instanceState } from "~/state/instance_state";
+import { _SERVER_HOST } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import {
   addDocumentToProject,
   getDocumentsForProject,
@@ -127,8 +127,34 @@ export function AIDocumentSelectorModal(
   );
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+async function uploadAssetToAnthropic(
+  projectId: string,
+  assetFilename: string,
+): Promise<{ success: true; file_id: string } | { success: false; error: string }> {
+  try {
+    const response = await fetch(`${_SERVER_HOST}/ai/files`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "Project-Id": projectId,
+      },
+      body: JSON.stringify({ assetFilename }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData?.error?.message ?? `Upload failed: ${response.status}`,
+      };
+    }
+    const data = await response.json();
+    return { success: true, file_id: data.id };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error",
+    };
+  }
 }
+

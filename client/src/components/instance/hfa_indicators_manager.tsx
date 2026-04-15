@@ -17,8 +17,8 @@ import {
 } from "panther";
 import { Show, createEffect, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance_state";
-import { getHfaIndicatorsFromCacheOrFetch } from "~/state/instance_data_caches";
+import { instanceState } from "~/state/instance/t1_store";
+import { getHfaIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
 import { EditHfaIndicator } from "../forms_editors/edit_hfa_indicator";
 import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
 import { HfaIndicatorsCsvUploadForm } from "./hfa_indicators_csv_upload_form";
@@ -100,20 +100,50 @@ export function HfaIndicatorsManager(p: Props) {
     await deleteAction.click();
   }
 
-  function handleDownloadCsv(data: HfaIndicator[]) {
-    const headers = ["varName", "category", "definition", "type"];
-    const rows = data.map((ind) => [
-      ind.varName,
-      ind.category,
-      ind.definition,
-      ind.type,
-    ]);
+  async function handleDownloadCsv(data: HfaIndicator[]) {
+    const dictRes = await serverActions.getHfaDictionaryForValidation({});
+    if (!dictRes.success) return;
+    const codeRes = await serverActions.getAllHfaIndicatorCode({});
+    if (!codeRes.success) return;
+
+    const sortedTimePoints = [...dictRes.data.timePoints].sort((a, b) =>
+      a.timePoint.localeCompare(b.timePoint),
+    );
+
+    const headers = ["varName", "category", "definition", "type", "aggregation"];
+    for (let k = 0; k < sortedTimePoints.length; k++) {
+      headers.push(`r_code_${k + 1}`, `r_filter_code_${k + 1}`);
+    }
+
+    const codeByKey = new Map<string, { rCode: string; rFilterCode: string }>();
+    for (const c of codeRes.data) {
+      codeByKey.set(`${c.varName}__${c.timePoint}`, {
+        rCode: c.rCode,
+        rFilterCode: c.rFilterCode ?? "",
+      });
+    }
+
+    const rows = data.map((ind) => {
+      const row: string[] = [
+        ind.varName,
+        ind.category,
+        ind.definition,
+        ind.type,
+        ind.aggregation,
+      ];
+      for (const tp of sortedTimePoints) {
+        const entry = codeByKey.get(`${ind.varName}__${tp.timePoint}`);
+        row.push(entry?.rCode ?? "", entry?.rFilterCode ?? "");
+      }
+      return row;
+    });
+
+    const escape = (cell: string) => `"${cell.replace(/"/g, '""')}"`;
     const csvContent = [
       headers.join(","),
-      ...rows.map((row) =>
-        row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")
-      ),
+      ...rows.map((row) => row.map(escape).join(",")),
     ].join("\n");
+
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -124,9 +154,11 @@ export function HfaIndicatorsManager(p: Props) {
   }
 
   async function handleCsvUpload() {
+    const dictRes = await serverActions.getHfaDictionaryForValidation({});
+    if (!dictRes.success) return;
     await openEditor({
       element: HfaIndicatorsCsvUploadForm,
-      props: {},
+      props: { dictionary: dictRes.data },
     });
   }
 
@@ -213,7 +245,7 @@ export function HfaIndicatorsManager(p: Props) {
                   </div>
                   <Show when={p.isGlobalAdmin && keyedIndicators.length > 0}>
                     <Button
-                      onClick={() => handleDownloadCsv(keyedIndicators)}
+                      onClick={() => { handleDownloadCsv(keyedIndicators); }}
                       iconName="download"
                       intent="neutral"
                     >

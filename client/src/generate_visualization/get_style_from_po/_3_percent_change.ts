@@ -30,15 +30,7 @@ export function buildPercentChangeChartStyle(
     scale: config.s.scale,
     seriesColorFunc: getStandardSeriesColorFunc(config),
     text: getTextStyle(config),
-    surrounds: {
-      backgroundColor: "none",
-    },
-    legend: { reverseOrder: false },
-    grid: { showGrid: true },
-    panes: { nCols: config.s.nColsInCellDisplay, headerGap: 9, gapX: 30, gapY: 30 },
-    lanes: { paddingLeft: 8 },
-    tiers: { paddingBottom: 8 },
-    xTextAxis: { tickLabelGap: 5, tickHeight: 7 },
+    panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { forceSideTicksWhenYear: true, calendar: getCalendar() },
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
@@ -51,7 +43,7 @@ export function buildPercentChangeChartStyle(
     },
     content: {
       points: {
-        func: { show: false, innerColorStrategy: { brighten: 0.5 }, dataLabel: { show: false } },
+        func: { show: false, dataLabel: { show: false } },
         textFormatter: () => "",
       },
       bars: {
@@ -102,10 +94,6 @@ export function buildPercentChangeChartStyle(
       lines: {
         func: { show: false, dataLabel: { show: false } },
         textFormatter: () => "",
-      },
-      areas: {
-        func: { show: false },
-        diff: { enabled: false },
       },
       tableCells: getTableCellsContent(config, formatAs),
       mapRegions: getMapRegionsContent(config, formatAs),

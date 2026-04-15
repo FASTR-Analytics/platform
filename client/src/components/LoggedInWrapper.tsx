@@ -1,6 +1,6 @@
 import { Clerk } from "@clerk/clerk-js";
 import { frFR } from "@clerk/localizations";
-import { clearDataCache } from "~/state/clear_data_cache";
+import { clearDataCache } from "~/state/clear_caches";
 import {
   GlobalUser,
   t3,

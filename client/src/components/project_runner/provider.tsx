@@ -11,7 +11,7 @@ import { Button } from "panther";
 import { Show, createSignal, onCleanup, onMount } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { _SERVER_HOST } from "~/server_actions";
 import { ProjectDirtyStateContext } from "./context";
 import { setGlobalPDS } from "./global_pds";
 import { setGlobalModuleMaps } from "./global_module_maps";

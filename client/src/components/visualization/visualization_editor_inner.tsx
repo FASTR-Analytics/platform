@@ -51,14 +51,14 @@ import {
 } from "~/components/project_runner/mod";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
-import { getGeoJsonSync } from "~/state/caches/geojson_cache";
+import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import type { GeoJSONFeatureCollection } from "panther";
 import { serverActions } from "~/server_actions";
 import {
   getPresentationObjectItemsFromCacheOrFetch,
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
 } from "~/state/po_cache";
-import { setShowAi, showAi } from "~/state/ui";
+import { setShowAi, showAi } from "~/state/t4_ui";
 import type { CreateModeReturn, EditModeReturn, EphemeralModeReturn } from ".";
 import { DuplicateVisualization } from "./duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";

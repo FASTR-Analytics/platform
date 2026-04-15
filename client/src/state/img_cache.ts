@@ -1,5 +1,5 @@
 import { APIResponseWithData } from "lib";
-import { TimCacheD } from "./caches/cache_class_D_indexeddb";
+import { TimCacheD } from "./_infra/indexeddb_cache";
 
 type ImageCacheData = {
   blob: Blob;

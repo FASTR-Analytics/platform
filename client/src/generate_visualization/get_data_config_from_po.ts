@@ -13,7 +13,7 @@ import {
   t3,
   TC,
 } from "lib";
-import { instanceState } from "../state/instance_state";
+import { instanceState } from "../state/instance/t1_store";
 import { getDateLabelReplacements } from "./get_date_label_replacements";
 import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels";
 

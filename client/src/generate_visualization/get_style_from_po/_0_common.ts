@@ -2,7 +2,8 @@ import {
   ChartSeriesInfo,
   Color,
   ColorKeyOrString,
-  FontInfo,
+  type CustomStyleOptions,
+  type FontInfo,
   MapRegionInfo,
   TableCellInfo,
   getAdjustedColor,
@@ -13,6 +14,7 @@ import {
   _CF_COMPARISON,
   _CF_GREEN,
   _CF_RED,
+  _COLOR_WATERMARK_GREY,
   _RANDOM_BLUE,
   getAbcQualScale,
   getAbcQualScale2,
@@ -26,34 +28,63 @@ const _Inter_800: FontInfo = {
   italic: false,
 };
 
+export const GLOBAL_STYLE_OPTIONS: CustomStyleOptions = {
+  scale: 1,
+  baseText: {
+    font: { fontFamily: "Inter", weight: 400, italic: false },
+    fontSize: 24,
+    lineHeight: 1.4,
+  },
+  figure: {
+    text: {
+      base: { fontSize: 14 },
+      caption: { font: _Inter_800 },
+      subCaption: { color: getAdjustedColor({ key: "baseContent" }, { brighten: 0.5 }) },
+      footnote: { color: getAdjustedColor({ key: "baseContent" }, { brighten: 0.5 }) },
+      legend: { relFontSize: 0.8 },
+      rowGroupHeaders: { relFontSize: 1.1, font: _Inter_800 },
+      colGroupHeaders: { relFontSize: 1.1, font: _Inter_800 },
+      paneHeaders: { relFontSize: 1.1, font: _Inter_800 },
+      tierHeaders: { relFontSize: 1.1, font: _Inter_800 },
+      laneHeaders: { relFontSize: 1.1, font: _Inter_800 },
+      dataLabels: { lineBreakGap: 0.2 },
+    },
+    panes: { headerGap: 9, gapX: 30, gapY: 30 },
+    lanes: { paddingLeft: 8 },
+    tiers: { paddingBottom: 8 },
+    xTextAxis: { tickLabelGap: 5, tickHeight: 7 },
+    content: {
+      points: {
+        func: { innerColorStrategy: { brighten: 0.5 } },
+      },
+    },
+  },
+  page: {
+    text: {
+      watermark: {
+        font: { fontFamily: "Inter", weight: 800, italic: false },
+        color: _COLOR_WATERMARK_GREY,
+        relFontSize: 25,
+        lineHeight: 1.4,
+      },
+    },
+  },
+  markdown: {
+    text: {
+      code: {
+        font: { fontFamily: "Roboto Mono" },
+      },
+    },
+  },
+};
+
 export function getTextStyle(
   config: PresentationObjectConfig,
 ): CustomFigureStyleOptions["text"] {
   return {
-    base: { fontSize: 14 },
-    caption: {
-      relFontSize: config.t.captionRelFontSize ?? 2,
-      font: _Inter_800,
-    },
-    subCaption: {
-      relFontSize: config.t.subCaptionRelFontSize ?? 1.3,
-      color: getAdjustedColor({ key: "baseContent" }, { brighten: 0.5 }),
-    },
-    footnote: {
-      relFontSize: config.t.footnoteRelFontSize ?? 0.9,
-      color: getAdjustedColor({ key: "baseContent" }, { brighten: 0.5 }),
-    },
-    legend: { relFontSize: 0.8 },
-    cells: {},
-    rowGroupHeaders: { relFontSize: 1.1, font: _Inter_800 },
-    colGroupHeaders: { relFontSize: 1.1, font: _Inter_800 },
-    paneHeaders: { relFontSize: 1.1, font: _Inter_800 },
-    tierHeaders: { relFontSize: 1.1, font: _Inter_800 },
-    laneHeaders: { relFontSize: 1.1, font: _Inter_800 },
-    dataLabels: {
-      lineBreakGap: 0.2,
-      // lineHeight: 1,
-    },
+    caption: { relFontSize: config.t.captionRelFontSize ?? 2 },
+    subCaption: { relFontSize: config.t.subCaptionRelFontSize ?? 1.3 },
+    footnote: { relFontSize: config.t.footnoteRelFontSize ?? 0.9 },
   };
 }
 

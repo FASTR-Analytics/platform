@@ -2,8 +2,8 @@ import type { InstanceSseMessage } from "lib";
 import { t3 } from "lib";
 import { Show, type JSX } from "solid-js";
 import { onMount, onCleanup, createSignal } from "solid-js";
-import { _SERVER_HOST } from "~/server_actions/config";
-import { preloadGeoJson } from "~/state/caches/geojson_cache";
+import { _SERVER_HOST } from "~/server_actions";
+import { preloadGeoJson } from "~/state/instance/t2_geojson";
 import {
   instanceState,
   initInstanceState,
@@ -16,7 +16,7 @@ import {
   updateInstanceIndicators,
   updateInstanceDatasets,
   updateCurrentUser,
-} from "./instance_state";
+} from "./t1_store";
 
 const _MAX_CONNECTION_ATTEMPTS = 5;
 const _BASE_RETRY_DELAY = 1000;

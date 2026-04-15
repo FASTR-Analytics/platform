@@ -33,6 +33,7 @@ type TempState = {
   category: string;
   definition: string;
   type: "binary" | "numeric";
+  aggregation: "sum" | "avg";
   code: TempCodeEntry[];
 };
 
@@ -132,12 +133,15 @@ function EditorInner(p: {
     category: p.indicator.category,
     definition: p.indicator.definition,
     type: p.indicator.type,
+    aggregation: p.indicator.aggregation,
     code: initialCode,
   });
 
   const [selectedTimePoint, setSelectedTimePoint] = createSignal(
     p.dictionary.timePoints[0]?.timePoint ?? "",
   );
+
+  const [varSearch, setVarSearch] = createSignal("");
 
   const otherIndicatorVarNames = new Set(
     p.allIndicatorVarNames.filter((v) => v !== p.indicator.varName),
@@ -149,6 +153,38 @@ function EditorInner(p: {
   const currentTpDict = () =>
     p.dictionary.timePoints.find((tp) => tp.timePoint === selectedTimePoint());
 
+  const valuesForVar = (varName: string) => {
+    const dict = currentTpDict();
+    if (!dict) return [];
+    return dict.values.filter((v) => v.varName === varName);
+  };
+
+  const roundsConsistency = () => {
+    const nonEmpty = state.code.filter(
+      (c) => c.rCode.trim() || c.rFilterCode.trim(),
+    );
+    if (nonEmpty.length <= 1) return "single" as const;
+    const first = nonEmpty[0];
+    const allSame = nonEmpty.every(
+      (c) =>
+        c.rCode.trim() === first.rCode.trim() &&
+        c.rFilterCode.trim() === first.rFilterCode.trim(),
+    );
+    return allSame ? ("same" as const) : ("different" as const);
+  };
+
+  function applyToOtherRounds() {
+    const idx = currentTpIndex();
+    if (idx < 0) return;
+    const src = state.code[idx];
+    for (let i = 0; i < state.code.length; i++) {
+      if (i === idx) continue;
+      setState("code", i, "rCode", src.rCode);
+      setState("code", i, "rFilterCode", src.rFilterCode);
+    }
+    markDirty();
+  }
+
   const availableVarNames = () => {
     const dict = currentTpDict();
     if (!dict) return new Set<string>();
@@ -157,7 +193,7 @@ function EditorInner(p: {
 
   const currentRCodeValidation = (): RCodeValidationResult => {
     const idx = currentTpIndex();
-    if (idx < 0) return { warnings: [], referencedVars: [] };
+    if (idx < 0) return { warnings: [], syntaxErrors: [], referencedVars: [] };
     return validateRCode(
       state.code[idx].rCode,
       availableVarNames(),
@@ -167,7 +203,7 @@ function EditorInner(p: {
 
   const currentFilterValidation = (): RCodeValidationResult => {
     const idx = currentTpIndex();
-    if (idx < 0) return { warnings: [], referencedVars: [] };
+    if (idx < 0) return { warnings: [], syntaxErrors: [], referencedVars: [] };
     return validateRCode(
       state.code[idx].rFilterCode,
       availableVarNames(),
@@ -185,6 +221,7 @@ function EditorInner(p: {
         category: state.category.trim(),
         definition: state.definition.trim(),
         type: state.type,
+        aggregation: state.aggregation,
         sortOrder: p.indicator.sortOrder,
       },
       code: unwrap(state.code).map((c) => ({
@@ -229,8 +266,26 @@ function EditorInner(p: {
                 markDirty();
               }}
               options={[
-                { value: "binary", label: t3({ en: "Boolean", fr: "Booléen" }) },
-                { value: "numeric", label: t3({ en: "Numeric", fr: "Numérique" }) },
+                {
+                  value: "binary",
+                  label: t3({ en: "Boolean", fr: "Booléen" }),
+                },
+                {
+                  value: "numeric",
+                  label: t3({ en: "Numeric", fr: "Numérique" }),
+                },
+              ]}
+            />
+            <RadioGroup
+              label={t3({ en: "Aggregation", fr: "Agrégation" })}
+              value={state.aggregation}
+              onChange={(v) => {
+                setState("aggregation", v as "sum" | "avg");
+                markDirty();
+              }}
+              options={[
+                { value: "sum", label: t3({ en: "Sum", fr: "Somme" }) },
+                { value: "avg", label: t3({ en: "Average", fr: "Moyenne" }) },
               ]}
             />
           </div>
@@ -248,7 +303,9 @@ function EditorInner(p: {
 
       <div class="flex min-h-0 flex-1">
         <div class="border-base-300 flex h-full w-48 flex-none flex-col overflow-auto border-r">
-          <div class="ui-pad-sm font-700 text-sm">{t3({ en: "Time points", fr: "Points temporels" })}</div>
+          <div class="ui-pad-sm font-700 text-sm">
+            {t3({ en: "Time points", fr: "Points temporels" })}
+          </div>
           <For each={p.dictionary.timePoints}>
             {(tp) => {
               const codeEntry = () =>
@@ -266,7 +323,9 @@ function EditorInner(p: {
                   <div>{tp.timePointLabel}</div>
                   <div class="text-base-content/50 text-xs">
                     {tp.timePoint}
-                    {hasCode() ? "" : ` (${t3({ en: "no code", fr: "aucun code" })})`}
+                    {hasCode()
+                      ? ""
+                      : ` (${t3({ en: "no code", fr: "aucun code" })})`}
                   </div>
                 </button>
               );
@@ -277,10 +336,17 @@ function EditorInner(p: {
         <div class="flex min-w-0 flex-1 flex-col overflow-auto">
           <Show
             when={currentTpIndex() >= 0}
-            fallback={<div class="ui-pad">{t3({ en: "Select a time point", fr: "Sélectionner un point temporel" })}</div>}
+            fallback={
+              <div class="ui-pad">
+                {t3({
+                  en: "Select a time point",
+                  fr: "Sélectionner un point temporel",
+                })}
+              </div>
+            }
           >
             <div class="ui-pad ui-gap flex h-full">
-              <div class="ui-spy w-1/2">
+              <div class="ui-spy w-1/2 flex-none">
                 <div>
                   <TextArea
                     label={t3({
@@ -296,14 +362,40 @@ function EditorInner(p: {
                     height="120px"
                     mono
                   />
-                  <Show when={currentRCodeValidation().referencedVars.length > 0 || currentRCodeValidation().warnings.length > 0}>
+                  <Show
+                    when={
+                      currentRCodeValidation().referencedVars.length > 0 ||
+                      currentRCodeValidation().warnings.length > 0 ||
+                      currentRCodeValidation().syntaxErrors.length > 0
+                    }
+                  >
                     <div class="mt-1">
+                      <For each={currentRCodeValidation().syntaxErrors}>
+                        {(e) => (
+                          <div class="text-danger font-700 text-xs">
+                            {t3({ en: "Syntax: ", fr: "Syntaxe : " })}{e}
+                          </div>
+                        )}
+                      </For>
                       <For each={currentRCodeValidation().referencedVars}>
                         {(varName) => {
-                          const varInfo = currentTpDict()?.vars.find((v) => v.varName === varName);
+                          const varInfo = currentTpDict()?.vars.find(
+                            (v) => v.varName === varName,
+                          );
+                          const vals = valuesForVar(varName);
                           return (
                             <div class="text-success text-xs">
-                              {varName}{varInfo ? ` — ${varInfo.varLabel}` : ""}
+                              <div>
+                                {varName}
+                                {varInfo ? ` — ${varInfo.varLabel}` : ""}
+                              </div>
+                              <Show when={vals.length > 0}>
+                                <div class="text-base-content/60 ml-3">
+                                  {vals
+                                    .map((vv) => `${vv.value}=${vv.valueLabel}`)
+                                    .join(", ")}
+                                </div>
+                              </Show>
                             </div>
                           );
                         }}
@@ -330,14 +422,40 @@ function EditorInner(p: {
                     height="80px"
                     mono
                   />
-                  <Show when={currentFilterValidation().referencedVars.length > 0 || currentFilterValidation().warnings.length > 0}>
+                  <Show
+                    when={
+                      currentFilterValidation().referencedVars.length > 0 ||
+                      currentFilterValidation().warnings.length > 0 ||
+                      currentFilterValidation().syntaxErrors.length > 0
+                    }
+                  >
                     <div class="mt-1">
+                      <For each={currentFilterValidation().syntaxErrors}>
+                        {(e) => (
+                          <div class="text-danger font-700 text-xs">
+                            {t3({ en: "Syntax: ", fr: "Syntaxe : " })}{e}
+                          </div>
+                        )}
+                      </For>
                       <For each={currentFilterValidation().referencedVars}>
                         {(varName) => {
-                          const varInfo = currentTpDict()?.vars.find((v) => v.varName === varName);
+                          const varInfo = currentTpDict()?.vars.find(
+                            (v) => v.varName === varName,
+                          );
+                          const vals = valuesForVar(varName);
                           return (
                             <div class="text-success text-xs">
-                              {varName}{varInfo ? ` — ${varInfo.varLabel}` : ""}
+                              <div>
+                                {varName}
+                                {varInfo ? ` — ${varInfo.varLabel}` : ""}
+                              </div>
+                              <Show when={vals.length > 0}>
+                                <div class="text-base-content/60 ml-3">
+                                  {vals
+                                    .map((vv) => `${vv.value}=${vv.valueLabel}`)
+                                    .join(", ")}
+                                </div>
+                              </Show>
                             </div>
                           );
                         }}
@@ -348,39 +466,100 @@ function EditorInner(p: {
                     </div>
                   </Show>
                 </div>
+
+                <div class="ui-gap-sm flex items-center">
+                  <Button
+                    onClick={applyToOtherRounds}
+                    intent="neutral"
+                    iconName="copy"
+                  >
+                    {t3({
+                      en: "Apply to other rounds",
+                      fr: "Appliquer aux autres rounds",
+                    })}
+                  </Button>
+                  <div class="text-xs">
+                    <Show when={roundsConsistency() === "same"}>
+                      <span class="text-success font-700">
+                        {t3({ en: "All rounds identical", fr: "Tous les rounds identiques" })}
+                      </span>
+                    </Show>
+                    <Show when={roundsConsistency() === "different"}>
+                      <span class="text-warning font-700">
+                        {t3({ en: "Rounds differ", fr: "Les rounds diffèrent" })}
+                      </span>
+                    </Show>
+                  </div>
+                </div>
               </div>
-              <div class="flex h-full flex-1 flex-col">
-                <div class="font-700 mb-2 text-sm">
-                  {t3({ en: "Available variables", fr: "Variables disponibles" })}
+              <div class="flex h-full w-0 flex-1 flex-col">
+                <div class="ui-gap-sm mb-2 flex items-center">
+                  <div class="font-700 flex-none text-sm">
+                    {t3({
+                      en: "Available variables",
+                      fr: "Variables disponibles",
+                    })}
+                  </div>
+                  <Input
+                    value={varSearch()}
+                    onChange={setVarSearch}
+                    placeholder={t3({ en: "Search variables...", fr: "Rechercher des variables..." })}
+                    searchIcon
+                    fullWidth
+                  />
                 </div>
                 <div class="bg-base-200 overflow-auto rounded p-2">
                   <Show when={currentTpDict()}>
                     {(dict) => (
-                      <For each={dict().vars}>
-                        {(v) => (
-                          <div class="flex items-baseline gap-2 py-0.5 text-xs">
-                            <span
-                              class="ui-hoverable font-700 cursor-pointer font-mono"
-                              onClick={() => {
-                                setState(
-                                  "code",
-                                  currentTpIndex(),
-                                  "rCode",
-                                  (prev) => prev + v.varName,
-                                );
-                                markDirty();
-                              }}
-                            >
-                              {v.varName}
-                            </span>
-                            <span class="text-base-content/60 truncate">
-                              {v.varLabel}
-                            </span>
-                            <span class="text-base-content/40 flex-none">
-                              {v.varType}
-                            </span>
-                          </div>
-                        )}
+                      <For
+                        each={dict().vars.filter((v) => {
+                          const q = varSearch().trim().toLowerCase();
+                          if (!q) return true;
+                          return (
+                            v.varName.toLowerCase().includes(q) ||
+                            v.varLabel.toLowerCase().includes(q)
+                          );
+                        })}
+                      >
+                        {(v) => {
+                          const vals = dict().values.filter(
+                            (vv) => vv.varName === v.varName,
+                          );
+                          return (
+                            <div class="border-base-300/50 border-b py-1 last:border-b-0">
+                              <div class="flex items-baseline gap-2 text-xs">
+                                <span
+                                  class="ui-hoverable font-700 cursor-pointer font-mono"
+                                  onClick={() => {
+                                    setState(
+                                      "code",
+                                      currentTpIndex(),
+                                      "rCode",
+                                      (prev) =>
+                                        prev + (prev.length === 0 || /\s$/.test(prev) ? "" : " ") + v.varName + " ",
+                                    );
+                                    markDirty();
+                                  }}
+                                >
+                                  {v.varName}
+                                </span>
+                                <span class="text-base-content/60 truncate">
+                                  {v.varLabel}
+                                </span>
+                                <span class="text-base-content/40 flex-none">
+                                  {v.varType}
+                                </span>
+                              </div>
+                              <Show when={vals.length > 0}>
+                                <div class="text-base-content/60 ml-3 text-xs">
+                                  {vals
+                                    .map((vv) => `${vv.value}=${vv.valueLabel}`)
+                                    .join(", ")}
+                                </div>
+                              </Show>
+                            </div>
+                          );
+                        }}
                       </For>
                     )}
                   </Show>

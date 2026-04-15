@@ -30,7 +30,7 @@ import { EditLabelForm } from "~/components/forms_editors/edit_label";
 import { BulkEditProjectPermissionsForm } from "~/components/forms_editors/bulk_edit_project_permissions_form";
 import { SelectProjectUserRole } from "~/components/forms_editors/select_project_user_role";
 import { serverActions } from "~/server_actions";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { _SERVER_HOST } from "~/server_actions";
 import { CopyProjectForm } from "./copy_project";
 import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";

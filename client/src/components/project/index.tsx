@@ -31,8 +31,8 @@ import {
   setShowAi,
   navCollapsed,
   setNavCollapsed,
-} from "~/state/ui";
-import type { TabOption } from "~/state/ui";
+} from "~/state/t4_ui";
+import type { TabOption } from "~/state/t4_ui";
 import { AIProjectWrapper, useAIProjectContext } from "../project_ai";
 
 type Props = {

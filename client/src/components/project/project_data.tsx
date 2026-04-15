@@ -19,8 +19,8 @@ import {
 } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance_state";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { instanceState } from "~/state/instance/t1_store";
+import { _SERVER_HOST } from "~/server_actions";
 import { SettingsForProjectDatasetHmis } from "./settings_for_project_dataset_hmis";
 import { useProjectDetail } from "~/components/project_runner/mod";
 

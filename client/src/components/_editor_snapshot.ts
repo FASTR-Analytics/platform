@@ -1,6 +1,6 @@
 import { unwrap } from "solid-js/store";
 import type { PresentationObjectConfig, ProjectDetail, ResultsValue, SlideDeckConfig } from "lib";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 
 function snap<T>(value: T): T {
   return structuredClone(unwrap(value));

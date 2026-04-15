@@ -19,7 +19,7 @@ import { FIGURE_AUTOFIT, MARKDOWN_AUTOFIT } from "lib";
 import { buildStyleForSlide } from "../slide_rendering/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
-import { createIdGeneratorForLayout } from "~/utils/id_generation";
+import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 
 /**
  * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>)

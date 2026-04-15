@@ -2,7 +2,7 @@ import { t3, type Dhis2Credentials } from "lib";
 import { Button, StateHolderFormError, timActionForm } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { setDhis2SessionCredentials } from "~/state/dhis2-session-storage";
+import { setDhis2SessionCredentials } from "~/state/instance/t4_dhis2_session";
 import { Dhis2CredentialsEditor } from "../Dhis2CredentialsEditor";
 
 type Props = {

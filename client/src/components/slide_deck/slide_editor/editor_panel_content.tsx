@@ -22,7 +22,7 @@ import {
   Slider,
 } from "panther";
 import { createSignal, Match, Setter, Show, Switch } from "solid-js";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 import { SetStoreFunction } from "solid-js/store";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
 

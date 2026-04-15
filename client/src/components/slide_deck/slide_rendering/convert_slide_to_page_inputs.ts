@@ -27,7 +27,7 @@ import type {
 import { hydrateFigureInputsForRendering } from "~/generate_visualization/mod";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
 import { getOverlayImage } from "./get_overlay_image";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { _SERVER_HOST } from "~/server_actions";
 
 const _Inter_400: FontInfo = {
   fontFamily: "Inter",

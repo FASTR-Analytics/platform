@@ -344,6 +344,7 @@ CREATE TABLE IF NOT EXISTS hfa_indicators (
   category TEXT NOT NULL DEFAULT '',
   definition TEXT NOT NULL DEFAULT '',
   type TEXT NOT NULL CHECK (type IN ('binary', 'numeric')),
+  aggregation TEXT NOT NULL DEFAULT 'sum' CHECK (aggregation IN ('sum', 'avg')),
   sort_order INTEGER NOT NULL DEFAULT 0,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

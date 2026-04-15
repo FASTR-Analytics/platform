@@ -20,7 +20,7 @@ import {
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { ProjectPermissionForm } from "./project_permission_form.tsx";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 
 
 type Props = {

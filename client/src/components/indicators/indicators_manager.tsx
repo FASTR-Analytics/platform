@@ -16,8 +16,8 @@ import {
 } from "panther";
 import { Show, createEffect, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance_state";
-import { getIndicatorsFromCacheOrFetch } from "~/state/instance_data_caches";
+import { instanceState } from "~/state/instance/t1_store";
+import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
 import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 import { EditIndicatorCommonForm } from "./_edit_indicator_common";
 import { EditIndicatorRawForm } from "./_edit_indicator_raw";
@@ -26,7 +26,7 @@ import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import {
   getDhis2SessionCredentials,
   setDhis2SessionCredentials,
-} from "~/state/dhis2-session-storage";
+} from "~/state/instance/t4_dhis2_session";
 
 type Props = {
   isGlobalAdmin: boolean;

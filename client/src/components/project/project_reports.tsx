@@ -25,7 +25,7 @@ import {
 } from "solid-js";
 import { AddReportForm } from "./add_report";
 import type Uppy from "@uppy/core";
-import { createUppyInstance, cleanupUppy } from "~/upload/uppy_file_upload";
+import { createUppyInstance, cleanupUppy } from "~/components/_uppy_file_upload";
 import { serverActions } from "~/server_actions";
 import {
   useOptimisticSetLastUpdated,

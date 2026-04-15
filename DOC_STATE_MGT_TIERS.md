@@ -91,4 +91,4 @@ state/
   clear_caches.ts    ← utility (not state)
 ```
 
-See `PLAN_CLIENT_STATE_RESTRUCTURE.md` for the full file-by-file mapping.
+See `PLAN_PROJECT_STATE.md` for the remaining migration work (project state consolidation + project cache restructure).

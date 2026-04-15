@@ -1,4 +1,4 @@
-import { clearDataCache, clearAiChatCache } from "~/state/clear_data_cache";
+import { clearDataCache, clearAiChatCache } from "~/state/clear_caches";
 import { clerk } from "~/components/LoggedInWrapper";
 import { t3, TC } from "lib";
 import {

@@ -8,11 +8,11 @@ import {
 import { Show, onCleanup, onMount, createMemo } from "solid-js";
 import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
-import { _SERVER_HOST } from "~/server_actions/config";
-import { createUppyInstance, cleanupUppy } from "~/upload/uppy_file_upload";
+import { _SERVER_HOST } from "~/server_actions";
+import { createUppyInstance, cleanupUppy } from "~/components/_uppy_file_upload";
 import type Uppy from "@uppy/core";
 import { Table, TableColumn } from "panther";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   isGlobalAdmin: boolean;

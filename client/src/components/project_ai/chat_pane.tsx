@@ -17,7 +17,7 @@ import {
 import { t3, TC } from "lib";
 import type { Accessor } from "solid-js";
 import { useAIProjectContext } from "./context";
-import { setShowAi } from "~/state/ui";
+import { setShowAi } from "~/state/t4_ui";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
 import { usePromptLibrary } from "./ai_prompt_library";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";

@@ -28,7 +28,7 @@ import {
 } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 import { WindowingSelector } from "../WindowingSelector";
 
 export function SettingsForProjectDatasetHmis(

@@ -12,7 +12,7 @@ import {
   type TableColumn,
 } from "panther";
 import { createEffect, createMemo, createSignal } from "solid-js";
-import { getDatasetHfaDisplayInfoFromCacheOrFetch } from "~/state/dataset_cache";
+import { getDatasetHfaDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 
 type DisplayRow = HfaVariableRow & { _key: string };
 

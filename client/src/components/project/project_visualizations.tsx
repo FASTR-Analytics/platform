@@ -12,10 +12,10 @@ import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectP
 import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "./add_visualization";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
-import { updateProjectView } from "~/state/ui";
+import { updateProjectView } from "~/state/t4_ui";
 import { useProjectDetail } from "~/components/project_runner/mod";
 import { useAIProjectContext } from "~/components/project_ai/context";
-import { snapshotForVizEditor } from "~/utils/snapshot";
+import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 
 type Props = {
   isGlobalAdmin: boolean;

@@ -5,7 +5,7 @@ import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideCard } from "./slide_card";
-import { setShowAi, showAi } from "~/state/ui.ts";
+import { setShowAi, showAi } from "~/state/t4_ui";
 import { useAIProjectContext } from "~/components/project_ai";
 
 type Props = {

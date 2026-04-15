@@ -10,8 +10,8 @@ import {
 import { Match, Show, Switch, createSignal, onMount } from "solid-js";
 import { StructureUploadAttemptForm } from "~/components/structure_import";
 import { serverActions } from "~/server_actions";
-import { _SERVER_HOST } from "~/server_actions/config";
-import { instanceState } from "~/state/instance_state";
+import { _SERVER_HOST } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import { StructureWithCsv } from "./with_csv";
 
 type Props = {

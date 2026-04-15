@@ -2,13 +2,19 @@
 
 ## Overview
 
-Project state is scoped to a single project: modules, visualizations, reports, slide decks, dirty states, metrics, and project users. After Phase 2 of the SSE migration (`PLAN_SSE_STATE_MANAGEMENT.md`), project state will use the same global store + SSE pattern as instance state.
+Project state is scoped to a single project: modules, visualizations, reports, slide decks, dirty states, metrics, and project users. After the project state consolidation (`PLAN_PROJECT_STATE.md`), project state will use the same global store + SSE pattern as instance state.
 
 For instance-level state management, see `DOC_STATE_MGT_INSTANCE.md`.
 
-> **Status:** The T1 section (SSE store) and Architecture table below describe the **target** architecture after SSE Phase 2 — this code does not exist yet. The T2, T3, T4, and T5 sections describe **existing** code.
+> **Status — this whole document describes the target architecture, not current code.** Project state is mid-migration:
+>
+> - **T1 (SSE store):** does not exist yet. Current code uses a Context/Provider in `client/src/components/project_runner/` (`provider.tsx`, `context.tsx`, `hooks.tsx`, `global_pds.ts`, `global_module_maps.ts`). Built in Steps A–D of `PLAN_PROJECT_STATE.md`.
+> - **T2 (reactive caches):** the *concepts* and the cache implementations exist, but the *file paths shown* (`project/t2_presentation_objects.ts`, etc.) do not. Current paths: `state/po_cache.ts`, `state/ri_cache.ts`, `state/replicant_options_cache.ts`, `state/img_cache.ts`, `state/caches/visualizations.ts`, `state/caches/reports.ts`, `state/caches/slides.ts`. Reorganized into `state/project/t2_*.ts` in Step E of `PLAN_PROJECT_STATE.md`.
+> - **T3:** accurate.
+> - **T4:** the concepts and code exist; file paths shown (`project/t4_*.ts`) are target. Current paths: `state/ai_documents.ts`, `state/ai_interpretations.ts`, `state/long_form_editor.ts`. Moved in Step E.
+> - **T5:** accurate.
 
-## Architecture (target, after Phase 2)
+## Architecture (target, after `PLAN_PROJECT_STATE.md`)
 
 5 files, one per concern — same structure as instance:
 

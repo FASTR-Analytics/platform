@@ -5,7 +5,7 @@ import {
   ReplicantOptionsForPresentationObject,
 } from "lib";
 import { _REPLICANT_OPTIONS_CACHE } from "./caches/visualizations";
-import { resultsValueInfoQueue } from "~/utils/request_queue";
+import { resultsValueInfoQueue } from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
 
 export async function getReplicantOptionsFromCacheOrFetch(

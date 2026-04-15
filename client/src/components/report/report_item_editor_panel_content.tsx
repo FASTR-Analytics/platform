@@ -20,7 +20,7 @@ import {
 import { Match, Setter, Show, Switch, createMemo } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMiniDisplay";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 // TODO: Re-enable when nested layout UI is implemented
 // import { ReportItemEditorPanelContentBox } from "./report_item_editor_panel_content_box";
 import { SelectPresentationObject } from "./select_presentation_object";

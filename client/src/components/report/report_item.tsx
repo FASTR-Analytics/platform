@@ -43,7 +43,7 @@ import {
   fitWithin,
   setHeaderOrContent,
   setPolicyHeaderOrContent,
-} from "~/state/ui";
+} from "~/state/t4_ui";
 import { ReportItemEditorPanel } from "./report_item_editor_panel";
 
 type ReportItemEditorProps = {

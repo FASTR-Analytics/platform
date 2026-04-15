@@ -1,5 +1,5 @@
 import { ReportDetail, ReportType } from "lib";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 import {
   AlertComponentProps,
   AlertFormHolder,

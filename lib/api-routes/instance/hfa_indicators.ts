@@ -29,13 +29,23 @@ export const hfaIndicatorRouteRegistry = {
   batchUploadHfaIndicators: route({
     path: "/hfa-indicators/batch",
     method: "POST",
-    body: {} as { indicators: HfaIndicator[]; replaceAll: boolean },
+    body: {} as {
+      indicators: HfaIndicator[];
+      code: HfaIndicatorCode[];
+      replaceAll: boolean;
+    },
   }),
 
   getHfaIndicatorCode: route({
     path: "/hfa-indicators/code",
     method: "POST",
     body: {} as { varName: string },
+    response: {} as HfaIndicatorCode[],
+  }),
+
+  getAllHfaIndicatorCode: route({
+    path: "/hfa-indicators/code/all",
+    method: "GET",
     response: {} as HfaIndicatorCode[],
   }),
 

@@ -1,5 +1,5 @@
 import { type ProjectDetail, type Slide, type SlideDeckConfig, getStartingConfigForSlideDeck, t3 } from "lib";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 import {
   createAIChat,
   EditorComponentProps,
@@ -17,7 +17,7 @@ import { SlideList } from "./slide_list";
 import { SlideDeckSettings, type SlideDeckSettingsProps } from "./slide_deck_settings";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext } from "../project_ai/types";
-import { snapshotForSlideEditor } from "~/utils/snapshot";
+import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
 
 type SlideDeckModalReturn = undefined;
 

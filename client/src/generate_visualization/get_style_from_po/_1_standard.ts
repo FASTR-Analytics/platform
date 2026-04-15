@@ -26,7 +26,6 @@ export function buildStandardStyle(
     seriesColorFunc: getStandardSeriesColorFunc(config),
     text: getTextStyle(config),
     surrounds: {
-      backgroundColor: "none",
       legendPosition: config.s.hideLegend ? "none" : undefined,
     },
     legend: {
@@ -38,19 +37,8 @@ export function buildStandardStyle(
     },
     panes: {
       nCols: config.s.nColsInCellDisplay,
-      headerGap: 9,
-      gapX: 30,
-      gapY: 30,
-    },
-    lanes: {
-      paddingLeft: 8,
-    },
-    tiers: {
-      paddingBottom: 8,
     },
     xTextAxis: {
-      tickLabelGap: 5,
-      tickHeight: 7,
       verticalTickLabels: config.s.verticalTickLabels,
       tickPosition: config.s.content === "points" ? "center" : undefined,
     },
@@ -71,7 +59,6 @@ export function buildStandardStyle(
       points: {
         func: {
           show: config.s.content === "points",
-          innerColorStrategy: { brighten: 0.5 },
           dataLabel: { show: config.s.showDataLabels },
         },
         textFormatter: (info: ChartValueInfo) =>
@@ -105,7 +92,6 @@ export function buildStandardStyle(
       },
       areas: {
         func: { show: config.s.content === "areas" },
-        diff: { enabled: false },
       },
       tableCells: getTableCellsContent(config, formatAs),
       mapRegions: getMapRegionsContent(config, formatAs),

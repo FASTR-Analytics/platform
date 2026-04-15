@@ -9,8 +9,8 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { clearGeoJsonMemoryCache } from "~/state/caches/geojson_cache";
-import { instanceState } from "~/state/instance_state";
+import { clearGeoJsonMemoryCache } from "~/state/instance/t2_geojson";
+import { instanceState } from "~/state/instance/t1_store";
 import { GeoJsonUploadWizard } from "./geojson_upload_wizard";
 
 type Props = {

@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { useConnectionMonitor } from "~/utils/connection-monitor";
+import { useConnectionMonitor } from "~/state/t4_connection_monitor";
 
 export function ConnectionStatus() {
   const { isOnline, connectionIssues } = useConnectionMonitor();

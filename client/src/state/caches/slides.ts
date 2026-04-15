@@ -1,4 +1,4 @@
-import { createReactiveCache } from "./reactive_cache";
+import { createReactiveCache } from "../_infra/reactive_cache";
 import type { SlideWithMeta } from "lib";
 
 export const _SLIDE_CACHE = createReactiveCache<

@@ -1,6 +1,6 @@
 import { createAITool } from "panther";
 import { z } from "zod";
-import { updateProjectView } from "~/state/ui";
+import { updateProjectView } from "~/state/t4_ui";
 import type { AIContext } from "../../types";
 
 export function getToolsForNavigation(aiContext: () => AIContext) {

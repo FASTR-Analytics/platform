@@ -1,6 +1,6 @@
 import { APIResponseWithData, ReportConfig, ReportItemConfig } from "lib";
 import { PageInputs } from "panther";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
 import { getOverlayImage } from "../get_overlay_image";
 import { getStyle_SlideDeck } from "./get_style_slide_deck";

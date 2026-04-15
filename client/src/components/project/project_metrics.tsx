@@ -15,13 +15,13 @@ import {
   openComponent,
 } from "panther";
 import { For, Show } from "solid-js";
-import { getInstanceCountryIso3 } from "~/state/instance_state";
+import { getInstanceCountryIso3 } from "~/state/instance/t1_store";
 import { VisualizationEditor } from "../visualization";
 import { MetricDetailsModal } from "./metric_details_modal";
 import { AddVisualization } from "./add_visualization";
 import { useProjectDetail } from "~/components/project_runner/mod";
 import { useAIProjectContext } from "~/components/project_ai/context";
-import { snapshotForVizEditor } from "~/utils/snapshot";
+import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 
 type Props = {
   isGlobalAdmin: boolean;

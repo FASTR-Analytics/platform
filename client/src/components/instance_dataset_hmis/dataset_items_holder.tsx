@@ -30,8 +30,8 @@ import {
   type Setter,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/dataset_cache";
-import { instanceState } from "~/state/instance_state";
+import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   versionId: number;

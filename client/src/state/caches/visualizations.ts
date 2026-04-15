@@ -8,7 +8,7 @@ import {
   type DisaggregationOption,
 } from "lib";
 import { getModuleIdForMetric, getModuleIdForResultsObject } from "~/components/project_runner/global_module_maps";
-import { createReactiveCache } from "./reactive_cache";
+import { createReactiveCache } from "../_infra/reactive_cache";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  _______    ______         __     __                     __            __        __                  __             ______           //

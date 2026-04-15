@@ -92,8 +92,77 @@ export function extractRIdentifiers(rCode: string): string[] {
 
 export type RCodeValidationResult = {
   warnings: string[];
+  syntaxErrors: string[];
   referencedVars: string[];
 };
+
+function checkRSyntax(rCode: string): string[] {
+  const errors: string[] = [];
+  let paren = 0;
+  let bracket = 0;
+  let brace = 0;
+  let inString: '"' | "'" | null = null;
+  let inComment = false;
+
+  for (let i = 0; i < rCode.length; i++) {
+    const ch = rCode[i];
+    const prev = i > 0 ? rCode[i - 1] : "";
+    if (inComment) {
+      if (ch === "\n") inComment = false;
+      continue;
+    }
+    if (inString) {
+      if (ch === inString && prev !== "\\") inString = null;
+      continue;
+    }
+    if (ch === "#") { inComment = true; continue; }
+    if (ch === '"' || ch === "'") { inString = ch; continue; }
+    if (ch === "(") paren++;
+    else if (ch === ")") { paren--; if (paren < 0) { errors.push("Unmatched ')'"); return errors; } }
+    else if (ch === "[") bracket++;
+    else if (ch === "]") { bracket--; if (bracket < 0) { errors.push("Unmatched ']'"); return errors; } }
+    else if (ch === "{") brace++;
+    else if (ch === "}") { brace--; if (brace < 0) { errors.push("Unmatched '}'"); return errors; } }
+  }
+
+  if (inString) errors.push("Unterminated string literal");
+  if (paren > 0) errors.push(`Unclosed '(' (${paren})`);
+  if (bracket > 0) errors.push(`Unclosed '[' (${bracket})`);
+  if (brace > 0) errors.push(`Unclosed '{' (${brace})`);
+  return errors;
+}
+
+function stripStringsAndComments(rCode: string): string {
+  let out = "";
+  let inString: '"' | "'" | null = null;
+  let inComment = false;
+  for (let i = 0; i < rCode.length; i++) {
+    const ch = rCode[i];
+    const prev = i > 0 ? rCode[i - 1] : "";
+    if (inComment) {
+      if (ch === "\n") { inComment = false; out += ch; }
+      continue;
+    }
+    if (inString) {
+      if (ch === inString && prev !== "\\") inString = null;
+      continue;
+    }
+    if (ch === "#") { inComment = true; continue; }
+    if (ch === '"' || ch === "'") { inString = ch; continue; }
+    out += ch;
+  }
+  return out;
+}
+
+function checkLoneEquals(rCode: string): string[] {
+  const stripped = stripStringsAndComments(rCode);
+  if (/(^|[^=!<>])=(?!=)/.test(stripped)) {
+    return [
+      "Found '=' — if you meant equality comparison, use '=='. Ignore if this is a named argument or assignment.",
+    ];
+  }
+  return [];
+}
 
 export function validateRCode(
   rCode: string,
@@ -101,11 +170,12 @@ export function validateRCode(
   otherIndicatorVarNames: Set<string>,
 ): RCodeValidationResult {
   if (!rCode.trim()) {
-    return { warnings: [], referencedVars: [] };
+    return { warnings: [], syntaxErrors: [], referencedVars: [] };
   }
 
+  const syntaxErrors = checkRSyntax(rCode);
   const identifiers = extractRIdentifiers(rCode);
-  const warnings: string[] = [];
+  const warnings: string[] = [...checkLoneEquals(rCode)];
   const referencedVars: string[] = [];
 
   for (const id of identifiers) {
@@ -116,5 +186,5 @@ export function validateRCode(
     }
   }
 
-  return { warnings, referencedVars };
+  return { warnings, syntaxErrors, referencedVars };
 }

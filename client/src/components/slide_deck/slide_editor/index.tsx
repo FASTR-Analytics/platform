@@ -58,15 +58,15 @@ import {
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
-import { getGeoJsonSync } from "~/state/caches/geojson_cache";
+import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import {
   getPODetailFromCacheorFetch,
   getPOFigureInputsFromCacheOrFetch,
   getPresentationObjectItemsFromCacheOrFetch,
 } from "~/state/po_cache";
-import { setShowAi, showAi } from "~/state/ui";
-import { createIdGeneratorForLayout } from "~/utils/id_generation";
-import { snapshotForVizEditor } from "~/utils/snapshot";
+import { setShowAi, showAi } from "~/state/t4_ui";
+import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
+import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 import { useOptimisticSetLastUpdated } from "../../project_runner/mod";
 import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
 import { convertSlideToPageInputs } from "../slide_rendering/convert_slide_to_page_inputs";

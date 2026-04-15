@@ -1,6 +1,6 @@
 import { ReportDetail, ReportItem } from "lib";
 import { PageInputs } from "panther";
-import { createReactiveCache } from "./reactive_cache";
+import { createReactiveCache } from "../_infra/reactive_cache";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 //   ______   __  __        __                  __                                  __               //

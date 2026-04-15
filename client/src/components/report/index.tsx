@@ -37,7 +37,7 @@ import {
 import { useAIProjectContext } from "~/components/project_ai/context";
 import { serverActions } from "~/server_actions";
 import { getReportDetailFromCacheOrFetch } from "~/state/ri_cache";
-import { fitWithin, setFitWithin } from "~/state/ui";
+import { fitWithin, setFitWithin } from "~/state/t4_ui";
 import { DuplicateReport } from "./duplicate_report";
 import { ReportItemEditor } from "./report_item";
 import { ReportSettings, type ReportSettingsProps } from "./report_settings";

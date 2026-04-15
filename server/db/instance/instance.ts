@@ -105,7 +105,7 @@ export async function getInstanceStructureSummary(
   ).at(0);
   return {
     structure: { adminArea1s, adminArea2s, adminArea3s, adminArea4s, facilities },
-    structureLastUpdated: lastUpdatedRow ? JSON.parse(lastUpdatedRow.config_json_value) : undefined,
+    structureLastUpdated: lastUpdatedRow ? JSON.parse(lastUpdatedRow.config_json_value) : "legacy",
   };
 }
 
@@ -322,6 +322,8 @@ ORDER BY LOWER(p.label)`
     ).at(0);
     const structureLastUpdated = structureLastUpdatedRow
       ? JSON.parse(structureLastUpdatedRow.config_json_value)
+      : hasStructureData
+      ? "legacy"
       : undefined;
 
     const users = await getInstanceUsers(mainDb);

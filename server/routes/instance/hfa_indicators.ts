@@ -7,6 +7,7 @@ import {
   deleteHfaIndicators,
   batchUploadHfaIndicators,
   getHfaIndicatorCode,
+  getAllHfaIndicatorCode,
   updateHfaIndicatorCode,
   saveHfaIndicatorFull,
   getHfaDictionaryForValidation,
@@ -71,7 +72,7 @@ defineRoute(
   "batchUploadHfaIndicators",
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
-    const res = await batchUploadHfaIndicators(c.var.mainDb, body.indicators, body.replaceAll);
+    const res = await batchUploadHfaIndicators(c.var.mainDb, body.indicators, body.code, body.replaceAll);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }
@@ -86,6 +87,16 @@ defineRoute(
   async (c, { body }) => {
     const res = await getHfaIndicatorCode(c.var.mainDb, body.varName);
     return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "getAllHfaIndicatorCode",
+  requireGlobalPermission("can_configure_data"),
+  async (c) => {
+    const data = await getAllHfaIndicatorCode(c.var.mainDb);
+    return c.json({ success: true, data });
   },
 );
 

@@ -12,7 +12,7 @@ import {
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
 import { serverActions } from "~/server_actions";
-import { poItemsQueue } from "~/utils/request_queue";
+import { poItemsQueue } from "~/state/_infra/request_queue";
 
 export function inferPeriodFilter(
   startDate: number | undefined,

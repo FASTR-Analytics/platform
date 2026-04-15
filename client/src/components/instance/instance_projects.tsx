@@ -11,7 +11,7 @@ import {
 import { For, Show } from "solid-js";
 import { AddProjectForm } from "./add_project";
 import { CompareProjects } from "./compare_projects";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   isGlobalAdmin: boolean;

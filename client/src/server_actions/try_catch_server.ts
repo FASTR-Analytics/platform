@@ -3,7 +3,7 @@ import { clerk } from "~/components/LoggedInWrapper";
 import {
   reportNetworkFailure,
   reportNetworkSuccess,
-} from "~/utils/connection-monitor";
+} from "~/state/t4_connection_monitor";
 
 const _EXTRA_TIME = process.env.NODE_ENV === "development";
 

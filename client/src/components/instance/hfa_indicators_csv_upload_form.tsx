@@ -1,5 +1,11 @@
 import { createSignal } from "solid-js";
-import { t3, TC, type HfaIndicator } from "lib";
+import {
+  t3,
+  TC,
+  type HfaDictionaryForValidation,
+  type HfaIndicator,
+  type HfaIndicatorCode,
+} from "lib";
 import {
   Button,
   parseCSVToObjects,
@@ -12,12 +18,19 @@ import {
 } from "panther";
 import { serverActions } from "~/server_actions";
 
-type Props = EditorComponentProps<{}, undefined>;
+type Props = EditorComponentProps<
+  { dictionary: HfaDictionaryForValidation },
+  undefined
+>;
 
 export function HfaIndicatorsCsvUploadForm(p: Props) {
   const [uploadMode, setUploadMode] = createSignal<"replace" | "add">("add");
   const [selectedFile, setSelectedFile] = createSignal<File | undefined>(undefined);
   let fileInputRef: HTMLInputElement | undefined;
+
+  const sortedTimePoints = [...p.dictionary.timePoints].sort((a, b) =>
+    a.timePoint.localeCompare(b.timePoint),
+  );
 
   function handleFileSelect(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -52,7 +65,7 @@ export function HfaIndicatorsCsvUploadForm(p: Props) {
         return { success: false, err: t3({ en: "CSV file is empty", fr: "Le fichier CSV est vide" }) };
       }
 
-      const requiredHeaders = ["category", "definition", "varName", "type"];
+      const requiredHeaders = ["varName", "category", "definition", "type", "aggregation"];
       const headers = Object.keys(rows[0]);
       for (const header of requiredHeaders) {
         if (!headers.includes(header)) {
@@ -67,11 +80,13 @@ export function HfaIndicatorsCsvUploadForm(p: Props) {
       }
 
       const indicators: HfaIndicator[] = [];
+      const code: HfaIndicatorCode[] = [];
       const usedVarNames = new Set<string>();
       let autoVarCounter = 1;
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
+
         const typeLower = row.type?.toLowerCase().trim();
         let normalizedType: "binary" | "numeric";
         if (typeLower === "boolean" || typeLower === "binary") {
@@ -88,6 +103,22 @@ export function HfaIndicatorsCsvUploadForm(p: Props) {
           };
         }
 
+        const aggLower = row.aggregation?.toLowerCase().trim();
+        let normalizedAgg: "sum" | "avg";
+        if (aggLower === "sum") {
+          normalizedAgg = "sum";
+        } else if (aggLower === "avg" || aggLower === "average" || aggLower === "mean") {
+          normalizedAgg = "avg";
+        } else {
+          return {
+            success: false,
+            err: t3({
+              en: `Row ${i + 2}: aggregation must be "sum" or "avg", got "${row.aggregation}"`,
+              fr: `Ligne ${i + 2} : l'agrégation doit être "sum" ou "avg", reçu "${row.aggregation}"`,
+            }),
+          };
+        }
+
         let varName = row.varName?.trim() || "";
         if (!varName) {
           while (usedVarNames.has(`ind${String(autoVarCounter).padStart(3, "0")}`)) {
@@ -96,19 +127,43 @@ export function HfaIndicatorsCsvUploadForm(p: Props) {
           varName = `ind${String(autoVarCounter).padStart(3, "0")}`;
           autoVarCounter++;
         }
+        if (usedVarNames.has(varName)) {
+          return {
+            success: false,
+            err: t3({
+              en: `Row ${i + 2}: duplicate varName "${varName}"`,
+              fr: `Ligne ${i + 2} : varName en double "${varName}"`,
+            }),
+          };
+        }
         usedVarNames.add(varName);
 
         indicators.push({
+          varName,
           category: row.category || "",
           definition: row.definition || "",
-          varName,
           type: normalizedType,
+          aggregation: normalizedAgg,
           sortOrder: i,
         });
+
+        for (let k = 0; k < sortedTimePoints.length; k++) {
+          const tp = sortedTimePoints[k];
+          const rCode = row[`r_code_${k + 1}`] ?? "";
+          const rFilterCode = row[`r_filter_code_${k + 1}`] ?? "";
+          if (!rCode.trim() && !rFilterCode.trim()) continue;
+          code.push({
+            varName,
+            timePoint: tp.timePoint,
+            rCode: rCode,
+            rFilterCode: rFilterCode.trim() ? rFilterCode : undefined,
+          });
+        }
       }
 
       return await serverActions.batchUploadHfaIndicators({
         indicators,
+        code,
         replaceAll: uploadMode() === "replace",
       });
     },
@@ -127,13 +182,20 @@ export function HfaIndicatorsCsvUploadForm(p: Props) {
       <div class="ui-pad ui-spy">
         <div class="text-sm">
           {t3({ en: "Upload a CSV file with the following headers:", fr: "Téléversez un fichier CSV avec les en-têtes suivants :" })}
-          <div class="font-700 mt-2 ml-3 font-mono">
-            category, definition, varName, type
+          <div class="font-700 mt-2 ml-3 font-mono text-xs">
+            varName, category, definition, type, aggregation
+            {sortedTimePoints.map((_, k) => `, r_code_${k + 1}, r_filter_code_${k + 1}`).join("")}
           </div>
           <div class="mt-2 text-xs opacity-60">
             {t3({
-              en: 'Note: "type" can be "binary"/"Boolean" or "numeric"/"Numeric".',
-              fr: 'Remarque : "type" peut être "binary"/"Boolean" ou "numeric"/"Numeric".',
+              en: `Time points (sorted): ${sortedTimePoints.map((tp, k) => `${k + 1}=${tp.timePoint}`).join(", ")}`,
+              fr: `Points temporels (triés) : ${sortedTimePoints.map((tp, k) => `${k + 1}=${tp.timePoint}`).join(", ")}`,
+            })}
+          </div>
+          <div class="mt-1 text-xs opacity-60">
+            {t3({
+              en: 'type: "binary"/"Boolean" or "numeric"/"Numeric". aggregation: "sum" or "avg".',
+              fr: 'type : "binary"/"Boolean" ou "numeric"/"Numeric". aggregation : "sum" ou "avg".',
             })}
           </div>
         </div>

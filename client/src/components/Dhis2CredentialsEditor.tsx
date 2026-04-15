@@ -2,7 +2,7 @@ import { t3, type Dhis2Credentials } from "lib";
 import { Button, Checkbox, Input } from "panther";
 import type { Accessor, Setter } from "solid-js";
 import { Show, createSignal, onMount } from "solid-js";
-import { getDhis2SessionCredentials } from "~/state/dhis2-session-storage";
+import { getDhis2SessionCredentials } from "~/state/instance/t4_dhis2_session";
 
 type Props = {
   credentials: Accessor<Dhis2Credentials>;

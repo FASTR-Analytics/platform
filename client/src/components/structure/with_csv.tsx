@@ -1,8 +1,8 @@
 import { ItemsHolderStructure, t3, TC } from "lib";
 import { Csv, StateHolder, StateHolderWrapper, TableFromCsv } from "panther";
 import { createEffect, createMemo, createSignal } from "solid-js";
-import { instanceState } from "~/state/instance_state";
-import { getStructureItemsFromCacheOrFetch } from "~/state/instance_data_caches";
+import { instanceState } from "~/state/instance/t1_store";
+import { getStructureItemsFromCacheOrFetch } from "~/state/instance/t2_structure";
 
 type Props = {
   onCsvReady?: (csv: Csv<any>) => void;

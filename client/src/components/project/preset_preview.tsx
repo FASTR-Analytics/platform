@@ -21,8 +21,8 @@ import { getFigureInputsFromPresentationObject } from "~/generate_visualization/
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
 import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
-import { getGeoJsonSync } from "~/state/caches/geojson_cache";
-import { poItemsQueue } from "~/utils/request_queue";
+import { getGeoJsonSync } from "~/state/instance/t2_geojson";
+import { poItemsQueue } from "~/state/_infra/request_queue";
 
 type Props = {
   projectId: string;

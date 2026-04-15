@@ -18,7 +18,7 @@ import {
   PageSpacerInputs,
 } from "panther";
 import type { ContainerStyleOptions } from "panther";
-import { _SERVER_HOST } from "~/server_actions/config";
+import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
 import { getPOFigureInputsFromCacheOrFetch } from "~/state/po_cache";
 

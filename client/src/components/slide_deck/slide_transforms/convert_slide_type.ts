@@ -1,5 +1,5 @@
 import { Slide } from "lib";
-import { generateUniqueBlockId } from "~/utils/id_generation";
+import { generateUniqueBlockId } from "~/components/slide_deck/_id_generation";
 
 export function convertSlideType(
   slide: Slide,

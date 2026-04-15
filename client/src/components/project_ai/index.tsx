@@ -2,12 +2,12 @@ import { AIChatProvider, type AIChatConfig, FrameRightResizable, useConversation
 import { createMemo, onCleanup, onMount, type ParentProps } from "solid-js";
 import { DEFAULT_MODEL_CONFIG, createProjectSDKClient } from "./ai_configs/defaults";
 import { AIProjectContextProvider, useAIProjectContext } from "./context";
-import { instanceState } from "~/state/instance_state";
+import { instanceState } from "~/state/instance/t1_store";
 import { ConsolidatedChatPane } from "./chat_pane";
 import { buildToolsForContext } from "./build_tools";
 import { buildSystemPromptForContext } from "./build_system_prompt";
 import { useProjectDetail, useLastUpdatedListener } from "~/components/project_runner/mod";
-import { showAi, setShowAi } from "~/state/ui";
+import { showAi, setShowAi } from "~/state/t4_ui";
 import { useAIDocuments } from "./ai_documents";
 
 export { useAIProjectContext } from "./context";
