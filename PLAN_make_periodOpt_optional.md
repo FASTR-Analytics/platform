@@ -1,17 +1,17 @@
 # Plan: Make `periodOpt` optional on `PresentationObjectConfig`
 
-## Status: NOT DOING — too risky for the benefit
+## Status: NEEDS PLANNING
 
-## Why it was considered
+## Goal
 
-`periodOpt: PeriodOption` is required on the config type but only meaningful for timeseries visualizations. `getStartingConfigForPresentationObject` puts `"period_id"` as a placeholder for non-timeseries configs, which is misleading.
+`periodOpt: PeriodOption` is required on the config type but only meaningful for timeseries visualizations. `getStartingConfigForPresentationObject` puts `"period_id"` as a placeholder for non-timeseries configs, which is misleading. Making it optional would be cleaner.
 
-## Why we decided against it
+## Blockers to resolve first
 
-Two unguarded usages of `config.d.periodOpt` that are NOT behind timeseries guards:
+Two unguarded usages of `config.d.periodOpt` are NOT behind timeseries guards and need to be fixed before `periodOpt` can be made optional:
 
-1. **`server/db/project/presentation_objects.ts:581`** — uses `config.d.periodOpt` to set `periodOption` on a period filter during config updates. Reads from stored config (always has a value at runtime), but TypeScript would flag it. Also has a separate pre-existing bug: uses display format for filter `periodOption` (same bug pattern we just fixed in `build_config_from_metric.ts`).
+1. **`server/db/project/presentation_objects.ts:581`** — uses `config.d.periodOpt` to set `periodOption` on a period filter during config updates. Also has a pre-existing bug: uses the display format for filter `periodOption` (same bug pattern we fixed in `build_config_from_metric.ts`). Needs to use `mostGranularTimePeriodColumnInResultsFile` instead.
 
-2. **`client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx:278`** — `ctx.getTempConfig().d.periodOpt` used as fallback when AI sets a period filter without specifying `periodOpt`. Would be `undefined` for non-timeseries configs. Currently works because AI only sets filters on timeseries, but no compile-time guarantee.
+2. **`client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx:278`** — `ctx.getTempConfig().d.periodOpt` used as fallback when AI sets a period filter without specifying `periodOpt`. Same bug pattern — should use `mostGranularTimePeriodColumnInResultsFile` instead of the display format.
 
-Making the field optional would require adding runtime guards or `!` assertions at these spots, which papers over the real issues rather than fixing them. The cosmetic benefit (removing a misleading placeholder) doesn't justify the risk.
+Once these are fixed, making `periodOpt` optional becomes safe.

@@ -24,6 +24,39 @@ import {
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 
+/**
+ * Legacy configs may have periodFilter.periodOption mismatched with periodBounds.periodOption
+ * (e.g. filter has "year" values like 2025 but bounds has "period_id" values like 202512).
+ * This converts the filter's min/max to match the bounds format.
+ */
+function reconcilePeriodFilterWithBounds<T extends PeriodBounds>(
+  periodFilter: T,
+  periodBounds: PeriodBounds,
+): T {
+  if (periodFilter.periodOption === periodBounds.periodOption) return periodFilter;
+  const target = periodBounds.periodOption;
+  const convert = (v: number, isEnd: boolean): number => {
+    const digits = String(v).length;
+    if (digits <= 4) {
+      if (target === "year") return v;
+      if (target === "quarter_id") return v * 100 + (isEnd ? 4 : 1);
+      if (target === "period_id") return v * 100 + (isEnd ? 12 : 1);
+    }
+    const year = Math.floor(v / 100);
+    const sub = v % 100;
+    if (target === "year") return year;
+    if (target === "period_id") return v;
+    if (target === "quarter_id" && sub >= 1 && sub <= 12) return year * 100 + Math.ceil(sub / 3);
+    return v;
+  };
+  return {
+    ...periodFilter,
+    periodOption: target,
+    min: convert(periodFilter.min, false),
+    max: convert(periodFilter.max, true),
+  };
+}
+
 type FiltersProps = {
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
@@ -174,7 +207,8 @@ function PeriodFilter(p: PeriodFilterProps) {
         }}
       />
       <Show when={p.tempConfig.d.periodFilter} keyed>
-        {(keyedPeriodFilter) => {
+        {(rawPeriodFilter) => {
+          const keyedPeriodFilter = reconcilePeriodFilterWithBounds(rawPeriodFilter, p.keyedPeriodBounds);
           const displayFilterType = () => {
             const ft = p.tempConfig.d.periodFilter?.filterType;
             if (ft === "last_calendar_year") return "last_n_calendar_years";
