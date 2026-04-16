@@ -58,20 +58,27 @@ export async function tryCatchServer<
         // Try to parse the response to see if it's a real auth error
         try {
           const body = await res.json();
-          // If server explicitly says it's an auth error, sign out immediately
+          // If server explicitly says it's an auth error, retry with a fresh
+          // token before signing out — the token may have expired during a
+          // connection stall (browser HTTP/1.1 limit of 6 concurrent connections)
           if (
             body.authError === true ||
             body.err?.includes("not authorized") ||
             body.err?.includes("not authenticated")
           ) {
-            console.error("[AUTH] Refreshing browser due to 401", {
+            if (retries < maxRetries) {
+              retries++;
+              await new Promise((r) => setTimeout(r, 500));
+              continue;
+            }
+            console.error("[AUTH] Refreshing browser due to persistent 401", {
               url: input instanceof Request ? input.url : String(input),
               body,
               clerkSessionStatus: clerk.session?.status,
               clerkSessionExpiry: clerk.session?.expireAt,
               clerkSessionLastActive: clerk.session?.lastActiveAt,
             });
-            //window.location.href = "/";
+            window.location.href = "/";
             return { success: false, err: "Not authenticated" } as T;
           }
         } catch {
