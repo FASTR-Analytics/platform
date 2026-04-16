@@ -1,3 +1,5 @@
+[1.21.4] [user] [fixed] - Fixed an issue where time period filters could sometimes fail to apply correctly when setting up a report
+[1.21.4] [admin] [fixed] - Fixed an issue where dynamic period columns (e.g., specific time-based filters) could be missing from query results when the period filter hadn't been fully processed yet
 [1.21.3] [user] [fixed] - Fixed an issue where time period filters could display incorrect date ranges when opening older saved visualizations
 [1.21.3] [admin] [fixed] - Period filters on visualizations now automatically correct mismatched date granularity settings left over from legacy configurations, preventing incorrect date ranges from being applied
 [1.21.2] [user] [changed] - Time series charts now offer more time period options (monthly, quarterly, yearly) instead of being limited to a single default
