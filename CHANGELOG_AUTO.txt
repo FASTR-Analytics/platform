@@ -1,3 +1,12 @@
+[TBD] [user] [fixed] - Charts and visualizations now show all grouped items, even if some were not included in a custom display order
+[TBD] [user] [added] - The email opt-in prompt is now available in French
+[TBD] [user] [changed] - French translation for "HMIS" updated from "SIGS" to "SNIS" across the platform
+[TBD] [user] [changed] - French translation for "HFA" updated from "EES" to "Enquêtes FOSA" for better clarity
+[TBD] [admin] [fixed] - Visualization groups that were not included in a custom display order are now shown after the ordered groups instead of being hidden entirely
+[TBD] [admin] [changed] - French translation for "HMIS" updated from "SIGS" to "SNIS" across the platform
+[TBD] [admin] [changed] - French translation for "HFA" updated from "EES" to "Enquêtes FOSA" in the instance data management screen
+[TBD] [admin] [added] - Email opt-in modal now supports French language for users with French locale
+[TBD] [admin] [changed] - French translation for "Coverage calculated from HMIS data" updated to reference "SNIS" instead of "SIGS" in visualization defaults and coverage labels
 [1.21.6] [user] [changed] - The Data management page now organizes data sources into clear grouped sections: "Structure & maps," "HMIS," and "HFA," making it easier to find what you need
 [1.21.6] [user] [changed] - The Data management page layout has been redesigned from a two-column split view to a single scrollable page with a cleaner card-based layout
 [1.21.6] [admin] [changed] - The Data management page has been reorganized into clearly labeled sections: "Structure & maps," "HMIS," and "HFA," replacing the previous two-column layout of "Common structure" and "Data sources"
