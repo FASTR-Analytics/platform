@@ -26,7 +26,7 @@ export async function tryCatchServer<
         await new Promise((res) => setTimeout(res, 500));
       }
 
-      await clerk.session?.getToken();
+      const clerkToken = await clerk.session?.getToken();
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
@@ -44,6 +44,10 @@ export async function tryCatchServer<
 
       const res = await fetch(input, {
         ...init,
+        headers: {
+          ...(init?.headers ?? {}),
+          ...(clerkToken ? { Authorization: `Bearer ${clerkToken}` } : {}),
+        },
         signal: controller.signal,
       });
 
