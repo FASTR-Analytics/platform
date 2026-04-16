@@ -424,6 +424,17 @@ function ProjectUserTable(p: {
 
   const columns: TableColumn<ProjectUserWithRole>[] = [
     {
+      key: "firstName",
+      header: t3({ en: "Name", fr: "Nom" }),
+      sortable: true,
+      render: (user) => {
+        const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+        return name
+          ? <span class="text-sm">{name}</span>
+          : <span class="text-neutral text-sm">—</span>;
+      },
+    },
+    {
       key: "email",
       header: t3(TC.email),
       sortable: true,
