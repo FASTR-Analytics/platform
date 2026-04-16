@@ -1,6 +1,5 @@
 import { route } from "../route-utils.ts";
 import {
-  DisaggregationDisplayOption,
   DisaggregationOption,
   GenericLongFormFetchConfig,
   ItemsHolderPresentationObject,
@@ -165,38 +164,6 @@ export const presentationObjectRouteRegistry = {
     requiresProject: true,
   }),
 
-  deleteAIVisualization: route({
-    path: "/presentation_objects/ai/:po_id",
-    method: "DELETE",
-    params: {} as { po_id: string },
-    response: {} as {
-      lastUpdated: string;
-    },
-    requiresProject: true,
-  }),
-
-  updateAIVisualization: route({
-    path: "/presentation_objects/ai/:po_id",
-    method: "POST",
-    params: {} as { po_id: string },
-    body: {} as {
-      label?: string;
-      presentationType?: PresentationOption;
-      disaggregations?: { dimension: DisaggregationOption; displayAs: DisaggregationDisplayOption }[];
-      filters?: { dimension: DisaggregationOption; values: string[] }[];
-      periodFilter?: { startPeriod?: number; endPeriod?: number } | null;
-      valuesFilter?: string[] | null;
-      valuesDisDisplayOpt?: DisaggregationDisplayOption;
-      caption?: string;
-      subCaption?: string;
-      footnote?: string;
-    },
-    response: {} as {
-      lastUpdated: string;
-      reportItemsThatDependOnPresentationObjects: string[];
-    },
-    requiresProject: true,
-  }),
 } as const;
 
 export type PresentationObjectRouteRegistry =

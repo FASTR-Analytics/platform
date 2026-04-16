@@ -8,70 +8,22 @@
 
 ## Background
 
-`periodOpt` is a `PeriodOption` (`"period_id" | "quarter_id" | "year"`) that lives on `config.d`. It controls which time column is used for timeseries grouping and period filter bounds. Every meaningful read of `periodOpt` is already behind a `config.d.type === "timeseries"` guard — except two locations that have pre-existing bugs.
+`periodOpt` is a `PeriodOption` (`"period_id" | "quarter_id" | "year"`) that lives on `config.d`. It controls one thing: which time column is used for timeseries grouping (GROUP BY / X-axis). Period filtering is entirely separate — the filter UI and `periodFilterExactBounds` are driven by `mostGranularTimePeriodColumnInResultsFile` (from the metric's ResultsValue), which reflects what columns actually exist in the data. Every meaningful read of `periodOpt` is already behind a `config.d.type === "timeseries"` guard.
 
 Existing configs stored in the DB will still have the `periodOpt` field in their JSON. Making the TypeScript type optional doesn't break deserialization — the field will still be present on old data, TypeScript just won't guarantee it.
 
+### How visualization configs are saved
+
+The AI tool handler (`visualization_editor.tsx`) only updates an in-memory `tempConfig` via SolidJS `setTempConfig`. It does **not** call any server API directly. When the user clicks Save, the **entire config** is sent to the server via `updatePresentationObjectConfig`, which does `JSON.stringify(config)` into the DB. So `periodFilter.periodOption` is already set correctly on the client before it reaches the server.
+
 ## Steps
 
-### Step 1: Fix bug in `server/db/project/presentation_objects.ts:581`
-
-**File:** `server/db/project/presentation_objects.ts`
-**Function:** `updateAIPresentationObject`
-**Lines 574-586**
-
-Current code:
-```typescript
-if (updates.periodFilter !== undefined) {
-  if (updates.periodFilter === null) {
-    config.d.periodFilter = undefined;
-  } else {
-    config.d.periodFilter = {
-      filterType: "custom",
-      periodOption: config.d.periodOpt,       // <-- BUG: uses periodOpt from config
-      min: updates.periodFilter.startPeriod ?? 0,
-      max: updates.periodFilter.endPeriod ?? 999999,
-    };
-  }
-}
-```
-
-**Problem:** This function has no access to `resultsValue` or `mostGranularTimePeriodColumnInResultsFile`. It blindly uses `config.d.periodOpt`, which for non-timeseries configs is the placeholder `"period_id"`. This is wrong — the period filter's `periodOption` should reflect the actual time granularity of the metric's data, not the display-level `periodOpt`.
-
-**Fix:** Add `periodOption: PeriodOption` to the `UpdateAIPresentationObjectParams` type and the API route body type, so the caller passes in the correct value. The caller (client-side AI tool) already has access to `resultsValue.mostGranularTimePeriodColumnInResultsFile`.
-
-**Change 1a** — `server/db/project/presentation_objects.ts` lines 493-504, add `periodOption` to the params type:
-```typescript
-export type UpdateAIPresentationObjectParams = {
-  label?: string;
-  presentationType?: PresentationOption;
-  disaggregations?: { dimension: DisaggregationOption; displayAs: DisaggregationDisplayOption }[];
-  filters?: { dimension: DisaggregationOption; values: string[] }[];
-  periodFilter?: { startPeriod?: number; endPeriod?: number; periodOption: PeriodOption } | null;  // ADD periodOption here
-  valuesFilter?: string[] | null;
-  valuesDisDisplayOpt?: DisaggregationDisplayOption;
-  caption?: string;
-  subCaption?: string;
-  footnote?: string;
-};
-```
-
-**Change 1b** — `server/db/project/presentation_objects.ts` line 581, use the passed-in value:
-```typescript
-periodOption: updates.periodFilter.periodOption,  // was: config.d.periodOpt
-```
-
-**Change 1c** — `lib/api-routes/project/presentation-objects.ts` lines 187, update the route body type to match:
-```typescript
-periodFilter?: { startPeriod?: number; endPeriod?: number; periodOption: PeriodOption } | null;
-```
-
-### Step 2: Fix bug in `client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx:278`
+### Step 1: Fix `visualization_editor.tsx:278` — use `resultsValue` instead of `config.d.periodOpt`
 
 **File:** `client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx`
-**Lines 273-287**
 
-Current code:
+Change the period filter block (lines 273-287) from:
+
 ```typescript
 if (input.periodFilter !== undefined) {
   if (input.periodFilter === null) {
@@ -90,20 +42,7 @@ if (input.periodFilter !== undefined) {
 }
 ```
 
-**Problem:** Falls back to `ctx.getTempConfig().d.periodOpt` which may be the placeholder `"period_id"`. Should use `resultsValue.mostGranularTimePeriodColumnInResultsFile` as the source of truth.
-
-**Fix:** Replace the `periodOpt` derivation line. `resultsValue` is already available in scope (line 200: `const resultsValue = ctx.resultsValue;`).
-
-Change line 278 from:
-```typescript
-const periodOpt = (input.periodOpt || ctx.getTempConfig().d.periodOpt) as PeriodOption;
-```
 to:
-```typescript
-const periodOpt = (input.periodOpt || resultsValue.mostGranularTimePeriodColumnInResultsFile) as PeriodOption;
-```
-
-Also: this block now needs a guard — if `mostGranularTimePeriodColumnInResultsFile` is `undefined` and `input.periodOpt` is also not provided, we'd get `undefined as PeriodOption`. Add an error throw:
 
 ```typescript
 if (input.periodFilter !== undefined) {
@@ -111,7 +50,7 @@ if (input.periodFilter !== undefined) {
     setTempConfig("d", "periodFilter", undefined);
     changes.push("periodFilter (cleared)");
   } else {
-    const periodOpt = input.periodOpt ?? resultsValue.mostGranularTimePeriodColumnInResultsFile;
+    const periodOpt = input.periodOpt ?? ctx.getTempConfig().d.periodOpt ?? resultsValue.mostGranularTimePeriodColumnInResultsFile;
     if (!periodOpt) {
       throw new Error("Cannot set periodFilter: no periodOpt provided and metric has no time period column");
     }
@@ -126,11 +65,9 @@ if (input.periodFilter !== undefined) {
 }
 ```
 
-This block also needs to pass `periodOption` through to the server when it calls the update API. Find where this tool calls the `updateAIVisualization` route and add `periodOption` to the `periodFilter` payload. (This connects to Step 1's API change.)
+`resultsValue` is already in scope (line 200).
 
-**Find the server call:** Search this file for where `periodFilter` is sent to the server API. The AI tool's handler at line 194 sets `tempConfig` locally, but the actual persistence happens elsewhere — find it and ensure `periodOption` is included in the body.
-
-### Step 3: Make `periodOpt` optional on the TypeScript type
+### Step 2: Make `periodOpt` optional on the TypeScript type
 
 **File:** `lib/types/presentation_objects.ts` line 343
 
@@ -143,7 +80,7 @@ to:
 periodOpt?: PeriodOption;
 ```
 
-### Step 4: Make `periodOpt` optional in the Zod schema
+### Step 3: Make `periodOpt` optional in the Zod schema
 
 **File:** `lib/types/module_definition_validator.ts` line 136
 
@@ -156,13 +93,11 @@ to:
 periodOpt: periodOption.optional(),
 ```
 
-This schema validates module definition viz presets. Existing presets that specify `periodOpt` still pass. New presets for non-timeseries types can omit it.
+### Step 4: Remove `"period_id"` fallback in `getStartingConfigForPresentationObject`
 
-### Step 5: Update `getStartingConfigForPresentationObject` to omit `periodOpt` for non-timeseries
+**File:** `lib/types/presentation_objects.ts` line 478
 
-**File:** `lib/types/presentation_objects.ts` lines 470-514
-
-Change line 478 from:
+Change:
 ```typescript
 periodOpt: resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "period_id",
 ```
@@ -171,54 +106,108 @@ to:
 periodOpt: resultsValue.mostGranularTimePeriodColumnInResultsFile,
 ```
 
-This means `periodOpt` will be `undefined` when the metric has no time dimension. The `?? "period_id"` fallback was the placeholder we're eliminating.
+### Step 5: Fix `visualization_editor.tsx:64` — guard info display line
 
-### Step 6: Fix all remaining reads of `config.d.periodOpt` that TypeScript flags
+**File:** `client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx` line 64
 
-After steps 3-5, run `deno task typecheck`. TypeScript will flag every location where `config.d.periodOpt` is used without accounting for `undefined`. Fix each one:
-
-**6a.** `client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx:64` — info display line:
+Change:
 ```typescript
 lines.push(`Period option: ${config.d.periodOpt}`);
 ```
-Change to:
+to:
 ```typescript
 if (config.d.periodOpt) {
   lines.push(`Period option: ${config.d.periodOpt}`);
 }
 ```
 
-**6b.** `client/src/components/project_ai/ai_tools/tools/_internal/format_metrics_list_for_ai.ts:61` — reads `preset.config.d.periodOpt`:
-```typescript
-const dateFormat = preset.config.d.periodOpt === "year" ? "YYYY" : "YYYYMM";
-```
-This reads from module definition viz presets. These presets are only created for metrics that have time dimensions, so `periodOpt` will always be defined here. But TypeScript won't know that. Change to:
-```typescript
-const dateFormat = preset.config.d.periodOpt === "year" ? "YYYY" : "YYYYMM";
-```
-No change needed — the comparison `=== "year"` already handles `undefined` correctly (returns `false`, falls through to `"YYYYMM"`). If TypeScript still complains, this is fine as-is because `undefined === "year"` is `false`.
+### Step 6: Fix `load_module.ts:79` — guard `computePeriodFilter` call
 
-**6c.** `server/module_loader/load_module.ts:79` — reads `preset.config.d.periodOpt`:
+**File:** `server/module_loader/load_module.ts` line 78-80
+
+Change:
 ```typescript
 const periodFilter = preset.defaultPeriodFilterForDefaultVisualizations
   ? computePeriodFilter(preset.config.d.periodOpt, preset.defaultPeriodFilterForDefaultVisualizations.nMonths)
   : undefined;
 ```
-`computePeriodFilter` takes `PeriodOption` (not optional). Since `defaultPeriodFilterForDefaultVisualizations` is only set on timeseries presets that have `periodOpt`, add a guard:
+to:
 ```typescript
 const periodFilter = (preset.defaultPeriodFilterForDefaultVisualizations && preset.config.d.periodOpt)
   ? computePeriodFilter(preset.config.d.periodOpt, preset.defaultPeriodFilterForDefaultVisualizations.nMonths)
   : undefined;
 ```
 
-**6d.** Any other locations flagged by typecheck — the guarded reads (inside `if (config.d.type === "timeseries")`) may also need narrowing. For each one, add a null check or non-null assertion as appropriate. The pattern is: if you're inside a timeseries guard, `config.d.periodOpt!` is safe (timeseries configs always have it).
+### Step 7: Fix `format_metrics_list_for_ai.ts:61`
 
-### Step 7: Typecheck
+**File:** `client/src/components/project_ai/ai_tools/tools/_internal/format_metrics_list_for_ai.ts` line 61
 
-Run `deno task typecheck`. Fix any remaining errors mechanically — they will all be "possibly undefined" errors on `config.d.periodOpt`. For each:
-- If inside a timeseries guard → use `config.d.periodOpt!` or add `if (!config.d.periodOpt) throw ...`
-- If not inside a timeseries guard → the code shouldn't be reading it; wrap in a guard or remove
+No code change needed. `preset.config.d.periodOpt === "year"` evaluates to `false` when `periodOpt` is `undefined`, which falls through to `"YYYYMM"`. TypeScript won't flag this because `===` comparisons with optional types are allowed.
 
-### Step 8: Smoke test
+### Step 8: Fix guarded reads that TypeScript will flag
 
-Run the app (`./run`). Open a project. Create a non-timeseries visualization (e.g. table or bar chart). Verify it works. Create a timeseries visualization. Verify period controls still work.
+TypeScript can't narrow `periodOpt` from a `type === "timeseries"` guard because they're independent fields. Each location needs an explicit `if (!config.d.periodOpt)` check. Here are all of them:
+
+**8a.** `client/src/generate_visualization/get_data_config_from_po.ts:26` — add after the existing type guard:
+
+```typescript
+if (config.d.type === "timeseries") {
+  if (!config.d.periodOpt) throw new Error("Timeseries config missing periodOpt");
+  // ... rest of existing code unchanged
+```
+
+Lines 31, 33, 44 all use `config.d.periodOpt` inside this block. After the throw guard, TypeScript narrows it to `PeriodOption` for the whole block.
+
+**8b.** `lib/get_fetch_config_from_po.ts:32` — add after the existing type guard:
+
+```typescript
+if (config.d.type === "timeseries") {
+  if (!config.d.periodOpt) throw new Error("Timeseries config missing periodOpt");
+  groupBys.push(config.d.periodOpt);
+}
+```
+
+**8c.** `client/src/components/project_ai/ai_tools/tools/_internal/format_metric_data_for_ai.ts:537` — add after the existing type guard:
+
+```typescript
+if (config.d.type === "timeseries") {
+  if (!config.d.periodOpt) throw new Error("Timeseries config missing periodOpt");
+  disaggregations.push(config.d.periodOpt);
+}
+```
+
+**8d.** `client/src/components/visualization/presentation_object_editor_panel_style/_timeseries.tsx:140,230,286` — these pass `p.tempConfig.d.periodOpt` as `value` to `RadioGroup`. `RadioGroup` accepts `T | undefined` for `value`. No change needed — TypeScript won't flag this.
+
+**8e.** `client/src/components/visualization/visualization_editor_inner.tsx:863` — `periodProp` is used in the `in` operator which requires `string | number | symbol` (not `undefined`). Add a throw guard consistent with 8a-8c:
+
+```typescript
+if (
+  _type === "timeseries" &&
+  keyedItemsHolder.ih.status === "ok" &&
+  keyedItemsHolder.ih.items.length > 0
+) {
+  if (!tempConfig.d.periodOpt) throw new Error("Timeseries config missing periodOpt");
+  const periodProp = tempConfig.d.periodOpt;
+  if (
+    !(periodProp in keyedItemsHolder.ih.items[0])
+  ) {
+```
+
+**8f.** `client/src/generate_visualization/conditional_formatting.ts:182-184` — `getPeriodChangeLabels` takes `PeriodOption` (required). Add a guard before the call:
+
+```typescript
+if (config.s.content === "bars" && config.s.specialBarChart) {
+  if (!config.d.periodOpt) return undefined;
+  const labels = getPeriodChangeLabels(
+    config.d.periodOpt,
+    config.s.specialBarChartInverted
+  );
+```
+
+### Step 9: Typecheck
+
+Run `deno task typecheck`. All errors should be resolved by steps 1-8. If any remain, they will be the same pattern — add an explicit `if (!config.d.periodOpt)` guard.
+
+### Step 10: Smoke test
+
+Run the app (`./run`). Open a project. Create a non-timeseries visualization (table or bar chart). Verify it works. Create a timeseries visualization. Verify period controls and period filter still work.

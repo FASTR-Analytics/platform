@@ -5,12 +5,10 @@ import {
 import {
   addPresentationObject,
   batchUpdatePresentationObjectsPeriodFilter,
-  deleteAIPresentationObject,
   deletePresentationObject,
   duplicatePresentationObject,
   getAllPresentationObjectsForProject,
   getPresentationObjectDetail,
-  updateAIPresentationObject,
   updatePresentationObjectConfig,
   updatePresentationObjectLabel,
 } from "../../db/mod.ts";
@@ -705,55 +703,3 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
   },
 );
 
-defineRoute(
-  routesPresentationObjects,
-  "deleteAIVisualization",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_visualizations",
-  ),
-  async (c, { params }) => {
-    const res = await deleteAIPresentationObject(
-      c.var.ppk.projectDb,
-      params.po_id,
-    );
-    if (!res.success) {
-      return c.json(res);
-    }
-    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesPresentationObjects,
-  "updateAIVisualization",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_visualizations",
-  ),
-  async (c, { params, body }) => {
-    const res = await updateAIPresentationObject(
-      c.var.ppk.projectDb,
-      params.po_id,
-      body,
-    );
-    if (!res.success) {
-      return c.json(res);
-    }
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "presentation_objects",
-      [params.po_id],
-      res.data.lastUpdated,
-    );
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "report_items",
-      res.data.reportItemsThatDependOnPresentationObjects,
-      res.data.lastUpdated,
-    );
-    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-    return c.json(res);
-  },
-);
