@@ -1,3 +1,5 @@
+[1.21.3] [user] [fixed] - Fixed an issue where time period filters could display incorrect date ranges when opening older saved visualizations
+[1.21.3] [admin] [fixed] - Period filters on visualizations now automatically correct mismatched date granularity settings left over from legacy configurations, preventing incorrect date ranges from being applied
 [1.21.2] [user] [changed] - Time series charts now offer more time period options (monthly, quarterly, yearly) instead of being limited to a single default
 [1.21.2] [admin] [fixed] - Time series charts now offer all available time period options (monthly, quarterly, yearly) instead of only showing the most granular period
 [1.21.2] [admin] [changed] - Authentication tokens are no longer explicitly attached to API requests, relying on default session handling instead
