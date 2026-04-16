@@ -1,3 +1,10 @@
+[TBD] [user] [changed] - Metric cards now show the specific time period (e.g., monthly, quarterly, yearly) instead of a count of available period options
+[TBD] [user] [changed] - Metric detail popup now displays a single time period label instead of a list of period options
+[TBD] [admin] [changed] - Metrics now display a single most-granular time period (e.g., monthly, quarterly, or yearly) instead of a list of period options
+[TBD] [admin] [changed] - Metric cards on the project page now show the specific period type (e.g., "Period: quarter_id") rather than a count of available periods
+[TBD] [admin] [changed] - The metric details modal now shows one period value instead of listing multiple period options
+[TBD] [admin] [changed] - Time period selection in visualization style controls is simplified to a single option matching the most granular period available in the results file
+[TBD] [admin] [changed] - AI-powered tools and slide generation now automatically use the most granular time period from the results file rather than selecting from a list
 [1.21.1] [user] [fixed] - Fixed an issue where you could be unexpectedly signed out during periods of heavy loading or slow connections
 [1.21.1] [admin] [fixed] - Authentication tokens are now automatically attached to server requests, resolving potential issues where requests could fail silently due to missing authorization headers
 [1.21.1] [admin] [fixed] - Expired authentication tokens during periods of high network activity (e.g., many simultaneous requests) now trigger automatic retry with a fresh token before signing the user out, reducing unnecessary logouts
