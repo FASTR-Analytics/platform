@@ -1,3 +1,7 @@
+[1.21.5] [user] [fixed] - Running an analysis module now shows a clear error message if an indicator has not been configured with any calculations, instead of silently producing empty results
+[1.21.5] [user] [fixed] - You will now receive a helpful error message if all indicator results are empty, prompting you to check your indicator configuration before re-running
+[1.21.5] [admin] [fixed] - HFA module now shows a clear error message if an indicator has no R code configured for any time point, instead of silently returning empty results
+[1.21.5] [admin] [added] - HFA module now stops with a descriptive error if all indicator values are empty after processing, prompting admins to check indicator R code configuration
 [1.21.4] [user] [fixed] - Fixed an issue where time period filters could sometimes fail to apply correctly when setting up a report
 [1.21.4] [admin] [fixed] - Fixed an issue where dynamic period columns (e.g., specific time-based filters) could be missing from query results when the period filter hadn't been fully processed yet
 [1.21.3] [user] [fixed] - Fixed an issue where time period filters could display incorrect date ranges when opening older saved visualizations
