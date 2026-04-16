@@ -1,27 +1,27 @@
-[TBD] [user] [added] - Project settings now display each user's name alongside their email in the user list
-[TBD] [admin] [added] - Project settings user table now displays each user's first and last name in a new "Name" column
-[TBD] [admin] [internal] - Improved diagnostic logging when users are automatically redirected due to authentication session expiry
-[TBD] [admin] [internal] - Consolidated email sending logic into a shared utility for slide deck and feedback emails
-[TBD] [user] [added] - New "Calculated Indicators" tab in the Indicators section lets you create custom indicators by combining existing indicators with configurable numerators, denominators, formats, and thresholds
-[TBD] [user] [added] - You can now choose to calculate indicators as a percentage, a number, or a rate per 10,000, with adjustable decimal places and a live preview of the formatting
-[TBD] [user] [added] - Calculated indicators support color-coded thresholds (green/yellow) with a "higher is better" or "lower is better" direction setting
-[TBD] [user] [added] - You can duplicate an existing calculated indicator to quickly create a similar one without starting from scratch
-[TBD] [user] [added] - Bulk selection and deletion is now available for calculated indicators
-[TBD] [user] [changed] - The Indicators page now uses a tabbed navigation on the left side to switch between Common Indicators, Raw DHIS2 Indicators, and Calculated Indicators
-[TBD] [user] [fixed] - Fixed an issue where being logged out unexpectedly could cause the application to sign you out instead of redirecting you to the home page
-[TBD] [admin] [added] - New "Calculated Indicators" tab in the Indicators management screen, allowing you to create, edit, duplicate, and delete calculated indicators
-[TBD] [admin] [added] - Calculated indicators support configurable numerator and denominator (either another indicator or a population-based fraction), display formatting (percent, number, or rate per 10,000), decimal places, and color-coded threshold settings
-[TBD] [admin] [added] - Live preview of formatting options when creating or editing a calculated indicator, so you can see how values will appear before saving
-[TBD] [admin] [added] - Broken reference warnings are displayed in the calculated indicators table when a numerator or denominator references a common indicator that no longer exists
-[TBD] [admin] [added] - Bulk delete support for calculated indicators via checkbox selection in the table
-[TBD] [admin] [changed] - The Indicators management screen now uses a vertical tab navigation layout with separate tabs for Common Indicators, Raw DHIS2 Indicators, and Calculated Indicators instead of showing all tables side by side
-[TBD] [admin] [changed] - "Scorecard Indicators" have been renamed to "Calculated Indicators" throughout the platform — existing scorecard indicator data will need a corresponding database table migration
-[TBD] [admin] [fixed] - Authentication token is now refreshed before each server request, reducing unexpected session expiration errors
-[TBD] [admin] [fixed] - When an authentication error occurs, the application now redirects to the home page without forcibly signing the user out, allowing smoother re-authentication
-[TBD] [user] [added] - Scorecard indicators are now supported, allowing you to define, edit, and delete indicators used in scorecards with configurable thresholds, grouping, and display formats
-[TBD] [admin] [added] - Scorecard indicators are now supported as a new indicator type, allowing you to create, edit, and delete scorecard indicators from the data configuration area
-[TBD] [admin] [added] - The instance dashboard now tracks and displays the count of scorecard indicators alongside common, raw, and HFA indicators
-[TBD] [admin] [added] - Managing scorecard indicators requires the "can configure data" permission, consistent with other indicator management
+[1.21.0] [user] [added] - Project settings now display each user's name alongside their email in the user list
+[1.21.0] [admin] [added] - Project settings user table now displays each user's first and last name in a new "Name" column
+[1.21.0] [admin] [internal] - Improved diagnostic logging when users are automatically redirected due to authentication session expiry
+[1.21.0] [admin] [internal] - Consolidated email sending logic into a shared utility for slide deck and feedback emails
+[1.21.0] [user] [added] - New "Calculated Indicators" tab in the Indicators section lets you create custom indicators by combining existing indicators with configurable numerators, denominators, formats, and thresholds
+[1.21.0] [user] [added] - You can now choose to calculate indicators as a percentage, a number, or a rate per 10,000, with adjustable decimal places and a live preview of the formatting
+[1.21.0] [user] [added] - Calculated indicators support color-coded thresholds (green/yellow) with a "higher is better" or "lower is better" direction setting
+[1.21.0] [user] [added] - You can duplicate an existing calculated indicator to quickly create a similar one without starting from scratch
+[1.21.0] [user] [added] - Bulk selection and deletion is now available for calculated indicators
+[1.21.0] [user] [changed] - The Indicators page now uses a tabbed navigation on the left side to switch between Common Indicators, Raw DHIS2 Indicators, and Calculated Indicators
+[1.21.0] [user] [fixed] - Fixed an issue where being logged out unexpectedly could cause the application to sign you out instead of redirecting you to the home page
+[1.21.0] [admin] [added] - New "Calculated Indicators" tab in the Indicators management screen, allowing you to create, edit, duplicate, and delete calculated indicators
+[1.21.0] [admin] [added] - Calculated indicators support configurable numerator and denominator (either another indicator or a population-based fraction), display formatting (percent, number, or rate per 10,000), decimal places, and color-coded threshold settings
+[1.21.0] [admin] [added] - Live preview of formatting options when creating or editing a calculated indicator, so you can see how values will appear before saving
+[1.21.0] [admin] [added] - Broken reference warnings are displayed in the calculated indicators table when a numerator or denominator references a common indicator that no longer exists
+[1.21.0] [admin] [added] - Bulk delete support for calculated indicators via checkbox selection in the table
+[1.21.0] [admin] [changed] - The Indicators management screen now uses a vertical tab navigation layout with separate tabs for Common Indicators, Raw DHIS2 Indicators, and Calculated Indicators instead of showing all tables side by side
+[1.21.0] [admin] [changed] - "Scorecard Indicators" have been renamed to "Calculated Indicators" throughout the platform — existing scorecard indicator data will need a corresponding database table migration
+[1.21.0] [admin] [fixed] - Authentication token is now refreshed before each server request, reducing unexpected session expiration errors
+[1.21.0] [admin] [fixed] - When an authentication error occurs, the application now redirects to the home page without forcibly signing the user out, allowing smoother re-authentication
+[1.21.0] [user] [added] - Scorecard indicators are now supported, allowing you to define, edit, and delete indicators used in scorecards with configurable thresholds, grouping, and display formats
+[1.21.0] [admin] [added] - Scorecard indicators are now supported as a new indicator type, allowing you to create, edit, and delete scorecard indicators from the data configuration area
+[1.21.0] [admin] [added] - The instance dashboard now tracks and displays the count of scorecard indicators alongside common, raw, and HFA indicators
+[1.21.0] [admin] [added] - Managing scorecard indicators requires the "can configure data" permission, consistent with other indicator management
 [1.20.0] [user] [added] - HFA indicators now support choosing an aggregation method (Sum or Average) when creating or editing indicators
 [1.20.0] [user] [added] - The HFA indicator code editor now shows variable value labels alongside variable names, making it easier to understand what each value represents
 [1.20.0] [user] [added] - You can now search and filter available variables by name or label in the HFA indicator code editor
