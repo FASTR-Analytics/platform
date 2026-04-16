@@ -1,3 +1,19 @@
+[TBD] [user] [added] - New "Calculated Indicators" tab in the Indicators section lets you create custom indicators by combining existing indicators with configurable numerators, denominators, formats, and thresholds
+[TBD] [user] [added] - You can now choose to calculate indicators as a percentage, a number, or a rate per 10,000, with adjustable decimal places and a live preview of the formatting
+[TBD] [user] [added] - Calculated indicators support color-coded thresholds (green/yellow) with a "higher is better" or "lower is better" direction setting
+[TBD] [user] [added] - You can duplicate an existing calculated indicator to quickly create a similar one without starting from scratch
+[TBD] [user] [added] - Bulk selection and deletion is now available for calculated indicators
+[TBD] [user] [changed] - The Indicators page now uses a tabbed navigation on the left side to switch between Common Indicators, Raw DHIS2 Indicators, and Calculated Indicators
+[TBD] [user] [fixed] - Fixed an issue where being logged out unexpectedly could cause the application to sign you out instead of redirecting you to the home page
+[TBD] [admin] [added] - New "Calculated Indicators" tab in the Indicators management screen, allowing you to create, edit, duplicate, and delete calculated indicators
+[TBD] [admin] [added] - Calculated indicators support configurable numerator and denominator (either another indicator or a population-based fraction), display formatting (percent, number, or rate per 10,000), decimal places, and color-coded threshold settings
+[TBD] [admin] [added] - Live preview of formatting options when creating or editing a calculated indicator, so you can see how values will appear before saving
+[TBD] [admin] [added] - Broken reference warnings are displayed in the calculated indicators table when a numerator or denominator references a common indicator that no longer exists
+[TBD] [admin] [added] - Bulk delete support for calculated indicators via checkbox selection in the table
+[TBD] [admin] [changed] - The Indicators management screen now uses a vertical tab navigation layout with separate tabs for Common Indicators, Raw DHIS2 Indicators, and Calculated Indicators instead of showing all tables side by side
+[TBD] [admin] [changed] - "Scorecard Indicators" have been renamed to "Calculated Indicators" throughout the platform — existing scorecard indicator data will need a corresponding database table migration
+[TBD] [admin] [fixed] - Authentication token is now refreshed before each server request, reducing unexpected session expiration errors
+[TBD] [admin] [fixed] - When an authentication error occurs, the application now redirects to the home page without forcibly signing the user out, allowing smoother re-authentication
 [TBD] [user] [added] - Scorecard indicators are now supported, allowing you to define, edit, and delete indicators used in scorecards with configurable thresholds, grouping, and display formats
 [TBD] [admin] [added] - Scorecard indicators are now supported as a new indicator type, allowing you to create, edit, and delete scorecard indicators from the data configuration area
 [TBD] [admin] [added] - The instance dashboard now tracks and displays the count of scorecard indicators alongside common, raw, and HFA indicators
