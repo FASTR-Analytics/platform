@@ -1,3 +1,10 @@
+[1.21.6] [user] [changed] - The Data management page now organizes data sources into clear grouped sections: "Structure & maps," "HMIS," and "HFA," making it easier to find what you need
+[1.21.6] [user] [changed] - The Data management page layout has been redesigned from a two-column split view to a single scrollable page with a cleaner card-based layout
+[1.21.6] [admin] [changed] - The Data management page has been reorganized into clearly labeled sections: "Structure & maps," "HMIS," and "HFA," replacing the previous two-column layout of "Common structure" and "Data sources"
+[1.21.6] [admin] [changed] - GeoJSON maps are now grouped under the "Structure & maps" section alongside admin areas and facilities, making related configuration easier to find
+[1.21.6] [admin] [changed] - HMIS data and HMIS indicators are now grouped together under a dedicated "HMIS" section
+[1.21.6] [admin] [changed] - HFA data and HFA indicators are now grouped together under a dedicated "HFA" section
+[1.21.6] [admin] [internal] - Removed API endpoints for AI-created visualization deletion and updates — these operations are now handled through other means
 [1.21.5] [user] [fixed] - Running an analysis module now shows a clear error message if an indicator has not been configured with any calculations, instead of silently producing empty results
 [1.21.5] [user] [fixed] - You will now receive a helpful error message if all indicator results are empty, prompting you to check your indicator configuration before re-running
 [1.21.5] [admin] [fixed] - HFA module now shows a clear error message if an indicator has no R code configured for any time point, instead of silently returning empty results
