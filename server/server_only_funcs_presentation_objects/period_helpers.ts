@@ -67,5 +67,13 @@ export function detectNeededPeriodColumns(
     }
   }
 
+  // Also check raw periodFilter (periodFilterExactBounds may not be computed yet)
+  if (fetchConfig.periodFilter) {
+    const periodOption = fetchConfig.periodFilter.periodOption;
+    if (DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)) {
+      needed.add(periodOption as DynamicPeriodColumn);
+    }
+  }
+
   return needed;
 }
