@@ -83,17 +83,17 @@ When loading a metric, the enricher checks which time column exists in the table
 
 Each time-based option gets `allowedPresentationOptions: ["table", "chart"]` — excluded from timeseries (where time is the X-axis) and map views.
 
-## Code Path: Inferring periodOptions
+## Code Path: Inferring mostGranularTimePeriodColumnInResultsFile
 
-**File**: `server/db/project/metric_enricher.ts` — `inferPeriodOptions()`
+**File**: `server/db/project/metric_enricher.ts` — `inferMostGranularTimePeriodColumn()`
 
-`periodOptions` tells the system which time column format the data uses (e.g. `["period_id"]`, `["quarter_id"]`, `["year"]`). It is inferred from the disaggregation options that the enricher already built, not read from the module definition or DB. Priority: `period_id` > `quarter_id` > `year`. Module definitions can optionally specify `periodOptions` but it is ignored by the enricher.
+`mostGranularTimePeriodColumnInResultsFile` tells the system which time column format the data uses (e.g. `"period_id"`, `"quarter_id"`, `"year"`, or `undefined` if no time column). It is inferred from the disaggregation options that the enricher already built, not read from the module definition or DB. Priority: `period_id` > `quarter_id` > `year`. Module definitions can optionally specify `periodOptions` but it is ignored by the enricher.
 
 ## Code Path: Period Bounds
 
 **File**: `server/server_only_funcs_presentation_objects/get_period_bounds.ts`
 
-Returns `{ periodOption, min, max }` for the time slider in the filter UI. The `firstPeriodOption` comes from the enricher's inferred `periodOptions[0]`.
+Returns `{ periodOption, min, max }` for the time slider in the filter UI. The `firstPeriodOption` comes from the enricher's inferred `mostGranularTimePeriodColumnInResultsFile`.
 
 - `firstPeriodOption === "period_id"`: `SELECT MIN(period_id), MAX(period_id)`
 - `firstPeriodOption === "quarter_id"`: `SELECT MIN(quarter_id), MAX(quarter_id)` (always physical in this scenario)

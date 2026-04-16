@@ -749,7 +749,7 @@ export async function getMetricsListForAI(
           }
 
           lines.push(
-            `    Period options: ${(firstVariant.periodOptions ?? []).join(", ")}`,
+            `    Period options: ${firstVariant.mostGranularTimePeriodColumnInResultsFile ?? "none"}`,
           );
           lines.push("");
         } else {
@@ -798,7 +798,7 @@ export async function getMetricsListForAI(
           }
 
           lines.push(
-            `    Period options: ${(firstVariant.periodOptions ?? []).join(", ")}`,
+            `    Period options: ${firstVariant.mostGranularTimePeriodColumnInResultsFile ?? "none"}`,
           );
           lines.push("");
           lines.push(`    Available at:`);

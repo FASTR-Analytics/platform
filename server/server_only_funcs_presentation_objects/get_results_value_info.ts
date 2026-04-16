@@ -42,7 +42,7 @@ export async function getResultsValueInfoForPresentationObject(
     const resultsObjectId = resResultsValue.data.resultsObjectId;
     const disaggregationOptions = resResultsValue.data.disaggregationOptions
       .map((d) => d.value);
-    const firstPeriodOption = resResultsValue.data.periodOptions?.[0];
+    const firstPeriodOption = resResultsValue.data.mostGranularTimePeriodColumnInResultsFile;
 
     // Call the core logic with all derived values
     return await getResultsObjectVariableInfoCore(

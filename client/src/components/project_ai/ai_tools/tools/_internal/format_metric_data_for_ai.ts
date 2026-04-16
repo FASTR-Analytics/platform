@@ -59,9 +59,9 @@ export async function getMetricDataForAI(
   if (!metric) throw new Error(`Metric "${metricId}" not found`);
 
   // Convert period filter to a format the metric supports
-  if (periodFilter && metric.periodOptions.length > 0) {
-    if (!metric.periodOptions.includes(periodFilter.periodOption)) {
-      const targetOption = metric.periodOptions[0];
+  if (periodFilter && metric.mostGranularTimePeriodColumnInResultsFile !== undefined) {
+    if (metric.mostGranularTimePeriodColumnInResultsFile !== periodFilter.periodOption) {
+      const targetOption = metric.mostGranularTimePeriodColumnInResultsFile;
       periodFilter = {
         periodOption: targetOption,
         min: convertPeriodValue(periodFilter.min, targetOption, false),
@@ -130,7 +130,7 @@ export async function getMetricDataForAI(
         projectId,
         resultsObjectId: metric.resultsObjectId,
         fetchConfig,
-        firstPeriodOption: metric.periodOptions.at(0),
+        firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
       }),
     );
 

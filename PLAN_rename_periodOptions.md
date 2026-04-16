@@ -10,7 +10,7 @@ Fix: `buildConfigFromPreset` should use the data's actual period format, not the
 
 `periodOptions: PeriodOption[]` on `ResultsValue` always contains 0 or 1 elements (enforced by `inferPeriodOptions` in the enricher). Rename to `mostGranularTimePeriodColumnInResultsFile: PeriodOption | undefined` to make this explicit.
 
-**Scope boundary**: Only rename in the runtime types (`ResultsValue`, `ResultsValueDefinition`, `MetricDefinition`). Keep `periodOptions` unchanged in the module definition JSON schema layer (`MetricDefinitionJSON`, `module_definition_validator.ts`, `module_definition_schema.ts`) since that's the on-disk format for module definition JSON files. The enricher already ignores the stored DB value and infers from actual table columns.
+**Scope boundary**: Only rename on the runtime type `ResultsValue` (and `MetricWithStatus` which extends it). The module definition layer (`MetricDefinition`, `MetricDefinitionJSON`, `ResultsValueDefinition`, validators, JSON schema) keeps `periodOptions` unchanged — it's the on-disk format from GitHub module repos and is completely deprecated/unused at runtime (the enricher always infers fresh from actual table columns, ignoring the stored value).
 
 **Separate PR**: The timeseries RadioGroup fix (switching options source from `periodOptions` to `disaggregationOptions`) is a user-facing behavior change and should not be bundled with this rename.
 
@@ -22,8 +22,11 @@ Fix: `buildConfigFromPreset` should use the data's actual period format, not the
 
 - Line 107: `periodOptions: PeriodOption[]` → `mostGranularTimePeriodColumnInResultsFile: PeriodOption | undefined`
 - Line 132: `Omit<ResultsValue, "disaggregationOptions" | "periodOptions">` → `Omit<ResultsValue, "disaggregationOptions" | "mostGranularTimePeriodColumnInResultsFile">`
-- Line 134: `periodOptions?: PeriodOption[]` → `mostGranularTimePeriodColumnInResultsFile?: PeriodOption`
-- Line 145: `periodOptions?: PeriodOption[]` → `mostGranularTimePeriodColumnInResultsFile?: PeriodOption`
+
+NO CHANGE to these (module definition layer, deprecated):
+
+- Line 134: stays `periodOptions?: PeriodOption[]` (on `ResultsValueDefinition`)
+- Line 145: stays `periodOptions?: PeriodOption[]` (on `MetricDefinition`)
 
 **lib/types/presentation_objects.ts**
 
@@ -40,28 +43,30 @@ Fix: `buildConfigFromPreset` should use the data's actual period format, not the
 
 - Line 50: `periodOptions: inferPeriodOptions(...)` → `mostGranularTimePeriodColumnInResultsFile: inferMostGranularTimePeriodColumn(...)`
 - Lines 227-233: Rename function, return `PeriodOption | undefined` instead of `PeriodOption[]`:
-  ```
-  function inferMostGranularTimePeriodColumn(...): PeriodOption | undefined {
-    if (disOpts.includes("period_id")) return "period_id";
-    if (disOpts.includes("quarter_id")) return "quarter_id";
-    if (disOpts.includes("year")) return "year";
-    return undefined;
-  }
-  ```
 
-### 3. DB serialization (backwards compatible)
+```ts
+function inferMostGranularTimePeriodColumn(
+  disaggregationOptions: ResultsValue["disaggregationOptions"]
+): PeriodOption | undefined {
+  const disOpts = disaggregationOptions.map(d => d.value);
+  if (disOpts.includes("period_id")) return "period_id";
+  if (disOpts.includes("quarter_id")) return "quarter_id";
+  if (disOpts.includes("year")) return "year";
+  return undefined;
+}
+```
 
-DB column `period_options` stays unchanged (text NOT NULL storing JSON array). The enricher always overrides on read, so stored values don't matter. Verified: every DB read that produces a `ResultsValue` goes through `enrichMetric()`.
+### 3. DB and module loader — NO CHANGE
 
-**server/db_startup.ts:172**
+These all operate on the module definition layer (`MetricDefinition`, raw JSON) which keeps `periodOptions`:
 
-- `JSON.stringify(rv.periodOptions ?? [])` → `JSON.stringify(rv.mostGranularTimePeriodColumnInResultsFile ? [rv.mostGranularTimePeriodColumnInResultsFile] : [])`
-
-**server/db/project/modules.ts** (lines 151, 358, 425 — DB writes)
-
-- `JSON.stringify(metric.periodOptions ?? [])` → `JSON.stringify(metric.mostGranularTimePeriodColumnInResultsFile ? [metric.mostGranularTimePeriodColumnInResultsFile] : [])`
+- **server/db_startup.ts:172** — NO CHANGE (reads raw JSON `rv.periodOptions`)
+- **server/db/project/modules.ts lines 151, 358, 425** — NO CHANGE (writes `MetricDefinition.periodOptions`)
+- **server/module_loader/load_module.ts `translateMetrics`** — NO CHANGE (spreads `MetricDefinitionJSON` into `MetricDefinition`, both keep `periodOptions`)
 
 **server/db/project/modules.ts** (lines 752, 801 — debug logging)
+
+These read enriched `ResultsValue` objects (via `enrichMetric`), so they DO need updating:
 
 - `(firstVariant.periodOptions ?? []).join(", ")` → `firstVariant.mostGranularTimePeriodColumnInResultsFile ?? "none"`
 
@@ -105,11 +110,12 @@ NOTE on line 209: This validates that the AI's requested `periodOpt` is in `peri
 **client/src/components/project/metric_details_modal.tsx:121**
 
 - `<For each={p.metric.periodOptions}>` → render single value conditionally:
-  ```
-  <Show when={p.metric.mostGranularTimePeriodColumnInResultsFile}>
-    {(v) => <span class="bg-base-200 font-mono rounded px-2 py-1 text-xs">{v()}</span>}
-  </Show>
-  ```
+
+```tsx
+<Show when={p.metric.mostGranularTimePeriodColumnInResultsFile}>
+  {(v) => <span class="bg-base-200 font-mono rounded px-2 py-1 text-xs">{v()}</span>}
+</Show>
+```
 
 **client/src/components/project/project_metrics.tsx:179**
 
@@ -158,7 +164,7 @@ if (input.startDate != null && input.endDate != null && resultsValue.mostGranula
 
 **DOC_period_column_handling.md**
 
-- Update references to `periodOptions` → `mostGranularTimePeriodColumnInResultsFile` (lines 86, 90, 96)
+- Update references to `periodOptions` / `inferPeriodOptions()` → `mostGranularTimePeriodColumnInResultsFile` / `inferMostGranularTimePeriodColumn()` (lines 86, 88, 90, 96)
 
 ### 10. Typecheck
 

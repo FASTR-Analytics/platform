@@ -104,7 +104,7 @@ export type ResultsValue = {
     isRequired: boolean;
     allowedPresentationOptions?: PresentationOption[];
   }[];
-  periodOptions: PeriodOption[];
+  mostGranularTimePeriodColumnInResultsFile: PeriodOption | undefined;
   aiDescription?: MetricAIDescription;
   importantNotes?: string;
 };
@@ -129,7 +129,7 @@ export type MetricWithStatus = ResultsValue & {
 
 export type ResultsValueDefinition = Omit<
   ResultsValue,
-  "disaggregationOptions" | "periodOptions"
+  "disaggregationOptions" | "mostGranularTimePeriodColumnInResultsFile"
 > & {
   periodOptions?: PeriodOption[];
   requiredDisaggregationOptions: DisaggregationOption[];

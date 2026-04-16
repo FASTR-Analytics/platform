@@ -124,7 +124,7 @@ export function getToolsForVizEditor(
         lines.push("");
 
         lines.push("Period options:");
-        lines.push(`  ${resultsValue.periodOptions.join(", ")}`);
+        lines.push(`  ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
         lines.push("");
 
         lines.push("Valid display options for disaggregations:");
@@ -206,8 +206,8 @@ export function getToolsForVizEditor(
         }
         const effectiveType = input.type || ctx.getTempConfig().d.type;
 
-        if (input.periodOpt && !resultsValue.periodOptions.includes(input.periodOpt as any)) {
-          throw new Error(`Invalid periodOpt "${input.periodOpt}". Available: ${resultsValue.periodOptions.join(", ")}`);
+        if (input.periodOpt && resultsValue.mostGranularTimePeriodColumnInResultsFile !== input.periodOpt) {
+          throw new Error(`Invalid periodOpt "${input.periodOpt}". Available: ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
         }
 
         if (input.valuesDisDisplayOpt) {

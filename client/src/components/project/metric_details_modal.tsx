@@ -118,13 +118,13 @@ export function MetricDetailsModal(
             {t3({ en: "Period options", fr: "Options de période" })}
           </div>
           <div class="ui-gap-sm flex flex-wrap">
-            <For each={p.metric.periodOptions}>
-              {(period) => (
+            <Show when={p.metric.mostGranularTimePeriodColumnInResultsFile}>
+              {(v) => (
                 <span class="bg-base-200 font-mono rounded px-2 py-1 text-xs">
-                  {period}
+                  {v()}
                 </span>
               )}
-            </For>
+            </Show>
           </div>
         </div>
 

@@ -56,7 +56,7 @@ function AIProjectWrapperInner(props: ParentProps) {
         const _aiddg = m.aiDescription.disaggregationGuidance;
       }
       m.disaggregationOptions.forEach(d => { const _d = d.value + d.label + d.isRequired; });
-      m.periodOptions.forEach(p => { const _po = p; });
+      const _po = m.mostGranularTimePeriodColumnInResultsFile;
     });
 
     // Visualizations

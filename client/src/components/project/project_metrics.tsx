@@ -176,7 +176,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
             {firstMetric.formatAs}
           </div>
           <div class="text-neutral text-xs">
-            {firstMetric.periodOptions.length} {t3({ en: firstMetric.periodOptions.length !== 1 ? "periods" : "period", fr: firstMetric.periodOptions.length !== 1 ? "périodes" : "période" })}
+            {t3({ en: "Period", fr: "Période" })}: {firstMetric.mostGranularTimePeriodColumnInResultsFile ?? t3({ en: "none", fr: "aucune" })}
           </div>
           <div class="text-neutral text-xs">
             {firstMetric.disaggregationOptions.length} {t3({ en: firstMetric.disaggregationOptions.length !== 1 ? "disaggs" : "disagg", fr: firstMetric.disaggregationOptions.length !== 1 ? "désagrég." : "désagrég." })}

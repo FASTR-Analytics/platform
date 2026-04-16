@@ -92,7 +92,7 @@ export async function resolveFigureFromMetric(
         projectId,
         resultsObjectId: resultsValue.resultsObjectId,
         fetchConfig,
-        firstPeriodOption: resultsValue.periodOptions.at(0),
+        firstPeriodOption: resultsValue.mostGranularTimePeriodColumnInResultsFile,
       }),
     );
 

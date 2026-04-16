@@ -27,6 +27,11 @@ type TimeseriesMode =
   | "disruptions";
 
 export function TimeseriesStyleControls(p: Props) {
+  const periodRadioOptions = () => {
+    const v = p.poDetail.resultsValue.mostGranularTimePeriodColumnInResultsFile;
+    return v ? [{ value: v, label: get_PERIOD_OPTION_MAP()[v] }] : [];
+  };
+
   const mode = (): TimeseriesMode => {
     if (p.tempConfig.s.specialCoverageChart) return "coverage";
     if (p.tempConfig.s.specialBarChart) return "percent-change";
@@ -130,9 +135,7 @@ export function TimeseriesStyleControls(p: Props) {
         <Match when={mode() === "percent-change"}>
           <RadioGroup
             label={t3({ en: "Period", fr: "Période" })}
-            options={p.poDetail.resultsValue.periodOptions.map((value) => {
-              return { value, label: get_PERIOD_OPTION_MAP()[value] };
-            })}
+            options={periodRadioOptions()}
             value={p.tempConfig.d.periodOpt}
             onChange={(v) =>
               p.setTempConfig("d", "periodOpt", v as PeriodOption)
@@ -222,9 +225,7 @@ export function TimeseriesStyleControls(p: Props) {
         <Match when={mode() === "disruptions"}>
           <RadioGroup
             label={t3({ en: "Period", fr: "Période" })}
-            options={p.poDetail.resultsValue.periodOptions.map((value) => {
-              return { value, label: get_PERIOD_OPTION_MAP()[value] };
-            })}
+            options={periodRadioOptions()}
             value={p.tempConfig.d.periodOpt}
             onChange={(v) =>
               p.setTempConfig("d", "periodOpt", v as PeriodOption)
@@ -280,9 +281,7 @@ export function TimeseriesStyleControls(p: Props) {
         <Match when={mode() === "standard"}>
           <RadioGroup
             label={t3({ en: "Period", fr: "Période" })}
-            options={p.poDetail.resultsValue.periodOptions.map((value) => {
-              return { value, label: get_PERIOD_OPTION_MAP()[value] };
-            })}
+            options={periodRadioOptions()}
             value={p.tempConfig.d.periodOpt}
             onChange={(v) =>
               p.setTempConfig("d", "periodOpt", v as PeriodOption)

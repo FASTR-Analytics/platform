@@ -395,7 +395,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
       projectId,
       resultsObjectId: poDetail.resultsValue.resultsObjectId,
       fetchConfig: resFetchConfig.data,
-      firstPeriodOption: poDetail.resultsValue.periodOptions.at(0),
+      firstPeriodOption: poDetail.resultsValue.mostGranularTimePeriodColumnInResultsFile,
     })
   );
 

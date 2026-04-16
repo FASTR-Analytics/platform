@@ -200,7 +200,7 @@ async function fetchPreview(
         projectId,
         resultsObjectId: metric.resultsObjectId,
         fetchConfig: resFetchConfig.data,
-        firstPeriodOption: metric.periodOptions.at(0),
+        firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
       }),
     );
 

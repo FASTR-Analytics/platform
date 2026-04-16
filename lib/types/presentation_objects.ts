@@ -475,7 +475,7 @@ export function getStartingConfigForPresentationObject(
   const startingConfig: PresentationObjectConfig = {
     d: {
       type: presentationOption,
-      periodOpt: resultsValue.periodOptions.at(0) ?? "period_id",
+      periodOpt: resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "period_id",
       valuesDisDisplayOpt:
         VIZ_TYPE_CONFIG[presentationOption].defaultValuesDisDisplayOpt,
       valuesFilter: undefined,

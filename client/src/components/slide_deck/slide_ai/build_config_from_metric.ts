@@ -91,8 +91,8 @@ export function buildConfigFromPreset(
     config.d.valuesFilter = input.valuesFilter;
   }
 
-  if (input.startDate != null && input.endDate != null) {
-    const targetPeriodOption = preset.config.d.periodOpt;
+  if (input.startDate != null && input.endDate != null && resultsValue.mostGranularTimePeriodColumnInResultsFile) {
+    const targetPeriodOption = resultsValue.mostGranularTimePeriodColumnInResultsFile;
     config.d.periodFilter = {
       filterType: "custom",
       periodOption: targetPeriodOption,
