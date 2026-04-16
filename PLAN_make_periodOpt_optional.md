@@ -18,9 +18,11 @@ The AI tool handler (`visualization_editor.tsx`) only updates an in-memory `temp
 
 ## Steps
 
-### Step 1: Fix `visualization_editor.tsx:278` — use `resultsValue` instead of `config.d.periodOpt`
+### Step 1: Fix `visualization_editor.tsx:278` — period filter must use data column, not display column
 
 **File:** `client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx`
+
+Bug: the period filter is constructed using `periodOpt` (the display grouping), but period filtering should always use the metric's actual data column (`mostGranularTimePeriodColumnInResultsFile`). A quarterly timeseries over monthly data still filters by `period_id`.
 
 Change the period filter block (lines 273-287) from:
 
@@ -50,22 +52,22 @@ if (input.periodFilter !== undefined) {
     setTempConfig("d", "periodFilter", undefined);
     changes.push("periodFilter (cleared)");
   } else {
-    const periodOpt = input.periodOpt ?? ctx.getTempConfig().d.periodOpt ?? resultsValue.mostGranularTimePeriodColumnInResultsFile;
-    if (!periodOpt) {
-      throw new Error("Cannot set periodFilter: no periodOpt provided and metric has no time period column");
+    const filterPeriodOpt = resultsValue.mostGranularTimePeriodColumnInResultsFile;
+    if (!filterPeriodOpt) {
+      throw new Error("Cannot set periodFilter: metric has no time period column");
     }
     setTempConfig("d", "periodFilter", {
       filterType: "custom",
-      periodOption: periodOpt,
-      min: input.periodFilter.min != null ? convertPeriodValue(input.periodFilter.min, periodOpt, false) : 0,
-      max: input.periodFilter.max != null ? convertPeriodValue(input.periodFilter.max, periodOpt, true) : 999999,
+      periodOption: filterPeriodOpt,
+      min: input.periodFilter.min != null ? convertPeriodValue(input.periodFilter.min, filterPeriodOpt, false) : 0,
+      max: input.periodFilter.max != null ? convertPeriodValue(input.periodFilter.max, filterPeriodOpt, true) : 999999,
     });
     changes.push("periodFilter");
   }
 }
 ```
 
-`resultsValue` is already in scope (line 200).
+`resultsValue` is already in scope (line 200). `input.periodOpt` from the AI is no longer used here — it only affects `config.d.periodOpt` (timeseries grouping), not the filter.
 
 ### Step 2: Make `periodOpt` optional on the TypeScript type
 
@@ -121,9 +123,11 @@ if (config.d.periodOpt) {
 }
 ```
 
-### Step 6: Fix `load_module.ts:79` — guard `computePeriodFilter` call
+### Step 6: Fix `load_module.ts:79` — period filter must use data column, not display column
 
 **File:** `server/module_loader/load_module.ts` line 78-80
+
+Bug: same issue as Step 1 — `computePeriodFilter` uses `periodOpt` (display grouping) to build the period filter. Should use the metric's actual data column. `metric` (`MetricDefinition`) is in scope from the outer loop (line 75) and has `mostGranularTimePeriodColumnInResultsFile`.
 
 Change:
 ```typescript
@@ -133,8 +137,8 @@ const periodFilter = preset.defaultPeriodFilterForDefaultVisualizations
 ```
 to:
 ```typescript
-const periodFilter = (preset.defaultPeriodFilterForDefaultVisualizations && preset.config.d.periodOpt)
-  ? computePeriodFilter(preset.config.d.periodOpt, preset.defaultPeriodFilterForDefaultVisualizations.nMonths)
+const periodFilter = (preset.defaultPeriodFilterForDefaultVisualizations && metric.mostGranularTimePeriodColumnInResultsFile)
+  ? computePeriodFilter(metric.mostGranularTimePeriodColumnInResultsFile, preset.defaultPeriodFilterForDefaultVisualizations.nMonths)
   : undefined;
 ```
 

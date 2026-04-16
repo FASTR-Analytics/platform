@@ -110,7 +110,7 @@ export const _LANGAUGE_MAP_CONTENT = new Map([
   ],
   [
     "Default 2. Coverage calculated from HMIS data (Admin Area 2)",
-    "Visualization par défaut 2. Couverture calculée à partir des données du SIGS (zone administrative 2)",
+    "Visualization par défaut 2. Couverture calculée à partir des données du SNIS (zone administrative 2)",
   ],
   [
     "Default 2. Percent change in volume due to completeness adjustment",
@@ -420,7 +420,7 @@ export const _LANGAUGE_MAP_CONTENT = new Map([
   ],
   [
     "Coverage calculated from HMIS data",
-    "Couverture calculée à partir des données du SIGS",
+    "Couverture calculée à partir des données du SNIS",
   ],
   [
     "Survey-based estimate (when available)",

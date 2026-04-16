@@ -93,11 +93,40 @@ if (moduleDetail.moduleDefinition.scriptGenerationType === "hfa") {
 
 The error message for empty snapshot tables explicitly tells the user what to do — projects created before this change will hit this on first run and need to re-export HFA data.
 
-### 4. Script preview reads from project snapshot
+### 4. Script preview reads from project snapshot (+ fix pre-existing bug)
 
-**File:** [server/routes/project/modules.ts](server/routes/project/modules.ts) (~line 237-243)
+**File:** [server/routes/project/modules.ts](server/routes/project/modules.ts) (~line 237-257)
 
-Same change as §3. The preview should show what would actually run, not what the live instance has.
+Same data-source change as §3: read from project snapshot instead of mainDb.
+
+Additionally, fix a pre-existing bug: the preview route currently only passes `hfaIndicators` to `getScriptWithParameters` but not `hfaIndicatorCode` (the third HFA arg is `undefined`). The module runner ([run_module_iterator.ts:127](server/worker_routines/run_module/run_module_iterator.ts#L127)) passes both. This means the preview generates a different (incomplete) script than what actually runs. Fix by also fetching and passing `hfaIndicatorCodeFromSnapshot`:
+
+```ts
+if (res.data.moduleDefinition.scriptGenerationType === "hfa") {
+  const hfaVarRows = await c.var.ppk.projectDb<{ var_name: string }[]>`
+    SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
+  `;
+  knownDatasetVariables = new Set(
+    hfaVarRows.map((r: { var_name: string }) => r.var_name),
+  );
+
+  const hfaRows = await c.var.ppk.projectDb<DBHfaIndicator[]>`
+    SELECT * FROM hfa_indicators_snapshot ORDER BY sort_order, var_name
+  `;
+  hfaIndicators = hfaRows.map(dbRowToHfaIndicator);
+
+  hfaIndicatorCode = await getAllHfaIndicatorCodeFromSnapshot(c.var.ppk.projectDb);
+}
+
+const script = getScriptWithParameters(
+  res.data.moduleDefinition,
+  res.data.configSelections,
+  resCountryIso3.data.countryIso3,
+  knownDatasetVariables,
+  hfaIndicators,
+  hfaIndicatorCode,  // was missing before
+);
+```
 
 ### 5. Add `getAllHfaIndicatorCodeFromSnapshot` helper
 
@@ -120,18 +149,23 @@ Can reuse the existing `dbRowToHfaIndicator` and `dbRowToHfaIndicatorCode` mappe
 
 ### 6. Cleanup on HFA removal
 
-**File:** [server/db/project/datasets_in_project_hmis.ts](server/db/project/datasets_in_project_hmis.ts) (where `removeDatasetFromProject` lives)
+**File:** [server/db/project/datasets_in_project_hmis.ts](server/db/project/datasets_in_project_hmis.ts) — the shared `removeDatasetFromProject` function (~line 276)
 
-When removing the HFA dataset, clear the snapshot tables:
+This function is generic today (just `DELETE FROM datasets`). Add a dataset-type-specific branch for HFA snapshot cleanup inside the existing transaction:
 
 ```ts
-if (datasetType === "hfa") {
-  await projectDb`DELETE FROM hfa_indicator_code_snapshot`;
-  await projectDb`DELETE FROM hfa_indicators_snapshot`;
-}
+await projectDb.begin((sql) => [
+  sql`DELETE FROM datasets WHERE dataset_type = ${datasetType}`,
+  ...(datasetType === "hfa"
+    ? [
+        sql`DELETE FROM hfa_indicator_code_snapshot`,
+        sql`DELETE FROM hfa_indicators_snapshot`,
+      ]
+    : []),
+]);
 ```
 
-The FK cascade handles `hfa_indicator_code_snapshot` rows when `hfa_indicators_snapshot` rows are deleted, but explicit deletion of both is cleaner.
+Note: `addDatasetHfaToProject` calls `removeDatasetFromProject` as its first step (line 30), so this cleanup also runs on re-export before the new snapshot is written. There is no FK from the snapshot tables to the `datasets` table, so cascade won't handle this automatically — the explicit DELETE is required.
 
 ## Files to modify
 
@@ -157,7 +191,7 @@ The FK cascade handles `hfa_indicator_code_snapshot` rows when `hfa_indicators_s
 - [ ] `addDatasetHfaToProject` copies indicator definitions + code from instance into project snapshot tables, atomic with the rest of the HFA import
 - [ ] `removeDatasetFromProject` for HFA clears snapshot tables
 - [ ] `run_module_iterator.ts` reads from project snapshot tables instead of instance tables
-- [ ] Script preview route reads from project snapshot tables
+- [ ] Script preview route reads from project snapshot tables and passes `hfaIndicatorCode` (pre-existing bug fix)
 - [ ] Empty snapshot tables at module run time throw clear error directing user to update project data
 - [ ] `deno task typecheck` clean
 - [ ] Smoke test: configure indicators at instance → export HFA to project → snapshot tables populated → hfa001 runs using snapshot → edit indicator at instance → re-run still uses old snapshot → re-export HFA → snapshot updated → hfa001 goes dirty → re-run uses new snapshot

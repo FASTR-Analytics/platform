@@ -2,7 +2,7 @@
 
 Surface a "data needs updating" warning on the HFA card in Project Data when instance-level HFA data, indicators, structure, or facility config have changed since the project's last export.
 
-Depends on nothing. Can ship independently of [PLAN_hfa_01_indicator_snapshot.md](PLAN_hfa_01_indicator_snapshot.md).
+Depends on nothing. Can ship independently of [PLAN_hfa_01_indicator_snapshot.md](PLAN_hfa_01_indicator_snapshot.md). However, shipping Plan 02 alone means the "Update data" action re-exports the CSV but does not guarantee indicator/data consistency — the next module run still reads live indicators from mainDb. The staleness warning is only fully actionable once Plan 01's snapshot is also in place. Prefer shipping both together.
 
 ## Current state
 
@@ -64,6 +64,9 @@ Replace the `999999` TODO with:
 const stalenessCheck = () => {
   const reasons: string[] = [];
 
+  // hfaCacheHash tracks time-point IDs + import dates (e.g. "2020:2024-01-15|2021:2024-02-10").
+  // This catches reimports of existing time points and time-point swaps, which
+  // datasetVersions.hfa (a simple count of time points) would miss.
   if (!keyedProjectDatasetHfa.info.hfaCacheHash ||
       instanceState.hfaCacheHash !== keyedProjectDatasetHfa.info.hfaCacheHash) {
     reasons.push(t3({ en: "HFA dataset updated", fr: "Données HFA mises à jour" }));

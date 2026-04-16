@@ -89,6 +89,12 @@ Each time-based option gets `allowedPresentationOptions: ["table", "chart"]` —
 
 `mostGranularTimePeriodColumnInResultsFile` tells the system which time column format the data uses (e.g. `"period_id"`, `"quarter_id"`, `"year"`, or `undefined` if no time column). It is inferred from the disaggregation options that the enricher already built, not read from the module definition or DB. Priority: `period_id` > `quarter_id` > `year`. Module definitions can optionally specify `periodOptions` but it is ignored by the enricher.
 
+## Key Rule: `periodOpt` vs `mostGranularTimePeriodColumnInResultsFile`
+
+`config.d.periodOpt` controls **only** the timeseries display grouping (GROUP BY / X-axis granularity). It is never used for period filtering.
+
+Period filtering — the filter UI, period bounds, `periodFilter.periodOption`, and `periodFilterExactBounds` — is always driven by `mostGranularTimePeriodColumnInResultsFile` (the metric's actual physical time column). This means a quarterly timeseries (`periodOpt: "quarter_id"`) over monthly data (`mostGranularTimePeriodColumnInResultsFile: "period_id"`) still filters by `period_id` and shows monthly filter options.
+
 ## Code Path: Period Bounds
 
 **File**: `server/server_only_funcs_presentation_objects/get_period_bounds.ts`
@@ -120,7 +126,7 @@ When `isDynamicPeriodColumn` is false: the column is physical, query it directly
 
 The `needsPeriodCTE` check in this file **must retain the has\* guards** — removing them could trigger CTE generation when no derivation source exists, producing broken SQL.
 
-If `getPossibleValues` fails (column doesn't exist, SQL error), the option is silently skipped — it won't appear in the editor. This is why missing handling for a scenario causes options to disappear.
+If `getPossibleValues` fails (column doesn't exist, SQL error), it returns an error via `APIResponse` — the option won't appear in the editor. This is why missing handling for a scenario causes options to disappear.
 
 ## Code Path: WHERE Clause / Period Filtering
 

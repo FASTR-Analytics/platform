@@ -1,9 +1,5 @@
 import { t3 } from "lib";
-import {
-  FrameTop,
-  HeadingBarMainRibbon,
-  toNum0,
-} from "panther";
+import { FrameTop, HeadingBarMainRibbon, toNum0 } from "panther";
 import { Match, Show, Switch, createSignal } from "solid-js";
 import { HfaIndicatorsManager } from "./hfa_indicators_manager";
 import { IndicatorsManager } from "../indicators/indicators_manager";
@@ -61,7 +57,12 @@ export function InstanceData(p: Props) {
         />
       </Match>
       <Match when={selectedDataSource()} keyed>
-        <div class="ui-pad">{t3({ en: "No display component for this dataset", fr: "Aucun composant d'affichage pour ce jeu de données" })}</div>
+        <div class="ui-pad">
+          {t3({
+            en: "No display component for this dataset",
+            fr: "Aucun composant d'affichage pour ce jeu de données",
+          })}
+        </div>
       </Match>
       <Match when={true}>
         <FrameTop
@@ -74,21 +75,29 @@ export function InstanceData(p: Props) {
               {/* Structure & maps */}
               <div class="flex gap-6">
                 <div class="w-44 shrink-0 pt-3">
-                  <div class="font-700 text-base">{t3({ en: "Structure & maps", fr: "Structure et cartes" })}</div>
+                  <div class="font-700 text-base">
+                    {t3({ en: "Structure & maps", fr: "Structure et cartes" })}
+                  </div>
                 </div>
-                <div class="flex flex-1 flex-wrap ui-gap">
+                <div class="ui-gap flex flex-1 flex-wrap">
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelecteDatasource("structure")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Admin areas and facilities", fr: "Unités administratives et établissements" })}
+                      {t3({
+                        en: "Admin areas and facilities",
+                        fr: "Unités administratives et établissements",
+                      })}
                     </div>
                     <Show
                       when={instanceState.structure}
                       fallback={
                         <div class="text-danger text-xs">
-                          {t3({ en: "No admin areas or facilities added", fr: "Aucune unité administrative ou établissement ajouté" })}
+                          {t3({
+                            en: "No admin areas or facilities added",
+                            fr: "Aucune unité administrative ou établissement ajouté",
+                          })}
                         </div>
                       }
                       keyed
@@ -96,20 +105,38 @@ export function InstanceData(p: Props) {
                       {(keyedStructureNumbers) => (
                         <div class="ui-spy-sm text-success text-xs">
                           <div class="ui-gap flex justify-between">
-                            <span>{t3({ en: "Admin area 1s", fr: "Unités administratives 1" })}:</span>
+                            <span>
+                              {t3({
+                                en: "Admin area 1s",
+                                fr: "Unités administratives 1",
+                              })}
+                              :
+                            </span>
                             <span class="font-mono">
                               {toNum0(keyedStructureNumbers.adminArea1s)}
                             </span>
                           </div>
                           <div class="ui-gap flex justify-between">
-                            <span>{t3({ en: "Admin area 2s", fr: "Unités administratives 2" })}:</span>
+                            <span>
+                              {t3({
+                                en: "Admin area 2s",
+                                fr: "Unités administratives 2",
+                              })}
+                              :
+                            </span>
                             <span class="font-mono">
                               {toNum0(keyedStructureNumbers.adminArea2s)}
                             </span>
                           </div>
                           <Show when={instanceState.maxAdminArea >= 3}>
                             <div class="ui-gap flex justify-between">
-                              <span>{t3({ en: "Admin area 3s", fr: "Unités administratives 3" })}:</span>
+                              <span>
+                                {t3({
+                                  en: "Admin area 3s",
+                                  fr: "Unités administratives 3",
+                                })}
+                                :
+                              </span>
                               <span class="font-mono">
                                 {toNum0(keyedStructureNumbers.adminArea3s)}
                               </span>
@@ -117,14 +144,22 @@ export function InstanceData(p: Props) {
                           </Show>
                           <Show when={instanceState.maxAdminArea >= 4}>
                             <div class="ui-gap flex justify-between">
-                              <span>{t3({ en: "Admin area 4s", fr: "Unités administratives 4" })}:</span>
+                              <span>
+                                {t3({
+                                  en: "Admin area 4s",
+                                  fr: "Unités administratives 4",
+                                })}
+                                :
+                              </span>
                               <span class="font-mono">
                                 {toNum0(keyedStructureNumbers.adminArea4s)}
                               </span>
                             </div>
                           </Show>
                           <div class="ui-gap flex justify-between">
-                            <span>{t3({ en: "Facilities", fr: "Établissements" })}:</span>
+                            <span>
+                              {t3({ en: "Facilities", fr: "Établissements" })}:
+                            </span>
                             <span class="font-mono">
                               {toNum0(keyedStructureNumbers.facilities)}
                             </span>
@@ -137,18 +172,29 @@ export function InstanceData(p: Props) {
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelecteDatasource("geojson")}
                   >
-                    <div class="font-700 pb-2">{t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON" })}</div>
+                    <div class="font-700 pb-2">
+                      {t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON" })}
+                    </div>
                     <Show
                       when={instanceState.geojsonMaps.length > 0}
                       fallback={
                         <div class="text-danger text-xs">
-                          {t3({ en: "No GeoJSON maps uploaded", fr: "Aucune carte GeoJSON téléchargée" })}
+                          {t3({
+                            en: "No GeoJSON maps uploaded",
+                            fr: "Aucune carte GeoJSON téléchargée",
+                          })}
                         </div>
                       }
                     >
                       <div class="text-success text-xs">
-                        {t3({ en: "Levels configured", fr: "Niveaux configurés" })}:{" "}
-                        {instanceState.geojsonMaps.map((g) => g.adminAreaLevel).join(", ")}
+                        {t3({
+                          en: "Levels configured",
+                          fr: "Niveaux configurés",
+                        })}
+                        :{" "}
+                        {instanceState.geojsonMaps
+                          .map((g) => g.adminAreaLevel)
+                          .join(", ")}
                       </div>
                     </Show>
                   </div>
@@ -158,19 +204,26 @@ export function InstanceData(p: Props) {
               {/* HMIS */}
               <div class="flex gap-6">
                 <div class="w-44 shrink-0 pt-3">
-                  <div class="font-700 text-base">{t3({ en: "HMIS", fr: "SIGS" })}</div>
+                  <div class="font-700 text-base">
+                    {t3({ en: "HMIS", fr: "SNIS" })}
+                  </div>
                 </div>
-                <div class="flex flex-1 flex-wrap ui-gap">
+                <div class="ui-gap flex flex-1 flex-wrap">
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelecteDatasource("hmis")}
                   >
-                    <div class="font-700 pb-2">{t3({ en: "Data", fr: "Données" })}</div>
+                    <div class="font-700 pb-2">
+                      {t3({ en: "Data", fr: "Données" })}
+                    </div>
                     <Show
                       when={instanceState.datasetsWithData.includes("hmis")}
                       fallback={
                         <div class="text-danger text-xs">
-                          {t3({ en: "No data added", fr: "Aucune donnée ajoutée" })}
+                          {t3({
+                            en: "No data added",
+                            fr: "Aucune donnée ajoutée",
+                          })}
                         </div>
                       }
                     >
@@ -183,7 +236,9 @@ export function InstanceData(p: Props) {
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelecteDatasource("indicators")}
                   >
-                    <div class="font-700 pb-2">{t3({ en: "Indicators", fr: "Indicateurs" })}</div>
+                    <div class="font-700 pb-2">
+                      {t3({ en: "Indicators", fr: "Indicateurs" })}
+                    </div>
                     <Show
                       when={
                         instanceState.indicators.commonIndicators > 0 &&
@@ -191,7 +246,10 @@ export function InstanceData(p: Props) {
                       }
                       fallback={
                         <div class="text-danger text-xs">
-                          {t3({ en: "No common indicators", fr: "Aucun indicateur commun" })}
+                          {t3({
+                            en: "No common indicators",
+                            fr: "Aucun indicateur commun",
+                          })}
                         </div>
                       }
                       keyed
@@ -199,10 +257,14 @@ export function InstanceData(p: Props) {
                       {(keyedNumber) => (
                         <div class="ui-spy-sm text-success text-xs">
                           <div class="flex justify-between gap-4">
-                            <span>{t3({ en: "Common indicators", fr: "Indicateurs communs" })}:</span>
-                            <span class="font-mono">
-                              {toNum0(keyedNumber)}
+                            <span>
+                              {t3({
+                                en: "Common indicators",
+                                fr: "Indicateurs communs",
+                              })}
+                              :
                             </span>
+                            <span class="font-mono">{toNum0(keyedNumber)}</span>
                           </div>
                         </div>
                       )}
@@ -214,7 +276,10 @@ export function InstanceData(p: Props) {
                       }
                       fallback={
                         <div class="text-danger text-xs">
-                          {t3({ en: "No DHIS2 indicators", fr: "Aucun indicateur DHIS2" })}
+                          {t3({
+                            en: "No DHIS2 indicators",
+                            fr: "Aucun indicateur DHIS2",
+                          })}
                         </div>
                       }
                       keyed
@@ -222,10 +287,14 @@ export function InstanceData(p: Props) {
                       {(keyedNumber) => (
                         <div class="ui-spy-sm text-success text-xs">
                           <div class="flex justify-between gap-4">
-                            <span>{t3({ en: "DHIS2 indicators", fr: "Indicateurs DHIS2" })}:</span>
-                            <span class="font-mono">
-                              {toNum0(keyedNumber)}
+                            <span>
+                              {t3({
+                                en: "DHIS2 indicators",
+                                fr: "Indicateurs DHIS2",
+                              })}
+                              :
                             </span>
+                            <span class="font-mono">{toNum0(keyedNumber)}</span>
                           </div>
                         </div>
                       )}
@@ -237,19 +306,26 @@ export function InstanceData(p: Props) {
               {/* HFA */}
               <div class="flex gap-6">
                 <div class="w-44 shrink-0 pt-3">
-                  <div class="font-700 text-base">{t3({ en: "HFA", fr: "EES" })}</div>
+                  <div class="font-700 text-base">
+                    {t3({ en: "HFA", fr: "Enquêtes FOSA" })}
+                  </div>
                 </div>
-                <div class="flex flex-1 flex-wrap ui-gap">
+                <div class="ui-gap flex flex-1 flex-wrap">
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelecteDatasource("hfa")}
                   >
-                    <div class="font-700 pb-2">{t3({ en: "Data", fr: "Données" })}</div>
+                    <div class="font-700 pb-2">
+                      {t3({ en: "Data", fr: "Données" })}
+                    </div>
                     <Show
                       when={instanceState.datasetsWithData.includes("hfa")}
                       fallback={
                         <div class="text-danger text-xs">
-                          {t3({ en: "No data added", fr: "Aucune donnée ajoutée" })}
+                          {t3({
+                            en: "No data added",
+                            fr: "Aucune donnée ajoutée",
+                          })}
                         </div>
                       }
                     >
@@ -262,7 +338,9 @@ export function InstanceData(p: Props) {
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelecteDatasource("hfa_indicators")}
                   >
-                    <div class="font-700 pb-2">{t3({ en: "Indicators", fr: "Indicateurs" })}</div>
+                    <div class="font-700 pb-2">
+                      {t3({ en: "Indicators", fr: "Indicateurs" })}
+                    </div>
                     <Show
                       when={
                         instanceState.indicators.hfaIndicators > 0 &&
@@ -270,7 +348,10 @@ export function InstanceData(p: Props) {
                       }
                       fallback={
                         <div class="text-danger text-xs">
-                          {t3({ en: "No HFA indicators configured", fr: "Aucun indicateur HFA configuré" })}
+                          {t3({
+                            en: "No HFA indicators configured",
+                            fr: "Aucun indicateur HFA configuré",
+                          })}
                         </div>
                       }
                       keyed
@@ -278,7 +359,13 @@ export function InstanceData(p: Props) {
                       {(keyedNumber) => (
                         <div class="ui-spy-sm text-success text-xs">
                           <div class="flex justify-between gap-4">
-                            <span>{t3({ en: "HFA indicators", fr: "Indicateurs EES" })}:</span>
+                            <span>
+                              {t3({
+                                en: "HFA indicators",
+                                fr: "Indicateurs Enquetes FOSA",
+                              })}
+                              :
+                            </span>
                             <span class="font-mono">{toNum0(keyedNumber)}</span>
                           </div>
                         </div>

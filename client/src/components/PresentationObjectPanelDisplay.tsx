@@ -501,7 +501,12 @@ function VisualizationGrid(p: VisualizationGridProps) {
 
     const keys =
       order.length > 0
-        ? order.filter((key) => groups.has(key))
+        ? [
+            ...order.filter((key) => groups.has(key)),
+            ...Array.from(groups.keys()).filter(
+              (key) => !order.includes(key),
+            ),
+          ]
         : Array.from(groups.keys());
 
     let visualIndex = 0;
@@ -844,7 +849,12 @@ function VisualizationGrid(p: VisualizationGridProps) {
           // Use provided order, or natural order from visualizations if order is empty
           const keys =
             order.length > 0
-              ? order.filter((key) => groups.has(key))
+              ? [
+                  ...order.filter((key) => groups.has(key)),
+                  ...Array.from(groups.keys()).filter(
+                    (key) => !order.includes(key),
+                  ),
+                ]
               : Array.from(groups.keys());
 
           const visualIndexMap = getVisualIndexMap();
