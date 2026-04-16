@@ -360,11 +360,11 @@ CREATE TABLE IF NOT EXISTS hfa_indicator_code (
 );
 
 -- ============================================================================
--- SCORECARD INDICATORS
+-- CALCULATED INDICATORS
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS scorecard_indicators (
-  scorecard_indicator_id     TEXT PRIMARY KEY NOT NULL,
+CREATE TABLE IF NOT EXISTS calculated_indicators (
+  calculated_indicator_id     TEXT PRIMARY KEY NOT NULL,
   label                      TEXT NOT NULL UNIQUE,
   group_label                TEXT NOT NULL DEFAULT '',
   sort_order                 INTEGER NOT NULL DEFAULT 0,

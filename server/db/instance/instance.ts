@@ -40,17 +40,21 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   return result[0]?.version ?? "none";
 }
 
-export async function getScorecardIndicatorsVersion(mainDb: Sql): Promise<string> {
+export async function getCalculatedIndicatorsVersion(
+  mainDb: Sql,
+): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
-      COALESCE((SELECT MAX(updated_at) FROM scorecard_indicators)::text, '') || '|' ||
-      (SELECT COUNT(*) FROM scorecard_indicators)::text
+      COALESCE((SELECT MAX(updated_at) FROM calculated_indicators)::text, '') || '|' ||
+      (SELECT COUNT(*) FROM calculated_indicators)::text
     ) as version
   `;
   return result[0]?.version ?? "none";
 }
 
-export async function getIndicatorMappingsVersion(mainDb: Sql): Promise<string> {
+export async function getIndicatorMappingsVersion(
+  mainDb: Sql,
+): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
       COALESCE((SELECT MAX(updated_at) FROM indicators)::text, '') || '|' ||
@@ -82,44 +86,99 @@ export async function getInstanceIndicatorsSummary(
   mainDb: Sql,
 ): Promise<InstanceIndicatorsSummary> {
   const commonIndicators =
-    (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM indicators`)[0]?.count ?? 0;
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM indicators`
+    )[0]?.count ?? 0;
   const rawIndicators =
-    (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM indicators_raw`)[0]?.count ?? 0;
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM indicators_raw`
+    )[0]?.count ?? 0;
   const hfaIndicators =
-    (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM hfa_indicators`)[0]?.count ?? 0;
-  const scorecardIndicators =
-    (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM scorecard_indicators`)[0]?.count ?? 0;
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM hfa_indicators`
+    )[0]?.count ?? 0;
+  const calculatedIndicators =
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM calculated_indicators`
+    )[0]?.count ?? 0;
   const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
   const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
-  const scorecardIndicatorsVersion = await getScorecardIndicatorsVersion(mainDb);
+  const calculatedIndicatorsVersion =
+    await getCalculatedIndicatorsVersion(mainDb);
   return {
-    indicators: { commonIndicators, rawIndicators, hfaIndicators, scorecardIndicators },
+    indicators: {
+      commonIndicators,
+      rawIndicators,
+      hfaIndicators,
+      calculatedIndicators,
+    },
     indicatorMappingsVersion,
     hfaIndicatorsVersion,
-    scorecardIndicatorsVersion,
+    calculatedIndicatorsVersion,
   };
 }
 
 export async function getInstanceStructureSummary(
   mainDb: Sql,
 ): Promise<InstanceStructureSummary> {
-  const adminArea1s = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM admin_areas_1`)[0]?.count ?? 0;
+  const adminArea1s =
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM admin_areas_1`
+    )[0]?.count ?? 0;
   const hasData = adminArea1s > 0;
   if (!hasData) {
     return { structure: undefined, structureLastUpdated: undefined };
   }
-  const adminArea2s = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM admin_areas_2`)[0]?.count ?? 0;
-  const adminArea3s = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM admin_areas_3`)[0]?.count ?? 0;
-  const adminArea4s = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM admin_areas_4`)[0]?.count ?? 0;
-  const facilities = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM facilities`)[0]?.count ?? 0;
+  const adminArea2s =
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM admin_areas_2`
+    )[0]?.count ?? 0;
+  const adminArea3s =
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM admin_areas_3`
+    )[0]?.count ?? 0;
+  const adminArea4s =
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM admin_areas_4`
+    )[0]?.count ?? 0;
+  const facilities =
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM facilities`
+    )[0]?.count ?? 0;
   const lastUpdatedRow = (
     await mainDb<{ config_json_value: string }[]>`
       SELECT config_json_value FROM instance_config WHERE config_key = 'structure_last_updated'
     `
   ).at(0);
   return {
-    structure: { adminArea1s, adminArea2s, adminArea3s, adminArea4s, facilities },
-    structureLastUpdated: lastUpdatedRow ? JSON.parse(lastUpdatedRow.config_json_value) : "legacy",
+    structure: {
+      adminArea1s,
+      adminArea2s,
+      adminArea3s,
+      adminArea4s,
+      facilities,
+    },
+    structureLastUpdated: lastUpdatedRow
+      ? JSON.parse(lastUpdatedRow.config_json_value)
+      : "legacy",
   };
 }
 
@@ -134,14 +193,28 @@ export async function getInstanceDatasetsSummary(
     datasetsWithData.push("hfa");
   }
   const hmis = await getCurrentDatasetHmisMaxVersionId(mainDb);
-  const hmisNVersions = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM dataset_hmis_versions`)[0]?.count ?? 0;
-  const hfaTimePointRows = await mainDb<{ time_point: string; time_point_label: string; date_imported: string | null }[]>`
+  const hmisNVersions =
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM dataset_hmis_versions`
+    )[0]?.count ?? 0;
+  const hfaTimePointRows = await mainDb<
+    {
+      time_point: string;
+      time_point_label: string;
+      date_imported: string | null;
+    }[]
+  >`
     SELECT time_point, time_point_label, date_imported FROM dataset_hfa_dictionary_time_points ORDER BY time_point
   `;
   const hfaCacheHash = computeHfaCacheHash(hfaTimePointRows);
   return {
     datasetsWithData,
-    datasetVersions: { hmis, hfa: hfaTimePointRows.length > 0 ? hfaTimePointRows.length : undefined },
+    datasetVersions: {
+      hmis,
+      hfa: hfaTimePointRows.length > 0 ? hfaTimePointRows.length : undefined,
+    },
     hmisNVersions,
     hfaTimePoints: hfaTimePointRows.map((r) => ({
       timePoint: r.time_point,
@@ -152,7 +225,9 @@ export async function getInstanceDatasetsSummary(
   };
 }
 
-export async function getAllProjectSummaries(mainDb: Sql): Promise<ProjectSummary[]> {
+export async function getAllProjectSummaries(
+  mainDb: Sql,
+): Promise<ProjectSummary[]> {
   return (
     await mainDb<(DBProject & { last_activity_at: string | null })[]>`
       SELECT p.*, la.last_activity_at
@@ -177,7 +252,7 @@ export async function getAllProjectSummaries(mainDb: Sql): Promise<ProjectSummar
 
 export async function getInstanceDetail(
   mainDb: Sql,
-  globalUser: GlobalUser
+  globalUser: GlobalUser,
 ): Promise<APIResponseWithData<InstanceDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     // Get maxAdminArea from config
@@ -285,7 +360,8 @@ ORDER BY LOWER(p.label)`
         })
       : (
           await mainDb<
-            (DBProject & DBProjectUserRole & { last_activity_at: string | null })[]
+            (DBProject &
+              DBProjectUserRole & { last_activity_at: string | null })[]
           >`SELECT pur.*, p.*, la.last_activity_at
 FROM project_user_roles pur
 JOIN projects p ON pur.project_id = p.id
@@ -325,7 +401,11 @@ ORDER BY LOWER(p.label)`
     }
 
     const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
-    const hfaTimePointCount = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM dataset_hfa_dictionary_time_points`)[0].count;
+    const hfaTimePointCount = (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM dataset_hfa_dictionary_time_points`
+    )[0].count;
 
     const structureLastUpdatedRow = (
       await mainDb<{ config_json_value: string }[]>`
@@ -337,8 +417,8 @@ ORDER BY LOWER(p.label)`
     const structureLastUpdated = structureLastUpdatedRow
       ? JSON.parse(structureLastUpdatedRow.config_json_value)
       : hasStructureData
-      ? "legacy"
-      : undefined;
+        ? "legacy"
+        : undefined;
 
     const users = await getInstanceUsers(mainDb);
 

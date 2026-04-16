@@ -1,4 +1,8 @@
-import type { HfaIndicator, InstanceIndicatorDetails, ScorecardIndicator } from "lib";
+import type {
+  HfaIndicator,
+  InstanceIndicatorDetails,
+  CalculatedIndicator,
+} from "lib";
 import { serverActions } from "~/server_actions";
 import { createReactiveCache } from "../_infra/reactive_cache";
 
@@ -25,11 +29,7 @@ export async function getIndicatorsFromCacheOrFetch(
   if (data) return { success: true, data } as const;
 
   const promise = serverActions.getIndicators({});
-  _INDICATORS_CACHE.setPromise(
-    promise,
-    { indicatorMappingsVersion },
-    version,
-  );
+  _INDICATORS_CACHE.setPromise(promise, { indicatorMappingsVersion }, version);
   return await promise;
 }
 
@@ -56,40 +56,36 @@ export async function getHfaIndicatorsFromCacheOrFetch(
   if (data) return { success: true, data } as const;
 
   const promise = serverActions.getHfaIndicators({});
-  _HFA_INDICATORS_CACHE.setPromise(
-    promise,
-    { hfaIndicatorsVersion },
-    version,
-  );
+  _HFA_INDICATORS_CACHE.setPromise(promise, { hfaIndicatorsVersion }, version);
   return await promise;
 }
 
 // ============================================================================
-// Scorecard Indicators
+// Calculated indicators
 // ============================================================================
 
-const _SCORECARD_INDICATORS_CACHE = createReactiveCache<
-  { scorecardIndicatorsVersion: string },
-  ScorecardIndicator[]
+const _CALCULATED_INDICATORS_CACHE = createReactiveCache<
+  { calculatedIndicatorsVersion: string },
+  CalculatedIndicator[]
 >({
-  name: "instance_scorecard_indicators",
-  uniquenessKeys: () => ["scorecard_indicators"],
-  versionKey: (params) => params.scorecardIndicatorsVersion,
+  name: "instance_calculated_indicators",
+  uniquenessKeys: () => ["calculated_indicators"],
+  versionKey: (params) => params.calculatedIndicatorsVersion,
   pdsNotRequired: true,
 });
 
-export async function getScorecardIndicatorsFromCacheOrFetch(
-  scorecardIndicatorsVersion: string,
+export async function getCalculatedIndicatorsFromCacheOrFetch(
+  calculatedIndicatorsVersion: string,
 ) {
-  const { data, version } = await _SCORECARD_INDICATORS_CACHE.get({
-    scorecardIndicatorsVersion,
+  const { data, version } = await _CALCULATED_INDICATORS_CACHE.get({
+    calculatedIndicatorsVersion,
   });
   if (data) return { success: true, data } as const;
 
-  const promise = serverActions.getScorecardIndicators({});
-  _SCORECARD_INDICATORS_CACHE.setPromise(
+  const promise = serverActions.getCalculatedIndicators({});
+  _CALCULATED_INDICATORS_CACHE.setPromise(
     promise,
-    { scorecardIndicatorsVersion },
+    { calculatedIndicatorsVersion },
     version,
   );
   return await promise;

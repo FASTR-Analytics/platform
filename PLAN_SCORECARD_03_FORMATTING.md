@@ -2,7 +2,7 @@
 
 Per-indicator format (`percent` / `number` / `rate_per_10k`), decimal places, and threshold colour cutoffs flow from the catalog (phase 1) into the scorecard style closure via a client-side catalog lookup keyed by label. Completes the in-progress deprecation of `client/src/generate_visualization/conditional_formatting_scorecard.ts` and deletes it.
 
-Depends on phase 1 (catalog has format and threshold columns) and phase 2 (m008's metric produces one row per scorecard_indicator per area-period).
+Depends on phase 1 (catalog has format and threshold columns) and phase 2 (m008's metric produces one row per calculated_indicator per area-period).
 
 ## The core problem
 
@@ -18,21 +18,21 @@ That pattern is correct in shape — **indicators are columns in the scorecard t
 
 **No row-index plumbing, no `TableCellInfo.i_row` / `i_col` threading, no type-system extensions.** Phase 2's metric result is enough as-is. Phase 3 adds a client-side catalog hook and rewires the existing scorecard style function to read from it.
 
-**Label uniqueness** (enforced at catalog save time and at DB level via `UNIQUE` constraint — see [PLAN_SCORECARD_01_CATALOG.md §1.1](PLAN_SCORECARD_01_CATALOG.md)) is what makes label-based lookup safe. Two scorecard indicators with the same label would produce ambiguous lookups; the uniqueness constraint prevents this.
+**Label uniqueness** (enforced at the DB level via the `UNIQUE` constraint on `calculated_indicators.label` and at editor save time in [`scorecard_indicator_editor.tsx`](client/src/components/indicators/calculated_indicator_editor.tsx)) is what makes label-based lookup safe. Two calculated indicators with the same label would produce ambiguous lookups; the uniqueness constraint prevents this.
 
 ## 3.1 — Client-side catalog hook
 
-The reactive cache from phase 1 §1.6 (`getScorecardIndicatorsFromCacheOrFetch`) is already wired into `instanceState.scorecardIndicatorsVersion` and auto-refreshes on the `scorecard_indicators_updated` SSE event. Phase 3 just adds a consumer-side helper that builds a label-keyed map:
+The reactive cache from phase 1 §1.6 (`getCalculatedIndicatorsFromCacheOrFetch`) is already wired into `instanceState.calculatedIndicatorsVersion` and auto-refreshes on the `calculated_indicators_updated` SSE event. Phase 3 just adds a consumer-side helper that builds a label-keyed map:
 
 ```ts
-export function getScorecardIndicatorsByLabelMap(
-  indicators: ScorecardIndicator[],
-): Map<string, ScorecardIndicator> {
+export function getCalculatedIndicatorsByLabelMap(
+  indicators: CalculatedIndicator[],
+): Map<string, CalculatedIndicator> {
   return new Map(indicators.map((si) => [si.label, si]));
 }
 ```
 
-The scorecard figure-inputs builder calls `getScorecardIndicatorsFromCacheOrFetch` once at build time, passes the resulting array through `getScorecardIndicatorsByLabelMap`, and captures the map into the style closure.
+The scorecard figure-inputs builder calls `getCalculatedIndicatorsFromCacheOrFetch` once at build time, passes the resulting array through `getCalculatedIndicatorsByLabelMap`, and captures the map into the style closure.
 
 ## 3.2 — Relocate scorecard figure-inputs logic into `_5_scorecard.ts`
 
@@ -55,7 +55,7 @@ export function buildScorecardFigureInputs(
   resultsValue: ResultsValueForVisualization,
   ih: ItemsHolderPresentationObject,
   config: PresentationObjectConfig,
-  scorecardIndicatorsByLabel: Map<string, ScorecardIndicator>,
+  CalculatedIndicatorsByLabel: Map<string, CalculatedIndicator>,
 ): FigureInputs {
   if (ih.status !== "ok") {
     throw new Error("buildScorecardFigureInputs called with non-ok status");
@@ -65,8 +65,8 @@ export function buildScorecardFigureInputs(
   // raw ID, then rewrite to the display label and inject the group. The lookup
   // is ID -> catalog via a temporary id-keyed map built from the label map.
   const byId = new Map(
-    Array.from(scorecardIndicatorsByLabel.values())
-      .map((si) => [si.scorecard_indicator_id, si] as const),
+    Array.from(CalculatedIndicatorsByLabel.values())
+      .map((si) => [si.calculated_indicator_id, si] as const),
   );
 
   const jsonArray = ih.items.map((item) => {
@@ -96,7 +96,7 @@ export function buildScorecardFigureInputs(
     ...style.content,
     tableCells: {
       func: (info) => {
-        const si = scorecardIndicatorsByLabel.get(info.colHeader);
+        const si = CalculatedIndicatorsByLabel.get(info.colHeader);
         if (!si) return { backgroundColor: { key: "base100" } };
         const scaled = scaleValueForFormat(info.valueAsNumber, si.format_as);
         return {
@@ -109,7 +109,7 @@ export function buildScorecardFigureInputs(
         };
       },
       textFormatter: (info) => {
-        const si = scorecardIndicatorsByLabel.get(info.colHeader);
+        const si = CalculatedIndicatorsByLabel.get(info.colHeader);
         if (!si) return String(info.value ?? "");
         return formatScorecardValue(
           info.valueAsNumber,
@@ -143,7 +143,7 @@ Three new small helpers live in the same file:
 - `number` → `rawValue`
 - `rate_per_10k` → `rawValue * 10000`
 
-**Convention:** threshold cutoffs are stored in the **displayed scale**, not the raw scale. A percent indicator with `threshold_green: 80` means "green at ≥ 80%"; the raw value `0.73` scales to `73`, which is `73 ≥ 80 → no`, `73 ≥ 70 → yes → yellow`. A `rate_per_10k` indicator with `threshold_green: 10, threshold_yellow: 20, direction: lower_is_better` treats raw `0.0008` as scaled `8`, which is `8 ≤ 10 → green`. Phase 1's seed in [PLAN_SCORECARD_01_CATALOG.md §1.9](PLAN_SCORECARD_01_CATALOG.md) uses display-scale values throughout (percents as 80/70, rates as 10/20) — the convention is consistent end-to-end.
+**Convention:** threshold cutoffs are stored in the **displayed scale**, not the raw scale. A percent indicator with `threshold_green: 80` means "green at ≥ 80%"; the raw value `0.73` scales to `73`, which is `73 ≥ 80 → no`, `73 ≥ 70 → yes → yellow`. A `rate_per_10k` indicator with `threshold_green: 10, threshold_yellow: 20, direction: lower_is_better` treats raw `0.0008` as scaled `8`, which is `8 ≤ 10 → green`. Phase 1's seed migration ([`019_add_calculated_indicators.sql`](server/db/migrations/instance/019_add_calculated_indicators.sql)) uses display-scale values throughout (percents as 80/70, rates as 10/20) — the convention is consistent end-to-end.
 
 **`getScorecardCutoffColor(direction, green, yellow, scaledValue)`** returns a panther colour:
 
@@ -188,9 +188,9 @@ Today the scorecard branch at [lines 119-125](client/src/generate_visualization/
 ```ts
 if (effectiveConfig.d.type === "table") {
   if (effectiveConfig.s.specialScorecardTable) {
-    const scorecardCatalog = getScorecardIndicatorsByLabelMap(
-      await getScorecardIndicatorsFromCacheOrFetch(
-        instanceState.scorecardIndicatorsVersion,
+    const scorecardCatalog = getCalculatedIndicatorsByLabelMap(
+      await getCalculatedIndicatorsFromCacheOrFetch(
+        instanceState.calculatedIndicatorsVersion,
       ).then((r) => r.success ? r.data : []),
     );
     return {
@@ -225,15 +225,15 @@ The hardcoded `_SCORECARD` map (the only reason this file exists) is replaced by
 
 ## 3.5 — Verification before shipping
 
-- **Live threshold round-trip.** Change a scorecard indicator's `threshold_green` in the catalog editor. Without re-running m008, verify the already-rendered scorecard's cell colours update on the next render cycle (SSE → cache invalidation → re-render).
+- **Live threshold round-trip.** Change a calculated indicator's `threshold_green` in the catalog editor. Without re-running m008, verify the already-rendered scorecard's cell colours update on the next render cycle (SSE → cache invalidation → re-render).
 - **Live format round-trip.** Change an indicator's `format_as` from `percent` to `rate_per_10k`. Verify both the value display and the threshold interpretation update (threshold comparisons happen in the new scaled value).
 - **Non-scorecard regression check.** Open a non-scorecard presentation object (e.g. a chart or table backed by m002). Confirm its styling is unchanged — no spillover from the `_5_scorecard.ts` rewrite into other paths.
-- **Catalog fetch failure.** Temporarily force `getScorecardIndicatorsFromCacheOrFetch` to return an error. Verify the scorecard still renders (degraded, neutral colours) and doesn't crash the viz editor.
+- **Catalog fetch failure.** Temporarily force `getCalculatedIndicatorsFromCacheOrFetch` to return an error. Verify the scorecard still renders (degraded, neutral colours) and doesn't crash the viz editor.
 - **Grep clean.** `conditional_formatting_scorecard` returns zero hits across the repo.
 
 ## Definition of done
 
-- [ ] `getScorecardIndicatorsByLabelMap` helper exists and is used by the scorecard figure-inputs builder
+- [ ] `getCalculatedIndicatorsByLabelMap` helper exists and is used by the scorecard figure-inputs builder
 - [ ] `_5_scorecard.ts` contains the real scorecard figure-inputs logic (formerly in `conditional_formatting_scorecard.ts`), sourcing labels / groups / format / thresholds from the catalog map via `info.colHeader` label lookup
 - [ ] `_5_scorecard.ts` exposes three helpers: `scaleValueForFormat`, `getScorecardCutoffColor`, `formatScorecardValue`
 - [ ] Threshold colour comparison uses the **scaled** (displayed) value, matching the convention that cutoffs are stored in display-scale units

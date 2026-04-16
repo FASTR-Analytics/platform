@@ -1,5 +1,5 @@
-CREATE TABLE IF NOT EXISTS scorecard_indicators (
-  scorecard_indicator_id     TEXT PRIMARY KEY NOT NULL,
+CREATE TABLE IF NOT EXISTS calculated_indicators (
+  calculated_indicator_id     TEXT PRIMARY KEY NOT NULL,
   label                      TEXT NOT NULL UNIQUE,
   group_label                TEXT NOT NULL DEFAULT '',
   sort_order                 INTEGER NOT NULL DEFAULT 0,
@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS scorecard_indicators (
   )
 );
 
-INSERT INTO scorecard_indicators (
-  scorecard_indicator_id,
+INSERT INTO calculated_indicators (
+  calculated_indicator_id,
   label,
   group_label,
   sort_order,
@@ -54,4 +54,4 @@ INSERT INTO scorecard_indicators (
   ('htn_new_per_10000',           'HTN New per 10,000 person-years',               'Non-Communicable Diseases',  8, 'hypertension_new',      'population', NULL,                           1.0,  'rate_per_10k', 0, 'lower_is_better',  10, 20),
   ('diabetes_new_per_10000',      'Diabetes New per 10,000 person-years',          'Non-Communicable Diseases',  9, 'diabetes_new',          'population', NULL,                           1.0,  'rate_per_10k', 0, 'lower_is_better',  10, 20),
   ('nhmis_data_timeliness_final', 'NHMIS reports on time with content',            'HMIS Reporting',            10, 'nhmis_timely_and_data', 'indicator',  'nhmis_expected_reports',       NULL, 'percent',      0, 'higher_is_better', 90, 80)
-ON CONFLICT (scorecard_indicator_id) DO NOTHING;
+ON CONFLICT (calculated_indicator_id) DO NOTHING;

@@ -1,14 +1,22 @@
-import { t3, TC,
+import {
+  t3,
+  TC,
   type CommonIndicatorWithMappings,
   type InstanceIndicatorDetails,
-  type RawIndicatorWithMappings } from "lib";
+  type RawIndicatorWithMappings,
+  type CalculatedIndicator,
+} from "lib";
 import {
   Button,
+  FrameLeft,
+  FrameRight,
   FrameTop,
   StateHolderWrapper,
   Table,
   TableColumn,
+  TabsNavigation,
   getEditorWrapper,
+  getTabs,
   openComponent,
   timActionDelete,
   type BulkAction,
@@ -17,12 +25,16 @@ import {
 import { Show, createEffect, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
+import {
+  getIndicatorsFromCacheOrFetch,
+  getCalculatedIndicatorsFromCacheOrFetch,
+} from "~/state/instance/t2_indicators";
 import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 import { EditIndicatorCommonForm } from "./_edit_indicator_common";
 import { EditIndicatorRawForm } from "./_edit_indicator_raw";
 import { BatchUploadForm } from "./batch_upload_form";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
+import { CalculatedIndicatorsTable } from "./calculated_indicators_table";
 import {
   getDhis2SessionCredentials,
   setDhis2SessionCredentials,
@@ -36,20 +48,80 @@ type Props = {
 export function IndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const [indicators, setIndicators] = createSignal<StateHolder<InstanceIndicatorDetails>>({
+  const [indicators, setIndicators] = createSignal<
+    StateHolder<InstanceIndicatorDetails>
+  >({
     status: "loading",
-    msg: t3({ en: "Loading indicators...", fr: "Chargement des indicateurs..." }),
+    msg: t3({
+      en: "Loading indicators...",
+      fr: "Chargement des indicateurs...",
+    }),
   });
+
+  const [calculatedIndicators, setCalculatedIndicators] = createSignal<
+    StateHolder<CalculatedIndicator[]>
+  >({
+    status: "loading",
+    msg: t3({
+      en: "Loading calculated indicators...",
+      fr: "Chargement des indicateurs calculés...",
+    }),
+  });
+
+  const tabs = getTabs(
+    [
+      {
+        value: "common",
+        label: t3({ en: "Common Indicators", fr: "Indicateurs communs" }),
+      },
+      {
+        value: "raw",
+        label: t3({ en: "Raw DHIS2 Indicators", fr: "Indicateurs DHIS2" }),
+      },
+      {
+        value: "calculated",
+        label: t3({
+          en: "Calculated indicators",
+          fr: "Indicateurs calculés",
+        }),
+      },
+    ],
+    { initialTab: "common" },
+  );
 
   createEffect(async () => {
     const version = instanceState.indicatorMappingsVersion;
     if (!version) return;
-    setIndicators({ status: "loading", msg: t3({ en: "Loading indicators...", fr: "Chargement des indicateurs..." }) });
+    setIndicators({
+      status: "loading",
+      msg: t3({
+        en: "Loading indicators...",
+        fr: "Chargement des indicateurs...",
+      }),
+    });
     const res = await getIndicatorsFromCacheOrFetch(version);
     if (res.success) {
       setIndicators({ status: "ready", data: res.data });
     } else {
       setIndicators({ status: "error", err: res.err });
+    }
+  });
+
+  createEffect(async () => {
+    const version = instanceState.calculatedIndicatorsVersion;
+    if (!version) return;
+    setCalculatedIndicators({
+      status: "loading",
+      msg: t3({
+        en: "Loading calculated indicators...",
+        fr: "Chargement des indicateurs calculés...",
+      }),
+    });
+    const res = await getCalculatedIndicatorsFromCacheOrFetch(version);
+    if (res.success) {
+      setCalculatedIndicators({ status: "ready", data: res.data });
+    } else {
+      setCalculatedIndicators({ status: "error", err: res.err });
     }
   });
 
@@ -70,7 +142,7 @@ export function IndicatorsManager(p: Props) {
     const csvContent = [
       headers.join(","),
       ...rows.map((row: string[]) =>
-        row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(",")
+        row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(","),
       ),
     ].join("\n");
 
@@ -93,7 +165,7 @@ export function IndicatorsManager(p: Props) {
     const csvContent = [
       headers.join(","),
       ...rows.map((row: string[]) =>
-        row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(",")
+        row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(","),
       ),
     ].join("\n");
 
@@ -144,42 +216,84 @@ export function IndicatorsManager(p: Props) {
         panelChildren={
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 flex-1 truncate text-xl">{t3({ en: "INDICATORS", fr: "INDICATEURS" })}</div>
+            <div class="font-700 flex-1 truncate text-xl">
+              {t3({ en: "INDICATORS", fr: "INDICATEURS" })}
+            </div>
             <div class="ui-gap-sm flex items-center">
               <Show when={p.isGlobalAdmin}>
                 <Button iconName="upload" onClick={handleBatchUpload}>
-                  {t3({ en: "Batch import from CSV", fr: "Importation groupée depuis CSV" })}
+                  {t3({
+                    en: "Batch import from CSV",
+                    fr: "Importation groupée depuis CSV",
+                  })}
                 </Button>
               </Show>
             </div>
           </div>
         }
       >
-        <div class="ui-pad ui-spy h-full w-full overflow-auto xl:flex xl:gap-x-12 xl:space-y-0">
-          <StateHolderWrapper state={indicators()} noPad>
-            {(keyedIndicators) => (
-              <>
-                <div class="h-full xl:flex-1">
-                  <CommonIndicatorsTable
-                    commonIndicators={keyedIndicators.commonIndicators}
-                    rawIndicators={keyedIndicators.rawIndicators}
-                    isGlobalAdmin={p.isGlobalAdmin}
-                    handleDownloadCsv={handleDownloadCommonCsv}
-                  />
-                </div>
-                <div class="h-full xl:flex-1">
-                  <RawIndicatorsTable
-                    commonIndicators={keyedIndicators.commonIndicators}
-                    rawIndicators={keyedIndicators.rawIndicators}
-                    isGlobalAdmin={p.isGlobalAdmin}
-                    handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
-                    handleDownloadCsv={handleDownloadRawCsv}
-                  />
-                </div>
-              </>
-            )}
-          </StateHolderWrapper>
-        </div>
+        <FrameLeft
+          panelChildren={
+            <TabsNavigation
+              tabs={tabs}
+              vertical
+              icons={{
+                common: "badge",
+                raw: "badge",
+                calculated: "chart",
+              }}
+            />
+          }
+        >
+          <div class="ui-pad ui-spy h-full w-full overflow-auto border-l">
+            <Show when={tabs.isTabActive("common")}>
+              <StateHolderWrapper state={indicators()} noPad>
+                {(keyedIndicators) => (
+                  <div class="h-full">
+                    <CommonIndicatorsTable
+                      commonIndicators={keyedIndicators.commonIndicators}
+                      rawIndicators={keyedIndicators.rawIndicators}
+                      isGlobalAdmin={p.isGlobalAdmin}
+                      handleDownloadCsv={handleDownloadCommonCsv}
+                    />
+                  </div>
+                )}
+              </StateHolderWrapper>
+            </Show>
+            <Show when={tabs.isTabActive("raw")}>
+              <StateHolderWrapper state={indicators()} noPad>
+                {(keyedIndicators) => (
+                  <div class="h-full">
+                    <RawIndicatorsTable
+                      commonIndicators={keyedIndicators.commonIndicators}
+                      rawIndicators={keyedIndicators.rawIndicators}
+                      isGlobalAdmin={p.isGlobalAdmin}
+                      handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
+                      handleDownloadCsv={handleDownloadRawCsv}
+                    />
+                  </div>
+                )}
+              </StateHolderWrapper>
+            </Show>
+            <Show when={tabs.isTabActive("calculated")}>
+              <StateHolderWrapper state={indicators()} noPad>
+                {(keyedIndicators) => (
+                  <StateHolderWrapper state={calculatedIndicators()} noPad>
+                    {(calculatedList) => (
+                      <div class="h-full">
+                        <CalculatedIndicatorsTable
+                          calculatedIndicators={calculatedList}
+                          commonIndicators={keyedIndicators.commonIndicators}
+                          isGlobalAdmin={p.isGlobalAdmin}
+                        />
+                      </div>
+                    )}
+                  </StateHolderWrapper>
+                )}
+              </StateHolderWrapper>
+            </Show>
+          </div>
+        </FrameLeft>
       </FrameTop>
     </EditorWrapper>
   );
@@ -226,7 +340,10 @@ function CommonIndicatorsTable(p: {
   async function handleDeleteIndicator(indicator: CommonIndicatorWithMappings) {
     const deleteAction = timActionDelete(
       {
-        text: t3({ en: "Are you sure you want to delete this indicator?", fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?" }),
+        text: t3({
+          en: "Are you sure you want to delete this indicator?",
+          fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+        }),
         itemList: [indicator.indicator_common_id],
       },
       () =>
@@ -251,9 +368,16 @@ function CommonIndicatorsTable(p: {
     const indicatorCount = indicatorIds.length;
     const deleteAction = timActionDelete(
       {
-        text: indicatorCount === 1
-          ? t3({ en: "Are you sure you want to delete this indicator?", fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?" })
-          : t3({ en: "Are you sure you want to delete these indicators?", fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?" }),
+        text:
+          indicatorCount === 1
+            ? t3({
+                en: "Are you sure you want to delete this indicator?",
+                fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+              })
+            : t3({
+                en: "Are you sure you want to delete these indicators?",
+                fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
+              }),
         itemList: indicatorLabels,
       },
       () =>
@@ -268,7 +392,10 @@ function CommonIndicatorsTable(p: {
   const columns: TableColumn<CommonIndicatorWithMappings>[] = [
     {
       key: "indicator_common_id",
-      header: t3({ en: "Common Indicator ID", fr: "ID de l'indicateur commun" }),
+      header: t3({
+        en: "Common Indicator ID",
+        fr: "ID de l'indicateur commun",
+      }),
       sortable: true,
       render: (indicator) => (
         <span class="font-mono">{indicator.indicator_common_id}</span>
@@ -339,7 +466,9 @@ function CommonIndicatorsTable(p: {
   return (
     <div class="flex h-full flex-col">
       <div class="ui-gap-sm flex items-center pb-4">
-        <div class="font-700 flex-1 text-xl">{t3({ en: "Common Indicators", fr: "Indicateurs communs" })}</div>
+        <div class="font-700 flex-1 text-xl">
+          {t3({ en: "Common Indicators", fr: "Indicateurs communs" })}
+        </div>
         <Show when={p.isGlobalAdmin}>
           <Button
             onClick={() => p.handleDownloadCsv(p.commonIndicators)}
@@ -353,7 +482,10 @@ function CommonIndicatorsTable(p: {
             iconName="plus"
             intent="primary"
           >
-            {t3({ en: "Create Common Indicator", fr: "Créer un indicateur commun" })}
+            {t3({
+              en: "Create Common Indicator",
+              fr: "Créer un indicateur commun",
+            })}
           </Button>
         </Show>
       </div>
@@ -362,7 +494,10 @@ function CommonIndicatorsTable(p: {
           data={p.commonIndicators}
           columns={columns}
           keyField="indicator_common_id"
-          noRowsMessage={t3({ en: "No common indicators", fr: "Aucun indicateur commun" })}
+          noRowsMessage={t3({
+            en: "No common indicators",
+            fr: "Aucun indicateur commun",
+          })}
           bulkActions={bulkActions}
           selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
           fitTableToAvailableHeight
@@ -414,7 +549,10 @@ function RawIndicatorsTable(p: {
   async function handleDeleteMapping(indicator: RawIndicatorWithMappings) {
     const deleteAction = timActionDelete(
       {
-        text: t3({ en: "Are you sure you want to delete this indicator?", fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?" }),
+        text: t3({
+          en: "Are you sure you want to delete this indicator?",
+          fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+        }),
         itemList: [indicator.raw_indicator_id],
       },
       () =>
@@ -439,9 +577,16 @@ function RawIndicatorsTable(p: {
     const indicatorCount = indicatorIds.length;
     const deleteAction = timActionDelete(
       {
-        text: indicatorCount === 1
-          ? t3({ en: "Are you sure you want to delete this indicator?", fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?" })
-          : t3({ en: "Are you sure you want to delete these indicators?", fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?" }),
+        text:
+          indicatorCount === 1
+            ? t3({
+                en: "Are you sure you want to delete this indicator?",
+                fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+              })
+            : t3({
+                en: "Are you sure you want to delete these indicators?",
+                fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
+              }),
         itemList: indicatorLabels,
       },
       () =>
@@ -520,7 +665,10 @@ function RawIndicatorsTable(p: {
     <div class="flex h-full flex-col">
       <div class="ui-gap-sm flex flex-none items-center pb-4">
         <div class="font-700 flex-1 text-xl">
-          {t3({ en: "DHIS2 Indicators (JSON IDs)", fr: "Indicateurs DHIS2 (ID JSON)" })}
+          {t3({
+            en: "DHIS2 Indicators (JSON IDs)",
+            fr: "Indicateurs DHIS2 (ID JSON)",
+          })}
         </div>
         <Show when={p.isGlobalAdmin}>
           <Button
@@ -531,14 +679,20 @@ function RawIndicatorsTable(p: {
             {t3({ en: "Download CSV", fr: "Télécharger le CSV" })}
           </Button>
           <Button iconName="import" onClick={p.handleDhis2IndicatorSelect}>
-            {t3({ en: "Import DHIS2 indicator", fr: "Importer un indicateur DHIS2" })}
+            {t3({
+              en: "Import DHIS2 indicator",
+              fr: "Importer un indicateur DHIS2",
+            })}
           </Button>
           <Button
             onClick={handleCreateMapping}
             iconName="plus"
             intent="primary"
           >
-            {t3({ en: "Create DHIS2 Indicator", fr: "Créer un indicateur DHIS2" })}
+            {t3({
+              en: "Create DHIS2 Indicator",
+              fr: "Créer un indicateur DHIS2",
+            })}
           </Button>
         </Show>
       </div>
@@ -547,7 +701,10 @@ function RawIndicatorsTable(p: {
           data={p.rawIndicators}
           columns={columns}
           keyField="raw_indicator_id"
-          noRowsMessage={t3({ en: "No DHIS2 indicators", fr: "Aucun indicateur DHIS2" })}
+          noRowsMessage={t3({
+            en: "No DHIS2 indicators",
+            fr: "Aucun indicateur DHIS2",
+          })}
           bulkActions={bulkActions}
           selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
           fitTableToAvailableHeight

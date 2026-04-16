@@ -29,11 +29,11 @@ export type BatchIndicator = {
 };
 
 // ============================================================================
-// Scorecard Indicators
+// Calculated indicators
 // ============================================================================
 
-export type ScorecardIndicator = {
-  scorecard_indicator_id: string;
+export type CalculatedIndicator = {
+  calculated_indicator_id: string;
   label: string;
   group_label: string;
   sort_order: number;

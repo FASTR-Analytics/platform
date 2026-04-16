@@ -37,7 +37,12 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   geojsonMaps: [],
   structure: undefined,
   structureLastUpdated: undefined,
-  indicators: { commonIndicators: 0, rawIndicators: 0, hfaIndicators: 0, scorecardIndicators: 0 },
+  indicators: {
+    commonIndicators: 0,
+    rawIndicators: 0,
+    hfaIndicators: 0,
+    calculatedIndicators: 0,
+  },
   datasetsWithData: [],
   datasetVersions: {},
   hmisNVersions: 0,
@@ -45,7 +50,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   hfaCacheHash: "",
   indicatorMappingsVersion: "",
   hfaIndicatorsVersion: "",
-  scorecardIndicatorsVersion: "",
+  calculatedIndicatorsVersion: "",
   currentUserEmail: "",
   currentUserApproved: false,
   currentUserIsGlobalAdmin: false,
@@ -107,8 +112,8 @@ export function getHfaIndicatorsVersion(): string {
   return unwrap(instanceState).hfaIndicatorsVersion;
 }
 
-export function getScorecardIndicatorsVersion(): string {
-  return unwrap(instanceState).scorecardIndicatorsVersion;
+export function getCalculatedIndicatorsVersion(): string {
+  return unwrap(instanceState).calculatedIndicatorsVersion;
 }
 
 // ============================================================================
@@ -146,11 +151,16 @@ export function updateInstanceStructure(data: InstanceStructureSummary): void {
   setInstanceState("structureLastUpdated", data.structureLastUpdated);
 }
 
-export function updateInstanceIndicators(data: InstanceIndicatorsSummary): void {
+export function updateInstanceIndicators(
+  data: InstanceIndicatorsSummary,
+): void {
   setInstanceState("indicators", reconcile(data.indicators));
   setInstanceState("indicatorMappingsVersion", data.indicatorMappingsVersion);
   setInstanceState("hfaIndicatorsVersion", data.hfaIndicatorsVersion);
-  setInstanceState("scorecardIndicatorsVersion", data.scorecardIndicatorsVersion);
+  setInstanceState(
+    "calculatedIndicatorsVersion",
+    data.calculatedIndicatorsVersion,
+  );
 }
 
 export function updateInstanceDatasets(data: InstanceDatasetsSummary): void {
@@ -168,23 +178,30 @@ export function updateInstanceDatasets(data: InstanceDatasetsSummary): void {
 export function updateCurrentUser(me: OtherUser | undefined): void {
   setInstanceState("currentUserApproved", !!me);
   setInstanceState("currentUserIsGlobalAdmin", me?.isGlobalAdmin ?? false);
-  setInstanceState("currentUserPermissions", reconcile(me ? {
-    can_configure_users: me.can_configure_users,
-    can_view_users: me.can_view_users,
-    can_view_logs: me.can_view_logs,
-    can_configure_settings: me.can_configure_settings,
-    can_configure_assets: me.can_configure_assets,
-    can_configure_data: me.can_configure_data,
-    can_view_data: me.can_view_data,
-    can_create_projects: me.can_create_projects,
-  } : {
-    can_configure_users: false,
-    can_view_users: false,
-    can_view_logs: false,
-    can_configure_settings: false,
-    can_configure_assets: false,
-    can_configure_data: false,
-    can_view_data: false,
-    can_create_projects: false,
-  }));
+  setInstanceState(
+    "currentUserPermissions",
+    reconcile(
+      me
+        ? {
+            can_configure_users: me.can_configure_users,
+            can_view_users: me.can_view_users,
+            can_view_logs: me.can_view_logs,
+            can_configure_settings: me.can_configure_settings,
+            can_configure_assets: me.can_configure_assets,
+            can_configure_data: me.can_configure_data,
+            can_view_data: me.can_view_data,
+            can_create_projects: me.can_create_projects,
+          }
+        : {
+            can_configure_users: false,
+            can_view_users: false,
+            can_view_logs: false,
+            can_configure_settings: false,
+            can_configure_assets: false,
+            can_configure_data: false,
+            can_view_data: false,
+            can_create_projects: false,
+          },
+    ),
+  );
 }

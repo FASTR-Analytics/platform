@@ -1,33 +1,33 @@
 import { Hono } from "hono";
 import {
-  createScorecardIndicator,
-  deleteScorecardIndicators,
+  createCalculatedIndicator,
+  deleteCalculatedIndicators,
   getInstanceIndicatorsSummary,
-  getScorecardIndicators,
-  updateScorecardIndicator,
+  getCalculatedIndicators,
+  updateCalculatedIndicator,
 } from "../../db/mod.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
-export const routesScorecardIndicators = new Hono();
+export const routesCalculatedIndicators = new Hono();
 
 defineRoute(
-  routesScorecardIndicators,
-  "getScorecardIndicators",
+  routesCalculatedIndicators,
+  "getCalculatedIndicators",
   requireGlobalPermission("can_configure_data"),
   async (c) => {
-    const res = await getScorecardIndicators(c.var.mainDb);
+    const res = await getCalculatedIndicators(c.var.mainDb);
     return c.json(res);
   },
 );
 
 defineRoute(
-  routesScorecardIndicators,
-  "createScorecardIndicator",
+  routesCalculatedIndicators,
+  "createCalculatedIndicator",
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
-    const res = await createScorecardIndicator(c.var.mainDb, body.indicator);
+    const res = await createCalculatedIndicator(c.var.mainDb, body.indicator);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),
@@ -38,13 +38,13 @@ defineRoute(
 );
 
 defineRoute(
-  routesScorecardIndicators,
-  "updateScorecardIndicator",
+  routesCalculatedIndicators,
+  "updateCalculatedIndicator",
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
-    const res = await updateScorecardIndicator(
+    const res = await updateCalculatedIndicator(
       c.var.mainDb,
-      body.oldScorecardIndicatorId,
+      body.oldCalculatedIndicatorId,
       body.indicator,
     );
     if (res.success) {
@@ -57,13 +57,13 @@ defineRoute(
 );
 
 defineRoute(
-  routesScorecardIndicators,
-  "deleteScorecardIndicators",
+  routesCalculatedIndicators,
+  "deleteCalculatedIndicators",
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
-    const res = await deleteScorecardIndicators(
+    const res = await deleteCalculatedIndicators(
       c.var.mainDb,
-      body.scorecardIndicatorIds,
+      body.calculatedIndicatorIds,
     );
     if (res.success) {
       notifyInstanceIndicatorsUpdated(

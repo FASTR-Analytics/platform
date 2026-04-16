@@ -15,14 +15,18 @@ export async function tryCatchServer<
   let lastAuthError = false;
 
   // Determine if this is a safe method that can be retried
-  const method = init?.method || 'GET';
-  const isSafeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
+  const method = init?.method || "GET";
+  const isSafeMethod = ["GET", "HEAD", "OPTIONS"].includes(
+    method.toUpperCase(),
+  );
 
   while (retries <= maxRetries) {
     try {
       if (_EXTRA_TIME && retries === 0) {
         await new Promise((res) => setTimeout(res, 500));
       }
+
+      await clerk.session?.getToken();
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
@@ -56,7 +60,6 @@ export async function tryCatchServer<
             body.err?.includes("not authorized") ||
             body.err?.includes("not authenticated")
           ) {
-            await clerk.signOut();
             window.location.href = "/";
             return { success: false, err: "Not authenticated" } as T;
           }

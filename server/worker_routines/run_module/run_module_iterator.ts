@@ -4,7 +4,12 @@ import { mergeReadableStreams } from "@std/streams";
 import { stripVTControlCharacters } from "node:util";
 import Papa from "papaparse";
 import { Sql } from "postgres";
-import { getResultsObjectTableName, dbRowToHfaIndicator, getAllHfaIndicatorCode, type DBHfaIndicator } from "../../db/mod.ts";
+import {
+  getResultsObjectTableName,
+  dbRowToHfaIndicator,
+  getAllHfaIndicatorCode,
+  type DBHfaIndicator,
+} from "../../db/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
   _ASSETS_DIR_PATH,
@@ -37,7 +42,7 @@ export async function* runModuleIterator(
   mainDb: Sql,
   moduleDetail: ModuleDetailForRunningScript,
   facilityColumns: InstanceConfigFacilityColumns,
-  countryIso3: string | undefined
+  countryIso3: string | undefined,
 ) {
   let logFile: Deno.FsFile | undefined;
   let logFileClosed = false;
@@ -49,7 +54,7 @@ export async function* runModuleIterator(
       const prefix = type ? `[${type.toUpperCase()}]` : "[INFO]";
       try {
         await logFile.write(
-          encoder.encode(`${timestamp} ${prefix} ${message}\n`)
+          encoder.encode(`${timestamp} ${prefix} ${message}\n`),
         );
       } catch (e) {
         // Ignore write errors if file is already closed
@@ -67,7 +72,7 @@ export async function* runModuleIterator(
     const projectDirPath_EXTERNAL = join(_SANDBOX_DIR_PATH_EXTERNAL, projectId);
     const moduleDirPath_EXTERNAL = join(
       projectDirPath_EXTERNAL,
-      moduleDetail.id
+      moduleDetail.id,
     );
 
     //////////////////////////////////
@@ -189,7 +194,7 @@ export async function* runModuleIterator(
               });
             }
           },
-        })
+        }),
       ),
       child.stderr.pipeThrough(new TextDecoderStream()).pipeThrough(
         new TransformStream<string, RunStreamMsg>({
@@ -204,8 +209,8 @@ export async function* runModuleIterator(
               });
             }
           },
-        })
-      )
+        }),
+      ),
     );
 
     const reader = joined.getReader();
@@ -274,10 +279,12 @@ export async function* runModuleIterator(
         projectId,
         moduleDetail.id,
         ro,
-        facilityColumns
+        facilityColumns,
       );
       throwIfErrNoData(res);
     }
+
+    // Warm cache for all items related to this module (poDetail, resultsValueInfo, etc.)
   } catch (e) {
     const errorMsg = "Error running module: " + String(e);
     await writeToLog(errorMsg, "bad-close");
@@ -324,7 +331,7 @@ async function checkFileExists(filePath: string): Promise<boolean> {
 
 async function importAsset(
   assetFileName: string,
-  dirPath: string
+  dirPath: string,
 ): Promise<APIResponseNoData> {
   try {
     const assetFilePathSource = join(_ASSETS_DIR_PATH, assetFileName);
@@ -344,7 +351,7 @@ export async function storeResultsObject(
   projectId: string,
   moduleId: string,
   resultsObject: ResultsObjectDefinition,
-  facilityColumns: InstanceConfigFacilityColumns
+  facilityColumns: InstanceConfigFacilityColumns,
 ): Promise<APIResponseNoData> {
   try {
     if (!resultsObject.createTableStatementPossibleColumns) {
@@ -355,7 +362,7 @@ export async function storeResultsObject(
       _SANDBOX_DIR_PATH,
       projectId,
       moduleId,
-      resultsObject.id
+      resultsObject.id,
     );
 
     const tableName = getResultsObjectTableName(resultsObject.id);
@@ -366,14 +373,14 @@ export async function storeResultsObject(
     const createTableStatement = getCreateTableStatementFromCsvHeaders(
       tableName,
       resultsObject.createTableStatementPossibleColumns,
-      csvHeaders
+      csvHeaders,
     );
 
     const roCsvFilePathFromWithinPostgres = join(
       _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
       projectId,
       moduleId,
-      resultsObject.id
+      resultsObject.id,
     );
 
     const copyFileStatement = `
@@ -424,12 +431,12 @@ ENCODING 'UTF8' CSV HEADER NULL 'NA'
 function getCreateTableStatementFromCsvHeaders(
   tableName: string,
   createTableStatementPossibleColumns: Record<string, string>,
-  csvHeaders: string[]
+  csvHeaders: string[],
 ): string {
   // Create a map of column name to column definition
   const columnMap = new Map<string, string>();
   for (const [colName, colDef] of Object.entries(
-    createTableStatementPossibleColumns
+    createTableStatementPossibleColumns,
   )) {
     columnMap.set(colName, colDef);
   }
@@ -451,13 +458,13 @@ function getCreateTableStatementFromCsvHeaders(
 
   if (missingHeaders.length > 0) {
     throw new Error(
-      `CSV headers not found in table definition: ${missingHeaders.join(", ")}`
+      `CSV headers not found in table definition: ${missingHeaders.join(", ")}`,
     );
   }
 
   if (selectedColumns.length === 0) {
     throw new Error(
-      "No matching columns found between CSV headers and table definition"
+      "No matching columns found between CSV headers and table definition",
     );
   }
 
@@ -480,7 +487,7 @@ async function getCsvHeaders(csvFilePath: string): Promise<string[]> {
   }
 
   const headerChunk = new TextDecoder().decode(
-    headerBuffer.slice(0, bytesRead)
+    headerBuffer.slice(0, bytesRead),
   );
   const headers = await new Promise<string[]>((resolve, reject) => {
     let headers: string[] | null = null;

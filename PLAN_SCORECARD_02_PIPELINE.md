@@ -1,77 +1,90 @@
-# PLAN: Scorecard Phase 2 — Project Dataset Integration & m008
+# PLAN: Scorecard Phase 2 — m008 + HMIS-Coupled Catalogue Snapshot
 
-Make scorecard indicators a third `DatasetType`, reusing the existing per-project dataset import pipeline (HMIS / HFA) to export the catalog as a per-project CSV snapshot. Build `wb-fastr-modules/m008` to consume that snapshot via the existing `DataSource: "dataset"` resolver. m007 is not modified.
+Build `wb-fastr-modules/m008` and wire the calculated indicator catalogue into the existing HMIS dataset import pipeline. The catalogue is **not** a standalone project resource the user enables — it piggybacks on HMIS imports as an opt-in side-effect, controlled by a single boolean on the HMIS settings. m007 is not modified.
 
-Depends on phase 1 (catalog table exists, seeded with the 10 current indicators). At the end of this phase, an admin enables "Scorecard indicators" on a project via the Project Data tab, m008 runs, and a scorecard presentation object on m008's metric renders correctly with dynamic admin-area-level and period selection.
+Depends on phase 1 (catalogue table exists, seeded with the 10 current indicators). At the end of this phase, an admin imports HMIS data into a project (with the new toggle on), m008 runs, and a scorecard presentation object on m008's metric renders correctly with dynamic admin-area-level and period selection.
 
 ## The architectural bet
 
-Scorecard indicators fit the existing dataset-import-to-project pattern mechanically, even though they're config rather than observational data. Reusing that pipeline means **zero changes** to:
+Calculated indicators are inherently coupled to HMIS data. m008 needs both: HMIS counts (via m002's `M2_adjusted_data.csv`) and the catalogue defining how those counts get combined. Letting them drift out of sync — fresh HMIS with stale catalogue, or vice versa — produces silently wrong scorecard values. Coupling the two at import time eliminates that class of bug.
 
-- [run_module_iterator.ts](server/worker_routines/run_module/run_module_iterator.ts) — no new staging hook
-- [get_script_with_parameters.ts](server/server_only_funcs/get_script_with_parameters.ts) — the existing `sourceType === "dataset"` branch handles the new type automatically once it's added to `DatasetType`
-- Module definition schema — no new capability flag
+So:
 
-The only changes are: (a) add `"scorecard_indicators"` to the `DatasetType` union, (b) add a new `addScorecardIndicatorsToProject` function mirroring `addDatasetHfaToProject`, (c) add a new `Match` branch to [ProjectData](client/src/components/project/project_data.tsx) for the new card, (d) build m008 with a standard `dataSources` entry pointing at the new type. See overview D4 for the full rationale.
+- Calculated indicators are **not** their own `_POSSIBLE_DATASETS` card. The user never sees "Calculated indicators" as a thing to enable.
+- They piggyback on `addDatasetHmisToProject`: when the user imports HMIS, the catalogue is exported as an extra CSV alongside `hmis.csv` in the same `datasets/` folder.
+- Whether the catalogue is exported is gated by a new boolean `includeCalculatedIndicatorCatalogue` in the HMIS dataset windowing config. Default `true`. Power users can opt out (e.g. HFA-only projects, projects that don't use m008).
+- The HMIS card's existing staleness check picks up catalogue drift as one more reason to refresh, so editing the instance catalogue surfaces a visible "needs update" badge on every project that opted in.
+
+The catalogue still travels via the existing `DataSource: "dataset"` resolver. m008 declares `datasetType: "calculated_indicators"` and the existing branch in [get_script_with_parameters.ts:35-38](server/server_only_funcs/get_script_with_parameters.ts#L35-L38) substitutes `'../datasets/calculated_indicators.csv'` automatically — **zero changes** to that resolver, to [run_module_iterator.ts](server/worker_routines/run_module/run_module_iterator.ts), or to module definition schema.
 
 ## 2.1 — Extend the `DatasetType` union
 
-**Files:**
-
-- [lib/types/datasets.ts](lib/types/datasets.ts) (or wherever `DatasetType` is declared)
-- `_POSSIBLE_DATASETS` constant (used by [project_data.tsx:39](client/src/components/project/project_data.tsx#L39))
+**File:** [lib/types/datasets.ts](lib/types/datasets.ts)
 
 ```ts
-export type DatasetType = "hmis" | "hfa" | "scorecard_indicators";
+export type DatasetType = "hmis" | "hfa" | "calculated_indicators";
 ```
 
-Add a `_POSSIBLE_DATASETS` entry for scorecard indicators with:
+**Do not** add an entry to `_POSSIBLE_DATASETS`. The new type exists only so module definitions can reference it via `datasetType: "calculated_indicators"` in `dataSources`; it is never rendered as a project-data card. Any code that exhaustively switches on `DatasetType` (e.g. dispatchers in `addDatasetToProject`) needs a no-op branch for `"calculated_indicators"` — admins never call those entry points with this type, but the union exhaustiveness must compile.
 
-- `datasetType: "scorecard_indicators"`
-- `label: t3({ en: "Scorecard indicators", fr: "Indicateurs du scorecard" })`
+## 2.2 — HMIS dataset config gains `includeCalculatedIndicatorCatalogue`
 
-No other properties are needed — unlike HMIS, there's no windowing, no facility filter, no time range.
-
-## 2.2 — Per-project export function
-
-**New file:** `server/db/project/datasets_in_project_scorecard_indicators.ts`. Mirrors [datasets_in_project_hfa.ts](server/db/project/datasets_in_project_hfa.ts) closely — HFA is the simpler analog (no windowing).
+**File:** [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts) — wherever `DatasetHmisWindowingCommon` is declared.
 
 ```ts
-export async function addScorecardIndicatorsToProject(
-  mainDb: Sql,
-  projectDb: Sql,
-  projectId: string,
-  onProgress?: (progress: number, message: string) => Promise<void>,
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
-  return await tryCatchDatabaseAsync(async () => {
-    if (onProgress) await onProgress(0.1, "Removing existing snapshot...");
-    const res = await removeDatasetFromProject(projectDb, projectId, "scorecard_indicators");
-    throwIfErrNoData(res);
+export type DatasetHmisWindowingCommon = {
+  // ...existing windowing fields...
+  includeCalculatedIndicatorCatalogue: boolean;
+};
+```
 
-    if (onProgress) await onProgress(0.2, "Validating configuration...");
-    const count = (await mainDb<{ count: number }[]>`
-      SELECT COUNT(*)::int as count FROM scorecard_indicators LIMIT 1
-    `)[0].count;
-    if (count === 0) {
-      throw new Error("No scorecard indicators configured at the instance level.");
-    }
+**Default value when adding HMIS to a new project:** `true`. The catalogue file is small, the cost of including it is negligible, and the cost of forgetting to enable it (m008 silently fails to find its data source) is much higher than the cost of an unused file.
 
-    const datasetDirPath = getDatasetDirPath(projectId);
-    await ensureDir(datasetDirPath);
-    await Deno.chmod(datasetDirPath, 0o777);
+**File:** [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts) — `DatasetHmisInfoInProject` (the per-project snapshot type stored in the `datasets` table's `info` JSON):
 
-    const datasetFilePathForPostgres = getDatasetFilePathForPostgres(
-      projectId,
-      "scorecard_indicators",
-    );
+```ts
+export type DatasetHmisInfoInProject = {
+  // ...existing fields...
+  calculatedIndicatorsVersion: string | undefined;  // undefined when the toggle is off
+};
+```
 
-    if (onProgress) await onProgress(0.5, "Exporting scorecard indicators to CSV...");
+The `windowing` sub-object inside this type already carries the boolean (it's a `DatasetHmisWindowingCommon`); the version field at the top level is what the staleness check compares against `instanceState.calculatedIndicatorsVersion`.
 
-    // Flat SELECT — one row per scorecard indicator, all columns the R script needs.
-    // Column order matches the CSV schema documented in the R script.
-    const exportStatement = `
+## 2.3 — `addDatasetHmisToProject` exports the catalogue when enabled
+
+**File:** [server/db/project/datasets_in_project_hmis.ts](server/db/project/datasets_in_project_hmis.ts)
+
+After the existing HMIS `COPY` statement (around [line 151](server/db/project/datasets_in_project_hmis.ts#L151)), add a conditional catalogue export:
+
+```ts
+// HMIS export (existing, unchanged)
+await mainDb.unsafe(`
+COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true, FREEZE false)
+`);
+
+// Calculated indicator catalogue (new, opt-in)
+const catalogPathForPostgres = join(
+  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
+  projectId,
+  "datasets",
+  "calculated_indicators.csv",
+);
+const catalogPathForDeno = join(
+  _SANDBOX_DIR_PATH,
+  projectId,
+  "datasets",
+  "calculated_indicators.csv",
+);
+
+let calculatedIndicatorsVersion: string | undefined = undefined;
+
+if (startingWindowing.includeCalculatedIndicatorCatalogue) {
+  if (onProgress) await onProgress(0.6, "Exporting calculated indicators catalogue...");
+
+  const catalogExportStatement = `
 SELECT
-  scorecard_indicator_id,
+  calculated_indicator_id,
   label,
   group_label,
   sort_order,
@@ -84,76 +97,105 @@ SELECT
   threshold_direction,
   threshold_green,
   threshold_yellow
-FROM scorecard_indicators
-ORDER BY sort_order, scorecard_indicator_id`;
+FROM calculated_indicators
+ORDER BY sort_order, calculated_indicator_id`;
 
-    await mainDb.unsafe(`
-COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true, FREEZE false)
+  await mainDb.unsafe(`
+COPY (${catalogExportStatement}) TO '${catalogPathForPostgres}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
 
-    if (onProgress) await onProgress(0.8, "Updating project database...");
-    const lastUpdated = new Date().toISOString();
-    const version = await getScorecardIndicatorsVersion(mainDb);
-
-    const info = { version, count };
-
-    await projectDb`
-INSERT INTO datasets (dataset_type, info, last_updated)
-VALUES (
-  'scorecard_indicators',
-  ${JSON.stringify(info)},
-  ${lastUpdated}
-)
-ON CONFLICT (dataset_type) DO UPDATE SET
-  info = EXCLUDED.info,
-  last_updated = EXCLUDED.last_updated
-`;
-
-    return { success: true, data: { lastUpdated } };
-  });
+  calculatedIndicatorsVersion = await getCalculatedIndicatorsVersion(mainDb);
+} else {
+  // Cleanup: a previous import may have written the file when the toggle was on
+  try { await Deno.remove(catalogPathForDeno); } catch { /* not present */ }
 }
 ```
 
-Uses the shared `getDatasetDirPath` / `getDatasetFilePathForPostgres` helpers from [datasets_in_project_hmis.ts](server/db/project/datasets_in_project_hmis.ts). Files land at `{sandbox}/{projectId}/datasets/scorecard_indicators.csv` — exactly the same location the existing `DataSource: "dataset"` resolver points to.
-
-**Project DB `info` payload** is minimal: just `{ version, count }`. Unlike HMIS, there's no windowing or facility config to snapshot — the catalog is small and always imported in full. The `version` field drives staleness.
-
-## 2.3 — Wire into `addDatasetToProject` dispatcher
-
-The existing `addDatasetToProject` server action (called from [project_data.tsx:335-340](client/src/components/project/project_data.tsx#L335-L340)) dispatches on `datasetType`. Add a branch for `"scorecard_indicators"` that calls `addScorecardIndicatorsToProject`. `removeDatasetFromProject` in [datasets_in_project_hmis.ts:270-288](server/db/project/datasets_in_project_hmis.ts#L270-L288) already accepts an arbitrary `datasetType` and handles row deletion + file unlinking generically — no change needed there beyond making sure the `getDatasetFilePath` helper handles the new type (it's already parameterized on `datasetType`).
-
-No new API route — the existing `addDatasetToProject` / `removeDatasetFromProject` routes in [server/routes/project/](server/routes/project/) handle the new type automatically via the dispatcher.
-
-## 2.4 — `ProjectData` UI: third dataset card
-
-**File:** [client/src/components/project/project_data.tsx](client/src/components/project/project_data.tsx)
-
-Today the `For each={_POSSIBLE_DATASETS}` loop has three `Match` branches per possible dataset: one for HMIS (with windowing settings editor), one for HFA (simpler, no settings), and a fallback "Enable" button. Add a fourth `Match` branch for scorecard indicators, structurally identical to the HFA branch but simpler still (no settings editor at all).
-
-The card renders:
-
-- Card heading: "Scorecard indicators"
-- Stale warning badge when `instanceState.scorecardIndicatorsVersion !== projectSnapshot.info.version`
-- Last-exported timestamp
-- "Update data" button (calls `addDatasetToProject({ datasetType: "scorecard_indicators" })`) — only shown when stale
-- "Disable" button (calls `removeDatasetFromProject`)
-- In the fallback/no-snapshot case: an "Enable" button
-
-**Staleness check:**
+Then thread `calculatedIndicatorsVersion` into the `info` payload that gets stored in the project DB:
 
 ```ts
-const projectVersion = () => keyedProjectDatasetScorecard.info.version;
-const instanceVersion = () => instanceState.scorecardIndicatorsVersion;
-const isStale = () => {
-  const inst = instanceVersion();
-  const proj = projectVersion();
-  return inst !== undefined && proj !== inst;
+const info: DatasetHmisInfoInProject = {
+  version,
+  windowing: startingWindowing,
+  totalRows,
+  structureLastUpdated,
+  indicatorMappingsVersion,
+  facilityColumnsConfig: resFacilityConfig.data,
+  maxAdminArea: resMaxAdminArea.data.maxAdminArea,
+  calculatedIndicatorsVersion,
 };
 ```
 
-Simpler than HMIS (no structure check, no facility config check, no indicator mappings check). The catalog is a single small resource; one version field is enough.
+**Why the cleanup step matters.** If a project was previously imported with the toggle on and the user later disables it, an orphaned `calculated_indicators.csv` would sit in the sandbox indefinitely. The `Deno.remove` in the `else` branch handles that — `try/catch` around the unlink because the file legitimately may not exist on a first import.
 
-## 2.5 — m008 scaffold
+## 2.4 — `removeDatasetFromProject` for HMIS also unlinks the catalogue
+
+**File:** [server/db/project/datasets_in_project_hmis.ts:270-288](server/db/project/datasets_in_project_hmis.ts#L270-L288)
+
+Today this function unlinks `hmis.csv` and deletes the `datasets` row. Add one more line to also unlink `calculated_indicators.csv`:
+
+```ts
+try {
+  const datasetFilePath = getDatasetFilePath(projectId, datasetType);
+  await Deno.remove(datasetFilePath);
+} catch { /* not present */ }
+
+if (datasetType === "hmis") {
+  try {
+    const catalogPath = join(_SANDBOX_DIR_PATH, projectId, "datasets", "calculated_indicators.csv");
+    await Deno.remove(catalogPath);
+  } catch { /* not present */ }
+}
+```
+
+The catalogue file lives in the HMIS dataset's `datasets/` folder, not under any standalone dataset path, so it's the responsibility of the HMIS removal path to clean it up.
+
+## 2.5 — HMIS settings UI: opt-in checkbox
+
+**File:** `client/src/components/project/settings_for_project_dataset_hmis.tsx`
+
+Add one checkbox to the HMIS settings editor, near the indicator selection section:
+
+```tsx
+<Checkbox
+  label={t3({
+    en: "Include calculated indicator catalogue",
+    fr: "Inclure le catalogue des indicateurs calculés",
+  })}
+  checked={tempWindowing.includeCalculatedIndicatorCatalogue}
+  onChange={(v) => setTempWindowing("includeCalculatedIndicatorCatalogue", v)}
+/>
+```
+
+Helper text below the checkbox:
+
+> *"Required for the m008 scorecard module. Adds the instance catalogue of calculated indicators to the project; it is refreshed automatically on every HMIS update."*
+
+The new field defaults to `true` for both new imports (in the `startingWindowing` fallback inside `addDatasetHmisToProject`) and any project loaded from a pre-phase-2 `info` JSON that lacks the field (handle with `?? true`).
+
+## 2.6 — HMIS card surfaces catalogue staleness
+
+**File:** [client/src/components/project/project_data.tsx](client/src/components/project/project_data.tsx) — the HMIS card's `stalenessCheck` at lines 55-95.
+
+Add one more reason to the existing chain:
+
+```ts
+if (
+  keyedProjectDatasetHmis.info.windowing.includeCalculatedIndicatorCatalogue &&
+  instanceState.calculatedIndicatorsVersion !== keyedProjectDatasetHmis.info.calculatedIndicatorsVersion
+) {
+  reasons.push(t3({
+    en: "Calculated indicators changed",
+    fr: "Indicateurs calculés modifiés",
+  }));
+}
+```
+
+When the toggle is off, no staleness signal — the catalogue is irrelevant to that project. When it's on and the instance catalogue has changed, the existing "Update data" button refreshes everything atomically (HMIS export + catalogue export, in one round-trip).
+
+This is the **only** place catalogue staleness surfaces in the UI. There's no separate card and no separate refresh action. One click, one consistent snapshot.
+
+## 2.7 — m008 scaffold
 
 Copy `wb-fastr-modules/m007/` to `wb-fastr-modules/m008/`. Rename `m7*` / `M7_*` IDs to `m8*` / `M8_*`. Update `definition.json` module ID, label, and description.
 
@@ -161,13 +203,13 @@ Copy `wb-fastr-modules/m007/` to `wb-fastr-modules/m008/`. Rename `m7*` / `M7_*`
 
 **Parameters to keep:** `SELECTED_COUNT_VARIABLE`, `INTERPOLATE_POPULATION`. These remain genuine module knobs — how to read HMIS counts, how to interpolate population between reference years.
 
-**New module-level constant in `script.R`:** `PERIOD_FRACTION <- 0.25`. This is m008's temporal choice (quarterly scorecards), applied to every population-based denominator at compute time. It's not a catalog field and it's not a user-configurable parameter — it's a fixed part of what m008 *is*. A hypothetical monthly scorecard module would set `PERIOD_FRACTION <- 1/12` and consume the same unchanged catalog. See §2.9.
+**New module-level constant in `script.R`:** `PERIOD_FRACTION <- 0.25`. This is m008's temporal choice (quarterly scorecards), applied to every population-based denominator at compute time. It's not a catalog field and it's not a user-configurable parameter — it's a fixed part of what m008 *is*. A hypothetical monthly scorecard module would set `PERIOD_FRACTION <- 1/12` and consume the same unchanged catalog. See §2.11.
 
 `assetsToImport` keeps pointing at `total_population_NGA.csv`. m008 shares the population asset with m007.
 
-## 2.6 — m008 `dataSources`
+## 2.8 — m008 `dataSources`
 
-m008 declares two data sources in `definition.json`: the existing results-object input from m002, plus a new dataset entry pointing at scorecard indicators.
+m008 declares two data sources in `definition.json`: the existing results-object input from m002, plus a new dataset entry pointing at calculated indicators.
 
 ```jsonc
 "dataSources": [
@@ -179,17 +221,19 @@ m008 declares two data sources in `definition.json`: the existing results-object
   },
   {
     "sourceType": "dataset",
-    "replacementString": "SCORECARD_INDICATORS_FILE",
-    "datasetType": "scorecard_indicators"
+    "replacementString": "CALCULATED_INDICATORS_FILE",
+    "datasetType": "calculated_indicators"
   }
 ]
 ```
 
-The existing branch at [get_script_with_parameters.ts:35-38](server/server_only_funcs/get_script_with_parameters.ts#L35-L38) substitutes `SCORECARD_INDICATORS_FILE` → `'../datasets/scorecard_indicators.csv'` automatically. **No changes to `get_script_with_parameters.ts`.** The R script has a bare `SCORECARD_INDICATORS_FILE` token where the filename goes, and after substitution it reads as normal R.
+The existing branch at [get_script_with_parameters.ts:35-38](server/server_only_funcs/get_script_with_parameters.ts#L35-L38) substitutes `CALCULATED_INDICATORS_FILE` → `'../datasets/calculated_indicators.csv'` automatically. **No changes to `get_script_with_parameters.ts`.** The R script has a bare `CALCULATED_INDICATORS_FILE` token where the filename goes, and after substitution it reads as normal R.
 
-**Prerequisite:** m008's `prerequisites` array stays as `["m002"]` — unchanged from m007. The task manager already enforces that m002 must run first so that `M2_adjusted_data.csv` exists in the m002 sandbox. Scorecard indicators are staged via the project-dataset pipeline (§2.2) before the module runs, not as a module prerequisite.
+**Prerequisite:** m008's `prerequisites` array stays as `["m002"]` — unchanged from m007. The task manager already enforces that m002 must run first so that `M2_adjusted_data.csv` exists in the m002 sandbox. The calculated indicators CSV is written into the project sandbox by the HMIS import pipeline (§2.3) — m008 simply finds it sitting in `../datasets/calculated_indicators.csv` at run time, with no module-side staging.
 
-## 2.7 — m008 results object
+**Implicit HMIS dependency.** m008 doesn't formally declare HMIS as a prerequisite, but it can't run without it: m002 reads HMIS data, m008 needs m002's output, and m008 needs the calculated indicators CSV (which is only produced when HMIS is imported with the §2.5 toggle enabled). If a project has no HMIS dataset, m008 fails for two independent reasons. This is fine — neither failure is silent.
+
+## 2.9 — m008 results object
 
 **File:** `wb-fastr-modules/m008/_results_objects.ts`
 
@@ -212,7 +256,7 @@ export const M8_RESULTS_OBJECTS = [{
 
 The metric enricher at [metric_enricher.ts:128](server/db/project/metric_enricher.ts#L128) already lists `indicator_common_id` as a disaggregation-eligible physical column, so this schema auto-registers correctly on that axis.
 
-## 2.8 — m008 metric
+## 2.10 — m008 metric
 
 **File:** `wb-fastr-modules/m008/_metrics.ts`
 
@@ -239,7 +283,7 @@ Modelled on m002's pattern exactly: one declared `valueProps` entry (the compute
 
 **`valueLabelReplacements`** can be dropped from the metric definition entirely — labels come from the catalog at render time (phase 3) via client-side lookup. Keeping them would double-encode the labels and risk them going stale when the catalog changes.
 
-**Mandatory verification task before shipping 2.8.** No existing module combines (a) a TEXT disaggregation column and (b) a two-ingredient `postAggregationExpression`. m008 is the first. Manually verify on a scratch query:
+**Mandatory verification task before shipping 2.10.** No existing module combines (a) a TEXT disaggregation column and (b) a two-ingredient `postAggregationExpression`. m008 is the first. Manually verify on a scratch query:
 
 1. A scorecard presentation object on `m8-01` with `indicator_common_id` selected as disaggregation.
 2. `buildAggregateColumns()` at [query_helpers.ts:245-259](server/server_only_funcs_presentation_objects/query_helpers.ts#L245-L259) emits `SUM(numerator), SUM(denominator)` in the SELECT clause.
@@ -247,9 +291,9 @@ Modelled on m002's pattern exactly: one declared `valueProps` entry (the compute
 4. The post-aggregation expression wraps correctly producing one `value` column.
 5. Aggregating up to AA2 and AA3 via `disaggregateBy` also works.
 
-This is the one place the whole plan's aggregation story could break. Confirm it works against a real DB before declaring 2.8 done.
+This is the one place the whole plan's aggregation story could break. Confirm it works against a real DB before declaring 2.10 done.
 
-## 2.9 — m008 R script
+## 2.11 — m008 R script
 
 **File:** `wb-fastr-modules/m008/script.R`
 
@@ -270,15 +314,15 @@ library(readr)
 # is scaled by this factor. A monthly scorecard module would use 1/12.
 PERIOD_FRACTION <- 0.25
 
-SCORECARD_DEFS_FILE <- SCORECARD_INDICATORS_FILE  # substituted by getScriptWithParameters
-defs <- read_csv(SCORECARD_DEFS_FILE, show_col_types = FALSE)
+CALCULATED_DEFS_FILE <- CALCULATED_INDICATORS_FILE  # substituted by getScriptWithParameters
+defs <- read_csv(CALCULATED_DEFS_FILE, show_col_types = FALSE)
 
 build_num_denom_rows <- function(data, geo_cols) {
   rows <- list()
 
   for (i in seq_len(nrow(defs))) {
     def <- defs[i, ]
-    sid <- def$scorecard_indicator_id
+    sid <- def$calculated_indicator_id
 
     num_col <- def$num_indicator_id
     if (!(num_col %in% names(data))) {
@@ -329,41 +373,45 @@ Delete the AA2 and AA3 passes. The SQL query layer aggregates up dynamically via
 
 **Drop `round(.x, 2)`** from the m007 pattern at [script.R:302](../wb-fastr-modules/m007/script.R#L302). m008 stores raw numerator and denominator. `SUM(num) / SUM(denom)` needs raw values; mid-pipeline rounding causes aggregation drift. This means m008 outputs will differ from m007 in the 3rd+ decimal place on aggregated values — correct, not a regression. Note in the smoke test.
 
-## 2.10 — Module build & registration
+## 2.12 — Module build & registration
 
 Add `m008` to whatever the `wb-fastr-modules` repo's `build_definitions.ts` enumerates. Run `deno task build:modules` in the app repo to regenerate `module_defs_dist/` and verify m008 appears in the admin's install-module dropdown.
 
-## 2.11 — Smoke test
+## 2.13 — Smoke test
 
 In a scratch project that also has m007 installed:
 
-1. **Enable scorecard indicators on the project.** In the Project Data tab, click "Enable" on the new Scorecard indicators card. Verify the CSV lands at `{sandbox}/{projectId}/datasets/scorecard_indicators.csv` with 10 rows.
-2. **Install m008 and run it.** Verify `M8_output_scorecard.csv` is produced with roughly `10 × areas × quarters` rows (long form, not wide).
-3. **Render a scorecard presentation object on m8-01.** Verify it shows all 10 indicators, dynamically admin-area-level and period-selectable in the viz editor.
-4. **Aggregated values match m007 to 2 decimal places.** Not bitwise — see the `round()` note in §2.9.
-5. **Edit a scorecard indicator in the catalog** (e.g. change `penta3_coverage`'s numerator to something else). Verify:
-   - The Project Data card shows a "Scorecard indicators updated in instance" staleness warning.
-   - Clicking "Update data" re-exports the CSV and marks m008 dirty.
-   - Re-running m008 produces updated values.
+1. **Import HMIS with the toggle on.** Open the HMIS dataset settings, confirm "Include calculated indicator catalogue" is checked (default), save. Verify `hmis.csv` AND `calculated_indicators.csv` both land at `{sandbox}/{projectId}/datasets/`. Verify the project's stored HMIS `info` JSON has a non-null `calculatedIndicatorsVersion` field.
+2. **Toggle off and re-import.** Uncheck the new option, re-save HMIS settings. Verify `calculated_indicators.csv` is removed from the sandbox and `info.calculatedIndicatorsVersion` is `undefined`.
+3. **Toggle back on, install m008, and run it.** Verify `M8_output_scorecard.csv` is produced with roughly `10 × areas × quarters` rows (long form, not wide).
+4. **Render a scorecard presentation object on m8-01.** Verify it shows all 10 indicators, dynamically admin-area-level and period-selectable in the viz editor.
+5. **Aggregated values match m007 to 2 decimal places.** Not bitwise — see the `round()` note in §2.11.
+6. **Edit a calculated indicator in the instance catalogue** (e.g. change `penta3_coverage`'s numerator to something else). Verify:
+   - The HMIS card on the Project Data tab now shows a "Calculated indicators changed" reason in its staleness panel.
+   - Clicking "Update data" re-runs the HMIS import, which re-exports both `hmis.csv` and `calculated_indicators.csv`, and stores the new `calculatedIndicatorsVersion`.
+   - The staleness warning clears.
+   - m008 goes dirty and re-runs with the updated catalogue values.
    - Nothing was code-changed.
-6. **Verification task §2.8** passes against a real query through the enricher / postAgg / disaggregation path.
+7. **HFA-only project regression check.** A project that has only HFA enabled (no HMIS) should not have any `calculated_indicators.csv` in its sandbox and should not crash when phase 2 ships.
+8. **Verification task §2.10** passes against a real query through the enricher / postAgg / disaggregation path.
 
 ## Definition of done
 
-- [ ] `DatasetType` union extended to include `"scorecard_indicators"`
-- [ ] `_POSSIBLE_DATASETS` has a "Scorecard indicators" entry
-- [ ] `server/db/project/datasets_in_project_scorecard_indicators.ts` exposes `addScorecardIndicatorsToProject`
-- [ ] `addDatasetToProject` dispatcher routes `"scorecard_indicators"` to the new function
-- [ ] `removeDatasetFromProject` and `getDatasetFilePath` handle the new type (verify — likely already generic)
-- [ ] ProjectData UI has a third `Match` branch for scorecard indicators with enable / disable / update / staleness
-- [ ] Staleness check uses `instanceState.scorecardIndicatorsVersion` vs project-snapshot version
+- [ ] `DatasetType` union extended to include `"calculated_indicators"` (no `_POSSIBLE_DATASETS` entry — never rendered as its own card)
+- [ ] `DatasetHmisWindowingCommon` has a new `includeCalculatedIndicatorCatalogue: boolean` field, default `true`
+- [ ] `DatasetHmisInfoInProject` has a new `calculatedIndicatorsVersion: string | undefined` field
+- [ ] `addDatasetHmisToProject` exports `calculated_indicators.csv` alongside `hmis.csv` when the toggle is on, and unlinks any stale catalogue file when the toggle is off
+- [ ] `removeDatasetFromProject` for HMIS also unlinks `calculated_indicators.csv`
+- [ ] HMIS settings UI exposes the "Include calculated indicator catalogue" checkbox with helper text and `?? true` fallback for projects loaded from pre-phase-2 `info` JSON
+- [ ] HMIS card `stalenessCheck` includes "Calculated indicators changed" reason when the toggle is on and instance catalogue version differs from project snapshot
+- [ ] Project Data tab still has only two cards (HMIS, HFA) — no third card for calculated indicators
 - [ ] `wb-fastr-modules/m008/` exists with one results object, one metric, and the catalog-driven R script
 - [ ] Diff of `wb-fastr-modules/m007/` against main: zero edits
-- [ ] m008's `definition.json` declares `DataSource: "dataset"` entry for scorecard indicators with `replacementString: "SCORECARD_INDICATORS_FILE"` and `datasetType: "scorecard_indicators"`
+- [ ] m008's `definition.json` declares `DataSource: "dataset"` entry for calculated indicators with `replacementString: "CALCULATED_INDICATORS_FILE"` and `datasetType: "calculated_indicators"`
 - [ ] Zero changes to `run_module_iterator.ts` and `get_script_with_parameters.ts`
 - [ ] m008's R script has no `eval`, no `parse`, no expression handling of any kind
 - [ ] `BIRTHS_PCT` / `WOMEN_15_49_PCT` parameters deleted from m008's `definition.json`
 - [ ] `valueLabelReplacements` omitted from m008's metric (catalog is source of truth)
 - [ ] `deno task build:modules` picks up m008; it installs into a project cleanly
-- [ ] Smoke test §2.11 passes end-to-end, including the staleness round-trip and §2.8 verification
+- [ ] Smoke test §2.13 passes end-to-end, including the toggle round-trip, the staleness round-trip, the HFA-only regression check, and the §2.10 verification
 - [ ] `deno task typecheck` clean

@@ -4,7 +4,7 @@ import { backupRouteRegistry } from "./instance/backups.ts";
 import { datasetRouteRegistry } from "./instance/datasets.ts";
 import { hfaIndicatorRouteRegistry } from "./instance/hfa_indicators.ts";
 import { indicatorRouteRegistry } from "./instance/indicators.ts";
-import { scorecardIndicatorRouteRegistry } from "./instance/scorecard_indicators.ts";
+import { calculatedIndicatorRouteRegistry } from "./instance/calculated_indicators.ts";
 import { indicatorsDhis2RouteRegistry } from "./instance/indicators_dhis2.ts";
 import { instanceRouteRegistry } from "./instance/instance.ts";
 import { instanceModuleRouteRegistry } from "./instance/modules.ts";
@@ -29,7 +29,7 @@ export const routeRegistry = {
   ...datasetRouteRegistry,
   ...hfaIndicatorRouteRegistry,
   ...indicatorRouteRegistry,
-  ...scorecardIndicatorRouteRegistry,
+  ...calculatedIndicatorRouteRegistry,
   ...indicatorsDhis2RouteRegistry,
   ...instanceRouteRegistry,
   ...instanceModuleRouteRegistry,

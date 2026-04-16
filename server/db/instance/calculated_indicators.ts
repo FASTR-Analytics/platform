@@ -2,12 +2,12 @@ import { Sql } from "postgres";
 import {
   APIResponseNoData,
   APIResponseWithData,
-  type ScorecardIndicator,
+  type CalculatedIndicator,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 
-export type DBScorecardIndicator = {
-  scorecard_indicator_id: string;
+export type DBCalculatedIndicator = {
+  calculated_indicator_id: string;
   label: string;
   group_label: string;
   sort_order: number;
@@ -23,21 +23,22 @@ export type DBScorecardIndicator = {
   updated_at: string;
 };
 
-export function dbRowToScorecardIndicator(
-  row: DBScorecardIndicator,
-): ScorecardIndicator {
+export function dbRowToCalculatedIndicator(
+  row: DBCalculatedIndicator,
+): CalculatedIndicator {
   return {
-    scorecard_indicator_id: row.scorecard_indicator_id,
+    calculated_indicator_id: row.calculated_indicator_id,
     label: row.label,
     group_label: row.group_label,
     sort_order: row.sort_order,
     num_indicator_id: row.num_indicator_id,
-    denom: row.denom_kind === "indicator"
-      ? { kind: "indicator", indicator_id: row.denom_indicator_id! }
-      : {
-        kind: "population",
-        population_fraction: row.denom_population_fraction!,
-      },
+    denom:
+      row.denom_kind === "indicator"
+        ? { kind: "indicator", indicator_id: row.denom_indicator_id! }
+        : {
+            kind: "population",
+            population_fraction: row.denom_population_fraction!,
+          },
     format_as: row.format_as,
     decimal_places: row.decimal_places,
     threshold_direction: row.threshold_direction,
@@ -52,8 +53,8 @@ type DenomFields = {
   denom_population_fraction: number | null;
 };
 
-function denomFieldsFromScorecardIndicator(
-  indicator: ScorecardIndicator,
+function denomFieldsFromCalculatedIndicator(
+  indicator: CalculatedIndicator,
 ): DenomFields {
   if (indicator.denom.kind === "indicator") {
     return {
@@ -69,26 +70,26 @@ function denomFieldsFromScorecardIndicator(
   };
 }
 
-export async function getScorecardIndicators(
+export async function getCalculatedIndicators(
   mainDb: Sql,
-): Promise<APIResponseWithData<ScorecardIndicator[]>> {
+): Promise<APIResponseWithData<CalculatedIndicator[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const rows = await mainDb<DBScorecardIndicator[]>`
-      SELECT * FROM scorecard_indicators ORDER BY sort_order, scorecard_indicator_id
+    const rows = await mainDb<DBCalculatedIndicator[]>`
+      SELECT * FROM calculated_indicators ORDER BY sort_order, calculated_indicator_id
     `;
-    return { success: true, data: rows.map(dbRowToScorecardIndicator) };
+    return { success: true, data: rows.map(dbRowToCalculatedIndicator) };
   });
 }
 
-export async function createScorecardIndicator(
+export async function createCalculatedIndicator(
   mainDb: Sql,
-  indicator: ScorecardIndicator,
+  indicator: CalculatedIndicator,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const d = denomFieldsFromScorecardIndicator(indicator);
+    const d = denomFieldsFromCalculatedIndicator(indicator);
     await mainDb`
-      INSERT INTO scorecard_indicators (
-        scorecard_indicator_id,
+      INSERT INTO calculated_indicators (
+        calculated_indicator_id,
         label,
         group_label,
         sort_order,
@@ -104,7 +105,7 @@ export async function createScorecardIndicator(
         updated_at
       )
       VALUES (
-        ${indicator.scorecard_indicator_id},
+        ${indicator.calculated_indicator_id},
         ${indicator.label},
         ${indicator.group_label},
         ${indicator.sort_order},
@@ -124,16 +125,16 @@ export async function createScorecardIndicator(
   });
 }
 
-export async function updateScorecardIndicator(
+export async function updateCalculatedIndicator(
   mainDb: Sql,
-  oldScorecardIndicatorId: string,
-  indicator: ScorecardIndicator,
+  oldCalculatedIndicatorId: string,
+  indicator: CalculatedIndicator,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const d = denomFieldsFromScorecardIndicator(indicator);
+    const d = denomFieldsFromCalculatedIndicator(indicator);
     await mainDb`
-      UPDATE scorecard_indicators
-      SET scorecard_indicator_id    = ${indicator.scorecard_indicator_id},
+      UPDATE calculated_indicators
+      SET calculated_indicator_id    = ${indicator.calculated_indicator_id},
           label                     = ${indicator.label},
           group_label               = ${indicator.group_label},
           sort_order                = ${indicator.sort_order},
@@ -147,23 +148,23 @@ export async function updateScorecardIndicator(
           threshold_green           = ${indicator.threshold_green},
           threshold_yellow          = ${indicator.threshold_yellow},
           updated_at                = CURRENT_TIMESTAMP
-      WHERE scorecard_indicator_id = ${oldScorecardIndicatorId}
+      WHERE calculated_indicator_id = ${oldCalculatedIndicatorId}
     `;
     return { success: true };
   });
 }
 
-export async function deleteScorecardIndicators(
+export async function deleteCalculatedIndicators(
   mainDb: Sql,
-  scorecardIndicatorIds: string[],
+  calculatedIndicatorIds: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    if (scorecardIndicatorIds.length === 0) {
+    if (calculatedIndicatorIds.length === 0) {
       return { success: true };
     }
     await mainDb`
-      DELETE FROM scorecard_indicators
-      WHERE scorecard_indicator_id = ANY(${scorecardIndicatorIds})
+      DELETE FROM calculated_indicators
+      WHERE calculated_indicator_id = ANY(${calculatedIndicatorIds})
     `;
     return { success: true };
   });

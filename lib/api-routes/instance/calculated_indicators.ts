@@ -1,31 +1,31 @@
-import type { ScorecardIndicator } from "../../types/mod.ts";
+import type { CalculatedIndicator } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-export const scorecardIndicatorRouteRegistry = {
-  getScorecardIndicators: route({
-    path: "/scorecard-indicators",
+export const calculatedIndicatorRouteRegistry = {
+  getCalculatedIndicators: route({
+    path: "/calculated-indicators",
     method: "GET",
-    response: {} as ScorecardIndicator[],
+    response: {} as CalculatedIndicator[],
   }),
 
-  createScorecardIndicator: route({
-    path: "/scorecard-indicators",
+  createCalculatedIndicator: route({
+    path: "/calculated-indicators",
     method: "POST",
-    body: {} as { indicator: ScorecardIndicator },
+    body: {} as { indicator: CalculatedIndicator },
   }),
 
-  updateScorecardIndicator: route({
-    path: "/scorecard-indicators/update",
+  updateCalculatedIndicator: route({
+    path: "/calculated-indicators/update",
     method: "POST",
     body: {} as {
-      oldScorecardIndicatorId: string;
-      indicator: ScorecardIndicator;
+      oldCalculatedIndicatorId: string;
+      indicator: CalculatedIndicator;
     },
   }),
 
-  deleteScorecardIndicators: route({
-    path: "/scorecard-indicators/delete",
+  deleteCalculatedIndicators: route({
+    path: "/calculated-indicators/delete",
     method: "POST",
-    body: {} as { scorecardIndicatorIds: string[] },
+    body: {} as { calculatedIndicatorIds: string[] },
   }),
 } as const;
