@@ -1,6 +1,6 @@
-[TBD] [user] [fixed] - Fixed an issue where you could be unexpectedly signed out during periods of heavy loading or slow connections
-[TBD] [admin] [fixed] - Authentication tokens are now automatically attached to server requests, resolving potential issues where requests could fail silently due to missing authorization headers
-[TBD] [admin] [fixed] - Expired authentication tokens during periods of high network activity (e.g., many simultaneous requests) now trigger automatic retry with a fresh token before signing the user out, reducing unnecessary logouts
+[1.21.1] [user] [fixed] - Fixed an issue where you could be unexpectedly signed out during periods of heavy loading or slow connections
+[1.21.1] [admin] [fixed] - Authentication tokens are now automatically attached to server requests, resolving potential issues where requests could fail silently due to missing authorization headers
+[1.21.1] [admin] [fixed] - Expired authentication tokens during periods of high network activity (e.g., many simultaneous requests) now trigger automatic retry with a fresh token before signing the user out, reducing unnecessary logouts
 [1.21.0] [user] [added] - Project settings now display each user's name alongside their email in the user list
 [1.21.0] [admin] [added] - Project settings user table now displays each user's first and last name in a new "Name" column
 [1.21.0] [admin] [internal] - Improved diagnostic logging when users are automatically redirected due to authentication session expiry
