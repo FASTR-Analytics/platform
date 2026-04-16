@@ -28,8 +28,9 @@ type TimeseriesMode =
 
 export function TimeseriesStyleControls(p: Props) {
   const periodRadioOptions = () => {
-    const v = p.poDetail.resultsValue.mostGranularTimePeriodColumnInResultsFile;
-    return v ? [{ value: v, label: get_PERIOD_OPTION_MAP()[v] }] : [];
+    return p.poDetail.resultsValue.disaggregationOptions
+      .filter(d => d.value === "period_id" || d.value === "quarter_id" || d.value === "year")
+      .map(d => ({ value: d.value, label: get_PERIOD_OPTION_MAP()[d.value as PeriodOption] }));
   };
 
   const mode = (): TimeseriesMode => {
