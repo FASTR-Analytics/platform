@@ -71,7 +71,7 @@ export async function tryCatchServer<
               clerkSessionExpiry: clerk.session?.expireAt,
               clerkSessionLastActive: clerk.session?.lastActiveAt,
             });
-            window.location.href = "/";
+            //window.location.href = "/";
             return { success: false, err: "Not authenticated" } as T;
           }
         } catch {
