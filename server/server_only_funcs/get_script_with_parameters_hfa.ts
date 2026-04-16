@@ -157,7 +157,9 @@ ${ordered
       (s) => s.rCode && s.rCode.trim() !== "",
     );
     if (activeSnippets.length === 0) {
-      return `  mutate(${indicator.varName} = NA_real_)`;
+      throw new Error(
+        `Indicator "${indicator.varName}" has no R code configured for any time point. Configure R code for this indicator before running the module.`,
+      );
     }
     const expr = buildPerTimePointMutateExpression(
       indicator,
@@ -193,6 +195,10 @@ results_long <- facility_info %>%
   ) %>%
   left_join(indicator_categories, by = "hfa_indicator") %>%
   filter(!is.na(value))
+
+if (nrow(results_long) == 0) {
+  stop("No results generated - all indicator values are NA. Check that HFA indicators have been configured with R code.")
+}
 
 # Write output
 write.csv(results_long, "HFA001_results.csv", row.names = FALSE)
