@@ -13,6 +13,8 @@ export async function tryCatchServer<
   const maxRetries = 2;
   let retries = 0;
   let lastAuthError = false;
+  const maxAuthRetries = 2;
+  let authRetries = 0;
 
   // Determine if this is a safe method that can be retried
   const method = init?.method || "GET";
@@ -66,8 +68,8 @@ export async function tryCatchServer<
             body.err?.includes("not authorized") ||
             body.err?.includes("not authenticated")
           ) {
-            if (retries < maxRetries) {
-              retries++;
+            if (authRetries < maxAuthRetries) {
+              authRetries++;
               await new Promise((r) => setTimeout(r, 500));
               continue;
             }
