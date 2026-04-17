@@ -32,6 +32,10 @@ export function InstanceUsers(p: Props) {
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
     undefined,
   );
+  const [showHUsers, setShowHUsers] = createSignal(false);
+
+  const currentUserIsHUser = () => H_USERS.includes(p.thisLoggedInUserEmail);
+
   async function attemptAddUser() {
     await openComponent({
       element: AddUserForm,
@@ -98,6 +102,17 @@ export function InstanceUsers(p: Props) {
               heading={t3({ en: "Users", fr: "Utilisateurs" })}
             >
               <div class="ui-gap-sm flex items-center">
+                <Show when={currentUserIsHUser()}>
+                  <Button
+                    onClick={() => setShowHUsers((v) => !v)}
+                    iconName={showHUsers() ? "eyeOff" : "eye"}
+                    intent="base-100"
+                  >
+                    {showHUsers()
+                      ? t3({ en: "Hide system users", fr: "Masquer les utilisateurs système" })
+                      : t3({ en: "Show system users", fr: "Afficher les utilisateurs système" })}
+                  </Button>
+                </Show>
                 <Button onClick={downloadUsersCSV} iconName="download">
                   {t3({
                     en: "Download users",
@@ -133,6 +148,7 @@ export function InstanceUsers(p: Props) {
                     logs={logState.status === "ready" ? logState.data : undefined}
                     onUserClick={(user) => setSelectedUser(user.email)}
                     showCommingSoon={showCommingSoon}
+                    showHUsers={showHUsers}
                   />
                 );
               })()}
@@ -198,6 +214,7 @@ function UserTable(p: {
   logs: UserLog[] | undefined;
   onUserClick: (user: UserData) => void;
   showCommingSoon: () => Promise<boolean>;
+  showHUsers: () => boolean;
 }) {
   const userRows = (): UserTableData[] => {
     const map = new Map<string, number>();
@@ -215,7 +232,7 @@ function UserTable(p: {
       }
     }
     return p.users
-      .filter((user) => !H_USERS.includes(user.email))
+      .filter((user) => p.showHUsers() || !H_USERS.includes(user.email))
       .map((user) => ({
         ...user,
         lastActiveTs: map.get(user.email) ?? -1,
