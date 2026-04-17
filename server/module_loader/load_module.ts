@@ -43,12 +43,12 @@ export function deriveDefaultPresentationObjects(
           d: { ...preset.config.d },
           s: { ...DEFAULT_S_CONFIG, ...preset.config.s },
           t: {
-            caption: preset.config.t?.caption ? resolveTS(preset.config.t.caption, language) : DEFAULT_T_CONFIG.caption,
-            captionRelFontSize: preset.config.t?.captionRelFontSize ?? DEFAULT_T_CONFIG.captionRelFontSize,
-            subCaption: preset.config.t?.subCaption ? resolveTS(preset.config.t.subCaption, language) : DEFAULT_T_CONFIG.subCaption,
-            subCaptionRelFontSize: preset.config.t?.subCaptionRelFontSize ?? DEFAULT_T_CONFIG.subCaptionRelFontSize,
-            footnote: preset.config.t?.footnote ? resolveTS(preset.config.t.footnote, language) : DEFAULT_T_CONFIG.footnote,
-            footnoteRelFontSize: preset.config.t?.footnoteRelFontSize ?? DEFAULT_T_CONFIG.footnoteRelFontSize,
+            caption: preset.config.t.caption ? resolveTS(preset.config.t.caption, language) : DEFAULT_T_CONFIG.caption,
+            captionRelFontSize: preset.config.t.captionRelFontSize ?? DEFAULT_T_CONFIG.captionRelFontSize,
+            subCaption: preset.config.t.subCaption ? resolveTS(preset.config.t.subCaption, language) : DEFAULT_T_CONFIG.subCaption,
+            subCaptionRelFontSize: preset.config.t.subCaptionRelFontSize ?? DEFAULT_T_CONFIG.subCaptionRelFontSize,
+            footnote: preset.config.t.footnote ? resolveTS(preset.config.t.footnote, language) : DEFAULT_T_CONFIG.footnote,
+            footnoteRelFontSize: preset.config.t.footnoteRelFontSize ?? DEFAULT_T_CONFIG.footnoteRelFontSize,
           },
         },
       });
@@ -69,7 +69,8 @@ export async function fetchModuleFiles(
     const basePath = `${MODULES_LOCAL_DIR}/${registryEntry.github.path}`;
     const definitionText = await Deno.readTextFile(`${basePath}/definition.json`);
     const rawScript = await Deno.readTextFile(`${basePath}/script.R`);
-    const definition = JSON.parse(definitionText);
+    const rawDefinition = JSON.parse(definitionText);
+    const definition = validateDefinition(rawDefinition, moduleId);
     return { definition, script: stripFrontmatter(rawScript), gitRef: "local" };
   }
 
@@ -137,7 +138,9 @@ function translateMetrics(
     label: resolveTS(m.label, language),
     variantLabel: m.variantLabel ? resolveTS(m.variantLabel, language) : undefined,
     importantNotes: m.importantNotes ? resolveTS(m.importantNotes, language) : undefined,
-    valueLabelReplacements: m.valueLabelReplacements
+    postAggregationExpression: m.postAggregationExpression ?? undefined,
+    aiDescription: m.aiDescription ?? undefined,
+    valueLabelReplacements: Object.keys(m.valueLabelReplacements).length > 0
       ? Object.fromEntries(
           Object.entries(m.valueLabelReplacements).map(([key, value]) => [
             key,

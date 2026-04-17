@@ -53,9 +53,7 @@ export const configRequirements = z.object({
 export const resultsObjectDefinition = z.object({
   id: z.string(),
   description: z.string(),
-  createTableStatementPossibleColumns: z
-    .record(z.string(), z.string())
-    .optional(),
+  createTableStatementPossibleColumns: z.record(z.string(), z.string()),
 });
 
 export const valueFunc = z.enum(["SUM", "AVG", "COUNT", "MIN", "MAX", "identity"]);
@@ -227,26 +225,26 @@ const configS = z
   .partial();
 
 export const vizPresetTextConfig = z.object({
-  caption: translatableString.optional(),
-  captionRelFontSize: z.number().optional(),
-  subCaption: translatableString.optional(),
-  subCaptionRelFontSize: z.number().optional(),
-  footnote: translatableString.optional(),
-  footnoteRelFontSize: z.number().optional(),
+  caption: translatableString.nullable(),
+  captionRelFontSize: z.number().nullable(),
+  subCaption: translatableString.nullable(),
+  subCaptionRelFontSize: z.number().nullable(),
+  footnote: translatableString.nullable(),
+  footnoteRelFontSize: z.number().nullable(),
 });
 
 export const vizPreset = z.object({
   id: z.string(),
   label: translatableString,
   description: translatableString,
-  importantNotes: translatableString.optional(),
-  needsReplicant: z.boolean().optional(),
-  allowedFilters: z.array(disaggregationOption).optional(),
-  createDefaultVisualizationOnInstall: z.string().optional(),
+  importantNotes: translatableString.nullable(),
+  needsReplicant: z.boolean(),
+  allowedFilters: z.array(disaggregationOption),
+  createDefaultVisualizationOnInstall: z.string().nullable(),
   config: z.object({
     d: configD,
-    s: configS.optional(),
-    t: vizPresetTextConfig.optional(),
+    s: configS,
+    t: vizPresetTextConfig,
   }),
 });
 
@@ -255,28 +253,28 @@ export const metricAIDescription = z.object({
   methodology: translatableString,
   interpretation: translatableString,
   typicalRange: translatableString,
-  caveats: translatableString.optional(),
+  caveats: translatableString.nullable(),
   useCases: z.array(translatableString),
-  relatedMetrics: z.array(z.string()).optional(),
+  relatedMetrics: z.array(z.string()),
   disaggregationGuidance: translatableString,
-  importantNotes: translatableString.optional(),
+  importantNotes: translatableString.nullable(),
 });
 
 export const metricDefinitionJSON = z.object({
   id: z.string(),
   label: translatableString,
-  variantLabel: translatableString.optional(),
+  variantLabel: translatableString.nullable(),
   valueProps: z.array(z.string()),
   valueFunc: valueFunc,
   formatAs: z.enum(["percent", "number"]),
   requiredDisaggregationOptions: z.array(disaggregationOption),
-  valueLabelReplacements: z.record(z.string(), z.string()).optional(),
-  postAggregationExpression: postAggregationExpression.optional(),
+  valueLabelReplacements: z.record(z.string(), z.string()),
+  postAggregationExpression: postAggregationExpression.nullable(),
   resultsObjectId: z.string(),
-  aiDescription: metricAIDescription.optional(),
-  importantNotes: translatableString.optional(),
-  vizPresets: z.array(vizPreset).optional(),
-  hide: z.boolean().optional(),
+  aiDescription: metricAIDescription.nullable(),
+  importantNotes: translatableString.nullable(),
+  vizPresets: z.array(vizPreset),
+  hide: z.boolean(),
 });
 
 export const moduleDefinitionCore = z.object({
@@ -303,11 +301,11 @@ export type DisaggregationOption = z.infer<typeof disaggregationOption>;
 export type PostAggregationExpression = z.infer<
   typeof postAggregationExpression
 >;
+export type ModuleDefinitionCore = z.infer<typeof moduleDefinitionCore>;
 export type VizPresetTextConfig = z.infer<typeof vizPresetTextConfig>;
 export type VizPreset = z.infer<typeof vizPreset>;
 export type MetricAIDescription = z.infer<typeof metricAIDescription>;
 export type MetricDefinitionJSON = z.infer<typeof metricDefinitionJSON>;
-export type ModuleDefinitionCore = z.infer<typeof moduleDefinitionCore>;
 
 export const ModuleDefinitionJSONSchema = z
   .object({

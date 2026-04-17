@@ -1,30 +1,28 @@
-import type { TranslatableString } from "../translate/types.ts";
-import type { DatasetType } from "./datasets.ts";
-import type {
+// All module-definition types are derived from the Zod schemas in
+// `module_definition_validator.ts` (single source of truth). This file
+// re-exports them, and adds hand-written types for things that aren't
+// Zod-validated (e.g. HFA internal types).
+
+export type {
+  ScriptGenerationType,
+  DataSource,
+  DataSourceDataset,
+  DataSourceResultsObject,
+  ModuleConfigRequirements,
+  ModuleParameter,
+  ResultsObjectDefinitionJSON,
+  ValueFunc,
+  PeriodOption,
   DisaggregationOption,
-  PresentationObjectConfig,
-} from "./presentation_objects.ts";
+  PostAggregationExpression,
+  VizPresetTextConfig,
+  VizPreset,
+  MetricAIDescription,
+  MetricDefinitionJSON,
+  ModuleDefinitionJSON,
+} from "./module_definition_validator.ts";
 
-export type ScriptGenerationType = "template" | "hfa";
-
-export type DataSource = DataSourceDataset | DataSourceResultsObject;
-
-export type DataSourceDataset = {
-  sourceType: "dataset";
-  replacementString: string;
-  datasetType: DatasetType;
-};
-
-export type DataSourceResultsObject = {
-  sourceType: "results_object";
-  replacementString: string;
-  resultsObjectId: string;
-  moduleId: string;
-};
-
-export type ModuleConfigRequirements = {
-  parameters: ModuleParameter[];
-};
+// ----- Types NOT derived from Zod (HFA internals, not in module JSON) -----
 
 export type HfaIndicator = {
   varName: string;
@@ -49,112 +47,4 @@ export type HfaDictionaryForValidation = {
     vars: { varName: string; varLabel: string; varType: string }[];
     values: { varName: string; value: string; valueLabel: string }[];
   }[];
-};
-
-export type ModuleParameter = {
-  replacementString: string;
-  description: string;
-  input:
-    | {
-        inputType: "number";
-        defaultValue: string;
-      }
-    | {
-        inputType: "text";
-        defaultValue: string;
-      }
-    | {
-        inputType: "boolean";
-        defaultValue: "TRUE" | "FALSE";
-      }
-    | {
-        inputType: "select";
-        valueType: "string" | "number";
-        options: { value: string; label: string }[];
-        defaultValue: string;
-      };
-};
-
-export type ResultsObjectDefinitionJSON = {
-  id: string;
-  description: string;
-  createTableStatementPossibleColumns?: Record<string, string>;
-};
-
-export type ValueFunc = "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
-
-export type PeriodOption = "period_id" | "quarter_id" | "year";
-
-export type { DisaggregationOption };
-
-export type PostAggregationExpression = {
-  ingredientValues: {
-    prop: string;
-    func: "SUM" | "AVG";
-  }[];
-  expression: string;
-};
-
-export type VizPresetTextConfig = {
-  caption?: TranslatableString;
-  captionRelFontSize?: number;
-  subCaption?: TranslatableString;
-  subCaptionRelFontSize?: number;
-  footnote?: TranslatableString;
-  footnoteRelFontSize?: number;
-};
-
-export type VizPreset = {
-  id: string;
-  label: TranslatableString;
-  description: TranslatableString;
-  importantNotes?: TranslatableString;
-  needsReplicant?: boolean;
-  allowedFilters?: DisaggregationOption[];
-  createDefaultVisualizationOnInstall?: string;
-  config: {
-    d: PresentationObjectConfig["d"];
-    s?: Partial<PresentationObjectConfig["s"]>;
-    t?: VizPresetTextConfig;
-  };
-};
-
-export type MetricAIDescription = {
-  summary: TranslatableString;
-  methodology: TranslatableString;
-  interpretation: TranslatableString;
-  typicalRange: TranslatableString;
-  caveats?: TranslatableString;
-  useCases: TranslatableString[];
-  relatedMetrics?: string[];
-  disaggregationGuidance: TranslatableString;
-  importantNotes?: TranslatableString;
-};
-
-export type MetricDefinitionJSON = {
-  id: string;
-  label: TranslatableString;
-  variantLabel?: TranslatableString;
-  valueProps: string[];
-  valueFunc: ValueFunc;
-  formatAs: "percent" | "number";
-  requiredDisaggregationOptions: DisaggregationOption[];
-  valueLabelReplacements?: Record<string, string>;
-  postAggregationExpression?: PostAggregationExpression;
-  resultsObjectId: string;
-  aiDescription?: MetricAIDescription;
-  importantNotes?: TranslatableString;
-  vizPresets?: VizPreset[];
-  hide?: boolean;
-};
-
-export type ModuleDefinitionJSON = {
-  label: TranslatableString;
-  prerequisites: string[];
-  scriptGenerationType: ScriptGenerationType;
-  dataSources: DataSource[];
-  configRequirements: ModuleConfigRequirements;
-  assetsToImport: string[];
-  resultsObjects: ResultsObjectDefinitionJSON[];
-  metrics: MetricDefinitionJSON[];
 };
