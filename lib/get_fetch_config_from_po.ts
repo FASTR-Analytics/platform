@@ -83,17 +83,12 @@ export function getFetchConfigFromPresentationObjectConfig(
 }
 
 export function getPeriodFilterExactBounds(
-  rawPeriodFilter: PeriodFilter | undefined,
+  periodFilter: PeriodFilter | undefined,
   periodBounds: PeriodBounds | undefined,
 ): PeriodBounds | undefined {
-  if (rawPeriodFilter === undefined) {
+  if (periodFilter === undefined) {
     return periodBounds;
   }
-  // Auto-migrate old "last_12_months" to "last_n_months"
-  const periodFilter: PeriodFilter =
-    (rawPeriodFilter.filterType as string) === "last_12_months"
-      ? { filterType: "last_n_months", nMonths: 12 }
-      : rawPeriodFilter;
   if (periodFilter.filterType === "custom") {
     return periodFilter;
   }

@@ -31,7 +31,7 @@ import {
 } from "./../utils.ts";
 import { DBMetric, DBModule } from "./_project_database_types.ts";
 import { getFacilityColumnsConfig } from "../instance/config.ts";
-import { adaptLegacyVizPresets } from "./legacy_po_config_adapter.ts";
+import { adaptLegacyVizPresets } from "../../legacy_adapters/mod.ts";
 import { enrichMetric } from "./metric_enricher.ts";
 
 export function parseModuleConfigSelections(json: string): ModuleConfigSelections {

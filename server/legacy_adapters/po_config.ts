@@ -1,4 +1,10 @@
-import type { PresentationObjectConfig, VizPreset } from "lib";
+import type {
+  APIResponseWithData,
+  PresentationObjectConfig,
+  PresentationObjectDetail,
+  VizPreset,
+} from "lib";
+import { adaptLegacyPeriodFilter } from "./period_filter.ts";
 
 // =============================================================================
 // Runtime adapter for legacy PresentationObject config shapes.
@@ -7,24 +13,14 @@ import type { PresentationObjectConfig, VizPreset } from "lib";
 //
 // Applies to both:
 // - `presentation_objects.config` JSON (stored PO configs)
-// - `metrics.viz_presets` JSON (module-defined presets snapshotted at install)
+// - `metrics.viz_presets` JSON (installed-time snapshot of module presets)
 //
 // Current transforms:
 // - `d.periodOpt` → `d.timeseriesGrouping` (renamed 2026-04)
-// - Strip fabricated bounds from relative periodFilters
-// - Normalize `filterType: undefined` on stored filters → "custom"
+// - periodFilter normalization (delegated to adaptLegacyPeriodFilter)
 // - On vizPresets: drop legacy `defaultPeriodFilterForDefaultVisualizations`
 //   (authors now put filters directly on config.d.periodFilter)
 // =============================================================================
-
-const RELATIVE_FILTER_TYPES = new Set([
-  "last_n_months",
-  "last_12_months", // old name, further normalized downstream in get_fetch_config_from_po.ts
-  "last_calendar_year",
-  "last_calendar_quarter",
-  "last_n_calendar_years",
-  "last_n_calendar_quarters",
-]);
 
 function adaptLegacyConfigD(d: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...d };
@@ -37,23 +33,11 @@ function adaptLegacyConfigD(d: Record<string, unknown>): Record<string, unknown>
     delete out.periodOpt;
   }
 
-  // Normalize periodFilter
+  // Normalize periodFilter via dedicated adapter
   if (out.periodFilter && typeof out.periodFilter === "object") {
-    const pf = { ...(out.periodFilter as Record<string, unknown>) };
-    // Legacy: filterType undefined was treated as "custom"
-    if (pf.filterType === undefined) {
-      pf.filterType = "custom";
-    }
-    // Strip fabricated bounds from relative filters
-    if (
-      typeof pf.filterType === "string" &&
-      RELATIVE_FILTER_TYPES.has(pf.filterType)
-    ) {
-      delete pf.periodOption;
-      delete pf.min;
-      delete pf.max;
-    }
-    out.periodFilter = pf;
+    out.periodFilter = adaptLegacyPeriodFilter(
+      out.periodFilter as Record<string, unknown>,
+    );
   }
 
   return out;
@@ -65,6 +49,21 @@ export function adaptLegacyPresentationObjectConfig(
   const input = raw as { d?: Record<string, unknown>; s?: unknown; t?: unknown };
   const d = adaptLegacyConfigD(input.d ?? {});
   return { ...(input as object), d } as PresentationObjectConfig;
+}
+
+// Idempotent wrapper that adapts the config inside an API response.
+// Used at cache-hit boundaries to normalize pre-deploy cached entries.
+export function adaptLegacyPODetailResponse(
+  res: APIResponseWithData<PresentationObjectDetail>,
+): APIResponseWithData<PresentationObjectDetail> {
+  if (!res.success) return res;
+  return {
+    ...res,
+    data: {
+      ...res.data,
+      config: adaptLegacyPresentationObjectConfig(res.data.config),
+    },
+  };
 }
 
 export function adaptLegacyVizPresets(raw: unknown): VizPreset[] {

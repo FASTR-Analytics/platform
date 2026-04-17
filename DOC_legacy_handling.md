@@ -22,27 +22,38 @@ Each pattern has a specific shape of problem it solves. Pick the pattern that ma
 
 Single function applied at every read path for a given entity. Reads raw JSON, normalizes to the current TS type, returns.
 
-**Canonical example:** [server/db/project/legacy_report_adapter.ts](server/db/project/legacy_report_adapter.ts) — `adaptLegacyReportItemConfig`. Called from [reports.ts:355,600](server/db/project/reports.ts#L355). Currently handles:
-
-- Layout 2D array → `LayoutNode` tree
-- `moduleId` → `metricId` lookup via `presentation_objects`
-- `placeholder` item type → `text` item type
+**Location:** all server-side legacy adapters live in [server/legacy_adapters/](server/legacy_adapters/). This is the canonical folder — when adding a new adapter, put it here. Co-located with [server/db/migrations/](server/db/migrations/) and the Pattern 4 startup migrations in [server/db_startup.ts](server/db_startup.ts) so legacy handling is discoverable as a category.
 
 **When to use:** The entity's JSON blob has accumulated multiple legacy shapes, OR you expect more to come.
 
-**Wiring rule:** every DB read path must go through the adapter. If you add a new read site and forget the adapter, you'll see `undefined` on normalized fields. Audit via grep for the entity's `parseJsonOrThrow` calls.
+**Wiring rule — two layers:**
+
+1. **DB read sites.** Every read path that parses the entity's JSON from the DB must call the adapter. The adapter normalizes the in-memory object to the current TS shape, which means read-modify-write paths also self-heal on save (written-back JSON gets the new shape).
+2. **Cache-hit sites.** Valkey entries persist across deploys. A cached value written before a shape change will return stale-shape data on cache hit, bypassing the DB-read adapter. So at every cache-hit path that exposes the entity to consumers, also call the adapter. Idempotent for already-adapted entries.
+
+Example: [server/routes/project/presentation_objects.ts](server/routes/project/presentation_objects.ts) wraps `_PO_DETAIL_CACHE.get()` result in `adaptLegacyPODetailResponse(...)` before returning. Cache misses go through the DB function which already adapts — double-adapting is a harmless no-op.
 
 **Write side:** writes always produce the new shape (types enforce it). Old rows self-heal when re-saved. No eager migration needed.
 
-**Active adapters:**
+**Active adapters in [server/legacy_adapters/](server/legacy_adapters/):**
 
-- `legacy_report_adapter.ts` — report item configs.
+- `period_filter.ts` — `adaptLegacyPeriodFilter`. Pure transform on a raw filter shape. Called from within `po_config.ts`. Transforms:
+  - `filterType: "last_12_months"` → `filterType: "last_n_months", nMonths: 12`
+  - `filterType: undefined` → `filterType: "custom"` (pre-refactor, undefined was implicitly custom)
+  - Strip fabricated `periodOption`/`min`/`max` off relative filter types
 
-- `legacy_po_config_adapter.ts` — exports two adapters for two separate JSON columns:
-  - `adaptLegacyPresentationObjectConfig` → wired into every read of `presentation_objects.config`.
-  - `adaptLegacyVizPresets` → wired into the read of `metrics.viz_presets` (installed-at-time snapshot of module presets). Ensures already-installed modules don't silently regress when accessed by preset pickers, preset preview, or AI slide builder.
+- `po_config.ts` — three exports for the PO-config family:
+  - `adaptLegacyPresentationObjectConfig` → wired into every read of `presentation_objects.config` in [server/db/project/presentation_objects.ts](server/db/project/presentation_objects.ts).
+  - `adaptLegacyVizPresets` → wired into the read of `metrics.viz_presets` in [server/db/project/modules.ts](server/db/project/modules.ts) (installed-at-time snapshot of module presets; ensures preset pickers, preset preview, and AI slide builder see adapted shapes).
+  - `adaptLegacyPODetailResponse` → wired into the cache-hit path in [server/routes/project/presentation_objects.ts](server/routes/project/presentation_objects.ts).
 
-  Current transforms: `d.periodOpt` → `d.timeseriesGrouping` rename; strip fabricated bounds from relative periodFilters; drop legacy `defaultPeriodFilterForDefaultVisualizations` from vizPresets.
+  Current transforms: `d.periodOpt` → `d.timeseriesGrouping` rename; periodFilter normalization (delegated to `period_filter.ts`); drop legacy `defaultPeriodFilterForDefaultVisualizations` from vizPresets.
+
+- `report_item.ts` — two exports, split by DB-dependence for testability:
+  - `adaptLegacyReportItemConfigShape` (pure shape transforms): layout 2D array → `LayoutNode` tree, `placeholder` item type → `text` item type.
+  - `resolveLegacyReportMetricIds(config, projectDb)` (DB-dependent): `moduleId` → `metricId` lookup via `presentation_objects`.
+
+  Callers chain: first shape, then resolve. See [server/db/project/reports.ts](server/db/project/reports.ts).
 
 ---
 
@@ -52,8 +63,9 @@ A single in-place rewrite done inside a read or resolve function. Smaller than P
 
 **Active sites:**
 
-- [lib/get_fetch_config_from_po.ts:88-95](lib/get_fetch_config_from_po.ts#L88) — rewrites `filterType: "last_12_months"` to `filterType: "last_n_months"` with `nMonths: 12`.
-- [client/src/components/visualization/presentation_object_editor_panel_data/_2_filters.tsx:26-44](client/src/components/visualization/presentation_object_editor_panel_data/_2_filters.tsx#L26) — `resolvePeriodFilter` realigns a stored `periodFilter.periodOption` when it doesn't match the data's actual time column.
+- [client/src/components/visualization/presentation_object_editor_panel_data/_2_filters.tsx:26-44](client/src/components/visualization/presentation_object_editor_panel_data/_2_filters.tsx#L26) — `resolvePeriodFilter` realigns a stored `periodFilter.periodOption` when it doesn't match the data's actual time column. This is **runtime alignment**, not legacy migration — handles the case where data shape genuinely differs from what the filter was authored against. Distinct from the legacy family even though it looks similar.
+
+(Previously an inline `last_12_months` → `last_n_months` rewrite lived in [lib/get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts). Deleted when the PO config adapter in [server/legacy_adapters/period_filter.ts](server/legacy_adapters/period_filter.ts) was wired into all PO config read paths: client TS types don't allow `last_12_months`, stored configs are adapted on read, and there are no external API consumers that could send it.)
 
 **When to use:** simplest possible narrow rewrite, inside a hot read path that already exists.
 
@@ -192,10 +204,9 @@ Finally: **add an entry to this doc.** Future-you will thank you when it's time 
 
 For future tidying sessions, sites that should eventually be removed:
 
-| Site                                                                            | Trigger for removal                                                                                          |
-|---------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| `diffAreas` legacy adapter (5 sites, Pattern 3)                                 | Once all deployments re-save affected configs, or a Pattern 4 migration forces it                            |
-| `last_12_months` → `last_n_months` (Pattern 2 in `get_fetch_config_from_po.ts`) | Same                                                                                                         |
-| `resolvePeriodFilter` periodOption realignment (Pattern 2 in `_2_filters.tsx`)  | Once the upcoming period-filter refactor lands and old configs are adapted through the new PO config adapter |
-| `migrateToMetricsTables` (Pattern 4)                                            | Only when no deployment will see a pre-Feb-2025 database                                                     |
-| `// Keep for backward compatibility` in panther types                           | Panther is an external library — not our maintenance concern                                                 |
+| Site | Trigger for removal |
+| --- | --- |
+| `diffAreas` legacy adapter (5 sites, Pattern 3) | Once all deployments re-save affected configs, or a Pattern 4 migration forces it |
+| `resolvePeriodFilter` runtime alignment in `_2_filters.tsx` | Not legacy — see PLAN_simplify_period_format.md; removal tied to the premise that results-object period format doesn't change |
+| `migrateToMetricsTables` (Pattern 4) | Only when no deployment will see a pre-Feb-2025 database |
+| `// Keep for backward compatibility` in panther types | Panther is an external library — not our maintenance concern |

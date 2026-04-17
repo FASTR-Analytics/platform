@@ -19,7 +19,7 @@ import {
   type DBPresentationObject,
 } from "./_project_database_types.ts";
 import { getFacilityColumnsConfig } from "../instance/config.ts";
-import { adaptLegacyPresentationObjectConfig } from "./legacy_po_config_adapter.ts";
+import { adaptLegacyPresentationObjectConfig } from "../../legacy_adapters/mod.ts";
 import { resolveMetricById } from "./results_value_resolver.ts";
 import { generateUniquePresentationObjectId } from "../../utils/id_generation.ts";
 
