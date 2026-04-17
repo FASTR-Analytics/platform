@@ -1,3 +1,9 @@
+[TBD] [user] [fixed] - Reports created in older versions now load correctly without errors when opened
+[TBD] [user] [fixed] - Time period filters on saved visualizations now display the correct settings when revisited
+[TBD] [user] [fixed] - Cached charts and visualizations now show up-to-date formatting even after platform updates
+[TBD] [admin] [fixed] - Cached presentation object responses now have legacy data formats corrected, preventing issues where stale cache entries could serve outdated config shapes after an upgrade
+[TBD] [admin] [fixed] - Period filters using the old "last 12 months" format are now automatically converted to the current format, preventing potential errors when loading older saved configurations
+[TBD] [admin] [internal] - Legacy data format adapters for reports, presentation objects, and period filters have been reorganized for better maintainability
 [TBD] [user] [changed] - The "Period" setting for timeseries charts is now labeled more clearly as a grouping option and only appears when relevant to timeseries views
 [TBD] [user] [fixed] - Time range filters now work correctly when switching between relative options (e.g., "Last 12 months") and custom date ranges without losing your selections
 [TBD] [user] [fixed] - Fixed an issue where changing the time range filter type could leave behind stale date values, potentially showing incorrect data
