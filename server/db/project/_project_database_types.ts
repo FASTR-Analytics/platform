@@ -32,7 +32,6 @@ export type DBMetric = {
   value_func: string;
   format_as: string;
   value_props: string;
-  period_options: string;
   required_disaggregation_options: string;
   value_label_replacements: string | null;
   post_aggregation_expression: string | null;

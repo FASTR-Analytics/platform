@@ -39,8 +39,8 @@ export const GLOBAL_STYLE_OPTIONS: CustomStyleOptions = {
     text: {
       base: { fontSize: 14 },
       caption: { font: _Inter_800 },
-      subCaption: { color: getAdjustedColor({ key: "baseContent" }, { brighten: 0.5 }) },
-      footnote: { color: getAdjustedColor({ key: "baseContent" }, { brighten: 0.5 }) },
+      subCaption: { color: "#959595" },
+      footnote: { color: "#959595" },
       legend: { relFontSize: 0.8 },
       rowGroupHeaders: { relFontSize: 1.1, font: _Inter_800 },
       colGroupHeaders: { relFontSize: 1.1, font: _Inter_800 },

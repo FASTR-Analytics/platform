@@ -1,4 +1,4 @@
-import { PeriodBounds, PeriodFilter, t3 } from "lib";
+import { PeriodBounds, PeriodFilter, PeriodOption, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -19,12 +19,38 @@ type Props = {
 
 type ReturnType = { lastUpdated: string } | undefined;
 
+// Local editable shape: carries all possible fields so the UI can switch
+// between relative and bounded filter types without losing slider state.
+// Converted to a clean PeriodFilter on save.
+type EditableFilter = {
+  filterType: PeriodFilter["filterType"];
+  nMonths?: number;
+  nYears?: number;
+  nQuarters?: number;
+  periodOption: PeriodOption;
+  min: number;
+  max: number;
+};
+
+function toPeriodFilter(e: EditableFilter): PeriodFilter {
+  if (e.filterType === "custom" || e.filterType === "from_month") {
+    return {
+      filterType: e.filterType,
+      periodOption: e.periodOption,
+      min: e.min,
+      max: e.max,
+    };
+  }
+  const { filterType, nMonths, nYears, nQuarters } = e;
+  return { filterType, nMonths, nYears, nQuarters };
+}
+
 export function EditCommonPropertiesModal(
   p: AlertComponentProps<Props, ReturnType>
 ) {
   const [enablePeriodFilter, setEnablePeriodFilter] = createSignal(false);
 
-  const [tempPeriodFilter, setTempPeriodFilter] = createStore<PeriodFilter>({
+  const [tempPeriodFilter, setTempPeriodFilter] = createStore<EditableFilter>({
     filterType: "last_n_months",
     nMonths: 12,
     periodOption: p.periodBounds?.periodOption ?? "period_id",
@@ -44,7 +70,7 @@ export function EditCommonPropertiesModal(
         {
           projectId: p.projectId,
           presentationObjectIds: p.visualizationIds,
-          periodFilter: unwrap(tempPeriodFilter),
+          periodFilter: toPeriodFilter(unwrap(tempPeriodFilter)),
         }
       );
 
@@ -159,7 +185,7 @@ export function EditCommonPropertiesModal(
                           ]
                     }
                     onChange={(v) => {
-                      setTempPeriodFilter("filterType", v as PeriodFilter["filterType"]);
+                      setTempPeriodFilter("filterType", v as EditableFilter["filterType"]);
                       if (v === "last_n_calendar_years") setTempPeriodFilter("nYears", 1);
                       if (v === "last_n_calendar_quarters") setTempPeriodFilter("nQuarters", 1);
                     }}

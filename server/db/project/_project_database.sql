@@ -86,7 +86,6 @@ CREATE TABLE metrics (
   value_func text NOT NULL CHECK (value_func IN ('SUM', 'AVG', 'COUNT', 'MIN', 'MAX', 'identity')),
   format_as text NOT NULL CHECK (format_as IN ('percent', 'number')),
   value_props text NOT NULL,  -- JSON array of property names
-  period_options text NOT NULL,  -- JSON array of period options
   required_disaggregation_options text NOT NULL,  -- JSON array
   value_label_replacements text,  -- JSON object (nullable)
   post_aggregation_expression text,  -- JSON object (nullable)

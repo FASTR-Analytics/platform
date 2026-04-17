@@ -31,6 +31,7 @@ import {
 } from "./../utils.ts";
 import { DBMetric, DBModule } from "./_project_database_types.ts";
 import { getFacilityColumnsConfig } from "../instance/config.ts";
+import { adaptLegacyVizPresets } from "./legacy_po_config_adapter.ts";
 import { enrichMetric } from "./metric_enricher.ts";
 
 export function parseModuleConfigSelections(json: string): ModuleConfigSelections {
@@ -136,7 +137,7 @@ VALUES (
       for (const metric of modDef.data.metrics) {
         await sql`
 INSERT INTO metrics (
-  id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
+  id, module_id, label, variant_label, value_func, format_as, value_props,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
   results_object_id, ai_description, viz_presets, hide, important_notes
 )
@@ -148,7 +149,6 @@ VALUES (
   ${metric.valueFunc},
   ${metric.formatAs},
   ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.periodOptions ?? [])},
   ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
@@ -349,13 +349,13 @@ VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
         for (const metric of modDef.data.metrics) {
           await sql`
 INSERT INTO metrics (
-  id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
+  id, module_id, label, variant_label, value_func, format_as, value_props,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
   results_object_id, ai_description, viz_presets, hide, important_notes
 ) VALUES (
   ${metric.id}, ${modDef.data.id}, ${metric.label}, ${metric.variantLabel ?? null},
   ${metric.valueFunc}, ${metric.formatAs}, ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.periodOptions ?? [])}, ${JSON.stringify(metric.requiredDisaggregationOptions)},
+  ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
   ${metric.resultsObjectId}, ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
@@ -416,13 +416,13 @@ VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
       for (const metric of modDef.data.metrics) {
         await sql`
 INSERT INTO metrics (
-  id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
+  id, module_id, label, variant_label, value_func, format_as, value_props,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
   results_object_id, ai_description, viz_presets, hide, important_notes
 ) VALUES (
   ${metric.id}, ${modDef.data.id}, ${metric.label}, ${metric.variantLabel ?? null},
   ${metric.valueFunc}, ${metric.formatAs}, ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.periodOptions ?? [])}, ${JSON.stringify(metric.requiredDisaggregationOptions)},
+  ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
   ${metric.resultsObjectId}, ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
@@ -930,7 +930,7 @@ export async function getMetricsWithStatus(
         ...enrichedMetric,
         status,
         moduleId,
-        vizPresets: dbMetric.viz_presets ? parseJsonOrThrow(dbMetric.viz_presets) : undefined,
+        vizPresets: dbMetric.viz_presets ? adaptLegacyVizPresets(parseJsonOrThrow(dbMetric.viz_presets)) : undefined,
       });
     }
 

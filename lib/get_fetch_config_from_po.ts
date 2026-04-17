@@ -11,6 +11,7 @@ import {
   GenericLongFormFetchConfig,
   PeriodBounds,
   PeriodFilter,
+  periodFilterHasBounds,
   type PeriodOption,
   PresentationObjectConfig,
   ResultsValue,
@@ -30,7 +31,10 @@ export function getFetchConfigFromPresentationObjectConfig(
   }
 
   if (config.d.type === "timeseries") {
-    groupBys.push(config.d.periodOpt);
+    if (!config.d.timeseriesGrouping) {
+      throw new Error("Timeseries config missing timeseriesGrouping");
+    }
+    groupBys.push(config.d.timeseriesGrouping);
   }
 
   const shouldIncludeNationalAggregate = config.d.includeNationalForAdminArea2;
@@ -79,24 +83,18 @@ export function getFetchConfigFromPresentationObjectConfig(
 }
 
 export function getPeriodFilterExactBounds(
-  periodFilter: PeriodFilter | undefined,
+  rawPeriodFilter: PeriodFilter | undefined,
   periodBounds: PeriodBounds | undefined,
 ): PeriodBounds | undefined {
-  if (periodFilter === undefined) {
+  if (rawPeriodFilter === undefined) {
     return periodBounds;
   }
   // Auto-migrate old "last_12_months" to "last_n_months"
-  if (periodFilter?.filterType === ("last_12_months" as any)) {
-    periodFilter = {
-      ...periodFilter,
-      filterType: "last_n_months",
-      nMonths: 12,
-    };
-  }
-  if (
-    periodFilter.filterType === undefined ||
-    periodFilter.filterType === "custom"
-  ) {
+  const periodFilter: PeriodFilter =
+    (rawPeriodFilter.filterType as string) === "last_12_months"
+      ? { filterType: "last_n_months", nMonths: 12 }
+      : rawPeriodFilter;
+  if (periodFilter.filterType === "custom") {
     return periodFilter;
   }
   if (periodBounds === undefined) {
@@ -282,9 +280,9 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
     fc.periodFilter?.nMonths?.toString() ?? "",
     fc.periodFilter?.nYears?.toString() ?? "",
     fc.periodFilter?.nQuarters?.toString() ?? "",
-    fc.periodFilter?.periodOption ?? "",
-    fc.periodFilter?.min?.toString() ?? "",
-    fc.periodFilter?.max?.toString() ?? "",
+    fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.periodOption : "",
+    fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.min.toString() : "",
+    fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.max.toString() : "",
     fc.postAggregationExpression ?? "",
     fc.includeNationalForAdminArea2 ? "yes" : "no",
     fc.includeNationalPosition,

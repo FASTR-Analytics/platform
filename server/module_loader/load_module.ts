@@ -13,8 +13,6 @@ import {
   type ModuleDefinition,
   type ModuleDefinitionJSON,
   type ModuleId,
-  type PeriodFilter,
-  type PeriodOption,
   type ResultsObjectDefinition,
   type ResultsObjectDefinitionJSON,
   type TranslatableString,
@@ -24,46 +22,6 @@ import { stripFrontmatter } from "../github/fetch_module.ts";
 import { getTranslateFunc } from "./translation_utils.ts";
 
 import { _GITHUB_TOKEN } from "../exposed_env_vars.ts";
-
-function computePeriodFilter(periodOpt: PeriodOption, nMonths: number): PeriodFilter {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-
-  if (periodOpt === "year") {
-    return {
-      filterType: "last_n_months",
-      nMonths,
-      periodOption: "year",
-      min: currentYear,
-      max: currentYear,
-    };
-  }
-
-  if (periodOpt === "quarter_id") {
-    const maxQuarter = currentYear * 10 + Math.ceil(currentMonth / 3);
-    const startDate = new Date(currentYear, currentMonth - 1 - nMonths, 1);
-    const minQuarter = startDate.getFullYear() * 10 + Math.ceil((startDate.getMonth() + 1) / 3);
-    return {
-      filterType: "last_n_months",
-      nMonths,
-      periodOption: "quarter_id",
-      min: minQuarter,
-      max: maxQuarter,
-    };
-  }
-
-  const maxPeriod = currentYear * 100 + currentMonth;
-  const startDate = new Date(currentYear, currentMonth - 1 - nMonths + 1, 1);
-  const minPeriod = startDate.getFullYear() * 100 + (startDate.getMonth() + 1);
-  return {
-    filterType: "last_n_months",
-    nMonths,
-    periodOption: "period_id",
-    min: minPeriod,
-    max: maxPeriod,
-  };
-}
 
 export function deriveDefaultPresentationObjects(
   metrics: MetricDefinition[],
@@ -75,9 +33,6 @@ export function deriveDefaultPresentationObjects(
   for (const metric of metrics) {
     for (const preset of metric.vizPresets ?? []) {
       if (!preset.createDefaultVisualizationOnInstall) continue;
-      const periodFilter = preset.defaultPeriodFilterForDefaultVisualizations
-        ? computePeriodFilter(preset.config.d.periodOpt, preset.defaultPeriodFilterForDefaultVisualizations.nMonths)
-        : undefined;
       results.push({
         id: preset.createDefaultVisualizationOnInstall,
         label: resolveTS(preset.label, language),
@@ -85,10 +40,7 @@ export function deriveDefaultPresentationObjects(
         metricId: metric.id,
         sortOrder: sortOrder++,
         config: {
-          d: {
-            ...preset.config.d,
-            ...(periodFilter ? { periodFilter } : {}),
-          },
+          d: { ...preset.config.d },
           s: { ...DEFAULT_S_CONFIG, ...preset.config.s },
           t: {
             caption: preset.config.t?.caption ? resolveTS(preset.config.t.caption, language) : DEFAULT_T_CONFIG.caption,

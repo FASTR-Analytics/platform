@@ -12,10 +12,10 @@ import {
 } from "lib";
 
 function getPeriodChangeLabels(
-  periodOpt: PeriodOption,
+  timeseriesGrouping: PeriodOption,
   inverted: boolean
 ): { increase: string; decrease: string } {
-  const labels = getPeriodChangeTranslatableStrings(periodOpt);
+  const labels = getPeriodChangeTranslatableStrings(timeseriesGrouping);
   return {
     increase: t3(labels.increase),
     decrease: t3(labels.decrease),
@@ -23,12 +23,12 @@ function getPeriodChangeLabels(
 }
 
 function getPeriodChangeTranslatableStrings(
-  periodOpt: PeriodOption
+  timeseriesGrouping: PeriodOption
 ): {
   increase: TranslatableString;
   decrease: TranslatableString;
 } {
-  switch (periodOpt) {
+  switch (timeseriesGrouping) {
     case "period_id":
       return {
         increase: {
@@ -180,8 +180,9 @@ export function getLegendItemsFromConfig(
     ];
   }
   if (config.s.content === "bars" && config.s.specialBarChart) {
+    if (!config.d.timeseriesGrouping) return undefined;
     const labels = getPeriodChangeLabels(
-      config.d.periodOpt,
+      config.d.timeseriesGrouping,
       config.s.specialBarChartInverted
     );
 

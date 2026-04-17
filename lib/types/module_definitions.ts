@@ -131,7 +131,6 @@ export type ResultsValueDefinition = Omit<
   ResultsValue,
   "disaggregationOptions" | "mostGranularTimePeriodColumnInResultsFile"
 > & {
-  periodOptions?: PeriodOption[];
   requiredDisaggregationOptions: DisaggregationOption[];
 };
 
@@ -142,7 +141,6 @@ export type MetricDefinition = {
   valueProps: string[];
   valueFunc: ValueFunc;
   formatAs: "percent" | "number";
-  periodOptions?: PeriodOption[];
   requiredDisaggregationOptions: DisaggregationOption[];
   valueLabelReplacements?: Record<string, string>;
   postAggregationExpression?: PostAggregationExpression;

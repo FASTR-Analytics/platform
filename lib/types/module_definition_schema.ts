@@ -112,9 +112,6 @@ export type VizPreset = {
   needsReplicant?: boolean;
   allowedFilters?: DisaggregationOption[];
   createDefaultVisualizationOnInstall?: string;
-  defaultPeriodFilterForDefaultVisualizations?: {
-    nMonths: number;
-  };
   config: {
     d: PresentationObjectConfig["d"];
     s?: Partial<PresentationObjectConfig["s"]>;
@@ -141,7 +138,6 @@ export type MetricDefinitionJSON = {
   valueProps: string[];
   valueFunc: ValueFunc;
   formatAs: "percent" | "number";
-  periodOptions?: PeriodOption[];
   requiredDisaggregationOptions: DisaggregationOption[];
   valueLabelReplacements?: Record<string, string>;
   postAggregationExpression?: PostAggregationExpression;

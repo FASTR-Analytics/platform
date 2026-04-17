@@ -1,4 +1,4 @@
-import type { GenericLongFormFetchConfig } from "lib";
+import { periodFilterHasBounds, type GenericLongFormFetchConfig } from "lib";
 
 // ============================================================================
 // Type Definitions
@@ -68,7 +68,8 @@ export function detectNeededPeriodColumns(
   }
 
   // Also check raw periodFilter (periodFilterExactBounds may not be computed yet)
-  if (fetchConfig.periodFilter) {
+  // Only bounded filters carry their own periodOption; relative filters inherit from data.
+  if (fetchConfig.periodFilter && periodFilterHasBounds(fetchConfig.periodFilter)) {
     const periodOption = fetchConfig.periodFilter.periodOption;
     if (DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)) {
       needed.add(periodOption as DynamicPeriodColumn);

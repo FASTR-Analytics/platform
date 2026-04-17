@@ -58,7 +58,7 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
     if (metric.vizPresets && metric.vizPresets.length > 0) {
       lines.push(`  Visualization presets:`);
       for (const preset of metric.vizPresets) {
-        const dateFormat = preset.config.d.periodOpt === "year" ? "YYYY" : "YYYYMM";
+        const dateFormat = preset.config.d.timeseriesGrouping === "year" ? "YYYY" : "YYYYMM";
         const filterNote = preset.allowedFilters && preset.allowedFilters.length > 0
           ? ` — filters: ${preset.allowedFilters.join(", ")}`
           : "";

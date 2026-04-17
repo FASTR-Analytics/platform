@@ -24,13 +24,16 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   jsonArray?: any[],
 ): TimeseriesJsonDataConfig {
   if (config.d.type === "timeseries") {
+    if (!config.d.timeseriesGrouping) {
+      throw new Error("Timeseries config missing timeseriesGrouping");
+    }
     const includesIndicatorDisaggregation = config.d.disaggregateBy.some(
       (d) => d.disOpt === "indicator_common_id",
     );
     const periodType =
-      config.d.periodOpt === "period_id"
+      config.d.timeseriesGrouping === "period_id"
         ? "year-month"
-        : config.d.periodOpt === "quarter_id"
+        : config.d.timeseriesGrouping === "quarter_id"
           ? "year-quarter"
           : "year";
 
@@ -41,7 +44,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
 
     const dataConfig: TimeseriesJsonDataConfig = {
       valueProps: getFilteredValueProps(resultsValue.valueProps, config),
-      periodProp: config.d.periodOpt,
+      periodProp: config.d.timeseriesGrouping,
       periodType,
       seriesProp:
         getDisaggregatorDisplayProp(resultsValue, config, ["series"]) ?? "--v",

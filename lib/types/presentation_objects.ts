@@ -93,19 +93,32 @@ export type PeriodBounds = {
   max: number;
 };
 
-export type PeriodFilter = {
-  filterType?:
+export type RelativePeriodFilter = {
+  filterType:
     | "last_n_months"
-    | "from_month"
     | "last_calendar_year"
     | "last_calendar_quarter"
     | "last_n_calendar_years"
-    | "last_n_calendar_quarters"
-    | "custom";
+    | "last_n_calendar_quarters";
+  nMonths?: number;
+  nYears?: number;
+  nQuarters?: number;
+};
+
+export type BoundedPeriodFilter = {
+  filterType: "custom" | "from_month";
   nMonths?: number;
   nYears?: number;
   nQuarters?: number;
 } & PeriodBounds;
+
+export type PeriodFilter = RelativePeriodFilter | BoundedPeriodFilter;
+
+export function periodFilterHasBounds(
+  filter: PeriodFilter,
+): filter is BoundedPeriodFilter {
+  return filter.filterType === "custom" || filter.filterType === "from_month";
+}
 
 // Status for disaggregation possible values (used in filter dropdowns)
 export type DisaggregationPossibleValuesStatus =
@@ -340,7 +353,7 @@ export type PresentationObjectConfig = {
   // Fetch
   d: {
     type: PresentationOption;
-    periodOpt: PeriodOption;
+    timeseriesGrouping?: PeriodOption;
     valuesDisDisplayOpt: DisaggregationDisplayOption;
     valuesFilter?: string[];
     disaggregateBy: {
@@ -475,7 +488,7 @@ export function getStartingConfigForPresentationObject(
   const startingConfig: PresentationObjectConfig = {
     d: {
       type: presentationOption,
-      periodOpt: resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "period_id",
+      timeseriesGrouping: resultsValue.mostGranularTimePeriodColumnInResultsFile,
       valuesDisDisplayOpt:
         VIZ_TYPE_CONFIG[presentationOption].defaultValuesDisDisplayOpt,
       valuesFilter: undefined,

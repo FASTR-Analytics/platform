@@ -112,28 +112,36 @@ const disaggregationDisplayOption = z.enum([
   "mapArea",
 ]);
 
+const relativePeriodFilter = z.object({
+  filterType: z.enum([
+    "last_n_months",
+    "last_calendar_year",
+    "last_calendar_quarter",
+    "last_n_calendar_years",
+    "last_n_calendar_quarters",
+  ]),
+  nMonths: z.number().optional(),
+  nYears: z.number().optional(),
+  nQuarters: z.number().optional(),
+});
+
+const boundedPeriodFilter = z.object({
+  filterType: z.enum(["custom", "from_month"]),
+  periodOption: periodOption,
+  min: z.number(),
+  max: z.number(),
+  nMonths: z.number().optional(),
+  nYears: z.number().optional(),
+  nQuarters: z.number().optional(),
+});
+
 const periodFilter = z
-  .object({
-    filterType: z
-      .enum([
-        "last_n_months",
-        "from_month",
-        "last_calendar_year",
-        "last_calendar_quarter",
-      ])
-      .optional(),
-    minPeriodId: z.number().optional(),
-    maxPeriodId: z.number().optional(),
-    minYear: z.number().optional(),
-    maxYear: z.number().optional(),
-    minQuarterId: z.number().optional(),
-    maxQuarterId: z.number().optional(),
-  })
+  .discriminatedUnion("filterType", [relativePeriodFilter, boundedPeriodFilter])
   .optional();
 
 const configD = z.object({
   type: presentationOption,
-  periodOpt: periodOption,
+  timeseriesGrouping: periodOption.optional(),
   valuesDisDisplayOpt: disaggregationDisplayOption,
   valuesFilter: z.array(z.string()).optional(),
   disaggregateBy: z.array(
@@ -235,11 +243,6 @@ export const vizPreset = z.object({
   needsReplicant: z.boolean().optional(),
   allowedFilters: z.array(disaggregationOption).optional(),
   createDefaultVisualizationOnInstall: z.string().optional(),
-  defaultPeriodFilterForDefaultVisualizations: z
-    .object({
-      nMonths: z.number(),
-    })
-    .optional(),
   config: z.object({
     d: configD,
     s: configS.optional(),
@@ -266,7 +269,6 @@ export const metricDefinitionJSON = z.object({
   valueProps: z.array(z.string()),
   valueFunc: valueFunc,
   formatAs: z.enum(["percent", "number"]),
-  periodOptions: z.array(periodOption).optional(),
   requiredDisaggregationOptions: z.array(disaggregationOption),
   valueLabelReplacements: z.record(z.string(), z.string()).optional(),
   postAggregationExpression: postAggregationExpression.optional(),

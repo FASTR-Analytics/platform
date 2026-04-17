@@ -19,6 +19,7 @@ import {
   type DBPresentationObject,
 } from "./_project_database_types.ts";
 import { getFacilityColumnsConfig } from "../instance/config.ts";
+import { adaptLegacyPresentationObjectConfig } from "./legacy_po_config_adapter.ts";
 import { resolveMetricById } from "./results_value_resolver.ts";
 import { generateUniquePresentationObjectId } from "../../utils/id_generation.ts";
 
@@ -140,7 +141,7 @@ WHERE m.module_id = ${moduleId}
 ORDER BY po.sort_order, LOWER(po.label)
 `;
     const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
-      const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
+      const config = adaptLegacyPresentationObjectConfig(parseJsonOrThrow(row.config));
       return configToSummary(row, config);
     });
     return { success: true, data: presentationObjects };
@@ -158,7 +159,7 @@ ORDER BY po.is_default_visualization DESC, po.sort_order, LOWER(po.label)
 `;
     const presentationObjects = rows
       .map<PresentationObjectSummary>((row) => {
-        const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
+        const config = adaptLegacyPresentationObjectConfig(parseJsonOrThrow(row.config));
         return configToSummary(row, config);
       });
     return { success: true, data: presentationObjects };
@@ -199,7 +200,7 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       resultsValue: resResultsValue.data,
       lastUpdated: rawPresObj.last_updated,
       label: rawPresObj.label,
-      config: parseJsonOrThrow(rawPresObj.config),
+      config: adaptLegacyPresentationObjectConfig(parseJsonOrThrow(rawPresObj.config)),
       isDefault: rawPresObj.is_default_visualization,
       folderId: rawPresObj.folder_id,
     };
@@ -377,9 +378,8 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
           throw new Error(`Presentation object ${id} not found`);
         }
 
-        const config: PresentationObjectConfig = parseJsonOrThrow(
-          result[0].config,
-        );
+        const config: PresentationObjectConfig =
+          adaptLegacyPresentationObjectConfig(parseJsonOrThrow(result[0].config));
 
         config.d.periodFilter = periodFilter;
 
@@ -490,7 +490,7 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
 `;
 
     const visualizations = rows.map((row) => {
-      const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
+      const config = adaptLegacyPresentationObjectConfig(parseJsonOrThrow(row.config));
       const moduleDef = parseJsonOrThrow<{ name: string }>(
         row.module_definition,
       );

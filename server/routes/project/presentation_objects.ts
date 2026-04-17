@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import {
+  periodFilterHasBounds,
   validateFetchConfig,
 } from "lib";
 import {
@@ -607,7 +608,8 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           body.replicateBy,
           c.var.mainDb,
           body.fetchConfig.filters,
-          body.fetchConfig.periodFilter
+          body.fetchConfig.periodFilter &&
+            periodFilterHasBounds(body.fetchConfig.periodFilter)
             ? {
                 periodOption: body.fetchConfig.periodFilter.periodOption,
                 min: body.fetchConfig.periodFilter.min,

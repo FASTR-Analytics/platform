@@ -159,7 +159,7 @@ async function migrateToMetricsTables(
           await tx`
             INSERT INTO metrics (
               id, module_id, label, variant_label, value_func, format_as, value_props,
-              period_options, required_disaggregation_options, value_label_replacements,
+              required_disaggregation_options, value_label_replacements,
               post_aggregation_expression, results_object_id, ai_description
             ) VALUES (
               ${rv.id},
@@ -169,7 +169,6 @@ async function migrateToMetricsTables(
               ${rv.valueFunc},
               ${rv.formatAs},
               ${JSON.stringify(rv.valueProps)},
-              ${JSON.stringify(rv.periodOptions ?? [])},
               ${JSON.stringify(
                 rv.requiredDisaggregationOptions ??
                   rv.disaggregationOptions
