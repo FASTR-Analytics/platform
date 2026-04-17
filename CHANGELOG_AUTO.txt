@@ -1,3 +1,10 @@
+[TBD] [user] [fixed] - Fixed an issue where module definitions loaded from local files were not properly validated, which could lead to unexpected errors when working with analysis modules
+[TBD] [user] [fixed] - Fixed an issue where label replacements on metrics could display incorrectly when none were configured
+[TBD] [admin] [changed] - Module definition files are now validated when loaded from local directories, matching the validation already applied to remotely fetched modules
+[TBD] [admin] [changed] - Several optional fields in module and metric definitions are now required but accept null values, which may require updating custom module definition JSON files (e.g., vizPresets, hide, needsReplicant, allowedFilters, valueLabelReplacements, relatedMetrics, and config sections s and t within viz presets)
+[TBD] [admin] [changed] - The createTableStatementPossibleColumns field on results objects is now required instead of optional in module definitions
+[TBD] [admin] [fixed] - Empty value-label replacement maps on metrics are now handled correctly instead of being passed through unnecessarily
+[TBD] [admin] [internal] - Module definition types are now derived from a single validation source, improving consistency and reducing the chance of mismatches between validation rules and internal types
 [TBD] [user] [fixed] - Reports created in older versions now load correctly without errors when opened
 [TBD] [user] [fixed] - Time period filters on saved visualizations now display the correct settings when revisited
 [TBD] [user] [fixed] - Cached charts and visualizations now show up-to-date formatting even after platform updates
