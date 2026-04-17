@@ -6,9 +6,8 @@ import Papa from "papaparse";
 import { Sql } from "postgres";
 import {
   getResultsObjectTableName,
-  dbRowToHfaIndicator,
-  getAllHfaIndicatorCode,
-  type DBHfaIndicator,
+  getAllHfaIndicatorCodeFromSnapshot,
+  getAllHfaIndicatorsFromSnapshot,
 } from "../../db/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
@@ -107,24 +106,28 @@ export async function* runModuleIterator(
     /////////////
 
     let knownDatasetVariables: Set<string> | undefined;
-    let hfaIndicatorsFromInstance: HfaIndicator[] | undefined;
-    let hfaIndicatorCodeFromInstance: HfaIndicatorCode[] | undefined;
+    let hfaIndicatorsFromSnapshot: HfaIndicator[] | undefined;
+    let hfaIndicatorCodeFromSnapshot: HfaIndicatorCode[] | undefined;
     if (moduleDetail.moduleDefinition.scriptGenerationType === "hfa") {
       const hfaVarRows = await projectDb<{ var_name: string }[]>`
         SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
       `;
       knownDatasetVariables = new Set(hfaVarRows.map((r) => r.var_name));
 
-      const hfaRows = await mainDb<DBHfaIndicator[]>`
-        SELECT * FROM hfa_indicators ORDER BY sort_order, var_name
-      `;
-      hfaIndicatorsFromInstance = hfaRows.map(dbRowToHfaIndicator);
+      // Read indicators + code from the project-level snapshot written at
+      // HFA data export time. This guarantees indicator defs and project data
+      // stay in sync for this module run.
+      hfaIndicatorsFromSnapshot =
+        await getAllHfaIndicatorsFromSnapshot(projectDb);
 
-      if (hfaIndicatorsFromInstance.length === 0) {
-        throw new Error("No HFA indicators configured at the instance level.");
+      if (hfaIndicatorsFromSnapshot.length === 0) {
+        throw new Error(
+          "No HFA indicators in project snapshot. Update your project's HFA data from the Project Data tab.",
+        );
       }
 
-      hfaIndicatorCodeFromInstance = await getAllHfaIndicatorCode(mainDb);
+      hfaIndicatorCodeFromSnapshot =
+        await getAllHfaIndicatorCodeFromSnapshot(projectDb);
     }
 
     const scriptWithParameters = getScriptWithParameters(
@@ -132,8 +135,8 @@ export async function* runModuleIterator(
       moduleDetail.configSelections,
       countryIso3,
       knownDatasetVariables,
-      hfaIndicatorsFromInstance,
-      hfaIndicatorCodeFromInstance,
+      hfaIndicatorsFromSnapshot,
+      hfaIndicatorCodeFromSnapshot,
     );
     const scriptFilePath = join(moduleDirPath, _MODULE_SCRIPT_FILE_NAME);
     await Deno.writeTextFile(scriptFilePath, scriptWithParameters);

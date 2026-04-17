@@ -5,6 +5,8 @@ import {
   _SANDBOX_DIR_PATH,
 } from "../../exposed_env_vars.ts";
 import {
+  getAllHfaIndicatorCodeFromSnapshot,
+  getAllHfaIndicatorsFromSnapshot,
   getAllMetrics,
   getCountryIso3Config,
   getModuleDetail,
@@ -15,8 +17,6 @@ import {
   uninstallModule,
   updateModuleDefinition,
   updateModuleParameters,
-  dbRowToHfaIndicator,
-  type DBHfaIndicator,
 } from "../../db/mod.ts";
 import {
   _DATASET_LIMIT,
@@ -24,6 +24,7 @@ import {
   isModuleAllowedForCountry,
   throwIfErrWithData,
   type HfaIndicator,
+  type HfaIndicatorCode,
   type ModuleUpdatePreview,
 } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
@@ -234,6 +235,7 @@ defineRoute(
 
     let knownDatasetVariables: Set<string> | undefined;
     let hfaIndicators: HfaIndicator[] | undefined;
+    let hfaIndicatorCode: HfaIndicatorCode[] | undefined;
     if (res.data.moduleDefinition.scriptGenerationType === "hfa") {
       const hfaVarRows = await c.var.ppk.projectDb<{ var_name: string }[]>`
         SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
@@ -242,10 +244,12 @@ defineRoute(
         hfaVarRows.map((r: { var_name: string }) => r.var_name),
       );
 
-      const hfaRows = await c.var.mainDb<DBHfaIndicator[]>`
-        SELECT * FROM hfa_indicators ORDER BY sort_order, var_name
-      `;
-      hfaIndicators = hfaRows.map(dbRowToHfaIndicator);
+      // Read from the project-level snapshot so preview matches what the
+      // runner actually executes (same source, same rows).
+      hfaIndicators = await getAllHfaIndicatorsFromSnapshot(c.var.ppk.projectDb);
+      hfaIndicatorCode = await getAllHfaIndicatorCodeFromSnapshot(
+        c.var.ppk.projectDb,
+      );
     }
 
     const script = getScriptWithParameters(
@@ -254,6 +258,7 @@ defineRoute(
       resCountryIso3.data.countryIso3,
       knownDatasetVariables,
       hfaIndicators,
+      hfaIndicatorCode,
     );
     return c.json({ success: true, data: { script } });
   },

@@ -1,6 +1,7 @@
 import {
   _POSSIBLE_DATASETS,
   getCalendar,
+  hashFacilityColumnsConfig,
   parseAa3CompositeKey,
   t3,
   TC,
@@ -316,13 +317,62 @@ export function ProjectData(p: Props) {
                     keyed
                   >
                     {(keyedProjectDatasetHfa) => {
-                      const projectVersion = () => 999999; // TODO: Need to figure out how to handle this
-                      const instanceVersion = () => instanceState.datasetVersions.hfa;
-                      const isStale = () => {
-                        const inst = instanceVersion();
-                        const proj = projectVersion();
-                        return inst !== undefined && proj !== undefined && proj < inst;
+                      const stalenessCheck = () => {
+                        const info = keyedProjectDatasetHfa.info;
+
+                        if (info._legacy) {
+                          return {
+                            isStale: true,
+                            reasons: [
+                              t3({
+                                en: "Exported before staleness tracking was added — re-export to enable change detection",
+                                fr: "Exporté avant le suivi de mise à jour — réexporter pour activer la détection",
+                              }),
+                            ],
+                          };
+                        }
+
+                        const checks: {
+                          instance: string | undefined;
+                          project: string | undefined;
+                          label: { en: string; fr: string };
+                        }[] = [
+                          {
+                            instance: instanceState.hfaCacheHash,
+                            project: info.hfaCacheHash,
+                            label: { en: "HFA dataset updated", fr: "Données HFA mises à jour" },
+                          },
+                          {
+                            instance: instanceState.hfaIndicatorsVersion,
+                            project: info.hfaIndicatorsVersion,
+                            label: { en: "HFA indicators changed", fr: "Indicateurs HFA modifiés" },
+                          },
+                          {
+                            instance: instanceState.structureLastUpdated,
+                            project: info.structureLastUpdated,
+                            label: {
+                              en: "Facilities or admin areas changed",
+                              fr: "Établissements ou unités administratives modifiés",
+                            },
+                          },
+                          {
+                            instance: hashFacilityColumnsConfig(instanceState.facilityColumns),
+                            project: info.facilityColumnsHash,
+                            label: {
+                              en: "Facility configuration changed",
+                              fr: "Configuration des établissements modifiée",
+                            },
+                          },
+                        ];
+
+                        const reasons = checks
+                          .filter((c) => c.instance !== c.project)
+                          .map((c) => t3(c.label));
+
+                        return { isStale: reasons.length > 0, reasons };
                       };
+
+                      const isStale = () => stalenessCheck().isStale;
 
                       const disableDataset = timActionButton(() =>
                         serverActions.removeDatasetFromProject({
@@ -356,16 +406,9 @@ export function ProjectData(p: Props) {
                               }
                             >
                               <div class="ui-gap-sm flex">
-                                {/* <Button
-                                  onClick={editSettings}
-                                  iconName="settings"
-                                >
-                                  {t3(TC.settings)}
-                                </Button> */}
                                 <Button
                                   onClick={disableDataset.click}
                                   state={disableDataset.state()}
-                                  // iconName="x"
                                   outline
                                 >
                                   {t3({ en: "Disable", fr: "Désactiver" })}
@@ -375,16 +418,16 @@ export function ProjectData(p: Props) {
                           </div>
                           <div class="ui-pad ui-spy-sm">
                             <Show when={isStale()}>
-                              <div class="bg-warning/10 border-warning mb-3 rounded border p-3 text-sm">
-                                <div class="font-600 mb-1">
+                              <div class="ui-spy-sm mb-4 inline-block ui-pad border rounded">
+                                <div class="font-700">
                                   {t3({ en: "Project data is out of date", fr: "Les données du projet ne sont plus à jour" })}
                                 </div>
-                                <div class="text-xs">
-                                  {t3({ en: "Project version", fr: "Version du projet" })}: {projectVersion()}
-                                  {" | "}
-                                  {t3({ en: "Instance version", fr: "Version de l'instance" })}: {instanceVersion()}
-                                </div>
-                                <div class="mt-3">
+                                <ul class="list-disc pl-5 text-xs space-y-1">
+                                  <For each={stalenessCheck().reasons}>
+                                    {(reason) => <li>{reason}</li>}
+                                  </For>
+                                </ul>
+                                <div class="">
                                   <Button
                                     onClick={updateData.click}
                                     state={updateData.state()}

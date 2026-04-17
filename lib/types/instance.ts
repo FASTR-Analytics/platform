@@ -174,6 +174,15 @@ export function getEnabledOptionalFacilityColumns(
   return columns;
 }
 
+// Canonical string representation for staleness comparison. Sorted keys so
+// that server and client produce byte-identical output from equal configs.
+export function hashFacilityColumnsConfig(
+  config: InstanceConfigFacilityColumns,
+): string {
+  const keys = Object.keys(config).sort() as (keyof InstanceConfigFacilityColumns)[];
+  return JSON.stringify(keys.map((k) => [k, config[k] ?? null]));
+}
+
 // ============================================================================
 // User Types
 // ============================================================================

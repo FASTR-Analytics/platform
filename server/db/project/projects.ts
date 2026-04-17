@@ -76,7 +76,7 @@ export async function getProjectDetail(
       }
       return {
         datasetType: "hfa",
-        info: undefined,
+        info: parseJsonOrThrow(row.info),
         dateExported: row.last_updated,
       };
     });
