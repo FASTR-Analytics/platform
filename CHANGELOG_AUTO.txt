@@ -1,3 +1,19 @@
+[TBD] [user] [changed] - The "Period" setting for timeseries charts is now labeled more clearly as a grouping option and only appears when relevant to timeseries views
+[TBD] [user] [fixed] - Time range filters now work correctly when switching between relative options (e.g., "Last 12 months") and custom date ranges without losing your selections
+[TBD] [user] [fixed] - Fixed an issue where changing the time range filter type could leave behind stale date values, potentially showing incorrect data
+[TBD] [user] [changed] - Subtitle and footnote text in visualizations now displays in a consistent gray color across all themes
+[TBD] [user] [fixed] - The AI assistant now correctly describes relative time filters (e.g., "last 12 months") instead of showing raw date numbers when summarizing your visualization settings
+[TBD] [admin] [changed] - The "Period option" setting on timeseries visualizations has been renamed to "Timeseries grouping" to better reflect its purpose — it controls how data is grouped on the time axis and only applies to timeseries charts
+[TBD] [admin] [changed] - Period filters now clearly distinguish between relative filters (e.g., "last 12 months", "last calendar year") and custom date-range filters, improving consistency when switching between filter types in the visualization editor
+[TBD] [admin] [fixed] - Switching between relative and custom period filter types in the visualization editor no longer carries over stale date-range values that could cause unexpected filtering behavior
+[TBD] [admin] [fixed] - Setting a custom date range on a period filter now always stores the correct filter type, preventing cases where the filter type could be missing or undefined
+[TBD] [admin] [fixed] - The AI visualization editor now correctly describes relative period filters (e.g., "last 12 months", "last 2 calendar years") instead of only showing custom min/max ranges
+[TBD] [admin] [fixed] - The AI visualization editor now derives period filter bounds from the metric's own time column rather than relying on a separate period option, preventing mismatched date formats when filtering
+[TBD] [admin] [changed] - The deprecated "periodOptions" field has been removed from metric definitions — the system now automatically determines available period options from the data
+[TBD] [admin] [changed] - The "defaultPeriodFilterForDefaultVisualizations" option has been removed from visualization presets — module authors should now set default period filters directly in the preset configuration
+[TBD] [admin] [internal] - A legacy configuration adapter has been added so that existing saved visualizations and module presets created before this update are automatically migrated at read time without requiring manual intervention or database changes
+[TBD] [admin] [fixed] - Relative period filters (such as "last N months") no longer incorrectly pass date-range bounds to data queries, which could cause unnecessary filtering or errors when the stored bounds were stale
+[TBD] [admin] [fixed] - Visualization sub-caption and footnote text now uses a consistent gray color across all themes instead of a computed color that could vary unexpectedly
 [TBD] [user] [changed] - System users are now always hidden from the project users list in project settings, and the toggle to show or hide them has been removed
 [TBD] [admin] [changed] - System users are now always hidden from the project users list; the toggle to show or hide system users has been removed
 [TBD] [user] [changed] - The "Show system users" / "Hide system users" button in project settings now appears next to the section header instead of inside the user list area, providing a cleaner layout
