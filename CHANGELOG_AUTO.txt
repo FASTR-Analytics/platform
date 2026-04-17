@@ -1,3 +1,6 @@
+[TBD] [user] [added] - System administrators can now toggle visibility of system users in the project users list via a "Show system users" / "Hide system users" button
+[TBD] [admin] [added] - System users are now hidden by default in the project users list, reducing clutter for admins managing project membership
+[TBD] [admin] [added] - Authorized system administrators can toggle visibility of system users in project settings via a new "Show/Hide system users" button
 [TBD] [user] [added] - System administrators can now toggle visibility of system users in the users list with a "Show system users" / "Hide system users" button
 [TBD] [admin] [added] - System users are now hidden by default in the Users list; admins who are themselves system users can toggle a "Show system users" / "Hide system users" button to reveal or hide them
 [TBD] [user] [fixed] - Charts and visualizations now show all grouped items, even if some were not included in a custom display order
