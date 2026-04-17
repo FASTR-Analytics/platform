@@ -1,3 +1,5 @@
+[TBD] [user] [changed] - The "Show/Hide system users" button in project settings has been moved from the section header to inside the section body for a cleaner layout
+[TBD] [admin] [changed] - The "Show/Hide system users" toggle in Project Settings has been moved from the section header to inside the section body for improved layout consistency
 [TBD] [user] [added] - System administrators can now toggle visibility of system users in the project users list via a "Show system users" / "Hide system users" button
 [TBD] [admin] [added] - System users are now hidden by default in the project users list, reducing clutter for admins managing project membership
 [TBD] [admin] [added] - Authorized system administrators can toggle visibility of system users in project settings via a new "Show/Hide system users" button
