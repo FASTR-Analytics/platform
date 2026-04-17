@@ -78,9 +78,6 @@ type Props = {
 export function ProjectSettings(p: Props) {
   const projectDetail = useProjectDetail();
   const refetchProjectDetail = useRefetchProjectDetail();
-  const [showHUsers, setShowHUsers] = createSignal(false);
-  const currentUserIsHUser = () =>
-    H_USERS.includes(clerk.user?.primaryEmailAddress?.emailAddress ?? "");
   // Actions
 
   async function attemptCopyProject() {
@@ -243,26 +240,12 @@ export function ProjectSettings(p: Props) {
         </SettingsSection>
         <SettingsSection
           header={t3({ en: "Project users", fr: "Utilisateurs du projet" })}
-          rightChildren={
-            <Show when={currentUserIsHUser()}>
-              <Button
-                onClick={() => setShowHUsers((v) => !v)}
-                iconName={showHUsers() ? "eyeOff" : "eye"}
-                intent="base-100"
-              >
-                {showHUsers()
-                  ? t3({ en: "Hide system users", fr: "Masquer les utilisateurs système" })
-                  : t3({ en: "Show system users", fr: "Afficher les utilisateurs système" })}
-              </Button>
-            </Show>
-          }
         >
           <ProjectUserTable
             users={projectDetail.projectUsers}
             onUserClick={attemptSelectUserRole}
             onBulkEditPermissions={attemptBulkEditPermissions}
             onDisplayUserRole={attemptDisplayUserRole}
-            showHUsers={showHUsers}
           />
         </SettingsSection>
         <SettingsSection
@@ -433,11 +416,10 @@ function ProjectUserTable(p: {
   onUserClick?: (users: ProjectUser[]) => void;
   onBulkEditPermissions?: (users: ProjectUser[]) => void;
   onDisplayUserRole?: (user: ProjectUser) => void;
-  showHUsers?: () => boolean;
 }) {
   const usersWithRole = (): ProjectUserWithRole[] =>
     p.users
-      .filter((u) => p.showHUsers?.() || !H_USERS.includes(u.email))
+      .filter((u) => !H_USERS.includes(u.email))
       .map((u) => ({ ...u, roleSortValue: getRoleSortValue(u) }));
 
   const columns: TableColumn<ProjectUserWithRole>[] = [
