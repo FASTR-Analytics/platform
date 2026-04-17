@@ -1,3 +1,5 @@
+[TBD] [user] [added] - System administrators can now toggle visibility of system users in the users list with a "Show system users" / "Hide system users" button
+[TBD] [admin] [added] - System users are now hidden by default in the Users list; admins who are themselves system users can toggle a "Show system users" / "Hide system users" button to reveal or hide them
 [TBD] [user] [fixed] - Charts and visualizations now show all grouped items, even if some were not included in a custom display order
 [TBD] [user] [added] - The email opt-in prompt is now available in French
 [TBD] [user] [changed] - French translation for "HMIS" updated from "SIGS" to "SNIS" across the platform
