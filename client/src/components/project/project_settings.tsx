@@ -243,8 +243,9 @@ export function ProjectSettings(p: Props) {
         </SettingsSection>
         <SettingsSection
           header={t3({ en: "Project users", fr: "Utilisateurs du projet" })}
-          rightChildren={
-            <Show when={currentUserIsHUser()}>
+        >
+          <Show when={currentUserIsHUser()}>
+            <div class="mb-2 flex justify-end">
               <Button
                 onClick={() => setShowHUsers((v) => !v)}
                 iconName={showHUsers() ? "eyeOff" : "eye"}
@@ -254,9 +255,8 @@ export function ProjectSettings(p: Props) {
                   ? t3({ en: "Hide system users", fr: "Masquer les utilisateurs système" })
                   : t3({ en: "Show system users", fr: "Afficher les utilisateurs système" })}
               </Button>
-            </Show>
-          }
-        >
+            </div>
+          </Show>
           <ProjectUserTable
             users={projectDetail.projectUsers}
             onUserClick={attemptSelectUserRole}
