@@ -10,6 +10,7 @@ import {
   InstalledModuleWithConfigSelections,
   InstalledModuleWithResultsValues,
   ModuleDefinition,
+  getDisaggregationLabel,
   getStartingModuleConfigSelections,
   getMergedModuleConfigSelections,
   getValidatedModuleId,
@@ -30,7 +31,7 @@ import {
   tryCatchDatabaseAsync,
 } from "./../utils.ts";
 import { DBMetric, DBModule } from "./_project_database_types.ts";
-import { getFacilityColumnsConfig } from "../instance/config.ts";
+import { getAdminAreaLabelsConfig, getFacilityColumnsConfig } from "../instance/config.ts";
 import { adaptLegacyVizPresets } from "../../legacy_adapters/mod.ts";
 import { enrichMetric } from "./metric_enricher.ts";
 
@@ -619,6 +620,11 @@ export async function getMetricsListForAI(
       ? facilityConfigResult.data
       : undefined;
 
+    const adminAreaLabelsResult = await getAdminAreaLabelsConfig(mainDb);
+    const adminAreaLabels = adminAreaLabelsResult.success
+      ? adminAreaLabelsResult.data
+      : undefined;
+
     const rawModules = await projectDb<DBModule[]>`
       SELECT * FROM modules ORDER BY id
     `;
@@ -744,7 +750,14 @@ export async function getMetricsListForAI(
           if (optional.length > 0) {
             lines.push(`    Optional additional disaggregations:`);
             for (const opt of optional) {
-              lines.push(`      - ${opt.value} (${getAIStr(opt.label)})`);
+              lines.push(
+                `      - ${opt.value} (${
+                  getDisaggregationLabel(opt.value, {
+                    adminAreaLabels,
+                    facilityColumns: facilityConfig,
+                  }).en
+                })`,
+              );
             }
           }
 
@@ -847,24 +860,18 @@ export async function getAllMetrics(
   projectDb: Sql,
 ): Promise<APIResponseWithData<ResultsValue[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Get facility config once for all modules
     const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
     const facilityConfig = facilityConfigResult.success
       ? facilityConfigResult.data
       : undefined;
 
-    // Get all metrics from the database
     const rawMetrics = await projectDb<DBMetric[]>`
       SELECT * FROM metrics ORDER BY label
     `;
 
     const metrics: ResultsValue[] = [];
     for (const dbMetric of rawMetrics) {
-      const enrichedMetric = await enrichMetric(
-        dbMetric,
-        projectDb,
-        facilityConfig,
-      );
+      const enrichedMetric = await enrichMetric(dbMetric, projectDb, facilityConfig);
       metrics.push(enrichedMetric);
     }
 
@@ -877,7 +884,6 @@ export async function getMetricsWithStatus(
   projectDb: Sql,
 ): Promise<APIResponseWithData<MetricWithStatus[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Get facility config once for all modules
     const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
     const facilityConfig = facilityConfigResult.success
       ? facilityConfigResult.data
@@ -901,11 +907,7 @@ export async function getMetricsWithStatus(
     for (const dbMetric of rawMetrics) {
       if (dbMetric.hide) continue;
 
-      const enrichedMetric = await enrichMetric(
-        dbMetric,
-        projectDb,
-        facilityConfig,
-      );
+      const enrichedMetric = await enrichMetric(dbMetric, projectDb, facilityConfig);
 
       const moduleId = dbMetric.module_id as ModuleId;
       const moduleDirty = moduleDirtyMap.get(dbMetric.module_id);

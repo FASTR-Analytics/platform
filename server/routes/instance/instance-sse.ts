@@ -57,6 +57,7 @@ routesInstanceSSE.get(
           maxAdminArea: res.data.maxAdminArea,
           countryIso3: res.data.countryIso3,
           facilityColumns: res.data.facilityColumns,
+          adminAreaLabels: res.data.adminAreaLabels,
           projects: res.data.projects,
           users,
           assets: res.data.assets,

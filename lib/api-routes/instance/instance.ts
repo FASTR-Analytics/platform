@@ -1,7 +1,8 @@
-import type { 
+import type {
+  InstanceConfigAdminAreaLabels,
   InstanceConfigFacilityColumns,
-  InstanceDetail, 
-  InstanceMeta 
+  InstanceDetail,
+  InstanceMeta
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -26,6 +27,11 @@ export const instanceRouteRegistry = {
     path: "/update_facility_columns_config",
     method: "POST",
     body: {} as InstanceConfigFacilityColumns,
+  }),
+  updateAdminAreaLabelsConfig: route({
+    path: "/update_admin_area_labels_config",
+    method: "POST",
+    body: {} as InstanceConfigAdminAreaLabels,
   }),
   updateCountryIso3: route({
     path: "/update_country_iso3",

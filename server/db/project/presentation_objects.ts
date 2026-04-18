@@ -182,11 +182,9 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       throw new Error("No presentation object with this id");
     }
 
-    // Get facility config for enrichment
     const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
     throwIfErrWithData(resFacilityConfig);
 
-    // Resolve metric by ID with enrichment
     const resResultsValue = await resolveMetricById(
       projectDb,
       rawPresObj.metric_id,

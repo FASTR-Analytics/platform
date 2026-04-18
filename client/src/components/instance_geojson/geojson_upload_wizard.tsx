@@ -11,6 +11,7 @@ import { For, Match, Show, Switch, createMemo, createSignal, onCleanup, onMount 
 import { serverActions } from "~/server_actions";
 import { cleanupUppy, createUppyInstance } from "~/components/_uppy_file_upload";
 import { instanceState } from "~/state/instance/t1_store";
+import { getAdminAreaLabel } from "~/state/instance/disaggregation_label";
 
 type Props = {
   silentRefresh: () => void;
@@ -170,9 +171,9 @@ export function GeoJsonUploadWizard(p: Props) {
   );
 
   const levelOptions = [
-    { value: "2", label: t3({ en: "Admin area 2", fr: "Niveau administratif 2" }) },
-    { value: "3", label: t3({ en: "Admin area 3", fr: "Niveau administratif 3" }) },
-    { value: "4", label: t3({ en: "Admin area 4", fr: "Niveau administratif 4" }) },
+    { value: "2", label: t3(getAdminAreaLabel(2)) },
+    { value: "3", label: t3(getAdminAreaLabel(3)) },
+    { value: "4", label: t3(getAdminAreaLabel(4)) },
   ];
 
   return (

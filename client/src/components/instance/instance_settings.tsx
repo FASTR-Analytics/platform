@@ -1,6 +1,7 @@
 import {
   t3,
   TC,
+  type InstanceConfigAdminAreaLabels,
   type InstanceConfigFacilityColumns,
 } from "lib";
 import {
@@ -21,6 +22,15 @@ import { instanceState } from "~/state/instance/t1_store";
 type Props = {
   thisLoggedInUserEmail: string;
 };
+
+function stripAdminSuffix(v: string | undefined, level: number): string {
+  return (v ?? "").replace(new RegExp(`\\s*\\(AA${level}\\)$`), "");
+}
+
+function withAdminSuffix(v: string, level: number): string | undefined {
+  const trimmed = v.trim();
+  return trimmed ? `${trimmed} (AA${level})` : undefined;
+}
 
 export function InstanceSettings(p: Props) {
   const [selectedMaxAdminArea, setSelectedMaxAdminArea] =
@@ -86,6 +96,30 @@ export function InstanceSettings(p: Props) {
   const [labelCustom5, setLabelCustom5] = createSignal<string>(
     instanceState.facilityColumns.labelCustom5 || "",
   );
+
+  const [adminLabel2, setAdminLabel2] = createSignal<string>(
+    stripAdminSuffix(instanceState.adminAreaLabels.label2, 2),
+  );
+  const [adminLabel3, setAdminLabel3] = createSignal<string>(
+    stripAdminSuffix(instanceState.adminAreaLabels.label3, 3),
+  );
+  const [adminLabel4, setAdminLabel4] = createSignal<string>(
+    stripAdminSuffix(instanceState.adminAreaLabels.label4, 4),
+  );
+  const [needsSavingAdminLabels, setNeedsSavingAdminLabels] = createSignal(false);
+
+  const updateAdminAreaLabels = timActionButton(async () => {
+    const newConfig: InstanceConfigAdminAreaLabels = {
+      label2: withAdminSuffix(adminLabel2(), 2),
+      label3: withAdminSuffix(adminLabel3(), 3),
+      label4: withAdminSuffix(adminLabel4(), 4),
+    };
+    const res = await serverActions.updateAdminAreaLabelsConfig(newConfig);
+    if (res.success) {
+      setNeedsSavingAdminLabels(false);
+    }
+    return res;
+  });
 
   const updateMaxAdminArea = timActionButton(
     () =>
@@ -309,6 +343,55 @@ export function InstanceSettings(p: Props) {
             </For>
           </div>
         </SettingsSection>
+
+        <SettingsSection
+          header={t3({ en: "Admin area labels", fr: "Libellés des unités administratives" })}
+          rightChildren={
+            <Show when={needsSavingAdminLabels()}>
+              <Button
+                onClick={() => updateAdminAreaLabels.click()}
+                state={updateAdminAreaLabels.state()}
+                intent="success"
+              >
+                {t3({ en: "Update admin area labels", fr: "Mettre à jour les libellés" })}
+              </Button>
+            </Show>
+          }
+        >
+          <div class="ui-spy-sm">
+            <div class="text-neutral text-xs">
+              {t3({
+                en: "Enter the singular form (e.g. \"District\" not \"Districts\"). Leave blank to use the default.",
+                fr: "Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
+              })}
+            </div>
+            <For each={[
+              { level: 2 as const, value: adminLabel2, setter: setAdminLabel2, exampleEn: "Region", exampleFr: "Région" },
+              { level: 3 as const, value: adminLabel3, setter: setAdminLabel3, exampleEn: "District", exampleFr: "District" },
+              { level: 4 as const, value: adminLabel4, setter: setAdminLabel4, exampleEn: "Catchment", exampleFr: "Zone" },
+            ]}>
+              {(row) => (
+                <div class="ui-gap flex items-center">
+                  <div class="w-56">
+                    {t3({ en: `Admin area ${row.level}`, fr: `Unité administrative ${row.level}` })}
+                  </div>
+                  <div class="w-96">
+                    <Input
+                      value={row.value()}
+                      onChange={(value) => {
+                        row.setter(value);
+                        setNeedsSavingAdminLabels(true);
+                      }}
+                      placeholder={t3({ en: `e.g. ${row.exampleEn}`, fr: `ex. ${row.exampleFr}` })}
+                      fullWidth
+                    />
+                  </div>
+                </div>
+              )}
+            </For>
+          </div>
+        </SettingsSection>
+
         <SettingsSection header={t3({ en: "Language and calendar", fr: "Langue et calendrier" })}>
           <div class="text-neutral py-2 text-sm">
             {t3({ en: "Will add settings for French/English language and Gregorian/Ethiopian calendar", fr: "Les paramètres de langue français/anglais et de calendrier grégorien/éthiopien seront ajoutés" })}

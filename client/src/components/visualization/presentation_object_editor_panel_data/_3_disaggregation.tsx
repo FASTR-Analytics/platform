@@ -11,6 +11,7 @@ import {
 import { Checkbox, RadioGroup, Select } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
+import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_label";
 
 type DisaggregationSectionProps = {
   poDetail: PresentationObjectDetail;
@@ -107,7 +108,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
       <Match when={!p.disOpt.isRequired}>
         <div class="ui-spy-sm">
           <Checkbox
-            label={t3(p.disOpt.label)}
+            label={t3(getDisplayDisaggregationLabel(p.disOpt.value))}
             checked={p.tempConfig.d.disaggregateBy.some(
               (d) => d.disOpt === p.disOpt.value,
             )}
@@ -156,7 +157,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
           <Checkbox
             label={
               <div class="flex flex-wrap items-center gap-x-1">
-                <span class="">{t3(p.disOpt.label)}</span>
+                <span class="">{t3(getDisplayDisaggregationLabel(p.disOpt.value))}</span>
                 <span class="text-xs">
                   ({t3({ en: "Required for this visualization", fr: "Nécessaire pour cette visualisation" })})
                 </span>

@@ -100,7 +100,6 @@ export type ResultsValue = {
   formatAs: "percent" | "number";
   disaggregationOptions: {
     value: DisaggregationOption;
-    label: TranslatableString;
     isRequired: boolean;
     allowedPresentationOptions?: PresentationOption[];
   }[];

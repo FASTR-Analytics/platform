@@ -26,6 +26,7 @@ import {
   getMaxAdminAreaConfig,
   getFacilityColumnsConfig,
   getCountryIso3Config,
+  getAdminAreaLabelsConfig,
 } from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
 import { computeHfaCacheHash } from "./dataset_hfa.ts";
@@ -270,6 +271,11 @@ export async function getInstanceDetail(
     throwIfErrWithData(facilityColumnsRes);
     const facilityColumns = facilityColumnsRes.data;
 
+    // Get admin area labels config
+    const adminAreaLabelsRes = await getAdminAreaLabelsConfig(mainDb);
+    throwIfErrWithData(adminAreaLabelsRes);
+    const adminAreaLabels = adminAreaLabelsRes.data;
+
     // Check if admin_areas_1 has any data (determines if structure is set up)
     const adminArea1Count = await mainDb<{ count: number }[]>`
       SELECT COUNT(*) as count FROM admin_areas_1
@@ -431,6 +437,7 @@ ORDER BY LOWER(p.label)`
       maxAdminArea,
       countryIso3,
       facilityColumns,
+      adminAreaLabels,
       structure,
       structureLastUpdated,
       indicators: {

@@ -31,6 +31,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
     includeCustom4: false,
     includeCustom5: false,
   },
+  adminAreaLabels: {},
   projects: [],
   users: [],
   assets: [],
@@ -128,6 +129,7 @@ export function updateInstanceConfig(data: InstanceConfig): void {
   setInstanceState("maxAdminArea", data.maxAdminArea);
   setInstanceState("countryIso3", data.countryIso3);
   setInstanceState("facilityColumns", reconcile(data.facilityColumns));
+  setInstanceState("adminAreaLabels", reconcile(data.adminAreaLabels));
 }
 
 export function updateInstanceProjects(projects: ProjectSummary[]): void {

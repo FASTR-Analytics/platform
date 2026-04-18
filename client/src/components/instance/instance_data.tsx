@@ -8,6 +8,7 @@ import { InstanceDatasetHmis } from "../instance_dataset_hmis";
 import { Structure } from "../structure";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
 import { instanceState } from "~/state/instance/t1_store";
+import { getAdminAreaLabel } from "~/state/instance/disaggregation_label";
 
 type Props = {
   isGlobalAdmin: boolean;
@@ -105,38 +106,20 @@ export function InstanceData(p: Props) {
                       {(keyedStructureNumbers) => (
                         <div class="ui-spy-sm text-success text-xs">
                           <div class="ui-gap flex justify-between">
-                            <span>
-                              {t3({
-                                en: "Admin area 1s",
-                                fr: "Unités administratives 1",
-                              })}
-                              :
-                            </span>
+                            <span>{t3(getAdminAreaLabel(1))}:</span>
                             <span class="font-mono">
                               {toNum0(keyedStructureNumbers.adminArea1s)}
                             </span>
                           </div>
                           <div class="ui-gap flex justify-between">
-                            <span>
-                              {t3({
-                                en: "Admin area 2s",
-                                fr: "Unités administratives 2",
-                              })}
-                              :
-                            </span>
+                            <span>{t3(getAdminAreaLabel(2))}:</span>
                             <span class="font-mono">
                               {toNum0(keyedStructureNumbers.adminArea2s)}
                             </span>
                           </div>
                           <Show when={instanceState.maxAdminArea >= 3}>
                             <div class="ui-gap flex justify-between">
-                              <span>
-                                {t3({
-                                  en: "Admin area 3s",
-                                  fr: "Unités administratives 3",
-                                })}
-                                :
-                              </span>
+                              <span>{t3(getAdminAreaLabel(3))}:</span>
                               <span class="font-mono">
                                 {toNum0(keyedStructureNumbers.adminArea3s)}
                               </span>
@@ -144,13 +127,7 @@ export function InstanceData(p: Props) {
                           </Show>
                           <Show when={instanceState.maxAdminArea >= 4}>
                             <div class="ui-gap flex justify-between">
-                              <span>
-                                {t3({
-                                  en: "Admin area 4s",
-                                  fr: "Unités administratives 4",
-                                })}
-                                :
-                              </span>
+                              <span>{t3(getAdminAreaLabel(4))}:</span>
                               <span class="font-mono">
                                 {toNum0(keyedStructureNumbers.adminArea4s)}
                               </span>

@@ -3,7 +3,7 @@ import type { DatasetHfaDictionaryTimePoint } from "./dataset_hfa.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
-import type { InstanceConfigFacilityColumns, OtherUser } from "./instance.ts";
+import type { InstanceConfigAdminAreaLabels, InstanceConfigFacilityColumns, OtherUser } from "./instance.ts";
 import type { ProjectSummary } from "./projects.ts";
 
 // ============================================================================
@@ -25,6 +25,7 @@ export type InstanceState = {
   maxAdminArea: number;
   countryIso3: string | undefined;
   facilityColumns: InstanceConfigFacilityColumns;
+  adminAreaLabels: InstanceConfigAdminAreaLabels;
 
   // Lists (sent as full arrays on change)
   projects: ProjectSummary[];
@@ -76,6 +77,7 @@ export type InstanceConfig = {
   maxAdminArea: number;
   countryIso3: string | undefined;
   facilityColumns: InstanceConfigFacilityColumns;
+  adminAreaLabels: InstanceConfigAdminAreaLabels;
 };
 
 export type InstanceStructureSummary = {

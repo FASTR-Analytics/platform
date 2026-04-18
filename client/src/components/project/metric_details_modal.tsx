@@ -1,6 +1,7 @@
 import { ResultsValue, t3 } from "lib";
 import { Button, ModalContainer, type AlertComponentProps } from "panther";
 import { For, Show } from "solid-js";
+import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_label";
 
 export function MetricDetailsModal(
   p: AlertComponentProps<
@@ -138,7 +139,7 @@ export function MetricDetailsModal(
                 <div class="border-base-300 flex items-start gap-2 rounded border p-2">
                   <div class="flex-1">
                     <div class="font-700 text-sm">
-                      {t3(disOpt.label)}
+                      {t3(getDisplayDisaggregationLabel(disOpt.value))}
                     </div>
                     <div class="font-mono text-neutral text-xs">
                       {disOpt.value}

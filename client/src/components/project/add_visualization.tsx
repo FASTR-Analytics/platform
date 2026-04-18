@@ -22,6 +22,7 @@ import {
 } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { PresetSelector } from "./preset_preview";
+import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_label";
 
 type AddVisualizationProps = {
   projectId: string;
@@ -259,7 +260,7 @@ export function AddVisualization(
                                 <Switch>
                                   <Match when={!disOpt.isRequired}>
                                     <Checkbox
-                                      label={typeof disOpt.label === "string" ? disOpt.label : t3(disOpt.label)}
+                                      label={t3(getDisplayDisaggregationLabel(disOpt.value))}
                                       checked={tempDisaggregations().includes(
                                         disOpt.value,
                                       )}
@@ -283,7 +284,7 @@ export function AddVisualization(
                                     <Checkbox
                                       label={
                                         <>
-                                          {typeof disOpt.label === "string" ? disOpt.label : t3(disOpt.label)}
+                                          {t3(getDisplayDisaggregationLabel(disOpt.value))}
                                           <span class="ml-1 text-xs">
                                             (
                                             {t3({ en: "Required for this visualization", fr: "Nécessaire pour cette visualisation" })}

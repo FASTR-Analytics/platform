@@ -25,6 +25,7 @@ import {
 } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
+import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_label";
 
 /**
  * Legacy configs may have periodFilter.periodOption mismatched with periodBounds.periodOption
@@ -450,7 +451,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3(p.disOpt.label)}
+        label={t3(getDisplayDisaggregationLabel(p.disOpt.value))}
         checked={
           !!p.tempConfig.d.filterBy.some((fil) => fil.disOpt === p.disOpt.value)
         }

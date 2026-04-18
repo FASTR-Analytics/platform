@@ -24,18 +24,12 @@ export async function getResultsValueInfoForPresentationObject(
   APIResponseWithData<ResultsValueInfoForPresentationObject>
 > {
   return await tryCatchDatabaseAsync(async () => {
-    // Get facility config
     const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
     const facilityConfig = facilityConfigResult.success
       ? facilityConfigResult.data
       : undefined;
 
-    // Resolve the metric with enrichment
-    const resResultsValue = await resolveMetricById(
-      projectDb,
-      metricId,
-      facilityConfig,
-    );
+    const resResultsValue = await resolveMetricById(projectDb, metricId, facilityConfig);
     throwIfErrWithData(resResultsValue);
 
     // Extract everything from the ResultsValue

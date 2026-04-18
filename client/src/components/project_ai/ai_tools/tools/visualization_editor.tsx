@@ -1,9 +1,10 @@
-import { DisaggregationOption, type MetricWithStatus, periodFilterHasBounds } from "lib";
+import { DisaggregationOption, getDisaggregationLabel, type MetricWithStatus, periodFilterHasBounds } from "lib";
 import { createAITool } from "panther";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
+import { instanceState } from "~/state/instance/t1_store";
 
 const VALID_TYPES = ["timeseries", "table", "chart", "map"] as const;
 
@@ -128,7 +129,10 @@ export function getToolsForVizEditor(
 
         lines.push("Disaggregation dimensions:");
         for (const opt of resultsValue.disaggregationOptions) {
-          const label = typeof opt.label === "string" ? opt.label : opt.label.en;
+          const label = getDisaggregationLabel(opt.value, {
+            adminAreaLabels: instanceState.adminAreaLabels,
+            facilityColumns: instanceState.facilityColumns,
+          }).en;
           const required = opt.isRequired ? " (required)" : "";
           lines.push(`  - ${opt.value}: ${label}${required}`);
         }

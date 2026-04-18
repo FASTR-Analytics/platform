@@ -1,6 +1,7 @@
 import {
   _COMMON_INDICATORS,
   H_USERS,
+  type InstanceConfigAdminAreaLabels,
   type InstanceConfigCountryIso3,
   type InstanceConfigFacilityColumns,
   type InstanceConfigMaxAdminArea,
@@ -82,12 +83,15 @@ function getDefaultInstanceConfigInsertStatement(): string {
     countryIso3: undefined,
   };
 
+  const adminAreaLabelsValue: InstanceConfigAdminAreaLabels = {};
+
   return `
 INSERT INTO instance_config (config_key, config_json_value)
 VALUES
   ('max_admin_area', '${JSON.stringify(adminAreaValue)}'),
   ('facility_columns', '${JSON.stringify(facilityColumnsValue)}'),
-  ('country_iso3', '${JSON.stringify(countryIso3Value)}');
+  ('country_iso3', '${JSON.stringify(countryIso3Value)}'),
+  ('admin_area_labels', '${JSON.stringify(adminAreaLabelsValue)}');
 `;
 }
 

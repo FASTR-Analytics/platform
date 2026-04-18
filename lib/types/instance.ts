@@ -78,6 +78,7 @@ export type InstanceDetail = {
   maxAdminArea: number;
   countryIso3: string | undefined;
   facilityColumns: InstanceConfigFacilityColumns;
+  adminAreaLabels: InstanceConfigAdminAreaLabels;
   structure:
     | {
         adminArea1s: number;
@@ -110,6 +111,13 @@ export type InstanceConfigMaxAdminArea = {
 
 export type InstanceConfigCountryIso3 = {
   countryIso3: string | undefined;
+};
+
+export type InstanceConfigAdminAreaLabels = {
+  label1?: string;
+  label2?: string;
+  label3?: string;
+  label4?: string;
 };
 
 export type InstanceConfigFacilityColumns = {

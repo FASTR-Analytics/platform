@@ -15,6 +15,7 @@ import {
 } from "panther";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { getAdminAreaLabel } from "~/state/instance/disaggregation_label";
 
 type Props = {
   step3Result: StructureStagingResult;
@@ -147,25 +148,25 @@ export function Step4(p: Props) {
           <div class="font-700 mb-3">{t3({ en: "Administrative Areas", fr: "Unités administratives" })}</div>
           <div class="ui-spy-sm">
             <div class="flex justify-between">
-              <span class="text-base-content">{t3({ en: "Admin Area 1s:", fr: "Unités administratives 1 :" })}</span>
+              <span class="text-base-content">{t3(getAdminAreaLabel(1))}:</span>
               <span class="font-mono">
                 {toNum0(p.step3Result.adminAreasPreview.level1)}
               </span>
             </div>
             <div class="flex justify-between">
-              <span class="text-base-content">{t3({ en: "Admin Area 2s:", fr: "Unités administratives 2 :" })}</span>
+              <span class="text-base-content">{t3(getAdminAreaLabel(2))}:</span>
               <span class="font-mono">
                 {toNum0(p.step3Result.adminAreasPreview.level2)}
               </span>
             </div>
             <div class="flex justify-between">
-              <span class="text-base-content">{t3({ en: "Admin Area 3s:", fr: "Unités administratives 3 :" })}</span>
+              <span class="text-base-content">{t3(getAdminAreaLabel(3))}:</span>
               <span class="font-mono">
                 {toNum0(p.step3Result.adminAreasPreview.level3)}
               </span>
             </div>
             <div class="flex justify-between">
-              <span class="text-base-content">{t3({ en: "Admin Area 4s:", fr: "Unités administratives 4 :" })}</span>
+              <span class="text-base-content">{t3(getAdminAreaLabel(4))}:</span>
               <span class="font-mono">
                 {toNum0(p.step3Result.adminAreasPreview.level4)}
               </span>
