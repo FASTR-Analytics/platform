@@ -1,3 +1,10 @@
+[TBD] [user] [added] - You can now customize admin area labels (e.g., rename "Admin area 2" to "Region" or "Admin area 3" to "District") in the instance settings
+[TBD] [user] [changed] - Admin area labels throughout the platform now reflect your custom names instead of generic "Admin area 1/2/3/4" labels
+[TBD] [user] [changed] - Disaggregation labels in visualizations, filters, and metric details now use your configured custom names for admin areas and facility columns
+[TBD] [admin] [added] - You can now set custom labels for admin area levels (e.g. "Region", "District", "Catchment") in Instance Settings, replacing the default "Admin area 2/3/4" names throughout the platform
+[TBD] [admin] [changed] - Custom admin area labels now appear consistently across the data overview, structure import preview, GeoJSON upload wizard, visualization editors, and metric details
+[TBD] [admin] [changed] - Facility column custom labels and admin area labels are now used for disaggregation display names everywhere, including in AI-generated descriptions and the visualization builder
+[TBD] [admin] [internal] - Legacy saved slides are now automatically migrated at runtime to support updated chart and timeseries scale axis data structures, preventing rendering issues with older presentations
 [TBD] [user] [added] - The "out of date" warning on project data now shows specific reasons why your data needs refreshing, such as updated datasets, changed indicators, or modified facility configurations
 [TBD] [user] [changed] - Disabling a dataset from a project now fully removes its associated data, ensuring a clean state when re-enabling later
 [TBD] [user] [fixed] - Running or previewing an HFA module now uses the exact indicator definitions saved with your project data, preventing mismatches if indicators were changed after your last data export
