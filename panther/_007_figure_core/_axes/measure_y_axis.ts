@@ -29,6 +29,7 @@ export function measureYAxisWidthInfo(
       return measureYScaleAxisWidthInfo(
         rc,
         yAxisConfig.axisData,
+        yAxisConfig.axisLabel,
         yAxisConfig.axisStyle,
         gridStyle,
         contentRcd,

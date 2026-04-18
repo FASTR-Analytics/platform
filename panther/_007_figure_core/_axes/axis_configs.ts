@@ -11,7 +11,7 @@ import type {
   MergedYTextAxisStyle,
   PeriodType,
 } from "../deps.ts";
-import type { YScaleAxisData } from "../types.ts";
+import type { ChartScaleAxisLimits } from "../types.ts";
 
 export type XAxisConfig =
   | {
@@ -36,7 +36,8 @@ export type YAxisConfig =
   | {
     type: "scale";
     axisStyle: MergedYScaleAxisStyle;
-    axisData: YScaleAxisData;
+    axisData: ChartScaleAxisLimits;
+    axisLabel?: string;
   }
   | {
     type: "text";

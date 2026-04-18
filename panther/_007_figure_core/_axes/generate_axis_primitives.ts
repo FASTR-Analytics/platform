@@ -18,7 +18,7 @@ import type {
 import { Coordinates, getPeriodIdFromTime, Z_INDEX } from "../deps.ts";
 import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
-import type { YScaleAxisData, YScaleAxisWidthInfo } from "../types.ts";
+import type { YScaleAxisWidthInfo } from "../types.ts";
 import {
   getLargePeriodLabel,
   getSmallPeriodLabelIfAny,
@@ -401,7 +401,7 @@ export function generateYScaleAxisPrimitive(
   yAxisRcd: RectCoordsDims,
   subChartAreaY: number,
   subChartAreaHeight: number,
-  dy: YScaleAxisData,
+  axisLabelText: string | undefined,
   sy: MergedYScaleAxisStyle,
   sg: MergedGridStyle,
 ): ChartAxisPrimitive {
@@ -469,9 +469,9 @@ export function generateYScaleAxisPrimitive(
   };
 
   let axisLabel: ChartAxisPrimitive["axisLabel"];
-  if (dy.yScaleAxisLabel) {
+  if (axisLabelText) {
     const mLabel = rc.mText(
-      dy.yScaleAxisLabel,
+      axisLabelText,
       sy.text.yScaleAxisLabel,
       Number.POSITIVE_INFINITY,
       { rotation: "anticlockwise" },

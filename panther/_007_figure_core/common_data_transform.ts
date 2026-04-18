@@ -12,7 +12,12 @@ import {
   sum,
 } from "./deps.ts";
 import { withAnyLabelReplacement } from "./with_any_label_replacement.ts";
-import type { JsonArray, JsonArrayItem, YScaleAxisData } from "./types.ts";
+import type {
+  ChartScaleAxisLimits,
+  ChartScaleAxisPaneLimits,
+  JsonArray,
+  JsonArrayItem,
+} from "./types.ts";
 
 export function validateDataInput(
   jsonArray: JsonArray,
@@ -160,7 +165,7 @@ export function sortHeadersIfNeeded(
   }
 }
 
-export function calculateYScaleLimits(
+export function calculateChartScaleLimits(
   values: (number | undefined)[][][][][],
   dimensions: {
     paneCount: number;
@@ -170,13 +175,17 @@ export function calculateYScaleLimits(
     lastDimCount: number;
   },
   stacked: boolean,
-): YScaleAxisData["paneLimits"] {
-  const paneLimits: YScaleAxisData["paneLimits"] = createArray(
+): ChartScaleAxisLimits {
+  const paneLimits: ChartScaleAxisPaneLimits[] = createArray(
     dimensions.paneCount,
     () => ({
       valueMin: Number.POSITIVE_INFINITY,
       valueMax: Number.NEGATIVE_INFINITY,
       tierLimits: createArray(dimensions.tierCount, () => ({
+        valueMin: Number.POSITIVE_INFINITY,
+        valueMax: Number.NEGATIVE_INFINITY,
+      })),
+      laneLimits: createArray(dimensions.laneCount, () => ({
         valueMin: Number.POSITIVE_INFINITY,
         valueMax: Number.NEGATIVE_INFINITY,
       })),
@@ -201,7 +210,7 @@ export function calculateYScaleLimits(
             const value = sum(valuesToSum);
             if (value === undefined) continue;
 
-            updateLimits(paneLimits, i_pane, i_tier, value);
+            updateLimits(paneLimits, i_pane, i_tier, i_lane, value);
           }
         } else {
           for (
@@ -218,7 +227,7 @@ export function calculateYScaleLimits(
 
               if (value === undefined) continue;
 
-              updateLimits(paneLimits, i_pane, i_tier, value);
+              updateLimits(paneLimits, i_pane, i_tier, i_lane, value);
             }
           }
         }
@@ -226,41 +235,48 @@ export function calculateYScaleLimits(
     }
   }
 
-  // Handle case where no data was found - set sensible defaults
+  // Fallback to 0..1 where a pane/tier/lane had no data.
   for (let i_pane = 0; i_pane < dimensions.paneCount; i_pane++) {
-    if (!isFinite(paneLimits[i_pane].valueMin)) {
-      paneLimits[i_pane].valueMin = 0;
+    const pl = paneLimits[i_pane];
+    if (!isFinite(pl.valueMin)) pl.valueMin = 0;
+    if (!isFinite(pl.valueMax)) pl.valueMax = 1;
+    for (const t of pl.tierLimits) {
+      if (!isFinite(t.valueMin)) t.valueMin = 0;
+      if (!isFinite(t.valueMax)) t.valueMax = 1;
     }
-    if (!isFinite(paneLimits[i_pane].valueMax)) {
-      paneLimits[i_pane].valueMax = 1;
-    }
-    for (let i_tier = 0; i_tier < dimensions.tierCount; i_tier++) {
-      if (!isFinite(paneLimits[i_pane].tierLimits[i_tier].valueMin)) {
-        paneLimits[i_pane].tierLimits[i_tier].valueMin = 0;
-      }
-      if (!isFinite(paneLimits[i_pane].tierLimits[i_tier].valueMax)) {
-        paneLimits[i_pane].tierLimits[i_tier].valueMax = 1;
-      }
+    for (const l of pl.laneLimits) {
+      if (!isFinite(l.valueMin)) l.valueMin = 0;
+      if (!isFinite(l.valueMax)) l.valueMax = 1;
     }
   }
 
-  return paneLimits;
+  return { paneLimits };
 }
 
 function updateLimits(
-  paneLimits: YScaleAxisData["paneLimits"],
+  paneLimits: ChartScaleAxisPaneLimits[],
   i_pane: number,
   i_tier: number,
+  i_lane: number,
   value: number,
 ): void {
-  paneLimits[i_pane].valueMin = Math.min(paneLimits[i_pane].valueMin, value);
-  paneLimits[i_pane].valueMax = Math.max(paneLimits[i_pane].valueMax, value);
-  paneLimits[i_pane].tierLimits[i_tier].valueMin = Math.min(
-    paneLimits[i_pane].tierLimits[i_tier].valueMin,
+  const p = paneLimits[i_pane];
+  p.valueMin = Math.min(p.valueMin, value);
+  p.valueMax = Math.max(p.valueMax, value);
+  p.tierLimits[i_tier].valueMin = Math.min(
+    p.tierLimits[i_tier].valueMin,
     value,
   );
-  paneLimits[i_pane].tierLimits[i_tier].valueMax = Math.max(
-    paneLimits[i_pane].tierLimits[i_tier].valueMax,
+  p.tierLimits[i_tier].valueMax = Math.max(
+    p.tierLimits[i_tier].valueMax,
+    value,
+  );
+  p.laneLimits[i_lane].valueMin = Math.min(
+    p.laneLimits[i_lane].valueMin,
+    value,
+  );
+  p.laneLimits[i_lane].valueMax = Math.max(
+    p.laneLimits[i_lane].valueMax,
     value,
   );
 }

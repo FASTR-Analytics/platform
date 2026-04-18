@@ -3,4 +3,4 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// This module has no external dependencies
+export { isFrench } from "../_000_translate/mod.ts";

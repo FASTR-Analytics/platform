@@ -123,7 +123,7 @@ export function generatePaneContentPrimitives<TData>(
                 measured.yAxisRcd,
                 rcd.y(),
                 measured.subChartAreaHeight,
-                yAxisConfig.axisData,
+                yAxisConfig.axisLabel,
                 yAxisConfig.axisStyle,
                 baseStyle.grid,
               ),

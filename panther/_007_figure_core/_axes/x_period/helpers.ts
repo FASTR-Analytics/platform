@@ -3,9 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  isFrench,
-} from "../../deps.ts";
+import { isFrench } from "../../deps.ts";
 import type {
   CalendarType,
   MergedGridStyle,
