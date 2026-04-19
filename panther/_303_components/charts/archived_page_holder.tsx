@@ -20,7 +20,7 @@ import {
   trackCanvas,
   untrackCanvas,
 } from "../deps.ts";
-import type { PageInputs, TextRenderingOptions } from "../deps.ts";
+import type { PageInputs } from "../deps.ts";
 import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   CanvasRenderContext,
@@ -35,7 +35,6 @@ type Props = {
   canvasElementId?: string;
   fixedCanvasH: number;
   fitWithin?: boolean;
-  textRenderingOptions?: TextRenderingOptions;
   simpleError?: boolean;
   externalError?: string;
   scalePixelResolution?: number;
@@ -84,12 +83,6 @@ export function PageHolder(p: Props) {
       });
     }
 
-    // Also preload fonts from textRenderingOptions
-    if (p.textRenderingOptions?.fallbackFonts) {
-      p.textRenderingOptions.fallbackFonts.forEach((fontInfo) => {
-        loadFont(fontInfo.fontFamily);
-      });
-    }
   });
 
   createEffect(() => {
@@ -103,7 +96,6 @@ export function PageHolder(p: Props) {
       setOverflow,
       unscaledW,
       unscaledH,
-      p.textRenderingOptions,
       p.externalError,
       animationFrameId,
       (id) => {
@@ -196,7 +188,6 @@ function updatePage(
   setOverflow: Setter<boolean>,
   unscaledW: number,
   unscaledH: number,
-  textRenderingOptions: TextRenderingOptions | undefined,
   externalError: string | undefined,
   currentFrameId?: number,
   setFrameId?: (id: number | undefined) => void,
@@ -223,7 +214,7 @@ function updatePage(
     // Handle the async operations - no clearRect to avoid transparency
     (async () => {
       try {
-        const rc = new CanvasRenderContext(ctx, textRenderingOptions);
+        const rc = new CanvasRenderContext(ctx);
         // Use unscaled dimensions since transform is already applied
         const rcd = new RectCoordsDims([0, 0, unscaledW, unscaledH]);
 

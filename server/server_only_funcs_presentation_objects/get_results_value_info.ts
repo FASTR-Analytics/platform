@@ -122,6 +122,13 @@ async function getResultsObjectVariableInfoCore(
         mainDb,
       );
       if (resDisPossibleVals.success === false) {
+        console.warn(
+          `[getPossibleValues] failed for ${disOpt} on ${resultsObjectId}: ${resDisPossibleVals.err}`,
+        );
+        disaggregationPossibleValues[disOpt] = {
+          status: "error",
+          message: resDisPossibleVals.err,
+        };
         continue;
       }
 

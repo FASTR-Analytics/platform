@@ -4,12 +4,15 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type ChartOHInputs,
+  ChartOHRenderer,
   type ChartOVInputs,
   ChartOVRenderer,
   generateAnnotationPrimitives,
   type HeightConstraints,
   type MapInputs,
   MapRenderer,
+  type MeasuredChartOH,
   type MeasuredChartOV,
   type MeasuredMap,
   type MeasuredSimpleViz,
@@ -33,6 +36,7 @@ import {
 export type FigureInputs =
   | TableInputs
   | ChartOVInputs
+  | ChartOHInputs
   | TimeseriesInputs
   | SimpleVizInputs
   | MapInputs;
@@ -40,6 +44,7 @@ export type FigureInputs =
 export type MeasuredFigure =
   | MeasuredTable
   | MeasuredChartOV
+  | MeasuredChartOH
   | MeasuredTimeseries
   | MeasuredSimpleViz
   | MeasuredMap;
@@ -55,6 +60,7 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
       item !== null &&
       ("tableData" in item ||
         "chartData" in item ||
+        "chartOHData" in item ||
         "timeseriesData" in item ||
         "simpleVizData" in item ||
         "mapData" in item)
@@ -134,11 +140,15 @@ function getRendererForFigureItem(
 ):
   | typeof TableRenderer
   | typeof ChartOVRenderer
+  | typeof ChartOHRenderer
   | typeof TimeseriesRenderer
   | typeof SimpleVizRenderer
   | typeof MapRenderer {
   if (TableRenderer.isType(item)) {
     return TableRenderer;
+  }
+  if (ChartOHRenderer.isType(item)) {
+    return ChartOHRenderer;
   }
   if (ChartOVRenderer.isType(item)) {
     return ChartOVRenderer;

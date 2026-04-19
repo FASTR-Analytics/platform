@@ -65,13 +65,20 @@ export function ChartStyleControls(p: Props) {
         />
       </Show>
       <Checkbox
-        label={t3({
-          en: "Vertical tick labels",
-          fr: "Étiquettes de graduation verticales",
-        })}
-        checked={p.tempConfig.s.verticalTickLabels}
-        onChange={(v) => p.setTempConfig("s", "verticalTickLabels", v)}
+        label={t3({ en: "Horizontal", fr: "Horizontal" })}
+        checked={p.tempConfig.s.horizontal ?? false}
+        onChange={(v) => p.setTempConfig("s", "horizontal", v)}
       />
+      <Show when={!p.tempConfig.s.horizontal}>
+        <Checkbox
+          label={t3({
+            en: "Vertical tick labels",
+            fr: "Étiquettes de graduation verticales",
+          })}
+          checked={p.tempConfig.s.verticalTickLabels}
+          onChange={(v) => p.setTempConfig("s", "verticalTickLabels", v)}
+        />
+      </Show>
       <ChartLikeControls
         poDetail={p.poDetail}
         tempConfig={p.tempConfig}

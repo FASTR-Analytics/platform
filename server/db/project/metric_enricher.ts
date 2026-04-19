@@ -1,11 +1,14 @@
+import { z } from "zod";
 import { Sql } from "postgres";
 import {
   DisaggregationOption,
   type PeriodOption,
   ResultsValue,
+  disaggregationOption,
   getDisaggregationAllowedPresentationOptions,
+  metricAIDescription,
+  postAggregationExpression,
   type InstanceConfigFacilityColumns,
-  parseJsonOrThrow,
 } from "lib";
 import { detectColumnExists, getResultsObjectTableName } from "../utils.ts";
 import { DBMetric } from "./_project_database_types.ts";
@@ -25,7 +28,7 @@ export async function enrichMetric(
   const resultsObjectId = dbMetric.results_object_id;
 
   const disaggregationOptions = await buildDisaggregationOptions(
-    parseJsonOrThrow<DisaggregationOption[]>(dbMetric.required_disaggregation_options),
+    z.array(disaggregationOption).parse(JSON.parse(dbMetric.required_disaggregation_options)),
     resultsObjectId,
     projectDb,
     facilityConfig,
@@ -34,13 +37,13 @@ export async function enrichMetric(
   const enrichedMetric: ResultsValue = {
     id: dbMetric.id,
     resultsObjectId,
-    valueProps: parseJsonOrThrow<string[]>(dbMetric.value_props),
+    valueProps: z.array(z.string()).parse(JSON.parse(dbMetric.value_props)),
     valueFunc: dbMetric.value_func as ResultsValue["valueFunc"],
     postAggregationExpression: dbMetric.post_aggregation_expression
-      ? parseJsonOrThrow(dbMetric.post_aggregation_expression)
+      ? postAggregationExpression.parse(JSON.parse(dbMetric.post_aggregation_expression))
       : undefined,
     valueLabelReplacements: dbMetric.value_label_replacements
-      ? parseJsonOrThrow(dbMetric.value_label_replacements)
+      ? z.record(z.string(), z.string()).parse(JSON.parse(dbMetric.value_label_replacements))
       : undefined,
     label: dbMetric.label,
     variantLabel: dbMetric.variant_label ?? undefined,
@@ -48,7 +51,7 @@ export async function enrichMetric(
     disaggregationOptions,
     mostGranularTimePeriodColumnInResultsFile: inferMostGranularTimePeriodColumn(disaggregationOptions),
     aiDescription: dbMetric.ai_description
-      ? parseJsonOrThrow(dbMetric.ai_description)
+      ? metricAIDescription.parse(JSON.parse(dbMetric.ai_description))
       : undefined,
     importantNotes: dbMetric.important_notes ?? undefined,
   };

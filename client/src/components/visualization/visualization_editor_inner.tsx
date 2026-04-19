@@ -6,7 +6,7 @@ import {
   ProjectDetail,
   ResultsValueInfoForPresentationObject,
   getReplicateByProp,
-  getTextRenderingOptions,
+  
   hasDuplicateDisaggregatorDisplayOptions,
   periodFilterHasBounds,
   t3,
@@ -906,7 +906,6 @@ export function VisualizationEditorInner(p: InnerProps) {
                                         chartInputs={keyedFigureInputs}
                                         height={editorHeight()}
                                         noRescaleWithWidthChange
-                                        textRenderingOptions={getTextRenderingOptions()}
                                       />
                                     );
                                   }}

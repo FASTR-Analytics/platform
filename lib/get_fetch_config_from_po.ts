@@ -6,17 +6,19 @@ import {
 } from "@timroberton/panther";
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import {
-  APIResponseWithData,
-  DisaggregationOption,
-  GenericLongFormFetchConfig,
-  PeriodBounds,
-  PeriodFilter,
   periodFilterHasBounds,
-  type PeriodOption,
-  PresentationObjectConfig,
+  type DisaggregationOption,
+  type GenericLongFormFetchConfig,
+  type PeriodBounds,
+  type PeriodFilter,
+  type ResultsValueInfoForPresentationObject,
+} from "./types/presentation_objects.ts";
+import type { PresentationObjectConfig } from "./types/presentation_object_config.ts";
+import type {
+  PeriodOption,
   ResultsValue,
-  ResultsValueInfoForPresentationObject,
-} from "./types/mod.ts";
+} from "./types/module_definition.ts";
+import type { APIResponseWithData } from "./types/instance.ts";
 import { getCalendar } from "./translate/mod.ts";
 
 export function getFetchConfigFromPresentationObjectConfig(

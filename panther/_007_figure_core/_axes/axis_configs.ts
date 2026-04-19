@@ -29,6 +29,8 @@ export type XAxisConfig =
   | {
     type: "scale";
     axisStyle: MergedXScaleAxisStyle;
+    axisData: ChartScaleAxisLimits;
+    axisLabel?: string;
   }
   | { type: "none" };
 
@@ -41,6 +43,7 @@ export type YAxisConfig =
   }
   | {
     type: "text";
+    indicatorHeaders: string[];
     axisStyle: MergedYTextAxisStyle;
   }
   | { type: "none" };

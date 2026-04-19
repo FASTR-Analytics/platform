@@ -10,7 +10,6 @@ export { Color } from "../_001_color/mod.ts";
 export type { FontInfo } from "../_001_font/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";
-export type { TextRenderingOptions } from "../_002_canvas/mod.ts";
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
 export { CustomStyle } from "../_006_style/mod.ts";
 export type { CustomStyleOptions } from "../_006_style/mod.ts";

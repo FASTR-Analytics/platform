@@ -17,7 +17,7 @@ import {
   type ResultsObjectDefinitionJSON,
   type TranslatableString,
 } from "lib";
-import { ModuleDefinitionJSONSchema } from "../../lib/types/module_definition_validator.ts";
+import { ModuleDefinitionJSONSchema } from "../../lib/types/module_definition.ts";
 import { stripFrontmatter } from "../github/fetch_module.ts";
 import { getTranslateFunc } from "./translation_utils.ts";
 

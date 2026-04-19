@@ -506,6 +506,12 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                     {t3({ en: "No data available for this dimension.", fr: "Aucune donnée disponible pour cette dimension." })}
                   </div>
                 </Match>
+                <Match when={p.keyedStatus.status === "error"}>
+                  <div class="ui-pad text-sm text-danger">
+                    {t3({ en: "Error loading values: ", fr: "Erreur lors du chargement des valeurs : " })}
+                    {(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "error" }>).message}
+                  </div>
+                </Match>
                 <Match when={p.keyedStatus.status === "ok"}>
                   <div class="ui-gap-sm ui-pad border-base-300 flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
                     <For each={(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "ok" }>).values}>

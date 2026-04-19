@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { Sql } from "postgres";
 import {
   // _ADMIN_SERVER_HOST,
@@ -16,6 +17,7 @@ import {
   getValidatedModuleId,
   parseJsonOrThrow,
   throwIfErrWithData,
+  vizPreset,
   type DirtyOrRunStatus,
   type MetricStatus,
   type MetricWithStatus,
@@ -932,7 +934,9 @@ export async function getMetricsWithStatus(
         ...enrichedMetric,
         status,
         moduleId,
-        vizPresets: dbMetric.viz_presets ? adaptLegacyVizPresets(parseJsonOrThrow(dbMetric.viz_presets)) : undefined,
+        vizPresets: dbMetric.viz_presets
+          ? z.array(vizPreset).parse(adaptLegacyVizPresets(JSON.parse(dbMetric.viz_presets)))
+          : undefined,
       });
     }
 

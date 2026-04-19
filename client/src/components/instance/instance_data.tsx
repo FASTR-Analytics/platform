@@ -106,12 +106,6 @@ export function InstanceData(p: Props) {
                       {(keyedStructureNumbers) => (
                         <div class="ui-spy-sm text-success text-xs">
                           <div class="ui-gap flex justify-between">
-                            <span>{t3(getAdminAreaLabel(1))}:</span>
-                            <span class="font-mono">
-                              {toNum0(keyedStructureNumbers.adminArea1s)}
-                            </span>
-                          </div>
-                          <div class="ui-gap flex justify-between">
                             <span>{t3(getAdminAreaLabel(2))}:</span>
                             <span class="font-mono">
                               {toNum0(keyedStructureNumbers.adminArea2s)}

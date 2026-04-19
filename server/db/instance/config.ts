@@ -6,8 +6,11 @@ import {
   InstanceConfigMaxAdminArea,
   InstanceConfigFacilityColumns,
   InstanceConfigCountryIso3,
+  instanceConfigAdminAreaLabelsSchema,
+  instanceConfigCountryIso3Schema,
+  instanceConfigFacilityColumnsSchema,
+  instanceConfigMaxAdminAreaSchema,
   throwIfErrWithData,
-  parseJsonOrThrow,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 
@@ -86,8 +89,8 @@ export async function getMaxAdminAreaConfig(
       };
     }
 
-    const config = parseJsonOrThrow<InstanceConfigMaxAdminArea>(
-      result[0].config_json_value
+    const config = instanceConfigMaxAdminAreaSchema.parse(
+      JSON.parse(result[0].config_json_value),
     );
 
     return {
@@ -132,8 +135,8 @@ export async function getFacilityColumnsConfig(
       };
     }
 
-    const config = parseJsonOrThrow<InstanceConfigFacilityColumns>(
-      result[0].config_json_value
+    const config = instanceConfigFacilityColumnsSchema.parse(
+      JSON.parse(result[0].config_json_value),
     );
 
     return {
@@ -176,8 +179,8 @@ export async function getCountryIso3Config(
       };
     }
 
-    const config = parseJsonOrThrow<InstanceConfigCountryIso3>(
-      result[0].config_json_value
+    const config = instanceConfigCountryIso3Schema.parse(
+      JSON.parse(result[0].config_json_value),
     );
 
     return {
@@ -219,8 +222,8 @@ export async function getAdminAreaLabelsConfig(
       return { success: true, data: {} };
     }
 
-    const config = parseJsonOrThrow<InstanceConfigAdminAreaLabels>(
-      result[0].config_json_value
+    const config = instanceConfigAdminAreaLabelsSchema.parse(
+      JSON.parse(result[0].config_json_value),
     );
 
     return { success: true, data: config };

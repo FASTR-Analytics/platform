@@ -1,4 +1,42 @@
+/* =============================================================
+   Panther — design-system base stylesheet.
+
+   This file provides the Tailwind v4 @theme tokens and the `ui-*`
+   utility classes that panther components and consuming apps use
+   for typography, color, radius, spacing, and form-control density.
+
+   ## How to theme an app
+
+   In your app's own CSS, import this file and then add your own
+   @theme block overriding any tokens you care about. Omitted tokens
+   keep the defaults below.
+
+       @import "./panther/_303_components/_fixed.css";
+
+       @theme {
+         --color-primary: #6f2e30;       // brand color
+         --font-sans: "MyFont", ...;     // custom font
+         --ui-pad-lg-x: 2.5rem;          // wider page padding
+       }
+
+   Every token below is also runtime-swappable from JS:
+
+       document.documentElement.style.setProperty("--color-primary", "#ff0000");
+
+   Utility classes (`ui-pad`, `ui-gap`, `ui-spy`, `ui-form-pad`, …)
+   resolve through these vars, so a single override flows through
+   every panther component and every app-level usage at once.
+
+   Values are annotated with their Tailwind-v4 equivalents (e.g. a
+   spacing var marked `px-4`) so migrating between raw utilities and
+   `ui-*` is transparent.
+   ============================================================= */
+
 @theme {
+  /* ============================================= */
+  /* Fonts */
+  /* ============================================= */
+
   --font-*: initial;
   --font-sans: Inter, system-ui, -apple-system, sans-serif;
   --font-mono: Roboto Mono;
@@ -6,6 +44,30 @@
   --font-weight-*: initial;
   --font-weight-400: 400;
   --font-weight-700: 700;
+
+  /* ============================================= */
+  /* Text sizes */
+  /* ============================================= */
+  /* Declared explicitly so every themable typography token is visible
+     in one place. These are the same token names Tailwind generates
+     `text-*` utilities from; redefining any of them changes every
+     `text-xs`, `text-sm`, etc. usage across the app. */
+
+  --text-xs: 0.75rem; /* text-xs */
+  --text-sm: 0.875rem; /* text-sm */
+  --text-base: 1rem; /* text-base */
+  --text-lg: 1.125rem; /* text-lg */
+  --text-xl: 1.25rem; /* text-xl */
+  --text-2xl: 1.5rem; /* text-2xl */
+  --text-3xl: 1.875rem; /* text-3xl */
+
+  /* ============================================= */
+  /* Colors */
+  /* ============================================= */
+  /* Semantic color tokens. Each intent (primary, neutral, success,
+     warning, danger) has a paired `-content` for text/icons placed
+     on top of it. `base-*` is the app surface; `base-content` is the
+     default foreground on that surface. */
 
   --color-transparent: transparent;
   --color-black: #000716;
@@ -31,78 +93,193 @@
   --color-danger: #f04d44;
   --color-danger-content: #ffffff;
 
-  --radius: 4px;
-  --radius-full: 9999px;
+  /* ============================================= */
+  /* Rect radius */
+  /* ============================================= */
+
+  --radius: 4px; /* rounded */
+  --radius-full: 9999px; /* rounded-full */
+
+  /* ============================================= */
+  /* Spacing density — pad / gap / spy × sm / default / lg */
+  /* ============================================= */
+  /* Three-tier ladder (tight / default / generous) applied to three
+     concepts: padding inside elements (`pad`), space between flex/grid
+     children (`gap`), and vertical rhythm between stacked siblings
+     (`spy`). Each utility below references these vars, so an app that
+     wants a compact or comfortable theme only has to override the
+     vars — no component changes needed. */
+
+  --ui-pad-sm-x: 0.5rem; /* px-2 */
+  --ui-pad-sm-y: 0.5rem; /* py-2 */
+  --ui-pad-x: 1rem; /* px-4 */
+  --ui-pad-y: 1rem; /* py-4 */
+  --ui-pad-lg-x: 2rem; /* px-8 */
+  --ui-pad-lg-y: 1.5rem; /* py-6 */
+
+  --ui-gap-sm: 0.5rem; /* gap-2 */
+  --ui-gap: 1rem; /* gap-4 */
+  --ui-gap-lg: 1.5rem; /* gap-6 */
+
+  --ui-spy-sm: 0.5rem; /* space-y-2 */
+  --ui-spy: 1.5rem; /* space-y-6 */
+  --ui-spy-lg: 2rem; /* space-y-8 */
+
+  /* ============================================= */
+  /* Form control density — padding, text size, icon correction × default / sm */
+  /* ============================================= */
+  /* Shared by Button, Input, Select, TextArea, ButtonGroup, Checkbox,
+     Slider, etc. so form controls stay vertically aligned when placed
+     next to each other. Each size (default + sm) has its own full set
+     of vars, so an app can theme the sm variant independently from the
+     default if it wants.
+
+     Form text sizes default to the Tailwind text scale via `var()` so
+     they track body-text size changes automatically. Override either
+     explicitly to decouple form text from body text. */
+
+  --ui-form-pad-x: 0.75rem; /* px-3 */
+  --ui-form-pad-y: 0.5rem; /* py-2 */
+  --ui-form-text-size: var(--text-sm); /* text-sm */
+  --ui-form-line-height: 1.25; /* leading-tight */
+  --ui-icon-only-correction: -0.25rem; /* -mx-1 */
+
+  --ui-form-pad-sm-x: 0.5rem; /* px-2 */
+  --ui-form-pad-sm-y: 0.25rem; /* py-1 */
+  --ui-form-text-size-sm: var(--text-xs); /* text-xs */
+  --ui-form-line-height-sm: 1.25; /* leading-tight */
+  --ui-icon-only-correction-sm: -0.125rem; /* -mx-0.5 */
 }
 
-/* ============================================= */
-/* PUBLIC UTILITIES - For External App Use      */
-/* ============================================= */
-/* These classes are part of the public API and */
-/* should be used by consuming applications.    */
-/* ============================================= */
+/* =============================================================
+   Public utility classes.
 
-@utility ui-pad {
-  @apply px-4 py-4;
+   Each utility resolves its values through the `--ui-*` vars
+   declared in @theme above, so overriding a var in an app's own
+   @theme propagates here automatically. Every utility is annotated
+   with the equivalent raw-Tailwind stack it replaces.
+   ============================================================= */
+
+/* ---- Pad — both axes ---- */
+
+@utility ui-pad-sm { /* = px-2 py-2 */
+  padding-inline: var(--ui-pad-sm-x);
+  padding-block: var(--ui-pad-sm-y);
 }
 
-@utility ui-pad-sm {
-  @apply px-2 py-2;
+@utility ui-pad { /* = px-4 py-4 */
+  padding-inline: var(--ui-pad-x);
+  padding-block: var(--ui-pad-y);
 }
 
-@utility ui-pad-lg {
-  @apply px-8 py-6;
+@utility ui-pad-lg { /* = px-8 py-6 */
+  padding-inline: var(--ui-pad-lg-x);
+  padding-block: var(--ui-pad-lg-y);
 }
 
-@utility ui-gap {
-  @apply gap-x-4 gap-y-4;
+/* ---- Pad — horizontal only ---- */
+/* Reuses the same x vars as the both-axis utilities above, so a single
+   density override flows through both. */
+
+@utility ui-pad-x-sm { /* = px-2 */
+  padding-inline: var(--ui-pad-sm-x);
 }
 
-@utility ui-gap-sm {
-  @apply gap-x-2 gap-y-2;
+@utility ui-pad-x { /* = px-4 */
+  padding-inline: var(--ui-pad-x);
 }
 
-@utility ui-spy {
-  @apply space-y-6;
+@utility ui-pad-x-lg { /* = px-8 */
+  padding-inline: var(--ui-pad-lg-x);
 }
 
-@utility ui-spy-sm {
-  @apply space-y-2;
+/* ---- Gap — symmetric x/y ---- */
+/* If an app ever needs asymmetric gap, use raw gap-x-N / gap-y-N at the
+   call site. */
+
+@utility ui-gap-sm { /* = gap-2 */
+  gap: var(--ui-gap-sm);
 }
 
-@utility ui-form-pad {
-  @apply px-3 py-2;
+@utility ui-gap { /* = gap-4 */
+  gap: var(--ui-gap);
 }
 
-@utility ui-form-text-size {
-  @apply text-sm leading-tight;
+@utility ui-gap-lg { /* = gap-6 */
+  gap: var(--ui-gap-lg);
 }
 
-@utility ui-icon-only-correction {
-  @apply -mx-1;
+/* ---- Spy — vertical rhythm between stacked children ---- */
+/* Matches the `space-y-*` semantics: margin-top on every non-first
+   non-hidden child. */
+
+@utility ui-spy-sm { /* = space-y-2 */
+  & > :not([hidden]) ~ :not([hidden]) {
+    margin-top: var(--ui-spy-sm);
+  }
 }
 
-@utility ui-form-pad-sm {
-  @apply px-2 py-1;
+@utility ui-spy { /* = space-y-6 */
+  & > :not([hidden]) ~ :not([hidden]) {
+    margin-top: var(--ui-spy);
+  }
 }
 
-@utility ui-form-text-size-sm {
-  @apply text-xs leading-tight;
+@utility ui-spy-lg { /* = space-y-8 */
+  & > :not([hidden]) ~ :not([hidden]) {
+    margin-top: var(--ui-spy-lg);
+  }
 }
 
-@utility ui-icon-only-correction-sm {
-  @apply -mx-0.5;
+/* ---- Form control padding ---- */
+
+@utility ui-form-pad { /* = px-3 py-2 */
+  padding-inline: var(--ui-form-pad-x);
+  padding-block: var(--ui-form-pad-y);
+}
+
+@utility ui-form-pad-sm { /* = px-2 py-1 */
+  padding-inline: var(--ui-form-pad-sm-x);
+  padding-block: var(--ui-form-pad-sm-y);
+}
+
+/* ---- Form control text size ---- */
+
+@utility ui-form-text-size { /* = text-sm leading-tight */
+  font-size: var(--ui-form-text-size);
+  line-height: var(--ui-form-line-height);
+}
+
+@utility ui-form-text-size-sm { /* = text-xs leading-tight */
+  font-size: var(--ui-form-text-size-sm);
+  line-height: var(--ui-form-line-height-sm);
+}
+
+/* ---- Icon-only button correction ---- */
+/* Negative horizontal margin that pulls icon-only form controls inward
+   so they appear roughly square rather than wider than tall. Value
+   intentionally tracks the difference between form-pad-x and form-pad-y. */
+
+@utility ui-icon-only-correction { /* = -mx-1 */
+  margin-inline: var(--ui-icon-only-correction);
+}
+
+@utility ui-icon-only-correction-sm { /* = -mx-0.5 */
+  margin-inline: var(--ui-icon-only-correction-sm);
 }
 
 @layer components {
-  /* ============================================= */
-  /* PUBLIC UTILITIES - For External App Use      */
-  /* ============================================= */
-  /* These classes are part of the public API and */
-  /* should be used by consuming applications.    */
-  /* ============================================= */
+  /* =============================================================
+     Component-layer classes.
 
-  /* Hoverable Elements - Add hover/active states to any element */
+     Split into two groups:
+       - Public (prefixed `ui-`, no leading underscore): safe for
+         consuming apps to use in their own markup.
+       - Internal (documented inline): used by panther components.
+         Apps shouldn't depend on these — they may change.
+     ============================================================= */
+
+  /* ---- Hoverable — public. Adds hover/active states to any element ---- */
   .ui-hoverable {
     @apply relative cursor-pointer select-none overflow-clip;
   }
@@ -125,13 +302,10 @@
     @apply relative;
   }
 
-  /* ============================================= */
-  /* INTERNAL UTILITIES - Component Library Only  */
-  /* ============================================= */
-  /* These classes are used internally by the     */
-  /* component library. External apps should not  */
-  /* rely on these as they may change.            */
-  /* ============================================= */
+  /* =============================================================
+     Internal utilities — used by panther components only. Not part
+     of the public API.
+     ============================================================= */
 
   /* Disabled State */
   .ui-disabled {
@@ -644,7 +818,7 @@
     bottom: 100%;
     left: 50%;
     transform: translateX(-50%);
-    margin-bottom: 0.5rem;
+    margin-top: 0.5rem;
   }
 
   /* Position: bottom */

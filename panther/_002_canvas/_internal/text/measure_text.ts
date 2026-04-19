@@ -9,16 +9,13 @@ import {
   type MeasuredTextLine,
   type TextInfoUnkeyed,
 } from "../../deps.ts";
-import type { TextRenderingOptions } from "../../text_rendering_options.ts";
 import { setCtxFont } from "./set_ctx_font.ts";
-import { findBestFontForText } from "./detect_char_support.ts";
 
 export function measureText(
   ctx: CanvasRenderingContext2D,
   text: string,
   ti: TextInfoUnkeyed,
   maxWidth: number,
-  textRenderingOptions?: TextRenderingOptions,
 ): MeasuredText {
   if (text === "") {
     return {
@@ -53,29 +50,11 @@ export function measureText(
     };
   }
 
-  // Find best font if character support checking is enabled
-  let effectiveTi = ti;
-  if (
-    textRenderingOptions?.checkCharSupport &&
-    textRenderingOptions.fallbackFonts.length > 0
-  ) {
-    const bestFont = findBestFontForText(
-      text,
-      ti.font,
-      textRenderingOptions.fallbackFonts,
-    );
-    effectiveTi = {
-      ...ti,
-      font: bestFont,
-    };
-  }
-
-  setCtxFont(ctx, effectiveTi, undefined);
-  const extraForLineHeight = (effectiveTi.lineHeight / 1.2 - 1) *
-    effectiveTi.fontSize;
+  setCtxFont(ctx, ti, undefined);
+  const extraForLineHeight = (ti.lineHeight / 1.2 - 1) * ti.fontSize;
   const extraForLineBreaks = ti.lineBreakGap === "none"
     ? 0
-    : ti.lineBreakGap * effectiveTi.fontSize * effectiveTi.lineHeight;
+    : ti.lineBreakGap * ti.fontSize * ti.lineHeight;
   const lines: MeasuredTextLine[] = [];
 
   const rawLines = text
@@ -144,7 +123,7 @@ export function measureText(
   return {
     lines,
     dims: new Dimensions({ w: overallMaxWidth, h: Math.round(currentY) }),
-    ti: effectiveTi,
+    ti,
     rotation: "horizontal",
   };
 }
@@ -155,9 +134,8 @@ export function measureVerticalText(
   ti: TextInfoUnkeyed,
   maxHeight: number,
   rotation: "anticlockwise" | "clockwise",
-  textRenderingOptions?: TextRenderingOptions,
 ): MeasuredText {
-  const m = measureText(ctx, text, ti, maxHeight, textRenderingOptions);
+  const m = measureText(ctx, text, ti, maxHeight);
   return {
     lines: m.lines,
     dims: m.dims.getTransposed(), // Note this

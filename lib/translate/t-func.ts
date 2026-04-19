@@ -1,4 +1,4 @@
-import { TextRenderingOptions, type CalendarType } from "@timroberton/panther";
+import { type CalendarType } from "@timroberton/panther";
 import { InstanceCalendar } from "../types/mod.ts";
 
 export { isFrench, setLanguage, getLanguage, t3 } from "@timroberton/panther";
@@ -13,25 +13,4 @@ export function setCalendar(cal: InstanceCalendar) {
 
 export function getCalendar(): CalendarType {
   return _CALENDAR.cal;
-}
-
-export function getTextRenderingOptions(): TextRenderingOptions | undefined {
-  if (_CALENDAR.cal === "ethiopian") {
-    return {
-      checkCharSupport: true,
-      fallbackFonts: [
-        {
-          fontFamily: "Noto Sans Ethiopic",
-          weight: 400,
-          italic: false,
-        },
-        {
-          fontFamily: "Noto Sans Ethiopic",
-          weight: 800,
-          italic: false,
-        },
-      ],
-    };
-  }
-  return undefined;
 }

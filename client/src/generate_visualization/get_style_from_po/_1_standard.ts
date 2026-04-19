@@ -55,6 +55,15 @@ export function buildStandardStyle(
         config.s.decimalPlaces ?? 0,
       ),
     },
+    xScaleAxis: {
+      allowIndividualLaneLimits: config.s.allowIndividualRowLimits,
+      max: config.s.forceYMax1 ? 1 : undefined,
+      min: config.s.forceYMinAuto ? "auto" : undefined,
+      tickLabelFormatter: getFormatterFunc(
+        dataFormat,
+        config.s.decimalPlaces ?? 0,
+      ),
+    },
     content: {
       points: {
         func: {

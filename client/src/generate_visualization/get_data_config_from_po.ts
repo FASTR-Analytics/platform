@@ -1,4 +1,5 @@
 import {
+  ChartOHJsonDataConfig,
   ChartOVJsonDataConfig,
   TableJsonDataConfig,
   TimeseriesJsonDataConfig,
@@ -173,6 +174,72 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
         : {};
 
     const dataConfig: ChartOVJsonDataConfig = {
+      valueProps: getFilteredValueProps(resultsValue.valueProps, config),
+      indicatorProp,
+      seriesProp,
+      paneProp,
+      laneProp,
+      tierProp,
+      //
+      sortHeaders: includesIndicatorDisaggregation
+        ? get_INDICATOR_COMMON_IDS_IN_SORT_ORDER()
+        : true,
+      sortIndicatorValues: config.s.sortIndicatorValues,
+      labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
+      labelReplacementsAfterSorting: {
+        ...indicatorLabelReplacements,
+        ...dateLabelReplacements,
+        ...nigeriaAdminAreaLabelReplacements,
+        __NATIONAL: t3(TC.national),
+        zzNATIONAL: t3(TC.national),
+      },
+    };
+    return dataConfig;
+  }
+  throw new Error("Bad config type");
+}
+
+export function getChartOHJsonDataConfigFromPresentationObjectConfig(
+  resultsValue: ResultsValueForVisualization,
+  config: PresentationObjectConfig,
+  indicatorLabelReplacements: Record<string, string>,
+  jsonArray?: any[],
+): ChartOHJsonDataConfig {
+  if (config.d.type === "chart") {
+    const includesIndicatorDisaggregation = config.d.disaggregateBy.some(
+      (d) => d.disOpt === "indicator_common_id",
+    );
+
+    const indicatorProp =
+      getDisaggregatorDisplayProp(resultsValue, config, ["indicator"]) ??
+      "--v";
+    const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"]);
+    const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"]);
+    const laneProp = getDisaggregatorDisplayProp(resultsValue, config, [
+      "col",
+      "colGroup",
+    ]);
+    const tierProp = getDisaggregatorDisplayProp(resultsValue, config, [
+      "row",
+      "rowGroup",
+    ]);
+
+    const dateLabelReplacements = jsonArray
+      ? getDateLabelReplacements(jsonArray, [
+          indicatorProp,
+          seriesProp,
+          paneProp,
+          laneProp,
+          tierProp,
+        ])
+      : {};
+
+    const nigeriaAdminAreaLabelReplacements =
+      instanceState.countryIso3 === CountryCodes.Nigeria && jsonArray
+        ? getNigeriaAdminAreaLabelReplacements(jsonArray)
+        : {};
+
+    const dataConfig: ChartOHJsonDataConfig = {
       valueProps: getFilteredValueProps(resultsValue.valueProps, config),
       indicatorProp,
       seriesProp,

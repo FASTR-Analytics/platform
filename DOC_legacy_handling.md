@@ -35,6 +35,12 @@ Example: [server/routes/project/presentation_objects.ts](server/routes/project/p
 
 **Write side:** writes always produce the new shape (types enforce it). Old rows self-heal when re-saved. No eager migration needed.
 
+**Zod validation, when the entity has a schema:** if the entity has a Zod schema describing its current shape, the adapter runs *before* Zod — not after. The adapter's job is to normalize legacy shapes to the current shape; Zod's job is to verify the adapter succeeded. Schemas describe the current shape only; they never enumerate legacy shapes. If validation fails, the fix is to add a new transform to the adapter, not to loosen the schema.
+
+```text
+DB text → JSON.parse → legacy adapter → Zod.parse (or safeParse) → typed value
+```
+
 **Active adapters in [server/legacy_adapters/](server/legacy_adapters/):**
 
 - `period_filter.ts` — `adaptLegacyPeriodFilter`. Pure transform on a raw filter shape. Called from within `po_config.ts`. Transforms:

@@ -1,32 +1,13 @@
 import { getNextAvailableDisaggregationDisplayOption } from "../get_disaggregator_display_prop.ts";
 import { t3 } from "../translate/mod.ts";
-import { PeriodOption, ResultsValue } from "./module_definitions.ts";
-import type { OptionalFacilityColumn } from "./instance.ts";
+import type { PeriodOption, ResultsValue } from "./module_definition.ts";
+import type { PresentationObjectConfig } from "./presentation_object_config.ts";
 import {
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
 } from "./presentation_object_defaults.ts";
 
-export type DisaggregationOption =
-  | "indicator_common_id"
-  | "admin_area_2"
-  | "admin_area_3"
-  | "admin_area_4"
-  | "year"
-  | "month"
-  | "quarter_id"
-  | "period_id"
-  | "denominator"
-  | "denominator_best_or_survey"
-  | "source_indicator"
-  | "target_population"
-  | "ratio_type"
-  | OptionalFacilityColumn
-  | "hfa_indicator"
-  | "hfa_category"
-  | "time_point";
-
-export const ALL_DISAGGREGATION_OPTIONS: readonly string[] = [
+export const ALL_DISAGGREGATION_OPTIONS = [
   "indicator_common_id",
   "admin_area_2",
   "admin_area_3",
@@ -40,7 +21,6 @@ export const ALL_DISAGGREGATION_OPTIONS: readonly string[] = [
   "source_indicator",
   "target_population",
   "ratio_type",
-  "facility_name",
   "facility_type",
   "facility_ownership",
   "facility_custom_1",
@@ -51,7 +31,13 @@ export const ALL_DISAGGREGATION_OPTIONS: readonly string[] = [
   "hfa_indicator",
   "hfa_category",
   "time_point",
-];
+] as const;
+
+export type DisaggregationOption = (typeof ALL_DISAGGREGATION_OPTIONS)[number];
+
+export function isDisaggregationOption(s: string): s is DisaggregationOption {
+  return (ALL_DISAGGREGATION_OPTIONS as readonly string[]).includes(s);
+}
 
 export type PresentationObjectSummary = {
   id: string;
@@ -131,6 +117,10 @@ export type DisaggregationPossibleValuesStatus =
     }
   | {
       status: "no_values_available";
+    }
+  | {
+      status: "error";
+      message: string;
     };
 
 export type ResultsValueInfoForPresentationObject = {
@@ -349,84 +339,9 @@ export type ReplicantValueOverride = {
   hideFigureFootnote?: boolean;
 };
 
-export type PresentationObjectConfig = {
-  // Fetch
-  d: {
-    type: PresentationOption;
-    timeseriesGrouping?: PeriodOption;
-    valuesDisDisplayOpt: DisaggregationDisplayOption;
-    valuesFilter?: string[];
-    disaggregateBy: {
-      disOpt: DisaggregationOption;
-      disDisplayOpt: DisaggregationDisplayOption;
-    }[];
-    filterBy: {
-      disOpt: DisaggregationOption;
-      values: string[];
-    }[];
-    periodFilter?: PeriodFilter;
-    selectedReplicantValue?: string;
-    includeNationalForAdminArea2?: boolean;
-    includeNationalPosition?: "bottom" | "top";
-  };
-  // Styles
-  s: {
-    scale: number;
-    content: "lines" | "bars" | "points" | "areas";
-    conditionalFormatting: "none" | string;
-    allowIndividualRowLimits: boolean;
-    colorScale:
-      | "pastel-discrete"
-      | "alt-discrete"
-      | "red-green"
-      | "blue-green"
-      | "single-grey"
-      | "custom";
-    decimalPlaces: 0 | 1 | 2 | 3;
-    hideLegend: boolean;
-    showDataLabels: boolean;
-    showDataLabelsLineCharts: boolean;
-    barsStacked: boolean;
-    diffAreas: boolean;
-    diffAreasOrder: "actual-expected" | "expected-actual";
-    diffInverted: boolean;
-    specialBarChart: boolean;
-    specialBarChartInverted: boolean;
-    specialBarChartDiffThreshold: number;
-    specialBarChartDataLabels: "all-values" | "threshold-values";
-    specialCoverageChart: boolean;
-    specialDisruptionsChart: boolean;
-    specialScorecardTable: boolean;
-    verticalTickLabels: boolean;
-    allowVerticalColHeaders: boolean;
-    forceYMax1: boolean;
-    forceYMinAuto: boolean;
-    customSeriesStyles: CustomSeriesStyle[];
-    nColsInCellDisplay: "auto" | number;
-    seriesColorFuncPropToUse: "series" | "cell" | "col" | "row" | undefined;
-    sortIndicatorValues: "ascending" | "descending" | "none";
-    mapColorPreset: "red" | "blue" | "green" | "red-green" | "custom";
-    mapColorReverse: boolean;
-    mapColorFrom: string;
-    mapColorTo: string;
-    mapProjection: "equirectangular" | "mercator" | "naturalEarth1";
-    mapScaleType: "continuous" | "discrete";
-    mapDiscreteSteps: number;
-    mapDomainType: "auto" | "fixed";
-    mapDomainMin: number;
-    mapDomainMax: number;
-    mapShowRegionLabels?: boolean;
-  };
-  // Text
-  t: {
-    caption: string;
-    captionRelFontSize: number;
-    subCaption: string;
-    subCaptionRelFontSize: number;
-    footnote: string;
-    footnoteRelFontSize: number;
-  };
-};
+// PresentationObjectConfig type + schema live in ./presentation_object_config.ts
+// and are re-exported through the barrel. CustomSeriesStyle too.
+export type { PresentationObjectConfig, CustomSeriesStyle } from "./presentation_object_config.ts";
 
 export type PresentationOption = "timeseries" | "table" | "chart" | "map";
 
@@ -473,12 +388,6 @@ export function get_PRESENTATION_OPTIONS_MAP(): Record<
     map: t3({ en: "Map", fr: "Carte" }),
   };
 }
-
-export type CustomSeriesStyle = {
-  color: string;
-  strokeWidth: number;
-  lineStyle: "solid" | "dashed";
-};
 
 export function getStartingConfigForPresentationObject(
   resultsValue: ResultsValue,

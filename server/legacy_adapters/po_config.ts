@@ -1,8 +1,9 @@
-import type {
-  APIResponseWithData,
-  PresentationObjectConfig,
-  PresentationObjectDetail,
-  VizPreset,
+import {
+  presentationObjectConfigSchema,
+  type APIResponseWithData,
+  type PresentationObjectConfig,
+  type PresentationObjectDetail,
+  type VizPreset,
 } from "lib";
 import { adaptLegacyPeriodFilter } from "./period_filter.ts";
 
@@ -48,7 +49,23 @@ export function adaptLegacyPresentationObjectConfig(
 ): PresentationObjectConfig {
   const input = raw as { d?: Record<string, unknown>; s?: unknown; t?: unknown };
   const d = adaptLegacyConfigD(input.d ?? {});
-  return { ...(input as object), d } as PresentationObjectConfig;
+  const adapted = { ...(input as object), d };
+
+  // Permissive-read: Zod-validate the adapter's output. On success return the
+  // validated config. On failure log a structured warning and fall back to the
+  // pass-through shape so existing views continue rendering while bad rows
+  // surface in logs for targeted fixes. Strict-write (on save) rejects bad
+  // configs — see presentationObjectConfigSchema.parse calls in
+  // server/db/project/presentation_objects.ts.
+  const parsed = presentationObjectConfigSchema.safeParse(adapted);
+  if (parsed.success) {
+    return parsed.data;
+  }
+  console.warn(
+    "[adaptLegacyPresentationObjectConfig] Zod validation failed after adapter run; falling back to raw shape. Issues:",
+    parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+  );
+  return adapted as PresentationObjectConfig;
 }
 
 // Idempotent wrapper that adapts the config inside an API response.

@@ -169,6 +169,11 @@ export type MergedChartOVStyle = MergedChartStyleBase & {
   xTextAxis: MergedXTextAxisStyle;
 };
 
+export type MergedChartOHStyle = MergedChartStyleBase & {
+  xScaleAxis: MergedXScaleAxisStyle;
+  yTextAxis: MergedYTextAxisStyle;
+};
+
 export type MergedCascadeArrowStyle = {
   text: {
     labels: TextInfoUnkeyed;
@@ -178,11 +183,36 @@ export type MergedCascadeArrowStyle = {
 };
 
 export type MergedYTextAxisStyle = {
-  // Stub — to be defined for ChartOH
+  text: {
+    yTextAxisTickLabels: TextInfoUnkeyed;
+    yTextAxisLabel: TextInfoUnkeyed;
+  };
+  tickWidth: number;
+  tickLabelGap: number;
+  labelGap: number;
+  tickPosition: "sides" | "center";
+  // Scaffold for future col-group support; ignored in v1 measurement/primitives.
+  colHeight: number;
+  paddingTop: number;
+  paddingBottom: number;
+  logicTickLabelWidth: "auto" | "fixed";
+  maxTickLabelWidthAsPctOfChart: number;
 };
 
 export type MergedXScaleAxisStyle = {
-  // Stub — to be defined for ChartOH/ChartTW
+  text: {
+    xScaleAxisTickLabels: TextInfoUnkeyed;
+    xScaleAxisLabel: TextInfoUnkeyed;
+  };
+  max: number | "auto" | ((i_pane: number) => number);
+  min: number | "auto" | ((i_pane: number) => number);
+  labelGap: number;
+  tickHeight: number;
+  tickLabelGap: number;
+  tickLabelFormatter: (v: number) => string;
+  forceRightOverhangWidth: "none" | number;
+  allowIndividualLaneLimits: boolean;
+  exactAxisY: "none" | number;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////

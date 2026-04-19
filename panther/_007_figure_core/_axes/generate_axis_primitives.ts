@@ -9,8 +9,10 @@ import type {
   MeasuredText,
   MergedGridStyle,
   MergedXPeriodAxisStyle,
+  MergedXScaleAxisStyle,
   MergedXTextAxisStyle,
   MergedYScaleAxisStyle,
+  MergedYTextAxisStyle,
   PeriodType,
   RectCoordsDims,
   RenderContext,
@@ -18,6 +20,8 @@ import type {
 import { Coordinates, getPeriodIdFromTime, Z_INDEX } from "../deps.ts";
 import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
+import type { XScaleAxisHeightInfo } from "./x_scale/types.ts";
+import type { YTextAxisWidthInfo } from "./y_text/types.ts";
 import type { YScaleAxisWidthInfo } from "../types.ts";
 import {
   getLargePeriodLabel,
@@ -504,6 +508,237 @@ export function generateYScaleAxisPrimitive(
       lineDash: "solid",
     },
     axisLabel,
+    zIndex: (Z_INDEX as any).AXIS,
+  };
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    X-Scale Axis Primitive Generation                                       //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export function generateXScaleAxisPrimitive(
+  rc: RenderContext,
+  i_pane: number,
+  i_lane: number,
+  xScaleHeightInfo: XScaleAxisHeightInfo,
+  xAxisRcd: RectCoordsDims,
+  subChartAreaX: number,
+  subChartAreaWidth: number,
+  axisLabelText: string | undefined,
+  sx: MergedXScaleAxisStyle,
+  sg: MergedGridStyle,
+): ChartAxisPrimitive {
+  const axisY = xAxisRcd.y() + sg.axisStrokeWidth / 2;
+  const ticks: ChartAxisPrimitive["ticks"] = [];
+
+  const tickValues = xScaleHeightInfo.xAxisTickValues[i_lane];
+  const tickIncrement = subChartAreaWidth / (tickValues.length - 1);
+  let currentX = subChartAreaX;
+
+  for (let i_tick = 0; i_tick < tickValues.length; i_tick++) {
+    const tickVal = tickValues[i_tick];
+    const tickLabel = sx.tickLabelFormatter(tickVal);
+    const mTickLabel = rc.mText(tickLabel, sx.text.xScaleAxisTickLabels, 9999);
+
+    ticks.push({
+      position: new Coordinates([currentX, axisY]),
+      tickLine: {
+        start: new Coordinates([
+          currentX,
+          xAxisRcd.y() + sg.axisStrokeWidth,
+        ]),
+        end: new Coordinates([
+          currentX,
+          xAxisRcd.y() + sg.axisStrokeWidth + sx.tickHeight,
+        ]),
+      },
+      label: {
+        mText: mTickLabel,
+        position: new Coordinates([
+          currentX,
+          xAxisRcd.y() + sg.axisStrokeWidth + sx.tickHeight + sx.tickLabelGap,
+        ]),
+        alignment: { h: "center", v: "top" },
+      },
+      value: tickVal,
+    });
+
+    currentX += tickIncrement;
+  }
+
+  // Axis line (horizontal at top of xAxisRcd)
+  const axisLine: { coords: Coordinates[]; style: LineStyle } = {
+    coords: [
+      new Coordinates([subChartAreaX - sg.gridStrokeWidth / 2, axisY]),
+      new Coordinates([
+        subChartAreaX + subChartAreaWidth + sg.gridStrokeWidth / 2,
+        axisY,
+      ]),
+    ],
+    style: {
+      show: true,
+      strokeColor: sg.axisColor,
+      strokeWidth: sg.axisStrokeWidth,
+      lineDash: "solid",
+    },
+  };
+
+  let axisLabel: ChartAxisPrimitive["axisLabel"];
+  if (axisLabelText) {
+    const mLabel = rc.mText(
+      axisLabelText,
+      sx.text.xScaleAxisLabel,
+      Number.POSITIVE_INFINITY,
+    );
+    axisLabel = {
+      mText: mLabel,
+      position: new Coordinates([
+        subChartAreaX + subChartAreaWidth / 2,
+        xAxisRcd.bottomY() - mLabel.dims.h(),
+      ]),
+      alignment: { h: "center", v: "top" },
+    };
+  }
+
+  return {
+    type: "chart-axis",
+    key: `x-scale-axis-${i_pane}-${i_lane}`,
+    bounds: xAxisRcd,
+    meta: {
+      axisType: "x-scale",
+      paneIndex: i_pane,
+      laneIndex: i_lane,
+    },
+    ticks,
+    axisLine,
+    tickStyle: {
+      strokeColor: sg.axisColor,
+      strokeWidth: sg.gridStrokeWidth,
+      lineDash: "solid",
+    },
+    axisLabel,
+    zIndex: (Z_INDEX as any).AXIS,
+  };
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Y-Text Axis Primitive Generation                                        //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export function generateYTextAxisPrimitive(
+  rc: RenderContext,
+  i_pane: number,
+  i_tier: number,
+  yAxisWidthInfo: YTextAxisWidthInfo,
+  yAxisRcd: RectCoordsDims,
+  subChartAreaY: number,
+  subChartAreaHeight: number,
+  indicatorHeaders: string[],
+  sy: MergedYTextAxisStyle,
+  sg: MergedGridStyle,
+): ChartAxisPrimitive {
+  const axisX = yAxisRcd.rightX() - sg.axisStrokeWidth / 2;
+  const centeredTicks = sy.tickPosition === "center";
+  const ticks: ChartAxisPrimitive["ticks"] = [];
+
+  const nIndicators = indicatorHeaders.length;
+  const rowInner = centeredTicks
+    ? subChartAreaHeight / nIndicators
+    : (subChartAreaHeight - sg.gridStrokeWidth * (nIndicators + 1)) /
+      nIndicators;
+
+  let currentY = centeredTicks
+    ? subChartAreaY
+    : subChartAreaY + sg.gridStrokeWidth / 2;
+
+  const tickX = yAxisRcd.rightX() - sg.axisStrokeWidth;
+
+  for (let i_indicator = 0; i_indicator < nIndicators; i_indicator++) {
+    const tickY = centeredTicks ? currentY + rowInner / 2 : currentY;
+
+    const mText = rc.mText(
+      indicatorHeaders[i_indicator],
+      sy.text.yTextAxisTickLabels,
+      yAxisWidthInfo.maxTickLabelW,
+    );
+
+    const labelPosition = centeredTicks
+      ? new Coordinates([
+        tickX - sy.tickWidth - sy.tickLabelGap,
+        currentY + rowInner / 2,
+      ])
+      : new Coordinates([
+        tickX - sy.tickWidth - sy.tickLabelGap,
+        currentY + (sg.gridStrokeWidth + rowInner) / 2,
+      ]);
+
+    ticks.push({
+      position: new Coordinates([axisX, tickY]),
+      tickLine: {
+        start: new Coordinates([tickX - sy.tickWidth, tickY]),
+        end: new Coordinates([tickX, tickY]),
+      },
+      label: {
+        mText,
+        position: labelPosition,
+        alignment: { h: "right", v: "middle" },
+      },
+      value: indicatorHeaders[i_indicator],
+    });
+
+    currentY += centeredTicks ? rowInner : rowInner + sg.gridStrokeWidth;
+  }
+
+  // Final tick at bottom boundary when sides mode
+  if (!centeredTicks) {
+    ticks.push({
+      position: new Coordinates([axisX, currentY]),
+      tickLine: {
+        start: new Coordinates([tickX - sy.tickWidth, currentY]),
+        end: new Coordinates([tickX, currentY]),
+      },
+      value: "",
+    });
+  }
+
+  // Axis line (vertical at right edge of Y-axis area)
+  const axisLine: { coords: Coordinates[]; style: LineStyle } = {
+    coords: [
+      new Coordinates([axisX, subChartAreaY - sg.gridStrokeWidth / 2]),
+      new Coordinates([
+        axisX,
+        subChartAreaY + subChartAreaHeight + sg.gridStrokeWidth / 2,
+      ]),
+    ],
+    style: {
+      show: true,
+      strokeColor: sg.axisColor,
+      strokeWidth: sg.axisStrokeWidth,
+      lineDash: "solid",
+    },
+  };
+
+  return {
+    type: "chart-axis",
+    key: `y-text-axis-${i_pane}-${i_tier}`,
+    bounds: yAxisRcd,
+    meta: {
+      axisType: "y-text",
+      paneIndex: i_pane,
+      laneIndex: 0,
+      tierIndex: i_tier,
+    },
+    ticks,
+    axisLine,
+    tickStyle: {
+      strokeColor: sg.axisColor,
+      strokeWidth: sg.gridStrokeWidth,
+      lineDash: "solid",
+    },
     zIndex: (Z_INDEX as any).AXIS,
   };
 }

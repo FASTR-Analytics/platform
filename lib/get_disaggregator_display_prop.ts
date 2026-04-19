@@ -2,12 +2,12 @@ import {
   getFilteredValueProps,
 } from "./get_fetch_config_from_po.ts";
 import {
-  DisaggregationDisplayOption,
-  DisaggregationOption,
-  PresentationObjectConfig,
-  ResultsValueForVisualization,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
-} from "./types/mod.ts";
+  type DisaggregationDisplayOption,
+  type DisaggregationOption,
+} from "./types/presentation_objects.ts";
+import type { PresentationObjectConfig } from "./types/presentation_object_config.ts";
+import type { ResultsValueForVisualization } from "./types/module_definition.ts";
 
 // These functions assume config.d.disaggregateBy has been pre-cleaned:
 // single-value disaggregations (both period-filtered and regular-filtered)

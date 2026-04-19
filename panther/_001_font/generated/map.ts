@@ -93,38 +93,22 @@ export const FONT_MAP = {
   "FiraSans-800-normal": "fira-sans/FiraSans-ExtraBold",
   "FiraSans-900-italic": "fira-sans/FiraSans-BlackItalic",
   "FiraSans-900-normal": "fira-sans/FiraSans-Black",
-  "FiraSansCondensed-200-italic":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-100italic",
-  "FiraSansCondensed-200-normal":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-100",
-  "FiraSansCondensed-300-italic":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-200italic",
-  "FiraSansCondensed-300-normal":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-200",
-  "FiraSansCondensed-400-italic":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-italic",
-  "FiraSansCondensed-400-normal":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-regular",
-  "FiraSansCondensed-500-italic":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-500italic",
-  "FiraSansCondensed-500-normal":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-500",
-  "FiraSansCondensed-600-italic":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-600italic",
-  "FiraSansCondensed-600-normal":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-600",
-  "FiraSansCondensed-700-italic":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-700italic",
-  "FiraSansCondensed-700-normal":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-700",
-  "FiraSansCondensed-800-italic":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-800italic",
-  "FiraSansCondensed-800-normal":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-800",
-  "FiraSansCondensed-900-italic":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-900italic",
-  "FiraSansCondensed-900-normal":
-    "fira-sans-condensed/fira-sans-condensed-v10-latin-900",
+  "FiraSansCondensed-200-italic": "fira-sans-condensed/fira-sans-condensed-v10-latin-100italic",
+  "FiraSansCondensed-200-normal": "fira-sans-condensed/fira-sans-condensed-v10-latin-100",
+  "FiraSansCondensed-300-italic": "fira-sans-condensed/fira-sans-condensed-v10-latin-200italic",
+  "FiraSansCondensed-300-normal": "fira-sans-condensed/fira-sans-condensed-v10-latin-200",
+  "FiraSansCondensed-400-italic": "fira-sans-condensed/fira-sans-condensed-v10-latin-italic",
+  "FiraSansCondensed-400-normal": "fira-sans-condensed/fira-sans-condensed-v10-latin-regular",
+  "FiraSansCondensed-500-italic": "fira-sans-condensed/fira-sans-condensed-v10-latin-500italic",
+  "FiraSansCondensed-500-normal": "fira-sans-condensed/fira-sans-condensed-v10-latin-500",
+  "FiraSansCondensed-600-italic": "fira-sans-condensed/fira-sans-condensed-v10-latin-600italic",
+  "FiraSansCondensed-600-normal": "fira-sans-condensed/fira-sans-condensed-v10-latin-600",
+  "FiraSansCondensed-700-italic": "fira-sans-condensed/fira-sans-condensed-v10-latin-700italic",
+  "FiraSansCondensed-700-normal": "fira-sans-condensed/fira-sans-condensed-v10-latin-700",
+  "FiraSansCondensed-800-italic": "fira-sans-condensed/fira-sans-condensed-v10-latin-800italic",
+  "FiraSansCondensed-800-normal": "fira-sans-condensed/fira-sans-condensed-v10-latin-800",
+  "FiraSansCondensed-900-italic": "fira-sans-condensed/fira-sans-condensed-v10-latin-900italic",
+  "FiraSansCondensed-900-normal": "fira-sans-condensed/fira-sans-condensed-v10-latin-900",
   "Gibson-100-italic": "gibson/Gibson-ThinItalic",
   "Gibson-100-normal": "gibson/Gibson-Thin",
   "Gibson-200-italic": "gibson/Gibson-LightItalic",
@@ -153,34 +137,20 @@ export const FONT_MAP = {
   "IBMPlexSans-400-normal": "ibm-plex-sans/IBMPlexSans-Regular",
   "IBMPlexSans-700-italic": "ibm-plex-sans/IBMPlexSans-BoldItalic",
   "IBMPlexSans-700-normal": "ibm-plex-sans/IBMPlexSans-Bold",
-  "IBMPlexSansCondensed-100-italic":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-100italic",
-  "IBMPlexSansCondensed-100-normal":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-100",
-  "IBMPlexSansCondensed-200-italic":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-200italic",
-  "IBMPlexSansCondensed-200-normal":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-200",
-  "IBMPlexSansCondensed-300-italic":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-300italic",
-  "IBMPlexSansCondensed-300-normal":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-300",
-  "IBMPlexSansCondensed-400-italic":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-italic",
-  "IBMPlexSansCondensed-400-normal":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-regular",
-  "IBMPlexSansCondensed-500-italic":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-500italic",
-  "IBMPlexSansCondensed-500-normal":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-500",
-  "IBMPlexSansCondensed-600-italic":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-600italic",
-  "IBMPlexSansCondensed-600-normal":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-600",
-  "IBMPlexSansCondensed-700-italic":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-700italic",
-  "IBMPlexSansCondensed-700-normal":
-    "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-700",
+  "IBMPlexSansCondensed-100-italic": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-100italic",
+  "IBMPlexSansCondensed-100-normal": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-100",
+  "IBMPlexSansCondensed-200-italic": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-200italic",
+  "IBMPlexSansCondensed-200-normal": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-200",
+  "IBMPlexSansCondensed-300-italic": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-300italic",
+  "IBMPlexSansCondensed-300-normal": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-300",
+  "IBMPlexSansCondensed-400-italic": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-italic",
+  "IBMPlexSansCondensed-400-normal": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-regular",
+  "IBMPlexSansCondensed-500-italic": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-500italic",
+  "IBMPlexSansCondensed-500-normal": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-500",
+  "IBMPlexSansCondensed-600-italic": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-600italic",
+  "IBMPlexSansCondensed-600-normal": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-600",
+  "IBMPlexSansCondensed-700-italic": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-700italic",
+  "IBMPlexSansCondensed-700-normal": "ibm-plex-sans-condensed/ibm-plex-sans-condensed-v14-latin-700",
   "IBMPlexSansExtLt-200-italic": "ibm-plex-sans/IBMPlexSans-ExtraLightItalic",
   "IBMPlexSansExtLt-200-normal": "ibm-plex-sans/IBMPlexSans-ExtraLight",
   "IBMPlexSansMedm-500-italic": "ibm-plex-sans/IBMPlexSans-MediumItalic",
@@ -225,42 +195,24 @@ export const FONT_MAP = {
   "InterDisplay-800-normal": "inter/InterDisplay-ExtraBold",
   "InterDisplay-900-italic": "inter/InterDisplay-BlackItalic",
   "InterDisplay-900-normal": "inter/InterDisplay-Black",
-  "InternationalInter-100-italic":
-    "international-inter/InternationalInter-ThinItalic",
-  "InternationalInter-100-normal":
-    "international-inter/InternationalInter-Thin",
-  "InternationalInter-200-italic":
-    "international-inter/InternationalInter-ExtraLightItalic",
-  "InternationalInter-200-normal":
-    "international-inter/InternationalInter-ExtraLight",
-  "InternationalInter-300-italic":
-    "international-inter/InternationalInter-LightItalic",
-  "InternationalInter-300-normal":
-    "international-inter/InternationalInter-Light",
-  "InternationalInter-400-italic":
-    "international-inter/InternationalInter-Italic",
-  "InternationalInter-400-normal":
-    "international-inter/InternationalInter-Regular",
-  "InternationalInter-500-italic":
-    "international-inter/InternationalInter-MediumItalic",
-  "InternationalInter-500-normal":
-    "international-inter/InternationalInter-Medium",
-  "InternationalInter-600-italic":
-    "international-inter/InternationalInter-SemiBoldItalic",
-  "InternationalInter-600-normal":
-    "international-inter/InternationalInter-SemiBold",
-  "InternationalInter-700-italic":
-    "international-inter/InternationalInter-BoldItalic",
-  "InternationalInter-700-normal":
-    "international-inter/InternationalInter-Bold",
-  "InternationalInter-800-italic":
-    "international-inter/InternationalInter-ExtraBoldItalic",
-  "InternationalInter-800-normal":
-    "international-inter/InternationalInter-ExtraBold",
-  "InternationalInter-900-italic":
-    "international-inter/InternationalInter-BlackItalic",
-  "InternationalInter-900-normal":
-    "international-inter/InternationalInter-Black",
+  "InternationalInter-100-italic": "international-inter/InternationalInter-ThinItalic",
+  "InternationalInter-100-normal": "international-inter/InternationalInter-Thin",
+  "InternationalInter-200-italic": "international-inter/InternationalInter-ExtraLightItalic",
+  "InternationalInter-200-normal": "international-inter/InternationalInter-ExtraLight",
+  "InternationalInter-300-italic": "international-inter/InternationalInter-LightItalic",
+  "InternationalInter-300-normal": "international-inter/InternationalInter-Light",
+  "InternationalInter-400-italic": "international-inter/InternationalInter-Italic",
+  "InternationalInter-400-normal": "international-inter/InternationalInter-Regular",
+  "InternationalInter-500-italic": "international-inter/InternationalInter-MediumItalic",
+  "InternationalInter-500-normal": "international-inter/InternationalInter-Medium",
+  "InternationalInter-600-italic": "international-inter/InternationalInter-SemiBoldItalic",
+  "InternationalInter-600-normal": "international-inter/InternationalInter-SemiBold",
+  "InternationalInter-700-italic": "international-inter/InternationalInter-BoldItalic",
+  "InternationalInter-700-normal": "international-inter/InternationalInter-Bold",
+  "InternationalInter-800-italic": "international-inter/InternationalInter-ExtraBoldItalic",
+  "InternationalInter-800-normal": "international-inter/InternationalInter-ExtraBold",
+  "InternationalInter-900-italic": "international-inter/InternationalInter-BlackItalic",
+  "InternationalInter-900-normal": "international-inter/InternationalInter-Black",
   "InterVariable-400-italic": "inter/InterVariable-Italic",
   "InterVariable-400-normal": "inter/InterVariable",
   "JosefinSans-200-italic": "josefin-sans/JosefinSans-ExtraLightItalic",
@@ -325,10 +277,8 @@ export const FONT_MAP = {
   "NotoSansEthiopic-600-normal": "noto-sans-ethiopic/NotoSansEthiopic-SemiBold",
   "NotoSansEthiopic-700-italic": "noto-sans-ethiopic/NotoSansEthiopic-Bold",
   "NotoSansEthiopic-700-normal": "noto-sans-ethiopic/NotoSansEthiopic-Bold",
-  "NotoSansEthiopic-800-italic":
-    "noto-sans-ethiopic/NotoSansEthiopic-ExtraBold",
-  "NotoSansEthiopic-800-normal":
-    "noto-sans-ethiopic/NotoSansEthiopic-ExtraBold",
+  "NotoSansEthiopic-800-italic": "noto-sans-ethiopic/NotoSansEthiopic-ExtraBold",
+  "NotoSansEthiopic-800-normal": "noto-sans-ethiopic/NotoSansEthiopic-ExtraBold",
   "NotoSansEthiopic-900-italic": "noto-sans-ethiopic/NotoSansEthiopic-Black",
   "NotoSansEthiopic-900-normal": "noto-sans-ethiopic/NotoSansEthiopic-Black",
   "Poppins-200-italic": "poppins/Poppins-ThinItalic",
@@ -363,18 +313,12 @@ export const FONT_MAP = {
   "Roboto-700-normal": "roboto/Roboto-Bold",
   "Roboto-900-italic": "roboto/Roboto-BlackItalic",
   "Roboto-900-normal": "roboto/Roboto-Black",
-  "RobotoCondensed-300-italic":
-    "roboto-condensed/roboto-condensed-v25-latin-300italic",
-  "RobotoCondensed-300-normal":
-    "roboto-condensed/roboto-condensed-v25-latin-300",
-  "RobotoCondensed-400-italic":
-    "roboto-condensed/roboto-condensed-v25-latin-italic",
-  "RobotoCondensed-400-normal":
-    "roboto-condensed/roboto-condensed-v25-latin-regular",
-  "RobotoCondensed-700-italic":
-    "roboto-condensed/roboto-condensed-v25-latin-700italic",
-  "RobotoCondensed-700-normal":
-    "roboto-condensed/roboto-condensed-v25-latin-700",
+  "RobotoCondensed-300-italic": "roboto-condensed/roboto-condensed-v25-latin-300italic",
+  "RobotoCondensed-300-normal": "roboto-condensed/roboto-condensed-v25-latin-300",
+  "RobotoCondensed-400-italic": "roboto-condensed/roboto-condensed-v25-latin-italic",
+  "RobotoCondensed-400-normal": "roboto-condensed/roboto-condensed-v25-latin-regular",
+  "RobotoCondensed-700-italic": "roboto-condensed/roboto-condensed-v25-latin-700italic",
+  "RobotoCondensed-700-normal": "roboto-condensed/roboto-condensed-v25-latin-700",
   "RobotoMono-200-italic": "roboto-mono/RobotoMono-ThinItalic",
   "RobotoMono-200-normal": "roboto-mono/RobotoMono-ExtraLight",
   "RobotoMono-300-italic": "roboto-mono/RobotoMono-LightItalic",
@@ -403,8 +347,12 @@ export const FONT_MAP = {
   "Sarabun-800-normal": "sarabun/Sarabun-ExtraBold",
   "Söhne-300-italic": "soehne/soehne-leicht-kursiv",
   "Söhne-300-normal": "soehne/soehne-leicht",
-  "Söhne-500-italic": "soehne/soehne-kraftig",
+  "Söhne-400-italic": "soehne/Söhne-BuchKursiv",
+  "Söhne-400-normal": "soehne/Söhne-Buch",
+  "Söhne-500-italic": "soehne/Söhne-KräftigKursiv",
   "Söhne-500-normal": "soehne/soehne-kraftig",
+  "Söhne-700-italic": "soehne/Söhne-DreiviertelfettKursiv",
+  "Söhne-700-normal": "soehne/Söhne-Dreiviertelfett",
   "SourceSans3-200-italic": "source-sans-3/SourceSans3-ExtraLightItalic",
   "SourceSans3-200-normal": "source-sans-3/SourceSans3-ExtraLight",
   "SourceSans3-300-italic": "source-sans-3/SourceSans3-LightItalic",

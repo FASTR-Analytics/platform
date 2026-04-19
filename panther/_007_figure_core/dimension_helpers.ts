@@ -3,7 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { MergedYScaleAxisStyle, RenderContext } from "./deps.ts";
+import type {
+  MergedXScaleAxisStyle,
+  MergedYScaleAxisStyle,
+  RenderContext,
+} from "./deps.ts";
 
 export function calculatePaneGrid(
   nPanes: number,
@@ -27,4 +31,17 @@ export function calculateMinSubChartHeight(
   ).dims.h();
   // 2 tick labels + 2× spacing between them
   return tickLabelHeight * 4;
+}
+
+export function calculateMinSubChartWidth(
+  rc: RenderContext,
+  xScaleAxisStyle: MergedXScaleAxisStyle,
+): number {
+  const tickLabelWidth = rc.mText(
+    "999,999",
+    xScaleAxisStyle.text.xScaleAxisTickLabels,
+    Infinity,
+  ).dims.w();
+  // Mirror of calculateMinSubChartHeight: 2 tick labels + 2× spacing
+  return tickLabelWidth * 4;
 }

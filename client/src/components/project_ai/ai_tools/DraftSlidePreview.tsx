@@ -1,7 +1,7 @@
 import {
   t3,
   getStartingConfigForSlideDeck,
-  getTextRenderingOptions,
+  
   type AiSlideInput,
   type MetricWithStatus,
   type Slide,
@@ -181,7 +181,6 @@ function SlideStateWrapper(p: SlideStateWrapperProps) {
           <PageHolder
             pageInputs={(p.state as { data: SlideState }).data.pageInputs}
             fixedCanvasH={CANVAS_H}
-            textRenderingOptions={getTextRenderingOptions()}
             scalePixelResolution={p.scalePixelResolution}
           />
         </div>
@@ -222,7 +221,6 @@ function ExpandedSlideModal(
         <PageHolder
           pageInputs={p.pageInputs}
           fixedCanvasH={CANVAS_H}
-          textRenderingOptions={getTextRenderingOptions()}
           scalePixelResolution={0.5}
         />
       </div>

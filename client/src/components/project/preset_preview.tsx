@@ -2,7 +2,7 @@ import {
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
   getFetchConfigFromPresentationObjectConfig,
-  getTextRenderingOptions,
+  
   type MetricWithStatus,
   type PresentationObjectConfig,
   type ResultsValueForVisualization,
@@ -96,7 +96,6 @@ export function PresetPreview(p: Props) {
                   chartInputs={figureInputs}
                   height="ideal"
                   noRescaleWithWidthChange
-                  textRenderingOptions={getTextRenderingOptions()}
                   scalePixelResolution={0.5}
                 />
               )}

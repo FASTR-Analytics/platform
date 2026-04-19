@@ -6,7 +6,7 @@ import {
   ReportItem,
   ReportItemConfig,
   ReportItemContentItem,
-  getTextRenderingOptions,
+  
 } from "lib";
 import {
   APIResponseWithData,
@@ -368,7 +368,6 @@ export function ReportItemEditorInner(p: Props) {
                       : Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16)
                   }
                   fitWithin={fitWithin() === "fit-within"}
-                  textRenderingOptions={getTextRenderingOptions()}
                   hoverStyle={{
                     fillColor: "rgba(0, 112, 243, 0.1)",
                     strokeColor: "rgba(0, 112, 243, 0.8)",

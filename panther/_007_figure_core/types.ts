@@ -72,6 +72,10 @@ export type YAxisWidthInfoBase = {
   halfYAxisTickLabelH: number;
 };
 
+export type XAxisHeightInfoBase = {
+  heightIncludingXAxisStrokeWidth: number;
+};
+
 export type YScaleAxisWidthInfo = YAxisWidthInfoBase & {
   yAxisTickValues: number[][];
   tierHeaderAndLabelGapWidth: number;

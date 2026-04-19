@@ -394,9 +394,14 @@ type TimFontOption =
   | "SourceSerif4_400"
   | "SourceSerif4_800_Italic"
   // Söhne
+  | "Söhne_400_Italic"
   | "Söhne_300_Italic"
   | "Söhne_500"
   | "Söhne_300"
+  | "Söhne_700"
+  | "Söhne_400"
+  | "Söhne_500_Italic"
+  | "Söhne_700_Italic"
   // Tiempos Headline
   | "TiemposHeadline_500_Italic"
   | "TiemposHeadline_600"
@@ -2252,6 +2257,11 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
   },
 
   // Söhne
+  Söhne_400_Italic: {
+    fontFamily: "Söhne",
+    weight: 400,
+    italic: true,
+  },
   Söhne_300_Italic: {
     fontFamily: "Söhne",
     weight: 300,
@@ -2266,6 +2276,26 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
     fontFamily: "Söhne",
     weight: 300,
     italic: false,
+  },
+  Söhne_700: {
+    fontFamily: "Söhne",
+    weight: 700,
+    italic: false,
+  },
+  Söhne_400: {
+    fontFamily: "Söhne",
+    weight: 400,
+    italic: false,
+  },
+  Söhne_500_Italic: {
+    fontFamily: "Söhne",
+    weight: 500,
+    italic: true,
+  },
+  Söhne_700_Italic: {
+    fontFamily: "Söhne",
+    weight: 700,
+    italic: true,
   },
 
   // Tiempos Headline

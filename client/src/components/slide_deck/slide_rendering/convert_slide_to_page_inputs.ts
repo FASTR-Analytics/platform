@@ -29,14 +29,14 @@ import { getImgFromCacheOrFetch } from "~/state/img_cache";
 import { getOverlayImage } from "./get_overlay_image";
 import { _SERVER_HOST } from "~/server_actions";
 
-const _Inter_400: FontInfo = {
-  fontFamily: "Inter",
+const _InternationalInter_400: FontInfo = {
+  fontFamily: "International Inter",
   weight: 400,
   italic: false,
 };
 
-const _Inter_800: FontInfo = {
-  fontFamily: "Inter",
+const _InternationalInter_800: FontInfo = {
+  fontFamily: "International Inter",
   weight: 800,
   italic: false,
 };
@@ -66,76 +66,76 @@ export function buildStyleForSlide(
   return {
     text: {
       coverTitle: {
-        font: _Inter_800,
+        font: _InternationalInter_800,
         color: primaryTextColor,
         relFontSize: coverFontSizes.titleTextRelFontSize ?? 10,
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       coverSubTitle: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         color: primaryTextColor,
         relFontSize: coverFontSizes.subTitleTextRelFontSize ?? 6,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       coverAuthor: {
-        font: _Inter_800,
+        font: _InternationalInter_800,
         color: primaryTextColor,
         relFontSize: coverFontSizes.presenterTextRelFontSize ?? 4,
         letterSpacing: "-0.02em",
         lineHeight: 1.2,
       },
       coverDate: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         color: primaryTextColor,
         relFontSize: coverFontSizes.dateTextRelFontSize ?? 3,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       sectionTitle: {
-        font: _Inter_800,
+        font: _InternationalInter_800,
         color: primaryTextColor,
         relFontSize: sectionFontSizes.sectionTextRelFontSize ?? 8,
         letterSpacing: "-0.02em",
         lineHeight: 1.05,
       },
       sectionSubTitle: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         color: primaryTextColor,
         relFontSize: sectionFontSizes.smallerSectionTextRelFontSize ?? 5,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       header: {
-        font: _Inter_800,
+        font: _InternationalInter_800,
         relFontSize: 5.5,
         color: "#1E1E1E",
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       subHeader: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         relFontSize: 3.5,
         color: "#1E1E1E",
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       date: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         relFontSize: 3,
         color: "#1E1E1E",
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       footer: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         relFontSize: 2,
         color: primaryTextColor,
         letterSpacing: "-0.02em",
       },
       pageNumber: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         color: hasFooter ? primaryTextColor : "#1E1E1E",
         relFontSize: 1.5,
       },
@@ -383,6 +383,7 @@ async function convertBlockToPageContentItem(
     !(
       "tableData" in fi ||
       "chartData" in fi ||
+      "chartOHData" in fi ||
       "timeseriesData" in fi ||
       "simpleVizData" in fi ||
       "mapData" in fi

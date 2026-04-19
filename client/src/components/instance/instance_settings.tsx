@@ -33,8 +33,9 @@ function withAdminSuffix(v: string, level: number): string | undefined {
 }
 
 export function InstanceSettings(p: Props) {
-  const [selectedMaxAdminArea, setSelectedMaxAdminArea] =
-    createSignal<number>(instanceState.maxAdminArea);
+  const [selectedMaxAdminArea, setSelectedMaxAdminArea] = createSignal<number>(
+    instanceState.maxAdminArea,
+  );
 
   const [countryIso3, setCountryIso3] = createSignal<string>(
     instanceState.countryIso3 || "",
@@ -106,7 +107,8 @@ export function InstanceSettings(p: Props) {
   const [adminLabel4, setAdminLabel4] = createSignal<string>(
     stripAdminSuffix(instanceState.adminAreaLabels.label4, 4),
   );
-  const [needsSavingAdminLabels, setNeedsSavingAdminLabels] = createSignal(false);
+  const [needsSavingAdminLabels, setNeedsSavingAdminLabels] =
+    createSignal(false);
 
   const updateAdminAreaLabels = timActionButton(async () => {
     const newConfig: InstanceConfigAdminAreaLabels = {
@@ -121,18 +123,16 @@ export function InstanceSettings(p: Props) {
     return res;
   });
 
-  const updateMaxAdminArea = timActionButton(
-    () =>
-      serverActions.updateMaxAdminArea({
-        maxAdminArea: selectedMaxAdminArea(),
-      }),
+  const updateMaxAdminArea = timActionButton(() =>
+    serverActions.updateMaxAdminArea({
+      maxAdminArea: selectedMaxAdminArea(),
+    }),
   );
 
-  const updateCountryIso3 = timActionButton(
-    () =>
-      serverActions.updateCountryIso3({
-        countryIso3: countryIso3(),
-      }),
+  const updateCountryIso3 = timActionButton(() =>
+    serverActions.updateCountryIso3({
+      countryIso3: countryIso3(),
+    }),
   );
 
   const handleCheckboxChange = (
@@ -175,7 +175,10 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_ownership",
-      label: t3({ en: "Facility Ownership", fr: "Propriété des établissements" }),
+      label: t3({
+        en: "Facility Ownership",
+        fr: "Propriété des établissements",
+      }),
       checked: includeOwnership,
       setChecked: setIncludeOwnership,
       labelValue: labelOwnership,
@@ -248,9 +251,7 @@ export function InstanceSettings(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBarMainRibbon
-          heading={t3(TC.settings)}
-        ></HeadingBarMainRibbon>
+        <HeadingBarMainRibbon heading={t3(TC.settings)}></HeadingBarMainRibbon>
       }
     >
       <div class="ui-pad ui-spy h-full w-full">
@@ -263,19 +264,22 @@ export function InstanceSettings(p: Props) {
                 state={updateCountryIso3.state()}
                 intent="success"
               >
-                {t3({ en: "Update country ISO3 code", fr: "Mettre à jour le code ISO3 du pays" })}
+                {t3({
+                  en: "Update country ISO3 code",
+                  fr: "Mettre à jour le code ISO3 du pays",
+                })}
               </Button>
             </Show>
           }
         >
-          <Input
-            value={countryIso3()}
-            onChange={(v) => handleIso3Change(v)}
-          />
+          <Input value={countryIso3()} onChange={(v) => handleIso3Change(v)} />
         </SettingsSection>
 
         <SettingsSection
-          header={t3({ en: "Max admin area level", fr: "Niveau maximal d'unité administrative" })}
+          header={t3({
+            en: "Max admin area level",
+            fr: "Niveau maximal d'unité administrative",
+          })}
           rightChildren={
             <Show when={needsSavingMaxAdminArea()}>
               <Button
@@ -283,7 +287,10 @@ export function InstanceSettings(p: Props) {
                 state={updateMaxAdminArea.state()}
                 intent="success"
               >
-                {t3({ en: "Update max admin area level", fr: "Mettre à jour le niveau maximal d'unité administrative" })}
+                {t3({
+                  en: "Update max admin area level",
+                  fr: "Mettre à jour le niveau maximal d'unité administrative",
+                })}
               </Button>
             </Show>
           }
@@ -299,7 +306,90 @@ export function InstanceSettings(p: Props) {
         </SettingsSection>
 
         <SettingsSection
-          header={t3({ en: "Facility columns", fr: "Colonnes des établissements" })}
+          header={t3({
+            en: "Admin area labels",
+            fr: "Libellés des unités administratives",
+          })}
+          rightChildren={
+            <Show when={needsSavingAdminLabels()}>
+              <Button
+                onClick={() => updateAdminAreaLabels.click()}
+                state={updateAdminAreaLabels.state()}
+                intent="success"
+              >
+                {t3({
+                  en: "Update admin area labels",
+                  fr: "Mettre à jour les libellés",
+                })}
+              </Button>
+            </Show>
+          }
+        >
+          <div class="ui-spy-sm">
+            <div class="text-neutral text-xs">
+              {t3({
+                en: 'Enter the singular form (e.g. "District" not "Districts"). Leave blank to use the default.',
+                fr: "Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
+              })}
+            </div>
+            <For
+              each={[
+                {
+                  level: 2 as const,
+                  value: adminLabel2,
+                  setter: setAdminLabel2,
+                  exampleEn: "Region",
+                  exampleFr: "Région",
+                },
+                {
+                  level: 3 as const,
+                  value: adminLabel3,
+                  setter: setAdminLabel3,
+                  exampleEn: "District",
+                  exampleFr: "District",
+                },
+                {
+                  level: 4 as const,
+                  value: adminLabel4,
+                  setter: setAdminLabel4,
+                  exampleEn: "Catchment",
+                  exampleFr: "Zone",
+                },
+              ].filter((row) => row.level <= instanceState.maxAdminArea)}
+            >
+              {(row) => (
+                <div class="ui-gap flex items-center">
+                  <div class="w-56">
+                    {t3({
+                      en: `Admin area ${row.level}`,
+                      fr: `Unité administrative ${row.level}`,
+                    })}
+                  </div>
+                  <div class="w-96">
+                    <Input
+                      value={row.value()}
+                      onChange={(value) => {
+                        row.setter(value);
+                        setNeedsSavingAdminLabels(true);
+                      }}
+                      placeholder={t3({
+                        en: `e.g. ${row.exampleEn}`,
+                        fr: `ex. ${row.exampleFr}`,
+                      })}
+                      fullWidth
+                    />
+                  </div>
+                </div>
+              )}
+            </For>
+          </div>
+        </SettingsSection>
+
+        <SettingsSection
+          header={t3({
+            en: "Facility columns",
+            fr: "Colonnes des établissements",
+          })}
           rightChildren={
             <Show when={needsSavingFacilityCols()}>
               <Button
@@ -307,7 +397,10 @@ export function InstanceSettings(p: Props) {
                 state={updateFacilityColumns.state()}
                 intent="success"
               >
-                {t3({ en: "Update facility columns", fr: "Mettre à jour les colonnes des établissements" })}
+                {t3({
+                  en: "Update facility columns",
+                  fr: "Mettre à jour les colonnes des établissements",
+                })}
               </Button>
             </Show>
           }
@@ -333,7 +426,10 @@ export function InstanceSettings(p: Props) {
                         onChange={(value) =>
                           handleLabelChange(option.setLabelValue, value)
                         }
-                        placeholder={t3({ en: `Custom label for ${option.label.toLowerCase()}`, fr: `Libellé personnalisé pour ${option.label.toLowerCase()}` })}
+                        placeholder={t3({
+                          en: `Custom label for ${option.label.toLowerCase()}`,
+                          fr: `Libellé personnalisé pour ${option.label.toLowerCase()}`,
+                        })}
                         fullWidth
                       />
                     </div>
@@ -341,60 +437,6 @@ export function InstanceSettings(p: Props) {
                 </div>
               )}
             </For>
-          </div>
-        </SettingsSection>
-
-        <SettingsSection
-          header={t3({ en: "Admin area labels", fr: "Libellés des unités administratives" })}
-          rightChildren={
-            <Show when={needsSavingAdminLabels()}>
-              <Button
-                onClick={() => updateAdminAreaLabels.click()}
-                state={updateAdminAreaLabels.state()}
-                intent="success"
-              >
-                {t3({ en: "Update admin area labels", fr: "Mettre à jour les libellés" })}
-              </Button>
-            </Show>
-          }
-        >
-          <div class="ui-spy-sm">
-            <div class="text-neutral text-xs">
-              {t3({
-                en: "Enter the singular form (e.g. \"District\" not \"Districts\"). Leave blank to use the default.",
-                fr: "Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
-              })}
-            </div>
-            <For each={[
-              { level: 2 as const, value: adminLabel2, setter: setAdminLabel2, exampleEn: "Region", exampleFr: "Région" },
-              { level: 3 as const, value: adminLabel3, setter: setAdminLabel3, exampleEn: "District", exampleFr: "District" },
-              { level: 4 as const, value: adminLabel4, setter: setAdminLabel4, exampleEn: "Catchment", exampleFr: "Zone" },
-            ]}>
-              {(row) => (
-                <div class="ui-gap flex items-center">
-                  <div class="w-56">
-                    {t3({ en: `Admin area ${row.level}`, fr: `Unité administrative ${row.level}` })}
-                  </div>
-                  <div class="w-96">
-                    <Input
-                      value={row.value()}
-                      onChange={(value) => {
-                        row.setter(value);
-                        setNeedsSavingAdminLabels(true);
-                      }}
-                      placeholder={t3({ en: `e.g. ${row.exampleEn}`, fr: `ex. ${row.exampleFr}` })}
-                      fullWidth
-                    />
-                  </div>
-                </div>
-              )}
-            </For>
-          </div>
-        </SettingsSection>
-
-        <SettingsSection header={t3({ en: "Language and calendar", fr: "Langue et calendrier" })}>
-          <div class="text-neutral py-2 text-sm">
-            {t3({ en: "Will add settings for French/English language and Gregorian/Ethiopian calendar", fr: "Les paramètres de langue français/anglais et de calendrier grégorien/éthiopien seront ajoutés" })}
           </div>
         </SettingsSection>
       </div>

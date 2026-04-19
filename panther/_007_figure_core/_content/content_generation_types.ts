@@ -29,7 +29,7 @@ export type ContentGenerationContext = {
   nVals: number;
   nSeries: number;
   orientation: "vertical" | "horizontal";
-  incrementWidth: number;
+  categoryIncrement: number;
   gridStrokeWidth: number;
   seriesHeaders: string[];
   contentStyle: MergedContentStyle;

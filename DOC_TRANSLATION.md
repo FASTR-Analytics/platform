@@ -32,7 +32,7 @@ t3(TC.save)  // "Save" / "Sauvegarder"
 
 ## App-specific files
 
-- `lib/translate/t-func.ts` -- re-exports `t3`, `isFrench`, `setLanguage`, `getLanguage` from panther; defines `setCalendar()`, `getCalendar()`, `getTextRenderingOptions()`
+- `lib/translate/t-func.ts` -- re-exports `t3`, `isFrench`, `setLanguage`, `getLanguage` from panther; defines `setCalendar()`, `getCalendar()`
 - `lib/translate/types.ts` -- re-exports `TranslatableString` from panther
 - `lib/translate/common.ts` -- `TC` object with shared translations (cancel, save, delete, etc.)
 

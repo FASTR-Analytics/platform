@@ -1,6 +1,6 @@
 import {
   t3,
-  getTextRenderingOptions,
+  
   getStartingConfigForSlideDeck,
   type AiFigureFromVisualization,
   type AiFigureFromMetric,
@@ -313,7 +313,6 @@ function FigureStateWrapper(p: FigureStateWrapperProps) {
                 chartInputs={keyedFigureInputs}
                 height={h1}
                 noRescaleWithWidthChange
-                textRenderingOptions={getTextRenderingOptions()}
                 scalePixelResolution={p.scalePixelResolution}
               />
             </div>

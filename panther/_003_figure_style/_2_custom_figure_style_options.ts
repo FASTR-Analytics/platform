@@ -176,12 +176,15 @@ export type CustomFigureStyleOptions = {
     tickLabelGap?: number;
   };
   xScaleAxis?: {
-    max?: number | "auto";
-    min?: number | "auto";
+    max?: number | "auto" | ((i_pane: number) => number);
+    min?: number | "auto" | ((i_pane: number) => number);
     labelGap?: number;
     tickHeight?: number;
     tickLabelGap?: number;
     tickLabelFormatter?: (v: number) => string;
+    forceRightOverhangWidth?: "none" | number;
+    allowIndividualLaneLimits?: boolean;
+    exactAxisY?: "none" | number;
   };
   xPeriodAxis?: {
     forceSideTicksWhenYear?: boolean;
@@ -203,6 +206,7 @@ export type CustomFigureStyleOptions = {
   //                                                       //
   //////////////////////////////////////////////////////////
   yTextAxis?: {
+    tickPosition?: "sides" | "center";
     colHeight?: number;
     paddingTop?: number;
     paddingBottom?: number;

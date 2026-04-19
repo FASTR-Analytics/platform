@@ -5,8 +5,6 @@
 
 import {
   type ChartBarPrimitive,
-  Coordinates,
-  type DataLabel,
   getAdjustedFont,
   getColor,
   type Primitive,
@@ -22,6 +20,18 @@ import {
   type DataLabelOwnershipMap,
 } from "./content_generation_types.ts";
 import { generateCascadeArrowPrimitives } from "./generate_cascade_arrow_primitives.ts";
+import {
+  catCenterOfRect,
+  catCoord,
+  catExtentOfRect,
+  makeBarDataLabel,
+  makeBarRect,
+  makeErrorBarPrimitive,
+  type Orientation,
+  valBaselineCoord,
+  valCoord,
+  valExtendDir,
+} from "./orientation_helpers.ts";
 
 const _PROP_INDICATOR = 0.8;
 const _PROP_SERIES = 0.9;
@@ -33,6 +43,16 @@ export function generateBarPrimitives(
 ): Primitive[] {
   const primitives: Primitive[] = [];
   const s = ctx.contentStyle;
+  const orientation: Orientation = ctx.orientation;
+
+  // Value-axis baseline (zero-line screen coord) and the direction positive
+  // values extend from it. Used by every stacking mode.
+  //
+  // Bars whose baseline edge rests against the zero line are extended past
+  // that line by `baselineFudge` so the grid line doesn't show through.
+  const valBaseline = valBaselineCoord(ctx.subChartRcd, orientation);
+  const extendDir = valExtendDir(orientation);
+  const baselineFudge = -extendDir * (ctx.gridStrokeWidth / 2);
 
   for (let i_val = 0; i_val < ctx.nVals; i_val++) {
     for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
@@ -50,8 +70,15 @@ export function generateBarPrimitives(
       const barStyle = s.bars.getStyle(valueInfo);
       if (!barStyle.show) continue;
 
-      const indicatorColWidth = ctx.incrementWidth * _PROP_INDICATOR;
-      const indicatorColAreaX = mappedVal.coords.x() - indicatorColWidth / 2;
+      // Indicator slot — category-axis region for this i_val, centered on
+      // the mapped category coordinate.
+      const indicatorSlotThickness = ctx.categoryIncrement * _PROP_INDICATOR;
+      const indicatorSlotStart =
+        catCoord(mappedVal.coords, orientation) - indicatorSlotThickness / 2;
+
+      // Value-axis coordinate of this bar's value end (e.g. bar's top in
+      // vertical, right-edge in horizontal).
+      const valAtMapped = valCoord(mappedVal.coords, orientation);
 
       let barRcd: RectCoordsDims;
       let isTopOfStack = false;
@@ -59,29 +86,37 @@ export function generateBarPrimitives(
       let positionInStack = 0;
 
       if (s.bars.stacking === "stacked") {
-        const seriesColWidth = Math.min(
-          indicatorColWidth * _PROP_SERIES,
+        const seriesThickness = Math.min(
+          indicatorSlotThickness * _PROP_SERIES,
           s.bars.maxBarWidth,
         );
-        const seriesColX = indicatorColAreaX +
-          (indicatorColWidth - seriesColWidth) / 2;
+        const seriesStart = indicatorSlotStart +
+          (indicatorSlotThickness - seriesThickness) / 2;
 
-        let accumulatedHeight = 0;
+        let accumulatedExtent = 0;
         for (let s_idx = 0; s_idx < i_series; s_idx++) {
           const mv = mapped[s_idx][i_val];
-          if (mv !== undefined) {
-            accumulatedHeight += mv.barExtent;
-          }
+          if (mv !== undefined) accumulatedExtent += mv.barExtent;
         }
 
-        barRcd = new RectCoordsDims({
-          x: seriesColX,
-          y: ctx.subChartRcd.y() +
-            (ctx.subChartRcd.h() - accumulatedHeight - mappedVal.barExtent),
-          w: seriesColWidth,
-          h: mappedVal.barExtent +
-            (i_series === 0 ? ctx.gridStrokeWidth / 2 : 0),
-        });
+        // First series's baseline edge extends past the baseline to mask the
+        // grid line. Non-first series's inner edge touches the previous bar
+        // and needs no fudge.
+        const valStart = valBaseline +
+          extendDir * accumulatedExtent +
+          (i_series === 0 ? baselineFudge : 0);
+        const valEnd = valBaseline +
+          extendDir * (accumulatedExtent + mappedVal.barExtent);
+
+        barRcd = makeBarRect(
+          {
+            catStart: seriesStart,
+            catExtent: seriesThickness,
+            valStart,
+            valEnd,
+          },
+          orientation,
+        );
 
         isTopOfStack = true;
         for (let s_idx = i_series + 1; s_idx < ctx.nSeries; s_idx++) {
@@ -90,30 +125,28 @@ export function generateBarPrimitives(
             break;
           }
         }
-
         for (let s_idx = 0; s_idx <= ctx.nSeries - 1; s_idx++) {
           const mv = mapped[s_idx][i_val];
-          if (mv !== undefined) {
-            stackTotal += mv.val;
-          }
+          if (mv !== undefined) stackTotal += mv.val;
         }
         positionInStack = i_series;
       } else if (s.bars.stacking === "imposed") {
-        const seriesColWidth = Math.min(
-          indicatorColWidth * _PROP_SERIES,
+        const seriesThickness = Math.min(
+          indicatorSlotThickness * _PROP_SERIES,
           s.bars.maxBarWidth,
         );
-        const seriesColX = indicatorColAreaX +
-          (indicatorColWidth - seriesColWidth) / 2;
+        const seriesStart = indicatorSlotStart +
+          (indicatorSlotThickness - seriesThickness) / 2;
 
-        barRcd = new RectCoordsDims({
-          x: seriesColX,
-          y: mappedVal.coords.y(),
-          w: seriesColWidth,
-          h: ctx.subChartRcd.bottomY() +
-            ctx.gridStrokeWidth / 2 -
-            mappedVal.coords.y(),
-        });
+        barRcd = makeBarRect(
+          {
+            catStart: seriesStart,
+            catExtent: seriesThickness,
+            valStart: valBaseline + baselineFudge,
+            valEnd: valAtMapped,
+          },
+          orientation,
+        );
 
         isTopOfStack = true;
         for (let s_idx = i_series + 1; s_idx < ctx.nSeries; s_idx++) {
@@ -124,50 +157,40 @@ export function generateBarPrimitives(
         }
         for (let s_idx = 0; s_idx < ctx.nSeries; s_idx++) {
           const mv = mapped[s_idx]?.[i_val];
-          if (mv !== undefined && mv.val > stackTotal) {
-            stackTotal = mv.val;
-          }
+          if (mv !== undefined && mv.val > stackTotal) stackTotal = mv.val;
         }
         positionInStack = i_series;
       } else if (s.bars.stacking === "diff") {
-        const seriesColWidth = Math.min(
-          indicatorColWidth * _PROP_SERIES,
+        const seriesThickness = Math.min(
+          indicatorSlotThickness * _PROP_SERIES,
           s.bars.maxBarWidth,
         );
-        const seriesColX = indicatorColAreaX +
-          (indicatorColWidth - seriesColWidth) / 2;
+        const seriesStart = indicatorSlotStart +
+          (indicatorSlotThickness - seriesThickness) / 2;
 
         if (i_series === 0) {
-          barRcd = new RectCoordsDims({
-            x: seriesColX,
-            y: mappedVal.coords.y(),
-            w: seriesColWidth,
-            h: ctx.subChartRcd.bottomY() +
-              ctx.gridStrokeWidth / 2 -
-              mappedVal.coords.y(),
-          });
+          // Same as imposed for the first series.
+          barRcd = makeBarRect(
+            {
+              catStart: seriesStart,
+              catExtent: seriesThickness,
+              valStart: valBaseline + baselineFudge,
+              valEnd: valAtMapped,
+            },
+            orientation,
+          );
         } else {
           const prevMapped = mapped[i_series - 1]?.[i_val];
           if (!prevMapped) continue;
-
-          const thisY = mappedVal.coords.y();
-          const prevY = prevMapped.coords.y();
-
-          if (thisY < prevY) {
-            barRcd = new RectCoordsDims({
-              x: seriesColX,
-              y: thisY,
-              w: seriesColWidth,
-              h: prevY - thisY,
-            });
-          } else {
-            barRcd = new RectCoordsDims({
-              x: seriesColX,
-              y: prevY,
-              w: seriesColWidth,
-              h: thisY - prevY,
-            });
-          }
+          barRcd = makeBarRect(
+            {
+              catStart: seriesStart,
+              catExtent: seriesThickness,
+              valStart: valCoord(prevMapped.coords, orientation),
+              valEnd: valAtMapped,
+            },
+            orientation,
+          );
         }
 
         isTopOfStack = true;
@@ -177,36 +200,37 @@ export function generateBarPrimitives(
             break;
           }
         }
-        stackTotal = 0;
         for (let s_idx = 0; s_idx < ctx.nSeries; s_idx++) {
           const mv = mapped[s_idx]?.[i_val];
-          if (mv !== undefined && mv.val > stackTotal) {
-            stackTotal = mv.val;
-          }
+          if (mv !== undefined && mv.val > stackTotal) stackTotal = mv.val;
         }
         positionInStack = i_series;
       } else {
-        const seriesOuterAreaWidth = indicatorColWidth / ctx.nSeries;
-        const seriesOuterAreaX = indicatorColAreaX +
-          seriesOuterAreaWidth * i_series;
-        const seriesColWidth = Math.min(
-          seriesOuterAreaWidth * _PROP_SERIES,
+        // "none" — grouped. Each series gets its own sub-slot within the
+        // indicator slot.
+        const seriesOuterAreaThickness = indicatorSlotThickness / ctx.nSeries;
+        const seriesOuterStart = indicatorSlotStart +
+          seriesOuterAreaThickness * i_series;
+        const seriesThickness = Math.min(
+          seriesOuterAreaThickness * _PROP_SERIES,
           s.bars.maxBarWidth,
         );
-        const seriesColX = seriesOuterAreaX +
-          (seriesOuterAreaWidth - seriesColWidth) / 2;
+        const seriesStart = seriesOuterStart +
+          (seriesOuterAreaThickness - seriesThickness) / 2;
 
-        barRcd = new RectCoordsDims({
-          x: seriesColX,
-          y: mappedVal.coords.y(),
-          w: seriesColWidth,
-          h: ctx.subChartRcd.bottomY() +
-            ctx.gridStrokeWidth / 2 -
-            mappedVal.coords.y(),
-        });
+        barRcd = makeBarRect(
+          {
+            catStart: seriesStart,
+            catExtent: seriesThickness,
+            valStart: valBaseline + baselineFudge,
+            valEnd: valAtMapped,
+          },
+          orientation,
+        );
       }
 
-      let dataLabel: DataLabel | undefined;
+      // Data label.
+      let dataLabel;
       const isStackLike = s.bars.stacking === "stacked" ||
         s.bars.stacking === "imposed" ||
         s.bars.stacking === "diff";
@@ -229,46 +253,53 @@ export function generateBarPrimitives(
             ? { font: getAdjustedFont(ctx.dataLabelsTextStyle.font, dl.font) }
             : {}),
         };
-
-        const mText = ctx.rc.mText(labelStr, textStyle, barRcd.w());
         const hasDecoration = dl.backgroundColor !== "none" ||
           dl.border !== "none";
 
+        // Vertical wraps label to bar width; horizontal allows overflow
+        // (short bars would otherwise hide the label).
+        const textMaxWidth = orientation === "horizontal" ? 9999 : barRcd.w();
+        const mText = ctx.rc.mText(labelStr, textStyle, textMaxWidth);
+
         if (labelStr.trim() || hasDecoration) {
-          dataLabel = {
+          const style = hasDecoration
+            ? {
+              backgroundColor: dl.backgroundColor !== "none"
+                ? getColor(dl.backgroundColor)
+                : undefined,
+              padding: dl.padding,
+              border: dl.border !== "none"
+                ? { color: getColor(dl.border.color), width: dl.border.width }
+                : undefined,
+              rectRadius: dl.rectRadius,
+            }
+            : undefined;
+          dataLabel = makeBarDataLabel({
+            barRcd,
             mText,
-            position: new Coordinates([
-              barRcd.centerX(),
-              barRcd.y() - dl.offset,
-            ]),
-            alignH: "center",
-            alignV: "bottom",
-            style: hasDecoration
-              ? {
-                backgroundColor: dl.backgroundColor !== "none"
-                  ? getColor(dl.backgroundColor)
-                  : undefined,
-                padding: dl.padding,
-                border: dl.border !== "none"
-                  ? {
-                    color: getColor(dl.border.color),
-                    width: dl.border.width,
-                  }
-                  : undefined,
-                rectRadius: dl.rectRadius,
-              }
-              : undefined,
-          };
+            offset: dl.offset,
+            style,
+            orientation,
+          });
         }
       }
 
+      // Annotation bounds span the full sub-chart along the value axis
+      // (vertical) or the full sub-chart width (horizontal).
       const annotationBounds = barStyle.annotationGroup
-        ? new RectCoordsDims({
-          x: barRcd.x(),
-          y: ctx.subChartRcd.y(),
-          w: barRcd.w(),
-          h: ctx.subChartRcd.h(),
-        })
+        ? (orientation === "horizontal"
+          ? new RectCoordsDims({
+            x: ctx.subChartRcd.x(),
+            y: barRcd.y(),
+            w: ctx.subChartRcd.w(),
+            h: barRcd.h(),
+          })
+          : new RectCoordsDims({
+            x: barRcd.x(),
+            y: ctx.subChartRcd.y(),
+            w: barRcd.w(),
+            h: ctx.subChartRcd.h(),
+          }))
         : undefined;
 
       primitives.push({
@@ -290,36 +321,33 @@ export function generateBarPrimitives(
         stackInfo: isStackLike
           ? { isTopOfStack, stackTotal, positionInStack }
           : undefined,
-        orientation: ctx.orientation,
+        orientation,
         style: { fillColor: getColor(barStyle.fillColor) },
         dataLabel,
       });
 
+      // Error bar.
       const ebStyle = s.errorBars.getStyle(valueInfo);
       if (ebStyle.show && ctx.mappedBoundsUb && ctx.mappedBoundsLb) {
         const ubMapped = ctx.mappedBoundsUb[i_series]?.[i_val];
         const lbMapped = ctx.mappedBoundsLb[i_series]?.[i_val];
         if (ubMapped && lbMapped) {
-          const capWidth = barRcd.w() * ebStyle.capWidthProportion;
-          primitives.push({
-            type: "chart-error-bar",
+          // Cap extent is measured along the category axis.
+          const capExtent = catExtentOfRect(barRcd, orientation) *
+            ebStyle.capWidthProportion;
+          primitives.push(makeErrorBarPrimitive({
             key:
               `errorbar-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_val}`,
-            bounds: new RectCoordsDims({
-              x: barRcd.centerX() - capWidth / 2,
-              y: Math.min(ubMapped.coords.y(), lbMapped.coords.y()),
-              w: capWidth,
-              h: Math.abs(ubMapped.coords.y() - lbMapped.coords.y()),
-            }),
-            zIndex: Z_INDEX.CONTENT_BAR + 1,
             meta: { value: valueInfo },
-            centerX: barRcd.centerX(),
-            ubY: ubMapped.coords.y(),
-            lbY: lbMapped.coords.y(),
+            categoryCenter: catCenterOfRect(barRcd, orientation),
+            valUb: valCoord(ubMapped.coords, orientation),
+            valLb: valCoord(lbMapped.coords, orientation),
+            capExtent,
             strokeColor: ebStyle.strokeColor,
             strokeWidth: ebStyle.strokeWidth,
-            capWidth,
-          });
+            zIndex: Z_INDEX.CONTENT_BAR + 1,
+            orientation,
+          }));
         }
       }
     }

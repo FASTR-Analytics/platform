@@ -132,45 +132,63 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       break;
 
     case "chart-error-bar": {
-      // Draw vertical line from lower bound to upper bound
-      rc.rLine(
-        [
-          new Coordinates([primitive.centerX, primitive.ubY]),
-          new Coordinates([primitive.centerX, primitive.lbY]),
-        ],
-        {
-          strokeColor: primitive.strokeColor,
-          strokeWidth: primitive.strokeWidth,
-          lineDash: "solid",
-        },
-      );
-
-      // Draw top cap
-      const halfCapWidth = primitive.capWidth / 2;
-      rc.rLine(
-        [
-          new Coordinates([primitive.centerX - halfCapWidth, primitive.ubY]),
-          new Coordinates([primitive.centerX + halfCapWidth, primitive.ubY]),
-        ],
-        {
-          strokeColor: primitive.strokeColor,
-          strokeWidth: primitive.strokeWidth,
-          lineDash: "solid",
-        },
-      );
-
-      // Draw bottom cap
-      rc.rLine(
-        [
-          new Coordinates([primitive.centerX - halfCapWidth, primitive.lbY]),
-          new Coordinates([primitive.centerX + halfCapWidth, primitive.lbY]),
-        ],
-        {
-          strokeColor: primitive.strokeColor,
-          strokeWidth: primitive.strokeWidth,
-          lineDash: "solid",
-        },
-      );
+      const lineStyle = {
+        strokeColor: primitive.strokeColor,
+        strokeWidth: primitive.strokeWidth,
+        lineDash: "solid" as const,
+      };
+      const halfCap = primitive.capWidth / 2;
+      if (primitive.orientation === "vertical") {
+        // Vertical line from lower to upper
+        rc.rLine(
+          [
+            new Coordinates([primitive.centerX, primitive.ubY]),
+            new Coordinates([primitive.centerX, primitive.lbY]),
+          ],
+          lineStyle,
+        );
+        // Top cap
+        rc.rLine(
+          [
+            new Coordinates([primitive.centerX - halfCap, primitive.ubY]),
+            new Coordinates([primitive.centerX + halfCap, primitive.ubY]),
+          ],
+          lineStyle,
+        );
+        // Bottom cap
+        rc.rLine(
+          [
+            new Coordinates([primitive.centerX - halfCap, primitive.lbY]),
+            new Coordinates([primitive.centerX + halfCap, primitive.lbY]),
+          ],
+          lineStyle,
+        );
+      } else {
+        // Horizontal line from lb to ub
+        rc.rLine(
+          [
+            new Coordinates([primitive.ubX, primitive.centerY]),
+            new Coordinates([primitive.lbX, primitive.centerY]),
+          ],
+          lineStyle,
+        );
+        // Upper-bound cap (vertical line at ubX)
+        rc.rLine(
+          [
+            new Coordinates([primitive.ubX, primitive.centerY - halfCap]),
+            new Coordinates([primitive.ubX, primitive.centerY + halfCap]),
+          ],
+          lineStyle,
+        );
+        // Lower-bound cap (vertical line at lbX)
+        rc.rLine(
+          [
+            new Coordinates([primitive.lbX, primitive.centerY - halfCap]),
+            new Coordinates([primitive.lbX, primitive.centerY + halfCap]),
+          ],
+          lineStyle,
+        );
+      }
       break;
     }
 

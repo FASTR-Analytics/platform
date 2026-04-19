@@ -9,7 +9,7 @@ import type {
   SlideDeckConfig,
   SlideType,
 } from "lib";
-import { getSlideTitle, getTextRenderingOptions, t3, TC } from "lib";
+import { getSlideTitle, t3, TC } from "lib";
 import type {
   DividerDragUpdate,
   LayoutItemSwapUpdate,
@@ -861,7 +861,6 @@ export function SlideEditor(p: Props) {
                       (_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16,
                     )}
                     fitWithin={true}
-                    textRenderingOptions={getTextRenderingOptions()}
                     hoverStyle={{
                       fillColor: "rgba(0, 112, 243, 0.1)",
                       strokeColor: "rgba(0, 112, 243, 0.8)",

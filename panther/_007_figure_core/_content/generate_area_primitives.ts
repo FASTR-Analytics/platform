@@ -8,6 +8,7 @@ import {
   computeBoundsForPath,
   Coordinates,
   type Primitive,
+  RectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
@@ -15,6 +16,26 @@ import {
   buildSeriesInfo,
   type ContentGenerationContext,
 } from "./content_generation_types.ts";
+
+function zeroLineMirrorCoords(
+  valCoords: Coordinates,
+  subChartRcd: RectCoordsDims,
+  gridStrokeWidth: number,
+  orientation: "vertical" | "horizontal",
+): Coordinates {
+  if (orientation === "horizontal") {
+    // Horizontal: baseline is the left edge of the plot area.
+    return new Coordinates([
+      subChartRcd.x() - gridStrokeWidth / 2,
+      valCoords.y(),
+    ]);
+  }
+  // Vertical: baseline is the bottom edge of the plot area.
+  return new Coordinates([
+    valCoords.x(),
+    subChartRcd.bottomY() + gridStrokeWidth / 2,
+  ]);
+}
 
 export function generateAreaPrimitives(
   mapped: MappedValueCoordinate[][],
@@ -83,17 +104,21 @@ export function generateAreaPrimitives(
 
         let mirrorCoords: Coordinates | undefined;
         if (areaStyle.to === "zero-line") {
-          mirrorCoords = new Coordinates([
-            mappedValThisSeries.coords.x(),
-            ctx.subChartRcd.bottomY() + ctx.gridStrokeWidth / 2,
-          ]);
+          mirrorCoords = zeroLineMirrorCoords(
+            mappedValThisSeries.coords,
+            ctx.subChartRcd,
+            ctx.gridStrokeWidth,
+            ctx.orientation,
+          );
         } else if (areaStyle.to === "previous-series-or-zero") {
           const otherSeries = mapped[i_series - 1];
           if (!otherSeries) {
-            mirrorCoords = new Coordinates([
-              mappedValThisSeries.coords.x(),
-              ctx.subChartRcd.bottomY() + ctx.gridStrokeWidth / 2,
-            ]);
+            mirrorCoords = zeroLineMirrorCoords(
+              mappedValThisSeries.coords,
+              ctx.subChartRcd,
+              ctx.gridStrokeWidth,
+              ctx.orientation,
+            );
           } else if (otherSeries[areaData.valueIndices[i_val]]) {
             mirrorCoords = otherSeries[areaData.valueIndices[i_val]]!.coords;
           }

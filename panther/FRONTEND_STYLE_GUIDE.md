@@ -224,9 +224,10 @@ defines a complete Tailwind v4 theme with:
 - **Semantic color system**: `base-*`, `primary`, `neutral`, `success`, `danger`
   (with `-content` variants)
 - **Public spacing utilities**:
-  - Layout: `ui-pad`, `ui-pad-sm`, `ui-pad-lg` for padding
-  - Gaps: `ui-gap`, `ui-gap-sm` for flex/grid spacing
-  - Vertical spacing: `ui-spy`, `ui-spy-sm` for stacked elements
+  - Layout: `ui-pad`, `ui-pad-sm`, `ui-pad-lg` for padding (both axes)
+  - Horizontal-only: `ui-pad-x-sm`, `ui-pad-x`, `ui-pad-x-lg` for bars/headers
+  - Gaps: `ui-gap`, `ui-gap-sm`, `ui-gap-lg` for flex/grid spacing
+  - Vertical spacing: `ui-spy`, `ui-spy-sm`, `ui-spy-lg` for stacked elements
 - **Form input sizing utilities**:
   - Default: `ui-form-pad`, `ui-form-text-size`, `ui-icon-only-correction`
   - Small variant: `ui-form-pad-sm`, `ui-form-text-size-sm`,
@@ -581,8 +582,9 @@ batch(() => {
 
 2. **Use only Panther-defined Tailwind classes**
    - Semantic colors: `base-*`, `primary`, `neutral`, `success`, `danger`
-   - Public spacing utilities: `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-gap`,
-     `ui-gap-sm`, `ui-spy`, `ui-spy-sm`
+   - Public spacing utilities: `ui-pad`, `ui-pad-sm`, `ui-pad-lg`,
+     `ui-pad-x-sm`, `ui-pad-x`, `ui-pad-x-lg`, `ui-gap`, `ui-gap-sm`,
+     `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`
    - Form sizing utilities: `ui-form-pad`, `ui-form-text-size`,
      `ui-icon-only-correction` (and `-sm` variants)
    - Standard Tailwind utilities for layout (flex, grid, etc.)

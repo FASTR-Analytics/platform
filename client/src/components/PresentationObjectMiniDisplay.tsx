@@ -1,4 +1,4 @@
-import { ReplicantValueOverride, getTextRenderingOptions, t3 } from "lib";
+import { ReplicantValueOverride, t3 } from "lib";
 import { FigureInputs, ChartHolder, Loading, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
 import { useProjectDirtyStates } from "~/components/project_runner/mod";
@@ -124,7 +124,6 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                         chartInputs={keyedFigureInputs}
                         height={h1}
                         noRescaleWithWidthChange
-                        textRenderingOptions={getTextRenderingOptions()}
                         scalePixelResolution={p.scalePixelResolution}
                       />
                     </div>
@@ -134,7 +133,6 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                       chartInputs={keyedFigureInputs}
                       height={h1}
                       noRescaleWithWidthChange
-                      textRenderingOptions={getTextRenderingOptions()}
                       scalePixelResolution={p.scalePixelResolution}
                     />
                   </Match>

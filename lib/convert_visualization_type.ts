@@ -3,7 +3,7 @@ import {
   PresentationOption,
   VIZ_TYPE_CONFIG,
 } from "./types/presentation_objects.ts";
-import type { ResultsValue } from "./types/module_definitions.ts";
+import type { ResultsValue } from "./types/module_definition.ts";
 
 export function convertVisualizationType(
   config: PresentationObjectConfig,

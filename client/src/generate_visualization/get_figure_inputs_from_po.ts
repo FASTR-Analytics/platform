@@ -16,6 +16,7 @@ import {
 } from "lib";
 import { getLegendItemsFromConfig } from "./conditional_formatting";
 import {
+  getChartOHJsonDataConfigFromPresentationObjectConfig,
   getChartOVJsonDataConfigFromPresentationObjectConfig,
   getTableJsonDataConfigFromPresentationObjectConfig,
   getTimeseriesJsonDataConfigFromPresentationObjectConfig,
@@ -166,6 +167,53 @@ export function getFigureInputsFromPresentationObject(
     }
 
     if (effectiveConfig.d.type === "chart") {
+      const commonSurrounds = {
+        caption: withDateRange(
+          withReplicant(
+            config.t.caption,
+            config,
+            ih.indicatorLabelReplacements,
+          ),
+          ih.dateRange,
+        ),
+        subCaption: withDateRange(
+          withReplicant(
+            config.t.subCaption,
+            config,
+            ih.indicatorLabelReplacements,
+          ),
+          ih.dateRange,
+        ),
+        footnote: withDateRange(
+          withReplicant(
+            config.t.footnote,
+            config,
+            ih.indicatorLabelReplacements,
+          ),
+          ih.dateRange,
+        ),
+        style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
+      };
+
+      if (effectiveConfig.s.horizontal) {
+        return {
+          status: "ready",
+          data: {
+            chartOHData: {
+              jsonArray: ih.items,
+              jsonDataConfig:
+                getChartOHJsonDataConfigFromPresentationObjectConfig(
+                  resultsValue,
+                  effectiveConfig,
+                  ih.indicatorLabelReplacements,
+                  ih.items,
+                ),
+            },
+            ...commonSurrounds,
+          },
+        };
+      }
+
       return {
         status: "ready",
         data: {
@@ -179,31 +227,7 @@ export function getFigureInputsFromPresentationObject(
                 ih.items,
               ),
           },
-          caption: withDateRange(
-            withReplicant(
-              config.t.caption,
-              config,
-              ih.indicatorLabelReplacements,
-            ),
-            ih.dateRange,
-          ),
-          subCaption: withDateRange(
-            withReplicant(
-              config.t.subCaption,
-              config,
-              ih.indicatorLabelReplacements,
-            ),
-            ih.dateRange,
-          ),
-          footnote: withDateRange(
-            withReplicant(
-              config.t.footnote,
-              config,
-              ih.indicatorLabelReplacements,
-            ),
-            ih.dateRange,
-          ),
-          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
+          ...commonSurrounds,
         },
       };
     }

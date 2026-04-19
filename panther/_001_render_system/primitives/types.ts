@@ -184,16 +184,15 @@ export type ChartErrorBarPrimitive = BasePrimitive & {
   meta: {
     value: ChartValueInfo;
   };
-  // Visual
-  centerX: number;
-  ubY: number;
-  lbY: number;
   strokeColor: ColorKeyOrString;
   strokeWidth: number;
   capWidth: number;
   // Optional metadata
   sourceData?: any;
-};
+} & (
+  | { orientation: "vertical"; centerX: number; ubY: number; lbY: number }
+  | { orientation: "horizontal"; centerY: number; ubX: number; lbX: number }
+);
 
 export type ChartConfidenceBandPrimitive = BasePrimitive & {
   type: "chart-confidence-band";
@@ -216,7 +215,7 @@ export type ChartConfidenceBandPrimitive = BasePrimitive & {
 export type ChartAxisPrimitive = BasePrimitive & {
   type: "chart-axis";
   meta: {
-    axisType: "x-text" | "x-period" | "y-scale";
+    axisType: "x-text" | "x-period" | "x-scale" | "y-scale" | "y-text";
     paneIndex: number;
     laneIndex: number;
     tierIndex?: number; // Some axes span all tiers
@@ -252,7 +251,7 @@ export type ChartGridPrimitive = BasePrimitive & {
     laneIndex: number;
   };
   plotAreaRcd: RectCoordsDims;
-  horizontalLines: { y: number; tickValue: number }[];
+  horizontalLines: { y: number; tickValue?: number }[];
   verticalLines: { x: number; tickValue?: number }[];
   style: {
     show: boolean;

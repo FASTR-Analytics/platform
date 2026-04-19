@@ -12,3 +12,10 @@ export type {
 } from "./get_stepper.ts";
 export { StepperNavigation } from "./stepper_navigation.tsx";
 export { StepperNavigationVisual } from "./stepper_navigation_visual.tsx";
+
+// Alternative visuals — all accept the same Stepper object and are
+// opt-in. None render Prev/Next; the caller owns navigation chrome.
+export { StepperLabeledBreadcrumb } from "./stepper_labeled_breadcrumb.tsx";
+export { StepperProgressBar } from "./stepper_progress_bar.tsx";
+export { StepperChipsWithTitles } from "./stepper_chips_with_titles.tsx";
+export { StepperVerticalSidebar } from "./stepper_vertical_sidebar.tsx";

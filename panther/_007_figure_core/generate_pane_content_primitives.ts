@@ -3,16 +3,24 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getScaleAxisValueRange } from "./_axes/measure_y_axis.ts";
-import { getXAxisRenderConfig } from "./_axes/axis_rendering_config.ts";
+import {
+  getScaleAxisValueRange,
+  getXScaleAxisValueRange,
+} from "./_axes/measure_y_axis.ts";
+import {
+  getXAxisRenderConfig,
+  getYAxisRenderConfig,
+} from "./_axes/axis_rendering_config.ts";
 import {
   calculateXAxisGridLines,
   calculateYAxisGridLines,
 } from "./_axes/grid_lines.ts";
 import {
   generateXPeriodAxisPrimitive,
+  generateXScaleAxisPrimitive,
   generateXTextAxisPrimitive,
   generateYScaleAxisPrimitive,
+  generateYTextAxisPrimitive,
 } from "./_axes/generate_axis_primitives.ts";
 import { generateContentPrimitives } from "./_content/generate_content_primitives.ts";
 import type { Primitive, RenderContext } from "./deps.ts";
@@ -20,6 +28,8 @@ import { RectCoordsDims, Z_INDEX } from "./deps.ts";
 import type { MeasurePaneConfig } from "./measure_types.ts";
 import type { XTextAxisMeasuredInfo } from "./_axes/x_text/types.ts";
 import type { XPeriodAxisMeasuredInfo } from "./_axes/x_period/types.ts";
+import type { XScaleAxisMeasuredInfo } from "./_axes/x_scale/types.ts";
+import type { YTextAxisWidthInfo } from "./_axes/y_text/types.ts";
 import type { YScaleAxisWidthInfo } from "./types.ts";
 import type { XAxisMeasuredInfo } from "./_axes/measure_x_axis.ts";
 import type { YAxisWidthInfo } from "./types.ts";
@@ -44,11 +54,7 @@ export function generatePaneContentPrimitives<TData>(
   const yAxisConfig = config.yAxisConfig;
   const tierHeaders = config.dataProps.tierHeaders;
   const laneHeaders = config.dataProps.laneHeaders;
-
-  const xAxisRenderConfig = getXAxisRenderConfig(
-    xAxisConfig,
-    measured.xAxisMeasuredInfo,
-  );
+  const orientation = config.orientation;
 
   // Plot area loop (tier × lane)
   const generatedYAxes = new Set<string>();
@@ -78,8 +84,8 @@ export function generatePaneContentPrimitives<TData>(
       // Grid lines
       const horizontalGridLines = calculateYAxisGridLines(
         i_tier,
-        rcd.y(),
-        measured.subChartAreaHeight,
+        rcd,
+        baseStyle.grid.gridStrokeWidth,
         yAxisConfig,
         measured.yAxisWidthInfo,
       );
@@ -109,7 +115,9 @@ export function generatePaneContentPrimitives<TData>(
         },
       });
 
-      // Y-axis primitive
+      // Y-axis primitive — per (pane, tier).
+      // For scale: one per tier (shared across lanes); guard on generatedYAxes.
+      // For text: one per tier drawn only on lane 0 (mirror of X-text in vertical).
       const yAxisKey = `${i_pane}-${i_tier}`;
       if (!generatedYAxes.has(yAxisKey)) {
         switch (yAxisConfig.type) {
@@ -132,15 +140,32 @@ export function generatePaneContentPrimitives<TData>(
             break;
           }
           case "text":
-            throw new Error(
-              "Y-text axis primitive generation not implemented yet",
-            );
+            if (i_lane === 0) {
+              allPrimitives.push(
+                generateYTextAxisPrimitive(
+                  rc,
+                  i_pane,
+                  i_tier,
+                  measured.yAxisWidthInfo as YTextAxisWidthInfo,
+                  measured.yAxisRcd,
+                  rcd.y(),
+                  measured.subChartAreaHeight,
+                  yAxisConfig.indicatorHeaders,
+                  yAxisConfig.axisStyle,
+                  baseStyle.grid,
+                ),
+              );
+              generatedYAxes.add(yAxisKey);
+            }
+            break;
           case "none":
             break;
         }
       }
 
-      // X-axis primitive
+      // X-axis primitive — per (pane, lane).
+      // For text/period: drawn once per lane on tier 0 (at the bottom of the pane).
+      // For scale: drawn once per lane on tier 0 (at the bottom of the pane); range varies per lane.
       const xAxisKey = `${i_pane}-${i_lane}`;
       if (!generatedXAxes.has(xAxisKey) && i_tier === 0) {
         switch (xAxisConfig.type) {
@@ -178,18 +203,58 @@ export function generatePaneContentPrimitives<TData>(
             generatedXAxes.add(xAxisKey);
             break;
           }
+          case "scale": {
+            const mx = measured.xAxisMeasuredInfo as XScaleAxisMeasuredInfo;
+            allPrimitives.push(
+              generateXScaleAxisPrimitive(
+                rc,
+                i_pane,
+                i_lane,
+                mx.xScaleHeightInfo,
+                mx.xAxisRcd,
+                rcd.x(),
+                measured.subChartAreaWidth,
+                xAxisConfig.axisLabel,
+                xAxisConfig.axisStyle,
+                baseStyle.grid,
+              ),
+            );
+            generatedXAxes.add(xAxisKey);
+            break;
+          }
           case "none":
             break;
         }
       }
 
-      // Content primitives (skipped for "none" axes — maps generate their own primitives)
+      // Content primitives (skipped when either axis is "none" — maps
+      // generate their own primitives).
       if (xAxisConfig.type !== "none" && yAxisConfig.type !== "none") {
         const seriesVals = chartData.values[i_pane][i_tier][i_lane];
-        const valueRange = getScaleAxisValueRange(
-          measured.yAxisWidthInfo,
-          i_tier,
-        );
+
+        let valueRange;
+        let categoryIncrement: number;
+        let isCentered: boolean;
+        let nVals: number;
+        if (orientation === "horizontal") {
+          const mx = measured.xAxisMeasuredInfo as XScaleAxisMeasuredInfo;
+          valueRange = getXScaleAxisValueRange(mx.xScaleHeightInfo, i_lane);
+          const yCfg = getYAxisRenderConfig(yAxisConfig, measured.yAxisWidthInfo);
+          nVals = yCfg.nVals;
+          isCentered = yCfg.isCentered;
+          // Per-indicator row height inside the plot area.
+          categoryIncrement = isCentered
+            ? measured.subChartAreaHeight / nVals
+            : (measured.subChartAreaHeight -
+              baseStyle.grid.gridStrokeWidth * (nVals + 1)) / nVals;
+        } else {
+          valueRange = getScaleAxisValueRange(measured.yAxisWidthInfo, i_tier);
+          const xCfg = getXAxisRenderConfig(xAxisConfig, measured.xAxisMeasuredInfo);
+          categoryIncrement = xCfg.categoryIncrement;
+          isCentered = xCfg.isCentered;
+          nVals = xCfg.nVals;
+        }
+
         allPrimitives.push(
           ...generateContentPrimitives({
             rc,
@@ -206,11 +271,11 @@ export function generatePaneContentPrimitives<TData>(
             },
             seriesVals,
             valueRange,
-            isCentered: xAxisRenderConfig.isCentered,
-            incrementWidth: xAxisRenderConfig.incrementWidth,
+            isCentered,
+            categoryIncrement,
             gridStrokeWidth: baseStyle.grid.gridStrokeWidth,
-            nVals: xAxisRenderConfig.nVals,
-            orientation: config.orientation,
+            nVals,
+            orientation,
             transformedData: { seriesHeaders: config.dataProps.seriesHeaders },
             contentStyle: baseStyle.content,
             dataLabelsTextStyle: baseStyle.text.dataLabels,

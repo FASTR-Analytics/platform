@@ -5,6 +5,7 @@ import {
   ResultsValue,
   getReplicateByProp,
   parseJsonOrThrow,
+  presentationObjectConfigSchema,
   throwIfErrWithData,
   type APIResponseWithData,
   type PresentationObjectConfig,
@@ -63,7 +64,7 @@ VALUES
     ${makeDefault},
     ${createdByAI},
     ${label.trim()},
-    ${JSON.stringify(config)},
+    ${JSON.stringify(presentationObjectConfigSchema.parse(config))},
     ${lastUpdated},
     ${folderId ?? null}
   )
@@ -317,10 +318,10 @@ SELECT is_default_visualization, last_updated FROM presentation_objects WHERE id
       ]);
     await projectDb.begin(async (sql: Sql) => {
       await sql`
-UPDATE presentation_objects 
-SET 
-  config = ${JSON.stringify(config)}, 
-  last_updated = ${lastUpdated} 
+UPDATE presentation_objects
+SET
+  config = ${JSON.stringify(presentationObjectConfigSchema.parse(config))},
+  last_updated = ${lastUpdated}
 WHERE id = ${presentationObjectId}
 `;
       for (const reportItemId of reportItemsThatDependOnPresentationObjects) {
@@ -383,7 +384,7 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
 
         await sql`
           UPDATE presentation_objects
-          SET config = ${JSON.stringify(config)},
+          SET config = ${JSON.stringify(presentationObjectConfigSchema.parse(config))},
               last_updated = ${lastUpdated}
           WHERE id = ${id}
         `;

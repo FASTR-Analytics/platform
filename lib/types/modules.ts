@@ -3,7 +3,7 @@ import {
   type ModuleConfigRequirements,
   type ModuleParameter,
   type ResultsValue,
-} from "./module_definitions.ts";
+} from "./module_definition.ts";
 import type { DirtyOrRunStatus } from "./project_dirty_states.ts";
 import type { ModuleId } from "./module_registry.ts";
 

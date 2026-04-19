@@ -20,6 +20,11 @@ import {
   type ContentGenerationContext,
   type DataLabelOwnershipMap,
 } from "./content_generation_types.ts";
+import {
+  catCoord,
+  makeErrorBarPrimitive,
+  valCoord,
+} from "./orientation_helpers.ts";
 
 export function generatePointPrimitives(
   mapped: MappedValueCoordinate[][],
@@ -139,26 +144,20 @@ export function generatePointPrimitives(
         const ubMapped = ctx.mappedBoundsUb[i_series]?.[i_val];
         const lbMapped = ctx.mappedBoundsLb[i_series]?.[i_val];
         if (ubMapped && lbMapped) {
-          const capWidth = pointStyle.radius * 2 * ebStyle.capWidthProportion;
-          primitives.push({
-            type: "chart-error-bar",
+          const capExtent = pointStyle.radius * 2 * ebStyle.capWidthProportion;
+          primitives.push(makeErrorBarPrimitive({
             key:
               `errorbar-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_val}`,
-            bounds: new RectCoordsDims({
-              x: mappedVal.coords.x() - capWidth / 2,
-              y: Math.min(ubMapped.coords.y(), lbMapped.coords.y()),
-              w: capWidth,
-              h: Math.abs(ubMapped.coords.y() - lbMapped.coords.y()),
-            }),
-            zIndex: Z_INDEX.CONTENT_POINT - 1,
             meta: { value: valueInfo },
-            centerX: mappedVal.coords.x(),
-            ubY: ubMapped.coords.y(),
-            lbY: lbMapped.coords.y(),
+            categoryCenter: catCoord(mappedVal.coords, ctx.orientation),
+            valUb: valCoord(ubMapped.coords, ctx.orientation),
+            valLb: valCoord(lbMapped.coords, ctx.orientation),
+            capExtent,
             strokeColor: ebStyle.strokeColor,
             strokeWidth: ebStyle.strokeWidth,
-            capWidth,
-          });
+            zIndex: Z_INDEX.CONTENT_POINT - 1,
+            orientation: ctx.orientation,
+          }));
         }
       }
     }

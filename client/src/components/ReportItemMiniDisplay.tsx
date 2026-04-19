@@ -1,4 +1,4 @@
-import { ProjectDirtyStates, ReportType, getTextRenderingOptions } from "lib";
+import { ProjectDirtyStates, ReportType } from "lib";
 import {
   Loading,
   PageHolder,
@@ -105,7 +105,6 @@ export function ReportItemMiniDisplayStateHolderWrapper(
               ? Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 297) / 210)
               : Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16)
           }
-          textRenderingOptions={getTextRenderingOptions()}
           simpleError
           externalError={(p.state as { err?: string }).err}
           scalePixelResolution={p.scalePixelResolution}
@@ -126,7 +125,6 @@ export function ReportItemMiniDisplayStateHolderWrapper(
                   ? Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 297) / 210)
                   : Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16)
               }
-              textRenderingOptions={getTextRenderingOptions()}
               simpleError
               scalePixelResolution={p.scalePixelResolution}
             />
