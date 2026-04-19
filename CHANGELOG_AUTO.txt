@@ -1,3 +1,23 @@
+[TBD] [user] [added] - New conditional formatting options for tables, charts, and maps including continuous color scales with preset and custom palettes, and customizable threshold-based coloring
+[TBD] [user] [added] - Ability to choose from multiple color palettes (e.g., Red→Green, Blues, Viridis, Spectral) when applying color scales to visualizations
+[TBD] [user] [added] - Option to create custom color scales with user-defined start, middle, and end colors for conditional formatting
+[TBD] [user] [added] - Ability to add, remove, and customize individual threshold cutoff values and colors for conditional formatting
+[TBD] [user] [added] - Option to set "Higher is better" or "Lower is better" direction for threshold-based conditional formatting
+[TBD] [user] [added] - Continuous or discrete (stepped) color scale options with adjustable number of steps
+[TBD] [user] [added] - Option to fix the value range (min/max) or let it auto-calculate when using color scales
+[TBD] [user] [changed] - Maps now use the same unified conditional formatting controls as tables and charts, replacing the previous separate color preset settings
+[TBD] [admin] [added] - Conditional formatting for tables, charts, and maps now supports continuous color scales with a choice of built-in palettes (e.g., Red-Yellow-Green, Blues, Viridis) or fully custom color stops, including diverging (three-color) options
+[TBD] [admin] [added] - Conditional formatting now supports a threshold mode where you can define custom numeric cutoffs and assign a color to each bucket, with the ability to add or remove cutoff rows
+[TBD] [admin] [added] - You can now reverse color scales and choose between continuous or discrete (stepped) color rendering, with a configurable number of steps
+[TBD] [admin] [added] - A "Fix value range" option is available in scale-based conditional formatting, allowing you to lock the minimum and maximum values instead of using auto-detected ranges
+[TBD] [admin] [added] - Threshold-based conditional formatting now includes a direction setting (higher is better / lower is better) that controls how bucket labels are generated
+[TBD] [admin] [changed] - Conditional formatting for tables and bar charts has been upgraded from a fixed list of presets to a full visual editor with scale and threshold modes; existing preset selections are automatically migrated
+[TBD] [admin] [changed] - Map visualizations now use the same unified conditional formatting editor as tables and charts, replacing the previous separate color preset, scale type, and domain controls
+[TBD] [admin] [changed] - Map color configuration fields (color preset, from/to colors, reverse, scale type, discrete steps, domain type/min/max) have been replaced by the new conditional formatting system; existing map settings are automatically migrated on load
+[TBD] [admin] [changed] - Legacy conditional formatting presets (e.g., fmt-90-80, fmt-80-70, fmt-10-20) are still recognized and can be selected from a preset dropdown within the new threshold editor
+[TBD] [admin] [changed] - Legend items for threshold-based conditional formatting now show auto-generated range labels based on your cutoff values and number format, rather than hardcoded text
+[TBD] [admin] [internal] - Module definitions stored in the database are now validated through a dedicated stored-side schema with automatic legacy field migration on read, improving resilience to older data formats
+[TBD] [admin] [internal] - AI tool input validation has been tightened to reject unexpected extra parameters, improving reliability of AI assistant interactions
 [TBD] [user] [added] - Charts can now be displayed horizontally using a new "Horizontal" option in the chart style settings
 [TBD] [user] [added] - Admin area labels can now be customized directly in the Settings page, with the section moved to a more prominent position
 [TBD] [user] [changed] - Improved font support across slides, reports, and exported PDFs for better display of international characters
