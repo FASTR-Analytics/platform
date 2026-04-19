@@ -1,3 +1,4 @@
+import { CF_STORAGE_DEFAULTS } from "./conditional_formatting.ts";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
 
 // Default configurations used for:
@@ -7,7 +8,7 @@ import type { PresentationObjectConfig } from "./presentation_objects.ts";
 export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   scale: 3,
   content: "bars",
-  conditionalFormatting: "none",
+  ...CF_STORAGE_DEFAULTS,
   allowIndividualRowLimits: true,
   colorScale: "pastel-discrete",
   decimalPlaces: 0,
@@ -33,16 +34,7 @@ export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   nColsInCellDisplay: "auto",
   seriesColorFuncPropToUse: "series",
   sortIndicatorValues: "none",
-  mapColorPreset: "red-green",
-  mapColorReverse: false,
-  mapColorFrom: "#fee0d2",
-  mapColorTo: "#de2d26",
   mapProjection: "equirectangular",
-  mapScaleType: "continuous",
-  mapDiscreteSteps: 5,
-  mapDomainType: "auto",
-  mapDomainMin: 0,
-  mapDomainMax: 1,
 };
 
 export const DEFAULT_T_CONFIG: PresentationObjectConfig["t"] = {

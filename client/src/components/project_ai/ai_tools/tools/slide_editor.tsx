@@ -39,7 +39,7 @@ export function getToolsForSlideEditor(
       name: "get_slide_editor",
       description:
         "Get the current content and structure of the slide being edited. Shows live state from the editor (including unsaved changes). ALWAYS call this first when starting to help with a slide.",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       handler: async () => {
         const ctx = getAIContext();
         if (ctx.mode !== "editing_slide") {

@@ -53,7 +53,7 @@ DB text → JSON.parse → legacy adapter → Zod.parse (or safeParse) → typed
   - `adaptLegacyVizPresets` → wired into the read of `metrics.viz_presets` in [server/db/project/modules.ts](server/db/project/modules.ts) (installed-at-time snapshot of module presets; ensures preset pickers, preset preview, and AI slide builder see adapted shapes).
   - `adaptLegacyPODetailResponse` → wired into the cache-hit path in [server/routes/project/presentation_objects.ts](server/routes/project/presentation_objects.ts).
 
-  Current transforms: `d.periodOpt` → `d.timeseriesGrouping` rename; periodFilter normalization (delegated to `period_filter.ts`); drop legacy `defaultPeriodFilterForDefaultVisualizations` from vizPresets.
+  Current transforms: `d.periodOpt` → `d.timeseriesGrouping` rename; periodFilter normalization (delegated to `period_filter.ts`); drop legacy `defaultPeriodFilterForDefaultVisualizations` from vizPresets; legacy `s.conditionalFormatting` string preset → `ConditionalFormatting` object; legacy map color fields (`mapColorPreset`/`From`/`To`/`Reverse`, `mapScaleType`, `mapDiscreteSteps`, `mapDomain*`) → `ConditionalFormatting` object; drop old fields.
 
 - `report_item.ts` — two exports, split by DB-dependence for testability:
   - `adaptLegacyReportItemConfigShape` (pure shape transforms): layout 2D array → `LayoutNode` tree, `placeholder` item type → `text` item type.
@@ -213,6 +213,7 @@ For future tidying sessions, sites that should eventually be removed:
 | Site | Trigger for removal |
 | --- | --- |
 | `diffAreas` legacy adapter (5 sites, Pattern 3) | Once all deployments re-save affected configs, or a Pattern 4 migration forces it |
+| Legacy CF string-preset + map-color-field adapter transforms in `po_config.ts` (`adaptLegacyConfigS`, `LEGACY_CF_PRESETS` usage, `buildCfFromLegacyMapFields`) | Once every deployed project has re-saved affected configs, or a Pattern 4 forces it |
 | `resolvePeriodFilter` runtime alignment in `_2_filters.tsx` | Not legacy — see PLAN_simplify_period_format.md; removal tied to the premise that results-object period format doesn't change |
 | `migrateToMetricsTables` (Pattern 4) | Only when no deployment will see a pre-Feb-2025 database |
 | `// Keep for backward compatibility` in panther types | Panther is an external library — not our maintenance concern |

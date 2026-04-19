@@ -5,10 +5,16 @@ import {
   CustomFigureStyleOptions,
   getFormatterFunc,
 } from "panther";
-import { _CF_GREEN, _CF_RED, getCalendar, PresentationObjectConfig } from "lib";
+import {
+  _CF_GREEN,
+  _CF_RED,
+  getCalendar,
+  PresentationObjectConfig,
+  selectCf,
+} from "lib";
+import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   getMapRegionsContent,
-  getMapValuesColorFunc,
   getTableCellsContent,
   getTableLayoutStyle,
   getTextStyle,
@@ -69,8 +75,7 @@ export function buildDisruptionsChartStyle(
       mapRegions: getMapRegionsContent(config, formatAs),
     },
     table: getTableLayoutStyle(config),
-    valuesColorFunc:
-      config.d.type === "map" ? getMapValuesColorFunc(config) : undefined,
+    valuesColorFunc: compileCfToValuesColorFunc(selectCf(config.s)),
     map:
       config.d.type === "map"
         ? {

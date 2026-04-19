@@ -56,7 +56,7 @@ export function getToolsForSlides(
       name: "get_deck",
       description:
         "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck.",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       handler: async () => {
         const ctx = requireDeckContext(getAIContext());
         return await getDeckSummaryForAI(projectId, ctx.getSlideIds());

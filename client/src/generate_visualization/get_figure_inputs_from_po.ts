@@ -12,6 +12,7 @@ import {
   PresentationObjectConfig,
   ResultsValueForVisualization,
   getCalendar,
+  selectCf,
   withReplicant,
 } from "lib";
 import { getLegendItemsFromConfig } from "./conditional_formatting";
@@ -322,26 +323,7 @@ export function getFigureInputsFromPresentationObject(
             ih.dateRange,
           ),
           style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
-          legend: config.s.hideLegend ? undefined
-            : config.s.mapScaleType === "discrete"
-            ? {
-              type: "stepped-auto" as const,
-              nSteps: config.s.mapDiscreteSteps ?? 5,
-              domain: config.s.mapDomainType === "fixed"
-                ? { min: config.s.mapDomainMin, max: config.s.mapDomainMax }
-                : undefined,
-              format: resultsValue.formatAs ?? "number",
-              noData: { color: "#f0f0f0", label: t3({ en: "No data", fr: "Aucune donnée" }) },
-            }
-            : {
-              type: "gradient-auto" as const,
-              nTicks: 5,
-              domain: config.s.mapDomainType === "fixed"
-                ? { min: config.s.mapDomainMin, max: config.s.mapDomainMax }
-                : undefined,
-              format: resultsValue.formatAs ?? "number",
-              noData: { color: "#f0f0f0", label: t3({ en: "No data", fr: "Aucune donnée" }) },
-            },
+          legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, resultsValue.formatAs ?? "number"),
         },
       };
     }
@@ -361,6 +343,38 @@ export function getFigureInputsFromPresentationObject(
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
+
+function buildMapAutoLegend(
+  config: PresentationObjectConfig,
+  formatAs: "percent" | "number",
+) {
+  const cf = selectCf(config.s);
+  const noData = {
+    color: "#f0f0f0",
+    label: t3({ en: "No data", fr: "Aucune donnée" }),
+  };
+  const domain =
+    cf.type === "scale" && cf.domain.kind === "fixed"
+      ? { min: cf.domain.min, max: cf.domain.max }
+      : undefined;
+  const steps = cf.type === "scale" ? cf.steps : undefined;
+  if (steps !== undefined && steps >= 2) {
+    return {
+      type: "stepped-auto" as const,
+      nSteps: steps,
+      domain,
+      format: formatAs,
+      noData,
+    };
+  }
+  return {
+    type: "gradient-auto" as const,
+    nTicks: 5,
+    domain,
+    format: formatAs,
+    noData,
+  };
+}
 
 function withDateRange(
   str: string,

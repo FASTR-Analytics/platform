@@ -6,7 +6,7 @@ import {
   ResultsValue,
   disaggregationOption,
   getDisaggregationAllowedPresentationOptions,
-  metricAIDescription,
+  metricAIDescriptionStored,
   postAggregationExpression,
   type InstanceConfigFacilityColumns,
 } from "lib";
@@ -51,7 +51,7 @@ export async function enrichMetric(
     disaggregationOptions,
     mostGranularTimePeriodColumnInResultsFile: inferMostGranularTimePeriodColumn(disaggregationOptions),
     aiDescription: dbMetric.ai_description
-      ? metricAIDescription.parse(JSON.parse(dbMetric.ai_description))
+      ? metricAIDescriptionStored.parse(JSON.parse(dbMetric.ai_description))
       : undefined,
     importantNotes: dbMetric.important_notes ?? undefined,
   };

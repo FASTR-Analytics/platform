@@ -14,11 +14,20 @@ import type {
 
 export function valuesColorScale(
   config: ContinuousScaleConfig,
-  noDataColor?: ColorKeyOrString,
+  opts?: { steps?: number; noDataColor?: ColorKeyOrString },
 ): ValuesColorFunc {
-  const nd: ColorKeyOrString = noDataColor ?? "#f0f0f0";
+  const nd: ColorKeyOrString = opts?.noDataColor ?? "#f0f0f0";
+  const steps = opts?.steps;
   return (value, min, max) => {
     if (value === undefined) return nd;
+    if (steps !== undefined && steps >= 2) {
+      if (max === min) return Color.scaleContinuous(config, value, min, max);
+      const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+      const stepIndex = Math.min(steps - 1, Math.floor(t * steps));
+      const snappedT = steps === 1 ? 0.5 : stepIndex / (steps - 1);
+      const snappedValue = min + snappedT * (max - min);
+      return Color.scaleContinuous(config, snappedValue, min, max);
+    }
     return Color.scaleContinuous(config, value, min, max);
   };
 }

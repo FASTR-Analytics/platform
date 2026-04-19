@@ -19,8 +19,7 @@ import {
   getAbcQualScale,
   getAbcQualScale2,
 } from "lib";
-import { PresentationObjectConfig } from "lib";
-import { getColorFuncGivenConditionalFormatting } from "../conditional_formatting";
+import { PresentationObjectConfig, selectCf } from "lib";
 
 const _InternationalInter_800: FontInfo = {
   fontFamily: "International Inter",
@@ -89,16 +88,13 @@ export function getTextStyle(
 }
 
 export function getTableLayoutStyle(config: PresentationObjectConfig) {
+  const cfOn = selectCf(config.s).type !== "none";
   return {
-    gridLineColor:
-      config.s.conditionalFormatting === "none"
-        ? undefined
-        : { key: "base100" as const },
-    rowHeaderPadding:
-      config.s.conditionalFormatting === "none"
-        ? undefined
-        : ([5, 10, 5, 0] as [number, number, number, number]),
-    borderWidth: config.s.conditionalFormatting === "none" ? undefined : 0,
+    gridLineColor: cfOn ? { key: "base100" as const } : undefined,
+    rowHeaderPadding: cfOn
+      ? ([5, 10, 5, 0] as [number, number, number, number])
+      : undefined,
+    borderWidth: cfOn ? 0 : undefined,
     verticalColHeaders: config.s.allowVerticalColHeaders
       ? ("auto" as const)
       : ("never" as const),
@@ -109,13 +105,9 @@ export function getTableCellsContent(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
 ) {
-  const colorFuncGivenCF = getColorFuncGivenConditionalFormatting(config);
+  const cfOn = selectCf(config.s).type !== "none";
   return {
-    func: colorFuncGivenCF
-      ? (info: TableCellInfo) => ({
-          backgroundColor: colorFuncGivenCF(info.valueAsNumber),
-        })
-      : undefined,
+    func: cfOn ? { backgroundColor: 777 as const } : undefined,
     textFormatter: (info: TableCellInfo) =>
       getFormatterFunc(formatAs, config.s.decimalPlaces ?? 0)(info.value),
   };
@@ -232,50 +224,3 @@ function getN(
   return info[nProp] ?? info.nSerieses;
 }
 
-export const MAP_COLOR_PRESETS: Record<string, [string, string]> = {
-  "red-green": ["#de2d26", "#31a354"],
-  red: ["#fee0d2", "#de2d26"],
-  blue: ["#deebf7", "#3182bd"],
-  green: ["#e5f5e0", "#31a354"],
-};
-
-export function getMapValuesColorFunc(
-  config: PresentationObjectConfig,
-): (value: number | undefined, min: number, max: number) => ColorKeyOrString {
-  const preset = config.s.mapColorPreset ?? "red-green";
-  const [rawFrom, rawTo] =
-    preset === "custom"
-      ? [config.s.mapColorFrom ?? "#fee0d2", config.s.mapColorTo ?? "#de2d26"]
-      : (MAP_COLOR_PRESETS[preset] ?? MAP_COLOR_PRESETS["red-green"]);
-  const [fromColor, toColor] = config.s.mapColorReverse
-    ? [rawTo, rawFrom]
-    : [rawFrom, rawTo];
-
-  const fixedMin =
-    config.s.mapDomainType === "fixed" ? config.s.mapDomainMin : undefined;
-  const fixedMax =
-    config.s.mapDomainType === "fixed" ? config.s.mapDomainMax : undefined;
-
-  if (config.s.mapScaleType === "discrete") {
-    const nSteps = config.s.mapDiscreteSteps ?? 5;
-    return (value, min, max) => {
-      if (value === undefined) return "#f0f0f0";
-      const lo = fixedMin ?? min;
-      const hi = fixedMax ?? max;
-      if (hi === lo) return fromColor;
-      const t = Math.max(0, Math.min(1, (value - lo) / (hi - lo)));
-      const stepIndex = Math.min(nSteps - 1, Math.floor(t * nSteps));
-      const stepT = nSteps === 1 ? 0.5 : stepIndex / (nSteps - 1);
-      return Color.scaledPct(fromColor, toColor, stepT);
-    };
-  }
-
-  return (value, min, max) => {
-    if (value === undefined) return "#f0f0f0";
-    const lo = fixedMin ?? min;
-    const hi = fixedMax ?? max;
-    const t =
-      hi === lo ? 0 : Math.max(0, Math.min(1, (value - lo) / (hi - lo)));
-    return Color.scaledPct(fromColor, toColor, t);
-  };
-}

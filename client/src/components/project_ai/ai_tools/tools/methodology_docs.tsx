@@ -9,7 +9,7 @@ export function getToolsForMethodologyDocs() {
       name: "get_methodology_docs_list",
       description:
         "Get the table of contents for FASTR methodology documentation from the GitHub repository. Returns the index.md file which contains links to all available methodology documents. English docs are in the root, French docs are in the 'fr' subdirectory.",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       handler: async () => {
         const url = `${GITHUB_API_BASE}/index.md`;
         const response = await fetch(url);

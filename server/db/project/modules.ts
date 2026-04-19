@@ -11,13 +11,14 @@ import {
   InstalledModuleWithConfigSelections,
   InstalledModuleWithResultsValues,
   ModuleDefinition,
+  parseModuleDefinition,
   getDisaggregationLabel,
   getStartingModuleConfigSelections,
   getMergedModuleConfigSelections,
   getValidatedModuleId,
   parseJsonOrThrow,
   throwIfErrWithData,
-  vizPreset,
+  vizPresetStored,
   type DirtyOrRunStatus,
   type MetricStatus,
   type MetricWithStatus,
@@ -34,7 +35,7 @@ import {
 } from "./../utils.ts";
 import { DBMetric, DBModule } from "./_project_database_types.ts";
 import { getAdminAreaLabelsConfig, getFacilityColumnsConfig } from "../instance/config.ts";
-import { adaptLegacyVizPresets } from "../../legacy_adapters/mod.ts";
+import { adaptLegacyModuleDefinition, adaptLegacyVizPresets } from "../../legacy_adapters/mod.ts";
 import { enrichMetric } from "./metric_enricher.ts";
 
 export function parseModuleConfigSelections(json: string): ModuleConfigSelections {
@@ -240,8 +241,8 @@ SELECT * FROM modules WHERE id = ${moduleId}
     if (!rawModule) {
       return { success: true };
     }
-    const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-      rawModule.module_definition,
+    const moduleDefinition = parseModuleDefinition(
+      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
     );
     await projectDb.begin(async (sql: Sql) => {
       await sql`DELETE FROM modules WHERE id = ${moduleId}`;
@@ -308,7 +309,7 @@ export async function updateModuleDefinition(
       : getStartingModuleConfigSelections(modDef.data.configRequirements);
 
     // Change detection: compare compute-affecting fields
-    const storedDef = parseJsonOrThrow<ModuleDefinition>(rawModule.module_definition);
+    const storedDef = parseModuleDefinition(adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)));
     const scriptChanged = modDef.data.script !== storedDef.script;
     const configReqChanged = JSON.stringify(modDef.data.configRequirements) !== JSON.stringify(storedDef.configRequirements);
     const resultsObjectsChanged = JSON.stringify(modDef.data.resultsObjects) !== JSON.stringify(storedDef.resultsObjects);
@@ -490,8 +491,8 @@ export async function getAllModulesForProject(
     }
 
     const modules = rawModules.map<InstalledModuleSummary>((rawModule) => {
-      const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-        rawModule.module_definition,
+      const moduleDefinition = parseModuleDefinition(
+        adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
       );
 
       return {
@@ -562,8 +563,8 @@ SELECT * FROM modules WHERE id = ${moduleId}
     if (rawModule === undefined) {
       throw new Error("No module with this definition id");
     }
-    const moduleDefinition: ModuleDefinition = parseJsonOrThrow(
-      rawModule.module_definition,
+    const moduleDefinition = parseModuleDefinition(
+      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
     );
     const module: ModuleDetailForRunningScript = {
       id: getValidatedModuleId(rawModule.id),
@@ -658,8 +659,8 @@ export async function getMetricsListForAI(
     ];
 
     for (const rawModule of rawModules) {
-      const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-        rawModule.module_definition,
+      const moduleDefinition = parseModuleDefinition(
+        adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
       );
       const moduleMetrics = metricsByModule.get(rawModule.id) ?? [];
 
@@ -935,7 +936,7 @@ export async function getMetricsWithStatus(
         status,
         moduleId,
         vizPresets: dbMetric.viz_presets
-          ? z.array(vizPreset).parse(adaptLegacyVizPresets(JSON.parse(dbMetric.viz_presets)))
+          ? z.array(vizPresetStored).parse(adaptLegacyVizPresets(JSON.parse(dbMetric.viz_presets)))
           : undefined,
       });
     }
@@ -965,8 +966,8 @@ export async function getModulesListForAI(
     const lines = ["AVAILABLE MODULES", "=".repeat(80), ""];
 
     for (const rawModule of rawModules) {
-      const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-        rawModule.module_definition,
+      const moduleDefinition = parseModuleDefinition(
+        adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
       );
 
       lines.push(`ID: ${rawModule.id}`);
@@ -1003,8 +1004,8 @@ SELECT * FROM modules WHERE id = ${moduleId}
       throw new Error("No module with this id");
     }
 
-    const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-      rawModule.module_definition,
+    const moduleDefinition = parseModuleDefinition(
+      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
     );
     const configSelections = parseModuleConfigSelections(
       rawModule.config_selections,

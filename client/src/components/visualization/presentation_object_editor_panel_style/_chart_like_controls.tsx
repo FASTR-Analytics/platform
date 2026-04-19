@@ -1,4 +1,4 @@
-import { PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
+import { PresentationObjectConfig, PresentationObjectDetail, selectCf, t3 } from "lib";
 import {
   Button,
   Checkbox,
@@ -8,6 +8,8 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
+import { applyCfToTempConfig } from "../cf_store_helper";
+import { ConditionalFormattingEditor } from "../conditional_formatting_editor";
 
 type Props = {
   poDetail: PresentationObjectDetail;
@@ -151,27 +153,11 @@ export function ChartLikeControls(p: Props) {
             fullWidth
           />
         </div>
-        <RadioGroup
-          label={t3({
-            en: "Conditional formatting",
-            fr: "Mise en forme conditionnelle",
-          })}
-          options={getSelectOptionsWithFirstCapital([
-            "none",
-            "fmt-90-80",
-            "fmt-80-70",
-            "fmt-10-20",
-            "fmt-05-10",
-            "fmt-01-03",
-            "fmt-neg10-pos10",
-            "fmt-thresholds-1-2-5",
-            "fmt-thresholds-2-5-10",
-            "fmt-thresholds-5-10-20",
-          ])}
-          value={p.tempConfig.s.conditionalFormatting}
-          onChange={(v) =>
-            p.setTempConfig("s", "conditionalFormatting", v as "none" | string)
-          }
+        <ConditionalFormattingEditor
+          value={selectCf(p.tempConfig.s)}
+          onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
+          formatAs={p.poDetail.resultsValue.formatAs}
+          decimalPlaces={p.tempConfig.s.decimalPlaces}
         />
       </Show>
       <Show

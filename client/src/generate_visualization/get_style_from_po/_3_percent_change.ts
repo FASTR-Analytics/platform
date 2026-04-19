@@ -9,10 +9,11 @@ import {
   _CF_RED,
   getCalendar,
   PresentationObjectConfig,
+  selectCf,
 } from "lib";
+import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   getMapRegionsContent,
-  getMapValuesColorFunc,
   getStandardSeriesColorFunc,
   getTableCellsContent,
   getTableLayoutStyle,
@@ -99,8 +100,7 @@ export function buildPercentChangeChartStyle(
       mapRegions: getMapRegionsContent(config, formatAs),
     },
     table: getTableLayoutStyle(config),
-    valuesColorFunc:
-      config.d.type === "map" ? getMapValuesColorFunc(config) : undefined,
+    valuesColorFunc: compileCfToValuesColorFunc(selectCf(config.s)),
     map:
       config.d.type === "map"
         ? { projection: config.s.mapProjection ?? "equirectangular", dataLabelMode: "centroid" }

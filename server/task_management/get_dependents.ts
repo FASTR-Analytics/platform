@@ -1,9 +1,9 @@
 import { Sql } from "postgres";
 import {
-  ModuleDefinition,
-  parseJsonOrThrow,
+  parseModuleDefinition,
   type DatasetType,
 } from "lib";
+import { adaptLegacyModuleDefinition } from "../legacy_adapters/mod.ts";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  __    __                                      __                                                __                                                  //
@@ -31,8 +31,8 @@ export async function addModulesThatDependOnDataset(
   >`SELECT id, module_definition FROM modules`;
 
   for (const rawModule of rawModules) {
-    const modDef = parseJsonOrThrow<ModuleDefinition>(
-      rawModule.module_definition
+    const modDef = parseModuleDefinition(
+      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition))
     );
     for (const ds of modDef.dataSources) {
       if (ds.sourceType === "dataset" && ds.datasetType === datasetType) {
@@ -62,8 +62,8 @@ SELECT id, module_definition FROM modules
 WHERE id != ${moduleId}
 `;
   for (const rawModule of rawModules) {
-    const modDef = parseJsonOrThrow<ModuleDefinition>(
-      rawModule.module_definition
+    const modDef = parseModuleDefinition(
+      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition))
     );
     for (const ds of modDef.dataSources) {
       if (ds.sourceType === "results_object" && ds.moduleId === moduleId) {
@@ -124,8 +124,8 @@ WHERE id = ${moduleId}
   if (!thisMod) {
     throw new Error("Should not be possible");
   }
-  const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-    thisMod.module_definition
+  const moduleDefinition = parseModuleDefinition(
+    adaptLegacyModuleDefinition(JSON.parse(thisMod.module_definition))
   );
   const datasetDataSources: DatasetType[] = [];
   const resultsObjectDataSources: string[] = [];

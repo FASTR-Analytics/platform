@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { t3 } from "../translate/mod.ts";
 import type { TranslatableString } from "../translate/types.ts";
+import { cfStorageSchema } from "./conditional_formatting.ts";
 import type { ModuleId } from "./module_registry.ts";
 import type { PresentationObjectConfig } from "./presentation_object_config.ts";
 import {
@@ -179,7 +180,6 @@ export const configS = z
   .object({
     scale: z.number(),
     content: z.enum(["lines", "bars", "points", "areas"]),
-    conditionalFormatting: z.string(),
     allowIndividualRowLimits: z.boolean(),
     colorScale: z.enum([
       "pastel-discrete",
@@ -227,17 +227,9 @@ export const configS = z
       .optional(),
     sortIndicatorValues: z.enum(["ascending", "descending", "none"]),
     formatAdminArea3Labels: z.boolean().optional(),
-    mapColorPreset: z.enum(["red", "blue", "green", "red-green", "custom"]),
-    mapColorReverse: z.boolean(),
-    mapColorFrom: z.string(),
-    mapColorTo: z.string(),
     mapProjection: z.enum(["equirectangular", "mercator", "naturalEarth1"]),
-    mapScaleType: z.enum(["continuous", "discrete"]),
-    mapDiscreteSteps: z.number(),
-    mapDomainType: z.enum(["auto", "fixed"]),
-    mapDomainMin: z.number(),
-    mapDomainMax: z.number(),
   })
+  .merge(cfStorageSchema)
   .partial();
 
 export const vizPresetTextConfig = z.object({
@@ -327,6 +319,139 @@ export type VizPresetTextConfig = z.infer<typeof vizPresetTextConfig>;
 export type VizPreset = z.infer<typeof vizPreset>;
 export type MetricAIDescription = z.infer<typeof metricAIDescription>;
 export type MetricDefinitionJSON = z.infer<typeof metricDefinitionJSON>;
+
+// ============================================================================
+// Stored-side Zod schemas
+//
+// Describe the shape written to modules.module_definition and the denormalized
+// columns in the metrics table by the install flow in load_module.ts. These
+// are the schemas used at DB-read trust boundaries (item A / item C).
+//
+// Why this is separate from the fetch schemas above:
+//   - The install flow resolves TranslatableString to plain string
+//     (label/variantLabel/importantNotes on metrics and modules).
+//   - The install flow strips null to undefined (key dropped by
+//     JSON.stringify) on outer fields like aiDescription, vizPresets,
+//     variantLabel, valueLabelReplacements, postAggregationExpression.
+//   - Runtime fields (id, lastScriptUpdate, script, defaultPresentationObjects)
+//     are added.
+//   - Fields migrated from .optional() → .nullable() in the fetch schema on
+//     2026-04-17 (commit 75235e8) may still be absent on rows written before
+//     that; stored-side nested fields use .nullable().default(null) to accept
+//     either absent or null.
+// ============================================================================
+
+export const vizPresetTextConfigStored = z.object({
+  caption: translatableString.nullable().default(null),
+  captionRelFontSize: z.number().nullable().default(null),
+  subCaption: translatableString.nullable().default(null),
+  subCaptionRelFontSize: z.number().nullable().default(null),
+  footnote: translatableString.nullable().default(null),
+  footnoteRelFontSize: z.number().nullable().default(null),
+});
+
+const VIZ_TEXT_NULL_DEFAULT = {
+  caption: null,
+  captionRelFontSize: null,
+  subCaption: null,
+  subCaptionRelFontSize: null,
+  footnote: null,
+  footnoteRelFontSize: null,
+};
+
+export const vizPresetStored = z.object({
+  id: z.string(),
+  label: translatableString,
+  description: translatableString,
+  importantNotes: translatableString.nullable().default(null),
+  needsReplicant: z.boolean().optional().default(false),
+  allowedFilters: z.array(disaggregationOption).optional().default([]),
+  createDefaultVisualizationOnInstall: z.string().nullable().default(null),
+  config: z.object({
+    d: configD,
+    s: configS.optional().default({}),
+    t: vizPresetTextConfigStored.optional().default(VIZ_TEXT_NULL_DEFAULT),
+  }),
+});
+
+export const metricAIDescriptionStored = z.object({
+  summary: translatableString,
+  methodology: translatableString,
+  interpretation: translatableString,
+  typicalRange: translatableString,
+  caveats: translatableString.nullable().default(null),
+  useCases: z.array(translatableString),
+  relatedMetrics: z.array(z.string()).optional().default([]),
+  disaggregationGuidance: translatableString,
+  importantNotes: translatableString.nullable().default(null),
+});
+
+export const resultsObjectDefinitionStoredSchema = z.object({
+  id: z.string(),
+  moduleId: z.string(),
+  description: z.string(),
+  createTableStatementPossibleColumns: z.record(z.string(), z.string()).optional(),
+});
+
+export const metricDefinitionStoredSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  variantLabel: z.string().optional(),
+  valueProps: z.array(z.string()),
+  valueFunc: valueFunc,
+  formatAs: z.enum(["percent", "number"]),
+  requiredDisaggregationOptions: z.array(disaggregationOption),
+  valueLabelReplacements: z.record(z.string(), z.string()).optional(),
+  postAggregationExpression: postAggregationExpression.optional(),
+  resultsObjectId: z.string(),
+  aiDescription: metricAIDescriptionStored.optional(),
+  importantNotes: z.string().optional(),
+  vizPresets: z.array(vizPresetStored).optional(),
+  hide: z.boolean().optional(),
+});
+
+// defaultPresentationObjects[].config is a PresentationObjectConfig. The
+// schema lives in presentation_object_config.ts which already imports configD
+// from this file; importing its value here would create a value-level cycle.
+// Validate the outer fields; keep .config as pass-through unknown — PO configs
+// have their own strict-write / permissive-read validation at the
+// presentation_objects read/write sites.
+export const defaultPresentationObjectStoredSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  moduleId: z.string(),
+  metricId: z.string(),
+  sortOrder: z.number(),
+  config: z.unknown(),
+});
+
+// Top-level fields default to sensible values where legacy rows may lack
+// them. `id` and `label` are identity — always present in any usable row.
+// Everything else tolerates absence: older rows predate the addition of
+// various fields (scriptGenerationType, defaultPresentationObjects, etc.).
+export const moduleDefinitionStoredSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  prerequisites: z.array(z.string()).optional().default([]),
+  lastScriptUpdate: z.string().optional().default(""),
+  commitSha: z.string().optional(),
+  dataSources: z.array(dataSource).optional().default([]),
+  scriptGenerationType: scriptGenerationType.optional().default("template"),
+  configRequirements: configRequirements.optional().default({ parameters: [] }),
+  script: z.string().optional().default(""),
+  assetsToImport: z.array(z.string()).optional().default([]),
+  resultsObjects: z.array(resultsObjectDefinitionStoredSchema).optional().default([]),
+  metrics: z.array(metricDefinitionStoredSchema).optional().default([]),
+  defaultPresentationObjects: z.array(defaultPresentationObjectStoredSchema).optional().default([]),
+});
+
+// Accepts the already-parsed and legacy-adapted JSON. Callers must run any
+// relevant legacy adapters (e.g. adaptLegacyModuleDefinition from
+// server/legacy_adapters/) before handing the object to this parser —
+// adapter-before-Zod is the repo-wide convention, see DOC_legacy_handling.md.
+export function parseModuleDefinition(raw: unknown): ModuleDefinition {
+  return moduleDefinitionStoredSchema.parse(raw) as ModuleDefinition;
+}
 
 // ============================================================================
 // Full module-definition JSON schema (validated at GitHub fetch time).
