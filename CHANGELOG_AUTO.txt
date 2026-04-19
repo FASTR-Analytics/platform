@@ -1,3 +1,24 @@
+[TBD] [user] [added] - Charts can now be displayed horizontally using a new "Horizontal" option in the chart style settings
+[TBD] [user] [added] - Admin area labels can now be customized directly in the Settings page, with the section moved to a more prominent position
+[TBD] [user] [changed] - Improved font support across slides, reports, and exported PDFs for better display of international characters
+[TBD] [user] [changed] - The "Language and calendar" placeholder section has been removed from the Settings page
+[TBD] [user] [changed] - The top-level admin area (Admin Area 1) count is no longer shown in the instance data summary
+[TBD] [user] [changed] - "Facility name" is no longer available as a disaggregation option when building visualizations
+[TBD] [user] [fixed] - Filter validation errors now display a clear error message instead of silently failing when loading disaggregation values
+[TBD] [admin] [added] - Charts can now be displayed horizontally using a new "Horizontal" toggle in the chart style settings
+[TBD] [admin] [added] - Admin area labels settings section has been moved above facility columns in the instance settings page for better visibility
+[TBD] [admin] [added] - Admin area label fields now only show levels up to your configured max admin area level, reducing clutter
+[TBD] [admin] [added] - Error messages are now displayed when loading disaggregation filter values fails, instead of silently skipping
+[TBD] [admin] [changed] - The "Admin Area 1" row has been removed from the instance data structure counts display
+[TBD] [admin] [changed] - The "facility_name" option has been removed from the list of available disaggregation dimensions for visualizations
+[TBD] [admin] [changed] - The "Language and calendar" placeholder section has been removed from instance settings
+[TBD] [admin] [changed] - Font used throughout slides, reports, and PDF exports has been changed from "Inter" to "International Inter" for broader character support
+[TBD] [admin] [fixed] - Vertical tick labels option is now automatically hidden when a chart is set to horizontal mode, preventing conflicting settings
+[TBD] [admin] [internal] - Removed special Ethiopic font handling from PDF exports; character support is now handled by the new International Inter font
+[TBD] [admin] [internal] - Instance configuration values (max admin area, facility columns, country ISO3, admin area labels) are now validated with stricter schemas when read from the database
+[TBD] [admin] [internal] - Visualization configs are now validated against a schema when saved, preventing malformed configurations from being stored
+[TBD] [admin] [internal] - Module definition types have been consolidated into a single file for improved maintainability
+[TBD] [admin] [internal] - Disaggregation option validation now uses a centralized helper function for more consistent error handling across AI tools
 [TBD] [user] [added] - You can now customize admin area labels (e.g., rename "Admin area 2" to "Region" or "Admin area 3" to "District") in the instance settings
 [TBD] [user] [changed] - Admin area labels throughout the platform now reflect your custom names instead of generic "Admin area 1/2/3/4" labels
 [TBD] [user] [changed] - Disaggregation labels in visualizations, filters, and metric details now use your configured custom names for admin areas and facility columns
