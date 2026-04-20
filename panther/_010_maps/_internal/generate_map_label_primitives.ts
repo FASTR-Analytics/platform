@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  DataLabelStyle,
   MapDataLabelMode,
   MapLabelPrimitive,
   MapRegionInfoFunc,
@@ -147,6 +148,23 @@ export function generateMapLabelPrimitives(
   return primitives;
 }
 
+function buildHalo(dl: DataLabelStyle): MapLabelPrimitive["halo"] {
+  const fillColor = dl.backgroundColor !== "none"
+    ? getColor(dl.backgroundColor)
+    : undefined;
+  const border = dl.border !== "none" && dl.border.width > 0
+    ? { color: getColor(dl.border.color), width: dl.border.width }
+    : undefined;
+  if (!fillColor && !border) return undefined;
+  return {
+    fillColor,
+    borderColor: border?.color,
+    borderWidth: border?.width,
+    width: dl.padding.pt(),
+    rectRadius: dl.rectRadius,
+  };
+}
+
 function resolvePlacement(
   mode: MapDataLabelMode,
   info: LabelInfo,
@@ -187,13 +205,7 @@ function createCentroidLabel(
     mText: info.mText,
     position: new Coordinates([info.screenPos.x, info.screenPos.y]),
     alignment: { h: "center", v: "middle" },
-    halo: dl.backgroundColor !== "none"
-      ? {
-        color: getColor(dl.backgroundColor),
-        width: dl.padding.pt(),
-        rectRadius: dl.rectRadius,
-      }
-      : undefined,
+    halo: buildHalo(dl),
   };
 }
 
@@ -286,13 +298,7 @@ function placeCalloutSide(
       mText: info.mText,
       position: labelCoords,
       alignment: { h: alignH, v: "middle" },
-      halo: dlStyle.backgroundColor !== "none"
-        ? {
-          color: getColor(dlStyle.backgroundColor),
-          width: dlStyle.padding.pt(),
-          rectRadius: dlStyle.rectRadius,
-        }
-        : undefined,
+      halo: buildHalo(dlStyle),
       leaderLine: {
         from: centroidCoords,
         to: labelCoords,

@@ -13,11 +13,9 @@ import {
   type PeriodFilter,
   type ResultsValueInfoForPresentationObject,
 } from "./types/presentation_objects.ts";
-import type { PresentationObjectConfig } from "./types/presentation_object_config.ts";
-import type {
-  PeriodOption,
-  ResultsValue,
-} from "./types/module_definition.ts";
+import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
+import type { PeriodOption } from "./types/_metric_installed.ts";
+import type { ResultsValue } from "./types/modules.ts";
 import type { APIResponseWithData } from "./types/instance.ts";
 import { getCalendar } from "./translate/mod.ts";
 
@@ -267,9 +265,9 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
     getSortedAlphabetical(fc.groupBys).join("$"),
     getSortedAlphabeticalByFunc(
       fc.filters,
-      (v: { col: DisaggregationOption; vals: string[] }) => v.col,
+      (v: { col: DisaggregationOption; vals: (string | number)[] }) => v.col,
     )
-      .map((f: { col: DisaggregationOption; vals: string[] }) =>
+      .map((f: { col: DisaggregationOption; vals: (string | number)[] }) =>
         [f.col, getSortedAlphabetical(f.vals.map(String)).join(",")].join("&"),
       )
       .join("$"),
@@ -308,7 +306,7 @@ export function hasOnlyOneFilteredValue(
 
 function getFiltersWithoutReplicant(config: PresentationObjectConfig): {
   col: DisaggregationOption;
-  vals: string[];
+  vals: (string | number)[];
 }[] {
   return config.d.filterBy
     .map((filter) => {
@@ -322,7 +320,7 @@ function getFiltersWithoutReplicant(config: PresentationObjectConfig): {
 
 function getFiltersWithReplicant(config: PresentationObjectConfig): {
   col: DisaggregationOption;
-  vals: string[];
+  vals: (string | number)[];
 }[] {
   const filters = getFiltersWithoutReplicant(config);
   const prop = getReplicateByProp(config);

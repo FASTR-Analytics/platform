@@ -1,7 +1,6 @@
 import type { DatasetInProject } from "./datasets_in_project.ts";
 import { ProjectUser } from "./instance.ts";
-import { type MetricWithStatus } from "./module_definition.ts";
-import { type InstalledModuleSummary } from "./modules.ts";
+import { type MetricWithStatus, type InstalledModuleSummary } from "./modules.ts";
 import type { ProjectUserPermissions } from "./permissions.ts";
 import { PresentationObjectSummary } from "./presentation_objects.ts";
 import { ReportSummary } from "./reports.ts";

@@ -6,8 +6,8 @@ import {
   ResultsValue,
   disaggregationOption,
   getDisaggregationAllowedPresentationOptions,
-  metricAIDescriptionStored,
-  postAggregationExpression,
+  metricAIDescriptionInstalled,
+  postAggregationExpressionStrict,
   type InstanceConfigFacilityColumns,
 } from "lib";
 import { detectColumnExists, getResultsObjectTableName } from "../utils.ts";
@@ -40,7 +40,7 @@ export async function enrichMetric(
     valueProps: z.array(z.string()).parse(JSON.parse(dbMetric.value_props)),
     valueFunc: dbMetric.value_func as ResultsValue["valueFunc"],
     postAggregationExpression: dbMetric.post_aggregation_expression
-      ? postAggregationExpression.parse(JSON.parse(dbMetric.post_aggregation_expression))
+      ? postAggregationExpressionStrict.parse(JSON.parse(dbMetric.post_aggregation_expression))
       : undefined,
     valueLabelReplacements: dbMetric.value_label_replacements
       ? z.record(z.string(), z.string()).parse(JSON.parse(dbMetric.value_label_replacements))
@@ -51,7 +51,7 @@ export async function enrichMetric(
     disaggregationOptions,
     mostGranularTimePeriodColumnInResultsFile: inferMostGranularTimePeriodColumn(disaggregationOptions),
     aiDescription: dbMetric.ai_description
-      ? metricAIDescriptionStored.parse(JSON.parse(dbMetric.ai_description))
+      ? metricAIDescriptionInstalled.parse(JSON.parse(dbMetric.ai_description))
       : undefined,
     importantNotes: dbMetric.important_notes ?? undefined,
   };

@@ -131,6 +131,8 @@ export function getMapRegionsContent(
         backgroundColor: { key: "base100" as const },
         rectRadius: 5,
         padding: 4,
+        border: { key: "base300" as const },
+        borderWidth: 1,
       },
     },
     textFormatter: (info: MapRegionInfo) => {
@@ -223,4 +225,3 @@ function getN(
           : "nTiers";
   return info[nProp] ?? info.nSerieses;
 }
-

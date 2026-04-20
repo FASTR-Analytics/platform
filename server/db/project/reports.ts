@@ -1,6 +1,7 @@
 import { assertNotUndefined, LayoutNode } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
+  adaptLegacyReportItemConfigShape,
   APIResponseWithData,
   getStartingConfigForReport,
   getStartingConfigForReportItem,
@@ -19,10 +20,6 @@ import { DBReport, type DBReportItem } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { getPgConnectionFromCacheOrNew } from "../postgres/mod.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
-import {
-  adaptLegacyReportItemConfigShape,
-  resolveLegacyReportMetricIds,
-} from "../../legacy_adapters/mod.ts";
 
 function forEachLayoutItem<T>(
   node: LayoutNode<T>,
@@ -703,4 +700,54 @@ WHERE report_items.id = tmp.id
 WHERE report_id = ${reportId};
 
 `;
+}
+
+// ============================================================================
+// Legacy report-item config — DB-dependent resolution.
+// Stays server-side because it needs a Sql connection. Colocated next to the
+// read sites that invoke it after adaptLegacyReportItemConfigShape.
+// ============================================================================
+
+export async function resolveLegacyReportMetricIds(
+  config: ReportItemConfig,
+  projectDb: Sql,
+): Promise<ReportItemConfig> {
+  await _walkReportItemLayoutTreeAsync(
+    config.freeform.content,
+    async (item: ReportItemContentItem) => {
+      const poInfo = item.presentationObjectInReportInfo as
+        | { id: string; moduleId: string; metricId?: string }
+        | { id: string; metricId: string; moduleId?: string }
+        | undefined;
+
+      if (
+        poInfo &&
+        "moduleId" in poInfo &&
+        poInfo.moduleId &&
+        !poInfo.metricId
+      ) {
+        const po = await projectDb<{ metric_id: string }[]>`
+          SELECT metric_id FROM presentation_objects WHERE id = ${poInfo.id}
+        `;
+        if (po[0]) {
+          delete poInfo.moduleId;
+          poInfo.metricId = po[0].metric_id;
+        }
+      }
+    },
+  );
+  return config;
+}
+
+async function _walkReportItemLayoutTreeAsync<T>(
+  node: LayoutNode<T>,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  if (node.type === "item") {
+    await fn(node.data);
+  } else if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      await _walkReportItemLayoutTreeAsync(child, fn);
+    }
+  }
 }

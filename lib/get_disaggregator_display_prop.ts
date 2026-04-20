@@ -6,8 +6,8 @@ import {
   type DisaggregationDisplayOption,
   type DisaggregationOption,
 } from "./types/presentation_objects.ts";
-import type { PresentationObjectConfig } from "./types/presentation_object_config.ts";
-import type { ResultsValueForVisualization } from "./types/module_definition.ts";
+import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
+import type { ResultsValueForVisualization } from "./types/modules.ts";
 
 // These functions assume config.d.disaggregateBy has been pre-cleaned:
 // single-value disaggregations (both period-filtered and regular-filtered)

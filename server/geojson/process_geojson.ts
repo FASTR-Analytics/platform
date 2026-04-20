@@ -1,6 +1,6 @@
 type GeoJsonFeature = {
   type: "Feature";
-  geometry: Record<string, unknown>;
+  geometry: Record<string, unknown> | null;
   properties: Record<string, unknown>;
   id?: string | number;
 };
@@ -66,9 +66,11 @@ export function processGeoJson(
 
   const processedFeatures: GeoJsonFeature[] = [];
   for (const feature of parsed.features) {
+    if (feature.geometry === null) continue;
     const matchValue = feature.properties?.[areaMatchProp];
     if (matchValue == null) continue;
-    const adminAreaName = reverseMapping[String(matchValue)];
+    const sourceName = String(matchValue);
+    const adminAreaName = reverseMapping[sourceName];
     if (!adminAreaName) continue;
 
     processedFeatures.push({
@@ -76,6 +78,45 @@ export function processGeoJson(
       geometry: feature.geometry,
       properties: {
         area_id: adminAreaName,
+        source_name: sourceName,
+      },
+    });
+  }
+
+  const result: GeoJsonFeatureCollection = {
+    type: "FeatureCollection",
+    features: processedFeatures,
+  };
+
+  return JSON.stringify(result);
+}
+
+export function processGeoJsonFromDhis2(
+  featureCollection: { type: "FeatureCollection"; features: GeoJsonFeature[] },
+  areaMatchProp: string,
+  areaMapping: Record<string, string>,
+): string {
+  const reverseMapping: Record<string, string> = {};
+  for (const [adminAreaName, geoJsonValue] of Object.entries(areaMapping)) {
+    reverseMapping[geoJsonValue] = adminAreaName;
+  }
+
+  const processedFeatures: GeoJsonFeature[] = [];
+  for (const feature of featureCollection.features) {
+    if (feature.geometry === null) continue;
+
+    const matchValue = feature.properties?.[areaMatchProp];
+    if (matchValue == null) continue;
+    const sourceName = String(matchValue);
+    const adminAreaName = reverseMapping[sourceName];
+    if (!adminAreaName) continue;
+
+    processedFeatures.push({
+      type: "Feature",
+      geometry: feature.geometry,
+      properties: {
+        area_id: adminAreaName,
+        source_name: sourceName,
       },
     });
   }

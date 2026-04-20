@@ -767,31 +767,39 @@ function renderMapLabelPrimitive(
     }
   }
 
-  if (primitive.halo && primitive.halo.width > 0) {
-    const haloW = primitive.halo.width;
-    const textW = primitive.mText.dims.w();
-    const textH = primitive.mText.dims.h();
-    const pos = primitive.position;
+  if (primitive.halo) {
+    const halo = primitive.halo;
+    const hasFill = halo.fillColor !== undefined;
+    const hasBorder = halo.borderColor !== undefined &&
+      halo.borderWidth !== undefined && halo.borderWidth > 0;
+    if (hasFill || hasBorder) {
+      const haloW = halo.width;
+      const textW = primitive.mText.dims.w();
+      const textH = primitive.mText.dims.h();
+      const pos = primitive.position;
 
-    let x = pos.x();
-    let y = pos.y();
-    if (primitive.alignment.h === "center") x -= textW / 2;
-    else if (primitive.alignment.h === "right") x -= textW;
-    if (primitive.alignment.v === "middle") y -= textH / 2;
-    else if (primitive.alignment.v === "bottom") y -= textH;
+      let x = pos.x();
+      let y = pos.y();
+      if (primitive.alignment.h === "center") x -= textW / 2;
+      else if (primitive.alignment.h === "right") x -= textW;
+      if (primitive.alignment.v === "middle") y -= textH / 2;
+      else if (primitive.alignment.v === "bottom") y -= textH;
 
-    rc.rRect(
-      new RectCoordsDims({
-        x: x - haloW,
-        y: y - haloW,
-        w: textW + haloW * 2,
-        h: textH + haloW * 2,
-      }),
-      {
-        fillColor: primitive.halo.color,
-        rectRadius: primitive.halo.rectRadius,
-      },
-    );
+      rc.rRect(
+        new RectCoordsDims({
+          x: x - haloW,
+          y: y - haloW,
+          w: textW + haloW * 2,
+          h: textH + haloW * 2,
+        }),
+        {
+          fillColor: halo.fillColor ?? "transparent",
+          strokeColor: halo.borderColor,
+          strokeWidth: halo.borderWidth,
+          rectRadius: halo.rectRadius,
+        },
+      );
+    }
   }
 
   rc.rText(

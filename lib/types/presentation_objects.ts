@@ -1,39 +1,26 @@
 import { getNextAvailableDisaggregationDisplayOption } from "../get_disaggregator_display_prop.ts";
 import { t3 } from "../translate/mod.ts";
-import type { PeriodOption, ResultsValue } from "./module_definition.ts";
-import type { PresentationObjectConfig } from "./presentation_object_config.ts";
+import {
+  type PeriodOption,
+  type PresentationOption,
+  type DisaggregationDisplayOption,
+  type RelativePeriodFilter,
+  type BoundedPeriodFilter,
+  type PeriodFilter,
+} from "./_metric_installed.ts";
+import type { PresentationObjectConfig } from "./_presentation_object_config.ts";
+import {
+  ALL_DISAGGREGATION_OPTIONS,
+  type DisaggregationOption,
+} from "./disaggregation_options.ts";
+import type { ResultsValue } from "./modules.ts";
 import {
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
 } from "./presentation_object_defaults.ts";
 
-export const ALL_DISAGGREGATION_OPTIONS = [
-  "indicator_common_id",
-  "admin_area_2",
-  "admin_area_3",
-  "admin_area_4",
-  "year",
-  "month",
-  "quarter_id",
-  "period_id",
-  "denominator",
-  "denominator_best_or_survey",
-  "source_indicator",
-  "target_population",
-  "ratio_type",
-  "facility_type",
-  "facility_ownership",
-  "facility_custom_1",
-  "facility_custom_2",
-  "facility_custom_3",
-  "facility_custom_4",
-  "facility_custom_5",
-  "hfa_indicator",
-  "hfa_category",
-  "time_point",
-] as const;
-
-export type DisaggregationOption = (typeof ALL_DISAGGREGATION_OPTIONS)[number];
+export { ALL_DISAGGREGATION_OPTIONS, type DisaggregationOption };
+export type { PresentationOption, DisaggregationDisplayOption, RelativePeriodFilter, BoundedPeriodFilter, PeriodFilter };
 
 export function isDisaggregationOption(s: string): s is DisaggregationOption {
   return (ALL_DISAGGREGATION_OPTIONS as readonly string[]).includes(s);
@@ -48,7 +35,7 @@ export type PresentationObjectSummary = {
   isFiltered: boolean;
   type: PresentationOption;
   disaggregateBy: DisaggregationOption[];
-  filterBy: { col: DisaggregationOption; vals: string[] }[];
+  filterBy: { col: DisaggregationOption; vals: (string | number)[] }[];
   createdByAI: boolean;
   folderId: string | null;
   sortOrder: number;
@@ -79,29 +66,9 @@ export type PeriodBounds = {
   max: number;
 };
 
-export type RelativePeriodFilter = {
-  filterType:
-    | "last_n_months"
-    | "last_calendar_year"
-    | "last_calendar_quarter"
-    | "last_n_calendar_years"
-    | "last_n_calendar_quarters";
-  nMonths?: number;
-  nYears?: number;
-  nQuarters?: number;
-};
-
-export type BoundedPeriodFilter = {
-  filterType: "custom" | "from_month";
-  nMonths?: number;
-  nYears?: number;
-  nQuarters?: number;
-} & PeriodBounds;
-
-export type PeriodFilter = RelativePeriodFilter | BoundedPeriodFilter;
 
 export function periodFilterHasBounds(
-  filter: PeriodFilter,
+  filter: RelativePeriodFilter | BoundedPeriodFilter,
 ): filter is BoundedPeriodFilter {
   return filter.filterType === "custom" || filter.filterType === "from_month";
 }
@@ -154,16 +121,6 @@ export type ReplicantOptionsForPresentationObject = {
     }
 );
 
-export type DisaggregationDisplayOption =
-  | "row"
-  | "rowGroup"
-  | "col"
-  | "colGroup"
-  | "series"
-  | "cell"
-  | "indicator"
-  | "replicant"
-  | "mapArea";
 
 export const VIZ_TYPE_CONFIG: Record<
   PresentationOption,
@@ -341,9 +298,8 @@ export type ReplicantValueOverride = {
 
 // PresentationObjectConfig type + schema live in ./presentation_object_config.ts
 // and are re-exported through the barrel. CustomSeriesStyle too.
-export type { PresentationObjectConfig, CustomSeriesStyle } from "./presentation_object_config.ts";
+export type { PresentationObjectConfig, CustomSeriesStyle } from "./_presentation_object_config.ts";
 
-export type PresentationOption = "timeseries" | "table" | "chart" | "map";
 
 export type CreateModeVisualizationData = {
   label: string;
@@ -442,7 +398,7 @@ export type GenericLongFormFetchConfig = {
     func: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
   }[];
   groupBys: (DisaggregationOption | PeriodOption)[];
-  filters: { col: DisaggregationOption; vals: string[] }[];
+  filters: { col: DisaggregationOption; vals: (string | number)[] }[];
   periodFilter: PeriodFilter | undefined;
   periodFilterExactBounds?: PeriodBounds;
   postAggregationExpression: string | undefined;

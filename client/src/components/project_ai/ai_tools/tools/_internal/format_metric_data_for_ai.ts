@@ -52,7 +52,7 @@ export async function getMetricDataForAI(
     []) as DisaggregationOption[];
   const filters = (inputFilters ?? []) as {
     col: DisaggregationOption;
-    vals: string[];
+    vals: (string | number)[];
   }[];
   let periodFilter = inferPeriodFilter(startDate, endDate, inputDisaggregations);
 
@@ -172,7 +172,7 @@ function formatItemsAsMarkdown(
   itemsHolder: ItemsHolderPresentationObject,
   metric: MetricWithStatus,
   disaggregations: DisaggregationOption[],
-  filters?: { col: DisaggregationOption; vals: string[] }[],
+  filters?: { col: DisaggregationOption; vals: (string | number)[] }[],
   periodFilter?: { filterType: "custom"; periodOption: PeriodOption; min: number; max: number },
   aiDescription?: MetricAIDescription,
 ): string {

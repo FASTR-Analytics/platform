@@ -28,7 +28,7 @@ export const AiMetricQuerySchema = z.object({
             "Must be a valid disaggregation dimension for this metric (see get_available_metrics)",
           ),
         vals: z
-          .array(z.string())
+          .array(z.union([z.string(), z.number()]))
           .describe(
             "Values must exist in the data. Use get_metric_data first to discover valid values.",
           ),

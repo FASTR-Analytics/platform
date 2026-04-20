@@ -1,9 +1,8 @@
 import { Sql } from "postgres";
 import {
-  parseModuleDefinition,
+  parseInstalledModuleDefinition,
   type DatasetType,
 } from "lib";
-import { adaptLegacyModuleDefinition } from "../legacy_adapters/mod.ts";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  __    __                                      __                                                __                                                  //
@@ -31,9 +30,7 @@ export async function addModulesThatDependOnDataset(
   >`SELECT id, module_definition FROM modules`;
 
   for (const rawModule of rawModules) {
-    const modDef = parseModuleDefinition(
-      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition))
-    );
+    const modDef = parseInstalledModuleDefinition(rawModule.module_definition);
     for (const ds of modDef.dataSources) {
       if (ds.sourceType === "dataset" && ds.datasetType === datasetType) {
         if (!dependents.includes(rawModule.id)) {
@@ -62,9 +59,7 @@ SELECT id, module_definition FROM modules
 WHERE id != ${moduleId}
 `;
   for (const rawModule of rawModules) {
-    const modDef = parseModuleDefinition(
-      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition))
-    );
+    const modDef = parseInstalledModuleDefinition(rawModule.module_definition);
     for (const ds of modDef.dataSources) {
       if (ds.sourceType === "results_object" && ds.moduleId === moduleId) {
         if (!dependents.includes(rawModule.id)) {
@@ -124,9 +119,7 @@ WHERE id = ${moduleId}
   if (!thisMod) {
     throw new Error("Should not be possible");
   }
-  const moduleDefinition = parseModuleDefinition(
-    adaptLegacyModuleDefinition(JSON.parse(thisMod.module_definition))
-  );
+  const moduleDefinition = parseInstalledModuleDefinition(thisMod.module_definition);
   const datasetDataSources: DatasetType[] = [];
   const resultsObjectDataSources: string[] = [];
   for (const ds of moduleDefinition.dataSources) {

@@ -341,3 +341,81 @@ export function getStartingReportItemPlaceholder() {
   };
   return startingItem;
 }
+
+// ============================================================================
+// Legacy report-item config — pure shape adapter.
+// No Zod schema for ReportItemConfig yet (PLAN_5 Tier 1 deferred). Callers
+// invoke this adapter explicitly before passing the result downstream:
+//   adaptLegacyReportItemConfigShape(parseJsonOrThrow(rawReportItem.config))
+// When a Zod schema is added, wrap it with
+//   z.preprocess(adaptLegacyReportItemConfigShape, reportItemConfigStrict)
+// per the per-level preprocess pattern in PLAN_6.
+// ============================================================================
+
+export type LegacyReportItemConfig = Omit<ReportItemConfig, "freeform"> & {
+  freeform: {
+    useHeader?: boolean;
+    headerText?: string;
+    subHeaderText?: string;
+    dateText?: string;
+    headerLogos?: string[];
+    useFooter?: boolean;
+    footerText?: string;
+    footerLogos?: string[];
+    content:
+      | ReportItemContentItem[][]
+      | ReportItemConfig["freeform"]["content"];
+  };
+};
+
+export function adaptLegacyReportItemConfigShape(
+  config: LegacyReportItemConfig,
+): ReportItemConfig {
+  let content: LayoutNode<ReportItemContentItem>;
+  if (Array.isArray(config.freeform?.content)) {
+    content = {
+      type: "rows" as const,
+      id: crypto.randomUUID(),
+      children: config.freeform.content.map((row) => ({
+        type: "cols" as const,
+        id: crypto.randomUUID(),
+        children: row.map((item) => ({
+          type: "item" as const,
+          id: crypto.randomUUID(),
+          data: item,
+          span: item.span,
+        })),
+      })),
+    };
+  } else {
+    content = config.freeform.content;
+  }
+
+  _walkReportItemLayoutTree(content, (item: ReportItemContentItem) => {
+    if ((item as unknown as { type: string }).type === "placeholder") {
+      item.type = "text";
+      item.markdown = "";
+    }
+  });
+
+  return {
+    ...config,
+    freeform: {
+      ...config.freeform,
+      content,
+    },
+  } as ReportItemConfig;
+}
+
+function _walkReportItemLayoutTree<T>(
+  node: LayoutNode<T>,
+  fn: (item: T) => void,
+): void {
+  if (node.type === "item") {
+    fn(node.data);
+  } else if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      _walkReportItemLayoutTree(child, fn);
+    }
+  }
+}

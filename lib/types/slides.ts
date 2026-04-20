@@ -3,6 +3,10 @@ import { Color } from "@timroberton/panther";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
 import { _GFF_GREEN } from "../key_colors.ts";
 
+// Re-export schemas from underscore-prefixed files (stored data validation)
+export { slideDeckConfigSchema } from "./_slide_deck_config.ts";
+export { slideConfigSchema } from "./_slide_config.ts";
+
 export type DeckFooterConfig = {
   text: string;
   logos: string[];

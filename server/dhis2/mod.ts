@@ -28,3 +28,6 @@ export * from "./goal2_indicators/mod.ts";
 
 // GOAL 3: Analytics Data
 export * from "./goal3_analytics/mod.ts";
+
+// GOAL 4: GeoJSON (org unit boundaries for maps)
+export * from "./goal4_geojson/mod.ts";

@@ -1,11 +1,65 @@
 import {
-  ModuleDefinition,
   type ModuleConfigRequirements,
   type ModuleParameter,
-  type ResultsValue,
-} from "./module_definition.ts";
+  type ModuleDefinitionInstalled,
+} from "./_module_definition_installed.ts";
+import {
+  type Metric,
+  type PeriodOption,
+  type VizPreset,
+  type MetricAIDescription,
+  type ValueFunc,
+  type PostAggregationExpression,
+} from "./_metric_installed.ts";
+import { t3 } from "../translate/mod.ts";
+
+export type ModuleDefinitionDetail = ModuleDefinitionInstalled & {
+  metrics: Metric[];
+};
 import type { DirtyOrRunStatus } from "./project_dirty_states.ts";
 import type { ModuleId } from "./module_registry.ts";
+import type { DisaggregationOption, PresentationOption } from "./presentation_objects.ts";
+
+// Re-export types from _metric_installed.ts for convenience
+export type { ValueFunc, PostAggregationExpression };
+
+export type ResultsValue = {
+  id: string;
+  resultsObjectId: string;
+  valueProps: string[];
+  valueFunc: ValueFunc;
+  postAggregationExpression?: PostAggregationExpression;
+  valueLabelReplacements?: Record<string, string>;
+  label: string;
+  variantLabel?: string;
+  formatAs: "percent" | "number";
+  disaggregationOptions: {
+    value: DisaggregationOption;
+    isRequired: boolean;
+    allowedPresentationOptions?: PresentationOption[];
+  }[];
+  mostGranularTimePeriodColumnInResultsFile: PeriodOption | undefined;
+  aiDescription?: MetricAIDescription;
+  importantNotes?: string;
+};
+
+export type ResultsValueForVisualization = {
+  formatAs: "percent" | "number";
+  valueProps: string[];
+  valueLabelReplacements?: Record<string, string>;
+};
+
+export type MetricStatus =
+  | "ready"
+  | "module_not_installed"
+  | "results_not_ready"
+  | "error";
+
+export type MetricWithStatus = ResultsValue & {
+  status: MetricStatus;
+  moduleId: ModuleId;
+  vizPresets?: VizPreset[];
+};
 
 export type InstalledModuleSummary = {
   id: ModuleId;
@@ -38,7 +92,7 @@ export type ModuleDetailForRunningScript = {
   id: ModuleId;
   installedAt: string;
   configSelections: ModuleConfigSelections;
-  moduleDefinition: ModuleDefinition;
+  moduleDefinition: ModuleDefinitionInstalled;
 };
 
 export type ModuleRunStatus =
@@ -123,3 +177,11 @@ export type CompareProjectsData = {
     modules: CompareProjectsModule[];
   }[];
 };
+
+export function get_PERIOD_OPTION_MAP(): Record<PeriodOption, string> {
+  return {
+    period_id: t3({ en: "Monthly", fr: "Mensuel" }),
+    quarter_id: t3({ en: "Quarterly", fr: "Trimestriel" }),
+    year: t3({ en: "Yearly", fr: "Annuellement" }),
+  };
+}

@@ -59,7 +59,7 @@ function isPeriodIdValid(val: number): boolean {
 }
 
 function validateFilters(
-  filters: { col: string; vals: string[] }[] | undefined,
+  filters: { col: string; vals: (string | number)[] }[] | undefined,
   metricId: string,
   metric?: MetricWithStatus
 ): void {
@@ -161,7 +161,7 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
 
 export function validatePresetOverrides(
   metricId: string,
-  filters: { col: string; vals: string[] }[] | undefined,
+  filters: { col: string; vals: (string | number)[] }[] | undefined,
   startDate: number | undefined,
   endDate: number | undefined,
   metric?: MetricWithStatus,
@@ -190,7 +190,7 @@ export function validatePresetOverrides(
 export async function validateMetricInputs(
   projectId: string,
   metricId: string,
-  filters?: { col: string; vals: string[] }[],
+  filters?: { col: string; vals: (string | number)[] }[],
   periodFilter?: { periodOption: PeriodOption; min: number; max: number },
 ): Promise<void> {
   if (!filters?.length && !periodFilter) return;

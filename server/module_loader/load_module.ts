@@ -4,27 +4,26 @@ import {
   MODULE_REGISTRY,
   MODULE_SOURCE,
   MODULES_LOCAL_DIR,
+  moduleDefinitionGithubSchema,
   resolveTS,
   type APIResponseWithData,
   type DefaultPresentationObject,
   type Language,
-  type MetricDefinition,
-  type MetricDefinitionJSON,
-  type ModuleDefinition,
-  type ModuleDefinitionJSON,
+  type Metric,
+  type MetricDefinitionGithub,
+  type ModuleDefinitionDetail,
+  type ModuleDefinitionGithub,
   type ModuleId,
   type ResultsObjectDefinition,
-  type ResultsObjectDefinitionJSON,
-  type TranslatableString,
+  type ResultsObjectDefinitionGithub,
 } from "lib";
-import { ModuleDefinitionJSONSchema } from "../../lib/types/module_definition.ts";
 import { stripFrontmatter } from "../github/fetch_module.ts";
 import { getTranslateFunc } from "./translation_utils.ts";
 
 import { _GITHUB_TOKEN } from "../exposed_env_vars.ts";
 
 export function deriveDefaultPresentationObjects(
-  metrics: MetricDefinition[],
+  metrics: Metric[],
   moduleId: string,
   language: Language,
 ): DefaultPresentationObject[] {
@@ -59,7 +58,7 @@ export function deriveDefaultPresentationObjects(
 
 export async function fetchModuleFiles(
   moduleId: string,
-): Promise<{ definition: ModuleDefinitionJSON; script: string; gitRef?: string }> {
+): Promise<{ definition: ModuleDefinitionGithub; script: string; gitRef?: string }> {
   const registryEntry = MODULE_REGISTRY.find((m) => m.id === moduleId);
   if (!registryEntry) {
     throw new Error(`Module "${moduleId}" not found in registry`);
@@ -119,27 +118,27 @@ export async function fetchModuleFiles(
   return { definition, script: stripFrontmatter(rawScript), gitRef };
 }
 
-function validateDefinition(definition: unknown, moduleId: string): ModuleDefinitionJSON {
-  const result = ModuleDefinitionJSONSchema.safeParse(definition);
+function validateDefinition(definition: unknown, moduleId: string): ModuleDefinitionGithub {
+  const result = moduleDefinitionGithubSchema.safeParse(definition);
   if (!result.success) {
     const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     throw new Error(`Invalid definition for module "${moduleId}": ${issues}`);
   }
-  return result.data as ModuleDefinitionJSON;
+  return result.data as ModuleDefinitionGithub;
 }
 
 function translateMetrics(
-  metrics: MetricDefinitionJSON[],
+  metrics: MetricDefinitionGithub[],
   tc: (v: string) => string,
   language: Language,
-): MetricDefinition[] {
+): Metric[] {
   return metrics.map((m) => ({
     ...m,
     label: resolveTS(m.label, language),
-    variantLabel: m.variantLabel ? resolveTS(m.variantLabel, language) : undefined,
-    importantNotes: m.importantNotes ? resolveTS(m.importantNotes, language) : undefined,
-    postAggregationExpression: m.postAggregationExpression ?? undefined,
-    aiDescription: m.aiDescription ?? undefined,
+    variantLabel: m.variantLabel ? resolveTS(m.variantLabel, language) : null,
+    importantNotes: m.importantNotes ? resolveTS(m.importantNotes, language) : null,
+    postAggregationExpression: m.postAggregationExpression ?? null,
+    aiDescription: m.aiDescription ?? null,
     valueLabelReplacements: Object.keys(m.valueLabelReplacements).length > 0
       ? Object.fromEntries(
           Object.entries(m.valueLabelReplacements).map(([key, value]) => [
@@ -147,7 +146,7 @@ function translateMetrics(
             tc(value),
           ])
         )
-      : undefined,
+      : null,
   }));
 }
 
@@ -164,21 +163,21 @@ function translateResultsObjects(
 export async function getModuleDefinitionDetail(
   id: ModuleId,
   language: Language,
-): Promise<APIResponseWithData<ModuleDefinition & { gitRef?: string }>> {
+): Promise<APIResponseWithData<ModuleDefinitionDetail & { gitRef?: string }>> {
   try {
     const { definition, script, gitRef } = await fetchModuleFiles(id);
 
     const tc = getTranslateFunc(language);
 
     const resultsObjectsWithModuleId: ResultsObjectDefinition[] =
-      definition.resultsObjects.map((ro: ResultsObjectDefinitionJSON) => ({
+      definition.resultsObjects.map((ro: ResultsObjectDefinitionGithub) => ({
         ...ro,
         moduleId: id,
       }));
 
     const translatedMetrics = translateMetrics(definition.metrics, tc, language);
 
-    const translatedModule: ModuleDefinition = {
+    const translatedModule: ModuleDefinitionDetail = {
       id,
       label: resolveTS(definition.label, language),
       prerequisites: definition.prerequisites as ModuleId[],

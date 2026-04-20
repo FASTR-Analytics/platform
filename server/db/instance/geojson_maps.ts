@@ -73,3 +73,32 @@ export async function deleteGeoJsonMap(
     return { success: true };
   });
 }
+
+export type AdminAreaOption = { value: string; label: string };
+
+export async function getAdminAreaOptionsForLevel(
+  mainDb: Sql,
+  level: number,
+): Promise<APIResponseWithData<AdminAreaOption[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    if (level === 2) {
+      const rows = await mainDb<{ name: string }[]>`
+        SELECT DISTINCT admin_area_2 as name, LOWER(admin_area_2) as sort_key
+        FROM admin_areas_2 ORDER BY sort_key`;
+      return { success: true, data: rows.map((r) => ({ value: r.name, label: r.name })) };
+    } else if (level === 3) {
+      const rows = await mainDb<{ name: string; parent: string }[]>`
+        SELECT admin_area_3 as name, admin_area_2 as parent, LOWER(admin_area_2 || admin_area_3) as sort_key
+        FROM admin_areas_3 ORDER BY sort_key`;
+      return { success: true, data: rows.map((r) => ({ value: r.name, label: `${r.parent} > ${r.name}` })) };
+    } else if (level === 4) {
+      const rows = await mainDb<{ name: string; parent3: string; parent2: string }[]>`
+        SELECT admin_area_4 as name, admin_area_3 as parent3, admin_area_2 as parent2,
+               LOWER(admin_area_2 || admin_area_3 || admin_area_4) as sort_key
+        FROM admin_areas_4 ORDER BY sort_key`;
+      return { success: true, data: rows.map((r) => ({ value: r.name, label: `${r.parent2} > ${r.parent3} > ${r.name}` })) };
+    } else {
+      return { success: false, err: "Level must be 2, 3, or 4" };
+    }
+  });
+}

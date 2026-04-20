@@ -11,6 +11,16 @@ import {
   runProjectMigrations,
 } from "./db/migrations/runner.ts";
 import { getPgConnectionFromCacheOrNew } from "./db/mod.ts";
+import { validateStoredDataOnStartup } from "./db_startup_validation.ts";
+import type { Sql } from "postgres";
+import {
+  migratePOConfigs,
+  type MigrationStats,
+} from "./db/migrations/data_transforms/po_config.ts";
+import { migrateModuleDefinitions } from "./db/migrations/data_transforms/module_definition.ts";
+import { migrateMetricsColumns } from "./db/migrations/data_transforms/metric.ts";
+import { migrateSlideDeckConfigs } from "./db/migrations/data_transforms/slide_deck_config.ts";
+import { migrateSlideConfigs } from "./db/migrations/data_transforms/slide_config.ts";
 
 export async function dbStartUp() {
   const sql = getPgConnectionFromCacheOrNew("postgres", "READ_AND_WRITE");
@@ -49,6 +59,106 @@ ${userInserts}
     );
     await runProjectMigrations(projectDb);
     await migrateToMetricsTables(projectDb);
+
+    // Data transforms — each in its own transaction
+    await runDataTransforms(project.id, projectDb);
+  }
+
+  // Opt-in Zod sweep over every stored schema-backed row. Gated behind
+  // VALIDATE_ON_STARTUP=true so local-dev boot isn't slowed. See
+  // server/db_startup_validation.ts for details.
+  await validateStoredDataOnStartup(sqlMain);
+}
+
+// =============================================================================
+// DATA TRANSFORMS: Transform stored JSON data to current schema shape
+// =============================================================================
+
+type MigrationResult = {
+  name: string;
+  success: boolean;
+  stats?: MigrationStats;
+  error?: Error;
+};
+
+type MigrationFn = (tx: Sql, projectId: string) => Promise<MigrationStats>;
+
+const DATA_TRANSFORMS: { name: string; fn: MigrationFn }[] = [
+  { name: "po_config", fn: migratePOConfigs },
+  { name: "module_definition", fn: migrateModuleDefinitions },
+  { name: "metrics_columns", fn: migrateMetricsColumns },
+  { name: "slide_deck_config", fn: migrateSlideDeckConfigs },
+  { name: "slide_config", fn: migrateSlideConfigs },
+];
+
+async function runDataTransforms(
+  projectId: string,
+  projectDb: ReturnType<typeof getPgConnectionFromCacheOrNew>,
+): Promise<void> {
+  const results: MigrationResult[] = [];
+
+  for (const { name, fn } of DATA_TRANSFORMS) {
+    try {
+      let stats: MigrationStats | undefined;
+      await projectDb.begin(async (tx) => {
+        stats = await fn(tx, projectId);
+      });
+      results.push({ name, success: true, stats });
+    } catch (err) {
+      results.push({
+        name,
+        success: false,
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
+    }
+  }
+
+  // Log results
+  logMigrationResults(projectId, results);
+
+  // Exit if any failed
+  if (results.some((r) => !r.success)) {
+    console.error(
+      `\n[migration] FAILED — Server will not start. Fix the issues above and redeploy.\n`,
+    );
+    Deno.exit(1);
+  }
+}
+
+function logMigrationResults(
+  projectId: string,
+  results: MigrationResult[],
+): void {
+  const hasFailures = results.some((r) => !r.success);
+  const totalChecked = results.reduce((sum, r) => sum + (r.stats?.rowsChecked ?? 0), 0);
+  const totalTransformed = results.reduce((sum, r) => sum + (r.stats?.rowsTransformed ?? 0), 0);
+
+  // Always log a summary line
+  if (hasFailures) {
+    console.log(`[migration] Project ${projectId.slice(0, 8)}... FAILED`);
+  } else if (totalTransformed > 0) {
+    console.log(`[migration] Project ${projectId.slice(0, 8)}... ${totalChecked} checked, ${totalTransformed} transformed`);
+  } else {
+    console.log(`[migration] Project ${projectId.slice(0, 8)}... ${totalChecked} checked, 0 transformed`);
+  }
+
+  // Show details only when there are transforms or failures
+  if (totalTransformed > 0 || hasFailures) {
+    for (const r of results) {
+      if (r.success) {
+        const stats = r.stats;
+        if (stats && stats.rowsTransformed > 0) {
+          console.log(
+            `  ✓ ${r.name} (${stats.rowsChecked} rows checked, ${stats.rowsTransformed} transformed)`,
+          );
+        }
+      } else {
+        console.error(`  ✗ ${r.name}`);
+        if (r.error) {
+          console.error(`    Error: ${r.error.message}`);
+        }
+      }
+    }
   }
 }
 
