@@ -53,8 +53,7 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
       if (versionParams === "any_version") {
         return await existingUnresolved.dataPromise;
       }
-      const versionHash =
-        this._hashFuncs.versionHashFromParams(versionParams);
+      const versionHash = this._hashFuncs.versionHashFromParams(versionParams);
       if (existingUnresolved.versionHash === versionHash) {
         return await existingUnresolved.dataPromise;
       }
@@ -74,8 +73,7 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
       if (versionParams === "any_version") {
         return parsed.data;
       }
-      const versionHash =
-        this._hashFuncs.versionHashFromParams(versionParams);
+      const versionHash = this._hashFuncs.versionHashFromParams(versionParams);
       if (parsed.versionHash === versionHash) {
         return parsed.data;
       }
@@ -90,10 +88,12 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
     optimisticUniquenessParams: UniquenessParams,
     optimisticVersionParams: VersionParams,
   ) {
-    const optimisticUniquenessHash =
-      this._hashFuncs.uniquenessHashFromParams(optimisticUniquenessParams);
-    const optimisticVersionHash =
-      this._hashFuncs.versionHashFromParams(optimisticVersionParams);
+    const optimisticUniquenessHash = this._hashFuncs.uniquenessHashFromParams(
+      optimisticUniquenessParams,
+    );
+    const optimisticVersionHash = this._hashFuncs.versionHashFromParams(
+      optimisticVersionParams,
+    );
 
     this._unresolved.set(optimisticUniquenessHash, {
       versionHash: optimisticVersionHash,
@@ -142,6 +142,20 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
     }
 
     this._unresolved.delete(optimisticUniquenessHash);
+  }
+
+  async exists(uniquenessParams: UniquenessParams): Promise<boolean> {
+    const uniquenessHash =
+      this._hashFuncs.uniquenessHashFromParams(uniquenessParams);
+
+    const client = getValkeyClient();
+    if (!client) return false;
+    try {
+      const count = await client.exists(this._redisKey(uniquenessHash));
+      return count > 0;
+    } catch {
+      return false;
+    }
   }
 
   clear(uniquenessParams: UniquenessParams) {

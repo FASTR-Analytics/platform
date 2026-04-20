@@ -6,7 +6,7 @@ import type { ModuleLatestCommit, SlideDeckGroupingMode, VisualizationGroupingMo
 // ============================================================================
 
 // Active tab selection
-export type TabOption = "reports" | "decks" | "visualizations" | "metrics" | "modules" | "data" | "settings";
+export type TabOption = "reports" | "decks" | "visualizations" | "metrics" | "modules" | "data" | "settings" | "cache";
 
 const storedTab = localStorage.getItem("projectTab") as TabOption | null;
 
