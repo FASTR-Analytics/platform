@@ -1,3 +1,21 @@
+[TBD] [user] [added] - Edit button to update existing GeoJSON map area mappings
+[TBD] [user] [added] - Download option for existing GeoJSON files
+[TBD] [user] [added] - Import geographic boundaries directly from DHIS2
+[TBD] [user] [added] - Automatic detection of matching DHIS2 organization unit levels
+[TBD] [user] [changed] - GeoJSON upload now lets you choose between file upload or DHIS2 import
+[TBD] [user] [changed] - Map region labels now have borders and improved styling
+[TBD] [user] [changed] - Table cells with color formatting now adjust text color for readability
+[TBD] [user] [changed] - Map region outlines now adapt to your theme colors
+[TBD] [admin] [added] - Edit GeoJSON mappings directly from the management table
+[TBD] [admin] [added] - Download existing GeoJSON files from the edit modal
+[TBD] [admin] [added] - Import GeoJSON boundaries directly from a DHIS2 instance
+[TBD] [admin] [added] - Auto-detect matching DHIS2 org unit levels for admin areas
+[TBD] [admin] [added] - Import boundaries for multiple admin levels from DHIS2 at once
+[TBD] [admin] [added] - Warning shown when duplicate admin area names may cause map issues
+[TBD] [admin] [changed] - GeoJSON upload wizard now starts with a source selection step
+[TBD] [admin] [changed] - Map region labels now have visible borders and improved styling
+[TBD] [admin] [changed] - Table cells with conditional formatting now adjust text color for readability
+[TBD] [admin] [fixed] - Removed legacy disruptions chart display mode that could cause confusion
 [TBD] [user] [fixed] - Color legend for threshold-based conditional formatting now displays buckets in the correct order, with highest values at the top and lowest at the bottom
 [TBD] [admin] [fixed] - Conditional formatting legend now displays thresholds in the correct order, with the highest values at the top and lowest at the bottom, matching the editor layout
 [TBD] [user] [added] - New conditional formatting options for tables, charts, and maps including continuous color scales with preset and custom palettes, and customizable threshold-based coloring
