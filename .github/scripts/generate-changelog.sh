@@ -118,8 +118,9 @@ prompt = (
     "- Bad example: 'Fixed NaN propagation in aggregation pipeline' — Good example: 'Fixed incorrect totals appearing in summary tables'\n"
     "- Bad example: 'Added useMemo to DataGrid component' — Good example: 'Improved loading speed on large datasets'\n"
     "- Skip anything backend-only, infra, tooling, logging, or deployment-related\n"
+    "- Keep each line short — aim for under 10 words per description but go over if needed\n"
     "- If no user-facing changes, output exactly: SKIP\n"
-    "- No preamble, no markdown, no explanation. Maximum 8 lines."
+    "- No preamble, no markdown, no explanation."
 )
 body = {
     'model': 'claude-opus-4-6',
@@ -151,7 +152,7 @@ import json, os
 diff = open('/tmp/changelog_diff.txt', 'r', errors='replace').read()
 prompt = (
     "You are writing release notes for FASTR Analytics admins — people who manage instances "
-    "but are not necessarily developers.\n\n"
+    "but are not necessarily technical.\n\n"
     "Source diff:\n\`\`\`diff\n" + diff + "\n\`\`\`\n\n"
     "Output lines for admin-relevant changes: new capabilities, configuration options, fixed issues, "
     "performance improvements, and anything that affects how the platform behaves or is managed.\n\n"
@@ -161,11 +162,11 @@ prompt = (
     "[admin] [fixed] - Description\n"
     "[admin] [internal] - Description\n\n"
     "Rules:\n"
-    "- Write in plain English — avoid raw code names, function names, and developer jargon\n"
+    "- Write in plain, non-technical English — no code names, function names, or developer jargon\n"
     "- Describe what changed in terms of behaviour or capability, not what code was edited\n"
     "- Bad example: 'Refactored aggregation middleware to use async iterators' — Good example: 'Improved performance when processing large datasets'\n"
     "- Bad example: 'Added index to project_datasets table' — Good example: 'Faster dataset loading for projects with many uploads'\n"
-    "- Include everything noteworthy — no maximum line limit\n"
+    "- Keep each line short — aim for under 10 words per description but go over if needed\n"
     "- If no meaningful changes, output exactly: SKIP\n"
     "- No preamble, no markdown, no explanation."
 )
