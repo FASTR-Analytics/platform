@@ -21,7 +21,12 @@ VALUES
     `;
 }
 
-export async function GetAiUsageLogs(mainDb: Sql): Promise<AiUsageLog[]> {
+export async function GetAiUsageLogs(mainDb: Sql, since?: string): Promise<AiUsageLog[]> {
+    if (since) {
+        return await mainDb<AiUsageLog[]>`
+SELECT * FROM ai_usage_logs WHERE timestamp >= ${since} ORDER BY timestamp DESC
+        `;
+    }
     return await mainDb<AiUsageLog[]>`
 SELECT * FROM ai_usage_logs ORDER BY timestamp DESC
     `;
