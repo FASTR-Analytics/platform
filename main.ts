@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { dbStartUp } from "./server/db_startup.ts";
 import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
 import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
+import { purgeExpiredProjects } from "./server/db/mod.ts";
 import { connectValkey, disconnectValkey } from "./server/valkey/connection.ts";
 import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
@@ -53,6 +54,13 @@ const runLogCleanup = () => {
 };
 runLogCleanup();
 setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
+
+const runProjectPurge = () => {
+  const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  purgeExpiredProjects(db).catch((e) => console.error("Project purge failed:", e));
+};
+runProjectPurge();
+setInterval(runProjectPurge, 24 * 60 * 60 * 1000);
 
 await connectValkey();
 

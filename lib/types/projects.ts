@@ -17,8 +17,9 @@ export type ProjectSummary = {
   label: string;
   thisUserRole: "viewer" | "editor";
   isLocked: boolean;
-  status: "ready" | "copying";
+  status: "ready" | "copying" | "pending_deletion";
   lastActivityAt: string | undefined;
+  deletionScheduledAt: string | undefined;
 };
 
 export type ProjectDetail = {

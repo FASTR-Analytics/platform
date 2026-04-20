@@ -63,6 +63,7 @@ export type DBProject = {
   ai_context: string;
   is_locked: boolean;
   status: string;
+  deletion_scheduled_at: Date | null;
 };
 
 export type DBProjectUserRole = {

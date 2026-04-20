@@ -8,9 +8,10 @@ import {
   getEditorWrapper,
   openComponent,
 } from "panther";
-import { For, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { AddProjectForm } from "./add_project";
 import { CompareProjects } from "./compare_projects";
+import { PendingDeletions } from "./pending_deletions";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
@@ -37,9 +38,20 @@ export function InstanceProjects(p: Props) {
 
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
+  const pendingDeletionCount = createMemo(
+    () => instanceState.projects.filter((proj) => proj.status === "pending_deletion").length,
+  );
+
   async function compareProjects() {
     await openEditor({
       element: CompareProjects,
+      props: {},
+    });
+  }
+
+  async function openPendingDeletions() {
+    await openEditor({
+      element: PendingDeletions,
       props: {},
     });
   }
@@ -68,6 +80,14 @@ export function InstanceProjects(p: Props) {
                   {t3({ en: "Compare projects", fr: "Comparer les projets" })}
                 </Button>
               </Show>
+              <Show when={p.isGlobalAdmin && pendingDeletionCount() > 0}>
+                <Button onClick={openPendingDeletions} outline intent="base-100">
+                  {t3({
+                    en: `Pending deletions (${pendingDeletionCount()})`,
+                    fr: `Suppressions en attente (${pendingDeletionCount()})`,
+                  })}
+                </Button>
+              </Show>
               <Show when={p.isGlobalAdmin || p.canCreateProjects}>
                 <Button onClick={attemptAddProject} iconName="plus">
                   {t3({ en: "Create project", fr: "Créer un projet" })}
@@ -79,7 +99,7 @@ export function InstanceProjects(p: Props) {
       >
         <div class="ui-pad ui-gap grid h-full w-full flex-1 grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start overflow-auto">
           <For
-            each={instanceState.projects}
+            each={instanceState.projects.filter((proj) => proj.status !== "pending_deletion")}
             fallback={
               <div class="text-neutral text-sm">
                 {t3({ en: "No projects", fr: "Aucun projet" })}

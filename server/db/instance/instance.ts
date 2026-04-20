@@ -248,6 +248,7 @@ export async function getAllProjectSummaries(
     isLocked: p.is_locked,
     status: p.status as ProjectSummary["status"],
     lastActivityAt: p.last_activity_at ?? undefined,
+    deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
   }));
 }
 
@@ -362,6 +363,7 @@ ORDER BY LOWER(p.label)`
             isLocked: p.is_locked,
             status: p.status as ProjectSummary["status"],
             lastActivityAt: p.last_activity_at ?? undefined,
+            deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
           };
         })
       : (
@@ -395,6 +397,7 @@ ORDER BY LOWER(p.label)`
             isLocked: p.is_locked,
             status: p.status as ProjectSummary["status"],
             lastActivityAt: p.last_activity_at ?? undefined,
+            deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
           };
         });
 

@@ -27,6 +27,7 @@ import {
 import {
   getPgConnectionFromCacheOrNew,
   createWorkerConnection,
+  closePgConnection,
 } from "../postgres/mod.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { DBDataset_IN_PROJECT } from "./_project_database_types.ts";
@@ -419,23 +420,70 @@ export async function deleteProject(
   projectId: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    // !!!!! We don't delete project data, only the record in main.db !!!!!
-
-    // Step 1.
-    // await mainDb`DROP DATABASE IF EXISTS ${mainDb(projectId)} WITH (FORCE)`;
-
-    // Step 2.
-    // const sandboxDir = join(_SANDBOX_DIR_PATH, projectId);
-    // try {
-    //   await Deno.remove(sandboxDir, { recursive: true });
-    // } catch {
-    //   //
-    // }
-
-    // Step 3.
-    await mainDb`DELETE FROM projects WHERE id = ${projectId}`;
+    await mainDb`
+      UPDATE projects
+      SET status = 'pending_deletion',
+          deletion_scheduled_at = NOW() + INTERVAL '30 days'
+      WHERE id = ${projectId}
+    `;
     return { success: true };
   });
+}
+
+export async function restoreProject(
+  mainDb: Sql,
+  projectId: string,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      UPDATE projects
+      SET status = 'ready',
+          deletion_scheduled_at = NULL
+      WHERE id = ${projectId}
+    `;
+    return { success: true };
+  });
+}
+
+export async function purgeExpiredProjects(mainDb: Sql): Promise<void> {
+  const expired = await mainDb<{ id: string }[]>`
+    SELECT id FROM projects
+    WHERE status = 'pending_deletion' AND deletion_scheduled_at <= NOW()
+  `;
+
+  for (const project of expired) {
+    try {
+      await closePgConnection(project.id);
+
+      const dedicatedDb = createWorkerConnection("main");
+      try {
+        await dedicatedDb`
+          SELECT pg_terminate_backend(pid)
+          FROM pg_stat_activity
+          WHERE datname = ${project.id}
+            AND pid <> pg_backend_pid()
+        `;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await dedicatedDb`DROP DATABASE IF EXISTS ${dedicatedDb(project.id)} WITH (FORCE)`;
+      } finally {
+        await dedicatedDb.end();
+      }
+
+      const sandboxDir = join(_SANDBOX_DIR_PATH, project.id);
+      try {
+        await Deno.remove(sandboxDir, { recursive: true });
+      } catch (e) {
+        if (!(e instanceof Deno.errors.NotFound)) {
+          throw e;
+        }
+      }
+
+      await mainDb`DELETE FROM projects WHERE id = ${project.id}`;
+      console.log(`[PURGE] Deleted project ${project.id}`);
+    } catch (e) {
+      console.error(`[PURGE] Failed to delete project ${project.id}:`, e);
+    }
+  }
 }
 
 export async function setProjectLockStatus(
