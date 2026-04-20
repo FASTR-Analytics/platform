@@ -112,6 +112,7 @@ ORDER BY day
 
 routesHealth.get("/ai_usage", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const logs = await GetAiUsageLogs(mainDb);
+  const since = c.req.query("since");
+  const logs = await GetAiUsageLogs(mainDb, since ?? undefined);
   return c.json({ logs });
 });

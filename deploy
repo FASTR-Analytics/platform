@@ -249,7 +249,7 @@ echo -e "\033[92m"
 echo "╔══════════════════════════════════════════════════════════════════════╗"
 echo "║                                                                      ║"
 if [ "$ADHOC_MODE" = "true" ]; then
-    echo "║                   AD-HOC DEPLOYMENT SUCCESSFUL!                     ║"
+    echo "║                   AD-HOC DEPLOYMENT SUCCESSFUL!                    ║"
 else
     echo "║                      DEPLOYMENT SUCCESSFUL!                         ║"
 fi
