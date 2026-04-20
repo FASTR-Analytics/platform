@@ -23,7 +23,7 @@
 // 6. Legacy mapColor* fields → capture as legacyCf (maps only)
 // 7. Strip legacy mapColor* fields
 // 8. Fill flat cf* fields from captured legacyCf or defaults
-// 9. diffAreas → specialDisruptionsChart (keep fields, set neutral values)
+// 9. diffAreas → specialDisruptionsChart (delete legacy fields)
 // 10. Fill mapProjection default
 //
 // =============================================================================
@@ -199,14 +199,12 @@ export async function migratePOConfigs(tx: Sql, projectId: string): Promise<Migr
       if (!(key in s)) s[key] = value;
     }
 
-    // Block 9: diffAreas → specialDisruptionsChart
-    // NOTE: Don't delete diffAreas/diffAreasOrder — schema still requires them.
-    // Set to neutral values. Phase 6 removes them from schema + data.
-    if (s.diffAreas === true) {
-      s.specialDisruptionsChart = true;
+    // Block 9: diffAreas → specialDisruptionsChart (delete legacy fields)
+    if (!("specialDisruptionsChart" in s)) {
+      s.specialDisruptionsChart = s.diffAreas === true;
     }
-    s.diffAreas = false;
-    s.diffAreasOrder = "actual-expected";
+    delete s.diffAreas;
+    delete s.diffAreasOrder;
 
     // Block 10: Fill mapProjection default (required field added later)
     if (!("mapProjection" in s)) s.mapProjection = "equirectangular";

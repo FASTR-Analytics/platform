@@ -107,7 +107,15 @@ export function getTableCellsContent(
 ) {
   const cfOn = selectCf(config.s).type !== "none";
   return {
-    func: cfOn ? { backgroundColor: 777 as const } : undefined,
+    func: cfOn
+      ? {
+          backgroundColor: 777 as const,
+          textColorStrategy: {
+            ifLight: { key: "baseContent" as const },
+            ifDark: { key: "base100" as const },
+          },
+        }
+      : undefined,
     textFormatter: (info: TableCellInfo) =>
       getFormatterFunc(formatAs, config.s.decimalPlaces ?? 0)(info.value),
   };
@@ -124,14 +132,14 @@ export function getMapRegionsContent(
     func: {
       show: true,
       fillColor: 777 as const,
-      strokeColor: "#666",
+      strokeColor: { key: "baseContent" as const },
       strokeWidth: 0.5,
       dataLabel: {
         show: showRegion || showData,
         backgroundColor: { key: "base100" as const },
         rectRadius: 5,
-        padding: 4,
-        border: { key: "base300" as const },
+        padding: [4, 6],
+        borderColor: { key: "base300" as const },
         borderWidth: 1,
       },
     },

@@ -100,7 +100,8 @@ export type DataLabel = {
   style?: {
     backgroundColor?: string;
     padding?: Padding;
-    border?: { color: string; width: number };
+    borderColor?: string;
+    borderWidth?: number;
     rectRadius?: number;
   };
 };
@@ -462,7 +463,7 @@ export type MapLabelPrimitive = BasePrimitive & {
     fillColor?: string;
     borderColor?: string;
     borderWidth?: number;
-    width: number;
+    padding: Padding;
     rectRadius?: number;
   };
   leaderLine?: {

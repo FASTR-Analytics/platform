@@ -70,7 +70,7 @@ export function generatePointPrimitives(
 
         const mText = ctx.rc.mText(labelStr, textStyle, 9999);
         const hasDecoration = dl.backgroundColor !== "none" ||
-          dl.border !== "none";
+          dl.borderWidth > 0;
 
         if (labelStr.trim() || hasDecoration) {
           const cx = mappedVal.coords.x();
@@ -106,12 +106,10 @@ export function generatePointPrimitives(
                   ? getColor(dl.backgroundColor)
                   : undefined,
                 padding: dl.padding,
-                border: dl.border !== "none"
-                  ? {
-                    color: getColor(dl.border.color),
-                    width: dl.border.width,
-                  }
+                borderColor: dl.borderColor !== undefined
+                  ? getColor(dl.borderColor)
                   : undefined,
+                borderWidth: dl.borderWidth > 0 ? dl.borderWidth : undefined,
                 rectRadius: dl.rectRadius,
               }
               : undefined,

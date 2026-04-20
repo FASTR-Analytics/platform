@@ -11,7 +11,6 @@ import {
   runProjectMigrations,
 } from "./db/migrations/runner.ts";
 import { getPgConnectionFromCacheOrNew } from "./db/mod.ts";
-import { validateStoredDataOnStartup } from "./db_startup_validation.ts";
 import type { Sql } from "postgres";
 import {
   migratePOConfigs,
@@ -58,16 +57,15 @@ ${userInserts}
       "READ_AND_WRITE",
     );
     await runProjectMigrations(projectDb);
+
+    // One-off migration from Feb 2025: populates metrics table from module
+    // definitions, links presentation_objects via metric_id. Delete this call
+    // (and migrateToMetricsTables function below) once all instances have updated.
     await migrateToMetricsTables(projectDb);
 
     // Data transforms — each in its own transaction
     await runDataTransforms(project.id, projectDb);
   }
-
-  // Opt-in Zod sweep over every stored schema-backed row. Gated behind
-  // VALIDATE_ON_STARTUP=true so local-dev boot isn't slowed. See
-  // server/db_startup_validation.ts for details.
-  await validateStoredDataOnStartup(sqlMain);
 }
 
 // =============================================================================

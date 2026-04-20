@@ -152,15 +152,16 @@ function buildHalo(dl: DataLabelStyle): MapLabelPrimitive["halo"] {
   const fillColor = dl.backgroundColor !== "none"
     ? getColor(dl.backgroundColor)
     : undefined;
-  const border = dl.border !== "none" && dl.border.width > 0
-    ? { color: getColor(dl.border.color), width: dl.border.width }
+  const borderColor = dl.borderWidth > 0 && dl.borderColor !== undefined
+    ? getColor(dl.borderColor)
     : undefined;
-  if (!fillColor && !border) return undefined;
+  const borderWidth = borderColor !== undefined ? dl.borderWidth : undefined;
+  if (!fillColor && !borderColor) return undefined;
   return {
     fillColor,
-    borderColor: border?.color,
-    borderWidth: border?.width,
-    width: dl.padding.pt(),
+    borderColor,
+    borderWidth,
+    padding: dl.padding,
     rectRadius: dl.rectRadius,
   };
 }

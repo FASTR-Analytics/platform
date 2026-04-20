@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { cfStorageSchema } from "./conditional_formatting.ts";
-import {
-  adaptLegacyConfigD,
-  adaptLegacyConfigS,
-  configDStrict,
-} from "./_metric_installed.ts";
+import { configDStrict } from "./_metric_installed.ts";
 
 // ============================================================================
 // PresentationObjectConfig — stored shape of a visualization config.
@@ -56,8 +52,6 @@ const presentationObjectConfigSStrict = z
     showDataLabels: z.boolean(),
     showDataLabelsLineCharts: z.boolean(),
     barsStacked: z.boolean(),
-    diffAreas: z.boolean(),
-    diffAreasOrder: z.enum(["actual-expected", "expected-actual"]),
     diffInverted: z.boolean(),
     specialBarChart: z.boolean(),
     specialBarChartInverted: z.boolean(),
@@ -92,40 +86,13 @@ const presentationObjectConfigTStrict = z.object({
   footnoteRelFontSize: z.number(),
 });
 
-// ── Adapter (pure, typed, per-level) ─────────────────────────────────
+// ── Public schema ───────────────────────────────────────────────────
 
-export function adaptLegacyPresentationObjectConfig(
-  raw: Record<string, unknown>,
-): Record<string, unknown> {
-  const input = { ...raw };
-  const rawD =
-    input.d && typeof input.d === "object" && !Array.isArray(input.d)
-      ? (input.d as Record<string, unknown>)
-      : {};
-  const d = adaptLegacyConfigD(rawD);
-  const isMap = (d as Record<string, unknown>).type === "map";
-  const rawS =
-    input.s && typeof input.s === "object" && !Array.isArray(input.s)
-      ? (input.s as Record<string, unknown>)
-      : {};
-  const s = adaptLegacyConfigS(rawS, isMap);
-  return { ...input, d, s };
-}
-
-// ── Strict + preprocessed public schemas ────────────────────────────
-
-export const presentationObjectConfigStrictSchema = z.object({
+export const presentationObjectConfigSchema = z.object({
   d: configDStrict,
   s: presentationObjectConfigSStrict,
   t: presentationObjectConfigTStrict,
 });
-
-export const presentationObjectConfigSchema = z.preprocess((raw) => {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  return adaptLegacyPresentationObjectConfig(
-    raw as Record<string, unknown>,
-  );
-}, presentationObjectConfigStrictSchema);
 
 export type PresentationObjectConfig = z.infer<
   typeof presentationObjectConfigSchema

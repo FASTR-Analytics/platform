@@ -182,8 +182,6 @@ const configSGithubStrict = z
     showDataLabels: z.boolean(),
     showDataLabelsLineCharts: z.boolean(),
     barsStacked: z.boolean(),
-    diffAreas: z.boolean(),
-    diffAreasOrder: z.enum(["actual-expected", "expected-actual"]),
     diffInverted: z.boolean(),
     specialBarChart: z.boolean(),
     specialBarChartInverted: z.boolean(),

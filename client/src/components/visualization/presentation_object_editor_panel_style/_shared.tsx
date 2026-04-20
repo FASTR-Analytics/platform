@@ -103,7 +103,6 @@ export function SharedControlsBottom(p: SharedBottomProps) {
           !p.tempConfig.s.specialCoverageChart &&
           !p.tempConfig.s.specialBarChart &&
           !p.tempConfig.s.specialDisruptionsChart &&
-          !(p.tempConfig.s.content === "areas" && p.tempConfig.s.diffAreas) && // Legacy adapter — remove once all configs migrated
           (p.tempConfig.d.type !== "table" ||
             selectCf(p.tempConfig.s).type !== "none")
         }

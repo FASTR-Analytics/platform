@@ -57,33 +57,6 @@ export const configRequirements = z.object({
 });
 
 // ============================================================================
-// Adapter
-// ============================================================================
-
-export function adaptLegacyModuleDefinition(
-  raw: Record<string, unknown>,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...raw };
-  if (!("prerequisites" in out)) out.prerequisites = [];
-  if (!("lastScriptUpdate" in out)) out.lastScriptUpdate = "";
-  if (!("dataSources" in out)) out.dataSources = [];
-  if (!("scriptGenerationType" in out)) out.scriptGenerationType = "template";
-  if (!("configRequirements" in out)) {
-    out.configRequirements = { parameters: [] };
-  } else if (out.configRequirements && typeof out.configRequirements === "object") {
-    const cr = out.configRequirements as Record<string, unknown>;
-    if (!("parameters" in cr)) cr.parameters = [];
-  }
-  if (!("script" in out)) out.script = "";
-  if (!("assetsToImport" in out)) out.assetsToImport = [];
-  if (!("resultsObjects" in out)) out.resultsObjects = [];
-  if (!("defaultPresentationObjects" in out)) out.defaultPresentationObjects = [];
-  // Delete metrics from blob — they're stored in the metrics table
-  delete out.metrics;
-  return out;
-}
-
-// ============================================================================
 // Component schemas
 // ============================================================================
 
@@ -122,10 +95,7 @@ export const moduleDefinitionInstalledStrict = z.object({
   defaultPresentationObjects: z.array(defaultPresentationObjectInstalledStrict),
 });
 
-export const moduleDefinitionInstalledSchema = z.preprocess((raw) => {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  return adaptLegacyModuleDefinition(raw as Record<string, unknown>);
-}, moduleDefinitionInstalledStrict);
+export const moduleDefinitionInstalledSchema = moduleDefinitionInstalledStrict;
 
 // ============================================================================
 // Types (z.infer)

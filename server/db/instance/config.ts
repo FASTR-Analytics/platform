@@ -58,10 +58,11 @@ export async function updateMaxAdminArea(
     const configValue: InstanceConfigMaxAdminArea = {
       maxAdminArea: newMaxAdminArea,
     };
+    const validated = instanceConfigMaxAdminAreaSchema.parse(configValue);
 
     await mainDb`
-      UPDATE instance_config 
-      SET config_json_value = ${JSON.stringify(configValue)}
+      UPDATE instance_config
+      SET config_json_value = ${JSON.stringify(validated)}
       WHERE config_key = 'max_admin_area'
     `;
 
@@ -151,11 +152,12 @@ export async function updateFacilityColumnsConfig(
   config: InstanceConfigFacilityColumns
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    const validated = instanceConfigFacilityColumnsSchema.parse(config);
     await mainDb`
       INSERT INTO instance_config (config_key, config_json_value)
-      VALUES ('facility_columns', ${JSON.stringify(config)})
+      VALUES ('facility_columns', ${JSON.stringify(validated)})
       ON CONFLICT (config_key)
-      DO UPDATE SET config_json_value = ${JSON.stringify(config)}
+      DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
     `;
 
     return { success: true };
@@ -196,12 +198,13 @@ export async function updateCountryIso3Config(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const configValue: InstanceConfigCountryIso3 = { countryIso3 };
+    const validated = instanceConfigCountryIso3Schema.parse(configValue);
 
     await mainDb`
       INSERT INTO instance_config (config_key, config_json_value)
-      VALUES ('country_iso3', ${JSON.stringify(configValue)})
+      VALUES ('country_iso3', ${JSON.stringify(validated)})
       ON CONFLICT (config_key)
-      DO UPDATE SET config_json_value = ${JSON.stringify(configValue)}
+      DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
     `;
 
     return { success: true };
@@ -235,11 +238,12 @@ export async function updateAdminAreaLabelsConfig(
   config: InstanceConfigAdminAreaLabels
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    const validated = instanceConfigAdminAreaLabelsSchema.parse(config);
     await mainDb`
       INSERT INTO instance_config (config_key, config_json_value)
-      VALUES ('admin_area_labels', ${JSON.stringify(config)})
+      VALUES ('admin_area_labels', ${JSON.stringify(validated)})
       ON CONFLICT (config_key)
-      DO UPDATE SET config_json_value = ${JSON.stringify(config)}
+      DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
     `;
 
     return { success: true };

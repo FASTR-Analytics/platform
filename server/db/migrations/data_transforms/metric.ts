@@ -164,11 +164,11 @@ function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {
     if (!(key in s)) s[key] = value;
   }
 
-  if (s.diffAreas === true) {
-    s.specialDisruptionsChart = true;
+  if (!("specialDisruptionsChart" in s)) {
+    s.specialDisruptionsChart = s.diffAreas === true;
   }
-  s.diffAreas = false;
-  s.diffAreasOrder = "actual-expected";
+  delete s.diffAreas;
+  delete s.diffAreasOrder;
 }
 
 function transformVizPresetTextConfig(t: Record<string, unknown>): void {

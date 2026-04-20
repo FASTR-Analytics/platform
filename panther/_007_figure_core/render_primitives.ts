@@ -84,15 +84,11 @@ function renderDataLabel(rc: RenderContext, dl: DataLabel): void {
       h: bgH,
     });
 
-    if (dl.style.backgroundColor || dl.style.border) {
+    if (dl.style.backgroundColor || dl.style.borderWidth) {
       rc.rRect(bgRcd, {
         fillColor: dl.style.backgroundColor ?? "transparent",
-        ...(dl.style.border
-          ? {
-            strokeColor: dl.style.border.color,
-            strokeWidth: dl.style.border.width,
-          }
-          : {}),
+        strokeColor: dl.style.borderColor,
+        strokeWidth: dl.style.borderWidth,
         rectRadius: dl.style.rectRadius,
       });
     }
@@ -773,7 +769,7 @@ function renderMapLabelPrimitive(
     const hasBorder = halo.borderColor !== undefined &&
       halo.borderWidth !== undefined && halo.borderWidth > 0;
     if (hasFill || hasBorder) {
-      const haloW = halo.width;
+      const pad = halo.padding;
       const textW = primitive.mText.dims.w();
       const textH = primitive.mText.dims.h();
       const pos = primitive.position;
@@ -787,10 +783,10 @@ function renderMapLabelPrimitive(
 
       rc.rRect(
         new RectCoordsDims({
-          x: x - haloW,
-          y: y - haloW,
-          w: textW + haloW * 2,
-          h: textH + haloW * 2,
+          x: x - pad.pl(),
+          y: y - pad.pt(),
+          w: textW + pad.pl() + pad.pr(),
+          h: textH + pad.pt() + pad.pb(),
         }),
         {
           fillColor: halo.fillColor ?? "transparent",

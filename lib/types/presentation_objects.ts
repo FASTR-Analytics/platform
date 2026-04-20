@@ -165,7 +165,6 @@ export const VIZ_TYPE_CONFIG: Record<
       specialBarChart: false,
       specialCoverageChart: false,
       specialDisruptionsChart: false,
-      diffAreas: false,
       sortIndicatorValues: "none",
       verticalTickLabels: false,
     },
@@ -187,7 +186,6 @@ export const VIZ_TYPE_CONFIG: Record<
       specialCoverageChart: false,
       specialDisruptionsChart: false,
       specialBarChart: false,
-      diffAreas: false,
     },
   },
   map: {
@@ -212,7 +210,6 @@ export const VIZ_TYPE_CONFIG: Record<
       specialCoverageChart: false,
       specialDisruptionsChart: false,
       specialBarChartInverted: false,
-      diffAreas: false,
       barsStacked: false,
       verticalTickLabels: false,
       sortIndicatorValues: "none",

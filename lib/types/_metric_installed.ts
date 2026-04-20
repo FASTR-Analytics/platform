@@ -15,17 +15,7 @@
 // ============================================================================
 
 import { z } from "zod";
-import {
-  cfStorageSchema,
-  flattenCf,
-  CF_STORAGE_DEFAULTS,
-  type ConditionalFormatting,
-  type ConditionalFormattingScale,
-} from "./conditional_formatting.ts";
-import {
-  LEGACY_CF_PRESETS,
-  type LegacyCfPresetId,
-} from "../legacy_cf_presets.ts";
+import { cfStorageSchema } from "./conditional_formatting.ts";
 import { ALL_DISAGGREGATION_OPTIONS } from "./disaggregation_options.ts";
 
 // ============================================================================
@@ -39,238 +29,6 @@ export const translatableString = z.object({
 
 export const periodOption = z.enum(["period_id", "quarter_id", "year"]);
 export const disaggregationOption = z.enum(ALL_DISAGGREGATION_OPTIONS);
-
-// ============================================================================
-// Adapters — pure, typed, per-level.
-// ============================================================================
-
-const RELATIVE_FILTER_TYPES = new Set([
-  "last_n_months",
-  "last_calendar_year",
-  "last_calendar_quarter",
-  "last_n_calendar_years",
-  "last_n_calendar_quarters",
-]);
-
-export function adaptLegacyPeriodFilter(
-  raw: Record<string, unknown>,
-): Record<string, unknown> {
-  const pf = { ...raw };
-  if (pf.filterType === "last_12_months") {
-    pf.filterType = "last_n_months";
-    pf.nMonths = 12;
-    delete pf.periodOption;
-    delete pf.min;
-    delete pf.max;
-    return pf;
-  }
-  if (pf.filterType === undefined) {
-    pf.filterType = "custom";
-  }
-  if (
-    typeof pf.filterType === "string" &&
-    RELATIVE_FILTER_TYPES.has(pf.filterType)
-  ) {
-    delete pf.periodOption;
-    delete pf.min;
-    delete pf.max;
-  }
-  return pf;
-}
-
-export function adaptLegacyConfigD(
-  raw: Record<string, unknown>,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...raw };
-  if ("periodOpt" in out) {
-    if (!("timeseriesGrouping" in out)) {
-      out.timeseriesGrouping = out.periodOpt;
-    }
-    delete out.periodOpt;
-  }
-  if (out.periodFilter && typeof out.periodFilter === "object" && !Array.isArray(out.periodFilter)) {
-    out.periodFilter = adaptLegacyPeriodFilter(
-      out.periodFilter as Record<string, unknown>,
-    );
-  }
-  return out;
-}
-
-const MAP_COLOR_PRESET_STOPS: Record<string, [string, string]> = {
-  "red-green": ["#de2d26", "#31a354"],
-  red: ["#fee0d2", "#de2d26"],
-  blue: ["#deebf7", "#3182bd"],
-  green: ["#e5f5e0", "#31a354"],
-};
-
-const MAP_NO_DATA_COLOR = "#f0f0f0";
-
-function buildCfFromLegacyMapFields(
-  s: Record<string, unknown>,
-): ConditionalFormattingScale | undefined {
-  const preset = (s.mapColorPreset as string | undefined) ?? "red-green";
-  const reverse = Boolean(s.mapColorReverse);
-  const [rawFrom, rawTo] =
-    preset === "custom"
-      ? [
-          (s.mapColorFrom as string | undefined) ?? "#fee0d2",
-          (s.mapColorTo as string | undefined) ?? "#de2d26",
-        ]
-      : MAP_COLOR_PRESET_STOPS[preset] ?? MAP_COLOR_PRESET_STOPS["red-green"];
-  const [from, to] = reverse ? [rawTo, rawFrom] : [rawFrom, rawTo];
-
-  const scaleType = (s.mapScaleType as string | undefined) ?? "continuous";
-  const steps =
-    scaleType === "discrete"
-      ? (s.mapDiscreteSteps as number | undefined) ?? 5
-      : undefined;
-
-  const domainType = (s.mapDomainType as string | undefined) ?? "auto";
-  const domain: ConditionalFormattingScale["domain"] =
-    domainType === "fixed"
-      ? {
-          kind: "fixed",
-          min: (s.mapDomainMin as number | undefined) ?? 0,
-          max: (s.mapDomainMax as number | undefined) ?? 1,
-        }
-      : { kind: "auto" };
-
-  return {
-    type: "scale",
-    scale: { min: from, max: to },
-    steps,
-    domain,
-    noDataColor: MAP_NO_DATA_COLOR,
-  };
-}
-
-function isLegacyCfPresetId(v: unknown): v is LegacyCfPresetId {
-  return typeof v === "string" && v in LEGACY_CF_PRESETS;
-}
-
-export function adaptLegacyConfigS(
-  raw: Record<string, unknown>,
-  isMap: boolean,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...raw };
-
-  let legacyCf: ConditionalFormatting | undefined;
-
-  if ("conditionalFormatting" in out) {
-    const cfRaw = out.conditionalFormatting;
-    if (isLegacyCfPresetId(cfRaw)) {
-      legacyCf = LEGACY_CF_PRESETS[cfRaw].value;
-    }
-    delete out.conditionalFormatting;
-  }
-
-  if (
-    isMap &&
-    (!legacyCf || legacyCf.type === "none") &&
-    ("mapColorPreset" in out ||
-      "mapColorFrom" in out ||
-      "mapColorTo" in out ||
-      "mapColorReverse" in out ||
-      "mapScaleType" in out ||
-      "mapDiscreteSteps" in out ||
-      "mapDomainType" in out ||
-      "mapDomainMin" in out ||
-      "mapDomainMax" in out)
-  ) {
-    const scaleCf = buildCfFromLegacyMapFields(out);
-    if (scaleCf) legacyCf = scaleCf;
-  }
-
-  delete out.mapColorPreset;
-  delete out.mapColorFrom;
-  delete out.mapColorTo;
-  delete out.mapColorReverse;
-  delete out.mapScaleType;
-  delete out.mapDiscreteSteps;
-  delete out.mapDomainType;
-  delete out.mapDomainMin;
-  delete out.mapDomainMax;
-
-  const flatSource = legacyCf ? flattenCf(legacyCf) : CF_STORAGE_DEFAULTS;
-  for (const [key, value] of Object.entries(flatSource)) {
-    if (!(key in out)) out[key] = value;
-  }
-
-  if (!("specialDisruptionsChart" in out)) {
-    out.specialDisruptionsChart = out.diffAreas === true;
-  }
-
-  return out;
-}
-
-export function adaptLegacyVizPresetTextConfig(
-  raw: Record<string, unknown>,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...raw };
-  if (!("caption" in out)) out.caption = null;
-  if (!("captionRelFontSize" in out)) out.captionRelFontSize = null;
-  if (!("subCaption" in out)) out.subCaption = null;
-  if (!("subCaptionRelFontSize" in out)) out.subCaptionRelFontSize = null;
-  if (!("footnote" in out)) out.footnote = null;
-  if (!("footnoteRelFontSize" in out)) out.footnoteRelFontSize = null;
-  return out;
-}
-
-export function adaptLegacyMetricAIDescription(
-  raw: Record<string, unknown>,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...raw };
-  if (!("caveats" in out)) out.caveats = null;
-  if (!("importantNotes" in out)) out.importantNotes = null;
-  if (!("relatedMetrics" in out)) out.relatedMetrics = [];
-  return out;
-}
-
-export function adaptLegacyVizPreset(
-  raw: Record<string, unknown>,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...raw };
-
-  delete out.defaultPeriodFilterForDefaultVisualizations;
-
-  if (!("importantNotes" in out)) out.importantNotes = null;
-  if (!("createDefaultVisualizationOnInstall" in out)) {
-    out.createDefaultVisualizationOnInstall = null;
-  }
-  if (!("needsReplicant" in out)) out.needsReplicant = false;
-  if (!("allowedFilters" in out)) out.allowedFilters = [];
-
-  if (out.config && typeof out.config === "object" && !Array.isArray(out.config)) {
-    const cfg = { ...(out.config as Record<string, unknown>) };
-    let isMap = false;
-    if (cfg.d && typeof cfg.d === "object" && !Array.isArray(cfg.d)) {
-      const d = adaptLegacyConfigD(cfg.d as Record<string, unknown>);
-      isMap = (d as Record<string, unknown>).type === "map";
-      cfg.d = d;
-    } else {
-      cfg.d = {};
-    }
-    if (cfg.s && typeof cfg.s === "object" && !Array.isArray(cfg.s)) {
-      cfg.s = adaptLegacyConfigS(cfg.s as Record<string, unknown>, isMap);
-    } else {
-      cfg.s = {};
-    }
-    if (cfg.t && typeof cfg.t === "object" && !Array.isArray(cfg.t)) {
-      cfg.t = adaptLegacyVizPresetTextConfig(cfg.t as Record<string, unknown>);
-    } else {
-      cfg.t = adaptLegacyVizPresetTextConfig({});
-    }
-    out.config = cfg;
-  } else {
-    out.config = {
-      d: {},
-      s: {},
-      t: adaptLegacyVizPresetTextConfig({}),
-    };
-  }
-
-  return out;
-}
 
 // ============================================================================
 // ConfigD Schema (visualization data config)
@@ -369,8 +127,6 @@ export const configSStrict = z
     showDataLabels: z.boolean(),
     showDataLabelsLineCharts: z.boolean(),
     barsStacked: z.boolean(),
-    diffAreas: z.boolean(),
-    diffAreasOrder: z.enum(["actual-expected", "expected-actual"]),
     diffInverted: z.boolean(),
     specialBarChart: z.boolean(),
     specialBarChartInverted: z.boolean(),
@@ -434,10 +190,7 @@ export const metricAIDescriptionInstalledStrict = z.object({
   importantNotes: translatableString.nullable(),
 });
 
-export const metricAIDescriptionInstalled = z.preprocess((raw) => {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  return adaptLegacyMetricAIDescription(raw as Record<string, unknown>);
-}, metricAIDescriptionInstalledStrict);
+export const metricAIDescriptionInstalled = metricAIDescriptionInstalledStrict;
 
 // ============================================================================
 // Viz Preset Schema (metrics.viz_presets column)
@@ -458,10 +211,7 @@ export const vizPresetInstalledStrict = z.object({
   }),
 });
 
-export const vizPresetInstalled = z.preprocess((raw) => {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  return adaptLegacyVizPreset(raw as Record<string, unknown>);
-}, vizPresetInstalledStrict);
+export const vizPresetInstalled = vizPresetInstalledStrict;
 
 // ============================================================================
 // Full Metric Schema (metrics table row)

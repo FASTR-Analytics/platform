@@ -39,7 +39,8 @@ export type GenericDataLabelStyle = {
   offset: number;
   backgroundColor: ColorKeyOrString | "none";
   padding: PaddingOptions;
-  border: { color: ColorKeyOrString; width: number } | "none";
+  borderColor?: ColorKeyOrString;
+  borderWidth: number;
   rectRadius: number;
 };
 
@@ -53,7 +54,8 @@ export type DataLabelStyle = {
   offset: number;
   backgroundColor: ColorKeyOrString | "none";
   padding: Padding;
-  border: { color: ColorKeyOrString; width: number } | "none";
+  borderColor?: ColorKeyOrString;
+  borderWidth: number;
   rectRadius: number;
 };
 
@@ -95,11 +97,17 @@ function resolveDataLabelDefaults(
       d.padding,
       dc.padding,
     ),
-    border: resolveBorderMerge(
+    borderColor: c?.borderColor ??
+      cc?.borderColor ??
+      g?.borderColor ??
+      gc?.borderColor ??
+      d.borderColor ??
+      dc.borderColor,
+    borderWidth: ms(
       sf,
-      c?.border ?? cc?.border ?? g?.border ?? gc?.border,
-      d.border,
-      dc.border,
+      c?.borderWidth ?? cc?.borderWidth ?? g?.borderWidth ?? gc?.borderWidth,
+      d.borderWidth,
+      dc.borderWidth,
     ),
     rectRadius: (c?.rectRadius ??
       cc?.rectRadius ??
@@ -126,29 +134,13 @@ function applyDataLabelOverrides(
     padding: o.padding !== undefined
       ? msPadding(sf, o.padding, undefined, 0)
       : defaults.padding,
-    border: o.border !== undefined
-      ? resolveBorderMerge(sf, o.border, undefined, "none")
-      : defaults.border,
+    borderColor: o.borderColor ?? defaults.borderColor,
+    borderWidth: o.borderWidth !== undefined
+      ? o.borderWidth * sf
+      : defaults.borderWidth,
     rectRadius: o.rectRadius !== undefined
       ? o.rectRadius * sf
       : defaults.rectRadius,
-  };
-}
-
-function resolveBorderMerge(
-  sf: number,
-  c: { color?: ColorKeyOrString; width?: number } | "none" | undefined,
-  g: { color?: ColorKeyOrString; width?: number } | "none" | undefined,
-  d: { color: ColorKeyOrString; width: number } | "none",
-): { color: ColorKeyOrString; width: number } | "none" {
-  const v = c ?? g ?? d;
-  if (v === "none") return "none";
-  const base = d === "none"
-    ? { color: { key: "baseContent" } as ColorKeyOrString, width: 1 }
-    : d;
-  return {
-    color: v.color ?? base.color,
-    width: v.width !== undefined ? v.width * sf : base.width * sf,
   };
 }
 

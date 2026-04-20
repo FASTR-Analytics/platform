@@ -1,6 +1,11 @@
-# Legacy & Migration Handling
+# Migrations & Validation
 
-Single source of truth for **how schema changes are handled and how data integrity is enforced.**
+How database and data changes are handled and how data integrity is enforced.
+
+Two types of migrations:
+
+- **SQL migrations** — table/column structure changes
+- **JSON data transforms** — transforming JSON data stored in columns
 
 ---
 
@@ -31,10 +36,10 @@ No runtime adapters. No z.preprocess. No dual-checks scattered across read sites
 [Deploy]
     │
     ▼
-SQL migrations run (schema changes)
+SQL migrations run (table/column changes)
     │
     ▼
-Data migrations run (per-type, per-row validation + transform)
+JSON data transforms run (per-type, per-row validation + transform)
     │
     ▼
 Boot completes (or fails if any validation fails)
@@ -49,18 +54,18 @@ Boot completes (or fails if any validation fails)
 
 ---
 
-## Migration System
+## JSON Data Transforms
 
 ### Directory Structure
 
-```
+```text
 server/db/migrations/
-├── instance/              # SQL - main DB schema
-├── project/               # SQL - project DB schema  
-└── data_transforms/       # JS - one file per data type
+├── instance/              # SQL migrations - main DB
+├── project/               # SQL migrations - project DBs
+└── data_transforms/       # JSON data transforms - one file per type
     ├── po_config.ts
     ├── module_definition.ts
-    ├── metrics_columns.ts
+    ├── metric.ts
     ├── slide_deck_config.ts
     └── slide_config.ts
 ```
@@ -80,59 +85,22 @@ No `schema_migrations` tracking needed — the validation check itself determine
 
 ### Writing a Migration Function
 
-```ts
-// server/db/migrations/data_transforms/po_config.ts
-import { presentationObjectConfigSchema } from "lib";
-import type { Sql } from "postgres";
+See `server/db/migrations/data_transforms/po_config.ts` for a complete example.
 
-export async function migratePOConfigs(tx: Sql): Promise<void> {
-  const rows = await tx`SELECT id, config FROM presentation_objects`;
-  const now = new Date().toISOString();
-  
-  for (const row of rows) {
-    const config = JSON.parse(row.config);
-    
-    // Already valid? Skip.
-    if (presentationObjectConfigSchema.safeParse(config).success) {
-      continue;
-    }
-    
-    // Transform (idempotent blocks)
-    let transformed = { ...config };
-    
-    // Block 1: periodOpt → timeseriesGrouping
-    if (transformed.d?.periodOpt !== undefined) {
-      transformed.d.timeseriesGrouping = transformed.d.periodOpt;
-      delete transformed.d.periodOpt;
-    }
-    
-    // Block 2: diffAreas → specialDisruptionsChart
-    if (transformed.s?.diffAreas !== undefined) {
-      transformed.s.specialDisruptionsChart = transformed.s.diffAreas === true;
-      delete transformed.s.diffAreas;
-    }
-    
-    // Future blocks go here...
-    
-    // Validate — throws if invalid, rolls back transaction
-    const validated = presentationObjectConfigSchema.parse(transformed);
-    
-    // Write + update last_updated (invalidates cache)
-    await tx`
-      UPDATE presentation_objects 
-      SET config = ${JSON.stringify(validated)}, last_updated = ${now}
-      WHERE id = ${row.id}
-    `;
-  }
-}
-```
+The pattern:
+
+1. Read all rows
+2. For each row: validate against current strict schema
+3. If valid: skip (already current-shape)
+4. If invalid: apply transforms to bring data up to current shape, validate, write
+
+Transform blocks are historical — they handle old data shapes from before a schema change. Once all data is migrated, they become no-ops (the "if valid: skip" branch is always taken).
 
 **Rules:**
 
 - One function per data type
-- Transform blocks are idempotent — safe to re-run on already-transformed data
-- Always validates against **current** schema — no schema versioning problem
-- When schema evolves, add new blocks; old blocks remain as no-ops
+- Transform blocks are idempotent — safe to re-run
+- Always validates against **current** strict schema
 - **Update `last_updated`** — invalidates Valkey cache entries automatically
 
 ### Cache Invalidation
@@ -170,59 +138,68 @@ This catches:
 
 ### Write-Time Validation
 
-Before INSERT/UPDATE, validate against Zod schema:
+Before INSERT/UPDATE, validate against Zod schema. Invalid data cannot enter the database.
 
-```ts
-await projectDb`
-  INSERT INTO presentation_objects (id, config, ...)
-  VALUES (${id}, ${JSON.stringify(presentationObjectConfigSchema.parse(config))}, ...)
-`;
-```
+**Catalog of write paths:**
 
-Invalid data cannot enter the database through the application.
+| Table.Column | File | Functions | Schema |
+|--------------|------|-----------|--------|
+| `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `addPresentationObject`, `updatePresentationObjectConfig`, `batchUpdatePresentationObjectsPeriodFilter` | `presentationObjectConfigSchema` |
+| `modules.module_definition` | `server/db/project/modules.ts` | `installModule`, `updateModuleDefinition` | `moduleDefinitionInstalledSchema` |
+| `metrics.*` | `server/db/project/modules.ts` | `installModule`, `updateModuleDefinition` | `metricStrict` |
+| `slide_decks.config` | `server/db/project/slide_decks.ts` | `createSlideDeck`, `duplicateSlideDeck`, `updateSlideDeckConfig` | `slideDeckConfigSchema` |
+| `slides.config` | `server/db/project/slides.ts` | `createSlide`, `updateSlide` | `slideConfigSchema` |
+| `instance_config.*` | `server/db/instance/config.ts` | `updateMaxAdminArea`, `updateFacilityColumnsConfig`, `updateCountryIso3Config`, `updateAdminAreaLabelsConfig` | Type-specific schemas |
+
+**Note:** `slideDeckConfigSchema` and `slideConfigSchema` are currently `z.unknown()` stubs. Validation is wired up but accepts anything until real schemas are defined.
 
 ### Read-Time
 
-No validation. Trust the database.
+Trust the database. Parse helpers can optionally validate as defense-in-depth, but do not transform:
 
 ```ts
 export function parsePresentationObjectConfig(raw: string): PresentationObjectConfig {
-  return JSON.parse(raw) as PresentationObjectConfig;
+  return presentationObjectConfigSchema.parse(JSON.parse(raw));
 }
 ```
 
-The startup sweep already validated this data. Write-time validation ensures only valid data enters.
+The startup sweep already validated this data. Write-time validation ensures only valid data enters. Read-time validation is optional extra safety — it catches edge cases but should never trigger in practice.
 
 ### External Boundaries
 
-Always validate input from outside the system:
+External input is validated at the point it enters the system:
 
-| Source | Validation |
-|--------|------------|
-| User form input | Zod schema before processing |
-| AI-generated content | Zod schema before storage |
-| DHIS2 imports | Zod schema before storage |
-| CSV uploads | Validation during staging |
-| API request bodies | Zod schema in route handler |
+| Boundary | Location | Schema | Notes |
+|----------|----------|--------|-------|
+| GitHub module definitions | `server/module_loader/load_module.ts` | `moduleDefinitionGithubSchema` | Validated at fetch time, throws on invalid |
+| User form input (PO config) | Routes → DB functions | `presentationObjectConfigSchema` | DB functions validate before write |
+| API request bodies | Routes → DB functions | Various | All stored schema writes validate in DB layer |
+| DHIS2 imports | `server/dhis2/` | N/A | Imports structure/analytics data, not stored JSON schemas |
+| CSV uploads | `server/worker_routines/stage_*` | Row validation | Stages raw data, not stored JSON schemas |
+
+**Note:** Routes don't need separate validation because all writes to stored schemas go through DB functions that validate before INSERT/UPDATE.
+
+**See also:** [DOC_AI_TOOL_VALIDATION.md](DOC_AI_TOOL_VALIDATION.md) for how AI tool inputs are validated before handlers run.
 
 ---
 
 ## SQL Migrations
 
-For column/table schema changes. Existing system, unchanged.
+For table/column structure changes.
 
 Location: `server/db/migrations/instance/` and `server/db/migrations/project/`
 
 Naming: `NNN_description.sql`
 
 **Rules:**
+
 - Idempotent: `IF NOT EXISTS`, `IF EXISTS`, `ON CONFLICT DO NOTHING`
 - Update live schema files too (`_main_database.sql`, `_project_database.sql`)
 - Don't rewrite old migrations — fix forward
 
 **Use SQL migrations for:** Adding columns, creating tables, adding indexes, constraints.
 
-**Use JS migrations for:** Transforming data in JSON columns.
+**Use JSON data transforms for:** Transforming data in JSON columns.
 
 ---
 
@@ -234,7 +211,7 @@ Naming: `NNN_description.sql`
 
 - Defines one primary Zod schema (the source of truth)
 - Exports runtime types via `z.infer<>`
-- May include a parse helper and legacy adapter (until Phase 5 removes adapters)
+- May include a parse helper for convenience
 
 Non-prefixed type files contain plain TypeScript types that are not stored/validated schemas.
 
@@ -284,6 +261,52 @@ When changing a stored schema:
 - [ ] Test migration against real data shapes
 - [ ] Deploy — migration runs at startup, validates
 - [ ] After all deployments migrated: optionally remove old field from schema
+
+---
+
+## What to Do If You Want to Change a Schema-Validated Type
+
+1. **Find the Zod schema** — underscore-prefixed files in `lib/types/` (e.g., `_presentation_object_config.ts`)
+2. **Update the schema** to the new shape
+3. **Find the data transform** — matching file in `server/db/migrations/data_transforms/`
+4. **Add a transform block** that converts old shape → new shape
+5. **Deploy** — transform runs on existing data, schema validates new writes
+
+Example: adding a required field `sortOrder` to presentation objects:
+
+```ts
+// 1. Update lib/types/_presentation_object_config.ts
+sortOrder: z.number().int(),
+
+// 2. Add transform in server/db/migrations/data_transforms/po_config.ts
+if (config.sortOrder === undefined) {
+  config.sortOrder = 0; // default for existing rows
+}
+```
+
+**Tip:** The transform only needs to handle data shapes that exist in production. Check actual data before writing transforms.
+
+---
+
+## What to Do If Server Startup Fails Because of Validation
+
+This will happen when you deploy a schema change and existing data doesn't match the new shape.
+
+1. **Check the error log** — it shows which data transform failed and which row caused the issue
+2. **Identify the old data shape** — look at the failing row to understand what needs to transform
+3. **Add a transform block** to the relevant file in `server/db/migrations/data_transforms/`
+4. **Redeploy** — the transform runs, fixes the data, boot succeeds
+
+Example: if `po_config.ts` fails because old rows have `filterType: "all"` but new schema expects `filterType: "none"`:
+
+```ts
+// In server/db/migrations/data_transforms/po_config.ts
+if (config.d.periodFilter?.filterType === "all") {
+  config.d.periodFilter.filterType = "none";
+}
+```
+
+The transform only runs on rows that fail validation. Already-valid rows are skipped.
 
 ---
 
