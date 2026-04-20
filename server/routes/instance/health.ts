@@ -73,13 +73,13 @@ routesHealth.get("/health_check", async (c) => {
 
 routesHealth.get("/projects", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const projects = await mainDb<{ label: string }[]>`SELECT label FROM projects ORDER BY LOWER(label)`;
-  return c.json({ projects: projects.map((p) => p.label) });
+  const projects = await mainDb<{ id: string; label: string }[]>`SELECT id, label FROM projects ORDER BY LOWER(label)`;
+  return c.json({ projects });
 });
 
 routesHealth.get("/user_logs", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const logs = await mainDb<UserLog[]>`SELECT user_email, endpoint, timestamp FROM user_logs WHERE endpoint = 'getCurrentUser' ORDER BY timestamp DESC`;
+  const logs = await mainDb<UserLog[]>`SELECT user_email, endpoint, timestamp, project_id FROM user_logs WHERE endpoint = 'getCurrentUser' ORDER BY timestamp DESC`;
   return c.json({ logs });
 });
 
