@@ -83,6 +83,18 @@ routesHealth.get("/user_logs", async (c) => {
   return c.json({ logs });
 });
 
+routesHealth.get("/project_activity", async (c) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const rows = await mainDb<{ project_id: string; count: string }[]>`
+    SELECT project_id, COUNT(*)::text AS count
+    FROM user_logs
+    WHERE project_id IS NOT NULL AND timestamp >= ${sevenDaysAgo}
+    GROUP BY project_id
+  `;
+  return c.json({ projectActivity: rows });
+});
+
 routesHealth.get("/user_activity", async (c) => {
   const email = c.req.query("email");
   if (!email) {
