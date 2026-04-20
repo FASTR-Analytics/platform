@@ -144,6 +144,20 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
     this._unresolved.delete(optimisticUniquenessHash);
   }
 
+  async exists(uniquenessParams: UniquenessParams): Promise<boolean> {
+    const uniquenessHash =
+      this._hashFuncs.uniquenessHashFromParams(uniquenessParams);
+    if (this._unresolved.has(uniquenessHash)) return true;
+    const client = getValkeyClient();
+    if (!client) return false;
+    try {
+      const count = await client.exists(this._redisKey(uniquenessHash));
+      return count > 0;
+    } catch {
+      return false;
+    }
+  }
+
   clear(uniquenessParams: UniquenessParams) {
     const uniquenessHash =
       this._hashFuncs.uniquenessHashFromParams(uniquenessParams);

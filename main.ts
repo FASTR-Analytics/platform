@@ -43,6 +43,7 @@ import { routesAiTools } from "./server/routes/project/ai_tools.ts";
 import { routesVisualizationFolders } from "./server/routes/project/visualization_folders.ts";
 import { routesSlideDeckFolders } from "./server/routes/project/slide_deck_folders.ts";
 import { routesEmails } from "./server/routes/project/emails.ts";
+import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
 
 await dbStartUp();
 
@@ -95,6 +96,7 @@ app.route("/", routesPresentationObjects);
 app.route("/", routesVisualizationFolders);
 app.route("/", routesSlideDeckFolders);
 app.route("/", routesEmails);
+app.route("/", routesCacheStatus);
 app.route("/ai", routesAiProxy);
 app.route("/ai", routesAiFiles);
 app.route("/", routesAiTools);

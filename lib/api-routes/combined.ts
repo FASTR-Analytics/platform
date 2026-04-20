@@ -20,6 +20,7 @@ import { slideDeckFolderRouteRegistry } from "./project/slide-deck-folders.ts";
 import { slideRouteRegistry } from "./project/slides.ts";
 import { visualizationFolderRouteRegistry } from "./project/visualization-folders.ts";
 import { emailRouteRegistry } from "./project/emails.ts";
+import { cacheStatusRouteRegistry } from "./project/cache-status.ts";
 
 // Combined route registry
 export const routeRegistry = {
@@ -45,4 +46,5 @@ export const routeRegistry = {
   ...slideRouteRegistry,
   ...visualizationFolderRouteRegistry,
   ...emailRouteRegistry,
+  ...cacheStatusRouteRegistry,
 } as const;

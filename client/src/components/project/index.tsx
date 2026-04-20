@@ -24,6 +24,7 @@ import { ProjectModules } from "./project_modules";
 import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
+import { ProjectCache } from "./project_cache";
 import {
   projectTab,
   updateProjectView,
@@ -129,6 +130,9 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
           },
         ]
       : []),
+    ...(p.isGlobalAdmin
+      ? [{ value: "cache" as const, label: t3({ en: "Cache", fr: "Cache" }) }]
+      : []),
   ];
 
   return (
@@ -158,6 +162,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
               modules: "code" as const,
               data: "database" as const,
               settings: "settings" as const,
+              cache: "database" as const,
             };
 
             return (
@@ -314,6 +319,9 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                         isGlobalAdmin={p.isGlobalAdmin}
                         backToHome={() => navigate("/")}
                       />
+                    </Match>
+                    <Match when={projectTab() === "cache" && p.isGlobalAdmin}>
+                      <ProjectCache />
                     </Match>
                   </Switch>
                 </FrameLeft>
