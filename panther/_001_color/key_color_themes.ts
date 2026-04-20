@@ -12,6 +12,7 @@ import {
 import type { KeyColors } from "./types.ts";
 
 export type KeyColorThemeName =
+  | "panther-default"
   | "dark-blue"
   | "uwa"
   | "neutral-light"
@@ -39,6 +40,26 @@ type KeyColorTheme = {
 };
 
 export const KEY_COLOR_THEMES: Record<KeyColorThemeName, KeyColorTheme> = {
+  "panther-default": {
+    label: "Panther Default",
+    category: "light",
+    colors: {
+      base100: "#ffffff",
+      base200: "#f2f2f2",
+      base300: "#cacaca",
+      baseContent: "#2a2a2a",
+      primary: "#0e706c",
+      primaryContent: "#ffffff",
+      neutral: "#a1a1a1",
+      neutralContent: "#ffffff",
+      success: "#009f70",
+      successContent: "#ffffff",
+      warning: "#d97706",
+      warningContent: "#ffffff",
+      danger: "#f04d44",
+      dangerContent: "#ffffff",
+    },
+  },
   "dark-blue": {
     label: "Dark Blue",
     category: "light",
@@ -273,6 +294,11 @@ export const RECOMMENDED_PALETTES: Record<
   KeyColorThemeName,
   { qualitative: PaletteName; sequential: PaletteName; diverging: PaletteName }
 > = {
+  "panther-default": {
+    qualitative: "tableau10",
+    sequential: "bu-gn",
+    diverging: "rd-bu",
+  },
   "dark-blue": {
     qualitative: "tableau10",
     sequential: "blues",

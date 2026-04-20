@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  calculateYScaleLimits,
+  calculateChartScaleLimits,
   checkValuePropsAssignment,
   collectHeaders,
   createArray,
@@ -265,32 +265,47 @@ export function getChartOVDataJsonTransformed(
     lastDimCount: nIndicators,
   };
 
-  const paneLimits = calculateYScaleLimits(values, dimensions, stacked);
+  const scaleLimits = calculateChartScaleLimits(values, dimensions, stacked);
 
   if (bounds) {
-    const ubLimits = calculateYScaleLimits(bounds.ub, dimensions, false);
-    const lbLimits = calculateYScaleLimits(bounds.lb, dimensions, false);
+    const ubLimits = calculateChartScaleLimits(bounds.ub, dimensions, false);
+    const lbLimits = calculateChartScaleLimits(bounds.lb, dimensions, false);
+    const main = scaleLimits.paneLimits;
+    const ub = ubLimits.paneLimits;
+    const lb = lbLimits.paneLimits;
     for (let i = 0; i < nPanes; i++) {
-      paneLimits[i].valueMin = Math.min(
-        paneLimits[i].valueMin,
-        ubLimits[i].valueMin,
-        lbLimits[i].valueMin,
+      main[i].valueMin = Math.min(
+        main[i].valueMin,
+        ub[i].valueMin,
+        lb[i].valueMin,
       );
-      paneLimits[i].valueMax = Math.max(
-        paneLimits[i].valueMax,
-        ubLimits[i].valueMax,
-        lbLimits[i].valueMax,
+      main[i].valueMax = Math.max(
+        main[i].valueMax,
+        ub[i].valueMax,
+        lb[i].valueMax,
       );
       for (let j = 0; j < nTiers; j++) {
-        paneLimits[i].tierLimits[j].valueMin = Math.min(
-          paneLimits[i].tierLimits[j].valueMin,
-          ubLimits[i].tierLimits[j].valueMin,
-          lbLimits[i].tierLimits[j].valueMin,
+        main[i].tierLimits[j].valueMin = Math.min(
+          main[i].tierLimits[j].valueMin,
+          ub[i].tierLimits[j].valueMin,
+          lb[i].tierLimits[j].valueMin,
         );
-        paneLimits[i].tierLimits[j].valueMax = Math.max(
-          paneLimits[i].tierLimits[j].valueMax,
-          ubLimits[i].tierLimits[j].valueMax,
-          lbLimits[i].tierLimits[j].valueMax,
+        main[i].tierLimits[j].valueMax = Math.max(
+          main[i].tierLimits[j].valueMax,
+          ub[i].tierLimits[j].valueMax,
+          lb[i].tierLimits[j].valueMax,
+        );
+      }
+      for (let k = 0; k < nLanes; k++) {
+        main[i].laneLimits[k].valueMin = Math.min(
+          main[i].laneLimits[k].valueMin,
+          ub[i].laneLimits[k].valueMin,
+          lb[i].laneLimits[k].valueMin,
+        );
+        main[i].laneLimits[k].valueMax = Math.max(
+          main[i].laneLimits[k].valueMax,
+          ub[i].laneLimits[k].valueMax,
+          lb[i].laneLimits[k].valueMax,
         );
       }
     }
@@ -337,9 +352,7 @@ export function getChartOVDataJsonTransformed(
     paneHeaders: withAnyLabelReplacement(paneHeaders, combinedReplacements),
     values: finalValues,
     bounds: finalBounds,
-    yScaleAxisData: {
-      paneLimits,
-      yScaleAxisLabel: jsonDataConfig.yScaleAxisLabel?.trim(),
-    },
+    scaleAxisLimits: scaleLimits,
+    yScaleAxisLabel: jsonDataConfig.yScaleAxisLabel?.trim(),
   };
 }

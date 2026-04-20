@@ -45,6 +45,10 @@ type TextAreaProps = {
   fullHeight?: boolean;
   invalidMsg?: string;
   height?: string;
+  /** Visible line count. Sets the native textarea `rows` attribute and
+   * lets the browser size vertically. Ignored if `height` or
+   * `fullHeight` is set. */
+  rows?: number;
   placeholder?: string;
   onKeyDown?: (e: KeyboardEvent) => void;
   mono?: boolean;
@@ -73,6 +77,7 @@ export function TextArea(p: TextAreaProps) {
         onInput={(v) => p.onChange?.(v.currentTarget.value)}
         onKeyDown={p.onKeyDown}
         value={p.value}
+        rows={p.fullHeight || p.height ? undefined : p.rows}
         style={{
           height: p.fullHeight ? "100%" : p.height,
           resize: p.resizable ? "vertical" : undefined,

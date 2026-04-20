@@ -10,8 +10,8 @@ import type {
   RenderContext,
 } from "../../deps.ts";
 import type {
+  ChartScaleAxisLimits,
   YAxisWidthInfoBase,
-  YScaleAxisData,
   YScaleAxisWidthInfo,
 } from "../../types.ts";
 import { getGoodAxisTickValues_V2 } from "../get_good_axis_tick_values.ts";
@@ -32,7 +32,8 @@ export function estimateMinYAxisWidth(
 
 export function measureYScaleAxisWidthInfo(
   rc: RenderContext,
-  dy: YScaleAxisData,
+  dy: ChartScaleAxisLimits,
+  axisLabel: string | undefined,
   sy: MergedYScaleAxisStyle,
   sg: MergedGridStyle,
   contentRcd: RectCoordsDims,
@@ -41,9 +42,9 @@ export function measureYScaleAxisWidthInfo(
   tierCount: number,
 ): YScaleAxisWidthInfo {
   let axisLabelAndLabelGapWidth = 0;
-  if (dy.yScaleAxisLabel) {
+  if (axisLabel) {
     const mLabel = rc.mText(
-      dy.yScaleAxisLabel,
+      axisLabel,
       sy.text.yScaleAxisLabel,
       Number.POSITIVE_INFINITY,
       { rotation: "anticlockwise" },

@@ -18,7 +18,7 @@ import {
   trackCanvas,
   untrackCanvas,
 } from "../deps.ts";
-import type { FigureInputs, TextRenderingOptions } from "../deps.ts";
+import type { FigureInputs } from "../deps.ts";
 import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   CanvasRenderContext,
@@ -33,7 +33,6 @@ type Props = {
   height: "flex" | "ideal" | number;
   noRescaleWithWidthChange?: boolean;
   canvasElementId?: string;
-  textRenderingOptions?: TextRenderingOptions;
   scalePixelResolution?: number;
 };
 
@@ -67,7 +66,6 @@ export function ChartHolder(p: Props) {
       parentDomH,
       setErr,
       p.noRescaleWithWidthChange,
-      p.textRenderingOptions,
       animationFrameId,
       (id) => {
         animationFrameId = id;
@@ -97,13 +95,6 @@ export function ChartHolder(p: Props) {
       fonts.forEach((fontInfo: FontInfo) => {
         loadFont(fontInfo.fontFamily);
       });
-
-      // Also preload fonts from textRenderingOptions
-      if (p.textRenderingOptions?.fallbackFonts) {
-        p.textRenderingOptions.fallbackFonts.forEach((fontInfo) => {
-          loadFont(fontInfo.fontFamily);
-        });
-      }
     }
 
     const observer = new ResizeObserver((entries) => {
@@ -128,7 +119,6 @@ export function ChartHolder(p: Props) {
               parentDomH,
               setErr,
               p.noRescaleWithWidthChange,
-              p.textRenderingOptions,
               animationFrameId,
               (id) => {
                 animationFrameId = id;
@@ -221,7 +211,6 @@ function updateChart(
   parentDomH: number,
   setErr: Setter<string>,
   noRescaleWithWidthChange: boolean | undefined,
-  textRenderingOptions: TextRenderingOptions | undefined,
   currentFrameId?: number,
   setFrameId?: (id: number | undefined) => void,
   cachedContext?: CanvasRenderingContext2D,
@@ -275,7 +264,7 @@ function updateChart(
           }
         }
 
-        const rc = new CanvasRenderContext(ctx, textRenderingOptions);
+        const rc = new CanvasRenderContext(ctx);
         // Use unscaled dimensions since transform is applied
         const unscaledHeight = (unscaledW * domH) / parentDomW;
 
@@ -302,7 +291,7 @@ function updateChart(
           }
         }
 
-        const rc = new CanvasRenderContext(ctx, textRenderingOptions);
+        const rc = new CanvasRenderContext(ctx);
         const hFigure = FigureRenderer.getIdealHeight(
           rc,
           unscaledW,
@@ -366,7 +355,7 @@ function updateChart(
         }
       }
 
-      const rc = new CanvasRenderContext(ctx, textRenderingOptions);
+      const rc = new CanvasRenderContext(ctx);
       // Use unscaled dimensions since transform is applied
       const unscaledHeight = (unscaledW * domH) / parentDomW;
 

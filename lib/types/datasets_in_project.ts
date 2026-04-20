@@ -12,7 +12,7 @@ export type DatasetInProject =
     }
   | {
       datasetType: "hfa";
-      info: undefined;
+      info: DatasetHfaInfoInProject;
       dateExported: string;
     };
 
@@ -25,4 +25,16 @@ export type DatasetHmisInfoInProject = {
   indicatorMappingsVersion?: string;
   facilityColumnsConfig?: InstanceConfigFacilityColumns;
   maxAdminArea?: number;
+};
+
+export type DatasetHfaInfoInProject = {
+  // Set on rows that predate staleness tracking (info was '{}'). Migration
+  // 011 backfills this so the client has a single, explicit legacy branch.
+  _legacy?: true;
+  // All snapshot fields are optional to match reality — legacy rows lack them
+  // and the client compares missing-vs-present uniformly.
+  hfaCacheHash?: string;
+  hfaIndicatorsVersion?: string;
+  structureLastUpdated?: string;
+  facilityColumnsHash?: string;
 };

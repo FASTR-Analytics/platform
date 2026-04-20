@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { assert } from "./assert.ts";
-import { isFrench } from "../_000_translate/mod.ts";
+import { isFrench } from "./deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -14,10 +14,7 @@ import { isFrench } from "../_000_translate/mod.ts";
 
 export type PeriodType = "year-month" | "year-quarter" | "year";
 
-export type CalendarType =
-  | "gregorian"
-  | "ethiopian"
-  | "ethiopian-to-gregorian";
+export type CalendarType = "gregorian" | "ethiopian" | "ethiopian-to-gregorian";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //

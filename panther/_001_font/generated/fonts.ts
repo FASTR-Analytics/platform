@@ -210,6 +210,25 @@ type TimFontOption =
   // Inter Variable
   | "InterVariable_400_Italic"
   | "InterVariable_400"
+  // International Inter
+  | "InternationalInter_400_Italic"
+  | "InternationalInter_100"
+  | "InternationalInter_100_Italic"
+  | "InternationalInter_900"
+  | "InternationalInter_700_Italic"
+  | "InternationalInter_300_Italic"
+  | "InternationalInter_700"
+  | "InternationalInter_900_Italic"
+  | "InternationalInter_800_Italic"
+  | "InternationalInter_200_Italic"
+  | "InternationalInter_500_Italic"
+  | "InternationalInter_400"
+  | "InternationalInter_200"
+  | "InternationalInter_500"
+  | "InternationalInter_800"
+  | "InternationalInter_300"
+  | "InternationalInter_600"
+  | "InternationalInter_600_Italic"
   // Josefin Sans
   | "JosefinSans_500"
   | "JosefinSans_200_Italic"
@@ -375,9 +394,14 @@ type TimFontOption =
   | "SourceSerif4_400"
   | "SourceSerif4_800_Italic"
   // Söhne
+  | "Söhne_400_Italic"
   | "Söhne_300_Italic"
   | "Söhne_500"
   | "Söhne_300"
+  | "Söhne_700"
+  | "Söhne_400"
+  | "Söhne_500_Italic"
+  | "Söhne_700_Italic"
   // Tiempos Headline
   | "TiemposHeadline_500_Italic"
   | "TiemposHeadline_600"
@@ -1365,6 +1389,98 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
     italic: false,
   },
 
+  // International Inter
+  InternationalInter_400_Italic: {
+    fontFamily: "International Inter",
+    weight: 400,
+    italic: true,
+  },
+  InternationalInter_100: {
+    fontFamily: "International Inter",
+    weight: 100,
+    italic: false,
+  },
+  InternationalInter_100_Italic: {
+    fontFamily: "International Inter",
+    weight: 100,
+    italic: true,
+  },
+  InternationalInter_900: {
+    fontFamily: "International Inter",
+    weight: 900,
+    italic: false,
+  },
+  InternationalInter_700_Italic: {
+    fontFamily: "International Inter",
+    weight: 700,
+    italic: true,
+  },
+  InternationalInter_300_Italic: {
+    fontFamily: "International Inter",
+    weight: 300,
+    italic: true,
+  },
+  InternationalInter_700: {
+    fontFamily: "International Inter",
+    weight: 700,
+    italic: false,
+  },
+  InternationalInter_900_Italic: {
+    fontFamily: "International Inter",
+    weight: 900,
+    italic: true,
+  },
+  InternationalInter_800_Italic: {
+    fontFamily: "International Inter",
+    weight: 800,
+    italic: true,
+  },
+  InternationalInter_200_Italic: {
+    fontFamily: "International Inter",
+    weight: 200,
+    italic: true,
+  },
+  InternationalInter_500_Italic: {
+    fontFamily: "International Inter",
+    weight: 500,
+    italic: true,
+  },
+  InternationalInter_400: {
+    fontFamily: "International Inter",
+    weight: 400,
+    italic: false,
+  },
+  InternationalInter_200: {
+    fontFamily: "International Inter",
+    weight: 200,
+    italic: false,
+  },
+  InternationalInter_500: {
+    fontFamily: "International Inter",
+    weight: 500,
+    italic: false,
+  },
+  InternationalInter_800: {
+    fontFamily: "International Inter",
+    weight: 800,
+    italic: false,
+  },
+  InternationalInter_300: {
+    fontFamily: "International Inter",
+    weight: 300,
+    italic: false,
+  },
+  InternationalInter_600: {
+    fontFamily: "International Inter",
+    weight: 600,
+    italic: false,
+  },
+  InternationalInter_600_Italic: {
+    fontFamily: "International Inter",
+    weight: 600,
+    italic: true,
+  },
+
   // Josefin Sans
   JosefinSans_500: {
     fontFamily: "Josefin Sans",
@@ -2141,6 +2257,11 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
   },
 
   // Söhne
+  Söhne_400_Italic: {
+    fontFamily: "Söhne",
+    weight: 400,
+    italic: true,
+  },
   Söhne_300_Italic: {
     fontFamily: "Söhne",
     weight: 300,
@@ -2155,6 +2276,26 @@ export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
     fontFamily: "Söhne",
     weight: 300,
     italic: false,
+  },
+  Söhne_700: {
+    fontFamily: "Söhne",
+    weight: 700,
+    italic: false,
+  },
+  Söhne_400: {
+    fontFamily: "Söhne",
+    weight: 400,
+    italic: false,
+  },
+  Söhne_500_Italic: {
+    fontFamily: "Söhne",
+    weight: 500,
+    italic: true,
+  },
+  Söhne_700_Italic: {
+    fontFamily: "Söhne",
+    weight: 700,
+    italic: true,
   },
 
   // Tiempos Headline

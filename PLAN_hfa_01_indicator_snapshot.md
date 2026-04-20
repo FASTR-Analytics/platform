@@ -147,25 +147,36 @@ export async function getAllHfaIndicatorCodeFromSnapshot(
 
 Can reuse the existing `dbRowToHfaIndicator` and `dbRowToHfaIndicatorCode` mappers since the column shapes are identical.
 
-### 6. Cleanup on HFA removal
+### 6. Make dataset removal symmetric (cleanup for both HMIS and HFA)
 
 **File:** [server/db/project/datasets_in_project_hmis.ts](server/db/project/datasets_in_project_hmis.ts) — the shared `removeDatasetFromProject` function (~line 276)
 
-This function is generic today (just `DELETE FROM datasets`). Add a dataset-type-specific branch for HFA snapshot cleanup inside the existing transaction:
+Today this function only deletes the `datasets` row, with a comment saying "Don't delete indicators/facilities - let them persist until next dataset is added." That's the wrong default: the UI tells the user the dataset is disabled, but stale `indicators` / `facilities` / `indicators_hfa` rows linger, and any UI that reads them is showing a lie. There's no FK reason to preserve them — `presentation_objects` and friends deliberately don't FK into indicator/facility tables (see [_project_database.sql:122](server/db/project/_project_database.sql#L122)).
+
+Rewrite the function so disable actually disables, symmetrically across dataset types:
 
 ```ts
 await projectDb.begin((sql) => [
   sql`DELETE FROM datasets WHERE dataset_type = ${datasetType}`,
-  ...(datasetType === "hfa"
+  ...(datasetType === "hmis"
     ? [
+        sql`DELETE FROM indicators`,
+        sql`DELETE FROM facilities`,
+      ]
+    : [
         sql`DELETE FROM hfa_indicator_code_snapshot`,
         sql`DELETE FROM hfa_indicators_snapshot`,
-      ]
-    : []),
+        sql`DELETE FROM indicators_hfa`,
+        sql`DELETE FROM facilities`,
+      ]),
 ]);
 ```
 
-Note: `addDatasetHfaToProject` calls `removeDatasetFromProject` as its first step (line 30), so this cleanup also runs on re-export before the new snapshot is written. There is no FK from the snapshot tables to the `datasets` table, so cascade won't handle this automatically — the explicit DELETE is required.
+Delete the "Don't delete indicators/facilities" comment — it was the reason for the bug.
+
+**Followup:** the redundant `DELETE FROM indicators` / `DELETE FROM facilities` / `DELETE FROM indicators_hfa` at the top of `addDatasetHmisToProject` and `addDatasetHfaToProject` transactions can stay as belt-and-suspenders or be removed. Leaving them is safer against future code paths that skip `removeDatasetFromProject`.
+
+Note: `addDatasetHfaToProject` calls `removeDatasetFromProject` as its first step (line 30), so the snapshot cleanup also runs on re-export before the new snapshot is written. There is no FK from the snapshot tables to the `datasets` table, so cascade won't handle this automatically — the explicit DELETE is required.
 
 ## Files to modify
 
@@ -189,7 +200,7 @@ Note: `addDatasetHfaToProject` calls `removeDatasetFromProject` as its first ste
 
 - [ ] `hfa_indicators_snapshot` and `hfa_indicator_code_snapshot` tables exist (migration 010 + base schema)
 - [ ] `addDatasetHfaToProject` copies indicator definitions + code from instance into project snapshot tables, atomic with the rest of the HFA import
-- [ ] `removeDatasetFromProject` for HFA clears snapshot tables
+- [ ] `removeDatasetFromProject` is symmetric across HMIS and HFA: clears indicators/facilities/snapshot tables for the removed dataset type (no more "persist until next add")
 - [ ] `run_module_iterator.ts` reads from project snapshot tables instead of instance tables
 - [ ] Script preview route reads from project snapshot tables and passes `hfaIndicatorCode` (pre-existing bug fix)
 - [ ] Empty snapshot tables at module run time throw clear error directing user to update project data

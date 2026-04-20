@@ -13,6 +13,7 @@ import {
   getGlobalFigureStyle,
 } from "./_2_custom_figure_style_options.ts";
 import type {
+  MergedChartOHStyle,
   MergedChartOVStyle,
   MergedChartStyleBase,
   MergedContentStyle,
@@ -26,8 +27,10 @@ import type {
   MergedTableStyle,
   MergedTimeseriesStyle,
   MergedXPeriodAxisStyle,
+  MergedXScaleAxisStyle,
   MergedXTextAxisStyle,
   MergedYScaleAxisStyle,
+  MergedYTextAxisStyle,
 } from "./_3_merged_style_return_types.ts";
 import {
   type FontInfo,
@@ -452,6 +455,14 @@ export class CustomFigureStyle {
     };
   }
 
+  getMergedChartOHStyle(): MergedChartOHStyle {
+    return {
+      ...this.getMergedChartStyleBase(),
+      xScaleAxis: this.getMergedXScaleAxisStyle(),
+      yTextAxis: this.getMergedYTextAxisStyle(),
+    };
+  }
+
   getMergedTimeseriesStyle(): MergedTimeseriesStyle {
     return {
       ...this.getMergedChartStyleBase(),
@@ -820,6 +831,143 @@ export class CustomFigureStyle {
         c.xPeriodAxis?.calendar,
         g.xPeriodAxis?.calendar,
         d.xPeriodAxis.calendar,
+      ),
+    };
+  }
+
+  private getMergedXScaleAxisStyle(): MergedXScaleAxisStyle {
+    const sf = this._sf;
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const baseText = this._baseText;
+    return {
+      text: {
+        xScaleAxisTickLabels: getTextInfo(
+          c.text?.xScaleAxisTickLabels,
+          g.text?.xScaleAxisTickLabels,
+          baseText,
+        ),
+        xScaleAxisLabel: getTextInfo(
+          c.text?.xScaleAxisLabel,
+          g.text?.xScaleAxisLabel,
+          baseText,
+        ),
+      },
+      max: m(c.xScaleAxis?.max, g.xScaleAxis?.max, d.xScaleAxis.max),
+      min: m(c.xScaleAxis?.min, g.xScaleAxis?.min, d.xScaleAxis.min),
+      labelGap: ms(
+        sf,
+        c.xScaleAxis?.labelGap,
+        g.xScaleAxis?.labelGap,
+        d.xScaleAxis.labelGap,
+      ),
+      tickHeight: ms(
+        sf,
+        c.xScaleAxis?.tickHeight,
+        g.xScaleAxis?.tickHeight,
+        d.xScaleAxis.tickHeight,
+      ),
+      tickLabelGap: ms(
+        sf,
+        c.xScaleAxis?.tickLabelGap,
+        g.xScaleAxis?.tickLabelGap,
+        d.xScaleAxis.tickLabelGap,
+      ),
+      tickLabelFormatter: m(
+        c.xScaleAxis?.tickLabelFormatter,
+        g.xScaleAxis?.tickLabelFormatter,
+        d.xScaleAxis.tickLabelFormatter,
+      ),
+      forceRightOverhangWidth: msOrNone(
+        sf,
+        c.xScaleAxis?.forceRightOverhangWidth,
+        g.xScaleAxis?.forceRightOverhangWidth,
+        d.xScaleAxis.forceRightOverhangWidth,
+      ),
+      allowIndividualLaneLimits: m(
+        c.xScaleAxis?.allowIndividualLaneLimits,
+        g.xScaleAxis?.allowIndividualLaneLimits,
+        d.xScaleAxis.allowIndividualLaneLimits,
+      ),
+      exactAxisY: msOrNone(
+        sf,
+        c.xScaleAxis?.exactAxisY,
+        g.xScaleAxis?.exactAxisY,
+        d.xScaleAxis.exactAxisY,
+      ),
+    };
+  }
+
+  private getMergedYTextAxisStyle(): MergedYTextAxisStyle {
+    const sf = this._sf;
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const baseText = this._baseText;
+    return {
+      text: {
+        yTextAxisTickLabels: getTextInfo(
+          c.text?.yTextAxisTickLabels,
+          g.text?.yTextAxisTickLabels,
+          baseText,
+        ),
+        yTextAxisLabel: getTextInfo(
+          c.text?.yTextAxisLabel,
+          g.text?.yTextAxisLabel,
+          baseText,
+        ),
+      },
+      tickWidth: ms(
+        sf,
+        c.yTextAxis?.tickWidth,
+        g.yTextAxis?.tickWidth,
+        d.yTextAxis.tickWidth,
+      ),
+      tickLabelGap: ms(
+        sf,
+        c.yTextAxis?.tickLabelGap,
+        g.yTextAxis?.tickLabelGap,
+        d.yTextAxis.tickLabelGap,
+      ),
+      labelGap: ms(
+        sf,
+        c.yTextAxis?.labelGap,
+        g.yTextAxis?.labelGap,
+        d.yTextAxis.labelGap,
+      ),
+      tickPosition: m(
+        c.yTextAxis?.tickPosition,
+        g.yTextAxis?.tickPosition,
+        d.yTextAxis.tickPosition,
+      ),
+      colHeight: ms(
+        sf,
+        c.yTextAxis?.colHeight,
+        g.yTextAxis?.colHeight,
+        d.yTextAxis.colHeight,
+      ),
+      paddingTop: ms(
+        sf,
+        c.yTextAxis?.paddingTop,
+        g.yTextAxis?.paddingTop,
+        d.yTextAxis.paddingTop,
+      ),
+      paddingBottom: ms(
+        sf,
+        c.yTextAxis?.paddingBottom,
+        g.yTextAxis?.paddingBottom,
+        d.yTextAxis.paddingBottom,
+      ),
+      logicTickLabelWidth: m(
+        c.yTextAxis?.logicTickLabelWidth,
+        g.yTextAxis?.logicTickLabelWidth,
+        d.yTextAxis.logicTickLabelWidth,
+      ),
+      maxTickLabelWidthAsPctOfChart: m(
+        c.yTextAxis?.maxTickLabelWidthAsPctOfChart,
+        g.yTextAxis?.maxTickLabelWidthAsPctOfChart,
+        d.yTextAxis.maxTickLabelWidthAsPctOfChart,
       ),
     };
   }

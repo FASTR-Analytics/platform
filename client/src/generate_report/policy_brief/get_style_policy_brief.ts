@@ -22,14 +22,14 @@ import { CustomPageStyleOptions, FontInfo, getColor } from "panther";
 //                                                                                                         //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const _Inter_400: FontInfo = {
-  fontFamily: "Inter",
+const _InternationalInter_400: FontInfo = {
+  fontFamily: "International Inter",
   weight: 400,
   italic: false,
 };
 
-const _Inter_800: FontInfo = {
-  fontFamily: "Inter",
+const _InternationalInter_800: FontInfo = {
+  fontFamily: "International Inter",
   weight: 800,
   italic: false,
 };
@@ -49,40 +49,40 @@ export function getStyle_PolicyBrief(
     text: {
       //
       header: {
-        font: _Inter_800,
+        font: _InternationalInter_800,
         relFontSize: 8,
         color: cDetails.primaryTextColor,
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       subHeader: {
-        font: _Inter_800,
+        font: _InternationalInter_800,
         relFontSize: 3,
         color: cDetails.primaryTextColor,
         // letterSpacing: "-0.02em",
       },
       date: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         relFontSize: 2,
         color: cDetails.primaryTextColor,
         // letterSpacing: "-0.02em",
       },
       footer: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         relFontSize: 2,
         color: cDetails.primaryTextColor,
         letterSpacing: "-0.02em",
       },
       //
       // paragraph: {
-      //   font: _Inter_400,
+      //   font: _InternationalInter_400,
       //   color: cDetails.baseTextColor,
       //   relFontSize: 2.2,
       //   lineHeight: 1.4,
       //   lineBreakGap: 0.7,
       // },
       pageNumber: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         color: hasFooter ? cDetails.primaryTextColor : cDetails.baseTextColor,
         relFontSize: 1.5,
       },

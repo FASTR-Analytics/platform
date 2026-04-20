@@ -53,18 +53,27 @@ export type FigureInputsBase = {
   annotations?: FigureAnnotation[];
 };
 
-export type YScaleAxisData = {
-  paneLimits: {
-    tierLimits: { valueMin: number; valueMax: number }[];
-    valueMin: number;
-    valueMax: number;
-  }[];
-  yScaleAxisLabel?: string;
+export type ChartScaleAxisLimitsEntry = {
+  valueMin: number;
+  valueMax: number;
+};
+
+export type ChartScaleAxisPaneLimits = ChartScaleAxisLimitsEntry & {
+  tierLimits: ChartScaleAxisLimitsEntry[];
+  laneLimits: ChartScaleAxisLimitsEntry[];
+};
+
+export type ChartScaleAxisLimits = {
+  paneLimits: ChartScaleAxisPaneLimits[];
 };
 
 export type YAxisWidthInfoBase = {
   widthIncludingYAxisStrokeWidth: number;
   halfYAxisTickLabelH: number;
+};
+
+export type XAxisHeightInfoBase = {
+  heightIncludingXAxisStrokeWidth: number;
 };
 
 export type YScaleAxisWidthInfo = YAxisWidthInfoBase & {

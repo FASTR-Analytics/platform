@@ -7,7 +7,7 @@ import {
   CustomPageStyle,
   type FontInfo,
 } from "panther";
-import { getTextRenderingOptions, type Slide } from "lib";
+import { type Slide } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { convertSlideToPageInputs } from "~/components/slide_deck/slide_rendering/convert_slide_to_page_inputs";
@@ -38,22 +38,22 @@ export async function exportSlideDeckAsPdfVector(
     const pdfH = Math.round((pdfW * 9) / 16);
     const pdfOrientation = "landscape";
 
-    const _Inter_400: FontInfo = {
-      fontFamily: "Inter",
+    const _InternationalInter_400: FontInfo = {
+      fontFamily: "International Inter",
       weight: 400,
       italic: false,
     };
-    const _Inter_800: FontInfo = {
-      fontFamily: "Inter",
+    const _InternationalInter_800: FontInfo = {
+      fontFamily: "International Inter",
       weight: 800,
       italic: false,
     };
     const representativeStyle = new CustomPageStyle({
       text: {
-        base: { font: _Inter_400 },
-        coverTitle: { font: _Inter_800 },
-        sectionTitle: { font: _Inter_800 },
-        header: { font: _Inter_800 },
+        base: { font: _InternationalInter_400 },
+        coverTitle: { font: _InternationalInter_800 },
+        sectionTitle: { font: _InternationalInter_800 },
+        header: { font: _InternationalInter_800 },
       },
     });
     const fonts: FontInfo[] = representativeStyle.getFontsToRegister();
@@ -66,21 +66,6 @@ export async function exportSlideDeckAsPdfVector(
       fonts,
       { basePath: "/fonts", fontMap: fontMap.ttf },
     );
-
-    if (getTextRenderingOptions()) {
-      pdf.addFont(
-        "/fonts/NotoSansEthiopic-Regular.ttf",
-        "Noto Sans Ethiopic",
-        "normal",
-        "400",
-      );
-      pdf.addFont(
-        "/fonts/NotoSansEthiopic-ExtraBold.ttf",
-        "Noto Sans Ethiopic",
-        "normal",
-        "800",
-      );
-    }
 
     progress(0.2);
 

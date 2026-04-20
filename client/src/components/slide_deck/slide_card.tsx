@@ -1,4 +1,4 @@
-import { getTextRenderingOptions, t3, type SlideDeckConfig } from "lib";
+import { t3, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "./slide_rendering/convert_slide_to_page_inputs";
 import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH, showMenu, type MenuItem } from "panther";
@@ -144,7 +144,6 @@ export function SlideCard(p: Props) {
           <PageHolder
             pageInputs={undefined}
             fixedCanvasH={canvasH}
-            textRenderingOptions={getTextRenderingOptions()}
             simpleError
             externalError={(pageInputs() as { err: string }).err}
             scalePixelResolution={0.6}
@@ -154,7 +153,6 @@ export function SlideCard(p: Props) {
           <PageHolder
             pageInputs={(pageInputs() as { data: PageInputs }).data}
             fixedCanvasH={canvasH}
-            textRenderingOptions={getTextRenderingOptions()}
             simpleError
             scalePixelResolution={0.6}
           />

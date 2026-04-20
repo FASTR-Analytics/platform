@@ -4,8 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./_axes/x_period/types.ts";
+export * from "./_axes/x_scale/types.ts";
 export * from "./_axes/x_text/types.ts";
+export * from "./_axes/y_text/types.ts";
+export { estimateMinXAxisHeightForScale } from "./_axes/x_scale/measure.ts";
 export { estimateMinYAxisWidth } from "./_axes/y_scale/measure.ts";
+export { estimateMinYTextAxisWidth } from "./_axes/y_text/measure.ts";
 export { generateScaleLegendPrimitive } from "./_legend/generate_scale_legend_primitive.ts";
 export * from "./_legend/measure_legend.ts";
 export * from "./_legend/measure_scale_legend.ts";

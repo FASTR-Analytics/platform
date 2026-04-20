@@ -29,14 +29,14 @@ import { getImgFromCacheOrFetch } from "~/state/img_cache";
 import { getOverlayImage } from "./get_overlay_image";
 import { _SERVER_HOST } from "~/server_actions";
 
-const _Inter_400: FontInfo = {
-  fontFamily: "Inter",
+const _InternationalInter_400: FontInfo = {
+  fontFamily: "International Inter",
   weight: 400,
   italic: false,
 };
 
-const _Inter_800: FontInfo = {
-  fontFamily: "Inter",
+const _InternationalInter_800: FontInfo = {
+  fontFamily: "International Inter",
   weight: 800,
   italic: false,
 };
@@ -66,76 +66,76 @@ export function buildStyleForSlide(
   return {
     text: {
       coverTitle: {
-        font: _Inter_800,
+        font: _InternationalInter_800,
         color: primaryTextColor,
         relFontSize: coverFontSizes.titleTextRelFontSize ?? 10,
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       coverSubTitle: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         color: primaryTextColor,
         relFontSize: coverFontSizes.subTitleTextRelFontSize ?? 6,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       coverAuthor: {
-        font: _Inter_800,
+        font: _InternationalInter_800,
         color: primaryTextColor,
         relFontSize: coverFontSizes.presenterTextRelFontSize ?? 4,
         letterSpacing: "-0.02em",
         lineHeight: 1.2,
       },
       coverDate: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         color: primaryTextColor,
         relFontSize: coverFontSizes.dateTextRelFontSize ?? 3,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       sectionTitle: {
-        font: _Inter_800,
+        font: _InternationalInter_800,
         color: primaryTextColor,
         relFontSize: sectionFontSizes.sectionTextRelFontSize ?? 8,
         letterSpacing: "-0.02em",
         lineHeight: 1.05,
       },
       sectionSubTitle: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         color: primaryTextColor,
         relFontSize: sectionFontSizes.smallerSectionTextRelFontSize ?? 5,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       header: {
-        font: _Inter_800,
+        font: _InternationalInter_800,
         relFontSize: 5.5,
         color: "#1E1E1E",
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       subHeader: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         relFontSize: 3.5,
         color: "#1E1E1E",
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       date: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         relFontSize: 3,
         color: "#1E1E1E",
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       footer: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         relFontSize: 2,
         color: primaryTextColor,
         letterSpacing: "-0.02em",
       },
       pageNumber: {
-        font: _Inter_400,
+        font: _InternationalInter_400,
         color: hasFooter ? primaryTextColor : "#1E1E1E",
         relFontSize: 1.5,
       },
@@ -383,6 +383,7 @@ async function convertBlockToPageContentItem(
     !(
       "tableData" in fi ||
       "chartData" in fi ||
+      "chartOHData" in fi ||
       "timeseriesData" in fi ||
       "simpleVizData" in fi ||
       "mapData" in fi
@@ -392,17 +393,44 @@ async function convertBlockToPageContentItem(
   }
 
   // --- LEGACY MIGRATION: remove once all saved slides have been rebuilt ---
-  // tierHeaders was moved from yScaleAxisData to the top level of
-  // TimeseriesDataTransformed and ChartOVDataTransformed. Saved slides
-  // created before this change are missing the top-level field.
+  // 1) tierHeaders was moved from yScaleAxisData to the top level of
+  //    TimeseriesDataTransformed and ChartOVDataTransformed.
+  // 2) yScaleAxisData was split into scaleAxisLimits + yScaleAxisLabel
+  //    (PLAN_SCALE_LIMITS_UNIFICATION). laneLimits is mirrored from pane-wide
+  //    min/max — safe for ChartOV/Timeseries, which never consult it.
+  // Both migrations are runtime-only; saved JSON is not re-persisted here. The
+  // yScaleAxisData field is left in place on the migrated object so that a
+  // pre-unification panther renderer still works against the same data.
   for (const dataKey of ["timeseriesData", "chartData"] as const) {
     const d: any = (fi as Record<string, any>)[dataKey];
-    if (d?.isTransformed && !d.tierHeaders) {
-      fi = {
-        ...fi,
-        [dataKey]: { ...d, tierHeaders: d.yScaleAxisData?.tierHeaders ?? ["default"] },
-      };
+    if (!d?.isTransformed) continue;
+
+    const needsTierHeaders = !d.tierHeaders;
+    const needsScaleAxisLimits = !d.scaleAxisLimits && d.yScaleAxisData;
+    if (!needsTierHeaders && !needsScaleAxisLimits) continue;
+
+    const laneCount = d.laneHeaders?.length ?? 1;
+    const updated: any = { ...d };
+
+    if (needsTierHeaders) {
+      updated.tierHeaders = d.yScaleAxisData?.tierHeaders ?? ["default"];
     }
+    if (needsScaleAxisLimits) {
+      updated.scaleAxisLimits = {
+        paneLimits: d.yScaleAxisData.paneLimits.map((p: any) => ({
+          valueMin: p.valueMin,
+          valueMax: p.valueMax,
+          tierLimits: p.tierLimits,
+          laneLimits: Array.from({ length: laneCount }, () => ({
+            valueMin: p.valueMin,
+            valueMax: p.valueMax,
+          })),
+        })),
+      };
+      updated.yScaleAxisLabel = d.yScaleAxisData.yScaleAxisLabel;
+    }
+
+    fi = { ...fi, [dataKey]: updated };
   }
   // --- END LEGACY MIGRATION ---
 

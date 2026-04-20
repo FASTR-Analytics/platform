@@ -35,7 +35,7 @@ export type ContentPrimitiveGenerationParams = {
   seriesVals: (number | undefined)[][];
   valueRange: ValueRange;
   isCentered: boolean;
-  incrementWidth: number;
+  categoryIncrement: number;
   gridStrokeWidth: number;
   nVals: number;
   orientation: "vertical" | "horizontal";
@@ -56,7 +56,7 @@ export function generateContentPrimitives(
     seriesVals,
     valueRange,
     isCentered,
-    incrementWidth,
+    categoryIncrement,
     gridStrokeWidth,
     nVals,
     orientation,
@@ -67,7 +67,7 @@ export function generateContentPrimitives(
   const mapped = calculateMappedCoordinates(
     seriesVals,
     subChartRcd,
-    incrementWidth,
+    categoryIncrement,
     isCentered,
     gridStrokeWidth,
     valueRange,
@@ -80,7 +80,7 @@ export function generateContentPrimitives(
     ? calculateMappedCoordinates(
       params.boundsUbSeriesVals,
       subChartRcd,
-      incrementWidth,
+      categoryIncrement,
       isCentered,
       gridStrokeWidth,
       valueRange,
@@ -92,7 +92,7 @@ export function generateContentPrimitives(
     ? calculateMappedCoordinates(
       params.boundsLbSeriesVals,
       subChartRcd,
-      incrementWidth,
+      categoryIncrement,
       isCentered,
       gridStrokeWidth,
       valueRange,
@@ -107,7 +107,7 @@ export function generateContentPrimitives(
     nVals,
     nSeries,
     orientation,
-    incrementWidth,
+    categoryIncrement,
     gridStrokeWidth,
     seriesHeaders: d.seriesHeaders,
     contentStyle: s,

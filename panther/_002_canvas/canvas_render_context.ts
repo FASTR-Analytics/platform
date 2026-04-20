@@ -31,22 +31,12 @@ import {
   measureVerticalText,
 } from "./_internal/text/measure_text.ts";
 import { writeText, writeVerticalText } from "./_internal/text/write_text.ts";
-import {
-  DEFAULT_TEXT_RENDERING_OPTIONS,
-  type TextRenderingOptions,
-} from "./text_rendering_options.ts";
 
 export class CanvasRenderContext implements RenderContext {
   _ctx: CanvasRenderingContext2D;
-  private _textRenderingOptions: TextRenderingOptions;
 
-  constructor(
-    ctx: CanvasRenderingContext2D,
-    textRenderingOptions?: TextRenderingOptions,
-  ) {
+  constructor(ctx: CanvasRenderingContext2D) {
     this._ctx = ctx;
-    this._textRenderingOptions = textRenderingOptions ??
-      DEFAULT_TEXT_RENDERING_OPTIONS;
   }
 
   mText(
@@ -64,16 +54,9 @@ export class CanvasRenderContext implements RenderContext {
         ti,
         maxWidth,
         opts.rotation,
-        this._textRenderingOptions,
       );
     }
-    return measureText(
-      this._ctx,
-      text,
-      ti,
-      maxWidth,
-      this._textRenderingOptions,
-    );
+    return measureText(this._ctx, text, ti, maxWidth);
   }
 
   rText(

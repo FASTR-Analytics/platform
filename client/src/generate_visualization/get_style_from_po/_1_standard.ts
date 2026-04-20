@@ -3,11 +3,10 @@ import {
   CustomFigureStyleOptions,
   getFormatterFunc,
 } from "panther";
-import { getCalendar, PresentationObjectConfig } from "lib";
-import { getColorFuncGivenConditionalFormatting } from "../conditional_formatting";
+import { getCalendar, PresentationObjectConfig, selectCf } from "lib";
+import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   getMapRegionsContent,
-  getMapValuesColorFunc,
   getStandardSeriesColorFunc,
   getTableCellsContent,
   getTableLayoutStyle,
@@ -19,7 +18,8 @@ export function buildStandardStyle(
   formatAs: "percent" | "number",
 ): CustomFigureStyleOptions {
   const dataFormat = formatAs;
-  const colorFuncGivenCF = getColorFuncGivenConditionalFormatting(config);
+  const cf = selectCf(config.s);
+  const cfOn = cf.type !== "none";
 
   return {
     scale: config.s.scale,
@@ -32,8 +32,7 @@ export function buildStandardStyle(
       reverseOrder: config.s.content === "bars" && config.s.barsStacked,
     },
     grid: {
-      showGrid:
-        config.d.type !== "table" || config.s.conditionalFormatting === "none",
+      showGrid: config.d.type !== "table" || cf.type === "none",
     },
     panes: {
       nCols: config.s.nColsInCellDisplay,
@@ -55,6 +54,15 @@ export function buildStandardStyle(
         config.s.decimalPlaces ?? 0,
       ),
     },
+    xScaleAxis: {
+      allowIndividualLaneLimits: config.s.allowIndividualRowLimits,
+      max: config.s.forceYMax1 ? 1 : undefined,
+      min: config.s.forceYMinAuto ? "auto" : undefined,
+      tickLabelFormatter: getFormatterFunc(
+        dataFormat,
+        config.s.decimalPlaces ?? 0,
+      ),
+    },
     content: {
       points: {
         func: {
@@ -68,12 +76,12 @@ export function buildStandardStyle(
         func:
           config.s.content !== "bars"
             ? { show: false }
-            : colorFuncGivenCF
-              ? (info) => ({
+            : cfOn
+              ? {
                   show: true,
-                  color: colorFuncGivenCF(info.val),
+                  fillColor: 777 as const,
                   dataLabel: { show: config.s.showDataLabels },
-                })
+                }
               : { show: true, dataLabel: { show: config.s.showDataLabels } },
         textFormatter: (info: ChartValueInfo) =>
           getFormatterFunc(dataFormat, config.s.decimalPlaces ?? 0)(info.val),
@@ -97,8 +105,7 @@ export function buildStandardStyle(
       mapRegions: getMapRegionsContent(config, formatAs),
     },
     table: getTableLayoutStyle(config),
-    valuesColorFunc:
-      config.d.type === "map" ? getMapValuesColorFunc(config) : undefined,
+    valuesColorFunc: compileCfToValuesColorFunc(cf),
     map:
       config.d.type === "map"
         ? {

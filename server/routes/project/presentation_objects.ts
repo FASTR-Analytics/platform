@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import {
+  periodFilterHasBounds,
   validateFetchConfig,
 } from "lib";
 import {
@@ -12,6 +13,7 @@ import {
   updatePresentationObjectConfig,
   updatePresentationObjectLabel,
 } from "../../db/mod.ts";
+import { adaptLegacyPODetailResponse } from "../../legacy_adapters/mod.ts";
 import { log } from "../../middleware/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { MAX_REPLICANT_OPTIONS } from "../../server_only_funcs_presentation_objects/consts.ts";
@@ -147,7 +149,10 @@ defineRoute(
           t1 - t0
         ).toFixed(0)}ms)`,
       );
-      return c.json(existing);
+      // Adapt legacy shapes on the cache-hit path. Pre-deploy Valkey entries
+      // may have old-shape configs that the DB-function adapter never saw.
+      // Idempotent for already-adapted entries.
+      return c.json(adaptLegacyPODetailResponse(existing));
     }
 
     // Cache miss - fetch and store
@@ -607,7 +612,8 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           body.replicateBy,
           c.var.mainDb,
           body.fetchConfig.filters,
-          body.fetchConfig.periodFilter
+          body.fetchConfig.periodFilter &&
+            periodFilterHasBounds(body.fetchConfig.periodFilter)
             ? {
                 periodOption: body.fetchConfig.periodFilter.periodOption,
                 min: body.fetchConfig.periodFilter.min,

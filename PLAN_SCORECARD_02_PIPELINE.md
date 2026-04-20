@@ -1,35 +1,63 @@
-# PLAN: Scorecard Phase 2 — m008 + HMIS-Coupled Catalogue Snapshot
+# PLAN: Scorecard Phase 2 — m008 + HMIS-Coupled Catalogue Snapshot (DB-table version)
 
-Build `wb-fastr-modules/m008` and wire the calculated indicator catalogue into the existing HMIS dataset import pipeline. The catalogue is **not** a standalone project resource the user enables — it piggybacks on HMIS imports as an opt-in side-effect, controlled by a single boolean on the HMIS settings. m007 is not modified.
+Build `wb-fastr-modules/m008` and wire the calculated indicator catalogue into the existing HMIS dataset import pipeline. The catalogue travels as a project-DB snapshot, populated atomically inside the HMIS import transaction — the same pattern HMIS common indicators, HMIS facilities, and HFA indicators already use. m007 is not modified.
 
-Depends on phase 1 (catalogue table exists, seeded with the 10 current indicators). At the end of this phase, an admin imports HMIS data into a project (with the new toggle on), m008 runs, and a scorecard presentation object on m008's metric renders correctly with dynamic admin-area-level and period selection.
+Depends on phase 1 (shipped): `calculated_indicators` table at instance level with seeded rows and CRUD UI. At the end of this phase, an admin imports HMIS data into a project (with the new toggle on), m008 installs and runs, and a scorecard presentation object on m008's metric renders correctly with dynamic admin-area-level and period selection.
 
 ## The architectural bet
 
-Calculated indicators are inherently coupled to HMIS data. m008 needs both: HMIS counts (via m002's `M2_adjusted_data.csv`) and the catalogue defining how those counts get combined. Letting them drift out of sync — fresh HMIS with stale catalogue, or vice versa — produces silently wrong scorecard values. Coupling the two at import time eliminates that class of bug.
+Calculated indicators are inherently coupled to HMIS data. m008 needs both: HMIS counts (via m002's `M2_adjusted_data.csv`) and the catalogue defining how those counts get combined. Letting them drift out of sync produces silently wrong scorecard values. Coupling the two at import time eliminates that class of bug.
 
-So:
+Design principles:
 
-- Calculated indicators are **not** their own `_POSSIBLE_DATASETS` card. The user never sees "Calculated indicators" as a thing to enable.
-- They piggyback on `addDatasetHmisToProject`: when the user imports HMIS, the catalogue is exported as an extra CSV alongside `hmis.csv` in the same `datasets/` folder.
-- Whether the catalogue is exported is gated by a new boolean `includeCalculatedIndicatorCatalogue` in the HMIS dataset windowing config. Default `true`. Power users can opt out (e.g. HFA-only projects, projects that don't use m008).
-- The HMIS card's existing staleness check picks up catalogue drift as one more reason to refresh, so editing the instance catalogue surfaces a visible "needs update" badge on every project that opted in.
+- The catalogue is **not** a standalone project resource. No `_POSSIBLE_DATASETS` card, no separate enable/disable lifecycle.
+- It piggybacks on `addDatasetHmisToProject`: when HMIS is imported, the catalogue is snapshotted from the instance DB into the project DB as a side-effect, in the same `projectDb.begin()` transaction.
+- A single boolean `includeCalculatedIndicatorCatalogue` on the HMIS windowing config gates it, default `true`. Power users (HFA-only projects) can opt out.
+- The HMIS card's existing staleness check picks up catalogue drift as one more reason to refresh.
+- m008's R script is generated server-side (the HFA pattern): per-indicator computation blocks are inlined into the script from the snapshot at run time. No `eval`, no `parse`, no expression parsing, no CSV dispatch loop.
 
-The catalogue still travels via the existing `DataSource: "dataset"` resolver. m008 declares `datasetType: "calculated_indicators"` and the existing branch in [get_script_with_parameters.ts:35-38](server/server_only_funcs/get_script_with_parameters.ts#L35-L38) substitutes `'../datasets/calculated_indicators.csv'` automatically — **zero changes** to that resolver, to [run_module_iterator.ts](server/worker_routines/run_module/run_module_iterator.ts), or to module definition schema.
+## Why DB-table + codegen, not CSV
 
-## 2.1 — Extend the `DatasetType` union
+Every other "indicator-like metadata" snapshot in this system already lives as a project-DB table populated inside the import transaction:
 
-**File:** [lib/types/datasets.ts](lib/types/datasets.ts)
+| Snapshot | Instance source | Project destination |
+| --- | --- | --- |
+| HMIS common indicators | `indicators` (instance) | `indicators` (project DB) |
+| HMIS facilities | `facilities` (instance) | `facilities` (project DB) |
+| HFA indicator defs | `hfa_indicators` (instance) | `hfa_indicators_snapshot` (project DB) |
+| HFA indicator R code | `hfa_indicator_code` (instance) | `hfa_indicator_code_snapshot` (project DB) |
 
-```ts
-export type DatasetType = "hmis" | "hfa" | "calculated_indicators";
+HFA's recent refactor (PLAN_hfa_01) established the codegen + DB-snapshot pattern explicitly: the R script for hfa001 is generated server-side by inlining per-indicator R code read from the project snapshot. The result is a static-looking script on disk, no runtime catalog read on the R side, atomicity enforced by the DB transaction.
+
+The same pattern applies cleanly to calculated indicators. m008's script becomes N blocks of concrete arithmetic (one per catalog row), inlined at generation time. No CSV in the sandbox, no CSV lifecycle (unlink-on-toggle-off, unlink-on-removeDataset), no `DatasetType` extension for a thing that isn't a dataset. Consistent with HMIS and HFA.
+
+## 2.1 — Project DB snapshot table
+
+**New migration:** `server/db/migrations/project/014_add_calculated_indicators_snapshot.sql`
+
+```sql
+CREATE TABLE IF NOT EXISTS calculated_indicators_snapshot (
+  calculated_indicator_id text PRIMARY KEY NOT NULL,
+  label text NOT NULL,
+  group_label text NOT NULL,
+  sort_order integer NOT NULL,
+  num_indicator_id text NOT NULL,
+  denom_kind text NOT NULL,
+  denom_indicator_id text,
+  denom_population_fraction double precision,
+  format_as text NOT NULL,
+  decimal_places integer NOT NULL,
+  threshold_direction text NOT NULL,
+  threshold_green double precision NOT NULL,
+  threshold_yellow double precision NOT NULL
+);
 ```
 
-**Do not** add an entry to `_POSSIBLE_DATASETS`. The new type exists only so module definitions can reference it via `datasetType: "calculated_indicators"` in `dataSources`; it is never rendered as a project-data card. Any code that exhaustively switches on `DatasetType` (e.g. dispatchers in `addDatasetToProject`) needs a no-op branch for `"calculated_indicators"` — admins never call those entry points with this type, but the union exhaustiveness must compile.
+Mirrors the instance-level `calculated_indicators` table. Same DDL also added to [server/db/project/_project_database.sql](server/db/project/_project_database.sql) so fresh DBs get it directly. Use migration number `014` (branch's hfa work is `012` and `013`; next free is `014`).
 
-## 2.2 — HMIS dataset config gains `includeCalculatedIndicatorCatalogue`
+## 2.2 — HMIS dataset config gains toggle + version
 
-**File:** [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts) — wherever `DatasetHmisWindowingCommon` is declared.
+**File:** [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts) — wherever `DatasetHmisWindowingCommon` lives.
 
 ```ts
 export type DatasetHmisWindowingCommon = {
@@ -38,123 +66,85 @@ export type DatasetHmisWindowingCommon = {
 };
 ```
 
-**Default value when adding HMIS to a new project:** `true`. The catalogue file is small, the cost of including it is negligible, and the cost of forgetting to enable it (m008 silently fails to find its data source) is much higher than the cost of an unused file.
+Default `true` when adding HMIS to a new project. Pre-phase-2 `info` JSON loaded from the DB gets `?? true` at read time.
 
-**File:** [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts) — `DatasetHmisInfoInProject` (the per-project snapshot type stored in the `datasets` table's `info` JSON):
+**File:** [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts) — `DatasetHmisInfoInProject`:
 
 ```ts
 export type DatasetHmisInfoInProject = {
   // ...existing fields...
-  calculatedIndicatorsVersion: string | undefined;  // undefined when the toggle is off
+  calculatedIndicatorsVersion: string | undefined;  // undefined when toggle is off
 };
 ```
 
-The `windowing` sub-object inside this type already carries the boolean (it's a `DatasetHmisWindowingCommon`); the version field at the top level is what the staleness check compares against `instanceState.calculatedIndicatorsVersion`.
+`calculatedIndicatorsVersion` is the staleness signal, compared client-side against `instanceState.calculatedIndicatorsVersion`. When the toggle is off, this field is `undefined` — the staleness check short-circuits, catalogue drift is irrelevant for that project.
 
-## 2.3 — `addDatasetHmisToProject` exports the catalogue when enabled
+## 2.3 — `addDatasetHmisToProject` snapshots catalogue in the existing transaction
 
 **File:** [server/db/project/datasets_in_project_hmis.ts](server/db/project/datasets_in_project_hmis.ts)
 
-After the existing HMIS `COPY` statement (around [line 151](server/db/project/datasets_in_project_hmis.ts#L151)), add a conditional catalogue export:
+Alongside the existing `indicators` / `facilities` repopulation in the `projectDb.begin()` block (around [line 250](server/db/project/datasets_in_project_hmis.ts#L250)), add a gated snapshot:
 
 ```ts
-// HMIS export (existing, unchanged)
-await mainDb.unsafe(`
-COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true, FREEZE false)
-`);
-
-// Calculated indicator catalogue (new, opt-in)
-const catalogPathForPostgres = join(
-  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-  projectId,
-  "datasets",
-  "calculated_indicators.csv",
-);
-const catalogPathForDeno = join(
-  _SANDBOX_DIR_PATH,
-  projectId,
-  "datasets",
-  "calculated_indicators.csv",
-);
-
+// Fetch catalogue from instance DB before the transaction — matches the pattern
+// for indicators/facilities above.
+let calculatedIndicatorsRows: CalculatedIndicator[] = [];
 let calculatedIndicatorsVersion: string | undefined = undefined;
-
 if (startingWindowing.includeCalculatedIndicatorCatalogue) {
-  if (onProgress) await onProgress(0.6, "Exporting calculated indicators catalogue...");
-
-  const catalogExportStatement = `
-SELECT
-  calculated_indicator_id,
-  label,
-  group_label,
-  sort_order,
-  num_indicator_id,
-  denom_kind,
-  denom_indicator_id,
-  denom_population_fraction,
-  format_as,
-  decimal_places,
-  threshold_direction,
-  threshold_green,
-  threshold_yellow
-FROM calculated_indicators
-ORDER BY sort_order, calculated_indicator_id`;
-
-  await mainDb.unsafe(`
-COPY (${catalogExportStatement}) TO '${catalogPathForPostgres}' WITH (FORMAT CSV, HEADER true, FREEZE false)
-`);
-
+  calculatedIndicatorsRows = await getAllCalculatedIndicators(mainDb);
   calculatedIndicatorsVersion = await getCalculatedIndicatorsVersion(mainDb);
-} else {
-  // Cleanup: a previous import may have written the file when the toggle was on
-  try { await Deno.remove(catalogPathForDeno); } catch { /* not present */ }
 }
+
+// Inside the existing projectDb.begin((sql) => [...]) array:
+sql`DELETE FROM calculated_indicators_snapshot`,
+...calculatedIndicatorsRows.map(
+  (ci) => sql`
+    INSERT INTO calculated_indicators_snapshot
+      (calculated_indicator_id, label, group_label, sort_order,
+       num_indicator_id, denom_kind, denom_indicator_id, denom_population_fraction,
+       format_as, decimal_places, threshold_direction, threshold_green, threshold_yellow)
+    VALUES
+      (${ci.calculated_indicator_id}, ${ci.label}, ${ci.group_label}, ${ci.sort_order},
+       ${ci.num_indicator_id}, ${ci.denom_kind}, ${ci.denom_indicator_id}, ${ci.denom_population_fraction},
+       ${ci.format_as}, ${ci.decimal_places}, ${ci.threshold_direction}, ${ci.threshold_green}, ${ci.threshold_yellow})
+  `,
+),
 ```
 
-Then thread `calculatedIndicatorsVersion` into the `info` payload that gets stored in the project DB:
+And thread `calculatedIndicatorsVersion` into the `info` payload stored in `datasets.info`:
 
 ```ts
 const info: DatasetHmisInfoInProject = {
-  version,
-  windowing: startingWindowing,
-  totalRows,
-  structureLastUpdated,
-  indicatorMappingsVersion,
-  facilityColumnsConfig: resFacilityConfig.data,
-  maxAdminArea: resMaxAdminArea.data.maxAdminArea,
+  // ...existing fields...
   calculatedIndicatorsVersion,
 };
 ```
 
-**Why the cleanup step matters.** If a project was previously imported with the toggle on and the user later disables it, an orphaned `calculated_indicators.csv` would sit in the sandbox indefinitely. The `Deno.remove` in the `else` branch handles that — `try/catch` around the unlink because the file legitimately may not exist on a first import.
+When the toggle is off, `calculatedIndicatorsRows` is empty, the `DELETE` runs, no `INSERT`s run, and `calculatedIndicatorsVersion` is `undefined`. Clean.
 
-## 2.4 — `removeDatasetFromProject` for HMIS also unlinks the catalogue
+`getAllCalculatedIndicators` and `getCalculatedIndicatorsVersion` already exist at instance level ([server/db/instance/calculated_indicators.ts](server/db/instance/calculated_indicators.ts) and [server/db/instance/instance.ts](server/db/instance/instance.ts) respectively).
+
+## 2.4 — `removeDatasetFromProject` clears the snapshot
 
 **File:** [server/db/project/datasets_in_project_hmis.ts:270-288](server/db/project/datasets_in_project_hmis.ts#L270-L288)
 
-Today this function unlinks `hmis.csv` and deletes the `datasets` row. Add one more line to also unlink `calculated_indicators.csv`:
+In the `datasetType === "hmis"` branch (around [line 282](server/db/project/datasets_in_project_hmis.ts#L282)), add one more DELETE:
 
 ```ts
-try {
-  const datasetFilePath = getDatasetFilePath(projectId, datasetType);
-  await Deno.remove(datasetFilePath);
-} catch { /* not present */ }
-
-if (datasetType === "hmis") {
-  try {
-    const catalogPath = join(_SANDBOX_DIR_PATH, projectId, "datasets", "calculated_indicators.csv");
-    await Deno.remove(catalogPath);
-  } catch { /* not present */ }
-}
+...(datasetType === "hmis"
+  ? [
+      sql`DELETE FROM indicators`,
+      sql`DELETE FROM facilities`,
+      sql`DELETE FROM calculated_indicators_snapshot`,
+    ]
+  : ...
 ```
 
-The catalogue file lives in the HMIS dataset's `datasets/` folder, not under any standalone dataset path, so it's the responsibility of the HMIS removal path to clean it up.
+No sandbox file unlink, no orphan file concern. The snapshot table is cleared as part of the same transaction that deletes the `datasets` row.
 
 ## 2.5 — HMIS settings UI: opt-in checkbox
 
 **File:** `client/src/components/project/settings_for_project_dataset_hmis.tsx`
-
-Add one checkbox to the HMIS settings editor, near the indicator selection section:
 
 ```tsx
 <Checkbox
@@ -167,17 +157,17 @@ Add one checkbox to the HMIS settings editor, near the indicator selection secti
 />
 ```
 
-Helper text below the checkbox:
+Helper text:
 
-> *"Required for the m008 scorecard module. Adds the instance catalogue of calculated indicators to the project; it is refreshed automatically on every HMIS update."*
+> *"Required for the scorecard module. When enabled, the current instance catalogue is copied into the project on every HMIS update, keeping scorecard computations in sync with your data."*
 
-The new field defaults to `true` for both new imports (in the `startingWindowing` fallback inside `addDatasetHmisToProject`) and any project loaded from a pre-phase-2 `info` JSON that lacks the field (handle with `?? true`).
+Default `true` for new imports. Legacy `info` JSON gets `?? true` at read time.
 
 ## 2.6 — HMIS card surfaces catalogue staleness
 
-**File:** [client/src/components/project/project_data.tsx](client/src/components/project/project_data.tsx) — the HMIS card's `stalenessCheck` at lines 55-95.
+**File:** [client/src/components/project/project_data.tsx](client/src/components/project/project_data.tsx) — the HMIS card's `stalenessCheck` at lines 56-95.
 
-Add one more reason to the existing chain:
+Add one more reason:
 
 ```ts
 if (
@@ -191,25 +181,25 @@ if (
 }
 ```
 
-When the toggle is off, no staleness signal — the catalogue is irrelevant to that project. When it's on and the instance catalogue has changed, the existing "Update data" button refreshes everything atomically (HMIS export + catalogue export, in one round-trip).
+Toggle off → no staleness signal. Toggle on and instance moved → "Update data" refreshes both atomically.
 
-This is the **only** place catalogue staleness surfaces in the UI. There's no separate card and no separate refresh action. One click, one consistent snapshot.
+Only place catalogue staleness surfaces. No separate card. One click, one consistent snapshot — same UX as HFA.
 
 ## 2.7 — m008 scaffold
 
-Copy `wb-fastr-modules/m007/` to `wb-fastr-modules/m008/`. Rename `m7*` / `M7_*` IDs to `m8*` / `M8_*`. Update `definition.json` module ID, label, and description.
+Copy `wb-fastr-modules/m007/` to `wb-fastr-modules/m008/`. Rename `m7*` / `M7_*` → `m8*` / `M8_*`. Update `definition.json` module ID, label, description.
 
-**Parameters to delete from `definition.json`:** `BIRTHS_PCT`, `WOMEN_15_49_PCT`. Both are replaced by `denom_population_fraction` in the catalog, so the module-level constants are dead.
+**Parameters to delete:** `BIRTHS_PCT`, `WOMEN_15_49_PCT`. Replaced by `denom_population_fraction` in the catalog.
 
-**Parameters to keep:** `SELECTED_COUNT_VARIABLE`, `INTERPOLATE_POPULATION`. These remain genuine module knobs — how to read HMIS counts, how to interpolate population between reference years.
+**Parameters to keep:** `SELECTED_COUNT_VARIABLE`, `INTERPOLATE_POPULATION`. Genuine module knobs.
 
-**New module-level constant in `script.R`:** `PERIOD_FRACTION <- 0.25`. This is m008's temporal choice (quarterly scorecards), applied to every population-based denominator at compute time. It's not a catalog field and it's not a user-configurable parameter — it's a fixed part of what m008 *is*. A hypothetical monthly scorecard module would set `PERIOD_FRACTION <- 1/12` and consume the same unchanged catalog. See §2.11.
+**New module-level constant in `script.R`:** `PERIOD_FRACTION <- 0.25`. m008's temporal choice (quarterly scorecards). Not a catalog field, not user-configurable — fixed part of what m008 is. A hypothetical monthly scorecard module would set `PERIOD_FRACTION <- 1/12` and consume the same catalog unchanged.
 
 `assetsToImport` keeps pointing at `total_population_NGA.csv`. m008 shares the population asset with m007.
 
-## 2.8 — m008 `dataSources`
+## 2.8 — m008 `dataSources` + `scriptGenerationType`
 
-m008 declares two data sources in `definition.json`: the existing results-object input from m002, plus a new dataset entry pointing at calculated indicators.
+m008 declares one dataSource (HMIS results from m002). Catalogue is NOT declared here — it's injected by codegen, not resolved as a CSV.
 
 ```jsonc
 "dataSources": [
@@ -218,26 +208,294 @@ m008 declares two data sources in `definition.json`: the existing results-object
     "replacementString": "M2_adjusted_data.csv",
     "resultsObjectId": "M2_adjusted_data.csv",
     "moduleId": "m002"
-  },
-  {
-    "sourceType": "dataset",
-    "replacementString": "CALCULATED_INDICATORS_FILE",
-    "datasetType": "calculated_indicators"
   }
 ]
 ```
 
-The existing branch at [get_script_with_parameters.ts:35-38](server/server_only_funcs/get_script_with_parameters.ts#L35-L38) substitutes `CALCULATED_INDICATORS_FILE` → `'../datasets/calculated_indicators.csv'` automatically. **No changes to `get_script_with_parameters.ts`.** The R script has a bare `CALCULATED_INDICATORS_FILE` token where the filename goes, and after substitution it reads as normal R.
+**New:** `scriptGenerationType: "calculated_indicators"` (mirrors `"hfa"`).
 
-**Prerequisite:** m008's `prerequisites` array stays as `["m002"]` — unchanged from m007. The task manager already enforces that m002 must run first so that `M2_adjusted_data.csv` exists in the m002 sandbox. The calculated indicators CSV is written into the project sandbox by the HMIS import pipeline (§2.3) — m008 simply finds it sitting in `../datasets/calculated_indicators.csv` at run time, with no module-side staging.
+Add to enum in [lib/types/module_definition_schema.ts](lib/types/module_definition_schema.ts):
 
-**Implicit HMIS dependency.** m008 doesn't formally declare HMIS as a prerequisite, but it can't run without it: m002 reads HMIS data, m008 needs m002's output, and m008 needs the calculated indicators CSV (which is only produced when HMIS is imported with the §2.5 toggle enabled). If a project has no HMIS dataset, m008 fails for two independent reasons. This is fine — neither failure is silent.
+```ts
+export type ScriptGenerationType = "template" | "hfa" | "calculated_indicators";
+```
 
-## 2.9 — m008 results object
+Update the Zod schema in `module_definition_validator.ts`.
+
+**Prerequisites:** `["m002"]` — same as m007.
+
+**Implicit HMIS dependency** (explicit here): m008 fails at runtime if the project has no HMIS dataset (m002 never ran) OR if HMIS was imported with the catalogue toggle off (snapshot table is empty). See §2.9 for the runner precheck that makes the second failure user-friendly.
+
+## 2.9 — Codegen: extend script generation pipeline
+
+**File:** [server/server_only_funcs/get_script_with_parameters.ts](server/server_only_funcs/get_script_with_parameters.ts)
+
+Add a third branch analogous to HFA:
+
+```ts
+if (moduleDefinition.scriptGenerationType === "calculated_indicators") {
+  if (!calculatedIndicators) {
+    throw new Error(
+      "calculatedIndicators is required for calculated_indicators script generation",
+    );
+  }
+  return getScriptWithParametersCalculatedIndicators(
+    moduleDefinition,
+    configSelections,
+    countryIso3,
+    calculatedIndicators,
+  );
+}
+```
+
+Add parameter `calculatedIndicators?: CalculatedIndicator[]` to the signature.
+
+**New file:** `server/server_only_funcs/get_script_with_parameters_calculated_indicators.ts`
+
+Structure:
+
+1. Run the same template substitutions as the default branch (COUNTRY_ISO3, dataSources, parameters).
+2. After those, substitute a marker `__CALCULATED_INDICATOR_BLOCKS__` in the script with server-generated R code (one block per catalog row, inlining numerator/denominator sources).
+
+The generated block for each indicator:
+
+```r
+# <indicator_id>
+{
+  num_col <- "<num_indicator_id>"
+  denom <- <denom_expression>  # either data[[denom_indicator_id]]
+                                # or data$total_population * <fraction> * PERIOD_FRACTION
+  if (num_col %in% names(data)) {
+    rows_<i> <- data %>%
+      select(all_of(geo_cols), quarter_id) %>%
+      mutate(indicator_common_id = "<indicator_id>",
+             numerator = data[[num_col]],
+             denominator = denom)
+  } else {
+    message("Skipping '<indicator_id>': missing column ", num_col)
+    rows_<i> <- tibble()
+  }
+}
+```
+
+Final combined output built by concatenating `rows_1, rows_2, …` via `bind_rows`. The function's output is a closed-form R script with no runtime dispatch; each indicator is a literal block.
+
+No `eval`, no `parse`, no CSV read. Just server-side string generation, with the safe-identifier rule specified in §2.9a.
+
+## 2.9a — Safe-identifier validation for catalogue IDs
+
+Three fields on a `CalculatedIndicator` are interpolated into the generated R script: `calculated_indicator_id`, `num_indicator_id`, and `denom_indicator_id` (when `denom_kind === "indicator"`). All three flow into R string literals (`"<id>"` inside `mutate(indicator_common_id = "<id>")` and `data[["<id>"]]`). A well-formed value is safe because it sits inside quotes; a value containing `"`, backslash, newline, or `$` breaks out of the quoted context and allows arbitrary R injection.
+
+Rather than try to escape everything correctly for R string semantics, we regex-gate these fields to a known-safe character set. The rule below accepts every seed-catalogue ID and every convention in common use elsewhere in the codebase, while rejecting every character that could start an R escape.
+
+### 2.9a.1 — The canonical identifier helper
+
+**New file:** `lib/types/calculated_indicator_id.ts`
+
+```ts
+// A calculated-indicator ID must be a short lowercase slug:
+//   - starts with a lowercase letter
+//   - followed by lowercase letters, digits, or underscores
+//   - at most 64 characters total
+// This accepts every seed catalogue ID and rejects every character that
+// can escape an R double-quoted string literal ("  \  $  newline  etc.).
+// Applied to calculated_indicator_id, num_indicator_id, denom_indicator_id.
+export const CALCULATED_INDICATOR_ID_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
+
+export function isValidCalculatedIndicatorIdentifier(value: string): boolean {
+  return CALCULATED_INDICATOR_ID_PATTERN.test(value);
+}
+
+export function assertValidCalculatedIndicatorIdentifier(
+  value: string,
+  fieldName: string,
+): void {
+  if (!isValidCalculatedIndicatorIdentifier(value)) {
+    throw new Error(
+      `Invalid calculated-indicator identifier for field ${fieldName}: ${JSON.stringify(value)}. ` +
+      `Must match ${CALCULATED_INDICATOR_ID_PATTERN.source} (lowercase letter, then lowercase letters/digits/underscores, max 64 chars).`,
+    );
+  }
+}
+```
+
+Export both helpers from `lib/types/mod.ts` so client + server can use them.
+
+### 2.9a.2 — Apply at save time in the server route
+
+**File:** [server/routes/instance/calculated_indicators.ts](server/routes/instance/calculated_indicators.ts)
+
+At the top of the `addCalculatedIndicator` handler and the `updateCalculatedIndicator` handler, validate all three ID fields before passing to the DB layer:
+
+```ts
+import {
+  assertValidCalculatedIndicatorIdentifier,
+} from "lib";
+
+// Inside each handler, before the DB call:
+try {
+  assertValidCalculatedIndicatorIdentifier(
+    indicator.calculated_indicator_id,
+    "calculated_indicator_id",
+  );
+  assertValidCalculatedIndicatorIdentifier(
+    indicator.num_indicator_id,
+    "num_indicator_id",
+  );
+  if (indicator.denom.kind === "indicator") {
+    assertValidCalculatedIndicatorIdentifier(
+      indicator.denom.indicator_id,
+      "denom_indicator_id",
+    );
+  }
+} catch (err) {
+  return { success: false as const, err: (err as Error).message };
+}
+```
+
+The server is the authoritative defence. Any client (including future scripted clients) that tries to save an invalid row is rejected with a clear message.
+
+### 2.9a.3 — Apply at save time in the catalogue editor UI
+
+**File:** [client/src/components/indicators/calculated_indicator_editor.tsx](client/src/components/indicators/calculated_indicator_editor.tsx)
+
+Two reasons to duplicate validation on the client:
+
+1. Immediate feedback — user sees the error inline while typing, not after hitting Save.
+2. Prevents a round-trip for obvious errors.
+
+Add:
+
+```ts
+import { isValidCalculatedIndicatorIdentifier } from "lib";
+
+// At the start of the save button's click handler, OR as a derived `formErrors`
+// signal that the save button watches:
+const idError = () =>
+  !isValidCalculatedIndicatorIdentifier(tempIndicator.calculated_indicator_id)
+    ? t3({
+        en: "ID must be lowercase letters, digits, and underscores only (max 64 chars, starts with a letter).",
+        fr: "L'identifiant doit contenir uniquement des lettres minuscules, chiffres et tirets bas (max 64 caractères, commence par une lettre).",
+      })
+    : null;
+
+// Similar for numeratorIdError and denominatorIdError.
+
+// The Save button is disabled when any of the three returns non-null,
+// and the corresponding field shows the error text below it.
+```
+
+Apply the same check to the numerator-indicator and denominator-indicator fields. These are typed-dropdowns referencing common-indicator IDs — the common-indicator IDs MUST themselves pass the same rule (see §2.9a.5). If a common indicator somehow has a non-conforming ID in the DB, the dropdown option is either hidden or marked as disabled with a tooltip explaining the constraint.
+
+### 2.9a.4 — Apply at codegen time as defence in depth
+
+**File:** `server/server_only_funcs/get_script_with_parameters_calculated_indicators.ts` (new, per §2.9)
+
+Before emitting any R block, assert every ID field on every row:
+
+```ts
+import { assertValidCalculatedIndicatorIdentifier } from "lib";
+
+for (const ci of calculatedIndicators) {
+  assertValidCalculatedIndicatorIdentifier(ci.calculated_indicator_id, "calculated_indicator_id");
+  assertValidCalculatedIndicatorIdentifier(ci.num_indicator_id, "num_indicator_id");
+  if (ci.denom.kind === "indicator") {
+    assertValidCalculatedIndicatorIdentifier(ci.denom.indicator_id, "denom_indicator_id");
+  }
+}
+```
+
+If this ever throws, something slipped past §2.9a.2 (e.g. a direct DB edit, a data migration, or a bug in save-validation). Throwing here is the correct behaviour: module run fails loudly at script-generation time with a clear error rather than generating a script with an injected payload.
+
+### 2.9a.5 — One-time audit of existing catalogue and common indicators
+
+**Not a code change. A reviewer task before merge.**
+
+Run the audit query against the dev / staging instance DB:
+
+```sql
+-- Must return zero rows.
+SELECT calculated_indicator_id, num_indicator_id, denom_indicator_id
+FROM calculated_indicators
+WHERE calculated_indicator_id !~ '^[a-z][a-z0-9_]{0,63}$'
+   OR num_indicator_id         !~ '^[a-z][a-z0-9_]{0,63}$'
+   OR (denom_indicator_id IS NOT NULL
+       AND denom_indicator_id  !~ '^[a-z][a-z0-9_]{0,63}$');
+
+-- And for the soft-ref target:
+SELECT indicator_common_id
+FROM indicators
+WHERE indicator_common_id !~ '^[a-z][a-z0-9_]{0,63}$';
+```
+
+Seed catalogue (10 rows) passes — confirmed by inspection ([`019_add_calculated_indicators.sql`](server/db/migrations/instance/019_add_calculated_indicators.sql)). If `indicators` has any row that fails the pattern, either (a) extend the regex to accept that convention and update the helper consistently, or (b) treat those rows as unlink-from-catalog candidates. Decision deferred to the reviewer based on audit output, but NOT left ambiguous — the audit must be run and its outcome must determine the code.
+
+### 2.9a.6 — Test coverage
+
+Add a unit test for the helper:
+
+```ts
+// lib/types/calculated_indicator_id_test.ts
+Deno.test("isValidCalculatedIndicatorIdentifier — accepts seed catalogue IDs", () => {
+  for (const id of [
+    "anc4_anc1_ratio", "penta3_coverage", "htn_new_per_10000",
+    "fully_immunized_coverage", "nhmis_data_timeliness_final",
+  ]) {
+    assertEquals(isValidCalculatedIndicatorIdentifier(id), true, id);
+  }
+});
+
+Deno.test("isValidCalculatedIndicatorIdentifier — rejects injection attempts", () => {
+  for (const bad of [
+    '"; system("rm -rf /"); "',
+    "foo\\nbar",
+    "foo bar",
+    "FooBar",        // uppercase
+    "foo-bar",       // hyphen
+    "1foo",          // starts with digit
+    "",              // empty
+    "a".repeat(65),  // too long
+    "foo.bar",       // dot
+    "foo$bar",       // dollar
+  ]) {
+    assertEquals(isValidCalculatedIndicatorIdentifier(bad), false, bad);
+  }
+});
+```
+
+## 2.10 — Module runner reads the snapshot and passes to codegen
+
+**File:** [server/worker_routines/run_module/run_module_iterator.ts](server/worker_routines/run_module/run_module_iterator.ts)
+
+Parallel to the HFA branch (around [line 110-130](server/worker_routines/run_module/run_module_iterator.ts#L110-L130)), add:
+
+```ts
+let calculatedIndicators: CalculatedIndicator[] | undefined;
+if (moduleDetail.moduleDefinition.scriptGenerationType === "calculated_indicators") {
+  calculatedIndicators = await getAllCalculatedIndicatorsFromSnapshot(projectDb);
+  if (calculatedIndicators.length === 0) {
+    throw new Error(
+      "No calculated indicators in project snapshot. Re-import HMIS data with 'Include calculated indicator catalogue' enabled.",
+    );
+  }
+}
+```
+
+Pass `calculatedIndicators` through to `getScriptWithParameters`.
+
+**New file:** `server/db/project/calculated_indicators_snapshot.ts` exporting `getAllCalculatedIndicatorsFromSnapshot(projectDb)` — mirrors `getAllHfaIndicatorsFromSnapshot`.
+
+## 2.11 — Script preview route reads the snapshot
+
+**File:** [server/routes/project/modules.ts](server/routes/project/modules.ts) — preview route around [line 249](server/routes/project/modules.ts#L249).
+
+Same pattern as for HFA: if `scriptGenerationType === "calculated_indicators"`, fetch the snapshot and pass to `getScriptWithParameters`. Without this, preview generates a different script than the actual run.
+
+## 2.12 — m008 results object
 
 **File:** `wb-fastr-modules/m008/_results_objects.ts`
 
-Replace m007's three per-level objects with one at AA4 grain:
+One results object at AA4 grain (D1 in `PLAN_SCORECARD_00_OVERVIEW.md`):
 
 ```ts
 export const M8_RESULTS_OBJECTS = [{
@@ -254,13 +512,9 @@ export const M8_RESULTS_OBJECTS = [{
 }];
 ```
 
-The metric enricher at [metric_enricher.ts:128](server/db/project/metric_enricher.ts#L128) already lists `indicator_common_id` as a disaggregation-eligible physical column, so this schema auto-registers correctly on that axis.
-
-## 2.10 — m008 metric
+## 2.13 — m008 metric
 
 **File:** `wb-fastr-modules/m008/_metrics.ts`
-
-Modelled on m002's pattern exactly: one declared `valueProps` entry (the computed output), two ingredient values (the raw SUM columns). **Not** `valueProps: ["numerator", "denominator"]` — that's not how m002 does it and not how the metric enricher consumes it. The enricher reads `valueProps` verbatim from the metric definition at [metric_enricher.ts:38](server/db/project/metric_enricher.ts#L38); it doesn't infer value columns from the schema.
 
 ```ts
 {
@@ -279,89 +533,38 @@ Modelled on m002's pattern exactly: one declared `valueProps` entry (the compute
 }
 ```
 
-`applyPostAggregationExpressionV2` at [query_helpers.ts:265-300](server/server_only_funcs_presentation_objects/query_helpers.ts#L265-L300) wraps the division with `NULLIF(denominator, 0)`, so rows with zero or null denominators render as blank rather than erroring.
+`valueLabelReplacements` omitted — catalog is source of truth, looked up client-side at render time in phase 3. During the phase-2-only window (if any), scorecards render with raw `indicator_common_id` values (`penta3_coverage` not "Penta 3"). Accept this as interim, OR sequence phase 3 to land immediately after.
 
-**`valueLabelReplacements`** can be dropped from the metric definition entirely — labels come from the catalog at render time (phase 3) via client-side lookup. Keeping them would double-encode the labels and risk them going stale when the catalog changes.
+**Mandatory verification before shipping 2.13.** No existing module combines TEXT disaggregation + two-ingredient `postAggregationExpression`. m008 is the first. Manually verify on a scratch query:
 
-**Mandatory verification task before shipping 2.10.** No existing module combines (a) a TEXT disaggregation column and (b) a two-ingredient `postAggregationExpression`. m008 is the first. Manually verify on a scratch query:
-
-1. A scorecard presentation object on `m8-01` with `indicator_common_id` selected as disaggregation.
-2. `buildAggregateColumns()` at [query_helpers.ts:245-259](server/server_only_funcs_presentation_objects/query_helpers.ts#L245-L259) emits `SUM(numerator), SUM(denominator)` in the SELECT clause.
+1. Scorecard PO on `m8-01` with `indicator_common_id` as disaggregation.
+2. `buildAggregateColumns()` at [query_helpers.ts:245](server/server_only_funcs_presentation_objects/query_helpers.ts#L245) emits `SUM(numerator), SUM(denominator)` in the SELECT.
 3. `GROUP BY` includes `indicator_common_id`.
-4. The post-aggregation expression wraps correctly producing one `value` column.
-5. Aggregating up to AA2 and AA3 via `disaggregateBy` also works.
+4. Post-aggregation expression wraps correctly producing one `value` column.
+5. Aggregating up to AA2/AA3 via `disaggregateBy` also works.
 
-This is the one place the whole plan's aggregation story could break. Confirm it works against a real DB before declaring 2.10 done.
+This is the one place the aggregation story could break. Confirm against a real DB before declaring 2.13 done.
 
-## 2.11 — m008 R script
+## 2.14 — m008 R script
 
 **File:** `wb-fastr-modules/m008/script.R`
 
-Everything upstream of scorecard computation is copy-paste from m007 and stays unchanged:
+Copy m007's script. Keep everything upstream of the scorecard compute block unchanged (library loads, `read_csv` of `M2_adjusted_data.csv`, nhmis derivation, quarter detection, `merge_population`, wide pivot).
 
-- Library loads, file reads (including `read_csv(ADJUSTED_DATA_FILE, ...)` for the M2 results object)
-- `nhmis_timely_and_data` derivation
-- Quarter detection
-- `merge_population()` ([m007/script.R:177-241](../wb-fastr-modules/m007/script.R#L177-L241)) — joins `total_population_NGA.csv` at whatever geo-level the caller passes. m008 only calls it at AA4.
-- Wide pivot of HMIS data by `indicator_common_id`
-
-The **only** new logic replaces m007's `calculate_scorecard()` (lines 243-303) and `convert_scorecard_to_long()` (lines 306-314) with a catalog-driven loop:
+Replace m007's `calculate_scorecard()` + `convert_scorecard_to_long()` (m007/script.R:243-314) with a marker and a combining call:
 
 ```r
-library(readr)
-
-# m008 produces quarterly scorecards; every population-based denominator
-# is scaled by this factor. A monthly scorecard module would use 1/12.
 PERIOD_FRACTION <- 0.25
 
-CALCULATED_DEFS_FILE <- CALCULATED_INDICATORS_FILE  # substituted by getScriptWithParameters
-defs <- read_csv(CALCULATED_DEFS_FILE, show_col_types = FALSE)
-
 build_num_denom_rows <- function(data, geo_cols) {
-  rows <- list()
-
-  for (i in seq_len(nrow(defs))) {
-    def <- defs[i, ]
-    sid <- def$calculated_indicator_id
-
-    num_col <- def$num_indicator_id
-    if (!(num_col %in% names(data))) {
-      message(sprintf("Skipping '%s': missing numerator column %s", sid, num_col))
-      next
-    }
-    num <- data[[num_col]]
-
-    if (def$denom_kind == "indicator") {
-      denom_col <- def$denom_indicator_id
-      if (!(denom_col %in% names(data))) {
-        message(sprintf("Skipping '%s': missing denominator column %s", sid, denom_col))
-        next
-      }
-      denom <- data[[denom_col]]
-    } else {  # "population"
-      denom <- data$total_population *
-               def$denom_population_fraction *
-               PERIOD_FRACTION
-    }
-
-    rows[[sid]] <- data %>%
-      select(all_of(geo_cols), quarter_id) %>%
-      mutate(
-        indicator_common_id = sid,
-        numerator           = num,
-        denominator         = denom,
-      )
-  }
-
-  bind_rows(rows)
+  __CALCULATED_INDICATOR_BLOCKS__
+  bind_rows(rows_1, rows_2, rows_3, ...)  # generator emits the concrete list
 }
 ```
 
-`PERIOD_FRACTION` is a module-level constant, not a catalog field. The catalog stores the indicator's annual population fraction (e.g. `0.22` for women 15-49); m008 multiplies by `0.25` to get the quarterly denominator. This keeps the catalog module-agnostic — see overview D3.
+The generator in §2.9 substitutes both the blocks AND the `bind_rows` call with the correct variable list.
 
-No `eval`. No `parse`. No sealed environment. No custom parser. Structural dispatch on `denom_kind`. Roughly fifteen lines of actual logic.
-
-**Main execution block** collapses to one geo level:
+**Main execution:**
 
 ```r
 aa4_data <- process_geo_level("admin_area_4", adjusted_data, empty_cols)
@@ -369,49 +572,190 @@ aa4_rows <- build_num_denom_rows(aa4_data, geo_columns("admin_area_4"))
 write_csv(aa4_rows, "M8_output_scorecard.csv")
 ```
 
-Delete the AA2 and AA3 passes. The SQL query layer aggregates up dynamically via `disaggregateBy`.
+Delete the AA2 and AA3 passes (SQL aggregates up via `disaggregateBy`).
 
-**Drop `round(.x, 2)`** from the m007 pattern at [script.R:302](../wb-fastr-modules/m007/script.R#L302). m008 stores raw numerator and denominator. `SUM(num) / SUM(denom)` needs raw values; mid-pipeline rounding causes aggregation drift. This means m008 outputs will differ from m007 in the 3rd+ decimal place on aggregated values — correct, not a regression. Note in the smoke test.
+**Drop `round(.x, 2)`** from the m007 pattern at m007/script.R:302. m008 stores raw num/denom; SUM(num)/SUM(denom) needs raw values; mid-pipeline rounding causes aggregation drift. Aggregated values will differ from m007 in the 3rd+ decimal place — correct, not a regression.
 
-## 2.12 — Module build & registration
+## 2.15 — Module build & registration
 
-Add `m008` to whatever the `wb-fastr-modules` repo's `build_definitions.ts` enumerates. Run `deno task build:modules` in the app repo to regenerate `module_defs_dist/` and verify m008 appears in the admin's install-module dropdown.
+Add `m008` to the modules repo build. Run `deno task build:modules` in the app repo to regenerate `module_defs_dist/` and verify m008 appears in the admin's install-module dropdown.
 
-## 2.13 — Smoke test
+## 2.16 — Smoke test
 
-In a scratch project that also has m007 installed:
+Scratch project with m007 also installed for comparison.
 
-1. **Import HMIS with the toggle on.** Open the HMIS dataset settings, confirm "Include calculated indicator catalogue" is checked (default), save. Verify `hmis.csv` AND `calculated_indicators.csv` both land at `{sandbox}/{projectId}/datasets/`. Verify the project's stored HMIS `info` JSON has a non-null `calculatedIndicatorsVersion` field.
-2. **Toggle off and re-import.** Uncheck the new option, re-save HMIS settings. Verify `calculated_indicators.csv` is removed from the sandbox and `info.calculatedIndicatorsVersion` is `undefined`.
-3. **Toggle back on, install m008, and run it.** Verify `M8_output_scorecard.csv` is produced with roughly `10 × areas × quarters` rows (long form, not wide).
-4. **Render a scorecard presentation object on m8-01.** Verify it shows all 10 indicators, dynamically admin-area-level and period-selectable in the viz editor.
-5. **Aggregated values match m007 to 2 decimal places.** Not bitwise — see the `round()` note in §2.11.
-6. **Edit a calculated indicator in the instance catalogue** (e.g. change `penta3_coverage`'s numerator to something else). Verify:
-   - The HMIS card on the Project Data tab now shows a "Calculated indicators changed" reason in its staleness panel.
-   - Clicking "Update data" re-runs the HMIS import, which re-exports both `hmis.csv` and `calculated_indicators.csv`, and stores the new `calculatedIndicatorsVersion`.
-   - The staleness warning clears.
-   - m008 goes dirty and re-runs with the updated catalogue values.
-   - Nothing was code-changed.
-7. **HFA-only project regression check.** A project that has only HFA enabled (no HMIS) should not have any `calculated_indicators.csv` in its sandbox and should not crash when phase 2 ships.
-8. **Verification task §2.10** passes against a real query through the enricher / postAgg / disaggregation path.
+1. **Import HMIS with toggle on.** Open HMIS settings, confirm "Include calculated indicator catalogue" is checked, save. Verify `hmis.csv` exists in sandbox; verify `calculated_indicators_snapshot` in project DB has N rows (one per catalog entry); verify HMIS `info.calculatedIndicatorsVersion` is non-null.
+2. **Toggle off and re-import.** Uncheck, save. Verify `calculated_indicators_snapshot` is empty; verify `info.calculatedIndicatorsVersion` is `undefined`.
+3. **Toggle back on, install m008, run.** Verify `M8_output_scorecard.csv` is produced with roughly `10 × areas × quarters` rows (long form).
+4. **Render a scorecard PO on m8-01.** Verify all 10 indicators appear, dynamically admin-area-selectable and period-selectable in the editor.
+5. **Aggregated values match m007 to 2 decimal places.** Manual spot-check: pick 3 (indicator × area × quarter) cells, compare m007 vs m008 values. Not bitwise — see the `round()` note in §2.14.
+6. **Edit a calculated indicator at the instance level** (change `penta3_coverage`'s numerator). Verify:
+   - HMIS card on Project Data tab shows "Calculated indicators changed" reason.
+   - Clicking "Update data" refreshes HMIS + snapshot atomically, stores new version.
+   - Staleness clears.
+   - m008 goes dirty, re-runs, produces new values.
+7. **HFA-only project regression.** A project with only HFA enabled should not crash when phase 2 ships; `calculated_indicators_snapshot` is empty there, m008 not installed, nothing references the snapshot.
+8. **Toggle off + install m008 failure UX.** Import HMIS with toggle off, install m008, run. Verify the runner throws the friendly error from §2.10 ("No calculated indicators in project snapshot. Re-import HMIS data..."), NOT a cryptic R error.
+9. **Verification task §2.13** passes against a real query through enricher / postAgg / disaggregation.
+10. **HMIS "View common indicators" modal.** Import HMIS, click the button on the HMIS card. Modal opens, fetches fresh from server, lists every `indicator_common_id` / `indicator_common_label` snapshotted in the project. Close and reopen → refetches (no stale data).
+11. **HMIS "View calculated indicators" modal.** With toggle on, click the button on the HMIS card. Modal lists all 10 seed rows with label, group, numerator, denominator details, format, thresholds. Toggle off and reload the page: verify the button is hidden (nothing to view).
+12. **HFA "View HFA indicators" modal.** Enable HFA, click the button on the HFA card. Modal lists indicators with `var_name`, `category`, `definition`, `type`, `aggregation`. Each row is expandable to show per-time-point `r_code` and `r_filter_code` fragments verbatim in a monospaced block.
+
+## 2.17 — "View associated indicators" modals
+
+Three read-only modals on the Project Data tab, giving users direct visibility into what indicator metadata and R code lives in their project. Transparency feature. Tier 3 state per [DOC_STATE_MGT_TIERS.md](DOC_STATE_MGT_TIERS.md) — fetched fresh on modal open, not cached, not SSE-subscribed.
+
+### 2.17.1 — Server routes
+
+**New file:** `server/routes/project/indicators.ts`
+
+Three GET endpoints on the project scope, each using `requireProjectPermission` (`"view"` role sufficient — read-only):
+
+```ts
+GET /projects/:projectId/indicators/hmis
+  → APIResponseWithData<{ indicator_common_id: string; indicator_common_label: string }[]>
+
+GET /projects/:projectId/indicators/hfa
+  → APIResponseWithData<HfaIndicatorWithCode[]>
+    where HfaIndicatorWithCode = HfaIndicator & {
+      code: { time_point: string; r_code: string; r_filter_code: string | null }[]
+    }
+
+GET /projects/:projectId/indicators/calculated
+  → APIResponseWithData<CalculatedIndicator[]>
+```
+
+Each endpoint reads the project DB and returns a flat array. No pagination — these tables are small (tens of rows).
+
+### 2.17.2 — Server DB helpers
+
+Some helpers already exist from earlier work; add the two missing ones:
+
+- **`getAllCommonIndicatorsForProject(projectDb)`** — new, in `server/db/project/datasets_in_project_hmis.ts`. Returns `{ indicator_common_id, indicator_common_label }[]` from the project's `indicators` table.
+- **`getAllHfaIndicatorsWithCodeForProject(projectDb)`** — new, in `server/db/project/datasets_in_project_hfa.ts`. Combines `getAllHfaIndicatorsFromSnapshot` (already exists, added in PLAN_hfa_01) with `getAllHfaIndicatorCodeFromSnapshot` (also exists) and returns the indicators each with their per-time-point code rows attached. One query per table; join in-memory (simpler than a single SQL join for this size).
+- **`getAllCalculatedIndicatorsFromSnapshot(projectDb)`** — added as part of §2.10. Reuse as-is.
+
+### 2.17.3 — API route declarations
+
+**File:** `lib/api-routes/mod.ts` (or wherever route defs live — use the same location as the other `/projects/:id/...` routes)
+
+Add three entries: `getHmisIndicatorsForProject`, `getHfaIndicatorsForProject`, `getCalculatedIndicatorsForProject`. Each with the corresponding response type from §2.17.1.
+
+### 2.17.4 — Client modal component
+
+**New file:** `client/src/components/project/view_indicators_modal.tsx`
+
+One generic modal, discriminated by `type: "hmis" | "hfa" | "calculated"`. Fetches on mount via Tier 3 pattern — no cache, no SSE subscription, lives inside the component:
+
+```tsx
+type Props = {
+  projectId: string;
+  type: "hmis" | "hfa" | "calculated";
+  onClose: () => void;
+};
+
+export function ViewIndicatorsModal(p: Props) {
+  const [state, setState] = createSignal<StateHolder<IndicatorRows>>({ status: "loading" });
+
+  onMount(async () => {
+    const res =
+      p.type === "hmis"
+        ? await serverActions.getHmisIndicatorsForProject({ projectId: p.projectId })
+        : p.type === "hfa"
+          ? await serverActions.getHfaIndicatorsForProject({ projectId: p.projectId })
+          : await serverActions.getCalculatedIndicatorsForProject({ projectId: p.projectId });
+    if (res.success) {
+      setState({ status: "ready", data: res.data });
+    } else {
+      setState({ status: "error", err: res.err });
+    }
+  });
+
+  // Render a modal with StateHolderWrapper + a type-specific table...
+}
+```
+
+No `t2_` file, no `idb-keyval`, no `createReactiveCache` — explicitly NOT cached. Dismiss releases the signal; reopen refetches.
+
+**Column sets per type:**
+
+- **`hmis`**: two columns, `indicator_common_id` | `indicator_common_label`. Sortable on either.
+- **`hfa`**: six base columns — `sort_order`, `var_name`, `category`, `definition`, `type`, `aggregation`. Each row has an expand affordance (chevron) that reveals a sub-table of `{ time_point, r_code, r_filter_code }` rows. `r_code` and `r_filter_code` rendered in a `<pre>` monospaced block, verbatim.
+- **`calculated`**: columns — `sort_order`, `group_label`, `label`, `calculated_indicator_id`, `num_indicator_id`, denominator (composed column: `denom_kind === "indicator" ? denom_indicator_id : "population × " + denom_population_fraction`), `format_as`, `decimal_places`, `threshold_direction` + `threshold_green` + `threshold_yellow` (composed into a single "Thresholds" column for readability).
+
+Title based on type: "HMIS common indicators" / "HFA indicators" / "Calculated indicators".
+
+### 2.17.5 — Client integration in `project_data.tsx`
+
+**File:** [client/src/components/project/project_data.tsx](client/src/components/project/project_data.tsx)
+
+On the **HMIS card body**, below the existing "Data scope" summary:
+
+```tsx
+<div class="ui-gap-sm flex">
+  <Button onClick={() => setViewIndicatorsModalType("hmis")}>
+    {t3({ en: "View common indicators", fr: "Voir les indicateurs communs" })}
+  </Button>
+  <Show when={keyedProjectDatasetHmis.info.windowing.includeCalculatedIndicatorCatalogue}>
+    <Button onClick={() => setViewIndicatorsModalType("calculated")}>
+      {t3({ en: "View calculated indicators", fr: "Voir les indicateurs calculés" })}
+    </Button>
+  </Show>
+</div>
+```
+
+The second button is gated on the toggle — nothing to view when the catalogue wasn't snapshotted.
+
+On the **HFA card body**, below the existing HFA summary:
+
+```tsx
+<Button onClick={() => setViewIndicatorsModalType("hfa")}>
+  {t3({ en: "View HFA indicators", fr: "Voir les indicateurs HFA" })}
+</Button>
+```
+
+Modal mounting: a single `ViewIndicatorsModal` sibling conditional on `viewIndicatorsModalType()` being non-null; close handler nulls the signal. T5 local signal on the `ProjectData` component (no T4 persistence needed — closing a modal and reopening it should refetch).
+
+### 2.17.6 — Auth scope
+
+All three endpoints require `requireProjectPermission("view")`. These are read-only views of data the user already has implicit access to (they can see the project). No additional gating.
 
 ## Definition of done
 
-- [ ] `DatasetType` union extended to include `"calculated_indicators"` (no `_POSSIBLE_DATASETS` entry — never rendered as its own card)
-- [ ] `DatasetHmisWindowingCommon` has a new `includeCalculatedIndicatorCatalogue: boolean` field, default `true`
-- [ ] `DatasetHmisInfoInProject` has a new `calculatedIndicatorsVersion: string | undefined` field
-- [ ] `addDatasetHmisToProject` exports `calculated_indicators.csv` alongside `hmis.csv` when the toggle is on, and unlinks any stale catalogue file when the toggle is off
-- [ ] `removeDatasetFromProject` for HMIS also unlinks `calculated_indicators.csv`
-- [ ] HMIS settings UI exposes the "Include calculated indicator catalogue" checkbox with helper text and `?? true` fallback for projects loaded from pre-phase-2 `info` JSON
-- [ ] HMIS card `stalenessCheck` includes "Calculated indicators changed" reason when the toggle is on and instance catalogue version differs from project snapshot
-- [ ] Project Data tab still has only two cards (HMIS, HFA) — no third card for calculated indicators
-- [ ] `wb-fastr-modules/m008/` exists with one results object, one metric, and the catalog-driven R script
+- [ ] Migration 014 + schema file update for `calculated_indicators_snapshot`
+- [ ] `DatasetHmisWindowingCommon.includeCalculatedIndicatorCatalogue: boolean` field, default `true`
+- [ ] `DatasetHmisInfoInProject.calculatedIndicatorsVersion: string | undefined` field
+- [ ] `addDatasetHmisToProject` populates the snapshot table atomically when toggle is on; clears it when toggle is off
+- [ ] `removeDatasetFromProject` for HMIS clears the snapshot table
+- [ ] HMIS settings UI checkbox with `?? true` fallback for pre-phase-2 configs
+- [ ] HMIS card `stalenessCheck` includes "Calculated indicators changed" reason when toggle is on and version differs
+- [ ] Project Data tab still has exactly two cards (HMIS, HFA)
+- [ ] `scriptGenerationType: "calculated_indicators"` added to enum + Zod
+- [ ] `getScriptWithParameters` third branch for `calculated_indicators`
+- [ ] `get_script_with_parameters_calculated_indicators.ts` generates concrete per-indicator R blocks
+- [ ] `lib/types/calculated_indicator_id.ts` exports `CALCULATED_INDICATOR_ID_PATTERN`, `isValidCalculatedIndicatorIdentifier`, `assertValidCalculatedIndicatorIdentifier`, re-exported from `lib/types/mod.ts`
+- [ ] Save-time validation wired into server `addCalculatedIndicator` and `updateCalculatedIndicator` handlers (rejects invalid `calculated_indicator_id`, `num_indicator_id`, `denom_indicator_id`)
+- [ ] Save-time validation wired into `calculated_indicator_editor.tsx` as inline errors disabling the Save button
+- [ ] Defence-in-depth `assertValidCalculatedIndicatorIdentifier` calls at the top of `get_script_with_parameters_calculated_indicators.ts`
+- [ ] Audit query §2.9a.5 run against dev / staging DB; zero non-conforming rows OR follow-up action taken and documented before merge
+- [ ] Unit test for `isValidCalculatedIndicatorIdentifier` covering seed IDs and injection attempts
+- [ ] `run_module_iterator.ts` reads snapshot and passes to codegen; throws friendly error when snapshot is empty for a `calculated_indicators` module
+- [ ] Script preview route at `routes/project/modules.ts` reads snapshot too — parity with run-time script
+- [ ] `calculated_indicators_snapshot.ts` exports `getAllCalculatedIndicatorsFromSnapshot(projectDb)`
+- [ ] `wb-fastr-modules/m008/` exists with one results object, one metric, one R script using the marker
 - [ ] Diff of `wb-fastr-modules/m007/` against main: zero edits
-- [ ] m008's `definition.json` declares `DataSource: "dataset"` entry for calculated indicators with `replacementString: "CALCULATED_INDICATORS_FILE"` and `datasetType: "calculated_indicators"`
-- [ ] Zero changes to `run_module_iterator.ts` and `get_script_with_parameters.ts`
-- [ ] m008's R script has no `eval`, no `parse`, no expression handling of any kind
 - [ ] `BIRTHS_PCT` / `WOMEN_15_49_PCT` parameters deleted from m008's `definition.json`
-- [ ] `valueLabelReplacements` omitted from m008's metric (catalog is source of truth)
-- [ ] `deno task build:modules` picks up m008; it installs into a project cleanly
-- [ ] Smoke test §2.13 passes end-to-end, including the toggle round-trip, the staleness round-trip, the HFA-only regression check, and the §2.10 verification
+- [ ] m008's `dataSources` does NOT include calculated indicators (no CSV, no DataSource entry)
+- [ ] No changes to `DatasetType` union; no changes to `_POSSIBLE_DATASETS`
+- [ ] m008's R script has no `eval`, no `parse`, no dynamic dispatch
+- [ ] `valueLabelReplacements` omitted from m008's metric
+- [ ] `deno task build:modules` picks up m008; installs cleanly
+- [ ] `server/routes/project/indicators.ts` exposes GET `/indicators/hmis`, `/indicators/hfa`, `/indicators/calculated` with `requireProjectPermission("view")`
+- [ ] Server helpers: `getAllCommonIndicatorsForProject`, `getAllHfaIndicatorsWithCodeForProject` added; `getAllCalculatedIndicatorsFromSnapshot` reused
+- [ ] API route declarations added in `lib/api-routes/mod.ts` for all three new endpoints
+- [ ] `view_indicators_modal.tsx` renders type-specific tables; Tier 3 pattern (no cache, no SSE, fetch on mount, dismiss releases)
+- [ ] HFA modal rows expandable to show `r_code` / `r_filter_code` verbatim in monospaced block
+- [ ] HMIS card shows "View common indicators" button (always when HMIS enabled) and "View calculated indicators" button (conditional on `includeCalculatedIndicatorCatalogue`)
+- [ ] HFA card shows "View HFA indicators" button when HFA enabled
+- [ ] Smoke test §2.16 passes end-to-end including toggle round-trip, staleness round-trip, HFA-only regression, toggle-off + install m008 error UX, §2.13 verification, and modal items 10–12
 - [ ] `deno task typecheck` clean

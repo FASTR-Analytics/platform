@@ -1,9 +1,10 @@
-import { DisaggregationOption, type MetricWithStatus, type PeriodOption } from "lib";
+import { DisaggregationOption, getDisaggregationLabel, type MetricWithStatus, periodFilterHasBounds } from "lib";
 import { createAITool } from "panther";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
+import { instanceState } from "~/state/instance/t1_store";
 
 const VALID_TYPES = ["timeseries", "table", "chart", "map"] as const;
 
@@ -30,7 +31,7 @@ export function getToolsForVizEditor(
     createAITool({
       name: "get_viz_editor",
       description: "Get current configuration, available options, and underlying CSV data for the visualization being edited. Shows live state from the editor (including unsaved changes). Call this to understand current settings and see the data.",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       handler: async () => {
         const ctx = getAIContext();
         if (ctx.mode !== "editing_visualization") {
@@ -61,7 +62,9 @@ export function getToolsForVizEditor(
         lines.push("=".repeat(50));
         lines.push("");
         lines.push(`Presentation type: ${config.d.type}`);
-        lines.push(`Period option: ${config.d.periodOpt}`);
+        if (config.d.timeseriesGrouping) {
+          lines.push(`Timeseries grouping: ${config.d.timeseriesGrouping}`);
+        }
         lines.push("");
 
         if (config.d.disaggregateBy.length > 0) {
@@ -81,7 +84,16 @@ export function getToolsForVizEditor(
         }
 
         if (config.d.periodFilter) {
-          lines.push(`Period filter: ${config.d.periodFilter.periodOption} from ${config.d.periodFilter.min} to ${config.d.periodFilter.max}`);
+          const pf = config.d.periodFilter;
+          if (periodFilterHasBounds(pf)) {
+            lines.push(`Period filter: ${pf.periodOption} from ${pf.min} to ${pf.max}`);
+          } else {
+            const nPart =
+              pf.nMonths != null ? `${pf.nMonths} months` :
+              pf.nQuarters != null ? `${pf.nQuarters} quarters` :
+              pf.nYears != null ? `${pf.nYears} years` : "";
+            lines.push(`Period filter: ${pf.filterType}${nPart ? " (" + nPart + ")" : ""}`);
+          }
           lines.push("");
         }
 
@@ -117,7 +129,10 @@ export function getToolsForVizEditor(
 
         lines.push("Disaggregation dimensions:");
         for (const opt of resultsValue.disaggregationOptions) {
-          const label = typeof opt.label === "string" ? opt.label : opt.label.en;
+          const label = getDisaggregationLabel(opt.value, {
+            adminAreaLabels: instanceState.adminAreaLabels,
+            facilityColumns: instanceState.facilityColumns,
+          }).en;
           const required = opt.isRequired ? " (required)" : "";
           lines.push(`  - ${opt.value}: ${label}${required}`);
         }
@@ -160,7 +175,7 @@ export function getToolsForVizEditor(
       description: "Update the visualization configuration. Only provide fields you want to change. Changes are LOCAL (preview only) until user clicks Save button. Use get_viz_editor to see current state and valid options.",
       inputSchema: z.object({
         type: z.enum(["timeseries", "table", "chart"]).optional().describe("Presentation type (d.type)"),
-        periodOpt: z.string().optional().describe("Period option from available period options (d.periodOpt) - e.g., 'year', 'quarter_id', 'period_id'. Get valid values from get_viz_editor."),
+        timeseriesGrouping: z.string().optional().describe("How to group the time axis on a timeseries chart (d.timeseriesGrouping) - e.g., 'year', 'quarter_id', 'period_id'. Only meaningful for timeseries; has no effect on tables, charts, or maps. Get valid values from get_viz_editor."),
         valuesDisDisplayOpt: z.string().optional().describe("How to display values dimension (d.valuesDisDisplayOpt). Valid values depend on type: timeseries=(series|cell|row|col), table=(row|col|rowGroup|colGroup), chart=(indicator|series|cell|row|col)"),
         valuesFilter: z.union([
           z.array(z.string()),
@@ -180,7 +195,7 @@ export function getToolsForVizEditor(
             max: z.number().optional().describe("End period as integer (same format as min)"),
           }),
           z.null()
-        ]).optional().describe("Time range filter (d.periodFilter), or null to clear. Format depends on periodOpt. If updating both periodOpt and periodFilter, ensure period values match the new periodOpt format."),
+        ]).optional().describe("Time range filter (d.periodFilter), or null to clear. min/max are interpreted using the metric's physical time column format (period_id=YYYYMM, quarter_id=YYYYQQ, year=YYYY). Independent of timeseriesGrouping."),
         selectedReplicantValue: z.union([
           z.string(),
           z.null()
@@ -206,8 +221,8 @@ export function getToolsForVizEditor(
         }
         const effectiveType = input.type || ctx.getTempConfig().d.type;
 
-        if (input.periodOpt && resultsValue.mostGranularTimePeriodColumnInResultsFile !== input.periodOpt) {
-          throw new Error(`Invalid periodOpt "${input.periodOpt}". Available: ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
+        if (input.timeseriesGrouping && resultsValue.mostGranularTimePeriodColumnInResultsFile !== input.timeseriesGrouping) {
+          throw new Error(`Invalid timeseriesGrouping "${input.timeseriesGrouping}". Available: ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
         }
 
         if (input.valuesDisDisplayOpt) {
@@ -239,9 +254,9 @@ export function getToolsForVizEditor(
           changes.push("type");
         }
 
-        if (input.periodOpt) {
-          setTempConfig("d", "periodOpt", input.periodOpt as any);
-          changes.push("periodOpt");
+        if (input.timeseriesGrouping) {
+          setTempConfig("d", "timeseriesGrouping", input.timeseriesGrouping as any);
+          changes.push("timeseriesGrouping");
         }
 
         if (input.valuesDisDisplayOpt) {
@@ -275,12 +290,15 @@ export function getToolsForVizEditor(
             setTempConfig("d", "periodFilter", undefined);
             changes.push("periodFilter (cleared)");
           } else {
-            const periodOpt = (input.periodOpt || ctx.getTempConfig().d.periodOpt) as PeriodOption;
+            const filterPeriodOpt = resultsValue.mostGranularTimePeriodColumnInResultsFile;
+            if (!filterPeriodOpt) {
+              throw new Error("Cannot set periodFilter: metric has no time period column");
+            }
             setTempConfig("d", "periodFilter", {
               filterType: "custom",
-              periodOption: periodOpt,
-              min: input.periodFilter.min != null ? convertPeriodValue(input.periodFilter.min, periodOpt, false) : 0,
-              max: input.periodFilter.max != null ? convertPeriodValue(input.periodFilter.max, periodOpt, true) : 999999,
+              periodOption: filterPeriodOpt,
+              min: input.periodFilter.min != null ? convertPeriodValue(input.periodFilter.min, filterPeriodOpt, false) : 0,
+              max: input.periodFilter.max != null ? convertPeriodValue(input.periodFilter.max, filterPeriodOpt, true) : 999999,
             });
             changes.push("periodFilter");
           }

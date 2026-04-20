@@ -1,3 +1,94 @@
+[TBD] [user] [added] - New conditional formatting options for tables, charts, and maps including continuous color scales with preset and custom palettes, and customizable threshold-based coloring
+[TBD] [user] [added] - Ability to choose from multiple color palettes (e.g., Red→Green, Blues, Viridis, Spectral) when applying color scales to visualizations
+[TBD] [user] [added] - Option to create custom color scales with user-defined start, middle, and end colors for conditional formatting
+[TBD] [user] [added] - Ability to add, remove, and customize individual threshold cutoff values and colors for conditional formatting
+[TBD] [user] [added] - Option to set "Higher is better" or "Lower is better" direction for threshold-based conditional formatting
+[TBD] [user] [added] - Continuous or discrete (stepped) color scale options with adjustable number of steps
+[TBD] [user] [added] - Option to fix the value range (min/max) or let it auto-calculate when using color scales
+[TBD] [user] [changed] - Maps now use the same unified conditional formatting controls as tables and charts, replacing the previous separate color preset settings
+[TBD] [admin] [added] - Conditional formatting for tables, charts, and maps now supports continuous color scales with a choice of built-in palettes (e.g., Red-Yellow-Green, Blues, Viridis) or fully custom color stops, including diverging (three-color) options
+[TBD] [admin] [added] - Conditional formatting now supports a threshold mode where you can define custom numeric cutoffs and assign a color to each bucket, with the ability to add or remove cutoff rows
+[TBD] [admin] [added] - You can now reverse color scales and choose between continuous or discrete (stepped) color rendering, with a configurable number of steps
+[TBD] [admin] [added] - A "Fix value range" option is available in scale-based conditional formatting, allowing you to lock the minimum and maximum values instead of using auto-detected ranges
+[TBD] [admin] [added] - Threshold-based conditional formatting now includes a direction setting (higher is better / lower is better) that controls how bucket labels are generated
+[TBD] [admin] [changed] - Conditional formatting for tables and bar charts has been upgraded from a fixed list of presets to a full visual editor with scale and threshold modes; existing preset selections are automatically migrated
+[TBD] [admin] [changed] - Map visualizations now use the same unified conditional formatting editor as tables and charts, replacing the previous separate color preset, scale type, and domain controls
+[TBD] [admin] [changed] - Map color configuration fields (color preset, from/to colors, reverse, scale type, discrete steps, domain type/min/max) have been replaced by the new conditional formatting system; existing map settings are automatically migrated on load
+[TBD] [admin] [changed] - Legacy conditional formatting presets (e.g., fmt-90-80, fmt-80-70, fmt-10-20) are still recognized and can be selected from a preset dropdown within the new threshold editor
+[TBD] [admin] [changed] - Legend items for threshold-based conditional formatting now show auto-generated range labels based on your cutoff values and number format, rather than hardcoded text
+[TBD] [admin] [internal] - Module definitions stored in the database are now validated through a dedicated stored-side schema with automatic legacy field migration on read, improving resilience to older data formats
+[TBD] [admin] [internal] - AI tool input validation has been tightened to reject unexpected extra parameters, improving reliability of AI assistant interactions
+[TBD] [user] [added] - Charts can now be displayed horizontally using a new "Horizontal" option in the chart style settings
+[TBD] [user] [added] - Admin area labels can now be customized directly in the Settings page, with the section moved to a more prominent position
+[TBD] [user] [changed] - Improved font support across slides, reports, and exported PDFs for better display of international characters
+[TBD] [user] [changed] - The "Language and calendar" placeholder section has been removed from the Settings page
+[TBD] [user] [changed] - The top-level admin area (Admin Area 1) count is no longer shown in the instance data summary
+[TBD] [user] [changed] - "Facility name" is no longer available as a disaggregation option when building visualizations
+[TBD] [user] [fixed] - Filter validation errors now display a clear error message instead of silently failing when loading disaggregation values
+[TBD] [admin] [added] - Charts can now be displayed horizontally using a new "Horizontal" toggle in the chart style settings
+[TBD] [admin] [added] - Admin area labels settings section has been moved above facility columns in the instance settings page for better visibility
+[TBD] [admin] [added] - Admin area label fields now only show levels up to your configured max admin area level, reducing clutter
+[TBD] [admin] [added] - Error messages are now displayed when loading disaggregation filter values fails, instead of silently skipping
+[TBD] [admin] [changed] - The "Admin Area 1" row has been removed from the instance data structure counts display
+[TBD] [admin] [changed] - The "facility_name" option has been removed from the list of available disaggregation dimensions for visualizations
+[TBD] [admin] [changed] - The "Language and calendar" placeholder section has been removed from instance settings
+[TBD] [admin] [changed] - Font used throughout slides, reports, and PDF exports has been changed from "Inter" to "International Inter" for broader character support
+[TBD] [admin] [fixed] - Vertical tick labels option is now automatically hidden when a chart is set to horizontal mode, preventing conflicting settings
+[TBD] [admin] [internal] - Removed special Ethiopic font handling from PDF exports; character support is now handled by the new International Inter font
+[TBD] [admin] [internal] - Instance configuration values (max admin area, facility columns, country ISO3, admin area labels) are now validated with stricter schemas when read from the database
+[TBD] [admin] [internal] - Visualization configs are now validated against a schema when saved, preventing malformed configurations from being stored
+[TBD] [admin] [internal] - Module definition types have been consolidated into a single file for improved maintainability
+[TBD] [admin] [internal] - Disaggregation option validation now uses a centralized helper function for more consistent error handling across AI tools
+[TBD] [user] [added] - You can now customize admin area labels (e.g., rename "Admin area 2" to "Region" or "Admin area 3" to "District") in the instance settings
+[TBD] [user] [changed] - Admin area labels throughout the platform now reflect your custom names instead of generic "Admin area 1/2/3/4" labels
+[TBD] [user] [changed] - Disaggregation labels in visualizations, filters, and metric details now use your configured custom names for admin areas and facility columns
+[TBD] [admin] [added] - You can now set custom labels for admin area levels (e.g. "Region", "District", "Catchment") in Instance Settings, replacing the default "Admin area 2/3/4" names throughout the platform
+[TBD] [admin] [changed] - Custom admin area labels now appear consistently across the data overview, structure import preview, GeoJSON upload wizard, visualization editors, and metric details
+[TBD] [admin] [changed] - Facility column custom labels and admin area labels are now used for disaggregation display names everywhere, including in AI-generated descriptions and the visualization builder
+[TBD] [admin] [internal] - Legacy saved slides are now automatically migrated at runtime to support updated chart and timeseries scale axis data structures, preventing rendering issues with older presentations
+[TBD] [user] [added] - The "out of date" warning on project data now shows specific reasons why your data needs refreshing, such as updated datasets, changed indicators, or modified facility configurations
+[TBD] [user] [changed] - Disabling a dataset from a project now fully removes its associated data, ensuring a clean state when re-enabling later
+[TBD] [user] [fixed] - Running or previewing an HFA module now uses the exact indicator definitions saved with your project data, preventing mismatches if indicators were changed after your last data export
+[TBD] [user] [fixed] - The AI assistant label now correctly displays as "IA" when using the platform in French
+[TBD] [admin] [added] - Project data staleness detection now shows specific reasons why HFA data is out of date, such as dataset updates, indicator changes, facility or admin area changes, and facility configuration changes
+[TBD] [admin] [added] - HFA indicator definitions and code are now snapshotted into each project when data is exported, ensuring modules always run against the exact indicators that were active at export time
+[TBD] [admin] [changed] - Projects exported before staleness tracking was introduced are now flagged as out of date with a prompt to re-export to enable change detection
+[TBD] [admin] [changed] - Disabling a dataset from a project now fully clears all associated data (facilities, indicators, and snapshots) instead of leaving stale records behind
+[TBD] [admin] [changed] - HFA module runs and script previews now use the project's own snapshot of indicators rather than reading live from the instance, preventing mismatches between project data and indicator definitions
+[TBD] [admin] [changed] - The out-of-date data warning on projects now lists each specific change that triggered it, making it easier to understand why a re-export is needed
+[TBD] [admin] [fixed] - HFA project data was previously never detected as stale because version tracking was not implemented — staleness is now tracked across four dimensions and reported accurately
+[TBD] [admin] [fixed] - AI panel header now correctly displays "IA" when the interface language is set to French
+[TBD] [user] [fixed] - Fixed an issue where module definitions loaded from local files were not properly validated, which could lead to unexpected errors when working with analysis modules
+[TBD] [user] [fixed] - Fixed an issue where label replacements on metrics could display incorrectly when none were configured
+[TBD] [admin] [changed] - Module definition files are now validated when loaded from local directories, matching the validation already applied to remotely fetched modules
+[TBD] [admin] [changed] - Several optional fields in module and metric definitions are now required but accept null values, which may require updating custom module definition JSON files (e.g., vizPresets, hide, needsReplicant, allowedFilters, valueLabelReplacements, relatedMetrics, and config sections s and t within viz presets)
+[TBD] [admin] [changed] - The createTableStatementPossibleColumns field on results objects is now required instead of optional in module definitions
+[TBD] [admin] [fixed] - Empty value-label replacement maps on metrics are now handled correctly instead of being passed through unnecessarily
+[TBD] [admin] [internal] - Module definition types are now derived from a single validation source, improving consistency and reducing the chance of mismatches between validation rules and internal types
+[TBD] [user] [fixed] - Reports created in older versions now load correctly without errors when opened
+[TBD] [user] [fixed] - Time period filters on saved visualizations now display the correct settings when revisited
+[TBD] [user] [fixed] - Cached charts and visualizations now show up-to-date formatting even after platform updates
+[TBD] [admin] [fixed] - Cached presentation object responses now have legacy data formats corrected, preventing issues where stale cache entries could serve outdated config shapes after an upgrade
+[TBD] [admin] [fixed] - Period filters using the old "last 12 months" format are now automatically converted to the current format, preventing potential errors when loading older saved configurations
+[TBD] [admin] [internal] - Legacy data format adapters for reports, presentation objects, and period filters have been reorganized for better maintainability
+[TBD] [user] [changed] - The "Period" setting for timeseries charts is now labeled more clearly as a grouping option and only appears when relevant to timeseries views
+[TBD] [user] [fixed] - Time range filters now work correctly when switching between relative options (e.g., "Last 12 months") and custom date ranges without losing your selections
+[TBD] [user] [fixed] - Fixed an issue where changing the time range filter type could leave behind stale date values, potentially showing incorrect data
+[TBD] [user] [changed] - Subtitle and footnote text in visualizations now displays in a consistent gray color across all themes
+[TBD] [user] [fixed] - The AI assistant now correctly describes relative time filters (e.g., "last 12 months") instead of showing raw date numbers when summarizing your visualization settings
+[TBD] [admin] [changed] - The "Period option" setting on timeseries visualizations has been renamed to "Timeseries grouping" to better reflect its purpose — it controls how data is grouped on the time axis and only applies to timeseries charts
+[TBD] [admin] [changed] - Period filters now clearly distinguish between relative filters (e.g., "last 12 months", "last calendar year") and custom date-range filters, improving consistency when switching between filter types in the visualization editor
+[TBD] [admin] [fixed] - Switching between relative and custom period filter types in the visualization editor no longer carries over stale date-range values that could cause unexpected filtering behavior
+[TBD] [admin] [fixed] - Setting a custom date range on a period filter now always stores the correct filter type, preventing cases where the filter type could be missing or undefined
+[TBD] [admin] [fixed] - The AI visualization editor now correctly describes relative period filters (e.g., "last 12 months", "last 2 calendar years") instead of only showing custom min/max ranges
+[TBD] [admin] [fixed] - The AI visualization editor now derives period filter bounds from the metric's own time column rather than relying on a separate period option, preventing mismatched date formats when filtering
+[TBD] [admin] [changed] - The deprecated "periodOptions" field has been removed from metric definitions — the system now automatically determines available period options from the data
+[TBD] [admin] [changed] - The "defaultPeriodFilterForDefaultVisualizations" option has been removed from visualization presets — module authors should now set default period filters directly in the preset configuration
+[TBD] [admin] [internal] - A legacy configuration adapter has been added so that existing saved visualizations and module presets created before this update are automatically migrated at read time without requiring manual intervention or database changes
+[TBD] [admin] [fixed] - Relative period filters (such as "last N months") no longer incorrectly pass date-range bounds to data queries, which could cause unnecessary filtering or errors when the stored bounds were stale
+[TBD] [admin] [fixed] - Visualization sub-caption and footnote text now uses a consistent gray color across all themes instead of a computed color that could vary unexpectedly
+[TBD] [user] [changed] - System users are now always hidden from the project users list in project settings, and the toggle to show or hide them has been removed
+[TBD] [admin] [changed] - System users are now always hidden from the project users list; the toggle to show or hide system users has been removed
 [TBD] [user] [changed] - The "Show system users" / "Hide system users" button in project settings now appears next to the section header instead of inside the user list area, providing a cleaner layout
 [TBD] [admin] [changed] - The "Show/Hide system users" button in Project Settings is now positioned in the section header instead of above the user table, improving layout consistency
 [TBD] [user] [changed] - The "Show/Hide system users" button in project settings has been moved from the section header to inside the section body for a cleaner layout

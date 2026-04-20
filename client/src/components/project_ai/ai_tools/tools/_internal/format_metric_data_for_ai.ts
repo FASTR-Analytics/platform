@@ -8,6 +8,7 @@ import {
   GenericLongFormFetchConfig,
   ItemsHolderPresentationObject,
   PeriodOption,
+  periodFilterHasBounds,
 } from "lib";
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
@@ -18,19 +19,19 @@ export function inferPeriodFilter(
   startDate: number | undefined,
   endDate: number | undefined,
   disaggregations?: string[],
-): { periodOption: PeriodOption; min: number; max: number } | undefined {
+): { filterType: "custom"; periodOption: PeriodOption; min: number; max: number } | undefined {
   if (startDate == null || endDate == null) return undefined;
   const timeDis = disaggregations?.find(
     (d) => d === "period_id" || d === "quarter_id" || d === "year",
   );
   if (timeDis) {
-    return { periodOption: timeDis as PeriodOption, min: startDate, max: endDate };
+    return { filterType: "custom", periodOption: timeDis as PeriodOption, min: startDate, max: endDate };
   }
   const digits = String(startDate).length;
   if (digits <= 4) {
-    return { periodOption: "year", min: startDate, max: endDate };
+    return { filterType: "custom", periodOption: "year", min: startDate, max: endDate };
   }
-  return { periodOption: "period_id", min: startDate, max: endDate };
+  return { filterType: "custom", periodOption: "period_id", min: startDate, max: endDate };
 }
 
 export async function getMetricDataForAI(
@@ -63,6 +64,7 @@ export async function getMetricDataForAI(
     if (metric.mostGranularTimePeriodColumnInResultsFile !== periodFilter.periodOption) {
       const targetOption = metric.mostGranularTimePeriodColumnInResultsFile;
       periodFilter = {
+        filterType: "custom",
         periodOption: targetOption,
         min: convertPeriodValue(periodFilter.min, targetOption, false),
         max: convertPeriodValue(periodFilter.max, targetOption, true),
@@ -171,7 +173,7 @@ function formatItemsAsMarkdown(
   metric: MetricWithStatus,
   disaggregations: DisaggregationOption[],
   filters?: { col: DisaggregationOption; vals: string[] }[],
-  periodFilter?: { periodOption: PeriodOption; min: number; max: number },
+  periodFilter?: { filterType: "custom"; periodOption: PeriodOption; min: number; max: number },
   aiDescription?: MetricAIDescription,
 ): string {
   const lines: string[] = [];
@@ -535,7 +537,10 @@ export async function getDataFromConfig(
 ): Promise<string> {
   const disaggregations = config.d.disaggregateBy.map((d) => d.disOpt);
   if (config.d.type === "timeseries") {
-    disaggregations.push(config.d.periodOpt);
+    if (!config.d.timeseriesGrouping) {
+      throw new Error("Timeseries config missing timeseriesGrouping");
+    }
+    disaggregations.push(config.d.timeseriesGrouping);
   }
 
   const filters = config.d.filterBy.map((f) => ({
@@ -543,12 +548,16 @@ export async function getDataFromConfig(
     vals: f.values,
   }));
 
+  const boundedFilter =
+    config.d.periodFilter && periodFilterHasBounds(config.d.periodFilter)
+      ? config.d.periodFilter
+      : undefined;
   const query: AiMetricQuery = {
     metricId,
     disaggregations,
     filters,
-    startDate: config.d.periodFilter?.min,
-    endDate: config.d.periodFilter?.max,
+    startDate: boundedFilter?.min,
+    endDate: boundedFilter?.max,
   };
   return await getMetricDataForAI(projectId, query, metrics, config.d.valuesFilter, aiDescription);
 }

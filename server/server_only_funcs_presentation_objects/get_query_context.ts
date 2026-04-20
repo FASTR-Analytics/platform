@@ -24,15 +24,18 @@ export async function buildQueryContext(
   const enabledFacilityColumns =
     getEnabledOptionalFacilityColumns(facilityConfig);
 
-  // NOW filter requested columns against enabled columns
-  const requestedOptionalFacilityColumns: OptionalFacilityColumn[] = [
+  // NOW filter requested columns against enabled columns.
+  // Sources (groupBys, filters[].col) are DisaggregationOption which excludes
+  // "facility_name" — so the intersection can only yield disagg-eligible facility columns.
+  type DisaggFacilityColumn = Exclude<OptionalFacilityColumn, "facility_name">;
+  const requestedOptionalFacilityColumns: DisaggFacilityColumn[] = [
     ...new Set([
-      ...fetchConfig.groupBys.filter((col): col is OptionalFacilityColumn =>
+      ...fetchConfig.groupBys.filter((col): col is DisaggFacilityColumn =>
         enabledFacilityColumns.includes(col as OptionalFacilityColumn)
       ),
       ...fetchConfig.filters
         .map((f) => f.col)
-        .filter((col): col is OptionalFacilityColumn =>
+        .filter((col): col is DisaggFacilityColumn =>
           enabledFacilityColumns.includes(col as OptionalFacilityColumn)
         ),
     ])

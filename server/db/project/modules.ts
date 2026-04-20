@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { Sql } from "postgres";
 import {
   // _ADMIN_SERVER_HOST,
@@ -10,11 +11,14 @@ import {
   InstalledModuleWithConfigSelections,
   InstalledModuleWithResultsValues,
   ModuleDefinition,
+  parseModuleDefinition,
+  getDisaggregationLabel,
   getStartingModuleConfigSelections,
   getMergedModuleConfigSelections,
   getValidatedModuleId,
   parseJsonOrThrow,
   throwIfErrWithData,
+  vizPresetStored,
   type DirtyOrRunStatus,
   type MetricStatus,
   type MetricWithStatus,
@@ -30,7 +34,8 @@ import {
   tryCatchDatabaseAsync,
 } from "./../utils.ts";
 import { DBMetric, DBModule } from "./_project_database_types.ts";
-import { getFacilityColumnsConfig } from "../instance/config.ts";
+import { getAdminAreaLabelsConfig, getFacilityColumnsConfig } from "../instance/config.ts";
+import { adaptLegacyModuleDefinition, adaptLegacyVizPresets } from "../../legacy_adapters/mod.ts";
 import { enrichMetric } from "./metric_enricher.ts";
 
 export function parseModuleConfigSelections(json: string): ModuleConfigSelections {
@@ -136,7 +141,7 @@ VALUES (
       for (const metric of modDef.data.metrics) {
         await sql`
 INSERT INTO metrics (
-  id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
+  id, module_id, label, variant_label, value_func, format_as, value_props,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
   results_object_id, ai_description, viz_presets, hide, important_notes
 )
@@ -148,7 +153,6 @@ VALUES (
   ${metric.valueFunc},
   ${metric.formatAs},
   ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.periodOptions ?? [])},
   ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
@@ -237,8 +241,8 @@ SELECT * FROM modules WHERE id = ${moduleId}
     if (!rawModule) {
       return { success: true };
     }
-    const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-      rawModule.module_definition,
+    const moduleDefinition = parseModuleDefinition(
+      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
     );
     await projectDb.begin(async (sql: Sql) => {
       await sql`DELETE FROM modules WHERE id = ${moduleId}`;
@@ -305,7 +309,7 @@ export async function updateModuleDefinition(
       : getStartingModuleConfigSelections(modDef.data.configRequirements);
 
     // Change detection: compare compute-affecting fields
-    const storedDef = parseJsonOrThrow<ModuleDefinition>(rawModule.module_definition);
+    const storedDef = parseModuleDefinition(adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)));
     const scriptChanged = modDef.data.script !== storedDef.script;
     const configReqChanged = JSON.stringify(modDef.data.configRequirements) !== JSON.stringify(storedDef.configRequirements);
     const resultsObjectsChanged = JSON.stringify(modDef.data.resultsObjects) !== JSON.stringify(storedDef.resultsObjects);
@@ -349,13 +353,13 @@ VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
         for (const metric of modDef.data.metrics) {
           await sql`
 INSERT INTO metrics (
-  id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
+  id, module_id, label, variant_label, value_func, format_as, value_props,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
   results_object_id, ai_description, viz_presets, hide, important_notes
 ) VALUES (
   ${metric.id}, ${modDef.data.id}, ${metric.label}, ${metric.variantLabel ?? null},
   ${metric.valueFunc}, ${metric.formatAs}, ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.periodOptions ?? [])}, ${JSON.stringify(metric.requiredDisaggregationOptions)},
+  ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
   ${metric.resultsObjectId}, ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
@@ -416,13 +420,13 @@ VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
       for (const metric of modDef.data.metrics) {
         await sql`
 INSERT INTO metrics (
-  id, module_id, label, variant_label, value_func, format_as, value_props, period_options,
+  id, module_id, label, variant_label, value_func, format_as, value_props,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
   results_object_id, ai_description, viz_presets, hide, important_notes
 ) VALUES (
   ${metric.id}, ${modDef.data.id}, ${metric.label}, ${metric.variantLabel ?? null},
   ${metric.valueFunc}, ${metric.formatAs}, ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.periodOptions ?? [])}, ${JSON.stringify(metric.requiredDisaggregationOptions)},
+  ${JSON.stringify(metric.requiredDisaggregationOptions)},
   ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
   ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
   ${metric.resultsObjectId}, ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
@@ -487,8 +491,8 @@ export async function getAllModulesForProject(
     }
 
     const modules = rawModules.map<InstalledModuleSummary>((rawModule) => {
-      const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-        rawModule.module_definition,
+      const moduleDefinition = parseModuleDefinition(
+        adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
       );
 
       return {
@@ -559,8 +563,8 @@ SELECT * FROM modules WHERE id = ${moduleId}
     if (rawModule === undefined) {
       throw new Error("No module with this definition id");
     }
-    const moduleDefinition: ModuleDefinition = parseJsonOrThrow(
-      rawModule.module_definition,
+    const moduleDefinition = parseModuleDefinition(
+      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
     );
     const module: ModuleDetailForRunningScript = {
       id: getValidatedModuleId(rawModule.id),
@@ -619,6 +623,11 @@ export async function getMetricsListForAI(
       ? facilityConfigResult.data
       : undefined;
 
+    const adminAreaLabelsResult = await getAdminAreaLabelsConfig(mainDb);
+    const adminAreaLabels = adminAreaLabelsResult.success
+      ? adminAreaLabelsResult.data
+      : undefined;
+
     const rawModules = await projectDb<DBModule[]>`
       SELECT * FROM modules ORDER BY id
     `;
@@ -650,8 +659,8 @@ export async function getMetricsListForAI(
     ];
 
     for (const rawModule of rawModules) {
-      const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-        rawModule.module_definition,
+      const moduleDefinition = parseModuleDefinition(
+        adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
       );
       const moduleMetrics = metricsByModule.get(rawModule.id) ?? [];
 
@@ -744,7 +753,14 @@ export async function getMetricsListForAI(
           if (optional.length > 0) {
             lines.push(`    Optional additional disaggregations:`);
             for (const opt of optional) {
-              lines.push(`      - ${opt.value} (${getAIStr(opt.label)})`);
+              lines.push(
+                `      - ${opt.value} (${
+                  getDisaggregationLabel(opt.value, {
+                    adminAreaLabels,
+                    facilityColumns: facilityConfig,
+                  }).en
+                })`,
+              );
             }
           }
 
@@ -847,24 +863,18 @@ export async function getAllMetrics(
   projectDb: Sql,
 ): Promise<APIResponseWithData<ResultsValue[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Get facility config once for all modules
     const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
     const facilityConfig = facilityConfigResult.success
       ? facilityConfigResult.data
       : undefined;
 
-    // Get all metrics from the database
     const rawMetrics = await projectDb<DBMetric[]>`
       SELECT * FROM metrics ORDER BY label
     `;
 
     const metrics: ResultsValue[] = [];
     for (const dbMetric of rawMetrics) {
-      const enrichedMetric = await enrichMetric(
-        dbMetric,
-        projectDb,
-        facilityConfig,
-      );
+      const enrichedMetric = await enrichMetric(dbMetric, projectDb, facilityConfig);
       metrics.push(enrichedMetric);
     }
 
@@ -877,7 +887,6 @@ export async function getMetricsWithStatus(
   projectDb: Sql,
 ): Promise<APIResponseWithData<MetricWithStatus[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Get facility config once for all modules
     const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
     const facilityConfig = facilityConfigResult.success
       ? facilityConfigResult.data
@@ -901,11 +910,7 @@ export async function getMetricsWithStatus(
     for (const dbMetric of rawMetrics) {
       if (dbMetric.hide) continue;
 
-      const enrichedMetric = await enrichMetric(
-        dbMetric,
-        projectDb,
-        facilityConfig,
-      );
+      const enrichedMetric = await enrichMetric(dbMetric, projectDb, facilityConfig);
 
       const moduleId = dbMetric.module_id as ModuleId;
       const moduleDirty = moduleDirtyMap.get(dbMetric.module_id);
@@ -930,7 +935,9 @@ export async function getMetricsWithStatus(
         ...enrichedMetric,
         status,
         moduleId,
-        vizPresets: dbMetric.viz_presets ? parseJsonOrThrow(dbMetric.viz_presets) : undefined,
+        vizPresets: dbMetric.viz_presets
+          ? z.array(vizPresetStored).parse(adaptLegacyVizPresets(JSON.parse(dbMetric.viz_presets)))
+          : undefined,
       });
     }
 
@@ -959,8 +966,8 @@ export async function getModulesListForAI(
     const lines = ["AVAILABLE MODULES", "=".repeat(80), ""];
 
     for (const rawModule of rawModules) {
-      const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-        rawModule.module_definition,
+      const moduleDefinition = parseModuleDefinition(
+        adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
       );
 
       lines.push(`ID: ${rawModule.id}`);
@@ -997,8 +1004,8 @@ SELECT * FROM modules WHERE id = ${moduleId}
       throw new Error("No module with this id");
     }
 
-    const moduleDefinition = parseJsonOrThrow<ModuleDefinition>(
-      rawModule.module_definition,
+    const moduleDefinition = parseModuleDefinition(
+      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
     );
     const configSelections = parseModuleConfigSelections(
       rawModule.config_selections,

@@ -10,7 +10,7 @@ import {
 } from "./key_color_themes.ts";
 import type { ColorKeyOrString, KeyColors, KeyColorsKey } from "./types.ts";
 
-const _defaultTheme = KEY_COLOR_THEMES["dark-blue"].colors;
+const _defaultTheme = KEY_COLOR_THEMES["panther-default"].colors;
 
 const _KEY_COLORS = new Map<KeyColorsKey, string>([
   ["base100", _defaultTheme.base100],

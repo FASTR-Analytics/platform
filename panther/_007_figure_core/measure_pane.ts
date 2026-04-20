@@ -90,6 +90,8 @@ export function measurePane<TData>(
     subChartAreaWidth,
     config.xAxisConfig,
     baseStyle.grid,
+    i_pane,
+    nLanes,
   );
 
   const {

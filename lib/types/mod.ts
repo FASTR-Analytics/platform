@@ -1,4 +1,5 @@
 export * from "./assets.ts";
+export * from "./conditional_formatting.ts";
 export * from "./errors.ts";
 export * from "./geojson_maps.ts";
 export * from "./dataset_hfa.ts";
@@ -11,9 +12,10 @@ export * from "./datasets_in_project.ts";
 export * from "./indicators.ts";
 export * from "./instance.ts";
 export * from "./instance_sse.ts";
-export * from "./module_definitions.ts";
+export * from "./module_definition.ts";
 export * from "./module_registry.ts";
 export * from "./modules.ts";
+export * from "./presentation_object_config.ts";
 export * from "./presentation_object_defaults.ts";
 export * from "./presentation_objects.ts";
 export * from "./project_dirty_states.ts";

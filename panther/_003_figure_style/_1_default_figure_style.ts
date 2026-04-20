@@ -131,6 +131,17 @@ const _DS = {
     tickHeight: 10,
     tickLabelGap: 10,
   },
+  xScaleAxis: {
+    max: typed<number | "auto" | ((i_pane: number) => number)>("auto"),
+    min: typed<number | "auto" | ((i_pane: number) => number)>(0),
+    labelGap: 10,
+    tickHeight: 10,
+    tickLabelGap: 5,
+    tickLabelFormatter: (v: number): string => (v * 100).toFixed(0) + "%",
+    forceRightOverhangWidth: typed<"none" | number>("none"),
+    allowIndividualLaneLimits: false,
+    exactAxisY: typed<"none" | number>("none"),
+  },
   xPeriodAxis: {
     forceSideTicksWhenYear: false,
     showEveryNthTick: 1,
@@ -140,6 +151,7 @@ const _DS = {
   },
   // Y Axis
   yTextAxis: {
+    tickPosition: typed<"sides" | "center">("center"),
     colHeight: 30,
     paddingTop: 0,
     paddingBottom: 0,

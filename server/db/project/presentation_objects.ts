@@ -5,6 +5,7 @@ import {
   ResultsValue,
   getReplicateByProp,
   parseJsonOrThrow,
+  presentationObjectConfigSchema,
   throwIfErrWithData,
   type APIResponseWithData,
   type PresentationObjectConfig,
@@ -19,6 +20,7 @@ import {
   type DBPresentationObject,
 } from "./_project_database_types.ts";
 import { getFacilityColumnsConfig } from "../instance/config.ts";
+import { adaptLegacyPresentationObjectConfig } from "../../legacy_adapters/mod.ts";
 import { resolveMetricById } from "./results_value_resolver.ts";
 import { generateUniquePresentationObjectId } from "../../utils/id_generation.ts";
 
@@ -62,7 +64,7 @@ VALUES
     ${makeDefault},
     ${createdByAI},
     ${label.trim()},
-    ${JSON.stringify(config)},
+    ${JSON.stringify(presentationObjectConfigSchema.parse(config))},
     ${lastUpdated},
     ${folderId ?? null}
   )
@@ -140,7 +142,7 @@ WHERE m.module_id = ${moduleId}
 ORDER BY po.sort_order, LOWER(po.label)
 `;
     const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
-      const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
+      const config = adaptLegacyPresentationObjectConfig(parseJsonOrThrow(row.config));
       return configToSummary(row, config);
     });
     return { success: true, data: presentationObjects };
@@ -158,7 +160,7 @@ ORDER BY po.is_default_visualization DESC, po.sort_order, LOWER(po.label)
 `;
     const presentationObjects = rows
       .map<PresentationObjectSummary>((row) => {
-        const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
+        const config = adaptLegacyPresentationObjectConfig(parseJsonOrThrow(row.config));
         return configToSummary(row, config);
       });
     return { success: true, data: presentationObjects };
@@ -181,11 +183,9 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       throw new Error("No presentation object with this id");
     }
 
-    // Get facility config for enrichment
     const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
     throwIfErrWithData(resFacilityConfig);
 
-    // Resolve metric by ID with enrichment
     const resResultsValue = await resolveMetricById(
       projectDb,
       rawPresObj.metric_id,
@@ -199,7 +199,7 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       resultsValue: resResultsValue.data,
       lastUpdated: rawPresObj.last_updated,
       label: rawPresObj.label,
-      config: parseJsonOrThrow(rawPresObj.config),
+      config: adaptLegacyPresentationObjectConfig(parseJsonOrThrow(rawPresObj.config)),
       isDefault: rawPresObj.is_default_visualization,
       folderId: rawPresObj.folder_id,
     };
@@ -318,10 +318,10 @@ SELECT is_default_visualization, last_updated FROM presentation_objects WHERE id
       ]);
     await projectDb.begin(async (sql: Sql) => {
       await sql`
-UPDATE presentation_objects 
-SET 
-  config = ${JSON.stringify(config)}, 
-  last_updated = ${lastUpdated} 
+UPDATE presentation_objects
+SET
+  config = ${JSON.stringify(presentationObjectConfigSchema.parse(config))},
+  last_updated = ${lastUpdated}
 WHERE id = ${presentationObjectId}
 `;
       for (const reportItemId of reportItemsThatDependOnPresentationObjects) {
@@ -377,15 +377,14 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
           throw new Error(`Presentation object ${id} not found`);
         }
 
-        const config: PresentationObjectConfig = parseJsonOrThrow(
-          result[0].config,
-        );
+        const config: PresentationObjectConfig =
+          adaptLegacyPresentationObjectConfig(parseJsonOrThrow(result[0].config));
 
         config.d.periodFilter = periodFilter;
 
         await sql`
           UPDATE presentation_objects
-          SET config = ${JSON.stringify(config)},
+          SET config = ${JSON.stringify(presentationObjectConfigSchema.parse(config))},
               last_updated = ${lastUpdated}
           WHERE id = ${id}
         `;
@@ -490,7 +489,7 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
 `;
 
     const visualizations = rows.map((row) => {
-      const config = parseJsonOrThrow<PresentationObjectConfig>(row.config);
+      const config = adaptLegacyPresentationObjectConfig(parseJsonOrThrow(row.config));
       const moduleDef = parseJsonOrThrow<{ name: string }>(
         row.module_definition,
       );

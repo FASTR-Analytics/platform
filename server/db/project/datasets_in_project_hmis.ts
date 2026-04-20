@@ -273,9 +273,21 @@ export async function removeDatasetFromProject(
   datasetType: DatasetType
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    // Fully clear the per-dataset-type tables so "disable" actually disables.
+    // The code order matters for HFA: snapshot-code FKs into snapshot-indicators.
     await projectDb.begin((sql) => [
       sql`DELETE FROM datasets WHERE dataset_type = ${datasetType}`,
-      // Don't delete indicators/facilities - let them persist until next dataset is added
+      ...(datasetType === "hmis"
+        ? [
+            sql`DELETE FROM indicators`,
+            sql`DELETE FROM facilities`,
+          ]
+        : [
+            sql`DELETE FROM hfa_indicator_code_snapshot`,
+            sql`DELETE FROM hfa_indicators_snapshot`,
+            sql`DELETE FROM indicators_hfa`,
+            sql`DELETE FROM facilities`,
+          ]),
     ]);
     try {
       const datasetFilePath = getDatasetFilePath(projectId, datasetType);

@@ -57,7 +57,8 @@ export function measureTimeseries(
     yAxisConfig: {
       type: "scale",
       axisStyle: mergedStyle.yScaleAxis,
-      axisData: transformedData.yScaleAxisData,
+      axisData: transformedData.scaleAxisLimits,
+      axisLabel: transformedData.yScaleAxisLabel,
     },
     orientation: "vertical",
   };

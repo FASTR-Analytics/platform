@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { AssetInfo } from "./assets.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { DatasetType } from "./datasets.ts";
@@ -78,6 +79,7 @@ export type InstanceDetail = {
   maxAdminArea: number;
   countryIso3: string | undefined;
   facilityColumns: InstanceConfigFacilityColumns;
+  adminAreaLabels: InstanceConfigAdminAreaLabels;
   structure:
     | {
         adminArea1s: number;
@@ -104,32 +106,51 @@ export type InstanceDetail = {
   users: OtherUser[];
 };
 
-export type InstanceConfigMaxAdminArea = {
-  maxAdminArea: number;
-};
+export const instanceConfigMaxAdminAreaSchema = z.object({
+  maxAdminArea: z.number(),
+});
+export type InstanceConfigMaxAdminArea = z.infer<
+  typeof instanceConfigMaxAdminAreaSchema
+>;
 
-export type InstanceConfigCountryIso3 = {
-  countryIso3: string | undefined;
-};
+export const instanceConfigCountryIso3Schema = z.object({
+  countryIso3: z.string().optional(),
+});
+export type InstanceConfigCountryIso3 = z.infer<
+  typeof instanceConfigCountryIso3Schema
+>;
 
-export type InstanceConfigFacilityColumns = {
-  includeNames: boolean;
-  includeTypes: boolean;
-  includeOwnership: boolean;
-  includeCustom1: boolean;
-  includeCustom2: boolean;
-  includeCustom3: boolean;
-  includeCustom4: boolean;
-  includeCustom5: boolean;
-  labelNames?: string;
-  labelTypes?: string;
-  labelOwnership?: string;
-  labelCustom1?: string;
-  labelCustom2?: string;
-  labelCustom3?: string;
-  labelCustom4?: string;
-  labelCustom5?: string;
-};
+export const instanceConfigAdminAreaLabelsSchema = z.object({
+  label1: z.string().optional(),
+  label2: z.string().optional(),
+  label3: z.string().optional(),
+  label4: z.string().optional(),
+});
+export type InstanceConfigAdminAreaLabels = z.infer<
+  typeof instanceConfigAdminAreaLabelsSchema
+>;
+
+export const instanceConfigFacilityColumnsSchema = z.object({
+  includeNames: z.boolean(),
+  includeTypes: z.boolean(),
+  includeOwnership: z.boolean(),
+  includeCustom1: z.boolean(),
+  includeCustom2: z.boolean(),
+  includeCustom3: z.boolean(),
+  includeCustom4: z.boolean(),
+  includeCustom5: z.boolean(),
+  labelNames: z.string().optional(),
+  labelTypes: z.string().optional(),
+  labelOwnership: z.string().optional(),
+  labelCustom1: z.string().optional(),
+  labelCustom2: z.string().optional(),
+  labelCustom3: z.string().optional(),
+  labelCustom4: z.string().optional(),
+  labelCustom5: z.string().optional(),
+});
+export type InstanceConfigFacilityColumns = z.infer<
+  typeof instanceConfigFacilityColumnsSchema
+>;
 
 export type OptionalFacilityColumn =
   | "facility_name"
@@ -172,6 +193,15 @@ export function getEnabledOptionalFacilityColumns(
   if (config.includeCustom4) columns.push("facility_custom_4");
   if (config.includeCustom5) columns.push("facility_custom_5");
   return columns;
+}
+
+// Canonical string representation for staleness comparison. Sorted keys so
+// that server and client produce byte-identical output from equal configs.
+export function hashFacilityColumnsConfig(
+  config: InstanceConfigFacilityColumns,
+): string {
+  const keys = Object.keys(config).sort() as (keyof InstanceConfigFacilityColumns)[];
+  return JSON.stringify(keys.map((k) => [k, config[k] ?? null]));
 }
 
 // ============================================================================

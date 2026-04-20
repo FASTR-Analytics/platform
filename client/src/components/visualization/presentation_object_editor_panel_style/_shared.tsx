@@ -1,4 +1,4 @@
-import { PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
+import { PresentationObjectConfig, PresentationObjectDetail, selectCf, t3 } from "lib";
 import {
   Checkbox,
   LabelHolder,
@@ -105,7 +105,7 @@ export function SharedControlsBottom(p: SharedBottomProps) {
           !p.tempConfig.s.specialDisruptionsChart &&
           !(p.tempConfig.s.content === "areas" && p.tempConfig.s.diffAreas) && // Legacy adapter — remove once all configs migrated
           (p.tempConfig.d.type !== "table" ||
-            p.tempConfig.s.conditionalFormatting !== "none")
+            selectCf(p.tempConfig.s).type !== "none")
         }
       >
         <Checkbox

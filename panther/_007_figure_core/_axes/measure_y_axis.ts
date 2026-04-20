@@ -10,10 +10,12 @@ import type {
 } from "../deps.ts";
 import type { YAxisConfig } from "./axis_configs.ts";
 import type { ValueRange, YAxisWidthInfo } from "../types.ts";
+import type { XScaleAxisHeightInfo } from "./x_scale/types.ts";
 import {
   measureYScaleAxis,
   measureYScaleAxisWidthInfo,
 } from "./y_scale/measure.ts";
+import { measureYTextAxisWidthInfo } from "./y_text/measure.ts";
 
 export function measureYAxisWidthInfo(
   rc: RenderContext,
@@ -29,6 +31,7 @@ export function measureYAxisWidthInfo(
       return measureYScaleAxisWidthInfo(
         rc,
         yAxisConfig.axisData,
+        yAxisConfig.axisLabel,
         yAxisConfig.axisStyle,
         gridStyle,
         contentRcd,
@@ -37,7 +40,14 @@ export function measureYAxisWidthInfo(
         tierCount,
       );
     case "text":
-      throw new Error("Y-text axis measurement not implemented yet");
+      return measureYTextAxisWidthInfo(
+        rc,
+        yAxisConfig.indicatorHeaders,
+        yAxisConfig.axisStyle,
+        gridStyle,
+        contentRcd,
+        tierHeaderAndLabelGapWidth,
+      );
     case "none":
       return { widthIncludingYAxisStrokeWidth: 0, halfYAxisTickLabelH: 0 };
   }
@@ -74,4 +84,14 @@ export function getScaleAxisValueRange(
     };
   }
   throw new Error("Value range extraction not implemented for Y-text axis");
+}
+
+export function getXScaleAxisValueRange(
+  xScaleHeightInfo: XScaleAxisHeightInfo,
+  iLane: number,
+): ValueRange {
+  return {
+    minVal: xScaleHeightInfo.xAxisTickValues[iLane]?.at(0) ?? 0,
+    maxVal: xScaleHeightInfo.xAxisTickValues[iLane]?.at(-1) ?? 1,
+  };
 }

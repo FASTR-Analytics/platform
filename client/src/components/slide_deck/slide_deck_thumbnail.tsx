@@ -1,4 +1,4 @@
-import { getStartingConfigForSlideDeck, getTextRenderingOptions, t3, type SlideDeckConfig } from "lib";
+import { getStartingConfigForSlideDeck, t3, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "./slide_rendering/convert_slide_to_page_inputs";
 import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
@@ -68,7 +68,6 @@ export function SlideDeckThumbnail(p: Props) {
         <PageHolder
           pageInputs={undefined}
           fixedCanvasH={canvasH}
-          textRenderingOptions={getTextRenderingOptions()}
           simpleError
           externalError={(pageInputs() as { err: string }).err}
           scalePixelResolution={0.2}
@@ -78,7 +77,6 @@ export function SlideDeckThumbnail(p: Props) {
         <PageHolder
           pageInputs={(pageInputs() as { data: PageInputs }).data}
           fixedCanvasH={canvasH}
-          textRenderingOptions={getTextRenderingOptions()}
           simpleError
           scalePixelResolution={0.2}
         />

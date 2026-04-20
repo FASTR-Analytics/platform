@@ -19,7 +19,10 @@ import { DBReport, type DBReportItem } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { getPgConnectionFromCacheOrNew } from "../postgres/mod.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
-import { adaptLegacyReportItemConfig } from "./legacy_report_adapter.ts";
+import {
+  adaptLegacyReportItemConfigShape,
+  resolveLegacyReportMetricIds,
+} from "../../legacy_adapters/mod.ts";
 
 function forEachLayoutItem<T>(
   node: LayoutNode<T>,
@@ -352,8 +355,8 @@ SELECT * FROM report_items WHERE report_id = ${reportId}
         id: rawReportItem.id,
         projectId,
         reportId: rawReportItem.report_id,
-        config: await adaptLegacyReportItemConfig(
-          parseJsonOrThrow(rawReportItem.config),
+        config: await resolveLegacyReportMetricIds(
+          adaptLegacyReportItemConfigShape(parseJsonOrThrow(rawReportItem.config)),
           projectDb,
         ),
         lastUpdated: rawReportItem.last_updated,
@@ -597,8 +600,8 @@ SELECT * FROM report_items WHERE id = ${reportItemId}
       id: rawReportItem.id,
       projectId,
       reportId: rawReportItem.report_id,
-      config: await adaptLegacyReportItemConfig(
-        parseJsonOrThrow(rawReportItem.config),
+      config: await resolveLegacyReportMetricIds(
+        adaptLegacyReportItemConfigShape(parseJsonOrThrow(rawReportItem.config)),
         projectDb,
       ),
       lastUpdated: rawReportItem.last_updated,

@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  ChartScaleAxisLimits,
   CustomFigureStyle,
   FigureInputsBase,
   JsonArray,
@@ -17,7 +18,6 @@ import type {
   RectCoordsDims,
   UncertaintyConfig,
   XPeriodAxisMeasuredInfo,
-  YScaleAxisData,
 } from "./deps.ts";
 
 export type TimeseriesInputs = FigureInputsBase & {
@@ -76,7 +76,8 @@ export type TimeseriesDataTransformed = {
     ub: (number | undefined)[][][][][];
     lb: (number | undefined)[][][][][];
   };
-  yScaleAxisData: YScaleAxisData;
+  scaleAxisLimits: ChartScaleAxisLimits;
+  yScaleAxisLabel?: string;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////

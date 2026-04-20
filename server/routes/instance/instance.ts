@@ -1,10 +1,12 @@
 import { Hono } from "hono";
 import { InstanceMeta, type InstanceConfig } from "lib";
 import {
+  getAdminAreaLabelsConfig,
   getCountryIso3Config,
   getFacilityColumnsConfig,
   getInstanceDetail,
   getMaxAdminAreaConfig,
+  updateAdminAreaLabelsConfig,
   updateCountryIso3Config,
   updateFacilityColumnsConfig,
   updateMaxAdminArea,
@@ -92,6 +94,20 @@ defineRoute(
 
 defineRoute(
   routesInstance,
+  "updateAdminAreaLabelsConfig",
+  requireGlobalPermission("can_configure_settings"),
+  log("updateAdminAreaLabelsConfig"),
+  async (c, { body }) => {
+    const res = await updateAdminAreaLabelsConfig(c.var.mainDb, body);
+    if (res.success) {
+      await notifyConfigUpdated(c.var.mainDb);
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesInstance,
   "updateCountryIso3",
   requireGlobalPermission("can_configure_settings"),
   log("updateCountryIso3"),
@@ -105,16 +121,18 @@ defineRoute(
 );
 
 async function notifyConfigUpdated(mainDb: Parameters<typeof getMaxAdminAreaConfig>[0]) {
-  const [maxRes, fcRes, isoRes] = await Promise.all([
+  const [maxRes, fcRes, isoRes, labelsRes] = await Promise.all([
     getMaxAdminAreaConfig(mainDb),
     getFacilityColumnsConfig(mainDb),
     getCountryIso3Config(mainDb),
+    getAdminAreaLabelsConfig(mainDb),
   ]);
-  if (maxRes.success && fcRes.success && isoRes.success) {
+  if (maxRes.success && fcRes.success && isoRes.success && labelsRes.success) {
     const config: InstanceConfig = {
       maxAdminArea: maxRes.data.maxAdminArea,
       facilityColumns: fcRes.data,
       countryIso3: isoRes.data.countryIso3,
+      adminAreaLabels: labelsRes.data,
     };
     notifyInstanceConfigUpdated(config);
   }

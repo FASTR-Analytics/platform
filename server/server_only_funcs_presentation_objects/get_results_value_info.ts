@@ -24,18 +24,12 @@ export async function getResultsValueInfoForPresentationObject(
   APIResponseWithData<ResultsValueInfoForPresentationObject>
 > {
   return await tryCatchDatabaseAsync(async () => {
-    // Get facility config
     const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
     const facilityConfig = facilityConfigResult.success
       ? facilityConfigResult.data
       : undefined;
 
-    // Resolve the metric with enrichment
-    const resResultsValue = await resolveMetricById(
-      projectDb,
-      metricId,
-      facilityConfig,
-    );
+    const resResultsValue = await resolveMetricById(projectDb, metricId, facilityConfig);
     throwIfErrWithData(resResultsValue);
 
     // Extract everything from the ResultsValue
@@ -128,6 +122,13 @@ async function getResultsObjectVariableInfoCore(
         mainDb,
       );
       if (resDisPossibleVals.success === false) {
+        console.warn(
+          `[getPossibleValues] failed for ${disOpt} on ${resultsObjectId}: ${resDisPossibleVals.err}`,
+        );
+        disaggregationPossibleValues[disOpt] = {
+          status: "error",
+          message: resDisPossibleVals.err,
+        };
         continue;
       }
 

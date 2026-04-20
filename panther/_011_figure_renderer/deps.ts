@@ -10,6 +10,8 @@ export type {
   Renderer,
 } from "../_001_render_system/mod.ts";
 export { generateAnnotationPrimitives } from "../_007_figure_core/mod.ts";
+export { ChartOHRenderer } from "../_010_chartoh/mod.ts";
+export type { ChartOHInputs, MeasuredChartOH } from "../_010_chartoh/mod.ts";
 export { ChartOVRenderer } from "../_010_chartov/mod.ts";
 export type { ChartOVInputs, MeasuredChartOV } from "../_010_chartov/mod.ts";
 export { MapRenderer } from "../_010_maps/mod.ts";

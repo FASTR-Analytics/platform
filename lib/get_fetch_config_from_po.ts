@@ -6,16 +6,19 @@ import {
 } from "@timroberton/panther";
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import {
-  APIResponseWithData,
-  DisaggregationOption,
-  GenericLongFormFetchConfig,
-  PeriodBounds,
-  PeriodFilter,
-  type PeriodOption,
-  PresentationObjectConfig,
+  periodFilterHasBounds,
+  type DisaggregationOption,
+  type GenericLongFormFetchConfig,
+  type PeriodBounds,
+  type PeriodFilter,
+  type ResultsValueInfoForPresentationObject,
+} from "./types/presentation_objects.ts";
+import type { PresentationObjectConfig } from "./types/presentation_object_config.ts";
+import type {
+  PeriodOption,
   ResultsValue,
-  ResultsValueInfoForPresentationObject,
-} from "./types/mod.ts";
+} from "./types/module_definition.ts";
+import type { APIResponseWithData } from "./types/instance.ts";
 import { getCalendar } from "./translate/mod.ts";
 
 export function getFetchConfigFromPresentationObjectConfig(
@@ -30,7 +33,10 @@ export function getFetchConfigFromPresentationObjectConfig(
   }
 
   if (config.d.type === "timeseries") {
-    groupBys.push(config.d.periodOpt);
+    if (!config.d.timeseriesGrouping) {
+      throw new Error("Timeseries config missing timeseriesGrouping");
+    }
+    groupBys.push(config.d.timeseriesGrouping);
   }
 
   const shouldIncludeNationalAggregate = config.d.includeNationalForAdminArea2;
@@ -85,18 +91,7 @@ export function getPeriodFilterExactBounds(
   if (periodFilter === undefined) {
     return periodBounds;
   }
-  // Auto-migrate old "last_12_months" to "last_n_months"
-  if (periodFilter?.filterType === ("last_12_months" as any)) {
-    periodFilter = {
-      ...periodFilter,
-      filterType: "last_n_months",
-      nMonths: 12,
-    };
-  }
-  if (
-    periodFilter.filterType === undefined ||
-    periodFilter.filterType === "custom"
-  ) {
+  if (periodFilter.filterType === "custom") {
     return periodFilter;
   }
   if (periodBounds === undefined) {
@@ -282,9 +277,9 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
     fc.periodFilter?.nMonths?.toString() ?? "",
     fc.periodFilter?.nYears?.toString() ?? "",
     fc.periodFilter?.nQuarters?.toString() ?? "",
-    fc.periodFilter?.periodOption ?? "",
-    fc.periodFilter?.min?.toString() ?? "",
-    fc.periodFilter?.max?.toString() ?? "",
+    fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.periodOption : "",
+    fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.min.toString() : "",
+    fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.max.toString() : "",
     fc.postAggregationExpression ?? "",
     fc.includeNationalForAdminArea2 ? "yes" : "no",
     fc.includeNationalPosition,

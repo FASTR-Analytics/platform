@@ -90,12 +90,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         </Match>
         <Match when={p.tempConfig.d.type === "table"}>
           <TableStyleControls
+            poDetail={p.poDetail}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "map"}>
           <MapStyleControls
+            poDetail={p.poDetail}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
           />

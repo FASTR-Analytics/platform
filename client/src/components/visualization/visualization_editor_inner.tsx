@@ -6,8 +6,9 @@ import {
   ProjectDetail,
   ResultsValueInfoForPresentationObject,
   getReplicateByProp,
-  getTextRenderingOptions,
+  
   hasDuplicateDisaggregatorDisplayOptions,
+  periodFilterHasBounds,
   t3,
   TC,
 } from "lib";
@@ -206,11 +207,22 @@ export function VisualizationEditorInner(p: InnerProps) {
     for (const fil of tempConfig.d.filterBy) {
       const _v = fil.disOpt + "-" + fil.values.join("-");
     }
+    // CRITICAL: Explicit reads below subscribe to nested fields on tempConfig.d.
+    // The for-loop above only reliably tracks top-level key changes; nested-field
+    // updates within objects like `periodFilter` won't trigger this effect unless
+    // read explicitly here. If you add a new nested filter field, add a read here
+    // too — otherwise changes to it won't re-fetch the preview.
     const _periodFilterFilterType = tempConfig.d.periodFilter?.filterType;
     const _periodFilterNMonths = tempConfig.d.periodFilter?.nMonths;
-    const _periodFilterOpt = tempConfig.d.periodFilter?.periodOption;
-    const _periodFilterMin = tempConfig.d.periodFilter?.min;
-    const _periodFilterMax = tempConfig.d.periodFilter?.max;
+    const _periodFilterNYears = tempConfig.d.periodFilter?.nYears;
+    const _periodFilterNQuarters = tempConfig.d.periodFilter?.nQuarters;
+    const _periodFilterBounded =
+      tempConfig.d.periodFilter && periodFilterHasBounds(tempConfig.d.periodFilter)
+        ? tempConfig.d.periodFilter
+        : undefined;
+    const _periodFilterOpt = _periodFilterBounded?.periodOption;
+    const _periodFilterMin = _periodFilterBounded?.min;
+    const _periodFilterMax = _periodFilterBounded?.max;
     const _valuesFilter = tempConfig.d.valuesFilter?.join("-");
     const _includeNationalForAdminArea2 = tempConfig.d
       .includeNationalForAdminArea2
@@ -860,7 +872,10 @@ export function VisualizationEditorInner(p: InnerProps) {
                                 keyedItemsHolder.ih.status === "ok" &&
                                 keyedItemsHolder.ih.items.length > 0
                               ) {
-                                const periodProp = tempConfig.d.periodOpt;
+                                if (!tempConfig.d.timeseriesGrouping) {
+                                  throw new Error("Timeseries config missing timeseriesGrouping");
+                                }
+                                const periodProp = tempConfig.d.timeseriesGrouping;
                                 if (
                                   !(periodProp in keyedItemsHolder.ih.items[0])
                                 ) {
@@ -891,7 +906,6 @@ export function VisualizationEditorInner(p: InnerProps) {
                                         chartInputs={keyedFigureInputs}
                                         height={editorHeight()}
                                         noRescaleWithWidthChange
-                                        textRenderingOptions={getTextRenderingOptions()}
                                       />
                                     );
                                   }}

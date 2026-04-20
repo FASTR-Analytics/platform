@@ -50,7 +50,7 @@ export function TimeseriesStyleControls(p: Props) {
     p.setTempConfig("s", "specialDisruptionsChart", v === "disruptions");
     p.setTempConfig("s", "diffAreas", false); // Clear legacy flag
     if (v === "coverage") {
-      p.setTempConfig("d", "periodOpt", "year" as PeriodOption);
+      p.setTempConfig("d", "timeseriesGrouping", "year" as PeriodOption);
       p.setTempConfig("s", "content", "lines");
       p.setTempConfig("s", "hideLegend", false);
       p.setTempConfig("s", "allowIndividualRowLimits", false);
@@ -137,9 +137,9 @@ export function TimeseriesStyleControls(p: Props) {
           <RadioGroup
             label={t3({ en: "Period", fr: "Période" })}
             options={periodRadioOptions()}
-            value={p.tempConfig.d.periodOpt}
+            value={p.tempConfig.d.timeseriesGrouping}
             onChange={(v) =>
-              p.setTempConfig("d", "periodOpt", v as PeriodOption)
+              p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
             }
           />
           <div class="ui-spy-sm border-base-300 rounded border p-4">
@@ -227,9 +227,9 @@ export function TimeseriesStyleControls(p: Props) {
           <RadioGroup
             label={t3({ en: "Period", fr: "Période" })}
             options={periodRadioOptions()}
-            value={p.tempConfig.d.periodOpt}
+            value={p.tempConfig.d.timeseriesGrouping}
             onChange={(v) =>
-              p.setTempConfig("d", "periodOpt", v as PeriodOption)
+              p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
             }
           />
           <Checkbox
@@ -283,9 +283,9 @@ export function TimeseriesStyleControls(p: Props) {
           <RadioGroup
             label={t3({ en: "Period", fr: "Période" })}
             options={periodRadioOptions()}
-            value={p.tempConfig.d.periodOpt}
+            value={p.tempConfig.d.timeseriesGrouping}
             onChange={(v) =>
-              p.setTempConfig("d", "periodOpt", v as PeriodOption)
+              p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
             }
           />
           <RadioGroup

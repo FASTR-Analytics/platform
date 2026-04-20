@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  ChartScaleAxisLimits,
   ColorKeyOrString,
   CustomFigureStyle,
   FigureInputsBase,
@@ -15,7 +16,6 @@ import type {
   MergedChartOVStyle,
   Primitive,
   UncertaintyConfig,
-  YScaleAxisData,
 } from "./deps.ts";
 
 export type ChartOVInputs = FigureInputsBase & {
@@ -69,7 +69,8 @@ export type ChartOVDataTransformed = {
     ub: (number | undefined)[][][][][];
     lb: (number | undefined)[][][][][];
   };
-  yScaleAxisData: YScaleAxisData;
+  scaleAxisLimits: ChartScaleAxisLimits;
+  yScaleAxisLabel?: string;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////

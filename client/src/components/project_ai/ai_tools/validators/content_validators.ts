@@ -3,6 +3,7 @@ import {
   MAX_CONTENT_BLOCKS,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
+  isDisaggregationOption,
   type AiMetricQuery,
   type DisaggregationOption,
   type MetricWithStatus,
@@ -65,7 +66,7 @@ function validateFilters(
   if (!filters) return;
 
   const invalidCols = filters.filter(
-    f => !ALL_DISAGGREGATION_OPTIONS.includes(f.col)
+    f => !isDisaggregationOption(f.col)
   );
   if (invalidCols.length > 0) {
     throw new Error(
@@ -96,7 +97,7 @@ function validateFilters(
 export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithStatus): void {
   if (query.disaggregations) {
     const invalid = query.disaggregations.filter(
-      d => !ALL_DISAGGREGATION_OPTIONS.includes(d)
+      d => !isDisaggregationOption(d)
     );
     if (invalid.length > 0) {
       throw new Error(

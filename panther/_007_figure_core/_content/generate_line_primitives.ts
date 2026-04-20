@@ -105,32 +105,45 @@ export function generateLinePrimitives(
           dl.border !== "none";
 
         if (labelStr.trim() || hasDecoration) {
-          currentSeg.pointLabels.push({
-            coordIndex: currentSeg.coords.length - 1,
-            dataLabel: {
-              mText,
-              position: new Coordinates([
-                mappedVal.coords.x(),
-                mappedVal.coords.y() - dl.offset,
-              ]),
-              alignH: "center",
-              alignV: "bottom",
-              style: hasDecoration
+          const style = hasDecoration
+            ? {
+              backgroundColor: dl.backgroundColor !== "none"
+                ? getColor(dl.backgroundColor)
+                : undefined,
+              padding: dl.padding,
+              border: dl.border !== "none"
                 ? {
-                  backgroundColor: dl.backgroundColor !== "none"
-                    ? getColor(dl.backgroundColor)
-                    : undefined,
-                  padding: dl.padding,
-                  border: dl.border !== "none"
-                    ? {
-                      color: getColor(dl.border.color),
-                      width: dl.border.width,
-                    }
-                    : undefined,
-                  rectRadius: dl.rectRadius,
+                  color: getColor(dl.border.color),
+                  width: dl.border.width,
                 }
                 : undefined,
-            },
+              rectRadius: dl.rectRadius,
+            }
+            : undefined;
+          const isHorizontal = ctx.orientation === "horizontal";
+          currentSeg.pointLabels.push({
+            coordIndex: currentSeg.coords.length - 1,
+            dataLabel: isHorizontal
+              ? {
+                mText,
+                position: new Coordinates([
+                  mappedVal.coords.x() + dl.offset,
+                  mappedVal.coords.y(),
+                ]),
+                alignH: "left",
+                alignV: "middle",
+                style,
+              }
+              : {
+                mText,
+                position: new Coordinates([
+                  mappedVal.coords.x(),
+                  mappedVal.coords.y() - dl.offset,
+                ]),
+                alignH: "center",
+                alignV: "bottom",
+                style,
+              },
           });
         }
       }

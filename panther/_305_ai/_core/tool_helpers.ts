@@ -88,7 +88,8 @@ export function createAITool<TInput, TOutput = string>(
     description: config.description,
     input_schema: zodToJsonSchema(config.inputSchema),
     run: async (input: TInput) => {
-      const result = await Promise.resolve(config.handler(input));
+      const validated = config.inputSchema.parse(input) as TInput;
+      const result = await Promise.resolve(config.handler(validated));
       return typeof result === "string" ? result : JSON.stringify(result);
     },
   };

@@ -23,7 +23,6 @@ import type {
   PageHitTargetColDivider,
   PageHitTargetLayoutItem,
   PageInputs,
-  TextRenderingOptions,
 } from "../deps.ts";
 import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
@@ -69,7 +68,6 @@ type Props = {
   canvasElementId?: string;
   fixedCanvasH: number;
   fitWithin?: boolean;
-  textRenderingOptions?: TextRenderingOptions;
   simpleError?: boolean;
   externalError?: string;
   scalePixelResolution?: number;
@@ -177,11 +175,6 @@ export function PageHolder(p: Props) {
       });
     }
 
-    if (p.textRenderingOptions?.fallbackFonts) {
-      p.textRenderingOptions.fallbackFonts.forEach((fontInfo) => {
-        loadFont(fontInfo.fontFamily);
-      });
-    }
   });
 
   createEffect(() => {
@@ -197,7 +190,6 @@ export function PageHolder(p: Props) {
       setMeasuredPage,
       unscaledW,
       unscaledH,
-      p.textRenderingOptions,
       p.externalError,
       p.onMeasured,
       animationFrameId,
@@ -590,7 +582,6 @@ function updatePage(
   setMeasuredPage: Setter<MeasuredPage | undefined>,
   unscaledW: number,
   unscaledH: number,
-  textRenderingOptions: TextRenderingOptions | undefined,
   externalError: string | undefined,
   onMeasured: ((measured: MeasuredPage) => void) | undefined,
   currentFrameId?: number,
@@ -614,7 +605,7 @@ function updatePage(
 
     (async () => {
       try {
-        const rc = new CanvasRenderContext(ctx, textRenderingOptions);
+        const rc = new CanvasRenderContext(ctx);
         const rcd = new RectCoordsDims([0, 0, unscaledW, unscaledH]);
 
         const mPage = await PageRenderer.measure(rc, rcd, pageInputs);

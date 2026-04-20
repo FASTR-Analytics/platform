@@ -44,24 +44,34 @@ export function TabsNavigation(p: TabsNavigationProps) {
     p.onCollapsedChange?.(!p.collapsed);
   };
 
-  const getIcon = (tabValue: string): IconName => {
+  // Icons are opt-in. Return undefined when the caller hasn't configured
+  // any, so callers without icon intent don't get a surprise chevron.
+  // Exception: the collapsed vertical mode is icon-only, so it falls back
+  // to chevronRight where no icon is otherwise provided — handled at the
+  // render site below.
+  const getIcon = (tabValue: string): IconName | undefined => {
     if (p.icons?.[tabValue]) {
       return p.icons[tabValue];
     }
-    return p.defaultIcon ?? "chevronRight";
+    return p.defaultIcon;
   };
 
   const getTabClasses = (tab: string) => {
     const isActive = p.tabs.isTabActive(tab);
 
     if (!isVertical) {
+      // Horizontal tabs render their own bottom border, which overlaps the
+      // container's continuous underline (see containerClasses + rowClasses
+      // below for the -mb-px trick). Active tab covers with primary; inactive
+      // tab is transparent so the container line shows through — producing a
+      // single clean rail across the whole tab strip.
       const baseClasses =
-        "ui-hoverable ui-focusable relative flex items-center justify-center ui-gap-sm ui-pad font-700 cursor-pointer border-b-4";
+        "ui-hoverable ui-focusable relative flex items-center justify-center ui-gap-sm ui-pad font-700 cursor-pointer border-b-2";
 
       if (isActive) {
         return `${baseClasses} border-primary text-primary bg-base-100`;
       }
-      return `${baseClasses} border-transparent text-base-content hover:text-primary hover:border-base-300`;
+      return `${baseClasses} border-transparent text-base-content hover:text-primary hover:border-primary/40`;
     } else {
       // Vertical tabs - match original wb-fastr styling
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
@@ -82,29 +92,40 @@ export function TabsNavigation(p: TabsNavigationProps) {
       typeof option.label === "string" ? option.label : String(option.value));
 
   const containerClasses = !isVertical
-    ? "bg-base-100 flex w-full"
+    ? "bg-base-100 w-full border-b border-base-300"
     : "bg-base-100 flex w-full flex-col h-full";
+
+  // Horizontal: -mb-px pulls the tab row up 1px so each tab's border-b-2
+  // sits on top of the container's border-b — continuous underline with
+  // the active tab's primary border overlaying it.
+  const rowClasses = !isVertical
+    ? "-mb-px flex"
+    : "flex-1 overflow-y-auto";
 
   const renderTabContent = (option: SelectOption<string>) => {
     const badge = p.showBadge?.(option.value);
     const icon = getIcon(option.value);
 
     if (isCollapsed()) {
-      // Collapsed mode: icon only - match height with expanded mode
+      // Collapsed mode: icon only — this is the one case where we fall
+      // back to a chevron if no icon was provided, because "no icon" would
+      // leave the tab blank.
       return (
         <span class="flex h-[1.25em] w-[1.25em] flex-none items-center">
-          <IconRenderer iconName={icon} />
+          <IconRenderer iconName={icon ?? "chevronRight"} />
         </span>
       );
     }
 
-    // Expanded mode: icon + label + badge
+    // Expanded mode: optional icon + label + badge
     return (
       <>
         <div class="flex h-[1.25em] items-center gap-[0.75em]">
-          <span class="h-[1.25em] w-[1.25em] flex-none">
-            <IconRenderer iconName={icon} />
-          </span>
+          <Show when={icon}>
+            <span class="h-[1.25em] w-[1.25em] flex-none">
+              <IconRenderer iconName={icon!} />
+            </span>
+          </Show>
           <span class="whitespace-nowrap leading-tight">
             {formatter(option)}
           </span>
@@ -124,7 +145,7 @@ export function TabsNavigation(p: TabsNavigationProps) {
 
   return (
     <div class={containerClasses}>
-      <div class="flex-1 overflow-y-auto">
+      <div class={rowClasses}>
         <For each={p.tabs.tabs}>
           {(option) => {
             const tooltipContent = typeof option.label === "string"

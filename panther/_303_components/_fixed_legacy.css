@@ -1,0 +1,677 @@
+@theme {
+  --font-*: initial;
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: Roboto Mono;
+
+  --font-weight-*: initial;
+  --font-weight-400: 400;
+  --font-weight-700: 700;
+
+  --color-transparent: transparent;
+  --color-black: #000716;
+  --color-white: #ffffff;
+
+  --color-base-100: #ffffff;
+  --color-base-200: #f2f2f2;
+  --color-base-300: #cacaca;
+  --color-base-content: #2a2a2a;
+
+  --color-primary: #0e706c;
+  --color-primary-content: #ffffff;
+
+  --color-neutral: rgb(161, 161, 161);
+  --color-neutral-content: #ffffff;
+
+  --color-success: #009f70;
+  --color-success-content: #ffffff;
+
+  --color-warning: #d97706;
+  --color-warning-content: #ffffff;
+
+  --color-danger: #f04d44;
+  --color-danger-content: #ffffff;
+
+  --radius: 4px;
+  --radius-full: 9999px;
+}
+
+/* ============================================= */
+/* PUBLIC UTILITIES - For External App Use      */
+/* ============================================= */
+/* These classes are part of the public API and */
+/* should be used by consuming applications.    */
+/* ============================================= */
+
+@utility ui-pad {
+  @apply px-4 py-4;
+}
+
+@utility ui-pad-sm {
+  @apply px-2 py-2;
+}
+
+@utility ui-pad-lg {
+  @apply px-8 py-6;
+}
+
+@utility ui-pad-x-sm {
+  @apply px-2;
+}
+
+@utility ui-pad-x {
+  @apply px-4;
+}
+
+@utility ui-pad-x-lg {
+  @apply px-8;
+}
+
+@utility ui-gap {
+  @apply gap-x-4 gap-y-4;
+}
+
+@utility ui-gap-sm {
+  @apply gap-x-2 gap-y-2;
+}
+
+@utility ui-gap-lg {
+  @apply gap-x-6 gap-y-6;
+}
+
+@utility ui-spy {
+  @apply space-y-6;
+}
+
+@utility ui-spy-sm {
+  @apply space-y-2;
+}
+
+@utility ui-spy-lg {
+  @apply space-y-8;
+}
+
+@utility ui-form-pad {
+  @apply px-3 py-2;
+}
+
+@utility ui-form-text-size {
+  @apply text-sm leading-tight;
+}
+
+@utility ui-icon-only-correction {
+  @apply -mx-1;
+}
+
+@utility ui-form-pad-sm {
+  @apply px-2 py-1;
+}
+
+@utility ui-form-text-size-sm {
+  @apply text-xs leading-tight;
+}
+
+@utility ui-icon-only-correction-sm {
+  @apply -mx-0.5;
+}
+
+@layer components {
+  /* ============================================= */
+  /* PUBLIC UTILITIES - For External App Use      */
+  /* ============================================= */
+  /* These classes are part of the public API and */
+  /* should be used by consuming applications.    */
+  /* ============================================= */
+
+  /* Hoverable Elements - Add hover/active states to any element */
+  .ui-hoverable {
+    @apply relative cursor-pointer select-none overflow-clip;
+  }
+
+  .ui-hoverable::before {
+    @apply absolute inset-0 block;
+    border-radius: inherit;
+    content: "";
+  }
+
+  .ui-hoverable:hover::before {
+    backdrop-filter: brightness(92%);
+  }
+
+  .ui-hoverable:active::before {
+    backdrop-filter: brightness(86%);
+  }
+
+  .ui-hoverable > *:not(.absolute) {
+    @apply relative;
+  }
+
+  /* ============================================= */
+  /* INTERNAL UTILITIES - Component Library Only  */
+  /* ============================================= */
+  /* These classes are used internally by the     */
+  /* component library. External apps should not  */
+  /* rely on these as they may change.            */
+  /* ============================================= */
+
+  /* Disabled State */
+  .ui-disabled {
+    @apply pointer-events-none opacity-40;
+  }
+
+  /* Focus States */
+  .ui-focusable {
+    @apply ring-primary ring-offset-base-100 data-[intent=neutral]:focus-visible:ring-neutral data-[intent=success]:focus-visible:ring-success data-[intent=danger]:focus-visible:ring-danger outline-none ring-0 ring-offset-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+  }
+
+  .ui-never-focusable {
+    @apply outline-none ring-0 ring-offset-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0;
+  }
+
+  /* ============================================= */
+  /* Intent Color Utilities                        */
+  /* ============================================= */
+
+  /* Intent colors for filled components (outline=false) */
+  .ui-intent-fill {
+    @apply data-[outline=false]:bg-primary data-[outline=false]:text-primary-content data-[outline=false]:border-primary;
+    @apply data-[intent=neutral]:data-[outline=false]:bg-neutral data-[intent=neutral]:data-[outline=false]:text-neutral-content data-[intent=neutral]:data-[outline=false]:border-neutral;
+    @apply data-[intent=success]:data-[outline=false]:bg-success data-[intent=success]:data-[outline=false]:text-success-content data-[intent=success]:data-[outline=false]:border-success;
+    @apply data-[intent=danger]:data-[outline=false]:bg-danger data-[intent=danger]:data-[outline=false]:text-danger-content data-[intent=danger]:data-[outline=false]:border-danger;
+    @apply data-[intent=base-content]:data-[outline=false]:bg-base-content data-[intent=base-content]:data-[outline=false]:text-base-100 data-[intent=base-content]:data-[outline=false]:border-base-content;
+    @apply data-[intent=base-100]:data-[outline=false]:bg-base-100 data-[intent=base-100]:data-[outline=false]:text-base-content data-[intent=base-100]:data-[outline=false]:border-base-100;
+  }
+
+  /* Intent colors for outlined components (outline=true) */
+  .ui-intent-outline {
+    @apply data-[outline=true]:text-primary;
+    @apply data-[intent=neutral]:data-[outline=true]:text-neutral;
+    @apply data-[intent=success]:data-[outline=true]:text-success;
+    @apply data-[intent=danger]:data-[outline=true]:text-danger;
+    @apply data-[intent=base-content]:data-[outline=true]:text-base-content;
+    @apply data-[intent=base-100]:data-[outline=true]:text-base-100;
+    @apply data-[outline=true]:border-[currentColor] data-[outline=true]:bg-transparent;
+    @apply data-[fill-base-100=true]:data-[outline=true]:bg-base-100;
+  }
+
+  /* ============================================= */
+  /* Component Utilities                           */
+  /* ============================================= */
+
+  /* Slider */
+  .ui-slider {
+    @apply m-0 h-5 w-full cursor-pointer appearance-none bg-transparent;
+  }
+
+  /* Slider Track */
+  .ui-slider::-webkit-slider-runnable-track {
+    @apply bg-base-300 h-1 w-full cursor-pointer rounded;
+  }
+  .ui-slider::-moz-range-track {
+    @apply bg-base-300 h-1 w-full cursor-pointer rounded;
+  }
+
+  /* Slider Thumb */
+  .ui-slider::-webkit-slider-thumb {
+    @apply bg-base-content -mt-1.5 h-4 w-4 cursor-pointer appearance-none rounded-full;
+  }
+  .ui-slider::-moz-range-thumb {
+    @apply bg-base-content -mt-1.5 h-4 w-4 cursor-pointer rounded-full border-0;
+  }
+
+  /* Slider Focus */
+  .ui-slider:focus-visible {
+    @apply outline-none;
+  }
+  .ui-slider:focus-visible::-webkit-slider-thumb {
+    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+  }
+  .ui-slider:focus-visible::-moz-range-thumb {
+    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+  }
+
+  /* Slider Disabled */
+  .ui-slider:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+  .ui-slider:disabled::-webkit-slider-thumb {
+    @apply cursor-not-allowed;
+  }
+  .ui-slider:disabled::-moz-range-thumb {
+    @apply cursor-not-allowed;
+  }
+
+  /* Slider Ticks */
+  .ui-slider-tick {
+    @apply pointer-events-none absolute top-0 w-px;
+    transform: translateX(-50%);
+  }
+
+  .ui-slider-tick-major {
+    @apply bg-base-300 h-2.5;
+  }
+
+  .ui-slider-tick-minor {
+    @apply bg-base-300 h-2 opacity-70;
+  }
+
+  /* Slider Tick Labels */
+  .ui-slider-tick-label {
+    @apply text-base-content pointer-events-none absolute text-xs;
+    transform: translateX(-50%);
+  }
+
+  /* Double Slider Container */
+  .ui-doubleslider {
+    @apply relative h-5 w-full;
+  }
+
+  /* Double Slider Fill (highlighted range) */
+  .ui-doubleslider-fill {
+    @apply bg-base-content pointer-events-none absolute top-2 z-10 h-1 rounded;
+  }
+
+  /* Double Slider Input Base */
+  .ui-doubleslider-low,
+  .ui-doubleslider-high {
+    @apply absolute h-5 w-full cursor-pointer appearance-none bg-transparent;
+    pointer-events: none;
+  }
+
+  /* Double Slider Track - only show track for low slider */
+  .ui-doubleslider-low::-webkit-slider-runnable-track {
+    @apply bg-base-300 h-1 w-full cursor-pointer rounded;
+  }
+  .ui-doubleslider-low::-moz-range-track {
+    @apply bg-base-300 h-1 w-full cursor-pointer rounded;
+  }
+
+  /* High slider track is transparent to avoid covering the low thumb */
+  .ui-doubleslider-high::-webkit-slider-runnable-track {
+    @apply h-1 w-full cursor-pointer bg-transparent;
+  }
+  .ui-doubleslider-high::-moz-range-track {
+    @apply h-1 w-full cursor-pointer bg-transparent;
+  }
+
+  /* Double Slider Thumb */
+  .ui-doubleslider-low::-webkit-slider-thumb,
+  .ui-doubleslider-high::-webkit-slider-thumb {
+    @apply bg-base-content relative z-20 -mt-1.5 h-4 w-4 cursor-pointer appearance-none rounded-full;
+    pointer-events: all;
+  }
+  .ui-doubleslider-low::-moz-range-thumb,
+  .ui-doubleslider-high::-moz-range-thumb {
+    @apply bg-base-content relative z-20 -mt-1.5 h-4 w-4 cursor-pointer rounded-full border-0;
+    pointer-events: all;
+  }
+
+  /* Double Slider Thumb Hover
+  .ui-doubleslider-low:hover::-webkit-slider-thumb,
+  .ui-doubleslider-high:hover::-webkit-slider-thumb {
+    @apply opacity-80;
+  }
+  .ui-doubleslider-low:hover::-moz-range-thumb,
+  .ui-doubleslider-high:hover::-moz-range-thumb {
+    @apply opacity-80;
+  } */
+
+  /* Double Slider Focus */
+  .ui-doubleslider-low:focus-visible,
+  .ui-doubleslider-high:focus-visible {
+    @apply outline-none;
+  }
+  .ui-doubleslider-low:focus-visible::-webkit-slider-thumb,
+  .ui-doubleslider-high:focus-visible::-webkit-slider-thumb {
+    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+  }
+  .ui-doubleslider-low:focus-visible::-moz-range-thumb,
+  .ui-doubleslider-high:focus-visible::-moz-range-thumb {
+    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+  }
+
+  /* Comparison Slider - extends Double Slider */
+  /* Colored fills */
+  .ui-comparisonslider-fill-above {
+    @apply bg-success;
+  }
+  .ui-comparisonslider-fill-below {
+    @apply bg-danger;
+  }
+
+  /* Comparison thumb (non-interactive) */
+  .ui-comparisonslider-comparison::-webkit-slider-thumb {
+    @apply bg-base-300 cursor-default;
+  }
+  .ui-comparisonslider-comparison::-moz-range-thumb {
+    @apply bg-base-300 cursor-default;
+  }
+
+  /* Comparison thumb as vertical bar (optional style)
+  .ui-comparisonslider-comparison-narrow::-webkit-slider-thumb {
+    @apply bg-neutral ml-1 w-1 cursor-default appearance-none rounded-none;
+  }
+  .ui-comparisonslider-comparison-narrow::-moz-range-thumb {
+    @apply bg-neutral ml-1 w-1 cursor-default rounded-none border-0;
+  } */
+
+  /* Interactive thumb color states */
+  .ui-comparisonslider-input-above::-webkit-slider-thumb {
+    @apply bg-success;
+  }
+  .ui-comparisonslider-input-above::-moz-range-thumb {
+    @apply bg-success;
+  }
+  .ui-comparisonslider-input-below::-webkit-slider-thumb {
+    @apply bg-danger;
+  }
+  .ui-comparisonslider-input-below::-moz-range-thumb {
+    @apply bg-danger;
+  }
+
+  /* ============================================= */
+  /* Checkbox Intent Colors                        */
+  /* ============================================= */
+
+  /* Checkbox with intent - unchecked state */
+  .ui-checkbox-intent {
+    @apply border-base-300 bg-base-100;
+  }
+
+  /* Checkbox intent colors when checked (follows ui-intent-fill pattern) */
+  .ui-checkbox-intent:checked {
+    @apply bg-primary border-primary;
+  }
+  .ui-checkbox-intent:checked[data-intent="neutral"] {
+    @apply bg-neutral border-neutral;
+  }
+  .ui-checkbox-intent:checked[data-intent="success"] {
+    @apply bg-success border-success;
+  }
+  .ui-checkbox-intent:checked[data-intent="danger"] {
+    @apply bg-danger border-danger;
+  }
+  .ui-checkbox-intent:checked[data-intent="base-content"] {
+    @apply bg-base-content border-base-content;
+  }
+  .ui-checkbox-intent:checked[data-intent="base-100"] {
+    @apply bg-base-100 border-base-100;
+  }
+
+  /* Checkmark SVG colors when checkbox is checked with intent */
+  .ui-checkbox-intent:checked ~ svg {
+    color: var(--color-primary-content) !important;
+  }
+  .ui-checkbox-intent:checked[data-intent="neutral"] ~ svg {
+    color: var(--color-neutral-content) !important;
+  }
+  .ui-checkbox-intent:checked[data-intent="success"] ~ svg {
+    color: var(--color-success-content) !important;
+  }
+  .ui-checkbox-intent:checked[data-intent="danger"] ~ svg {
+    color: var(--color-danger-content) !important;
+  }
+  .ui-checkbox-intent:checked[data-intent="base-content"] ~ svg {
+    color: var(--color-base-100) !important;
+  }
+  .ui-checkbox-intent:checked[data-intent="base-100"] ~ svg {
+    color: var(--color-base-content) !important;
+  }
+
+  /* ============================================= */
+  /* Form Utilities                                */
+  /* ============================================= */
+
+
+  /* Labels */
+  .ui-label {
+    @apply text-base-content font-400 inline-block pb-1 text-sm leading-tight;
+  }
+
+  /* ============================================= */
+  /* Scrollbar Utilities                          */
+  /* ============================================= */
+
+  /* Auto-rounded scrollbars for rounded containers */
+  .rounded ::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: var(--radius);
+  }
+
+  .rounded ::-webkit-scrollbar-thumb {
+    background-color: var(--color-base-300);
+    border-radius: var(--radius);
+  }
+
+  .rounded ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-neutral);
+  }
+
+  .rounded {
+    scrollbar-color: var(--color-base-300) transparent;
+  }
+
+  /* ============================================= */
+  /* Typography Utilities                          */
+  /* ============================================= */
+
+  /* Text Styles */
+  .ui-form-text {
+    @apply text-base-content font-400 text-sm leading-tight;
+  }
+
+  .ui-text-heading {
+    @apply font-700 text-base-content text-lg;
+  }
+
+  .ui-text-small {
+    @apply text-base-content text-xs leading-tight;
+  }
+
+  /* Streaming cursor for AI chat */
+  .ui-streaming-cursor > *:last-child::after {
+    content: "";
+    display: inline-block;
+    width: 1ch;
+    height: 1.2em;
+    background-color: currentColor;
+    vertical-align: -0.2em;
+    margin-left: 2px;
+    animation: ui-blink 1s step-end infinite;
+  }
+
+  @keyframes ui-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* ============================================= */
+  /* Popover Menu Positioning                      */
+  /* ============================================= */
+
+  /* Position-try fallback definitions */
+  @position-try --pm-top {
+    position-area: top;
+  }
+  @position-try --pm-top-start {
+    position-area: top span-right;
+  }
+  @position-try --pm-top-end {
+    position-area: top span-left;
+  }
+  @position-try --pm-bottom {
+    position-area: bottom;
+  }
+  @position-try --pm-bottom-start {
+    position-area: bottom span-right;
+  }
+  @position-try --pm-bottom-end {
+    position-area: bottom span-left;
+  }
+  @position-try --pm-left {
+    position-area: left;
+  }
+  @position-try --pm-right {
+    position-area: right;
+  }
+
+  /* Virtual anchor for popover positioning */
+  .ui-popover-anchor {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+    anchor-name: --popover-menu-anchor;
+  }
+
+  /* Popover base styles */
+  .ui-popover-menu {
+    position: absolute;
+    position-anchor: --popover-menu-anchor;
+    position-try-order: most-block-size;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  /* Position: bottom-start (default) */
+  .ui-popover-menu[data-position="bottom-start"] {
+    position-area: bottom span-right;
+    position-try-fallbacks: --pm-bottom-end, --pm-top-start, --pm-top-end;
+  }
+
+  /* Position: bottom */
+  .ui-popover-menu[data-position="bottom"] {
+    position-area: bottom;
+    position-try-fallbacks: --pm-top, --pm-bottom-start, --pm-bottom-end, --pm-top-start, --pm-top-end;
+  }
+
+  /* Position: bottom-end */
+  .ui-popover-menu[data-position="bottom-end"] {
+    position-area: bottom span-left;
+    position-try-fallbacks: --pm-bottom-start, --pm-top-end, --pm-top-start;
+  }
+
+  /* Position: top-start */
+  .ui-popover-menu[data-position="top-start"] {
+    position-area: top span-right;
+    position-try-fallbacks: --pm-top-end, --pm-bottom-start, --pm-bottom-end;
+  }
+
+  /* Position: top */
+  .ui-popover-menu[data-position="top"] {
+    position-area: top;
+    position-try-fallbacks: --pm-bottom, --pm-top-start, --pm-top-end, --pm-bottom-start, --pm-bottom-end;
+  }
+
+  /* Position: top-end */
+  .ui-popover-menu[data-position="top-end"] {
+    position-area: top span-left;
+    position-try-fallbacks: --pm-top-start, --pm-bottom-end, --pm-bottom-start;
+  }
+
+  /* Position: left */
+  .ui-popover-menu[data-position="left"] {
+    position-area: left;
+    position-try-fallbacks: --pm-right, --pm-bottom-start, --pm-top-start;
+  }
+
+  /* Position: right */
+  .ui-popover-menu[data-position="right"] {
+    position-area: right;
+    position-try-fallbacks: --pm-left, --pm-bottom-end, --pm-top-end;
+  }
+
+  /* Sub-menu popover */
+  .ui-popover-submenu {
+    position: absolute;
+    position-try-order: normal;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  .ui-popover-submenu[data-position="right"] {
+    top: anchor(top);
+    left: anchor(right);
+    margin-left: 4px;
+    position-try-fallbacks: --submenu-left;
+  }
+
+  @position-try --submenu-left {
+    top: anchor(top);
+    right: anchor(left);
+    left: auto;
+    margin-left: 0;
+    margin-right: 4px;
+  }
+
+  /* Sub-menu parent items get an arrow indicator */
+  .ui-menu-item-with-submenu {
+    position: relative;
+  }
+
+  /* ============================================= */
+  /* Pure CSS Tooltips                             */
+  /* ============================================= */
+
+  .ui-tooltip-wrapper {
+    position: relative;
+  }
+
+  .ui-tooltip-wrapper[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 50;
+    background-color: var(--color-base-content);
+    color: var(--color-base-100);
+    white-space: nowrap;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  .ui-tooltip-wrapper[data-tooltip]:hover::after {
+    opacity: 1;
+  }
+
+  /* Position: right (default) */
+  .ui-tooltip-wrapper[data-tooltip-position="right"]::after,
+  .ui-tooltip-wrapper[data-tooltip]:not([data-tooltip-position])::after {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0.5rem;
+  }
+
+  /* Position: left */
+  .ui-tooltip-wrapper[data-tooltip-position="left"]::after {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 0.5rem;
+  }
+
+  /* Position: top */
+  .ui-tooltip-wrapper[data-tooltip-position="top"]::after {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 0.5rem;
+  }
+
+  /* Position: bottom */
+  .ui-tooltip-wrapper[data-tooltip-position="bottom"]::after {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 0.5rem;
+  }
+}

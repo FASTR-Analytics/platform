@@ -6,5 +6,6 @@
 import type { YAxisWidthInfoBase } from "../../types.ts";
 
 export type YTextAxisWidthInfo = YAxisWidthInfoBase & {
-  // Stub — fields to be added for ChartOH
+  maxTickLabelW: number;
+  nIndicators: number;
 };

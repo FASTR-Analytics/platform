@@ -1,6 +1,8 @@
 import {
+  type BoundedPeriodFilter,
   type DisaggregationPossibleValuesStatus,
   PeriodBounds,
+  periodFilterHasBounds,
   PresentationObjectConfig,
   PresentationObjectDetail,
   ResultsValue,
@@ -23,16 +25,17 @@ import {
 } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
+import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_label";
 
 /**
  * Legacy configs may have periodFilter.periodOption mismatched with periodBounds.periodOption
  * (e.g. filter has "year" values like 2025 but bounds has "period_id" values like 202512).
  * This converts the filter's min/max to match the bounds format.
  */
-function reconcilePeriodFilterWithBounds<T extends PeriodBounds>(
-  periodFilter: T,
+function reconcilePeriodFilterWithBounds(
+  periodFilter: BoundedPeriodFilter,
   periodBounds: PeriodBounds,
-): T {
+): BoundedPeriodFilter {
   if (periodFilter.periodOption === periodBounds.periodOption) return periodFilter;
   const target = periodBounds.periodOption;
   const convert = (v: number, isEnd: boolean): number => {
@@ -195,12 +198,7 @@ function PeriodFilter(p: PeriodFilterProps) {
         checked={!!p.tempConfig.d.periodFilter}
         onChange={(checked) => {
           if (checked) {
-            p.setTempConfig("d", "periodFilter", {
-              filterType: "last_n_months",
-              periodOption: p.keyedPeriodBounds.periodOption,
-              min: p.keyedPeriodBounds.min,
-              max: p.keyedPeriodBounds.max,
-            });
+            p.setTempConfig("d", "periodFilter", { filterType: "last_n_months" });
           } else {
             p.setTempConfig("d", "periodFilter", undefined);
           }
@@ -208,7 +206,6 @@ function PeriodFilter(p: PeriodFilterProps) {
       />
       <Show when={p.tempConfig.d.periodFilter} keyed>
         {(rawPeriodFilter) => {
-          const keyedPeriodFilter = reconcilePeriodFilterWithBounds(rawPeriodFilter, p.keyedPeriodBounds);
           const displayFilterType = () => {
             const ft = p.tempConfig.d.periodFilter?.filterType;
             if (ft === "last_calendar_year") return "last_n_calendar_years";
@@ -216,6 +213,10 @@ function PeriodFilter(p: PeriodFilterProps) {
             return ft;
           };
           const periodOption = p.keyedPeriodBounds.periodOption;
+          const boundedFilter = () =>
+            periodFilterHasBounds(rawPeriodFilter)
+              ? reconcilePeriodFilterWithBounds(rawPeriodFilter, p.keyedPeriodBounds)
+              : undefined;
           return (
             <div class="ui-spy-sm pb-4 pl-4">
               <RadioGroup
@@ -271,114 +272,139 @@ function PeriodFilter(p: PeriodFilterProps) {
                       ]
                 }
                 onChange={(v) => {
-                  p.setTempConfig(
-                    "d",
-                    "periodFilter",
-                    "filterType",
-                    v as NonNullable<PresentationObjectConfig["d"]["periodFilter"]>["filterType"],
-                  );
-                  if (v === "last_n_calendar_years") p.setTempConfig("d", "periodFilter", "nYears", 1);
-                  if (v === "last_n_calendar_quarters") p.setTempConfig("d", "periodFilter", "nQuarters", 1);
+                  const newType = v as NonNullable<PresentationObjectConfig["d"]["periodFilter"]>["filterType"];
+                  if (newType === "custom" || newType === "from_month") {
+                    p.setTempConfig("d", "periodFilter", {
+                      filterType: newType,
+                      periodOption: p.keyedPeriodBounds.periodOption,
+                      min: p.keyedPeriodBounds.min,
+                      max: p.keyedPeriodBounds.max,
+                    });
+                  } else if (newType === "last_n_calendar_years") {
+                    p.setTempConfig("d", "periodFilter", { filterType: newType, nYears: 1 });
+                  } else if (newType === "last_n_calendar_quarters") {
+                    p.setTempConfig("d", "periodFilter", { filterType: newType, nQuarters: 1 });
+                  } else {
+                    p.setTempConfig("d", "periodFilter", { filterType: newType });
+                  }
                 }}
               />
               <Show
                 when={
-                  p.tempConfig.d.periodFilter?.filterType === "last_n_months" &&
+                  rawPeriodFilter.filterType === "last_n_months" &&
                   periodOption === "quarter_id"
                 }
               >
                 <NQuartersSelector
-                  nQuarters={keyedPeriodFilter.nQuarters}
+                  nQuarters={rawPeriodFilter.filterType === "last_n_months" ? rawPeriodFilter.nQuarters : undefined}
                   onUpdate={(nQuarters) => {
-                    p.setTempConfig("d", "periodFilter", "nQuarters", nQuarters);
+                    p.setTempConfig("d", "periodFilter", { filterType: "last_n_months", nQuarters });
                   }}
                 />
               </Show>
               <Show
                 when={
-                  p.tempConfig.d.periodFilter?.filterType === "last_n_months" &&
+                  rawPeriodFilter.filterType === "last_n_months" &&
                   periodOption === "period_id"
                 }
               >
                 <NMonthsSelector
-                  nMonths={keyedPeriodFilter.nMonths}
+                  nMonths={rawPeriodFilter.filterType === "last_n_months" ? rawPeriodFilter.nMonths : undefined}
                   onUpdate={(nMonths) =>
-                    p.setTempConfig("d", "periodFilter", "nMonths", nMonths)
+                    p.setTempConfig("d", "periodFilter", { filterType: "last_n_months", nMonths })
                   }
                 />
               </Show>
               <Show
                 when={
-                  p.tempConfig.d.periodFilter?.filterType === "last_n_calendar_years" ||
-                  p.tempConfig.d.periodFilter?.filterType === "last_calendar_year"
+                  rawPeriodFilter.filterType === "last_n_calendar_years" ||
+                  rawPeriodFilter.filterType === "last_calendar_year"
                 }
               >
                 <NYearsSelector
-                  nYears={keyedPeriodFilter.nYears}
+                  nYears={
+                    rawPeriodFilter.filterType === "last_n_calendar_years" ||
+                    rawPeriodFilter.filterType === "last_calendar_year"
+                      ? rawPeriodFilter.nYears
+                      : undefined
+                  }
                   onUpdate={(nYears) => {
-                    p.setTempConfig("d", "periodFilter", "filterType", "last_n_calendar_years");
-                    p.setTempConfig("d", "periodFilter", "nYears", nYears);
+                    p.setTempConfig("d", "periodFilter", { filterType: "last_n_calendar_years", nYears });
                   }}
                 />
               </Show>
               <Show
                 when={
-                  p.tempConfig.d.periodFilter?.filterType === "last_n_calendar_quarters" ||
-                  p.tempConfig.d.periodFilter?.filterType === "last_calendar_quarter"
+                  rawPeriodFilter.filterType === "last_n_calendar_quarters" ||
+                  rawPeriodFilter.filterType === "last_calendar_quarter"
                 }
               >
                 <NQuartersSelector
-                  nQuarters={keyedPeriodFilter.nQuarters}
+                  nQuarters={
+                    rawPeriodFilter.filterType === "last_n_calendar_quarters" ||
+                    rawPeriodFilter.filterType === "last_calendar_quarter"
+                      ? rawPeriodFilter.nQuarters
+                      : undefined
+                  }
                   onUpdate={(nQuarters) => {
-                    p.setTempConfig("d", "periodFilter", "filterType", "last_n_calendar_quarters");
-                    p.setTempConfig("d", "periodFilter", "nQuarters", nQuarters);
+                    p.setTempConfig("d", "periodFilter", { filterType: "last_n_calendar_quarters", nQuarters });
                   }}
                 />
               </Show>
               <Show
-                when={p.tempConfig.d.periodFilter?.filterType === "from_month"}
+                when={rawPeriodFilter.filterType === "from_month" && boundedFilter()}
+                keyed
               >
-                <div class="ui-gap-sm ui-pad border-base-300 rounded border">
-                  <PeriodFilterPeriodIdSingle
-                    periodBounds={p.keyedPeriodBounds}
-                    periodFilter={keyedPeriodFilter}
-                    periodType={periodOption === "quarter_id" ? "year-quarter" : "year-month"}
-                    onUpdate={(v) =>
-                      p.setTempConfig("d", "periodFilter", {
-                        periodOption: p.keyedPeriodBounds.periodOption,
-                        filterType: "from_month",
-                        min: v.minPeriodId,
-                        max: p.keyedPeriodBounds.max,
-                      })
-                    }
-                  />
-                </div>
-              </Show>
-              <Switch>
-                <Match
-                  when={
-                    p.tempConfig.d.periodFilter?.filterType === "custom" &&
-                    (periodOption === "period_id" || periodOption === "quarter_id")
-                  }
-                >
+                {(bf) => (
                   <div class="ui-gap-sm ui-pad border-base-300 rounded border">
-                    <PeriodFilterPeriodId
+                    <PeriodFilterPeriodIdSingle
                       periodBounds={p.keyedPeriodBounds}
-                      periodFilter={keyedPeriodFilter}
+                      periodFilter={bf}
                       periodType={periodOption === "quarter_id" ? "year-quarter" : "year-month"}
                       onUpdate={(v) =>
                         p.setTempConfig("d", "periodFilter", {
                           periodOption: p.keyedPeriodBounds.periodOption,
+                          filterType: "from_month",
                           min: v.minPeriodId,
-                          max: v.maxPeriodId,
+                          max: p.keyedPeriodBounds.max,
                         })
                       }
-                    /></div>
+                    />
+                  </div>
+                )}
+              </Show>
+              <Switch>
+                <Match
+                  when={
+                    rawPeriodFilter.filterType === "custom" &&
+                    (periodOption === "period_id" || periodOption === "quarter_id") &&
+                    boundedFilter()
+                  }
+                  keyed
+                >
+                  {(bf) => (
+                    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+                      <PeriodFilterPeriodId
+                        periodBounds={p.keyedPeriodBounds}
+                        periodFilter={bf}
+                        periodType={periodOption === "quarter_id" ? "year-quarter" : "year-month"}
+                        onUpdate={(v) =>
+                          p.setTempConfig("d", "periodFilter", {
+                            filterType: "custom",
+                            periodOption: p.keyedPeriodBounds.periodOption,
+                            min: v.minPeriodId,
+                            max: v.maxPeriodId,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
                 </Match>
                 <Match
-                  when={p.tempConfig.d.periodFilter?.filterType === "custom"}
+                  when={rawPeriodFilter.filterType === "custom" && boundedFilter()}
+                  keyed
                 >
-                  {(() => {
+                  {(bf) => {
                     const toYear = (v: number) => String(v).length <= 4 ? v : Math.floor(v / 100);
                     return (
                       <PeriodFilterYear
@@ -388,21 +414,22 @@ function PeriodFilter(p: PeriodFilterProps) {
                           max: toYear(p.keyedPeriodBounds.max),
                         }}
                         periodFilter={{
-                          ...keyedPeriodFilter,
+                          ...bf,
                           periodOption: "year",
-                          min: toYear(keyedPeriodFilter.min),
-                          max: toYear(keyedPeriodFilter.max),
+                          min: toYear(bf.min),
+                          max: toYear(bf.max),
                         }}
                         onUpdate={(v) =>
                           p.setTempConfig("d", "periodFilter", {
-                            periodOption: p.tempConfig.d.periodFilter?.periodOption ?? "year",
+                            filterType: "custom",
+                            periodOption: bf.periodOption,
                             min: v.minYear,
                             max: v.maxYear,
                           })
                         }
                       />
                     );
-                  })()}
+                  }}
                 </Match>
               </Switch>
             </div>
@@ -424,7 +451,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3(p.disOpt.label)}
+        label={t3(getDisplayDisaggregationLabel(p.disOpt.value))}
         checked={
           !!p.tempConfig.d.filterBy.some((fil) => fil.disOpt === p.disOpt.value)
         }
@@ -477,6 +504,12 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                 <Match when={p.keyedStatus.status === "no_values_available"}>
                   <div class="ui-pad text-sm text-info">
                     {t3({ en: "No data available for this dimension.", fr: "Aucune donnée disponible pour cette dimension." })}
+                  </div>
+                </Match>
+                <Match when={p.keyedStatus.status === "error"}>
+                  <div class="ui-pad text-sm text-danger">
+                    {t3({ en: "Error loading values: ", fr: "Erreur lors du chargement des valeurs : " })}
+                    {(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "error" }>).message}
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "ok"}>

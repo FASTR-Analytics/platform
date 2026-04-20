@@ -1,4 +1,4 @@
-import type { TranslatableAIString } from "./module_definitions.ts";
+import type { TranslatableAIString } from "./module_definition.ts";
 
 export type DimensionDefinition = {
   id: string;

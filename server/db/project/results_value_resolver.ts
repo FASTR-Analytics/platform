@@ -14,7 +14,7 @@ import { enrichMetric } from "./metric_enricher.ts";
 export async function resolveMetricById(
   projectDb: Sql,
   metricId: string,
-  facilityConfig?: InstanceConfigFacilityColumns
+  facilityConfig?: InstanceConfigFacilityColumns,
 ): Promise<APIResponseWithData<ResultsValue>> {
   try {
     const dbMetric = (

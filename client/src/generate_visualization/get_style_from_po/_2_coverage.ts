@@ -6,10 +6,10 @@ import {
   getFormatterFunc,
   toPct0,
 } from "panther";
-import { getCalendar, PresentationObjectConfig } from "lib";
+import { getCalendar, PresentationObjectConfig, selectCf } from "lib";
+import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   getMapRegionsContent,
-  getMapValuesColorFunc,
   getTableCellsContent,
   getTableLayoutStyle,
   getTextStyle,
@@ -60,8 +60,7 @@ export function buildCoverageChartStyle(
       mapRegions: getMapRegionsContent(config, formatAs),
     },
     table: getTableLayoutStyle(config),
-    valuesColorFunc:
-      config.d.type === "map" ? getMapValuesColorFunc(config) : undefined,
+    valuesColorFunc: compileCfToValuesColorFunc(selectCf(config.s)),
     map:
       config.d.type === "map"
         ? { projection: config.s.mapProjection ?? "equirectangular", dataLabelMode: "centroid" }

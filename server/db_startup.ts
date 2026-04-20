@@ -1,6 +1,7 @@
 import {
   _COMMON_INDICATORS,
   H_USERS,
+  type InstanceConfigAdminAreaLabels,
   type InstanceConfigCountryIso3,
   type InstanceConfigFacilityColumns,
   type InstanceConfigMaxAdminArea,
@@ -82,12 +83,15 @@ function getDefaultInstanceConfigInsertStatement(): string {
     countryIso3: undefined,
   };
 
+  const adminAreaLabelsValue: InstanceConfigAdminAreaLabels = {};
+
   return `
 INSERT INTO instance_config (config_key, config_json_value)
 VALUES
   ('max_admin_area', '${JSON.stringify(adminAreaValue)}'),
   ('facility_columns', '${JSON.stringify(facilityColumnsValue)}'),
-  ('country_iso3', '${JSON.stringify(countryIso3Value)}');
+  ('country_iso3', '${JSON.stringify(countryIso3Value)}'),
+  ('admin_area_labels', '${JSON.stringify(adminAreaLabelsValue)}');
 `;
 }
 
@@ -159,7 +163,7 @@ async function migrateToMetricsTables(
           await tx`
             INSERT INTO metrics (
               id, module_id, label, variant_label, value_func, format_as, value_props,
-              period_options, required_disaggregation_options, value_label_replacements,
+              required_disaggregation_options, value_label_replacements,
               post_aggregation_expression, results_object_id, ai_description
             ) VALUES (
               ${rv.id},
@@ -169,7 +173,6 @@ async function migrateToMetricsTables(
               ${rv.valueFunc},
               ${rv.formatAs},
               ${JSON.stringify(rv.valueProps)},
-              ${JSON.stringify(rv.periodOptions ?? [])},
               ${JSON.stringify(
                 rv.requiredDisaggregationOptions ??
                   rv.disaggregationOptions

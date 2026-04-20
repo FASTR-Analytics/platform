@@ -12,6 +12,11 @@ import type { YAxisWidthInfo } from "../types.ts";
 import type { XAxisConfig } from "./axis_configs.ts";
 import { measureXPeriodAxis } from "./x_period/measure.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
+import {
+  measureXScaleAxisHeightInfo,
+  measureXScaleAxisLayout,
+} from "./x_scale/measure.ts";
+import type { XScaleAxisMeasuredInfo } from "./x_scale/types.ts";
 import { measureXTextAxis } from "./x_text/measure.ts";
 import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 
@@ -25,6 +30,7 @@ export type XNoneAxisMeasuredInfo = {
 export type XAxisMeasuredInfo =
   | XTextAxisMeasuredInfo
   | XPeriodAxisMeasuredInfo
+  | XScaleAxisMeasuredInfo
   | XNoneAxisMeasuredInfo;
 
 export function measureXAxis(
@@ -34,6 +40,8 @@ export function measureXAxis(
   subChartAreaWidth: number,
   xAxisConfig: XAxisConfig,
   gridStyle: MergedGridStyle,
+  i_pane: number,
+  laneCount: number,
 ): XAxisMeasuredInfo {
   switch (xAxisConfig.type) {
     case "text":
@@ -57,8 +65,23 @@ export function measureXAxis(
         xAxisConfig.axisStyle,
         gridStyle,
       );
-    case "scale":
-      throw new Error("X-scale axis not implemented yet");
+    case "scale": {
+      const xScaleHeightInfo = measureXScaleAxisHeightInfo(
+        rc,
+        xAxisConfig.axisData,
+        xAxisConfig.axisStyle,
+        gridStyle,
+        contentRcd,
+        i_pane,
+        laneCount,
+      );
+      return measureXScaleAxisLayout(
+        contentRcd,
+        yAxisWidthInfo.widthIncludingYAxisStrokeWidth,
+        xScaleHeightInfo,
+        subChartAreaWidth,
+      );
+    }
     case "none": {
       const xStart = contentRcd.x() +
         yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
@@ -72,24 +95,5 @@ export function measureXAxis(
         }),
       };
     }
-  }
-}
-
-export function measureXAxisHeightInfo(
-  _rc: RenderContext,
-  xAxisConfig: XAxisConfig,
-  _gridStyle: MergedGridStyle,
-): number {
-  switch (xAxisConfig.type) {
-    case "scale":
-      // When implemented: return self-contained height from tick label measurements
-      throw new Error("X-scale axis height measurement not implemented yet");
-    case "text":
-    case "period":
-      throw new Error(
-        "X-text/period height is not self-contained — use measureXAxis instead",
-      );
-    case "none":
-      return 0;
   }
 }

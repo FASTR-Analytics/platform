@@ -2,11 +2,15 @@ import { Sql } from "postgres";
 import {
   APIResponseNoData,
   APIResponseWithData,
+  InstanceConfigAdminAreaLabels,
   InstanceConfigMaxAdminArea,
   InstanceConfigFacilityColumns,
   InstanceConfigCountryIso3,
+  instanceConfigAdminAreaLabelsSchema,
+  instanceConfigCountryIso3Schema,
+  instanceConfigFacilityColumnsSchema,
+  instanceConfigMaxAdminAreaSchema,
   throwIfErrWithData,
-  parseJsonOrThrow,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 
@@ -85,8 +89,8 @@ export async function getMaxAdminAreaConfig(
       };
     }
 
-    const config = parseJsonOrThrow<InstanceConfigMaxAdminArea>(
-      result[0].config_json_value
+    const config = instanceConfigMaxAdminAreaSchema.parse(
+      JSON.parse(result[0].config_json_value),
     );
 
     return {
@@ -131,8 +135,8 @@ export async function getFacilityColumnsConfig(
       };
     }
 
-    const config = parseJsonOrThrow<InstanceConfigFacilityColumns>(
-      result[0].config_json_value
+    const config = instanceConfigFacilityColumnsSchema.parse(
+      JSON.parse(result[0].config_json_value),
     );
 
     return {
@@ -175,8 +179,8 @@ export async function getCountryIso3Config(
       };
     }
 
-    const config = parseJsonOrThrow<InstanceConfigCountryIso3>(
-      result[0].config_json_value
+    const config = instanceConfigCountryIso3Schema.parse(
+      JSON.parse(result[0].config_json_value),
     );
 
     return {
@@ -198,6 +202,44 @@ export async function updateCountryIso3Config(
       VALUES ('country_iso3', ${JSON.stringify(configValue)})
       ON CONFLICT (config_key)
       DO UPDATE SET config_json_value = ${JSON.stringify(configValue)}
+    `;
+
+    return { success: true };
+  });
+}
+
+export async function getAdminAreaLabelsConfig(
+  mainDb: Sql
+): Promise<APIResponseWithData<InstanceConfigAdminAreaLabels>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const result = await mainDb<{ config_json_value: string }[]>`
+      SELECT config_json_value
+      FROM instance_config
+      WHERE config_key = 'admin_area_labels'
+    `;
+
+    if (result.length === 0) {
+      return { success: true, data: {} };
+    }
+
+    const config = instanceConfigAdminAreaLabelsSchema.parse(
+      JSON.parse(result[0].config_json_value),
+    );
+
+    return { success: true, data: config };
+  });
+}
+
+export async function updateAdminAreaLabelsConfig(
+  mainDb: Sql,
+  config: InstanceConfigAdminAreaLabels
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      INSERT INTO instance_config (config_key, config_json_value)
+      VALUES ('admin_area_labels', ${JSON.stringify(config)})
+      ON CONFLICT (config_key)
+      DO UPDATE SET config_json_value = ${JSON.stringify(config)}
     `;
 
     return { success: true };
