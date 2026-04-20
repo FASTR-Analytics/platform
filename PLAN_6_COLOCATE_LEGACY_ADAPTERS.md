@@ -1,8 +1,8 @@
 # PLAN 6: Colocate legacy adapters via z.preprocess
 
-Every stored-shape type gets one obvious file. That file contains: the `LegacyStoredX` types (per-level), the pure typed adapters (per-level), the strict Zod schema(s) for the current shape, and the public schema for stored reads formed by `z.preprocess(adapter, strictSchema)`. Preprocess bakes the adapter into the schema — every `.parse()` and `.safeParse()` automatically runs it. Callers can't skip it.
+Every important stored-shape type gets one obvious file. That file contains: the strict Zod schema(s) for the current shape, the per-level adapters that normalize legacy shapes, and the public schema formed by `z.preprocess(adapter, strictSchema)`. Preprocess bakes the adapter into the schema — every `.parse()` and `.safeParse()` automatically runs it. Callers can't skip it.
 
-When a type changes, you edit one file: update `LegacyStoredX`, add a transform to the adapter, update the strict schema. When a drift variant is discovered, same file. When auditing legacy for a domain, same file.
+When a type changes, you edit one file: update the strict schema, add a transform to the adapter. When a drift variant is discovered, same file. When auditing legacy for a domain, same file.
 
 DB-dependent legacy resolutions (functions that need a `Sql` connection) stay server-side next to their caller.
 
@@ -10,162 +10,115 @@ This plan is **fully mechanical**. Every file edit is spelled out with exact con
 
 ---
 
-## CF refactor — state this plan assumes
-
-This plan was authored against the state of [lib/types/conditional_formatting.ts](lib/types/conditional_formatting.ts) on 2026-04-19, where `ConditionalFormatting` is stored **flat** on `config.s` as individual `cf*` fields (`cfMode`, `cfScalePaletteKind`, `cfScalePalettePreset`, `cfScaleCustomFrom/Mid/To`, `cfScaleReverse`, `cfScaleSteps`, `cfScaleDomainKind`, `cfScaleDomainMin/Max`, `cfScaleNoDataColor`, `cfThresholdCutoffs`, `cfThresholdBuckets`, `cfThresholdNoDataColor`).
-
-**Implications:**
-
-1. `configS` (used by viz presets) and `presentationObjectConfigSSchema` (used by PO configs) no longer have a `conditionalFormatting` field. Both merge in `cfStorageSchema` via `.merge(cfStorageSchema)` to get the cf* fields at top level on `s`.
-2. The adapter at the s-level (`adaptLegacyStoredConfigS`) must **produce flat cf\* fields**, not a nested `ConditionalFormatting` object. It projects any legacy CF shape through `flattenCf` and spreads the result. `CF_STORAGE_DEFAULTS` fills rows that never had CF at all.
-3. `LEGACY_CF_PRESETS` and the map-field migration are still required — they detect legacy nested CF and produce a `ConditionalFormatting` union that's then flattened.
-4. `flattenCf`, `CF_STORAGE_DEFAULTS`, `cfStorageSchema`, and the `ConditionalFormatting` types are all exported from `lib/types/conditional_formatting.ts` as of that date.
-
-**If the CF refactor lands again before this plan is executed**, re-verify the exports of `conditional_formatting.ts` and update the imports and merge target names in Step 1 / Step 2 accordingly.
-
----
-
 ## Principle
 
 1. **Schemas describe current shape only.** Strict. No `.default()`, `.optional()`-for-drift, `.nullish()` in schemas. Legacy tolerance lives in adapters.
-2. **Adapters are pure, typed, idempotent.** Signature `adaptLegacyStoredX(raw: LegacyStoredX): Record<string, unknown>`. Running twice on the same input produces the same output. No network, no DB, no mutation of external state.
+2. **Adapters are pure, typed, idempotent.** Signature `adaptLegacy<X>(raw: Record<string, unknown>): Record<string, unknown>`. Running twice on the same input produces the same output. No network, no DB, no mutation of external state.
 3. **Baked in via `z.preprocess`** at the **stored entry points** (the schemas that are `.parse`d at DB-read sites). Callers can't bypass.
-4. **Fetch schemas stay strict-all-the-way-down.** Preprocess never leaks into the fetch tree. Authored `definition.json` files must match the current shape exactly — no silent normalization.
-5. **Shared structure between fetch and stored** only where the content is structurally identical. Where fetch and stored diverge (translated string labels, install-time enrichments), declare both sides explicitly.
-6. **One permissive-read helper per permissive-read domain.** Currently only PO config (per PLAN_5 item D). Implements `safeParse → warn → fallback`. Colocated with the schema.
-7. **DB-dependent adapters** stay server-side next to their caller, never in `lib/types/`.
+4. **Github schemas stay strict-all-the-way-down.** The github tree never references preprocessed schemas. Authored `definition.json` files must match the current shape exactly — no silent normalization.
+5. **One permissive-read helper per permissive-read domain.** Currently only PO config (per PLAN_5 item D). Implements `safeParse → warn → fallback`. Colocated with the schema.
+6. **DB-dependent adapters** stay server-side next to their caller, never in `lib/types/`.
 
 ---
 
-## Architecture — layered schemas
+## File structure
 
-The schema tree is split into layers with explicit sharing rules. This is the core of the plan — everything else flows from it.
-
-### Layer 1 — Shared primitives
-
-Single declaration, used everywhere. No preprocess, no variants.
+The plan replaces today's split (`server/legacy_adapters/*` + the schema-and-default-laden `lib/types/module_definition.ts` + `lib/types/presentation_object_config.ts`) with three colocated files:
 
 ```
-translatableString, scriptGenerationType, dataSource (+ variants),
-moduleParameter (+ variants), moduleParameterInput, configRequirements,
-valueFunc, periodOption, disaggregationOption, postAggregationExpression,
-presentationOption, disaggregationDisplayOption,
-relativePeriodFilter, boundedPeriodFilter, periodFilterStrict
+lib/types/_module_definition_github.ts      (authored in GitHub — strict, translatable strings)
+lib/types/_module_definition_installed.ts   (written by install flow — drift-tolerant via preprocess)
+lib/types/presentation_object_config.ts     (user-created via UI — drift-tolerant via preprocess)
 ```
 
-### Layer 2 — Shared content strict schemas
+**Naming convention.** File names describe the lifecycle stage that produces the shape:
+- `_github` — authored in a GitHub repo, fetched at install time, validated by [server/module_loader/load_module.ts](server/module_loader/load_module.ts).
+- `_installed` — written by the install flow (`installModule` etc.), read at runtime from `modules.module_definition` and from per-metric columns (`metrics.ai_description`, `metrics.viz_presets`).
+- No suffix on `presentation_object_config.ts` — POs are user-created via the UI, not installed. Only one lifecycle.
 
-Used by **both** fetch and stored. Strict. No preprocess. These capture the *content* shape that's structurally identical on both sides of the install-flow boundary (viz presets, AI descriptions, text configs, configD, configS).
+The underscore prefix groups the schema-managing files at the top of `lib/types/`. New "drift-managed" schema files should follow the same convention.
 
-```
-configDStrict, configS, vizPresetTextConfigStrict,
-metricAIDescriptionStrict, vizPresetStrict
-```
+**Self-containment.** The two module-definition files are **starting points** in the import graph. They MUST NOT import from peer schema files (PO config, reports, slides). They may import from foundational primitives files (`presentation_objects.ts` for the disaggregation enum, `conditional_formatting.ts` for `cfStorageSchema`/`flattenCf`/`CF_STORAGE_DEFAULTS`, `legacy_cf_presets.ts`, `translate/`).
 
-Critically: `vizPresetStrict.config.d` is `configDStrict` (not preprocessed). `vizPresetStrict.config.t` is `vizPresetTextConfigStrict` (not preprocessed). All references in Layer 2 are to Layer 1 or Layer 2 strict — **never to Layer 5 preprocessed**.
+Both module-def files contain all three components inline — module + metric + viz_preset. Where the github and installed shapes happen to be structurally identical at a sub-level (`vizPreset`, `metricAIDescription`), the schemas are duplicated across the two files. Each file reads top-to-bottom without jumping; ~40 lines of duplication is below the threshold where DRY wins.
 
-### Layer 3 — Fetch-specific strict schemas
+**One-way edge: `presentation_object_config.ts` imports `configDStrict` and the `periodOption` / `disaggregationOption` enums from `_module_definition_installed.ts`.** PO config is downstream of module def in the data model (POs reference metrics from modules), so this direction is correct. Module-def files NEVER import from `presentation_object_config.ts`.
 
-Used only at GitHub fetch time. Strict-all-the-way-down. No preprocess anywhere. Composed from Layers 1 and 2.
+**Runtime types** (`ModuleDefinition`, `MetricDefinition`, `DefaultPresentationObject`, `ResultsValue`, `MetricWithStatus`, etc. — hand-authored types used in app code, derived from but not always identical to `z.infer<>`) live in `_module_definition_installed.ts`. The current `lib/types/module_definition.ts` is deleted; HFA runtime types and `get_PERIOD_OPTION_MAP` move to `_module_definition_installed.ts` too (or to a more appropriate home — see Step 4).
 
-```
-resultsObjectDefinition (no moduleId — fetch shape)
-metricDefinitionJSON (uses translatableString labels, metricAIDescriptionStrict,
-                      vizPresetStrict — all strict)
-ModuleDefinitionJSONSchema (uses metricDefinitionJSON, resultsObjectDefinition)
-```
+---
 
-Fetch callers (`load_module.ts:123`) use `ModuleDefinitionJSONSchema.safeParse`. Strict validation — authors get errors for any legacy or incomplete shape.
+## Adapter inventory
 
-### Layer 4 — Stored-specific strict schemas
+Per-level adapters (all pure, typed, exported so they can be composed). Adapter names drop any lifecycle suffix — there's only one per concept:
 
-Used only for stored-side parses. Strict composition, but references Layer 5 preprocessed children where drift can occur at that child's level. This lets drift handling stay at its natural level.
+In `_module_definition_installed.ts`:
 
-```
-resultsObjectDefinitionStoredStrict (adds moduleId)
-metricDefinitionStoredStrict (plain-string labels, install-strippable fields
-                              optional; references metricAIDescriptionStored
-                              and vizPresetStored — the Layer 5 preprocessed
-                              forms — so child-level drift is handled at
-                              child level)
-defaultPresentationObjectStoredStrict (config is z.unknown())
-moduleDefinitionStoredStrict (install-added fields; uses
-                              resultsObjectDefinitionStoredStrict,
-                              metricDefinitionStoredStrict,
-                              defaultPresentationObjectStoredStrict)
-```
+- `adaptLegacyPeriodFilter(raw)` — filter-type migrations, strip fabricated bounds.
+- `adaptLegacyConfigD(raw)` — `periodOpt` rename, nested `periodFilter` adaptation.
+- `adaptLegacyConfigS(raw, isMap)` — detects legacy `conditionalFormatting: <preset-id-string>` and legacy map color fields (`mapColorPreset/From/To/Reverse/mapScaleType/mapDiscreteSteps/mapDomain*`); projects either into a `ConditionalFormatting` union via `LEGACY_CF_PRESETS` or `buildCfFromLegacyMapFields`; flattens that union through `flattenCf` and spreads flat `cf*` fields onto `s`; fills missing cf* fields from `CF_STORAGE_DEFAULTS`; fills `specialDisruptionsChart` from legacy `diffAreas` (Pattern 3); strips legacy fields.
 
-### Layer 5 — Stored entry points (preprocess + adapter)
+  **Behaviour change vs current `po_config.ts` adapter** (worth calling out — this is a semantic shift, not just a move): **`cf*` overwrite semantics are inverted, on purpose.** Current code does `Object.assign(out, flattenCf(cf))` — flattened values from legacy always win over any pre-existing `cf*` fields on `out`. The new adapter only fills cf* keys that are **missing** (`if (!(key in out)) out[key] = value`), so rows already written with new-shape flat cf* fields keep them verbatim, and only legacy-shape rows get the flattened projection. Correct for steady state (new-shape writes must win) but diverges from current "legacy always normalizes downward" behavior.
+- `adaptLegacyVizPresetTextConfig(raw)` — fill missing nullable text-config fields.
+- `adaptLegacyMetricAIDescription(raw)` — fill missing `caveats`, `importantNotes`, `relatedMetrics`.
+- `adaptLegacyVizPreset(raw)` — drop `defaultPeriodFilterForDefaultVisualizations`, fill missing required fields, walk into `config.d`/`config.s`/`config.t` applying their adapters (isMap derived from d.type). **New vs current `po_config.ts`:** current `adaptLegacyVizPresets` only walks `config.d` and `config.s`, never `config.t`. The new adapter additionally calls `adaptLegacyVizPresetTextConfig` on `config.t` so installed vizPresets with missing text-config fields survive the strict vizPreset validation. This is additive.
+- `adaptLegacyMetricDefinition(raw)` — no current drift; placeholder.
+- `adaptLegacyResultsObjectDefinition(raw)` — no current drift; placeholder.
+- `adaptLegacyDefaultPresentationObject(raw)` — no current drift; placeholder.
+- `adaptLegacyModuleDefinition(raw)` — fill top-level defaults; does **not** recurse into `metrics[]` or `defaultPresentationObjects[]` because nested preprocesses on `metricAIDescriptionInstalled` and `vizPresetInstalled` handle nested drift during strict validation.
 
-Each = `z.preprocess(adapterForThisLevel, strictInnerFromLayer2Or4)`. These are the only schemas with `z.preprocess`. They are the four standalone DB-read entry points:
+In `presentation_object_config.ts`:
 
-```
-metricAIDescriptionStored = z.preprocess(adaptLegacyStoredMetricAIDescription,
-                                          metricAIDescriptionStrict)
-vizPresetStored            = z.preprocess(adaptLegacyStoredVizPreset,
-                                          vizPresetStrict)
-moduleDefinitionStoredSchema = z.preprocess(adaptLegacyStoredModuleDefinition,
-                                             moduleDefinitionStoredStrict)
-presentationObjectConfigSchema = z.preprocess(adaptLegacyStoredPresentationObjectConfig,
-                                               presentationObjectConfigStrictSchema)
-```
+- `adaptLegacyPresentationObjectConfig(raw)` — walks `d` / `s`, calls `adaptLegacyConfigD` and `adaptLegacyConfigS` (with isMap derived from `d.type`) imported from `_module_definition_installed.ts`.
 
-### Layer 6 — Convenience and permissive helpers
+In `lib/types/reports.ts`:
 
-```
-parseStoredModuleDefinition(raw: string): ModuleDefinition
-parseStoredPresentationObjectConfig(raw: unknown): PresentationObjectConfig
-                                                  (permissive; safeParse + warn + fallback)
-```
+- `adaptLegacyReportItemConfigShape` — pure shape adapter (layout 2D array → tree, `placeholder` → `text`). Not yet `z.preprocess`-wrapped because there is no Zod schema for `ReportItemConfig` yet (PLAN_5 Tier 1 deferred).
 
-### Why this layering
+In `server/db/project/reports.ts`:
 
-**Why share Layer 2 between fetch and stored:** `metricAIDescription`, `vizPreset`, `vizPresetTextConfig`, `configD`, `configS` have *structurally identical content* at both boundaries. The install flow (`load_module.ts:translateMetrics`) passes these through unchanged — `m.aiDescription` and `m.vizPresets` are written to DB without modification. Duplicating them as fetch-vs-stored variants would be pure duplication; drift between the two versions would be inevitable.
+- `resolveLegacyReportMetricIds(config, projectDb)` — DB-dependent (`moduleId` → `metricId` lookup). Stays server-side.
 
-**Why NOT share metric/module/resultsObject outer schemas:** these DO differ. Install resolves `translatableString → string` for metric `label`/`variantLabel`/`importantNotes`, strips nulls to undefined on install-strippable fields, adds runtime fields (`id`, `lastScriptUpdate`, `script`, `defaultPresentationObjects`, `moduleId` on resultsObjects). Fetch and stored schemas must capture these different shapes.
+---
 
-**Why preprocess only at the four entry points:** these are the only schemas that are `.parse`d standalone from stored data:
-- `metricAIDescriptionStored` at `metric_enricher.ts:54` (standalone ai_description column parse)
-- `vizPresetStored` via `z.array(vizPresetStored).parse(...)` at `modules.ts:939` (standalone viz_presets column parse)
-- `moduleDefinitionStoredSchema` at the 10 item-C sites (full module blob parse)
-- `presentationObjectConfigSchema` at PO config read sites
+## Validation surface — what gets Zod-parsed, and where
 
-Every other schema is a child of one of these, so drift at nested levels is handled by the appropriate entry point's adapter OR by a nested Layer 5 schema that's embedded.
+Reference table of every runtime Zod validation in the server + the AI tool path. The "Adapter attached" column says whether the parse runs through an adapter (via `z.preprocess` baking) — every "Yes" is a site where legacy-shape tolerance happens automatically; every "No" is strict-only.
 
-**Why Layer 4 `metricDefinitionStoredStrict` references Layer 5 preprocessed children (not Layer 4 strict):** drift in `aiDescription` (missing caveats/importantNotes/relatedMetrics) and drift in `vizPresets[]` (many) both need handling. Rather than the module-level adapter reaching deep into metric→vizPresets→config, each level's adapter handles its own level. At module-level parse, the module adapter fills top-level defaults, then per-element metric validation runs — which triggers the per-child `metricAIDescriptionStored` preprocess (for aiDescription) and `vizPresetStored` preprocess (for each preset). Each adapter small, focused, composable.
+| Type being parsed | Schema / helper used | Call site(s) | Adapter attached? |
+|---|---|---|---|
+| Module definition (installed blob in `modules.module_definition`) | `moduleDefinitionInstalledSchema` via `parseInstalledModuleDefinition(raw)` | 10 sites: 7 in `server/db/project/modules.ts`, 3 in `server/task_management/get_dependents.ts` | **Yes** — `adaptLegacyModuleDefinition` via z.preprocess. Nested preprocesses on `metricAIDescriptionInstalled` and `vizPresetInstalled` fire during strict validation of nested fields. |
+| Module definition (authored `definition.json` from GitHub) | `moduleDefinitionGithubSchema` (strict) | 1 site: `server/module_loader/load_module.ts:123` | **No** — strict by design; authored files must match current shape. |
+| Metric AI description (`metrics.ai_description` column) | `metricAIDescriptionInstalled` | 1 site: `server/db/project/metric_enricher.ts` | **Yes** — `adaptLegacyMetricAIDescription` via z.preprocess. |
+| Viz presets array (`metrics.viz_presets` column) | `z.array(vizPresetInstalled)` | 1 site: `server/db/project/modules.ts:939` | **Yes** — per-element `adaptLegacyVizPreset` via z.preprocess. |
+| PO config (reads — permissive) | `parseStoredPresentationObjectConfig(raw)` (safeParse + warn + fallback, wraps `presentationObjectConfigSchema`) | 5 sites in `server/db/project/presentation_objects.ts` (lines 145, 163, 202, 381, 492) | **Yes** — `adaptLegacyPresentationObjectConfig` via z.preprocess. |
+| PO config (cache-hit) | same as above, inlined in route handler | 1 site: `server/routes/project/presentation_objects.ts:155` | **Yes** — same. |
+| PO config (writes — strict) | `presentationObjectConfigSchema.parse(config)` (throws on invalid) | 3 sites: `server/db/project/presentation_objects.ts` (lines 67, 323, 387) | **Yes** — adapter runs (no-op on current-shape input), then strict validation. |
+| Required disaggregation options (stored column) | `z.array(disaggregationOption)` | 1 site: `server/db/project/metric_enricher.ts` | **No** — primitive enum array, no drift. |
+| Value props (stored column) | `z.array(z.string())` | 1 site: `server/db/project/metric_enricher.ts` | **No** — primitive array. |
+| Post-aggregation expression (stored column) | `postAggregationExpression` (strict) | 1 site: `server/db/project/metric_enricher.ts` | **No** — no known drift. |
+| Value-label replacements (stored column) | `z.record(z.string(), z.string())` | 1 site: `server/db/project/metric_enricher.ts` | **No** — primitive record. |
+| Instance: max admin area config | `instanceConfigMaxAdminAreaSchema` (strict) | 1 site: `server/db/instance/config.ts:92` | **No** — no known drift. |
+| Instance: facility columns config | `instanceConfigFacilityColumnsSchema` (strict) | 1 site: `server/db/instance/config.ts:138` | **No** — no known drift. |
+| Instance: country ISO3 config | `instanceConfigCountryIso3Schema` (strict) | 1 site: `server/db/instance/config.ts:182` | **No** — no known drift. |
+| Instance: admin area labels config | `instanceConfigAdminAreaLabelsSchema` (strict) | 1 site: `server/db/instance/config.ts:225` | **No** — no known drift. |
+| AI tool inputs | Each tool's declared `inputSchema` via panther's `createAITool.run` (framework-level `.parse` baked into `tool_helpers.ts`) | Every tool call, universal | **N/A** — AI inputs are live; no persistence, no legacy shapes possible. Strict validation with `is_error: true` retry on failure. |
+| Report item config (stored) | Pure adapter `adaptLegacyReportItemConfigShape` called explicitly before `parseJsonOrThrow` cast; no Zod schema yet | 2 sites: `server/db/project/reports.ts` (lines 359, 604) | Adapter runs; Zod schema pending (PLAN_5 Tier 1 deferred). |
+| Report config, report summaries, other report JSON | `parseJsonOrThrow` cast only; no Zod | Multiple in `server/db/project/reports.ts` | **No schema, no adapter** — Tier 1 deferred. |
+| Project info JSON | `parseJsonOrThrow` cast only | `server/db/project/projects.ts` | **No** — Tier 2 deferred. |
+| Dataset staging / mapping JSON | `parseJsonOrThrow` cast only | `server/db/instance/dataset_hmis.ts`, `server/db/instance/dataset_hfa.ts` | **No** — Tier 2 deferred. |
+| Worker-routine staging JSON | `parseJsonOrThrow` cast only | 4 files under `server/worker_routines/` | **No** — Tier 3 skipped. |
 
-**Why fetch schemas never reference Layer 5:** preprocess on Layer 5 normalizes legacy shapes. Fetch should reject them, not fix them silently. The fetch tree (Layer 3) references Layer 2 strict content schemas and Layer 1 primitives only.
-
-### Adapter composition
-
-Adapters are per-level and pure. Each handles its own level's drift. Parents that need their nested shape normalized before strict validation call child adapters explicitly. Helper adapters (for sub-shapes that aren't standalone entry points) are exported so they can be reused.
-
-Per-level adapters defined in `lib/types/module_definition.ts`:
-
-- `adaptLegacyStoredPeriodFilter(raw)` — filter-type migrations, strip fabricated bounds
-- `adaptLegacyStoredConfigD(raw)` — periodOpt rename, nested periodFilter adaptation
-- `adaptLegacyStoredConfigS(raw, isMap)` — detects legacy nested `conditionalFormatting` (as string preset or object union) and legacy map color fields; flattens any found CF through `flattenCf` into flat `cf*` fields on `s`; fills missing cf* fields from `CF_STORAGE_DEFAULTS`; fills `specialDisruptionsChart` from legacy `diffAreas` (Pattern 3); strips legacy fields (nested conditionalFormatting, all map* fields)
-- `adaptLegacyStoredVizPresetTextConfig(raw)` — fill missing nullable fields
-- `adaptLegacyStoredMetricAIDescription(raw)` — fill missing nullable fields; fill relatedMetrics default
-- `adaptLegacyStoredVizPreset(raw)` — drop side-channel, fill missing required fields, then walk into config.d/s/t applying their adapters (isMap derived from d.type)
-- `adaptLegacyStoredMetricDefinition(raw)` — no current drift (strict schema allows install-strip optionality); placeholder for future transforms
-- `adaptLegacyStoredResultsObjectDefinition(raw)` — no current drift; placeholder
-- `adaptLegacyStoredDefaultPresentationObject(raw)` — no current drift; placeholder
-- `adaptLegacyStoredModuleDefinition(raw)` — fill top-level defaults; does **not** recurse into `metrics[]` or `defaultPresentationObjects[]` because child preprocesses handle those
-
-Per-level adapter defined in `lib/types/presentation_object_config.ts`:
-
-- `adaptLegacyStoredPresentationObjectConfig(raw)` — walks `d` / `s`, calls `adaptLegacyStoredConfigD` and `adaptLegacyStoredConfigS` (with isMap derived from `d.type`) from `module_definition.ts`
+After this plan lands, every row in the upper portion of the table is Zod-validated with an adapter in front where drift is possible.
 
 ---
 
 ## Terminology
 
-- **Strict schema** — `z.object({...})` with no drift tolerance. `*Strict` suffix. No preprocess wrapper.
-- **Preprocessed schema** — `z.preprocess(adapter, strictSchema)`. The exported name (no suffix) at the four entry points.
-- **Legacy type** — `Record<string, unknown>` (generic) or a more specific shape when known (e.g., existing `LegacyReportItemConfig`).
-- **Pure adapter** — `(raw: LegacyStoredX) → Record<string, unknown>`. Zod strict validation on the returned shape catches any drift the adapter missed.
-- **Convenience helper** — `parseStoredX(raw: string): X`. `JSON.parse` + `schema.parse` + cast for branded types.
+- **Strict schema** — `z.object({...})` with no drift tolerance. `*Strict` suffix where useful for disambiguation. No preprocess wrapper.
+- **Preprocessed schema** — `z.preprocess(adapter, strictSchema)`. The exported public name at standalone DB-read entry points (`moduleDefinitionInstalledSchema`, `metricAIDescriptionInstalled`, `vizPresetInstalled`, `presentationObjectConfigSchema`).
+- **Pure adapter** — `(raw: Record<string, unknown>) → Record<string, unknown>`. Zod strict validation on the returned shape catches any drift the adapter missed.
+- **Convenience helper** — `parseInstalledX(raw: string): X`. `JSON.parse` + `schema.parse` + cast for branded types.
 - **Permissive-read helper** — `parseStoredX(raw: unknown): X`. `safeParse` + warn + fallback. Only for domains where a parse failure must not throw (PO config per PLAN_5 item D).
 
 ---
@@ -174,53 +127,490 @@ Per-level adapter defined in `lib/types/presentation_object_config.ts`:
 
 | Current location | Target location | Action |
 |---|---|---|
-| `server/legacy_adapters/period_filter.ts` → `adaptLegacyPeriodFilter` | `lib/types/module_definition.ts` inline, renamed `adaptLegacyStoredPeriodFilter` | MOVE |
-| `server/legacy_adapters/po_config.ts` → `adaptLegacyConfigD` | `lib/types/module_definition.ts` inline, renamed `adaptLegacyStoredConfigD` | MOVE |
-| `server/legacy_adapters/po_config.ts` → `adaptLegacyConfigS`, `buildCfFromLegacyMapFields`, `isLegacyCfPresetId`, `isConditionalFormattingObject`, `MAP_COLOR_PRESET_STOPS`, `MAP_NO_DATA_COLOR` | `lib/types/module_definition.ts` inline; public function renamed `adaptLegacyStoredConfigS` | MOVE |
-| `server/legacy_adapters/po_config.ts` → `adaptLegacyPresentationObjectConfig` | `lib/types/presentation_object_config.ts` inline, renamed `adaptLegacyStoredPresentationObjectConfig` | MOVE |
-| `server/legacy_adapters/po_config.ts` → `adaptLegacyVizPresets` | DELETED — per-element `vizPresetStored` preprocess subsumes it | DELETE |
+| `server/legacy_adapters/period_filter.ts` → `adaptLegacyPeriodFilter` | `lib/types/_module_definition_installed.ts` inline | MOVE |
+| `server/legacy_adapters/po_config.ts` → `adaptLegacyConfigD` | `lib/types/_module_definition_installed.ts` inline | MOVE |
+| `server/legacy_adapters/po_config.ts` → `adaptLegacyConfigS`, `buildCfFromLegacyMapFields`, `isLegacyCfPresetId`, `MAP_COLOR_PRESET_STOPS`, `MAP_NO_DATA_COLOR` | `lib/types/_module_definition_installed.ts` inline | MOVE |
+| `server/legacy_adapters/po_config.ts` → `adaptLegacyPresentationObjectConfig` | `lib/types/presentation_object_config.ts` inline | MOVE |
+| `server/legacy_adapters/po_config.ts` → `adaptLegacyVizPresets` | DELETED — per-element `vizPresetInstalled` preprocess subsumes it | DELETE |
 | `server/legacy_adapters/po_config.ts` → `adaptLegacyPODetailResponse` | `server/routes/project/presentation_objects.ts` — inline at call site using the new permissive helper | INLINE |
 | `server/legacy_adapters/report_item.ts` → `adaptLegacyReportItemConfigShape` + `LegacyReportItemConfig` + private `walkLayoutTree` | `lib/types/reports.ts` inline | MOVE |
 | `server/legacy_adapters/report_item.ts` → `resolveLegacyReportMetricIds` + private `walkLayoutTreeAsync` | `server/db/project/reports.ts` inline | MOVE (stays server-side, DB-dependent) |
-| `server/legacy_adapters/module_definition.ts` → `adaptLegacyModuleDefinition` | DELETED — preprocess on `moduleDefinitionStoredSchema` subsumes it | DELETE |
+| `server/legacy_adapters/module_definition.ts` → `adaptLegacyModuleDefinition` | DELETED — preprocess on `moduleDefinitionInstalledSchema` subsumes it | DELETE |
 | `server/legacy_adapters/mod.ts` | DELETED | DELETE |
+| `lib/types/module_definition.ts` (current — both fetch + installed schemas, runtime types, HFA types) | SPLIT into `_module_definition_github.ts` + `_module_definition_installed.ts`; runtime + HFA types move into `_module_definition_installed.ts` | SPLIT/DELETE |
 | Schema-level `.default()` / `.optional()` drift tolerance in `moduleDefinitionStoredSchema`, `metricDefinitionStoredSchema`, `metricAIDescriptionStored`, `vizPresetStored`, `vizPresetTextConfigStored` | REMOVED — drift tolerance moves into typed adapters | REWRITE |
-| `parseModuleDefinition(raw: unknown)` helper | RENAMED to `parseStoredModuleDefinition(raw: string)` | RENAME |
+| `parseModuleDefinition(raw: unknown)` helper | RENAMED to `parseInstalledModuleDefinition(raw: string)` | RENAME |
+
+### Schema rename map
+
+For grep convenience during execution:
+
+| Old name | New name |
+|---|---|
+| `moduleDefinitionStoredSchema` | `moduleDefinitionInstalledSchema` |
+| `moduleDefinitionStoredStrict` | `moduleDefinitionInstalledStrict` |
+| `metricDefinitionStoredSchema` | `metricDefinitionInstalledSchema` |
+| `metricDefinitionStoredStrict` | `metricDefinitionInstalledStrict` |
+| `metricAIDescriptionStored` | `metricAIDescriptionInstalled` |
+| `vizPresetStored` | `vizPresetInstalled` |
+| `vizPresetTextConfigStored` | `vizPresetTextConfigInstalled` |
+| `resultsObjectDefinitionStoredSchema` | `resultsObjectDefinitionInstalledSchema` |
+| `resultsObjectDefinitionStoredStrict` | `resultsObjectDefinitionInstalledStrict` |
+| `defaultPresentationObjectStoredSchema` | `defaultPresentationObjectInstalledSchema` |
+| `defaultPresentationObjectStoredStrict` | `defaultPresentationObjectInstalledStrict` |
+| `parseModuleDefinition` | `parseInstalledModuleDefinition` |
+| `ModuleDefinitionJSONSchema` | `moduleDefinitionGithubSchema` |
+| `metricDefinitionJSON` | `metricDefinitionGithub` |
+| `vizPreset` (schema value) | `vizPresetGithub` (in `_github` file), `vizPresetInstalledStrict` (in `_installed` file inside the preprocess wrapper) |
+| `metricAIDescription` (schema value) | `metricAIDescriptionGithub` (in `_github` file), `metricAIDescriptionInstalledStrict` (in `_installed` file inside the preprocess wrapper) |
+| `configD`, `configS`, `vizPresetTextConfig` (current shared values) | Moved into `_module_definition_installed.ts` as `configDStrict`, `configSStrict`, `vizPresetTextConfigInstalledStrict`. Github file declares its own `configDGithubStrict`, `configSGithubStrict`, `vizPresetTextConfigGithubStrict` (structurally identical — duplicated, see "File structure"). |
+
+`parseStoredPresentationObjectConfig` keeps "Stored" — different naming context (no install flow for PO config; "Stored" here just means "read from DB with permissive fallback").
 
 ---
 
 ## Execution order
 
-Sequential. Each step self-contained within its domain. Step 5 (call-site updates) pairs with Steps 1–4 — land together or the tree breaks.
+Sequential. Each step self-contained within its domain. Steps 1–9 ship as one PR; Step 10 (the optional startup sweep) can land separately.
 
-1. Step 1 — Rewrite `lib/types/module_definition.ts`.
-2. Step 2 — Rewrite `lib/types/presentation_object_config.ts`.
-3. Step 3 — Append legacy-adapter section to `lib/types/reports.ts`.
-4. Step 4 — Move `resolveLegacyReportMetricIds` into `server/db/project/reports.ts`.
-5. Step 5 — Update every call site (sub-steps below).
-6. Step 6 — Delete `server/legacy_adapters/`.
-7. Step 7 — Update `DOC_legacy_handling.md`.
-8. Step 8 — Verify.
+1. Step 1 — Create `lib/types/_module_definition_github.ts`.
+2. Step 2 — Create `lib/types/_module_definition_installed.ts`.
+3. Step 3 — Delete `lib/types/module_definition.ts` (its content is in the two new files).
+4. Step 4 — Rewrite `lib/types/presentation_object_config.ts`.
+5. Step 5 — Append legacy-adapter section to `lib/types/reports.ts`.
+6. Step 6 — Move `resolveLegacyReportMetricIds` into `server/db/project/reports.ts`.
+7. Step 7 — Update every call site (sub-steps below).
+8. Step 8 — Delete `server/legacy_adapters/`.
+9. Step 9 — Update `DOC_legacy_handling.md`.
+10. Step 10 — Verify.
+11. Step 11 (optional, follow-up PR) — Startup validation sweep.
 
 ---
 
-## Step 1 — Rewrite `lib/types/module_definition.ts`
+## Step 1 — Create `lib/types/_module_definition_github.ts`
 
-### 1.1 Layer mapping for this file
+### 1.1 Purpose
 
-| Layer | Items in this file |
-|---|---|
-| 1 (primitives) | translatableString, scriptGenerationType, dataSource (+ variants), moduleParameter (+ variants), moduleParameterInput, configRequirements, valueFunc, periodOption, disaggregationOption, postAggregationExpression, presentationOption, disaggregationDisplayOption, relativePeriodFilter, boundedPeriodFilter, periodFilterStrict |
-| 2 (shared content) | configDStrict, configS, vizPresetTextConfigStrict, metricAIDescriptionStrict, vizPresetStrict |
-| 3 (fetch) | resultsObjectDefinition, metricDefinitionJSON, ModuleDefinitionJSONSchema |
-| 4 (stored strict) | resultsObjectDefinitionStoredStrict, metricDefinitionStoredStrict, defaultPresentationObjectStoredStrict, moduleDefinitionStoredStrict |
-| 5 (stored preprocessed) | metricAIDescriptionStored, vizPresetStored, moduleDefinitionStoredSchema (note: PO config Layer 5 is in presentation_object_config.ts) |
-| 6 (helpers) | parseStoredModuleDefinition |
-| adapters | adaptLegacyStoredPeriodFilter, adaptLegacyStoredConfigD, adaptLegacyStoredConfigS, adaptLegacyStoredVizPresetTextConfig, adaptLegacyStoredMetricAIDescription, adaptLegacyStoredVizPreset, adaptLegacyStoredMetricDefinition, adaptLegacyStoredResultsObjectDefinition, adaptLegacyStoredDefaultPresentationObject, adaptLegacyStoredModuleDefinition |
+Strict schema for module definitions as authored in GitHub repos and validated at fetch time by [server/module_loader/load_module.ts:123](server/module_loader/load_module.ts#L123). No drift tolerance, no preprocess. Authored `definition.json` files must match this shape exactly.
+
+This file is a starting point in the import graph. It imports zod, translation primitives, and foundational atoms (`ALL_DISAGGREGATION_OPTIONS` from `presentation_objects.ts`). It does NOT import from `_module_definition_installed.ts` or any other peer schema file. Sub-shapes that happen to be structurally identical to the installed file (`vizPreset`, `metricAIDescription`) are **duplicated here on purpose** so the file reads top-to-bottom.
 
 ### 1.2 Final file content
 
-Replace the entire contents of `lib/types/module_definition.ts` with the following.
+Create `lib/types/_module_definition_github.ts` with the following content:
+
+```ts
+import { z } from "zod";
+import { ALL_DISAGGREGATION_OPTIONS } from "./presentation_objects.ts";
+
+// ============================================================================
+// Module Definition — GITHUB SHAPE.
+//
+// Strict schema for module definitions as authored in GitHub repos. Validated
+// at fetch time by load_module.ts. Strict-all-the-way-down: NO preprocess,
+// NO drift tolerance, NO defaults for missing fields. Authored definition.json
+// files must match this shape exactly — incomplete or legacy shapes get
+// rejected with clear error paths.
+//
+// This file is a STARTING POINT in the import graph. It imports zod and
+// foundational atoms only. It MUST NOT import from
+// _module_definition_installed.ts or any other peer schema file. Where
+// sub-shapes are structurally identical to the installed file, they are
+// duplicated here on purpose.
+// ============================================================================
+
+// ── Atoms ───────────────────────────────────────────────────────────
+
+export const translatableString = z.object({
+  en: z.string(),
+  fr: z.string(),
+});
+
+export const scriptGenerationType = z.enum(["template", "hfa"]);
+
+export const dataSourceDataset = z.object({
+  sourceType: z.literal("dataset"),
+  replacementString: z.string(),
+  datasetType: z.enum(["hmis", "hfa"]),
+});
+
+export const dataSourceResultsObject = z.object({
+  sourceType: z.literal("results_object"),
+  replacementString: z.string(),
+  resultsObjectId: z.string(),
+  moduleId: z.string(),
+});
+
+export const dataSource = z.discriminatedUnion("sourceType", [
+  dataSourceDataset,
+  dataSourceResultsObject,
+]);
+
+export const moduleParameterInput = z.discriminatedUnion("inputType", [
+  z.object({ inputType: z.literal("number"), defaultValue: z.string() }),
+  z.object({ inputType: z.literal("text"), defaultValue: z.string() }),
+  z.object({
+    inputType: z.literal("boolean"),
+    defaultValue: z.enum(["TRUE", "FALSE"]),
+  }),
+  z.object({
+    inputType: z.literal("select"),
+    valueType: z.enum(["string", "number"]),
+    options: z.array(z.object({ value: z.string(), label: z.string() })),
+    defaultValue: z.string(),
+  }),
+]);
+
+export const moduleParameter = z.object({
+  replacementString: z.string(),
+  description: z.string(),
+  input: moduleParameterInput,
+});
+
+export const configRequirements = z.object({
+  parameters: z.array(moduleParameter),
+});
+
+export const valueFunc = z.enum(["SUM", "AVG", "COUNT", "MIN", "MAX", "identity"]);
+export const periodOption = z.enum(["period_id", "quarter_id", "year"]);
+export const disaggregationOption = z.enum(ALL_DISAGGREGATION_OPTIONS);
+
+export const postAggregationExpression = z.object({
+  ingredientValues: z.array(
+    z.object({
+      prop: z.string(),
+      func: z.enum(["SUM", "AVG"]),
+    }),
+  ),
+  expression: z.string(),
+});
+
+const presentationOption = z.enum(["timeseries", "table", "chart", "map"]);
+const disaggregationDisplayOption = z.enum([
+  "row",
+  "rowGroup",
+  "col",
+  "colGroup",
+  "series",
+  "cell",
+  "indicator",
+  "replicant",
+  "mapArea",
+]);
+
+const relativePeriodFilter = z.object({
+  filterType: z.enum([
+    "last_n_months",
+    "last_calendar_year",
+    "last_calendar_quarter",
+    "last_n_calendar_years",
+    "last_n_calendar_quarters",
+  ]),
+  nMonths: z.number().optional(),
+  nYears: z.number().optional(),
+  nQuarters: z.number().optional(),
+});
+
+const boundedPeriodFilter = z.object({
+  filterType: z.enum(["custom", "from_month"]),
+  periodOption: periodOption,
+  min: z.number(),
+  max: z.number(),
+  nMonths: z.number().optional(),
+  nYears: z.number().optional(),
+  nQuarters: z.number().optional(),
+});
+
+const periodFilter = z
+  .discriminatedUnion("filterType", [relativePeriodFilter, boundedPeriodFilter])
+  .optional();
+
+// ── Component schemas (config tree) ─────────────────────────────────
+
+export const configDGithubStrict = z
+  .object({
+    type: presentationOption,
+    timeseriesGrouping: periodOption.optional(),
+    valuesDisDisplayOpt: disaggregationDisplayOption,
+    valuesFilter: z.array(z.string()).optional(),
+    disaggregateBy: z.array(
+      z.object({
+        disOpt: disaggregationOption,
+        disDisplayOpt: disaggregationDisplayOption,
+      }),
+    ),
+    filterBy: z.array(
+      z.object({
+        disOpt: disaggregationOption,
+        values: z.array(z.string()).min(1),
+      }),
+    ),
+    periodFilter: periodFilter,
+    selectedReplicantValue: z.string().optional(),
+    includeNationalForAdminArea2: z.boolean().optional(),
+    includeNationalPosition: z.enum(["bottom", "top"]).optional(),
+  })
+  .refine(
+    (d) => {
+      const slots = d.disaggregateBy
+        .map((x) => x.disDisplayOpt)
+        .filter((opt) => opt !== "replicant");
+      return new Set(slots).size === slots.length;
+    },
+    { message: "disaggregateBy contains duplicate non-replicant disDisplayOpt entries" },
+  )
+  .refine(
+    (d) => d.disaggregateBy.filter((x) => x.disDisplayOpt === "replicant").length <= 1,
+    { message: "Multi-replicant not yet implemented — at most one replicant allowed" },
+  )
+  .refine(
+    (d) => new Set(d.disaggregateBy.map((x) => x.disOpt)).size === d.disaggregateBy.length,
+    { message: "disaggregateBy contains duplicate disOpt entries" },
+  );
+
+// configS for github vizPresets: every field optional via .partial(). Github
+// authors don't need to repeat all the cf* defaults — they just override what
+// they want. The full cf storage shape is filled in by the install flow's cf
+// defaults when the github file is loaded; if you change THIS file, also keep
+// the corresponding configSInstalledStrict in _module_definition_installed.ts
+// in lockstep.
+import { cfStorageSchema as _cfStorageSchemaForGithubConfigS } from "./conditional_formatting.ts";
+
+export const configSGithubStrict = z
+  .object({
+    scale: z.number(),
+    content: z.enum(["lines", "bars", "points", "areas"]),
+    allowIndividualRowLimits: z.boolean(),
+    colorScale: z.enum([
+      "pastel-discrete",
+      "alt-discrete",
+      "red-green",
+      "blue-green",
+      "single-grey",
+      "custom",
+    ]),
+    decimalPlaces: z.union([
+      z.literal(0),
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+    ]),
+    hideLegend: z.boolean(),
+    showDataLabels: z.boolean(),
+    showDataLabelsLineCharts: z.boolean(),
+    barsStacked: z.boolean(),
+    diffAreas: z.boolean(),
+    diffAreasOrder: z.enum(["actual-expected", "expected-actual"]),
+    diffInverted: z.boolean(),
+    specialBarChart: z.boolean(),
+    specialBarChartInverted: z.boolean(),
+    specialBarChartDiffThreshold: z.number(),
+    specialBarChartDataLabels: z.enum(["all-values", "threshold-values"]),
+    specialCoverageChart: z.boolean(),
+    specialDisruptionsChart: z.boolean(),
+    specialScorecardTable: z.boolean(),
+    verticalTickLabels: z.boolean(),
+    horizontal: z.boolean().optional(),
+    allowVerticalColHeaders: z.boolean(),
+    forceYMax1: z.boolean(),
+    forceYMinAuto: z.boolean(),
+    customSeriesStyles: z.array(
+      z.object({
+        color: z.string(),
+        strokeWidth: z.number(),
+        lineStyle: z.enum(["solid", "dashed"]),
+      }),
+    ),
+    nColsInCellDisplay: z.union([z.literal("auto"), z.number()]),
+    seriesColorFuncPropToUse: z
+      .enum(["series", "cell", "col", "row"])
+      .optional(),
+    sortIndicatorValues: z.enum(["ascending", "descending", "none"]),
+    formatAdminArea3Labels: z.boolean().optional(),
+    mapProjection: z.enum(["equirectangular", "mercator", "naturalEarth1"]),
+  })
+  .merge(_cfStorageSchemaForGithubConfigS)
+  .partial();
+
+export const vizPresetTextConfigGithubStrict = z.object({
+  caption: translatableString.nullable(),
+  captionRelFontSize: z.number().nullable(),
+  subCaption: translatableString.nullable(),
+  subCaptionRelFontSize: z.number().nullable(),
+  footnote: translatableString.nullable(),
+  footnoteRelFontSize: z.number().nullable(),
+});
+
+// ── vizPreset (github) ──────────────────────────────────────────────
+
+export const vizPresetGithub = z.object({
+  id: z.string(),
+  label: translatableString,
+  description: translatableString,
+  importantNotes: translatableString.nullable(),
+  needsReplicant: z.boolean(),
+  allowedFilters: z.array(disaggregationOption),
+  createDefaultVisualizationOnInstall: z.string().nullable(),
+  config: z.object({
+    d: configDGithubStrict,
+    s: configSGithubStrict,
+    t: vizPresetTextConfigGithubStrict,
+  }),
+});
+
+// ── metricAIDescription (github) ────────────────────────────────────
+
+export const metricAIDescriptionGithub = z.object({
+  summary: translatableString,
+  methodology: translatableString,
+  interpretation: translatableString,
+  typicalRange: translatableString,
+  caveats: translatableString.nullable(),
+  useCases: z.array(translatableString),
+  relatedMetrics: z.array(z.string()),
+  disaggregationGuidance: translatableString,
+  importantNotes: translatableString.nullable(),
+});
+
+// ── metricDefinition (github) ───────────────────────────────────────
+
+export const metricDefinitionGithub = z.object({
+  id: z.string(),
+  label: translatableString,
+  variantLabel: translatableString.nullable(),
+  valueProps: z.array(z.string()),
+  valueFunc: valueFunc,
+  formatAs: z.enum(["percent", "number"]),
+  requiredDisaggregationOptions: z.array(disaggregationOption),
+  valueLabelReplacements: z.record(z.string(), z.string()),
+  postAggregationExpression: postAggregationExpression.nullable(),
+  resultsObjectId: z.string(),
+  aiDescription: metricAIDescriptionGithub.nullable(),
+  importantNotes: translatableString.nullable(),
+  vizPresets: z.array(vizPresetGithub),
+  hide: z.boolean(),
+});
+
+// ── resultsObjectDefinition (github) ────────────────────────────────
+
+export const resultsObjectDefinitionGithub = z.object({
+  id: z.string(),
+  description: z.string(),
+  createTableStatementPossibleColumns: z.record(z.string(), z.string()),
+});
+
+// ── moduleDefinition (github — full file) ───────────────────────────
+
+export const moduleDefinitionGithubSchema = z
+  .object({
+    label: translatableString,
+    prerequisites: z.array(z.string()),
+    scriptGenerationType: scriptGenerationType,
+    dataSources: z.array(dataSource),
+    configRequirements: configRequirements,
+    assetsToImport: z.array(z.string()),
+    resultsObjects: z.array(resultsObjectDefinitionGithub),
+    metrics: z.array(metricDefinitionGithub),
+  })
+  .superRefine((def, ctx) => {
+    const resultsObjectIds = new Set(def.resultsObjects.map((ro) => ro.id));
+    const metricIds = new Set<string>();
+    for (const metric of def.metrics) {
+      if (metricIds.has(metric.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate metric ID: "${metric.id}"`,
+          path: ["metrics"],
+        });
+      }
+      metricIds.add(metric.id);
+      if (!resultsObjectIds.has(metric.resultsObjectId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Metric "${metric.id}" references unknown resultsObjectId "${metric.resultsObjectId}"`,
+          path: ["metrics"],
+        });
+      }
+    }
+    const roIds = new Set<string>();
+    for (const ro of def.resultsObjects) {
+      if (roIds.has(ro.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate results object ID: "${ro.id}"`,
+          path: ["resultsObjects"],
+        });
+      }
+      roIds.add(ro.id);
+    }
+    const metricsByLabel = new Map<string, typeof def.metrics>();
+    for (const metric of def.metrics) {
+      const labelKey = metric.label.en;
+      const existing = metricsByLabel.get(labelKey) ?? [];
+      existing.push(metric);
+      metricsByLabel.set(labelKey, existing);
+    }
+    for (const [label, metricsWithLabel] of metricsByLabel.entries()) {
+      if (metricsWithLabel.length > 1) {
+        const missingVariant = metricsWithLabel.filter((m) => !m.variantLabel);
+        if (missingVariant.length > 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Metrics with label "${label}" have ${metricsWithLabel.length} entries but ${missingVariant.length} are missing variantLabel: ${missingVariant.map((m) => m.id).join(", ")}`,
+            path: ["metrics"],
+          });
+        }
+      }
+    }
+  });
+
+// ── Derived types ───────────────────────────────────────────────────
+
+export type ScriptGenerationType = z.infer<typeof scriptGenerationType>;
+export type DataSource = z.infer<typeof dataSource>;
+export type DataSourceDataset = z.infer<typeof dataSourceDataset>;
+export type DataSourceResultsObject = z.infer<typeof dataSourceResultsObject>;
+export type ModuleParameter = z.infer<typeof moduleParameter>;
+export type ModuleConfigRequirements = z.infer<typeof configRequirements>;
+export type ResultsObjectDefinitionGithub = z.infer<typeof resultsObjectDefinitionGithub>;
+export type ValueFunc = z.infer<typeof valueFunc>;
+export type PeriodOption = z.infer<typeof periodOption>;
+export type PostAggregationExpression = z.infer<typeof postAggregationExpression>;
+export type VizPresetTextConfigGithub = z.infer<typeof vizPresetTextConfigGithubStrict>;
+export type VizPresetGithub = z.infer<typeof vizPresetGithub>;
+export type MetricAIDescriptionGithub = z.infer<typeof metricAIDescriptionGithub>;
+export type MetricDefinitionGithub = z.infer<typeof metricDefinitionGithub>;
+export type ValidatedModuleDefinitionGithub = z.infer<typeof moduleDefinitionGithubSchema>;
+export type ModuleDefinitionGithub = ValidatedModuleDefinitionGithub;
+
+// Existing consumers used `ModuleDefinitionJSON` and
+// `ResultsValueDefinitionJSON` aliases. Re-export under the old names so
+// PR diff stays small.
+export type ModuleDefinitionJSON = ModuleDefinitionGithub;
+export type ResultsValueDefinitionJSON = MetricDefinitionGithub;
+```
+
+**Note on `_cfStorageSchemaForGithubConfigS`**: this aliased import is to allow `cfStorageSchema` to be referenced from a single source while making the local-only import clear. It's stylistic — the executor may inline it as a direct top-of-file import if preferred.
+
+---
+
+## Step 2 — Create `lib/types/_module_definition_installed.ts`
+
+### 2.1 Purpose
+
+Schemas for module definitions as written by the install flow. Includes:
+- The full installed-blob schema (`moduleDefinitionInstalledSchema`) — read from `modules.module_definition`.
+- Standalone preprocessed schemas for the columns denormalized by install: `metricAIDescriptionInstalled` (read from `metrics.ai_description`), `vizPresetInstalled` (read from `metrics.viz_presets`).
+- Per-level adapters that handle drift on installed data.
+- Convenience helper `parseInstalledModuleDefinition(raw: string)`.
+- Hand-authored runtime types (`ModuleDefinition`, `MetricDefinition`, `DefaultPresentationObject`, `ResultsValue`, etc.) — these were in the old `module_definition.ts` and now live next to the schemas they're derived from.
+- HFA runtime types and `get_PERIOD_OPTION_MAP` (also from the old `module_definition.ts`).
+
+This file is a STARTING POINT in the import graph. It MUST NOT import from `_module_definition_github.ts` or `presentation_object_config.ts` or any other peer schema file.
+
+### 2.2 Final file content
+
+Create `lib/types/_module_definition_installed.ts` with the following content:
 
 ```ts
 import { z } from "zod";
@@ -248,8 +638,30 @@ import {
 export type { ModuleId };
 
 // ============================================================================
-// LAYER 1 — Shared primitives (used by fetch and stored trees)
+// Module Definition — INSTALLED SHAPE.
+//
+// Schemas for module definitions written by the install flow (see
+// installModule in server/db/project/modules.ts and load_module.ts:
+// translateMetrics). The install flow resolves translatable strings to plain
+// strings on outer metric/module fields, strips nulls to undefined on
+// install-strippable fields, and adds runtime fields (id, lastScriptUpdate,
+// script, defaultPresentationObjects, moduleId on resultsObjects).
+//
+// Read from:
+//   - modules.module_definition (full blob) → moduleDefinitionInstalledSchema
+//   - metrics.ai_description (denormalized column) → metricAIDescriptionInstalled
+//   - metrics.viz_presets (denormalized column) → vizPresetInstalled (per-element)
+//
+// Drift handling lives here via per-level adapters baked into z.preprocess.
+//
+// This file is a STARTING POINT in the import graph. It MUST NOT import from
+// _module_definition_github.ts or any peer schema file. It imports zod,
+// translation primitives, foundational atoms (conditional_formatting,
+// legacy_cf_presets, presentation_objects' ALL_DISAGGREGATION_OPTIONS,
+// module_registry's ModuleId, translate types) only.
 // ============================================================================
+
+// ── Atoms ───────────────────────────────────────────────────────────
 
 export const translatableString = z.object({
   en: z.string(),
@@ -356,10 +768,9 @@ export const periodFilterStrict = z
   .optional();
 
 // ============================================================================
-// Adapters — pure, typed, per-level. Used by Layer 5 preprocesses and by
-// sibling adapters (e.g. adaptLegacyStoredVizPreset calls the config-level
-// adapters). Exported so they can be reused by presentation_object_config.ts
-// and any future siblings.
+// Adapters — pure, typed, per-level. Used by the preprocesses below and by
+// presentation_object_config.ts (which imports adaptLegacyConfigD and
+// adaptLegacyConfigS).
 // ============================================================================
 
 // ── periodFilter ────────────────────────────────────────────────────
@@ -371,7 +782,7 @@ const RELATIVE_FILTER_TYPES = new Set([
   "last_n_calendar_quarters",
 ]);
 
-export function adaptLegacyStoredPeriodFilter(
+export function adaptLegacyPeriodFilter(
   raw: Record<string, unknown>,
 ): Record<string, unknown> {
   const pf = { ...raw };
@@ -398,7 +809,7 @@ export function adaptLegacyStoredPeriodFilter(
 }
 
 // ── configD ─────────────────────────────────────────────────────────
-export function adaptLegacyStoredConfigD(
+export function adaptLegacyConfigD(
   raw: Record<string, unknown>,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...raw };
@@ -409,7 +820,7 @@ export function adaptLegacyStoredConfigD(
     delete out.periodOpt;
   }
   if (out.periodFilter && typeof out.periodFilter === "object" && !Array.isArray(out.periodFilter)) {
-    out.periodFilter = adaptLegacyStoredPeriodFilter(
+    out.periodFilter = adaptLegacyPeriodFilter(
       out.periodFilter as Record<string, unknown>,
     );
   }
@@ -469,13 +880,7 @@ function isLegacyCfPresetId(v: unknown): v is LegacyCfPresetId {
   return typeof v === "string" && v in LEGACY_CF_PRESETS;
 }
 
-function isConditionalFormattingObject(v: unknown): v is ConditionalFormatting {
-  if (v === null || typeof v !== "object") return false;
-  const type = (v as { type?: unknown }).type;
-  return type === "none" || type === "scale" || type === "thresholds";
-}
-
-export function adaptLegacyStoredConfigS(
+export function adaptLegacyConfigS(
   raw: Record<string, unknown>,
   isMap: boolean,
 ): Record<string, unknown> {
@@ -484,16 +889,15 @@ export function adaptLegacyStoredConfigS(
   // Capture any legacy-shape CF as a ConditionalFormatting union.
   let legacyCf: ConditionalFormatting | undefined;
 
-  // (1) Legacy nested `conditionalFormatting` (removed in the flat-storage
-  // refactor). Was either a string preset id or a union object.
+  // (1) Legacy `conditionalFormatting: <preset-id-string>` (pre-flat-storage
+  // refactor). Nested object shape was never shipped in storage, so no need
+  // to handle it here — the only legacy value on this key is a string id.
   if ("conditionalFormatting" in out) {
     const cfRaw = out.conditionalFormatting;
-    if (isConditionalFormattingObject(cfRaw)) {
-      legacyCf = cfRaw;
-    } else if (isLegacyCfPresetId(cfRaw)) {
+    if (isLegacyCfPresetId(cfRaw)) {
       legacyCf = LEGACY_CF_PRESETS[cfRaw].value;
     }
-    // Nested field has no home in the current shape — strip unconditionally.
+    // Key has no home in the current shape — strip regardless.
     delete out.conditionalFormatting;
   }
 
@@ -537,8 +941,8 @@ export function adaptLegacyStoredConfigS(
   }
 
   // (4) Pattern 3 migration: diffAreas → specialDisruptionsChart. Fill
-  // specialDisruptionsChart from legacy diffAreas when missing. Keep diffAreas
-  // in place because Pattern 3 dual-check sites still read it
+  // specialDisruptionsChart from legacy diffAreas when missing. Keep
+  // diffAreas in place because Pattern 3 dual-check sites still read it
   // (get_style_from_po.ts, _shared.tsx, _timeseries.tsx per
   // DOC_legacy_handling.md).
   if (!("specialDisruptionsChart" in out)) {
@@ -549,7 +953,7 @@ export function adaptLegacyStoredConfigS(
 }
 
 // ── vizPresetTextConfig ─────────────────────────────────────────────
-export function adaptLegacyStoredVizPresetTextConfig(
+export function adaptLegacyVizPresetTextConfig(
   raw: Record<string, unknown>,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...raw };
@@ -563,7 +967,7 @@ export function adaptLegacyStoredVizPresetTextConfig(
 }
 
 // ── metricAIDescription ─────────────────────────────────────────────
-export function adaptLegacyStoredMetricAIDescription(
+export function adaptLegacyMetricAIDescription(
   raw: Record<string, unknown>,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...raw };
@@ -574,9 +978,9 @@ export function adaptLegacyStoredMetricAIDescription(
 }
 
 // ── vizPreset ───────────────────────────────────────────────────────
-// Walks into config.d / config.s / config.t — those sub-schemas are strict
-// (Layer 2), so drift must be handled here.
-export function adaptLegacyStoredVizPreset(
+// Walks into config.d / config.s / config.t — those sub-schemas are strict,
+// so drift must be handled here.
+export function adaptLegacyVizPreset(
   raw: Record<string, unknown>,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...raw };
@@ -594,62 +998,59 @@ export function adaptLegacyStoredVizPreset(
     const cfg = { ...(out.config as Record<string, unknown>) };
     let isMap = false;
     if (cfg.d && typeof cfg.d === "object" && !Array.isArray(cfg.d)) {
-      const d = adaptLegacyStoredConfigD(cfg.d as Record<string, unknown>);
+      const d = adaptLegacyConfigD(cfg.d as Record<string, unknown>);
       isMap = (d as Record<string, unknown>).type === "map";
       cfg.d = d;
     } else {
       cfg.d = {};
     }
     if (cfg.s && typeof cfg.s === "object" && !Array.isArray(cfg.s)) {
-      cfg.s = adaptLegacyStoredConfigS(cfg.s as Record<string, unknown>, isMap);
+      cfg.s = adaptLegacyConfigS(cfg.s as Record<string, unknown>, isMap);
     } else {
       cfg.s = {};
     }
     if (cfg.t && typeof cfg.t === "object" && !Array.isArray(cfg.t)) {
-      cfg.t = adaptLegacyStoredVizPresetTextConfig(
+      cfg.t = adaptLegacyVizPresetTextConfig(
         cfg.t as Record<string, unknown>,
       );
     } else {
-      cfg.t = adaptLegacyStoredVizPresetTextConfig({});
+      cfg.t = adaptLegacyVizPresetTextConfig({});
     }
     out.config = cfg;
   } else {
     out.config = {
       d: {},
       s: {},
-      t: adaptLegacyStoredVizPresetTextConfig({}),
+      t: adaptLegacyVizPresetTextConfig({}),
     };
   }
 
   return out;
 }
 
-// ── metricDefinition (stored-side; no current drift at this level) ─
-export function adaptLegacyStoredMetricDefinition(
-  raw: Record<string, unknown>,
-): Record<string, unknown> {
-  // No current drift. Identity for uniformity and future-proofing. Nested
-  // aiDescription and vizPresets[] are handled by their own Layer 5
-  // preprocesses during strict validation.
-  return { ...raw };
-}
-
-// ── resultsObjectDefinition (stored-side) ───────────────────────────
-export function adaptLegacyStoredResultsObjectDefinition(
+// ── metricDefinition (no current drift) ─────────────────────────────
+export function adaptLegacyMetricDefinition(
   raw: Record<string, unknown>,
 ): Record<string, unknown> {
   return { ...raw };
 }
 
-// ── defaultPresentationObject (stored-side) ─────────────────────────
-export function adaptLegacyStoredDefaultPresentationObject(
+// ── resultsObjectDefinition (no current drift) ──────────────────────
+export function adaptLegacyResultsObjectDefinition(
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...raw };
+}
+
+// ── defaultPresentationObject (no current drift) ────────────────────
+export function adaptLegacyDefaultPresentationObject(
   raw: Record<string, unknown>,
 ): Record<string, unknown> {
   return { ...raw };
 }
 
 // ── moduleDefinition (top-level; fills top-level defaults only) ────
-export function adaptLegacyStoredModuleDefinition(
+export function adaptLegacyModuleDefinition(
   raw: Record<string, unknown>,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...raw };
@@ -669,8 +1070,10 @@ export function adaptLegacyStoredModuleDefinition(
 }
 
 // ============================================================================
-// LAYER 2 — Shared content strict schemas (used by BOTH fetch and stored)
-// No preprocess. References Layer 1 primitives and other Layer 2 strict.
+// Component strict schemas (configD, configS, vizPresetTextConfig).
+// These are exported so presentation_object_config.ts can compose configDStrict
+// into its own schema. The .partial() configS variant here is for vizPresets;
+// PO config has its own non-partial configS in presentation_object_config.ts.
 // ============================================================================
 
 export const configDStrict = z
@@ -716,9 +1119,8 @@ export const configDStrict = z
 
 // configS used by viz presets: every field optional via .partial(). CF is
 // merged in as flat cf* fields from cfStorageSchema (no nested
-// `conditionalFormatting` field — see the CF refactor note near the top of
-// this plan).
-export const configS = z
+// `conditionalFormatting` field — flat storage refactor).
+export const configSStrict = z
   .object({
     scale: z.number(),
     content: z.enum(["lines", "bars", "points", "areas"]),
@@ -774,7 +1176,7 @@ export const configS = z
   .merge(cfStorageSchema)
   .partial();
 
-export const vizPresetTextConfigStrict = z.object({
+export const vizPresetTextConfigInstalledStrict = z.object({
   caption: translatableString.nullable(),
   captionRelFontSize: z.number().nullable(),
   subCaption: translatableString.nullable(),
@@ -783,7 +1185,16 @@ export const vizPresetTextConfigStrict = z.object({
   footnoteRelFontSize: z.number().nullable(),
 });
 
-export const metricAIDescriptionStrict = z.object({
+// ============================================================================
+// Standalone preprocessed entry points — metricAIDescription + vizPreset.
+// These are the schemas used at standalone DB-read sites:
+//   - metric_enricher.ts reads metrics.ai_description → metricAIDescriptionInstalled.parse
+//   - modules.ts reads metrics.viz_presets → z.array(vizPresetInstalled).parse
+// They are also embedded inside metricDefinitionInstalledStrict so nested
+// preprocesses fire when the full module definition is parsed.
+// ============================================================================
+
+export const metricAIDescriptionInstalledStrict = z.object({
   summary: translatableString,
   methodology: translatableString,
   interpretation: translatableString,
@@ -795,7 +1206,12 @@ export const metricAIDescriptionStrict = z.object({
   importantNotes: translatableString.nullable(),
 });
 
-export const vizPresetStrict = z.object({
+export const metricAIDescriptionInstalled = z.preprocess((raw) => {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  return adaptLegacyMetricAIDescription(raw as Record<string, unknown>);
+}, metricAIDescriptionInstalledStrict);
+
+export const vizPresetInstalledStrict = z.object({
   id: z.string(),
   label: translatableString,
   description: translatableString,
@@ -805,132 +1221,30 @@ export const vizPresetStrict = z.object({
   createDefaultVisualizationOnInstall: z.string().nullable(),
   config: z.object({
     d: configDStrict,
-    s: configS,
-    t: vizPresetTextConfigStrict,
+    s: configSStrict,
+    t: vizPresetTextConfigInstalledStrict,
   }),
 });
 
-// ============================================================================
-// LAYER 3 — Fetch-only strict schemas. Strict-all-the-way-down. Composed from
-// Layer 1 and Layer 2. NO preprocess anywhere in this tree.
-// ============================================================================
-
-export const resultsObjectDefinition = z.object({
-  id: z.string(),
-  description: z.string(),
-  createTableStatementPossibleColumns: z.record(z.string(), z.string()),
-});
-
-export const metricDefinitionJSON = z.object({
-  id: z.string(),
-  label: translatableString,
-  variantLabel: translatableString.nullable(),
-  valueProps: z.array(z.string()),
-  valueFunc: valueFunc,
-  formatAs: z.enum(["percent", "number"]),
-  requiredDisaggregationOptions: z.array(disaggregationOption),
-  valueLabelReplacements: z.record(z.string(), z.string()),
-  postAggregationExpression: postAggregationExpression.nullable(),
-  resultsObjectId: z.string(),
-  aiDescription: metricAIDescriptionStrict.nullable(),
-  importantNotes: translatableString.nullable(),
-  vizPresets: z.array(vizPresetStrict),
-  hide: z.boolean(),
-});
-
-export const ModuleDefinitionJSONSchema = z
-  .object({
-    label: translatableString,
-    prerequisites: z.array(z.string()),
-    scriptGenerationType: scriptGenerationType,
-    dataSources: z.array(dataSource),
-    configRequirements: configRequirements,
-    assetsToImport: z.array(z.string()),
-    resultsObjects: z.array(resultsObjectDefinition),
-    metrics: z.array(metricDefinitionJSON),
-  })
-  .superRefine((def, ctx) => {
-    const resultsObjectIds = new Set(def.resultsObjects.map((ro) => ro.id));
-    const metricIds = new Set<string>();
-    for (const metric of def.metrics) {
-      if (metricIds.has(metric.id)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Duplicate metric ID: "${metric.id}"`,
-          path: ["metrics"],
-        });
-      }
-      metricIds.add(metric.id);
-      if (!resultsObjectIds.has(metric.resultsObjectId)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Metric "${metric.id}" references unknown resultsObjectId "${metric.resultsObjectId}"`,
-          path: ["metrics"],
-        });
-      }
-    }
-    const roIds = new Set<string>();
-    for (const ro of def.resultsObjects) {
-      if (roIds.has(ro.id)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Duplicate results object ID: "${ro.id}"`,
-          path: ["resultsObjects"],
-        });
-      }
-      roIds.add(ro.id);
-    }
-    const metricsByLabel = new Map<string, typeof def.metrics>();
-    for (const metric of def.metrics) {
-      const labelKey = metric.label.en;
-      const existing = metricsByLabel.get(labelKey) ?? [];
-      existing.push(metric);
-      metricsByLabel.set(labelKey, existing);
-    }
-    for (const [label, metricsWithLabel] of metricsByLabel.entries()) {
-      if (metricsWithLabel.length > 1) {
-        const missingVariant = metricsWithLabel.filter((m) => !m.variantLabel);
-        if (missingVariant.length > 0) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `Metrics with label "${label}" have ${metricsWithLabel.length} entries but ${missingVariant.length} are missing variantLabel: ${missingVariant.map((m) => m.id).join(", ")}`,
-            path: ["metrics"],
-          });
-        }
-      }
-    }
-  });
-
-// ============================================================================
-// LAYER 5 (part 1) — metricAIDescriptionStored and vizPresetStored
-// (Preprocessed standalone entry points. Referenced by Layer 4 below.)
-// ============================================================================
-
-export const metricAIDescriptionStored = z.preprocess((raw) => {
+export const vizPresetInstalled = z.preprocess((raw) => {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  return adaptLegacyStoredMetricAIDescription(raw as Record<string, unknown>);
-}, metricAIDescriptionStrict);
-
-export const vizPresetStored = z.preprocess((raw) => {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  return adaptLegacyStoredVizPreset(raw as Record<string, unknown>);
-}, vizPresetStrict);
+  return adaptLegacyVizPreset(raw as Record<string, unknown>);
+}, vizPresetInstalledStrict);
 
 // ============================================================================
-// LAYER 4 — Stored-specific strict schemas. Different outer shapes than
-// fetch (install adds runtime fields, strips nulls on install-strippable
-// fields, translates label strings). References Layer 5 preprocessed for
-// children that have their own drift.
+// Outer strict schemas (resultsObject, metric, defaultPO, module).
+// These reference the preprocessed Layer-5 entry points above for children
+// that have their own drift (aiDescription, vizPresets[]).
 // ============================================================================
 
-export const resultsObjectDefinitionStoredStrict = z.object({
+export const resultsObjectDefinitionInstalledStrict = z.object({
   id: z.string(),
   moduleId: z.string(),
   description: z.string(),
   createTableStatementPossibleColumns: z.record(z.string(), z.string()).optional(),
 });
 
-export const metricDefinitionStoredStrict = z.object({
+export const metricDefinitionInstalledStrict = z.object({
   id: z.string(),
   label: z.string(),
   variantLabel: z.string().optional(),
@@ -941,16 +1255,17 @@ export const metricDefinitionStoredStrict = z.object({
   valueLabelReplacements: z.record(z.string(), z.string()).optional(),
   postAggregationExpression: postAggregationExpression.optional(),
   resultsObjectId: z.string(),
-  aiDescription: metricAIDescriptionStored.optional(),
+  aiDescription: metricAIDescriptionInstalled.optional(),
   importantNotes: z.string().optional(),
-  vizPresets: z.array(vizPresetStored).optional(),
+  vizPresets: z.array(vizPresetInstalled).optional(),
   hide: z.boolean().optional(),
 });
 
-// `config` typed as z.unknown() to avoid circular value import with
-// presentation_object_config.ts. Inner PO config is validated at dedicated PO
-// read sites via parseStoredPresentationObjectConfig.
-export const defaultPresentationObjectStoredStrict = z.object({
+// `config` typed as z.unknown() to avoid a value-level cycle with
+// presentation_object_config.ts. The PO config inside default presentation
+// objects gets its dedicated validation at PO read sites via
+// parseStoredPresentationObjectConfig.
+export const defaultPresentationObjectInstalledStrict = z.object({
   id: z.string(),
   label: z.string(),
   moduleId: z.string(),
@@ -959,7 +1274,7 @@ export const defaultPresentationObjectStoredStrict = z.object({
   config: z.unknown(),
 });
 
-export const moduleDefinitionStoredStrict = z.object({
+export const moduleDefinitionInstalledStrict = z.object({
   id: z.string(),
   label: z.string(),
   prerequisites: z.array(z.string()),
@@ -970,30 +1285,26 @@ export const moduleDefinitionStoredStrict = z.object({
   configRequirements: configRequirements,
   script: z.string(),
   assetsToImport: z.array(z.string()),
-  resultsObjects: z.array(resultsObjectDefinitionStoredStrict),
-  metrics: z.array(metricDefinitionStoredStrict),
-  defaultPresentationObjects: z.array(defaultPresentationObjectStoredStrict),
+  resultsObjects: z.array(resultsObjectDefinitionInstalledStrict),
+  metrics: z.array(metricDefinitionInstalledStrict),
+  defaultPresentationObjects: z.array(defaultPresentationObjectInstalledStrict),
 });
 
-// ============================================================================
-// LAYER 5 (part 2) — moduleDefinitionStoredSchema (preprocessed entry point).
-// ============================================================================
-
-export const moduleDefinitionStoredSchema = z.preprocess((raw) => {
+export const moduleDefinitionInstalledSchema = z.preprocess((raw) => {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  return adaptLegacyStoredModuleDefinition(raw as Record<string, unknown>);
-}, moduleDefinitionStoredStrict);
+  return adaptLegacyModuleDefinition(raw as Record<string, unknown>);
+}, moduleDefinitionInstalledStrict);
 
 // ============================================================================
-// LAYER 6 — Convenience helper for DB read call sites.
+// Convenience helper for DB read call sites.
 // ============================================================================
 
-export function parseStoredModuleDefinition(raw: string): ModuleDefinition {
-  return moduleDefinitionStoredSchema.parse(JSON.parse(raw)) as ModuleDefinition;
+export function parseInstalledModuleDefinition(raw: string): ModuleDefinition {
+  return moduleDefinitionInstalledSchema.parse(JSON.parse(raw)) as ModuleDefinition;
 }
 
 // ============================================================================
-// Derived types (z.infer)
+// Derived types (z.infer) and aliases for back-compat with existing imports.
 // ============================================================================
 
 export type ScriptGenerationType = z.infer<typeof scriptGenerationType>;
@@ -1002,16 +1313,12 @@ export type DataSourceDataset = z.infer<typeof dataSourceDataset>;
 export type DataSourceResultsObject = z.infer<typeof dataSourceResultsObject>;
 export type ModuleParameter = z.infer<typeof moduleParameter>;
 export type ModuleConfigRequirements = z.infer<typeof configRequirements>;
-export type ResultsObjectDefinitionJSON = z.infer<typeof resultsObjectDefinition>;
 export type ValueFunc = z.infer<typeof valueFunc>;
 export type PeriodOption = z.infer<typeof periodOption>;
 export type PostAggregationExpression = z.infer<typeof postAggregationExpression>;
-export type VizPresetTextConfig = z.infer<typeof vizPresetTextConfigStrict>;
-export type VizPreset = z.infer<typeof vizPresetStrict>;
-export type MetricAIDescription = z.infer<typeof metricAIDescriptionStrict>;
-export type MetricDefinitionJSON = z.infer<typeof metricDefinitionJSON>;
-export type ValidatedModuleDefinitionJSON = z.infer<typeof ModuleDefinitionJSONSchema>;
-export type ModuleDefinitionJSON = ValidatedModuleDefinitionJSON;
+export type VizPresetTextConfig = z.infer<typeof vizPresetTextConfigInstalledStrict>;
+export type VizPreset = z.infer<typeof vizPresetInstalledStrict>;
+export type MetricAIDescription = z.infer<typeof metricAIDescriptionInstalledStrict>;
 
 // Kept for existing consumers; not part of the stored-schema family.
 export const moduleDefinitionCore = z.object({
@@ -1024,7 +1331,10 @@ export const moduleDefinitionCore = z.object({
 export type ModuleDefinitionCore = z.infer<typeof moduleDefinitionCore>;
 
 // ============================================================================
-// HFA runtime types — not Zod-validated. Kept as-is.
+// HFA runtime types — not Zod-validated. Kept in this file because the legacy
+// home (module_definition.ts) is being deleted. If a more appropriate home
+// exists (dataset_hfa.ts), the executor may move them — they're not coupled
+// to module-definition concepts beyond the file they happened to live in.
 // ============================================================================
 
 export type HfaIndicator = {
@@ -1053,7 +1363,8 @@ export type HfaDictionaryForValidation = {
 };
 
 // ============================================================================
-// Runtime-enriched types — hand-authored (branded ModuleId, etc.)
+// Runtime-enriched types — hand-authored (branded ModuleId, etc.). These
+// are the in-app representations of installed module concepts.
 // ============================================================================
 
 export type ModuleDefinition = {
@@ -1159,44 +1470,67 @@ export type DefaultPresentationObject = {
   sortOrder: number;
   config: PresentationObjectConfig;
 };
-
-export type ResultsValueDefinitionJSON = Omit<
-  ResultsValueDefinition,
-  "moduleId" | "resultsObjectId"
->;
 ```
 
 ---
 
-## Step 2 — Rewrite `lib/types/presentation_object_config.ts`
+## Step 3 — Delete `lib/types/module_definition.ts`
 
-### 2.1 What changes
+The two new files cover everything the old file held. Delete `lib/types/module_definition.ts`.
 
-- Add `adaptLegacyStoredPresentationObjectConfig` typed adapter. Delegates to `adaptLegacyStoredConfigD` and `adaptLegacyStoredConfigS` from `module_definition.ts`.
-- Rename current exported schema to `presentationObjectConfigStrictSchema` (Layer 4 for PO config).
-- Add public preprocessed schema `presentationObjectConfigSchema = z.preprocess(adapter, presentationObjectConfigStrictSchema)` (Layer 5).
-- Add `parseStoredPresentationObjectConfig(raw: unknown): PresentationObjectConfig` permissive helper (Layer 6).
+`lib/types/mod.ts` re-exports `* from` each file in `lib/types/`. Add the two new files to the barrel and remove the deleted file:
 
-### 2.2 Final file content
+**Edit 3.1** — In `lib/types/mod.ts`, replace:
 
-Replace the entire contents of `lib/types/presentation_object_config.ts` with the following.
+```ts
+export * from "./module_definition.ts";
+```
+
+with:
+
+```ts
+export * from "./_module_definition_github.ts";
+export * from "./_module_definition_installed.ts";
+```
+
+(Order matters because both files export overlapping atom names like `translatableString`, `dataSource`, `valueFunc`, etc. The second export wins for shadowed names. Since the installed file is what consumers want for runtime types, list it second so its exports take precedence on overlap. If TS complains about duplicate exports, prefix the github file's atoms with the file name when consumed elsewhere — none currently are, so this should be a non-issue.)
+
+---
+
+## Step 4 — Rewrite `lib/types/presentation_object_config.ts`
+
+### 4.1 What changes
+
+- Add `adaptLegacyPresentationObjectConfig` typed adapter. Delegates to `adaptLegacyConfigD` and `adaptLegacyConfigS` from `_module_definition_installed.ts`.
+- Rename current exported schema to `presentationObjectConfigStrictSchema`.
+- Add public preprocessed schema `presentationObjectConfigSchema = z.preprocess(adapter, presentationObjectConfigStrictSchema)`.
+- Add `parseStoredPresentationObjectConfig(raw: unknown): PresentationObjectConfig` permissive helper (per PLAN_5 item D).
+
+### 4.2 Final file content
+
+Replace the entire contents of `lib/types/presentation_object_config.ts` with:
 
 ```ts
 import { z } from "zod";
 import { cfStorageSchema } from "./conditional_formatting.ts";
 import {
-  adaptLegacyStoredConfigD,
-  adaptLegacyStoredConfigS,
+  adaptLegacyConfigD,
+  adaptLegacyConfigS,
   configDStrict,
-} from "./module_definition.ts";
+} from "./_module_definition_installed.ts";
 
 // ============================================================================
 // PresentationObjectConfig — stored shape of a visualization config.
-// Layered per PLAN_6. Sits downstream of module_definition.ts; imports only
-// strict schemas and adapters (no preprocessed values) to avoid cycles.
+//
+// POs are user-created via the UI (no install flow), so this file has no
+// _github / _installed split. The "stored" terminology in
+// parseStoredPresentationObjectConfig means "read from DB with permissive
+// fallback" — different connotation than for module definitions.
+//
+// Imports from _module_definition_installed.ts (configDStrict + the periodFilter
+// atoms transitively): one-way edge. PO config is downstream of module def
+// in the data model.
 // ============================================================================
-
-// ── Layer 1/2 content (local) ────────────────────────────────────────
 
 export const customSeriesStyleSchema = z.object({
   color: z.string(),
@@ -1206,8 +1540,8 @@ export const customSeriesStyleSchema = z.object({
 export type CustomSeriesStyle = z.infer<typeof customSeriesStyleSchema>;
 
 // PO config's `s` schema: all fields required (no .partial()). CF is merged
-// in as flat cf* fields from cfStorageSchema (see CF refactor note at top of
-// this plan — no nested `conditionalFormatting` field).
+// in as flat cf* fields from cfStorageSchema (no nested
+// `conditionalFormatting` field).
 const presentationObjectConfigSStrict = z
   .object({
     scale: z.number(),
@@ -1269,7 +1603,7 @@ const presentationObjectConfigTStrict = z.object({
 
 // ── Adapter (pure, typed, per-level) ─────────────────────────────────
 
-export function adaptLegacyStoredPresentationObjectConfig(
+export function adaptLegacyPresentationObjectConfig(
   raw: Record<string, unknown>,
 ): Record<string, unknown> {
   const input = { ...raw };
@@ -1277,17 +1611,17 @@ export function adaptLegacyStoredPresentationObjectConfig(
     input.d && typeof input.d === "object" && !Array.isArray(input.d)
       ? (input.d as Record<string, unknown>)
       : {};
-  const d = adaptLegacyStoredConfigD(rawD);
+  const d = adaptLegacyConfigD(rawD);
   const isMap = (d as Record<string, unknown>).type === "map";
   const rawS =
     input.s && typeof input.s === "object" && !Array.isArray(input.s)
       ? (input.s as Record<string, unknown>)
       : {};
-  const s = adaptLegacyStoredConfigS(rawS, isMap);
+  const s = adaptLegacyConfigS(rawS, isMap);
   return { ...input, d, s };
 }
 
-// ── Layer 4 — strict schema ──────────────────────────────────────────
+// ── Strict + preprocessed public schemas ────────────────────────────
 
 export const presentationObjectConfigStrictSchema = z.object({
   d: configDStrict,
@@ -1295,11 +1629,9 @@ export const presentationObjectConfigStrictSchema = z.object({
   t: presentationObjectConfigTStrict,
 });
 
-// ── Layer 5 — preprocessed public schema ─────────────────────────────
-
 export const presentationObjectConfigSchema = z.preprocess((raw) => {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  return adaptLegacyStoredPresentationObjectConfig(
+  return adaptLegacyPresentationObjectConfig(
     raw as Record<string, unknown>,
   );
 }, presentationObjectConfigStrictSchema);
@@ -1308,7 +1640,7 @@ export type PresentationObjectConfig = z.infer<
   typeof presentationObjectConfigSchema
 >;
 
-// ── Layer 6 — permissive-read helper (per PLAN_5 item D) ─────────────
+// ── Permissive-read helper (per PLAN_5 item D) ─────────────────────
 // Reads must not throw on legacy rows. On parse failure: log structured
 // warning, return the adapter-only output as fallback. Strict-write sites
 // call presentationObjectConfigSchema.parse directly (throws on invalid).
@@ -1327,7 +1659,7 @@ export function parseStoredPresentationObjectConfig(
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return raw as PresentationObjectConfig;
   }
-  return adaptLegacyStoredPresentationObjectConfig(
+  return adaptLegacyPresentationObjectConfig(
     raw as Record<string, unknown>,
   ) as PresentationObjectConfig;
 }
@@ -1335,16 +1667,16 @@ export function parseStoredPresentationObjectConfig(
 
 ---
 
-## Step 3 — Append legacy-adapter section to `lib/types/reports.ts`
+## Step 5 — Append legacy-adapter section to `lib/types/reports.ts`
 
-### 3.1 What changes
+### 5.1 What changes
 
 - Move `LegacyReportItemConfig` type from `server/legacy_adapters/report_item.ts`.
 - Move `adaptLegacyReportItemConfigShape` function from `server/legacy_adapters/report_item.ts`.
 - Move private `walkLayoutTree` helper (rename to `_walkReportItemLayoutTree` to signal "local private").
 - No Zod schema for reports in this plan — that's PLAN_5 Tier 1 (deferred).
 
-### 3.2 Append to the end of `lib/types/reports.ts`
+### 5.2 Append to the end of `lib/types/reports.ts`
 
 Append the following block at the end of the file (after the existing `getStartingReportItemPlaceholder` function):
 
@@ -1356,7 +1688,7 @@ Append the following block at the end of the file (after the existing `getStarti
 //   adaptLegacyReportItemConfigShape(parseJsonOrThrow(rawReportItem.config))
 // When a Zod schema is added, wrap it with
 //   z.preprocess(adaptLegacyReportItemConfigShape, reportItemConfigStrict)
-// per the layered architecture in PLAN_6.
+// per the per-level preprocess pattern in PLAN_6.
 // ============================================================================
 
 export type LegacyReportItemConfig = Omit<ReportItemConfig, "freeform"> & {
@@ -1430,38 +1762,33 @@ function _walkReportItemLayoutTree<T>(
 
 `LayoutNode` is already imported at line 1 of this file — no new import needed.
 
+**Note on exported `LegacyReportItemConfig`**: this type is currently private inside `server/legacy_adapters/report_item.ts`. Moving it to `lib/types/reports.ts` and exporting it adds a new public type to lib via `mod.ts`'s `export *`. If you don't want it public, prefix with `_` (`_LegacyReportItemConfig`) — `export *` still exports underscore-prefixed names but the convention signals "internal use".
+
 ---
 
-## Step 4 — Move `resolveLegacyReportMetricIds` into `server/db/project/reports.ts`
+## Step 6 — Move `resolveLegacyReportMetricIds` into `server/db/project/reports.ts`
 
-### 4.1 What changes
+### 6.1 What changes
 
 - Move `resolveLegacyReportMetricIds` and its private helper `walkLayoutTreeAsync` from `server/legacy_adapters/report_item.ts` into `server/db/project/reports.ts`.
 - Update imports in `server/db/project/reports.ts`:
   - Remove the `adaptLegacyReportItemConfigShape` import from `server/legacy_adapters/` — it now comes from `lib`.
   - Remove the `resolveLegacyReportMetricIds` import entirely — it's defined locally.
 
-### 4.2 Edits to `server/db/project/reports.ts`
+### 6.2 Edits to `server/db/project/reports.ts`
 
-**Edit 4.2.a** — At the top of the file, find the existing import block that includes `adaptLegacyReportItemConfigShape, resolveLegacyReportMetricIds`. Current (lines 23–24):
+**Edit 6.2.a** — Find the existing import block (lines 22–25):
 
 ```ts
+import {
   adaptLegacyReportItemConfigShape,
   resolveLegacyReportMetricIds,
+} from "../../legacy_adapters/mod.ts";
 ```
 
-Delete these two lines from wherever they currently are (likely a `"../../legacy_adapters/mod.ts"` import block), and add `adaptLegacyReportItemConfigShape` to the `"lib"` import block at the top of the file.
+Delete the entire block. Then, in the existing `"lib"` import block at the top of the file (which already imports `ReportItemConfig`, `ReportItemContentItem`, etc.), add `adaptLegacyReportItemConfigShape` to the import list.
 
-**Edit 4.2.b** — Ensure the file has these imports at the top (add any not present):
-
-```ts
-import type { LayoutNode } from "@timroberton/panther";
-import type { Sql } from "postgres";
-// ... and in the existing "lib" import:
-//   ReportItemContentItem, ReportItemConfig, adaptLegacyReportItemConfigShape
-```
-
-**Edit 4.2.c** — Append the following block at the end of `server/db/project/reports.ts`:
+**Edit 6.2.b** — Append the following block at the end of `server/db/project/reports.ts`:
 
 ```ts
 // ============================================================================
@@ -1515,25 +1842,39 @@ async function _walkReportItemLayoutTreeAsync<T>(
 }
 ```
 
+`LayoutNode` and `Sql` are already imported at the top of the file — no new imports needed.
+
 ---
 
-## Step 5 — Update every call site
+## Step 7 — Update every call site
 
-### 5.1 `server/db/project/metric_enricher.ts`
+### 7.1 `server/db/project/metric_enricher.ts`
 
-**No edits required.** The file already imports `metricAIDescriptionStored` from `lib` and calls `metricAIDescriptionStored.parse(JSON.parse(...))`. After Step 1, that schema has preprocess; behavior changes from strict-with-defaults-in-schema to preprocess-then-strict. Same public API. Same call site.
+**Edit 7.1.a** — In the `import ... from "lib"` block, replace `metricAIDescriptionStored` with `metricAIDescriptionInstalled`.
 
-### 5.2 `server/db/project/modules.ts`
+**Edit 7.1.b** — At line 54, replace:
 
-**Edit 5.2.a** — In the `import ... from "lib"` block, replace `parseModuleDefinition,` with `parseStoredModuleDefinition,`.
+```ts
+      ? metricAIDescriptionStored.parse(JSON.parse(dbMetric.ai_description))
+```
 
-**Edit 5.2.b** — Delete the line:
+with:
+
+```ts
+      ? metricAIDescriptionInstalled.parse(JSON.parse(dbMetric.ai_description))
+```
+
+### 7.2 `server/db/project/modules.ts`
+
+**Edit 7.2.a** — In the `import ... from "lib"` block, replace `parseModuleDefinition,` with `parseInstalledModuleDefinition,` and `vizPresetStored,` with `vizPresetInstalled,`.
+
+**Edit 7.2.b** — Delete the line:
 
 ```ts
 import { adaptLegacyModuleDefinition, adaptLegacyVizPresets } from "../../legacy_adapters/mod.ts";
 ```
 
-**Edit 5.2.c** — Replace every occurrence of the 3-line block:
+**Edit 7.2.c** — Replace every occurrence of the 3-line block:
 
 ```ts
 parseModuleDefinition(
@@ -1544,12 +1885,12 @@ parseModuleDefinition(
 with:
 
 ```ts
-parseStoredModuleDefinition(rawModule.module_definition)
+parseInstalledModuleDefinition(rawModule.module_definition)
 ```
 
 Applies at 6 occurrences (lines ~244–246, ~494–496, ~566–568, ~662–664, ~969–971, ~1007–1009).
 
-**Edit 5.2.d** — Replace the single-line occurrence (line ~312):
+**Edit 7.2.d** — Replace the single-line occurrence (line ~312):
 
 ```ts
     const storedDef = parseModuleDefinition(adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)));
@@ -1558,10 +1899,10 @@ Applies at 6 occurrences (lines ~244–246, ~494–496, ~566–568, ~662–664, 
 with:
 
 ```ts
-    const storedDef = parseStoredModuleDefinition(rawModule.module_definition);
+    const storedDef = parseInstalledModuleDefinition(rawModule.module_definition);
 ```
 
-**Edit 5.2.e** — Replace the viz_presets parse (lines ~937–940):
+**Edit 7.2.e** — Replace the viz_presets parse (lines ~937–940):
 
 ```ts
         vizPresets: dbMetric.viz_presets
@@ -1573,15 +1914,15 @@ with:
 
 ```ts
         vizPresets: dbMetric.viz_presets
-          ? z.array(vizPresetStored).parse(JSON.parse(dbMetric.viz_presets))
+          ? z.array(vizPresetInstalled).parse(JSON.parse(dbMetric.viz_presets))
           : undefined,
 ```
 
-(The `adaptLegacyVizPresets` call is removed — per-element `vizPresetStored` preprocess handles it automatically.)
+(The `adaptLegacyVizPresets` call is removed — per-element `vizPresetInstalled` preprocess handles it automatically.)
 
-### 5.3 `server/db/project/presentation_objects.ts`
+### 7.3 `server/db/project/presentation_objects.ts`
 
-**Edit 5.3.a** — Replace the import line (~line 23):
+**Edit 7.3.a** — Replace the import line (~line 23):
 
 ```ts
 import { adaptLegacyPresentationObjectConfig } from "../../legacy_adapters/mod.ts";
@@ -1593,7 +1934,7 @@ with:
 import { parseStoredPresentationObjectConfig } from "lib";
 ```
 
-**Edit 5.3.b** — Replace every occurrence of:
+**Edit 7.3.b** — Replace every occurrence of:
 
 ```ts
 adaptLegacyPresentationObjectConfig(parseJsonOrThrow(row.config))
@@ -1602,12 +1943,14 @@ adaptLegacyPresentationObjectConfig(parseJsonOrThrow(row.config))
 with:
 
 ```ts
-parseStoredPresentationObjectConfig(JSON.parse(row.config))
+parseStoredPresentationObjectConfig(parseJsonOrThrow(row.config))
 ```
 
 Applies at lines ~145, ~163, ~492 (3 occurrences where the variable is `row.config`).
 
-**Edit 5.3.c** — Replace:
+**Note**: the plan keeps `parseJsonOrThrow(...)` rather than swapping to bare `JSON.parse(...)`. `parseJsonOrThrow` adds context to JSON-parse errors — preserving it preserves error-message quality at no cost.
+
+**Edit 7.3.c** — Replace:
 
 ```ts
 adaptLegacyPresentationObjectConfig(parseJsonOrThrow(rawPresObj.config))
@@ -1616,12 +1959,12 @@ adaptLegacyPresentationObjectConfig(parseJsonOrThrow(rawPresObj.config))
 with:
 
 ```ts
-parseStoredPresentationObjectConfig(JSON.parse(rawPresObj.config))
+parseStoredPresentationObjectConfig(parseJsonOrThrow(rawPresObj.config))
 ```
 
 (Line ~202, 1 occurrence with `rawPresObj.config`.)
 
-**Edit 5.3.d** — Replace:
+**Edit 7.3.d** — Replace:
 
 ```ts
           adaptLegacyPresentationObjectConfig(parseJsonOrThrow(result[0].config));
@@ -1630,16 +1973,16 @@ parseStoredPresentationObjectConfig(JSON.parse(rawPresObj.config))
 with:
 
 ```ts
-          parseStoredPresentationObjectConfig(JSON.parse(result[0].config));
+          parseStoredPresentationObjectConfig(parseJsonOrThrow(result[0].config));
 ```
 
 (Line ~381, 1 occurrence with `result[0].config`.)
 
-**Edit 5.3.e** — Strict-write sites at lines ~66, ~322, ~386 use `presentationObjectConfigSchema.parse(config)`. **No change needed.** The schema is now preprocessed; adapter runs (no-op on current shape), then strict validation. If `config` is current-shape (editor save), adapter is idempotent identity. If legacy-shape, adapter normalizes first.
+**Edit 7.3.e** — Strict-write sites at lines ~67, ~323, ~387 use `presentationObjectConfigSchema.parse(config)`. **No change needed.** The schema is now preprocessed; adapter runs (no-op on current shape), then strict validation. If `config` is current-shape (editor save), the adapter is idempotent identity. If legacy-shape, the adapter normalizes first. (Line numbers per audit on 2026-04-20; resync at edit time if they've drifted.)
 
-### 5.4 `server/task_management/get_dependents.ts`
+### 7.4 `server/task_management/get_dependents.ts`
 
-**Edit 5.4.a** — Replace the import block:
+**Edit 7.4.a** — Replace the import block:
 
 ```ts
 import {
@@ -1653,12 +1996,12 @@ with:
 
 ```ts
 import {
-  parseStoredModuleDefinition,
+  parseInstalledModuleDefinition,
   type DatasetType,
 } from "lib";
 ```
 
-**Edit 5.4.b** — Replace (2 occurrences, lines ~33–35 and ~64–66):
+**Edit 7.4.b** — Replace (2 occurrences, lines ~33–35 and ~64–66):
 
 ```ts
     const modDef = parseModuleDefinition(
@@ -1669,10 +2012,10 @@ import {
 with:
 
 ```ts
-    const modDef = parseStoredModuleDefinition(rawModule.module_definition);
+    const modDef = parseInstalledModuleDefinition(rawModule.module_definition);
 ```
 
-**Edit 5.4.c** — Replace (line ~126–128):
+**Edit 7.4.c** — Replace (line ~126–128):
 
 ```ts
   const moduleDefinition = parseModuleDefinition(
@@ -1683,16 +2026,16 @@ with:
 with:
 
 ```ts
-  const moduleDefinition = parseStoredModuleDefinition(thisMod.module_definition);
+  const moduleDefinition = parseInstalledModuleDefinition(thisMod.module_definition);
 ```
 
-### 5.5 `server/db/project/reports.ts`
+### 7.5 `server/db/project/reports.ts`
 
-Already covered in Step 4. No additional edits at this step.
+Already covered in Step 6. No additional edits at this step.
 
-### 5.6 `server/routes/project/presentation_objects.ts`
+### 7.6 `server/routes/project/presentation_objects.ts`
 
-**Edit 5.6.a** — Replace (line ~16):
+**Edit 7.6.a** — Replace (line ~16):
 
 ```ts
 import { adaptLegacyPODetailResponse } from "../../legacy_adapters/mod.ts";
@@ -1704,7 +2047,7 @@ with:
 import { parseStoredPresentationObjectConfig } from "lib";
 ```
 
-**Edit 5.6.b** — Replace (line ~155):
+**Edit 7.6.b** — Replace (line ~155):
 
 ```ts
       return c.json(adaptLegacyPODetailResponse(existing));
@@ -1726,11 +2069,19 @@ with:
       );
 ```
 
+**Alternative (equally acceptable):** keep a thin local helper in the route file that matches `adaptLegacyPODetailResponse`'s current signature but delegates to `parseStoredPresentationObjectConfig` internally. Preserves the call site `return c.json(adaptLegacyPODetailResponse(existing))` unchanged and localizes the inlined unwrapping to a helper body. Either pattern is fine — pick whichever matches the route file's existing style.
+
+### 7.7 `server/module_loader/load_module.ts`
+
+**Edit 7.7.a** — In the import from `lib`, replace `ModuleDefinitionJSONSchema` with `moduleDefinitionGithubSchema` (or keep the old name as an alias if preferred; the rename map in the inventory section above shows `ModuleDefinitionJSONSchema` → `moduleDefinitionGithubSchema`). At the call site (line ~123), update the schema name.
+
+If the executor wants to minimize diff, add a back-compat alias `export { moduleDefinitionGithubSchema as ModuleDefinitionJSONSchema } from "./_module_definition_github.ts"` somewhere — but the canonical name should be the new one.
+
 ---
 
-## Step 6 — Delete `server/legacy_adapters/`
+## Step 8 — Delete `server/legacy_adapters/`
 
-### 6.1 Delete files
+### 8.1 Delete files
 
 Remove these files:
 
@@ -1742,7 +2093,7 @@ Remove these files:
 
 Then remove the `server/legacy_adapters/` directory itself.
 
-### 6.2 Verify no stragglers
+### 8.2 Verify no stragglers
 
 ```bash
 grep -rn "legacy_adapters" server/ lib/ client/ panther/ 2>/dev/null
@@ -1752,9 +2103,9 @@ Must return zero hits.
 
 ---
 
-## Step 7 — Update `DOC_legacy_handling.md`
+## Step 9 — Update `DOC_legacy_handling.md`
 
-### 7.1 Replace the "Location" paragraph (line ~25)
+### 9.1 Replace the "Location" paragraph (line ~25)
 
 Find:
 
@@ -1765,14 +2116,14 @@ Find:
 Replace with:
 
 ```
-**Location:** every pure legacy adapter is colocated with its Zod schema in `lib/types/<domain>.ts`. When you change a type, the adapter is in the same file. When you discover a new drift variant, add it to the appropriate `adaptLegacyStored<X>` function in that file. Adapters are baked into the public schema via `z.preprocess(adapter, strictSchema)`, so every `.parse` / `.safeParse` on the schema runs the adapter automatically — callers cannot bypass it.
+**Location:** every pure legacy adapter is colocated with its Zod schema in `lib/types/<domain>.ts`. Files that manage drift use an underscore prefix (`_module_definition_github.ts`, `_module_definition_installed.ts`) to group at the top of the directory and signal "this file owns a drift-tolerant schema". When you change a type, the adapter is in the same file. When you discover a new drift variant, add it to the appropriate `adaptLegacy<X>` function in that file. Adapters are baked into the public schema via `z.preprocess(adapter, strictSchema)`, so every `.parse` / `.safeParse` on the schema runs the adapter automatically — callers cannot bypass it.
 
 DB-dependent legacy resolutions (adapters that need a database connection, filesystem access, or network) stay in the server code next to their callers. Currently: `resolveLegacyReportMetricIds` in [server/db/project/reports.ts](server/db/project/reports.ts).
 
-**Fetch schemas stay strict.** The fetch tree (`ModuleDefinitionJSONSchema` and its children) never references preprocessed schemas. Authored `definition.json` files must match the current shape exactly — no silent normalization at fetch time.
+**GitHub schemas stay strict.** `_module_definition_github.ts` never references preprocessed schemas. Authored `definition.json` files must match the current shape exactly — no silent normalization at fetch time.
 ```
 
-### 7.2 Replace the wiring-rule block (lines ~29–34)
+### 9.2 Replace the wiring-rule block (lines ~29–34)
 
 Find:
 
@@ -1792,40 +2143,42 @@ Replace with:
 
 Because the adapter is baked into the public schema via `z.preprocess`, wiring is automatic at every validation site. You can't forget to invoke it — `.parse` and `.safeParse` run it for you.
 
-- **DB read sites.** Call the domain's `parseStored<X>(raw)` helper (or `<X>Schema.parse(JSON.parse(raw))` if you want strict-throw instead of permissive-read). Adapter runs, then strict validation.
+- **DB read sites.** Call the domain's `parseInstalled<X>` or `parseStored<X>` helper (or `<X>Schema.parse(JSON.parse(raw))` if you want strict-throw instead of permissive-read). Adapter runs, then strict validation.
 - **Cache-hit sites.** Same helper. Idempotent adapters mean double-running is a no-op.
 - **Write sites.** Use `.parse` on the public schema (throws on invalid). Current-shape writes pass through the adapter unchanged. The rare legacy-shape write gets normalized before validation.
 
 **Adapter purity contract.** Adapters MUST be pure functions — same output for same input, no side effects, no external state, no mutation of shared references. They WILL be called multiple times on the same data across a request (nested preprocess firing, cache-hit re-validation, defensive re-parse). Violations cause subtle bugs.
 ```
 
-### 7.3 Replace the "Active adapters" list (lines ~44–62)
+### 9.3 Replace the "Active adapters" list (lines ~44–62)
 
 Find the block starting `**Active adapters in [server/legacy_adapters/](server/legacy_adapters/):**` and ending at the end of the `report_item.ts` bullet. Replace with:
 
 ```
 **Active adapter inventory (colocated with schemas):**
 
-- [lib/types/module_definition.ts](lib/types/module_definition.ts) — module-definition family. Preprocess entry points: `metricAIDescriptionStored`, `vizPresetStored`, `moduleDefinitionStoredSchema`. Per-level adapters (all pure, typed, exported so they can be composed):
-  - `adaptLegacyStoredPeriodFilter` — `last_12_months` → `last_n_months+nMonths:12`; fill `filterType: "custom"` when undefined; strip fabricated bounds from relative types.
-  - `adaptLegacyStoredConfigD` — rename legacy `periodOpt` → `timeseriesGrouping`; nested periodFilter adaptation.
-  - `adaptLegacyStoredConfigS(raw, isMap)` — detects legacy nested `conditionalFormatting` (string preset id via `LEGACY_CF_PRESETS`, or object union); detects legacy map color fields (only when `isMap`, via `buildCfFromLegacyMapFields`); flattens any captured CF union via `flattenCf` into flat `cf*` fields on `s`; fills missing cf* fields from `CF_STORAGE_DEFAULTS`; fills `specialDisruptionsChart` from legacy `diffAreas` (Pattern 3); strips legacy nested `conditionalFormatting` and all map* fields. Parent adapters provide `isMap` from sibling `d.type`.
-  - `adaptLegacyStoredVizPresetTextConfig` — fill missing nullable text-config fields.
-  - `adaptLegacyStoredMetricAIDescription` — fill missing `caveats`, `importantNotes`, `relatedMetrics`.
-  - `adaptLegacyStoredVizPreset` — drop `defaultPeriodFilterForDefaultVisualizations`; fill missing required fields; walk into `config.d`/`config.s`/`config.t`.
-  - `adaptLegacyStoredModuleDefinition` — fill top-level defaults (scriptGenerationType, dataSources, metrics, etc.). Does NOT recurse into metrics[] — nested `metricAIDescriptionStored` and `vizPresetStored` preprocesses handle nested drift when strict validation runs.
-  - `adaptLegacyStoredMetricDefinition`, `adaptLegacyStoredResultsObjectDefinition`, `adaptLegacyStoredDefaultPresentationObject` — currently identity (placeholders for future transforms; keep the shape so future adapters land in one predictable place).
-  - Call sites: `parseStoredModuleDefinition(raw: string)` convenience helper in the same file; 10 read sites across [server/db/project/modules.ts](server/db/project/modules.ts) and [server/task_management/get_dependents.ts](server/task_management/get_dependents.ts); viz_presets-column read uses `z.array(vizPresetStored).parse(...)`; AI-description-column read uses `metricAIDescriptionStored.parse(...)`.
+- [lib/types/_module_definition_installed.ts](lib/types/_module_definition_installed.ts) — module-definition family. Preprocess entry points: `metricAIDescriptionInstalled`, `vizPresetInstalled`, `moduleDefinitionInstalledSchema`. Per-level adapters (all pure, typed, exported so they can be composed):
+  - `adaptLegacyPeriodFilter` — `last_12_months` → `last_n_months+nMonths:12`; fill `filterType: "custom"` when undefined; strip fabricated bounds from relative types.
+  - `adaptLegacyConfigD` — rename legacy `periodOpt` → `timeseriesGrouping`; nested periodFilter adaptation.
+  - `adaptLegacyConfigS(raw, isMap)` — detects legacy `s.conditionalFormatting` (string preset id via `LEGACY_CF_PRESETS`); detects legacy map color fields (only when `isMap`, via `buildCfFromLegacyMapFields`); flattens any captured CF union via `flattenCf` into flat `cf*` fields on `s`; fills missing cf* fields from `CF_STORAGE_DEFAULTS`; fills `specialDisruptionsChart` from legacy `diffAreas` (Pattern 3); strips legacy `conditionalFormatting` and all map* fields. Parent adapters provide `isMap` from sibling `d.type`. Note: cf* overwrite semantics inverted vs old `po_config.ts` adapter — new-shape rows with cf* fields keep them; only missing cf* keys get filled.
+  - `adaptLegacyVizPresetTextConfig` — fill missing nullable text-config fields.
+  - `adaptLegacyMetricAIDescription` — fill missing `caveats`, `importantNotes`, `relatedMetrics`.
+  - `adaptLegacyVizPreset` — drop `defaultPeriodFilterForDefaultVisualizations`; fill missing required fields; walk into `config.d`/`config.s`/`config.t`.
+  - `adaptLegacyModuleDefinition` — fill top-level defaults (scriptGenerationType, dataSources, metrics, etc.). Does NOT recurse into metrics[] — nested `metricAIDescriptionInstalled` and `vizPresetInstalled` preprocesses handle nested drift when strict validation runs.
+  - `adaptLegacyMetricDefinition`, `adaptLegacyResultsObjectDefinition`, `adaptLegacyDefaultPresentationObject` — currently identity (placeholders for future transforms; keep the shape so future adapters land in one predictable place).
+  - Call sites: `parseInstalledModuleDefinition(raw: string)` convenience helper in the same file; 10 read sites across [server/db/project/modules.ts](server/db/project/modules.ts) and [server/task_management/get_dependents.ts](server/task_management/get_dependents.ts); viz_presets-column read uses `z.array(vizPresetInstalled).parse(...)`; AI-description-column read uses `metricAIDescriptionInstalled.parse(...)`.
 
-- [lib/types/presentation_object_config.ts](lib/types/presentation_object_config.ts) — PO config. Preprocess entry point: `presentationObjectConfigSchema`. Adapter `adaptLegacyStoredPresentationObjectConfig` delegates to `adaptLegacyStoredConfigD` and `adaptLegacyStoredConfigS` from module_definition.ts. Permissive-read helper `parseStoredPresentationObjectConfig(raw: unknown)` (safeParse + warn + fallback) per PLAN_5 item D.
+- [lib/types/_module_definition_github.ts](lib/types/_module_definition_github.ts) — module-definition github shape. Strict, no preprocess. Single call site: `moduleDefinitionGithubSchema.safeParse(...)` at [server/module_loader/load_module.ts:123](server/module_loader/load_module.ts#L123). Authored `definition.json` files must match this shape exactly.
+
+- [lib/types/presentation_object_config.ts](lib/types/presentation_object_config.ts) — PO config. Preprocess entry point: `presentationObjectConfigSchema`. Adapter `adaptLegacyPresentationObjectConfig` delegates to `adaptLegacyConfigD` and `adaptLegacyConfigS` from `_module_definition_installed.ts`. Permissive-read helper `parseStoredPresentationObjectConfig(raw: unknown)` (safeParse + warn + fallback) per PLAN_5 item D.
   - Call sites: 5 DB read sites in [server/db/project/presentation_objects.ts](server/db/project/presentation_objects.ts); 1 cache-hit site in [server/routes/project/presentation_objects.ts](server/routes/project/presentation_objects.ts); 3 strict-write sites in [server/db/project/presentation_objects.ts](server/db/project/presentation_objects.ts) use `presentationObjectConfigSchema.parse(config)` directly.
 
-- [lib/types/reports.ts](lib/types/reports.ts) — report-item shape adapter `adaptLegacyReportItemConfigShape`. Called explicitly at 2 read sites in [server/db/project/reports.ts](server/db/project/reports.ts); **not yet `z.preprocess`-wrapped** because there is no Zod schema for `ReportItemConfig` (PLAN_5 Tier 1 deferred). When the schema lands, wrap it per the layered architecture and remove the explicit adapter call.
+- [lib/types/reports.ts](lib/types/reports.ts) — report-item shape adapter `adaptLegacyReportItemConfigShape`. Called explicitly at 2 read sites in [server/db/project/reports.ts](server/db/project/reports.ts); **not yet `z.preprocess`-wrapped** because there is no Zod schema for `ReportItemConfig` (PLAN_5 Tier 1 deferred). When the schema lands, wrap it per the per-level preprocess pattern and remove the explicit adapter call.
 
 - [server/db/project/reports.ts](server/db/project/reports.ts) — DB-dependent legacy resolution `resolveLegacyReportMetricIds(config, projectDb)` (`moduleId` → `metricId` lookup). Stays server-side. Chained with the pure shape adapter at the 2 read sites.
 ```
 
-### 7.4 Update the cleanup audit table
+### 9.4 Update the cleanup audit table
 
 Find the `po_config.ts` row in the cleanup audit table (~line 216):
 
@@ -1836,22 +2189,22 @@ Find the `po_config.ts` row in the cleanup audit table (~line 216):
 Replace with:
 
 ```
-| Legacy CF string-preset + map-color-field adapter transforms in `lib/types/module_definition.ts` (`adaptLegacyStoredConfigS`, `LEGACY_CF_PRESETS` usage, `buildCfFromLegacyMapFields`) | Once every deployed project has re-saved affected configs, or a Pattern 4 forces it |
+| Legacy CF string-preset + map-color-field adapter transforms in `lib/types/_module_definition_installed.ts` (`adaptLegacyConfigS`, `LEGACY_CF_PRESETS` usage, `buildCfFromLegacyMapFields`) | Once every deployed project has re-saved affected configs, or a Pattern 4 forces it |
 ```
 
 ---
 
-## Step 8 — Verification
+## Step 10 — Verification
 
-### 8.1 Typecheck
+### 10.1 Typecheck
 
 ```bash
 deno task typecheck
 ```
 
-Server typecheck must pass with zero new errors. Client typecheck has pre-existing errors from the in-flight conditional-formatting refactor (`client/src/generate_visualization/conditional_formatting.ts`, `client/src/generate_visualization/get_style_from_po/_0_common.ts`, etc.) — those are unrelated to this plan and unchanged by it. Compare the full client error list to the pre-Step-1 baseline; there must be no new entries.
+Server typecheck must pass with zero errors.
 
-### 8.2 No legacy_adapters references remain
+### 10.2 No legacy_adapters references remain
 
 ```bash
 grep -rn "legacy_adapters" server/ lib/ client/ panther/ 2>/dev/null
@@ -1859,15 +2212,23 @@ grep -rn "legacy_adapters" server/ lib/ client/ panther/ 2>/dev/null
 
 Must return zero hits.
 
-### 8.3 Public-API usage verification
+### 10.3 No stale schema names remain
 
 ```bash
-grep -rn "parseStoredModuleDefinition\|parseStoredPresentationObjectConfig" server/ lib/ 2>/dev/null | wc -l
+grep -rn "parseModuleDefinition\|moduleDefinitionStoredSchema\|metricAIDescriptionStored\|vizPresetStored\|vizPresetTextConfigStored\|ModuleDefinitionJSONSchema\b" server/ lib/ client/ 2>/dev/null
 ```
 
-Expected: `parseStoredModuleDefinition` appears 11 times (10 call sites + 1 definition); `parseStoredPresentationObjectConfig` appears 7 times (5 read sites in presentation_objects.ts + 1 in routes/presentation_objects.ts + 1 definition). Total 18 lines. Ensure these counts match.
+Must return zero hits (other than possibly intentional back-compat aliases the executor chose to keep).
 
-### 8.4 No remaining explicit adapter calls
+### 10.4 Public-API usage verification
+
+```bash
+grep -rn "parseInstalledModuleDefinition\|parseStoredPresentationObjectConfig" server/ lib/ 2>/dev/null | wc -l
+```
+
+Expected: `parseInstalledModuleDefinition` appears 11 times (10 call sites + 1 definition); `parseStoredPresentationObjectConfig` appears 7 times (5 read sites in presentation_objects.ts + 1 in routes/presentation_objects.ts + 1 definition). Total 18 lines. Ensure these counts match.
+
+### 10.5 No remaining explicit adapter calls in server code
 
 ```bash
 grep -rn "adaptLegacy" server/ lib/ 2>/dev/null
@@ -1875,19 +2236,311 @@ grep -rn "adaptLegacy" server/ lib/ 2>/dev/null
 
 Expected matches (definitions only, no call sites in server code):
 
-- `lib/types/module_definition.ts`: definitions of the 10 `adaptLegacyStored*` functions (10 hits). No call sites.
+- `lib/types/_module_definition_installed.ts`: definitions of the 10 `adaptLegacy*` functions (10 hits). No call sites.
 - `lib/types/presentation_object_config.ts`: 1 definition + 1 internal call from `parseStoredPresentationObjectConfig` fallback (2 hits).
 - `lib/types/reports.ts`: 1 definition (1 hit).
 - `server/db/project/reports.ts`: 2 explicit call sites (reports not yet preprocessed — Tier 1 deferred).
 
 Total ~16 hits, all either definitions in lib or the 2 report-item explicit call sites.
 
-### 8.5 Runtime sanity
+### 10.6 Runtime sanity
 
-- **Open a project** — `parseStoredModuleDefinition` must succeed on every row in `modules.module_definition` across all projects.
+- **Open a project** — `parseInstalledModuleDefinition` must succeed on every row in `modules.module_definition` across all projects.
 - **Open a visualization** — `parseStoredPresentationObjectConfig` must succeed or fall back with a structured warning on every row in `presentation_objects.config`.
 - **Edit and save a visualization** — `presentationObjectConfigSchema.parse(config)` (strict-write) must accept the editor's current-shape output with no transform visible in the saved JSON.
-- **Fetch a module from GitHub** — `ModuleDefinitionJSONSchema.safeParse(definition)` at `load_module.ts:123` must remain strict. Authored `definition.json` files that omit required fields or contain legacy field names (e.g., `periodOpt`, string `conditionalFormatting`) must fail validation with clear error paths.
+- **Fetch a module from GitHub** — `moduleDefinitionGithubSchema.safeParse(definition)` at `load_module.ts:123` must remain strict. Authored `definition.json` files that omit required fields or contain legacy field names (e.g., `periodOpt`, string `conditionalFormatting`) must fail validation with clear error paths.
+
+---
+
+## Step 11 — Startup validation sweep (optional but recommended)
+
+### 11.1 Purpose
+
+Catch schema drift at server startup — before any user interacts with a stale row. Read-only: iterates every stored row, parses against its schema, records failures, **never re-saves**. Doesn't crash boot on failure; logs structured issues and continues. Opt-in via env var.
+
+Benefits:
+
+- Drift surfaces immediately at deploy time, not when a user happens to open a project. Turns a "mysterious bug report an hour later" into "this shape is broken at boot, here's the row."
+- Batch audit in one place. The sweep's output is an actionable list of rows needing fixes, with exact field paths.
+- Uses the same adapter-then-validate path as runtime — a passing sweep means runtime has no adapter-related surprises.
+- **Especially valuable for first deploy after this PR**, given the cf* overwrite semantics inversion (see "Issues to address" below). Surfaces any in-wild rows that have both new-shape `cf*` AND a stale legacy `conditionalFormatting` from a partial save.
+
+Caveats:
+
+- Cost scales with DB size. A large deployment might pay measurable startup time. Opt-in flag keeps it out of the default path.
+- Valkey sweep depends on the cache's key-listing API and entry count; mirror the DB sweep pattern once cache-iteration support is confirmed.
+
+### 11.2 New file: `server/db_startup_validation.ts`
+
+Create a new file at `server/db_startup_validation.ts` with the following content:
+
+```ts
+import { z } from "zod";
+import type { Sql } from "postgres";
+import {
+  instanceConfigAdminAreaLabelsSchema,
+  instanceConfigCountryIso3Schema,
+  instanceConfigFacilityColumnsSchema,
+  instanceConfigMaxAdminAreaSchema,
+  metricAIDescriptionInstalled,
+  moduleDefinitionInstalledSchema,
+  presentationObjectConfigSchema,
+  vizPresetInstalled,
+} from "lib";
+
+// Opt-in env gate. Set VALIDATE_ON_STARTUP=true to run.
+const SHOULD_RUN = Deno.env.get("VALIDATE_ON_STARTUP") === "true";
+
+type Issue = {
+  scope: "instance" | "project";
+  project?: string;
+  table: string;
+  rowId: string;
+  issues: string;
+};
+
+function formatZodError(err: unknown): string {
+  if (err instanceof z.ZodError) {
+    return err.issues
+      .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+      .join("; ");
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
+// Parameter names match `server/db_startup.ts` conventions: `sqlMain` for
+// the main DB handle, `getPgConnectionFromCacheOrNew` for the per-project
+// resolver.
+export async function validateStoredDataOnStartup(
+  sqlMain: Sql,
+  getPgConnectionFromCacheOrNew: (projectId: string) => Sql,
+): Promise<void> {
+  if (!SHOULD_RUN) return;
+
+  const startedAt = Date.now();
+  const issues: Issue[] = [];
+  let rowsScanned = 0;
+
+  // ── Instance configs (main DB) ─────────────────────────────────────
+  const INSTANCE_CONFIG_SCHEMAS: Record<string, z.ZodSchema> = {
+    max_admin_area: instanceConfigMaxAdminAreaSchema,
+    facility_columns: instanceConfigFacilityColumnsSchema,
+    country_iso3: instanceConfigCountryIso3Schema,
+    admin_area_labels: instanceConfigAdminAreaLabelsSchema,
+  };
+  const configs = await sqlMain<{ config_key: string; config_json_value: string }[]>`
+    SELECT config_key, config_json_value FROM instance_config
+  `;
+  for (const c of configs) {
+    const schema = INSTANCE_CONFIG_SCHEMAS[c.config_key];
+    if (!schema) continue;
+    rowsScanned++;
+    try {
+      schema.parse(JSON.parse(c.config_json_value));
+    } catch (e) {
+      issues.push({
+        scope: "instance",
+        table: "instance_config",
+        rowId: c.config_key,
+        issues: formatZodError(e),
+      });
+    }
+  }
+
+  // ── Per-project DBs ────────────────────────────────────────────────
+  const projects = await sqlMain<{ id: string }[]>`SELECT id FROM projects`;
+  for (const p of projects) {
+    const projectDb = getPgConnectionFromCacheOrNew(p.id);
+
+    // modules.module_definition
+    const modules = await projectDb<{ id: string; module_definition: string }[]>`
+      SELECT id, module_definition FROM modules
+    `;
+    for (const m of modules) {
+      rowsScanned++;
+      try {
+        moduleDefinitionInstalledSchema.parse(JSON.parse(m.module_definition));
+      } catch (e) {
+        issues.push({
+          scope: "project",
+          project: p.id,
+          table: "modules.module_definition",
+          rowId: m.id,
+          issues: formatZodError(e),
+        });
+      }
+    }
+
+    // metrics.ai_description + metrics.viz_presets
+    const metrics = await projectDb<
+      { id: string; ai_description: string | null; viz_presets: string | null }[]
+    >`SELECT id, ai_description, viz_presets FROM metrics`;
+    for (const m of metrics) {
+      if (m.ai_description) {
+        rowsScanned++;
+        try {
+          metricAIDescriptionInstalled.parse(JSON.parse(m.ai_description));
+        } catch (e) {
+          issues.push({
+            scope: "project",
+            project: p.id,
+            table: "metrics.ai_description",
+            rowId: m.id,
+            issues: formatZodError(e),
+          });
+        }
+      }
+      if (m.viz_presets) {
+        rowsScanned++;
+        try {
+          z.array(vizPresetInstalled).parse(JSON.parse(m.viz_presets));
+        } catch (e) {
+          issues.push({
+            scope: "project",
+            project: p.id,
+            table: "metrics.viz_presets",
+            rowId: m.id,
+            issues: formatZodError(e),
+          });
+        }
+      }
+    }
+
+    // presentation_objects.config (strict parse — NOT the permissive helper,
+    // so every drift surfaces. Runtime uses the permissive helper for reads;
+    // the sweep is the audit path that demands strict success.)
+    const pos = await projectDb<{ id: string; config: string }[]>`
+      SELECT id, config FROM presentation_objects
+    `;
+    for (const po of pos) {
+      rowsScanned++;
+      try {
+        presentationObjectConfigSchema.parse(JSON.parse(po.config));
+      } catch (e) {
+        issues.push({
+          scope: "project",
+          project: p.id,
+          table: "presentation_objects.config",
+          rowId: po.id,
+          issues: formatZodError(e),
+        });
+      }
+    }
+  }
+
+  // ── Valkey sweep (optional — implement when cache iteration is wired) ──
+  // Iterate cached PO detail entries and parse .data.config against
+  // presentationObjectConfigSchema. Same issue-reporting pattern.
+
+  // ── Summary ────────────────────────────────────────────────────────
+  const elapsed = Date.now() - startedAt;
+  console.log(
+    `[validate] scanned ${rowsScanned} rows across ${projects.length} project(s) in ${elapsed}ms`,
+  );
+  if (issues.length === 0) {
+    console.log(`[validate] no drift detected — all stored rows match current schemas`);
+    return;
+  }
+  console.warn(
+    `[validate] ${issues.length} drift issue(s) detected. Each is an actionable pointer to a row that needs adapter extension or data fix:`,
+  );
+  for (const issue of issues) {
+    console.warn(
+      `[validate]`,
+      JSON.stringify(issue),
+    );
+  }
+}
+```
+
+### 11.3 Wire into `server/db_startup.ts`
+
+After the migrations block in `server/db_startup.ts`, before the server starts accepting requests, add:
+
+```ts
+import { validateStoredDataOnStartup } from "./db_startup_validation.ts";
+
+// ... after migrations ...
+
+await validateStoredDataOnStartup(sqlMain, getPgConnectionFromCacheOrNew);
+```
+
+The local variable names (`sqlMain`, `getPgConnectionFromCacheOrNew`) match what's already in `server/db_startup.ts`. If those names drift at edit time, rename in 11.2's function signature + invocation — the behaviour doesn't depend on the names.
+
+### 11.4 Operational notes
+
+- **Default off.** Set `VALIDATE_ON_STARTUP=true` in environments where you want the sweep. **Recommended ON for first deploy after this PR** — catches the cf* overwrite semantic shift in a controlled way.
+- **Output is structured console warnings.** If you have log aggregation, grep for `[validate]` to collect audit reports.
+- **Exit behaviour.** The sweep never throws. Drift doesn't block startup. The intent is observability, not gating.
+- **Don't re-save from the sweep.** That's a separate, deliberate migration concern (Pattern 4) and should be an explicit user-initiated operation, not a silent side-effect of reading.
+- **Connection lifetime.** `getPgConnectionFromCacheOrNew` iterates every project — verify in `server/db/postgres/connection_manager.ts` that the pool doesn't retain N persistent handles after the sweep completes. If the cached connections are kept alive post-sweep, enabling `VALIDATE_ON_STARTUP` adds a permanent N-connection footprint on every boot. If that's a problem, either release the handles at the end of the sweep or use short-lived connections within `validateStoredDataOnStartup`.
+
+### 11.5 Scope boundary
+
+This sweep only validates types that already have Zod schemas — i.e., everything in the upper portion of the "Validation surface" table. Types without schemas (reports / project info / dataset staging / worker routines) don't get swept because there's nothing to parse against. Once those types land Zod schemas (Tier 1 deferred work), add them to the sweep.
+
+---
+
+## Step 12 — Follow-up: convert PO config to strict (drop the permissive helper)
+
+### 12.1 Why this is a separate follow-up
+
+The initial PR keeps the permissive-read helper (`parseStoredPresentationObjectConfig`) for PO config because today's `adaptLegacyPresentationObjectConfig` has `safeParse → warn → fallback` baked into its body. Preserving that behaviour during the colocation refactor reduces risk: behaviour-change and structural-change land separately.
+
+Once Steps 1–11 have shipped and the startup sweep (Step 11) has run clean against deployed data, the permissive helper becomes unnecessary. This step removes it.
+
+### 12.2 What changes
+
+- Delete `parseStoredPresentationObjectConfig` from `lib/types/presentation_object_config.ts`.
+- Add a strict convenience helper `parsePresentationObjectConfig(raw: string): PresentationObjectConfig` — `JSON.parse` + `presentationObjectConfigSchema.parse`. Throws on invalid.
+- Update the 5 read sites in `server/db/project/presentation_objects.ts` (lines 145, 163, 202, 381, 492) to call `parsePresentationObjectConfig(row.config)` (or `parsePresentationObjectConfig(rawPresObj.config)` / `parsePresentationObjectConfig(result[0].config)` as appropriate). Note: the helper now takes a raw string and does JSON parsing internally — drop the `parseJsonOrThrow(...)` wrapper at these sites.
+- Update the cache-hit site in `server/routes/project/presentation_objects.ts` (line ~155) to use the strict helper (or inline the parse). Parse failure at a cache-hit site means a stale cache entry — acceptable to throw; the subsequent cache miss will re-derive.
+- Writes at lines 67, 323, 387 continue to use `presentationObjectConfigSchema.parse(config)` directly — no change needed. The strict schema is the same; only the read path switches.
+
+### 12.3 What it buys
+
+- One parse pattern across the entire codebase: strict-throw everywhere.
+- One fewer public API to remember.
+- No "which helper do I use at this site?" decision.
+- Unknown drift surfaces loudly and immediately rather than being buried in a warn log.
+
+### 12.4 Pre-flight checklist
+
+Before landing Step 12:
+
+- [ ] Step 11's startup sweep has run in production for at least one deploy cycle with zero warnings on `presentation_objects.config`. This proves every deployed row parses cleanly against the strict schema.
+- [ ] Any drift discovered during that sweep period has been resolved (either by adding a transform to `adaptLegacyConfigD` / `adaptLegacyConfigS` or by a Pattern 4 data migration).
+- [ ] The team has agreed that per-viz "failed to load" errors on unknown drift are acceptable (they're loud and actionable, vs. the current soft-fail warn + degraded UI).
+
+### 12.5 Risk
+
+The only risk is a stale row slipping through after Step 11's sweep and causing a user-facing "failed to load this viz" error. Mitigations:
+
+- Step 11 sweep gives high confidence before landing.
+- Strict errors surface fast and are easy to diagnose (schema paths in the error).
+- A single bad viz doesn't block other vizzes or project-level operations.
+
+If the team isn't ready to commit to strict for PO config, Step 12 can be deferred indefinitely. The permissive helper is not a maintenance burden — it's a deliberate safety net. Converting is a cleanup, not a necessity.
+
+---
+
+## Issues to address before / during execution
+
+These were surfaced by audit on 2026-04-20 and are carried forward into the executor's checklist. None blocks execution; all are worth a careful look as the PR is prepared.
+
+1. **Keep `parseJsonOrThrow` in PO config call sites.** Step 7.3.b/c/d preserves `parseJsonOrThrow(...)` rather than swapping to bare `JSON.parse(...)`. `parseJsonOrThrow` adds context to JSON-parse errors — keeping it preserves error-message quality at no cost. (Already reflected above; flagged here for visibility.)
+
+2. **cf\* overwrite semantics inversion is a real behaviour change.** Current `adaptLegacyConfigS` does `Object.assign(out, flattenCf(cf))` (legacy always wins). New adapter does `if (!(key in out)) out[key] = value` (new-shape rows keep their cf*). Correct for steady state, but assumes no row in the wild has both new-shape `cfMode` AND a stale legacy `conditionalFormatting` from a partial save. **Enable Step 11's sweep at first deploy** to catch this if it happens.
+
+3. **`adaptLegacyVizPreset` now walks `config.t`** (additive vs current `adaptLegacyVizPresets`, which only walks `config.d` and `config.s`). Any in-wild stored vizPreset with a malformed (not just missing) `config.t` field that previously squeaked past will now fail strict validation. The Step 11 sweep also catches this.
+
+4. **`parseInstalledModuleDefinition` signature change.** The old `parseModuleDefinition(raw: unknown)` accepted an already-parsed object. The new helper takes `raw: string` and does the `JSON.parse` internally. Step 7's call-site updates account for this — every `parseModuleDefinition(adaptLegacyModuleDefinition(JSON.parse(x)))` becomes `parseInstalledModuleDefinition(x)`. Verify no other caller exists outside the covered sites before landing.
+
+5. **`LegacyReportItemConfig` becomes a public lib export.** Currently private inside `server/legacy_adapters/report_item.ts`. After Step 5, it's exported from `lib/types/reports.ts` via `mod.ts`'s `export *`. If you don't want it public, prefix with `_` (`_LegacyReportItemConfig`).
+
+6. **Nested preprocess performance.** Parsing a module with N metrics × M viz presets triggers N + N×M preprocess calls. For typical modules negligible, but if any module has hundreds of presets that adds up. Probably fine; flagged for visibility.
+
+7. **Permissive vs strict helpers — naming.** Two PO config public APIs ship: `presentationObjectConfigSchema.parse(...)` (strict-throw, used by writes) and `parseStoredPresentationObjectConfig(raw)` (permissive safeParse + warn + fallback, used by reads). Call sites must pick the right one. Documented in this plan, in `DOC_legacy_handling.md`, and in the schema file's comment. Consider a more obvious naming distinction in a follow-up if the convention causes confusion.
 
 ---
 
@@ -1895,17 +2548,17 @@ Total ~16 hits, all either definitions in lib or the 2 report-item explicit call
 
 Every new stored-shape type follows this architecture.
 
-1. **Strict schema first.** `const xStoredStrict = z.object({...})`. No `.default`/`.optional`/`.nullish` for drift tolerance.
-2. **Pure adapter.** `export function adaptLegacyStoredX(raw: Record<string, unknown>): Record<string, unknown>`. Idempotent, no side effects.
-3. **Preprocessed public schema** if X is a standalone DB-read entry point: `export const xStoredSchema = z.preprocess((r) => typeof r === "object" && r !== null && !Array.isArray(r) ? adaptLegacyStoredX(r as Record<string, unknown>) : r, xStoredStrict);`.
-4. **Derived type.** `export type X = z.infer<typeof xStoredSchema>;` (or keep hand-authored when branding matters).
-5. **Convenience helper** (optional): `export function parseStoredX(raw: string): X { return xStoredSchema.parse(JSON.parse(raw)) as X; }`.
-6. **Permissive-read helper** (optional): only when parse failure must not throw — implements `safeParse → warn → fallback`.
-7. **Fetch-side schema** (if applicable): strict composition from Layer 1 + Layer 2 (shared content schemas). Never reference Layer 5 (preprocessed).
+1. **Strict schema first.** `const xInstalledStrict = z.object({...})`. No `.default`/`.optional`/`.nullish` for drift tolerance.
+2. **Pure adapter.** `export function adaptLegacy<X>(raw: Record<string, unknown>): Record<string, unknown>`. Idempotent, no side effects.
+3. **Preprocessed public schema** if X is a standalone DB-read entry point: `export const xInstalledSchema = z.preprocess((r) => typeof r === "object" && r !== null && !Array.isArray(r) ? adaptLegacy<X>(r as Record<string, unknown>) : r, xInstalledStrict);`.
+4. **Derived type.** `export type X = z.infer<typeof xInstalledSchema>;` (or keep hand-authored when branding matters).
+5. **Convenience helper** (optional): `export function parseInstalled<X>(raw: string): X { return xInstalledSchema.parse(JSON.parse(raw)) as X; }`.
+6. **Permissive-read helper** (optional): only when parse failure must not throw — implements `safeParse → warn → fallback`. Name it `parseStored<X>` to distinguish from strict-throw.
+7. **GitHub-side schema** (only if the type has a fetch/install boundary): separate file `_<type>_github.ts`, strict-all-the-way-down. Never reference preprocessed schemas from the github file.
 
 Adding a drift variant:
 
-1. Add a transform in the relevant `adaptLegacyStoredX` function.
+1. Add a transform in the relevant `adaptLegacy<X>` function.
 2. That's it. All call sites pick it up via preprocess.
 
 Removing a drift (after all rows re-saved):
@@ -1916,8 +2569,8 @@ Removing a drift (after all rows re-saved):
 Adding a new standalone read entry point:
 
 1. Identify the level (e.g., some new nested blob).
-2. Add `adaptLegacyStoredNewThing` adapter next to the strict schema for that level.
-3. Add `newThingStored = z.preprocess(adapter, newThingStrict)` for standalone parsing.
+2. Add `adaptLegacy<NewThing>` adapter next to the strict schema for that level.
+3. Add `newThingInstalled = z.preprocess(adapter, newThingStrict)` for standalone parsing.
 4. Consumers that already parse the parent entity get the new drift automatically via nested preprocess.
 
 ---
@@ -1925,46 +2578,46 @@ Adding a new standalone read entry point:
 ## Out of scope
 
 - **Writing Zod schemas for reports / slides / slide_decks.** Required before those domains can use `z.preprocess` baking. PLAN_5 Tier 1 (deferred).
-- **Changing fetch-time schemas.** `ModuleDefinitionJSONSchema` stays strict and unchanged in shape.
+- **Changing fetch-time schema shape.** `moduleDefinitionGithubSchema` stays strict and unchanged in shape (only renamed from `ModuleDefinitionJSONSchema`).
 - **Changing install-flow behavior.** `load_module.ts:translateMetrics` is unchanged — it still resolves TranslatableString → string and strips nulls.
-- **Removing install-strip optionality on stored strict schemas.** `variantLabel`, `valueLabelReplacements`, `postAggregationExpression`, `aiDescription`, `importantNotes`, `vizPresets`, `hide`, `commitSha` remain `.optional()` on `metricDefinitionStoredStrict` and `moduleDefinitionStoredStrict` — those are genuine current-shape optionality driven by install, not drift tolerance.
+- **Removing install-strip optionality on installed strict schemas.** `variantLabel`, `valueLabelReplacements`, `postAggregationExpression`, `aiDescription`, `importantNotes`, `vizPresets`, `hide`, `commitSha` remain `.optional()` on `metricDefinitionInstalledStrict` and `moduleDefinitionInstalledStrict` — those are genuine current-shape optionality driven by install, not drift tolerance.
 - **Data migrations to eliminate legacy rows.** Pattern 4 work. Separate.
 - **Client-side validation** of anything touched here. No client code changes.
-- **The pre-existing client typecheck errors** in `conditional_formatting.ts` / `get_style_from_po/`. Those are from an in-flight refactor and out of scope for this plan.
 
 ---
 
 ## Landing
 
-Ship as **one PR**. Step 1 removes the current schema-level defaults; the call sites in Steps 5.2 and 5.4 depend on the new `parseStoredModuleDefinition` name. Piecewise landing leaves the tree broken. Apply Steps 1–7, run Step 8, commit.
+**Steps 1–10 ship as one PR.** Step 1 / Step 2 introduce the new files; Step 3 deletes the old; Step 7's call-site updates depend on the new helper names. Piecewise landing leaves the tree broken. Apply Steps 1–9, run Step 10, commit.
+
+**Step 11 (the startup validation sweep) can ship as a follow-up PR.** It's additive — new file `server/db_startup_validation.ts` + one invocation in `db_startup.ts`, gated behind `VALIDATE_ON_STARTUP=true`. Independently reviewable. Splitting keeps the colocation refactor diff focused. **Recommendation: enable `VALIDATE_ON_STARTUP=true` for the first deploy after Steps 1–10 land** — catches the cf* overwrite semantic shift in a controlled way.
 
 After landing, the file layout for legacy handling is:
 
 ```
-lib/types/module_definition.ts            (Layers 1–6 for module family)
-lib/types/presentation_object_config.ts   (Layers 1/4/5/6 for PO config)
-lib/types/reports.ts                      (adapter only; schema pending)
-server/db/project/reports.ts              (DB-dependent report adapter)
+lib/types/_module_definition_github.ts      (authored in GitHub — strict)
+lib/types/_module_definition_installed.ts   (written by install — preprocess + adapters)
+lib/types/presentation_object_config.ts     (user-created via UI — preprocess + adapters)
+lib/types/reports.ts                        (adapter only; schema pending)
+server/db/project/reports.ts                (DB-dependent report adapter)
 ```
 
-No `server/legacy_adapters/` directory. No per-boundary adapter wrappers.
+No `server/legacy_adapters/` directory. No `lib/types/module_definition.ts`. No per-boundary adapter wrappers.
 
 ---
 
-## Pre-execution audit — findings from 2026-04-19
+## Pre-execution audit — findings
 
-Before executing this plan, I verified the following against the repo state on 2026-04-19:
+Verified against the repo state on 2026-04-20:
 
-### Verified ✓
-
-**External imports resolve.** `cfStorageSchema`, `flattenCf`, `CF_STORAGE_DEFAULTS`, `ConditionalFormatting`, `ConditionalFormattingScale` are all currently exported from `lib/types/conditional_formatting.ts`. `LEGACY_CF_PRESETS` and `LegacyCfPresetId` are currently exported from `lib/legacy_cf_presets.ts`. A smoke test (writing an imports-only file and running `deno check`) passes.
+**External imports resolve.** `cfStorageSchema`, `flattenCf`, `CF_STORAGE_DEFAULTS`, `ConditionalFormatting`, `ConditionalFormattingScale` are all currently exported from `lib/types/conditional_formatting.ts`. `LEGACY_CF_PRESETS` and `LegacyCfPresetId` are currently exported from `lib/legacy_cf_presets.ts`.
 
 **No external consumers of the renamed schema values.** Grep confirms:
 
-- `vizPreset` (schema value, lowercase) — used only in `lib/types/module_definition.ts`. Renaming to `vizPresetStrict` / `vizPresetStored` is safe.
+- `vizPreset` (schema value, lowercase) — used only in `lib/types/module_definition.ts`. Renaming is safe.
 - `metricAIDescription` (schema value, lowercase) — used only in `lib/types/module_definition.ts`. Safe.
 - `configD` / `configS` (schema values) — used only within `lib/types/` (self-references and the adapter). Safe.
-- `VizPreset` / `MetricAIDescription` / `VizPresetTextConfig` / `PresentationObjectConfig` (TS types, capitalized) — used in 18+ places across the codebase. These **stay** — they're re-derived via `z.infer` from the strict schemas. No breakage.
+- `VizPreset` / `MetricAIDescription` / `VizPresetTextConfig` / `PresentationObjectConfig` (TS types, capitalized) — used in 18+ places across the codebase. These **stay** — they're re-derived via `z.infer` from the strict schemas in `_module_definition_installed.ts`. No breakage.
 
 **Pattern-3 legacy sites still exist.** The three `diffAreas` dual-check sites flagged in `DOC_legacy_handling.md` are present today in the client:
 
@@ -1972,41 +2625,33 @@ Before executing this plan, I verified the following against the repo state on 2
 - `client/src/components/visualization/presentation_object_editor_panel_style/_timeseries.tsx:41`
 - `client/src/components/visualization/presentation_object_editor_panel_style/_shared.tsx:106`
 
-These stay. Step 1's `adaptLegacyStoredConfigS` fills `specialDisruptionsChart` from `diffAreas` so strict-writes at PO save don't fail, but `diffAreas` itself is preserved so the dual-check sites keep reading both flags as documented in Pattern 3.
+These stay. `adaptLegacyConfigS` fills `specialDisruptionsChart` from `diffAreas` so strict-writes at PO save don't fail, but `diffAreas` itself is preserved so the dual-check sites keep reading both flags as documented in Pattern 3.
 
-### Known stale-schema sites (out of scope for this plan)
+**Call site counts confirmed.**
 
-`_shared.tsx:108` references `p.tempConfig.s.conditionalFormatting?.type !== "none"` — reading the **old** nested CF shape that no longer exists in the current flat-storage schema. This is part of the in-flight CF refactor, not this plan's scope. Flagged here so whoever finishes the CF refactor knows to update it.
+- `parseModuleDefinition` calls: 7 in `server/db/project/modules.ts` (lines 244, 312, 494, 566, 662, 969, 1007) + 3 in `server/task_management/get_dependents.ts` (lines 34, 65, 127) = 10. Matches plan.
+- `presentationObjectConfigSchema.parse(config)` (strict-write): 3 in `server/db/project/presentation_objects.ts` (lines 67, 323, 387). Matches plan.
+- `adaptLegacyPresentationObjectConfig` (PO config reads): 5 in `server/db/project/presentation_objects.ts` (lines 145, 163, 202, 381, 492). Matches plan.
+- `adaptLegacyPODetailResponse` (cache-hit): 1 in `server/routes/project/presentation_objects.ts` (line 155). Matches plan.
 
-### Not verified (limits of a no-implementation audit)
-
-**Full typecheck of the combined Step 1 + Step 2 content.** Smoke-tested the imports in isolation. Didn't run the full plan content through `deno check` in-situ because that would require temporarily replacing `module_definition.ts` and `presentation_object_config.ts`, which contradicts "don't implement anything, just update the plan." Executor should run typecheck immediately after applying Step 1 and Step 2, expect small surprises (cast adjustments, optional field ordering), resolve, and continue.
-
-**Exact behavior of `.merge(cfStorageSchema).partial()` vs `.partial().merge(cfStorageSchema)`.** Step 1's `configS` uses `.merge(cfStorageSchema).partial()`. This makes both the base fields AND the merged cf* fields optional — which matches the semantics we want for viz presets (every field on `s` is optional). Verify this at typecheck time; if Zod treats the merge differently than expected, fall back to declaring cf* fields inline under `.partial()`.
-
-**No audit of per-tool schema changes for AI tools.** Out of scope — AI tool schemas are unaffected by this plan.
-
-### Transforms inventoried
-
-Every known legacy transform has a home in the plan:
+**Transforms inventoried.**
 
 | Transform | Adapter location | Status |
 |---|---|---|
-| `d.periodOpt` → `d.timeseriesGrouping` | `adaptLegacyStoredConfigD` | Covered |
-| `periodFilter: "last_12_months"` → `last_n_months+nMonths:12` | `adaptLegacyStoredPeriodFilter` | Covered |
-| `periodFilter: undefined` → `"custom"` | `adaptLegacyStoredPeriodFilter` | Covered |
-| Strip fabricated bounds on relative period filters | `adaptLegacyStoredPeriodFilter` | Covered |
-| `s.conditionalFormatting: string` (preset id) → flat cf* fields | `adaptLegacyStoredConfigS` | Covered (via `flattenCf`) |
-| `s.conditionalFormatting: object` (union) → flat cf* fields | `adaptLegacyStoredConfigS` | Covered (via `flattenCf`) |
-| Legacy map color fields → flat cf* fields | `adaptLegacyStoredConfigS` | Covered |
-| Strip legacy map* fields | `adaptLegacyStoredConfigS` | Covered |
-| Missing cf* fields → `CF_STORAGE_DEFAULTS` | `adaptLegacyStoredConfigS` | Covered |
-| `diffAreas` → `specialDisruptionsChart` (fill when missing) | `adaptLegacyStoredConfigS` | Covered |
-| `vizPresets[].defaultPeriodFilterForDefaultVisualizations` drop | `adaptLegacyStoredVizPreset` | Covered |
-| Missing `metricAIDescription.caveats` / `importantNotes` / `relatedMetrics` | `adaptLegacyStoredMetricAIDescription` | Covered |
-| Missing `vizPresetTextConfig` fields | `adaptLegacyStoredVizPresetTextConfig` | Covered |
-| Missing `vizPreset.importantNotes` / `createDefaultVisualizationOnInstall` / `needsReplicant` / `allowedFilters` / `config.s` / `config.t` | `adaptLegacyStoredVizPreset` | Covered |
-| Missing top-level `moduleDefinition` fields (scriptGenerationType, metrics, etc.) | `adaptLegacyStoredModuleDefinition` | Covered |
+| `d.periodOpt` → `d.timeseriesGrouping` | `adaptLegacyConfigD` | Covered |
+| `periodFilter: "last_12_months"` → `last_n_months+nMonths:12` | `adaptLegacyPeriodFilter` | Covered |
+| `periodFilter: undefined` → `"custom"` | `adaptLegacyPeriodFilter` | Covered |
+| Strip fabricated bounds on relative period filters | `adaptLegacyPeriodFilter` | Covered |
+| `s.conditionalFormatting: string` (preset id) → flat cf* fields | `adaptLegacyConfigS` | Covered (via `flattenCf`) |
+| Legacy map color fields → flat cf* fields | `adaptLegacyConfigS` | Covered |
+| Strip legacy map* fields | `adaptLegacyConfigS` | Covered |
+| Missing cf* fields → `CF_STORAGE_DEFAULTS` | `adaptLegacyConfigS` | Covered |
+| `diffAreas` → `specialDisruptionsChart` (fill when missing) | `adaptLegacyConfigS` | Covered |
+| `vizPresets[].defaultPeriodFilterForDefaultVisualizations` drop | `adaptLegacyVizPreset` | Covered |
+| Missing `metricAIDescription.caveats` / `importantNotes` / `relatedMetrics` | `adaptLegacyMetricAIDescription` | Covered |
+| Missing `vizPresetTextConfig` fields | `adaptLegacyVizPresetTextConfig` | Covered |
+| Missing `vizPreset.importantNotes` / `createDefaultVisualizationOnInstall` / `needsReplicant` / `allowedFilters` / `config.s` / `config.t` | `adaptLegacyVizPreset` | Covered |
+| Missing top-level `moduleDefinition` fields (scriptGenerationType, metrics, etc.) | `adaptLegacyModuleDefinition` | Covered |
 | Legacy `placeholder` report item type → `text` | `adaptLegacyReportItemConfigShape` | Covered (not preprocessed yet; Tier 1 deferred) |
 | Report item layout 2D array → `LayoutNode` tree | `adaptLegacyReportItemConfigShape` | Covered (not preprocessed yet) |
 | Report item `moduleId` → `metricId` (DB-dependent) | `resolveLegacyReportMetricIds` (stays server-side) | Covered |
