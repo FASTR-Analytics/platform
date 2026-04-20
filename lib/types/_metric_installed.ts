@@ -158,9 +158,6 @@ export const configSStrict = z
   .merge(cfStorageSchema)
   .partial();
 
-// Back-compat alias
-export const configS = configSStrict;
-
 // ============================================================================
 // Viz Preset Text Config Schema
 // ============================================================================
