@@ -795,6 +795,7 @@ function ProjectBackups(props: { projectId: string }) {
           if (token) {
             headers["Authorization"] = `Bearer ${token}`;
           }
+          headers["Project-Id"] = props.projectId;
 
           const response = await fetch(`${_SERVER_HOST}/api/restore-backup`, {
             method: "POST",
