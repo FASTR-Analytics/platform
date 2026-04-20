@@ -1,3 +1,8 @@
+[TBD] [user] [changed] - HMIS and HFA datasets now shown as separate clearly labeled sections
+[TBD] [user] [changed] - HFA dataset label updated to "HFA Data" for clarity
+[TBD] [admin] [changed] - HMIS and HFA datasets now shown as separate fixed sections
+[TBD] [admin] [changed] - HFA dataset label updated to "HFA Data"
+[TBD] [admin] [internal] - Removed unused internal type aliases and constants
 [TBD] [user] [added] - Edit button to update existing GeoJSON map area mappings
 [TBD] [user] [added] - Download option for existing GeoJSON files
 [TBD] [user] [added] - Import geographic boundaries directly from DHIS2
