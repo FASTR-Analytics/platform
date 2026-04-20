@@ -39,8 +39,13 @@ export function compileCfToLegendItems(
   if (cf.type !== "thresholds") return undefined;
   const fmt = getFormatterFunc(formatAs, decimalPlaces);
   const labels = deriveBucketLabels(cf.cutoffs, fmt, cf.direction);
-  return cf.buckets.map((bucket, i) => ({
-    label: labels[i],
-    color: bucket.color,
-  }));
+  // Reversed to match the editor: highest-values bucket at top, lowest at
+  // bottom. Stored order (cf.buckets) is lowest → highest; legend order is
+  // a display concern.
+  return cf.buckets
+    .map((bucket, i) => ({
+      label: labels[i],
+      color: bucket.color,
+    }))
+    .reverse();
 }

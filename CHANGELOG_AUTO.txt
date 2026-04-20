@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Color legend for threshold-based conditional formatting now displays buckets in the correct order, with highest values at the top and lowest at the bottom
+[TBD] [admin] [fixed] - Conditional formatting legend now displays thresholds in the correct order, with the highest values at the top and lowest at the bottom, matching the editor layout
 [TBD] [user] [added] - New conditional formatting options for tables, charts, and maps including continuous color scales with preset and custom palettes, and customizable threshold-based coloring
 [TBD] [user] [added] - Ability to choose from multiple color palettes (e.g., Red→Green, Blues, Viridis, Spectral) when applying color scales to visualizations
 [TBD] [user] [added] - Option to create custom color scales with user-defined start, middle, and end colors for conditional formatting
