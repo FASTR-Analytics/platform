@@ -1,3 +1,12 @@
+[TBD] [user] [changed] - Visualization style options are now organized into labeled sections
+[TBD] [user] [changed] - Related style settings are visually grouped for easier discovery
+[TBD] [user] [added] - Slide decks list is now available as a standalone tool in the AI assistant
+[TBD] [admin] [added] - Slide decks tool now available separately in AI assistant
+[TBD] [admin] [changed] - Visualization style editor reorganized with clearer section labels
+[TBD] [admin] [changed] - Related style options now grouped visually under parent settings
+[TBD] [admin] [fixed] - Empty value filters no longer stored, preventing potential display issues
+[TBD] [admin] [fixed] - Migration failures now halt server startup immediately to prevent data issues
+[TBD] [admin] [internal] - AI visualization editor uses stricter validation for configuration updates
 [TBD] [user] [changed] - HMIS and HFA datasets now shown as separate clearly labeled sections
 [TBD] [user] [changed] - HFA dataset label updated to "HFA Data" for clarity
 [TBD] [admin] [changed] - HMIS and HFA datasets now shown as separate fixed sections
