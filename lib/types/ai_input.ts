@@ -4,8 +4,20 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "../consts.ts";
+import { configDStrict } from "./_metric_installed.ts";
 
-// Metric schema
+// ============================================================================
+// Shared filter schema - DERIVED from storage schema (configDStrict.filterBy)
+//
+// Field names match storage: disOpt, values (not col, vals)
+// Type matches storage: values is (string | number)[] with .min(1)
+// ============================================================================
+
+const aiFilterElementSchema = configDStrict.shape.filterBy.element;
+
+// ============================================================================
+// Metric query schema
+// ============================================================================
 
 export const AiMetricQuerySchema = z.object({
   metricId: z
@@ -14,30 +26,20 @@ export const AiMetricQuerySchema = z.object({
       "The unique ID of the metric to query. This metric must exist in the project's data.",
     ),
   disaggregations: z
-    .array(z.string())
+    .array(configDStrict.shape.disaggregateBy.element.shape.disOpt)
     .optional()
     .describe(
       "Optional: Array of disaggregation dimensions to break down the data by. Use dimension names from get_available_metrics (e.g., 'admin_area_2', 'indicator_common_id'). Time disaggregations: 'period_id' (by specific month), 'year' (by year), 'month' (1-12, by month-of-year for seasonal patterns).",
     ),
   filters: z
-    .array(
-      z.object({
-        col: z
-          .string()
-          .describe(
-            "Must be a valid disaggregation dimension for this metric (see get_available_metrics)",
-          ),
-        vals: z
-          .array(z.union([z.string(), z.number()]))
-          .describe(
-            "Values must exist in the data. Use get_metric_data first to discover valid values.",
-          ),
-      }),
-    )
+    .array(aiFilterElementSchema)
     .optional()
     .describe(
-      "Optional: Array of filters to limit which data is displayed. Each filter specifies a column and the values to include.",
+      "Optional: Array of filters to limit which data is displayed. Each filter has 'disOpt' (dimension name) and 'values' (array of values to include). Values must exist in the data.",
     ),
+  // EXCEPTION: startDate/endDate is a simpler abstraction than full periodFilter.
+  // AI provides dates in flexible format (YYYY or YYYYMM), system converts using
+  // metric's mostGranularTimePeriodColumnInResultsFile. See build_config_from_metric.ts.
   startDate: z
     .number()
     .optional()
@@ -50,9 +52,7 @@ export const AiMetricQuerySchema = z.object({
     .describe(
       "Optional: End of time range (inclusive). Must be used together with startDate.",
     ),
-  valuesFilter: z
-    .array(z.string())
-    .optional()
+  valuesFilter: configDStrict.shape.valuesFilter
     .describe(
       "Optional: Array of value property names to include in the results. If omitted, all value properties are returned. Use the value property names shown by get_available_metrics.",
     ),
@@ -112,40 +112,30 @@ export const AiFigureFromMetricSchema = z.object({
     .describe(
       "Required when the preset has needsReplicant=true. Specifies which replicant value to display, e.g., 'anc1'.",
     ),
+  // DERIVED from storage schema (same as AiMetricQuerySchema)
   filters: z
-    .array(
-      z.object({
-        col: z.string().describe("Dimension to filter on. Must be listed in the preset's 'Filterable by' dimensions (shown in get_available_metrics)"),
-        vals: z
-          .array(z.string())
-          .describe("Array of values to include for this filter"),
-      }),
-    )
+    .array(aiFilterElementSchema)
     .optional()
     .describe(
-      "Optional: Filters to limit which data is displayed. Only use dimensions listed in the preset's 'Filterable by' list from get_available_metrics.",
+      "Optional: Filters to limit which data is displayed. Each filter has 'disOpt' (dimension name from preset's 'Filterable by' list) and 'values' (array of values to include).",
     ),
-  valuesFilter: z
-    .array(z.string())
-    .optional()
+  valuesFilter: configDStrict.shape.valuesFilter
     .describe(
       "Optional: Which value properties to show. Array of value property names from get_available_metrics. If omitted, the preset's default is used.",
     ),
+  // EXCEPTION: startDate/endDate is a simpler abstraction than full periodFilter.
+  // See comment in AiMetricQuerySchema and build_config_from_metric.ts.
   startDate: z
     .number()
     .optional()
     .describe(
-      "Optional: Start of time range. Format depends on the preset's date format " +
-      "(shown in preset listing). For YYYYMM presets: 202301 = Jan 2023. " +
-      "For YYYY presets: 2023. Must be used together with endDate.",
+      "Optional: Start of time range. Format: YYYY for years (2023), YYYYMM for months (202301). System converts to metric's native format. Must be used together with endDate.",
     ),
   endDate: z
     .number()
     .optional()
     .describe(
-      "Optional: End of time range. Format depends on the preset's date format " +
-      "(shown in preset listing). For YYYYMM presets: 202312 = Dec 2023. " +
-      "For YYYY presets: 2024. Must be used together with startDate.",
+      "Optional: End of time range. Must be used together with startDate.",
     ),
 });
 

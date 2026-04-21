@@ -54,8 +54,8 @@ export function detectNeededPeriodColumns(
 
   // Check filters
   for (const filter of fetchConfig.filters) {
-    if (DYNAMIC_PERIOD_COLUMNS.includes(filter.col as DynamicPeriodColumn)) {
-      needed.add(filter.col as DynamicPeriodColumn);
+    if (DYNAMIC_PERIOD_COLUMNS.includes(filter.disOpt as DynamicPeriodColumn)) {
+      needed.add(filter.disOpt as DynamicPeriodColumn);
     }
   }
 

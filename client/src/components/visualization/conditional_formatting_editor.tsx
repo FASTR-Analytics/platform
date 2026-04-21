@@ -22,6 +22,7 @@ import {
   Slider,
 } from "panther";
 import { For, Show } from "solid-js";
+import { StyleRevealGroup } from "./presentation_object_editor_panel_style/_style_components";
 
 type Props = {
   value: ConditionalFormatting | undefined;
@@ -57,10 +58,6 @@ export function ConditionalFormattingEditor(p: Props) {
   return (
     <div class="ui-spy-sm">
       <ButtonGroup<Mode>
-        label={t3({
-          en: "Conditional formatting",
-          fr: "Mise en forme conditionnelle",
-        })}
         options={[
           { value: "none", label: t3({ en: "Off", fr: "Désactivé" }) },
           { value: "scale", label: t3({ en: "Scale", fr: "Échelle" }) },
@@ -132,7 +129,7 @@ function ScalePanel(p: {
   const hasMid = () => state().mid !== undefined;
 
   return (
-    <div class="ui-spy-sm border-base-200 border-l-2 pl-3">
+    <StyleRevealGroup>
       <Select
         label={t3({ en: "Palette", fr: "Palette" })}
         value={state().mode === "custom" ? CUSTOM_PALETTE : (state().paletteName ?? "rd-yl-gn")}
@@ -261,7 +258,7 @@ function ScalePanel(p: {
           </div>
         </Show>
       </div>
-    </div>
+    </StyleRevealGroup>
   );
 }
 
@@ -358,7 +355,7 @@ function ThresholdsPanel(p: {
     );
 
   return (
-    <div class="ui-spy-sm border-base-200 border-l-2 pl-3">
+    <StyleRevealGroup>
       <Select
         label={t3({ en: "Preset", fr: "Préréglage" })}
         value={matchedPreset() ?? CUSTOM_PRESET_VALUE}
@@ -430,7 +427,7 @@ function ThresholdsPanel(p: {
           {t3({ en: "+ Add cutoff", fr: "+ Ajouter un seuil" })}
         </button>
       </div>
-    </div>
+    </StyleRevealGroup>
   );
 }
 

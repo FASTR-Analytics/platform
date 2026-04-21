@@ -8,6 +8,7 @@ import { Checkbox, RadioGroup } from "panther";
 import { SetStoreFunction } from "solid-js/store";
 import { applyCfToTempConfig } from "../cf_store_helper";
 import { ConditionalFormattingEditor } from "../conditional_formatting_editor";
+import { StyleSectionLabel } from "./_style_components";
 
 type Props = {
   poDetail: PresentationObjectDetail;
@@ -18,6 +19,9 @@ type Props = {
 export function MapStyleControls(p: Props) {
   return (
     <>
+      <StyleSectionLabel>
+        {t3({ en: "Display", fr: "Affichage" })}
+      </StyleSectionLabel>
       <RadioGroup
         label={t3({ en: "Map projection", fr: "Projection cartographique" })}
         options={[
@@ -43,12 +47,18 @@ export function MapStyleControls(p: Props) {
           )
         }
       />
+      <StyleSectionLabel>
+        {t3({ en: "Conditional formatting", fr: "Mise en forme conditionnelle" })}
+      </StyleSectionLabel>
       <ConditionalFormattingEditor
         value={selectCf(p.tempConfig.s)}
         onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
         formatAs={p.poDetail.resultsValue.formatAs}
         decimalPlaces={p.tempConfig.s.decimalPlaces}
       />
+      <StyleSectionLabel>
+        {t3({ en: "Labels", fr: "Étiquettes" })}
+      </StyleSectionLabel>
       <div class="ui-spy-sm">
         <Checkbox
           checked={p.tempConfig.s.mapShowRegionLabels ?? false}

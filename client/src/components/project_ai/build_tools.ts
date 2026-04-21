@@ -9,6 +9,7 @@ import { getToolsForDrafts } from "./ai_tools/tools/drafts";
 import { getToolsForMethodologyDocs } from "./ai_tools/tools/methodology_docs";
 import { getToolsForMetrics } from "./ai_tools/tools/metrics";
 import { getToolsForModules } from "./ai_tools/tools/modules";
+import { getToolsForSlideDecks } from "./ai_tools/tools/slide_decks";
 import { getToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
 import { getToolsForSlides } from "./ai_tools/tools/slides";
 import { getToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
@@ -33,7 +34,8 @@ export function buildToolsForContext(params: BuildToolsParams) {
     // Base data tools - always available
     ...getToolsForMetrics(projectId, metrics),
     ...getToolsForModules(projectId, modules, metrics),
-    ...getToolsForVisualizations(projectId, visualizations, slideDecks, metrics),
+    ...getToolsForVisualizations(projectId, visualizations, metrics),
+    ...getToolsForSlideDecks(slideDecks),
     ...getToolsForMethodologyDocs(),
 
     // Mode-specific tools - check mode in handler

@@ -20,22 +20,22 @@ export function validateFetchConfig(
   }
 
   for (const filter of fetchConfig.filters) {
-    if (!filter.col || typeof filter.col !== "string") {
-      throw new Error("Invalid filter col: must be a non-empty string");
+    if (!filter.disOpt || typeof filter.disOpt !== "string") {
+      throw new Error("Invalid filter disOpt: must be a non-empty string");
     }
 
-    if (!Array.isArray(filter.vals) || filter.vals.length === 0) {
-      throw new Error("Invalid filter vals: must be a non-empty array");
+    if (!Array.isArray(filter.values) || filter.values.length === 0) {
+      throw new Error("Invalid filter values: must be a non-empty array");
     }
 
     // Validate that filter values are strings or numbers
-    for (let i = 0; i < filter.vals.length; i++) {
-      const val = filter.vals[i];
+    for (let i = 0; i < filter.values.length; i++) {
+      const val = filter.values[i];
       if (typeof val !== "string" && typeof val !== "number") {
         throw new Error(
-          `Invalid filter value for column '${filter.col}' at index ${i}: ` +
+          `Invalid filter value for column '${filter.disOpt}' at index ${i}: ` +
           `Expected string or number but got ${typeof val} with value: ${JSON.stringify(val)}. ` +
-          `Full filter.vals array: ${JSON.stringify(filter.vals)}`
+          `Full filter.values array: ${JSON.stringify(filter.values)}`
         );
       }
     }

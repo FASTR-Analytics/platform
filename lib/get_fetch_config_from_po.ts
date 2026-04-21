@@ -265,10 +265,10 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
     getSortedAlphabetical(fc.groupBys).join("$"),
     getSortedAlphabeticalByFunc(
       fc.filters,
-      (v: { col: DisaggregationOption; vals: (string | number)[] }) => v.col,
+      (v: { disOpt: DisaggregationOption; values: (string | number)[] }) => v.disOpt,
     )
-      .map((f: { col: DisaggregationOption; vals: (string | number)[] }) =>
-        [f.col, getSortedAlphabetical(f.vals.map(String)).join(",")].join("&"),
+      .map((f: { disOpt: DisaggregationOption; values: (string | number)[] }) =>
+        [f.disOpt, getSortedAlphabetical(f.values.map(String)).join(",")].join("&"),
       )
       .join("$"),
     fc.periodFilter?.filterType ?? "",
@@ -305,22 +305,15 @@ export function hasOnlyOneFilteredValue(
 }
 
 function getFiltersWithoutReplicant(config: PresentationObjectConfig): {
-  col: DisaggregationOption;
-  vals: (string | number)[];
+  disOpt: DisaggregationOption;
+  values: (string | number)[];
 }[] {
-  return config.d.filterBy
-    .map((filter) => {
-      return {
-        col: filter.disOpt,
-        vals: filter.values,
-      };
-    })
-    .filter((filter) => filter.vals.length > 0);
+  return config.d.filterBy.filter((filter) => filter.values.length > 0);
 }
 
 function getFiltersWithReplicant(config: PresentationObjectConfig): {
-  col: DisaggregationOption;
-  vals: (string | number)[];
+  disOpt: DisaggregationOption;
+  values: (string | number)[];
 }[] {
   const filters = getFiltersWithoutReplicant(config);
   const prop = getReplicateByProp(config);
@@ -330,8 +323,8 @@ function getFiltersWithReplicant(config: PresentationObjectConfig): {
   return [
     ...filters,
     {
-      col: prop,
-      vals: [config.d.selectedReplicantValue ?? "UNSELECTED"],
+      disOpt: prop,
+      values: [config.d.selectedReplicantValue ?? "UNSELECTED"],
     },
   ];
 }

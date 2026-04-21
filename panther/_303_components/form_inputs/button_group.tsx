@@ -59,7 +59,7 @@ export function ButtonGroup<T extends string>(p: ButtonGroupProps<T>) {
   return (
     <div class="">
       <Show when={p.label}>
-        <label class="ui-label">{p.label}</label>
+        <label class="ui-label block">{p.label}</label>
       </Show>
       <div
         class="inline-flex data-[width=true]:w-full"

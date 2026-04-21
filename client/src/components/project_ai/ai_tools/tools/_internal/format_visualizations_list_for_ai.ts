@@ -35,7 +35,7 @@ export function formatVisualizationsListForAI(
     }
 
     if (viz.filterBy && viz.filterBy.length > 0) {
-      const filterStrs = viz.filterBy.map(f => `${f.col} = ${f.vals.join(", ")}`);
+      const filterStrs = viz.filterBy.map(f => `${f.disOpt} = ${f.values.join(", ")}`);
       lines.push(`  Filtered by: ${filterStrs.join("; ")}`);
     }
 

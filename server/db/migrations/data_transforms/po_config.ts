@@ -25,6 +25,7 @@
 // 8. Fill flat cf* fields from captured legacyCf or defaults
 // 9. diffAreas → specialDisruptionsChart (delete legacy fields)
 // 10. Fill mapProjection default
+// 11. Empty valuesFilter → undefined (inclusion list must have items)
 //
 // =============================================================================
 
@@ -148,6 +149,11 @@ export async function migratePOConfigs(tx: Sql, projectId: string): Promise<Migr
       delete pf.periodOption;
       delete pf.min;
       delete pf.max;
+    }
+
+    // Block 11: Empty valuesFilter → undefined (inclusion list must have items)
+    if (Array.isArray(d.valuesFilter) && d.valuesFilter.length === 0) {
+      d.valuesFilter = undefined;
     }
 
     // ─── configS transforms ───────────────────────────────────────────────

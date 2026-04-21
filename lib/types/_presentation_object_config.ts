@@ -77,7 +77,7 @@ const presentationObjectConfigSStrict = z
   })
   .merge(cfStorageSchema);
 
-const presentationObjectConfigTStrict = z.object({
+export const presentationObjectConfigTStrict = z.object({
   caption: z.string(),
   captionRelFontSize: z.number(),
   subCaption: z.string(),

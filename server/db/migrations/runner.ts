@@ -46,26 +46,11 @@ async function runMigrationsForDatabase(
       await applyMigration(sql, migration);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`\n❌ MIGRATION FAILED: ${migration.filename}`);
+      console.error(`\n[sql-migration] FAILED: ${migration.filename}`);
       console.error(`Error: ${errorMessage}`);
-      console.error(`\nServer startup aborted. Fix the migration and restart.\n`);
-      throw new Error(
-        `Migration failed: ${migration.filename}. ${errorMessage}`
-      );
+      console.error(`\n[sql-migration] FAILED — Server will not start. Fix the migration and redeploy.\n`);
+      Deno.exit(1);
     }
-  }
-
-  // Verify all migrations were applied successfully
-  const finalAppliedMigrations = await getAppliedMigrations(sql);
-  const failedMigrations = pendingMigrations.filter(
-    (m) => !finalAppliedMigrations.has(m.id)
-  );
-
-  if (failedMigrations.length > 0) {
-    const failedNames = failedMigrations.map((m) => m.filename).join(", ");
-    throw new Error(
-      `Migrations did not apply successfully: ${failedNames}`
-    );
   }
 }
 

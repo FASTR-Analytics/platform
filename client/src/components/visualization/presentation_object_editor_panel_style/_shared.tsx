@@ -9,6 +9,7 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
+import { StyleRevealGroup } from "./_style_components";
 
 type SharedTopProps = {
   poDetail: PresentationObjectDetail;
@@ -55,16 +56,18 @@ export function SharedControlsTop(p: SharedTopProps) {
               }}
             />
             <Show when={p.tempConfig.s.nColsInCellDisplay !== "auto"}>
-              <Slider
-                label={t3({ en: "Columns", fr: "Colonnes" })}
-                min={1}
-                max={10}
-                step={1}
-                value={p.tempConfig.s.nColsInCellDisplay as number}
-                onChange={(v) => p.setTempConfig("s", "nColsInCellDisplay", v)}
-                fullWidth
-                showValueInLabel
-              />
+              <StyleRevealGroup>
+                <Slider
+                  label={t3({ en: "Columns", fr: "Colonnes" })}
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={p.tempConfig.s.nColsInCellDisplay as number}
+                  onChange={(v) => p.setTempConfig("s", "nColsInCellDisplay", v)}
+                  fullWidth
+                  showValueInLabel
+                />
+              </StyleRevealGroup>
             </Show>
           </div>
         </LabelHolder>

@@ -196,18 +196,18 @@ export function buildWhereClause(
   const INTEGER_COLUMNS = new Set(["year", "month", "quarter_id", "period_id", "time_point"]);
 
   for (const filter of fetchConfig.filters) {
-    if (filter.vals.length === 0) continue;
+    if (filter.values.length === 0) continue;
 
-    const columnName = columnPrefixes?.get(filter.col) || filter.col;
-    const isIntegerColumn = INTEGER_COLUMNS.has(filter.col);
+    const columnName = columnPrefixes?.get(filter.disOpt) || filter.disOpt;
+    const isIntegerColumn = INTEGER_COLUMNS.has(filter.disOpt);
 
     if (isIntegerColumn) {
       // Direct comparison for integer columns
-      const values = filter.vals.map((v) => Number(v)).join(", ");
+      const values = filter.values.map((v) => Number(v)).join(", ");
       whereStatements.push(`${columnName} IN (${values})`);
     } else {
       // Case-insensitive comparison for text columns
-      const quotedValues = filter.vals
+      const quotedValues = filter.values
         .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
         .join(", ");
       whereStatements.push(`UPPER(${columnName}) IN (${quotedValues})`);

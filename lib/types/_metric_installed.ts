@@ -79,7 +79,7 @@ export const configDStrict = z
     type: presentationOptionSchema,
     timeseriesGrouping: periodOption.optional(),
     valuesDisDisplayOpt: disaggregationDisplayOptionSchema,
-    valuesFilter: z.array(z.string()).optional(),
+    valuesFilter: z.array(z.string()).min(1).optional(),
     disaggregateBy: z.array(
       z.object({
         disOpt: disaggregationOption,

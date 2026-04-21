@@ -36,7 +36,7 @@ export async function getPossibleValues(
 
     // Filter out the current disaggregation option from filters
     const filteredFilters = filters?.filter((f) =>
-      f.col !== disaggregationOption
+      f.disOpt !== disaggregationOption
     ) ?? [];
 
     // Build minimal fetchConfig to leverage buildQueryContext
@@ -82,8 +82,8 @@ export async function getPossibleValues(
 
     // Check if any filters reference dynamic period columns
     const filterUsesDynamicPeriodColumn = filteredFilters.some((f) =>
-      (queryContext.hasPeriodId && f.col in PERIOD_COLUMN_EXPRESSIONS) ||
-      (queryContext.hasQuarterId && f.col in QUARTER_ID_COLUMN_EXPRESSIONS)
+      (queryContext.hasPeriodId && f.disOpt in PERIOD_COLUMN_EXPRESSIONS) ||
+      (queryContext.hasQuarterId && f.disOpt in QUARTER_ID_COLUMN_EXPRESSIONS)
     );
 
     // Need period CTE if we're selecting a dynamic column OR filtering by one
