@@ -1,3 +1,12 @@
+[1.22.1] [user] [changed] - Chart axis labels now automatically choose the best number format
+[1.22.1] [user] [added] - Color scale legends now appear for gradient and stepped color schemes
+[1.22.1] [user] [changed] - Percent fields now use a dropdown selector instead of free-text input
+[1.22.1] [user] [added] - Min and max inputs enforce valid ranges in conditional formatting settings
+[1.22.1] [user] [added] - Bar charts now display color-coded legends when conditional formatting is applied
+[1.22.1] [admin] [changed] - Chart axis labels now auto-format numbers and percentages
+[1.22.1] [admin] [added] - Color scale legends now appear for gradient and stepped conditional formatting
+[1.22.1] [admin] [improved] - Conditional formatting min/max inputs use percent dropdowns for percent metrics
+[1.22.1] [admin] [added] - Bar charts now display conditional formatting legends
 [1.22.0] [user] [fixed] - Empty filters no longer cause incorrect data results
 [1.22.0] [admin] [fixed] - Empty filter entries are now automatically cleaned up during migration
 [1.22.0] [admin] [changed] - Legacy visualization settings are automatically converted to current format on upgrade
