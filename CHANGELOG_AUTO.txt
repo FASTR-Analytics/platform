@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Fixed issue where empty filter selections could be saved
+[TBD] [admin] [fixed] - Empty value filters are no longer accepted in configurations
 [1.23.0] [user] [fixed] - Ethiopian calendar quarters now display correctly in charts and filters
 [1.23.0] [user] [fixed] - Ethiopian month names now appear correctly on visualizations
 [1.23.0] [user] [changed] - Project list now updates in real time based on your permissions
