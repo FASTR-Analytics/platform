@@ -29,6 +29,7 @@
 // 12. Remove filterBy entries with empty values array
 // 13. Fill showDataLabelsLineCharts default
 // 14. Fill specialBarChartInverted default
+// 15. Convert selectedReplicantValue number → string
 //
 // =============================================================================
 
@@ -164,6 +165,11 @@ export async function migratePOConfigs(tx: Sql, projectId: string): Promise<Migr
       d.filterBy = (d.filterBy as { disOpt: string; values: unknown[] }[]).filter(
         (f) => Array.isArray(f.values) && f.values.length > 0
       );
+    }
+
+    // Block 15: Convert selectedReplicantValue number → string
+    if (typeof d.selectedReplicantValue === "number") {
+      d.selectedReplicantValue = String(d.selectedReplicantValue);
     }
 
     // ─── configS transforms ───────────────────────────────────────────────
