@@ -12,10 +12,7 @@ import {
   SPECIAL_DISRUPTIONS_CHART_METRICS,
   SPECIAL_PERCENT_CHANGE_CHART_METRICS,
 } from "~/generate_visualization/get_style_from_po/_0_conditional_consts";
-import {
-  SharedControlsBottom,
-  SharedControlsTop,
-} from "./presentation_object_editor_panel_style/_shared";
+import { SharedControlsTop } from "./presentation_object_editor_panel_style/_shared";
 import { TimeseriesStyleControls } from "./presentation_object_editor_panel_style/_timeseries";
 import { ChartStyleControls } from "./presentation_object_editor_panel_style/_chart";
 import { TableStyleControls } from "./presentation_object_editor_panel_style/_table";
@@ -103,10 +100,6 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           />
         </Match>
       </Switch>
-      <SharedControlsBottom
-        tempConfig={p.tempConfig}
-        setTempConfig={p.setTempConfig}
-      />
     </div>
   );
 }

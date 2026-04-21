@@ -1,12 +1,5 @@
-import { PresentationObjectConfig, PresentationObjectDetail, selectCf, t3 } from "lib";
-import {
-  Checkbox,
-  LabelHolder,
-  RadioGroup,
-  Slider,
-  getSelectOptions,
-  toNum0,
-} from "panther";
+import { PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
+import { Checkbox, LabelHolder, Slider, toNum0 } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { StyleRevealGroup } from "./_style_components";
@@ -71,50 +64,6 @@ export function SharedControlsTop(p: SharedTopProps) {
             </Show>
           </div>
         </LabelHolder>
-      </Show>
-    </>
-  );
-}
-
-type SharedBottomProps = {
-  tempConfig: PresentationObjectConfig;
-  setTempConfig: SetStoreFunction<PresentationObjectConfig>;
-};
-
-export function SharedControlsBottom(p: SharedBottomProps) {
-  return (
-    <>
-      <Show
-        when={
-          !p.tempConfig.s.specialCoverageChart &&
-          (p.tempConfig.d.type !== "table" ||
-            !p.tempConfig.s.specialScorecardTable)
-        }
-      >
-        <RadioGroup
-          label={t3({ en: "Decimal places", fr: "Décimales" })}
-          options={getSelectOptions(["0", "1", "2", "3"])}
-          value={String(p.tempConfig.s.decimalPlaces)}
-          onChange={(v) =>
-            p.setTempConfig("s", "decimalPlaces", Number(v) as 1 | 2 | 3)
-          }
-          horizontal
-        />
-      </Show>
-      <Show
-        when={
-          !p.tempConfig.s.specialCoverageChart &&
-          !p.tempConfig.s.specialBarChart &&
-          !p.tempConfig.s.specialDisruptionsChart &&
-          (p.tempConfig.d.type !== "table" ||
-            selectCf(p.tempConfig.s).type !== "none")
-        }
-      >
-        <Checkbox
-          checked={p.tempConfig.s.hideLegend}
-          onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
-          label={t3({ en: "Hide legend", fr: "Masquer la légende" })}
-        />
       </Show>
     </>
   );

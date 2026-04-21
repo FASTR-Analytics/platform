@@ -12,13 +12,17 @@ export function StyleRevealGroup(p: StyleRevealGroupProps) {
   );
 }
 
-type StyleSectionLabelProps = {
+type StyleSectionProps = {
+  label: JSX.Element;
   children: JSX.Element;
 };
 
-export function StyleSectionLabel(p: StyleSectionLabelProps) {
+export function StyleSection(p: StyleSectionProps) {
   return (
-    <div class="text-xs font-medium text-base-content/60 uppercase tracking-wide pb-1">
+    <div class="ui-spy-sm">
+      <div class="text-xs font-700 text-primary uppercase tracking-wide">
+        {p.label}
+      </div>
       {p.children}
     </div>
   );

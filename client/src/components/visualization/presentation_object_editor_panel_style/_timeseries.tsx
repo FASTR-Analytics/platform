@@ -5,11 +5,17 @@ import {
   get_PERIOD_OPTION_MAP,
   t3,
 } from "lib";
-import { Checkbox, RadioGroup, Slider, toPct0 } from "panther";
+import {
+  Checkbox,
+  RadioGroup,
+  Slider,
+  getSelectOptions,
+  toPct0,
+} from "panther";
 import { Match, Show, Switch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { ChartLikeControls } from "./_chart_like_controls";
-import { StyleRevealGroup, StyleSectionLabel } from "./_style_components";
+import { StyleRevealGroup, StyleSection } from "./_style_components";
 
 type Props = {
   poDetail: PresentationObjectDetail;
@@ -30,8 +36,16 @@ type TimeseriesMode =
 export function TimeseriesStyleControls(p: Props) {
   const periodRadioOptions = () => {
     return p.poDetail.resultsValue.disaggregationOptions
-      .filter(d => d.value === "period_id" || d.value === "quarter_id" || d.value === "year")
-      .map(d => ({ value: d.value, label: get_PERIOD_OPTION_MAP()[d.value as PeriodOption] }));
+      .filter(
+        (d) =>
+          d.value === "period_id" ||
+          d.value === "quarter_id" ||
+          d.value === "year",
+      )
+      .map((d) => ({
+        value: d.value,
+        label: get_PERIOD_OPTION_MAP()[d.value as PeriodOption],
+      }));
   };
 
   const mode = (): TimeseriesMode => {
@@ -110,244 +124,293 @@ export function TimeseriesStyleControls(p: Props) {
       </Show>
       <Switch>
         <Match when={mode() === "coverage"}>
-          <StyleSectionLabel>
-            {t3({ en: "Axis", fr: "Axe" })}
-          </StyleSectionLabel>
-          <div class="ui-spy-sm">
-            <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
-              <Checkbox
-                label={t3({
-                  en: "Force y-axis max of 100%",
-                  fr: "Forcer le maximum de l'axe Y à 100 %",
-                })}
-                checked={p.tempConfig.s.forceYMax1}
-                onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
-              />
-            </Show>
-            <Checkbox
-              label={t3({
-                en: "Allow auto y-axis min",
-                fr: "Autoriser le minimum automatique de l'axe Y",
-              })}
-              checked={p.tempConfig.s.forceYMinAuto}
-              onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
-            />
-          </div>
-        </Match>
-        <Match when={mode() === "percent-change"}>
-          <StyleSectionLabel>
-            {t3({ en: "Display", fr: "Affichage" })}
-          </StyleSectionLabel>
-          <RadioGroup
-            label={t3({ en: "Period", fr: "Période" })}
-            options={periodRadioOptions()}
-            value={p.tempConfig.d.timeseriesGrouping}
-            onChange={(v) =>
-              p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
-            }
-          />
-          <StyleSectionLabel>
-            {t3({ en: "Threshold", fr: "Seuil" })}
-          </StyleSectionLabel>
-          <div class="ui-spy-sm">
-            <Slider
-              label={t3({ en: "Threshold value", fr: "Valeur du seuil" })}
-              value={p.tempConfig.s.specialBarChartDiffThreshold ?? 0.1}
-              onChange={(v) =>
-                p.setTempConfig("s", "specialBarChartDiffThreshold", v)
-              }
-              fullWidth
-              showValueInLabel
-              min={0}
-              max={0.25}
-              step={0.01}
-              valueInLabelFormatter={toPct0}
-            />
-            <Checkbox
-              label={t3({
-                en: "Invert red/green for higher/lower",
-                fr: "Inverser rouge/vert pour plus élevé/plus bas",
-              })}
-              checked={p.tempConfig.s.specialBarChartInverted}
-              onChange={(v) =>
-                p.setTempConfig("s", "specialBarChartInverted", v)
-              }
-            />
-          </div>
-          <StyleSectionLabel>
-            {t3({ en: "Labels", fr: "Étiquettes" })}
-          </StyleSectionLabel>
-          <div class="ui-spy-sm">
-            <Checkbox
-              checked={p.tempConfig.s.showDataLabels}
-              onChange={(v) => p.setTempConfig("s", "showDataLabels", v)}
-              label={t3({
-                en: "Show data labels",
-                fr: "Afficher les étiquettes de données",
-              })}
-            />
-            <Show when={p.tempConfig.s.showDataLabels}>
-              <StyleRevealGroup>
+          <StyleSection label={t3({ en: "Axis", fr: "Axe" })}>
+            <>
+              <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
                 <Checkbox
                   label={t3({
-                    en: "Only show data labels on bars exceeding threshold",
-                    fr: "Afficher seulement les étiquettes de données sur les barres dépassant le seuil",
+                    en: "Force y-axis max of 100%",
+                    fr: "Forcer le maximum de l'axe Y à 100 %",
                   })}
-                  checked={
-                    p.tempConfig.s.specialBarChartDataLabels === undefined ||
-                    p.tempConfig.s.specialBarChartDataLabels === "threshold-values"
-                  }
-                  onChange={(v) =>
-                    p.setTempConfig(
-                      "s",
-                      "specialBarChartDataLabels",
-                      v ? "threshold-values" : "all-values",
-                    )
-                  }
+                  checked={p.tempConfig.s.forceYMax1}
+                  onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
                 />
-              </StyleRevealGroup>
-            </Show>
-          </div>
-          <StyleSectionLabel>
-            {t3({ en: "Axis", fr: "Axe" })}
-          </StyleSectionLabel>
-          <div class="ui-spy-sm">
-            <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+              </Show>
               <Checkbox
                 label={t3({
-                  en: "Force y-axis max of 100%",
-                  fr: "Forcer le maximum de l'axe Y à 100 %",
+                  en: "Allow auto y-axis min",
+                  fr: "Autoriser le minimum automatique de l'axe Y",
                 })}
-                checked={p.tempConfig.s.forceYMax1}
-                onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
+                checked={p.tempConfig.s.forceYMinAuto}
+                onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
               />
-            </Show>
-            <Checkbox
-              label={t3({
-                en: "Allow auto y-axis min",
-                fr: "Autoriser le minimum automatique de l'axe Y",
-              })}
-              checked={p.tempConfig.s.forceYMinAuto}
-              onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
-            />
-            <Checkbox
-              label={t3({
-                en: "Allow individual row limits",
-                fr: "Autoriser des limites par ligne",
-              })}
-              checked={p.tempConfig.s.allowIndividualRowLimits}
+            </>
+          </StyleSection>
+        </Match>
+        <Match when={mode() === "percent-change"}>
+          <StyleSection label={t3({ en: "Display", fr: "Affichage" })}>
+            <RadioGroup
+              label={t3({ en: "Period", fr: "Période" })}
+              options={periodRadioOptions()}
+              value={p.tempConfig.d.timeseriesGrouping}
               onChange={(v) =>
-                p.setTempConfig("s", "allowIndividualRowLimits", v)
+                p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
               }
             />
-          </div>
+          </StyleSection>
+          <StyleSection label={t3({ en: "Threshold", fr: "Seuil" })}>
+            <>
+              <Slider
+                label={t3({ en: "Threshold value", fr: "Valeur du seuil" })}
+                value={p.tempConfig.s.specialBarChartDiffThreshold ?? 0.1}
+                onChange={(v) =>
+                  p.setTempConfig("s", "specialBarChartDiffThreshold", v)
+                }
+                fullWidth
+                showValueInLabel
+                min={0}
+                max={0.25}
+                step={0.01}
+                valueInLabelFormatter={toPct0}
+              />
+              <Checkbox
+                label={t3({
+                  en: "Invert red/green for higher/lower",
+                  fr: "Inverser rouge/vert pour plus élevé/plus bas",
+                })}
+                checked={p.tempConfig.s.specialBarChartInverted}
+                onChange={(v) =>
+                  p.setTempConfig("s", "specialBarChartInverted", v)
+                }
+              />
+            </>
+          </StyleSection>
+          <StyleSection label={t3({ en: "Labels", fr: "Étiquettes" })}>
+            <>
+              <Checkbox
+                checked={p.tempConfig.s.showDataLabels}
+                onChange={(v) => p.setTempConfig("s", "showDataLabels", v)}
+                label={t3({
+                  en: "Show data labels",
+                  fr: "Afficher les étiquettes de données",
+                })}
+              />
+              <Show when={p.tempConfig.s.showDataLabels}>
+                <StyleRevealGroup>
+                  <RadioGroup
+                    label={t3({ en: "Decimal places", fr: "Décimales" })}
+                    options={getSelectOptions(["0", "1", "2", "3"])}
+                    value={String(p.tempConfig.s.decimalPlaces)}
+                    onChange={(v) =>
+                      p.setTempConfig(
+                        "s",
+                        "decimalPlaces",
+                        Number(v) as 0 | 1 | 2 | 3,
+                      )
+                    }
+                    horizontal
+                  />
+                  <Checkbox
+                    label={t3({
+                      en: "Only show data labels on bars exceeding threshold",
+                      fr: "Afficher seulement les étiquettes de données sur les barres dépassant le seuil",
+                    })}
+                    checked={
+                      p.tempConfig.s.specialBarChartDataLabels === undefined ||
+                      p.tempConfig.s.specialBarChartDataLabels ===
+                        "threshold-values"
+                    }
+                    onChange={(v) =>
+                      p.setTempConfig(
+                        "s",
+                        "specialBarChartDataLabels",
+                        v ? "threshold-values" : "all-values",
+                      )
+                    }
+                  />
+                </StyleRevealGroup>
+              </Show>
+            </>
+          </StyleSection>
+          <StyleSection label={t3({ en: "Axis", fr: "Axe" })}>
+            <>
+              <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+                <Checkbox
+                  label={t3({
+                    en: "Force y-axis max of 100%",
+                    fr: "Forcer le maximum de l'axe Y à 100 %",
+                  })}
+                  checked={p.tempConfig.s.forceYMax1}
+                  onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
+                />
+              </Show>
+              <Checkbox
+                label={t3({
+                  en: "Allow auto y-axis min",
+                  fr: "Autoriser le minimum automatique de l'axe Y",
+                })}
+                checked={p.tempConfig.s.forceYMinAuto}
+                onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
+              />
+              <Checkbox
+                label={t3({
+                  en: "Allow individual row limits",
+                  fr: "Autoriser des limites par ligne",
+                })}
+                checked={p.tempConfig.s.allowIndividualRowLimits}
+                onChange={(v) =>
+                  p.setTempConfig("s", "allowIndividualRowLimits", v)
+                }
+              />
+            </>
+          </StyleSection>
         </Match>
         <Match when={mode() === "disruptions"}>
-          <StyleSectionLabel>
-            {t3({ en: "Display", fr: "Affichage" })}
-          </StyleSectionLabel>
-          <div class="ui-spy-sm">
-            <RadioGroup
-              label={t3({ en: "Period", fr: "Période" })}
-              options={periodRadioOptions()}
-              value={p.tempConfig.d.timeseriesGrouping}
-              onChange={(v) =>
-                p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
-              }
-            />
-            <Checkbox
-              label={t3({
-                en: "Invert red/green for surplus/disruptions",
-                fr: "Inverser rouge/vert pour excédents/perturbations",
-              })}
-              checked={p.tempConfig.s.diffInverted}
-              onChange={(v) => p.setTempConfig("s", "diffInverted", v)}
-            />
-          </div>
-          <StyleSectionLabel>
-            {t3({ en: "Labels", fr: "Étiquettes" })}
-          </StyleSectionLabel>
-          <div class="ui-spy-sm">
-            <Checkbox
-              checked={p.tempConfig.s.showDataLabelsLineCharts}
-              onChange={(v) =>
-                p.setTempConfig("s", "showDataLabelsLineCharts", v)
-              }
-              label={t3({
-                en: "Show data labels",
-                fr: "Afficher les étiquettes de données",
-              })}
-            />
-          </div>
-          <StyleSectionLabel>
-            {t3({ en: "Axis", fr: "Axe" })}
-          </StyleSectionLabel>
-          <div class="ui-spy-sm">
-            <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+          <StyleSection label={t3({ en: "Display", fr: "Affichage" })}>
+            <>
+              <RadioGroup
+                label={t3({ en: "Period", fr: "Période" })}
+                options={periodRadioOptions()}
+                value={p.tempConfig.d.timeseriesGrouping}
+                onChange={(v) =>
+                  p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
+                }
+              />
               <Checkbox
                 label={t3({
-                  en: "Force y-axis max of 100%",
-                  fr: "Forcer le maximum de l'axe Y à 100 %",
+                  en: "Invert red/green for surplus/disruptions",
+                  fr: "Inverser rouge/vert pour excédents/perturbations",
                 })}
-                checked={p.tempConfig.s.forceYMax1}
-                onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
+                checked={p.tempConfig.s.diffInverted}
+                onChange={(v) => p.setTempConfig("s", "diffInverted", v)}
               />
-            </Show>
-            <Checkbox
-              label={t3({
-                en: "Allow auto y-axis min",
-                fr: "Autoriser le minimum automatique de l'axe Y",
-              })}
-              checked={p.tempConfig.s.forceYMinAuto}
-              onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
-            />
-            <Checkbox
-              label={t3({
-                en: "Allow individual row limits",
-                fr: "Autoriser des limites par ligne",
-              })}
-              checked={p.tempConfig.s.allowIndividualRowLimits}
-              onChange={(v) =>
-                p.setTempConfig("s", "allowIndividualRowLimits", v)
-              }
-            />
-          </div>
+            </>
+          </StyleSection>
+          <StyleSection label={t3({ en: "Labels", fr: "Étiquettes" })}>
+            <>
+              <Checkbox
+                checked={p.tempConfig.s.showDataLabelsLineCharts}
+                onChange={(v) =>
+                  p.setTempConfig("s", "showDataLabelsLineCharts", v)
+                }
+                label={t3({
+                  en: "Show data labels",
+                  fr: "Afficher les étiquettes de données",
+                })}
+              />
+              <Show when={p.tempConfig.s.showDataLabelsLineCharts}>
+                <StyleRevealGroup>
+                  <RadioGroup
+                    label={t3({ en: "Decimal places", fr: "Décimales" })}
+                    options={getSelectOptions(["0", "1", "2", "3"])}
+                    value={String(p.tempConfig.s.decimalPlaces)}
+                    onChange={(v) =>
+                      p.setTempConfig(
+                        "s",
+                        "decimalPlaces",
+                        Number(v) as 0 | 1 | 2 | 3,
+                      )
+                    }
+                    horizontal
+                  />
+                </StyleRevealGroup>
+              </Show>
+            </>
+          </StyleSection>
+          <StyleSection label={t3({ en: "Axis", fr: "Axe" })}>
+            <>
+              <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+                <Checkbox
+                  label={t3({
+                    en: "Force y-axis max of 100%",
+                    fr: "Forcer le maximum de l'axe Y à 100 %",
+                  })}
+                  checked={p.tempConfig.s.forceYMax1}
+                  onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
+                />
+              </Show>
+              <Checkbox
+                label={t3({
+                  en: "Allow auto y-axis min",
+                  fr: "Autoriser le minimum automatique de l'axe Y",
+                })}
+                checked={p.tempConfig.s.forceYMinAuto}
+                onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
+              />
+              <Checkbox
+                label={t3({
+                  en: "Allow individual row limits",
+                  fr: "Autoriser des limites par ligne",
+                })}
+                checked={p.tempConfig.s.allowIndividualRowLimits}
+                onChange={(v) =>
+                  p.setTempConfig("s", "allowIndividualRowLimits", v)
+                }
+              />
+            </>
+          </StyleSection>
         </Match>
         <Match when={mode() === "standard"}>
-          <StyleSectionLabel>
-            {t3({ en: "Display", fr: "Affichage" })}
-          </StyleSectionLabel>
-          <div class="ui-spy-sm">
-            <RadioGroup
-              label={t3({ en: "Period", fr: "Période" })}
-              options={periodRadioOptions()}
-              value={p.tempConfig.d.timeseriesGrouping}
-              onChange={(v) =>
-                p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
-              }
-            />
-            <RadioGroup
-              label={t3({ en: "Display format", fr: "Format d'affichage" })}
-              options={[
-                { value: "lines", label: t3({ en: "Lines", fr: "Lignes" }) },
-                { value: "areas", label: t3({ en: "Areas", fr: "Zones" }) },
-                { value: "bars", label: t3({ en: "Bars", fr: "Barres" }) },
-              ]}
-              value={p.tempConfig.s.content}
-              onChange={(v) =>
-                p.setTempConfig("s", "content", v as "lines" | "areas" | "bars")
-              }
-            />
-            <Show when={p.tempConfig.s.content === "bars"}>
-              <StyleRevealGroup>
-                <Checkbox
-                  label={t3({ en: "Stacked bars", fr: "Histogramme empilé" })}
-                  checked={p.tempConfig.s.barsStacked}
-                  onChange={(v) => p.setTempConfig("s", "barsStacked", v)}
-                />
-              </StyleRevealGroup>
-            </Show>
-          </div>
+          <StyleSection label={t3({ en: "Display", fr: "Affichage" })}>
+            <>
+              <RadioGroup
+                label={t3({ en: "Period", fr: "Période" })}
+                options={periodRadioOptions()}
+                value={p.tempConfig.d.timeseriesGrouping}
+                onChange={(v) =>
+                  p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
+                }
+                horizontal
+              />
+              <div class="pt-0.5"></div>
+              <RadioGroup
+                label={t3({ en: "Display format", fr: "Format d'affichage" })}
+                options={[
+                  { value: "lines", label: t3({ en: "Lines", fr: "Lignes" }) },
+                  { value: "areas", label: t3({ en: "Areas", fr: "Zones" }) },
+                  { value: "bars", label: t3({ en: "Bars", fr: "Barres" }) },
+                ]}
+                value={p.tempConfig.s.content}
+                onChange={(v) =>
+                  p.setTempConfig(
+                    "s",
+                    "content",
+                    v as "lines" | "areas" | "bars",
+                  )
+                }
+                horizontal
+              />
+              <Show when={p.tempConfig.s.content === "bars"}>
+                <StyleRevealGroup>
+                  <Checkbox
+                    label={t3({ en: "Stacked bars", fr: "Histogramme empilé" })}
+                    checked={p.tempConfig.s.barsStacked}
+                    onChange={(v) => p.setTempConfig("s", "barsStacked", v)}
+                  />
+                </StyleRevealGroup>
+              </Show>
+              <div class="pt-0.5"></div>
+              <RadioGroup
+                label={t3({ en: "Decimal places", fr: "Décimales" })}
+                options={getSelectOptions(["0", "1", "2", "3"])}
+                value={String(p.tempConfig.s.decimalPlaces)}
+                onChange={(v) =>
+                  p.setTempConfig(
+                    "s",
+                    "decimalPlaces",
+                    Number(v) as 0 | 1 | 2 | 3,
+                  )
+                }
+                horizontal
+              />
+              <div class="pt-0.5"></div>
+              <Checkbox
+                checked={p.tempConfig.s.hideLegend}
+                onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
+                label={t3({ en: "Hide legend", fr: "Masquer la légende" })}
+              />
+            </>
+          </StyleSection>
           <ChartLikeControls
             poDetail={p.poDetail}
             tempConfig={p.tempConfig}
