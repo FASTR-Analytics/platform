@@ -1,4 +1,4 @@
-import { periodFilterHasBounds, type GenericLongFormFetchConfig } from "lib";
+import { periodFilterHasBounds, type GenericLongFormFetchConfig, getCalendar } from "lib";
 
 // ============================================================================
 // Type Definitions
@@ -19,13 +19,35 @@ export type DynamicPeriodColumn = (typeof DYNAMIC_PERIOD_COLUMNS)[number];
 export const PERIOD_COLUMN_EXPRESSIONS = {
   year: "(period_id / 100)::int",
   month: `LPAD((period_id % 100)::text, 2, '0')`,
-  quarter_id: `(CASE
+} as const;
+
+export function getQuarterIdExpression(): string {
+  const calendar = getCalendar();
+  if (calendar === "ethiopian") {
+    // Ethiopian Q1 is months 11-1, with Nov/Dec belonging to NEXT year's Q1
+    return `(CASE
+      WHEN period_id % 100 >= 11 THEN ((period_id / 100) + 1) * 100 + 1
+      WHEN period_id % 100 <= 1 THEN (period_id / 100) * 100 + 1
+      WHEN period_id % 100 <= 4 THEN (period_id / 100) * 100 + 2
+      WHEN period_id % 100 <= 7 THEN (period_id / 100) * 100 + 3
+      ELSE (period_id / 100) * 100 + 4
+    END)::int`;
+  }
+  // Gregorian
+  return `(CASE
     WHEN period_id % 100 <= 3 THEN (period_id / 100) * 100 + 1
     WHEN period_id % 100 <= 6 THEN (period_id / 100) * 100 + 2
     WHEN period_id % 100 <= 9 THEN (period_id / 100) * 100 + 3
     ELSE (period_id / 100) * 100 + 4
-  END)::int`,
-} as const;
+  END)::int`;
+}
+
+export function getPeriodColumnExpression(column: DynamicPeriodColumn): string {
+  if (column === "quarter_id") {
+    return getQuarterIdExpression();
+  }
+  return PERIOD_COLUMN_EXPRESSIONS[column];
+}
 
 /**
  * SQL expressions for generating columns from quarter_id.

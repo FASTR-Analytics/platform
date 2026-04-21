@@ -59,6 +59,7 @@ routesInstanceSSE.get(
           facilityColumns: res.data.facilityColumns,
           adminAreaLabels: res.data.adminAreaLabels,
           projects: res.data.projects,
+          projectsLastUpdated: new Date().toISOString(),
           users,
           assets: res.data.assets,
           geojsonMaps: res.data.geojsonMaps,

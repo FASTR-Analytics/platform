@@ -2,6 +2,7 @@ import {
   t3,
   TC,
   type HfaIndicator,
+  type HfaIndicatorCode,
 } from "lib";
 import {
   Button,
@@ -22,6 +23,7 @@ import { getHfaIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators
 import { EditHfaIndicator } from "../forms_editors/edit_hfa_indicator";
 import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
 import { HfaIndicatorsCsvUploadForm } from "./hfa_indicators_csv_upload_form";
+import { validateRCode } from "./hfa_r_code_validator";
 
 type Props = {
   isGlobalAdmin: boolean;
@@ -52,7 +54,74 @@ export function HfaIndicatorsManager(p: Props) {
 
   async function handleRevalidateAll() {
     setRevalidating(true);
-    const res = await serverActions.revalidateAllHfaIndicators({});
+
+    // Fetch dictionary and all code
+    const dictRes = await serverActions.getHfaDictionaryForValidation({});
+    if (!dictRes.success) {
+      setRevalidating(false);
+      return;
+    }
+    const codeRes = await serverActions.getAllHfaIndicatorCode({});
+    if (!codeRes.success) {
+      setRevalidating(false);
+      return;
+    }
+
+    const st = indicators();
+    if (st.status !== "ready") {
+      setRevalidating(false);
+      return;
+    }
+
+    // Group code by varName
+    const codeByVarName = new Map<string, HfaIndicatorCode[]>();
+    for (const c of codeRes.data) {
+      const arr = codeByVarName.get(c.varName) ?? [];
+      arr.push(c);
+      codeByVarName.set(c.varName, arr);
+    }
+
+    const allIndicatorVarNames = new Set(st.data.map((i) => i.varName));
+
+    // Compute validation for each indicator
+    const updates: { varName: string; hasSyntaxError: boolean; codeConsistent: boolean }[] = [];
+    for (const ind of st.data) {
+      const indCode = codeByVarName.get(ind.varName) ?? [];
+      const otherVarNames = new Set(allIndicatorVarNames);
+      otherVarNames.delete(ind.varName);
+
+      let hasSyntaxError = false;
+      for (const c of indCode) {
+        const tp = dictRes.data.timePoints.find((t) => t.timePoint === c.timePoint);
+        const availableVars = tp ? new Set(tp.vars.map((v) => v.varName)) : new Set<string>();
+        if (c.rCode.trim()) {
+          const result = validateRCode(c.rCode, availableVars, otherVarNames);
+          if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
+            hasSyntaxError = true;
+          }
+        }
+        if (c.rFilterCode?.trim()) {
+          const result = validateRCode(c.rFilterCode, availableVars, otherVarNames);
+          if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
+            hasSyntaxError = true;
+          }
+        }
+      }
+
+      const nonEmpty = indCode.filter((c) => c.rCode.trim() || c.rFilterCode?.trim());
+      let codeConsistent = true;
+      if (nonEmpty.length > 1) {
+        const first = nonEmpty[0];
+        codeConsistent = nonEmpty.every(
+          (c) => c.rCode.trim() === first.rCode.trim() && (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? "")
+        );
+      }
+
+      updates.push({ varName: ind.varName, hasSyntaxError, codeConsistent });
+    }
+
+    // Send bulk update
+    const res = await serverActions.bulkUpdateHfaIndicatorValidation({ updates });
     if (res.success) {
       const version = instanceState.hfaIndicatorsVersion;
       if (version) {

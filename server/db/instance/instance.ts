@@ -226,25 +226,59 @@ export async function getInstanceDatasetsSummary(
   };
 }
 
-export async function getAllProjectSummaries(
+export async function getProjectsForUser(
   mainDb: Sql,
+  globalUser: GlobalUser,
 ): Promise<ProjectSummary[]> {
+  if (globalUser.isGlobalAdmin) {
+    return (
+      await mainDb<(DBProject & { last_activity_at: string | null })[]>`
+        SELECT p.*, la.last_activity_at
+        FROM projects p
+        LEFT JOIN (
+          SELECT project_id, MAX(timestamp) as last_activity_at
+          FROM user_logs
+          WHERE project_id IS NOT NULL
+          GROUP BY project_id
+        ) la ON la.project_id = p.id
+        ORDER BY LOWER(p.label)
+      `
+    ).map<ProjectSummary>((p) => ({
+      id: p.id,
+      label: p.label,
+      thisUserRole: "editor",
+      isLocked: p.is_locked,
+      status: p.status as ProjectSummary["status"],
+      lastActivityAt: p.last_activity_at ?? undefined,
+    }));
+  }
+
   return (
-    await mainDb<(DBProject & { last_activity_at: string | null })[]>`
-      SELECT p.*, la.last_activity_at
-      FROM projects p
+    await mainDb<(DBProject & DBProjectUserRole & { last_activity_at: string | null })[]>`
+      SELECT pur.*, p.*, la.last_activity_at
+      FROM project_user_roles pur
+      JOIN projects p ON pur.project_id = p.id
       LEFT JOIN (
         SELECT project_id, MAX(timestamp) as last_activity_at
         FROM user_logs
         WHERE project_id IS NOT NULL
         GROUP BY project_id
       ) la ON la.project_id = p.id
+      WHERE pur.email = ${globalUser.email}
+      AND (
+        pur.can_configure_settings OR pur.can_create_backups OR pur.can_restore_backups OR
+        pur.can_configure_modules OR pur.can_run_modules OR pur.can_configure_users OR
+        pur.can_configure_visualizations OR pur.can_view_visualizations OR
+        pur.can_configure_reports OR pur.can_view_reports OR
+        pur.can_configure_slide_decks OR pur.can_view_slide_decks OR
+        pur.can_configure_data OR pur.can_view_data OR pur.can_view_metrics OR pur.can_view_logs
+      )
       ORDER BY LOWER(p.label)
     `
   ).map<ProjectSummary>((p) => ({
     id: p.id,
     label: p.label,
-    thisUserRole: "editor",
+    thisUserRole: p.role === "editor" ? "editor" : "viewer",
     isLocked: p.is_locked,
     status: p.status as ProjectSummary["status"],
     lastActivityAt: p.last_activity_at ?? undefined,
@@ -341,62 +375,7 @@ export async function getInstanceDetail(
       return resAssets;
     }
 
-    const projectSummaries = globalUser.isGlobalAdmin
-      ? (
-          await mainDb<
-            (DBProject & { last_activity_at: string | null })[]
-          >`SELECT p.*, la.last_activity_at
-FROM projects p
-LEFT JOIN (
-  SELECT project_id, MAX(timestamp) as last_activity_at
-  FROM user_logs
-  WHERE project_id IS NOT NULL
-  GROUP BY project_id
-) la ON la.project_id = p.id
-ORDER BY LOWER(p.label)`
-        ).map<ProjectSummary>((p) => {
-          return {
-            id: p.id,
-            label: p.label,
-            thisUserRole: "editor",
-            isLocked: p.is_locked,
-            status: p.status as ProjectSummary["status"],
-            lastActivityAt: p.last_activity_at ?? undefined,
-          };
-        })
-      : (
-          await mainDb<
-            (DBProject &
-              DBProjectUserRole & { last_activity_at: string | null })[]
-          >`SELECT pur.*, p.*, la.last_activity_at
-FROM project_user_roles pur
-JOIN projects p ON pur.project_id = p.id
-LEFT JOIN (
-  SELECT project_id, MAX(timestamp) as last_activity_at
-  FROM user_logs
-  WHERE project_id IS NOT NULL
-  GROUP BY project_id
-) la ON la.project_id = p.id
-WHERE pur.email = ${globalUser.email}
-AND (
-  pur.can_configure_settings OR pur.can_create_backups OR pur.can_restore_backups OR
-  pur.can_configure_modules OR pur.can_run_modules OR pur.can_configure_users OR
-  pur.can_configure_visualizations OR pur.can_view_visualizations OR
-  pur.can_configure_reports OR pur.can_view_reports OR
-  pur.can_configure_slide_decks OR pur.can_view_slide_decks OR
-  pur.can_configure_data OR pur.can_view_data OR pur.can_view_metrics OR pur.can_view_logs
-)
-ORDER BY LOWER(p.label)`
-        ).map<ProjectSummary>((p) => {
-          return {
-            id: p.id,
-            label: p.label,
-            thisUserRole: p.role === "editor" ? "editor" : "viewer",
-            isLocked: p.is_locked,
-            status: p.status as ProjectSummary["status"],
-            lastActivityAt: p.last_activity_at ?? undefined,
-          };
-        });
+    const projectSummaries = await getProjectsForUser(mainDb, globalUser);
 
     const datasetsWithData: DatasetType[] = [];
     if (await detectHasAnyRows(mainDb, "dataset_hmis")) {

@@ -7,7 +7,6 @@ import type {
   InstanceSseMessage,
   InstanceStructureSummary,
   OtherUser,
-  ProjectSummary,
 } from "lib";
 
 const broadcastInstanceUpdates = new BroadcastChannel("instance_updates");
@@ -20,8 +19,8 @@ export function notifyInstanceConfigUpdated(config: InstanceConfig) {
   notifyInstanceUpdate({ type: "config_updated", data: config });
 }
 
-export function notifyInstanceProjectsUpdated(projects: ProjectSummary[]) {
-  notifyInstanceUpdate({ type: "projects_updated", data: projects });
+export function notifyInstanceProjectsLastUpdated(lastUpdated: string) {
+  notifyInstanceUpdate({ type: "projects_last_updated", data: lastUpdated });
 }
 
 export function notifyInstanceUsersUpdated(users: OtherUser[]) {

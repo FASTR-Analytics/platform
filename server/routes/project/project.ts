@@ -24,8 +24,7 @@ import {
   setModulesDirtyForDataset,
 } from "../../task_management/mod.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
-import { notifyInstanceProjectsUpdated } from "../../task_management/notify_instance_updated.ts";
-import { getAllProjectSummaries } from "../../db/mod.ts";
+import { notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
 import { GetLogsByProject } from "../../db/instance/user_logs.ts";
@@ -70,7 +69,7 @@ defineRoute(
         enabledDataset.lastUpdated,
       );
     }
-    notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
+    notifyInstanceProjectsLastUpdated(new Date().toISOString());
     return c.json(res);
   },
 );
@@ -108,6 +107,9 @@ defineRoute(
       body.emails,
       body.role,
     );
+    if (res.success) {
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
+    }
     return c.json(res);
   },
 );
@@ -127,6 +129,9 @@ defineRoute(
       body.emails,
       body.permissions,
     );
+    if (res.success) {
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
+    }
     return c.json(res);
   },
 );
@@ -161,6 +166,9 @@ defineRoute(
       body.emails,
       body.permissions,
     );
+    if (res.success) {
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
+    }
     return c.json(res);
   },
 );
@@ -181,7 +189,7 @@ defineRoute(
       body.aiContext,
     );
     if (res.success) {
-      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(res);
   },
@@ -281,7 +289,7 @@ defineRoute(
   async (c, { params }) => {
     const res = await deleteProject(c.var.mainDb, params.project_id);
     if (res.success) {
-      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(res);
   },
@@ -299,7 +307,7 @@ defineRoute(
       body.lockAction,
     );
     if (res.success) {
-      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(res);
   },
@@ -329,12 +337,12 @@ defineRoute(
       c.var.globalUser,
     );
     if (res.success) {
-      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
       await closePgConnection(params.project_id);
       copyProjectInBackground(params.project_id, res.data.newProjectId)
         .then(async () => {
           const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-          notifyInstanceProjectsUpdated(await getAllProjectSummaries(mainDb));
+          notifyInstanceProjectsLastUpdated(new Date().toISOString());
         })
         .catch(() => {});
     }
@@ -369,6 +377,9 @@ defineRoute(
       c.var.ppk.projectId,
       body.email,
     );
+    if (res.success) {
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
+    }
     return c.json(res);
   },
 );

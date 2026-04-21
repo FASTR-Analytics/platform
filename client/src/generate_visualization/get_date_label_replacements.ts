@@ -1,5 +1,6 @@
 import { formatPeriod } from "panther";
 import type { JsonArrayItem } from "panther";
+import { getCalendar } from "lib";
 
 type DatePropType = "month" | "quarter_id" | "period_id";
 
@@ -9,11 +10,15 @@ const DATE_PROPS: Set<DatePropType> = new Set([
   "period_id",
 ]);
 
-// Match ui-panther's abbreviated month format for consistency
-const MONTHS_THREE_CHARS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-];
+function getMonthName(monthNum: number): string {
+  const calendar = getCalendar();
+  if (calendar === "ethiopian") {
+    const ETHIOPIAN_MONTHS = ["Mes", "Tik", "Hid", "Tah", "Tir", "Yek", "Meg", "Mia", "Gin", "Sen", "Ham", "Neh"];
+    return ETHIOPIAN_MONTHS[monthNum - 1] ?? "?";
+  }
+  const GREGORIAN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return GREGORIAN_MONTHS[monthNum - 1] ?? "?";
+}
 
 export function getDateLabelReplacements(
   jsonArray: JsonArrayItem[],
@@ -51,7 +56,7 @@ export function getDateLabelReplacements(
       // Handle month prop (values are 1-12)
       const monthNum = parseInt(value, 10);
       if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
-        replacements[value] = MONTHS_THREE_CHARS[monthNum - 1];
+        replacements[value] = getMonthName(monthNum);
       }
     } else {
       // Handle period_id and quarter_id (YYYYMM format)
@@ -83,6 +88,5 @@ function formatDateValue(
   value: string,
   periodType: "year-month" | "year-quarter",
 ): string {
-  // Use formatPeriod from panther with gregorian calendar as default
-  return formatPeriod(value, periodType, "gregorian");
+  return formatPeriod(value, periodType, getCalendar());
 }

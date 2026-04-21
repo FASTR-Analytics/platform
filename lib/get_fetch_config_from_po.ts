@@ -105,7 +105,8 @@ export function getPeriodFilterExactBounds(
     };
   }
 
-  // Calendar-based filters assume YYYYMM format — return unfiltered for quarter_id
+  // TODO: Calendar-based filters are hidden in UI for quarter_id data (see _2_filters.tsx:236-250).
+  // This code path is unreachable. Either implement the feature or remove this block.
   if (
     periodBounds.periodOption === "quarter_id" &&
     (periodFilter.filterType === "last_calendar_year" ||

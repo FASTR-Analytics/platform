@@ -17,7 +17,7 @@ import {
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
-import { notifyInstanceUsersUpdated } from "../../task_management/notify_instance_updated.ts";
+import { notifyInstanceUsersUpdated, notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesUsers = new Hono();
@@ -85,6 +85,7 @@ defineRoute(
     );
     if (resUser.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(resUser);
   },
@@ -133,6 +134,7 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(res);
   },

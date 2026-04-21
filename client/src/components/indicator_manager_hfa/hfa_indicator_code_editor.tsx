@@ -214,6 +214,31 @@ function EditorInner(p: {
   p.registerSave(async () => {
     const trimmedVarName = state.varName.trim();
     if (!trimmedVarName) return;
+
+    // Compute validation across all timepoints
+    let hasSyntaxError = false;
+    for (let i = 0; i < state.code.length; i++) {
+      const c = state.code[i];
+      const tp = p.dictionary.timePoints.find((t) => t.timePoint === c.timePoint);
+      const availableVars = tp ? new Set(tp.vars.map((v) => v.varName)) : new Set<string>();
+      if (c.rCode.trim()) {
+        const result = validateRCode(c.rCode, availableVars, otherIndicatorVarNames);
+        if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
+          hasSyntaxError = true;
+          break;
+        }
+      }
+      if (c.rFilterCode.trim()) {
+        const result = validateRCode(c.rFilterCode, availableVars, otherIndicatorVarNames);
+        if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
+          hasSyntaxError = true;
+          break;
+        }
+      }
+    }
+
+    const codeConsistent = roundsConsistency() !== "different";
+
     await serverActions.saveHfaIndicatorFull({
       oldVarName: p.indicator.varName,
       indicator: {
@@ -223,14 +248,16 @@ function EditorInner(p: {
         type: state.type,
         aggregation: state.aggregation,
         sortOrder: p.indicator.sortOrder,
-        hasSyntaxError: false,
-        codeConsistent: true,
+        hasSyntaxError,
+        codeConsistent,
       },
       code: unwrap(state.code).map((c) => ({
         timePoint: c.timePoint,
         rCode: c.rCode.trim(),
         rFilterCode: c.rFilterCode.trim() || undefined,
       })),
+      hasSyntaxError,
+      codeConsistent,
     });
   });
 

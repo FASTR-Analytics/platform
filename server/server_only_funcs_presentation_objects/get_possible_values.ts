@@ -17,7 +17,10 @@ import {
   type DynamicPeriodColumn,
   PERIOD_COLUMN_EXPRESSIONS,
   QUARTER_ID_COLUMN_EXPRESSIONS,
+  getPeriodColumnExpression,
 } from "./period_helpers.ts";
+
+const DYNAMIC_PERIOD_COLUMNS = ["year", "month", "quarter_id"] as const;
 
 export async function getPossibleValues(
   projectDb: Sql,
@@ -77,12 +80,12 @@ export async function getPossibleValues(
 
     // Check if this is a dynamic period column (derivable from period_id or quarter_id)
     const isDynamicPeriodColumn =
-      (queryContext.hasPeriodId && disaggregationOption in PERIOD_COLUMN_EXPRESSIONS) ||
+      (queryContext.hasPeriodId && (DYNAMIC_PERIOD_COLUMNS as readonly string[]).includes(disaggregationOption)) ||
       (queryContext.hasQuarterId && disaggregationOption in QUARTER_ID_COLUMN_EXPRESSIONS);
 
     // Check if any filters reference dynamic period columns
     const filterUsesDynamicPeriodColumn = filteredFilters.some((f) =>
-      (queryContext.hasPeriodId && f.disOpt in PERIOD_COLUMN_EXPRESSIONS) ||
+      (queryContext.hasPeriodId && (DYNAMIC_PERIOD_COLUMNS as readonly string[]).includes(f.disOpt)) ||
       (queryContext.hasQuarterId && f.disOpt in QUARTER_ID_COLUMN_EXPRESSIONS)
     );
 
@@ -101,8 +104,7 @@ export async function getPossibleValues(
     } else if (isDynamicPeriodColumn) {
       // No CTE needed, use inline expression
       if (queryContext.hasPeriodId) {
-        columnRef =
-          PERIOD_COLUMN_EXPRESSIONS[disaggregationOption as DynamicPeriodColumn];
+        columnRef = getPeriodColumnExpression(disaggregationOption as DynamicPeriodColumn);
       } else {
         columnRef =
           QUARTER_ID_COLUMN_EXPRESSIONS[disaggregationOption as keyof typeof QUARTER_ID_COLUMN_EXPRESSIONS];
@@ -139,7 +141,7 @@ export async function getPossibleValues(
       if (needsPeriodCTE) {
         // Need both period and facility CTEs
         const derivedColumns = queryContext.hasPeriodId
-          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${PERIOD_COLUMN_EXPRESSIONS.quarter_id} AS quarter_id`
+          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${getPeriodColumnExpression("quarter_id")} AS quarter_id`
           : `${QUARTER_ID_COLUMN_EXPRESSIONS.year} AS year`;
         ctePrefix = `WITH period_data AS (
   SELECT *,
@@ -189,7 +191,7 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
       if (needsPeriodCTE) {
         // Wrap in period CTE
         const derivedColumns = queryContext.hasPeriodId
-          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${PERIOD_COLUMN_EXPRESSIONS.quarter_id} AS quarter_id`
+          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${getPeriodColumnExpression("quarter_id")} AS quarter_id`
           : `${QUARTER_ID_COLUMN_EXPRESSIONS.year} AS year`;
         const ctePrefix = `WITH period_data AS (
   SELECT *,

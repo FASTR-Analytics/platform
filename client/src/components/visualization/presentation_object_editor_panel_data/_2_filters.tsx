@@ -32,6 +32,21 @@ import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_l
  * (e.g. filter has "year" values like 2025 but bounds has "period_id" values like 202512).
  * This converts the filter's min/max to match the bounds format.
  */
+function periodIdToQuarterId(periodId: number): number {
+  const year = Math.floor(periodId / 100);
+  const month = periodId % 100;
+  const calendar = getCalendar();
+  if (calendar === "ethiopian") {
+    // Ethiopian Q1 is months 11-1, with Nov/Dec belonging to NEXT year's Q1
+    if (month >= 11) return (year + 1) * 100 + 1;
+    if (month <= 1) return year * 100 + 1;
+    if (month <= 4) return year * 100 + 2;
+    if (month <= 7) return year * 100 + 3;
+    return year * 100 + 4;
+  }
+  return year * 100 + Math.ceil(month / 3);
+}
+
 function reconcilePeriodFilterWithBounds(
   periodFilter: BoundedPeriodFilter,
   periodBounds: PeriodBounds,
@@ -49,7 +64,7 @@ function reconcilePeriodFilterWithBounds(
     const sub = v % 100;
     if (target === "year") return year;
     if (target === "period_id") return v;
-    if (target === "quarter_id" && sub >= 1 && sub <= 12) return year * 100 + Math.ceil(sub / 3);
+    if (target === "quarter_id" && sub >= 1 && sub <= 12) return periodIdToQuarterId(v);
     return v;
   };
   return {

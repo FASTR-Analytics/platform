@@ -62,6 +62,8 @@ export const hfaIndicatorRouteRegistry = {
       oldVarName: string;
       indicator: HfaIndicator;
       code: { timePoint: string; rCode: string; rFilterCode: string | undefined }[];
+      hasSyntaxError: boolean;
+      codeConsistent: boolean;
     },
   }),
 
@@ -71,8 +73,11 @@ export const hfaIndicatorRouteRegistry = {
     response: {} as HfaDictionaryForValidation,
   }),
 
-  revalidateAllHfaIndicators: route({
-    path: "/hfa-indicators/revalidate-all",
+  bulkUpdateHfaIndicatorValidation: route({
+    path: "/hfa-indicators/bulk-update-validation",
     method: "POST",
+    body: {} as {
+      updates: { varName: string; hasSyntaxError: boolean; codeConsistent: boolean }[];
+    },
   }),
 } as const;

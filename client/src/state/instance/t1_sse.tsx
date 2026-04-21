@@ -1,8 +1,8 @@
 import type { InstanceSseMessage } from "lib";
 import { t3 } from "lib";
-import { Show, type JSX } from "solid-js";
+import { Show, on, createEffect, type JSX } from "solid-js";
 import { onMount, onCleanup, createSignal } from "solid-js";
-import { _SERVER_HOST } from "~/server_actions";
+import { _SERVER_HOST, fetchMyProjects } from "~/server_actions";
 import { preloadGeoJson } from "~/state/instance/t2_geojson";
 import {
   instanceState,
@@ -16,6 +16,7 @@ import {
   updateInstanceIndicators,
   updateInstanceDatasets,
   updateCurrentUser,
+  updateProjectsLastUpdated,
 } from "./t1_store";
 
 const _MAX_CONNECTION_ATTEMPTS = 5;
@@ -63,8 +64,8 @@ export function connectInstanceSSE(): void {
       case "config_updated":
         updateInstanceConfig(msg.data);
         break;
-      case "projects_updated":
-        updateInstanceProjects(msg.data);
+      case "projects_last_updated":
+        updateProjectsLastUpdated(msg.data);
         break;
       case "users_updated":
         updateInstanceUsers(msg.data);
@@ -127,6 +128,28 @@ export function disconnectInstanceSSE(): void {
 export function InstanceSSEBoundary(props: { children: JSX.Element }) {
   onMount(() => connectInstanceSSE());
   onCleanup(() => disconnectInstanceSSE());
+
+  // Refetch projects when version changes
+  // defer: true skips initial run (starting message already has correct projects)
+  // AbortController tracks staleness - tryCatchServer doesn't support external abort,
+  // but we check aborted flag before updating state to ignore stale responses
+  createEffect(on(
+    () => instanceState.projectsLastUpdated,
+    () => {
+      const controller = new AbortController();
+      onCleanup(() => controller.abort());
+
+      fetchMyProjects().then((res) => {
+        if (controller.signal.aborted) return;
+        if (res.success) {
+          updateInstanceProjects(res.data);
+        } else {
+          console.error("Failed to fetch projects:", res.err);
+        }
+      });
+    },
+    { defer: true }
+  ));
 
   return (
     <Show
