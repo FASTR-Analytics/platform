@@ -1,3 +1,5 @@
+[1.23.0] [user] [fixed] - Fixed certain saved chart settings not loading correctly
+[1.23.0] [admin] [fixed] - Replicant filter values now migrate correctly as text
 [1.23.0] [user] [fixed] - Presentation settings now retain display order after saving
 [1.23.0] [admin] [fixed] - Module migration now correctly fills missing presentation object fields
 [1.23.0] [user] [added] - Uploaded files are now auto-selected after processing completes
