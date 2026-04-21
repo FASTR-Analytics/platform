@@ -1,3 +1,6 @@
+[1.22.0] [user] [fixed] - Empty filters no longer cause incorrect data results
+[1.22.0] [admin] [fixed] - Empty filter entries are now automatically cleaned up during migration
+[1.22.0] [admin] [changed] - Legacy visualization settings are automatically converted to current format on upgrade
 [1.22.0] [user] [added] - Decimal places setting now appears next to data label options
 [1.22.0] [user] [added] - Hide legend option added to charts, maps, and timeseries displays
 [1.22.0] [user] [changed] - Color scale selector changed from radio buttons to a dropdown menu
