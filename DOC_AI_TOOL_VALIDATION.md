@@ -1,55 +1,117 @@
 # AI Tool Input Validation
 
-Claude's tool-use API can hallucinate arguments: a tool declares no inputs but Claude sends `{ filter: "foo" }` anyway, then believes the filter was applied. Tight Zod `inputSchema`s catch this at the boundary and let Claude self-correct.
+How tool inputs are validated when Claude calls our custom AI tools.
 
-## Convention
+**See also:** [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md) for how stored data is validated and migrated.
 
-**Use `z.strictObject({...})`, not `z.object({...})`.**
+---
 
-- `z.object({})` accepts any input and silently drops unknown keys. Claude thinks its hallucinated `filter` worked. User gets unfiltered data.
-- `z.strictObject({})` rejects any unknown key. Zod throws; the error surfaces to Claude; Claude retries without the hallucinated key.
+## Validation Flow
 
-This applies to every tool, including zero-arg fetchers:
+When Claude calls a tool, the input is validated before the handler runs:
+
+```text
+Claude calls tool with JSON input
+    │
+    ▼
+Zod schema.parse(input) — validates and strips unknown properties
+    │
+    ├─► Valid: handler executes with cleaned input
+    │
+    └─► Invalid: ZodError thrown → framework returns is_error: true → Claude retries
+```
+
+This happens in panther at [tool_helpers.ts:90-92](panther/_305_ai/_core/tool_helpers.ts#L90-L92):
+
+```ts
+run: async (input: TInput) => {
+  const validated = config.inputSchema.parse(input) as TInput;
+  const result = await Promise.resolve(config.handler(validated));
+```
+
+---
+
+## Schema Conventions
+
+### Use Full Validation Constraints
+
+Zod constraints (`.max()`, `.min()`, `.refine()`, etc.) work normally and are enforced at parse time:
 
 ```ts
 createAITool({
-  name: "get_available_modules",
-  inputSchema: z.strictObject({}),   // not z.object({})
-  handler: async () => { ... },
+  name: "create_slide",
+  inputSchema: z.object({
+    title: z.string().max(200).describe("Title (max 200 chars)"),
+    count: z.number().int().min(1).max(100).describe("Count between 1-100"),
+    items: z.array(z.string()).max(10).describe("Up to 10 items"),
+  }),
+  handler: async (input) => {
+    // input is validated and typed
+  },
 });
 ```
 
-For tools with trivial params, still use `strictObject`:
+Constraints serve two purposes:
+
+1. **Runtime validation** — invalid input throws, error surfaces to Claude
+2. **Documentation for Claude** — constraints in the schema help Claude generate correct values
+
+### Unknown Properties Are Stripped
+
+`z.object()` silently discards properties not in the schema. This is intentional — Claude sometimes adds underscore-prefixed metadata properties (like `_thinking`) to tool inputs. These are harmless and get stripped automatically.
+
+---
+
+## Error Handling
+
+When validation fails or a handler throws, the framework catches the error and returns it to Claude with `is_error: true`. Claude sees the error message and can self-correct.
+
+**Let errors propagate:**
 
 ```ts
-inputSchema: z.strictObject({ id: z.string().describe("Module ID") }),
-```
-
-For tools with rich input (e.g. slide-editing, filter-generation), use `z.strictObject({ ... })` with `.refine()` on semantic invariants the schema can't express structurally (e.g. `filterBy.values.min(1)` — a filter must have at least one value).
-
-## Retry-on-error idiom
-
-The wiring is already in place in [panther/_305_ai/_core/tool_engine.ts:124-143](panther/_305_ai/_core/tool_engine.ts#L124-L143). When a tool handler throws, the framework catches the error and returns:
-
-```ts
-{
-  type: "tool_result",
-  tool_use_id: block.id,
-  content: cleanMessage,
-  is_error: true,
+handler: async (input) => {
+  const result = await doSomething(input);
+  if (!result.success) {
+    throw new Error(result.error); // Framework catches, sets is_error: true
+  }
+  return result.data;
 }
 ```
 
-Claude reads `is_error: true`, self-corrects, retries. The author contract is:
+**Don't catch and return error strings:**
 
-> **Throw from the tool handler. The framework converts to `is_error`.**
+```ts
+// BAD - Claude doesn't know this is an error
+handler: async (input) => {
+  try {
+    return await doSomething(input);
+  } catch (e) {
+    return `Error: ${e.message}`;
+  }
+}
+```
 
-Zod validation failures throw before the handler runs — same pattern, earlier detection, cleanest error message to Claude (Zod's `.parse` error has the exact field path).
+---
 
-Do not catch Zod errors inside handlers. Let them propagate.
+## Gotchas
 
-## What NOT to do
+### Don't Use z.strictObject()
 
-- Don't wrap handlers in try/catch just to return error strings — that hides the error type from the framework. Throw.
-- Don't use `z.object({}).passthrough()` — same failure mode as `z.object({})`.
-- Don't write custom validation inside the handler when a Zod schema could express it. The framework runs the schema before the handler, so schema-level checks get free retry-on-error; handler-level checks work too but are more code.
+`z.strictObject()` rejects unknown properties instead of stripping them. This breaks tools because Claude's underscore-prefixed metadata properties cause validation errors.
+
+### Don't Use strict: true on Tool Definitions
+
+Anthropic's `strict: true` mode enables grammar-constrained sampling but **does not support** common JSON Schema features:
+
+- `maxLength` / `minLength` (from `.max()` / `.min()` on strings)
+- `maxItems` / `minItems` (from `.max()` / `.min()` on arrays)  
+- `minimum` / `maximum` (from `.min()` / `.max()` on numbers)
+
+Using `strict: true` with any of these causes an API error:
+
+```text
+400 - {"type":"error","error":{"type":"invalid_request_error",
+"message":"tools.17.custom: For 'array' type, property 'maxItems' is not supported"}}
+```
+
+Since we rely on these validation constraints, `strict: true` is not compatible with our tools.

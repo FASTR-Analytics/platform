@@ -73,8 +73,8 @@ export function generateBarPrimitives(
       // Indicator slot — category-axis region for this i_val, centered on
       // the mapped category coordinate.
       const indicatorSlotThickness = ctx.categoryIncrement * _PROP_INDICATOR;
-      const indicatorSlotStart =
-        catCoord(mappedVal.coords, orientation) - indicatorSlotThickness / 2;
+      const indicatorSlotStart = catCoord(mappedVal.coords, orientation) -
+        indicatorSlotThickness / 2;
 
       // Value-axis coordinate of this bar's value end (e.g. bar's top in
       // vertical, right-edge in horizontal).
@@ -254,7 +254,7 @@ export function generateBarPrimitives(
             : {}),
         };
         const hasDecoration = dl.backgroundColor !== "none" ||
-          dl.border !== "none";
+          dl.borderWidth > 0;
 
         // Vertical wraps label to bar width; horizontal allows overflow
         // (short bars would otherwise hide the label).
@@ -268,9 +268,10 @@ export function generateBarPrimitives(
                 ? getColor(dl.backgroundColor)
                 : undefined,
               padding: dl.padding,
-              border: dl.border !== "none"
-                ? { color: getColor(dl.border.color), width: dl.border.width }
+              borderColor: dl.borderColor !== undefined
+                ? getColor(dl.borderColor)
                 : undefined,
+              borderWidth: dl.borderWidth > 0 ? dl.borderWidth : undefined,
               rectRadius: dl.rectRadius,
             }
             : undefined;

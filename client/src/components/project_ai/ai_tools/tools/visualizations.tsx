@@ -20,7 +20,7 @@ export function getToolsForVisualizations(
       name: "get_available_visualizations",
       description:
         "Get a list of all saved visualizations with their IDs, labels, and metric IDs. Use this to discover which visualizations exist and can be cloned into slides.",
-      inputSchema: z.strictObject({}),
+      inputSchema: z.object({}),
       handler: async () => {
         return formatVisualizationsListForAI(visualizations);
       },
@@ -32,7 +32,7 @@ export function getToolsForVisualizations(
       name: "get_available_slide_decks",
       description:
         "Get a list of all slide decks with their IDs and labels.",
-      inputSchema: z.strictObject({}),
+      inputSchema: z.object({}),
       handler: async () => {
         return formatSlideDecksListForAI(slideDecks);
       },

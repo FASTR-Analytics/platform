@@ -100,7 +100,8 @@ export type DataLabel = {
   style?: {
     backgroundColor?: string;
     padding?: Padding;
-    border?: { color: string; width: number };
+    borderColor?: string;
+    borderWidth?: number;
     rectRadius?: number;
   };
 };
@@ -179,20 +180,23 @@ export type ChartBarPrimitive = BasePrimitive & {
   sourceData?: any;
 };
 
-export type ChartErrorBarPrimitive = BasePrimitive & {
-  type: "chart-error-bar";
-  meta: {
-    value: ChartValueInfo;
-  };
-  strokeColor: ColorKeyOrString;
-  strokeWidth: number;
-  capWidth: number;
-  // Optional metadata
-  sourceData?: any;
-} & (
-  | { orientation: "vertical"; centerX: number; ubY: number; lbY: number }
-  | { orientation: "horizontal"; centerY: number; ubX: number; lbX: number }
-);
+export type ChartErrorBarPrimitive =
+  & BasePrimitive
+  & {
+    type: "chart-error-bar";
+    meta: {
+      value: ChartValueInfo;
+    };
+    strokeColor: ColorKeyOrString;
+    strokeWidth: number;
+    capWidth: number;
+    // Optional metadata
+    sourceData?: any;
+  }
+  & (
+    | { orientation: "vertical"; centerX: number; ubY: number; lbY: number }
+    | { orientation: "horizontal"; centerY: number; ubX: number; lbX: number }
+  );
 
 export type ChartConfidenceBandPrimitive = BasePrimitive & {
   type: "chart-confidence-band";
@@ -456,8 +460,10 @@ export type MapLabelPrimitive = BasePrimitive & {
     v: "top" | "middle" | "bottom";
   };
   halo?: {
-    color: string;
-    width: number;
+    fillColor?: string;
+    borderColor?: string;
+    borderWidth?: number;
+    padding: Padding;
     rectRadius?: number;
   };
   leaderLine?: {

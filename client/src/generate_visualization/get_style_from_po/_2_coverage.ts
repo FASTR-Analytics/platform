@@ -63,7 +63,10 @@ export function buildCoverageChartStyle(
     valuesColorFunc: compileCfToValuesColorFunc(selectCf(config.s)),
     map:
       config.d.type === "map"
-        ? { projection: config.s.mapProjection ?? "equirectangular", dataLabelMode: "centroid" }
+        ? {
+            projection: config.s.mapProjection ?? "equirectangular",
+            dataLabelMode: "centroid",
+          }
         : undefined,
   };
 }

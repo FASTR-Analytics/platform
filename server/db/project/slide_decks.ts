@@ -1,5 +1,5 @@
 import { Sql } from "postgres";
-import { type APIResponseNoData, APIResponseWithData, SlideDeckSummary, SlideDeckDetail, SlideDeckConfig, getStartingConfigForSlideDeck, parseJsonOrThrow } from "lib";
+import { type APIResponseNoData, APIResponseWithData, SlideDeckSummary, SlideDeckDetail, SlideDeckConfig, getStartingConfigForSlideDeck, parseJsonOrThrow, slideDeckConfigSchema } from "lib";
 import { DBSlideDeck } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { generateUniqueDeckId, generateUniqueSlideId } from "../../utils/id_generation.ts";
@@ -81,7 +81,7 @@ export async function createSlideDeck(
     const defaultConfig = getStartingConfigForSlideDeck(label);
     await projectDb`
       INSERT INTO slide_decks (id, label, plan, config, folder_id, last_updated)
-      VALUES (${deckId}, ${label}, '', ${JSON.stringify(defaultConfig)}, ${folderId ?? null}, ${lastUpdated})
+      VALUES (${deckId}, ${label}, '', ${JSON.stringify(slideDeckConfigSchema.parse(defaultConfig))}, ${folderId ?? null}, ${lastUpdated})
     `;
 
     return { success: true, data: { deckId, lastUpdated } };
@@ -163,7 +163,7 @@ export async function duplicateSlideDeck(
     config.label = label.trim();
     await projectDb`
       INSERT INTO slide_decks (id, label, plan, config, folder_id, last_updated)
-      VALUES (${newDeckId}, ${label.trim()}, ${deck.plan ?? ""}, ${JSON.stringify(config)}, ${folderId ?? null}, ${lastUpdated})
+      VALUES (${newDeckId}, ${label.trim()}, ${deck.plan ?? ""}, ${JSON.stringify(slideDeckConfigSchema.parse(config))}, ${folderId ?? null}, ${lastUpdated})
     `;
 
     const slides = await projectDb<{ config: string; sort_order: number }[]>`
@@ -193,7 +193,7 @@ export async function updateSlideDeckConfig(
     const lastUpdated = new Date().toISOString();
     await projectDb`
       UPDATE slide_decks
-      SET label = ${config.label}, config = ${JSON.stringify(config)}, last_updated = ${lastUpdated}
+      SET label = ${config.label}, config = ${JSON.stringify(slideDeckConfigSchema.parse(config))}, last_updated = ${lastUpdated}
       WHERE id = ${deckId}
     `;
     return { success: true, data: { lastUpdated } };

@@ -11,7 +11,8 @@ import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { clearGeoJsonMemoryCache } from "~/state/instance/t2_geojson";
 import { instanceState } from "~/state/instance/t1_store";
-import { GeoJsonUploadWizard } from "./geojson_upload_wizard";
+import { GeoJsonUploadWizard } from "./geojson_upload_wizard/index";
+import { GeoJsonEditModal } from "./geojson_edit_modal";
 
 type Props = {
   isGlobalAdmin: boolean;
@@ -25,6 +26,18 @@ export function GeoJsonManager(p: Props) {
     await openEditor({
       element: GeoJsonUploadWizard,
       props: {
+        silentRefresh: () => {
+          clearGeoJsonMemoryCache();
+        },
+      },
+    });
+  }
+
+  async function handleEdit(level: 2 | 3 | 4) {
+    await openEditor({
+      element: GeoJsonEditModal,
+      props: {
+        adminAreaLevel: level,
         silentRefresh: () => {
           clearGeoJsonMemoryCache();
         },
@@ -68,12 +81,20 @@ export function GeoJsonManager(p: Props) {
         );
         return (
           <Show when={p.isGlobalAdmin}>
-            <Button
-              iconName="trash"
-              intent="danger"
-              size="sm"
-              onClick={deleteAction.click}
-            />
+            <div class="flex gap-2">
+              <Button
+                iconName="pencil"
+                intent="neutral"
+                size="sm"
+                onClick={() => handleEdit(item.adminAreaLevel as 2 | 3 | 4)}
+              />
+              <Button
+                iconName="trash"
+                intent="danger"
+                size="sm"
+                onClick={deleteAction.click}
+              />
+            </div>
           </Show>
         );
       },

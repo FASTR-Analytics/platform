@@ -13,7 +13,7 @@ import {
   updatePresentationObjectConfig,
   updatePresentationObjectLabel,
 } from "../../db/mod.ts";
-import { adaptLegacyPODetailResponse } from "../../legacy_adapters/mod.ts";
+import { presentationObjectConfigSchema } from "lib";
 import { log } from "../../middleware/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { MAX_REPLICANT_OPTIONS } from "../../server_only_funcs_presentation_objects/consts.ts";
@@ -152,7 +152,17 @@ defineRoute(
       // Adapt legacy shapes on the cache-hit path. Pre-deploy Valkey entries
       // may have old-shape configs that the DB-function adapter never saw.
       // Idempotent for already-adapted entries.
-      return c.json(adaptLegacyPODetailResponse(existing));
+      return c.json(
+        existing.success
+          ? {
+              ...existing,
+              data: {
+                ...existing.data,
+                config: presentationObjectConfigSchema.parse(existing.data.config),
+              },
+            }
+          : existing,
+      );
     }
 
     // Cache miss - fetch and store

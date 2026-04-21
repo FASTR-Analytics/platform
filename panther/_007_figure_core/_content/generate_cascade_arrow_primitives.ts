@@ -296,7 +296,7 @@ function computeCascadeArrow(
   const highestY = Math.min(fromY, toY);
   const dlPadTop = dl.padding.pt();
   const dlPadBottom = dl.padding.pb();
-  const dlBorderHalf = dl.border !== "none" ? dl.border.width / 2 : 0;
+  const dlBorderHalf = dl.borderWidth > 0 ? dl.borderWidth / 2 : 0;
   const labelY = mText
     ? highestY -
       (sw / 2 + mText.dims.h() + dlPadBottom + dlBorderHalf +
@@ -306,7 +306,7 @@ function computeCascadeArrow(
   let dataLabel: DataLabel | undefined;
   if (mText) {
     const hasDecoration = dl.backgroundColor !== "none" ||
-      dl.border !== "none";
+      dl.borderWidth > 0;
     dataLabel = {
       mText,
       position: new Coordinates({ x: midX, y: labelY }),
@@ -318,12 +318,10 @@ function computeCascadeArrow(
             ? getColor(dl.backgroundColor)
             : undefined,
           padding: dl.padding,
-          border: dl.border !== "none"
-            ? {
-              color: getColor(dl.border.color),
-              width: dl.border.width,
-            }
+          borderColor: dl.borderColor !== undefined
+            ? getColor(dl.borderColor)
             : undefined,
+          borderWidth: dl.borderWidth > 0 ? dl.borderWidth : undefined,
           rectRadius: dl.rectRadius,
         }
         : undefined,

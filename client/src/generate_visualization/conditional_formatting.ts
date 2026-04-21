@@ -115,10 +115,7 @@ export function getLegendItemsFromConfig(
       { label: labels.decrease, color: _CF_RED },
     ];
   }
-  if (
-    config.s.specialDisruptionsChart ||
-    (config.s.content === "areas" && config.s.diffAreas)
-  ) {
+  if (config.s.specialDisruptionsChart) {
     if (config.s.diffInverted) {
       return [
         { label: t3({ en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },

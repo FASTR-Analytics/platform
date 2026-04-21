@@ -31,7 +31,7 @@ export function getToolsForVizEditor(
     createAITool({
       name: "get_viz_editor",
       description: "Get current configuration, available options, and underlying CSV data for the visualization being edited. Shows live state from the editor (including unsaved changes). Call this to understand current settings and see the data.",
-      inputSchema: z.strictObject({}),
+      inputSchema: z.object({}),
       handler: async () => {
         const ctx = getAIContext();
         if (ctx.mode !== "editing_visualization") {

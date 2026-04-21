@@ -10,15 +10,18 @@ import {
   InstalledModuleSummary,
   InstalledModuleWithConfigSelections,
   InstalledModuleWithResultsValues,
-  ModuleDefinition,
-  parseModuleDefinition,
+  ModuleDefinitionDetail,
+  parseInstalledModuleDefinition,
   getDisaggregationLabel,
   getStartingModuleConfigSelections,
   getMergedModuleConfigSelections,
   getValidatedModuleId,
   parseJsonOrThrow,
   throwIfErrWithData,
-  vizPresetStored,
+  vizPresetInstalled,
+  moduleDefinitionInstalledSchema,
+  metricStrict,
+  presentationObjectConfigSchema,
   type DirtyOrRunStatus,
   type MetricStatus,
   type MetricWithStatus,
@@ -35,7 +38,6 @@ import {
 } from "./../utils.ts";
 import { DBMetric, DBModule } from "./_project_database_types.ts";
 import { getAdminAreaLabelsConfig, getFacilityColumnsConfig } from "../instance/config.ts";
-import { adaptLegacyModuleDefinition, adaptLegacyVizPresets } from "../../legacy_adapters/mod.ts";
 import { enrichMetric } from "./metric_enricher.ts";
 
 export function parseModuleConfigSelections(json: string): ModuleConfigSelections {
@@ -44,6 +46,12 @@ export function parseModuleConfigSelections(json: string): ModuleConfigSelection
     parameterDefinitions: (raw.parameterDefinitions ?? []) as ModuleConfigSelections["parameterDefinitions"],
     parameterSelections: (raw.parameterSelections ?? {}) as ModuleConfigSelections["parameterSelections"],
   };
+}
+
+function prepareModuleDefinitionForStorage(mod: ModuleDefinitionDetail): string {
+  const { metrics: _, ...rest } = mod;
+  const validated = moduleDefinitionInstalledSchema.parse(rest);
+  return JSON.stringify(validated);
 }
 
 //////////////////////////////////////////////////////////////
@@ -103,14 +111,14 @@ export async function installModule(
       // Delete existing module (cascades to results_objects and metrics)
       await sql`DELETE FROM modules WHERE id = ${modDef.data.id}`;
 
-      // Insert module
+      // Insert module (blob excludes metrics — they're stored in metrics table)
       await sql`
 INSERT INTO modules
   (id, module_definition, config_selections, dirty, installed_at, script_updated_at, definition_updated_at, config_updated_at, last_run_at, installed_git_ref)
 VALUES
   (
     ${modDef.data.id},
-    ${JSON.stringify(modDef.data)},
+    ${prepareModuleDefinitionForStorage(modDef.data)},
     ${JSON.stringify(startingConfigSelections)},
     'queued',
     ${lastUpdated},
@@ -137,8 +145,9 @@ VALUES (
 `;
       }
 
-      // Insert metrics
+      // Insert metrics (validate before write)
       for (const metric of modDef.data.metrics) {
+        const validatedMetric = metricStrict.parse(metric);
         await sql`
 INSERT INTO metrics (
   id, module_id, label, variant_label, value_func, format_as, value_props,
@@ -146,21 +155,21 @@ INSERT INTO metrics (
   results_object_id, ai_description, viz_presets, hide, important_notes
 )
 VALUES (
-  ${metric.id},
+  ${validatedMetric.id},
   ${modDef.data.id},
-  ${metric.label},
-  ${metric.variantLabel ?? null},
-  ${metric.valueFunc},
-  ${metric.formatAs},
-  ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.requiredDisaggregationOptions)},
-  ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
-  ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
-  ${metric.resultsObjectId},
-  ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
-  ${metric.vizPresets ? JSON.stringify(metric.vizPresets) : null},
-  ${metric.hide ?? false},
-  ${metric.importantNotes ?? null}
+  ${validatedMetric.label},
+  ${validatedMetric.variantLabel},
+  ${validatedMetric.valueFunc},
+  ${validatedMetric.formatAs},
+  ${JSON.stringify(validatedMetric.valueProps)},
+  ${JSON.stringify(validatedMetric.requiredDisaggregationOptions)},
+  ${validatedMetric.valueLabelReplacements ? JSON.stringify(validatedMetric.valueLabelReplacements) : null},
+  ${validatedMetric.postAggregationExpression ? JSON.stringify(validatedMetric.postAggregationExpression) : null},
+  ${validatedMetric.resultsObjectId},
+  ${validatedMetric.aiDescription ? JSON.stringify(validatedMetric.aiDescription) : null},
+  ${JSON.stringify(validatedMetric.vizPresets)},
+  ${validatedMetric.hide},
+  ${validatedMetric.importantNotes}
 )
 `;
       }
@@ -173,8 +182,9 @@ WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE
 `;
       }
 
-      // Insert default presentation objects
+      // Insert default presentation objects (validate config before write)
       for (const presObjectDef of defaultPresentationObjects) {
+        const validatedConfig = presentationObjectConfigSchema.parse(presObjectDef.config);
         // Delete any existing PO with this ID (in case of reinstall)
         await sql`DELETE FROM presentation_objects WHERE id = ${presObjectDef.id}`;
         await sql`
@@ -186,7 +196,7 @@ VALUES
     ${presObjectDef.metricId},
     ${true},
     ${presObjectDef.label},
-    ${JSON.stringify(presObjectDef.config)},
+    ${JSON.stringify(validatedConfig)},
     ${lastUpdated},
     ${presObjectDef.sortOrder}
   )
@@ -241,8 +251,8 @@ SELECT * FROM modules WHERE id = ${moduleId}
     if (!rawModule) {
       return { success: true };
     }
-    const moduleDefinition = parseModuleDefinition(
-      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
+    const moduleDefinition = parseInstalledModuleDefinition(
+      rawModule.module_definition,
     );
     await projectDb.begin(async (sql: Sql) => {
       await sql`DELETE FROM modules WHERE id = ${moduleId}`;
@@ -309,7 +319,7 @@ export async function updateModuleDefinition(
       : getStartingModuleConfigSelections(modDef.data.configRequirements);
 
     // Change detection: compare compute-affecting fields
-    const storedDef = parseModuleDefinition(adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)));
+    const storedDef = parseInstalledModuleDefinition(rawModule.module_definition);
     const scriptChanged = modDef.data.script !== storedDef.script;
     const configReqChanged = JSON.stringify(modDef.data.configRequirements) !== JSON.stringify(storedDef.configRequirements);
     const resultsObjectsChanged = JSON.stringify(modDef.data.resultsObjects) !== JSON.stringify(storedDef.resultsObjects);
@@ -330,7 +340,7 @@ INSERT INTO modules
   (id, module_definition, config_selections, dirty, installed_at, script_updated_at, definition_updated_at, config_updated_at, last_run_at, installed_git_ref)
 VALUES (
   ${modDef.data.id},
-  ${JSON.stringify(modDef.data)},
+  ${prepareModuleDefinitionForStorage(modDef.data)},
   ${JSON.stringify(newConfigSelections)},
   'queued',
   ${lastUpdated},
@@ -351,30 +361,32 @@ VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
         }
 
         for (const metric of modDef.data.metrics) {
+          const validatedMetric = metricStrict.parse(metric);
           await sql`
 INSERT INTO metrics (
   id, module_id, label, variant_label, value_func, format_as, value_props,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
   results_object_id, ai_description, viz_presets, hide, important_notes
 ) VALUES (
-  ${metric.id}, ${modDef.data.id}, ${metric.label}, ${metric.variantLabel ?? null},
-  ${metric.valueFunc}, ${metric.formatAs}, ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.requiredDisaggregationOptions)},
-  ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
-  ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
-  ${metric.resultsObjectId}, ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
-  ${metric.vizPresets ? JSON.stringify(metric.vizPresets) : null},
-  ${metric.hide ?? false}, ${metric.importantNotes ?? null})`;
+  ${validatedMetric.id}, ${modDef.data.id}, ${validatedMetric.label}, ${validatedMetric.variantLabel},
+  ${validatedMetric.valueFunc}, ${validatedMetric.formatAs}, ${JSON.stringify(validatedMetric.valueProps)},
+  ${JSON.stringify(validatedMetric.requiredDisaggregationOptions)},
+  ${validatedMetric.valueLabelReplacements ? JSON.stringify(validatedMetric.valueLabelReplacements) : null},
+  ${validatedMetric.postAggregationExpression ? JSON.stringify(validatedMetric.postAggregationExpression) : null},
+  ${validatedMetric.resultsObjectId}, ${validatedMetric.aiDescription ? JSON.stringify(validatedMetric.aiDescription) : null},
+  ${JSON.stringify(validatedMetric.vizPresets)},
+  ${validatedMetric.hide}, ${validatedMetric.importantNotes})`;
         }
 
         if (metricIds.length > 0) {
           await sql`DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE`;
         }
         for (const po of defaultPresentationObjects) {
+          const validatedConfig = presentationObjectConfigSchema.parse(po.config);
           await sql`DELETE FROM presentation_objects WHERE id = ${po.id}`;
           await sql`
 INSERT INTO presentation_objects (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
-VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(po.config)}, ${lastUpdated}, ${po.sortOrder})`;
+VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(validatedConfig)}, ${lastUpdated}, ${po.sortOrder})`;
         }
       });
 
@@ -396,7 +408,7 @@ VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(po.conf
       await sql`
         UPDATE modules
         SET
-          module_definition = ${JSON.stringify(modDef.data)},
+          module_definition = ${prepareModuleDefinitionForStorage(modDef.data)},
           config_selections = ${JSON.stringify(newConfigSelections)},
           installed_at = ${lastUpdated},
           definition_updated_at = ${lastUpdated},
@@ -418,30 +430,32 @@ VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
       }
 
       for (const metric of modDef.data.metrics) {
+        const validatedMetric = metricStrict.parse(metric);
         await sql`
 INSERT INTO metrics (
   id, module_id, label, variant_label, value_func, format_as, value_props,
   required_disaggregation_options, value_label_replacements, post_aggregation_expression,
   results_object_id, ai_description, viz_presets, hide, important_notes
 ) VALUES (
-  ${metric.id}, ${modDef.data.id}, ${metric.label}, ${metric.variantLabel ?? null},
-  ${metric.valueFunc}, ${metric.formatAs}, ${JSON.stringify(metric.valueProps)},
-  ${JSON.stringify(metric.requiredDisaggregationOptions)},
-  ${metric.valueLabelReplacements ? JSON.stringify(metric.valueLabelReplacements) : null},
-  ${metric.postAggregationExpression ? JSON.stringify(metric.postAggregationExpression) : null},
-  ${metric.resultsObjectId}, ${metric.aiDescription ? JSON.stringify(metric.aiDescription) : null},
-  ${metric.vizPresets ? JSON.stringify(metric.vizPresets) : null},
-  ${metric.hide ?? false}, ${metric.importantNotes ?? null})`;
+  ${validatedMetric.id}, ${modDef.data.id}, ${validatedMetric.label}, ${validatedMetric.variantLabel},
+  ${validatedMetric.valueFunc}, ${validatedMetric.formatAs}, ${JSON.stringify(validatedMetric.valueProps)},
+  ${JSON.stringify(validatedMetric.requiredDisaggregationOptions)},
+  ${validatedMetric.valueLabelReplacements ? JSON.stringify(validatedMetric.valueLabelReplacements) : null},
+  ${validatedMetric.postAggregationExpression ? JSON.stringify(validatedMetric.postAggregationExpression) : null},
+  ${validatedMetric.resultsObjectId}, ${validatedMetric.aiDescription ? JSON.stringify(validatedMetric.aiDescription) : null},
+  ${JSON.stringify(validatedMetric.vizPresets)},
+  ${validatedMetric.hide}, ${validatedMetric.importantNotes})`;
       }
 
       if (metricIds.length > 0) {
         await sql`DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE`;
       }
       for (const po of defaultPresentationObjects) {
+        const validatedConfig = presentationObjectConfigSchema.parse(po.config);
         await sql`DELETE FROM presentation_objects WHERE id = ${po.id}`;
         await sql`
 INSERT INTO presentation_objects (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
-VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(po.config)}, ${lastUpdated}, ${po.sortOrder})`;
+VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(validatedConfig)}, ${lastUpdated}, ${po.sortOrder})`;
       }
     });
 
@@ -491,8 +505,8 @@ export async function getAllModulesForProject(
     }
 
     const modules = rawModules.map<InstalledModuleSummary>((rawModule) => {
-      const moduleDefinition = parseModuleDefinition(
-        adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
+      const moduleDefinition = parseInstalledModuleDefinition(
+        rawModule.module_definition,
       );
 
       return {
@@ -563,8 +577,8 @@ SELECT * FROM modules WHERE id = ${moduleId}
     if (rawModule === undefined) {
       throw new Error("No module with this definition id");
     }
-    const moduleDefinition = parseModuleDefinition(
-      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
+    const moduleDefinition = parseInstalledModuleDefinition(
+      rawModule.module_definition,
     );
     const module: ModuleDetailForRunningScript = {
       id: getValidatedModuleId(rawModule.id),
@@ -659,8 +673,8 @@ export async function getMetricsListForAI(
     ];
 
     for (const rawModule of rawModules) {
-      const moduleDefinition = parseModuleDefinition(
-        adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
+      const moduleDefinition = parseInstalledModuleDefinition(
+        rawModule.module_definition,
       );
       const moduleMetrics = metricsByModule.get(rawModule.id) ?? [];
 
@@ -936,7 +950,7 @@ export async function getMetricsWithStatus(
         status,
         moduleId,
         vizPresets: dbMetric.viz_presets
-          ? z.array(vizPresetStored).parse(adaptLegacyVizPresets(JSON.parse(dbMetric.viz_presets)))
+          ? z.array(vizPresetInstalled).parse(JSON.parse(dbMetric.viz_presets))
           : undefined,
       });
     }
@@ -966,8 +980,8 @@ export async function getModulesListForAI(
     const lines = ["AVAILABLE MODULES", "=".repeat(80), ""];
 
     for (const rawModule of rawModules) {
-      const moduleDefinition = parseModuleDefinition(
-        adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
+      const moduleDefinition = parseInstalledModuleDefinition(
+        rawModule.module_definition,
       );
 
       lines.push(`ID: ${rawModule.id}`);
@@ -1004,8 +1018,8 @@ SELECT * FROM modules WHERE id = ${moduleId}
       throw new Error("No module with this id");
     }
 
-    const moduleDefinition = parseModuleDefinition(
-      adaptLegacyModuleDefinition(JSON.parse(rawModule.module_definition)),
+    const moduleDefinition = parseInstalledModuleDefinition(
+      rawModule.module_definition,
     );
     const configSelections = parseModuleConfigSelections(
       rawModule.config_selections,

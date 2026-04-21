@@ -14,7 +14,7 @@ export function getToolsForModules(
     createAITool({
       name: "get_available_modules",
       description: "Get a list of analysis modules and their status",
-      inputSchema: z.strictObject({}),
+      inputSchema: z.object({}),
       handler: async () => {
         return formatModulesListForAI(modules, metrics);
       },

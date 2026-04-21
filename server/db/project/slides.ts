@@ -5,6 +5,7 @@ import {
   Slide,
   SlidePosition,
   SlideWithMeta,
+  slideConfigSchema,
 } from "lib";
 import { DBSlide } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
@@ -132,7 +133,7 @@ export async function createSlide(
           ${slideId},
           ${deckId},
           ${newSortOrder},
-          ${JSON.stringify(slide)},
+          ${JSON.stringify(slideConfigSchema.parse(slide))},
           ${lastUpdated}
         )
       `,
@@ -187,7 +188,7 @@ export async function updateSlide(
     await projectDb.begin((sql) => [
       sql`
         UPDATE slides
-        SET config = ${JSON.stringify(slide)}, last_updated = ${lastUpdated}
+        SET config = ${JSON.stringify(slideConfigSchema.parse(slide))}, last_updated = ${lastUpdated}
         WHERE id = ${slideId}
       `,
       sql`

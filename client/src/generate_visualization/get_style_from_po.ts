@@ -16,10 +16,7 @@ export function getStyleFromPresentationObject(
   if (config.s.specialBarChart) {
     return buildPercentChangeChartStyle(config, formatAs);
   }
-  if (
-    config.s.specialDisruptionsChart ||
-    (config.s.content === "areas" && config.s.diffAreas) // Legacy adapter — remove once all configs migrated
-  ) {
+  if (config.s.specialDisruptionsChart) {
     return buildDisruptionsChartStyle(config, formatAs);
   }
   if (config.s.specialScorecardTable) {

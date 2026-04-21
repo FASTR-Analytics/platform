@@ -1,25 +1,7 @@
 import { t3 } from "../translate/t-func.ts";
 import { CountryCodes } from "./instance.ts";
 
-export type ModuleId =
-  | "m001"
-  | "m002"
-  | "m003"
-  | "m004"
-  | "m005"
-  | "m006"
-  | "m007"
-  | "hfa001";
-
-export type ModuleRegistryEntry = {
-  id: ModuleId;
-  label: { en: string; fr: string };
-  prerequisites: ModuleId[];
-  github: { owner: string; repo: string; path: string };
-  allowedCountries?: string[];
-};
-
-export const MODULE_REGISTRY: ModuleRegistryEntry[] = [
+export const MODULE_REGISTRY = [
   {
     id: "m001",
     label: {
@@ -93,7 +75,17 @@ export const MODULE_REGISTRY: ModuleRegistryEntry[] = [
     prerequisites: [],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "hfa001" },
   },
-];
+] as const;
+
+export type ModuleId = (typeof MODULE_REGISTRY)[number]["id"];
+
+export type ModuleRegistryEntry = {
+  id: ModuleId;
+  label: { en: string; fr: string };
+  prerequisites: readonly ModuleId[];
+  github: { owner: string; repo: string; path: string };
+  allowedCountries?: readonly string[];
+};
 
 export function getValidatedModuleId(id: string): ModuleId {
   const entry = MODULE_REGISTRY.find((m) => m.id === id);

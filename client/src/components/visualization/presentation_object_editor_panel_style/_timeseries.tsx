@@ -36,11 +36,7 @@ export function TimeseriesStyleControls(p: Props) {
   const mode = (): TimeseriesMode => {
     if (p.tempConfig.s.specialCoverageChart) return "coverage";
     if (p.tempConfig.s.specialBarChart) return "percent-change";
-    if (
-      p.tempConfig.s.specialDisruptionsChart ||
-      (p.tempConfig.s.content === "areas" && p.tempConfig.s.diffAreas) // Legacy adapter — remove once all configs migrated
-    )
-      return "disruptions";
+    if (p.tempConfig.s.specialDisruptionsChart) return "disruptions";
     return "standard";
   };
 
@@ -48,7 +44,6 @@ export function TimeseriesStyleControls(p: Props) {
     p.setTempConfig("s", "specialCoverageChart", v === "coverage");
     p.setTempConfig("s", "specialBarChart", v === "percent-change");
     p.setTempConfig("s", "specialDisruptionsChart", v === "disruptions");
-    p.setTempConfig("s", "diffAreas", false); // Clear legacy flag
     if (v === "coverage") {
       p.setTempConfig("d", "timeseriesGrouping", "year" as PeriodOption);
       p.setTempConfig("s", "content", "lines");

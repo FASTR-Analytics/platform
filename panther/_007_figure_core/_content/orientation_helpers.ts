@@ -41,9 +41,7 @@ export function valBaselineCoord(
   subChartRcd: RectCoordsDims,
   orientation: Orientation,
 ): number {
-  return orientation === "horizontal"
-    ? subChartRcd.x()
-    : subChartRcd.bottomY();
+  return orientation === "horizontal" ? subChartRcd.x() : subChartRcd.bottomY();
 }
 
 // Direction a positive value extends from the baseline.

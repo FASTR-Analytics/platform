@@ -59,10 +59,7 @@ export async function callAI(
 
   if (hasTools) {
     const allTools = [
-      ...(config.tools?.map((t) => ({
-        ...t.sdkTool,
-        strict: true, // Always enable strict mode
-      })) || []),
+      ...(config.tools?.map((t) => t.sdkTool) || []),
       ...resolvedBuiltInTools,
     ];
 

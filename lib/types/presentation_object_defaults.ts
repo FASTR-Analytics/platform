@@ -18,8 +18,6 @@ export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   barsStacked: false,
   specialCoverageChart: false,
   specialDisruptionsChart: false,
-  diffAreas: false,
-  diffAreasOrder: "actual-expected",
   diffInverted: false,
   specialBarChart: false,
   specialBarChartInverted: false,
