@@ -15,8 +15,9 @@
 // - If any row fails validation after transforms: rollback, boot fails
 //
 // TRANSFORM BLOCKS:
-// - Fill missing top-level fields: prerequisites, lastScriptUpdate, dataSources, etc.
-// - DELETE metrics from blob (metrics are stored in metrics table, not blob)
+// 1. Fill missing top-level fields: prerequisites, lastScriptUpdate, dataSources, etc.
+// 2. Fill metricId and sortOrder in defaultPresentationObjects items
+// 3. DELETE metrics from blob (metrics are stored in metrics table, not blob)
 //
 // =============================================================================
 
@@ -29,7 +30,7 @@ export type MigrationStats = {
 };
 
 function transformModuleDefinition(mod: Record<string, unknown>): void {
-  // Fill missing top-level fields
+  // Block 1: Fill missing top-level fields
   if (!("prerequisites" in mod)) mod.prerequisites = [];
   if (!("lastScriptUpdate" in mod)) mod.lastScriptUpdate = "";
   if (!("dataSources" in mod)) mod.dataSources = [];
@@ -45,7 +46,17 @@ function transformModuleDefinition(mod: Record<string, unknown>): void {
   if (!("resultsObjects" in mod)) mod.resultsObjects = [];
   if (!("defaultPresentationObjects" in mod)) mod.defaultPresentationObjects = [];
 
-  // DELETE metrics from blob — they're stored in the metrics table, not here
+  // Block 2: Fill metricId and sortOrder in defaultPresentationObjects items
+  if (Array.isArray(mod.defaultPresentationObjects)) {
+    const dpos = mod.defaultPresentationObjects as Record<string, unknown>[];
+    for (let i = 0; i < dpos.length; i++) {
+      const dpo = dpos[i];
+      if (!("metricId" in dpo)) dpo.metricId = "";
+      if (!("sortOrder" in dpo)) dpo.sortOrder = i;
+    }
+  }
+
+  // Block 3: DELETE metrics from blob (stored in metrics table, not here)
   delete mod.metrics;
 }
 
