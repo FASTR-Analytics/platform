@@ -1,3 +1,5 @@
+[1.23.0] [user] [fixed] - Presentation settings now retain display order after saving
+[1.23.0] [admin] [fixed] - Module migration now correctly fills missing presentation object fields
 [1.23.0] [user] [added] - Uploaded files are now auto-selected after processing completes
 [1.23.0] [user] [added] - HFA indicator table now shows syntax error and consistency status columns
 [1.23.0] [user] [added] - "Revalidate all" button added to HFA indicator manager for admins
