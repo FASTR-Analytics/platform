@@ -134,7 +134,7 @@ const configDGithubStrict = z
     type: presentationOptionGithub,
     timeseriesGrouping: periodOptionGithub.optional(),
     valuesDisDisplayOpt: disaggregationDisplayOptionGithub,
-    valuesFilter: z.array(z.string()).optional(),
+    valuesFilter: z.array(z.string()).min(1).optional(),
     disaggregateBy: z.array(
       z.object({
         disOpt: disaggregationOptionGithub,
