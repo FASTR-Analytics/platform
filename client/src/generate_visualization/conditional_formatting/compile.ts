@@ -56,13 +56,11 @@ export function compileCfToLegend(
             nSteps: cf.steps!,
             domain,
             format: formatAs,
-            noData: cf.noDataColor ? { color: cf.noDataColor, label: "No data" } : undefined,
           }
         : {
             type: "gradient-auto" as const,
             domain,
             format: formatAs,
-            noData: cf.noDataColor ? { color: cf.noDataColor, label: "No data" } : undefined,
           };
 
       return resolveAutoScaleLegend(autoConfig, colorFunc, domain);

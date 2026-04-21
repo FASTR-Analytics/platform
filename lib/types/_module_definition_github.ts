@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { cfStorageSchema } from "./conditional_formatting.ts";
+import { cfStorageSchema } from "./conditional_formatting_standalone.ts";
 import { ALL_DISAGGREGATION_OPTIONS } from "./disaggregation_options.ts";
 
 // ============================================================================
@@ -350,3 +350,25 @@ export const moduleDefinitionGithubSchema = z
 export type ModuleDefinitionGithub = z.infer<typeof moduleDefinitionGithubSchema>;
 export type MetricDefinitionGithub = z.infer<typeof metricDefinitionGithub>;
 export type ResultsObjectDefinitionGithub = z.infer<typeof resultsObjectDefinitionGithub>;
+
+// ── Alias types (for wb-fastr-modules compatibility) ────────────────
+
+export type TranslatableString = z.infer<typeof translatableStringGithub>;
+export type ScriptGenerationType = z.infer<typeof scriptGenerationTypeGithub>;
+export type DataSource = z.infer<typeof dataSourceGithub>;
+export type DataSourceDataset = z.infer<typeof dataSourceDatasetGithub>;
+export type DataSourceResultsObject = z.infer<typeof dataSourceResultsObjectGithub>;
+export type ModuleParameter = z.infer<typeof moduleParameterGithub>;
+export type ModuleConfigRequirements = z.infer<typeof configRequirementsGithub>;
+export type ValueFunc = z.infer<typeof valueFuncGithub>;
+export type PeriodOption = z.infer<typeof periodOptionGithub>;
+export type DisaggregationOption = z.infer<typeof disaggregationOptionGithub>;
+export type PostAggregationExpression = z.infer<typeof postAggregationExpressionGithub>;
+export type VizPresetTextConfig = z.infer<typeof vizPresetTextConfigGithubStrict>;
+export type VizPreset = z.infer<typeof vizPresetGithub>;
+export type MetricAIDescription = z.infer<typeof metricAIDescriptionGithub>;
+export type ModuleDefinitionCore = Pick<
+  ModuleDefinitionGithub,
+  "label" | "prerequisites" | "scriptGenerationType" | "dataSources" | "assetsToImport"
+>;
+export { moduleDefinitionGithubSchema as ModuleDefinitionJSONSchema };

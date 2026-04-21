@@ -1,16 +1,8 @@
-import type Uppy from "@uppy/core";
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal } from "solid-js";
 import { t3, TC, type DatasetHfaStep1Result } from "lib";
 import { serverActions } from "~/server_actions";
-import {
-  Button,
-  Select,
-  StateHolderFormError,
-  getSelectOptions,
-  timActionForm,
-} from "panther";
-import { cleanupUppy, createUppyInstance } from "~/components/_uppy_file_upload";
-import { instanceState } from "~/state/instance/t1_store";
+import { Button, StateHolderFormError, timActionForm } from "panther";
+import { FileUploadSelector } from "~/components/_file_upload_selector";
 
 type Props = {
   step1Result: DatasetHfaStep1Result | undefined;
@@ -53,68 +45,25 @@ export function Step1(p: Props) {
     });
   }, p.silentFetch);
 
-  let uppyCsv: Uppy | undefined = undefined;
-  let uppyXlsForm: Uppy | undefined = undefined;
-
-  onMount(() => {
-    uppyCsv = createUppyInstance({
-      triggerId: "#select-csv-button",
-      onUploadSuccess: (file) => {
-        if (!file) return;
-        updateSelectedCsvFileName(file.name as string);
-      },
-    });
-    uppyXlsForm = createUppyInstance({
-      triggerId: "#select-xlsform-button",
-      onUploadSuccess: (file) => {
-        if (!file) return;
-        updateSelectedXlsFormFileName(file.name as string);
-      },
-    });
-  });
-
-  onCleanup(() => {
-    cleanupUppy(uppyCsv);
-    cleanupUppy(uppyXlsForm);
-  });
-
   return (
     <div class="ui-pad ui-spy">
       <h3 class="font-700 text-lg">{t3({ en: "CSV Data File", fr: "Fichier de données CSV" })}</h3>
-      <div class="">
-        <Button id="select-csv-button" iconName="upload">
-          {t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser" })}
-        </Button>
-      </div>
-      <div class="w-96">
-        <Select
-          label={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
-          options={getSelectOptions(
-            instanceState.assets.filter((a) => a.isCsv).map((a) => a.fileName),
-          )}
-          value={selectedCsvFileName()}
-          onChange={updateSelectedCsvFileName}
-          fullWidth
-        />
-      </div>
+      <FileUploadSelector
+        buttonLabel={t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser" })}
+        selectLabel={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
+        filter={(a) => a.isCsv}
+        value={selectedCsvFileName()}
+        onChange={updateSelectedCsvFileName}
+      />
 
       <h3 class="font-700 text-lg">{t3({ en: "XLSForm Questionnaire File", fr: "Fichier questionnaire XLSForm" })}</h3>
-      <div class="">
-        <Button id="select-xlsform-button" iconName="upload">
-          {t3({ en: "Upload new XLSForm file", fr: "Téléverser un nouveau fichier XLSForm" })}
-        </Button>
-      </div>
-      <div class="w-96">
-        <Select
-          label={t3({ en: "Existing XLSForm file to use", fr: "Fichier XLSForm existant à utiliser" })}
-          options={getSelectOptions(
-            instanceState.assets.filter((a) => a.isXlsx).map((a) => a.fileName),
-          )}
-          value={selectedXlsFormFileName()}
-          onChange={updateSelectedXlsFormFileName}
-          fullWidth
-        />
-      </div>
+      <FileUploadSelector
+        buttonLabel={t3({ en: "Upload new XLSForm file", fr: "Téléverser un nouveau fichier XLSForm" })}
+        selectLabel={t3({ en: "Existing XLSForm file to use", fr: "Fichier XLSForm existant à utiliser" })}
+        filter={(a) => a.isXlsx}
+        value={selectedXlsFormFileName()}
+        onChange={updateSelectedXlsFormFileName}
+      />
 
       <StateHolderFormError state={save.state()} />
       <div class="ui-gap-sm flex">

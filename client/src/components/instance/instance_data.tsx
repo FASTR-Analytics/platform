@@ -1,8 +1,8 @@
 import { t3 } from "lib";
 import { FrameTop, HeadingBarMainRibbon, toNum0 } from "panther";
 import { Match, Show, Switch, createSignal } from "solid-js";
-import { HfaIndicatorsManager } from "./hfa_indicators_manager";
-import { IndicatorsManager } from "../indicators/indicators_manager";
+import { HfaIndicatorsManager } from "../indicator_manager_hfa/hfa_indicators_manager";
+import { IndicatorsManager } from "../indicator_manager_hmis/indicators_manager";
 import { InstanceDatasetHfa } from "../instance_dataset_hfa";
 import { InstanceDatasetHmis } from "../instance_dataset_hmis";
 import { Structure } from "../structure";

@@ -27,6 +27,8 @@
 // 10. Fill mapProjection default
 // 11. Empty valuesFilter → undefined (inclusion list must have items)
 // 12. Remove filterBy entries with empty values array
+// 13. Fill showDataLabelsLineCharts default
+// 14. Fill specialBarChartInverted default
 //
 // =============================================================================
 
@@ -222,6 +224,12 @@ export async function migratePOConfigs(tx: Sql, projectId: string): Promise<Migr
 
     // Block 10: Fill mapProjection default (required field added later)
     if (!("mapProjection" in s)) s.mapProjection = "equirectangular";
+
+    // Block 13: Fill showDataLabelsLineCharts default
+    if (!("showDataLabelsLineCharts" in s)) s.showDataLabelsLineCharts = false;
+
+    // Block 14: Fill specialBarChartInverted default
+    if (!("specialBarChartInverted" in s)) s.specialBarChartInverted = false;
 
     c.d = d;
     c.s = s;

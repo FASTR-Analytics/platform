@@ -70,4 +70,9 @@ export const hfaIndicatorRouteRegistry = {
     method: "GET",
     response: {} as HfaDictionaryForValidation,
   }),
+
+  revalidateAllHfaIndicators: route({
+    path: "/hfa-indicators/revalidate-all",
+    method: "POST",
+  }),
 } as const;

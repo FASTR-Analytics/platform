@@ -1,16 +1,8 @@
-import type Uppy from "@uppy/core";
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal } from "solid-js";
 import { t3, TC, type CsvDetails } from "lib";
 import { serverActions } from "~/server_actions";
-import {
-  Button,
-  Select,
-  StateHolderFormError,
-  getSelectOptions,
-  timActionForm,
-} from "panther";
-import { cleanupUppy, createUppyInstance } from "~/components/_uppy_file_upload";
-import { instanceState } from "~/state/instance/t1_store";
+import { Button, StateHolderFormError, timActionForm } from "panther";
+import { FileUploadSelector } from "~/components/_file_upload_selector";
 
 type Props = {
   step1Result: CsvDetails | undefined;
@@ -43,42 +35,15 @@ export function Step1_Csv(p: Props) {
     });
   }, p.silentFetch);
 
-  let uppy: Uppy | undefined = undefined;
-
-  onMount(() => {
-    uppy = createUppyInstance({
-      triggerId: "#select-file-button",
-      onUploadSuccess: (file) => {
-        if (!file) {
-          return;
-        }
-        updateSelectedFileName(file.name as string);
-      },
-    });
-  });
-
-  onCleanup(() => {
-    cleanupUppy(uppy);
-  });
-
   return (
     <div class="ui-pad ui-spy">
-      <div class="">
-        <Button id="select-file-button" iconName="upload">
-          {t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser" })}
-        </Button>
-      </div>
-      <div class="w-96">
-        <Select
-          label={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
-          options={getSelectOptions(
-            instanceState.assets.filter((a) => a.isCsv).map((a) => a.fileName),
-          )}
-          value={selectedFileName()}
-          onChange={updateSelectedFileName}
-          fullWidth
-        />
-      </div>
+      <FileUploadSelector
+        buttonLabel={t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser" })}
+        selectLabel={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
+        filter={(a) => a.isCsv}
+        value={selectedFileName()}
+        onChange={updateSelectedFileName}
+      />
       <StateHolderFormError state={save.state()} />
       <div class="ui-gap-sm flex">
         <Button

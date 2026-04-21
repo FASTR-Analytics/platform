@@ -15,7 +15,12 @@ export * from "./indicators.ts";
 export * from "./instance.ts";
 export * from "./instance_sse.ts";
 export * from "./_metric_installed.ts";
-export * from "./_module_definition_github.ts";
+export {
+  moduleDefinitionGithubSchema,
+  type ModuleDefinitionGithub,
+  type MetricDefinitionGithub,
+  type ResultsObjectDefinitionGithub,
+} from "./_module_definition_github.ts";
 export * from "./_module_definition_installed.ts";
 export * from "./module_registry.ts";
 export * from "./modules.ts";

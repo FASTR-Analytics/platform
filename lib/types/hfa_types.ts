@@ -5,6 +5,8 @@ export type HfaIndicator = {
   type: "binary" | "numeric";
   aggregation: "sum" | "avg";
   sortOrder: number;
+  hasSyntaxError: boolean;
+  codeConsistent: boolean;
 };
 
 export type HfaIndicatorCode = {

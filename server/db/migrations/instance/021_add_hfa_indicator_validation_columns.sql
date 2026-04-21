@@ -1,0 +1,2 @@
+ALTER TABLE hfa_indicators ADD COLUMN IF NOT EXISTS has_syntax_error BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE hfa_indicators ADD COLUMN IF NOT EXISTS code_consistent BOOLEAN NOT NULL DEFAULT true;

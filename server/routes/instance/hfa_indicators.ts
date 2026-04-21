@@ -11,6 +11,7 @@ import {
   updateHfaIndicatorCode,
   saveHfaIndicatorFull,
   getHfaDictionaryForValidation,
+  revalidateAllHfaIndicators,
 } from "../../db/mod.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -129,6 +130,19 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   async (c) => {
     const res = await getHfaDictionaryForValidation(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "revalidateAllHfaIndicators",
+  requireGlobalPermission("can_configure_data"),
+  async (c) => {
+    const res = await revalidateAllHfaIndicators(c.var.mainDb);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );

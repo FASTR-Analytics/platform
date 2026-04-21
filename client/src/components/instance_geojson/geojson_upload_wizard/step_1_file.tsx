@@ -1,7 +1,7 @@
 import { t3 } from "lib";
-import { Button, Select, StateHolderFormError, getSelectOptions, timActionForm } from "panther";
+import { Button, StateHolderFormError, timActionForm } from "panther";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance/t1_store";
+import { FileUploadSelector } from "~/components/_file_upload_selector";
 import type { WizardState } from "./index";
 
 type Props = {
@@ -34,23 +34,13 @@ export function Step1File(p: Props) {
     <div class="ui-spy">
       <div class="font-600">{t3({ en: "Step 1: Select GeoJSON file", fr: "Étape 1 : Sélectionner le fichier GeoJSON" })}</div>
 
-      <Button id="select-geojson-file-button" iconName="upload">
-        {t3({ en: "Upload new GeoJSON file", fr: "Téléverser un nouveau fichier GeoJSON" })}
-      </Button>
-
-      <div class="w-96">
-        <Select
-          label={t3({ en: "Or select existing file", fr: "Ou sélectionner un fichier existant" })}
-          options={getSelectOptions(
-            instanceState.assets
-              .filter((a) => a.fileName.endsWith(".geojson") || a.fileName.endsWith(".json"))
-              .map((a) => a.fileName),
-          )}
-          value={state.selectedFileName()}
-          onChange={state.setSelectedFileName}
-          fullWidth
-        />
-      </div>
+      <FileUploadSelector
+        buttonLabel={t3({ en: "Upload new GeoJSON file", fr: "Téléverser un nouveau fichier GeoJSON" })}
+        selectLabel={t3({ en: "Or select existing file", fr: "Ou sélectionner un fichier existant" })}
+        filter={(a) => a.fileName.endsWith(".geojson") || a.fileName.endsWith(".json")}
+        value={state.selectedFileName()}
+        onChange={state.setSelectedFileName}
+      />
 
       <StateHolderFormError state={analyzeAction.state()} />
 

@@ -6,6 +6,7 @@ import {
   type HfaIndicatorCode,
   type HfaDictionaryForValidation,
 } from "lib";
+import { computeHfaIndicatorValidationState } from "../../../lib/hfa_code_validation.ts";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 
 export type DBHfaIndicator = {
@@ -16,6 +17,8 @@ export type DBHfaIndicator = {
   aggregation: "sum" | "avg";
   sort_order: number;
   updated_at: string;
+  has_syntax_error: boolean;
+  code_consistent: boolean;
 };
 
 type DBHfaIndicatorCode = {
@@ -33,6 +36,8 @@ export function dbRowToHfaIndicator(row: DBHfaIndicator): HfaIndicator {
     type: row.type,
     aggregation: row.aggregation,
     sortOrder: row.sort_order,
+    hasSyntaxError: row.has_syntax_error,
+    codeConsistent: row.code_consistent,
   };
 }
 
@@ -112,15 +117,24 @@ export async function batchUploadHfaIndicators(
   replaceAll: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    const codeByVarName = new Map<string, HfaIndicatorCode[]>();
+    for (const c of code) {
+      const arr = codeByVarName.get(c.varName) ?? [];
+      arr.push(c);
+      codeByVarName.set(c.varName, arr);
+    }
+
     await mainDb.begin(async (sql) => {
       if (replaceAll) {
         await sql`DELETE FROM hfa_indicators`;
       }
       for (let i = 0; i < indicators.length; i++) {
         const ind = indicators[i];
+        const indCode = codeByVarName.get(ind.varName) ?? [];
+        const validationState = computeHfaIndicatorValidationState(indCode);
         await sql`
-          INSERT INTO hfa_indicators (var_name, category, definition, type, aggregation, sort_order, updated_at)
-          VALUES (${ind.varName}, ${ind.category}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${i}, CURRENT_TIMESTAMP)
+          INSERT INTO hfa_indicators (var_name, category, definition, type, aggregation, sort_order, has_syntax_error, code_consistent, updated_at)
+          VALUES (${ind.varName}, ${ind.category}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${i}, ${validationState.hasSyntaxError}, ${validationState.codeConsistent}, CURRENT_TIMESTAMP)
           ON CONFLICT (var_name)
           DO UPDATE SET
             category = EXCLUDED.category,
@@ -128,6 +142,8 @@ export async function batchUploadHfaIndicators(
             type = EXCLUDED.type,
             aggregation = EXCLUDED.aggregation,
             sort_order = EXCLUDED.sort_order,
+            has_syntax_error = EXCLUDED.has_syntax_error,
+            code_consistent = EXCLUDED.code_consistent,
             updated_at = CURRENT_TIMESTAMP
         `;
       }
@@ -154,6 +170,7 @@ export async function saveHfaIndicatorFull(
   code: { timePoint: string; rCode: string; rFilterCode: string | undefined }[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    const validationState = computeHfaIndicatorValidationState(code);
     await mainDb.begin(async (sql) => {
       await sql`
         UPDATE hfa_indicators
@@ -163,17 +180,52 @@ export async function saveHfaIndicatorFull(
             type = ${indicator.type},
             aggregation = ${indicator.aggregation},
             sort_order = ${indicator.sortOrder},
+            has_syntax_error = ${validationState.hasSyntaxError},
+            code_consistent = ${validationState.codeConsistent},
             updated_at = CURRENT_TIMESTAMP
         WHERE var_name = ${oldVarName}
       `;
-      // If varName changed, hfa_indicator_code FKs cascade the rename
-      // Delete all code for this indicator and re-insert
       await sql`DELETE FROM hfa_indicator_code WHERE var_name = ${indicator.varName}`;
       for (const c of code) {
         if (!c.rCode.trim()) continue;
         await sql`
           INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
           VALUES (${indicator.varName}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
+        `;
+      }
+    });
+    return { success: true };
+  });
+}
+
+export async function revalidateAllHfaIndicators(
+  mainDb: Sql,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    const indicators = await mainDb<{ var_name: string }[]>`
+      SELECT var_name FROM hfa_indicators
+    `;
+    const allCode = await mainDb<{ var_name: string; r_code: string; r_filter_code: string | null }[]>`
+      SELECT var_name, r_code, r_filter_code FROM hfa_indicator_code
+    `;
+
+    const codeByVarName = new Map<string, { rCode: string; rFilterCode: string | undefined }[]>();
+    for (const c of allCode) {
+      const arr = codeByVarName.get(c.var_name) ?? [];
+      arr.push({ rCode: c.r_code, rFilterCode: c.r_filter_code ?? undefined });
+      codeByVarName.set(c.var_name, arr);
+    }
+
+    await mainDb.begin(async (sql) => {
+      for (const ind of indicators) {
+        const indCode = codeByVarName.get(ind.var_name) ?? [];
+        const validationState = computeHfaIndicatorValidationState(indCode);
+        await sql`
+          UPDATE hfa_indicators
+          SET has_syntax_error = ${validationState.hasSyntaxError},
+              code_consistent = ${validationState.codeConsistent},
+              updated_at = CURRENT_TIMESTAMP
+          WHERE var_name = ${ind.var_name}
         `;
       }
     });

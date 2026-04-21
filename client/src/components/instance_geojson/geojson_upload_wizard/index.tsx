@@ -1,7 +1,5 @@
-import type Uppy from "@uppy/core";
 import { t3, type Dhis2Credentials } from "lib";
-import { Match, Switch, createSignal, onCleanup, onMount } from "solid-js";
-import { cleanupUppy, createUppyInstance } from "~/components/_uppy_file_upload";
+import { Match, Switch, createSignal } from "solid-js";
 import { Step0 } from "./step_0";
 import { Step1File } from "./step_1_file";
 import { Step1Dhis2 } from "./step_1_dhis2";
@@ -84,7 +82,6 @@ export type WizardState = {
   // Common
   close: (p: unknown) => void;
   silentRefresh: () => void;
-  uppy: Uppy | undefined;
 };
 
 export function GeoJsonUploadWizard(p: Props) {
@@ -113,22 +110,6 @@ export function GeoJsonUploadWizard(p: Props) {
       setGeoToAdminRaw(mapping);
     }
   }
-
-  let uppy: Uppy | undefined = undefined;
-
-  onMount(() => {
-    uppy = createUppyInstance({
-      triggerId: "#select-geojson-file-button",
-      onUploadSuccess: (file) => {
-        if (!file) return;
-        setSelectedFileName(file.name as string);
-      },
-    });
-  });
-
-  onCleanup(() => {
-    cleanupUppy(uppy);
-  });
 
   const state: WizardState = {
     step,
@@ -159,7 +140,6 @@ export function GeoJsonUploadWizard(p: Props) {
     setCurrentLevelIndex,
     close: p.close,
     silentRefresh: p.silentRefresh,
-    get uppy() { return uppy; },
   };
 
   return (

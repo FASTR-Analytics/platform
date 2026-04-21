@@ -1,5 +1,3 @@
-import { checkRSyntax } from "lib";
-
 const R_KEYWORDS = new Set([
   "TRUE",
   "FALSE",
@@ -97,6 +95,42 @@ export type RCodeValidationResult = {
   syntaxErrors: string[];
   referencedVars: string[];
 };
+
+function checkRSyntax(rCode: string): string[] {
+  const errors: string[] = [];
+  let paren = 0;
+  let bracket = 0;
+  let brace = 0;
+  let inString: '"' | "'" | null = null;
+  let inComment = false;
+
+  for (let i = 0; i < rCode.length; i++) {
+    const ch = rCode[i];
+    const prev = i > 0 ? rCode[i - 1] : "";
+    if (inComment) {
+      if (ch === "\n") inComment = false;
+      continue;
+    }
+    if (inString) {
+      if (ch === inString && prev !== "\\") inString = null;
+      continue;
+    }
+    if (ch === "#") { inComment = true; continue; }
+    if (ch === '"' || ch === "'") { inString = ch; continue; }
+    if (ch === "(") paren++;
+    else if (ch === ")") { paren--; if (paren < 0) { errors.push("Unmatched ')'"); return errors; } }
+    else if (ch === "[") bracket++;
+    else if (ch === "]") { bracket--; if (bracket < 0) { errors.push("Unmatched ']'"); return errors; } }
+    else if (ch === "{") brace++;
+    else if (ch === "}") { brace--; if (brace < 0) { errors.push("Unmatched '}'"); return errors; } }
+  }
+
+  if (inString) errors.push("Unterminated string literal");
+  if (paren > 0) errors.push(`Unclosed '(' (${paren})`);
+  if (bracket > 0) errors.push(`Unclosed '[' (${bracket})`);
+  if (brace > 0) errors.push(`Unclosed '{' (${brace})`);
+  return errors;
+}
 
 function stripStringsAndComments(rCode: string): string {
   let out = "";
