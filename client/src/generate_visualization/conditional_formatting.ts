@@ -1,4 +1,4 @@
-import { LegendItem, type ColorKeyOrString } from "panther";
+import { type LegendInput, type LegendItem, type ColorKeyOrString } from "panther";
 import {
   _CF_GREEN,
   _CF_LIGHTER_GREEN,
@@ -11,7 +11,7 @@ import {
   t3,
   TranslatableString,
 } from "lib";
-import { compileCfToLegendItems } from "./conditional_formatting/compile";
+import { compileCfToLegend } from "./conditional_formatting/compile";
 
 function getPeriodChangeLabels(
   timeseriesGrouping: PeriodOption,
@@ -67,9 +67,10 @@ function getPeriodChangeTranslatableStrings(
   }
 }
 
-export function getLegendItemsFromConfig(
+export function getLegendFromConfig(
   config: PresentationObjectConfig,
-): LegendItem[] | undefined {
+  formatAs: "percent" | "number",
+): LegendInput | undefined {
   if (config.s.specialCoverageChart) {
     return [
       {
@@ -145,8 +146,7 @@ export function getLegendItemsFromConfig(
   }
   const cf = selectCf(config.s);
   if (cf.type === "none") return undefined;
-  const formatAs = config.s.content === "areas" ? "number" : "percent";
-  return compileCfToLegendItems(cf, formatAs, config.s.decimalPlaces ?? 0);
+  return compileCfToLegend(cf, formatAs);
 }
 
 // Internal helpers still used by conditional_formatting_scorecard.ts for

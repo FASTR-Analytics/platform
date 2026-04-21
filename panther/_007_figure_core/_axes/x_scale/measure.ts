@@ -3,11 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type {
-  MergedGridStyle,
-  MergedXScaleAxisStyle,
-  RectCoordsDims,
-  RenderContext,
+import {
+  buildAutoFormatter,
+  type MergedGridStyle,
+  type MergedXScaleAxisStyle,
+  type RectCoordsDims,
+  type RenderContext,
 } from "../../deps.ts";
 import type { ChartScaleAxisLimits } from "../../types.ts";
 import { getGoodAxisTickValues_V2 } from "../get_good_axis_tick_values.ts";
@@ -46,6 +47,11 @@ export function measureXScaleAxisHeightInfo(
     ? Math.max(2, Math.floor(guessSubChartW / 2 / sampleW))
     : 2;
 
+  const formatterOption = sx.tickLabelFormatter;
+  const formatterForUniquenessCheck = typeof formatterOption === "function"
+    ? formatterOption
+    : undefined;
+
   // Per-LANE tick values — mirror of Y-scale's per-tier tick values in ChartOV.
   const xAxisTickValues = Array.from({ length: laneCount }, (_, i_lane) => {
     let vMin = typeof sx.min === "function"
@@ -71,14 +77,23 @@ export function measureXScaleAxisHeightInfo(
       vMax,
       vMin,
       guessMaxNTicks,
-      sx.tickLabelFormatter,
+      formatterForUniquenessCheck,
     );
   });
+
+  const tickLabelFormatter: (v: number) => string =
+    typeof formatterOption === "function"
+      ? formatterOption
+      : buildAutoFormatter(
+        xAxisTickValues.flat(),
+        formatterOption === "auto-percent" ? "percent" : "number",
+      );
 
   return {
     heightIncludingXAxisStrokeWidth,
     xAxisTickValues,
     guessMaxNTicks,
+    tickLabelFormatter,
   };
 }
 

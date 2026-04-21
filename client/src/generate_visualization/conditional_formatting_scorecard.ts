@@ -15,7 +15,6 @@ import { toNum0, toNum1, to100Pct0, type FigureInputs } from "panther";
 import {
   getCutoffColorFunc,
   getCutoffColorFuncReverse,
-  getLegendItemsFromConfig,
 } from "./conditional_formatting";
 import { getTableJsonDataConfigFromPresentationObjectConfig } from "./get_data_config_from_po";
 import { getStyleFromPresentationObject } from "./get_style_from_po";

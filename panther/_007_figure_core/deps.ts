@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { isFrench } from "../_000_translate/mod.ts";
-export { assert, createArray, getFormatterFunc, getPeriodIdFromTime, getValidNumberOrUndefined, isUnique, sortAlphabetical, sum } from "../_000_utils/mod.ts";
+export { assert, buildAutoFormatter, createArray, getPeriodIdFromTime, getValidNumberOrUndefined, isUnique, sortAlphabetical, sum } from "../_000_utils/mod.ts";
 export type { CalendarType, PeriodType } from "../_000_utils/mod.ts";
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString, ValuesColorFunc } from "../_001_color/mod.ts";

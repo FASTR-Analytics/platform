@@ -303,3 +303,31 @@ export function formatFileSize(bytes: number, decimals = 2): string {
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
+
+export function computeMinDecimalPlaces(values: number[]): number {
+  const unique = [...new Set(values)];
+  if (unique.length <= 1) return 0;
+  for (let dp = 0; dp <= 3; dp++) {
+    const factor = Math.pow(10, dp);
+    const rounded = new Set(unique.map((v) => Math.round(v * factor)));
+    if (rounded.size === unique.length) return dp;
+  }
+  return 3;
+}
+
+export function buildAutoFormatter(
+  values: number[],
+  format: "number" | "percent",
+): (v: number) => string {
+  const displayValues = format === "percent"
+    ? values.map((v) => v * 100)
+    : values;
+  const dp = computeMinDecimalPlaces(displayValues);
+  const clampedDp = Math.min(dp, 3) as 0 | 1 | 2 | 3;
+  return getFormatterFunc(format, clampedDp);
+}
+
+export type TickLabelFormatterOption =
+  | ((v: number) => string)
+  | "auto-number"
+  | "auto-percent";

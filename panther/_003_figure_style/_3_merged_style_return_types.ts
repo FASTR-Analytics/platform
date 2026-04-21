@@ -20,6 +20,7 @@ import type {
   TableCellInfoFunc,
   TextInfo,
   TextInfoUnkeyed,
+  TickLabelFormatterOption,
 } from "./deps.ts";
 import type {
   CascadeArrowStyle,
@@ -209,7 +210,7 @@ export type MergedXScaleAxisStyle = {
   labelGap: number;
   tickHeight: number;
   tickLabelGap: number;
-  tickLabelFormatter: (v: number) => string;
+  tickLabelFormatter: TickLabelFormatterOption;
   forceRightOverhangWidth: "none" | number;
   allowIndividualLaneLimits: boolean;
   exactAxisY: "none" | number;
@@ -410,7 +411,7 @@ export type MergedYScaleAxisStyle = {
   labelGap: number;
   tickWidth: number;
   tickLabelGap: number;
-  tickLabelFormatter: (v: number) => string;
+  tickLabelFormatter: TickLabelFormatterOption;
   forceTopOverhangHeight: "none" | number;
   allowIndividualTierLimits: boolean;
   exactAxisX: "none" | number;

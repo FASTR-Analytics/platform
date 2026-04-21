@@ -1,6 +1,8 @@
 import {
-  getFormatterFunc,
+  buildAutoFormatter,
+  type LegendInput,
   type LegendItem,
+  resolveAutoScaleLegend,
   thresholdColorFunc,
   type ValuesColorFunc,
   valuesColorScale,
@@ -31,21 +33,50 @@ export function compileCfToValuesColorFunc(
   }
 }
 
-export function compileCfToLegendItems(
+export function compileCfToLegend(
   cf: ConditionalFormatting,
   formatAs: "percent" | "number",
-  decimalPlaces: number,
-): LegendItem[] | undefined {
-  if (cf.type !== "thresholds") return undefined;
-  const fmt = getFormatterFunc(formatAs, decimalPlaces);
-  const labels = deriveBucketLabels(cf.cutoffs, fmt, cf.direction);
-  // Reversed to match the editor: highest-values bucket at top, lowest at
-  // bottom. Stored order (cf.buckets) is lowest → highest; legend order is
-  // a display concern.
-  return cf.buckets
-    .map((bucket, i) => ({
-      label: labels[i],
-      color: bucket.color,
-    }))
-    .reverse();
+): LegendInput | undefined {
+  switch (cf.type) {
+    case "none":
+      return undefined;
+    case "scale": {
+      if (cf.domain.kind !== "fixed") return undefined;
+      const domain = cf.domain;
+
+      const colorFunc = valuesColorScale(cf.scale, {
+        steps: cf.steps,
+        noDataColor: cf.noDataColor,
+      });
+
+      const isDiscrete = (cf.steps ?? 0) >= 2;
+      const autoConfig = isDiscrete
+        ? {
+            type: "stepped-auto" as const,
+            nSteps: cf.steps!,
+            domain,
+            format: formatAs,
+            noData: cf.noDataColor ? { color: cf.noDataColor, label: "No data" } : undefined,
+          }
+        : {
+            type: "gradient-auto" as const,
+            domain,
+            format: formatAs,
+            noData: cf.noDataColor ? { color: cf.noDataColor, label: "No data" } : undefined,
+          };
+
+      return resolveAutoScaleLegend(autoConfig, colorFunc, domain);
+    }
+    case "thresholds": {
+      const fmt = buildAutoFormatter(cf.cutoffs, formatAs);
+      const labels = deriveBucketLabels(cf.cutoffs, fmt, cf.direction);
+      return cf.buckets
+        .map((bucket, i) => ({
+          label: labels[i],
+          color: bucket.color,
+        }))
+        .reverse();
+    }
+  }
 }
+

@@ -2,6 +2,7 @@ import {
   ChartValueInfo,
   CustomFigureStyleOptions,
   getFormatterFunc,
+  type TickLabelFormatterOption,
 } from "panther";
 import { getCalendar, PresentationObjectConfig, selectCf } from "lib";
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
@@ -49,19 +50,17 @@ export function buildStandardStyle(
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 ? 1 : undefined,
       min: config.s.forceYMinAuto ? "auto" : undefined,
-      tickLabelFormatter: getFormatterFunc(
-        dataFormat,
-        config.s.decimalPlaces ?? 0,
-      ),
+      tickLabelFormatter: (dataFormat === "percent"
+        ? "auto-percent"
+        : "auto-number") as TickLabelFormatterOption,
     },
     xScaleAxis: {
       allowIndividualLaneLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 ? 1 : undefined,
       min: config.s.forceYMinAuto ? "auto" : undefined,
-      tickLabelFormatter: getFormatterFunc(
-        dataFormat,
-        config.s.decimalPlaces ?? 0,
-      ),
+      tickLabelFormatter: (dataFormat === "percent"
+        ? "auto-percent"
+        : "auto-number") as TickLabelFormatterOption,
     },
     content: {
       points: {

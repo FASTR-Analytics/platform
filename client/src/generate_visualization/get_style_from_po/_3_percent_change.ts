@@ -2,6 +2,7 @@ import {
   ChartValueInfo,
   CustomFigureStyleOptions,
   getFormatterFunc,
+  type TickLabelFormatterOption,
 } from "panther";
 import {
   _CF_COMPARISON,
@@ -37,10 +38,9 @@ export function buildPercentChangeChartStyle(
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 ? 1 : undefined,
       min: config.s.forceYMinAuto ? "auto" : undefined,
-      tickLabelFormatter: getFormatterFunc(
-        formatAs,
-        config.s.decimalPlaces ?? 0,
-      ),
+      tickLabelFormatter: (formatAs === "percent"
+        ? "auto-percent"
+        : "auto-number") as TickLabelFormatterOption,
     },
     content: {
       points: {

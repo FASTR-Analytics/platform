@@ -5,6 +5,7 @@ import {
   CustomFigureStyleOptions,
   getFormatterFunc,
   toPct0,
+  type TickLabelFormatterOption,
 } from "panther";
 import { getCalendar, PresentationObjectConfig, selectCf } from "lib";
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
@@ -28,7 +29,9 @@ export function buildCoverageChartStyle(
     yScaleAxis: {
       max: config.s.forceYMax1 ? 1 : undefined,
       min: config.s.forceYMinAuto ? "auto" : undefined,
-      tickLabelFormatter: getFormatterFunc(formatAs, 0),
+      tickLabelFormatter: (formatAs === "percent"
+        ? "auto-percent"
+        : "auto-number") as TickLabelFormatterOption,
     },
     content: {
       points: {

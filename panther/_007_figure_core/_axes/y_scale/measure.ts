@@ -3,11 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type {
-  MergedGridStyle,
-  MergedYScaleAxisStyle,
-  RectCoordsDims,
-  RenderContext,
+import {
+  buildAutoFormatter,
+  type MergedGridStyle,
+  type MergedYScaleAxisStyle,
+  type RectCoordsDims,
+  type RenderContext,
 } from "../../deps.ts";
 import type {
   ChartScaleAxisLimits,
@@ -61,6 +62,11 @@ export function measureYScaleAxisWidthInfo(
     ? Math.max(2, Math.floor(guessSubChartH / 2 / yAxisTickLabelH))
     : 2;
 
+  const formatterOption = sy.tickLabelFormatter;
+  const formatterForUniquenessCheck = typeof formatterOption === "function"
+    ? formatterOption
+    : undefined;
+
   const yAxisTickValues = Array.from({ length: tierCount }, (_, i_tier) => {
     let finalValueMin = typeof sy.min === "function"
       ? sy.min(i_pane)
@@ -85,14 +91,22 @@ export function measureYScaleAxisWidthInfo(
       finalValueMax,
       finalValueMin,
       guessMaxNTicks,
-      sy.tickLabelFormatter,
+      formatterForUniquenessCheck,
     );
   });
+
+  const tickLabelFormatter: (v: number) => string =
+    typeof formatterOption === "function"
+      ? formatterOption
+      : buildAutoFormatter(
+        yAxisTickValues.flat(),
+        formatterOption === "auto-percent" ? "percent" : "number",
+      );
 
   let maxYTickWidth = 0;
   for (const rowYTickVals of yAxisTickValues) {
     for (const tickVal of rowYTickVals) {
-      const tickLabel = sy.tickLabelFormatter(tickVal);
+      const tickLabel = tickLabelFormatter(tickVal);
       const mTickLabel = rc.mText(
         tickLabel,
         sy.text.yScaleAxisTickLabels,
@@ -117,6 +131,7 @@ export function measureYScaleAxisWidthInfo(
     yAxisTickValues,
     tierHeaderAndLabelGapWidth,
     halfYAxisTickLabelH,
+    tickLabelFormatter,
   };
 }
 
