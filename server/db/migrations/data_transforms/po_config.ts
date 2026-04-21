@@ -26,6 +26,7 @@
 // 9. diffAreas → specialDisruptionsChart (delete legacy fields)
 // 10. Fill mapProjection default
 // 11. Empty valuesFilter → undefined (inclusion list must have items)
+// 12. Remove filterBy entries with empty values array
 //
 // =============================================================================
 
@@ -154,6 +155,13 @@ export async function migratePOConfigs(tx: Sql, projectId: string): Promise<Migr
     // Block 11: Empty valuesFilter → undefined (inclusion list must have items)
     if (Array.isArray(d.valuesFilter) && d.valuesFilter.length === 0) {
       d.valuesFilter = undefined;
+    }
+
+    // Block 12: Remove filterBy entries with empty values array
+    if (Array.isArray(d.filterBy)) {
+      d.filterBy = (d.filterBy as { disOpt: string; values: unknown[] }[]).filter(
+        (f) => Array.isArray(f.values) && f.values.length > 0
+      );
     }
 
     // ─── configS transforms ───────────────────────────────────────────────
