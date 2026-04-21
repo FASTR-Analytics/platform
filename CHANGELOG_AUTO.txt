@@ -1,13 +1,13 @@
-[TBD] [user] [added] - Uploaded files are now auto-selected after processing completes
-[TBD] [user] [added] - HFA indicator table now shows syntax error and consistency status columns
-[TBD] [user] [added] - "Revalidate all" button added to HFA indicator manager for admins
-[TBD] [user] [changed] - File upload and selection combined into a smoother single workflow
-[TBD] [user] [fixed] - HFA script generation now skips problematic indicators instead of failing entirely
-[TBD] [admin] [added] - HFA indicators now show syntax error and consistency status columns
-[TBD] [admin] [added] - "Revalidate all" button for HFA indicators to re-check code validity
-[TBD] [admin] [improved] - File upload selectors now auto-select newly uploaded files after processing
-[TBD] [admin] [changed] - HFA script generation can skip invalid indicators instead of failing entirely
-[TBD] [admin] [fixed] - Older visualizations now correctly receive default values for new display settings
+[1.23.0] [user] [added] - Uploaded files are now auto-selected after processing completes
+[1.23.0] [user] [added] - HFA indicator table now shows syntax error and consistency status columns
+[1.23.0] [user] [added] - "Revalidate all" button added to HFA indicator manager for admins
+[1.23.0] [user] [changed] - File upload and selection combined into a smoother single workflow
+[1.23.0] [user] [fixed] - HFA script generation now skips problematic indicators instead of failing entirely
+[1.23.0] [admin] [added] - HFA indicators now show syntax error and consistency status columns
+[1.23.0] [admin] [added] - "Revalidate all" button for HFA indicators to re-check code validity
+[1.23.0] [admin] [improved] - File upload selectors now auto-select newly uploaded files after processing
+[1.23.0] [admin] [changed] - HFA script generation can skip invalid indicators instead of failing entirely
+[1.23.0] [admin] [fixed] - Older visualizations now correctly receive default values for new display settings
 [1.22.1] [user] [changed] - Chart axis labels now automatically choose the best number format
 [1.22.1] [user] [added] - Color scale legends now appear for gradient and stepped color schemes
 [1.22.1] [user] [changed] - Percent fields now use a dropdown selector instead of free-text input
