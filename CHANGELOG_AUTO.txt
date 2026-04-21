@@ -1,3 +1,16 @@
+[1.23.0] [user] [fixed] - Ethiopian calendar quarters now display correctly in charts and filters
+[1.23.0] [user] [fixed] - Ethiopian month names now appear correctly on visualizations
+[1.23.0] [user] [changed] - Project list now updates in real time based on your permissions
+[1.23.0] [user] [fixed] - Indicator validation status now saves accurately when editing or uploading indicators
+[1.23.0] [user] [fixed] - Revalidating all indicators now correctly checks code for errors
+[1.23.0] [admin] [fixed] - Ethiopian calendar now correctly used for quarter and month labels in visualizations
+[1.23.0] [admin] [fixed] - Quarter calculations now respect Ethiopian calendar when filtering period data
+[1.23.0] [admin] [changed] - Project list now shows only projects each user has access to
+[1.23.0] [admin] [changed] - Project list updates automatically when user roles or permissions change
+[1.23.0] [admin] [fixed] - HFA indicator syntax errors and code consistency now accurately validated on save
+[1.23.0] [admin] [fixed] - HFA indicator validation during CSV upload now correctly detects issues
+[1.23.0] [admin] [fixed] - Revalidate all HFA indicators now properly checks code for errors
+[1.23.0] [admin] [internal] - Improved efficiency of real-time project list updates across sessions
 [1.23.0] [user] [fixed] - Fixed certain saved chart settings not loading correctly
 [1.23.0] [admin] [fixed] - Replicant filter values now migrate correctly as text
 [1.23.0] [user] [fixed] - Presentation settings now retain display order after saving
