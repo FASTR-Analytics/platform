@@ -8,12 +8,21 @@ CREATE TABLE IF NOT EXISTS hfa_indicator_code (
   FOREIGN KEY (time_point) REFERENCES dataset_hfa_dictionary_time_points(time_point) ON DELETE RESTRICT
 );
 
-INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
-SELECT i.var_name, tp.time_point, i.r_code, i.r_filter_code
-FROM hfa_indicators i
-CROSS JOIN dataset_hfa_dictionary_time_points tp
-WHERE i.r_code != ''
-ON CONFLICT DO NOTHING;
+-- Only migrate data if r_code column exists on hfa_indicators (old schema)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'hfa_indicators' AND column_name = 'r_code'
+  ) THEN
+    INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
+    SELECT i.var_name, tp.time_point, i.r_code, i.r_filter_code
+    FROM hfa_indicators i
+    CROSS JOIN dataset_hfa_dictionary_time_points tp
+    WHERE i.r_code != ''
+    ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
 
 ALTER TABLE hfa_indicators DROP COLUMN IF EXISTS r_code;
 ALTER TABLE hfa_indicators DROP COLUMN IF EXISTS r_filter_code;
