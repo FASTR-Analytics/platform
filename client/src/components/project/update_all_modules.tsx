@@ -25,8 +25,8 @@ export function UpdateAllModules(
     if (!commits) return true;
     const entry = commits.find((c) => c.moduleId === mod.id);
     if (!entry) return false;
-    if (!mod.installedGitRef) return true;
-    return entry.latestCommit.sha !== mod.installedGitRef;
+    if (!mod.presentationDefGitRef) return true;
+    return entry.latestCommit.sha !== mod.presentationDefGitRef;
   }
 
   const modulesWithUpdates = () => p.modules.filter(hasUpdate);

@@ -63,16 +63,16 @@ WHERE id = ${etd.moduleId}
 
   const lastRun = new Date().toISOString();
 
-  // Copy installed_git_ref to last_run_git_ref on successful run
-  const moduleRow = await projectDb<{ installed_git_ref: string | null }[]>`
-    SELECT installed_git_ref FROM modules WHERE id = ${etd.moduleId}
+  // Copy compute_def_git_ref to last_run_git_ref on successful run
+  const moduleRow = await projectDb<{ compute_def_git_ref: string | null }[]>`
+    SELECT compute_def_git_ref FROM modules WHERE id = ${etd.moduleId}
   `;
-  const installedGitRef = moduleRow[0]?.installed_git_ref ?? null;
+  const computeDefGitRef = moduleRow[0]?.compute_def_git_ref ?? null;
 
   await projectDb.begin((sql) => [
     sql`
 UPDATE modules
-SET last_run_at = ${lastRun}, dirty = 'ready', last_run_git_ref = ${installedGitRef}
+SET last_run_at = ${lastRun}, dirty = 'ready', last_run_git_ref = ${computeDefGitRef}
 WHERE id = ${etd.moduleId}
 `,
     sql`
@@ -88,7 +88,7 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
     ids: [etd.moduleId],
     dirtyOrRunStatus: "ready",
     lastRun,
-    lastRunGitRef: installedGitRef ?? undefined,
+    lastRunGitRef: computeDefGitRef ?? undefined,
   };
   broadcastDirtyStates.postMessage(bm1);
 

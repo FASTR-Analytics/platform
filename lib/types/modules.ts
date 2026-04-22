@@ -66,13 +66,12 @@ export type InstalledModuleSummary = {
   label: string;
   dirty: DirtyOrRunStatus;
   hasParameters: boolean;
-  installedAt: string;
-  computeUpdatedAt?: string;
-  definitionUpdatedAt?: string;
+  computeDefUpdatedAt?: string;
+  computeDefGitRef?: string;
+  presentationDefUpdatedAt?: string;
+  presentationDefGitRef?: string;
   configUpdatedAt?: string;
   lastRunAt: string;
-  installedGitRef?: string;
-  computeGitRef?: string;
   lastRunGitRef?: string;
   moduleDefinitionResultsObjectIds: string[];
 };
@@ -91,7 +90,6 @@ export type InstalledModuleWithConfigSelections = {
 
 export type ModuleDetailForRunningScript = {
   id: ModuleId;
-  installedAt: string;
   configSelections: ModuleConfigSelections;
   moduleDefinition: ModuleDefinitionInstalled;
 };
@@ -178,8 +176,10 @@ export type CompareProjectsModuleParameter = {
 export type CompareProjectsModule = {
   id: string;
   dirty: "queued" | "ready" | "error";
-  installedAt: string;
-  installedGitRef?: string;
+  computeDefUpdatedAt?: string;
+  computeDefGitRef?: string;
+  presentationDefUpdatedAt?: string;
+  presentationDefGitRef?: string;
   lastRunAt: string;
   lastRunGitRef?: string;
   parameters: CompareProjectsModuleParameter[];

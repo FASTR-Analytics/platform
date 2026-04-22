@@ -115,7 +115,7 @@ export async function installModule(
       // Insert module (blob excludes metrics — they're stored in metrics table)
       await sql`
 INSERT INTO modules
-  (id, module_definition, config_selections, dirty, installed_at, compute_updated_at, definition_updated_at, config_updated_at, last_run_at, installed_git_ref)
+  (id, module_definition, config_selections, dirty, compute_def_updated_at, compute_def_git_ref, presentation_def_updated_at, presentation_def_git_ref, config_updated_at, last_run_at)
 VALUES
   (
     ${modDef.data.id},
@@ -123,11 +123,11 @@ VALUES
     ${JSON.stringify(startingConfigSelections)},
     'queued',
     ${lastUpdated},
+    ${gitRef ?? null},
     ${lastUpdated},
+    ${gitRef ?? null},
     ${lastUpdated},
-    ${lastUpdated},
-    ${lastUpdated},
-    ${gitRef ?? null}
+    ${lastUpdated}
   )
 `;
 
@@ -350,6 +350,7 @@ export async function updateModuleDefinition(
 
     // Detect compute-affecting changes (script, configRequirements, resultsObjects)
     const storedDef = parseInstalledModuleDefinition(rawModule.module_definition);
+
     const computeAffectingChanged = hasComputeAffectingChanges(
       modDef.data.script,
       modDef.data.configRequirements,
@@ -371,20 +372,22 @@ export async function updateModuleDefinition(
         // Insert fresh module with dirty='ready'
         await sql`
           INSERT INTO modules
-            (id, module_definition, config_selections, dirty, installed_at,
-             compute_updated_at, definition_updated_at, config_updated_at,
-             last_run_at, installed_git_ref)
+            (id, module_definition, config_selections, dirty,
+             compute_def_updated_at, compute_def_git_ref,
+             presentation_def_updated_at, presentation_def_git_ref,
+             config_updated_at, last_run_at, last_run_git_ref)
           VALUES (
             ${modDef.data.id},
             ${prepareModuleDefinitionForStorage(modDef.data)},
             ${JSON.stringify(newConfigSelections)},
             'ready',
+            ${computeAffectingChanged ? lastUpdated : rawModule.compute_def_updated_at},
+            ${computeAffectingChanged ? (gitRef ?? null) : rawModule.compute_def_git_ref},
             ${lastUpdated},
-            ${lastUpdated},
-            ${lastUpdated},
+            ${gitRef ?? null},
             ${lastUpdated},
             ${rawModule.last_run_at},
-            ${gitRef ?? rawModule.installed_git_ref}
+            ${rawModule.last_run_git_ref}
           )`;
 
         // Drop and recreate results object tables
@@ -440,10 +443,10 @@ export async function updateModuleDefinition(
           SET
             module_definition = ${prepareModuleDefinitionForStorage(modDef.data)},
             config_selections = ${JSON.stringify(newConfigSelections)},
-            installed_at = ${lastUpdated},
-            compute_updated_at = ${computeAffectingChanged ? lastUpdated : rawModule.compute_updated_at},
-            definition_updated_at = ${lastUpdated},
-            installed_git_ref = ${gitRef ?? rawModule.installed_git_ref},
+            compute_def_updated_at = ${computeAffectingChanged ? lastUpdated : rawModule.compute_def_updated_at},
+            compute_def_git_ref = ${computeAffectingChanged ? (gitRef ?? null) : rawModule.compute_def_git_ref},
+            presentation_def_updated_at = ${lastUpdated},
+            presentation_def_git_ref = ${gitRef ?? rawModule.presentation_def_git_ref},
             config_updated_at = ${configSelectionsChanged ? lastUpdated : rawModule.config_updated_at}
           WHERE id = ${moduleDefinitionId}
         `;
@@ -550,12 +553,12 @@ export async function getAllModulesForProject(
         label: moduleDefinition.label,
         dirty: rawModule.dirty as DirtyOrRunStatus,
         hasParameters: (moduleDefinition.configRequirements?.parameters?.length ?? 0) > 0,
-        installedAt: rawModule.installed_at,
-        computeUpdatedAt: rawModule.compute_updated_at ?? undefined,
-        definitionUpdatedAt: rawModule.definition_updated_at ?? undefined,
+        computeDefUpdatedAt: rawModule.compute_def_updated_at ?? undefined,
+        computeDefGitRef: rawModule.compute_def_git_ref ?? undefined,
+        presentationDefUpdatedAt: rawModule.presentation_def_updated_at ?? undefined,
+        presentationDefGitRef: rawModule.presentation_def_git_ref ?? undefined,
         configUpdatedAt: rawModule.config_updated_at ?? undefined,
         lastRunAt: rawModule.last_run_at,
-        installedGitRef: rawModule.installed_git_ref ?? undefined,
         lastRunGitRef: rawModule.last_run_git_ref ?? undefined,
         moduleDefinitionResultsObjectIds:
           resultsObjectIdsByModule.get(rawModule.id) ?? [],
@@ -619,7 +622,6 @@ SELECT * FROM modules WHERE id = ${moduleId}
     const module: ModuleDetailForRunningScript = {
       id: getValidatedModuleId(rawModule.id),
       moduleDefinition,
-      installedAt: rawModule.installed_at,
       configSelections: parseModuleConfigSelections(rawModule.config_selections),
     };
     return { success: true, data: module };
@@ -1061,7 +1063,7 @@ export async function getModulesListForAI(
       lines.push(`ID: ${rawModule.id}`);
       lines.push(`Name: ${moduleDefinition.label}`);
       lines.push(`Has Parameters: ${moduleDefinition.configRequirements.parameters.length > 0}`);
-      lines.push(`Installed: ${rawModule.installed_at}`);
+      lines.push(`Presentation Def Updated: ${rawModule.presentation_def_updated_at}`);
       lines.push(`Last Run: ${rawModule.last_run_at}`);
       lines.push(
         `Status: ${rawModule.dirty === "true" ? "Needs update" : "Up to date"}`,

@@ -74,8 +74,6 @@ export async function fetchModuleFiles(
   }
 
   const { owner, repo, path } = registryEntry.github;
-  const ref = "main";
-  const baseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
 
   const headers: Record<string, string> = {};
   if (_GITHUB_TOKEN) {
@@ -98,6 +96,10 @@ export async function fetchModuleFiles(
   } catch {
     // Non-fatal — we can still install without a git ref
   }
+
+  // Use commit SHA if available to avoid GitHub's raw content cache (~5min)
+  const ref = gitRef ?? "main";
+  const baseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
 
   const [defRes, scriptRes] = await Promise.all([
     fetch(`${baseUrl}/definition.json`, { headers }),

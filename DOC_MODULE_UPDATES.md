@@ -6,7 +6,7 @@ When a module definition is updated (from GitHub or local), we need to:
 1. Update stored metadata (module definition, metrics, presentation objects)
 2. Optionally trigger a re-run of the module's R script
 
-The key principle: **the client decides whether to rerun, and the server executes that decision exactly**.
+The key principle: **the client decides what to do, and the server executes that decision exactly**.
 
 ---
 
@@ -49,8 +49,10 @@ Returns:
     configRequirements: boolean;
     resultsObjects: boolean;
     metrics: boolean;
+    vizPresets: boolean;
     label: boolean;
-    // ... other fields
+    dataSources: boolean;
+    assetsToImport: boolean;
   };
   
   recommendsRerun: boolean;        // true if any compute-affecting field changed
@@ -73,169 +75,196 @@ The preview does NOT decide what will happen. It reports facts.
 Body:
 ```typescript
 {
+  reinstall: boolean;      // update the module definition
+  rerun: boolean;          // mark module dirty and trigger rerun
   preserveSettings: boolean;  // keep user's parameter selections
-  rerun: boolean;             // whether to mark module dirty and trigger rerun
 }
 ```
 
-The `rerun` boolean is explicit. The server does exactly what it's told:
-- `rerun: true` → Set dirty='queued', call setModuleDirty()
-- `rerun: false` → Keep current dirty state, no rerun triggered
+The client sends exactly what it wants. The server executes:
+- `reinstall: true` → Update module definition, metrics, presentation objects
+- `rerun: true` → Set dirty='queued', drop data tables, call setModuleDirty()
+- Both can be true (reinstall + rerun) or independent
 
 ---
 
 ## Server Behavior
 
-### When `rerun: true`
+### When `reinstall: true, rerun: true`
 
 1. Fetch latest module definition
 2. Delete existing module row (cascades to metrics, results_objects metadata)
 3. Drop results_object data tables
-4. Insert new module with dirty='queued'
+4. Insert new module with dirty='ready' (route handler then queues it)
 5. Insert new results_objects, metrics, presentation_objects
-6. Call setModuleDirty() to notify task manager
-7. SSE notify clients
+6. Update timestamps:
+   - `compute_def_updated_at` only if compute-affecting changes occurred
+   - `presentation_def_updated_at` always
+7. Call setModuleDirty() to notify task manager
+8. SSE notify clients
 
-### When `rerun: false`
+### When `reinstall: true, rerun: false`
 
 1. Fetch latest module definition
 2. Update module row in place (keep dirty state as-is)
 3. Delete and recreate results_objects metadata (NOT data tables)
 4. Delete and recreate metrics
 5. Delete and recreate default presentation_objects
-6. SSE notify clients
+6. Update timestamps:
+   - `compute_def_updated_at` only if compute-affecting changes occurred
+   - `presentation_def_updated_at` always
+7. SSE notify clients
 
 Key difference: `rerun: false` preserves the actual data tables and dirty state.
+
+### When `reinstall: false, rerun: true`
+
+1. Just mark module dirty and trigger rerun
+2. No definition changes
+
+---
+
+## Database Schema
+
+### Module Timestamps
+
+| Column | Description |
+|--------|-------------|
+| `compute_def_updated_at` | When compute-affecting definitions (script, configReq, resultsObj) last changed |
+| `compute_def_git_ref` | Git ref when compute definitions were last updated |
+| `presentation_def_updated_at` | When any definition was last installed |
+| `presentation_def_git_ref` | Git ref of most recent install |
+| `config_updated_at` | When user changed parameters |
+| `last_run_at` | When module last completed execution |
+| `last_run_git_ref` | Git ref at last run time (copied from compute_def_git_ref on run) |
+
+Note: `installed_at` was removed as it was redundant with `presentation_def_updated_at`.
+
+### Timestamp Update Logic
+
+- **Fresh install**: All timestamps set to now, all git refs set to current
+- **Reinstall with compute changes**: `compute_def_*` and `presentation_def_*` both updated
+- **Reinstall with presentation-only changes**: Only `presentation_def_*` updated, `compute_def_*` preserved
+- **Module run completes**: `last_run_at` set to now, `last_run_git_ref` copied from `compute_def_git_ref`
 
 ---
 
 ## Client UI
 
-### Update Modal States
+### Module Status Display
+
+Shows three timestamp lines:
+```
+Compute definitions: 2024-01-15 10:30 AM (abc1234)
+Presentation definitions: 2024-01-16 2:00 PM (def5678)
+Last run: 2024-01-15 11:00 AM (abc1234) — results outdated
+```
+
+- Git ref shown on all three lines (compute, presentation, last run)
+- "Results outdated" warning (red) only when `last_run_at < compute_def_updated_at`
+
+### Staleness Logic
+
+```typescript
+const resultsStale = computeDefUpdatedAt 
+  ? new Date(computeDefUpdatedAt) > new Date(lastRunAt)
+  : false;
+```
+
+This means:
+- Presentation-only changes do NOT trigger staleness warning
+- Only compute-affecting changes show "results outdated"
+
+### Update Modal
 
 **1. No Update Available** (`hasUpdate: false`)
 ```
-This module is already up to date (git ref: abc1234).
+Module is up to date (abc1234)
 
-[ ] Force reinstall (will rerun module)
+[Cancel]
+```
+
+**2. Update Available — Presentation Only** (`hasUpdate: true`, `recommendsRerun: false`)
+```
+Update available (abc1234 → def5678)
+
+Visualization changes only:
+[Metrics] [Viz presets] [Label]
+
+[ ] Reinstall definition
+    [ ] Preserve settings
+[ ] Rerun module
 
 [Cancel] [Update]
 ```
 
-**2. Presentation-Only Changes** (`hasUpdate: true`, `recommendsRerun: false`)
+**3. Update Available — Compute Affecting** (`hasUpdate: true`, `recommendsRerun: true`)
 ```
 Update available (abc1234 → def5678)
 
-Changes:
-- Metric labels updated
-- Visualization presets updated
+May change results:
+[Script] [Config requirements] [Results objects]
 
-These changes do not affect computed results.
+Visualization changes only:
+[Metrics]
 
-[ ] Also rerun module (not recommended)
-
-[Cancel] [Update]
-```
-
-**3. Compute-Affecting Changes** (`hasUpdate: true`, `recommendsRerun: true`)
-```
-Update available (abc1234 → def5678)
-
-Changes:
-- Script modified
-- Config requirements changed
-
-These changes affect computed results. A rerun is recommended.
-
+[x] Reinstall definition
+    [x] Preserve settings
 [x] Rerun module (recommended)
-[ ] Preserve settings
 
 [Cancel] [Update]
 ```
 
-### Logic
+### Default Checkbox States
 
-```typescript
-// Default rerun value based on recommendation
-const [rerun, setRerun] = createSignal(preview.recommendsRerun);
-
-// If no update but user wants to force reinstall, they check the box
-// If update with compute changes, rerun is checked by default
-// If update with presentation-only, rerun is unchecked by default
-```
+- `reinstall`: Defaults to `hasUpdate` (checked if update available)
+- `rerun`: Defaults to `recommendsRerun` (checked if compute-affecting changes)
+- `preserveSettings`: Always defaults to `true`
 
 ---
 
-## "Needs Update" Indicator
+## "Update Available" Indicator
 
 The sidebar shows a badge when modules need updating.
 
 **How it works**:
-1. Client fetches `moduleLatestCommits` from instance endpoint (latest git refs)
-2. Client compares each module's `installedGitRef` to latest
+1. Client fetches `moduleLatestCommits` from instance endpoint
+2. Client compares each module's `presentationDefGitRef` to latest
 3. If any module is behind, show badge
 
 **After update**:
-1. Server updates `installed_git_ref` in database
+1. Server updates `presentation_def_git_ref` in database
 2. Server sends SSE notification for "modules" entity
-3. Client refetches project detail (includes new `installedGitRef`)
+3. Client refetches project detail (includes new `presentationDefGitRef`)
 4. Comparison re-evaluates, badge clears
 
 ---
 
-## Timestamps
+## Comparison Logic
 
-Current columns:
-- `installed_at` — when module was installed/reinstalled
-- `script_updated_at` — when script last changed
-- `definition_updated_at` — when definition last updated
-- `config_updated_at` — when user changed parameters
-- `last_run_at` — when module last completed execution
-- `installed_git_ref` — git ref at install time
-- `last_run_git_ref` — git ref at last run time
+All definition comparison logic is centralized in `server/module_loader/compare_definitions.ts`:
 
-### Display Logic
+```typescript
+// Full comparison for preview
+compareDefinitions(incoming, storedDef, storedMetrics): DefinitionChanges
 
-For "run freshness" indicator:
-- Compare `last_run_git_ref` to `installed_git_ref`
-- If different: "Results may be stale — module updated since last run"
-- If same: "Results current"
+// Quick check for compute-affecting only
+hasComputeAffectingChanges(script, configReq, resultsObj, storedDef): boolean
 
-For "update available" indicator:
-- Compare `installed_git_ref` to latest from GitHub
-- If different: "Update available"
-- If same: "Up to date"
-
----
-
-## Migration Notes
-
-### API Changes
-
-1. Rename `preventRerun` → `rerun` (inverted boolean)
-2. Update `ModuleUpdatePreview` type:
-   - Remove `impactType` enum
-   - Add `hasUpdate`, `changes`, `recommendsRerun`
-
-### Database
-
-No schema changes needed. Existing columns sufficient.
-
-### Client
-
-1. Update modal to show detailed changes
-2. Checkbox becomes "Rerun module" (checked/unchecked based on recommendation)
-3. Update staleness indicator logic if needed
+// Check if rerun is recommended
+recommendsRerun(changes: DefinitionChanges): boolean
+```
 
 ---
 
 ## Testing Checklist
 
-- [ ] Update with `rerun: true` drops tables and reruns
-- [ ] Update with `rerun: false` preserves data tables
-- [ ] Presentation-only change defaults to no rerun
-- [ ] Script change defaults to rerun
-- [ ] "Needs update" badge clears after update
-- [ ] "Results stale" indicator shows when gitRefs differ
-- [ ] Force reinstall works when "no update available"
+- [ ] Update with `reinstall + rerun` drops tables and reruns
+- [ ] Update with `reinstall` only preserves data tables
+- [ ] Presentation-only change does NOT update `compute_def_updated_at`
+- [ ] Script change DOES update `compute_def_updated_at`
+- [ ] "Results outdated" only shows when `compute_def_updated_at > last_run_at`
+- [ ] "Update available" badge clears after reinstall
+- [ ] Git refs display correctly on all three timestamp lines
+- [ ] `last_run_git_ref` is set from `compute_def_git_ref` on run completion
 - [ ] Preserve settings works correctly

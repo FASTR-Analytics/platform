@@ -15,13 +15,12 @@ export type DBModule = {
   module_definition: string;
   config_selections: string;
   dirty: string;
-  installed_at: string;
-  compute_updated_at: string | null;
-  definition_updated_at: string | null;
+  compute_def_updated_at: string | null;
+  compute_def_git_ref: string | null;
+  presentation_def_updated_at: string | null;
+  presentation_def_git_ref: string | null;
   config_updated_at: string | null;
   last_run_at: string;
-  installed_git_ref: string | null;
-  compute_git_ref: string | null;
   last_run_git_ref: string | null;
 };
 

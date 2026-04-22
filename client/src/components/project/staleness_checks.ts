@@ -51,6 +51,6 @@ export function checkModulesNeedUpdate(
   return projectModules.some((mod) => {
     const entry = moduleLatestCommits.find((c) => c.moduleId === mod.id);
     if (!entry) return false;
-    return !mod.installedGitRef || entry.latestCommit.sha !== mod.installedGitRef;
+    return !mod.presentationDefGitRef || entry.latestCommit.sha !== mod.presentationDefGitRef;
   });
 }

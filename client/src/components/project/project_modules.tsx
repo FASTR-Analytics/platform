@@ -81,7 +81,7 @@ export function ProjectModules(p: Props) {
       const entry = commits.find((c) => c.moduleId === mod.id);
       if (
         entry &&
-        (!mod.installedGitRef || entry.latestCommit.sha !== mod.installedGitRef)
+        (!mod.presentationDefGitRef || entry.latestCommit.sha !== mod.presentationDefGitRef)
       ) {
         count++;
       }
@@ -229,7 +229,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
 
   const hasUpdateAvailable = createMemo(() => {
     const commits = moduleLatestCommits();
-    const installedGitRef = p.thisInstalledModule.installedGitRef;
+    const installedGitRef = p.thisInstalledModule.presentationDefGitRef;
     const moduleId = p.thisInstalledModule.id;
     if (!commits) return false;
     const entry = commits.find((c) => c.moduleId === moduleId);
@@ -419,8 +419,8 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
               when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready"}
             >
               {(() => {
-                const computeUpdatedAt = p.thisInstalledModule.computeUpdatedAt;
-                const definitionUpdatedAt = p.thisInstalledModule.definitionUpdatedAt;
+                const computeUpdatedAt = p.thisInstalledModule.computeDefUpdatedAt;
+                const definitionUpdatedAt = p.thisInstalledModule.presentationDefUpdatedAt;
                 const lastRunDate = new Date(
                   pds.moduleLastRun[p.thisInstalledModule.id],
                 );
@@ -429,27 +429,28 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                   : false;
                 return (
                   <div class="text-neutral flex flex-col gap-1 text-xs">
-                    <Show when={computeUpdatedAt}>
-                      <div class="flex items-center gap-2">
-                        <span>
-                          {t3({ en: "Compute definitions", fr: "Définitions de calcul" })}:{" "}
-                          {new Date(computeUpdatedAt!).toLocaleString()}
+                    <div class="flex items-center gap-2">
+                      <span>
+                        {t3({ en: "Compute definitions", fr: "Définitions de calcul" })}:{" "}
+                        {computeUpdatedAt ? new Date(computeUpdatedAt).toLocaleString() : "—"}
+                      </span>
+                      <Show when={p.thisInstalledModule.computeDefGitRef}>
+                        <span class="font-mono">
+                          ({p.thisInstalledModule.computeDefGitRef!.slice(0, 7)})
                         </span>
-                      </div>
-                    </Show>
-                    <Show when={definitionUpdatedAt}>
-                      <div class="flex items-center gap-2">
-                        <span>
-                          {t3({ en: "Presentation definitions", fr: "Définitions de présentation" })}:{" "}
-                          {new Date(definitionUpdatedAt!).toLocaleString()}
+                      </Show>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span>
+                        {t3({ en: "Presentation definitions", fr: "Définitions de présentation" })}:{" "}
+                        {definitionUpdatedAt ? new Date(definitionUpdatedAt).toLocaleString() : "—"}
+                      </span>
+                      <Show when={p.thisInstalledModule.presentationDefGitRef}>
+                        <span class="font-mono">
+                          ({p.thisInstalledModule.presentationDefGitRef!.slice(0, 7)})
                         </span>
-                        <Show when={p.thisInstalledModule.installedGitRef}>
-                          <span class="font-mono">
-                            ({p.thisInstalledModule.installedGitRef!.slice(0, 7)})
-                          </span>
-                        </Show>
-                      </div>
-                    </Show>
+                      </Show>
+                    </div>
                     <div
                       class={`flex items-center gap-2 ${resultsStale ? "text-danger" : ""}`}
                     >

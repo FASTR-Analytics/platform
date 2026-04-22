@@ -23,14 +23,20 @@ export function compareDefinitions(
     JSON.stringify(incomingDef.configRequirements) !==
     JSON.stringify(storedDef.configRequirements);
 
-  // Strip moduleId from stored resultsObjects for fair comparison
-  // (incoming doesn't have moduleId, stored does)
-  const storedResultsObjsComparable = storedDef.resultsObjects.map(
-    ({ moduleId: _, ...rest }) => rest,
-  );
+  // Compare only compute-affecting fields of resultsObjects
+  const incomingResultsComparable = incomingDef.resultsObjects.map((r) => ({
+    id: r.id,
+    description: r.description,
+    createTableStatementPossibleColumns: r.createTableStatementPossibleColumns,
+  }));
+  const storedResultsComparable = storedDef.resultsObjects.map((r) => ({
+    id: r.id,
+    description: r.description,
+    createTableStatementPossibleColumns: r.createTableStatementPossibleColumns,
+  }));
   const resultsObjChanged =
-    JSON.stringify(incomingDef.resultsObjects) !==
-    JSON.stringify(storedResultsObjsComparable);
+    JSON.stringify(incomingResultsComparable) !==
+    JSON.stringify(storedResultsComparable);
 
   // Metrics: compare structure (excluding translated fields and vizPresets)
   // We compare: id, valueFunc, formatAs, valueProps, resultsObjectId, hide
@@ -110,7 +116,7 @@ export function recommendsRerun(changes: DefinitionChanges): boolean {
 export function hasComputeAffectingChanges(
   incomingScript: string,
   incomingConfigRequirements: unknown,
-  incomingResultsObjects: { id: string; description: string }[],
+  incomingResultsObjects: { id: string; description: string; createTableStatementPossibleColumns?: unknown }[],
   storedDef: ModuleDefinitionInstalled,
 ): boolean {
   if (incomingScript !== storedDef.script) return true;
@@ -120,13 +126,19 @@ export function hasComputeAffectingChanges(
     JSON.stringify(storedDef.configRequirements)
   ) return true;
 
-  const storedResultsObjsComparable = storedDef.resultsObjects.map(
-    ({ moduleId: _, ...rest }) => rest,
-  );
-  if (
-    JSON.stringify(incomingResultsObjects) !==
-    JSON.stringify(storedResultsObjsComparable)
-  ) return true;
+  // Compare only compute-affecting fields of resultsObjects
+  const incomingComparable = incomingResultsObjects.map((r) => ({
+    id: r.id,
+    description: r.description,
+    createTableStatementPossibleColumns: r.createTableStatementPossibleColumns,
+  }));
+  const storedComparable = storedDef.resultsObjects.map((r) => ({
+    id: r.id,
+    description: r.description,
+    createTableStatementPossibleColumns: r.createTableStatementPossibleColumns,
+  }));
+  const resultsChanged = JSON.stringify(incomingComparable) !== JSON.stringify(storedComparable);
+  if (resultsChanged) return true;
 
   return false;
 }

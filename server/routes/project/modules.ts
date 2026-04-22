@@ -356,13 +356,13 @@ defineRoute(
     }
     const storedDef = stored.data.moduleDefinition;
 
-    // Get installed git ref
-    const installedGitRef =
+    // Get presentation def git ref (most recently installed)
+    const presentationDefGitRef =
       (
-        await c.var.ppk.projectDb<{ installed_git_ref: string | null }[]>`
-      SELECT installed_git_ref FROM modules WHERE id = ${params.module_id}
+        await c.var.ppk.projectDb<{ presentation_def_git_ref: string | null }[]>`
+      SELECT presentation_def_git_ref FROM modules WHERE id = ${params.module_id}
     `
-      ).at(0)?.installed_git_ref ?? null;
+      ).at(0)?.presentation_def_git_ref ?? null;
 
     // Fetch incoming definition from source (GitHub or local)
     let incomingDef, incomingScript, incomingGitRef;
@@ -381,7 +381,7 @@ defineRoute(
     // Determine if there's an update available (git refs differ)
     const hasUpdate =
       incomingGitRef !== undefined &&
-      (!installedGitRef || incomingGitRef !== installedGitRef);
+      (!presentationDefGitRef || incomingGitRef !== presentationDefGitRef);
 
     // Get stored metrics from DB (not in module_definition JSON)
     const storedMetrics = await getMetricsForModule(
@@ -406,9 +406,9 @@ defineRoute(
       const { owner, repo, path } = registryEntry.github;
       const commitsRes = await fetchCommits(owner, repo, path, "main");
       if (commitsRes.success) {
-        if (installedGitRef) {
+        if (presentationDefGitRef) {
           const idx = commitsRes.data.findIndex(
-            (cm) => cm.sha === installedGitRef,
+            (cm) => cm.sha === presentationDefGitRef,
           );
           if (idx === -1) {
             // Installed commit not found in recent history — return all commits
@@ -426,7 +426,7 @@ defineRoute(
 
     const preview: ModuleUpdatePreview = {
       hasUpdate,
-      currentGitRef: installedGitRef,
+      currentGitRef: presentationDefGitRef,
       incomingGitRef: incomingGitRef ?? "",
       changes,
       recommendsRerun: recommendsRerun(changes),
