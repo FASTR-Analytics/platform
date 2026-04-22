@@ -1,3 +1,18 @@
+[1.24.0] [user] [changed] - Module update dialog now shows exactly what changed with clear labels
+[1.24.0] [user] [added] - Update dialog separates changes that affect results from visual-only changes
+[1.24.0] [user] [added] - You can now choose to reinstall, rerun, or both when updating a module
+[1.24.0] [user] [added] - Warning shown when compute-affecting changes detected but rerun not selected
+[1.24.0] [user] [changed] - Module details now show separate timestamps for compute and presentation updates
+[1.24.0] [user] [changed] - Project comparison table now shows separate compute and presentation version info
+[1.24.0] [user] [changed] - Update available badge now tracks presentation definition version separately
+[1.24.0] [admin] [changed] - Module update dialog now shows exactly what changed
+[1.24.0] [admin] [added] - Separate tracking for compute vs presentation definition versions
+[1.24.0] [admin] [added] - Choose to reinstall, rerun, or both when updating a module
+[1.24.0] [admin] [added] - Warning when compute-affecting changes detected but rerun not selected
+[1.24.0] [admin] [changed] - Project comparison view now shows compute and presentation SHAs separately
+[1.24.0] [admin] [changed] - Update available badge now tracks presentation definition version
+[1.24.0] [admin] [changed] - Update all modules now always reinstalls and reruns
+[1.24.0] [admin] [fixed] - Module update badges now clear immediately after updating
 [1.23.4] [user] [added] - Option to prevent re-run when a module is already up to date
 [1.23.4] [admin] [added] - Option to prevent re-run when module is already up to date
 [1.23.4] [user] [added] - Module updates now distinguish between script and config changes
