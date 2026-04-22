@@ -78,6 +78,16 @@ export type ColsLayoutNode<U> = LayoutNodeBase & {
 
 From panther - complex nested type with `PaddingOptions`, `ColorKeyOrString`, etc. Use `z.record(z.unknown()).optional()` for `style` field since it's purely for rendering and panther handles defaults.
 
+### Type-Schema Drift Protection
+
+Cannot use `.strict()` on schemas because AI-generated slides may include underscore properties (e.g., `_thinking`) that would cause validation failures (see DOC_AI_TOOL_SCHEMAS.md).
+
+Instead, use `Required<T>` compile-time checks combined with module-load parsing:
+
+**(a) Type changes, schema not updated**: Complete examples using `Required<SlideType>` include every field. If type adds a field, the literal won't compile until you add the field. Then the parse fails because schema doesn't have it.
+
+**(b) Schema changes, type not updated**: If schema adds a required field, parsing the complete example (which uses the old type) throws at startup.
+
 ---
 
 ## Implementation
@@ -115,6 +125,30 @@ export const slideDeckConfigSchema = z.object({
 });
 
 export type SlideDeckConfigFromSchema = z.infer<typeof slideDeckConfigSchema>;
+
+// ── Module-load validation ──────────────────────────────────────────────────
+// Catches type/schema drift at startup:
+// - Required<T> forces every field to be present in the literal
+// - If type adds a field, literal won't compile until you add it
+// - If schema doesn't have that field, parse() throws at startup
+
+import type { SlideDeckConfig, DeckFooterConfig } from "./slides.ts";
+
+const _completeDeckConfig: Required<SlideDeckConfig> = {
+  label: "",
+  selectedReplicantValue: "",
+  logos: [],
+  logoSize: 1,
+  figureScale: 1,
+  deckFooter: { text: "", logos: [] } satisfies DeckFooterConfig,
+  showPageNumbers: true,
+  headerSize: 1,
+  useWatermark: false,
+  watermarkText: "",
+  primaryColor: "",
+  overlay: "none",
+};
+slideDeckConfigSchema.parse(_completeDeckConfig);
 ```
 
 Note: Export as `SlideDeckConfigFromSchema` to avoid conflict. `slides.ts` keeps the canonical `SlideDeckConfig` type.
@@ -260,26 +294,204 @@ export const slideConfigSchema = z.discriminatedUnion("type", [
 ]);
 
 export type SlideFromSchema = z.infer<typeof slideConfigSchema>;
+
+// ── Module-load validation ──────────────────────────────────────────────────
+// Catches type/schema drift at startup:
+// - Required<T> forces every field to be present in the literal
+// - If type adds a field, literal won't compile until you add it
+// - If schema doesn't have that field, parse() throws at startup
+
+import type {
+  CoverSlide,
+  SectionSlide,
+  ContentSlide,
+  TextBlockStyle,
+  ImageBlockStyle,
+} from "./slides.ts";
+
+const _completeCover: Required<CoverSlide> = {
+  type: "cover",
+  title: "",
+  subtitle: "",
+  presenter: "",
+  date: "",
+  logos: [],
+  titleTextRelFontSize: 1,
+  subTitleTextRelFontSize: 1,
+  presenterTextRelFontSize: 1,
+  dateTextRelFontSize: 1,
+};
+slideConfigSchema.parse(_completeCover);
+
+const _completeSection: Required<SectionSlide> = {
+  type: "section",
+  sectionTitle: "",
+  sectionSubtitle: "",
+  sectionTextRelFontSize: 1,
+  smallerSectionTextRelFontSize: 1,
+};
+slideConfigSchema.parse(_completeSection);
+
+const _completeContent: Required<ContentSlide> = {
+  type: "content",
+  header: "",
+  subHeader: "",
+  date: "",
+  headerLogos: [],
+  footer: "",
+  footerLogos: [],
+  layout: {
+    type: "item",
+    id: "x",
+    data: {
+      type: "text",
+      markdown: "",
+      style: { textSize: 1, textBackground: "" } satisfies Required<TextBlockStyle>,
+    },
+  },
+};
+slideConfigSchema.parse(_completeContent);
+
+// Also validate figure block with both FigureSource variants
+import { DEFAULT_S_CONFIG, DEFAULT_T_CONFIG } from "./presentation_object_defaults.ts";
+
+// FigureSource "custom" variant
+slideConfigSchema.parse({
+  type: "content",
+  layout: {
+    type: "item",
+    id: "x",
+    data: {
+      type: "figure",
+      figureInputs: {},
+      source: {
+        type: "custom",
+        description: "",
+      },
+    },
+  },
+} satisfies ContentSlide);
+
+// FigureSource "from_data" variant
+slideConfigSchema.parse({
+  type: "content",
+  layout: {
+    type: "item",
+    id: "x",
+    data: {
+      type: "figure",
+      figureInputs: {},
+      source: {
+        type: "from_data",
+        metricId: "",
+        config: {
+          d: {
+            type: "line",
+            timeseriesGrouping: "year",
+            valuesDisDisplayOpt: "all",
+            disaggregateBy: [],
+            filterBy: [],
+          },
+          s: DEFAULT_S_CONFIG,
+          t: DEFAULT_T_CONFIG,
+        },
+        snapshotAt: "",
+      },
+    },
+  },
+} satisfies ContentSlide);
+
+slideConfigSchema.parse({
+  type: "content",
+  layout: {
+    type: "item",
+    id: "x",
+    data: {
+      type: "image",
+      imgFile: "",
+      style: { imgFit: "cover", imgAlign: "center" } satisfies Required<ImageBlockStyle>,
+    },
+  },
+} satisfies ContentSlide);
 ```
 
 ### Step 3: Update slides.ts
 
 **File**: `lib/types/slides.ts`
 
-**Changes**:
-1. Keep all existing type definitions (they're the canonical source)
-2. Keep all helper functions
-3. Schemas are already re-exported (lines 7-8)
+**Add default slide functions** (after `getStartingConfigForSlideDeck`, around line 57):
 
-No changes needed — the manual types remain authoritative, schemas validate storage.
+```ts
+export function getDefaultCoverSlide(): CoverSlide {
+  return {
+    type: "cover",
+    title: "Title",
+    subtitle: "Subtitle",
+  };
+}
 
-### Step 4: Verify mod.ts exports
+export function getDefaultSectionSlide(): SectionSlide {
+  return {
+    type: "section",
+    sectionTitle: "Section",
+  };
+}
+
+export function getDefaultContentSlide(): ContentSlide {
+  return {
+    type: "content",
+    header: "New slide",
+    layout: {
+      type: "item",
+      id: "a1a",
+      data: { type: "text", markdown: "" },
+    },
+  };
+}
+```
+
+These deduplicate inline defaults in `client/src/components/slide_deck/slide_list.tsx`.
+
+Note: Module-load validation uses separate `Required<T>` complete examples (not these defaults) to catch all optional fields.
+
+### Step 4: Update slide_list.tsx to use defaults
+
+**File**: `client/src/components/slide_deck/slide_list.tsx`
+
+**Replace inline slide objects** (around lines 354-370) with imports:
+
+```tsx
+import {
+  getDefaultCoverSlide,
+  getDefaultSectionSlide,
+  getDefaultContentSlide,
+} from "lib";
+
+// In the menu items:
+{
+  label: t3({ en: "Cover slide", fr: "Diapositive de couverture" }),
+  icon: "plus",
+  onClick: () => addSlide(getDefaultCoverSlide()),
+},
+{
+  label: t3({ en: "Section slide", fr: "Diapositive de section" }),
+  icon: "plus",
+  onClick: () => addSlide(getDefaultSectionSlide()),
+},
+{
+  label: t3({ en: "Content slide", fr: "Diapositive de contenu" }),
+  icon: "plus",
+  onClick: () => addSlide(getDefaultContentSlide()),
+},
+```
+
+### Step 5: Verify mod.ts exports
 
 **File**: `lib/types/mod.ts`
 
 Already has `export * from "./slides.ts"` which re-exports the schemas. No changes needed.
 
-### Step 5: Data transforms (no changes needed)
+### Step 6: Data transforms (no changes needed)
 
 The existing files at:
 - `server/db/migrations/data_transforms/slide_deck_config.ts`  
@@ -295,7 +507,8 @@ Already use `slideDeckConfigSchema.safeParse()` and `slideConfigSchema.parse()`.
 |------|--------|
 | `lib/types/_slide_deck_config.ts` | Replace stub with schema (Step 1) |
 | `lib/types/_slide_config.ts` | Replace stub with schema (Step 2) |
-| `lib/types/slides.ts` | No changes |
+| `lib/types/slides.ts` | Add default slide functions (Step 3) |
+| `client/src/components/slide_deck/slide_list.tsx` | Use default functions (Step 4) |
 | `lib/types/mod.ts` | No changes |
 | `server/db/migrations/data_transforms/*` | No changes |
 
