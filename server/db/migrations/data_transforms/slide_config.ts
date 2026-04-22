@@ -12,8 +12,9 @@
 // 2. Fix malformed layouts (missing type/id) → default empty text item
 // 3. Convert "placeholder" blocks → empty figure blocks
 // 4. Convert span from string → number
-// 5. Rename source.type "from_metric" → "from_data" and add snapshotAt
-// 6. Transform embedded PO configs in figure blocks (reuses po_config transforms)
+// 5. Clamp span to valid range 1-12
+// 6. Rename source.type "from_metric" → "from_data" and add snapshotAt
+// 7. Transform embedded PO configs in figure blocks (reuses po_config transforms)
 //
 // =============================================================================
 
@@ -45,6 +46,11 @@ function transformLayoutNode(node: LayoutNode): void {
     } else {
       nodeAny.span = parsed;
     }
+  }
+
+  // Block 6: Clamp numeric span to valid range 1-12
+  if (typeof nodeAny.span === "number") {
+    nodeAny.span = Math.max(1, Math.min(12, Math.round(nodeAny.span)));
   }
 
   if (node.type === "item" && node.data) {

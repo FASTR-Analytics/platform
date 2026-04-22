@@ -6,8 +6,8 @@ import {
   FrameTop,
   TabsNavigation,
   getEditorWrapper,
-  getTabs,
   openComponent,
+  type Tabs,
 } from "panther";
 import { FeedbackForm } from "~/components/instance/feedback_form";
 import { createEffect, Match, Show, Switch } from "solid-js";
@@ -134,6 +134,27 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
       : []),
   ];
 
+  const tabIcons = {
+    decks: "sparkles" as const,
+    reports: "report" as const,
+    visualizations: "chart" as const,
+    metrics: "badge" as const,
+    modules: "code" as const,
+    data: "database" as const,
+    settings: "settings" as const,
+  };
+
+  const tabs: Tabs = {
+    currentTab: projectTab,
+    setCurrentTab: (tab) => {
+      const newTab = typeof tab === "function" ? tab(projectTab()) : tab;
+      updateProjectView({ tab: newTab as TabOption });
+    },
+    tabs: allTabs,
+    isTabActive: (tab) => projectTab() === tab,
+    getAllTabs: () => allTabs.map((t) => t.value),
+  };
+
   return (
     <AIProjectWrapper>
       <AIContextSync />
@@ -149,25 +170,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
             </div>
           }
         >
-          {(() => {
-            const tabs = getTabs(allTabs, {
-              initialTab: projectTab(),
-              onTabChange: (tab) =>
-                updateProjectView({ tab: tab as TabOption }),
-            });
-
-            const tabIcons = {
-              decks: "sparkles" as const,
-              reports: "report" as const,
-              visualizations: "chart" as const,
-              metrics: "badge" as const,
-              modules: "code" as const,
-              data: "database" as const,
-              settings: "settings" as const,
-            };
-
-            return (
-              <FrameTop
+          <FrameTop
                 panelChildren={
                   <div class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b">
                     <Button
@@ -316,8 +319,6 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                   </Switch>
                 </FrameLeft>
               </FrameTop>
-            );
-          })()}
         </Show>
       </ProjectEditorWrapper>
     </AIProjectWrapper>

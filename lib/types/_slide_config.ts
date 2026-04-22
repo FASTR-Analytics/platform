@@ -67,7 +67,7 @@ const layoutNodeBaseFields = {
   id: z.string(),
   minH: z.number().optional(),
   maxH: z.number().optional(),
-  span: z.number().optional(),
+  span: z.number().int().min(1).max(12).optional(),
 };
 
 const itemLayoutNodeSchema = z.object({
