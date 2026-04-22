@@ -44,7 +44,6 @@ SELECT id FROM modules WHERE dirty = 'queued'
       rawModule.id
     );
     if (!dependenciesAllReady) {
-      console.log("Dependencies NOT READY for", rawModule.id);
       continue;
     }
     runnableModules.push(rawModule.id);

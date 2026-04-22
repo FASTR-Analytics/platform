@@ -30,6 +30,7 @@ export const moduleRouteRegistry = {
     params: {} as { module_id: ModuleId },
     body: {} as {
       preserveSettings: boolean;
+      preventRerun?: boolean;
     },
     response: {} as {
       lastUpdated: string;

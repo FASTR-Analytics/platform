@@ -7,6 +7,7 @@ export type Intent =
   | "danger"
   | "primary"
   | "success"
+  | "warning"
   | "neutral"
   | "base-content"
   | "base-100";

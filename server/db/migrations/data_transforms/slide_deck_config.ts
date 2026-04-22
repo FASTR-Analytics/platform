@@ -7,11 +7,12 @@
 // Schema:   lib/types/_slide_deck_config.ts
 //           → slideDeckConfigSchema
 //
-// TRANSFORM BLOCKS: (none yet)
+// TRANSFORM BLOCKS:
+// 1. Fill primaryColor default
 //
 // =============================================================================
 
-import { slideDeckConfigSchema } from "../../../../lib/types/_slide_deck_config.ts";
+import { slideDeckConfigSchema, _GFF_GREEN } from "lib";
 import type { Sql } from "postgres";
 
 export type MigrationStats = {
@@ -36,8 +37,10 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
       continue;
     }
 
-    // No transform blocks yet — if we get here, data is invalid
-    // Add blocks above this line when schema evolves
+    // Block 1: Fill primaryColor default
+    if (!("primaryColor" in config)) {
+      config.primaryColor = _GFF_GREEN;
+    }
 
     const validated = slideDeckConfigSchema.parse(config);
 

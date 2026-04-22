@@ -1,3 +1,22 @@
+[1.23.4] [user] [added] - Option to prevent re-run when updating a module's script
+[1.23.4] [user] [fixed] - Report backup now properly requires permission again
+[1.23.4] [admin] [added] - Option to prevent automatic re-run when updating a module script
+[1.23.4] [admin] [fixed] - Report backup permission check re-enabled after temporary override
+[1.23.4] [user] [added] - Warning dots now appear on tabs when data or modules need attention
+[1.23.4] [admin] [added] - Navigation tabs now show warning dots when data or modules need updates
+[1.23.4] [admin] [added] - Modules tab shows a danger indicator when a module has errors
+[1.23.4] [admin] [internal] - Reduced unnecessary logging in background task processing
+[1.23.3] [user] [fixed] - Fixed slide layout issues caused by invalid spacing values
+[1.23.3] [admin] [fixed] - AI-generated slides now validate layout span values
+[1.23.3] [admin] [fixed] - Slide layout spans are clamped to valid range 1–12
+[1.23.3] [user] [fixed] - "Update available" badge now displays more reliably on modules
+[1.23.3] [user] [fixed] - Conditional formatting threshold editor responds more reliably to changes
+[1.23.3] [user] [fixed] - Slide presentations now properly save and load all settings
+[1.23.3] [admin] [added] - Slide and slide deck configurations are now fully validated
+[1.23.3] [admin] [fixed] - Module update badge now displays more reliably
+[1.23.3] [admin] [fixed] - Legacy slide data is automatically migrated to the current format
+[1.23.3] [admin] [fixed] - Conditional formatting threshold editor renders more reliably
+[1.23.3] [admin] [changed] - Report backup temporarily available without configure permission
 [1.23.2] [admin] [changed] - Module column definitions are now automatically converted to a consistent format during migration
 [1.23.2] [user] [fixed] - Older saved charts and tables now open without errors
 [1.23.2] [admin] [fixed] - Older presentation objects now automatically gain newer display settings during migration
