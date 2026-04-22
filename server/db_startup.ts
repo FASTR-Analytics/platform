@@ -20,6 +20,7 @@ import { migrateModuleDefinitions } from "./db/migrations/data_transforms/module
 import { migrateMetricsColumns } from "./db/migrations/data_transforms/metric.ts";
 import { migrateSlideDeckConfigs } from "./db/migrations/data_transforms/slide_deck_config.ts";
 import { migrateSlideConfigs } from "./db/migrations/data_transforms/slide_config.ts";
+import { migrateInstanceConfigs } from "./db/migrations/data_transforms/instance_config.ts";
 
 export async function dbStartUp() {
   const sql = getPgConnectionFromCacheOrNew("postgres", "READ_AND_WRITE");
@@ -50,6 +51,9 @@ ${userInserts}
 
   await runInstanceMigrations(sqlMain);
 
+  // Instance data transforms — on main database
+  await runInstanceDataTransforms(sqlMain);
+
   const projects = await sqlMain<{ id: string }[]>`SELECT id FROM projects`;
   for (const project of projects) {
     const projectDb = getPgConnectionFromCacheOrNew(
@@ -63,8 +67,8 @@ ${userInserts}
     // (and migrateToMetricsTables function below) once all instances have updated.
     await migrateToMetricsTables(projectDb);
 
-    // Data transforms — each in its own transaction
-    await runDataTransforms(project.id, projectDb);
+    // Project data transforms — each in its own transaction
+    await runProjectDataTransforms(project.id, projectDb);
   }
 }
 
@@ -79,9 +83,14 @@ type MigrationResult = {
   error?: Error;
 };
 
-type MigrationFn = (tx: Sql, projectId: string) => Promise<MigrationStats>;
+type InstanceMigrationFn = (tx: Sql) => Promise<MigrationStats>;
+type ProjectMigrationFn = (tx: Sql, projectId: string) => Promise<MigrationStats>;
 
-const DATA_TRANSFORMS: { name: string; fn: MigrationFn }[] = [
+const INSTANCE_DATA_TRANSFORMS: { name: string; fn: InstanceMigrationFn }[] = [
+  { name: "instance_config", fn: migrateInstanceConfigs },
+];
+
+const PROJECT_DATA_TRANSFORMS: { name: string; fn: ProjectMigrationFn }[] = [
   { name: "po_config", fn: migratePOConfigs },
   { name: "module_definition", fn: migrateModuleDefinitions },
   { name: "metrics_columns", fn: migrateMetricsColumns },
@@ -89,13 +98,44 @@ const DATA_TRANSFORMS: { name: string; fn: MigrationFn }[] = [
   { name: "slide_config", fn: migrateSlideConfigs },
 ];
 
-async function runDataTransforms(
+async function runInstanceDataTransforms(
+  mainDb: ReturnType<typeof getPgConnectionFromCacheOrNew>,
+): Promise<void> {
+  const results: MigrationResult[] = [];
+
+  for (const { name, fn } of INSTANCE_DATA_TRANSFORMS) {
+    try {
+      let stats: MigrationStats | undefined;
+      await mainDb.begin(async (tx) => {
+        stats = await fn(tx);
+      });
+      results.push({ name, success: true, stats });
+    } catch (err) {
+      results.push({
+        name,
+        success: false,
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
+    }
+  }
+
+  logMigrationResults("instance", results);
+
+  if (results.some((r) => !r.success)) {
+    console.error(
+      `\n[migration] FAILED — Server will not start. Fix the issues above and redeploy.\n`,
+    );
+    Deno.exit(1);
+  }
+}
+
+async function runProjectDataTransforms(
   projectId: string,
   projectDb: ReturnType<typeof getPgConnectionFromCacheOrNew>,
 ): Promise<void> {
   const results: MigrationResult[] = [];
 
-  for (const { name, fn } of DATA_TRANSFORMS) {
+  for (const { name, fn } of PROJECT_DATA_TRANSFORMS) {
     try {
       let stats: MigrationStats | undefined;
       await projectDb.begin(async (tx) => {

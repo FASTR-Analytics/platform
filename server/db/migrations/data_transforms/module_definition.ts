@@ -18,6 +18,7 @@
 // 1. Fill missing top-level fields: prerequisites, lastScriptUpdate, dataSources, etc.
 // 2. Fill metricId and sortOrder in defaultPresentationObjects items
 // 3. DELETE metrics from blob (metrics are stored in metrics table, not blob)
+// 4. Convert empty/null/undefined createTableStatementPossibleColumns to false in resultsObjects
 //
 // =============================================================================
 
@@ -58,6 +59,17 @@ function transformModuleDefinition(mod: Record<string, unknown>): void {
 
   // Block 3: DELETE metrics from blob (stored in metrics table, not here)
   delete mod.metrics;
+
+  // Block 4: Convert empty createTableStatementPossibleColumns to false in resultsObjects
+  if (Array.isArray(mod.resultsObjects)) {
+    const ros = mod.resultsObjects as Record<string, unknown>[];
+    for (const ro of ros) {
+      const cols = ro.createTableStatementPossibleColumns;
+      if (cols === undefined || cols === null || (typeof cols === "object" && Object.keys(cols as object).length === 0)) {
+        ro.createTableStatementPossibleColumns = false;
+      }
+    }
+  }
 }
 
 export async function migrateModuleDefinitions(tx: Sql, _projectId: string): Promise<MigrationStats> {
