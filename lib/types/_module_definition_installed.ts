@@ -64,7 +64,15 @@ export const resultsObjectDefinitionInstalledStrict = z.object({
   id: z.string(),
   moduleId: z.string(),
   description: z.string(),
-  createTableStatementPossibleColumns: z.record(z.string(), z.string()).optional(),
+  createTableStatementPossibleColumns: z
+    .union([
+      z.literal(false),
+      z.record(z.string(), z.string()).refine(
+        (obj) => Object.keys(obj).length > 0,
+        { message: "Must have at least one column" },
+      ),
+    ])
+    .optional(),
 });
 
 export const defaultPresentationObjectInstalledStrict = z.object({

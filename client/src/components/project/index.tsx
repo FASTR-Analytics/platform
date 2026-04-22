@@ -83,14 +83,17 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
   const projectDetail = useProjectDetail();
   const navigate = useNavigate();
 
-  const {
-    openEditor: openProjectEditor,
-    EditorWrapper: ProjectEditorWrapper,
-  } = getEditorWrapper();
+  const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
+    getEditorWrapper();
 
   const allTabs = [
     ...(projectDetail.thisUserPermissions.can_view_slide_decks
-      ? [{ value: "decks" as const, label: t3({ en: "Slide decks", fr: "Présentations" }) }]
+      ? [
+          {
+            value: "decks" as const,
+            label: t3({ en: "Slide decks", fr: "Présentations" }),
+          },
+        ]
       : []),
     ...(projectDetail.thisUserPermissions.can_view_visualizations
       ? [
@@ -100,9 +103,9 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
           },
         ]
       : []),
-    ...(projectDetail.thisUserPermissions.can_view_metrics
-      ? [{ value: "metrics" as const, label: t3({ en: "Metrics", fr: "Indicateurs" }) }]
-      : []),
+    // ...(projectDetail.thisUserPermissions.can_view_metrics
+    //   ? [{ value: "metrics" as const, label: t3({ en: "Metrics", fr: "Indicateurs" }) }]
+    //   : []),
     ...(projectDetail.thisUserPermissions.can_configure_modules ||
     projectDetail.thisUserPermissions.can_run_modules ||
     projectDetail.thisUserPermissions.can_view_script_code
@@ -139,7 +142,10 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
           when={allTabs.length > 0}
           fallback={
             <div class="ui-pad text-danger">
-              {t3({ en: "No accessible tabs for this project.", fr: "Aucun onglet accessible pour ce projet." })}
+              {t3({
+                en: "No accessible tabs for this project.",
+                fr: "Aucun onglet accessible pour ce projet.",
+              })}
             </div>
           }
         >
@@ -169,9 +175,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                       onClick={() => navigate("/")}
                     />
                     <div class="font-700 flex-1 truncate text-xl">
-                      <span class="font-400">
-                        {projectDetail.label}
-                      </span>
+                      <span class="font-400">{projectDetail.label}</span>
                     </div>
                     <div class="ui-gap-sm flex items-center">
                       <Button
@@ -186,7 +190,10 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                         intent="base-100"
                         outline
                       >
-                        {t3({ en: "Send feedback", fr: "Envoyer un commentaire" })}
+                        {t3({
+                          en: "Send feedback",
+                          fr: "Envoyer un commentaire",
+                        })}
                       </Button>
                       <Show when={!showAi()}>
                         <Button
@@ -221,8 +228,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                     <Match
                       when={
                         projectTab() === "reports" &&
-                        projectDetail.thisUserPermissions
-                          .can_view_reports
+                        projectDetail.thisUserPermissions.can_view_reports
                       }
                     >
                       <ProjectReports
@@ -233,8 +239,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                     <Match
                       when={
                         projectTab() === "decks" &&
-                        projectDetail.thisUserPermissions
-                          .can_view_slide_decks
+                        projectDetail.thisUserPermissions.can_view_slide_decks
                       }
                     >
                       <ProjectDecks
@@ -257,8 +262,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                     <Match
                       when={
                         projectTab() === "metrics" &&
-                        projectDetail.thisUserPermissions
-                          .can_view_metrics
+                        projectDetail.thisUserPermissions.can_view_metrics
                       }
                     >
                       <ProjectMetrics
@@ -271,8 +275,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                         projectTab() === "modules" &&
                         (projectDetail.thisUserPermissions
                           .can_configure_modules ||
-                          projectDetail.thisUserPermissions
-                            .can_run_modules ||
+                          projectDetail.thisUserPermissions.can_run_modules ||
                           projectDetail.thisUserPermissions
                             .can_view_script_code)
                       }
@@ -284,12 +287,10 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                             .can_configure_modules
                         }
                         canRunModules={
-                          projectDetail.thisUserPermissions
-                            .can_run_modules
+                          projectDetail.thisUserPermissions.can_run_modules
                         }
                         canViewScriptCode={
-                          projectDetail.thisUserPermissions
-                            .can_view_script_code
+                          projectDetail.thisUserPermissions.can_view_script_code
                         }
                       />
                     </Match>
@@ -299,15 +300,12 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                         projectDetail.thisUserPermissions.can_view_data
                       }
                     >
-                      <ProjectData
-                        isGlobalAdmin={p.isGlobalAdmin}
-                      />
+                      <ProjectData isGlobalAdmin={p.isGlobalAdmin} />
                     </Match>
                     <Match
                       when={
                         projectTab() === "settings" &&
-                        projectDetail.thisUserPermissions
-                          .can_configure_settings
+                        projectDetail.thisUserPermissions.can_configure_settings
                       }
                     >
                       <ProjectSettings

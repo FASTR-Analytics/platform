@@ -277,7 +277,13 @@ const metricDefinitionGithub = z.object({
 const resultsObjectDefinitionGithub = z.object({
   id: z.string(),
   description: z.string(),
-  createTableStatementPossibleColumns: z.record(z.string(), z.string()),
+  createTableStatementPossibleColumns: z.union([
+    z.literal(false),
+    z.record(z.string(), z.string()).refine(
+      (obj) => Object.keys(obj).length > 0,
+      { message: "Must have at least one column" },
+    ),
+  ]),
 });
 
 // ── moduleDefinition (github — full file) ───────────────────────────
