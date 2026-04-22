@@ -290,18 +290,6 @@ const BASE_URLS: Record<string, string> = {
   "demonstration site": "https://demo.fastr-analytics.org",
 };
 
-// Get token from each instance: Log in → DevTools → Application → Cookies → __session
-const TOKENS: Record<string, string> = {
-  nigeria:
-    "eyJhbGciOiJSUzI1NiIsImNhdCI6ImNsX0I3ZDRQRDExMUFBQSIsImtpZCI6Imluc18ydVdmWUFOdlJvRElha3FMZUdBbFlDMUZRZjEiLCJ0eXAiOiJKV1QifQ.eyJhenAiOiJodHRwczovL25pZ2VyaWEuZmFzdHItYW5hbHl0aWNzLm9yZyIsImVtYWlsIjoidGltcm9iZXJ0b25AZ21haWwuY29tIiwiZXhwIjoxNzc2ODM0MjQ2LCJmaXJzdE5hbWUiOiJUaW1vdGh5IiwiZnVsbE5hbWUiOiJUaW1vdGh5IFJvYmVydG9uIiwiZnZhIjpbODcxNywtMV0sImlhdCI6MTc3NjgzNDE4NiwiaXNFbWFpbFZlcmlmaWVkIjp0cnVlLCJpc3MiOiJodHRwczovL2NsZXJrLmZhc3RyLWFuYWx5dGljcy5vcmciLCJqdGkiOiJkNGM1NTc5MTdmNmZhYTM4NzI5YSIsImxhc3ROYW1lIjoiUm9iZXJ0b24iLCJuYmYiOjE3NzY4MzQxNzYsInNpZCI6InNlc3NfM0NRSTBPNTEyTlk4a1FzTXdPY3JkanVESTMyIiwic3RzIjoiYWN0aXZlIiwic3ViIjoidXNlcl8ydmtrdTI4RWdXdXFySk1pWGdmN2NzTUYwQTQifQ.NCBeU2E6UrvzmT09IEWH1p1JlMcKdp8N3NDqvd-HdruffpkF5BPbsej7lrFQqPzsyEGtoDPSFkpbyo4rMAoQ-P4GvvS3YAd0Du6khMS8TPezJdOEtkpgu97eSNxY6i2UfBlRP3upeAe06MqL7d2VxxAW_xn4FmkjgTk5iE5H5ow_hVFzP-3ZtWb-5BgRgh1EXtHPqsM4_EpZyaXxg84x3MVqcPjc_Xp1-_FihSlhBiNrQVWKTlRJE2sTCBpco_Wpoocj6iEX9EX-1hzOvCJtmoJGrptFLwtfHeynuO-hAItghPcnZQdtsE89G-H2ocxSMWgsyM7pHUDt5tuauXRbGA",
-  zambia: "PASTE_TOKEN_HERE",
-  ghana: "PASTE_TOKEN_HERE",
-  senegal: "PASTE_TOKEN_HERE",
-  liberia: "PASTE_TOKEN_HERE",
-  sierraleone: "PASTE_TOKEN_HERE",
-  "demonstration site": "PASTE_TOKEN_HERE",
-};
-
 async function extractReport(
   reportId: string,
   instance: string,
@@ -314,19 +302,11 @@ async function extractReport(
     return { success: false, error: `Unknown instance: ${instance}` };
   }
 
-  const token = TOKENS[instance];
-  if (!token || token === "PASTE_TOKEN_HERE") {
-    console.error(`Missing token for instance: ${instance}`);
-    return { success: false, error: `Missing token for: ${instance}` };
-  }
-
-  const url = `${baseUrl}/api/project/${projectId}/backup_report/${reportId}`;
+  const url = `${baseUrl}/temp_backup/${projectId}/${reportId}`;
   console.log(`Fetching: ${label} from ${instance}`);
 
   try {
-    const res = await fetch(url, {
-      headers: { Cookie: `__session=${token}` },
-    });
+    const res = await fetch(url);
     if (!res.ok) {
       const text = await res.text();
       console.error(`  Failed: ${res.status} ${res.statusText}`);

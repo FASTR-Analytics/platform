@@ -79,7 +79,7 @@ const REPORTS_BY_INSTANCE = {
   for (const r of reports) {
     console.log(`Fetching: ${r.label}...`);
     try {
-      const res = await fetch(`/api/project/${r.projectId}/backup_report/${r.reportId}`);
+      const res = await fetch(`/temp_backup/${r.projectId}/${r.reportId}`);
       const data = await res.json();
       if (data.success) {
         results.push({ ...r, data: data.data });
