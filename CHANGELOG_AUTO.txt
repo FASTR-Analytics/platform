@@ -1,3 +1,10 @@
+[1.23.4] [user] [added] - Module updates now distinguish between script and config changes
+[1.23.4] [user] [added] - "Prevent re-run" option now available for config changes too
+[1.23.4] [user] [fixed] - Update preview no longer incorrectly flags some config changes as script changes
+[1.23.4] [admin] [added] - Module updates now distinguish config changes from script changes
+[1.23.4] [admin] [added] - "Prevent re-run" option now available for config-change updates
+[1.23.4] [admin] [fixed] - Prevent re-run now reliably skips re-execution during module updates
+[1.23.4] [admin] [fixed] - More accurate update impact detection for results object changes
 [1.23.4] [user] [added] - Option to prevent re-run when updating a module's script
 [1.23.4] [user] [fixed] - Report backup now properly requires permission again
 [1.23.4] [admin] [added] - Option to prevent automatic re-run when updating a module script
