@@ -1,3 +1,5 @@
+[1.23.4] [user] [added] - Option to prevent re-run when a module is already up to date
+[1.23.4] [admin] [added] - Option to prevent re-run when module is already up to date
 [1.23.4] [user] [added] - Module updates now distinguish between script and config changes
 [1.23.4] [user] [added] - "Prevent re-run" option now available for config changes too
 [1.23.4] [user] [fixed] - Update preview no longer incorrectly flags some config changes as script changes
