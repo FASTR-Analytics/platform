@@ -31,6 +31,22 @@ routesHealth.get("/health_check", async (c) => {
     DBProject[]
   >`SELECT id, label FROM projects ORDER BY LOWER(label)`;
 
+  const hasRunningModules = (
+    await Promise.all(
+      projects.map(async (p: DBProject) => {
+        try {
+          const projectDb = getPgConnectionFromCacheOrNew(p.id, "READ_ONLY");
+          const [row] = await projectDb<{ count: number }[]>`
+            SELECT COUNT(*) AS count FROM modules WHERE dirty IN ('queued', 'running')
+          `;
+          return row.count > 0;
+        } catch {
+          return false;
+        }
+      })
+    )
+  ).some(Boolean);
+
   const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
   const hfaTimePointCount = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM dataset_hfa_dictionary_time_points`)[0].count;
 
@@ -60,6 +76,7 @@ routesHealth.get("/health_check", async (c) => {
           timestamp: lastLog.timestamp,
         }
       : null,
+    hasRunningModules,
     datasets: {
       hmis: hmisVersion
         ? {
