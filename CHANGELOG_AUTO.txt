@@ -1,3 +1,7 @@
+[1.23.4] [user] [added] - Warning dots now appear on tabs when data or modules need attention
+[1.23.4] [admin] [added] - Navigation tabs now show warning dots when data or modules need updates
+[1.23.4] [admin] [added] - Modules tab shows a danger indicator when a module has errors
+[1.23.4] [admin] [internal] - Reduced unnecessary logging in background task processing
 [1.23.3] [user] [fixed] - Fixed slide layout issues caused by invalid spacing values
 [1.23.3] [admin] [fixed] - AI-generated slides now validate layout span values
 [1.23.3] [admin] [fixed] - Slide layout spans are clamped to valid range 1–12
