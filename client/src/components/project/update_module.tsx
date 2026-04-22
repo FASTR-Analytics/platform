@@ -59,11 +59,21 @@ export function UpdateModule(
             <Show
               when={data.impactType !== "no_change"}
               fallback={
-                <div class="text-neutral text-sm">
-                  {t3({
-                    en: "This module is already up to date.",
-                    fr: "Ce module est déjà à jour.",
-                  })}
+                <div class="ui-spy-sm">
+                  <div class="text-neutral text-sm">
+                    {t3({
+                      en: "This module is already up to date.",
+                      fr: "Ce module est déjà à jour.",
+                    })}
+                  </div>
+                  <Checkbox
+                    label={t3({
+                      en: "Prevent re-run",
+                      fr: "Empêcher la ré-exécution",
+                    })}
+                    checked={preventRerun()}
+                    onChange={setPreventRerun}
+                  />
                 </div>
               }
             >
