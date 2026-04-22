@@ -199,7 +199,7 @@ export function MigrateAllReportsToSlides(
 
 **File:** `client/src/components/instance/migrate_project_reports.ts`
 
-Extract the core migration logic from `migrate_reports_to_slides.tsx` into a reusable function:
+Full implementation (not just references):
 
 ```tsx
 import type {
@@ -227,6 +227,7 @@ import {
   getPODetailFromCacheorFetch,
   getPOFigureInputsFromCacheOrFetch,
 } from "~/state/po_cache";
+import { stripFigureInputsForStorage } from "~/generate_visualization/mod";
 
 type ProgressCallback = (current: number, total: number) => void;
 type LogCallback = (msg: string) => void;
@@ -328,7 +329,7 @@ export async function migrateProjectReports(
   return { migratedCount: reportDataList.length };
 }
 
-// --- Helper functions (copied from migrate_reports_to_slides.tsx) ---
+// --- Helper functions ---
 
 function mapReportConfigToSlideDeckConfig(rc: ReportConfig): SlideDeckConfig {
   const colorDetails = getColorDetailsForColorTheme(rc.colorTheme);
@@ -353,7 +354,51 @@ async function convertReportItemToSlide(
   projectId: string,
   addLog: LogCallback
 ): Promise<Slide> {
-  // ... (copy implementation from migrate_reports_to_slides.tsx lines 241-294)
+  const c = item.config;
+
+  switch (c.type) {
+    case "cover": {
+      const slide: CoverSlide = {
+        type: "cover",
+        title: c.cover.titleText ?? "",
+        subtitle: c.cover.subTitleText,
+        presenter: c.cover.presenterText,
+        date: c.cover.dateText,
+        logos: c.cover.logos,
+        titleTextRelFontSize: c.cover.titleTextRelFontSize,
+        subTitleTextRelFontSize: c.cover.subTitleTextRelFontSize,
+        presenterTextRelFontSize: c.cover.presenterTextRelFontSize,
+        dateTextRelFontSize: c.cover.dateTextRelFontSize,
+      };
+      return slide;
+    }
+
+    case "section": {
+      const slide: SectionSlide = {
+        type: "section",
+        sectionTitle: c.section.sectionText ?? "",
+        sectionSubtitle: c.section.smallerSectionText,
+        sectionTextRelFontSize: c.section.sectionTextRelFontSize,
+        smallerSectionTextRelFontSize: c.section.smallerSectionTextRelFontSize,
+      };
+      return slide;
+    }
+
+    case "freeform": {
+      const layout = await convertLayoutNode(c.freeform.content, projectId, addLog);
+      const slide: ContentSlide = {
+        type: "content",
+        header: c.freeform.useHeader ? c.freeform.headerText : undefined,
+        subHeader: c.freeform.useHeader ? c.freeform.subHeaderText : undefined,
+        date: c.freeform.useHeader ? c.freeform.dateText : undefined,
+        headerLogos: c.freeform.useHeader ? c.freeform.headerLogos : undefined,
+        footer: c.freeform.useFooter ? c.freeform.footerText : undefined,
+        footerLogos: c.freeform.useFooter ? c.freeform.footerLogos : undefined,
+        layout,
+      };
+      return slide;
+    }
+  }
 }
 
 async function convertLayoutNode(
@@ -361,7 +406,25 @@ async function convertLayoutNode(
   projectId: string,
   addLog: LogCallback
 ): Promise<LayoutNode<ContentBlock>> {
-  // ... (copy implementation from migrate_reports_to_slides.tsx lines 297-321)
+  if (node.type === "item") {
+    const block = await convertContentItem(node.data, projectId, addLog);
+    return {
+      type: "item",
+      id: node.id,
+      data: block,
+      span: node.span,
+    };
+  }
+
+  const children = await Promise.all(
+    (node.children ?? []).map((child) => convertLayoutNode(child, projectId, addLog))
+  );
+  return {
+    type: node.type,
+    id: node.id,
+    children,
+    span: node.span,
+  };
 }
 
 async function convertContentItem(
@@ -369,7 +432,96 @@ async function convertContentItem(
   projectId: string,
   addLog: LogCallback
 ): Promise<ContentBlock> {
-  // ... (copy implementation from migrate_reports_to_slides.tsx lines 323-411)
+  switch (item.type) {
+    case "text": {
+      const block: TextBlock = {
+        type: "text",
+        markdown: item.markdown ?? "",
+        style: {
+          textSize: item.textSize,
+          textBackground: item.textBackground !== "none" ? item.textBackground : undefined,
+        },
+      };
+      return block;
+    }
+
+    case "image": {
+      const block: ImageBlock = {
+        type: "image",
+        imgFile: item.imgFile ?? "",
+        style: {
+          imgFit: item.imgFit === "inside" ? "contain" : "cover",
+        },
+      };
+      return block;
+    }
+
+    case "figure": {
+      const poInfo = item.presentationObjectInReportInfo;
+      if (!poInfo) {
+        return { type: "text", markdown: "[Empty figure]" };
+      }
+
+      const poDetailRes = await getPODetailFromCacheorFetch(projectId, poInfo.id);
+      if (!poDetailRes.success) {
+        addLog(`Figure PO not found: ${poInfo.id}`);
+        return { type: "text", markdown: "[Missing figure]" };
+      }
+
+      const override: ReplicantValueOverride = {
+        selectedReplicantValue: poInfo.selectedReplicantValue || undefined,
+        additionalScale: item.useFigureAdditionalScale
+          ? item.figureAdditionalScale ?? undefined
+          : undefined,
+        hideFigureCaption: item.hideFigureCaption,
+        hideFigureSubCaption: item.hideFigureSubCaption,
+        hideFigureFootnote: item.hideFigureFootnote,
+      };
+
+      const configForSource: PresentationObjectConfig = structuredClone(poDetailRes.data.config);
+      if (override.selectedReplicantValue) {
+        configForSource.d.selectedReplicantValue = override.selectedReplicantValue;
+      }
+      if (override.hideFigureCaption) {
+        configForSource.t.caption = "";
+      }
+      if (override.hideFigureSubCaption) {
+        configForSource.t.subCaption = "";
+      }
+      if (override.hideFigureFootnote) {
+        configForSource.t.footnote = "";
+      }
+
+      const source: FigureSource = {
+        type: "from_data",
+        metricId: poInfo.metricId,
+        config: configForSource,
+        snapshotAt: new Date().toISOString(),
+      };
+
+      const figureInputsRes = await getPOFigureInputsFromCacheOrFetch(
+        projectId,
+        poInfo.id,
+        override
+      );
+
+      // NOTE: stripFigureInputsForStorage removes style and geoData before storage.
+      // The existing project-level migration omits this - this is a bug fix.
+      const block: FigureBlock = {
+        type: "figure",
+        figureInputs: figureInputsRes.success
+          ? stripFigureInputsForStorage(figureInputsRes.data)
+          : undefined,
+        source,
+      };
+
+      if (!figureInputsRes.success) {
+        addLog(`Figure render failed for PO ${poInfo.id}: ${figureInputsRes.err}`);
+      }
+
+      return block;
+    }
+  }
 }
 ```
 
@@ -442,21 +594,34 @@ Delete entire file after migration complete.
 
 ## Idempotency
 
-Migration checks for existing "Old reports" / "Anciens rapports" folder in `projectDetail.slideDeckFolders`. If found, project is skipped. This allows:
-- Safe re-run if browser crashes mid-migration
-- Safe re-run across multiple sessions
-- No duplicate folders or slide decks
+Migration checks for existing "Old reports" / "Anciens rapports" folder in `projectDetail.slideDeckFolders`. If found, project is skipped.
+
+**Partial failure case:** If folder was created but migration failed before completing all slides:
+- The folder exists, so project would be skipped on re-run
+- **Manual fix:** Delete the "Old reports" folder in that project, then re-run migration
+- This is acceptable because partial failures should be rare and easily identifiable from the error log
+
+**Alternative considered:** Check folder exists AND has slide decks in it. Rejected because it requires additional API call per project and the simple check is sufficient for a one-time migration.
 
 ---
 
 ## Execution Plan
 
+**Time estimate:** ~2-5 minutes per instance depending on report count. Total: 1-2.5 hours for 30 instances.
+
+Per instance:
+1. Log in as admin (~30s)
+2. Navigate to Settings tab (~10s)
+3. Click "Migrate all reports to slides" (~5s)
+4. Wait for completion (varies: 30s for few reports, 3-4 min for many)
+5. Review log for errors, note any failures (~30s)
+
+Full sequence:
 1. Deploy with instance-level button
-2. Log into each of 30 instances as admin
-3. Go to Settings tab
-4. Click "Migrate all reports to slides"
-5. Wait for completion, note any errors
-6. After all 30 instances done, deploy again with Step 4 changes (remove button + old component)
+2. Run migration on all 30 instances, keeping a log of any errors
+3. For any partial failures: delete "Old reports" folder in that project, re-run
+4. Verify a sample of migrated decks render correctly
+5. Deploy again with Step 4 changes (remove button + old component)
 
 ---
 

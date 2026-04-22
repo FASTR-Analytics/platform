@@ -18,7 +18,7 @@
 // 1. Fill missing top-level fields: prerequisites, lastScriptUpdate, dataSources, etc.
 // 2. Fill metricId and sortOrder in defaultPresentationObjects items
 // 3. DELETE metrics from blob (metrics are stored in metrics table, not blob)
-// 4. Convert empty/null/undefined createTableStatementPossibleColumns to false in resultsObjects
+// 4. Convert createTableStatementPossibleColumns: empty/null/undefined → false, array → Record
 //
 // =============================================================================
 
@@ -60,12 +60,26 @@ function transformModuleDefinition(mod: Record<string, unknown>): void {
   // Block 3: DELETE metrics from blob (stored in metrics table, not here)
   delete mod.metrics;
 
-  // Block 4: Convert empty createTableStatementPossibleColumns to false in resultsObjects
+  // Block 4: Convert createTableStatementPossibleColumns in resultsObjects
+  //   - empty/null/undefined → false
+  //   - array of {colName, colType, notNull} → Record<string, string>
   if (Array.isArray(mod.resultsObjects)) {
     const ros = mod.resultsObjects as Record<string, unknown>[];
     for (const ro of ros) {
       const cols = ro.createTableStatementPossibleColumns;
-      if (cols === undefined || cols === null || (typeof cols === "object" && Object.keys(cols as object).length === 0)) {
+      if (cols === undefined || cols === null) {
+        ro.createTableStatementPossibleColumns = false;
+      } else if (Array.isArray(cols)) {
+        if (cols.length === 0) {
+          ro.createTableStatementPossibleColumns = false;
+        } else {
+          const newCols: Record<string, string> = {};
+          for (const col of cols as { colName: string; colType: string; notNull?: boolean }[]) {
+            newCols[col.colName] = col.notNull ? `${col.colType} NOT NULL` : col.colType;
+          }
+          ro.createTableStatementPossibleColumns = newCols;
+        }
+      } else if (typeof cols === "object" && Object.keys(cols as object).length === 0) {
         ro.createTableStatementPossibleColumns = false;
       }
     }
