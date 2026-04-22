@@ -1,3 +1,4 @@
+[1.23.2] [admin] [changed] - Module column definitions are now automatically converted to a consistent format during migration
 [1.23.2] [user] [fixed] - Older saved charts and tables now open without errors
 [1.23.2] [admin] [fixed] - Older presentation objects now automatically gain newer display settings during migration
 [1.23.2] [user] [fixed] - Facility column settings now update correctly on system upgrade
