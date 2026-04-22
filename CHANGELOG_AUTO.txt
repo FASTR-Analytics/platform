@@ -1,3 +1,7 @@
+[1.23.4] [user] [added] - Option to prevent re-run when updating a module's script
+[1.23.4] [user] [fixed] - Report backup now properly requires permission again
+[1.23.4] [admin] [added] - Option to prevent automatic re-run when updating a module script
+[1.23.4] [admin] [fixed] - Report backup permission check re-enabled after temporary override
 [1.23.4] [user] [added] - Warning dots now appear on tabs when data or modules need attention
 [1.23.4] [admin] [added] - Navigation tabs now show warning dots when data or modules need updates
 [1.23.4] [admin] [added] - Modules tab shows a danger indicator when a module has errors
