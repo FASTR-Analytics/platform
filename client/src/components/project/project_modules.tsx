@@ -419,26 +419,37 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
               when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready"}
             >
               {(() => {
-                const installedDate = new Date(
-                  p.thisInstalledModule.installedAt,
-                );
+                const computeUpdatedAt = p.thisInstalledModule.computeUpdatedAt;
+                const definitionUpdatedAt = p.thisInstalledModule.definitionUpdatedAt;
                 const lastRunDate = new Date(
                   pds.moduleLastRun[p.thisInstalledModule.id],
                 );
-                const resultsStale = installedDate > lastRunDate;
+                const resultsStale = computeUpdatedAt
+                  ? new Date(computeUpdatedAt) > lastRunDate
+                  : false;
                 return (
                   <div class="text-neutral flex flex-col gap-1 text-xs">
-                    <div class="flex items-center gap-2">
-                      <span>
-                        {t3({ en: "Installed", fr: "Installé" })}:{" "}
-                        {installedDate.toLocaleString()}
-                      </span>
-                      <Show when={p.thisInstalledModule.installedGitRef}>
-                        <span class="font-mono">
-                          ({p.thisInstalledModule.installedGitRef!.slice(0, 7)})
+                    <Show when={computeUpdatedAt}>
+                      <div class="flex items-center gap-2">
+                        <span>
+                          {t3({ en: "Compute definitions", fr: "Définitions de calcul" })}:{" "}
+                          {new Date(computeUpdatedAt!).toLocaleString()}
                         </span>
-                      </Show>
-                    </div>
+                      </div>
+                    </Show>
+                    <Show when={definitionUpdatedAt}>
+                      <div class="flex items-center gap-2">
+                        <span>
+                          {t3({ en: "Presentation definitions", fr: "Définitions de présentation" })}:{" "}
+                          {new Date(definitionUpdatedAt!).toLocaleString()}
+                        </span>
+                        <Show when={p.thisInstalledModule.installedGitRef}>
+                          <span class="font-mono">
+                            ({p.thisInstalledModule.installedGitRef!.slice(0, 7)})
+                          </span>
+                        </Show>
+                      </div>
+                    </Show>
                     <div
                       class={`flex items-center gap-2 ${resultsStale ? "text-danger" : ""}`}
                     >

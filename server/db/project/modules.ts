@@ -23,6 +23,7 @@ import {
   metricStrict,
   presentationObjectConfigSchema,
   type DirtyOrRunStatus,
+  type Metric,
   type MetricStatus,
   type MetricWithStatus,
   type ModuleConfigSelections,
@@ -30,7 +31,7 @@ import {
   type ModuleId,
   type ResultsValue,
 } from "lib";
-import { getModuleDefinitionDetail, fetchModuleFiles } from "../../module_loader/mod.ts";
+import { getModuleDefinitionDetail, fetchModuleFiles, hasComputeAffectingChanges } from "../../module_loader/mod.ts";
 import {
   detectHasAnyRows,
   getResultsObjectTableName,
@@ -114,7 +115,7 @@ export async function installModule(
       // Insert module (blob excludes metrics — they're stored in metrics table)
       await sql`
 INSERT INTO modules
-  (id, module_definition, config_selections, dirty, installed_at, script_updated_at, definition_updated_at, config_updated_at, last_run_at, installed_git_ref)
+  (id, module_definition, config_selections, dirty, installed_at, compute_updated_at, definition_updated_at, config_updated_at, last_run_at, installed_git_ref)
 VALUES
   (
     ${modDef.data.id},
@@ -284,13 +285,13 @@ SELECT * FROM modules WHERE id = ${moduleId}
 export async function updateModuleDefinition(
   projectDb: Sql,
   moduleDefinitionId: ModuleId,
+  reinstall: boolean,
+  rerun: boolean,
   preserveSettings: boolean,
-  preventRerun: boolean,
 ): Promise<
   APIResponseWithData<{
     lastUpdated: string;
     presObjIdsWithNewLastUpdateds: string[];
-    computeChange: boolean;
   }>
 > {
   return await tryCatchDatabaseAsync(async () => {
@@ -304,6 +305,26 @@ export async function updateModuleDefinition(
       throw new Error("Module not found");
     }
 
+    const lastUpdated = new Date().toISOString();
+
+    // If neither reinstall nor rerun requested, nothing to do
+    if (!reinstall && !rerun) {
+      return {
+        success: true,
+        data: { lastUpdated, presObjIdsWithNewLastUpdateds: [] },
+      };
+    }
+
+    // If only rerun (no reinstall), nothing to do in DB — route handler calls setModuleDirty()
+    if (!reinstall && rerun) {
+      return {
+        success: true,
+        data: { lastUpdated, presObjIdsWithNewLastUpdateds: [] },
+      };
+    }
+
+    // From here: reinstall is true (rerun may or may not be true)
+
     const modDef = await getModuleDefinitionDetail(
       moduleDefinitionId,
       _INSTANCE_LANGUAGE,
@@ -311,164 +332,178 @@ export async function updateModuleDefinition(
     throwIfErrWithData(modDef);
 
     const gitRef = modDef.data.gitRef;
-    const lastUpdated = new Date().toISOString();
 
     // Compute new config selections
-    const oldConfigSelections = parseModuleConfigSelections(rawModule.config_selections);
+    const oldConfigSelections = parseModuleConfigSelections(
+      rawModule.config_selections,
+    );
     const newConfigSelections = preserveSettings
-      ? getMergedModuleConfigSelections(oldConfigSelections, modDef.data.configRequirements)
+      ? getMergedModuleConfigSelections(
+          oldConfigSelections,
+          modDef.data.configRequirements,
+        )
       : getStartingModuleConfigSelections(modDef.data.configRequirements);
 
-    // Change detection: compare compute-affecting fields
+    const configSelectionsChanged =
+      JSON.stringify(newConfigSelections.parameterSelections) !==
+      JSON.stringify(oldConfigSelections.parameterSelections);
+
+    // Detect compute-affecting changes (script, configRequirements, resultsObjects)
     const storedDef = parseInstalledModuleDefinition(rawModule.module_definition);
-    const scriptChanged = modDef.data.script !== storedDef.script;
-    const configReqChanged = JSON.stringify(modDef.data.configRequirements) !== JSON.stringify(storedDef.configRequirements);
-    const resultsObjectsChanged = JSON.stringify(modDef.data.resultsObjects) !== JSON.stringify(storedDef.resultsObjects);
-    const configSelectionsChanged = JSON.stringify(newConfigSelections.parameterSelections) !== JSON.stringify(oldConfigSelections.parameterSelections);
-    const computeChange = scriptChanged || configReqChanged || resultsObjectsChanged;
+    const computeAffectingChanged = hasComputeAffectingChanges(
+      modDef.data.script,
+      modDef.data.configRequirements,
+      modDef.data.resultsObjects,
+      storedDef,
+    );
 
-    if (computeChange && !preventRerun) {
-      // Scenario B: compute change — full reinstall
+    const metricIds = modDef.data.metrics.map((m) => m.id);
+    const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
 
-      // Delegate to installModule logic (delete + recreate everything)
-      const metricIds = modDef.data.metrics.map((m) => m.id);
-      const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
+    if (rerun) {
+      // REINSTALL + RERUN: Full reinstall, drop tables, set dirty='ready'
+      // (route handler calls setModuleDirty() to queue)
 
       await projectDb.begin(async (sql: Sql) => {
+        // Delete module (cascades to metrics, results_objects metadata)
         await sql`DELETE FROM modules WHERE id = ${modDef.data.id}`;
-        await sql`
-INSERT INTO modules
-  (id, module_definition, config_selections, dirty, installed_at, script_updated_at, definition_updated_at, config_updated_at, last_run_at, installed_git_ref)
-VALUES (
-  ${modDef.data.id},
-  ${prepareModuleDefinitionForStorage(modDef.data)},
-  ${JSON.stringify(newConfigSelections)},
-  'queued',
-  ${lastUpdated},
-  ${scriptChanged ? lastUpdated : rawModule.script_updated_at},
-  ${lastUpdated},
-  ${configSelectionsChanged ? lastUpdated : rawModule.config_updated_at},
-  ${lastUpdated},
-  ${gitRef ?? rawModule.installed_git_ref}
-)`;
 
+        // Insert fresh module with dirty='ready'
+        await sql`
+          INSERT INTO modules
+            (id, module_definition, config_selections, dirty, installed_at,
+             compute_updated_at, definition_updated_at, config_updated_at,
+             last_run_at, installed_git_ref)
+          VALUES (
+            ${modDef.data.id},
+            ${prepareModuleDefinitionForStorage(modDef.data)},
+            ${JSON.stringify(newConfigSelections)},
+            'ready',
+            ${lastUpdated},
+            ${lastUpdated},
+            ${lastUpdated},
+            ${lastUpdated},
+            ${rawModule.last_run_at},
+            ${gitRef ?? rawModule.installed_git_ref}
+          )`;
+
+        // Drop and recreate results object tables
         for (const resultsObject of modDef.data.resultsObjects) {
           const roTableName = getResultsObjectTableName(resultsObject.id);
           await sql`DROP TABLE IF EXISTS ${sql(roTableName)}`;
           await sql`
-INSERT INTO results_objects (id, module_id, description, column_definitions)
-VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
-  ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null})`;
+            INSERT INTO results_objects (id, module_id, description, column_definitions)
+            VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
+              ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null})`;
+        }
+
+        // Insert metrics
+        for (const metric of modDef.data.metrics) {
+          const validatedMetric = metricStrict.parse(metric);
+          await sql`
+            INSERT INTO metrics (
+              id, module_id, label, variant_label, value_func, format_as, value_props,
+              required_disaggregation_options, value_label_replacements, post_aggregation_expression,
+              results_object_id, ai_description, viz_presets, hide, important_notes
+            ) VALUES (
+              ${validatedMetric.id}, ${modDef.data.id}, ${validatedMetric.label}, ${validatedMetric.variantLabel},
+              ${validatedMetric.valueFunc}, ${validatedMetric.formatAs}, ${JSON.stringify(validatedMetric.valueProps)},
+              ${JSON.stringify(validatedMetric.requiredDisaggregationOptions)},
+              ${validatedMetric.valueLabelReplacements ? JSON.stringify(validatedMetric.valueLabelReplacements) : null},
+              ${validatedMetric.postAggregationExpression ? JSON.stringify(validatedMetric.postAggregationExpression) : null},
+              ${validatedMetric.resultsObjectId}, ${validatedMetric.aiDescription ? JSON.stringify(validatedMetric.aiDescription) : null},
+              ${JSON.stringify(validatedMetric.vizPresets)},
+              ${validatedMetric.hide}, ${validatedMetric.importantNotes})`;
+        }
+
+        // Recreate default presentation objects
+        if (metricIds.length > 0) {
+          await sql`DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE`;
+        }
+        for (const po of defaultPresentationObjects) {
+          const validatedConfig = presentationObjectConfigSchema.parse(
+            po.config,
+          );
+          await sql`DELETE FROM presentation_objects WHERE id = ${po.id}`;
+          await sql`
+            INSERT INTO presentation_objects (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
+            VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(validatedConfig)}, ${lastUpdated}, ${po.sortOrder})`;
+        }
+      });
+    } else {
+      // REINSTALL ONLY (no rerun): Update in place, preserve data tables, preserve dirty state
+
+      await projectDb.begin(async (sql: Sql) => {
+        // Update module row (keep dirty state as-is)
+        await sql`
+          UPDATE modules
+          SET
+            module_definition = ${prepareModuleDefinitionForStorage(modDef.data)},
+            config_selections = ${JSON.stringify(newConfigSelections)},
+            installed_at = ${lastUpdated},
+            compute_updated_at = ${computeAffectingChanged ? lastUpdated : rawModule.compute_updated_at},
+            definition_updated_at = ${lastUpdated},
+            installed_git_ref = ${gitRef ?? rawModule.installed_git_ref},
+            config_updated_at = ${configSelectionsChanged ? lastUpdated : rawModule.config_updated_at}
+          WHERE id = ${moduleDefinitionId}
+        `;
+
+        // Delete and recreate metadata rows (NOT data tables)
+        await sql`DELETE FROM results_objects WHERE module_id = ${modDef.data.id}`;
+        await sql`DELETE FROM metrics WHERE module_id = ${modDef.data.id}`;
+
+        for (const resultsObject of modDef.data.resultsObjects) {
+          await sql`
+            INSERT INTO results_objects (id, module_id, description, column_definitions)
+            VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
+              ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null})`;
         }
 
         for (const metric of modDef.data.metrics) {
           const validatedMetric = metricStrict.parse(metric);
           await sql`
-INSERT INTO metrics (
-  id, module_id, label, variant_label, value_func, format_as, value_props,
-  required_disaggregation_options, value_label_replacements, post_aggregation_expression,
-  results_object_id, ai_description, viz_presets, hide, important_notes
-) VALUES (
-  ${validatedMetric.id}, ${modDef.data.id}, ${validatedMetric.label}, ${validatedMetric.variantLabel},
-  ${validatedMetric.valueFunc}, ${validatedMetric.formatAs}, ${JSON.stringify(validatedMetric.valueProps)},
-  ${JSON.stringify(validatedMetric.requiredDisaggregationOptions)},
-  ${validatedMetric.valueLabelReplacements ? JSON.stringify(validatedMetric.valueLabelReplacements) : null},
-  ${validatedMetric.postAggregationExpression ? JSON.stringify(validatedMetric.postAggregationExpression) : null},
-  ${validatedMetric.resultsObjectId}, ${validatedMetric.aiDescription ? JSON.stringify(validatedMetric.aiDescription) : null},
-  ${JSON.stringify(validatedMetric.vizPresets)},
-  ${validatedMetric.hide}, ${validatedMetric.importantNotes})`;
+            INSERT INTO metrics (
+              id, module_id, label, variant_label, value_func, format_as, value_props,
+              required_disaggregation_options, value_label_replacements, post_aggregation_expression,
+              results_object_id, ai_description, viz_presets, hide, important_notes
+            ) VALUES (
+              ${validatedMetric.id}, ${modDef.data.id}, ${validatedMetric.label}, ${validatedMetric.variantLabel},
+              ${validatedMetric.valueFunc}, ${validatedMetric.formatAs}, ${JSON.stringify(validatedMetric.valueProps)},
+              ${JSON.stringify(validatedMetric.requiredDisaggregationOptions)},
+              ${validatedMetric.valueLabelReplacements ? JSON.stringify(validatedMetric.valueLabelReplacements) : null},
+              ${validatedMetric.postAggregationExpression ? JSON.stringify(validatedMetric.postAggregationExpression) : null},
+              ${validatedMetric.resultsObjectId}, ${validatedMetric.aiDescription ? JSON.stringify(validatedMetric.aiDescription) : null},
+              ${JSON.stringify(validatedMetric.vizPresets)},
+              ${validatedMetric.hide}, ${validatedMetric.importantNotes})`;
         }
 
+        // Recreate default presentation objects
         if (metricIds.length > 0) {
           await sql`DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE`;
         }
         for (const po of defaultPresentationObjects) {
-          const validatedConfig = presentationObjectConfigSchema.parse(po.config);
+          const validatedConfig = presentationObjectConfigSchema.parse(
+            po.config,
+          );
           await sql`DELETE FROM presentation_objects WHERE id = ${po.id}`;
           await sql`
-INSERT INTO presentation_objects (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
-VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(validatedConfig)}, ${lastUpdated}, ${po.sortOrder})`;
+            INSERT INTO presentation_objects (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
+            VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(validatedConfig)}, ${lastUpdated}, ${po.sortOrder})`;
         }
       });
-
-      if (metricIds.length > 0) {
-        await projectDb`UPDATE presentation_objects SET last_updated = ${lastUpdated} WHERE metric_id = ANY(${metricIds})`;
-      }
-      const allPresObjs = await projectDb<{ id: string }[]>`SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})`;
-      return {
-        success: true,
-        data: { lastUpdated, presObjIdsWithNewLastUpdateds: allPresObjs.map((po) => po.id), computeChange: true },
-      };
     }
 
-    // Scenario A: presentation-only update — no table drops
-    const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
-    const metricIds = modDef.data.metrics.map((m) => m.id);
-
-    await projectDb.begin(async (sql: Sql) => {
-      await sql`
-        UPDATE modules
-        SET
-          module_definition = ${prepareModuleDefinitionForStorage(modDef.data)},
-          config_selections = ${JSON.stringify(newConfigSelections)},
-          installed_at = ${lastUpdated},
-          definition_updated_at = ${lastUpdated},
-          installed_git_ref = ${gitRef ?? rawModule.installed_git_ref},
-          config_updated_at = ${configSelectionsChanged ? lastUpdated : rawModule.config_updated_at},
-          dirty = ${configSelectionsChanged && !preventRerun ? 'queued' : rawModule.dirty}
-        WHERE id = ${moduleDefinitionId}
-      `;
-
-      // Delete and recreate metadata rows (not data tables)
-      await sql`DELETE FROM results_objects WHERE module_id = ${modDef.data.id}`;
-      await sql`DELETE FROM metrics WHERE module_id = ${modDef.data.id}`;
-
-      for (const resultsObject of modDef.data.resultsObjects) {
-        await sql`
-INSERT INTO results_objects (id, module_id, description, column_definitions)
-VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
-  ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null})`;
-      }
-
-      for (const metric of modDef.data.metrics) {
-        const validatedMetric = metricStrict.parse(metric);
-        await sql`
-INSERT INTO metrics (
-  id, module_id, label, variant_label, value_func, format_as, value_props,
-  required_disaggregation_options, value_label_replacements, post_aggregation_expression,
-  results_object_id, ai_description, viz_presets, hide, important_notes
-) VALUES (
-  ${validatedMetric.id}, ${modDef.data.id}, ${validatedMetric.label}, ${validatedMetric.variantLabel},
-  ${validatedMetric.valueFunc}, ${validatedMetric.formatAs}, ${JSON.stringify(validatedMetric.valueProps)},
-  ${JSON.stringify(validatedMetric.requiredDisaggregationOptions)},
-  ${validatedMetric.valueLabelReplacements ? JSON.stringify(validatedMetric.valueLabelReplacements) : null},
-  ${validatedMetric.postAggregationExpression ? JSON.stringify(validatedMetric.postAggregationExpression) : null},
-  ${validatedMetric.resultsObjectId}, ${validatedMetric.aiDescription ? JSON.stringify(validatedMetric.aiDescription) : null},
-  ${JSON.stringify(validatedMetric.vizPresets)},
-  ${validatedMetric.hide}, ${validatedMetric.importantNotes})`;
-      }
-
-      if (metricIds.length > 0) {
-        await sql`DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE`;
-      }
-      for (const po of defaultPresentationObjects) {
-        const validatedConfig = presentationObjectConfigSchema.parse(po.config);
-        await sql`DELETE FROM presentation_objects WHERE id = ${po.id}`;
-        await sql`
-INSERT INTO presentation_objects (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
-VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(validatedConfig)}, ${lastUpdated}, ${po.sortOrder})`;
-      }
-    });
-
+    // Update presentation_objects timestamps and get IDs for SSE
+    let presObjIdsWithNewLastUpdateds: string[] = [];
     if (metricIds.length > 0) {
       await projectDb`UPDATE presentation_objects SET last_updated = ${lastUpdated} WHERE metric_id = ANY(${metricIds})`;
+      const allPresObjs = await projectDb<{ id: string }[]>`SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})`;
+      presObjIdsWithNewLastUpdateds = allPresObjs.map((po) => po.id);
     }
-    const allPresObjs = await projectDb<{ id: string }[]>`SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})`;
-    const presObjIdsWithNewLastUpdateds = allPresObjs.map((po) => po.id);
 
     return {
       success: true,
-      data: { lastUpdated, presObjIdsWithNewLastUpdateds, computeChange: configSelectionsChanged && !preventRerun },
+      data: { lastUpdated, presObjIdsWithNewLastUpdateds },
     };
   });
 }
@@ -516,7 +551,7 @@ export async function getAllModulesForProject(
         dirty: rawModule.dirty as DirtyOrRunStatus,
         hasParameters: (moduleDefinition.configRequirements?.parameters?.length ?? 0) > 0,
         installedAt: rawModule.installed_at,
-        scriptUpdatedAt: rawModule.script_updated_at ?? undefined,
+        computeUpdatedAt: rawModule.compute_updated_at ?? undefined,
         definitionUpdatedAt: rawModule.definition_updated_at ?? undefined,
         configUpdatedAt: rawModule.config_updated_at ?? undefined,
         lastRunAt: rawModule.last_run_at,
@@ -625,6 +660,44 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
       throw new Error("No module with this definition id");
     }
     return { success: true, data: rawModule.last_run_at };
+  });
+}
+
+export async function getMetricsForModule(
+  projectDb: Sql,
+  moduleId: string,
+): Promise<APIResponseWithData<Metric[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rawMetrics = await projectDb<DBMetric[]>`
+      SELECT * FROM metrics WHERE module_id = ${moduleId}
+    `;
+    return {
+      success: true,
+      data: rawMetrics.map(
+        (m): Metric => ({
+          id: m.id,
+          label: m.label,
+          variantLabel: m.variant_label,
+          valueFunc: m.value_func as Metric["valueFunc"],
+          formatAs: m.format_as as Metric["formatAs"],
+          valueProps: JSON.parse(m.value_props),
+          requiredDisaggregationOptions: JSON.parse(
+            m.required_disaggregation_options,
+          ),
+          valueLabelReplacements: m.value_label_replacements
+            ? JSON.parse(m.value_label_replacements)
+            : null,
+          postAggregationExpression: m.post_aggregation_expression
+            ? JSON.parse(m.post_aggregation_expression)
+            : null,
+          resultsObjectId: m.results_object_id,
+          aiDescription: m.ai_description ? JSON.parse(m.ai_description) : null,
+          vizPresets: m.viz_presets ? JSON.parse(m.viz_presets) : [],
+          hide: m.hide,
+          importantNotes: m.important_notes,
+        }),
+      ),
+    };
   });
 }
 

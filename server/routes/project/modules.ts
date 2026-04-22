@@ -9,6 +9,7 @@ import {
   getAllHfaIndicatorsFromSnapshot,
   getAllMetrics,
   getCountryIso3Config,
+  getMetricsForModule,
   getModuleDetail,
   getModuleWithConfigSelections,
   // getModuleParameters,
@@ -29,7 +30,7 @@ import {
 } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { fetchCommits } from "../../github/fetch_module.ts";
-import { fetchModuleFiles } from "../../module_loader/load_module.ts";
+import { compareDefinitions, fetchModuleFiles, recommendsRerun } from "../../module_loader/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
   notifyLastUpdated,
@@ -116,15 +117,20 @@ defineRoute(
     const res = await updateModuleDefinition(
       c.var.ppk.projectDb,
       params.module_id,
+      body.reinstall,
+      body.rerun,
       body.preserveSettings,
-      body.preventRerun ?? false,
     );
     if (res.success === false) {
       return c.json(res);
     }
-    if (res.data.computeChange) {
+
+    // If rerun requested, notify task manager
+    if (body.rerun) {
       await setModuleDirty(c.var.ppk, params.module_id);
     }
+
+    // Notify clients
     notifyLastUpdated(
       c.var.ppk.projectId,
       "modules",
@@ -138,6 +144,7 @@ defineRoute(
       res.data.lastUpdated,
     );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+
     return c.json(res);
   },
 );
@@ -342,61 +349,88 @@ defineRoute(
       return c.json({ success: false, err: `Unknown module: ${params.module_id}` });
     }
 
+    // Get stored module
     const stored = await getModuleDetail(c.var.ppk.projectDb, params.module_id);
     if (stored.success === false) {
       return c.json(stored);
     }
+    const storedDef = stored.data.moduleDefinition;
 
-    const { definition: incomingDef, script: incomingScript, gitRef } =
-      await fetchModuleFiles(params.module_id);
-
-    const installedGitRef = (await c.var.ppk.projectDb<{ installed_git_ref: string | null }[]>`
+    // Get installed git ref
+    const installedGitRef =
+      (
+        await c.var.ppk.projectDb<{ installed_git_ref: string | null }[]>`
       SELECT installed_git_ref FROM modules WHERE id = ${params.module_id}
-    `).at(0)?.installed_git_ref;
+    `
+      ).at(0)?.installed_git_ref ?? null;
 
-    let impactType: ModuleUpdatePreview["impactType"];
-    if (gitRef && installedGitRef && gitRef === installedGitRef) {
-      impactType = "no_change";
-    } else {
-      const storedDef = stored.data.moduleDefinition;
-      const scriptChanged = incomingScript !== storedDef.script;
-      const configReqChanged =
-        JSON.stringify(incomingDef.configRequirements) !==
-        JSON.stringify(storedDef.configRequirements);
-      const storedResultsObjsWithoutModuleId = storedDef.resultsObjects.map(
-        ({ moduleId: _, ...rest }) => rest,
-      );
-      const resultsObjChanged =
-        JSON.stringify(incomingDef.resultsObjects) !==
-        JSON.stringify(storedResultsObjsWithoutModuleId);
-
-      if (scriptChanged) {
-        impactType = "script_change";
-      } else if (configReqChanged || resultsObjChanged) {
-        impactType = "config_change";
-      } else {
-        impactType = "definition_only";
-      }
+    // Fetch incoming definition from source (GitHub or local)
+    let incomingDef, incomingScript, incomingGitRef;
+    try {
+      const fetched = await fetchModuleFiles(params.module_id);
+      incomingDef = fetched.definition;
+      incomingScript = fetched.script;
+      incomingGitRef = fetched.gitRef;
+    } catch (e) {
+      return c.json({
+        success: false,
+        err: `Failed to fetch module from source: ${e instanceof Error ? e.message : String(e)}`,
+      });
     }
 
+    // Determine if there's an update available (git refs differ)
+    const hasUpdate =
+      incomingGitRef !== undefined &&
+      (!installedGitRef || incomingGitRef !== installedGitRef);
+
+    // Get stored metrics from DB (not in module_definition JSON)
+    const storedMetrics = await getMetricsForModule(
+      c.var.ppk.projectDb,
+      params.module_id,
+    );
+    if (storedMetrics.success === false) {
+      return c.json(storedMetrics);
+    }
+
+    // Compare definitions using shared comparison logic
+    const changes = compareDefinitions(
+      incomingDef,
+      incomingScript,
+      storedDef,
+      storedMetrics.data,
+    );
+
+    // Get commits since installed version
     let commitsSince: ModuleUpdatePreview["commitsSince"] = [];
-    if (impactType !== "no_change") {
+    if (hasUpdate) {
       const { owner, repo, path } = registryEntry.github;
       const commitsRes = await fetchCommits(owner, repo, path, "main");
       if (commitsRes.success) {
         if (installedGitRef) {
-          const idx = commitsRes.data.findIndex((cm) => cm.sha === installedGitRef);
-          commitsSince = idx > 0 ? commitsRes.data.slice(0, idx) : [];
+          const idx = commitsRes.data.findIndex(
+            (cm) => cm.sha === installedGitRef,
+          );
+          if (idx === -1) {
+            // Installed commit not found in recent history — return all commits
+            commitsSince = commitsRes.data;
+          } else {
+            // Return commits between HEAD and installed (exclusive)
+            commitsSince = commitsRes.data.slice(0, idx);
+          }
         } else {
+          // No installed ref — return all commits
           commitsSince = commitsRes.data;
         }
       }
     }
 
     const preview: ModuleUpdatePreview = {
-      impactType,
+      hasUpdate,
+      currentGitRef: installedGitRef,
+      incomingGitRef: incomingGitRef ?? "",
+      changes,
+      recommendsRerun: recommendsRerun(changes),
       commitsSince,
-      headGitRef: gitRef ?? "",
     };
 
     return c.json({ success: true, data: preview });

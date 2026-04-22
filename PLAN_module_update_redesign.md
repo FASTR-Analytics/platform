@@ -320,6 +320,8 @@ export { compareDefinitions, recommendsRerun } from "./compare_definitions.ts";
 
 **File: `server/db/project/modules.ts`**
 
+Add `type Metric` to the imports from `"lib"`.
+
 Add after existing metric functions:
 
 ```typescript
@@ -352,6 +354,13 @@ export async function getMetricsForModule(
     };
   });
 }
+```
+
+**Update: `server/db/mod.ts`**
+
+Add to exports:
+```typescript
+export { getMetricsForModule } from "./project/modules.ts";
 ```
 
 ---
@@ -1043,6 +1052,7 @@ const res = await serverActions.updateModuleDefinition({
 | `server/module_loader/mod.ts` | Add export for comparison functions |
 | `server/routes/project/modules.ts` | Rewrite preview endpoint, update route handler |
 | `server/db/project/modules.ts` | Add `getMetricsForModule`, rewrite `updateModuleDefinition` |
+| `server/db/mod.ts` | Export `getMetricsForModule` |
 | `client/src/components/project/update_module.tsx` | Complete rewrite of modal |
 | `client/src/components/project/update_all_modules.tsx` | Update API call |
 

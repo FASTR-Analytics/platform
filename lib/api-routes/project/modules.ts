@@ -29,8 +29,9 @@ export const moduleRouteRegistry = {
     method: "POST",
     params: {} as { module_id: ModuleId },
     body: {} as {
+      reinstall: boolean;
+      rerun: boolean;
       preserveSettings: boolean;
-      preventRerun?: boolean;
     },
     response: {} as {
       lastUpdated: string;

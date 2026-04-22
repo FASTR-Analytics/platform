@@ -16,11 +16,12 @@ export type DBModule = {
   config_selections: string;
   dirty: string;
   installed_at: string;
-  script_updated_at: string | null;
+  compute_updated_at: string | null;
   definition_updated_at: string | null;
   config_updated_at: string | null;
   last_run_at: string;
   installed_git_ref: string | null;
+  compute_git_ref: string | null;
   last_run_git_ref: string | null;
 };
 

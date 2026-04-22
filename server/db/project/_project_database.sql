@@ -72,11 +72,12 @@ CREATE TABLE modules (
   config_selections text NOT NULL,
   dirty text NOT NULL,
   installed_at text NOT NULL,
-  script_updated_at text,
+  compute_updated_at text,
   definition_updated_at text,
   config_updated_at text,
   last_run_at text NOT NULL,
   installed_git_ref text,
+  compute_git_ref text,
   last_run_git_ref text
 );
 

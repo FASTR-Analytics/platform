@@ -47,6 +47,8 @@ export function UpdateAllModules(
       const res = await serverActions.updateModuleDefinition({
         projectId: p.projectId,
         module_id: mod.id,
+        reinstall: true,
+        rerun: true,
         preserveSettings: preserveSettings(),
       });
       setStatuses((prev) => ({

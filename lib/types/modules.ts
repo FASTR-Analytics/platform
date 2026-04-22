@@ -67,11 +67,12 @@ export type InstalledModuleSummary = {
   dirty: DirtyOrRunStatus;
   hasParameters: boolean;
   installedAt: string;
-  scriptUpdatedAt?: string;
+  computeUpdatedAt?: string;
   definitionUpdatedAt?: string;
   configUpdatedAt?: string;
   lastRunAt: string;
   installedGitRef?: string;
+  computeGitRef?: string;
   lastRunGitRef?: string;
   moduleDefinitionResultsObjectIds: string[];
 };
@@ -148,10 +149,24 @@ export type ModuleLatestCommit = {
   };
 };
 
+export type DefinitionChanges = {
+  script: boolean;
+  configRequirements: boolean;
+  resultsObjects: boolean;
+  metrics: boolean;
+  vizPresets: boolean;
+  label: boolean;
+  dataSources: boolean;
+  assetsToImport: boolean;
+};
+
 export type ModuleUpdatePreview = {
-  impactType: "script_change" | "config_change" | "definition_only" | "no_change";
+  hasUpdate: boolean;
+  currentGitRef: string | null;
+  incomingGitRef: string;
+  changes: DefinitionChanges;
+  recommendsRerun: boolean;
   commitsSince: { sha: string; message: string; date: string; author: string }[];
-  headGitRef: string;
 };
 
 export type CompareProjectsModuleParameter = {
