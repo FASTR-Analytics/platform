@@ -17,10 +17,8 @@ const broadcastTaskEnded = new BroadcastChannel("task_ended");
 const broadcastDirtyStates = new BroadcastChannel("dirty_states");
 
 broadcastTaskEnded.addEventListener("message", async (evt) => {
-  console.log("End task listener", evt.data.moduleId);
   const etd: EndingTaskData = evt.data;
   if (!hasRunningModule(etd.projectId, etd.moduleId)) {
-    console.log("Already ended");
     return;
   }
   const projectDb = getPgConnectionFromCacheOrNew(

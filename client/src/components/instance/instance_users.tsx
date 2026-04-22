@@ -140,18 +140,13 @@ export function InstanceUsers(p: Props) {
         >
           <div class="ui-pad flex h-full w-full flex-col gap-4">
             <div class="min-h-0 flex-1">
-              {(() => {
-                const logState = userLogs.state();
-                return (
-                  <UserTable
-                    users={instanceState.users}
-                    logs={logState.status === "ready" ? logState.data : undefined}
-                    onUserClick={(user) => setSelectedUser(user.email)}
-                    showCommingSoon={showCommingSoon}
-                    showHUsers={showHUsers}
-                  />
-                );
-              })()}
+                <UserTable
+                users={instanceState.users}
+                logs={(() => { const s = userLogs.state(); return s.status === "ready" ? s.data : undefined; })()}
+                onUserClick={(user) => setSelectedUser(user.email)}
+                showCommingSoon={showCommingSoon}
+                showHUsers={showHUsers}
+              />
             </div>
           </div>
         </FrameTop>

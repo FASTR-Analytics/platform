@@ -529,12 +529,28 @@ async function convertContentItem(
 
 **File:** `client/src/components/instance/instance_settings.tsx`
 
-Add import:
+Update panther import (add `openComponent`):
+```tsx
+import {
+  Button,
+  Checkbox,
+  FrameTop,
+  HeadingBarMainRibbon,
+  Input,
+  openComponent,  // ADD THIS
+  RadioGroup,
+  SettingsSection,
+  getSelectOptions,
+  timActionButton,
+} from "panther";
+```
+
+Add import for migration component:
 ```tsx
 import { MigrateAllReportsToSlides } from "./migrate_all_reports_to_slides";
 ```
 
-Add new SettingsSection before the closing `</div>` (around line 445):
+Add new SettingsSection before the closing `</div>` (line 446):
 
 ```tsx
 <SettingsSection

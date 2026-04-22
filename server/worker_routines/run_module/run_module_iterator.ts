@@ -444,8 +444,6 @@ function getCreateTableStatementFromCsvHeaders(
     columnMap.set(colName, colDef);
   }
 
-  console.log(columnMap);
-
   // Build column definitions based on CSV headers order
   const selectedColumns: string[] = [];
   const missingHeaders: string[] = [];

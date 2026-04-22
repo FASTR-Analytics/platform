@@ -10,11 +10,12 @@ import {
   type Tabs,
 } from "panther";
 import { FeedbackForm } from "~/components/instance/feedback_form";
-import { createEffect, Match, Show, Switch } from "solid-js";
+import { createEffect, createMemo, Match, onMount, Show, Switch } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
 import {
   ProjectRunnerProvider,
   useProjectDetail,
+  useProjectDirtyStates,
 } from "~/components/project_runner/mod";
 
 import { ProjectData } from "./project_data";
@@ -31,9 +32,14 @@ import {
   setShowAi,
   navCollapsed,
   setNavCollapsed,
+  moduleLatestCommits,
+  setModuleLatestCommits,
 } from "~/state/t4_ui";
 import type { TabOption } from "~/state/t4_ui";
 import { AIProjectWrapper, useAIProjectContext } from "../project_ai";
+import { instanceState } from "~/state/instance/t1_store";
+import { serverActions } from "~/server_actions";
+import { checkDataNeedsUpdate, checkModulesNeedUpdate } from "./staleness_checks";
 
 type Props = {
   isGlobalAdmin: boolean;
@@ -85,6 +91,31 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
 
   const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
     getEditorWrapper();
+
+  onMount(async () => {
+    if (moduleLatestCommits() === undefined) {
+      const res = await serverActions.checkModuleUpdates({});
+      if (res.success) {
+        setModuleLatestCommits(res.data);
+      }
+    }
+  });
+
+  const pds = useProjectDirtyStates();
+
+  const dataNeedsUpdate = createMemo(() =>
+    checkDataNeedsUpdate(projectDetail, instanceState)
+  );
+
+  const modulesNeedUpdate = createMemo(() =>
+    checkModulesNeedUpdate(projectDetail.projectModules, moduleLatestCommits())
+  );
+
+  const modulesHaveError = createMemo(() =>
+    projectDetail.projectModules.some(
+      (mod) => pds.moduleDirtyStates[mod.id] === "error"
+    )
+  );
 
   const allTabs = [
     ...(projectDetail.thisUserPermissions.can_view_slide_decks
@@ -223,6 +254,12 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
                         collapsed={navCollapsed()}
                         onCollapsedChange={setNavCollapsed}
                         icons={tabIcons}
+                        dots={{
+                          ...(dataNeedsUpdate() && { data: "warning" as const }),
+                          ...(modulesHaveError()
+                            ? { modules: "danger" as const }
+                            : modulesNeedUpdate() && { modules: "warning" as const }),
+                        }}
                       />
                     </div>
                   }
