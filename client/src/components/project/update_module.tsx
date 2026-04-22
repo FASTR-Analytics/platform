@@ -20,6 +20,7 @@ export function UpdateModule(
   >,
 ) {
   const [preserveSettings, setPreserveSettings] = createSignal<boolean>(true);
+  const [preventRerun, setPreventRerun] = createSignal<boolean>(false);
 
   const preview = timQuery(
     () =>
@@ -37,6 +38,7 @@ export function UpdateModule(
         projectId: p.projectId,
         module_id: p.moduleId,
         preserveSettings: preserveSettings(),
+        preventRerun: preventRerun(),
       });
     },
     () => p.close(undefined),
@@ -100,6 +102,16 @@ export function UpdateModule(
                   checked={preserveSettings()}
                   onChange={setPreserveSettings}
                 />
+                <Show when={data.impactType === "script_change"}>
+                  <Checkbox
+                    label={t3({
+                      en: "Prevent re-run",
+                      fr: "Empêcher la ré-exécution",
+                    })}
+                    checked={preventRerun()}
+                    onChange={setPreventRerun}
+                  />
+                </Show>
               </div>
             </Show>
           );

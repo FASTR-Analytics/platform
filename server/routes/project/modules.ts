@@ -121,7 +121,7 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
-    if (res.data.computeChange) {
+    if (res.data.computeChange && !body.preventRerun) {
       await setModuleDirty(c.var.ppk, params.module_id);
     }
     notifyLastUpdated(
