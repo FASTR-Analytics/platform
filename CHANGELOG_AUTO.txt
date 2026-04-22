@@ -1,5 +1,10 @@
-[TBD] [user] [fixed] - Fixed issue where empty filter selections could be saved
-[TBD] [admin] [fixed] - Empty value filters are no longer accepted in configurations
+[1.23.2] [user] [fixed] - Country setting now correctly shows as saved after updating
+[1.23.2] [user] [changed] - Metrics tab temporarily hidden from projects
+[1.23.2] [admin] [fixed] - Country setting now correctly shows as saved after updating
+[1.23.2] [admin] [changed] - Metrics tab temporarily hidden from projects
+[1.23.2] [admin] [internal] - Module result definitions now support disabling table columns
+[1.23.2] [user] [fixed] - Fixed issue where empty filter selections could be saved
+[1.23.2] [admin] [fixed] - Empty value filters are no longer accepted in configurations
 [1.23.0] [user] [fixed] - Ethiopian calendar quarters now display correctly in charts and filters
 [1.23.0] [user] [fixed] - Ethiopian month names now appear correctly on visualizations
 [1.23.0] [user] [changed] - Project list now updates in real time based on your permissions
