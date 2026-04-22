@@ -2,6 +2,7 @@ import type { FigureInputs, LayoutNode } from "@timroberton/panther";
 import { Color } from "@timroberton/panther";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
 import { _GFF_GREEN } from "../key_colors.ts";
+import { t3 } from "../translate/t-func.ts";
 
 // Re-export schemas from underscore-prefixed files (stored data validation)
 export { slideDeckConfigSchema } from "./_slide_deck_config.ts";
@@ -53,6 +54,33 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
     watermarkText: "",
     primaryColor: _GFF_GREEN,
     overlay: "none",
+  };
+}
+
+export function getDefaultCoverSlide(): CoverSlide {
+  return {
+    type: "cover",
+    title: t3({ en: "Title", fr: "Titre" }),
+    subtitle: t3({ en: "Subtitle", fr: "Sous-titre" }),
+  };
+}
+
+export function getDefaultSectionSlide(): SectionSlide {
+  return {
+    type: "section",
+    sectionTitle: t3({ en: "Section", fr: "Section" }),
+  };
+}
+
+export function getDefaultContentSlide(): ContentSlide {
+  return {
+    type: "content",
+    header: t3({ en: "New slide", fr: "Nouvelle diapositive" }),
+    layout: {
+      type: "item",
+      id: "a1a",
+      data: { type: "text", markdown: "" },
+    },
   };
 }
 

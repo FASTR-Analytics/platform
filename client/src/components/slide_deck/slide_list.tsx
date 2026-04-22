@@ -1,4 +1,13 @@
-import { t3, TC, type ProjectDetail, type Slide, type SlideDeckConfig } from "lib";
+import {
+  t3,
+  TC,
+  type ProjectDetail,
+  type Slide,
+  type SlideDeckConfig,
+  getDefaultCoverSlide,
+  getDefaultSectionSlide,
+  getDefaultContentSlide,
+} from "lib";
 import { Button, FrameTop, HeadingBar, Loading, type MenuItem, MenuTriggerWrapper, Slider, timActionDelete } from "panther";
 import SortableVendor, { SortableJs } from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
@@ -353,21 +362,17 @@ export function SlideList(p: Props) {
     {
       label: t3({ en: "Cover slide", fr: "Diapositive de couverture" }),
       icon: "plus",
-      onClick: () => addSlide({ type: "cover", title: t3({ en: "Title", fr: "Titre" }), subtitle: t3({ en: "Subtitle", fr: "Sous-titre" }) }),
+      onClick: () => addSlide(getDefaultCoverSlide()),
     },
     {
       label: t3({ en: "Section slide", fr: "Diapositive de section" }),
       icon: "plus",
-      onClick: () => addSlide({ type: "section", sectionTitle: t3({ en: "Section", fr: "Section" }) }),
+      onClick: () => addSlide(getDefaultSectionSlide()),
     },
     {
       label: t3({ en: "Content slide", fr: "Diapositive de contenu" }),
       icon: "plus",
-      onClick: () => addSlide({
-        type: "content",
-        header: t3({ en: "New slide", fr: "Nouvelle diapositive" }),
-        layout: { type: "item", id: "a1a", data: { type: "text", markdown: "" } },
-      }),
+      onClick: () => addSlide(getDefaultContentSlide()),
     },
   ];
 

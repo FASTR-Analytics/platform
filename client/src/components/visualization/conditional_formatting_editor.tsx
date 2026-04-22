@@ -402,6 +402,9 @@ function ThresholdsPanel(p: {
             // Display order is reversed: highest-values bucket at top.
             // origI maps display index back to the stored bucket index.
             const origI = () => p.cf.buckets.length - 1 - j();
+            const cutoffIdx = () => origI() - 1;
+            const minVal = () => cutoffIdx() > 0 ? p.cf.cutoffs[cutoffIdx() - 1] : 0;
+            const maxVal = () => cutoffIdx() < p.cf.cutoffs.length - 1 ? p.cf.cutoffs[cutoffIdx() + 1] : 1;
             return (
               <div class="flex items-center gap-2">
                 <ColorPicker
@@ -410,30 +413,21 @@ function ThresholdsPanel(p: {
                   colorSet="standard"
                 />
                 <Show when={origI() > 0}>
-                  {(() => {
-                    const cutoffIdx = origI() - 1;
-                    const minVal =
-                      cutoffIdx > 0 ? p.cf.cutoffs[cutoffIdx - 1] : 0;
-                    const maxVal =
-                      cutoffIdx < p.cf.cutoffs.length - 1
-                        ? p.cf.cutoffs[cutoffIdx + 1]
-                        : 1;
-                    return p.formatAs === "percent" ? (
-                      <PercentSelect
-                        value={p.cf.cutoffs[cutoffIdx]}
-                        onChange={(v) => setCutoff(cutoffIdx, v)}
-                        min={minVal}
-                        max={maxVal}
-                      />
-                    ) : (
-                      <NumberInput
-                        value={p.cf.cutoffs[cutoffIdx]}
-                        onChange={(v) => setCutoff(cutoffIdx, v)}
-                        min={minVal}
-                        max={maxVal}
-                      />
-                    );
-                  })()}
+                  <Show when={p.formatAs === "percent"} fallback={
+                    <NumberInput
+                      value={p.cf.cutoffs[cutoffIdx()]}
+                      onChange={(v) => setCutoff(cutoffIdx(), v)}
+                      min={minVal()}
+                      max={maxVal()}
+                    />
+                  }>
+                    <PercentSelect
+                      value={p.cf.cutoffs[cutoffIdx()]}
+                      onChange={(v) => setCutoff(cutoffIdx(), v)}
+                      min={minVal()}
+                      max={maxVal()}
+                    />
+                  </Show>
                 </Show>
                 <span class="text-base-content/70 text-xs">
                   {labels()[origI()]}

@@ -106,6 +106,149 @@ export type MigrationStats = {
   rowsTransformed: number;
 };
 
+// ─── Reusable transform function ────────────────────────────────────────────
+// Exported for use by slide_config.ts (embedded PO configs in figure blocks)
+
+export function transformPOConfigData(config: Record<string, unknown>): Record<string, unknown> {
+  const c = structuredClone(config) as Record<string, unknown>;
+  const d = (c.d ?? {}) as Record<string, unknown>;
+  const s = (c.s ?? {}) as Record<string, unknown>;
+
+  // ─── configD transforms ───────────────────────────────────────────────
+
+  // Block 1: periodOpt → timeseriesGrouping
+  if (d.periodOpt !== undefined) {
+    d.timeseriesGrouping ??= d.periodOpt;
+    delete d.periodOpt;
+  }
+
+  // Block 2: periodFilter.filterType "last_12_months" → "last_n_months"
+  const pf = d.periodFilter as Record<string, unknown> | undefined;
+  if (pf?.filterType === "last_12_months") {
+    pf.filterType = "last_n_months";
+    pf.nMonths = 12;
+    delete pf.periodOption;
+    delete pf.min;
+    delete pf.max;
+  }
+
+  // Block 3: periodFilter.filterType undefined → "custom"
+  if (pf && pf.filterType === undefined) {
+    pf.filterType = "custom";
+  }
+
+  // Block 4: Strip periodOption/min/max from relative filter types
+  if (pf && RELATIVE_FILTER_TYPES.has(pf.filterType as string)) {
+    delete pf.periodOption;
+    delete pf.min;
+    delete pf.max;
+  }
+
+  // Block 11: Empty valuesFilter → undefined (inclusion list must have items)
+  if (Array.isArray(d.valuesFilter) && d.valuesFilter.length === 0) {
+    d.valuesFilter = undefined;
+  }
+
+  // Block 12: Remove filterBy entries with empty values array
+  if (Array.isArray(d.filterBy)) {
+    d.filterBy = (d.filterBy as { disOpt: string; values: unknown[] }[]).filter(
+      (f) => Array.isArray(f.values) && f.values.length > 0
+    );
+  }
+
+  // Block 15: Convert selectedReplicantValue number → string
+  if (typeof d.selectedReplicantValue === "number") {
+    d.selectedReplicantValue = String(d.selectedReplicantValue);
+  }
+
+  // ─── configS transforms ───────────────────────────────────────────────
+
+  const isMap = d.type === "map";
+  let legacyCf: ConditionalFormatting | undefined;
+
+  // Block 5: Legacy conditionalFormatting string preset → capture as legacyCf
+  if (s.conditionalFormatting !== undefined) {
+    const cfRaw = s.conditionalFormatting;
+    if (typeof cfRaw === "string" && cfRaw in LEGACY_CF_PRESETS) {
+      legacyCf = LEGACY_CF_PRESETS[cfRaw as keyof typeof LEGACY_CF_PRESETS].value;
+    }
+    delete s.conditionalFormatting;
+  }
+
+  // Block 6: Legacy mapColor* fields → capture as legacyCf (maps only)
+  if (isMap && (!legacyCf || legacyCf.type === "none")) {
+    if (
+      s.mapColorPreset !== undefined ||
+      s.mapColorFrom !== undefined ||
+      s.mapColorTo !== undefined ||
+      s.mapColorReverse !== undefined ||
+      s.mapScaleType !== undefined ||
+      s.mapDiscreteSteps !== undefined ||
+      s.mapDomainType !== undefined ||
+      s.mapDomainMin !== undefined ||
+      s.mapDomainMax !== undefined
+    ) {
+      const scaleCf = buildCfFromLegacyMapFields(s);
+      if (scaleCf) legacyCf = scaleCf;
+    }
+  }
+
+  // Block 7: Strip legacy mapColor* fields (no home in current schema)
+  delete s.mapColorPreset;
+  delete s.mapColorFrom;
+  delete s.mapColorTo;
+  delete s.mapColorReverse;
+  delete s.mapScaleType;
+  delete s.mapDiscreteSteps;
+  delete s.mapDomainType;
+  delete s.mapDomainMin;
+  delete s.mapDomainMax;
+
+  // Block 8: Fill flat cf* fields from captured legacyCf or defaults
+  const flatSource = legacyCf ? flattenCf(legacyCf) : CF_STORAGE_DEFAULTS;
+  for (const [key, value] of Object.entries(flatSource)) {
+    if (!(key in s)) s[key] = value;
+  }
+
+  // Block 9: diffAreas → specialDisruptionsChart (delete legacy fields)
+  if (!("specialDisruptionsChart" in s)) {
+    s.specialDisruptionsChart = s.diffAreas === true;
+  }
+  delete s.diffAreas;
+  delete s.diffAreasOrder;
+
+  // Block 10: Fill mapProjection default (required field added later)
+  if (!("mapProjection" in s)) s.mapProjection = "equirectangular";
+
+  // Block 13: Fill showDataLabelsLineCharts default
+  if (!("showDataLabelsLineCharts" in s)) s.showDataLabelsLineCharts = false;
+
+  // Block 14: Fill specialBarChartInverted default
+  if (!("specialBarChartInverted" in s)) s.specialBarChartInverted = false;
+
+  // Block 16: Fill missing configS and configT fields (2025-04 schema additions)
+  if (!("diffInverted" in s)) s.diffInverted = false;
+  if (!("specialBarChart" in s)) s.specialBarChart = false;
+  if (!("specialBarChartDiffThreshold" in s)) s.specialBarChartDiffThreshold = 0;
+  if (!("specialBarChartDataLabels" in s)) s.specialBarChartDataLabels = "all-values";
+  if (!("specialCoverageChart" in s)) s.specialCoverageChart = false;
+  if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
+  if (!("allowVerticalColHeaders" in s)) s.allowVerticalColHeaders = false;
+  if (!("forceYMinAuto" in s)) s.forceYMinAuto = false;
+  if (!("nColsInCellDisplay" in s)) s.nColsInCellDisplay = "auto";
+  if (!("sortIndicatorValues" in s)) s.sortIndicatorValues = "none";
+  const t = (c.t ?? {}) as Record<string, unknown>;
+  if (!("captionRelFontSize" in t)) t.captionRelFontSize = 1;
+  if (!("subCaptionRelFontSize" in t)) t.subCaptionRelFontSize = 1;
+  if (!("footnoteRelFontSize" in t)) t.footnoteRelFontSize = 1;
+
+  c.d = d;
+  c.s = s;
+  c.t = t;
+
+  return c;
+}
+
 export async function migratePOConfigs(tx: Sql, projectId: string): Promise<MigrationStats> {
   const rows = await tx<{ id: string; config: string }[]>`
     SELECT id, config FROM presentation_objects
@@ -121,145 +264,10 @@ export async function migratePOConfigs(tx: Sql, projectId: string): Promise<Migr
       continue;
     }
 
-    // Deep clone to avoid mutating original
-    const c = structuredClone(config) as Record<string, unknown>;
-    const d = (c.d ?? {}) as Record<string, unknown>;
-    const s = (c.s ?? {}) as Record<string, unknown>;
-
-    // ─── configD transforms ───────────────────────────────────────────────
-
-    // Block 1: periodOpt → timeseriesGrouping
-    if (d.periodOpt !== undefined) {
-      d.timeseriesGrouping ??= d.periodOpt;
-      delete d.periodOpt;
-    }
-
-    // Block 2: periodFilter.filterType "last_12_months" → "last_n_months"
-    const pf = d.periodFilter as Record<string, unknown> | undefined;
-    if (pf?.filterType === "last_12_months") {
-      pf.filterType = "last_n_months";
-      pf.nMonths = 12;
-      delete pf.periodOption;
-      delete pf.min;
-      delete pf.max;
-    }
-
-    // Block 3: periodFilter.filterType undefined → "custom"
-    if (pf && pf.filterType === undefined) {
-      pf.filterType = "custom";
-    }
-
-    // Block 4: Strip periodOption/min/max from relative filter types
-    if (pf && RELATIVE_FILTER_TYPES.has(pf.filterType as string)) {
-      delete pf.periodOption;
-      delete pf.min;
-      delete pf.max;
-    }
-
-    // Block 11: Empty valuesFilter → undefined (inclusion list must have items)
-    if (Array.isArray(d.valuesFilter) && d.valuesFilter.length === 0) {
-      d.valuesFilter = undefined;
-    }
-
-    // Block 12: Remove filterBy entries with empty values array
-    if (Array.isArray(d.filterBy)) {
-      d.filterBy = (d.filterBy as { disOpt: string; values: unknown[] }[]).filter(
-        (f) => Array.isArray(f.values) && f.values.length > 0
-      );
-    }
-
-    // Block 15: Convert selectedReplicantValue number → string
-    if (typeof d.selectedReplicantValue === "number") {
-      d.selectedReplicantValue = String(d.selectedReplicantValue);
-    }
-
-    // ─── configS transforms ───────────────────────────────────────────────
-
-    const isMap = d.type === "map";
-    let legacyCf: ConditionalFormatting | undefined;
-
-    // Block 5: Legacy conditionalFormatting string preset → capture as legacyCf
-    if (s.conditionalFormatting !== undefined) {
-      const cfRaw = s.conditionalFormatting;
-      if (typeof cfRaw === "string" && cfRaw in LEGACY_CF_PRESETS) {
-        legacyCf = LEGACY_CF_PRESETS[cfRaw as keyof typeof LEGACY_CF_PRESETS].value;
-      }
-      delete s.conditionalFormatting;
-    }
-
-    // Block 6: Legacy mapColor* fields → capture as legacyCf (maps only)
-    if (isMap && (!legacyCf || legacyCf.type === "none")) {
-      if (
-        s.mapColorPreset !== undefined ||
-        s.mapColorFrom !== undefined ||
-        s.mapColorTo !== undefined ||
-        s.mapColorReverse !== undefined ||
-        s.mapScaleType !== undefined ||
-        s.mapDiscreteSteps !== undefined ||
-        s.mapDomainType !== undefined ||
-        s.mapDomainMin !== undefined ||
-        s.mapDomainMax !== undefined
-      ) {
-        const scaleCf = buildCfFromLegacyMapFields(s);
-        if (scaleCf) legacyCf = scaleCf;
-      }
-    }
-
-    // Block 7: Strip legacy mapColor* fields (no home in current schema)
-    delete s.mapColorPreset;
-    delete s.mapColorFrom;
-    delete s.mapColorTo;
-    delete s.mapColorReverse;
-    delete s.mapScaleType;
-    delete s.mapDiscreteSteps;
-    delete s.mapDomainType;
-    delete s.mapDomainMin;
-    delete s.mapDomainMax;
-
-    // Block 8: Fill flat cf* fields from captured legacyCf or defaults
-    const flatSource = legacyCf ? flattenCf(legacyCf) : CF_STORAGE_DEFAULTS;
-    for (const [key, value] of Object.entries(flatSource)) {
-      if (!(key in s)) s[key] = value;
-    }
-
-    // Block 9: diffAreas → specialDisruptionsChart (delete legacy fields)
-    if (!("specialDisruptionsChart" in s)) {
-      s.specialDisruptionsChart = s.diffAreas === true;
-    }
-    delete s.diffAreas;
-    delete s.diffAreasOrder;
-
-    // Block 10: Fill mapProjection default (required field added later)
-    if (!("mapProjection" in s)) s.mapProjection = "equirectangular";
-
-    // Block 13: Fill showDataLabelsLineCharts default
-    if (!("showDataLabelsLineCharts" in s)) s.showDataLabelsLineCharts = false;
-
-    // Block 14: Fill specialBarChartInverted default
-    if (!("specialBarChartInverted" in s)) s.specialBarChartInverted = false;
-
-    // Block 16: Fill missing configS and configT fields (2025-04 schema additions)
-    if (!("diffInverted" in s)) s.diffInverted = false;
-    if (!("specialBarChart" in s)) s.specialBarChart = false;
-    if (!("specialBarChartDiffThreshold" in s)) s.specialBarChartDiffThreshold = 0;
-    if (!("specialBarChartDataLabels" in s)) s.specialBarChartDataLabels = "all-values";
-    if (!("specialCoverageChart" in s)) s.specialCoverageChart = false;
-    if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
-    if (!("allowVerticalColHeaders" in s)) s.allowVerticalColHeaders = false;
-    if (!("forceYMinAuto" in s)) s.forceYMinAuto = false;
-    if (!("nColsInCellDisplay" in s)) s.nColsInCellDisplay = "auto";
-    if (!("sortIndicatorValues" in s)) s.sortIndicatorValues = "none";
-    const t = (c.t ?? {}) as Record<string, unknown>;
-    if (!("captionRelFontSize" in t)) t.captionRelFontSize = 1;
-    if (!("subCaptionRelFontSize" in t)) t.subCaptionRelFontSize = 1;
-    if (!("footnoteRelFontSize" in t)) t.footnoteRelFontSize = 1;
-
-    c.d = d;
-    c.s = s;
-    c.t = t;
+    const transformed = transformPOConfigData(config);
 
     // Validate against current schema — throws if invalid
-    const validated = presentationObjectConfigSchema.parse(c);
+    const validated = presentationObjectConfigSchema.parse(transformed);
 
     // Write + update last_updated (invalidates cache)
     await tx`

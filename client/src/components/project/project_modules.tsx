@@ -18,7 +18,7 @@ import {
   showMenu,
   timActionButton,
 } from "panther";
-import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
+import { createMemo, createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { moduleLatestCommits, setModuleLatestCommits } from "~/state/t4_ui";
 import { getInstanceCountryIso3 } from "~/state/instance/t1_store";
 import { DirtyStatus } from "~/components/DirtyStatus";
@@ -227,6 +227,16 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
   const pds = useProjectDirtyStates();
   const rLogs = useRLogs();
 
+  const hasUpdateAvailable = createMemo(() => {
+    const commits = moduleLatestCommits();
+    const installedGitRef = p.thisInstalledModule.installedGitRef;
+    const moduleId = p.thisInstalledModule.id;
+    if (!commits) return false;
+    const entry = commits.find((c) => c.moduleId === moduleId);
+    if (!entry) return false;
+    return !installedGitRef || entry.latestCommit.sha !== installedGitRef;
+  });
+
   async function editSettings() {
     if (!p.thisInstalledModule.hasParameters) {
       const _res = await openAlert({
@@ -369,24 +379,11 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
             id={p.thisInstalledModule.id}
             moduleDirtyStates={pds.moduleDirtyStates}
           />
-          {(() => {
-            const commits = moduleLatestCommits();
-            if (!commits) return null;
-            const entry = commits.find(
-              (c) => c.moduleId === p.thisInstalledModule.id,
-            );
-            if (!entry) return null;
-            if (
-              p.thisInstalledModule.installedGitRef &&
-              entry.latestCommit.sha === p.thisInstalledModule.installedGitRef
-            )
-              return null;
-            return (
-              <span class="bg-warning/15 text-warning font-500 ml-2 rounded px-2 py-0.5 text-xs">
-                {t3({ en: "Update available", fr: "Mise à jour disponible" })}
-              </span>
-            );
-          })()}
+          <Show when={hasUpdateAvailable()}>
+            <span class="bg-warning/15 text-warning font-500 ml-2 rounded px-2 py-0.5 text-xs">
+              {t3({ en: "Update available", fr: "Mise à jour disponible" })}
+            </span>
+          </Show>
         </div>
         <div class="flex-1"></div>
         <Show when={p.isGlobalAdmin || p.canConfigureModules}>

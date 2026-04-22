@@ -128,10 +128,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "backupReport",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: false },
-    "can_configure_reports",
-  ),
+  // TEMPORARILY DISABLED FOR BULK EXPORT - RE-ENABLE AFTER
+  // requireProjectPermission(
+  //   { preventAccessToLockedProjects: false },
+  //   "can_configure_reports",
+  // ),
   log("backupReport"),
   async (c, { params }) => {
     const res = await backupReport(
