@@ -1,3 +1,6 @@
+[1.23.3] [user] [fixed] - Fixed slide layout issues caused by invalid spacing values
+[1.23.3] [admin] [fixed] - AI-generated slides now validate layout span values
+[1.23.3] [admin] [fixed] - Slide layout spans are clamped to valid range 1–12
 [1.23.3] [user] [fixed] - "Update available" badge now displays more reliably on modules
 [1.23.3] [user] [fixed] - Conditional formatting threshold editor responds more reliably to changes
 [1.23.3] [user] [fixed] - Slide presentations now properly save and load all settings
