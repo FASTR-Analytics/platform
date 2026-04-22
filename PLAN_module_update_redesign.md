@@ -124,28 +124,13 @@ export type ModuleUpdatePreview = {
 
 With:
 ```typescript
-// NEW
+// NEW — uses DefinitionChanges from Change 2a
 export type ModuleUpdatePreview = {
-  // Git ref comparison
   hasUpdate: boolean;
   currentGitRef: string | null;
   incomingGitRef: string;
-  
-  // What specifically changed (factual, not predictive)
-  changes: {
-    script: boolean;
-    configRequirements: boolean;
-    resultsObjects: boolean;
-    metrics: boolean;
-    label: boolean;
-    dataSources: boolean;
-    assetsToImport: boolean;
-  };
-  
-  // Recommendation based on changes (client can override)
+  changes: DefinitionChanges;
   recommendsRerun: boolean;
-  
-  // Commit history
   commitsSince: { sha: string; message: string; date: string; author: string }[];
 };
 ```
@@ -170,6 +155,8 @@ body: {} as {
   preserveSettings: boolean;
 },
 ```
+
+**Response type: NO CHANGE NEEDED.** The existing type `{ lastUpdated: string; presObjIdsWithNewLastUpdateds: string[] }` is correct. The current server code returns an extra `computeChange` boolean that isn't in the type - we'll remove that from the server, bringing it in line with the type.
 
 ---
 
@@ -205,6 +192,13 @@ export type ModuleUpdatePreview = {
 };
 ```
 
+**File: `lib/types/mod.ts`**
+
+Add export:
+```typescript
+export type { DefinitionChanges } from "./modules.ts";
+```
+
 ---
 
 ### Change 2b: Extract Comparison Logic
@@ -212,7 +206,7 @@ export type ModuleUpdatePreview = {
 **New file: `server/module_loader/compare_definitions.ts`**
 
 ```typescript
-import type { ModuleDefinitionGithub, DefinitionChanges } from "lib";
+import type { ModuleDefinitionGithub, DefinitionChanges, Metric } from "lib";
 import type { ModuleDefinitionInstalled } from "lib";
 
 /**
@@ -221,11 +215,15 @@ import type { ModuleDefinitionInstalled } from "lib";
  * 
  * This is the SINGLE SOURCE OF TRUTH for comparison logic.
  * Used by the preview endpoint to report facts to the client.
+ * 
+ * Note: storedMetrics must be queried separately from the metrics table,
+ * as ModuleDefinitionInstalled doesn't include metrics (they're stored in DB).
  */
 export function compareDefinitions(
   incomingDef: ModuleDefinitionGithub,
   incomingScript: string,
   storedDef: ModuleDefinitionInstalled,
+  storedMetrics: Metric[],
 ): DefinitionChanges {
   const scriptChanged = incomingScript !== storedDef.script;
 
@@ -252,7 +250,7 @@ export function compareDefinitions(
     hide: m.hide,
     requiredDisaggregationOptions: m.requiredDisaggregationOptions,
   }));
-  const storedMetricsComparable = (storedDef.metrics ?? []).map(m => ({
+  const storedMetricsComparable = storedMetrics.map(m => ({
     id: m.id,
     valueFunc: m.valueFunc,
     formatAs: m.formatAs,
@@ -269,7 +267,7 @@ export function compareDefinitions(
     metricId: m.id,
     presets: m.vizPresets ?? [],
   }));
-  const storedVizPresets = (storedDef.metrics ?? []).map(m => ({
+  const storedVizPresets = storedMetrics.map(m => ({
     metricId: m.id,
     presets: m.vizPresets ?? [],
   }));
@@ -318,14 +316,56 @@ export { compareDefinitions, recommendsRerun } from "./compare_definitions.ts";
 
 ---
 
+### Change 2c: Add Helper to Get Metrics for Module
+
+**File: `server/db/project/modules.ts`**
+
+Add after existing metric functions:
+
+```typescript
+export async function getMetricsForModule(
+  projectDb: Sql,
+  moduleId: string,
+): Promise<APIResponseWithData<Metric[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rawMetrics = await projectDb<DBMetric[]>`
+      SELECT * FROM metrics WHERE module_id = ${moduleId}
+    `;
+    return {
+      success: true,
+      data: rawMetrics.map((m): Metric => ({
+        id: m.id,
+        label: m.label,
+        variantLabel: m.variant_label,
+        valueFunc: m.value_func as Metric["valueFunc"],
+        formatAs: m.format_as as Metric["formatAs"],
+        valueProps: JSON.parse(m.value_props),
+        requiredDisaggregationOptions: JSON.parse(m.required_disaggregation_options),
+        valueLabelReplacements: m.value_label_replacements ? JSON.parse(m.value_label_replacements) : null,
+        postAggregationExpression: m.post_aggregation_expression ? JSON.parse(m.post_aggregation_expression) : null,
+        resultsObjectId: m.results_object_id,
+        aiDescription: m.ai_description ? JSON.parse(m.ai_description) : null,
+        vizPresets: m.viz_presets ? JSON.parse(m.viz_presets) : [],
+        hide: m.hide,
+        importantNotes: m.important_notes,
+      })),
+    };
+  });
+}
+```
+
+---
+
 ### Change 3: Rewrite Preview Endpoint
 
 **File: `server/routes/project/modules.ts`**
 
-Add import:
+Add imports:
 ```typescript
 import { compareDefinitions, recommendsRerun } from "../../module_loader/mod.ts";
 ```
+
+Add `getMetricsForModule` to the existing import from `"../../db/mod.ts"`.
 
 Replace the entire `previewModuleUpdate` route (lines 335-404) with:
 
@@ -371,8 +411,14 @@ defineRoute(
     const hasUpdate = incomingGitRef !== undefined && 
       (!installedGitRef || incomingGitRef !== installedGitRef);
 
+    // Get stored metrics from DB (not in module_definition JSON)
+    const storedMetrics = await getMetricsForModule(c.var.ppk.projectDb, params.module_id);
+    if (storedMetrics.success === false) {
+      return c.json(storedMetrics);
+    }
+
     // Compare definitions using shared comparison logic
-    const changes = compareDefinitions(incomingDef, incomingScript, storedDef);
+    const changes = compareDefinitions(incomingDef, incomingScript, storedDef, storedMetrics.data);
 
     // Get commits since installed version
     let commitsSince: ModuleUpdatePreview["commitsSince"] = [];
@@ -412,7 +458,7 @@ defineRoute(
 
 ---
 
-### Change 3: Rewrite Update DB Function
+### Change 4: Rewrite Update DB Function
 
 **File: `server/db/project/modules.ts`**
 
@@ -452,9 +498,8 @@ export async function updateModuleDefinition(
       };
     }
 
-    // If only rerun (no reinstall), just mark dirty and return
+    // If only rerun (no reinstall), nothing to do in DB — route handler calls setModuleDirty()
     if (!reinstall && rerun) {
-      await projectDb`UPDATE modules SET dirty = 'queued' WHERE id = ${moduleDefinitionId}`;
       return {
         success: true,
         data: { lastUpdated, presObjIdsWithNewLastUpdateds: [] },
@@ -490,7 +535,7 @@ export async function updateModuleDefinition(
         // Delete module (cascades to metrics, results_objects metadata)
         await sql`DELETE FROM modules WHERE id = ${modDef.data.id}`;
         
-        // Insert fresh module with dirty='queued'
+        // Insert fresh module with dirty='ready' — route handler calls setModuleDirty() to queue
         await sql`
           INSERT INTO modules
             (id, module_definition, config_selections, dirty, installed_at, 
@@ -500,7 +545,7 @@ export async function updateModuleDefinition(
             ${modDef.data.id},
             ${prepareModuleDefinitionForStorage(modDef.data)},
             ${JSON.stringify(newConfigSelections)},
-            'queued',
+            'ready',
             ${lastUpdated},
             ${lastUpdated},
             ${lastUpdated},
@@ -625,6 +670,11 @@ export async function updateModuleDefinition(
   });
 }
 
+// NOTE: This function does NOT set dirty='queued' — that's handled by the route handler
+// calling setModuleDirty() when body.rerun is true. This keeps dirty-state management
+// in one place (the route handler) and allows setModuleDirty() to handle task manager
+// notifications consistently.
+//
 // NOTE: last_run_git_ref is updated by the task manager when module execution
 // completes (in set_module_clean.ts), not by this update function.
 
@@ -642,7 +692,7 @@ export async function updateModuleDefinition(
 
 ---
 
-### Change 4: Update Route Handler
+### Change 5: Update Route Handler
 
 **File: `server/routes/project/modules.ts`**
 
@@ -696,7 +746,7 @@ defineRoute(
 
 ---
 
-### Change 5: Rewrite Client Modal
+### Change 6: Rewrite Client Modal
 
 **File: `client/src/components/project/update_module.tsx`**
 
@@ -713,7 +763,6 @@ import {
   timQuery,
 } from "panther";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
-// NOTE: Verify panther Checkbox accepts 'description' prop. If not, remove descriptions below.
 import { serverActions } from "~/server_actions";
 import { setModuleLatestCommits } from "~/state/t4_ui";
 
@@ -869,30 +918,30 @@ export function UpdateModule(
                 </div>
               </Show>
 
-              {/* Actions */}
+              {/* Actions — Checkbox label accepts JSX.Element, so we inline descriptions */}
               <div class="border-base-300 rounded border p-3 space-y-3">
                 <Checkbox
-                  label={t3({
-                    en: "Reinstall definition",
-                    fr: "Réinstaller la définition",
-                  })}
-                  description={t3({
-                    en: "Update metrics, presets, and presentation objects from latest source",
-                    fr: "Mettre à jour les métriques, préréglages et objets de présentation",
-                  })}
+                  label={
+                    <div>
+                      <div>{t3({ en: "Reinstall definition", fr: "Réinstaller la définition" })}</div>
+                      <div class="text-neutral text-xs font-normal">
+                        {t3({ en: "Update metrics, presets, and presentation objects from latest source", fr: "Mettre à jour les métriques, préréglages et objets de présentation" })}
+                      </div>
+                    </div>
+                  }
                   checked={reinstall()}
                   onChange={setReinstall}
                 />
                 
                 <Checkbox
-                  label={t3({
-                    en: "Rerun module",
-                    fr: "Réexécuter le module",
-                  })}
-                  description={t3({
-                    en: "Execute R script and recompute all results",
-                    fr: "Exécuter le script R et recalculer tous les résultats",
-                  })}
+                  label={
+                    <div>
+                      <div>{t3({ en: "Rerun module", fr: "Réexécuter le module" })}</div>
+                      <div class="text-neutral text-xs font-normal">
+                        {t3({ en: "Execute R script and recompute all results", fr: "Exécuter le script R et recalculer tous les résultats" })}
+                      </div>
+                    </div>
+                  }
                   checked={rerun()}
                   onChange={setRerun}
                 />
@@ -900,14 +949,14 @@ export function UpdateModule(
                 <Show when={reinstall()}>
                   <div class="pl-6 border-l-2 border-base-300">
                     <Checkbox
-                      label={t3({
-                        en: "Preserve settings",
-                        fr: "Conserver les paramètres",
-                      })}
-                      description={t3({
-                        en: "Keep your current parameter values where possible",
-                        fr: "Conserver vos valeurs de paramètres actuelles si possible",
-                      })}
+                      label={
+                        <div>
+                          <div>{t3({ en: "Preserve settings", fr: "Conserver les paramètres" })}</div>
+                          <div class="text-neutral text-xs font-normal">
+                            {t3({ en: "Keep your current parameter values where possible", fr: "Conserver vos valeurs de paramètres actuelles si possible" })}
+                          </div>
+                        </div>
+                      }
                       checked={preserveSettings()}
                       onChange={setPreserveSettings}
                     />
@@ -958,7 +1007,7 @@ function ChangeBadge(p: { label: string; isComputeAffecting?: boolean }) {
 
 ---
 
-### Change 6: Update "Update All Modules" Component
+### Change 7: Update "Update All Modules" Component
 
 **File: `client/src/components/project/update_all_modules.tsx`**
 
@@ -993,7 +1042,7 @@ const res = await serverActions.updateModuleDefinition({
 | `server/module_loader/compare_definitions.ts` | **NEW** — Comparison logic (single source of truth) |
 | `server/module_loader/mod.ts` | Add export for comparison functions |
 | `server/routes/project/modules.ts` | Rewrite preview endpoint, update route handler |
-| `server/db/project/modules.ts` | Rewrite `updateModuleDefinition` function |
+| `server/db/project/modules.ts` | Add `getMetricsForModule`, rewrite `updateModuleDefinition` |
 | `client/src/components/project/update_module.tsx` | Complete rewrite of modal |
 | `client/src/components/project/update_all_modules.tsx` | Update API call |
 
@@ -1029,14 +1078,18 @@ Before implementing, verify these assumptions:
    - Check: `server/module_loader/load_module.ts` line ~59
    - Confirmed in code review
 
-4. **`prepareModuleDefinitionForStorage` handles translated input**
+4. **`checkModuleUpdates` endpoint exists**
+   - VERIFIED: `lib/api-routes/instance/modules.ts:5` defines it
+   - Route: GET `/modules/check_updates`
+
+5. **`prepareModuleDefinitionForStorage` handles translated input**
    - Check: `server/db/project/modules.ts` line ~51
    - Receives output of `getModuleDefinitionDetail` (already translated)
    - Verify it doesn't double-translate or break
 
-5. **`Checkbox` component accepts `description` prop**
-   - Check: `panther` Checkbox component
-   - If not, remove description props or add feature to panther
+6. **`Checkbox` component does NOT accept `description` prop**
+   - VERIFIED: `panther/_303_components/form_inputs/checkbox.tsx` only has: checked, onChange, label, disabled, indeterminate, intentWhenChecked
+   - Solution: Pass JSX.Element as label prop instead (component supports this via `label: string | JSX.Element`)
 
 ---
 

@@ -1,0 +1,602 @@
+{
+    "success": true,
+    "data": {
+        "report": {
+            "id": "affeb4f2-bf58-40ec-8ffb-58d7f0c2a350",
+            "projectId": "5ee791cd-4331-44b0-9aa9-fe128a1c2625",
+            "reportType": "policy_brief",
+            "config": {
+                "label": "Maternal Health Services Brief",
+                "logos": [
+                    "nigeria_logo_good_transparent.png",
+                    "FASTR_White_FullName (2).png"
+                ],
+                "logoSize": 300,
+                "figureScale": 2,
+                "footer": "",
+                "showPageNumbers": true,
+                "headerSize": 1,
+                "useWatermark": false,
+                "watermarkText": "",
+                "colorTheme": "alt_green",
+                "overlay": "dots"
+            },
+            "itemIdsInOrder": [
+                "0f6017e5-f386-4855-8702-6bda267d0d8f",
+                "c35202f2-6446-4d41-92bc-8acea52c4ef2",
+                "2fb35092-1520-4f08-a293-11bcd5e84975",
+                "4bbd818a-7c1f-4096-8c12-af76d3b12526"
+            ],
+            "lastUpdated": "2025-11-10T15:48:48.204Z"
+        },
+        "reportItems": [
+            {
+                "id": "0f6017e5-f386-4855-8702-6bda267d0d8f",
+                "projectId": "5ee791cd-4331-44b0-9aa9-fe128a1c2625",
+                "reportId": "affeb4f2-bf58-40ec-8ffb-58d7f0c2a350",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "110b0bfe-4989-4bbb-a989-86293c6e42c0",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "fa764f8c-f3d2-4709-8e4c-65e93c49e826",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "88551ef0-d9fd-4d64-952a-8474f2395e39",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "success",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": "# Key Messages\n- Since the last Nigeria Demographic and Health Survey (NDHS) in 2024, ANC1,  ANC4, and institutional delivery coverage is estimated to have increased. This is a promising signal of progress in increasing access and utilization of maternal health services under the National Health Sector Renewal Initiative (NHSRII). \n- ANC4 coverage remains much lower than ANC1, highlighting the continued importance of registering women early for ANC and maintaining continuity of care. Most women are still booking for ANC 1 after 20 weeks.\n- Skilled birth attendance (SBA) and institutional delivery are increasing at the same rate; this shows that will service use is increasing, there has not been an increase in SBA availability. "
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "c7bad657-2df4-42a3-b0d1-41871c29440b",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "6e7651d3-e500-402e-82a6-459e662f665b",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "success",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "32156475-1adf-4445-a34b-403b8b24f1ae",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "92c3a233-b95a-43de-9c4c-b79660f01c31",
+                                            "data": {
+                                                "type": "figure",
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "3e3230cb-ad9e-48b9-b3ce-7bd01255d20b",
+                                                    "isDefault": true,
+                                                    "replicateBy": "indicator_common_id",
+                                                    "selectedReplicantValue": "anc1",
+                                                    "metricId": "m4-01-01"
+                                                },
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "useHeader": true,
+                        "headerText": "Maternal Health Performance",
+                        "subHeaderText": "Annual State of Health 2025 Report: Policy Brief 1",
+                        "dateText": "November 2025",
+                        "useFooter": true,
+                        "footerText": "",
+                        "footerLogos": [],
+                        "headerLogos": []
+                    }
+                },
+                "lastUpdated": "2026-03-10T23:31:08.900Z"
+            },
+            {
+                "id": "2fb35092-1520-4f08-a293-11bcd5e84975",
+                "projectId": "5ee791cd-4331-44b0-9aa9-fe128a1c2625",
+                "reportId": "affeb4f2-bf58-40ec-8ffb-58d7f0c2a350",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "a5729810-e6b5-4ca2-b896-1ec2fb076f20",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "14d1829b-8b51-4acf-b22b-f77966c1d152",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "8a057ba8-001c-49c3-bd02-77225f88184b",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "grey",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": "The below figure shows a large increase in the number of women coming for institutional delivery. The green shaded area represents the additional number of women reached compared to the expected number of women reached. The increase begins in February 2025 and continues through September 2025."
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "01330a33-310f-45d7-8788-1a226729d2d9",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "c95d07cb-e851-4100-a729-a084f2108c78",
+                                            "data": {
+                                                "type": "figure",
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "c01999c7-e169-4d82-895b-b588048a2e18",
+                                                    "isDefault": false,
+                                                    "replicateBy": "indicator_common_id",
+                                                    "selectedReplicantValue": "delivery",
+                                                    "metricId": "m3-02-01"
+                                                },
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "65bc71f5-e816-4f6b-9ea7-f3a91bdd8d5c",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "0cb4b39c-c432-4d0a-a0dc-acabe59112dc",
+                                            "data": {
+                                                "type": "text",
+                                                "markdown": "Based on this large increase in women coming to facilities for delivery, we estimate that institutional delivery coverage has increased since the last NDHS in 2024. Analyzing HMIS trends and applying them  to the latest survey result ( % in 2024), we estimate that current institutional delivery coverage is %. ",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "grey",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "15bdc212-e08e-452d-9dec-e55ed2a8226f",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "4759b56e-8216-42cd-a923-64d92a4804b1",
+                                            "data": {
+                                                "type": "figure",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "3e3230cb-ad9e-48b9-b3ce-7bd01255d20b",
+                                                    "isDefault": true,
+                                                    "replicateBy": "indicator_common_id",
+                                                    "selectedReplicantValue": "delivery",
+                                                    "metricId": "m4-01-01"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "lastUpdated": "2026-03-11T02:19:39.406Z"
+            },
+            {
+                "id": "c35202f2-6446-4d41-92bc-8acea52c4ef2",
+                "projectId": "5ee791cd-4331-44b0-9aa9-fe128a1c2625",
+                "reportId": "affeb4f2-bf58-40ec-8ffb-58d7f0c2a350",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "722b0b8e-1e68-4542-9c64-7bfe753c9721",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "0c79e78e-69e5-4834-9e10-70b8c572169c",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "953bcb31-955d-43de-95d6-e3b17ca13c0c",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "grey",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": "Across Nigeria, more women are booking for ANC after 20 weeks.... "
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "155d1c89-55ea-408b-a6b4-f08ab40fa4da",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "2995de1d-fb7d-4b57-a93b-bf92d114aa86",
+                                            "data": {
+                                                "type": "figure",
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "3e3230cb-ad9e-48b9-b3ce-7bd01255d20b",
+                                                    "isDefault": true,
+                                                    "replicateBy": "indicator_common_id",
+                                                    "selectedReplicantValue": "anc1",
+                                                    "metricId": "m4-01-01"
+                                                },
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "2de06e5f-c02d-4d9b-999f-7909f2378444",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "49328046-d31e-451e-8489-1d206fd9146f",
+                                            "data": {
+                                                "type": "text",
+                                                "markdown": "In addition, ANC4 coverage remains much lower than ANC1, highlighting the continued importance of registering women early for ANC and maintaining continuity of care.",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "grey",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "189de566-dae4-4207-9d34-722e8329d2d5",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "05a93c33-f8bc-4cdb-ba70-968fc0184edb",
+                                            "data": {
+                                                "type": "figure",
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "ad6b93d9-fe77-4895-968c-74e7ab3d1eda",
+                                                    "isDefault": false,
+                                                    "replicateBy": "indicator_common_id",
+                                                    "selectedReplicantValue": "anc4",
+                                                    "metricId": "m4-01-01"
+                                                },
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "useHeader": false,
+                        "headerText": "Maternal Health ",
+                        "subHeaderText": " Joint Annual Review (JAR) Health Sector Statistical Book Annex ",
+                        "dateText": "November 2025",
+                        "useFooter": true,
+                        "footerText": ""
+                    }
+                },
+                "lastUpdated": "2026-03-10T23:31:08.900Z"
+            },
+            {
+                "id": "4bbd818a-7c1f-4096-8c12-af76d3b12526",
+                "projectId": "5ee791cd-4331-44b0-9aa9-fe128a1c2625",
+                "reportId": "affeb4f2-bf58-40ec-8ffb-58d7f0c2a350",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "28e9ab86-b9ad-4175-a009-df673bee4c3e",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "3c943e7a-c3ec-45da-9ecb-508ed02ff705",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "aa3c4145-da71-435a-9d65-101b09e8fff5",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "grey",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": "Finally, we see similar increases in postnatal care  (PNC) attendance, showing an increase in the uptake of services. However, there are key data quality concerns for PNC data in Nigeria. PNC visits equal BCG visits in the DHIS-2. This signals that officers in charge are likely recording PNC at the same time as BCG; however, women and newborns are likely not "
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "723cd83b-94b4-491f-b762-7851e8d933a2",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "14d1ddf8-3e0e-4473-ac7d-facd24bd3f24",
+                                            "data": {
+                                                "type": "figure",
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "c01999c7-e169-4d82-895b-b588048a2e18",
+                                                    "isDefault": false,
+                                                    "replicateBy": "indicator_common_id",
+                                                    "selectedReplicantValue": "pnc1",
+                                                    "metricId": "m3-02-01"
+                                                },
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "useFooter": true,
+                        "footerLogos": [
+                            "nigeria_logo_good_transparent.png",
+                            "FASTR_White_FullName (2).png"
+                        ]
+                    }
+                },
+                "lastUpdated": "2026-03-11T02:19:39.406Z"
+            }
+        ]
+    }
+}

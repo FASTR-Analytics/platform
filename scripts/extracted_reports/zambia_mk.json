@@ -1,0 +1,193 @@
+{
+    "success": true,
+    "data": {
+        "report": {
+            "id": "a8ab5304-1826-4049-8080-8ed38db5a6a2",
+            "projectId": "03ac155e-64bd-4ca5-b799-d06a0dfaf369",
+            "reportType": "policy_brief",
+            "config": {
+                "label": "MK",
+                "logos": [],
+                "logoSize": 300,
+                "figureScale": 2,
+                "footer": "",
+                "showPageNumbers": true,
+                "headerSize": 1,
+                "useWatermark": false,
+                "watermarkText": "",
+                "colorTheme": "white",
+                "overlay": "none"
+            },
+            "itemIdsInOrder": [
+                "dfa06fca-e0a7-484e-b423-afc93dfa8b64",
+                "127909f1-0b8c-4399-8f1c-c0265039f564"
+            ],
+            "lastUpdated": "2026-01-31T12:08:10.978Z"
+        },
+        "reportItems": [
+            {
+                "id": "127909f1-0b8c-4399-8f1c-c0265039f564",
+                "projectId": "03ac155e-64bd-4ca5-b799-d06a0dfaf369",
+                "reportId": "a8ab5304-1826-4049-8080-8ed38db5a6a2",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "b9d8626d-b483-4b9c-bc04-901b48fcec0f",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "720655fe-7827-4053-a40c-64f9b7e8d81a",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "efa60c70-ea89-42e0-81dc-4e6788ed3b89",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": "# POLICY BRIEF: Antenatal Care 4th Visit (ANC4) Coverage Gap\n\n## CONTEXT & PROBLEM STATEMENT\n\nAnalysis of ANC4 coverage data (2017-2025) reveals a **critical gap between health management information system (HMIS) reporting and actual service coverage**. While survey-based estimates indicate 82% coverage (2024), routine HMIS data captures only 65% coverage\u2014a **17 percentage point discrepancy**. This represents approximately **1 in 5 pregnant women** completing four antenatal visits but remaining invisible in routine health systems.\n\n### Key Findings:\n\n**Coverage Disparity Crisis:**\n- Survey estimates: 63% (2017) \u2192 82% (2024) [+19% improvement]\n- HMIS data: 0% (2017-2022) \u2192 65% (2025) [persistent underreporting]\n- **Gap magnitude: 17 percentage points** (2024-2025)\n\n**Data Quality Concerns:**\n- Zero reporting for 5 consecutive years (2017-2022) indicates systemic data collection failures\n- Late data capture initiation (2023) suggests recent system implementation\n- Stagnant HMIS growth (65% ceiling) despite survey evidence of higher coverage\n\n## POLICY RECOMMENDATIONS\n\n### 1. **IMMEDIATE: Data System Strengthening**\n- Conduct urgent HMIS audit to identify reporting bottlenecks\n- Implement mandatory ANC4 visit documentation protocols at all facilities\n- Deploy mobile health (mHealth) tools for real-time data capture\n\n### 2. **SHORT-TERM: Bridge the Reporting Gap**\n- Train 100% of frontline health workers on ANC4 data recording standards\n- Establish monthly data quality verification meetings at district level\n- Integrate community health worker records into national HMIS\n\n### 3. **LONG-TERM: System Integration**\n- Link patient identifiers across facilities to prevent double-counting\n- Develop interoperable digital health platforms\n- Institutionalize annual data validation surveys\n\n**Expected Impact:** Closing this 17% gap would improve resource allocation accuracy, enable evidence-based planning, and ensure no pregnant woman is lost to follow-up."
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "lastUpdated": "2026-01-31T12:08:10.978Z"
+            },
+            {
+                "id": "dfa06fca-e0a7-484e-b423-afc93dfa8b64",
+                "projectId": "03ac155e-64bd-4ca5-b799-d06a0dfaf369",
+                "reportId": "a8ab5304-1826-4049-8080-8ed38db5a6a2",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "48ec1dd2-1404-4844-a9be-2d391e2264a2",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "0b1ac968-b7fa-4b03-b0e5-fae8859f8ffe",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "76009599-4cd3-4894-936a-cda0a040b148",
+                                            "data": {
+                                                "type": "figure",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "15ca88bd-6183-4e71-bb26-3277dd8eb02f",
+                                                    "isDefault": true,
+                                                    "replicateBy": "indicator_common_id",
+                                                    "selectedReplicantValue": "anc4",
+                                                    "metricId": "m4a-02-01"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "44feba62-1cce-404e-ae86-5fcb9c5f6316",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "a8982807-0e8e-420e-9ecd-eca7cec8ad90",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": ""
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "useHeader": true,
+                        "headerText": "ESTIMATION OF ANC 4 SERVICE COVERAGE"
+                    }
+                },
+                "lastUpdated": "2026-04-15T09:56:46.256Z"
+            }
+        ]
+    }
+}

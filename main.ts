@@ -57,20 +57,6 @@ await connectValkey();
 
 const app = new Hono();
 
-// TEMPORARY: Unauthenticated backup endpoint - REMOVE AFTER BULK EXPORT
-import { backupReport } from "./server/db/project/reports.ts";
-app.get("/temp_backup/:project_id/:report_id", async (c) => {
-  try {
-    const projectId = c.req.param("project_id");
-    const reportId = c.req.param("report_id");
-    const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
-    const res = await backupReport(projectId, projectDb, reportId);
-    return c.json(res);
-  } catch (e) {
-    return c.json({ success: false, err: String(e) });
-  }
-});
-
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
 // LOCAL_DEVELOPMENT_TOGGLE
 app.use("*", authMiddleware);

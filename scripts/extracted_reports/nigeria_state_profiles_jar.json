@@ -1,0 +1,237 @@
+{
+    "success": true,
+    "data": {
+        "report": {
+            "id": "89fd71c4-67e6-4ff6-a1f4-7216a16fb2cb",
+            "projectId": "5ee791cd-4331-44b0-9aa9-fe128a1c2625",
+            "reportType": "policy_brief",
+            "config": {
+                "label": "State Profiles: JAR",
+                "logos": [
+                    "nigeria_logo_good_transparent.png",
+                    "FASTR_White_FullName (2).png"
+                ],
+                "logoSize": 300,
+                "figureScale": 2,
+                "footer": "",
+                "showPageNumbers": true,
+                "headerSize": 1,
+                "useWatermark": true,
+                "watermarkText": "DRAFT",
+                "colorTheme": "alt_green",
+                "overlay": "none"
+            },
+            "itemIdsInOrder": [
+                "54bf3c97-7de7-40c5-b5a6-264c88afa01b",
+                "49650174-dfaf-4f63-823b-63187cadcd08"
+            ],
+            "lastUpdated": "2025-10-22T00:10:14.337Z"
+        },
+        "reportItems": [
+            {
+                "id": "54bf3c97-7de7-40c5-b5a6-264c88afa01b",
+                "projectId": "5ee791cd-4331-44b0-9aa9-fe128a1c2625",
+                "reportId": "89fd71c4-67e6-4ff6-a1f4-7216a16fb2cb",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "1bb9e965-708c-4c7a-99a9-e3ed29736d44",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "0a7db1e3-aaf3-42ce-8870-ef0b61818542",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "4e373950-ec82-47b6-80c9-acd30728741b",
+                                            "data": {
+                                                "type": "figure",
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "eeb3f679-74b0-43cf-8a6d-2add91e20ddc",
+                                                    "isDefault": false,
+                                                    "replicateBy": "admin_area_3",
+                                                    "selectedReplicantValue": "ab Abia State",
+                                                    "metricId": "m3-01-01"
+                                                },
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "useHeader": true,
+                        "headerText": "Joint Annual Review of the Health Sector 2025",
+                        "subHeaderText": "RMNCAH+N State Profile: Abia State",
+                        "dateText": "November 2025",
+                        "useFooter": false,
+                        "headerLogos": [
+                            "FASTR_White_FullName (2).png",
+                            "nigeria_logo_good_transparent.png"
+                        ]
+                    }
+                },
+                "lastUpdated": "2026-03-11T02:19:39.406Z"
+            },
+            {
+                "id": "49650174-dfaf-4f63-823b-63187cadcd08",
+                "projectId": "5ee791cd-4331-44b0-9aa9-fe128a1c2625",
+                "reportId": "89fd71c4-67e6-4ff6-a1f4-7216a16fb2cb",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "fc899345-dc52-4280-9fae-e07b2719d61b",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "8b33ab86-fa59-48de-a6e3-f4affd86722f",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "601c266b-b746-4aef-a370-d5faea76a4c7",
+                                            "data": {
+                                                "type": "figure",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "93ac1841-e0ae-4315-9300-5717cc5d2b33",
+                                                    "isDefault": false,
+                                                    "replicateBy": "admin_area_3",
+                                                    "selectedReplicantValue": "ab Abia State",
+                                                    "metricId": "m3-01-01"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "100e8ad8-164f-4413-8863-efff0fdc272b",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "e3368084-2d0d-47fe-a56b-e4391e8117e4",
+                                            "data": {
+                                                "type": "figure",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "a8995190-16a8-4b06-9d66-6b3a5906ae0c",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "8eb4decf-7d94-4f67-b2fa-969c83caca9f",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": ""
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "lastUpdated": "2026-03-11T02:19:39.406Z"
+            }
+        ]
+    }
+}
