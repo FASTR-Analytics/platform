@@ -25,6 +25,12 @@
 // 8. Fill flat cf* fields from captured legacyCf or defaults
 // 9. diffAreas → specialDisruptionsChart (delete legacy fields)
 // 10. Fill mapProjection default
+// 11. Empty valuesFilter → undefined (inclusion list must have items)
+// 12. Remove filterBy entries with empty values array
+// 13. Fill showDataLabelsLineCharts default
+// 14. Fill specialBarChartInverted default
+// 15. Convert selectedReplicantValue number → string
+// 16. Fill missing configS and configT fields (2025-04 schema additions)
 //
 // =============================================================================
 
@@ -150,6 +156,23 @@ export async function migratePOConfigs(tx: Sql, projectId: string): Promise<Migr
       delete pf.max;
     }
 
+    // Block 11: Empty valuesFilter → undefined (inclusion list must have items)
+    if (Array.isArray(d.valuesFilter) && d.valuesFilter.length === 0) {
+      d.valuesFilter = undefined;
+    }
+
+    // Block 12: Remove filterBy entries with empty values array
+    if (Array.isArray(d.filterBy)) {
+      d.filterBy = (d.filterBy as { disOpt: string; values: unknown[] }[]).filter(
+        (f) => Array.isArray(f.values) && f.values.length > 0
+      );
+    }
+
+    // Block 15: Convert selectedReplicantValue number → string
+    if (typeof d.selectedReplicantValue === "number") {
+      d.selectedReplicantValue = String(d.selectedReplicantValue);
+    }
+
     // ─── configS transforms ───────────────────────────────────────────────
 
     const isMap = d.type === "map";
@@ -209,8 +232,31 @@ export async function migratePOConfigs(tx: Sql, projectId: string): Promise<Migr
     // Block 10: Fill mapProjection default (required field added later)
     if (!("mapProjection" in s)) s.mapProjection = "equirectangular";
 
+    // Block 13: Fill showDataLabelsLineCharts default
+    if (!("showDataLabelsLineCharts" in s)) s.showDataLabelsLineCharts = false;
+
+    // Block 14: Fill specialBarChartInverted default
+    if (!("specialBarChartInverted" in s)) s.specialBarChartInverted = false;
+
+    // Block 16: Fill missing configS and configT fields (2025-04 schema additions)
+    if (!("diffInverted" in s)) s.diffInverted = false;
+    if (!("specialBarChart" in s)) s.specialBarChart = false;
+    if (!("specialBarChartDiffThreshold" in s)) s.specialBarChartDiffThreshold = 0;
+    if (!("specialBarChartDataLabels" in s)) s.specialBarChartDataLabels = "all-values";
+    if (!("specialCoverageChart" in s)) s.specialCoverageChart = false;
+    if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
+    if (!("allowVerticalColHeaders" in s)) s.allowVerticalColHeaders = false;
+    if (!("forceYMinAuto" in s)) s.forceYMinAuto = false;
+    if (!("nColsInCellDisplay" in s)) s.nColsInCellDisplay = "auto";
+    if (!("sortIndicatorValues" in s)) s.sortIndicatorValues = "none";
+    const t = (c.t ?? {}) as Record<string, unknown>;
+    if (!("captionRelFontSize" in t)) t.captionRelFontSize = 1;
+    if (!("subCaptionRelFontSize" in t)) t.subCaptionRelFontSize = 1;
+    if (!("footnoteRelFontSize" in t)) t.footnoteRelFontSize = 1;
+
     c.d = d;
     c.s = s;
+    c.t = t;
 
     // Validate against current schema — throws if invalid
     const validated = presentationObjectConfigSchema.parse(c);

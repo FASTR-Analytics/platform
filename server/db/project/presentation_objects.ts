@@ -121,7 +121,7 @@ function configToSummary(row: DBPresentationObject, config: PresentationObjectCo
     isFiltered: config.d.filterBy.length > 0 || !!config.d.periodFilter,
     type: config.d.type,
     disaggregateBy: config.d.disaggregateBy.map(d => d.disOpt),
-    filterBy: config.d.filterBy.map(f => ({ col: f.disOpt, vals: f.values })),
+    filterBy: config.d.filterBy,
     createdByAI: row.created_by_ai,
     folderId: row.folder_id,
     sortOrder: row.sort_order,

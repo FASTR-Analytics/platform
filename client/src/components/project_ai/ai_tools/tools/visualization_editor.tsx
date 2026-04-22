@@ -1,13 +1,70 @@
-import { DisaggregationOption, getDisaggregationLabel, type MetricWithStatus, periodFilterHasBounds } from "lib";
+import {
+  configDStrict,
+  presentationObjectConfigTStrict,
+  type MetricWithStatus,
+} from "lib";
 import { createAITool } from "panther";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
-import { instanceState } from "~/state/instance/t1_store";
+import { formatVizEditorForAI } from "./_internal/format_viz_editor_for_ai";
 
-const VALID_TYPES = ["timeseries", "table", "chart", "map"] as const;
+// ============================================================================
+// Viz editor update schema - DERIVED from configDStrict (storage schema)
+//
+// Most fields derive directly from configDStrict.partial().
+// periodFilter is a SIMPLER ABSTRACTION: AI provides { min?, max? },
+// handler converts to full periodFilter format (like startDate/endDate pattern).
+// ============================================================================
 
+const vizConfigUpdateSchema = z.object({
+  // DERIVED from configDStrict - types match storage exactly
+  type: configDStrict.shape.type.optional().describe("Presentation type"),
+  timeseriesGrouping: configDStrict.shape.timeseriesGrouping.describe(
+    "How to group the time axis on a timeseries chart. Only meaningful for timeseries.",
+  ),
+  valuesDisDisplayOpt: configDStrict.shape.valuesDisDisplayOpt.optional().describe(
+    "How to display values dimension. Valid values depend on type.",
+  ),
+  valuesFilter: z.union([
+    configDStrict.shape.valuesFilter,
+    z.null(),
+  ]).optional().describe("Which value properties to show, or null to show all."),
+  disaggregateBy: configDStrict.shape.disaggregateBy.optional().describe(
+    "How to disaggregate data. Replaces all existing disaggregations.",
+  ),
+  filterBy: configDStrict.shape.filterBy.optional().describe(
+    "Data filters. Replaces all existing filters. Use empty array to clear.",
+  ),
+  selectedReplicantValue: z.union([
+    z.string(),
+    z.null(),
+  ]).optional().describe("Selected replicant value, or null to clear."),
+  includeNationalForAdminArea2: configDStrict.shape.includeNationalForAdminArea2.describe(
+    "Include national-level data when disaggregating by admin_area_2.",
+  ),
+  includeNationalPosition: configDStrict.shape.includeNationalPosition.describe(
+    "Where to position national data row.",
+  ),
+
+  // EXCEPTION: periodFilter uses simpler abstraction (like startDate/endDate)
+  // AI provides { min?, max? }, handler converts to full periodFilter format
+  periodFilter: z.union([
+    z.object({
+      min: z.number().optional().describe("Start period as integer (e.g., 2023 for year, 202301 for period_id)"),
+      max: z.number().optional().describe("End period as integer"),
+    }),
+    z.null(),
+  ]).optional().describe("Time range filter, or null to clear."),
+
+  // Text config fields from presentationObjectConfigTStrict
+  caption: presentationObjectConfigTStrict.shape.caption.optional().describe("Main chart/table title"),
+  subCaption: presentationObjectConfigTStrict.shape.subCaption.optional().describe("Subtitle text"),
+  footnote: presentationObjectConfigTStrict.shape.footnote.optional().describe("Footnote text"),
+});
+
+// Keep these for runtime validation that depends on current type
 const VALID_DIS_DISPLAY: Record<string, string[]> = {
   timeseries: ["series", "cell", "row", "col", "replicant"],
   table: ["row", "col", "rowGroup", "colGroup", "replicant"],
@@ -45,127 +102,7 @@ export function getToolsForVizEditor(
         const metric = metrics.find(m => m.id === resultsValue.id);
         const dataOutput = await getDataFromConfig(projectId, resultsValue.id, metrics, config, metric?.aiDescription);
 
-        const lines: string[] = [];
-
-        lines.push("# VISUALIZATION");
-        lines.push("=".repeat(80));
-        lines.push("");
-        if (presentationObjectId) {
-          lines.push(`**ID:** ${presentationObjectId}`);
-        }
-        if (config.t.caption) {
-          lines.push(`**Caption:** ${config.t.caption}`);
-        }
-        lines.push("");
-
-        lines.push("## CURRENT CONFIGURATION");
-        lines.push("=".repeat(50));
-        lines.push("");
-        lines.push(`Presentation type: ${config.d.type}`);
-        if (config.d.timeseriesGrouping) {
-          lines.push(`Timeseries grouping: ${config.d.timeseriesGrouping}`);
-        }
-        lines.push("");
-
-        if (config.d.disaggregateBy.length > 0) {
-          lines.push("Disaggregations:");
-          for (const dis of config.d.disaggregateBy) {
-            lines.push(`  - ${dis.disOpt} displayed as: ${dis.disDisplayOpt}`);
-          }
-          lines.push("");
-        }
-
-        if (config.d.filterBy.length > 0) {
-          lines.push("Filters:");
-          for (const filter of config.d.filterBy) {
-            lines.push(`  - ${filter.disOpt}: ${filter.values.join(", ")}`);
-          }
-          lines.push("");
-        }
-
-        if (config.d.periodFilter) {
-          const pf = config.d.periodFilter;
-          if (periodFilterHasBounds(pf)) {
-            lines.push(`Period filter: ${pf.periodOption} from ${pf.min} to ${pf.max}`);
-          } else {
-            const nPart =
-              pf.nMonths != null ? `${pf.nMonths} months` :
-              pf.nQuarters != null ? `${pf.nQuarters} quarters` :
-              pf.nYears != null ? `${pf.nYears} years` : "";
-            lines.push(`Period filter: ${pf.filterType}${nPart ? " (" + nPart + ")" : ""}`);
-          }
-          lines.push("");
-        }
-
-        if (config.d.valuesFilter && config.d.valuesFilter.length > 0) {
-          lines.push(`Values filter: ${config.d.valuesFilter.join(", ")}`);
-          lines.push("");
-        } else {
-          lines.push("Values filter: (showing all values)");
-          lines.push("");
-        }
-
-        if (config.d.valuesDisDisplayOpt) {
-          lines.push(`Values display: ${config.d.valuesDisDisplayOpt}`);
-          lines.push("");
-        }
-
-        lines.push(`Include national data: ${config.d.includeNationalForAdminArea2 ? "yes" : "no"}`);
-        lines.push("");
-
-        lines.push("Captions:");
-        lines.push(`  Caption: ${config.t.caption || "(empty)"}`);
-        lines.push(`  Sub-caption: ${config.t.subCaption || "(empty)"}`);
-        lines.push(`  Footnote: ${config.t.footnote || "(empty)"}`);
-        lines.push("");
-
-        lines.push("## AVAILABLE OPTIONS");
-        lines.push("=".repeat(50));
-        lines.push("");
-
-        lines.push("Value properties:");
-        lines.push(`  ${resultsValue.valueProps.join(", ")}`);
-        lines.push("");
-
-        lines.push("Disaggregation dimensions:");
-        for (const opt of resultsValue.disaggregationOptions) {
-          const label = getDisaggregationLabel(opt.value, {
-            adminAreaLabels: instanceState.adminAreaLabels,
-            facilityColumns: instanceState.facilityColumns,
-          }).en;
-          const required = opt.isRequired ? " (required)" : "";
-          lines.push(`  - ${opt.value}: ${label}${required}`);
-        }
-        lines.push("");
-
-        lines.push("Period options:");
-        lines.push(`  ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
-        lines.push("");
-
-        lines.push("Valid display options for disaggregations:");
-        if (config.d.type === "timeseries") {
-          lines.push(`  For timeseries: series, cell, row, col, replicant`);
-        } else if (config.d.type === "table") {
-          lines.push(`  For table: row, col, rowGroup, colGroup, replicant`);
-        } else if (config.d.type === "chart") {
-          lines.push(`  For chart: indicator, series, cell, row, col, replicant`);
-        }
-        lines.push("");
-
-        lines.push("Valid display options for values:");
-        if (config.d.type === "timeseries") {
-          lines.push(`  For timeseries: series, cell, row, col`);
-        } else if (config.d.type === "table") {
-          lines.push(`  For table: row, col, rowGroup, colGroup`);
-        } else if (config.d.type === "chart") {
-          lines.push(`  For chart: indicator, series, cell, row, col`);
-        }
-        lines.push("");
-
-        lines.push("=".repeat(80));
-        lines.push(dataOutput);
-
-        return lines.join("\n");
+        return formatVizEditorForAI(config, resultsValue, presentationObjectId ?? undefined, dataOutput);
       },
       inProgressLabel: "Getting visualization...",
       completionMessage: "Retrieved visualization",
@@ -173,39 +110,7 @@ export function getToolsForVizEditor(
     createAITool({
       name: "update_viz_config",
       description: "Update the visualization configuration. Only provide fields you want to change. Changes are LOCAL (preview only) until user clicks Save button. Use get_viz_editor to see current state and valid options.",
-      inputSchema: z.object({
-        type: z.enum(["timeseries", "table", "chart"]).optional().describe("Presentation type (d.type)"),
-        timeseriesGrouping: z.string().optional().describe("How to group the time axis on a timeseries chart (d.timeseriesGrouping) - e.g., 'year', 'quarter_id', 'period_id'. Only meaningful for timeseries; has no effect on tables, charts, or maps. Get valid values from get_viz_editor."),
-        valuesDisDisplayOpt: z.string().optional().describe("How to display values dimension (d.valuesDisDisplayOpt). Valid values depend on type: timeseries=(series|cell|row|col), table=(row|col|rowGroup|colGroup), chart=(indicator|series|cell|row|col)"),
-        valuesFilter: z.union([
-          z.array(z.string()),
-          z.null()
-        ]).optional().describe("Which value properties to show (d.valuesFilter) from available value properties, or null to show all. Check get_viz_editor for available properties."),
-        disaggregateBy: z.array(z.object({
-          disOpt: z.string().describe("Dimension from available disaggregation dimensions (e.g., 'indicator_common_id', 'admin_area_2')"),
-          disDisplayOpt: z.string().describe("Display mode - valid values depend on type: timeseries=(series|cell|row|col|replicant), table=(row|col|rowGroup|colGroup|replicant), chart=(indicator|series|cell|row|col|replicant)"),
-        })).optional().describe("How to disaggregate data (d.disaggregateBy). Replaces all existing disaggregations. Required dimensions must always be included."),
-        filterBy: z.array(z.object({
-          disOpt: z.string().describe("Dimension to filter (from available disaggregation dimensions)"),
-          values: z.array(z.string()).describe("Specific values to include. Use get_visualization_data to see available values for each dimension."),
-        })).optional().describe("Data filters (d.filterBy). Replaces all existing filters. Use empty array to clear all filters."),
-        periodFilter: z.union([
-          z.object({
-            min: z.number().optional().describe("Start period as integer (e.g., 2023 for year, 202301 for monthly period_id)"),
-            max: z.number().optional().describe("End period as integer (same format as min)"),
-          }),
-          z.null()
-        ]).optional().describe("Time range filter (d.periodFilter), or null to clear. min/max are interpreted using the metric's physical time column format (period_id=YYYYMM, quarter_id=YYYYQQ, year=YYYY). Independent of timeseriesGrouping."),
-        selectedReplicantValue: z.union([
-          z.string(),
-          z.null()
-        ]).optional().describe("Selected replicant value (d.selectedReplicantValue) when a dimension is displayed as 'replicant', or null to clear"),
-        includeNationalForAdminArea2: z.boolean().optional().describe("Include national-level data when disaggregating by admin_area_2 (d.includeNationalForAdminArea2)"),
-        includeNationalPosition: z.enum(["top", "bottom"]).optional().describe("Where to position national data row (d.includeNationalPosition). Only relevant if includeNationalForAdminArea2 is true."),
-        caption: z.string().optional().describe("Main chart/table title (t.caption)"),
-        subCaption: z.string().optional().describe("Subtitle text below title (t.subCaption)"),
-        footnote: z.string().optional().describe("Footnote text at bottom (t.footnote)"),
-      }),
+      inputSchema: vizConfigUpdateSchema,
       handler: async (input) => {
         const ctx = getAIContext();
         if (ctx.mode !== "editing_visualization") {
@@ -216,11 +121,10 @@ export function getToolsForVizEditor(
         const setTempConfig = ctx.setTempConfig;
         const changes: string[] = [];
 
-        if (input.type && !(VALID_TYPES as readonly string[]).includes(input.type)) {
-          throw new Error(`Invalid type "${input.type}". Valid types: ${VALID_TYPES.join(", ")}`);
-        }
+        // Schema now enforces valid type enum - no runtime check needed
         const effectiveType = input.type || ctx.getTempConfig().d.type;
 
+        // Runtime validation for data-dependent constraints
         if (input.timeseriesGrouping && resultsValue.mostGranularTimePeriodColumnInResultsFile !== input.timeseriesGrouping) {
           throw new Error(`Invalid timeseriesGrouping "${input.timeseriesGrouping}". Available: ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
         }
@@ -236,7 +140,7 @@ export function getToolsForVizEditor(
           const validDisplay = VALID_DIS_DISPLAY[effectiveType];
           const availableDims = resultsValue.disaggregationOptions.map(o => o.value);
           for (const d of input.disaggregateBy) {
-            if (!availableDims.includes(d.disOpt as any)) {
+            if (!availableDims.includes(d.disOpt)) {
               throw new Error(`Invalid disaggregation dimension "${d.disOpt}". Available: ${availableDims.join(", ")}`);
             }
             if (validDisplay && !validDisplay.includes(d.disDisplayOpt)) {
@@ -245,9 +149,7 @@ export function getToolsForVizEditor(
           }
         }
 
-        if (input.includeNationalPosition && !["top", "bottom"].includes(input.includeNationalPosition)) {
-          throw new Error(`Invalid includeNationalPosition "${input.includeNationalPosition}". Valid: top, bottom`);
-        }
+        // Schema now enforces valid includeNationalPosition enum - no runtime check needed
 
         if (input.type) {
           setTempConfig("d", "type", input.type);
@@ -255,12 +157,12 @@ export function getToolsForVizEditor(
         }
 
         if (input.timeseriesGrouping) {
-          setTempConfig("d", "timeseriesGrouping", input.timeseriesGrouping as any);
+          setTempConfig("d", "timeseriesGrouping", input.timeseriesGrouping);
           changes.push("timeseriesGrouping");
         }
 
         if (input.valuesDisDisplayOpt) {
-          setTempConfig("d", "valuesDisDisplayOpt", input.valuesDisDisplayOpt as any);
+          setTempConfig("d", "valuesDisDisplayOpt", input.valuesDisDisplayOpt);
           changes.push("valuesDisDisplayOpt");
         }
 
@@ -270,18 +172,12 @@ export function getToolsForVizEditor(
         }
 
         if (input.disaggregateBy) {
-          setTempConfig("d", "disaggregateBy", input.disaggregateBy.map(d => ({
-            disOpt: d.disOpt as DisaggregationOption,
-            disDisplayOpt: d.disDisplayOpt as any,
-          })));
+          setTempConfig("d", "disaggregateBy", input.disaggregateBy);
           changes.push("disaggregateBy");
         }
 
         if (input.filterBy) {
-          setTempConfig("d", "filterBy", input.filterBy.map(f => ({
-            disOpt: f.disOpt as DisaggregationOption,
-            values: f.values,
-          })));
+          setTempConfig("d", "filterBy", input.filterBy);
           changes.push("filterBy");
         }
 

@@ -1,7 +1,7 @@
 import type { Sql } from "postgres";
 import { detectColumnExists, detectHasPeriodId } from "../db/utils.ts";
 import type { PeriodBounds, PeriodOption } from "lib";
-import { PERIOD_COLUMN_EXPRESSIONS, QUARTER_ID_COLUMN_EXPRESSIONS } from "./period_helpers.ts";
+import { PERIOD_COLUMN_EXPRESSIONS, QUARTER_ID_COLUMN_EXPRESSIONS, getQuarterIdExpression } from "./period_helpers.ts";
 
 export async function getPeriodBounds(
   projectDb: Sql,
@@ -31,7 +31,7 @@ export async function getPeriodBounds(
   SELECT *,
     ${PERIOD_COLUMN_EXPRESSIONS.year} AS year,
     ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,
-    ${PERIOD_COLUMN_EXPRESSIONS.quarter_id} AS quarter_id
+    ${getQuarterIdExpression()} AS quarter_id
   FROM ${tableName}
 )
 `;

@@ -16,8 +16,36 @@
 // - If any row fails validation after transforms: rollback, boot fails
 //
 // TRANSFORM BLOCKS:
-// - ai_description: fill caveats, importantNotes, relatedMetrics
-// - viz_presets: same as module definition vizPresets transform
+//
+// ai_description:
+// 1. Fill caveats if missing
+// 2. Fill importantNotes if missing
+// 3. Fill relatedMetrics if missing
+//
+// viz_presets (top level):
+// 4. Delete defaultPeriodFilterForDefaultVisualizations
+// 5. Fill importantNotes if missing
+// 6. Fill createDefaultVisualizationOnInstall if missing
+// 7. Fill needsReplicant if missing
+// 8. Fill allowedFilters if missing
+//
+// viz_presets.config.d:
+// 9. periodOpt → timeseriesGrouping
+// 10. periodFilter.filterType "last_12_months" → "last_n_months"
+// 11. periodFilter.filterType undefined → "custom"
+// 12. Strip periodOption/min/max from relative filter types
+// 13. Empty valuesFilter → undefined
+// 14. Remove filterBy entries with empty values
+//
+// viz_presets.config.s:
+// 15. Legacy conditionalFormatting string preset → capture as legacyCf
+// 16. Legacy mapColor* fields → capture as legacyCf (maps only)
+// 17. Strip legacy mapColor* fields
+// 18. Fill flat cf* fields from captured legacyCf or defaults
+// 19. diffAreas → specialDisruptionsChart
+//
+// viz_presets.config.t:
+// 20. Fill caption/subCaption/footnote fields if missing
 //
 // =============================================================================
 
@@ -96,12 +124,15 @@ function buildCfFromLegacyMapFields(
 }
 
 function transformConfigD(d: Record<string, unknown>): void {
+  // Block 9: periodOpt → timeseriesGrouping
   if (d.periodOpt !== undefined) {
     d.timeseriesGrouping ??= d.periodOpt;
     delete d.periodOpt;
   }
 
   const pf = d.periodFilter as Record<string, unknown> | undefined;
+
+  // Block 10: periodFilter.filterType "last_12_months" → "last_n_months"
   if (pf?.filterType === "last_12_months") {
     pf.filterType = "last_n_months";
     pf.nMonths = 12;
@@ -110,20 +141,35 @@ function transformConfigD(d: Record<string, unknown>): void {
     delete pf.max;
   }
 
+  // Block 11: periodFilter.filterType undefined → "custom"
   if (pf && pf.filterType === undefined) {
     pf.filterType = "custom";
   }
 
+  // Block 12: Strip periodOption/min/max from relative filter types
   if (pf && RELATIVE_FILTER_TYPES.has(pf.filterType as string)) {
     delete pf.periodOption;
     delete pf.min;
     delete pf.max;
+  }
+
+  // Block 13: Empty valuesFilter → undefined
+  if (Array.isArray(d.valuesFilter) && d.valuesFilter.length === 0) {
+    d.valuesFilter = undefined;
+  }
+
+  // Block 14: Remove filterBy entries with empty values
+  if (Array.isArray(d.filterBy)) {
+    d.filterBy = (d.filterBy as { disOpt: string; values: unknown[] }[]).filter(
+      (f) => Array.isArray(f.values) && f.values.length > 0
+    );
   }
 }
 
 function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {
   let legacyCf: ConditionalFormatting | undefined;
 
+  // Block 15: Legacy conditionalFormatting string preset → capture as legacyCf
   if (s.conditionalFormatting !== undefined) {
     const cfRaw = s.conditionalFormatting;
     if (typeof cfRaw === "string" && cfRaw in LEGACY_CF_PRESETS) {
@@ -132,6 +178,7 @@ function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {
     delete s.conditionalFormatting;
   }
 
+  // Block 16: Legacy mapColor* fields → capture as legacyCf (maps only)
   if (isMap && (!legacyCf || legacyCf.type === "none")) {
     if (
       s.mapColorPreset !== undefined ||
@@ -149,6 +196,7 @@ function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {
     }
   }
 
+  // Block 17: Strip legacy mapColor* fields
   delete s.mapColorPreset;
   delete s.mapColorFrom;
   delete s.mapColorTo;
@@ -159,11 +207,13 @@ function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {
   delete s.mapDomainMin;
   delete s.mapDomainMax;
 
+  // Block 18: Fill flat cf* fields from captured legacyCf or defaults
   const flatSource = legacyCf ? flattenCf(legacyCf) : CF_STORAGE_DEFAULTS;
   for (const [key, value] of Object.entries(flatSource)) {
     if (!(key in s)) s[key] = value;
   }
 
+  // Block 19: diffAreas → specialDisruptionsChart
   if (!("specialDisruptionsChart" in s)) {
     s.specialDisruptionsChart = s.diffAreas === true;
   }
@@ -171,6 +221,7 @@ function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {
   delete s.diffAreasOrder;
 }
 
+// Block 20: Fill caption/subCaption/footnote fields if missing
 function transformVizPresetTextConfig(t: Record<string, unknown>): void {
   if (!("caption" in t)) t.caption = null;
   if (!("captionRelFontSize" in t)) t.captionRelFontSize = null;
@@ -181,13 +232,21 @@ function transformVizPresetTextConfig(t: Record<string, unknown>): void {
 }
 
 function transformVizPreset(vp: Record<string, unknown>): void {
+  // Block 4: Delete defaultPeriodFilterForDefaultVisualizations
   delete vp.defaultPeriodFilterForDefaultVisualizations;
 
+  // Block 5: Fill importantNotes if missing
   if (!("importantNotes" in vp)) vp.importantNotes = null;
+
+  // Block 6: Fill createDefaultVisualizationOnInstall if missing
   if (!("createDefaultVisualizationOnInstall" in vp)) {
     vp.createDefaultVisualizationOnInstall = null;
   }
+
+  // Block 7: Fill needsReplicant if missing
   if (!("needsReplicant" in vp)) vp.needsReplicant = false;
+
+  // Block 8: Fill allowedFilters if missing
   if (!("allowedFilters" in vp)) vp.allowedFilters = [];
 
   if (vp.config && typeof vp.config === "object" && !Array.isArray(vp.config)) {
@@ -222,8 +281,11 @@ function transformVizPreset(vp: Record<string, unknown>): void {
 }
 
 function transformMetricAIDescription(ai: Record<string, unknown>): void {
+  // Block 1: Fill caveats if missing
   if (!("caveats" in ai)) ai.caveats = null;
+  // Block 2: Fill importantNotes if missing
   if (!("importantNotes" in ai)) ai.importantNotes = null;
+  // Block 3: Fill relatedMetrics if missing
   if (!("relatedMetrics" in ai)) ai.relatedMetrics = [];
 }
 

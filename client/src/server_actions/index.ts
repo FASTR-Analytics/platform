@@ -1,5 +1,7 @@
+import type { APIResponseWithData, ProjectSummary } from "lib";
 import { prepareSlideForTransmit, restoreSlideAfterReceive } from "lib";
 import { createAllServerActions } from "./create_server_action";
+import { tryCatchServer } from "./try_catch_server";
 
 export const _SERVER_HOST =
   process.env.NODE_ENV === "production" ? "" : "http://localhost:8000";
@@ -38,3 +40,10 @@ export const serverActions = {
     return result;
   },
 };
+
+export async function fetchMyProjects(): Promise<APIResponseWithData<ProjectSummary[]>> {
+  return tryCatchServer<APIResponseWithData<ProjectSummary[]>>(
+    `${_SERVER_HOST}/my_projects`,
+    { method: "GET", credentials: "include" }
+  );
+}

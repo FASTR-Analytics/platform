@@ -20,10 +20,13 @@ export function getScriptWithParameters(
         "hfaIndicators is required for HFA module script generation"
       );
     }
+    const stopIfIndicatorFails =
+      configSelections.parameterSelections["STOP_IF_INDICATOR_FAILS"]?.trim() !== "FALSE";
     return getScriptWithParametersHfa(
       hfaIndicators,
       hfaIndicatorCode ?? [],
       knownDatasetVariables,
+      stopIfIndicatorFails,
     );
   }
 

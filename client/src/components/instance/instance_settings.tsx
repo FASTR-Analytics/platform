@@ -129,11 +129,15 @@ export function InstanceSettings(p: Props) {
     }),
   );
 
-  const updateCountryIso3 = timActionButton(() =>
-    serverActions.updateCountryIso3({
+  const updateCountryIso3 = timActionButton(async () => {
+    const res = await serverActions.updateCountryIso3({
       countryIso3: countryIso3(),
-    }),
-  );
+    });
+    if (res.success) {
+      setNeedsSavingCountryIso3(false);
+    }
+    return res;
+  });
 
   const handleCheckboxChange = (
     setter: (value: boolean) => void,

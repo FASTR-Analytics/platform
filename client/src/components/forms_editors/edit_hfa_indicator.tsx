@@ -43,6 +43,8 @@ export function EditHfaIndicator(
         type: type(),
         aggregation: aggregation(),
         sortOrder: p.sortOrder,
+        hasSyntaxError: false,
+        codeConsistent: true,
       };
 
       if (mode === "create") {

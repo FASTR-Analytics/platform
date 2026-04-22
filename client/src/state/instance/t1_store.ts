@@ -33,6 +33,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   },
   adminAreaLabels: {},
   projects: [],
+  projectsLastUpdated: "",
   users: [],
   assets: [],
   geojsonMaps: [],
@@ -134,6 +135,10 @@ export function updateInstanceConfig(data: InstanceConfig): void {
 
 export function updateInstanceProjects(projects: ProjectSummary[]): void {
   setInstanceState("projects", reconcile(projects));
+}
+
+export function updateProjectsLastUpdated(lastUpdated: string): void {
+  setInstanceState("projectsLastUpdated", lastUpdated);
 }
 
 export function updateInstanceUsers(users: OtherUser[]): void {

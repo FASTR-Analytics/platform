@@ -70,21 +70,18 @@ export function buildConfigFromPreset(
     const allowedFilters = preset.allowedFilters;
     if (allowedFilters) {
       for (const f of input.filters) {
-        if (!allowedFilters.includes(f.col as DisaggregationOption)) {
+        if (!allowedFilters.includes(f.disOpt)) {
           const allowed = allowedFilters.length > 0
             ? allowedFilters.join(", ")
             : "none (this preset does not support filters)";
           throw new Error(
-            `Invalid filter dimension "${f.col}" for preset "${vizPresetId}". ` +
+            `Invalid filter dimension "${f.disOpt}" for preset "${vizPresetId}". ` +
             `Allowed filter dimensions: ${allowed}`,
           );
         }
       }
     }
-    config.d.filterBy = input.filters.map((f) => ({
-      disOpt: f.col as DisaggregationOption,
-      values: f.vals,
-    }));
+    config.d.filterBy = input.filters;
   }
 
   if (input.valuesFilter) {

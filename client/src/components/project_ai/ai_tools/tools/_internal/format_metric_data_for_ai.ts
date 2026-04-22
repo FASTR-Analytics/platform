@@ -51,8 +51,8 @@ export async function getMetricDataForAI(
   const disaggregations = (inputDisaggregations ??
     []) as DisaggregationOption[];
   const filters = (inputFilters ?? []) as {
-    col: DisaggregationOption;
-    vals: (string | number)[];
+    disOpt: DisaggregationOption;
+    values: (string | number)[];
   }[];
   let periodFilter = inferPeriodFilter(startDate, endDate, inputDisaggregations);
 
@@ -172,7 +172,7 @@ function formatItemsAsMarkdown(
   itemsHolder: ItemsHolderPresentationObject,
   metric: MetricWithStatus,
   disaggregations: DisaggregationOption[],
-  filters?: { col: DisaggregationOption; vals: (string | number)[] }[],
+  filters?: { disOpt: DisaggregationOption; values: (string | number)[] }[],
   periodFilter?: { filterType: "custom"; periodOption: PeriodOption; min: number; max: number },
   aiDescription?: MetricAIDescription,
 ): string {
@@ -244,7 +244,7 @@ function formatItemsAsMarkdown(
   if (filters && filters.length > 0) {
     lines.push("**Filtered by:**");
     for (const f of filters) {
-      lines.push(`- ${f.col}: ${f.vals.join(", ")}`);
+      lines.push(`- ${f.disOpt}: ${f.values.join(", ")}`);
     }
     lines.push("");
   }
@@ -543,10 +543,7 @@ export async function getDataFromConfig(
     disaggregations.push(config.d.timeseriesGrouping);
   }
 
-  const filters = config.d.filterBy.map((f) => ({
-    col: f.disOpt,
-    vals: f.values,
-  }));
+  const filters = config.d.filterBy;
 
   const boundedFilter =
     config.d.periodFilter && periodFilterHasBounds(config.d.periodFilter)

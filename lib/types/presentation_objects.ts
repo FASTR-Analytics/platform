@@ -35,7 +35,7 @@ export type PresentationObjectSummary = {
   isFiltered: boolean;
   type: PresentationOption;
   disaggregateBy: DisaggregationOption[];
-  filterBy: { col: DisaggregationOption; vals: (string | number)[] }[];
+  filterBy: { disOpt: DisaggregationOption; values: (string | number)[] }[];
   createdByAI: boolean;
   folderId: string | null;
   sortOrder: number;
@@ -395,7 +395,7 @@ export type GenericLongFormFetchConfig = {
     func: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
   }[];
   groupBys: (DisaggregationOption | PeriodOption)[];
-  filters: { col: DisaggregationOption; vals: (string | number)[] }[];
+  filters: { disOpt: DisaggregationOption; values: (string | number)[] }[];
   periodFilter: PeriodFilter | undefined;
   periodFilterExactBounds?: PeriodBounds;
   postAggregationExpression: string | undefined;

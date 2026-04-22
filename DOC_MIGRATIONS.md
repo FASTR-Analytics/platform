@@ -145,6 +145,8 @@ Before INSERT/UPDATE, validate against Zod schema. Invalid data cannot enter the
 | Table.Column | File | Functions | Schema |
 |--------------|------|-----------|--------|
 | `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `addPresentationObject`, `updatePresentationObjectConfig`, `batchUpdatePresentationObjectsPeriodFilter` | `presentationObjectConfigSchema` |
+| `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `duplicatePresentationObject` | (copies validated row) |
+| `presentation_objects.config` | `server/db/project/modules.ts` | `installModule`, `updateModuleDefinition` | `presentationObjectConfigSchema` |
 | `modules.module_definition` | `server/db/project/modules.ts` | `installModule`, `updateModuleDefinition` | `moduleDefinitionInstalledSchema` |
 | `metrics.*` | `server/db/project/modules.ts` | `installModule`, `updateModuleDefinition` | `metricStrict` |
 | `slide_decks.config` | `server/db/project/slide_decks.ts` | `createSlideDeck`, `duplicateSlideDeck`, `updateSlideDeckConfig` | `slideDeckConfigSchema` |

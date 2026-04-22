@@ -17,6 +17,7 @@ import {
   timActionForm,
 } from "panther";
 import { serverActions } from "~/server_actions";
+import { validateRCode } from "./hfa_r_code_validator";
 
 type Props = EditorComponentProps<
   { dictionary: HfaDictionaryForValidation },
@@ -138,19 +139,12 @@ export function HfaIndicatorsCsvUploadForm(p: Props) {
         }
         usedVarNames.add(varName);
 
-        indicators.push({
-          varName,
-          category: row.category || "",
-          definition: row.definition || "",
-          type: normalizedType,
-          aggregation: normalizedAgg,
-          sortOrder: i,
-        });
-
+        const indicatorCode: { timePoint: string; rCode: string; rFilterCode: string }[] = [];
         for (let k = 0; k < sortedTimePoints.length; k++) {
           const tp = sortedTimePoints[k];
           const rCode = row[`r_code_${k + 1}`] ?? "";
           const rFilterCode = row[`r_filter_code_${k + 1}`] ?? "";
+          indicatorCode.push({ timePoint: tp.timePoint, rCode, rFilterCode });
           if (!rCode.trim() && !rFilterCode.trim()) continue;
           code.push({
             varName,
@@ -159,6 +153,47 @@ export function HfaIndicatorsCsvUploadForm(p: Props) {
             rFilterCode: rFilterCode.trim() ? rFilterCode : undefined,
           });
         }
+
+        // Compute validation for this indicator
+        let hasSyntaxError = false;
+        const otherVarNames = new Set(usedVarNames);
+        otherVarNames.delete(varName);
+        for (const c of indicatorCode) {
+          const tp = p.dictionary.timePoints.find((t) => t.timePoint === c.timePoint);
+          const availableVars = tp ? new Set(tp.vars.map((v) => v.varName)) : new Set<string>();
+          if (c.rCode.trim()) {
+            const result = validateRCode(c.rCode, availableVars, otherVarNames);
+            if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
+              hasSyntaxError = true;
+            }
+          }
+          if (c.rFilterCode.trim()) {
+            const result = validateRCode(c.rFilterCode, availableVars, otherVarNames);
+            if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
+              hasSyntaxError = true;
+            }
+          }
+        }
+
+        const nonEmpty = indicatorCode.filter((c) => c.rCode.trim() || c.rFilterCode.trim());
+        let codeConsistent = true;
+        if (nonEmpty.length > 1) {
+          const first = nonEmpty[0];
+          codeConsistent = nonEmpty.every(
+            (c) => c.rCode.trim() === first.rCode.trim() && c.rFilterCode.trim() === first.rFilterCode.trim()
+          );
+        }
+
+        indicators.push({
+          varName,
+          category: row.category || "",
+          definition: row.definition || "",
+          type: normalizedType,
+          aggregation: normalizedAgg,
+          sortOrder: i,
+          hasSyntaxError,
+          codeConsistent,
+        });
       }
 
       return await serverActions.batchUploadHfaIndicators({

@@ -6,6 +6,7 @@ import {
   getFacilityColumnsConfig,
   getInstanceDetail,
   getMaxAdminAreaConfig,
+  getProjectsForUser,
   updateAdminAreaLabelsConfig,
   updateCountryIso3Config,
   updateFacilityColumnsConfig,
@@ -61,6 +62,16 @@ defineRoute(
   async (c) => {
     const res = await getInstanceDetail(c.var.mainDb, c.var.globalUser);
     return c.json(res);
+  },
+);
+
+defineRoute(
+  routesInstance,
+  "getMyProjects",
+  requireGlobalPermission(),
+  async (c) => {
+    const projects = await getProjectsForUser(c.var.mainDb, c.var.globalUser);
+    return c.json({ success: true, data: projects });
   },
 );
 

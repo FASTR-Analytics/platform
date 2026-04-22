@@ -97,6 +97,7 @@ export function getScriptWithParametersHfa(
   indicators: HfaIndicator[],
   indicatorCode: HfaIndicatorCode[],
   knownDatasetVariables: Set<string>,
+  stopIfIndicatorFails: boolean,
 ): string {
   const allIndicatorVarNames = new Set(indicators.map((ind) => ind.varName));
 
@@ -109,33 +110,109 @@ export function getScriptWithParametersHfa(
     codeByIndicator.get(code.varName)!.push(code);
   }
 
+  // Track skipped indicators and warnings
+  const skippedIndicators = new Set<string>();
+  const warnings: string[] = [];
+
+  // Filter out indicators without R code
+  let filteredIndicators = indicators;
+  if (!stopIfIndicatorFails) {
+    filteredIndicators = indicators.filter((indicator) => {
+      const snippets = codeByIndicator.get(indicator.varName) ?? [];
+      const activeSnippets = snippets.filter(
+        (s) => s.rCode && s.rCode.trim() !== "",
+      );
+      if (activeSnippets.length === 0) {
+        skippedIndicators.add(indicator.varName);
+        warnings.push(
+          `Skipped indicator "${indicator.varName}": no R code configured for any time point`,
+        );
+        return false;
+      }
+      return true;
+    });
+  }
+
   // Build union dependency graph and validate
   const graphResult = buildUnionDependencyGraph(
-    indicators,
+    filteredIndicators,
     codeByIndicator,
     allIndicatorVarNames,
     knownDatasetVariables,
   );
 
   if (graphResult.validationErrors.length > 0) {
-    throw new Error(
-      `Invalid indicator definitions:\n${graphResult.validationErrors.join("\n")}`,
+    if (stopIfIndicatorFails) {
+      throw new Error(
+        `Invalid indicator definitions:\n${graphResult.validationErrors.join("\n")}`,
+      );
+    }
+    // Extract indicator names from validation errors and skip them
+    for (const error of graphResult.validationErrors) {
+      const match = error.match(/^Indicator "([^"]+)"/);
+      if (match) {
+        skippedIndicators.add(match[1]);
+        warnings.push(`Skipped: ${error}`);
+      }
+    }
+    filteredIndicators = filteredIndicators.filter(
+      (ind) => !skippedIndicators.has(ind.varName),
     );
   }
 
-  const { ordered, cycles } = topologicalSort(indicators, graphResult);
+  // Also skip indicators that depend on skipped indicators
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const indicator of filteredIndicators) {
+      const deps = graphResult.dependenciesMap.get(indicator.varName) ?? [];
+      for (const dep of deps) {
+        if (skippedIndicators.has(dep) && !skippedIndicators.has(indicator.varName)) {
+          skippedIndicators.add(indicator.varName);
+          warnings.push(
+            `Skipped indicator "${indicator.varName}": depends on skipped indicator "${dep}"`,
+          );
+          changed = true;
+          break;
+        }
+      }
+    }
+    filteredIndicators = filteredIndicators.filter(
+      (ind) => !skippedIndicators.has(ind.varName),
+    );
+  }
+
+  if (filteredIndicators.length === 0) {
+    throw new Error(
+      `No valid indicators to process. All indicators were skipped:\n${warnings.join("\n")}`,
+    );
+  }
+
+  // Rebuild graph with filtered indicators for topological sort
+  const filteredGraphResult = buildUnionDependencyGraph(
+    filteredIndicators,
+    codeByIndicator,
+    allIndicatorVarNames,
+    knownDatasetVariables,
+  );
+
+  const { ordered, cycles } = topologicalSort(filteredIndicators, filteredGraphResult);
   if (cycles.length > 0) {
     throw new Error(
       `Circular dependencies detected:\n${formatCycles(cycles)}`,
     );
   }
 
+  const warningPrints = warnings.length > 0
+    ? warnings.map((w) => `warning("${w.replace(/"/g, '\\"')}")`).join("\n") + "\n\n"
+    : "";
+
   const script = `
 library(dplyr)
 library(tidyr)
 
 print("Starting HFA script...")
-
+${warningPrints}
 # Read and pivot data to wide format
 data <- read.csv('../datasets/hfa.csv')
 data_wide <- data %>%

@@ -34,7 +34,7 @@ export async function buildQueryContext(
         enabledFacilityColumns.includes(col as OptionalFacilityColumn)
       ),
       ...fetchConfig.filters
-        .map((f) => f.col)
+        .map((f) => f.disOpt)
         .filter((col): col is DisaggFacilityColumn =>
           enabledFacilityColumns.includes(col as OptionalFacilityColumn)
         ),
@@ -52,12 +52,12 @@ export async function buildQueryContext(
     (hasQuarterId && neededPeriodColumns.has("year"));
 
   const facilityFilters = fetchConfig.filters.filter((filter) =>
-    enabledFacilityColumns.includes(filter.col as OptionalFacilityColumn)
+    enabledFacilityColumns.includes(filter.disOpt as OptionalFacilityColumn)
   );
 
   const nonFacilityFilters = fetchConfig.filters.filter(
     (filter) =>
-      !enabledFacilityColumns.includes(filter.col as OptionalFacilityColumn)
+      !enabledFacilityColumns.includes(filter.disOpt as OptionalFacilityColumn)
   );
 
   return {

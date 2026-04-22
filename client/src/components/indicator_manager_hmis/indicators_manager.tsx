@@ -232,19 +232,7 @@ export function IndicatorsManager(p: Props) {
           </div>
         }
       >
-        <FrameLeft
-          panelChildren={
-            <TabsNavigation
-              tabs={tabs}
-              vertical
-              icons={{
-                common: "badge",
-                raw: "badge",
-                calculated: "chart",
-              }}
-            />
-          }
-        >
+        <FrameLeft panelChildren={<TabsNavigation tabs={tabs} vertical />}>
           <div class="ui-pad ui-spy h-full w-full overflow-auto border-l">
             <Show when={tabs.isTabActive("common")}>
               <StateHolderWrapper state={indicators()} noPad>

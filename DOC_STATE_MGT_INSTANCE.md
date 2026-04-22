@@ -35,7 +35,7 @@ Lightweight metadata. Pushed via SSE on every change. Components read directly f
 | Data | Fields on `InstanceState` | SSE event | Version key for T2 caches |
 | --- | --- | --- | --- |
 | Instance config | `instanceName`, `maxAdminArea`, `countryIso3`, `facilityColumns` | `config_updated` | — |
-| Projects | `projects` (full `ProjectSummary[]`) | `projects_updated` | — |
+| Projects | `projects`, `projectsLastUpdated` | `projects_last_updated` | — |
 | Users | `users` (full `OtherUser[]`) | `users_updated` | — |
 | Assets | `assets` (full `AssetInfo[]`) | `assets_updated` | — |
 | GeoJSON maps | `geojsonMaps` (full `GeoJsonMapSummary[]`) | `geojson_maps_updated` | — |
@@ -47,7 +47,14 @@ Lightweight metadata. Pushed via SSE on every change. Components read directly f
 
 **Why these are on SSE state:** They're small, needed across multiple views (sidebar counts, landing cards, staleness checks, cache version keys), and benefit from real-time multi-user sync.
 
-**Per-connection fields:** `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, and `currentUserPermissions` are per-user — each SSE connection receives its own values in the `starting` message. On `users_updated`, the client re-derives them by finding the current user in the updated list. All other T1 fields are identical across all clients.
+**Per-connection fields:** Some T1 fields are per-user rather than global:
+
+| Fields | Sent in `starting` | Updated on | Update mechanism |
+| --- | --- | --- | --- |
+| `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, `currentUserPermissions` | Per-user values | `users_updated` | Re-derived by finding current user in broadcast list |
+| `projects`, `projectsLastUpdated` | Per-user values | `projects_last_updated` | Client fetches `/my_projects` (can't re-derive because broadcast can't contain every user's project list) |
+
+All other T1 fields are identical across all clients.
 
 ### Reading state in components (reactive)
 

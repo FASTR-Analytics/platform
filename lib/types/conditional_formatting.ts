@@ -1,9 +1,12 @@
-import { z } from "zod";
 import type {
   ColorKeyOrString,
   ContinuousScaleConfig,
 } from "@timroberton/panther";
 import { t3 } from "../translate/mod.ts";
+import { cfStorageSchema } from "./conditional_formatting_standalone.ts";
+
+export { cfStorageSchema };
+export type CfStorage = import("zod").infer<typeof cfStorageSchema>;
 
 // ============================================================================
 // ConditionalFormatting — the reusable abstraction.
@@ -44,44 +47,6 @@ export type ConditionalFormatting =
   | ConditionalFormattingThresholds;
 
 // ============================================================================
-// Flat storage schema — these fields live directly on config.s in wb-fastr.
-// Kept flat so Solid's per-field reactivity in visualization_editor_inner.tsx
-// and the existing for..in tracker pattern work the same as every other
-// style prop.
-// ============================================================================
-
-const colorKeyOrStringSchema: z.ZodType<ColorKeyOrString> = z.union([
-  z.string(),
-  z.object({ key: z.string() }),
-]) as unknown as z.ZodType<ColorKeyOrString>;
-
-export const cfStorageSchema = z.object({
-  cfMode: z.enum(["none", "scale", "thresholds"]),
-
-  cfScalePaletteKind: z.enum(["preset", "custom"]),
-  cfScalePalettePreset: z.string(),
-  cfScaleCustomFrom: z.string(),
-  cfScaleCustomMid: z.string(), // "" = no mid (non-diverging)
-  cfScaleCustomTo: z.string(),
-  cfScaleReverse: z.boolean(),
-  cfScaleSteps: z.number(), // 0 = continuous, >=2 = N discrete bands
-  cfScaleDomainKind: z.enum(["auto", "fixed"]),
-  cfScaleDomainMin: z.number(),
-  cfScaleDomainMax: z.number(),
-  cfScaleNoDataColor: z.string(),
-
-  cfThresholdCutoffs: z.array(z.number()),
-  cfThresholdBuckets: z.array(
-    z.object({
-      color: colorKeyOrStringSchema,
-    }),
-  ),
-  cfThresholdDirection: z.enum(["higher-is-better", "lower-is-better"]),
-  cfThresholdNoDataColor: z.string(),
-});
-export type CfStorage = z.infer<typeof cfStorageSchema>;
-
-// ============================================================================
 // Bridge: flat storage ↔ union abstraction
 // ============================================================================
 
@@ -104,7 +69,7 @@ export function selectCf(s: CfStorage): ConditionalFormatting {
       return {
         type: "thresholds",
         cutoffs: s.cfThresholdCutoffs,
-        buckets: s.cfThresholdBuckets.map((b) => ({ color: b.color })),
+        buckets: s.cfThresholdBuckets.map((b) => ({ color: b.color as ColorKeyOrString })),
         direction: s.cfThresholdDirection,
         noDataColor: s.cfThresholdNoDataColor || undefined,
       };

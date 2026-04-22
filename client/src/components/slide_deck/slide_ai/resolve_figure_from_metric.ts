@@ -70,7 +70,7 @@ export async function resolveFigureFromMetric(
   }
 
   const filters = config.d.filterBy.length > 0
-    ? config.d.filterBy.map(f => ({ col: f.disOpt, vals: f.values }))
+    ? config.d.filterBy
     : undefined;
   const periodFilter = config.d.periodFilter?.filterType === "custom"
     ? { periodOption: config.d.periodFilter.periodOption, min: config.d.periodFilter.min, max: config.d.periodFilter.max }

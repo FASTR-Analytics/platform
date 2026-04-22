@@ -15,7 +15,7 @@ import {
   selectCf,
   withReplicant,
 } from "lib";
-import { getLegendItemsFromConfig } from "./conditional_formatting";
+import { getLegendFromConfig } from "./conditional_formatting";
 import {
   getChartOHJsonDataConfigFromPresentationObjectConfig,
   getChartOVJsonDataConfigFromPresentationObjectConfig,
@@ -113,7 +113,7 @@ export function getFigureInputsFromPresentationObject(
             ih.dateRange,
           ),
           style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
-          legend: getLegendItemsFromConfig(config),
+          legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
         },
       };
     }
@@ -162,7 +162,7 @@ export function getFigureInputsFromPresentationObject(
             ih.dateRange,
           ),
           style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
-          legend: getLegendItemsFromConfig(config),
+          legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
         },
       };
     }
@@ -194,6 +194,7 @@ export function getFigureInputsFromPresentationObject(
           ih.dateRange,
         ),
         style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
+        legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
       };
 
       if (effectiveConfig.s.horizontal) {

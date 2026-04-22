@@ -272,7 +272,34 @@ CREATE INDEX idx_dataset_hmis_upload_attempts_status_type ON dataset_hmis_upload
 CREATE INDEX idx_dataset_hmis_upload_attempts_date_started ON dataset_hmis_upload_attempts(date_started);
 
 -- ============================================================================
--- DATASET HMIS MANAGEMENT
+-- HFA DATA DICTIONARY (must be created before dataset_hfa which references it)
+-- ============================================================================
+
+CREATE TABLE dataset_hfa_dictionary_time_points (
+  time_point text NOT NULL PRIMARY KEY,
+  time_point_label text NOT NULL,
+  date_imported text
+);
+
+CREATE TABLE dataset_hfa_dictionary_vars (
+  time_point text NOT NULL,
+  var_name text NOT NULL,
+  var_label text NOT NULL,
+  var_type text NOT NULL,
+  PRIMARY KEY (time_point, var_name)
+);
+
+CREATE TABLE dataset_hfa_dictionary_values (
+  time_point text NOT NULL,
+  var_name text NOT NULL,
+  value text NOT NULL,
+  value_label text NOT NULL,
+  PRIMARY KEY (time_point, var_name, value),
+  FOREIGN KEY (time_point, var_name) REFERENCES dataset_hfa_dictionary_vars(time_point, var_name) ON DELETE CASCADE
+);
+
+-- ============================================================================
+-- DATASET HFA MANAGEMENT
 -- ============================================================================
 
 CREATE TABLE dataset_hfa (
@@ -308,33 +335,6 @@ CREATE INDEX idx_dataset_hfa_covering ON dataset_hfa(var_name, facility_id, time
 CREATE INDEX idx_dataset_hfa_upload_attempts_status ON dataset_hfa_upload_attempts(status);
 CREATE INDEX idx_dataset_hfa_upload_attempts_status_type ON dataset_hfa_upload_attempts(status_type);
 CREATE INDEX idx_dataset_hfa_upload_attempts_date_started ON dataset_hfa_upload_attempts(date_started);
-
--- ============================================================================
--- HFA DATA DICTIONARY
--- ============================================================================
-
-CREATE TABLE dataset_hfa_dictionary_time_points (
-  time_point text NOT NULL PRIMARY KEY,
-  time_point_label text NOT NULL,
-  date_imported text
-);
-
-CREATE TABLE dataset_hfa_dictionary_vars (
-  time_point text NOT NULL,
-  var_name text NOT NULL,
-  var_label text NOT NULL,
-  var_type text NOT NULL,
-  PRIMARY KEY (time_point, var_name)
-);
-
-CREATE TABLE dataset_hfa_dictionary_values (
-  time_point text NOT NULL,
-  var_name text NOT NULL,
-  value text NOT NULL,
-  value_label text NOT NULL,
-  PRIMARY KEY (time_point, var_name, value),
-  FOREIGN KEY (time_point, var_name) REFERENCES dataset_hfa_dictionary_vars(time_point, var_name) ON DELETE CASCADE
-);
 
 -- ============================================================================
 -- HFA INDICATORS

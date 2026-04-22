@@ -80,6 +80,7 @@ export type YScaleAxisWidthInfo = YAxisWidthInfoBase & {
   yAxisTickValues: number[][];
   tierHeaderAndLabelGapWidth: number;
   guessMaxNTicks: number;
+  tickLabelFormatter: (v: number) => string;
 };
 
 export type YNoneAxisWidthInfo = YAxisWidthInfoBase;

@@ -15,6 +15,7 @@ import {
   type MapRegionInfoFunc,
   type PaddingOptions,
   type TableCellInfoFunc,
+  type TickLabelFormatterOption,
   type ValuesColorFunc,
 } from "./deps.ts";
 import type {
@@ -181,7 +182,7 @@ export type CustomFigureStyleOptions = {
     labelGap?: number;
     tickHeight?: number;
     tickLabelGap?: number;
-    tickLabelFormatter?: (v: number) => string;
+    tickLabelFormatter?: TickLabelFormatterOption;
     forceRightOverhangWidth?: "none" | number;
     allowIndividualLaneLimits?: boolean;
     exactAxisY?: "none" | number;
@@ -230,7 +231,7 @@ export type CustomFigureStyleOptions = {
     labelGap?: number;
     tickWidth?: number;
     tickLabelGap?: number;
-    tickLabelFormatter?: (v: number) => string;
+    tickLabelFormatter?: TickLabelFormatterOption;
     forceTopOverhangHeight?: "none" | number;
     exactAxisX?: "none" | number;
     allowIndividualTierLimits?: boolean;

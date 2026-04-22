@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getFormatterFunc, type ValuesColorFunc } from "../deps.ts";
+import { buildAutoFormatter, type ValuesColorFunc } from "../deps.ts";
 import type {
   ScaleLegendGradientAutoConfig,
   ScaleLegendGradientConfig,
@@ -63,7 +63,7 @@ function resolveGradient(
   }
 
   const labelFormatter = config.labelFormatter ??
-    buildAutoFormatter(ticks, config.format);
+    buildAutoFormatter(ticks, config.format ?? "number");
 
   return {
     type: "gradient",
@@ -108,7 +108,7 @@ function resolveStepped(
     steps[steps.length - 1].max,
   );
   const labelFormatter = config.labelFormatter ??
-    buildAutoFormatter(boundaries, config.format);
+    buildAutoFormatter(boundaries, config.format ?? "number");
 
   return {
     type: "stepped",
@@ -156,27 +156,4 @@ function getNiceTicks(
   }
 
   return { min: niceMin, max: niceMax, ticks };
-}
-
-function buildAutoFormatter(
-  values: number[],
-  format?: "number" | "percent",
-): (v: number) => string {
-  const displayValues = format === "percent"
-    ? values.map((v) => v * 100)
-    : values;
-  const dp = computeDecimalPlaces(displayValues);
-  const clampedDp = Math.min(dp, 3) as 0 | 1 | 2 | 3;
-  const fmt = getFormatterFunc(format ?? "number", clampedDp);
-  return (v: number) => fmt(v);
-}
-
-function computeDecimalPlaces(values: number[]): number {
-  if (values.length <= 1) return 0;
-  for (let dp = 0; dp <= 3; dp++) {
-    const factor = Math.pow(10, dp);
-    const rounded = new Set(values.map((v) => Math.round(v * factor)));
-    if (rounded.size === values.length) return dp;
-  }
-  return 3;
 }

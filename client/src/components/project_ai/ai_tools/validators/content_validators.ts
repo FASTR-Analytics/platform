@@ -1,9 +1,7 @@
 import {
-  ALL_DISAGGREGATION_OPTIONS,
   MAX_CONTENT_BLOCKS,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
-  isDisaggregationOption,
   type AiMetricQuery,
   type DisaggregationOption,
   type MetricWithStatus,
@@ -59,62 +57,33 @@ function isPeriodIdValid(val: number): boolean {
 }
 
 function validateFilters(
-  filters: { col: string; vals: (string | number)[] }[] | undefined,
+  filters: { disOpt: DisaggregationOption; values: (string | number)[] }[] | undefined,
   metricId: string,
   metric?: MetricWithStatus
 ): void {
-  if (!filters) return;
+  if (!filters || !metric) return;
 
-  const invalidCols = filters.filter(
-    f => !isDisaggregationOption(f.col)
+  const availableDims = metric.disaggregationOptions.map(opt => opt.value);
+  const unavailable = filters.filter(
+    f => !availableDims.includes(f.disOpt)
   );
-  if (invalidCols.length > 0) {
+  if (unavailable.length > 0) {
     throw new Error(
-      `Invalid filter column(s): ${invalidCols.map(f => f.col).join(", ")}. Valid columns are: ${ALL_DISAGGREGATION_OPTIONS.join(", ")}`
-    );
-  }
-
-  if (metric) {
-    const availableDims = metric.disaggregationOptions.map(opt => opt.value);
-    const unavailable = filters.filter(
-      f => !availableDims.includes(f.col as any)
-    );
-    if (unavailable.length > 0) {
-      throw new Error(
-        `Filter dimension(s) not available for metric "${metricId}": ${unavailable.map(f => f.col).join(", ")}. Available dimensions: ${availableDims.join(", ")}`
-      );
-    }
-  }
-
-  const emptyFilters = filters.filter(f => !f.vals || f.vals.length === 0);
-  if (emptyFilters.length > 0) {
-    throw new Error(
-      `Filter values cannot be empty for dimension(s): ${emptyFilters.map(f => f.col).join(", ")}. You must specify at least one value to filter by. Use get_metric_data to see available values.`
+      `Filter dimension(s) not available for metric "${metricId}": ${unavailable.map(f => f.disOpt).join(", ")}. Available dimensions: ${availableDims.join(", ")}`
     );
   }
 }
 
 export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithStatus): void {
-  if (query.disaggregations) {
-    const invalid = query.disaggregations.filter(
-      d => !isDisaggregationOption(d)
+  if (query.disaggregations && metric) {
+    const availableDims = metric.disaggregationOptions.map(opt => opt.value);
+    const unavailable = query.disaggregations.filter(
+      d => !availableDims.includes(d)
     );
-    if (invalid.length > 0) {
+    if (unavailable.length > 0) {
       throw new Error(
-        `Invalid disaggregation option(s): ${invalid.join(", ")}. Valid options are: ${ALL_DISAGGREGATION_OPTIONS.join(", ")}`
+        `Disaggregation(s) not available for metric "${query.metricId}": ${unavailable.join(", ")}. Available dimensions: ${availableDims.join(", ")}`
       );
-    }
-
-    if (metric) {
-      const availableDims = metric.disaggregationOptions.map(opt => opt.value);
-      const unavailable = query.disaggregations.filter(
-        d => !availableDims.includes(d as any)
-      );
-      if (unavailable.length > 0) {
-        throw new Error(
-          `Disaggregation(s) not available for metric "${query.metricId}": ${unavailable.join(", ")}. Available dimensions: ${availableDims.join(", ")}`
-        );
-      }
     }
   }
 
@@ -161,7 +130,7 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
 
 export function validatePresetOverrides(
   metricId: string,
-  filters: { col: string; vals: (string | number)[] }[] | undefined,
+  filters: { disOpt: DisaggregationOption; values: (string | number)[] }[] | undefined,
   startDate: number | undefined,
   endDate: number | undefined,
   metric?: MetricWithStatus,
@@ -190,7 +159,7 @@ export function validatePresetOverrides(
 export async function validateMetricInputs(
   projectId: string,
   metricId: string,
-  filters?: { col: string; vals: (string | number)[] }[],
+  filters?: { disOpt: DisaggregationOption; values: (string | number)[] }[],
   periodFilter?: { periodOption: PeriodOption; min: number; max: number },
 ): Promise<void> {
   if (!filters?.length && !periodFilter) return;
@@ -202,12 +171,12 @@ export async function validateMetricInputs(
   if (!metricInfoRes.success) return;
 
   for (const filter of filters ?? []) {
-    const dimValues = metricInfoRes.data.disaggregationPossibleValues[filter.col as DisaggregationOption];
+    const dimValues = metricInfoRes.data.disaggregationPossibleValues[filter.disOpt];
     if (dimValues?.status === "ok") {
-      const invalid = filter.vals.filter(v => !dimValues.values.some(dv => String(dv) === String(v)));
+      const invalid = filter.values.filter(v => !dimValues.values.some(dv => String(dv) === String(v)));
       if (invalid.length > 0) {
         throw new Error(
-          `Invalid filter value(s) for "${filter.col}": ${invalid.join(", ")}. ` +
+          `Invalid filter value(s) for "${filter.disOpt}": ${invalid.join(", ")}. ` +
           `Valid: ${dimValues.values.join(", ")}`
         );
       }

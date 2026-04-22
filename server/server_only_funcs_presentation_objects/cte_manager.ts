@@ -1,4 +1,4 @@
-import { PERIOD_COLUMN_EXPRESSIONS, QUARTER_ID_COLUMN_EXPRESSIONS } from "./period_helpers.ts";
+import { PERIOD_COLUMN_EXPRESSIONS, QUARTER_ID_COLUMN_EXPRESSIONS, getQuarterIdExpression } from "./period_helpers.ts";
 import type { QueryConfigV2 } from "./types.ts";
 
 // ============================================================================
@@ -80,7 +80,7 @@ export class CTEManager {
         }
         if (queryContext.neededPeriodColumns.has("quarter_id")) {
           selectColumns.push(
-            `${PERIOD_COLUMN_EXPRESSIONS.quarter_id} AS quarter_id`
+            `${getQuarterIdExpression()} AS quarter_id`
           );
         }
       } else if (queryContext.hasQuarterId) {

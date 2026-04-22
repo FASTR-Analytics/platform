@@ -425,7 +425,7 @@ export function generateYScaleAxisPrimitive(
     i_tick--
   ) {
     const tickVal = my.yAxisTickValues[i_tier][i_tick];
-    const tickLabel = sy.tickLabelFormatter(tickVal);
+    const tickLabel = my.tickLabelFormatter(tickVal);
     const mTickLabel = rc.mText(tickLabel, sy.text.yScaleAxisTickLabels, 9999);
 
     ticks.push({
@@ -539,7 +539,7 @@ export function generateXScaleAxisPrimitive(
 
   for (let i_tick = 0; i_tick < tickValues.length; i_tick++) {
     const tickVal = tickValues[i_tick];
-    const tickLabel = sx.tickLabelFormatter(tickVal);
+    const tickLabel = xScaleHeightInfo.tickLabelFormatter(tickVal);
     const mTickLabel = rc.mText(tickLabel, sx.text.xScaleAxisTickLabels, 9999);
 
     ticks.push({

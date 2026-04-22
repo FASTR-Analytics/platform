@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { assert, m, ms, msOrNone, normalizeTo01, toPct0 } from "../_000_utils/mod.ts";
-export type { CalendarType } from "../_000_utils/mod.ts";
+export type { CalendarType, TickLabelFormatterOption } from "../_000_utils/mod.ts";
 export { Color, getColor } from "../_001_color/mod.ts";
 export type { ColorAdjustmentStrategy, ColorKeyOrString, ContinuousScaleConfig, ScaleConfig, ValuesColorFunc } from "../_001_color/mod.ts";
 export { getBaseText, getBaseTextInfo, getFontsToRegister, getTextInfo } from "../_001_font/mod.ts";

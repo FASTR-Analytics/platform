@@ -9,7 +9,7 @@ export function getGoodAxisTickValues_V2(
   maxValue: number,
   minValue: number,
   startingMaxNumberTicks: number,
-  formatter: (v: number) => string,
+  formatter?: (v: number) => string,
 ): number[] {
   if (!isFinite(maxValue) || !isFinite(minValue)) {
     throw new Error(
@@ -41,9 +41,11 @@ export function getGoodAxisTickValues_V2(
   let nTicks = startingMaxNumberTicks;
   let arr = getArrayForNTicksAndExpandedRange(nTicks, minValue, maxValue);
 
-  while (nTicks > 2 && isNotUnique(arr, formatter)) {
-    nTicks -= 1;
-    arr = getArrayForNTicksAndExpandedRange(nTicks, minValue, maxValue);
+  if (formatter) {
+    while (nTicks > 2 && isNotUnique(arr, formatter)) {
+      nTicks -= 1;
+      arr = getArrayForNTicksAndExpandedRange(nTicks, minValue, maxValue);
+    }
   }
 
   return arr;

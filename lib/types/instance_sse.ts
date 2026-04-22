@@ -29,6 +29,7 @@ export type InstanceState = {
 
   // Lists (sent as full arrays on change)
   projects: ProjectSummary[];
+  projectsLastUpdated: string;
   users: OtherUser[];
   assets: AssetInfo[];
   geojsonMaps: GeoJsonMapSummary[];
@@ -120,7 +121,7 @@ export type InstanceDatasetsSummary = {
 export type InstanceSseMessage =
   | { type: "starting"; data: InstanceState }
   | { type: "config_updated"; data: InstanceConfig }
-  | { type: "projects_updated"; data: ProjectSummary[] }
+  | { type: "projects_last_updated"; data: string }
   | { type: "users_updated"; data: OtherUser[] }
   | { type: "assets_updated"; data: AssetInfo[] }
   | { type: "geojson_maps_updated"; data: GeoJsonMapSummary[] }

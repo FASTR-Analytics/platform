@@ -16,6 +16,8 @@ export type DBHfaIndicator = {
   aggregation: "sum" | "avg";
   sort_order: number;
   updated_at: string;
+  has_syntax_error: boolean;
+  code_consistent: boolean;
 };
 
 type DBHfaIndicatorCode = {
@@ -33,6 +35,8 @@ export function dbRowToHfaIndicator(row: DBHfaIndicator): HfaIndicator {
     type: row.type,
     aggregation: row.aggregation,
     sortOrder: row.sort_order,
+    hasSyntaxError: row.has_syntax_error,
+    codeConsistent: row.code_consistent,
   };
 }
 
@@ -119,8 +123,8 @@ export async function batchUploadHfaIndicators(
       for (let i = 0; i < indicators.length; i++) {
         const ind = indicators[i];
         await sql`
-          INSERT INTO hfa_indicators (var_name, category, definition, type, aggregation, sort_order, updated_at)
-          VALUES (${ind.varName}, ${ind.category}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${i}, CURRENT_TIMESTAMP)
+          INSERT INTO hfa_indicators (var_name, category, definition, type, aggregation, sort_order, has_syntax_error, code_consistent, updated_at)
+          VALUES (${ind.varName}, ${ind.category}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${i}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, CURRENT_TIMESTAMP)
           ON CONFLICT (var_name)
           DO UPDATE SET
             category = EXCLUDED.category,
@@ -128,6 +132,8 @@ export async function batchUploadHfaIndicators(
             type = EXCLUDED.type,
             aggregation = EXCLUDED.aggregation,
             sort_order = EXCLUDED.sort_order,
+            has_syntax_error = EXCLUDED.has_syntax_error,
+            code_consistent = EXCLUDED.code_consistent,
             updated_at = CURRENT_TIMESTAMP
         `;
       }
@@ -152,6 +158,8 @@ export async function saveHfaIndicatorFull(
   oldVarName: string,
   indicator: HfaIndicator,
   code: { timePoint: string; rCode: string; rFilterCode: string | undefined }[],
+  hasSyntaxError: boolean,
+  codeConsistent: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
@@ -163,17 +171,37 @@ export async function saveHfaIndicatorFull(
             type = ${indicator.type},
             aggregation = ${indicator.aggregation},
             sort_order = ${indicator.sortOrder},
+            has_syntax_error = ${hasSyntaxError},
+            code_consistent = ${codeConsistent},
             updated_at = CURRENT_TIMESTAMP
         WHERE var_name = ${oldVarName}
       `;
-      // If varName changed, hfa_indicator_code FKs cascade the rename
-      // Delete all code for this indicator and re-insert
       await sql`DELETE FROM hfa_indicator_code WHERE var_name = ${indicator.varName}`;
       for (const c of code) {
         if (!c.rCode.trim()) continue;
         await sql`
           INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
           VALUES (${indicator.varName}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
+        `;
+      }
+    });
+    return { success: true };
+  });
+}
+
+export async function bulkUpdateHfaIndicatorValidation(
+  mainDb: Sql,
+  updates: { varName: string; hasSyntaxError: boolean; codeConsistent: boolean }[],
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb.begin(async (sql) => {
+      for (const u of updates) {
+        await sql`
+          UPDATE hfa_indicators
+          SET has_syntax_error = ${u.hasSyntaxError},
+              code_consistent = ${u.codeConsistent},
+              updated_at = CURRENT_TIMESTAMP
+          WHERE var_name = ${u.varName}
         `;
       }
     });

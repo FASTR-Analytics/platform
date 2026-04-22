@@ -2,7 +2,8 @@ import type {
   InstanceConfigAdminAreaLabels,
   InstanceConfigFacilityColumns,
   InstanceDetail,
-  InstanceMeta
+  InstanceMeta,
+  ProjectSummary,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -17,6 +18,11 @@ export const instanceRouteRegistry = {
     path: "/instance",
     method: "GET",
     response: {} as InstanceDetail,
+  }),
+  getMyProjects: route({
+    path: "/my_projects",
+    method: "GET",
+    response: {} as ProjectSummary[],
   }),
   updateMaxAdminArea: route({
     path: "/update_max_admin_area",

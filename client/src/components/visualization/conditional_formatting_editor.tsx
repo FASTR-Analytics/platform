@@ -9,19 +9,22 @@ import {
   t3,
 } from "lib";
 import {
+  buildAutoFormatter,
   Button,
   ButtonGroup,
   Checkbox,
   ColorPicker,
   type ColorKeyOrString,
   type ContinuousScaleConfig,
-  getFormatterFunc,
+  NumberInput,
+  PercentSelect,
   RadioGroup,
   Select,
   type SelectOption,
   Slider,
 } from "panther";
 import { For, Show } from "solid-js";
+import { StyleRevealGroup } from "./presentation_object_editor_panel_style/_style_components";
 
 type Props = {
   value: ConditionalFormatting | undefined;
@@ -44,23 +47,15 @@ export function ConditionalFormattingEditor(p: Props) {
       return;
     }
     if (mode === "scale") {
-      p.onChange(
-        cf().type === "scale" ? cf() : defaultScaleCf(),
-      );
+      p.onChange(cf().type === "scale" ? cf() : defaultScaleCf());
       return;
     }
-    p.onChange(
-      cf().type === "thresholds" ? cf() : defaultThresholdsCf(),
-    );
+    p.onChange(cf().type === "thresholds" ? cf() : defaultThresholdsCf());
   };
 
   return (
     <div class="ui-spy-sm">
       <ButtonGroup<Mode>
-        label={t3({
-          en: "Conditional formatting",
-          fr: "Mise en forme conditionnelle",
-        })}
         options={[
           { value: "none", label: t3({ en: "Off", fr: "Désactivé" }) },
           { value: "scale", label: t3({ en: "Scale", fr: "Échelle" }) },
@@ -71,11 +66,13 @@ export function ConditionalFormattingEditor(p: Props) {
         ]}
         value={cf().type}
         onChange={handleModeChange}
+        size="sm"
       />
       <Show when={cf().type === "scale"}>
         <ScalePanel
           cf={cf() as ConditionalFormattingScale}
           onChange={p.onChange}
+          formatAs={p.formatAs}
         />
       </Show>
       <Show when={cf().type === "thresholds"}>
@@ -115,6 +112,7 @@ const CUSTOM_PALETTE = "__custom__";
 function ScalePanel(p: {
   cf: ConditionalFormattingScale;
   onChange: (v: ConditionalFormatting) => void;
+  formatAs: "percent" | "number";
 }) {
   const state = () => parseScale(p.cf.scale);
 
@@ -132,10 +130,14 @@ function ScalePanel(p: {
   const hasMid = () => state().mid !== undefined;
 
   return (
-    <div class="ui-spy-sm border-base-200 border-l-2 pl-3">
+    <StyleRevealGroup>
       <Select
         label={t3({ en: "Palette", fr: "Palette" })}
-        value={state().mode === "custom" ? CUSTOM_PALETTE : (state().paletteName ?? "rd-yl-gn")}
+        value={
+          state().mode === "custom"
+            ? CUSTOM_PALETTE
+            : (state().paletteName ?? "rd-yl-gn")
+        }
         options={[
           ...PALETTE_OPTIONS,
           {
@@ -182,9 +184,7 @@ function ScalePanel(p: {
           <Checkbox
             label={t3({ en: "Diverging (mid)", fr: "Divergent (milieu)" })}
             checked={hasMid()}
-            onChange={(v) =>
-              updateScale({ mid: v ? "#ffffff" : undefined })
-            }
+            onChange={(v) => updateScale({ mid: v ? "#ffffff" : undefined })}
           />
         </div>
       </Show>
@@ -226,42 +226,56 @@ function ScalePanel(p: {
           checked={isFixed()}
           onChange={(v) =>
             update({
-              domain: v
-                ? { kind: "fixed", min: 0, max: 1 }
-                : { kind: "auto" },
+              domain: v ? { kind: "fixed", min: 0, max: 1 } : { kind: "auto" },
             })
           }
         />
         <Show when={isFixed() && p.cf.domain.kind === "fixed"}>
-          <div class="flex items-center gap-3">
-            <NumberField
-              label={t3({ en: "Min", fr: "Min" })}
-              value={(p.cf.domain as { kind: "fixed"; min: number }).min}
-              onChange={(v) =>
-                update({
-                  domain: {
-                    ...(p.cf.domain as { kind: "fixed"; min: number; max: number; mid?: number }),
-                    min: v,
-                  },
-                })
-              }
-            />
-            <NumberField
-              label={t3({ en: "Max", fr: "Max" })}
-              value={(p.cf.domain as { kind: "fixed"; max: number }).max}
-              onChange={(v) =>
-                update({
-                  domain: {
-                    ...(p.cf.domain as { kind: "fixed"; min: number; max: number; mid?: number }),
-                    max: v,
-                  },
-                })
-              }
-            />
-          </div>
+          {(() => {
+            const domain = p.cf.domain as {
+              kind: "fixed";
+              min: number;
+              max: number;
+              mid?: number;
+            };
+            return (
+              <div class="flex items-center gap-3">
+                {p.formatAs === "percent" ? (
+                  <PercentSelect
+                    label={t3({ en: "Min", fr: "Min" })}
+                    value={domain.min}
+                    onChange={(v) => update({ domain: { ...domain, min: v } })}
+                    max={domain.max}
+                  />
+                ) : (
+                  <NumberInput
+                    label={t3({ en: "Min", fr: "Min" })}
+                    value={domain.min}
+                    onChange={(v) => update({ domain: { ...domain, min: v } })}
+                    max={domain.max}
+                  />
+                )}
+                {p.formatAs === "percent" ? (
+                  <PercentSelect
+                    label={t3({ en: "Max", fr: "Max" })}
+                    value={domain.max}
+                    onChange={(v) => update({ domain: { ...domain, max: v } })}
+                    min={domain.min}
+                  />
+                ) : (
+                  <NumberInput
+                    label={t3({ en: "Max", fr: "Max" })}
+                    value={domain.max}
+                    onChange={(v) => update({ domain: { ...domain, max: v } })}
+                    min={domain.min}
+                  />
+                )}
+              </div>
+            );
+          })()}
         </Show>
       </div>
-    </div>
+    </StyleRevealGroup>
   );
 }
 
@@ -321,9 +335,7 @@ function ThresholdsPanel(p: {
   };
 
   const setBucketColor = (i: number, color: string) => {
-    const buckets = p.cf.buckets.map((b, j) =>
-      j === i ? { ...b, color } : b,
-    );
+    const buckets = p.cf.buckets.map((b, j) => (j === i ? { ...b, color } : b));
     update({ buckets });
   };
 
@@ -353,12 +365,12 @@ function ThresholdsPanel(p: {
   const labels = () =>
     deriveBucketLabels(
       p.cf.cutoffs,
-      getFormatterFunc(p.formatAs, p.decimalPlaces),
+      buildAutoFormatter(p.cf.cutoffs, p.formatAs),
       direction(),
     );
 
   return (
-    <div class="ui-spy-sm border-base-200 border-l-2 pl-3">
+    <StyleRevealGroup>
       <Select
         label={t3({ en: "Preset", fr: "Préréglage" })}
         value={matchedPreset() ?? CUSTOM_PRESET_VALUE}
@@ -398,11 +410,30 @@ function ThresholdsPanel(p: {
                   colorSet="standard"
                 />
                 <Show when={origI() > 0}>
-                  <NumberField
-                    value={p.cf.cutoffs[origI() - 1]}
-                    onChange={(v) => setCutoff(origI() - 1, v)}
-                    compact
-                  />
+                  {(() => {
+                    const cutoffIdx = origI() - 1;
+                    const minVal =
+                      cutoffIdx > 0 ? p.cf.cutoffs[cutoffIdx - 1] : 0;
+                    const maxVal =
+                      cutoffIdx < p.cf.cutoffs.length - 1
+                        ? p.cf.cutoffs[cutoffIdx + 1]
+                        : 1;
+                    return p.formatAs === "percent" ? (
+                      <PercentSelect
+                        value={p.cf.cutoffs[cutoffIdx]}
+                        onChange={(v) => setCutoff(cutoffIdx, v)}
+                        min={minVal}
+                        max={maxVal}
+                      />
+                    ) : (
+                      <NumberInput
+                        value={p.cf.cutoffs[cutoffIdx]}
+                        onChange={(v) => setCutoff(cutoffIdx, v)}
+                        min={minVal}
+                        max={maxVal}
+                      />
+                    );
+                  })()}
                 </Show>
                 <span class="text-base-content/70 text-xs">
                   {labels()[origI()]}
@@ -430,7 +461,7 @@ function ThresholdsPanel(p: {
           {t3({ en: "+ Add cutoff", fr: "+ Ajouter un seuil" })}
         </button>
       </div>
-    </div>
+    </StyleRevealGroup>
   );
 }
 
@@ -542,31 +573,4 @@ function thresholdsEqual(
     }
   }
   return true;
-}
-
-function NumberField(p: {
-  value: number;
-  onChange: (v: number) => void;
-  label?: string;
-  compact?: boolean;
-}) {
-  return (
-    <label class="flex items-center gap-1.5 text-sm">
-      <Show when={p.label}>
-        <span>{p.label}</span>
-      </Show>
-      <input
-        type="number"
-        step="0.01"
-        value={p.value}
-        onInput={(e) => {
-          const n = Number(e.currentTarget.value);
-          if (!Number.isNaN(n)) p.onChange(n);
-        }}
-        class={`border-base-300 rounded border px-2 py-1 text-sm ${
-          p.compact ? "w-20" : "w-24"
-        }`}
-      />
-    </label>
-  );
 }
