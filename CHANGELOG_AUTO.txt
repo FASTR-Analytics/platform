@@ -1,3 +1,6 @@
+[TBD] [user] [fixed] - Facility column settings now update correctly on system upgrade
+[TBD] [admin] [fixed] - Facility column settings automatically repaired on startup if incomplete
+[TBD] [admin] [fixed] - Module results configurations with missing column definitions automatically corrected on startup
 [1.23.2] [user] [fixed] - Country setting now correctly shows as saved after updating
 [1.23.2] [user] [changed] - Metrics tab temporarily hidden from projects
 [1.23.2] [admin] [fixed] - Country setting now correctly shows as saved after updating
