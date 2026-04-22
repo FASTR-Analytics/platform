@@ -102,7 +102,12 @@ export function UpdateModule(
                   checked={preserveSettings()}
                   onChange={setPreserveSettings}
                 />
-                <Show when={data.impactType === "script_change"}>
+                <Show
+                  when={
+                    data.impactType === "script_change" ||
+                    data.impactType === "config_change"
+                  }
+                >
                   <Checkbox
                     label={t3({
                       en: "Prevent re-run",
@@ -126,7 +131,7 @@ function ImpactBadge(p: { impactType: ModuleUpdatePreview["impactType"] }) {
     <Show when={p.impactType !== "no_change"}>
       <div
         class={`font-500 rounded px-2 py-1 text-xs ${
-          p.impactType === "script_change"
+          p.impactType === "script_change" || p.impactType === "config_change"
             ? "bg-danger/10 text-danger"
             : "bg-success/10 text-success"
         }`}
@@ -136,10 +141,15 @@ function ImpactBadge(p: { impactType: ModuleUpdatePreview["impactType"] }) {
               en: "Script change — will require re-run",
               fr: "Modification du script — une ré-exécution sera nécessaire",
             })
-          : t3({
-              en: "Definition only — no re-run needed",
-              fr: "Définition uniquement — aucune ré-exécution nécessaire",
-            })}
+          : p.impactType === "config_change"
+            ? t3({
+                en: "Config change — will require re-run",
+                fr: "Modification de la config — une ré-exécution sera nécessaire",
+              })
+            : t3({
+                en: "Definition only — no re-run needed",
+                fr: "Définition uniquement — aucune ré-exécution nécessaire",
+              })}
       </div>
     </Show>
   );

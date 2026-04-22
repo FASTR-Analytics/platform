@@ -285,6 +285,7 @@ export async function updateModuleDefinition(
   projectDb: Sql,
   moduleDefinitionId: ModuleId,
   preserveSettings: boolean,
+  preventRerun: boolean,
 ): Promise<
   APIResponseWithData<{
     lastUpdated: string;
@@ -326,7 +327,7 @@ export async function updateModuleDefinition(
     const configSelectionsChanged = JSON.stringify(newConfigSelections.parameterSelections) !== JSON.stringify(oldConfigSelections.parameterSelections);
     const computeChange = scriptChanged || configReqChanged || resultsObjectsChanged;
 
-    if (computeChange) {
+    if (computeChange && !preventRerun) {
       // Scenario B: compute change — full reinstall
 
       // Delegate to installModule logic (delete + recreate everything)
@@ -414,7 +415,7 @@ VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(validat
           definition_updated_at = ${lastUpdated},
           installed_git_ref = ${gitRef ?? rawModule.installed_git_ref},
           config_updated_at = ${configSelectionsChanged ? lastUpdated : rawModule.config_updated_at},
-          dirty = ${configSelectionsChanged ? 'queued' : rawModule.dirty}
+          dirty = ${configSelectionsChanged && !preventRerun ? 'queued' : rawModule.dirty}
         WHERE id = ${moduleDefinitionId}
       `;
 
@@ -467,7 +468,7 @@ VALUES (${po.id}, ${po.metricId}, ${true}, ${po.label}, ${JSON.stringify(validat
 
     return {
       success: true,
-      data: { lastUpdated, presObjIdsWithNewLastUpdateds, computeChange: configSelectionsChanged },
+      data: { lastUpdated, presObjIdsWithNewLastUpdateds, computeChange: configSelectionsChanged && !preventRerun },
     };
   });
 }

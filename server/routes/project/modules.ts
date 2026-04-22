@@ -117,11 +117,12 @@ defineRoute(
       c.var.ppk.projectDb,
       params.module_id,
       body.preserveSettings,
+      body.preventRerun ?? false,
     );
     if (res.success === false) {
       return c.json(res);
     }
-    if (res.data.computeChange && !body.preventRerun) {
+    if (res.data.computeChange) {
       await setModuleDirty(c.var.ppk, params.module_id);
     }
     notifyLastUpdated(
@@ -362,12 +363,17 @@ defineRoute(
       const configReqChanged =
         JSON.stringify(incomingDef.configRequirements) !==
         JSON.stringify(storedDef.configRequirements);
+      const storedResultsObjsWithoutModuleId = storedDef.resultsObjects.map(
+        ({ moduleId: _, ...rest }) => rest,
+      );
       const resultsObjChanged =
         JSON.stringify(incomingDef.resultsObjects) !==
-        JSON.stringify(storedDef.resultsObjects);
+        JSON.stringify(storedResultsObjsWithoutModuleId);
 
-      if (scriptChanged || configReqChanged || resultsObjChanged) {
+      if (scriptChanged) {
         impactType = "script_change";
+      } else if (configReqChanged || resultsObjChanged) {
+        impactType = "config_change";
       } else {
         impactType = "definition_only";
       }

@@ -149,7 +149,7 @@ export type ModuleLatestCommit = {
 };
 
 export type ModuleUpdatePreview = {
-  impactType: "script_change" | "definition_only" | "no_change";
+  impactType: "script_change" | "config_change" | "definition_only" | "no_change";
   commitsSince: { sha: string; message: string; date: string; author: string }[];
   headGitRef: string;
 };
