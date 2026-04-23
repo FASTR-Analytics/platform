@@ -12,6 +12,7 @@ import {
   PresentationObjectConfig,
   ResultsValueForVisualization,
   getCalendar,
+  getEffectivePOConfig,
   selectCf,
   withReplicant,
 } from "lib";
@@ -51,29 +52,17 @@ export function getFigureInputsFromPresentationObject(
     throw new Error("getFigureInputsFromPresentationObject called with non-ok status");
   }
 
-  // Strip single-value disaggregations so the renderer doesn't show
-  // useless column groups, legend items, etc.
-  const TIME_COLUMNS = new Set(["period_id", "quarter_id", "year", "month"]);
-  const singlePeriod = ih.dateRange && ih.dateRange.min === ih.dateRange.max;
-  const singleYear = ih.dateRange && Math.floor(ih.dateRange.min / 100) === Math.floor(ih.dateRange.max / 100);
-  const effectiveConfig: PresentationObjectConfig = {
-    ...config,
-    d: {
-      ...config.d,
-      disaggregateBy: config.d.disaggregateBy.filter((d) => {
-        if (singlePeriod && TIME_COLUMNS.has(d.disOpt)) return false;
-        if (singleYear && d.disOpt === "year") return false;
-        if (config.d.filterBy.find((f) => f.disOpt === d.disOpt)?.values.length === 1) return false;
-        return true;
-      }),
-    },
-  };
+  const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(config, {
+    dateRange: ih.dateRange,
+    valueProps: resultsValue.valueProps,
+  });
 
   try {
     if (effectiveConfig.d.type === "timeseries") {
       const j = getTimeseriesJsonDataConfigFromPresentationObjectConfig(
         resultsValue,
         effectiveConfig,
+        effectiveValueProps,
         ih.indicatorLabelReplacements,
         ih.items,
       );
@@ -122,7 +111,7 @@ export function getFigureInputsFromPresentationObject(
       if (effectiveConfig.s.specialScorecardTable) {
         return {
           status: "ready",
-          data: getSpecialScorecardTableFigureInputs(resultsValue, ih, effectiveConfig),
+          data: getSpecialScorecardTableFigureInputs(resultsValue, ih, effectiveConfig, effectiveValueProps),
         };
       }
       return {
@@ -133,6 +122,7 @@ export function getFigureInputsFromPresentationObject(
             jsonDataConfig: getTableJsonDataConfigFromPresentationObjectConfig(
               resultsValue,
               effectiveConfig,
+              effectiveValueProps,
               ih.indicatorLabelReplacements,
               ih.items,
             ),
@@ -207,6 +197,7 @@ export function getFigureInputsFromPresentationObject(
                 getChartOHJsonDataConfigFromPresentationObjectConfig(
                   resultsValue,
                   effectiveConfig,
+                  effectiveValueProps,
                   ih.indicatorLabelReplacements,
                   ih.items,
                 ),
@@ -225,6 +216,7 @@ export function getFigureInputsFromPresentationObject(
               getChartOVJsonDataConfigFromPresentationObjectConfig(
                 resultsValue,
                 effectiveConfig,
+                effectiveValueProps,
                 ih.indicatorLabelReplacements,
                 ih.items,
               ),
@@ -241,6 +233,7 @@ export function getFigureInputsFromPresentationObject(
       const mapDataConfig = getMapJsonDataConfigFromPresentationObjectConfig(
         resultsValue,
         effectiveConfig,
+        effectiveValueProps,
         ih.indicatorLabelReplacements,
       );
 

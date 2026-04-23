@@ -305,7 +305,7 @@ defineRoute(
   async (c, { params }) => {
     const res = await restoreProject(c.var.mainDb, params.project_id);
     if (res.success) {
-      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(res);
   },

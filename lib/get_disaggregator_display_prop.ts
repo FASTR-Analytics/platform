@@ -1,7 +1,4 @@
 import {
-  getFilteredValueProps,
-} from "./get_fetch_config_from_po.ts";
-import {
   get_DISAGGREGATION_DISPLAY_OPTIONS,
   type DisaggregationDisplayOption,
   type DisaggregationOption,
@@ -9,20 +6,17 @@ import {
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import type { ResultsValueForVisualization } from "./types/modules.ts";
 
-// These functions assume config.d.disaggregateBy has been pre-cleaned:
-// single-value disaggregations (both period-filtered and regular-filtered)
-// should already be stripped before calling these functions.
+// These functions expect an effective config (via getEffectivePOConfig from
+// lib/normalize_po_config.ts) where single-value disaggregations have been
+// stripped. See DOC_DISAGGREGATION_OPTION_HANDLING.md for details.
 
 export function getDisaggregatorDisplayProp(
-  resultsValue: ResultsValueForVisualization,
+  _resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
-  props: DisaggregationDisplayOption[]
+  props: DisaggregationDisplayOption[],
+  effectiveValueProps: string[]
 ): DisaggregationOption | "--v" | undefined {
-  const filteredValueProps = getFilteredValueProps(
-    resultsValue.valueProps,
-    config
-  );
-  if (filteredValueProps.length > 1) {
+  if (effectiveValueProps.length > 1) {
     if (props.includes(config.d.valuesDisDisplayOpt)) {
       return "--v";
     }
@@ -47,15 +41,12 @@ export function getReplicateByProp(
 }
 
 export function hasDuplicateDisaggregatorDisplayOptions(
-  resultsValue: ResultsValueForVisualization,
-  config: PresentationObjectConfig
+  _resultsValue: ResultsValueForVisualization,
+  config: PresentationObjectConfig,
+  effectiveValueProps: string[]
 ) {
   const disDisplayOpts: DisaggregationDisplayOption[] = [];
-  const filteredValueProps = getFilteredValueProps(
-    resultsValue.valueProps,
-    config
-  );
-  if (filteredValueProps.length > 1) {
+  if (effectiveValueProps.length > 1) {
     disDisplayOpts.push(config.d.valuesDisDisplayOpt);
   }
   for (const dis of config.d.disaggregateBy) {
@@ -68,9 +59,10 @@ export function hasDuplicateDisaggregatorDisplayOptions(
 }
 
 export function getNextAvailableDisaggregationDisplayOption(
-  resultsValue: ResultsValueForVisualization,
+  _resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
-  disOpt: DisaggregationOption
+  disOpt: DisaggregationOption,
+  effectiveValueProps: string[]
 ): DisaggregationDisplayOption {
   const otherExistingOpts = config.d.disaggregateBy
     .filter((d) => d.disOpt !== disOpt)
@@ -79,7 +71,7 @@ export function getNextAvailableDisaggregationDisplayOption(
   for (const possibleOpt of possibleOpts) {
     if (
       !otherExistingOpts.includes(possibleOpt.value) &&
-      (resultsValue.valueProps.length === 1 ||
+      (effectiveValueProps.length <= 1 ||
         possibleOpt.value !== config.d.valuesDisDisplayOpt)
     ) {
       return possibleOpt.value;

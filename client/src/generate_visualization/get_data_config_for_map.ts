@@ -3,27 +3,26 @@ import {
   type PresentationObjectConfig,
   type ResultsValueForVisualization,
   getDisaggregatorDisplayProp,
-  getFilteredValueProps,
 } from "lib";
 
 export function getMapJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
+  effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
 ): MapJsonDataConfig {
   if (config.d.type !== "map") {
     throw new Error("Bad config type");
   }
 
-  const filteredValueProps = getFilteredValueProps(resultsValue.valueProps, config);
-  const valueProp = filteredValueProps[0] ?? "value";
+  const valueProp = effectiveValueProps[0] ?? "value";
 
   const areaProp =
-    getDisaggregatorDisplayProp(resultsValue, config, ["mapArea"]) ?? "admin_area_2";
+    getDisaggregatorDisplayProp(resultsValue, config, ["mapArea"], effectiveValueProps) ?? "admin_area_2";
 
-  const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"]);
-  const laneProp = getDisaggregatorDisplayProp(resultsValue, config, ["col"]);
-  const tierProp = getDisaggregatorDisplayProp(resultsValue, config, ["row"]);
+  const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
+  const laneProp = getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps);
+  const tierProp = getDisaggregatorDisplayProp(resultsValue, config, ["row"], effectiveValueProps);
 
   const dataConfig: MapJsonDataConfig = {
     valueProp,

@@ -9,7 +9,6 @@ import {
   PresentationObjectConfig,
   ResultsValueForVisualization,
   getDisaggregatorDisplayProp,
-  getFilteredValueProps,
   get_INDICATOR_COMMON_IDS_IN_SORT_ORDER,
   t3,
   TC,
@@ -21,6 +20,7 @@ import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels
 export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
+  effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
 ): TimeseriesJsonDataConfig {
@@ -44,20 +44,20 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
         : {};
 
     const dataConfig: TimeseriesJsonDataConfig = {
-      valueProps: getFilteredValueProps(resultsValue.valueProps, config),
+      valueProps: effectiveValueProps,
       periodProp: config.d.timeseriesGrouping,
       periodType,
       seriesProp:
-        getDisaggregatorDisplayProp(resultsValue, config, ["series"]) ?? "--v",
-      paneProp: getDisaggregatorDisplayProp(resultsValue, config, ["cell"]),
+        getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps) ?? "--v",
+      paneProp: getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps),
       laneProp: getDisaggregatorDisplayProp(resultsValue, config, [
         "col",
         "colGroup",
-      ]),
+      ], effectiveValueProps),
       tierProp: getDisaggregatorDisplayProp(resultsValue, config, [
         "row",
         "rowGroup",
-      ]),
+      ], effectiveValueProps),
       sortHeaders: includesIndicatorDisaggregation
         ? get_INDICATOR_COMMON_IDS_IN_SORT_ORDER()
         : true,
@@ -77,6 +77,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
 export function getTableJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
+  effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
 ): TableJsonDataConfig {
@@ -86,14 +87,14 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     );
 
     const colProp =
-      getDisaggregatorDisplayProp(resultsValue, config, ["col"]) ?? "--v";
-    const rowProp = getDisaggregatorDisplayProp(resultsValue, config, ["row"]);
+      getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps) ?? "--v";
+    const rowProp = getDisaggregatorDisplayProp(resultsValue, config, ["row"], effectiveValueProps);
     const colGroupProp = getDisaggregatorDisplayProp(resultsValue, config, [
       "colGroup",
-    ]);
+    ], effectiveValueProps);
     const rowGroupProp = getDisaggregatorDisplayProp(resultsValue, config, [
       "rowGroup",
-    ]);
+    ], effectiveValueProps);
 
     const dateLabelReplacements = jsonArray
       ? getDateLabelReplacements(jsonArray, [
@@ -110,7 +111,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
         : {};
 
     const dataConfig: TableJsonDataConfig = {
-      valueProps: getFilteredValueProps(resultsValue.valueProps, config),
+      valueProps: effectiveValueProps,
       colProp,
       rowProp,
       colGroupProp,
@@ -136,6 +137,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
 export function getChartOVJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
+  effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
@@ -145,18 +147,18 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
     );
 
     const indicatorProp =
-      getDisaggregatorDisplayProp(resultsValue, config, ["indicator"]) ??
+      getDisaggregatorDisplayProp(resultsValue, config, ["indicator"], effectiveValueProps) ??
       "--v";
-    const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"]);
-    const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"]);
+    const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps);
+    const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
     const laneProp = getDisaggregatorDisplayProp(resultsValue, config, [
       "col",
       "colGroup",
-    ]);
+    ], effectiveValueProps);
     const tierProp = getDisaggregatorDisplayProp(resultsValue, config, [
       "row",
       "rowGroup",
-    ]);
+    ], effectiveValueProps);
 
     const dateLabelReplacements = jsonArray
       ? getDateLabelReplacements(jsonArray, [
@@ -174,7 +176,7 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
         : {};
 
     const dataConfig: ChartOVJsonDataConfig = {
-      valueProps: getFilteredValueProps(resultsValue.valueProps, config),
+      valueProps: effectiveValueProps,
       indicatorProp,
       seriesProp,
       paneProp,
@@ -202,6 +204,7 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
 export function getChartOHJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
+  effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
 ): ChartOHJsonDataConfig {
@@ -211,18 +214,18 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
     );
 
     const indicatorProp =
-      getDisaggregatorDisplayProp(resultsValue, config, ["indicator"]) ??
+      getDisaggregatorDisplayProp(resultsValue, config, ["indicator"], effectiveValueProps) ??
       "--v";
-    const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"]);
-    const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"]);
+    const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps);
+    const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
     const laneProp = getDisaggregatorDisplayProp(resultsValue, config, [
       "col",
       "colGroup",
-    ]);
+    ], effectiveValueProps);
     const tierProp = getDisaggregatorDisplayProp(resultsValue, config, [
       "row",
       "rowGroup",
-    ]);
+    ], effectiveValueProps);
 
     const dateLabelReplacements = jsonArray
       ? getDateLabelReplacements(jsonArray, [
@@ -240,7 +243,7 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
         : {};
 
     const dataConfig: ChartOHJsonDataConfig = {
-      valueProps: getFilteredValueProps(resultsValue.valueProps, config),
+      valueProps: effectiveValueProps,
       indicatorProp,
       seriesProp,
       paneProp,

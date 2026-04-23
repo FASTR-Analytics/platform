@@ -4,6 +4,51 @@ How disaggregation options work across the system — from declaration in module
 
 Related: [DOC_period_column_handling.md](DOC_period_column_handling.md) covers the time-period sub-category in detail (period_id / quarter_id / year / month). This doc covers everything else and the overall pipeline.
 
+---
+
+## Core principle
+
+**A dimension with only 1 value is not a dimension.** It shouldn't participate in visualization — no legend entry, no axis, no breakdown. It adds visual/cognitive noise without information.
+
+---
+
+## Where this matters
+
+| Area | What needs answering |
+|------|---------------------|
+| **Editor UI** | Show/hide disaggregation controls |
+| **Renderer** | Which dimensions to actually draw |
+| **Display prop resolution** | Which dimension occupies row/col/series |
+| **Duplicate detection** | Are two effective dimensions claiming the same slot |
+| **Data fetching** | What columns to request |
+| **Saving** | Strip empty filters, preserve user intent |
+| **Validation** | Zod rejects invalid shapes |
+
+---
+
+## The two parallel structures
+
+The config has two types of "disaggregatable things" that follow the same pattern:
+
+| | Disaggregation dimensions | Values dimension |
+|--|---------------------------|------------------|
+| Available | Results object `.disaggregationOptions` | Results object `.valueProps` |
+| Enabled | `config.d.disaggregateBy[]` | `config.d.valuesDisDisplayOpt` |
+| Filtered | `config.d.filterBy[]` | `config.d.valuesFilter` |
+| Effective | Enabled AND filtered > 1 value | Enabled AND filtered > 1 value |
+
+Same pattern, currently separate code paths.
+
+---
+
+## Design goals
+
+1. **Single source of truth** for "what dimensions are effective?" — not scattered `if (length > 1)` checks
+2. **Clear separation** between stored config (user intent) and effective config (what renders)
+3. **Maintainable code** — one concept = one place
+
+---
+
 ## Table of Contents
 
 - [Mental model](#mental-model)

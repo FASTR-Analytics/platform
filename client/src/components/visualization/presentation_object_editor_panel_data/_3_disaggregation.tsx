@@ -1,9 +1,11 @@
 import {
   DisaggregationDisplayOption,
+  IneffectiveDisaggregator,
+  IneffectiveReason,
   PresentationObjectConfig,
   PresentationObjectDetail,
   ResultsValue,
-  getFilteredValueProps,
+  TC,
   getNextAvailableDisaggregationDisplayOption,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
   t3,
@@ -17,38 +19,57 @@ type DisaggregationSectionProps = {
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
-  allowedDisaggregationOptions: ResultsValue["disaggregationOptions"];
+  allDisaggregationOptions: ResultsValue["disaggregationOptions"];
+  ineffectiveDisaggregators: IneffectiveDisaggregator[];
+  effectiveValueProps: string[];
+  hasMultipleValueProps: boolean;
 };
 
 export function DisaggregationSection(p: DisaggregationSectionProps) {
+  const hasValuesFilter = () =>
+    !!p.tempConfig.d.valuesFilter && p.tempConfig.d.valuesFilter.length > 0;
+
   return (
     <div class="ui-spy-sm">
       <div class="text-md font-700">{t3({ en: "Display (disaggregate)", fr: "Affichage (désagréger)" })}</div>
-      <Show
-        when={
-          getFilteredValueProps(
-            p.poDetail.resultsValue.valueProps,
-            p.tempConfig,
-          ).length > 1
-        }
-      >
-        <DataValuesDisaggregation
-          tempConfig={p.tempConfig}
-          setTempConfig={p.setTempConfig}
-        />
+
+      <Show when={p.poDetail.resultsValue.valueProps.length > 1}>
+        <Show
+          when={p.hasMultipleValueProps}
+          fallback={
+            <div class="ui-spy-sm pb-4">
+              <Checkbox
+                label={t3({ en: "Data values", fr: "Valeurs des données" })}
+                checked={true}
+                disabled={true}
+                onChange={() => {}}
+              />
+              <Show when={hasValuesFilter()}>
+                <div class="text-xs text-warning pl-4">
+                  {t3(TC.disaggregation_disabled_filtered_to_one)}
+                </div>
+              </Show>
+            </div>
+          }
+        >
+          <DataValuesDisaggregation
+            tempConfig={p.tempConfig}
+            setTempConfig={p.setTempConfig}
+          />
+        </Show>
       </Show>
 
-      <For each={p.allowedDisaggregationOptions}>
-        {(disOpt) => {
-          return (
-            <DisaggregationOption
-              disOpt={disOpt}
-              poDetail={p.poDetail}
-              tempConfig={p.tempConfig}
-              setTempConfig={p.setTempConfig}
-            />
-          );
-        }}
+      <For each={p.allDisaggregationOptions}>
+        {(disOpt) => (
+          <DisaggregationOption
+            disOpt={disOpt}
+            poDetail={p.poDetail}
+            tempConfig={p.tempConfig}
+            setTempConfig={p.setTempConfig}
+            ineffectiveDisaggregators={p.ineffectiveDisaggregators}
+            effectiveValueProps={p.effectiveValueProps}
+          />
+        )}
       </For>
     </div>
   );
@@ -96,15 +117,46 @@ function DataValuesDisaggregation(p: DataValuesDisaggregationProps) {
 }
 
 type DisaggregationOptionProps = {
-  disOpt: DisaggregationSectionProps["allowedDisaggregationOptions"][number];
+  disOpt: DisaggregationSectionProps["allDisaggregationOptions"][number];
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
+  ineffectiveDisaggregators: IneffectiveDisaggregator[];
+  effectiveValueProps: string[];
 };
 
+function getReasonMessage(reason: IneffectiveReason) {
+  switch (reason) {
+    case "filtered_to_one_value":
+      return TC.disaggregation_disabled_filtered_to_one;
+    case "single_period":
+      return TC.disaggregation_disabled_single_period;
+    case "single_year":
+      return TC.disaggregation_disabled_single_year;
+  }
+}
+
 function DisaggregationOption(p: DisaggregationOptionProps) {
+  const ineffective = () =>
+    p.ineffectiveDisaggregators.find((d) => d.disOpt === p.disOpt.value);
+
   return (
     <Switch>
+      <Match when={ineffective()} keyed>
+        {(ineff) => (
+          <div class="ui-spy-sm">
+            <Checkbox
+              label={t3(getDisplayDisaggregationLabel(p.disOpt.value))}
+              checked={false}
+              disabled={true}
+              onChange={() => {}}
+            />
+            <div class="text-xs text-warning pl-4">
+              {t3(getReasonMessage(ineff.reason))}
+            </div>
+          </div>
+        )}
+      </Match>
       <Match when={!p.disOpt.isRequired}>
         <div class="ui-spy-sm">
           <Checkbox
@@ -119,6 +171,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
                     p.poDetail.resultsValue,
                     p.tempConfig,
                     p.disOpt.value,
+                    p.effectiveValueProps,
                   );
                 p.setTempConfig("d", "disaggregateBy", (prev) => [
                   ...prev,

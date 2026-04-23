@@ -5,9 +5,10 @@ import {
   PresentationObjectDetail,
   ProjectDetail,
   ResultsValueInfoForPresentationObject,
+  getEffectivePOConfig,
   getReplicateByProp,
-  
   hasDuplicateDisaggregatorDisplayOptions,
+  normalizePOConfigForStorage,
   periodFilterHasBounds,
   t3,
   TC,
@@ -249,9 +250,13 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   // Actions
 
+  function getConfigForSave() {
+    return normalizePOConfigForStorage(unwrap(tempConfig));
+  }
+
   // Create mode: open modal to get name and folder, then create
   async function saveAsNewVisualization() {
-    const unwrappedTempConfig = unwrap(tempConfig);
+    const unwrappedTempConfig = getConfigForSave();
     const modalRes = await openComponent({
       element: SaveAsNewVisualizationModal,
       props: {
@@ -283,7 +288,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   async function saveFunc(
     overwriteIfConflict?: boolean,
   ): Promise<APIResponseWithData<SaveFuncData>> {
-    const unwrappedTempConfig = unwrap(tempConfig);
+    const unwrappedTempConfig = getConfigForSave();
 
     const res = await serverActions.updatePresentationObjectConfig({
       projectId: projectId,
@@ -626,7 +631,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                       intent="success"
                       onClick={() =>
                         (p.onClose as (result: EphemeralModeReturn) => void)({
-                          updated: { config: unwrap(tempConfig) },
+                          updated: { config: getConfigForSave() },
                         })
                       }
                       iconName="check"
@@ -782,12 +787,16 @@ export function VisualizationEditorInner(p: InnerProps) {
               }}
             </Show>
             <Show
-              when={
-                !hasDuplicateDisaggregatorDisplayOptions(
+              when={(() => {
+                const { config, effectiveValueProps } = getEffectivePOConfig(tempConfig, {
+                  valueProps: p.poDetail.resultsValue.valueProps,
+                });
+                return !hasDuplicateDisaggregatorDisplayOptions(
                   p.poDetail.resultsValue,
-                  tempConfig,
-                )
-              }
+                  config,
+                  effectiveValueProps,
+                );
+              })()}
               fallback={
                 <div class="ui-pad">
                   {t3({
