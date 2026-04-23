@@ -1,3 +1,6 @@
+[1.27.0] [user] [fixed] - Report migration now works for locked projects automatically
+[1.27.0] [admin] [fixed] - Report-to-slides migration now includes locked projects
+[1.27.0] [admin] [fixed] - Locked projects are re-locked after migration completes
 [1.26.0] [user] [fixed] - Improved spacing and alignment in disaggregation panel options
 [1.26.0] [user] [added] - Explanations shown when disaggregation options are automatically disabled
 [1.26.0] [user] [fixed] - Disaggregation options now correctly reflect active filters and date ranges
