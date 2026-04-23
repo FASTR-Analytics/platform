@@ -7,6 +7,7 @@ Related: [DOC_period_column_handling.md](DOC_period_column_handling.md) covers t
 ## Table of Contents
 
 - [Mental model](#mental-model)
+- [Config states and normalization](#config-states-and-normalization)
 - [The canonical list and categories](#the-canonical-list-and-categories)
 - [Type layout](#type-layout)
 - [Declaration (module definitions)](#declaration-module-definitions)
@@ -33,21 +34,105 @@ Related: [DOC_period_column_handling.md](DOC_period_column_handling.md) covers t
 
 ## Mental model
 
-A **disaggregation option** is a dimension by which a metric's values can be split (e.g. by admin area, by indicator, by time period, by facility type). Every dimension exists in exactly one of three states at runtime, which drive almost all UI and query logic:
+A **disaggregation option** is a dimension by which a metric's values can be split (e.g. by admin area, by indicator, by time period, by facility type).
 
-1. **Not available**: the RO (results object) table lacks the column, or a config flag disables it. Never appears in UI.
-2. **Available as filter**: user can filter the data down to specific values of this dimension, keeping others out. Stored in `config.d.filterBy`.
-3. **Available as disaggregation**: user can split the visualization along this dimension (series/rows/cols/cells/replicants). Stored in `config.d.disaggregateBy`.
+Each dimension is either **available** (column exists, config enables it) or **not available** (column missing or config disables it). When available, it can participate as:
 
-A single dimension can be in states 2 and 3 simultaneously (filter to some values AND split across them). The same list of options powers both — the distinction is which half of `config.d` the user wired it into.
+- A **filter** (`config.d.filterBy`) — restricts data to specific values
+- A **disaggregation** (`config.d.disaggregateBy`) — splits visualization along this dimension  
+- **Both simultaneously** — filter to a subset, then split across remaining values
 
 **One dimension is special**: the dimension with `disDisplayOpt === "replicant"` isn't drawn inside one figure — it produces *separate* figures, one per value.
 
 ---
 
+## Config states and normalization
+
+A `PresentationObjectConfig` exists in three conceptual states as it flows through the system:
+
+| State | Description | Characteristics |
+|-------|-------------|-----------------|
+| **UI Config** | Raw user edits in the editor | May have transient invalid states (e.g., filter enabled but no values selected) |
+| **Storage Config** | Normalized for persistence | Passes Zod validation; structurally valid |
+| **Effective Config** | Ready for display/validation | Strips semantically redundant disaggregators |
+
+### Why three states?
+
+The UI allows intermediate states that shouldn't be persisted (a filter checkbox checked but no values selected). Storage requires valid data. Display requires awareness of what's *actually* disaggregatable (a disaggregator filtered to one value is invisible).
+
+### Normalization functions
+
+**File**: [lib/normalize_po_config.ts](lib/normalize_po_config.ts)
+
+```
+UI Config → normalizePOConfigForStorage() → Storage Config
+                                               ↓
+                              getEffectivePOConfig() → Effective Config
+```
+
+**`normalizePOConfigForStorage(config)`**
+
+Called before save (client-side). Removes structurally invalid entries:
+
+- `filterBy` entries with empty `values` arrays (would fail Zod `.min(1)`)
+- `valuesFilter` if empty array (would fail Zod `.min(1).optional()`)
+
+Does NOT strip disaggregators — user's display option preferences are preserved.
+
+**`getEffectiveConfig(config)`**
+
+Called before display/validation. Strips disaggregators that are semantically invisible:
+
+- Any `disaggregateBy` entry where `filterBy` has exactly one value for the same `disOpt`
+
+Used by:
+- `hasDuplicateDisaggregatorDisplayOptions()` — prevents false "duplicate display option" errors
+- Editor UI `allowedDisaggregationOptions()` — hides single-value disaggregators
+- Renderer — combined with runtime dateRange stripping
+
+### Data flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EDITOR                                                                      │
+│                                                                             │
+│   tempConfig (UI state)                                                     │
+│        │                                                                    │
+│        ├──► getEffectiveConfig() ──► hasDuplicateDisaggregatorDisplayOptions()
+│        │                                                                    │
+│        └──► normalizeConfigForStorage() ──► server save                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                                    │
+                                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SERVER                                                                      │
+│                                                                             │
+│   normalizeConfigForStorage() ──► Zod validation ──► DB                     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ RENDERER                                                                    │
+│                                                                             │
+│   config (from DB)                                                          │
+│        │                                                                    │
+│        └──► getEffectiveConfig() ──► + runtime dateRange stripping          │
+│                                             │                               │
+│                                             └──► effectiveConfig            │
+│                                                       │                     │
+│                                                       └──► data config builders
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Why not strip disaggregators from storage?
+
+If we stripped single-value disaggregators before saving, the user would lose their `disDisplayOpt` preference (e.g., "row") when the filter is removed. By keeping them in storage, preferences persist.
+
+---
+
 ## The canonical list and categories
 
-The full union of disaggregation option values lives in [lib/types/presentation_objects.ts:10-27](lib/types/presentation_objects.ts#L10-L27) as the `DisaggregationOption` TypeScript type and is duplicated as a runtime list `ALL_DISAGGREGATION_OPTIONS` at [lib/types/presentation_objects.ts:29-54](lib/types/presentation_objects.ts#L29-L54). The Zod validator mirror is at [lib/types/module_definition_validator.ts:62-87](lib/types/module_definition_validator.ts#L62-L87).
+The full union of disaggregation option values lives in [lib/types/disaggregation_options.ts](lib/types/disaggregation_options.ts) as `DisaggregationOption` (re-exported from `presentation_objects.ts`). The runtime list `ALL_DISAGGREGATION_OPTIONS` and Zod validator are in the same file.
 
 Grouped by semantic category:
 
@@ -57,7 +142,7 @@ Grouped by semantic category:
 | **Time** | `period_id`, `quarter_id`, `year`, `month` | RO table column, sometimes derived (see [DOC_period_column_handling.md](DOC_period_column_handling.md)) |
 | **Indicator** | `indicator_common_id`, `source_indicator`, `target_population`, `ratio_type` | RO table column (physical) |
 | **Denominator** | `denominator`, `denominator_best_or_survey` | RO table column (physical) |
-| **Facility** | `facility_name`, `facility_type`, `facility_ownership`, `facility_custom_1..5` | RO table has `facility_id`; values resolved via JOIN to `facilities` table; gated by instance config |
+| **Facility** | `facility_name`, `facility_type`, `facility_ownership`, `facility_custom_1` through `facility_custom_5` | RO table has `facility_id`; values resolved via JOIN to `facilities` table; gated by instance config |
 | **HFA** | `hfa_indicator`, `hfa_category`, `time_point` | HFA-dataset-specific RO columns |
 
 No single enum/union encodes the category — it's structural. Code that cares (enricher, possible-values query, facility-gating logic) uses explicit `if`/`in` tests.
@@ -66,9 +151,9 @@ No single enum/union encodes the category — it's structural. Code that cares (
 
 ## Type layout
 
-**`DisaggregationOption`** — [lib/types/presentation_objects.ts:10-27](lib/types/presentation_objects.ts#L10-L27). The union of all 23 disOpt string literals. `facility_name` and its siblings come in via `OptionalFacilityColumn` ([lib/types/instance.ts:142-150](lib/types/instance.ts#L142-L150)).
+**`DisaggregationOption`** — [lib/types/disaggregation_options.ts](lib/types/disaggregation_options.ts). The union of all disOpt string literals. `facility_name` and its siblings come in via `OptionalFacilityColumn` ([lib/types/instance.ts](lib/types/instance.ts)).
 
-**`ResultsValue.disaggregationOptions[]`** — [lib/types/module_definitions.ts:101-105](lib/types/module_definitions.ts#L101-L105). The enriched runtime shape:
+**`ResultsValue.disaggregationOptions[]`** — [lib/types/module_definitions.ts](lib/types/module_definitions.ts). The enriched runtime shape:
 
 ```ts
 disaggregationOptions: {
@@ -80,21 +165,21 @@ disaggregationOptions: {
 
 There is no `label` field on enriched disOpts — display labels are computed at render time from config via [lib/disaggregation_labels.ts](lib/disaggregation_labels.ts).
 
-**`PresentationObjectConfig.d`** — [lib/types/presentation_objects.ts:352-371](lib/types/presentation_objects.ts#L352-L371). The three fields that reference disOpts:
+**`PresentationObjectConfig.d`** — [lib/types/_presentation_object_config.ts](lib/types/_presentation_object_config.ts). The three fields that reference disOpts:
 
 ```ts
 disaggregateBy: { disOpt: DisaggregationOption; disDisplayOpt: DisaggregationDisplayOption }[];
-filterBy:       { disOpt: DisaggregationOption; values: string[] }[];
+filterBy:       { disOpt: DisaggregationOption; values: (string | number)[] }[];
 selectedReplicantValue?: string;  // value of whichever disOpt has disDisplayOpt === "replicant"
 ```
 
-**`DisaggregationDisplayOption`** — [lib/types/presentation_objects.ts:167-176](lib/types/presentation_objects.ts#L167-L176). Where in the visualization this dimension is drawn:
+**`DisaggregationDisplayOption`** — [lib/types/_metric_installed.ts](lib/types/_metric_installed.ts). Where in the visualization this dimension is drawn:
 
 ```ts
 "row" | "rowGroup" | "col" | "colGroup" | "series" | "cell" | "indicator" | "replicant" | "mapArea"
 ```
 
-**`DisaggregationPossibleValuesStatus`** — [lib/types/presentation_objects.ts:124-134](lib/types/presentation_objects.ts#L124-L134). The per-disOpt status returned from the possible-values fetch:
+**`DisaggregationPossibleValuesStatus`** — [lib/types/presentation_objects.ts](lib/types/presentation_objects.ts). The per-disOpt status returned from the possible-values fetch:
 
 ```ts
 | { status: "ok"; values: string[] }
@@ -102,7 +187,7 @@ selectedReplicantValue?: string;  // value of whichever disOpt has disDisplayOpt
 | { status: "no_values_available" }
 ```
 
-**`ResultsValueInfoForPresentationObject.disaggregationPossibleValues`** — [lib/types/presentation_objects.ts:142-144](lib/types/presentation_objects.ts#L142-L144). A dictionary keyed by `DisaggregationOption` mapping to the status above. This is what the editor UI consults to decide which filters/disaggs to render.
+**`ResultsValueInfoForPresentationObject.disaggregationPossibleValues`** — [lib/types/presentation_objects.ts](lib/types/presentation_objects.ts). A dictionary keyed by `DisaggregationOption` mapping to the status above. This is what the editor UI consults to decide which filters/disaggs to render.
 
 ---
 
@@ -114,11 +199,11 @@ Module authors declare each metric's **required** disaggregations as an array of
 requiredDisaggregationOptions: DisaggregationOption[]
 ```
 
-Declared in [lib/types/module_definition_validator.ts:270](lib/types/module_definition_validator.ts#L270). Persisted in the project DB as a JSON array string in the `metrics.required_disaggregation_options` column.
+Declared in [lib/types/module_definition_validator.ts](lib/types/module_definition_validator.ts). Persisted in the project DB as a JSON array string in the `metrics.required_disaggregation_options` column.
 
 Module definitions do **not** declare *optional* disaggregations — those are inferred entirely from which columns exist on the RO table plus instance config. An author's only lever is which columns to produce in the R script output.
 
-**Author-facing rules** (see [server/worker_routines/run_module/run_module_iterator.ts:394-414](server/worker_routines/run_module/run_module_iterator.ts#L394-L414)):
+**Author-facing rules**:
 
 - Produce a CSV column for every dimension you want disaggregable. Do not produce derived columns (year if you have period_id, etc.) — the importer drops them.
 - For facility-level data, produce only `facility_id` — facility attributes (type, ownership, custom_N) are looked up server-side via JOIN to the project `facilities` table, not stored on the RO table.
@@ -134,7 +219,7 @@ For a given metric, the enricher constructs the runtime `disaggregationOptions[]
 
 ### Physical columns on the RO table
 
-For each of this fixed set — [metric_enricher.ts:70-82](server/db/project/metric_enricher.ts#L70-L82) —
+For each of this fixed set —
 
 ```
 admin_area_2, admin_area_3, admin_area_4,
@@ -149,7 +234,7 @@ This means admin area depth, denominator availability, HFA attributes, etc. are 
 
 ### Facility-column gating
 
-[metric_enricher.ts:93-113](server/db/project/metric_enricher.ts#L93-L113). Two conjoined gates must both pass for a facility column to appear:
+Two conjoined gates must both pass for a facility column to appear:
 
 1. **RO table has `facility_id`** (via `detectColumnExists`). If absent, no facility disOpts are added.
 2. **Instance config opts in** — `facilityConfig.includeTypes` for `facility_type`, `includeOwnership` for `facility_ownership`, `includeCustom1..5` for the customs. Labels (`labelTypes`, `labelCustom1`, …) are *not* consulted at enrichment; they're rendering concerns ([DOC_legacy_handling.md](DOC_legacy_handling.md) crosses over here).
@@ -160,11 +245,11 @@ Facility values aren't stored on the RO table — they live on the project `faci
 
 ### Time columns
 
-[metric_enricher.ts:115-139](server/db/project/metric_enricher.ts#L115-L139). Priority-branched: `period_id` > `quarter_id` > `year`. If `period_id` exists, all four time disOpts (including derived ones) are added. If only `quarter_id`, just `quarter_id` + `year`. If only `year`, just `year`. Details in [DOC_period_column_handling.md](DOC_period_column_handling.md).
+Priority-branched: `period_id` > `quarter_id` > `year`. If `period_id` exists, all four time disOpts (including derived ones) are added. If only `quarter_id`, just `quarter_id` + `year`. If only `year`, just `year`. Details in [DOC_period_column_handling.md](DOC_period_column_handling.md).
 
 ### `allowedPresentationOptions`
 
-Each added disOpt gets an `allowedPresentationOptions` array (via [lib/disaggregation_labels.ts:89-102](lib/disaggregation_labels.ts#L89-L102)):
+Each added disOpt gets an `allowedPresentationOptions` array:
 
 - Time disOpts + `time_point`: `["table", "chart"]` — these are excluded from timeseries (time is the X-axis) and map viz.
 - Everything else: `undefined` (meaning: allowed everywhere).
@@ -181,7 +266,7 @@ For each disOpt in the enriched `disaggregationOptions[]`, a `SELECT DISTINCT` q
 
 Three query shapes, depending on the disOpt type:
 
-1. **Physical column, non-facility** (admin_area_*, indicator_common_id, denominator, hfa_*, time_point, period_id, quarter_id, physical year): `SELECT DISTINCT col AS disaggregation_value FROM ro_table WHERE … ORDER BY col LIMIT 51`. ([get_possible_values.ts:208-213](server/server_only_funcs_presentation_objects/get_possible_values.ts#L208-L213)).
+1. **Physical column, non-facility** (admin_area_*, indicator_common_id, denominator, hfa_*, time_point, period_id, quarter_id, physical year): `SELECT DISTINCT col AS disaggregation_value FROM ro_table WHERE … ORDER BY col LIMIT 51`.
 
 2. **Dynamic period column** (year/month/quarter_id derived from period_id or quarter_id): uses inline SQL expression like `(period_id / 100)::int` or wraps the RO table in a `WITH period_data AS (…)` CTE. See [DOC_period_column_handling.md#possible-values-disaggregation-checkboxes](DOC_period_column_handling.md#possible-values-disaggregation-checkboxes).
 
@@ -198,13 +283,13 @@ Three query shapes, depending on the disOpt type:
    WHERE …
    ```
 
-   ([get_possible_values.ts:119-172](server/server_only_funcs_presentation_objects/get_possible_values.ts#L119-L172)). If dynamic period + facility both needed, both CTEs stack.
+   If dynamic period + facility both needed, both CTEs stack.
 
 **LIMIT 51 (`MAX_REPLICANT_OPTIONS + 1`)**: if the query returns more than 50 distinct values, the status becomes `too_many_values` and the UI treats the disOpt as a freeform filter rather than checkbox list. The +1 is just to detect overflow without fetching the full set.
 
-**Filter context**: when computing possible values for disOpt X, any existing `config.d.filterBy` filters on *other* disOpts are included in the WHERE clause (the current disOpt is excluded — [get_possible_values.ts:38-40](server/server_only_funcs_presentation_objects/get_possible_values.ts#L38-L40)). This lets a user's admin-area-2 choice shrink the list of admin-area-3 options accordingly.
+**Filter context**: when computing possible values for disOpt X, any existing `config.d.filterBy` filters on *other* disOpts are included in the WHERE clause (the current disOpt is excluded). This lets a user's admin-area-2 choice shrink the list of admin-area-3 options accordingly.
 
-**Empty/null filtering**: raw `null` and empty-string rows are filtered out of the returned list ([get_possible_values.ts:220-222](server/server_only_funcs_presentation_objects/get_possible_values.ts#L220-L222)).
+**Empty/null filtering**: raw `null` and empty-string rows are filtered out of the returned list.
 
 Values come back as raw strings with no label resolution. Display labels are applied client-side at render time — see [Labels](#labels) and [Value label replacements](#value-label-replacements).
 
@@ -222,7 +307,7 @@ The three ways a disOpt participates in a visualization, each stored separately 
 
 A single disOpt can appear in **both** `disaggregateBy` and `filterBy` — filter to a subset of values, then split across the remaining ones.
 
-The replicant logic is encoded in [lib/get_disaggregator_display_prop.ts:38-47](lib/get_disaggregator_display_prop.ts#L38-L47):
+The replicant logic is encoded in [lib/get_disaggregator_display_prop.ts](lib/get_disaggregator_display_prop.ts):
 
 ```ts
 export function getReplicateByProp(config): DisaggregationOption | undefined {
@@ -241,7 +326,7 @@ Single-replicant-per-viz is enforced by the UI (toggling another replicant clear
 
 ## Display-option mapping (`disDisplayOpt`)
 
-**File**: [lib/types/presentation_objects.ts:178-274](lib/types/presentation_objects.ts#L178-L274) — `VIZ_TYPE_CONFIG` defines which display options each viz type supports, plus a fallback map for conversions.
+**File**: [lib/types/presentation_objects.ts](lib/types/presentation_objects.ts) — `VIZ_TYPE_CONFIG` defines which display options each viz type supports, plus a fallback map for conversions.
 
 | `disDisplayOpt` | timeseries | table | chart | map |
 |---|:---:|:---:|:---:|:---:|
@@ -255,16 +340,16 @@ Single-replicant-per-viz is enforced by the UI (toggling another replicant clear
 | `replicant` | ✓ | ✓ | ✓ | ✓ |
 | `mapArea` | – | – | – | ✓ |
 
-Semantic meaning per type (user-facing labels come from `get_DISAGGREGATION_DISPLAY_OPTIONS()` — [lib/types/presentation_objects.ts:276-342](lib/types/presentation_objects.ts#L276-L342)):
+Semantic meaning per type (user-facing labels come from `get_DISAGGREGATION_DISPLAY_OPTIONS()`):
 
 - **timeseries**: `series` = separate lines; `cell` = separate grids; `row`/`col` = small multiples.
 - **table**: `row`/`col` = cell axes; `rowGroup`/`colGroup` = grouped headers.
 - **chart**: `indicator` = bars along X axis; `series` = sub-bars; `cell` = separate grids.
 - **map**: `mapArea` = region coloring; `cell`/`row`/`col` = small multiples.
 
-**The reverse-lookup helper** — [lib/get_disaggregator_display_prop.ts:16-36](lib/get_disaggregator_display_prop.ts#L16-L36) — answers "which disOpt was assigned to a given display slot (e.g. `row`)?" The renderer calls this per axis to build the data config. A special return value `"--v"` means "show the value props here" rather than a disOpt (used when `valuesDisDisplayOpt` points to this axis *and* the metric has multiple value props).
+**The reverse-lookup helper** — `getDisaggregatorDisplayProp()` in [lib/get_disaggregator_display_prop.ts](lib/get_disaggregator_display_prop.ts) — answers "which disOpt was assigned to a given display slot (e.g. `row`)?" The renderer calls this per axis to build the data config. A special return value `"--v"` means "show the value props here" rather than a disOpt (used when `valuesDisDisplayOpt` points to this axis *and* the metric has multiple value props).
 
-**Required dedup**: the UI permits only one disOpt per `disDisplayOpt` slot. [`hasDuplicateDisaggregatorDisplayOptions`](lib/get_disaggregator_display_prop.ts#L49-L68) is checked, but chiefly by tests/validators — runtime code mainly avoids the situation by assigning a new slot via `getNextAvailableDisaggregationDisplayOption` when the user toggles a disOpt on.
+**Required dedup**: the UI permits only one disOpt per `disDisplayOpt` slot. `hasDuplicateDisaggregatorDisplayOptions()` is checked before rendering. **Important**: this check must receive an *effective* config (via `getEffectiveConfig()`) so that single-value disaggregators are excluded — otherwise a hidden disaggregator can conflict with a visible one.
 
 ---
 
@@ -280,11 +365,11 @@ Three server-side concepts assemble the final SQL:
 - `needsFacilityJoin` — whether to emit the `facility_subset` CTE + JOIN
 - `neededPeriodColumns` / `needsPeriodCTE` — time derivation requirements ([DOC_period_column_handling.md](DOC_period_column_handling.md))
 
-**`buildWhereClause()`** ([query_helpers.ts:188-235](server/server_only_funcs_presentation_objects/query_helpers.ts#L188-L235)) — integer columns (year, month, quarter_id, period_id, time_point) use `col IN (1, 2, …)`; text columns use `UPPER(col) IN ('FOO', 'BAR')` for case-insensitive matching.
+**`buildWhereClause()`** — integer columns (year, month, quarter_id, period_id, time_point) use `col IN (1, 2, …)`; text columns use `UPPER(col) IN ('FOO', 'BAR')` for case-insensitive matching.
 
-**`buildSelectQueryV2()`** ([query_helpers.ts:95-186](server/server_only_funcs_presentation_objects/query_helpers.ts#L95-L186)) — assembles SELECT + JOIN + WHERE + GROUP BY. Facility columns get `f.` prefix when joined.
+**`buildSelectQueryV2()`** — assembles SELECT + JOIN + WHERE + GROUP BY. Facility columns get `f.` prefix when joined.
 
-**`buildNationalTotalQueryV2()`** ([query_helpers.ts:40-85](server/server_only_funcs_presentation_objects/query_helpers.ts#L40-L85)) — emits a second query producing a "national aggregate" row/column when `config.d.includeNationalForAdminArea2` is set and the groupBys include `admin_area_2` but *not* `admin_area_3`. The national row is labelled with a sentinel admin_area_2 value (`__NATIONAL` or `zzNATIONAL`, controlling sort position), later replaced with the localized "National" string on the client.
+**`buildNationalTotalQueryV2()`** — emits a second query producing a "national aggregate" row/column when `config.d.includeNationalForAdminArea2` is set and the groupBys include `admin_area_2` but *not* `admin_area_3`. The national row is labelled with a sentinel admin_area_2 value (`__NATIONAL` or `zzNATIONAL`, controlling sort position), later replaced with the localized "National" string on the client.
 
 This is the only place admin area level has hardcoded special-casing in the query layer — it's specifically scoped to `admin_area_2` because that's the highest-granularity spatial disaggregation (admin_area_1 being implicitly the country itself).
 
@@ -310,14 +395,14 @@ Labels are pure config, computed at render time.
 
 ## Value label replacements
 
-Distinct from disOpt labels. `ResultsValue.valueLabelReplacements: Record<string, string>` ([lib/types/module_definitions.ts:97](lib/types/module_definitions.ts#L97)) maps **value-prop keys** (not disaggregation values) to display labels — e.g. `{ "coverage": "Coverage rate", "target": "Target population" }`.
+Distinct from disOpt labels. `ResultsValue.valueLabelReplacements: Record<string, string>` maps **value-prop keys** (not disaggregation values) to display labels — e.g. `{ "coverage": "Coverage rate", "target": "Target population" }`.
 
-Loaded server-side at [server/module_loader/load_module.ts:143-150](server/module_loader/load_module.ts#L143-L150) (strings resolved to the instance's language). Applied client-side at [client/src/generate_visualization/get_data_config_from_po.ts:63,121,187](client/src/generate_visualization/get_data_config_from_po.ts) as `labelReplacementsBeforeSorting`.
+Loaded server-side (strings resolved to the instance's language). Applied client-side in [get_data_config_from_po.ts](client/src/generate_visualization/get_data_config_from_po.ts) as `labelReplacementsBeforeSorting`.
 
 It does **not** rename disaggregation values (e.g. "M"→"Male" for a sex disaggregation). That mapping, if needed, lives elsewhere (indicator label lookups, admin area code→name lookups). Replacement sources for disaggregation values include:
 
-- Indicator ID → indicator label: from the indicators table, fed into `labelReplacementsAfterSorting` as `indicatorLabelReplacements` ([get_data_config_from_po.ts:65,123,189](client/src/generate_visualization/get_data_config_from_po.ts)).
-- Admin area code → admin area name: from the `nigeriaAdminAreaLabelReplacements` lookup (country-specific).
+- Indicator ID → indicator label: from the indicators table, fed into `labelReplacementsAfterSorting` as `indicatorLabelReplacements`.
+- Admin area code → admin area name: from admin area label lookups.
 - Date values → formatted period: `dateLabelReplacements`.
 - `__NATIONAL` → localized "National" string.
 
@@ -327,13 +412,32 @@ All merged into `labelReplacementsAfterSorting` so sort order is based on raw va
 
 ## Single-value stripping
 
-A disaggregation that resolves to exactly one value is display-noise: it can't actually split anything. Two stripping phases:
+A disaggregation that resolves to exactly one value is display-noise: it can't actually split anything. There are two stripping mechanisms:
 
-**Editor UI** — [_3_disaggregation.tsx](client/src/components/visualization/presentation_object_editor_panel_data/_3_disaggregation.tsx) hides disOpts where `config.d.filterBy` has exactly one value; also hides time columns when the resolved period bounds span a single period or single year.
+### Static stripping (via `getEffectiveConfig`)
 
-**Renderer** — [client/src/generate_visualization/get_figure_inputs_from_po.ts](client/src/generate_visualization/get_figure_inputs_from_po.ts) builds an `effectiveConfig` with those same disOpts stripped from `disaggregateBy`, passed to the data-config builders. The original `config` is kept for text/caption/style. Downstream helpers in [lib/get_disaggregator_display_prop.ts:12-14](lib/get_disaggregator_display_prop.ts#L12-L14) trust this pre-cleaning and do not re-check.
+**File**: [lib/normalize_po_config.ts](lib/normalize_po_config.ts)
 
-Rules enumerated at [DOC_period_column_handling.md#single-value-disaggregation-stripping-renderer](DOC_period_column_handling.md#single-value-disaggregation-stripping-renderer).
+Strips disaggregators where `config.d.filterBy` has exactly one value for the same `disOpt`. This is purely config-based — no runtime data needed.
+
+Used before:
+- `hasDuplicateDisaggregatorDisplayOptions()` checks (prevents false conflicts)
+- Editor UI `allowedDisaggregationOptions()` (hides single-value disaggregators)
+
+### Runtime stripping (in renderer)
+
+**File**: [client/src/generate_visualization/get_figure_inputs_from_po.ts](client/src/generate_visualization/get_figure_inputs_from_po.ts)
+
+Adds runtime-aware stripping based on the actual data:
+
+- All time columns when `dateRange.min === dateRange.max`
+- `year` specifically when the dateRange spans a single year
+
+The renderer starts with `getEffectiveConfig(config)`, then applies these runtime rules.
+
+### Why two phases?
+
+Static stripping handles filter-based single values (known from config alone). Runtime stripping handles data-based single values (only known after fetching). Both are needed for correct display.
 
 ---
 
@@ -345,20 +449,39 @@ Three subtleties that don't apply elsewhere:
 
 2. **"Include National" is admin_area_2-only.** The `config.d.includeNationalForAdminArea2` toggle adds a synthetic National aggregate row when disaggregating by admin_area_2 (without admin_area_3). Hardcoded to admin_area_2 because that's the level where "all above" is meaningful. Position (`top`/`bottom`) controlled by `config.d.includeNationalPosition`; encoded as `__NATIONAL` (sorts top) or `zzNATIONAL` (sorts bottom) sentinels at query time, resolved to the localized "National" string on the client.
 
-3. **`maxAdminArea` instance config is not enforced at enrichment.** Instance can declare `maxAdminArea: 2`, but if the RO table physically has an `admin_area_3` column (stale data, misconfigured module), the enricher will expose `admin_area_3` as a disaggregation option. In practice this is a non-issue because structure import gates depth at the instance level. See [Known inconsistencies](#known-inconsistencies).
+3. **`maxAdminArea` instance config is not enforced at enrichment.** The instance-wide `maxAdminArea` setting controls structure import but not metric enrichment — if an RO table has an `admin_area_4` column, the disOpt appears regardless. Not a problem in normal flows (structure is consistent) but a latent gap.
 
 ---
 
 ## Cross-checks and validation
 
-**AI-generated configs** — [client/src/components/project_ai/ai_tools/validators/content_validators.ts](client/src/components/project_ai/ai_tools/validators/content_validators.ts):
+### Storage normalization
+
+**Files**: 
+- [lib/normalize_po_config.ts](lib/normalize_po_config.ts) — `normalizeConfigForStorage()`
+- [client/src/components/visualization/visualization_editor_inner.tsx](client/src/components/visualization/visualization_editor_inner.tsx) — client-side call before save
+- [server/db/project/presentation_objects.ts](server/db/project/presentation_objects.ts) — server-side call before Zod validation
+
+Before Zod validation, the config is normalized to remove:
+- `filterBy` entries with empty `values` arrays
+- `valuesFilter` if empty
+
+This prevents validation failures from transient UI states (e.g., filter checkbox checked but no values selected).
+
+### AI-generated configs
+
+[client/src/components/project_ai/ai_tools/validators/content_validators.ts](client/src/components/project_ai/ai_tools/validators/content_validators.ts):
 
 - `validateFilters` / `validateAiMetricQuery` check that each `disOpt` in the AI's output is in `ALL_DISAGGREGATION_OPTIONS` and that it matches the metric's enriched `disaggregationOptions` list.
 - `validateMetricInputs` fetches possible-values for each referenced disOpt and rejects filter values not in the available set.
 
-**Editor UI** — silently doesn't render invalid disOpts. If `config.d.disaggregateBy` references a disOpt not in `metric.disaggregationOptions`, it simply doesn't draw — no error.
+### Editor UI
 
-**No runtime config validator** enforces the rules across the whole app. If a stored config references a disOpt that's since been removed from the metric (e.g. facility config was turned off), rendering silently omits it.
+Silently doesn't render invalid disOpts. If `config.d.disaggregateBy` references a disOpt not in `metric.disaggregationOptions`, it simply doesn't draw — no error.
+
+### No runtime config validator
+
+No validator enforces the rules across the whole app. If a stored config references a disOpt that's since been removed from the metric (e.g. facility config was turned off), rendering silently omits it.
 
 ---
 
@@ -418,6 +541,13 @@ A user opens a metric with required disaggregation `indicator_common_id`, builds
 }
 ```
 
+**Save flow**:
+
+1. Client calls `normalizeConfigForStorage(config)` — no changes needed (both filters have values).
+2. Server receives config, calls `normalizeConfigForStorage()` again (defense in depth).
+3. Zod validation passes.
+4. Config stored in DB.
+
 **Display label resolution** (client, at render time):
 
 - Editor shows disaggregation "Region" (not "Admin area 2") because `instanceState.adminAreaLabels.label2 === "Region"`, via [disaggregation_label.ts](client/src/state/instance/disaggregation_label.ts).
@@ -432,7 +562,8 @@ A user opens a metric with required disaggregation `indicator_common_id`, builds
 
 **Client render** (chart viz):
 
-- `getFigureInputsFromPresentationObject` strips `facility_type` from `disaggregateBy` (wait — it wasn't in `disaggregateBy`, only in `filterBy`, so no strip). No other single-value strips apply.
+- `getFigureInputsFromPresentationObject` calls `getEffectiveConfig(config)` — no changes (no single-value filters).
+- Applies runtime stripping — no changes (dateRange spans multiple periods).
 - [get_data_config_from_po.ts](client/src/generate_visualization/get_data_config_from_po.ts) maps `indicator → indicatorProp`, generates N bars per region.
 - Renders three separate figures (one per region from replicant), each with bars for each indicator.
 - Caption substitutes `REPLICANT` token with the selected region name.
@@ -454,6 +585,10 @@ Four likely causes in order of probability:
 
 The column has >50 distinct values. `status: "too_many_values"`. Either accept the free-text flow or add a more restrictive upstream filter to narrow the candidate set.
 
+### "Duplicate display option" error with hidden disaggregator
+
+If disaggregator A is on "row" and filtered to one value (making it invisible in the UI), adding disaggregator B on "row" should work — the duplicate check uses `getEffectiveConfig()` to strip single-value disaggregators. If you still see this error, ensure the duplicate check is receiving an effective config, not the raw config.
+
 ### A stored viz config references a disOpt no longer available
 
 The viz silently omits it. No error, no warning. Common after facility-column-config changes. The only way to detect is to open the editor — the UI will show fewer options than the stored config claims.
@@ -468,11 +603,11 @@ Verify the RO table actually has `facility_id` (rather than `facility_name` or s
 
 ### "Too many disaggregations" ambiguous error
 
-[`hasDuplicateDisaggregatorDisplayOptions`](lib/get_disaggregator_display_prop.ts) triggered — two disOpts both assigned the same `disDisplayOpt` (e.g. both set to `row`). Editor UI avoids producing this via `getNextAvailableDisaggregationDisplayOption`, so it usually indicates a bad saved config or an AI-generated config. Re-open in editor to clear.
+`hasDuplicateDisaggregatorDisplayOptions` triggered — two disOpts both assigned the same `disDisplayOpt` (e.g. both set to `row`). Editor UI avoids producing this via `getNextAvailableDisaggregationDisplayOption`, so it usually indicates a bad saved config or an AI-generated config. Re-open in editor to clear.
 
 ### "Include National" toggle has no effect
 
-Three required conditions ([query_helpers.ts:50-55](server/server_only_funcs_presentation_objects/query_helpers.ts#L50-L55)):
+Three required conditions:
 
 1. `config.d.includeNationalForAdminArea2` is true
 2. `config.d.disaggregateBy` (via groupBys) includes `admin_area_2`
@@ -490,7 +625,7 @@ The RO table stores `admin_area_2/3/4` as denormalized columns — not joined fr
 
 Flagged during this doc's production — candidates for a cleanup pass:
 
-1. **`facility_name` is dead in the enricher.** Present in the `DisaggregationOption` union via `OptionalFacilityColumn`, present in `ALL_DISAGGREGATION_OPTIONS` ([presentation_objects.ts:43](lib/types/presentation_objects.ts#L43)), present in the Zod validator ([module_definition_validator.ts:76](lib/types/module_definition_validator.ts#L76)), present in the facility columns config (`includeNames`, `labelNames`), *storable* in the facilities table — but the enricher's facility loop ([metric_enricher.ts:93-113](server/db/project/metric_enricher.ts#L93-L113)) doesn't include it. It can never appear as a runtime disaggregation option.
+1. **`facility_name` is dead in the enricher.** Present in the `DisaggregationOption` union via `OptionalFacilityColumn`, present in `ALL_DISAGGREGATION_OPTIONS`, present in the Zod validator, present in the facility columns config (`includeNames`, `labelNames`), *storable* in the facilities table — but the enricher's facility loop doesn't include it. It can never appear as a runtime disaggregation option.
 
 2. **`maxAdminArea` is not enforced at enrichment.** The instance-wide `maxAdminArea` setting controls structure import but not metric enrichment — if an RO table has an `admin_area_4` column, the disOpt appears regardless. Not a problem in normal flows (structure is consistent) but a latent gap.
 
@@ -498,7 +633,7 @@ Flagged during this doc's production — candidates for a cleanup pass:
 
 4. **Stale disOpts in saved configs fail silently.** If an admin changes `facilityColumns.includeTypes` to false, every saved viz that referenced `facility_type` silently drops it on next render. No user notification, no visible diff. A health-check / stale-config surface area would help.
 
-5. **`ALL_DISAGGREGATION_OPTIONS` as `readonly string[]`** ([presentation_objects.ts:29](lib/types/presentation_objects.ts#L29)) loses the `DisaggregationOption` narrow type — callers iterating it get `string`, not the union. Could be `readonly DisaggregationOption[]` with a `satisfies` check to keep sync.
+5. **`ALL_DISAGGREGATION_OPTIONS` as `readonly string[]`** loses the `DisaggregationOption` narrow type — callers iterating it get `string`, not the union. Could be `readonly DisaggregationOption[]` with a `satisfies` check to keep sync.
 
 6. **Three parallel sources of truth for the disOpt list** — the TS union, the runtime array, the Zod enum. Easy to add one without the others. Consolidating into one source (derive the others) would eliminate drift risk.
 

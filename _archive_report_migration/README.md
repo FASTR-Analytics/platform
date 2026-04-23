@@ -7,6 +7,9 @@ Pre-migration analysis of all `slide_deck` reports across 31 production instance
 - `export_reports` - Bash script to export reports/report_items via SSH from production
 - `analyze_reports.ts` - Deno script with Zod validation to analyze exported data
 - `report_exports_20260423_100402/` - Exported CSV data from all instances
+- `client_migration_code/` - Snapshot of client-side migration implementation:
+  - `migrate_project_reports.ts` - Core migration logic (ReportItem → Slide conversion)
+  - `migrate_all_reports_to_slides.tsx` - UI modal component
 
 ## Export Results
 
