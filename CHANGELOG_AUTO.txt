@@ -1,3 +1,9 @@
+[TBD] [user] [added] - Explanations shown when disaggregation options are automatically disabled
+[TBD] [user] [fixed] - Disaggregation options now correctly reflect active filters and date ranges
+[TBD] [admin] [added] - Disaggregation options now show reasons when disabled
+[TBD] [admin] [changed] - Visualizations automatically clean up ineffective settings before saving
+[TBD] [admin] [fixed] - Project deletion scheduled date now visible in project list
+[TBD] [admin] [fixed] - Resolved merge conflict in project listing code
 [TBD] [user] [fixed] - Empty reports no longer cause errors during project migration
 [TBD] [admin] [fixed] - Empty reports are now skipped during project migration
 [TBD] [user] [added] - Deleted projects now have a 30-day recovery period before permanent removal
