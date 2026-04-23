@@ -1,3 +1,4 @@
+[TBD] [user] [fixed] - Improved spacing and alignment in disaggregation panel options
 [TBD] [user] [added] - Explanations shown when disaggregation options are automatically disabled
 [TBD] [user] [fixed] - Disaggregation options now correctly reflect active filters and date ranges
 [TBD] [admin] [added] - Disaggregation options now show reasons when disabled
