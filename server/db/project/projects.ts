@@ -445,6 +445,41 @@ export async function restoreProject(
   });
 }
 
+export async function forceDeleteProject(
+  mainDb: Sql,
+  projectId: string,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await closePgConnection(projectId);
+
+    const dedicatedDb = createWorkerConnection("main");
+    try {
+      await dedicatedDb`
+        SELECT pg_terminate_backend(pid)
+        FROM pg_stat_activity
+        WHERE datname = ${projectId}
+          AND pid <> pg_backend_pid()
+      `;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await dedicatedDb`DROP DATABASE IF EXISTS ${dedicatedDb(projectId)} WITH (FORCE)`;
+    } finally {
+      await dedicatedDb.end();
+    }
+
+    const sandboxDir = join(_SANDBOX_DIR_PATH, projectId);
+    try {
+      await Deno.remove(sandboxDir, { recursive: true });
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound)) {
+        throw e;
+      }
+    }
+
+    await mainDb`DELETE FROM projects WHERE id = ${projectId}`;
+    return { success: true };
+  });
+}
+
 export async function purgeExpiredProjects(mainDb: Sql): Promise<void> {
   const expired = await mainDb<{ id: string }[]>`
     SELECT id FROM projects
