@@ -112,7 +112,7 @@ The UI allows intermediate states that shouldn't be persisted (a filter checkbox
 ```
 UI Config → normalizePOConfigForStorage() → Storage Config
                                                ↓
-                              getEffectivePOConfig() → Effective Config
+                              getEffectivePOConfig() → EffectivePOConfigResult
 ```
 
 **`normalizePOConfigForStorage(config)`**
@@ -124,16 +124,39 @@ Called before save (client-side). Removes structurally invalid entries:
 
 Does NOT strip disaggregators — user's display option preferences are preserved.
 
-**`getEffectiveConfig(config)`**
+**`getEffectivePOConfig(config, context?)`**
 
-Called before display/validation. Strips disaggregators that are semantically invisible:
+Called before display/validation. Returns a result object with the stripped config plus metadata about what was stripped:
 
+```ts
+type EffectivePOConfigResult = {
+  config: PresentationObjectConfig;           // stripped config for rendering
+  effectiveValueProps: string[];              // filtered valueProps
+  hasMultipleValueProps: boolean;             // convenience flag
+  ineffectiveDisaggregators: {                // what was stripped and why
+    disOpt: DisaggregationOption;
+    reason: "filtered_to_one_value" | "single_period" | "single_year";
+  }[];
+};
+
+function getEffectivePOConfig(
+  config: PresentationObjectConfig,
+  context?: {
+    dateRange?: { min: number; max: number };
+    valueProps?: string[];
+  }
+): EffectivePOConfigResult
+```
+
+Strips disaggregators that are semantically invisible:
 - Any `disaggregateBy` entry where `filterBy` has exactly one value for the same `disOpt`
+- Time columns when `dateRange.min === dateRange.max` (single period)
+- `year` when dateRange spans a single year
 
 Used by:
-- `hasDuplicateDisaggregatorDisplayOptions()` — prevents false "duplicate display option" errors
-- Editor UI `allowedDisaggregationOptions()` — hides single-value disaggregators
-- Renderer — combined with runtime dateRange stripping
+- `hasDuplicateDisaggregatorDisplayOptions()` — uses `.config` to prevent false "duplicate display option" errors
+- Editor UI — uses `ineffectiveDisaggregators` to show disabled state with explanation
+- Renderer — uses `.config` and `effectiveValueProps` for data config builders
 
 ### Data flow
 
@@ -457,32 +480,27 @@ All merged into `labelReplacementsAfterSorting` so sort order is based on raw va
 
 ## Single-value stripping
 
-A disaggregation that resolves to exactly one value is display-noise: it can't actually split anything. There are two stripping mechanisms:
+A disaggregation that resolves to exactly one value is display-noise: it can't actually split anything.
 
-### Static stripping (via `getEffectiveConfig`)
+### Unified stripping (via `getEffectivePOConfig`)
 
 **File**: [lib/normalize_po_config.ts](lib/normalize_po_config.ts)
 
-Strips disaggregators where `config.d.filterBy` has exactly one value for the same `disOpt`. This is purely config-based — no runtime data needed.
+All stripping logic is consolidated in `getEffectivePOConfig(config, context?)`. It handles both static and runtime cases:
 
-Used before:
-- `hasDuplicateDisaggregatorDisplayOptions()` checks (prevents false conflicts)
-- Editor UI `allowedDisaggregationOptions()` (hides single-value disaggregators)
+**Static (config-based):**
+- Disaggregators where `config.d.filterBy` has exactly one value for the same `disOpt`
 
-### Runtime stripping (in renderer)
-
-**File**: [client/src/generate_visualization/get_figure_inputs_from_po.ts](client/src/generate_visualization/get_figure_inputs_from_po.ts)
-
-Adds runtime-aware stripping based on the actual data:
-
-- All time columns when `dateRange.min === dateRange.max`
+**Runtime (dateRange-based, when `context.dateRange` provided):**
+- All time columns when `dateRange.min === dateRange.max` (single period)
 - `year` specifically when the dateRange spans a single year
 
-The renderer starts with `getEffectiveConfig(config)`, then applies these runtime rules.
+The function returns `ineffectiveDisaggregators` with the reason for each stripped disaggregator, enabling the editor UI to show disabled state with explanations ("Disabled: filtered to single value", "Disabled: only one time period in range", etc.)
 
-### Why two phases?
-
-Static stripping handles filter-based single values (known from config alone). Runtime stripping handles data-based single values (only known after fetching). Both are needed for correct display.
+**Callers:**
+- Editor: passes `resolvedPeriodBounds()` as `dateRange` context
+- Renderer: passes `ih.dateRange` from fetched data as context
+- Duplicate check: can omit context when only static stripping is needed
 
 ---
 
