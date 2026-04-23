@@ -49,6 +49,13 @@ export const projectRouteRegistry = {
     requiresProject: true,
   }),
 
+  restoreProject: route({
+    path: "/project/:project_id/restore",
+    method: "POST",
+    params: {} as { project_id: string },
+    requiresProject: true,
+  }),
+
   setProjectLockStatus: route({
     path: "/project/:project_id/lock",
     method: "POST",

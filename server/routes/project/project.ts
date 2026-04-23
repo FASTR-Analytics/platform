@@ -9,6 +9,7 @@ import {
   copyProjectSync,
   copyProjectInBackground,
   deleteProject,
+  restoreProject,
   getProjectDetail,
   getProjectUserPermissions,
   removeDatasetFromProject,
@@ -290,6 +291,20 @@ defineRoute(
     const res = await deleteProject(c.var.mainDb, params.project_id);
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesProject,
+  "restoreProject",
+  requireProjectPermission({ requireAdmin: true }),
+  log("restoreProject"),
+  async (c, { params }) => {
+    const res = await restoreProject(c.var.mainDb, params.project_id);
+    if (res.success) {
+      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
     }
     return c.json(res);
   },
