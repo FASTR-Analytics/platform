@@ -89,6 +89,11 @@ export async function migrateProjectReports(
   let processedItems = 0;
 
   for (const { report, items, itemIdsInOrder } of reportDataList) {
+    if (itemIdsInOrder.length === 0) {
+      addLog(`Skipping "${report.label}": no slides`);
+      continue;
+    }
+
     const deckRes = await serverActions.createSlideDeck({
       projectId,
       label: report.label || "Untitled",

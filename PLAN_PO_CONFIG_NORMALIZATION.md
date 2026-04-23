@@ -13,8 +13,13 @@ Two normalization functions:
 
 | Function                      | Purpose                                       | Where                      |
 |-------------------------------|-----------------------------------------------|----------------------------|
-| `normalizePOConfigForStorage` | Strip empty filters before save               | Client only                |
+| `normalizePOConfigForStorage` | Strip empty filters before save               | Client (save paths)        |
 | `getEffectivePOConfig`        | Strip single-value disaggregators for display | Client (editor + renderer) |
+
+`getEffectivePOConfig` takes an optional `dateRange` parameter:
+
+- **Without dateRange** (editor): strips filterBy-based single values only
+- **With dateRange** (renderer): also strips time dimensions when period/year is single
 
 **Design principle**: Client normalizes, server validates. Server does NOT normalize — if invalid data reaches the server, Zod rejects it and we fix the client bug.
 
@@ -40,16 +45,29 @@ export function normalizePOConfigForStorage(
   };
 }
 
+const TIME_COLUMNS = new Set(["period_id", "quarter_id", "year", "month"]);
+
 export function getEffectivePOConfig(
-  config: PresentationObjectConfig
+  config: PresentationObjectConfig,
+  dateRange?: { min: number; max: number }
 ): PresentationObjectConfig {
+  const singlePeriod = dateRange && dateRange.min === dateRange.max;
+  const singleYear = dateRange && Math.floor(dateRange.min / 100) === Math.floor(dateRange.max / 100);
+
   return {
     ...config,
     d: {
       ...config.d,
       disaggregateBy: config.d.disaggregateBy.filter((d) => {
+        // Static: filterBy has exactly 1 value
         const filter = config.d.filterBy.find((f) => f.disOpt === d.disOpt);
-        return !filter || filter.values.length !== 1;
+        if (filter && filter.values.length === 1) return false;
+
+        // Runtime: dateRange-based (only if provided)
+        if (singlePeriod && TIME_COLUMNS.has(d.disOpt)) return false;
+        if (singleYear && d.disOpt === "year") return false;
+
+        return true;
       }),
     },
   };
@@ -64,19 +82,51 @@ Export from `lib/mod.ts`.
 
 **File**: `client/src/components/visualization/visualization_editor_inner.tsx`
 
-Two changes:
+Three save paths need normalization, plus the duplicate check needs effective config.
 
-**a) Normalize before save** (~line 286 in saveFunc):
+**a) Add helper function** (near top of component):
+
+```ts
+function getConfigForSave() {
+  return normalizePOConfigForStorage(unwrap(tempConfig));
+}
+```
+
+**b) Normalize in `saveAsNewVisualization`** (~line 254):
 
 ```ts
 // Before
 const unwrappedTempConfig = unwrap(tempConfig);
 
 // After
-const unwrappedTempConfig = normalizePOConfigForStorage(unwrap(tempConfig));
+const unwrappedTempConfig = getConfigForSave();
 ```
 
-**b) Use effective config for duplicate check** (~line 786):
+**c) Normalize in `saveFunc`** (~line 286):
+
+```ts
+// Before
+const unwrappedTempConfig = unwrap(tempConfig);
+
+// After
+const unwrappedTempConfig = getConfigForSave();
+```
+
+**d) Normalize in ephemeral mode return** (~line 629):
+
+```ts
+// Before
+(p.onClose as (result: EphemeralModeReturn) => void)({
+  updated: { config: unwrap(tempConfig) },
+})
+
+// After
+(p.onClose as (result: EphemeralModeReturn) => void)({
+  updated: { config: getConfigForSave() },
+})
+```
+
+**e) Use effective config for duplicate check** (~line 786):
 
 ```ts
 // Before
@@ -92,10 +142,13 @@ const unwrappedTempConfig = normalizePOConfigForStorage(unwrap(tempConfig));
 
 **File**: `client/src/generate_visualization/get_figure_inputs_from_po.ts`
 
-Use `getEffectivePOConfig` as base, then apply runtime stripping (~lines 54-70):
+Replace manual stripping with single function call (~lines 54-70):
 
 ```ts
 // Before
+const TIME_COLUMNS = new Set(["period_id", "quarter_id", "year", "month"]);
+const singlePeriod = ih.dateRange && ih.dateRange.min === ih.dateRange.max;
+const singleYear = ih.dateRange && Math.floor(ih.dateRange.min / 100) === Math.floor(ih.dateRange.max / 100);
 const effectiveConfig: PresentationObjectConfig = {
   ...config,
   d: {
@@ -110,19 +163,10 @@ const effectiveConfig: PresentationObjectConfig = {
 };
 
 // After
-const baseEffective = getEffectivePOConfig(config);
-const effectiveConfig: PresentationObjectConfig = {
-  ...baseEffective,
-  d: {
-    ...baseEffective.d,
-    disaggregateBy: baseEffective.d.disaggregateBy.filter((d) => {
-      if (singlePeriod && TIME_COLUMNS.has(d.disOpt)) return false;
-      if (singleYear && d.disOpt === "year") return false;
-      return true;
-    }),
-  },
-};
+const effectiveConfig = getEffectivePOConfig(config, ih.dateRange);
 ```
+
+Remove the `TIME_COLUMNS`, `singlePeriod`, `singleYear` local variables — they're now inside `getEffectivePOConfig`.
 
 ---
 
@@ -150,10 +194,12 @@ Update comment (lines 12-14):
 
 ### Manual tests
 
-1. **Empty filter save**: Enable filter checkbox → don't select values → save → should succeed (filter stripped)
-2. **Single-value conflict**: Add disaggregator A on "row" → filter A to 1 value → add disaggregator B on "row" → should work (no duplicate error)
-3. **Render correctness**: Viz with single-value filter should not show that dimension in legend/axes
-4. **Preference preservation**: Filter to 1 value → save → remove filter → disaggregator should reappear with original `disDisplayOpt`
+1. **Empty filter save (update)**: Enable filter checkbox → don't select values → save → should succeed (filter stripped)
+2. **Empty filter save (create new)**: Same as above, but use "Save as new visualization" → should succeed
+3. **Empty filter save (ephemeral/slides)**: Edit viz in slide editor → enable filter without values → apply → should succeed
+4. **Single-value conflict**: Add disaggregator A on "row" → filter A to 1 value → add disaggregator B on "row" → should work (no duplicate error)
+5. **Render correctness**: Viz with single-value filter should not show that dimension in legend/axes
+6. **Preference preservation**: Filter to 1 value → save → remove filter → disaggregator should reappear with original `disDisplayOpt`
 
 ### Edge cases
 
@@ -165,4 +211,7 @@ Update comment (lines 12-14):
 
 ## Rollback
 
-Revert the 3 client file changes. The functions in `normalize_po_config.ts` are isolated and have no side effects.
+1. Revert changes to `visualization_editor_inner.tsx` and `get_figure_inputs_from_po.ts`
+2. Delete `lib/normalize_po_config.ts`
+3. Remove export from `lib/mod.ts`
+4. Comment update in `get_disaggregator_display_prop.ts` can stay or revert
