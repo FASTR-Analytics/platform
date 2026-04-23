@@ -38,52 +38,9 @@ interface CachedConnection {
 }
 
 const _CACHED_CONNECTIONS = new Map<string, CachedConnection>();
-const MAX_IDLE_TIME_MS = 15 * 60 * 1000; // 15 minutes
-
-// Cleanup interval reference
-let cleanupInterval: number | undefined;
-
-/**
- * Start periodic cleanup of stale connections
- */
-function startCleanupInterval() {
-  if (!cleanupInterval) {
-    cleanupInterval = setInterval(() => {
-      cleanupStaleConnections().catch(console.error);
-    }, 60 * 1000); // Run every minute
-  }
-}
-
-/**
- * Clean up idle connections
- */
-async function cleanupStaleConnections() {
-  const now = Date.now();
-  const toRemove: string[] = [];
-
-  for (const [key, conn] of _CACHED_CONNECTIONS.entries()) {
-    const idleTime = now - conn.lastUsed.getTime();
-    if (idleTime > MAX_IDLE_TIME_MS) {
-      toRemove.push(key);
-    }
-  }
-
-  for (const key of toRemove) {
-    const conn = _CACHED_CONNECTIONS.get(key);
-    if (conn) {
-      const currentIdleTime = Date.now() - conn.lastUsed.getTime();
-      if (currentIdleTime <= MAX_IDLE_TIME_MS) {
-        continue;
-      }
-      _CACHED_CONNECTIONS.delete(key);
-      try {
-        await conn.sql.end();
-      } catch (e) {
-        console.error(`Error closing connection for ${key}:`, e);
-      }
-    }
-  }
-}
+// Note: Manual cleanup removed - postgres.js idle_timeout (300s) handles connection lifecycle safely.
+// Manual cleanup caused crashes by calling end() on pools with in-flight queries.
+// See DIAGNOSIS_CONNECTION_ENDED.md for history.
 
 /**
  * Get a PostgreSQL connection with specific options
@@ -112,8 +69,6 @@ export function getPgConnectionFromCacheOrNew(
   permissions: "READ_ONLY" | "READ_AND_WRITE"
 ): Sql {
   try {
-    startCleanupInterval();
-
     const key = `${id}_${permissions}`;
     const cached = _CACHED_CONNECTIONS.get(key);
 
@@ -172,11 +127,6 @@ export async function closePgConnection(
  * Close all connections and clean up
  */
 export async function closeAllConnections(): Promise<void> {
-  if (cleanupInterval) {
-    clearInterval(cleanupInterval);
-    cleanupInterval = undefined;
-  }
-
   const connections = [..._CACHED_CONNECTIONS.entries()];
   _CACHED_CONNECTIONS.clear();
   await Promise.all(
