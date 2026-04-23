@@ -1,3 +1,9 @@
+[TBD] [user] [added] - Admins can migrate old presentation reports to the new slides system
+[TBD] [admin] [added] - Bulk migration tool for converting old reports to new slides system
+[TBD] [admin] [added] - Data Migration section in Instance Settings page
+[TBD] [admin] [added] - Progress tracking with per-project and per-item status during migration
+[TBD] [admin] [added] - Migrated reports are organized into a timestamped folder automatically
+[TBD] [admin] [added] - Error and activity logs displayed during migration for transparency
 [TBD] [user] [fixed] - Fixed rare crashes during data queries
 [TBD] [admin] [fixed] - Resolved rare crashes caused by database connections closing unexpectedly
 [1.24.0] [user] [changed] - Module update dialog now shows exactly what changed with clear labels
