@@ -1,4 +1,5 @@
-import postgres, { Sql } from "postgres";
+import postgres from "postgres";
+import { Sql } from "postgres";
 import { _PG_HOST, _PG_PASSWORD, _PG_PORT } from "../../exposed_env_vars.ts";
 
 /**

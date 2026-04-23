@@ -14,15 +14,15 @@ Related: [DOC_period_column_handling.md](DOC_period_column_handling.md) covers t
 
 ## Where this matters
 
-| Area | What needs answering |
-|------|---------------------|
-| **Editor UI** | Show/hide disaggregation controls |
-| **Renderer** | Which dimensions to actually draw |
-| **Display prop resolution** | Which dimension occupies row/col/series |
-| **Duplicate detection** | Are two effective dimensions claiming the same slot |
-| **Data fetching** | What columns to request |
-| **Saving** | Strip empty filters, preserve user intent |
-| **Validation** | Zod rejects invalid shapes |
+| Area                        | What needs answering                                |
+|-----------------------------|-----------------------------------------------------|
+| **Editor UI**               | Show/hide disaggregation controls                   |
+| **Renderer**                | Which dimensions to actually draw                   |
+| **Display prop resolution** | Which dimension occupies row/col/series             |
+| **Duplicate detection**     | Are two effective dimensions claiming the same slot |
+| **Data fetching**           | What columns to request                             |
+| **Saving**                  | Strip empty filters, preserve user intent           |
+| **Validation**              | Zod rejects invalid shapes                          |
 
 ---
 
@@ -30,12 +30,12 @@ Related: [DOC_period_column_handling.md](DOC_period_column_handling.md) covers t
 
 The config has two types of "disaggregatable things" that follow the same pattern:
 
-| | Disaggregation dimensions | Values dimension |
-|--|---------------------------|------------------|
-| Available | Results object `.disaggregationOptions` | Results object `.valueProps` |
-| Enabled | `config.d.disaggregateBy[]` | `config.d.valuesDisDisplayOpt` |
-| Filtered | `config.d.filterBy[]` | `config.d.valuesFilter` |
-| Effective | Enabled AND filtered > 1 value | Enabled AND filtered > 1 value |
+|           | Disaggregation dimensions               | Values dimension               |
+|-----------|-----------------------------------------|--------------------------------|
+| Available | Results object `.disaggregationOptions` | Results object `.valueProps`   |
+| Enabled   | `config.d.disaggregateBy[]`             | `config.d.valuesDisDisplayOpt` |
+| Filtered  | `config.d.filterBy[]`                   | `config.d.valuesFilter`        |
+| Effective | Enabled AND filtered > 1 value          | Enabled AND filtered > 1 value |
 
 Same pattern, currently separate code paths.
 
@@ -95,11 +95,11 @@ Each dimension is either **available** (column exists, config enables it) or **n
 
 A `PresentationObjectConfig` exists in three conceptual states as it flows through the system:
 
-| State | Description | Characteristics |
-|-------|-------------|-----------------|
-| **UI Config** | Raw user edits in the editor | May have transient invalid states (e.g., filter enabled but no values selected) |
-| **Storage Config** | Normalized for persistence | Passes Zod validation; structurally valid |
-| **Effective Config** | Ready for display/validation | Strips semantically redundant disaggregators |
+| State                | Description                  | Characteristics                                                                 |
+|----------------------|------------------------------|---------------------------------------------------------------------------------|
+| **UI Config**        | Raw user edits in the editor | May have transient invalid states (e.g., filter enabled but no values selected) |
+| **Storage Config**   | Normalized for persistence   | Passes Zod validation; structurally valid                                       |
+| **Effective Config** | Ready for display/validation | Strips semantically redundant disaggregators                                    |
 
 ### Why three states?
 
@@ -128,7 +128,7 @@ Does NOT strip disaggregators — user's display option preferences are preserve
 
 Called before display/validation. Returns a result object with the stripped config plus metadata about what was stripped:
 
-```ts
+```tsw
 type EffectivePOConfigResult = {
   config: PresentationObjectConfig;           // stripped config for rendering
   effectiveValueProps: string[];              // filtered valueProps
@@ -166,7 +166,7 @@ Used by:
 │                                                                             │
 │   tempConfig (UI state)                                                     │
 │        │                                                                    │
-│        ├──► getEffectiveConfig() ──► hasDuplicateDisaggregatorDisplayOptions()
+│        ├──► getEffectivePOConfig() ──► hasDuplicateDisaggregatorDisplayOptions()
 │        │                                                                    │
 │        └──► normalizeConfigForStorage() ──► server save                     │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -184,7 +184,7 @@ Used by:
 │                                                                             │
 │   config (from DB)                                                          │
 │        │                                                                    │
-│        └──► getEffectiveConfig() ──► + runtime dateRange stripping          │
+│        └──► getEffectivePOConfig() ──► + runtime dateRange stripping          │
 │                                             │                               │
 │                                             └──► effectiveConfig            │
 │                                                       │                     │
@@ -204,14 +204,14 @@ The full union of disaggregation option values lives in [lib/types/disaggregatio
 
 Grouped by semantic category:
 
-| Category | Values | Source |
-|----------|--------|--------|
-| **Admin area (spatial)** | `admin_area_2`, `admin_area_3`, `admin_area_4` | RO table column (physical) |
-| **Time** | `period_id`, `quarter_id`, `year`, `month` | RO table column, sometimes derived (see [DOC_period_column_handling.md](DOC_period_column_handling.md)) |
-| **Indicator** | `indicator_common_id`, `source_indicator`, `target_population`, `ratio_type` | RO table column (physical) |
-| **Denominator** | `denominator`, `denominator_best_or_survey` | RO table column (physical) |
-| **Facility** | `facility_name`, `facility_type`, `facility_ownership`, `facility_custom_1` through `facility_custom_5` | RO table has `facility_id`; values resolved via JOIN to `facilities` table; gated by instance config |
-| **HFA** | `hfa_indicator`, `hfa_category`, `time_point` | HFA-dataset-specific RO columns |
+| Category                 | Values                                                                                                  | Source                                                                                                  |
+|--------------------------|---------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| **Admin area (spatial)** | `admin_area_2`, `admin_area_3`, `admin_area_4`                                                          | RO table column (physical)                                                                              |
+| **Time**                 | `period_id`, `quarter_id`, `year`, `month`                                                              | RO table column, sometimes derived (see [DOC_period_column_handling.md](DOC_period_column_handling.md)) |
+| **Indicator**            | `indicator_common_id`, `source_indicator`, `target_population`, `ratio_type`                            | RO table column (physical)                                                                              |
+| **Denominator**          | `denominator`, `denominator_best_or_survey`                                                             | RO table column (physical)                                                                              |
+| **Facility**             | `facility_name`, `facility_type`, `facility_ownership`, `facility_custom_1` through `facility_custom_5` | RO table has `facility_id`; values resolved via JOIN to `facilities` table; gated by instance config    |
+| **HFA**                  | `hfa_indicator`, `hfa_category`, `time_point`                                                           | HFA-dataset-specific RO columns                                                                         |
 
 No single enum/union encodes the category — it's structural. Code that cares (enricher, possible-values query, facility-gating logic) uses explicit `if`/`in` tests.
 
@@ -367,11 +367,11 @@ Values come back as raw strings with no label resolution. Display labels are app
 
 The three ways a disOpt participates in a visualization, each stored separately in `config.d`:
 
-| Mechanism | Config field | Effect | UI component |
-|-----------|--------------|--------|--------------|
-| **Filter** | `filterBy: [{ disOpt, values }]` | WHERE clause — rows not matching are excluded from the query | [_2_filters.tsx](client/src/components/visualization/presentation_object_editor_panel_data/_2_filters.tsx) |
-| **Disaggregate** | `disaggregateBy: [{ disOpt, disDisplayOpt }]` | Splits the data along this dimension within one figure — assigned to an axis (row/col/series/cell/…) | [_3_disaggregation.tsx](client/src/components/visualization/presentation_object_editor_panel_data/_3_disaggregation.tsx) |
-| **Replicant** | `disaggregateBy: [{ disOpt, disDisplayOpt: "replicant" }]` + `selectedReplicantValue: string` | Produces separate figures, one per value. Only one disOpt can be the replicant at a time. | Same component, special `disDisplayOpt` slot |
+| Mechanism        | Config field                                                                                  | Effect                                                                                               | UI component                                                                                                             |
+|------------------|-----------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| **Filter**       | `filterBy: [{ disOpt, values }]`                                                              | WHERE clause — rows not matching are excluded from the query                                         | [_2_filters.tsx](client/src/components/visualization/presentation_object_editor_panel_data/_2_filters.tsx)               |
+| **Disaggregate** | `disaggregateBy: [{ disOpt, disDisplayOpt }]`                                                 | Splits the data along this dimension within one figure — assigned to an axis (row/col/series/cell/…) | [_3_disaggregation.tsx](client/src/components/visualization/presentation_object_editor_panel_data/_3_disaggregation.tsx) |
+| **Replicant**    | `disaggregateBy: [{ disOpt, disDisplayOpt: "replicant" }]` + `selectedReplicantValue: string` | Produces separate figures, one per value. Only one disOpt can be the replicant at a time.            | Same component, special `disDisplayOpt` slot                                                                             |
 
 A single disOpt can appear in **both** `disaggregateBy` and `filterBy` — filter to a subset of values, then split across the remaining ones.
 
@@ -397,16 +397,16 @@ Single-replicant-per-viz is enforced by the UI (toggling another replicant clear
 **File**: [lib/types/presentation_objects.ts](lib/types/presentation_objects.ts) — `VIZ_TYPE_CONFIG` defines which display options each viz type supports, plus a fallback map for conversions.
 
 | `disDisplayOpt` | timeseries | table | chart | map |
-|---|:---:|:---:|:---:|:---:|
-| `series` | ✓ | – | ✓ | – |
-| `row` | ✓ | ✓ | ✓ | ✓ |
-| `rowGroup` | – | ✓ | – | – |
-| `col` | ✓ | ✓ | ✓ | ✓ |
-| `colGroup` | – | ✓ | – | – |
-| `cell` | ✓ | – | ✓ | ✓ |
-| `indicator` | – | – | ✓ | – |
-| `replicant` | ✓ | ✓ | ✓ | ✓ |
-| `mapArea` | – | – | – | ✓ |
+|-----------------|:----------:|:-----:|:-----:|:---:|
+| `series`        |     ✓      |   –   |   ✓   |  –  |
+| `row`           |     ✓      |   ✓   |   ✓   |  ✓  |
+| `rowGroup`      |     –      |   ✓   |   –   |  –  |
+| `col`           |     ✓      |   ✓   |   ✓   |  ✓  |
+| `colGroup`      |     –      |   ✓   |   –   |  –  |
+| `cell`          |     ✓      |   –   |   ✓   |  ✓  |
+| `indicator`     |     –      |   –   |   ✓   |  –  |
+| `replicant`     |     ✓      |   ✓   |   ✓   |  ✓  |
+| `mapArea`       |     –      |   –   |   –   |  ✓  |
 
 Semantic meaning per type (user-facing labels come from `get_DISAGGREGATION_DISPLAY_OPTIONS()`):
 
@@ -417,7 +417,7 @@ Semantic meaning per type (user-facing labels come from `get_DISAGGREGATION_DISP
 
 **The reverse-lookup helper** — `getDisaggregatorDisplayProp()` in [lib/get_disaggregator_display_prop.ts](lib/get_disaggregator_display_prop.ts) — answers "which disOpt was assigned to a given display slot (e.g. `row`)?" The renderer calls this per axis to build the data config. A special return value `"--v"` means "show the value props here" rather than a disOpt (used when `valuesDisDisplayOpt` points to this axis *and* the metric has multiple value props).
 
-**Required dedup**: the UI permits only one disOpt per `disDisplayOpt` slot. `hasDuplicateDisaggregatorDisplayOptions()` is checked before rendering. **Important**: this check must receive an *effective* config (via `getEffectiveConfig()`) so that single-value disaggregators are excluded — otherwise a hidden disaggregator can conflict with a visible one.
+**Required dedup**: the UI permits only one disOpt per `disDisplayOpt` slot. `hasDuplicateDisaggregatorDisplayOptions()` is checked before rendering. **Important**: this check must receive an *effective* config (via `getEffectivePOConfig()`) so that single-value disaggregators are excluded — otherwise a hidden disaggregator can conflict with a visible one.
 
 ---
 
@@ -625,7 +625,7 @@ A user opens a metric with required disaggregation `indicator_common_id`, builds
 
 **Client render** (chart viz):
 
-- `getFigureInputsFromPresentationObject` calls `getEffectiveConfig(config)` — no changes (no single-value filters).
+- `getFigureInputsFromPresentationObject` calls `getEffectivePOConfig(config, { dateRange, valueProps })` to get effective config and valueProps.
 - Applies runtime stripping — no changes (dateRange spans multiple periods).
 - [get_data_config_from_po.ts](client/src/generate_visualization/get_data_config_from_po.ts) maps `indicator → indicatorProp`, generates N bars per region.
 - Renders three separate figures (one per region from replicant), each with bars for each indicator.
@@ -650,7 +650,7 @@ The column has >50 distinct values. `status: "too_many_values"`. Either accept t
 
 ### "Duplicate display option" error with hidden disaggregator
 
-If disaggregator A is on "row" and filtered to one value (making it invisible in the UI), adding disaggregator B on "row" should work — the duplicate check uses `getEffectiveConfig()` to strip single-value disaggregators. If you still see this error, ensure the duplicate check is receiving an effective config, not the raw config.
+If disaggregator A is on "row" and filtered to one value (making it invisible in the UI), adding disaggregator B on "row" should work — the duplicate check uses `getEffectivePOConfig()` to strip single-value disaggregators. If you still see this error, ensure the duplicate check is receiving an effective config, not the raw config.
 
 ### A stored viz config references a disOpt no longer available
 

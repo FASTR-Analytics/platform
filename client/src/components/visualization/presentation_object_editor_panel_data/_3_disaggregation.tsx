@@ -31,13 +31,15 @@ export function DisaggregationSection(p: DisaggregationSectionProps) {
 
   return (
     <div class="ui-spy-sm">
-      <div class="text-md font-700">{t3({ en: "Display (disaggregate)", fr: "Affichage (désagréger)" })}</div>
+      <div class="text-md font-700">
+        {t3({ en: "Display (disaggregate)", fr: "Affichage (désagréger)" })}
+      </div>
 
       <Show when={p.poDetail.resultsValue.valueProps.length > 1}>
         <Show
           when={p.hasMultipleValueProps}
           fallback={
-            <div class="ui-spy-sm pb-4">
+            <div class="pb-4">
               <Checkbox
                 label={t3({ en: "Data values", fr: "Valeurs des données" })}
                 checked={true}
@@ -45,9 +47,9 @@ export function DisaggregationSection(p: DisaggregationSectionProps) {
                 onChange={() => {}}
               />
               <Show when={hasValuesFilter()}>
-                <div class="text-xs text-warning pl-4">
+                <span class="text-warning pl-7 text-xs">
                   {t3(TC.disaggregation_disabled_filtered_to_one)}
-                </div>
+                </span>
               </Show>
             </div>
           }
@@ -87,9 +89,16 @@ function DataValuesDisaggregation(p: DataValuesDisaggregationProps) {
         label={
           <>
             <div class="flex flex-wrap items-center gap-x-1">
-              <span class="">{t3({ en: "Data values", fr: "Valeurs des données" })}</span>
+              <span class="">
+                {t3({ en: "Data values", fr: "Valeurs des données" })}
+              </span>
               <span class="text-xs">
-                ({t3({ en: "Required for this visualization", fr: "Nécessaire pour cette visualisation" })})
+                (
+                {t3({
+                  en: "Required for this visualization",
+                  fr: "Nécessaire pour cette visualisation",
+                })}
+                )
               </span>
             </div>
           </>
@@ -144,14 +153,14 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
     <Switch>
       <Match when={ineffective()} keyed>
         {(ineff) => (
-          <div class="ui-spy-sm">
+          <div class="">
             <Checkbox
               label={t3(getDisplayDisaggregationLabel(p.disOpt.value))}
               checked={false}
               disabled={true}
               onChange={() => {}}
             />
-            <div class="text-xs text-warning pl-4">
+            <div class="text-warning pl-7 text-xs">
               {t3(getReasonMessage(ineff.reason))}
             </div>
           </div>
@@ -210,9 +219,16 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
           <Checkbox
             label={
               <div class="flex flex-wrap items-center gap-x-1">
-                <span class="">{t3(getDisplayDisaggregationLabel(p.disOpt.value))}</span>
+                <span class="">
+                  {t3(getDisplayDisaggregationLabel(p.disOpt.value))}
+                </span>
                 <span class="text-xs">
-                  ({t3({ en: "Required for this visualization", fr: "Nécessaire pour cette visualisation" })})
+                  (
+                  {t3({
+                    en: "Required for this visualization",
+                    fr: "Nécessaire pour cette visualisation",
+                  })}
+                  )
                 </span>
               </div>
             }
@@ -226,7 +242,10 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
             )}
             fallback={
               <div class="text-danger">
-                {t3({ en: "Error with required disaggregator", fr: "Erreur avec le désagrégateur requis" })}
+                {t3({
+                  en: "Error with required disaggregator",
+                  fr: "Erreur avec le désagrégateur requis",
+                })}
               </div>
             }
             keyed
@@ -298,7 +317,10 @@ function AdminAreaOptions(p: AdminAreaOptionsProps) {
   return (
     <div class="text-right">
       <Checkbox
-        label={t3({ en: "Include National results", fr: "Inclure les résultats nationaux" })}
+        label={t3({
+          en: "Include National results",
+          fr: "Inclure les résultats nationaux",
+        })}
         checked={!!p.tempConfig.d.includeNationalForAdminArea2}
         onChange={(v) =>
           p.setTempConfig("d", "includeNationalForAdminArea2", v)
