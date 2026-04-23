@@ -247,6 +247,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
   }
 
   function nextWrite(fn) {
+    if (chunk === null) return true
     const x = socket.write(chunk, fn)
     nextWriteTimer !== null && clearImmediate(nextWriteTimer)
     chunk = nextWriteTimer = null

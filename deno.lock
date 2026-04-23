@@ -7,6 +7,7 @@
     "jsr:@hono/hono@^4.5.3": "4.6.12",
     "jsr:@std/assert@0.214": "0.214.0",
     "jsr:@std/assert@0.217": "0.217.0",
+    "jsr:@std/assert@1.0.0": "1.0.0",
     "jsr:@std/async@^1.0.9": "1.0.11",
     "jsr:@std/bytes@^1.0.0-rc.3": "1.0.4",
     "jsr:@std/bytes@^1.0.3": "1.0.4",
@@ -19,6 +20,7 @@
     "jsr:@std/fs@0.214": "0.214.0",
     "jsr:@std/fs@0.217.0": "0.217.0",
     "jsr:@std/fs@1": "1.0.19",
+    "jsr:@std/internal@^1.0.1": "1.0.10",
     "jsr:@std/internal@^1.0.10": "1.0.10",
     "jsr:@std/internal@^1.0.9": "1.0.10",
     "jsr:@std/path@0.214": "0.214.0",
@@ -88,6 +90,12 @@
     },
     "@std/assert@0.217.0": {
       "integrity": "c98e279362ca6982d5285c3b89517b757c1e3477ee9f14eb2fdf80a45aaa9642"
+    },
+    "@std/assert@1.0.0": {
+      "integrity": "0e4f6d873f7f35e2a1e6194ceee39686c996b9e5d134948e644d35d4c4df2008",
+      "dependencies": [
+        "jsr:@std/internal@^1.0.1"
+      ]
     },
     "@std/async@1.0.11": {
       "integrity": "eee0d3405275506638a9c8efaa849cf0d35873120c69b7caa1309c9a9e5b6f85"

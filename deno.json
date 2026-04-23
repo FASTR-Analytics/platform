@@ -2,7 +2,7 @@
   "workspace": ["panther"],
   "nodeModulesDir": "auto",
   "links": ["./vendor/postgres"],
-  "fmt": {
+    "fmt": {
     "exclude": ["client/"]
   },
   "lint": {
