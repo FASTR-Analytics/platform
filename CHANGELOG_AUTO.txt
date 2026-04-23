@@ -1,33 +1,33 @@
-[TBD] [user] [fixed] - Improved spacing and alignment in disaggregation panel options
-[TBD] [user] [added] - Explanations shown when disaggregation options are automatically disabled
-[TBD] [user] [fixed] - Disaggregation options now correctly reflect active filters and date ranges
-[TBD] [admin] [added] - Disaggregation options now show reasons when disabled
-[TBD] [admin] [changed] - Visualizations automatically clean up ineffective settings before saving
-[TBD] [admin] [fixed] - Project deletion scheduled date now visible in project list
-[TBD] [admin] [fixed] - Resolved merge conflict in project listing code
-[TBD] [user] [fixed] - Empty reports no longer cause errors during project migration
-[TBD] [admin] [fixed] - Empty reports are now skipped during project migration
-[TBD] [user] [added] - Deleted projects now have a 30-day recovery period before permanent removal
-[TBD] [user] [added] - Admins can view and manage projects pending deletion
-[TBD] [user] [added] - Admins can restore projects that were scheduled for deletion
-[TBD] [user] [added] - Admins can permanently delete projects immediately if needed
-[TBD] [user] [changed] - Projects pending deletion are hidden from the main project list
-[TBD] [admin] [added] - Deleting a project now schedules deletion in 30 days instead of removing it immediately
-[TBD] [admin] [added] - Global admins can view and manage projects pending deletion from the home screen
-[TBD] [admin] [added] - Projects pending deletion can be restored by global admins
-[TBD] [admin] [added] - Global admins can permanently delete a project immediately, bypassing the 30-day wait
-[TBD] [admin] [added] - Projects pending deletion are hidden from the main project list
-[TBD] [admin] [added] - Cache status tab shows Valkey connection and per-visualization cache state
-[TBD] [admin] [fixed] - Backup restore now correctly identifies the target project
-[TBD] [admin] [internal] - Expired projects are automatically purged after their scheduled deletion date
-[TBD] [user] [added] - Admins can migrate old presentation reports to the new slides system
-[TBD] [admin] [added] - Bulk migration tool for converting old reports to new slides system
-[TBD] [admin] [added] - Data Migration section in Instance Settings page
-[TBD] [admin] [added] - Progress tracking with per-project and per-item status during migration
-[TBD] [admin] [added] - Migrated reports are organized into a timestamped folder automatically
-[TBD] [admin] [added] - Error and activity logs displayed during migration for transparency
-[TBD] [user] [fixed] - Fixed rare crashes during data queries
-[TBD] [admin] [fixed] - Resolved rare crashes caused by database connections closing unexpectedly
+[1.26.0] [user] [fixed] - Improved spacing and alignment in disaggregation panel options
+[1.26.0] [user] [added] - Explanations shown when disaggregation options are automatically disabled
+[1.26.0] [user] [fixed] - Disaggregation options now correctly reflect active filters and date ranges
+[1.26.0] [admin] [added] - Disaggregation options now show reasons when disabled
+[1.26.0] [admin] [changed] - Visualizations automatically clean up ineffective settings before saving
+[1.26.0] [admin] [fixed] - Project deletion scheduled date now visible in project list
+[1.26.0] [admin] [fixed] - Resolved merge conflict in project listing code
+[1.26.0] [user] [fixed] - Empty reports no longer cause errors during project migration
+[1.26.0] [admin] [fixed] - Empty reports are now skipped during project migration
+[1.26.0] [user] [added] - Deleted projects now have a 30-day recovery period before permanent removal
+[1.26.0] [user] [added] - Admins can view and manage projects pending deletion
+[1.26.0] [user] [added] - Admins can restore projects that were scheduled for deletion
+[1.26.0] [user] [added] - Admins can permanently delete projects immediately if needed
+[1.26.0] [user] [changed] - Projects pending deletion are hidden from the main project list
+[1.26.0] [admin] [added] - Deleting a project now schedules deletion in 30 days instead of removing it immediately
+[1.26.0] [admin] [added] - Global admins can view and manage projects pending deletion from the home screen
+[1.26.0] [admin] [added] - Projects pending deletion can be restored by global admins
+[1.26.0] [admin] [added] - Global admins can permanently delete a project immediately, bypassing the 30-day wait
+[1.26.0] [admin] [added] - Projects pending deletion are hidden from the main project list
+[1.26.0] [admin] [added] - Cache status tab shows Valkey connection and per-visualization cache state
+[1.26.0] [admin] [fixed] - Backup restore now correctly identifies the target project
+[1.26.0] [admin] [internal] - Expired projects are automatically purged after their scheduled deletion date
+[1.26.0] [user] [added] - Admins can migrate old presentation reports to the new slides system
+[1.26.0] [admin] [added] - Bulk migration tool for converting old reports to new slides system
+[1.26.0] [admin] [added] - Data Migration section in Instance Settings page
+[1.26.0] [admin] [added] - Progress tracking with per-project and per-item status during migration
+[1.26.0] [admin] [added] - Migrated reports are organized into a timestamped folder automatically
+[1.26.0] [admin] [added] - Error and activity logs displayed during migration for transparency
+[1.26.0] [user] [fixed] - Fixed rare crashes during data queries
+[1.26.0] [admin] [fixed] - Resolved rare crashes caused by database connections closing unexpectedly
 [1.24.0] [user] [changed] - Module update dialog now shows exactly what changed with clear labels
 [1.24.0] [user] [added] - Update dialog separates changes that affect results from visual-only changes
 [1.24.0] [user] [added] - You can now choose to reinstall, rerun, or both when updating a module
