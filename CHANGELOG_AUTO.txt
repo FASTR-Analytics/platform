@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Fixed rare crashes during data queries
+[TBD] [admin] [fixed] - Resolved rare crashes caused by database connections closing unexpectedly
 [1.24.0] [user] [changed] - Module update dialog now shows exactly what changed with clear labels
 [1.24.0] [user] [added] - Update dialog separates changes that affect results from visual-only changes
 [1.24.0] [user] [added] - You can now choose to reinstall, rerun, or both when updating a module
