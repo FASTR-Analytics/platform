@@ -1,36 +1,37 @@
 import { join } from "@std/path";
-import { getUnique } from "@timroberton/panther";
-import { Sql } from "postgres";
-import { _SANDBOX_DIR_PATH } from "../../exposed_env_vars.ts";
-import { getCountryIso3Config } from "../instance/config.ts";
 import {
-  getPossibleModules,
-  getValidatedModuleId,
   APIResponseNoData,
   APIResponseWithData,
   DatasetInProject,
+  getPossibleModules,
+  getValidatedModuleId,
+  parseJsonOrThrow,
   ProjectDetail,
   throwIfErrWithData,
   type DatasetType,
   type GlobalUser,
   type ModuleId,
+  type ProjectPermission,
   type ProjectUser,
   type ProjectUserRoleType,
-  type ProjectPermission,
-  parseJsonOrThrow,
 } from "lib";
+import { Sql } from "postgres";
+import { _SANDBOX_DIR_PATH } from "../../exposed_env_vars.ts";
 import {
   DBProject,
   DBUser,
   type DBProjectUserRole,
 } from "../instance/_main_database_types.ts";
+import { getCountryIso3Config } from "../instance/config.ts";
+import { runProjectMigrations } from "../migrations/runner.ts";
 import {
-  getPgConnectionFromCacheOrNew,
-  createWorkerConnection,
   closePgConnection,
+  createWorkerConnection,
+  getPgConnectionFromCacheOrNew,
 } from "../postgres/mod.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { DBDataset_IN_PROJECT } from "./_project_database_types.ts";
+import { addDatasetHfaToProject } from "./datasets_in_project_hfa.ts";
 import { addDatasetHmisToProject } from "./datasets_in_project_hmis.ts";
 import {
   getAllModulesForProject,
@@ -39,11 +40,9 @@ import {
 } from "./modules.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
 import { getAllReportsForProject } from "./reports.ts";
-import { getAllSlideDecks } from "./slide_decks.ts";
 import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
+import { getAllSlideDecks } from "./slide_decks.ts";
 import { getAllVisualizationFolders } from "./visualization_folders.ts";
-import { addDatasetHfaToProject } from "./datasets_in_project_hfa.ts";
-import { runProjectMigrations } from "../migrations/runner.ts";
 
 //////////////////////////
 //                      //
@@ -250,8 +249,8 @@ export async function addProject(
   projectLabel: string,
   datasetsToEnable: DatasetType[],
   modulesToEnable: ModuleId[],
-  projectEditors: string[],
-  projectViewers: string[],
+  _projectEditors: string[],
+  _projectViewers: string[],
 ): Promise<
   APIResponseWithData<{
     newProjectId: string;
@@ -273,6 +272,8 @@ export async function addProject(
       "READ_AND_WRITE",
     );
     await projectDb.file("./server/db/project/_project_database.sql");
+    // Fresh schema is already up to date, but we run migrations to populate
+    // schema_migrations table (otherwise db_startup.ts would run them anyway)
     await runProjectMigrations(projectDb);
     await mainDb`
       INSERT INTO users (email, is_admin)
@@ -373,7 +374,9 @@ export async function addProject(
 
     // Dynamically add prerequisite modules based on getPossibleModules()
     const countryIso3Res = await getCountryIso3Config(mainDb);
-    const countryIso3 = countryIso3Res.success ? countryIso3Res.data.countryIso3 : undefined;
+    const countryIso3 = countryIso3Res.success
+      ? countryIso3Res.data.countryIso3
+      : undefined;
     const modulesWithPrereqs = new Set<ModuleId>(modulesToEnable);
     for (const moduleId of modulesToEnable) {
       const moduleDefinition = getPossibleModules(countryIso3).find(

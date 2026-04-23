@@ -28,7 +28,7 @@ export function MigrateAllReportsToSlides(
 
   async function runMigration() {
     setPhase("running");
-    const projects = instanceState.projects.filter((p) => p.status === "ready");
+    const projects = instanceState.projects;
     setProjectProgress({ current: 0, total: projects.length });
 
     for (let i = 0; i < projects.length; i++) {
@@ -36,7 +36,16 @@ export function MigrateAllReportsToSlides(
       setCurrentProject(project.label);
       setProjectProgress({ current: i + 1, total: projects.length });
 
+      const wasLocked = project.isLocked;
       try {
+        if (wasLocked) {
+          await serverActions.setProjectLockStatus({
+            project_id: project.id,
+            projectId: project.id,
+            lockAction: "unlock",
+          });
+        }
+
         const detailRes = await serverActions.getProjectDetail({ projectId: project.id });
         if (!detailRes.success) {
           addError(`${project.label}: Failed to fetch project detail`);
@@ -62,6 +71,14 @@ export function MigrateAllReportsToSlides(
         addLog(`${project.label}: Migrated ${result.migratedCount} reports`);
       } catch (e) {
         addError(`${project.label}: ${e instanceof Error ? e.message : "Unknown error"}`);
+      } finally {
+        if (wasLocked) {
+          await serverActions.setProjectLockStatus({
+            project_id: project.id,
+            projectId: project.id,
+            lockAction: "lock",
+          });
+        }
       }
     }
 
