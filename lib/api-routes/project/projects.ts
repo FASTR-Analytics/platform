@@ -56,6 +56,13 @@ export const projectRouteRegistry = {
     requiresProject: true,
   }),
 
+  forceDeleteProject: route({
+    path: "/project/:project_id/force-delete",
+    method: "POST",
+    params: {} as { project_id: string },
+    requiresProject: true,
+  }),
+
   setProjectLockStatus: route({
     path: "/project/:project_id/lock",
     method: "POST",
