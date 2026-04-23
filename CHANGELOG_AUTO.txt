@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Empty reports no longer cause errors during project migration
+[TBD] [admin] [fixed] - Empty reports are now skipped during project migration
 [TBD] [user] [added] - Deleted projects now have a 30-day recovery period before permanent removal
 [TBD] [user] [added] - Admins can view and manage projects pending deletion
 [TBD] [user] [added] - Admins can restore projects that were scheduled for deletion
