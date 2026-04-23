@@ -1,3 +1,16 @@
+[TBD] [user] [added] - Deleted projects now have a 30-day recovery period before permanent removal
+[TBD] [user] [added] - Admins can view and manage projects pending deletion
+[TBD] [user] [added] - Admins can restore projects that were scheduled for deletion
+[TBD] [user] [added] - Admins can permanently delete projects immediately if needed
+[TBD] [user] [changed] - Projects pending deletion are hidden from the main project list
+[TBD] [admin] [added] - Deleting a project now schedules deletion in 30 days instead of removing it immediately
+[TBD] [admin] [added] - Global admins can view and manage projects pending deletion from the home screen
+[TBD] [admin] [added] - Projects pending deletion can be restored by global admins
+[TBD] [admin] [added] - Global admins can permanently delete a project immediately, bypassing the 30-day wait
+[TBD] [admin] [added] - Projects pending deletion are hidden from the main project list
+[TBD] [admin] [added] - Cache status tab shows Valkey connection and per-visualization cache state
+[TBD] [admin] [fixed] - Backup restore now correctly identifies the target project
+[TBD] [admin] [internal] - Expired projects are automatically purged after their scheduled deletion date
 [TBD] [user] [added] - Admins can migrate old presentation reports to the new slides system
 [TBD] [admin] [added] - Bulk migration tool for converting old reports to new slides system
 [TBD] [admin] [added] - Data Migration section in Instance Settings page
