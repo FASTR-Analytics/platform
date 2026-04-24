@@ -37,7 +37,7 @@ routesHealth.get("/health_check", async (c) => {
         try {
           const projectDb = getPgConnectionFromCacheOrNew(p.id, "READ_ONLY");
           const [row] = await projectDb<{ count: number }[]>`
-            SELECT COUNT(*) AS count FROM modules WHERE dirty IN ('queued', 'running')
+            SELECT COUNT(*) AS count FROM modules WHERE dirty IN ('running')
           `;
           return row.count > 0;
         } catch {
