@@ -8,8 +8,10 @@ import {
   getAllHfaIndicatorCodeFromSnapshot,
   getAllHfaIndicatorsFromSnapshot,
   getAllMetrics,
+  getAllModulesForProject,
   getCountryIso3Config,
   getMetricsForModule,
+  getMetricsWithStatus,
   getModuleDetail,
   getModuleWithConfigSelections,
   // getModuleParameters,
@@ -37,6 +39,7 @@ import {
   setModuleDirty,
 } from "../../task_management/mod.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
+import { notifyProjectModulesUpdated } from "../../task_management/notify_project_v2.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
 
@@ -83,6 +86,19 @@ defineRoute(
       res.data.lastUpdated,
     );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    // V2 notify
+    const [modulesRes, metricsRes] = await Promise.all([
+      getAllModulesForProject(c.var.ppk.projectDb),
+      getMetricsWithStatus(c.var.mainDb, c.var.ppk.projectDb),
+    ]);
+    const commonIndicators = (
+      await c.var.ppk.projectDb<{ indicator_common_id: string; indicator_common_label: string }[]>`
+        SELECT indicator_common_id, indicator_common_label FROM indicators ORDER BY indicator_common_label
+      `
+    ).map((row: { indicator_common_id: string; indicator_common_label: string }) => ({ id: row.indicator_common_id, label: row.indicator_common_label }));
+    if (modulesRes.success && metricsRes.success) {
+      notifyProjectModulesUpdated(c.var.ppk.projectId, modulesRes.data, metricsRes.data, commonIndicators);
+    }
     return c.json(res);
   },
 );
@@ -101,6 +117,19 @@ defineRoute(
       return c.json(res);
     }
     notifyProjectUpdated(c.var.ppk.projectId, new Date().toISOString());
+    // V2 notify
+    const [modulesRes, metricsRes] = await Promise.all([
+      getAllModulesForProject(c.var.ppk.projectDb),
+      getMetricsWithStatus(c.var.mainDb, c.var.ppk.projectDb),
+    ]);
+    const commonIndicators = (
+      await c.var.ppk.projectDb<{ indicator_common_id: string; indicator_common_label: string }[]>`
+        SELECT indicator_common_id, indicator_common_label FROM indicators ORDER BY indicator_common_label
+      `
+    ).map((row: { indicator_common_id: string; indicator_common_label: string }) => ({ id: row.indicator_common_id, label: row.indicator_common_label }));
+    if (modulesRes.success && metricsRes.success) {
+      notifyProjectModulesUpdated(c.var.ppk.projectId, modulesRes.data, metricsRes.data, commonIndicators);
+    }
     return c.json(res);
   },
 );
@@ -144,6 +173,19 @@ defineRoute(
       res.data.lastUpdated,
     );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    // V2 notify
+    const [modulesRes, metricsRes] = await Promise.all([
+      getAllModulesForProject(c.var.ppk.projectDb),
+      getMetricsWithStatus(c.var.mainDb, c.var.ppk.projectDb),
+    ]);
+    const commonIndicators = (
+      await c.var.ppk.projectDb<{ indicator_common_id: string; indicator_common_label: string }[]>`
+        SELECT indicator_common_id, indicator_common_label FROM indicators ORDER BY indicator_common_label
+      `
+    ).map((row: { indicator_common_id: string; indicator_common_label: string }) => ({ id: row.indicator_common_id, label: row.indicator_common_label }));
+    if (modulesRes.success && metricsRes.success) {
+      notifyProjectModulesUpdated(c.var.ppk.projectId, modulesRes.data, metricsRes.data, commonIndicators);
+    }
 
     return c.json(res);
   },
@@ -334,7 +376,7 @@ defineRoute(
   "getAllMetrics",
   requireProjectPermission(),
   async (c) => {
-    const res = await getAllMetrics(c.var.mainDb, c.var.ppk.projectDb);
+    const res = await getMetricsWithStatus(c.var.mainDb, c.var.ppk.projectDb);
     return c.json(res);
   },
 );

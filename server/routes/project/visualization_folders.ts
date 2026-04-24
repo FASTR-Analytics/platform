@@ -4,13 +4,19 @@ import {
   updateVisualizationFolder,
   deleteVisualizationFolder,
   reorderVisualizationFolders,
+  getAllVisualizationFolders,
 } from "../../db/project/visualization_folders.ts";
 import {
   updatePresentationObjectFolder,
   reorderPresentationObjects,
+  getAllPresentationObjectsForProject,
 } from "../../db/project/presentation_objects.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
+import {
+  notifyProjectVisualizationFoldersUpdated,
+  notifyProjectVisualizationsUpdated,
+} from "../../task_management/notify_project_v2.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesVisualizationFolders = new Hono();
@@ -31,6 +37,11 @@ defineRoute(
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+      // V2 notify
+      const foldersRes = await getAllVisualizationFolders(c.var.ppk.projectDb);
+      if (foldersRes.success) {
+        notifyProjectVisualizationFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
+      }
     }
     return c.json(res);
   },
@@ -53,6 +64,11 @@ defineRoute(
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+      // V2 notify
+      const foldersRes = await getAllVisualizationFolders(c.var.ppk.projectDb);
+      if (foldersRes.success) {
+        notifyProjectVisualizationFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
+      }
     }
     return c.json(res);
   },
@@ -72,6 +88,11 @@ defineRoute(
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+      // V2 notify
+      const foldersRes = await getAllVisualizationFolders(c.var.ppk.projectDb);
+      if (foldersRes.success) {
+        notifyProjectVisualizationFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
+      }
     }
     return c.json(res);
   },
@@ -91,6 +112,11 @@ defineRoute(
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+      // V2 notify
+      const foldersRes = await getAllVisualizationFolders(c.var.ppk.projectDb);
+      if (foldersRes.success) {
+        notifyProjectVisualizationFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
+      }
     }
     return c.json(res);
   },
@@ -111,6 +137,11 @@ defineRoute(
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+      // V2 notify
+      const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+      if (vizRes.success) {
+        notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+      }
     }
     return c.json(res);
   },
@@ -130,6 +161,11 @@ defineRoute(
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+      // V2 notify
+      const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+      if (vizRes.success) {
+        notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+      }
     }
     return c.json(res);
   },

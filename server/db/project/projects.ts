@@ -44,6 +44,36 @@ import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
 import { getAllVisualizationFolders } from "./visualization_folders.ts";
 
+/////////////////////////
+//                     //
+//    Datasets list    //
+//                     //
+/////////////////////////
+
+export async function getAllDatasetsForProject(
+  projectDb: Sql,
+): Promise<APIResponseWithData<DatasetInProject[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const datasets = (
+      await projectDb<DBDataset_IN_PROJECT[]>`SELECT * FROM datasets`
+    ).map<DatasetInProject>((row) => {
+      if (row.dataset_type === "hmis") {
+        return {
+          datasetType: "hmis",
+          info: parseJsonOrThrow(row.info),
+          dateExported: row.last_updated,
+        };
+      }
+      return {
+        datasetType: "hfa",
+        info: parseJsonOrThrow(row.info),
+        dateExported: row.last_updated,
+      };
+    });
+    return { success: true, data: datasets };
+  });
+}
+
 //////////////////////////
 //                      //
 //    Project detail    //

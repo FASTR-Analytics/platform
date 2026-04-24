@@ -1,5 +1,7 @@
 import { Sql } from "postgres";
 import {
+  getAllModulesForProject,
+  getMetricsWithStatus,
   getPgConnectionFromCacheOrNew,
   getReportItemsThatDependOnPresentationObjects,
 } from "../db/mod.ts";
@@ -12,6 +14,7 @@ import {
   notifyLastUpdated,
   notifyProjectUpdated,
 } from "./notify_last_updated.ts";
+import { notifyProjectModulesUpdated } from "./notify_project_v2.ts";
 
 const broadcastTaskEnded = new BroadcastChannel("task_ended");
 const broadcastDirtyStates = new BroadcastChannel("dirty_states");
@@ -110,6 +113,20 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
   );
 
   notifyProjectUpdated(etd.projectId, lastRun);
+  // V2 notify
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const [modulesRes, metricsRes] = await Promise.all([
+    getAllModulesForProject(projectDb),
+    getMetricsWithStatus(mainDb, projectDb),
+  ]);
+  const commonIndicators = (
+    await projectDb<{ indicator_common_id: string; indicator_common_label: string }[]>`
+      SELECT indicator_common_id, indicator_common_label FROM indicators ORDER BY indicator_common_label
+    `
+  ).map((row: { indicator_common_id: string; indicator_common_label: string }) => ({ id: row.indicator_common_id, label: row.indicator_common_label }));
+  if (modulesRes.success && metricsRes.success) {
+    notifyProjectModulesUpdated(etd.projectId, modulesRes.data, metricsRes.data, commonIndicators);
+  }
 }
 
 async function setAllModuleDependentsLastUpdatedAndNotify(

@@ -112,54 +112,46 @@ if [ "$ADHOC_MODE" = "false" ]; then
     VERSION=$NEW_VERSION
 fi
 
-# Ask if user wants to build client
-echo "Do you want to build the client? (y/n)"
-read -r BUILD_CLIENT
-
-if [ "$BUILD_CLIENT" = "y" ] || [ "$BUILD_CLIENT" = "Y" ]; then
-    # Check if client directory exists
-    if [ ! -d "$CLIENT_DIR" ]; then
-        echo "ERROR: Client directory not found: $CLIENT_DIR"
-        exit 1
-    fi
-    
-    echo "Building client HTML..."
-    cd "$CLIENT_DIR"
-    
-    if ! npm run build; then
-        echo "ERROR: Client build failed!"
-        exit 1
-    fi
-    
-    # Validate client build output
-    if [ ! -d "$CLIENT_DIR/dist" ]; then
-        echo "ERROR: Client build output not found at $CLIENT_DIR/dist"
-        exit 1
-    fi
-    
-    if [ ! "$(ls -A "$CLIENT_DIR/dist")" ]; then
-        echo "ERROR: Client build output directory is empty!"
-        exit 1
-    fi
-    
-    cd "$SERVER_DIR"
-    
-    # Backup existing client_dist directory
-    if [ -d "$SERVER_DIR/client_dist" ]; then
-        echo "Backing up existing client_dist directory..."
-        rm -rf "$SERVER_DIR/client_dist.backup"
-        cp -r "$SERVER_DIR/client_dist" "$SERVER_DIR/client_dist.backup"
-    fi
-
-    # Copy new client build
-    echo "Copying client build to server..."
-    rm -rf "$SERVER_DIR/client_dist"
-    cp -r "$CLIENT_DIR/dist" "$SERVER_DIR/client_dist"
-    
-    echo "Client build completed successfully"
-else
-    echo "Skipping client build"
+# Build client
+if [ ! -d "$CLIENT_DIR" ]; then
+    echo "ERROR: Client directory not found: $CLIENT_DIR"
+    exit 1
 fi
+
+echo "Building client HTML..."
+cd "$CLIENT_DIR"
+
+if ! npm run build; then
+    echo "ERROR: Client build failed!"
+    exit 1
+fi
+
+# Validate client build output
+if [ ! -d "$CLIENT_DIR/dist" ]; then
+    echo "ERROR: Client build output not found at $CLIENT_DIR/dist"
+    exit 1
+fi
+
+if [ ! "$(ls -A "$CLIENT_DIR/dist")" ]; then
+    echo "ERROR: Client build output directory is empty!"
+    exit 1
+fi
+
+cd "$SERVER_DIR"
+
+# Backup existing client_dist directory
+if [ -d "$SERVER_DIR/client_dist" ]; then
+    echo "Backing up existing client_dist directory..."
+    rm -rf "$SERVER_DIR/client_dist.backup"
+    cp -r "$SERVER_DIR/client_dist" "$SERVER_DIR/client_dist.backup"
+fi
+
+# Copy new client build
+echo "Copying client build to server..."
+rm -rf "$SERVER_DIR/client_dist"
+cp -r "$CLIENT_DIR/dist" "$SERVER_DIR/client_dist"
+
+echo "Client build completed successfully"
 
 echo "Building Docker image with version: $VERSION"
 
@@ -260,9 +252,7 @@ printf "║  Docker Image:   %-51s ║\n" "timroberton/comb:wb-fastr-server-v$VE
 echo "║                                                                      ║"
 echo "║  Operations Completed:                                               ║"
 printf "║    - Version bumped from %-43s ║\n" "$ORIGINAL_VERSION to $VERSION"
-if [ "$BUILD_CLIENT" = "y" ] || [ "$BUILD_CLIENT" = "Y" ]; then
-    echo "║    - Client built successfully                                       ║"
-fi
+echo "║    - Client built successfully                                       ║"
 echo "║    - Docker image built successfully                                 ║"
 echo "║    - Docker image pushed to Docker Hub                               ║"
 echo "║    - Changes committed to Git                                        ║"

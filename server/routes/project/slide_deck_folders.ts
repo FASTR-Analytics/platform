@@ -3,9 +3,11 @@ import {
   createSlideDeckFolder,
   updateSlideDeckFolder,
   deleteSlideDeckFolder,
+  getAllSlideDeckFolders,
 } from "../../db/project/slide_deck_folders.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
+import { notifyProjectSlideDeckFoldersUpdated } from "../../task_management/notify_project_v2.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesSlideDeckFolders = new Hono();
@@ -26,6 +28,11 @@ defineRoute(
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+      // V2 notify
+      const foldersRes = await getAllSlideDeckFolders(c.var.ppk.projectDb);
+      if (foldersRes.success) {
+        notifyProjectSlideDeckFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
+      }
     }
     return c.json(res);
   },
@@ -48,6 +55,11 @@ defineRoute(
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+      // V2 notify
+      const foldersRes = await getAllSlideDeckFolders(c.var.ppk.projectDb);
+      if (foldersRes.success) {
+        notifyProjectSlideDeckFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
+      }
     }
     return c.json(res);
   },
@@ -67,6 +79,11 @@ defineRoute(
     );
     if (res.success) {
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+      // V2 notify
+      const foldersRes = await getAllSlideDeckFolders(c.var.ppk.projectDb);
+      if (foldersRes.success) {
+        notifyProjectSlideDeckFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
+      }
     }
     return c.json(res);
   },

@@ -33,6 +33,7 @@ import { routesInstanceSSE } from "./server/routes/instance/instance-sse.ts";
 // Project routes
 import { routesProject } from "./server/routes/project/project.ts";
 import { routesProjectSSE } from "./server/routes/project/project-sse.ts";
+import { routesProjectSSEV2 } from "./server/routes/project/project-sse-v2.ts";
 import { routesModules } from "./server/routes/project/modules.ts";
 import { routesPresentationObjects } from "./server/routes/project/presentation_objects.ts";
 import { routesReports } from "./server/routes/project/reports.ts";
@@ -85,6 +86,7 @@ app.route("/", routesInstanceSSE);
 app.route("/", routesUsers);
 app.route("/", routesProject);
 app.route("/", routesProjectSSE);
+app.route("/", routesProjectSSEV2);
 app.route("/", routesStructure);
 app.route("/", routesBackups);
 app.route("/", routesAssets);

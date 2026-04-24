@@ -24,6 +24,7 @@ import {
 } from "../../server_only_funcs_presentation_objects/mod.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
+import { notifyProjectVisualizationsUpdated } from "../../task_management/notify_project_v2.ts";
 import { RequestQueue } from "../../utils/request_queue.ts";
 import {
   _METRIC_INFO_CACHE,
@@ -72,6 +73,11 @@ defineRoute(
       res.data.lastUpdated,
     );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    // V2 notify
+    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    if (vizRes.success) {
+      notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+    }
     return c.json(res);
   },
 );
@@ -101,6 +107,11 @@ defineRoute(
       res.data.lastUpdated,
     );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    // V2 notify
+    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    if (vizRes.success) {
+      notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+    }
     return c.json(res);
   },
 );
@@ -217,6 +228,11 @@ defineRoute(
       res.data.lastUpdated,
     );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    // V2 notify
+    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    if (vizRes.success) {
+      notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+    }
     return c.json(res);
   },
 );
@@ -253,6 +269,11 @@ defineRoute(
       res.data.lastUpdated,
     );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    // V2 notify
+    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    if (vizRes.success) {
+      notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+    }
     return c.json(res);
   },
 );
@@ -289,6 +310,11 @@ defineRoute(
       }
 
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+      // V2 notify
+      const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+      if (vizRes.success) {
+        notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+      }
     }
 
     return c.json(res);
@@ -312,6 +338,11 @@ defineRoute(
       return c.json(res);
     }
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    // V2 notify
+    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    if (vizRes.success) {
+      notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+    }
     return c.json(res);
   },
 );
