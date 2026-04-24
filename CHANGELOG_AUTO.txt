@@ -1,3 +1,26 @@
+[TBD] [user] [added] - Save button without closing in the indicator code editor
+[TBD] [user] [added] - Manage, edit, reorder, and delete HFA time points
+[TBD] [user] [added] - Time points section on the instance data overview page
+[TBD] [user] [added] - Year and month picker when importing HFA data
+[TBD] [user] [added] - Negative value support in conditional formatting for certain metrics
+[TBD] [user] [changed] - "View time points" renamed to "Manage time points" with edit icon
+[TBD] [user] [changed] - "Discard" button renamed to "Cancel" in indicator code editor
+[TBD] [user] [changed] - Time point import now uses a label and period selector instead of separate ID and label fields
+[TBD] [user] [changed] - Time point tabs in indicator editor now show label as primary text
+[TBD] [user] [changed] - Threshold color swatches now appear after the cutoff value for clearer layout
+[TBD] [user] [changed] - Time point label column removed from HFA dataset variable table
+[TBD] [admin] [added] - New "Time Points" management section on the instance data page
+[TBD] [admin] [added] - Ability to rename HFA time point labels
+[TBD] [admin] [added] - Ability to change the year and month for HFA time points
+[TBD] [admin] [added] - Ability to reorder HFA time points using up/down controls
+[TBD] [admin] [added] - Ability to delete individual HFA time points and their data
+[TBD] [admin] [added] - Save button in the HFA indicator code editor without closing
+[TBD] [admin] [changed] - "View time points" renamed to "Manage time points" with edit icon
+[TBD] [admin] [changed] - HFA import now asks for a time point label and year/month period selector
+[TBD] [admin] [changed] - Time point tabs in the indicator code editor now show the label directly
+[TBD] [admin] [changed] - "Discard" button renamed to "Cancel" in the indicator code editor
+[TBD] [admin] [changed] - Conditional formatting now supports negative percentage values for select metrics
+[TBD] [admin] [fixed] - Threshold color formatting controls now display cutoff values before color swatches
 [TBD] [user] [changed] - Project updates now appear instantly without full page refresh
 [TBD] [admin] [added] - Real-time project updates now push only what changed instead of reloading everything
 [TBD] [admin] [improved] - Faster live updates for visualizations, datasets, modules, reports, and slide decks
