@@ -31,6 +31,7 @@ type Props = {
   onChange: (v: ConditionalFormatting) => void;
   formatAs: "percent" | "number";
   decimalPlaces: number;
+  allowNegative?: boolean;
 };
 
 type Mode = "none" | "scale" | "thresholds";
@@ -73,6 +74,7 @@ export function ConditionalFormattingEditor(p: Props) {
           cf={cf() as ConditionalFormattingScale}
           onChange={p.onChange}
           formatAs={p.formatAs}
+          allowNegative={p.allowNegative}
         />
       </Show>
       <Show when={cf().type === "thresholds"}>
@@ -81,6 +83,7 @@ export function ConditionalFormattingEditor(p: Props) {
           onChange={p.onChange}
           formatAs={p.formatAs}
           decimalPlaces={p.decimalPlaces}
+          allowNegative={p.allowNegative}
         />
       </Show>
     </div>
@@ -113,6 +116,7 @@ function ScalePanel(p: {
   cf: ConditionalFormattingScale;
   onChange: (v: ConditionalFormatting) => void;
   formatAs: "percent" | "number";
+  allowNegative?: boolean;
 }) {
   const state = () => parseScale(p.cf.scale);
 
@@ -246,6 +250,8 @@ function ScalePanel(p: {
                     value={domain.min}
                     onChange={(v) => update({ domain: { ...domain, min: v } })}
                     max={domain.max}
+                    allowNegative={p.allowNegative}
+                    showPlusPrefix={p.allowNegative}
                   />
                 ) : (
                   <NumberInput
@@ -261,6 +267,8 @@ function ScalePanel(p: {
                     value={domain.max}
                     onChange={(v) => update({ domain: { ...domain, max: v } })}
                     min={domain.min}
+                    allowNegative={p.allowNegative}
+                    showPlusPrefix={p.allowNegative}
                   />
                 ) : (
                   <NumberInput
@@ -290,6 +298,7 @@ function ThresholdsPanel(p: {
   onChange: (v: ConditionalFormatting) => void;
   formatAs: "percent" | "number";
   decimalPlaces: number;
+  allowNegative?: boolean;
 }) {
   const matchedPreset = (): LegacyCfPresetId | undefined => {
     for (const id of LEGACY_CF_PRESET_IDS) {
@@ -403,7 +412,7 @@ function ThresholdsPanel(p: {
             // origI maps display index back to the stored bucket index.
             const origI = () => p.cf.buckets.length - 1 - j();
             const cutoffIdx = () => origI() - 1;
-            const minVal = () => cutoffIdx() > 0 ? p.cf.cutoffs[cutoffIdx() - 1] : 0;
+            const minVal = () => cutoffIdx() > 0 ? p.cf.cutoffs[cutoffIdx() - 1] : (p.allowNegative ? -1 : 0);
             const maxVal = () => cutoffIdx() < p.cf.cutoffs.length - 1 ? p.cf.cutoffs[cutoffIdx() + 1] : 1;
             return (
               <div class="flex items-center gap-2">
@@ -426,6 +435,8 @@ function ThresholdsPanel(p: {
                       onChange={(v) => setCutoff(cutoffIdx(), v)}
                       min={minVal()}
                       max={maxVal()}
+                      allowNegative={p.allowNegative}
+                      showPlusPrefix={p.allowNegative}
                     />
                   </Show>
                 </Show>

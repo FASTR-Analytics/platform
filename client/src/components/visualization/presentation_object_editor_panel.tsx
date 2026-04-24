@@ -84,6 +84,7 @@ export function PresentationObjectEditorPanel(p: Props) {
               poDetail={p.poDetail}
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
+              effectiveConfig={effectivePOConfigResult().config}
               effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
             />
           </Match>

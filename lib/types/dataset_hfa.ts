@@ -3,31 +3,23 @@ import {
 } from "./dataset_hfa_import.ts";
 
 // ============================================================================
-// Dictionary Types
+// Time Point Type
 // ============================================================================
 
-export type DatasetHfaDictionaryTimePoint = {
-  timePoint: string;
-  timePointLabel: string;
-  dateImported: string | undefined;
+export type HfaTimePoint = {
+  label: string;
+  periodId: string;
+  sortOrder: number;
+  importedAt: string | undefined;
 };
 
-export type DatasetHfaDictionaryVar = {
-  timePoint: string;
-  varName: string;
-  varLabel: string;
-};
-
-export type DatasetHfaDictionaryValue = {
-  timePoint: string;
-  varName: string;
-  value: string;
-  valueLabel: string;
-};
+// ============================================================================
+// Detail Types
+// ============================================================================
 
 export type DatasetHfaDetail = {
   uploadAttempt: DatasetHfaUploadAttemptSummary | undefined;
-  timePoints: DatasetHfaDictionaryTimePoint[];
+  timePoints: HfaTimePoint[];
   cacheHash: string;
 };
 
@@ -35,7 +27,6 @@ export type HfaVariableRow = {
   varName: string;
   varType: string;
   timePoint: string;
-  timePointLabel: string;
   varLabel: string;
   count: number;
   missing: number;

@@ -262,25 +262,24 @@ export async function getHfaDictionaryForValidation(
   mainDb: Sql,
 ): Promise<APIResponseWithData<HfaDictionaryForValidation>> {
   return await tryCatchDatabaseAsync(async () => {
-    const tpRows = await mainDb<{ time_point: string; time_point_label: string }[]>`
-      SELECT time_point, time_point_label FROM dataset_hfa_dictionary_time_points ORDER BY time_point
+    const tpRows = await mainDb<{ label: string }[]>`
+      SELECT label FROM hfa_time_points ORDER BY sort_order
     `;
     const varRows = await mainDb<{ time_point: string; var_name: string; var_label: string; var_type: string }[]>`
-      SELECT time_point, var_name, var_label, var_type FROM dataset_hfa_dictionary_vars ORDER BY time_point, var_name
+      SELECT time_point, var_name, var_label, var_type FROM hfa_variables ORDER BY time_point, var_name
     `;
     const valRows = await mainDb<{ time_point: string; var_name: string; value: string; value_label: string }[]>`
-      SELECT time_point, var_name, value, value_label FROM dataset_hfa_dictionary_values ORDER BY time_point, var_name, value
+      SELECT time_point, var_name, value, value_label FROM hfa_variable_values ORDER BY time_point, var_name, value
     `;
 
     const timePoints = tpRows.map((tp) => {
       return {
-        timePoint: tp.time_point,
-        timePointLabel: tp.time_point_label,
+        timePoint: tp.label,
         vars: varRows
-          .filter((v) => v.time_point === tp.time_point)
+          .filter((v) => v.time_point === tp.label)
           .map((v) => ({ varName: v.var_name, varLabel: v.var_label, varType: v.var_type })),
         values: valRows
-          .filter((v) => v.time_point === tp.time_point)
+          .filter((v) => v.time_point === tp.label)
           .map((v) => ({ varName: v.var_name, value: v.value, valueLabel: v.value_label })),
       };
     });

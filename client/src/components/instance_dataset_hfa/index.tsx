@@ -1,4 +1,4 @@
-import { t3, type DatasetHfaDictionaryTimePoint, type DatasetUploadAttemptSummary } from "lib";
+import { t3, type HfaTimePoint, type DatasetUploadAttemptSummary } from "lib";
 import {
   Button,
   FrameRight,
@@ -77,14 +77,18 @@ export function InstanceDatasetHfa(p: Props) {
     });
   }
 
-  async function viewTimePoints(timePoints: DatasetHfaDictionaryTimePoint[]) {
+  async function viewTimePoints(timePoints: HfaTimePoint[]) {
     await openEditor({
       element: TimePointsView,
-      props: { timePoints },
+      props: {
+        timePoints,
+        isGlobalAdmin: p.isGlobalAdmin,
+        onRefresh: fetchUploadAttempt,
+      },
     });
   }
 
-  async function deleteData(timePoints: DatasetHfaDictionaryTimePoint[]) {
+  async function deleteData(timePoints: HfaTimePoint[]) {
     await openEditor({
       element: DeleteData,
       props: {
@@ -187,9 +191,9 @@ export function InstanceDatasetHfa(p: Props) {
                         onClick={() => viewTimePoints(instanceState.hfaTimePoints)}
                         outline
                         fullWidth
-                        iconName="folder"
+                        iconName="pencil"
                       >
-                        {t3({ en: "View time points", fr: "Voir les points temporels" })}
+                        {t3({ en: "Manage time points", fr: "Gérer les points temporels" })}
                       </Button>
                     </div>
                     <div class="">

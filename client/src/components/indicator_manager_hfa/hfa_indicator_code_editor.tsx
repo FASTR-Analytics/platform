@@ -349,12 +349,11 @@ function EditorInner(p: {
                   }`}
                   onClick={() => setSelectedTimePoint(tp.timePoint)}
                 >
-                  <div>{tp.timePointLabel}</div>
+                  <div>{tp.timePoint}</div>
                   <div class="text-base-content/50 text-xs">
-                    {tp.timePoint}
                     {hasCode()
                       ? ""
-                      : ` (${t3({ en: "no code", fr: "aucun code" })})`}
+                      : t3({ en: "no code", fr: "aucun code" })}
                   </div>
                 </button>
               );

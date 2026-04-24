@@ -38,7 +38,7 @@ routesHealth.get("/health_check", async (c) => {
   const hfaTimePointCount = (
     await mainDb<
       { count: number }[]
-    >`SELECT COUNT(*) as count FROM dataset_hfa_dictionary_time_points`
+    >`SELECT COUNT(*) as count FROM hfa_time_points`
   )[0].count;
 
   const [lastLog] = await mainDb<

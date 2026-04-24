@@ -190,7 +190,7 @@ export async function getInstanceDatasetsSummary(
   if (await detectHasAnyRows(mainDb, "dataset_hmis")) {
     datasetsWithData.push("hmis");
   }
-  if (await detectHasAnyRows(mainDb, "dataset_hfa")) {
+  if (await detectHasAnyRows(mainDb, "hfa_data")) {
     datasetsWithData.push("hfa");
   }
   const hmis = await getCurrentDatasetHmisMaxVersionId(mainDb);
@@ -202,12 +202,13 @@ export async function getInstanceDatasetsSummary(
     )[0]?.count ?? 0;
   const hfaTimePointRows = await mainDb<
     {
-      time_point: string;
-      time_point_label: string;
-      date_imported: string | null;
+      label: string;
+      period_id: string;
+      sort_order: number;
+      imported_at: string | null;
     }[]
   >`
-    SELECT time_point, time_point_label, date_imported FROM dataset_hfa_dictionary_time_points ORDER BY time_point
+    SELECT label, period_id, sort_order, imported_at FROM hfa_time_points ORDER BY sort_order
   `;
   const hfaCacheHash = computeHfaCacheHash(hfaTimePointRows);
   return {
@@ -218,9 +219,10 @@ export async function getInstanceDatasetsSummary(
     },
     hmisNVersions,
     hfaTimePoints: hfaTimePointRows.map((r) => ({
-      timePoint: r.time_point,
-      timePointLabel: r.time_point_label,
-      dateImported: r.date_imported ?? undefined,
+      label: r.label,
+      periodId: r.period_id,
+      sortOrder: r.sort_order,
+      importedAt: r.imported_at ?? undefined,
     })),
     hfaCacheHash,
   };
@@ -383,7 +385,7 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
     if (await detectHasAnyRows(mainDb, "dataset_hmis")) {
       datasetsWithData.push("hmis");
     }
-    if (await detectHasAnyRows(mainDb, "dataset_hfa")) {
+    if (await detectHasAnyRows(mainDb, "hfa_data")) {
       datasetsWithData.push("hfa");
     }
 
@@ -391,7 +393,7 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
     const hfaTimePointCount = (
       await mainDb<
         { count: number }[]
-      >`SELECT COUNT(*) as count FROM dataset_hfa_dictionary_time_points`
+      >`SELECT COUNT(*) as count FROM hfa_time_points`
     )[0].count;
 
     const structureLastUpdatedRow = (

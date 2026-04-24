@@ -333,8 +333,8 @@ defineRoute(
   requireGlobalPermission("can_view_data"),
   log("getDatasetHfaDisplayInfo"),
   async (c) => {
-    const tpRows = await c.var.mainDb<{ time_point: string; date_imported: string | null }[]>`
-      SELECT time_point, date_imported FROM dataset_hfa_dictionary_time_points ORDER BY time_point
+    const tpRows = await c.var.mainDb<{ label: string; sort_order: number; imported_at: string | null }[]>`
+      SELECT label, sort_order, imported_at FROM hfa_time_points ORDER BY sort_order
     `;
     const hash = computeHfaCacheHash(tpRows);
 
