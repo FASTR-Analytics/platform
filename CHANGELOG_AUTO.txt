@@ -1,3 +1,7 @@
+[TBD] [user] [changed] - Project updates now appear instantly without full page refresh
+[TBD] [admin] [added] - Real-time project updates now push only what changed instead of reloading everything
+[TBD] [admin] [improved] - Faster live updates for visualizations, datasets, modules, reports, and slide decks
+[TBD] [admin] [fixed] - Eliminated rare issue where updates during initial project load could be missed
 [TBD] [user] [changed] - Faster detection of running analysis tasks on the dashboard
 [TBD] [admin] [changed] - Faster health check for detecting running modules
 [1.27.1] [admin] [changed] - Health check no longer treats queued modules as active work
