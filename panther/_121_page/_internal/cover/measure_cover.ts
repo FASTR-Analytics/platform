@@ -8,7 +8,7 @@ import type {
   AlignV,
   MeasuredImage,
   MeasuredText,
-  MergedPageStyle,
+  MergedCoverStyle,
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
@@ -23,34 +23,34 @@ export function measureCover(
   rc: RenderContext,
   bounds: RectCoordsDims,
   item: CoverPageInputs,
-  s: MergedPageStyle,
+  style: MergedCoverStyle,
   responsiveScale: number | undefined,
   fullPageBounds: RectCoordsDims,
   measuredSplitImage: MeasuredImage | undefined,
   mWatermark: MeasuredText | undefined,
 ): MeasuredCoverPage {
-  const textMaxWidth = bounds.w() - s.cover.padding.totalPx();
+  const textMaxWidth = bounds.w() - style.padding.totalPx();
 
   const mTitle = item.title?.trim()
-    ? rc.mText(item.title.trim(), s.text.coverTitle, textMaxWidth)
+    ? rc.mText(item.title.trim(), style.text.coverTitle, textMaxWidth)
     : undefined;
 
   const mSubTitle = item.subTitle?.trim()
-    ? rc.mText(item.subTitle.trim(), s.text.coverSubTitle, textMaxWidth)
+    ? rc.mText(item.subTitle.trim(), style.text.coverSubTitle, textMaxWidth)
     : undefined;
 
   const mAuthor = item.author?.trim()
-    ? rc.mText(item.author.trim(), s.text.coverAuthor, textMaxWidth)
+    ? rc.mText(item.author.trim(), style.text.coverAuthor, textMaxWidth)
     : undefined;
 
   const mDate = item.date?.trim()
-    ? rc.mText(item.date.trim(), s.text.coverDate, textMaxWidth)
+    ? rc.mText(item.date.trim(), style.text.coverDate, textMaxWidth)
     : undefined;
 
   const { primitives, totalH } = buildCoverPrimitives(
     bounds,
     item,
-    s,
+    style,
     mTitle,
     mSubTitle,
     mAuthor,
@@ -61,7 +61,7 @@ export function measureCover(
     type: "cover",
     item,
     bounds,
-    mergedPageStyle: s,
+    style,
     responsiveScale,
     overflow: totalH > bounds.h(),
     fullPageBounds,
@@ -109,23 +109,23 @@ function getStartY(
 function buildCoverPrimitives(
   bounds: RectCoordsDims,
   item: CoverPageInputs,
-  s: MergedPageStyle,
+  s: MergedCoverStyle,
   mTitle?: import("../../deps.ts").MeasuredText,
   mSubTitle?: import("../../deps.ts").MeasuredText,
   mAuthor?: import("../../deps.ts").MeasuredText,
   mDate?: import("../../deps.ts").MeasuredText,
 ): { primitives: PagePrimitive[]; totalH: number } {
   const primitives: PagePrimitive[] = [];
-  const alignH = s.cover.alignH;
-  const alignV = s.cover.alignV;
+  const alignH = s.alignH;
+  const alignV = s.alignV;
 
   // Background
-  if (s.cover.backgroundColor !== "none") {
+  if (s.backgroundColor !== "none") {
     primitives.push({
       type: "background",
       id: "coverBackground",
       rcd: bounds,
-      fillColor: s.cover.backgroundColor,
+      fillColor: s.backgroundColor,
     });
   }
 
@@ -140,9 +140,7 @@ function buildCoverPrimitives(
   }
 
   // Calculate layout
-  const logoH = item.titleLogos && item.titleLogos.length > 0
-    ? s.cover.logoHeight
-    : 0;
+  const logoH = item.titleLogos && item.titleLogos.length > 0 ? s.logoHeight : 0;
   const titleH = mTitle ? mTitle.dims.h() : 0;
   const subTitleH = mSubTitle ? mSubTitle.dims.h() : 0;
   const authorH = mAuthor ? mAuthor.dims.h() : 0;
@@ -151,20 +149,20 @@ function buildCoverPrimitives(
   let totalH = 0;
   let lastBottomPadding = 0;
   if (item.titleLogos && item.titleLogos.length > 0 && logoH > 0) {
-    totalH += logoH + s.cover.logoBottomPadding;
-    lastBottomPadding = s.cover.logoBottomPadding;
+    totalH += logoH + s.logoBottomPadding;
+    lastBottomPadding = s.logoBottomPadding;
   }
   if (mTitle && titleH > 0) {
-    totalH += titleH + s.cover.titleBottomPadding;
-    lastBottomPadding = s.cover.titleBottomPadding;
+    totalH += titleH + s.titleBottomPadding;
+    lastBottomPadding = s.titleBottomPadding;
   }
   if (mSubTitle && subTitleH > 0) {
-    totalH += subTitleH + s.cover.subTitleBottomPadding;
-    lastBottomPadding = s.cover.subTitleBottomPadding;
+    totalH += subTitleH + s.subTitleBottomPadding;
+    lastBottomPadding = s.subTitleBottomPadding;
   }
   if (mAuthor && authorH > 0) {
-    totalH += authorH + s.cover.authorBottomPadding;
-    lastBottomPadding = s.cover.authorBottomPadding;
+    totalH += authorH + s.authorBottomPadding;
+    lastBottomPadding = s.authorBottomPadding;
   }
   if (mDate && dateH > 0) {
     totalH += dateH;
@@ -172,25 +170,23 @@ function buildCoverPrimitives(
     totalH -= lastBottomPadding;
   }
 
-  const textX = getTextX(bounds, s.cover.padding, alignH);
-  let currentY = getStartY(bounds, s.cover.padding, alignV, totalH);
+  const textX = getTextX(bounds, s.padding, alignH);
+  let currentY = getStartY(bounds, s.padding, alignV, totalH);
 
   // Logos
   if (item.titleLogos && item.titleLogos.length > 0 && logoH > 0) {
     const logoWidths = item.titleLogos.map((logo: HTMLImageElement) => {
       return (logoH * logo.width) / logo.height;
     });
-    const totalLogoWidths = sum(logoWidths) +
-      (logoWidths.length - 1) * s.cover.logoGapX;
+    const totalLogoWidths = sum(logoWidths) + (logoWidths.length - 1) * s.logoGapX;
 
     let logoStartX: number;
     switch (alignH) {
       case "left":
-        logoStartX = bounds.x() + s.cover.padding.pl();
+        logoStartX = bounds.x() + s.padding.pl();
         break;
       case "right":
-        logoStartX = bounds.x() + bounds.w() - s.cover.padding.pr() -
-          totalLogoWidths;
+        logoStartX = bounds.x() + bounds.w() - s.padding.pr() - totalLogoWidths;
         break;
       case "center":
         logoStartX = bounds.x() + (bounds.w() - totalLogoWidths) / 2;
@@ -207,12 +203,12 @@ function buildCoverPrimitives(
         image: logo,
         rcd: new RCD([currentX, currentY, logoWidth, logoH]),
       });
-      currentX += logoWidth + s.cover.logoGapX;
+      currentX += logoWidth + s.logoGapX;
     }
-    currentY += logoH + s.cover.logoBottomPadding;
+    currentY += logoH + s.logoBottomPadding;
   }
 
-  const textMaxWidth = bounds.w() - s.cover.padding.totalPx();
+  const textMaxWidth = bounds.w() - s.padding.totalPx();
 
   // Title
   if (mTitle && titleH > 0) {
@@ -226,7 +222,7 @@ function buildCoverPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
-    currentY += titleH + s.cover.titleBottomPadding;
+    currentY += titleH + s.titleBottomPadding;
   }
 
   // Subtitle
@@ -241,7 +237,7 @@ function buildCoverPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
-    currentY += subTitleH + s.cover.subTitleBottomPadding;
+    currentY += subTitleH + s.subTitleBottomPadding;
   }
 
   // Author
@@ -256,7 +252,7 @@ function buildCoverPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
-    currentY += authorH + s.cover.authorBottomPadding;
+    currentY += authorH + s.authorBottomPadding;
   }
 
   // Date

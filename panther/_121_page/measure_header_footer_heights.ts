@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type MergedPageStyle, Padding, type RenderContext } from "./deps.ts";
+import { type MergedFreeformStyle, Padding, type RenderContext } from "./deps.ts";
 
 export type HeaderFooterInputs = {
   header?: string;
@@ -23,7 +23,7 @@ export function measureHeaderFooterHeights(
   rc: RenderContext,
   pageWidth: number,
   inputs: HeaderFooterInputs,
-  style: MergedPageStyle,
+  style: MergedFreeformStyle,
 ): MeasuredHeaderFooterHeights {
   return {
     headerHeight: measureHeaderHeight(rc, pageWidth, inputs, style),
@@ -35,7 +35,7 @@ function measureHeaderHeight(
   rc: RenderContext,
   pageWidth: number,
   inputs: HeaderFooterInputs,
-  s: MergedPageStyle,
+  s: MergedFreeformStyle,
 ): number {
   const hasText = inputs.header?.trim() || inputs.subHeader?.trim() ||
     inputs.date?.trim();
@@ -113,7 +113,7 @@ function measureFooterHeight(
   rc: RenderContext,
   pageWidth: number,
   inputs: HeaderFooterInputs,
-  s: MergedPageStyle,
+  s: MergedFreeformStyle,
 ): number {
   const hasText = !!inputs.footer?.trim();
   const hasLogos = inputs.footerLogos && inputs.footerLogos.length > 0;

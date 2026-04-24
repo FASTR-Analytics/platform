@@ -21,12 +21,7 @@ export function measurePage(
   item: PageInputs,
   responsiveScale?: number,
 ): MeasuredPage {
-  const mergedPageStyle = new CustomPageStyle(
-    item.style,
-    responsiveScale,
-  ).getMergedPageStyle();
-  const s = mergedPageStyle;
-
+  const pageStyle = new CustomPageStyle(item.style, responsiveScale);
   const fullPageBounds = bounds;
 
   let boundsForPageType: RectCoordsDims = bounds;
@@ -45,48 +40,59 @@ export function measurePage(
     }
   }
 
-  const mWatermark: MeasuredText | undefined = item.watermark?.trim()
-    ? rc.mText(item.watermark.trim(), s.text.watermark, fullPageBounds.w())
-    : undefined;
-
   let result: MeasuredPage;
   switch (item.type) {
-    case "cover":
+    case "cover": {
+      const style = pageStyle.getMergedCoverStyle();
+      const mWatermark: MeasuredText | undefined = item.watermark?.trim()
+        ? rc.mText(item.watermark.trim(), style.text.watermark, fullPageBounds.w())
+        : undefined;
       result = measureCover(
         rc,
         boundsForPageType,
         item,
-        s,
+        style,
         responsiveScale,
         fullPageBounds,
         measuredSplitImage,
         mWatermark,
       );
       break;
-    case "section":
+    }
+    case "section": {
+      const style = pageStyle.getMergedSectionStyle();
+      const mWatermark: MeasuredText | undefined = item.watermark?.trim()
+        ? rc.mText(item.watermark.trim(), style.text.watermark, fullPageBounds.w())
+        : undefined;
       result = measureSection(
         rc,
         boundsForPageType,
         item,
-        s,
+        style,
         responsiveScale,
         fullPageBounds,
         measuredSplitImage,
         mWatermark,
       );
       break;
-    case "freeform":
+    }
+    case "freeform": {
+      const style = pageStyle.getMergedFreeformStyle();
+      const mWatermark: MeasuredText | undefined = item.watermark?.trim()
+        ? rc.mText(item.watermark.trim(), style.text.watermark, fullPageBounds.w())
+        : undefined;
       result = measureFreeform(
         rc,
         boundsForPageType,
         item,
-        s,
+        style,
         responsiveScale,
         fullPageBounds,
         measuredSplitImage,
         mWatermark,
       );
       break;
+    }
     default: {
       const _exhaustive: never = item;
       throw new Error(`Unknown page type: ${_exhaustive}`);

@@ -5,7 +5,7 @@
 
 import {
   type MeasuredText,
-  type MergedPageStyle,
+  type MergedFreeformStyle,
   Padding,
   RectCoordsDims,
   type RenderContext,
@@ -24,7 +24,7 @@ export function measureFooter(
   rc: RenderContext,
   rcdOuter: RectCoordsDims,
   inputs: FreeformPageInputs,
-  s: MergedPageStyle,
+  s: MergedFreeformStyle,
 ): MeasuredFooter | undefined {
   if (
     !inputs.footer?.trim() &&
@@ -83,7 +83,7 @@ export function measureFooter(
 export function buildFooterPrimitives(
   measured: MeasuredFooter,
   inputs: FreeformPageInputs,
-  s: MergedPageStyle,
+  s: MergedFreeformStyle,
 ): PagePrimitive[] {
   const primitives: PagePrimitive[] = [];
   const padFooter = new Padding(s.footer.padding);

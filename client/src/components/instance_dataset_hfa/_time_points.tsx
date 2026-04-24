@@ -4,30 +4,14 @@ import {
   EditorComponentProps,
   FrameTop,
   Input,
-  Select,
+  MonthSelect,
   StateHolderFormError,
-  timActionButton,
   timActionDelete,
   timActionForm,
+  YearSelect,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-
-const YEARS = Array.from({ length: 16 }, (_, i) => String(2020 + i));
-const MONTHS = [
-  { value: "01", label: "January" },
-  { value: "02", label: "February" },
-  { value: "03", label: "March" },
-  { value: "04", label: "April" },
-  { value: "05", label: "May" },
-  { value: "06", label: "June" },
-  { value: "07", label: "July" },
-  { value: "08", label: "August" },
-  { value: "09", label: "September" },
-  { value: "10", label: "October" },
-  { value: "11", label: "November" },
-  { value: "12", label: "December" },
-];
 
 export function TimePointsView(
   p: EditorComponentProps<
@@ -193,24 +177,16 @@ export function TimePointsView(
                             fullWidth
                           />
                         </div>
-                        <div class="w-32">
-                          <Select
-                            label={t3({ en: "Year", fr: "Année" })}
-                            options={YEARS.map((y) => ({ value: y, label: y }))}
-                            value={editYear()}
-                            onChange={setEditYear}
-                            fullWidth
-                          />
-                        </div>
-                        <div class="w-40">
-                          <Select
-                            label={t3({ en: "Month", fr: "Mois" })}
-                            options={MONTHS}
-                            value={editMonth()}
-                            onChange={setEditMonth}
-                            fullWidth
-                          />
-                        </div>
+                        <YearSelect
+                          label={t3({ en: "Year", fr: "Année" })}
+                          value={editYear()}
+                          onChange={setEditYear}
+                        />
+                        <MonthSelect
+                          label={t3({ en: "Month", fr: "Mois" })}
+                          value={editMonth()}
+                          onChange={setEditMonth}
+                        />
                       </div>
                       <StateHolderFormError state={saveEdit.state()} />
                       <div class="ui-gap-sm flex">

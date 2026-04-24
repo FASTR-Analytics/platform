@@ -5,7 +5,7 @@
 
 import {
   type MeasuredText,
-  type MergedPageStyle,
+  type MergedFreeformStyle,
   Padding,
   RectCoordsDims,
   type RenderContext,
@@ -27,7 +27,7 @@ export function measureHeader(
   rc: RenderContext,
   rcdOuter: RectCoordsDims,
   inputs: FreeformPageInputs,
-  s: MergedPageStyle,
+  s: MergedFreeformStyle,
 ): MeasuredHeader | undefined {
   if (
     !inputs.header?.trim() &&
@@ -145,7 +145,7 @@ export function measureHeader(
 export function buildHeaderPrimitives(
   measured: MeasuredHeader,
   inputs: FreeformPageInputs,
-  s: MergedPageStyle,
+  s: MergedFreeformStyle,
 ): PagePrimitive[] {
   const primitives: PagePrimitive[] = [];
   const padHeader = new Padding(s.header.padding);

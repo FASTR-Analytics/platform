@@ -53,7 +53,17 @@ export function HfaIndicatorCodeEditor(
   );
 
   const [needsSaving, setNeedsSaving] = createSignal(false);
+  const [isSaving, setIsSaving] = createSignal(false);
   let doSave: (() => Promise<void>) | undefined;
+
+  async function handleSave() {
+    if (doSave) {
+      setIsSaving(true);
+      await doSave();
+      setIsSaving(false);
+      setNeedsSaving(false);
+    }
+  }
 
   async function handleSaveAndClose() {
     if (doSave) await doSave();
@@ -74,14 +84,22 @@ export function HfaIndicatorCodeEditor(
             }
           >
             <Button
+              onClick={handleSaveAndClose}
               intent="success"
               iconName="save"
-              onClick={handleSaveAndClose}
             >
               {t3({ en: "Save and close", fr: "Sauvegarder et quitter" })}
             </Button>
+            <Button
+              intent="success"
+              iconName="save"
+              onClick={handleSave}
+              loading={isSaving()}
+            >
+              {t3({ en: "Save", fr: "Sauvegarder" })}
+            </Button>
             <Button intent="neutral" onClick={() => p.close(undefined)}>
-              {t3({ en: "Discard", fr: "Annuler" })}
+              {t3({ en: "Cancel", fr: "Annuler" })}
             </Button>
           </Show>
           <div class="font-700 flex-1 truncate text-xl">
@@ -219,17 +237,29 @@ function EditorInner(p: {
     let hasSyntaxError = false;
     for (let i = 0; i < state.code.length; i++) {
       const c = state.code[i];
-      const tp = p.dictionary.timePoints.find((t) => t.timePoint === c.timePoint);
-      const availableVars = tp ? new Set(tp.vars.map((v) => v.varName)) : new Set<string>();
+      const tp = p.dictionary.timePoints.find(
+        (t) => t.timePoint === c.timePoint,
+      );
+      const availableVars = tp
+        ? new Set(tp.vars.map((v) => v.varName))
+        : new Set<string>();
       if (c.rCode.trim()) {
-        const result = validateRCode(c.rCode, availableVars, otherIndicatorVarNames);
+        const result = validateRCode(
+          c.rCode,
+          availableVars,
+          otherIndicatorVarNames,
+        );
         if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
           hasSyntaxError = true;
           break;
         }
       }
       if (c.rFilterCode.trim()) {
-        const result = validateRCode(c.rFilterCode, availableVars, otherIndicatorVarNames);
+        const result = validateRCode(
+          c.rFilterCode,
+          availableVars,
+          otherIndicatorVarNames,
+        );
         if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
           hasSyntaxError = true;
           break;
@@ -351,9 +381,7 @@ function EditorInner(p: {
                 >
                   <div>{tp.timePoint}</div>
                   <div class="text-base-content/50 text-xs">
-                    {hasCode()
-                      ? ""
-                      : t3({ en: "no code", fr: "aucun code" })}
+                    {hasCode() ? "" : t3({ en: "no code", fr: "aucun code" })}
                   </div>
                 </button>
               );
@@ -401,7 +429,8 @@ function EditorInner(p: {
                       <For each={currentRCodeValidation().syntaxErrors}>
                         {(e) => (
                           <div class="text-danger font-700 text-xs">
-                            {t3({ en: "Syntax: ", fr: "Syntaxe : " })}{e}
+                            {t3({ en: "Syntax: ", fr: "Syntaxe : " })}
+                            {e}
                           </div>
                         )}
                       </For>
@@ -461,7 +490,8 @@ function EditorInner(p: {
                       <For each={currentFilterValidation().syntaxErrors}>
                         {(e) => (
                           <div class="text-danger font-700 text-xs">
-                            {t3({ en: "Syntax: ", fr: "Syntaxe : " })}{e}
+                            {t3({ en: "Syntax: ", fr: "Syntaxe : " })}
+                            {e}
                           </div>
                         )}
                       </For>
@@ -509,12 +539,18 @@ function EditorInner(p: {
                   <div class="text-xs">
                     <Show when={roundsConsistency() === "same"}>
                       <span class="text-success font-700">
-                        {t3({ en: "All rounds identical", fr: "Tous les rounds identiques" })}
+                        {t3({
+                          en: "All rounds identical",
+                          fr: "Tous les rounds identiques",
+                        })}
                       </span>
                     </Show>
                     <Show when={roundsConsistency() === "different"}>
                       <span class="text-warning font-700">
-                        {t3({ en: "Rounds differ", fr: "Les rounds diffèrent" })}
+                        {t3({
+                          en: "Rounds differ",
+                          fr: "Les rounds diffèrent",
+                        })}
                       </span>
                     </Show>
                   </div>
@@ -531,7 +567,10 @@ function EditorInner(p: {
                   <Input
                     value={varSearch()}
                     onChange={setVarSearch}
-                    placeholder={t3({ en: "Search variables...", fr: "Rechercher des variables..." })}
+                    placeholder={t3({
+                      en: "Search variables...",
+                      fr: "Rechercher des variables...",
+                    })}
                     searchIcon
                     fullWidth
                   />
@@ -564,7 +603,12 @@ function EditorInner(p: {
                                       currentTpIndex(),
                                       "rCode",
                                       (prev) =>
-                                        prev + (prev.length === 0 || /\s$/.test(prev) ? "" : " ") + v.varName + " ",
+                                        prev +
+                                        (prev.length === 0 || /\s$/.test(prev)
+                                          ? ""
+                                          : " ") +
+                                        v.varName +
+                                        " ",
                                     );
                                     markDirty();
                                   }}

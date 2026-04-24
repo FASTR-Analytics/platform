@@ -87,26 +87,28 @@ export function getStyle_PolicyBrief(
         relFontSize: 1.5,
       },
     },
-    header: {
-      backgroundColor: cDetails.primaryBackgroundColor,
-      // logoHeight: cDetails.logoSize ?? 400,
-      padding: [100, 120],
-      logoGapX: 80,
-      logoBottomPadding: 60,
-      headerBottomPadding: 50,
-      subHeaderBottomPadding: 20,
-    },
-    footer: {
-      backgroundColor: cDetails.primaryBackgroundColor,
-      logoGapX: 80,
-      padding: [100, 120],
-    },
-    content: {
-      padding: [100, 120],
-      backgroundColor: cDetails.baseBackgroundColor,
-      // tabWidth: 10,
-      gapX: 100,
-      gapY: 80,
+    freeform: {
+      header: {
+        backgroundColor: cDetails.primaryBackgroundColor,
+        // logoHeight: cDetails.logoSize ?? 400,
+        padding: [100, 120],
+        logoGapX: 80,
+        logoBottomPadding: 60,
+        headerBottomPadding: 50,
+        subHeaderBottomPadding: 20,
+      },
+      footer: {
+        backgroundColor: cDetails.primaryBackgroundColor,
+        logoGapX: 80,
+        padding: [100, 120],
+      },
+      content: {
+        padding: [100, 120],
+        backgroundColor: cDetails.baseBackgroundColor,
+        // tabWidth: 10,
+        gapX: 100,
+        gapY: 80,
+      },
     },
   };
   return policyBriefStyle;

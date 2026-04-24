@@ -41,7 +41,7 @@ export function renderFreeformSlide(
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const item = measured.item;
   const bounds = measured.bounds;
-  const s = measured.mergedPageStyle;
+  const s = measured.style;
 
   // Background
   if (s.content.backgroundColor !== "none") {
@@ -95,7 +95,7 @@ export function renderFreeformSlide(
 function renderHeader(
   slide: PptxSlide,
   measured: MeasuredFreeformPage,
-  s: import("./deps.ts").MergedPageStyle,
+  s: import("./deps.ts").MergedFreeformStyle,
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const header = measured.header!;
@@ -253,7 +253,7 @@ function renderHeader(
 function renderFooter(
   slide: PptxSlide,
   measured: MeasuredFreeformPage,
-  s: import("./deps.ts").MergedPageStyle,
+  s: import("./deps.ts").MergedFreeformStyle,
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const footer = measured.footer!;

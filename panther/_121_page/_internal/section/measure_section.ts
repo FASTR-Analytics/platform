@@ -8,7 +8,7 @@ import type {
   AlignV,
   MeasuredImage,
   MeasuredText,
-  MergedPageStyle,
+  MergedSectionStyle,
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
@@ -23,22 +23,22 @@ export function measureSection(
   rc: RenderContext,
   bounds: RectCoordsDims,
   item: SectionPageInputs,
-  s: MergedPageStyle,
+  style: MergedSectionStyle,
   responsiveScale: number | undefined,
   fullPageBounds: RectCoordsDims,
   measuredSplitImage: MeasuredImage | undefined,
   mWatermark: MeasuredText | undefined,
 ): MeasuredSectionPage {
-  const textMaxWidth = bounds.w() - s.section.padding.totalPx();
+  const textMaxWidth = bounds.w() - style.padding.totalPx();
 
   const mSectionTitle = item.sectionTitle?.trim()
-    ? rc.mText(item.sectionTitle.trim(), s.text.sectionTitle, textMaxWidth)
+    ? rc.mText(item.sectionTitle.trim(), style.text.sectionTitle, textMaxWidth)
     : undefined;
 
   const mSectionSubTitle = item.sectionSubTitle?.trim()
     ? rc.mText(
       item.sectionSubTitle.trim(),
-      s.text.sectionSubTitle,
+      style.text.sectionSubTitle,
       textMaxWidth,
     )
     : undefined;
@@ -46,7 +46,7 @@ export function measureSection(
   const { primitives, totalH } = buildSectionPrimitives(
     bounds,
     item,
-    s,
+    style,
     mSectionTitle,
     mSectionSubTitle,
   );
@@ -55,7 +55,7 @@ export function measureSection(
     type: "section",
     item,
     bounds,
-    mergedPageStyle: s,
+    style,
     responsiveScale,
     overflow: totalH > bounds.h(),
     fullPageBounds,
@@ -101,21 +101,21 @@ function getStartY(
 function buildSectionPrimitives(
   bounds: RectCoordsDims,
   item: SectionPageInputs,
-  s: MergedPageStyle,
+  s: MergedSectionStyle,
   mSectionTitle?: import("../../deps.ts").MeasuredText,
   mSectionSubTitle?: import("../../deps.ts").MeasuredText,
 ): { primitives: PagePrimitive[]; totalH: number } {
   const primitives: PagePrimitive[] = [];
-  const alignH = s.section.alignH;
-  const alignV = s.section.alignV;
+  const alignH = s.alignH;
+  const alignV = s.alignV;
 
   // Background
-  if (s.section.backgroundColor !== "none") {
+  if (s.backgroundColor !== "none") {
     primitives.push({
       type: "background",
       id: "sectionBackground",
       rcd: bounds,
-      fillColor: s.section.backgroundColor,
+      fillColor: s.backgroundColor,
     });
   }
 
@@ -134,14 +134,12 @@ function buildSectionPrimitives(
   const sectionSubTitleH = mSectionSubTitle ? mSectionSubTitle.dims.h() : 0;
 
   const totalH = sectionTitleH +
-    (sectionSubTitleH > 0
-      ? s.section.sectionTitleBottomPadding + sectionSubTitleH
-      : 0);
+    (sectionSubTitleH > 0 ? s.sectionTitleBottomPadding + sectionSubTitleH : 0);
 
-  const textX = getTextX(bounds, s.section.padding, alignH);
-  let currentY = getStartY(bounds, s.section.padding, alignV, totalH);
+  const textX = getTextX(bounds, s.padding, alignH);
+  let currentY = getStartY(bounds, s.padding, alignV, totalH);
 
-  const textMaxWidth = bounds.w() - s.section.padding.totalPx();
+  const textMaxWidth = bounds.w() - s.padding.totalPx();
 
   // Section Title
   if (mSectionTitle && sectionTitleH > 0) {
@@ -155,7 +153,7 @@ function buildSectionPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
-    currentY += sectionTitleH + s.section.sectionTitleBottomPadding;
+    currentY += sectionTitleH + s.sectionTitleBottomPadding;
   }
 
   // Section Subtitle

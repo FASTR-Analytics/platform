@@ -127,22 +127,24 @@ export function getStyle_SlideDeck(
       authorBottomPadding: 60,
       // logoWidth: cDetails.logoSize,
     },
-    header: {
-      backgroundColor: cDetails.baseBackgroundColor,
-      // logoWidth: cDetails.logoSize ?? 400,
-      padding: [60, 80, 0, 80],
-    },
-    footer: {
-      backgroundColor: cDetails.primaryBackgroundColor,
-      logoGapX: 80,
-      padding: [60, 80],
-    },
-    content: {
-      padding: [60, 80],
-      backgroundColor: cDetails.baseBackgroundColor,
-      // tabWidth: 10,
-      gapX: 100,
-      gapY: 80,
+    freeform: {
+      header: {
+        backgroundColor: cDetails.baseBackgroundColor,
+        // logoWidth: cDetails.logoSize ?? 400,
+        padding: [60, 80, 0, 80],
+      },
+      footer: {
+        backgroundColor: cDetails.primaryBackgroundColor,
+        logoGapX: 80,
+        padding: [60, 80],
+      },
+      content: {
+        padding: [60, 80],
+        backgroundColor: cDetails.baseBackgroundColor,
+        // tabWidth: 10,
+        gapX: 100,
+        gapY: 80,
+      },
     },
     section: {
       backgroundColor: cDetails.primaryBackgroundColor,

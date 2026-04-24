@@ -25,11 +25,11 @@ export function renderCoverSlide(
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const item = measured.item;
   const bounds = measured.bounds;
-  const s = measured.mergedPageStyle;
+  const s = measured.style;
 
   // Background
-  if (s.cover.backgroundColor !== "none") {
-    const bgColor = Color.toHexNoHash(getColor(s.cover.backgroundColor));
+  if (s.backgroundColor !== "none") {
+    const bgColor = Color.toHexNoHash(getColor(s.backgroundColor));
     slide.addShape("rect", {
       x: 0,
       y: 0,
@@ -57,7 +57,7 @@ export function renderCoverSlide(
 
   // Calculate total height and center vertically (matching PDF render)
   const logoH = item.titleLogos && item.titleLogos.length > 0
-    ? s.cover.logoHeight
+    ? s.logoHeight
     : 0;
   const titleH = measured.mTitle ? measured.mTitle.dims.h() : 0;
   const subTitleH = measured.mSubTitle ? measured.mSubTitle.dims.h() : 0;
@@ -67,20 +67,20 @@ export function renderCoverSlide(
   let totalH = 0;
   let lastBottomPadding = 0;
   if (item.titleLogos && item.titleLogos.length > 0 && logoH > 0) {
-    totalH += logoH + s.cover.logoBottomPadding;
-    lastBottomPadding = s.cover.logoBottomPadding;
+    totalH += logoH + s.logoBottomPadding;
+    lastBottomPadding = s.logoBottomPadding;
   }
   if (measured.mTitle && titleH > 0) {
-    totalH += titleH + s.cover.titleBottomPadding;
-    lastBottomPadding = s.cover.titleBottomPadding;
+    totalH += titleH + s.titleBottomPadding;
+    lastBottomPadding = s.titleBottomPadding;
   }
   if (measured.mSubTitle && subTitleH > 0) {
-    totalH += subTitleH + s.cover.subTitleBottomPadding;
-    lastBottomPadding = s.cover.subTitleBottomPadding;
+    totalH += subTitleH + s.subTitleBottomPadding;
+    lastBottomPadding = s.subTitleBottomPadding;
   }
   if (measured.mAuthor && authorH > 0) {
-    totalH += authorH + s.cover.authorBottomPadding;
-    lastBottomPadding = s.cover.authorBottomPadding;
+    totalH += authorH + s.authorBottomPadding;
+    lastBottomPadding = s.authorBottomPadding;
   }
   if (measured.mDate && dateH > 0) {
     totalH += dateH;
@@ -96,7 +96,7 @@ export function renderCoverSlide(
       return (logoH * logo.width) / logo.height;
     });
     const totalLogoWidths = sum(logoWidths) +
-      (logoWidths.length - 1) * s.cover.logoGapX;
+      (logoWidths.length - 1) * s.logoGapX;
     let currentX = bounds.x() + (bounds.w() - totalLogoWidths) / 2;
     for (let i = 0; i < item.titleLogos.length; i++) {
       const logo = item.titleLogos[i];
@@ -109,9 +109,9 @@ export function renderCoverSlide(
         w: pixelsToInches(logoWidth),
         h: pixelsToInches(logoH),
       });
-      currentX += logoWidth + s.cover.logoGapX;
+      currentX += logoWidth + s.logoGapX;
     }
-    currentY += logoH + s.cover.logoBottomPadding;
+    currentY += logoH + s.logoBottomPadding;
   }
 
   // Render each text element at its measured position
@@ -123,7 +123,7 @@ export function renderCoverSlide(
       bounds.w(),
       currentY,
     );
-    currentY += titleH + s.cover.titleBottomPadding;
+    currentY += titleH + s.titleBottomPadding;
   }
 
   if (measured.mSubTitle && subTitleH > 0) {
@@ -134,7 +134,7 @@ export function renderCoverSlide(
       bounds.w(),
       currentY,
     );
-    currentY += subTitleH + s.cover.subTitleBottomPadding;
+    currentY += subTitleH + s.subTitleBottomPadding;
   }
 
   if (measured.mAuthor && authorH > 0) {
@@ -145,7 +145,7 @@ export function renderCoverSlide(
       bounds.w(),
       currentY,
     );
-    currentY += authorH + s.cover.authorBottomPadding;
+    currentY += authorH + s.authorBottomPadding;
   }
 
   if (measured.mDate && dateH > 0) {

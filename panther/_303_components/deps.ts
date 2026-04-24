@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { _GLOBAL_CANVAS_PIXEL_WIDTH } from "../_000_consts/mod.ts";
-export { t3 } from "../_000_translate/mod.ts";
+export { isFrench, t3 } from "../_000_translate/mod.ts";
 export { capitalizeFirstLetter, clamp, createArray, getSortedAlphabetical, normalizeTo01, to100Pct0, toNum0, toPct3 } from "../_000_utils/mod.ts";
 export { Color } from "../_001_color/mod.ts";
 export type { FontInfo } from "../_001_font/mod.ts";

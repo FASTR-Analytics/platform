@@ -16,7 +16,9 @@ import type {
   MeasuredImage,
   MeasuredLayoutNode,
   MeasuredText,
-  MergedPageStyle,
+  MergedCoverStyle,
+  MergedFreeformStyle,
+  MergedSectionStyle,
   RectCoordsDims,
   RenderContext,
 } from "./deps.ts";
@@ -159,15 +161,14 @@ export type PageInputs =
   | SectionPageInputs
   | FreeformPageInputs;
 
-export type PageRenderContext = { rc: RenderContext; s: MergedPageStyle };
+export type PageRenderContext = { rc: RenderContext; s: MergedFreeformStyle };
 
 // =============================================================================
 // Measured Page Types
 // =============================================================================
 
-// Base type for all measured pages
+// Base type for all measured pages (shared fields, no style - each page type has its own)
 type MeasuredPageBase = Measured<PageInputs> & {
-  mergedPageStyle: MergedPageStyle;
   responsiveScale?: number;
   overflow: boolean;
   fullPageBounds: RectCoordsDims;
@@ -181,8 +182,8 @@ type MeasuredPageBase = Measured<PageInputs> & {
 export type MeasuredCoverPage = MeasuredPageBase & {
   type: "cover";
   item: CoverPageInputs;
+  style: MergedCoverStyle;
   primitives: PagePrimitive[];
-  // Keep existing fields for backward compatibility
   mTitle?: MeasuredText;
   mSubTitle?: MeasuredText;
   mAuthor?: MeasuredText;
@@ -193,8 +194,8 @@ export type MeasuredCoverPage = MeasuredPageBase & {
 export type MeasuredSectionPage = MeasuredPageBase & {
   type: "section";
   item: SectionPageInputs;
+  style: MergedSectionStyle;
   primitives: PagePrimitive[];
-  // Keep existing fields for backward compatibility
   mSectionTitle?: MeasuredText;
   mSectionSubTitle?: MeasuredText;
 };
@@ -203,8 +204,8 @@ export type MeasuredSectionPage = MeasuredPageBase & {
 export type MeasuredFreeformPage = MeasuredPageBase & {
   type: "freeform";
   item: FreeformPageInputs;
-  primitives: PagePrimitive[]; // Header/footer elements
-  // Keep existing fields (unchanged)
+  style: MergedFreeformStyle;
+  primitives: PagePrimitive[];
   header?: {
     mHeader?: MeasuredText;
     mSubHeader?: MeasuredText;

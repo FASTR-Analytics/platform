@@ -416,30 +416,34 @@ function ThresholdsPanel(p: {
             const maxVal = () => cutoffIdx() < p.cf.cutoffs.length - 1 ? p.cf.cutoffs[cutoffIdx() + 1] : 1;
             return (
               <div class="flex items-center gap-2">
+                <div class="w-24 flex-none">
+                  <Show when={origI() > 0}>
+                    <div class="translate-y-1/2">
+                      <Show when={p.formatAs === "percent"} fallback={
+                        <NumberInput
+                          value={p.cf.cutoffs[cutoffIdx()]}
+                          onChange={(v) => setCutoff(cutoffIdx(), v)}
+                          min={minVal()}
+                          max={maxVal()}
+                        />
+                      }>
+                        <PercentSelect
+                          value={p.cf.cutoffs[cutoffIdx()]}
+                          onChange={(v) => setCutoff(cutoffIdx(), v)}
+                          min={minVal()}
+                          max={maxVal()}
+                          allowNegative={p.allowNegative}
+                          showPlusPrefix={p.allowNegative}
+                        />
+                      </Show>
+                    </div>
+                  </Show>
+                </div>
                 <ColorPicker
                   value={colorToString(bucket.color)}
                   onChange={(v) => setBucketColor(origI(), v)}
                   colorSet="standard"
                 />
-                <Show when={origI() > 0}>
-                  <Show when={p.formatAs === "percent"} fallback={
-                    <NumberInput
-                      value={p.cf.cutoffs[cutoffIdx()]}
-                      onChange={(v) => setCutoff(cutoffIdx(), v)}
-                      min={minVal()}
-                      max={maxVal()}
-                    />
-                  }>
-                    <PercentSelect
-                      value={p.cf.cutoffs[cutoffIdx()]}
-                      onChange={(v) => setCutoff(cutoffIdx(), v)}
-                      min={minVal()}
-                      max={maxVal()}
-                      allowNegative={p.allowNegative}
-                      showPlusPrefix={p.allowNegative}
-                    />
-                  </Show>
-                </Show>
                 <span class="text-base-content/70 text-xs">
                   {labels()[origI()]}
                 </span>

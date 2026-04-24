@@ -5,6 +5,7 @@ import { type DatasetHfaStep1Result,
 import {
   Button,
   Input,
+  PeriodSelect,
   Select,
   StateHolderFormError,
   getSelectOptions,
@@ -20,23 +21,8 @@ type Props = {
   silentFetch: () => Promise<void>;
 };
 
-const YEARS = Array.from({ length: 16 }, (_, i) => String(2020 + i));
-const MONTHS = [
-  { value: "01", label: "January" },
-  { value: "02", label: "February" },
-  { value: "03", label: "March" },
-  { value: "04", label: "April" },
-  { value: "05", label: "May" },
-  { value: "06", label: "June" },
-  { value: "07", label: "July" },
-  { value: "08", label: "August" },
-  { value: "09", label: "September" },
-  { value: "10", label: "October" },
-  { value: "11", label: "November" },
-  { value: "12", label: "December" },
-];
-
 export function Step2(p: Props) {
+
   const [tempMappings, setTempMappings] = createStore<HfaCsvMappingParams>(
     p.step2Result
       ? (structuredClone(p.step2Result) as HfaCsvMappingParams)
@@ -51,18 +37,6 @@ export function Step2(p: Props) {
 
   const csvHeaders = () => {
     return p.step1Result.csv.headers.map((v, i) => encodeRawCsvHeader(i, v));
-  };
-
-  const selectedYear = () => tempMappings.periodId?.slice(0, 4) || "";
-  const selectedMonth = () => tempMappings.periodId?.slice(4, 6) || "";
-
-  const updatePeriodId = (year: string, month: string) => {
-    if (year && month) {
-      setTempMappings("periodId", `${year}${month}`);
-    } else {
-      setTempMappings("periodId", "");
-    }
-    setNeedsSaving(true);
   };
 
   const save = timActionForm(async () => {
@@ -92,11 +66,12 @@ export function Step2(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <div class="ui-spy-sm">
-        <div class="flex items-center">
-          <div class="w-[40%] flex-none">facility_id</div>
-          <div class="flex-1">
+      <div class="max-w-2xl space-y-6">
+        <div>
+          <h3 class="font-700 text-lg mb-2">{t3({ en: "Facility ID Column", fr: "Colonne ID établissement" })}</h3>
+          <div class="w-80">
             <Select
+              label={t3({ en: "Select the column containing facility IDs", fr: "Sélectionnez la colonne contenant les ID des établissements" })}
               options={getSelectOptions(csvHeaders())}
               value={tempMappings.facilityIdColumn}
               onChange={(val) => {
@@ -107,39 +82,28 @@ export function Step2(p: Props) {
             />
           </div>
         </div>
-      </div>
-      <div class="ui-spy-sm">
-        <h3 class="font-700 text-lg">{t3({ en: "Time Point", fr: "Point temporel" })}</h3>
-        <div class="w-96">
-          <Input
-            label={t3({ en: "Time point label (e.g. Round 1, Baseline Dec 2024)", fr: "Libellé du point temporel (ex. Cycle 1, Référence Déc 2024)" })}
-            value={tempMappings.timePoint}
+        <div class="space-y-3">
+          <h3 class="font-700 text-lg">{t3({ en: "Time Point", fr: "Point temporel" })}</h3>
+          <div class="w-96">
+            <Input
+              label={t3({ en: "Label (e.g. Round 1, Baseline Dec 2024)", fr: "Libellé (ex. Cycle 1, Référence Déc 2024)" })}
+              value={tempMappings.timePoint}
+              onChange={(val) => {
+                setNeedsSaving(true);
+                setTempMappings("timePoint", val);
+              }}
+              fullWidth
+            />
+          </div>
+          <PeriodSelect
+            value={tempMappings.periodId}
             onChange={(val) => {
               setNeedsSaving(true);
-              setTempMappings("timePoint", val);
+              setTempMappings("periodId", val);
             }}
-            fullWidth
+            yearLabel={t3({ en: "Year", fr: "Année" })}
+            monthLabel={t3({ en: "Month", fr: "Mois" })}
           />
-        </div>
-        <div class="flex gap-4 w-96">
-          <div class="flex-1">
-            <Select
-              label={t3({ en: "Year", fr: "Année" })}
-              options={getSelectOptions(YEARS)}
-              value={selectedYear()}
-              onChange={(val) => updatePeriodId(val, selectedMonth())}
-              fullWidth
-            />
-          </div>
-          <div class="flex-1">
-            <Select
-              label={t3({ en: "Month", fr: "Mois" })}
-              options={MONTHS.map((m) => ({ value: m.value, label: m.label }))}
-              value={selectedMonth()}
-              onChange={(val) => updatePeriodId(selectedYear(), val)}
-              fullWidth
-            />
-          </div>
         </div>
       </div>
       <StateHolderFormError state={save.state()} />

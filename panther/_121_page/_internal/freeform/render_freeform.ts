@@ -12,11 +12,9 @@ export function renderFreeform(
   rc: RenderContext,
   measured: MeasuredFreeformPage,
 ): void {
-  const s = measured.mergedPageStyle;
-
-  if (s.content.backgroundColor !== "none") {
+  if (measured.style.content.backgroundColor !== "none") {
     rc.rRect(measured.bounds, {
-      fillColor: s.content.backgroundColor,
+      fillColor: measured.style.content.backgroundColor,
     });
   }
 

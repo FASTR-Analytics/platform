@@ -11,7 +11,12 @@ import {
   type CustomPageStyleOptions,
   getGlobalPageStyle,
 } from "./_2_custom_page_style_options.ts";
-import type { MergedPageStyle } from "./_3_merged_style_return_types.ts";
+import type {
+  MergedCoverStyle,
+  MergedFreeformStyle,
+  MergedPageNumberStyle,
+  MergedSectionStyle,
+} from "./_3_merged_style_return_types.ts";
 import {
   type FontInfo,
   getBaseText,
@@ -50,7 +55,7 @@ export class CustomPageStyle {
     );
   }
 
-  getMergedPageStyle(): MergedPageStyle {
+  getMergedCoverStyle(): MergedCoverStyle {
     const c = this._c;
     const g = this._g;
     const d = this._d;
@@ -59,290 +64,276 @@ export class CustomPageStyle {
 
     return {
       alreadyScaledValue: sf,
+      padding: msPadding(sf, c.cover?.padding, g.cover?.padding, d.cover.padding),
+      backgroundColor: getColor(
+        m(c.cover?.backgroundColor, g.cover?.backgroundColor, d.cover.backgroundColor),
+      ),
+      logoHeight: ms(sf, c.cover?.logoHeight, g.cover?.logoHeight, d.cover.logoHeight),
+      logoGapX: ms(sf, c.cover?.logoGapX, g.cover?.logoGapX, d.cover.logoGapX),
+      logoBottomPadding: ms(
+        sf,
+        c.cover?.logoBottomPadding,
+        g.cover?.logoBottomPadding,
+        d.cover.logoBottomPadding,
+      ),
+      titleBottomPadding: ms(
+        sf,
+        c.cover?.titleBottomPadding,
+        g.cover?.titleBottomPadding,
+        d.cover.titleBottomPadding,
+      ),
+      subTitleBottomPadding: ms(
+        sf,
+        c.cover?.subTitleBottomPadding,
+        g.cover?.subTitleBottomPadding,
+        d.cover.subTitleBottomPadding,
+      ),
+      authorBottomPadding: ms(
+        sf,
+        c.cover?.authorBottomPadding,
+        g.cover?.authorBottomPadding,
+        d.cover.authorBottomPadding,
+      ),
+      alignH: m(c.cover?.alignH, g.cover?.alignH, d.cover.alignH),
+      alignV: m(c.cover?.alignV, g.cover?.alignV, d.cover.alignV),
       text: {
-        coverTitle: getTextInfo(
-          c.text?.coverTitle,
-          g.text?.coverTitle,
-          baseText,
-        ),
-        coverSubTitle: getTextInfo(
-          c.text?.coverSubTitle,
-          g.text?.coverSubTitle,
-          baseText,
-        ),
-        coverAuthor: getTextInfo(
-          c.text?.coverAuthor,
-          g.text?.coverAuthor,
-          baseText,
-        ),
+        coverTitle: getTextInfo(c.text?.coverTitle, g.text?.coverTitle, baseText),
+        coverSubTitle: getTextInfo(c.text?.coverSubTitle, g.text?.coverSubTitle, baseText),
+        coverAuthor: getTextInfo(c.text?.coverAuthor, g.text?.coverAuthor, baseText),
         coverDate: getTextInfo(c.text?.coverDate, g.text?.coverDate, baseText),
-        //
-        sectionTitle: getTextInfo(
-          c.text?.sectionTitle,
-          g.text?.sectionTitle,
-          baseText,
-        ),
-        sectionSubTitle: getTextInfo(
-          c.text?.sectionSubTitle,
-          g.text?.sectionSubTitle,
-          baseText,
-        ),
-        //
-        header: getTextInfo(c.text?.header, g.text?.header, baseText),
-        subHeader: getTextInfo(c.text?.subHeader, g.text?.subHeader, baseText),
-        date: getTextInfo(c.text?.date, g.text?.date, baseText),
-        footer: getTextInfo(c.text?.footer, g.text?.footer, baseText),
-        pageNumber: getTextInfo(
-          c.text?.pageNumber,
-          g.text?.pageNumber,
-          baseText,
-        ),
+        pageNumber: getTextInfo(c.text?.pageNumber, g.text?.pageNumber, baseText),
         watermark: getTextInfo(c.text?.watermark, g.text?.watermark, baseText),
       },
+      pageNumber: this._getPageNumberStyle(),
+    };
+  }
+
+  getMergedSectionStyle(): MergedSectionStyle {
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const sf = this._sf;
+    const baseText = this._baseText;
+
+    return {
+      alreadyScaledValue: sf,
+      padding: msPadding(sf, c.section?.padding, g.section?.padding, d.section.padding),
+      backgroundColor: getColor(
+        m(c.section?.backgroundColor, g.section?.backgroundColor, d.section.backgroundColor),
+      ),
+      sectionTitleBottomPadding: ms(
+        sf,
+        c.section?.sectionTitleBottomPadding,
+        g.section?.sectionTitleBottomPadding,
+        d.section.sectionTitleBottomPadding,
+      ),
+      alignH: m(c.section?.alignH, g.section?.alignH, d.section.alignH),
+      alignV: m(c.section?.alignV, g.section?.alignV, d.section.alignV),
+      text: {
+        sectionTitle: getTextInfo(c.text?.sectionTitle, g.text?.sectionTitle, baseText),
+        sectionSubTitle: getTextInfo(c.text?.sectionSubTitle, g.text?.sectionSubTitle, baseText),
+        pageNumber: getTextInfo(c.text?.pageNumber, g.text?.pageNumber, baseText),
+        watermark: getTextInfo(c.text?.watermark, g.text?.watermark, baseText),
+      },
+      pageNumber: this._getPageNumberStyle(),
+    };
+  }
+
+  getMergedFreeformStyle(): MergedFreeformStyle {
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const sf = this._sf;
+    const baseText = this._baseText;
+
+    return {
+      alreadyScaledValue: sf,
       header: {
         padding: msPadding(
           sf,
-          c.header?.padding,
-          g.header?.padding,
-          d.header.padding,
+          c.freeform?.header?.padding,
+          g.freeform?.header?.padding,
+          d.freeform.header.padding,
         ),
         backgroundColor: getColor(
           m(
-            c.header?.backgroundColor,
-            g.header?.backgroundColor,
-            d.header.backgroundColor,
+            c.freeform?.header?.backgroundColor,
+            g.freeform?.header?.backgroundColor,
+            d.freeform.header.backgroundColor,
           ),
         ),
         logoHeight: ms(
           sf,
-          c.header?.logoHeight,
-          g.header?.logoHeight,
-          d.header.logoHeight,
+          c.freeform?.header?.logoHeight,
+          g.freeform?.header?.logoHeight,
+          d.freeform.header.logoHeight,
         ),
         logoGapX: ms(
           sf,
-          c.header?.logoGapX,
-          g.header?.logoGapX,
-          d.header.logoGapX,
+          c.freeform?.header?.logoGapX,
+          g.freeform?.header?.logoGapX,
+          d.freeform.header.logoGapX,
         ),
         logoPlacement: m(
-          c.header?.logoPlacement,
-          g.header?.logoPlacement,
-          d.header.logoPlacement,
+          c.freeform?.header?.logoPlacement,
+          g.freeform?.header?.logoPlacement,
+          d.freeform.header.logoPlacement,
         ),
         logoBottomPadding: ms(
           sf,
-          c.header?.logoBottomPadding,
-          g.header?.logoBottomPadding,
-          d.header.logoBottomPadding,
+          c.freeform?.header?.logoBottomPadding,
+          g.freeform?.header?.logoBottomPadding,
+          d.freeform.header.logoBottomPadding,
         ),
         headerBottomPadding: ms(
           sf,
-          c.header?.headerBottomPadding,
-          g.header?.headerBottomPadding,
-          d.header.headerBottomPadding,
+          c.freeform?.header?.headerBottomPadding,
+          g.freeform?.header?.headerBottomPadding,
+          d.freeform.header.headerBottomPadding,
         ),
         subHeaderBottomPadding: ms(
           sf,
-          c.header?.subHeaderBottomPadding,
-          g.header?.subHeaderBottomPadding,
-          d.header.subHeaderBottomPadding,
+          c.freeform?.header?.subHeaderBottomPadding,
+          g.freeform?.header?.subHeaderBottomPadding,
+          d.freeform.header.subHeaderBottomPadding,
         ),
         bottomBorderStrokeWidth: ms(
           sf,
-          c.header?.bottomBorderStrokeWidth,
-          g.header?.bottomBorderStrokeWidth,
-          d.header.bottomBorderStrokeWidth,
+          c.freeform?.header?.bottomBorderStrokeWidth,
+          g.freeform?.header?.bottomBorderStrokeWidth,
+          d.freeform.header.bottomBorderStrokeWidth,
         ),
         bottomBorderColor: getColor(
           m(
-            c.header?.bottomBorderColor,
-            g.header?.bottomBorderColor,
-            d.header.bottomBorderColor,
+            c.freeform?.header?.bottomBorderColor,
+            g.freeform?.header?.bottomBorderColor,
+            d.freeform.header.bottomBorderColor,
           ),
         ),
-        alignH: m(c.header?.alignH, g.header?.alignH, d.header.alignH),
+        alignH: m(
+          c.freeform?.header?.alignH,
+          g.freeform?.header?.alignH,
+          d.freeform.header.alignH,
+        ),
       },
       footer: {
         padding: msPadding(
           sf,
-          c.footer?.padding,
-          g.footer?.padding,
-          d.footer.padding,
+          c.freeform?.footer?.padding,
+          g.freeform?.footer?.padding,
+          d.freeform.footer.padding,
         ),
         logoHeight: ms(
           sf,
-          c.footer?.logoHeight,
-          g.footer?.logoHeight,
-          d.footer.logoHeight,
+          c.freeform?.footer?.logoHeight,
+          g.freeform?.footer?.logoHeight,
+          d.freeform.footer.logoHeight,
         ),
         logoGapX: ms(
           sf,
-          c.footer?.logoGapX,
-          g.footer?.logoGapX,
-          d.footer.logoGapX,
+          c.freeform?.footer?.logoGapX,
+          g.freeform?.footer?.logoGapX,
+          d.freeform.footer.logoGapX,
         ),
         backgroundColor: getColor(
           m(
-            c.footer?.backgroundColor,
-            g.footer?.backgroundColor,
-            d.footer.backgroundColor,
+            c.freeform?.footer?.backgroundColor,
+            g.freeform?.footer?.backgroundColor,
+            d.freeform.footer.backgroundColor,
           ),
         ),
-        alignH: m(c.footer?.alignH, g.footer?.alignH, d.footer.alignH),
+        alignH: m(
+          c.freeform?.footer?.alignH,
+          g.freeform?.footer?.alignH,
+          d.freeform.footer.alignH,
+        ),
       },
       content: {
         padding: msPadding(
           sf,
-          c.content?.padding,
-          g.content?.padding,
-          d.content.padding,
+          c.freeform?.content?.padding,
+          g.freeform?.content?.padding,
+          d.freeform.content.padding,
         ),
         backgroundColor: getColor(
           m(
-            c.content?.backgroundColor,
-            g.content?.backgroundColor,
-            d.content.backgroundColor,
+            c.freeform?.content?.backgroundColor,
+            g.freeform?.content?.backgroundColor,
+            d.freeform.content.backgroundColor,
           ),
         ),
-        gapX: ms(sf, c.content?.gapX, g.content?.gapX, d.content.gapX),
-        gapY: ms(sf, c.content?.gapY, g.content?.gapY, d.content.gapY),
-      },
-      cover: {
-        padding: msPadding(
+        gapX: ms(
           sf,
-          c.cover?.padding,
-          g.cover?.padding,
-          d.cover.padding,
+          c.freeform?.content?.gapX,
+          g.freeform?.content?.gapX,
+          d.freeform.content.gapX,
         ),
-        backgroundColor: getColor(
-          m(
-            c.cover?.backgroundColor,
-            g.cover?.backgroundColor,
-            d.cover.backgroundColor,
-          ),
-        ),
-        logoHeight: ms(
+        gapY: ms(
           sf,
-          c.cover?.logoHeight,
-          g.cover?.logoHeight,
-          d.cover.logoHeight,
+          c.freeform?.content?.gapY,
+          g.freeform?.content?.gapY,
+          d.freeform.content.gapY,
         ),
-        logoGapX: ms(
-          sf,
-          c.cover?.logoGapX,
-          g.cover?.logoGapX,
-          d.cover.logoGapX,
-        ),
-        logoBottomPadding: ms(
-          sf,
-          c.cover?.logoBottomPadding,
-          g.cover?.logoBottomPadding,
-          d.cover.logoBottomPadding,
-        ),
-        titleBottomPadding: ms(
-          sf,
-          c.cover?.titleBottomPadding,
-          g.cover?.titleBottomPadding,
-          d.cover.titleBottomPadding,
-        ),
-        subTitleBottomPadding: ms(
-          sf,
-          c.cover?.subTitleBottomPadding,
-          g.cover?.subTitleBottomPadding,
-          d.cover.subTitleBottomPadding,
-        ),
-        authorBottomPadding: ms(
-          sf,
-          c.cover?.authorBottomPadding,
-          g.cover?.authorBottomPadding,
-          d.cover.authorBottomPadding,
-        ),
-        alignH: m(c.cover?.alignH, g.cover?.alignH, d.cover.alignH),
-        alignV: m(c.cover?.alignV, g.cover?.alignV, d.cover.alignV),
-      },
-      section: {
-        padding: msPadding(
-          sf,
-          c.section?.padding,
-          g.section?.padding,
-          d.section.padding,
-        ),
-        backgroundColor: getColor(
-          m(
-            c.section?.backgroundColor,
-            g.section?.backgroundColor,
-            d.section.backgroundColor,
-          ),
-        ),
-        sectionTitleBottomPadding: ms(
-          sf,
-          c.section?.sectionTitleBottomPadding,
-          g.section?.sectionTitleBottomPadding,
-          d.section.sectionTitleBottomPadding,
-        ),
-        alignH: m(c.section?.alignH, g.section?.alignH, d.section.alignH),
-        alignV: m(c.section?.alignV, g.section?.alignV, d.section.alignV),
       },
       layoutContainers: {
         padding: msPadding(
           sf,
-          c.layoutContainers?.padding,
-          g.layoutContainers?.padding,
-          d.layoutContainers.padding,
+          c.freeform?.layoutContainers?.padding,
+          g.freeform?.layoutContainers?.padding,
+          d.freeform.layoutContainers.padding,
         ),
         backgroundColor: getColor(
           m(
-            c.layoutContainers?.backgroundColor,
-            g.layoutContainers?.backgroundColor,
-            d.layoutContainers.backgroundColor,
+            c.freeform?.layoutContainers?.backgroundColor,
+            g.freeform?.layoutContainers?.backgroundColor,
+            d.freeform.layoutContainers.backgroundColor,
           ),
         ),
         borderColor: getColor(
           m(
-            c.layoutContainers?.borderColor,
-            g.layoutContainers?.borderColor,
-            d.layoutContainers.borderColor,
+            c.freeform?.layoutContainers?.borderColor,
+            g.freeform?.layoutContainers?.borderColor,
+            d.freeform.layoutContainers.borderColor,
           ),
         ),
         borderWidth: ms(
           sf,
-          c.layoutContainers?.borderWidth,
-          g.layoutContainers?.borderWidth,
-          d.layoutContainers.borderWidth,
+          c.freeform?.layoutContainers?.borderWidth,
+          g.freeform?.layoutContainers?.borderWidth,
+          d.freeform.layoutContainers.borderWidth,
         ),
         rectRadius: ms(
           sf,
-          c.layoutContainers?.rectRadius,
-          g.layoutContainers?.rectRadius,
-          d.layoutContainers.rectRadius,
+          c.freeform?.layoutContainers?.rectRadius,
+          g.freeform?.layoutContainers?.rectRadius,
+          d.freeform.layoutContainers.rectRadius,
         ),
       },
-      pageNumber: {
-        placement: m(
-          c.pageNumber?.placement,
-          g.pageNumber?.placement,
-          d.pageNumber.placement,
-        ),
-        padding: msPadding(
-          sf,
-          c.pageNumber?.padding,
-          g.pageNumber?.padding,
-          d.pageNumber.padding,
-        ),
-        background: m(
-          c.pageNumber?.background,
-          g.pageNumber?.background,
-          d.pageNumber.background,
-        ),
-        backgroundColor: getColor(
-          m(
-            c.pageNumber?.backgroundColor,
-            g.pageNumber?.backgroundColor,
-            d.pageNumber.backgroundColor,
-          ),
-        ),
+      text: {
+        header: getTextInfo(c.text?.header, g.text?.header, baseText),
+        subHeader: getTextInfo(c.text?.subHeader, g.text?.subHeader, baseText),
+        date: getTextInfo(c.text?.date, g.text?.date, baseText),
+        footer: getTextInfo(c.text?.footer, g.text?.footer, baseText),
+        pageNumber: getTextInfo(c.text?.pageNumber, g.text?.pageNumber, baseText),
+        watermark: getTextInfo(c.text?.watermark, g.text?.watermark, baseText),
       },
+      pageNumber: this._getPageNumberStyle(),
+    };
+  }
+
+  private _getPageNumberStyle(): MergedPageNumberStyle {
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const sf = this._sf;
+
+    return {
+      placement: m(c.pageNumber?.placement, g.pageNumber?.placement, d.pageNumber.placement),
+      padding: msPadding(sf, c.pageNumber?.padding, g.pageNumber?.padding, d.pageNumber.padding),
+      background: m(c.pageNumber?.background, g.pageNumber?.background, d.pageNumber.background),
+      backgroundColor: getColor(
+        m(c.pageNumber?.backgroundColor, g.pageNumber?.backgroundColor, d.pageNumber.backgroundColor),
+      ),
     };
   }
 

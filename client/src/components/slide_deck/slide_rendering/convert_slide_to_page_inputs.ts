@@ -151,21 +151,23 @@ export function buildStyleForSlide(
     section: {
       backgroundColor: primaryColor,
     },
-    header: {
-      backgroundColor: "#FFFFFF",
-      padding: [60, 80, 0, 80],
-    },
-    content: {
-      padding: [60, 80],
-      backgroundColor: "#FFFFFF",
-      gapX: 100,
-      gapY: 80,
-    },
-    footer: {
-      backgroundColor: primaryColor,
-      logoGapX: 80,
-      padding: [45, 80],
-      logoHeight: 110,
+    freeform: {
+      header: {
+        backgroundColor: "#FFFFFF",
+        padding: [60, 80, 0, 80],
+      },
+      content: {
+        padding: [60, 80],
+        backgroundColor: "#FFFFFF",
+        gapX: 100,
+        gapY: 80,
+      },
+      footer: {
+        backgroundColor: primaryColor,
+        logoGapX: 80,
+        padding: [45, 80],
+        logoHeight: 110,
+      },
     },
   };
 }

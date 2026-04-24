@@ -7,7 +7,7 @@ export { sum } from "../_000_utils/mod.ts";
 export { Color, getColor } from "../_001_color/mod.ts";
 export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { MeasuredText, RenderContext } from "../_001_render_system/mod.ts";
-export type { MergedPageStyle } from "../_005_page_style/mod.ts";
+export type { MergedFreeformStyle, MergedPageNumberStyle } from "../_005_page_style/mod.ts";
 export { walkLayout } from "../_008_layouter/mod.ts";
 export type { MeasuredLayoutNode } from "../_008_layouter/mod.ts";
 export { FigureRenderer } from "../_011_figure_renderer/mod.ts";
