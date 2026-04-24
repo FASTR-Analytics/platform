@@ -7,6 +7,7 @@ import {
   getPgConnectionFromCacheOrNew,
   UserLog,
 } from "../../db/mod.ts";
+import { getAnyRunningModules } from "../../task_management/mod.ts";
 import {
   _DATABASE_FOLDER,
   _INSTANCE_CALENDAR,
@@ -31,24 +32,14 @@ routesHealth.get("/health_check", async (c) => {
     DBProject[]
   >`SELECT id, label FROM projects ORDER BY LOWER(label)`;
 
-  const hasRunningModules = (
-    await Promise.all(
-      projects.map(async (p: DBProject) => {
-        try {
-          const projectDb = getPgConnectionFromCacheOrNew(p.id, "READ_ONLY");
-          const [row] = await projectDb<{ count: number }[]>`
-            SELECT COUNT(*) AS count FROM modules WHERE dirty IN ('running')
-          `;
-          return row.count > 0;
-        } catch {
-          return false;
-        }
-      })
-    )
-  ).some(Boolean);
+  const hasRunningModules = projects.some((p) => getAnyRunningModules(p.id));
 
   const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
-  const hfaTimePointCount = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM dataset_hfa_dictionary_time_points`)[0].count;
+  const hfaTimePointCount = (
+    await mainDb<
+      { count: number }[]
+    >`SELECT COUNT(*) as count FROM dataset_hfa_dictionary_time_points`
+  )[0].count;
 
   const [lastLog] = await mainDb<
     UserLog[]
@@ -90,19 +81,25 @@ routesHealth.get("/health_check", async (c) => {
 
 routesHealth.get("/projects", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const projects = await mainDb<{ id: string; label: string }[]>`SELECT id, label FROM projects ORDER BY LOWER(label)`;
+  const projects = await mainDb<
+    { id: string; label: string }[]
+  >`SELECT id, label FROM projects ORDER BY LOWER(label)`;
   return c.json({ projects });
 });
 
 routesHealth.get("/user_logs", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const logs = await mainDb<UserLog[]>`SELECT user_email, endpoint, timestamp, project_id FROM user_logs WHERE endpoint = 'getCurrentUser' ORDER BY timestamp DESC`;
+  const logs = await mainDb<
+    UserLog[]
+  >`SELECT user_email, endpoint, timestamp, project_id FROM user_logs WHERE endpoint = 'getCurrentUser' ORDER BY timestamp DESC`;
   return c.json({ logs });
 });
 
 routesHealth.get("/project_activity", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const sevenDaysAgo = new Date(
+    Date.now() - 7 * 24 * 60 * 60 * 1000,
+  ).toISOString();
   const rows = await mainDb<{ project_id: string; count: string }[]>`
     SELECT project_id, COUNT(*)::text AS count
     FROM user_logs
