@@ -1,3 +1,8 @@
+[TBD] [user] [changed] - Reports section removed; use Slide Decks instead
+[TBD] [user] [changed] - Report migration tools removed from project and instance settings
+[TBD] [admin] [changed] - Removed legacy Reports section from projects
+[TBD] [admin] [changed] - Removed "Data Migration" tool from instance settings
+[TBD] [admin] [changed] - Removed "Migrate reports to slides" option from project settings
 [TBD] [user] [changed] - Create visualization now uses a guided step-by-step wizard
 [TBD] [user] [added] - Module sidebar to filter metrics when creating a visualization
 [TBD] [user] [added] - Metric cards with preset counts and geographic level selection
