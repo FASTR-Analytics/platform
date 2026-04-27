@@ -1,3 +1,19 @@
+[TBD] [user] [added] - Layout picker for choosing report slide layouts
+[TBD] [user] [added] - Treatment picker for choosing report visual styles
+[TBD] [user] [added] - Live style preview showing cover, section, and content slides
+[TBD] [user] [added] - Bold and italic controls for cover slide text fields
+[TBD] [user] [added] - Bold and italic controls for section slide text fields
+[TBD] [user] [added] - Built-in FASTR logos available in logo selectors
+[TBD] [user] [added] - Drag-to-reorder logos when multiple are selected
+[TBD] [user] [changed] - Report settings button moved to main toolbar for easier access
+[TBD] [user] [changed] - Font size sliders replaced with compact text style popovers
+[TBD] [admin] [added] - Layout and treatment style pickers for slide decks
+[TBD] [admin] [added] - Live style preview showing cover, section, and content slides
+[TBD] [admin] [added] - Bold and italic controls for cover and section slide text
+[TBD] [admin] [added] - Drag-to-reorder support for logo selections
+[TBD] [admin] [added] - Built-in FASTR logos available in logo selectors
+[TBD] [admin] [changed] - Report settings button moved to main toolbar for easier access
+[TBD] [admin] [changed] - Style section now spans full width with richer controls
 [TBD] [user] [changed] - Reports section removed; use Slide Decks instead
 [TBD] [user] [changed] - Report migration tools removed from project and instance settings
 [TBD] [admin] [changed] - Removed legacy Reports section from projects
