@@ -110,12 +110,12 @@ function buildSectionPrimitives(
   const alignV = s.alignV;
 
   // Background
-  if (s.backgroundColor !== "none") {
+  if (s.background !== "none") {
     primitives.push({
       type: "background",
       id: "sectionBackground",
       rcd: bounds,
-      fillColor: s.backgroundColor,
+      fillColor: s.background,
     });
   }
 

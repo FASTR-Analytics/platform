@@ -73,6 +73,35 @@ export function getColorAsRgb(colorKey: ColorKeyOrString): ColorRgb {
   return new Color(finalColor).rgb();
 }
 
+export function getKeyColorsFromPrimaryColor(primary: ColorOptions): KeyColors {
+  const primaryColor = new Color(primary);
+  const { h } = primaryColor.hsl();
+
+  const base100 = new Color(Color.hslToRgb({ h, s: 2, l: 99 })).css();
+  const base200 = new Color(Color.hslToRgb({ h, s: 3, l: 94 })).css();
+  const base300 = new Color(Color.hslToRgb({ h, s: 5, l: 83 })).css();
+  const baseContent = new Color(Color.hslToRgb({ h, s: 8, l: 12 })).css();
+
+  const primaryContent = primaryColor.isLight() ? baseContent : base100;
+
+  return {
+    base100,
+    base200,
+    base300,
+    baseContent,
+    primary: primaryColor.css(),
+    primaryContent,
+    neutral: new Color(Color.hslToRgb({ h, s: 5, l: 50 })).css(),
+    neutralContent: base100,
+    success: "#059669",
+    successContent: "#ffffff",
+    warning: "#d97706",
+    warningContent: "#ffffff",
+    danger: "#dc2626",
+    dangerContent: "#ffffff",
+  };
+}
+
 export function generateKeyColorsFromPrimary(
   primary: ColorOptions,
   mode: "light" | "dark",

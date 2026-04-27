@@ -6,7 +6,7 @@ import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { DeckSelector } from "~/components/project_ai/ai_tools/DeckSelector";
 import { convertAiInputToSlide } from "../slide_deck/slide_ai/convert_ai_input_to_slide";
-import { InlineReplicantSelector } from "../report/inline_replicant_selector";
+import { InlineReplicantSelector } from "./inline_replicant_selector";
 
 type Props = {
   projectId: string;

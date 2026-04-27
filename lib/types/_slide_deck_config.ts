@@ -22,6 +22,8 @@ export const slideDeckConfigSchema = z.object({
   watermarkText: z.string(),
   primaryColor: z.string(),
   overlay: z.enum(["dots", "rivers", "waves", "world", "none"]).optional(),
+  layout: z.enum(["default", "classic", "modern"]),
+  treatment: z.enum(["default", "bold", "soft", "bordered", "minimal"]),
 });
 
 export type SlideDeckConfigFromSchema = z.infer<typeof slideDeckConfigSchema>;
@@ -47,5 +49,7 @@ const _completeDeckConfig: Required<SlideDeckConfig> = {
   watermarkText: "",
   primaryColor: "",
   overlay: "none",
+  layout: "default",
+  treatment: "default",
 };
 slideDeckConfigSchema.parse(_completeDeckConfig);

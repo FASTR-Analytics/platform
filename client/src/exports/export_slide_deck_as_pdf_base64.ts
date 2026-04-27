@@ -9,7 +9,7 @@ import {
 import { APIResponseWithData, type Slide } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
-import { convertSlideToPageInputs } from "~/components/slide_deck/slide_rendering/convert_slide_to_page_inputs";
+import { convertSlideToPageInputs } from "../generate_slide_deck/convert_slide_to_page_inputs";
 import fontMap from "~/font-map.json";
 
 /**
@@ -72,17 +72,11 @@ export async function exportSlideDeckAsPdfBase64(
 
     progress(0.2);
 
-    for (
-      let i = 0;
-      i < resDeckDetail.data.slideIds.length;
-      i++
-    ) {
+    for (let i = 0; i < resDeckDetail.data.slideIds.length; i++) {
       currentSlideNumber = i + 1;
       const slideId = resDeckDetail.data.slideIds[i];
       await new Promise((res) => setTimeout(res, 0));
-      progress(
-        0.2 + (0.8 * i) / resDeckDetail.data.slideIds.length,
-      );
+      progress(0.2 + (0.8 * i) / resDeckDetail.data.slideIds.length);
       if (i > 0) {
         pdf.addPage([pdfW, pdfH], pdfOrientation);
       }
@@ -91,7 +85,10 @@ export async function exportSlideDeckAsPdfBase64(
       let slide: Slide;
 
       if (!cached.data) {
-        const res = await serverActions.getSlide({ projectId, slide_id: slideId });
+        const res = await serverActions.getSlide({
+          projectId,
+          slide_id: slideId,
+        });
         if (res.success === false) {
           return res;
         }
@@ -100,18 +97,19 @@ export async function exportSlideDeckAsPdfBase64(
         slide = cached.data.slide;
       }
 
-      const resPageInputs = await convertSlideToPageInputs(projectId, slide, i, resDeckDetail.data.config);
+      const resPageInputs = await convertSlideToPageInputs(
+        projectId,
+        slide,
+        i,
+        resDeckDetail.data.config,
+      );
 
       if (resPageInputs.success === false) {
         return resPageInputs;
       }
 
       const rcd = new RectCoordsDims([0, 0, pdfW, pdfH]);
-      await PageRenderer.measureAndRender(
-        rc,
-        rcd,
-        resPageInputs.data,
-      );
+      await PageRenderer.measureAndRender(rc, rcd, resPageInputs.data);
     }
 
     await new Promise((res) => setTimeout(res, 0));

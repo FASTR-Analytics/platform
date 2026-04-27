@@ -3,4 +3,4 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export * from "./translate.ts";
+export type { ColorKeyOrString } from "../_001_color/mod.ts";

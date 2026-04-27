@@ -28,3 +28,12 @@ export function msOrNone(
   }
   return sf * v;
 }
+
+export function msArea(
+  sf: number,
+  cs: number | undefined,
+  gs: number | undefined,
+  ds: number,
+): number {
+  return sf * sf * (cs ?? gs ?? ds);
+}

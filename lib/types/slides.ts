@@ -1,4 +1,9 @@
-import type { FigureInputs, LayoutNode } from "@timroberton/panther";
+import type {
+  FigureInputs,
+  LayoutNode,
+  LayoutPresetId,
+  TreatmentPresetId,
+} from "@timroberton/panther";
 import { Color } from "@timroberton/panther";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
 import { _GFF_GREEN } from "../key_colors.ts";
@@ -26,6 +31,8 @@ export type SlideDeckConfig = {
   watermarkText: string;
   primaryColor: string;
   overlay: "dots" | "rivers" | "waves" | "world" | "none" | undefined;
+  layout: LayoutPresetId;
+  treatment: TreatmentPresetId;
 };
 
 export function getTextColorForBackground(bgColor: string): string {
@@ -54,6 +61,8 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
     watermarkText: "",
     primaryColor: _GFF_GREEN,
     overlay: "none",
+    layout: "default",
+    treatment: "default",
   };
 }
 

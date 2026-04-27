@@ -16,6 +16,7 @@ import type {
   MergedFreeformStyle,
   MergedPageNumberStyle,
   MergedSectionStyle,
+  MergedSplitConfig,
 } from "./_3_merged_style_return_types.ts";
 import {
   type FontInfo,
@@ -24,12 +25,81 @@ import {
   getColor,
   getFontsToRegister,
   getTextInfo,
+  isPatternConfig,
   m,
   ms,
+  msArea,
   msPadding,
   type TextInfo,
 } from "./deps.ts";
 import { PAGE_TEXT_STYLE_KEYS } from "./text_style_keys.ts";
+import type {
+  LogosPlacement,
+  LogosPlacementOptions,
+  LogosSizing,
+  LogosSizingOptions,
+  PageBackgroundStyle,
+  SplitConfig,
+} from "./types.ts";
+
+function tempBackgroundResolver(bg: PageBackgroundStyle): string {
+  if (isPatternConfig(bg)) {
+    return getColor(bg.baseColor);
+  }
+  return getColor(bg);
+}
+
+function getMergedSplitBackground(
+  c: PageBackgroundStyle | "none" | undefined,
+  g: PageBackgroundStyle | "none" | undefined,
+  d: PageBackgroundStyle | "none",
+): string {
+  const bg = m(c, g, d);
+  if (bg === "none") return "none";
+  return tempBackgroundResolver(bg);
+}
+
+function getMergedSplit(
+  c: SplitConfig | undefined,
+  g: SplitConfig | undefined,
+  d: SplitConfig,
+): MergedSplitConfig {
+  return {
+    placement: m(c?.placement, g?.placement, d.placement!),
+    sizeAsPct: m(c?.sizeAsPct, g?.sizeAsPct, d.sizeAsPct!),
+    background: getMergedSplitBackground(
+      c?.background,
+      g?.background,
+      d.background!,
+    ),
+  };
+}
+
+function getMergedLogosSizing(
+  sf: number,
+  c: LogosSizingOptions | undefined,
+  g: LogosSizingOptions | undefined,
+  d: LogosSizing,
+): LogosSizing {
+  return {
+    targetArea: msArea(sf, c?.targetArea, g?.targetArea, d.targetArea),
+    maxHeight: ms(sf, c?.maxHeight, g?.maxHeight, d.maxHeight),
+    maxWidth: ms(sf, c?.maxWidth, g?.maxWidth, d.maxWidth),
+    gapX: ms(sf, c?.gapX, g?.gapX, d.gapX),
+  };
+}
+
+function getMergedLogosPlacement(
+  sf: number,
+  c: LogosPlacementOptions | undefined,
+  g: LogosPlacementOptions | undefined,
+  d: LogosPlacement,
+): LogosPlacement {
+  return {
+    position: m(c?.position, g?.position, d.position),
+    gap: ms(sf, c?.gap, g?.gap, d.gap),
+  };
+}
 
 export class CustomPageStyle {
   private _d: DefaultPageStyle;
@@ -45,7 +115,8 @@ export class CustomPageStyle {
     this._d = getDefaultPageStyle();
     this._g = getGlobalPageStyle();
     this._c = customStyle ?? {};
-    this._sf = (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
+    this._sf =
+      (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
       (responsiveScale ?? 1);
     this._baseText = getBaseTextInfo(
       this._c.text?.base,
@@ -64,17 +135,27 @@ export class CustomPageStyle {
 
     return {
       alreadyScaledValue: sf,
-      padding: msPadding(sf, c.cover?.padding, g.cover?.padding, d.cover.padding),
-      backgroundColor: getColor(
-        m(c.cover?.backgroundColor, g.cover?.backgroundColor, d.cover.backgroundColor),
-      ),
-      logoHeight: ms(sf, c.cover?.logoHeight, g.cover?.logoHeight, d.cover.logoHeight),
-      logoGapX: ms(sf, c.cover?.logoGapX, g.cover?.logoGapX, d.cover.logoGapX),
-      logoBottomPadding: ms(
+      padding: msPadding(
         sf,
-        c.cover?.logoBottomPadding,
-        g.cover?.logoBottomPadding,
-        d.cover.logoBottomPadding,
+        c.cover?.padding,
+        g.cover?.padding,
+        d.cover.padding,
+      ),
+      background: tempBackgroundResolver(
+        m(c.cover?.background, g.cover?.background, d.cover.background),
+      ),
+      split: getMergedSplit(c.cover?.split, g.cover?.split, d.cover.split),
+      logosSizing: getMergedLogosSizing(
+        sf,
+        c.cover?.logosSizing,
+        g.cover?.logosSizing,
+        d.cover.logosSizing,
+      ),
+      logosPlacement: getMergedLogosPlacement(
+        sf,
+        c.cover?.logosPlacement,
+        g.cover?.logosPlacement,
+        d.cover.logosPlacement,
       ),
       titleBottomPadding: ms(
         sf,
@@ -97,11 +178,27 @@ export class CustomPageStyle {
       alignH: m(c.cover?.alignH, g.cover?.alignH, d.cover.alignH),
       alignV: m(c.cover?.alignV, g.cover?.alignV, d.cover.alignV),
       text: {
-        coverTitle: getTextInfo(c.text?.coverTitle, g.text?.coverTitle, baseText),
-        coverSubTitle: getTextInfo(c.text?.coverSubTitle, g.text?.coverSubTitle, baseText),
-        coverAuthor: getTextInfo(c.text?.coverAuthor, g.text?.coverAuthor, baseText),
+        coverTitle: getTextInfo(
+          c.text?.coverTitle,
+          g.text?.coverTitle,
+          baseText,
+        ),
+        coverSubTitle: getTextInfo(
+          c.text?.coverSubTitle,
+          g.text?.coverSubTitle,
+          baseText,
+        ),
+        coverAuthor: getTextInfo(
+          c.text?.coverAuthor,
+          g.text?.coverAuthor,
+          baseText,
+        ),
         coverDate: getTextInfo(c.text?.coverDate, g.text?.coverDate, baseText),
-        pageNumber: getTextInfo(c.text?.pageNumber, g.text?.pageNumber, baseText),
+        pageNumber: getTextInfo(
+          c.text?.pageNumber,
+          g.text?.pageNumber,
+          baseText,
+        ),
         watermark: getTextInfo(c.text?.watermark, g.text?.watermark, baseText),
       },
       pageNumber: this._getPageNumberStyle(),
@@ -117,9 +214,19 @@ export class CustomPageStyle {
 
     return {
       alreadyScaledValue: sf,
-      padding: msPadding(sf, c.section?.padding, g.section?.padding, d.section.padding),
-      backgroundColor: getColor(
-        m(c.section?.backgroundColor, g.section?.backgroundColor, d.section.backgroundColor),
+      padding: msPadding(
+        sf,
+        c.section?.padding,
+        g.section?.padding,
+        d.section.padding,
+      ),
+      background: tempBackgroundResolver(
+        m(c.section?.background, g.section?.background, d.section.background),
+      ),
+      split: getMergedSplit(
+        c.section?.split,
+        g.section?.split,
+        d.section.split,
       ),
       sectionTitleBottomPadding: ms(
         sf,
@@ -130,9 +237,21 @@ export class CustomPageStyle {
       alignH: m(c.section?.alignH, g.section?.alignH, d.section.alignH),
       alignV: m(c.section?.alignV, g.section?.alignV, d.section.alignV),
       text: {
-        sectionTitle: getTextInfo(c.text?.sectionTitle, g.text?.sectionTitle, baseText),
-        sectionSubTitle: getTextInfo(c.text?.sectionSubTitle, g.text?.sectionSubTitle, baseText),
-        pageNumber: getTextInfo(c.text?.pageNumber, g.text?.pageNumber, baseText),
+        sectionTitle: getTextInfo(
+          c.text?.sectionTitle,
+          g.text?.sectionTitle,
+          baseText,
+        ),
+        sectionSubTitle: getTextInfo(
+          c.text?.sectionSubTitle,
+          g.text?.sectionSubTitle,
+          baseText,
+        ),
+        pageNumber: getTextInfo(
+          c.text?.pageNumber,
+          g.text?.pageNumber,
+          baseText,
+        ),
         watermark: getTextInfo(c.text?.watermark, g.text?.watermark, baseText),
       },
       pageNumber: this._getPageNumberStyle(),
@@ -148,6 +267,11 @@ export class CustomPageStyle {
 
     return {
       alreadyScaledValue: sf,
+      split: getMergedSplit(
+        c.freeform?.split,
+        g.freeform?.split,
+        d.freeform.split,
+      ),
       header: {
         padding: msPadding(
           sf,
@@ -155,35 +279,18 @@ export class CustomPageStyle {
           g.freeform?.header?.padding,
           d.freeform.header.padding,
         ),
-        backgroundColor: getColor(
+        background: tempBackgroundResolver(
           m(
-            c.freeform?.header?.backgroundColor,
-            g.freeform?.header?.backgroundColor,
-            d.freeform.header.backgroundColor,
+            c.freeform?.header?.background,
+            g.freeform?.header?.background,
+            d.freeform.header.background,
           ),
         ),
-        logoHeight: ms(
+        logosSizing: getMergedLogosSizing(
           sf,
-          c.freeform?.header?.logoHeight,
-          g.freeform?.header?.logoHeight,
-          d.freeform.header.logoHeight,
-        ),
-        logoGapX: ms(
-          sf,
-          c.freeform?.header?.logoGapX,
-          g.freeform?.header?.logoGapX,
-          d.freeform.header.logoGapX,
-        ),
-        logoPlacement: m(
-          c.freeform?.header?.logoPlacement,
-          g.freeform?.header?.logoPlacement,
-          d.freeform.header.logoPlacement,
-        ),
-        logoBottomPadding: ms(
-          sf,
-          c.freeform?.header?.logoBottomPadding,
-          g.freeform?.header?.logoBottomPadding,
-          d.freeform.header.logoBottomPadding,
+          c.freeform?.header?.logosSizing,
+          g.freeform?.header?.logosSizing,
+          d.freeform.header.logosSizing,
         ),
         headerBottomPadding: ms(
           sf,
@@ -223,23 +330,17 @@ export class CustomPageStyle {
           g.freeform?.footer?.padding,
           d.freeform.footer.padding,
         ),
-        logoHeight: ms(
+        logosSizing: getMergedLogosSizing(
           sf,
-          c.freeform?.footer?.logoHeight,
-          g.freeform?.footer?.logoHeight,
-          d.freeform.footer.logoHeight,
+          c.freeform?.footer?.logosSizing,
+          g.freeform?.footer?.logosSizing,
+          d.freeform.footer.logosSizing,
         ),
-        logoGapX: ms(
-          sf,
-          c.freeform?.footer?.logoGapX,
-          g.freeform?.footer?.logoGapX,
-          d.freeform.footer.logoGapX,
-        ),
-        backgroundColor: getColor(
+        background: tempBackgroundResolver(
           m(
-            c.freeform?.footer?.backgroundColor,
-            g.freeform?.footer?.backgroundColor,
-            d.freeform.footer.backgroundColor,
+            c.freeform?.footer?.background,
+            g.freeform?.footer?.background,
+            d.freeform.footer.background,
           ),
         ),
         alignH: m(
@@ -255,11 +356,11 @@ export class CustomPageStyle {
           g.freeform?.content?.padding,
           d.freeform.content.padding,
         ),
-        backgroundColor: getColor(
+        background: tempBackgroundResolver(
           m(
-            c.freeform?.content?.backgroundColor,
-            g.freeform?.content?.backgroundColor,
-            d.freeform.content.backgroundColor,
+            c.freeform?.content?.background,
+            g.freeform?.content?.background,
+            d.freeform.content.background,
           ),
         ),
         gapX: ms(
@@ -314,7 +415,11 @@ export class CustomPageStyle {
         subHeader: getTextInfo(c.text?.subHeader, g.text?.subHeader, baseText),
         date: getTextInfo(c.text?.date, g.text?.date, baseText),
         footer: getTextInfo(c.text?.footer, g.text?.footer, baseText),
-        pageNumber: getTextInfo(c.text?.pageNumber, g.text?.pageNumber, baseText),
+        pageNumber: getTextInfo(
+          c.text?.pageNumber,
+          g.text?.pageNumber,
+          baseText,
+        ),
         watermark: getTextInfo(c.text?.watermark, g.text?.watermark, baseText),
       },
       pageNumber: this._getPageNumberStyle(),
@@ -328,11 +433,28 @@ export class CustomPageStyle {
     const sf = this._sf;
 
     return {
-      placement: m(c.pageNumber?.placement, g.pageNumber?.placement, d.pageNumber.placement),
-      padding: msPadding(sf, c.pageNumber?.padding, g.pageNumber?.padding, d.pageNumber.padding),
-      background: m(c.pageNumber?.background, g.pageNumber?.background, d.pageNumber.background),
+      placement: m(
+        c.pageNumber?.placement,
+        g.pageNumber?.placement,
+        d.pageNumber.placement,
+      ),
+      padding: msPadding(
+        sf,
+        c.pageNumber?.padding,
+        g.pageNumber?.padding,
+        d.pageNumber.padding,
+      ),
+      background: m(
+        c.pageNumber?.background,
+        g.pageNumber?.background,
+        d.pageNumber.background,
+      ),
       backgroundColor: getColor(
-        m(c.pageNumber?.backgroundColor, g.pageNumber?.backgroundColor, d.pageNumber.backgroundColor),
+        m(
+          c.pageNumber?.backgroundColor,
+          g.pageNumber?.backgroundColor,
+          d.pageNumber.backgroundColor,
+        ),
       ),
     };
   }

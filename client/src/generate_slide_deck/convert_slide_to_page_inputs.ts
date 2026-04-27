@@ -24,6 +24,7 @@ import type {
   FontInfo,
   ImageInputs,
 } from "panther";
+import { resolvePageStyle } from "panther";
 import { hydrateFigureInputsForRendering } from "~/generate_visualization/mod";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
 import { getOverlayImage } from "./get_overlay_image";
@@ -45,13 +46,11 @@ export function buildStyleForSlide(
   slide: Slide,
   config: SlideDeckConfig,
 ): CustomPageStyleOptions {
-  const primaryColor = getPrimaryColor(config.primaryColor);
-  const primaryTextColor = getTextColorForBackground(primaryColor);
-
-  const df = config.deckFooter;
-  const footerText =
-    slide.type === "content" ? (df ? df.text : slide.footer) : undefined;
-  const hasFooter = !!footerText?.trim();
+  const { style: presetStyle } = resolvePageStyle(
+    config.layout,
+    config.treatment,
+    config.primaryColor,
+  );
 
   const coverFontSizes =
     slide.type === "cover"
@@ -63,110 +62,128 @@ export function buildStyleForSlide(
       ? (slide as SectionSlide)
       : ({} as Partial<SectionSlide>);
 
+  const df = config.deckFooter;
+  const footerText =
+    slide.type === "content" ? (df ? df.text : slide.footer) : undefined;
+  const hasFooter = !!footerText?.trim();
+
   return {
     text: {
       coverTitle: {
         font: _InternationalInter_800,
-        color: primaryTextColor,
+        color: presetStyle.text!.coverTitle!.color,
         relFontSize: coverFontSizes.titleTextRelFontSize ?? 10,
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       coverSubTitle: {
         font: _InternationalInter_400,
-        color: primaryTextColor,
+        color: presetStyle.text!.coverSubTitle!.color,
         relFontSize: coverFontSizes.subTitleTextRelFontSize ?? 6,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       coverAuthor: {
         font: _InternationalInter_800,
-        color: primaryTextColor,
+        color: presetStyle.text!.coverAuthor!.color,
         relFontSize: coverFontSizes.presenterTextRelFontSize ?? 4,
         letterSpacing: "-0.02em",
         lineHeight: 1.2,
       },
       coverDate: {
         font: _InternationalInter_400,
-        color: primaryTextColor,
+        color: presetStyle.text!.coverDate!.color,
         relFontSize: coverFontSizes.dateTextRelFontSize ?? 3,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       sectionTitle: {
         font: _InternationalInter_800,
-        color: primaryTextColor,
+        color: presetStyle.text!.sectionTitle!.color,
         relFontSize: sectionFontSizes.sectionTextRelFontSize ?? 8,
         letterSpacing: "-0.02em",
         lineHeight: 1.05,
       },
       sectionSubTitle: {
         font: _InternationalInter_400,
-        color: primaryTextColor,
+        color: presetStyle.text!.sectionSubTitle!.color,
         relFontSize: sectionFontSizes.smallerSectionTextRelFontSize ?? 5,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       header: {
         font: _InternationalInter_800,
+        color: presetStyle.text!.header!.color,
         relFontSize: 5.5,
-        color: "#1E1E1E",
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       subHeader: {
         font: _InternationalInter_400,
+        color: presetStyle.text!.subHeader!.color,
         relFontSize: 3.5,
-        color: "#1E1E1E",
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       date: {
         font: _InternationalInter_400,
+        color: presetStyle.text!.date!.color,
         relFontSize: 3,
-        color: "#1E1E1E",
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       footer: {
         font: _InternationalInter_400,
+        color: presetStyle.text!.footer!.color,
         relFontSize: 2,
-        color: primaryTextColor,
         letterSpacing: "-0.02em",
       },
       pageNumber: {
         font: _InternationalInter_400,
-        color: hasFooter ? primaryTextColor : "#1E1E1E",
+        color: hasFooter ? presetStyle.text!.footer!.color : presetStyle.text!.header!.color,
         relFontSize: 1.5,
       },
     },
     cover: {
-      backgroundColor: primaryColor,
-      logoGapX: 80,
-      logoBottomPadding: 60,
-      titleBottomPadding: 60,
-      subTitleBottomPadding: 60,
-      authorBottomPadding: 60,
+      background: presetStyle.cover!.background,
+      padding: presetStyle.cover!.padding,
+      logosSizing: presetStyle.cover!.logosSizing,
+      logosPlacement: presetStyle.cover!.logosPlacement,
+      titleBottomPadding: presetStyle.cover!.titleBottomPadding,
+      subTitleBottomPadding: presetStyle.cover!.subTitleBottomPadding,
+      authorBottomPadding: presetStyle.cover!.authorBottomPadding,
+      alignH: presetStyle.cover!.alignH,
+      alignV: presetStyle.cover!.alignV,
     },
     section: {
-      backgroundColor: primaryColor,
+      background: presetStyle.section!.background,
+      padding: presetStyle.section!.padding,
+      sectionTitleBottomPadding: presetStyle.section!.sectionTitleBottomPadding,
+      alignH: presetStyle.section!.alignH,
+      alignV: presetStyle.section!.alignV,
     },
     freeform: {
       header: {
-        backgroundColor: "#FFFFFF",
-        padding: [60, 80, 0, 80],
+        background: presetStyle.freeform!.header!.background,
+        padding: presetStyle.freeform!.header!.padding,
+        logosSizing: presetStyle.freeform!.header!.logosSizing,
+        headerBottomPadding: presetStyle.freeform!.header!.headerBottomPadding,
+        subHeaderBottomPadding: presetStyle.freeform!.header!.subHeaderBottomPadding,
+        bottomBorderStrokeWidth: presetStyle.freeform!.header!.bottomBorderStrokeWidth,
+        bottomBorderColor: presetStyle.freeform!.header!.bottomBorderColor,
+        alignH: presetStyle.freeform!.header!.alignH,
       },
       content: {
-        padding: [60, 80],
-        backgroundColor: "#FFFFFF",
-        gapX: 100,
-        gapY: 80,
+        background: presetStyle.freeform!.content!.background,
+        padding: presetStyle.freeform!.content!.padding,
+        gapX: presetStyle.freeform!.content!.gapX,
+        gapY: presetStyle.freeform!.content!.gapY,
       },
       footer: {
-        backgroundColor: primaryColor,
-        logoGapX: 80,
-        padding: [45, 80],
-        logoHeight: 110,
+        background: presetStyle.freeform!.footer!.background,
+        padding: presetStyle.freeform!.footer!.padding,
+        logosSizing: presetStyle.freeform!.footer!.logosSizing,
+        alignH: presetStyle.freeform!.footer!.alignH,
       },
     },
   };

@@ -11,15 +11,20 @@ import {
   type PaddingOptions,
 } from "./deps.ts";
 import type { PageTextStyleOptions } from "./text_style_keys.ts";
-
-export type PageNumberBackground = "none" | "triangle" | "circle" | "rect";
+import type {
+  LogosPlacementOptions,
+  LogosSizingOptions,
+  PageBackgroundStyle,
+  PageNumberBackground,
+  SplitConfig,
+} from "./types.ts";
 
 export type CoverStyleOptions = {
   padding?: PaddingOptions;
-  backgroundColor?: ColorKeyOrString;
-  logoHeight?: number;
-  logoGapX?: number;
-  logoBottomPadding?: number;
+  background?: PageBackgroundStyle;
+  split?: SplitConfig;
+  logosSizing?: LogosSizingOptions;
+  logosPlacement?: LogosPlacementOptions;
   titleBottomPadding?: number;
   subTitleBottomPadding?: number;
   authorBottomPadding?: number;
@@ -29,7 +34,8 @@ export type CoverStyleOptions = {
 
 export type SectionStyleOptions = {
   padding?: PaddingOptions;
-  backgroundColor?: ColorKeyOrString;
+  background?: PageBackgroundStyle;
+  split?: SplitConfig;
   sectionTitleBottomPadding?: number;
   alignH?: AlignH;
   alignV?: AlignV;
@@ -37,11 +43,8 @@ export type SectionStyleOptions = {
 
 export type HeaderStyleOptions = {
   padding?: PaddingOptions;
-  backgroundColor?: ColorKeyOrString;
-  logoHeight?: number;
-  logoGapX?: number;
-  logoPlacement?: "left" | "right";
-  logoBottomPadding?: number;
+  background?: PageBackgroundStyle;
+  logosSizing?: LogosSizingOptions;
   headerBottomPadding?: number;
   subHeaderBottomPadding?: number;
   bottomBorderStrokeWidth?: number;
@@ -51,15 +54,14 @@ export type HeaderStyleOptions = {
 
 export type FooterStyleOptions = {
   padding?: PaddingOptions;
-  logoHeight?: number;
-  logoGapX?: number;
-  backgroundColor?: ColorKeyOrString;
+  logosSizing?: LogosSizingOptions;
+  background?: PageBackgroundStyle;
   alignH?: AlignH;
 };
 
 export type ContentStyleOptions = {
   padding?: PaddingOptions;
-  backgroundColor?: ColorKeyOrString;
+  background?: PageBackgroundStyle;
   gapX?: number;
   gapY?: number;
 };
@@ -73,6 +75,7 @@ export type LayoutContainersStyleOptions = {
 };
 
 export type FreeformStyleOptions = {
+  split?: SplitConfig;
   header?: HeaderStyleOptions;
   footer?: FooterStyleOptions;
   content?: ContentStyleOptions;

@@ -29,7 +29,6 @@ import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
 import { ProjectMetrics } from "./project_metrics";
 import { ProjectModules } from "./project_modules";
-import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
 import { ProjectCache } from "./project_cache";
@@ -288,17 +287,6 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
               }
             >
               <Switch>
-                <Match
-                  when={
-                    projectTab() === "reports" &&
-                    projectDetail.thisUserPermissions.can_view_reports
-                  }
-                >
-                  <ProjectReports
-                    isGlobalAdmin={p.isGlobalAdmin}
-                    openProjectEditor={openProjectEditor}
-                  />
-                </Match>
                 <Match
                   when={
                     projectTab() === "decks" &&

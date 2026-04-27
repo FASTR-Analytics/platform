@@ -9,6 +9,7 @@
 //
 // TRANSFORM BLOCKS:
 // 1. Fill primaryColor default
+// 2. Add layout and treatment fields
 //
 // =============================================================================
 
@@ -40,6 +41,14 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
     // Block 1: Fill primaryColor default
     if (!("primaryColor" in config)) {
       config.primaryColor = _GFF_GREEN;
+    }
+
+    // Block 2: Add layout and treatment fields
+    if (!("layout" in config)) {
+      config.layout = "default";
+    }
+    if (!("treatment" in config)) {
+      config.treatment = "default";
     }
 
     const validated = slideDeckConfigSchema.parse(config);

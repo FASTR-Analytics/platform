@@ -4,12 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  measureLogos,
   type MeasuredText,
   type MergedFreeformStyle,
   Padding,
   RectCoordsDims,
   type RenderContext,
-  sum,
 } from "../../deps.ts";
 import { RectCoordsDims as RCD } from "../../deps.ts";
 import type { FreeformPageInputs, PagePrimitive } from "../../types.ts";
@@ -38,16 +38,22 @@ export function measureFooter(
   let totalInnerFooterHeight = 0;
   let maxWidthForFooterText = rcdOuter.w() - padFooter.totalPx();
 
+  // Measure logos if present
+  const hasLogos = inputs.footerLogos && inputs.footerLogos.length > 0;
+  const logosDims = hasLogos
+    ? measureLogos(new RCD([0, 0, 10000, 10000]), {
+        images: inputs.footerLogos!,
+        style: s.footer.logosSizing,
+        alignH: "right",
+        alignV: "middle",
+      })
+    : undefined;
+  const logosHeight = logosDims?.totalHeight ?? 0;
+  const logosWidth = logosDims?.totalWidth ?? 0;
+
   // Reduce maxWidth if footer logos are present (they're right-aligned)
-  if (inputs.footerLogos && inputs.footerLogos.length > 0) {
-    let logoWidth = 0;
-    for (const logo of inputs.footerLogos) {
-      logoWidth += (s.footer.logoHeight * logo.width) / logo.height;
-      logoWidth += s.footer.logoGapX;
-    }
-    if (logoWidth > 0) {
-      maxWidthForFooterText -= logoWidth + s.footer.logoGapX;
-    }
+  if (hasLogos) {
+    maxWidthForFooterText -= logosWidth + s.footer.logosSizing.gapX;
   }
 
   if (inputs.footer?.trim()) {
@@ -59,11 +65,8 @@ export function measureFooter(
     totalInnerFooterHeight = mFooter.dims.h();
   }
 
-  if (inputs.footerLogos && inputs.footerLogos.length > 0) {
-    totalInnerFooterHeight = Math.max(
-      totalInnerFooterHeight,
-      s.footer.logoHeight,
-    );
+  if (hasLogos) {
+    totalInnerFooterHeight = Math.max(totalInnerFooterHeight, logosHeight);
   }
 
   const rcdFooterOuter = new RectCoordsDims([
@@ -89,12 +92,12 @@ export function buildFooterPrimitives(
   const padFooter = new Padding(s.footer.padding);
 
   // Background
-  if (s.footer.backgroundColor !== "none") {
+  if (s.footer.background !== "none") {
     primitives.push({
       type: "background",
       id: "footerBackground",
       rcd: measured.rcdFooterOuter,
-      fillColor: s.footer.backgroundColor,
+      fillColor: s.footer.background,
     });
   }
 
@@ -102,11 +105,12 @@ export function buildFooterPrimitives(
 
   // Footer text
   if (measured.mFooter) {
-    const x = s.footer.alignH === "center"
-      ? paddedRcd.x() + measured.maxWidthForFooterText / 2
-      : s.footer.alignH === "right"
-      ? paddedRcd.x() + measured.maxWidthForFooterText
-      : paddedRcd.x();
+    const x =
+      s.footer.alignH === "center"
+        ? paddedRcd.x() + measured.maxWidthForFooterText / 2
+        : s.footer.alignH === "right"
+          ? paddedRcd.x() + measured.maxWidthForFooterText
+          : paddedRcd.x();
     primitives.push({
       type: "text",
       id: "footerText",
@@ -121,26 +125,21 @@ export function buildFooterPrimitives(
 
   // Footer logos (right-aligned, vertically centered)
   if (inputs.footerLogos && inputs.footerLogos.length > 0) {
-    const logosWidth = sum(
-      inputs.footerLogos.map(
-        (logo) => (s.footer.logoHeight * logo.width) / logo.height,
-      ),
-    ) +
-      s.footer.logoGapX * (inputs.footerLogos.length - 1);
+    const mLogos = measureLogos(paddedRcd, {
+      images: inputs.footerLogos,
+      style: s.footer.logosSizing,
+      alignH: "right",
+      alignV: "middle",
+    });
 
-    let currentX = paddedRcd.rightX() - logosWidth;
-    const logoY = paddedRcd.y() + (paddedRcd.h() - s.footer.logoHeight) / 2;
-
-    for (let i = 0; i < inputs.footerLogos.length; i++) {
-      const logo = inputs.footerLogos[i];
-      const logoWidth = (s.footer.logoHeight * logo.width) / logo.height;
+    for (let i = 0; i < mLogos.items.length; i++) {
+      const logo = mLogos.items[i];
       primitives.push({
         type: "image",
         id: `footerLogo${i}`,
-        image: logo,
-        rcd: new RCD([currentX, logoY, logoWidth, s.footer.logoHeight]),
+        image: logo.image,
+        rcd: new RCD([logo.x, logo.y, logo.width, logo.height]),
       });
-      currentX += logoWidth + s.footer.logoGapX;
     }
   }
 

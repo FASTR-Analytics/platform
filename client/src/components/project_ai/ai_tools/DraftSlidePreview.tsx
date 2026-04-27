@@ -18,7 +18,7 @@ import {
 } from "panther";
 import { createSignal, ErrorBoundary, Match, onMount, Show, Switch } from "solid-js";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
-import { convertSlideToPageInputs } from "~/components/slide_deck/slide_rendering/convert_slide_to_page_inputs";
+import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import { useProjectDetail } from "~/components/project_runner/mod";
 import { AddToDeckModal } from "./AddToDeckModal";

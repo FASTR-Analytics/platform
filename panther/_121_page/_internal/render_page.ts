@@ -21,9 +21,9 @@ export function renderPage(
   rc: RenderContext,
   measured: MeasuredPage,
 ): void {
-  if (measured.splitImageBounds && measured.splitImageBackgroundColor) {
+  if (measured.splitImageBounds && measured.splitBackground && measured.splitBackground !== "none") {
     rc.rRect(measured.splitImageBounds, {
-      fillColor: measured.splitImageBackgroundColor,
+      fillColor: measured.splitBackground,
     });
   }
   if (measured.measuredSplitImage) {

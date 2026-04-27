@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  measureLogos,
   type MeasuredText,
   type MergedFreeformStyle,
   Padding,
@@ -47,30 +48,23 @@ export function measureHeader(
   let yOffsetHeader = 0;
   let yOffsetRightPlacementLogos = 0;
 
-  if (
-    s.header.logoPlacement === "left" &&
-    inputs.headerLogos &&
-    inputs.headerLogos.length > 0
-  ) {
-    totalInnerHeaderHeight += s.header.logoHeight + s.header.logoBottomPadding;
-    lastExtraToChop = s.header.logoBottomPadding;
-  }
+  // Measure logos if present
+  const hasLogos = inputs.headerLogos && inputs.headerLogos.length > 0;
+  const logosDims = hasLogos
+    ? measureLogos(new RCD([0, 0, 10000, 10000]), {
+        images: inputs.headerLogos!,
+        style: s.header.logosSizing,
+        alignH: "left",
+        alignV: "top",
+      })
+    : undefined;
+  const logosHeight = logosDims?.totalHeight ?? 0;
+  const logosWidth = logosDims?.totalWidth ?? 0;
 
   let maxWidthForHeaderText = rcdOuter.w() - padHeader.totalPx();
 
-  if (
-    s.header.logoPlacement === "right" &&
-    inputs.headerLogos &&
-    inputs.headerLogos.length > 0
-  ) {
-    let logoWidth = 0;
-    for (const logo of inputs.headerLogos) {
-      logoWidth += (s.header.logoHeight * logo.width) / logo.height;
-      logoWidth += s.header.logoGapX;
-    }
-    if (logoWidth > 0) {
-      maxWidthForHeaderText -= logoWidth + s.header.logoGapX;
-    }
+  if (hasLogos) {
+    maxWidthForHeaderText -= logosWidth + s.header.logosSizing.gapX;
   }
 
   if (inputs.header?.trim()) {
@@ -89,8 +83,8 @@ export function measureHeader(
       s.text.subHeader,
       maxWidthForHeaderText,
     );
-    totalInnerHeaderHeight += mSubHeader.dims.h() +
-      s.header.subHeaderBottomPadding;
+    totalInnerHeaderHeight +=
+      mSubHeader.dims.h() + s.header.subHeaderBottomPadding;
     lastExtraToChop = s.header.subHeaderBottomPadding;
   }
 
@@ -101,26 +95,17 @@ export function measureHeader(
     totalInnerHeaderHeight -= lastExtraToChop;
   }
 
-  if (
-    s.header.logoPlacement === "right" &&
-    inputs.headerLogos &&
-    inputs.headerLogos.length > 0
-  ) {
-    yOffsetHeader = Math.max(
-      0,
-      (s.header.logoHeight - totalInnerHeaderHeight) / 2,
-    );
+  if (hasLogos) {
+    yOffsetHeader = Math.max(0, (logosHeight - totalInnerHeaderHeight) / 2);
     yOffsetRightPlacementLogos = Math.max(
       0,
-      (totalInnerHeaderHeight - s.header.logoHeight) / 2,
+      (totalInnerHeaderHeight - logosHeight) / 2,
     );
-    totalInnerHeaderHeight = Math.max(
-      totalInnerHeaderHeight,
-      s.header.logoHeight,
-    );
+    totalInnerHeaderHeight = Math.max(totalInnerHeaderHeight, logosHeight);
   }
 
-  const totalHeaderHeight = totalInnerHeaderHeight +
+  const totalHeaderHeight =
+    totalInnerHeaderHeight +
     padHeader.totalPy() +
     s.header.bottomBorderStrokeWidth;
 
@@ -151,24 +136,24 @@ export function buildHeaderPrimitives(
   const padHeader = new Padding(s.header.padding);
 
   // Background
-  if (s.header.backgroundColor !== "none") {
+  if (s.header.background !== "none") {
     primitives.push({
       type: "background",
       id: "headerBackground",
       rcd: measured.rcdHeaderOuter,
-      fillColor: s.header.backgroundColor,
+      fillColor: s.header.background,
     });
   }
 
   // Overlay (complex sizing logic from renderHeader)
   if (inputs.overlay) {
     const overlayFinalWidth = measured.rcdHeaderOuter.w();
-    const overlayFinalHeight = overlayFinalWidth *
-      (inputs.overlay.height / inputs.overlay.width);
+    const overlayFinalHeight =
+      overlayFinalWidth * (inputs.overlay.height / inputs.overlay.width);
 
     if (overlayFinalHeight > measured.rcdHeaderOuter.h()) {
-      const overlayFinalYOffset = overlayFinalHeight -
-        measured.rcdHeaderOuter.h();
+      const overlayFinalYOffset =
+        overlayFinalHeight - measured.rcdHeaderOuter.h();
       primitives.push({
         type: "image",
         id: "headerOverlay",
@@ -182,8 +167,8 @@ export function buildHeaderPrimitives(
       });
     } else {
       const overlayFinalHeight = measured.rcdHeaderOuter.h();
-      const overlayFinalWidth = overlayFinalHeight *
-        (inputs.overlay.width / inputs.overlay.height);
+      const overlayFinalWidth =
+        overlayFinalHeight * (inputs.overlay.width / inputs.overlay.height);
       const overlayFinalXOffset =
         (overlayFinalWidth - measured.rcdHeaderOuter.w()) / 2;
       primitives.push({
@@ -201,33 +186,13 @@ export function buildHeaderPrimitives(
   }
 
   const paddedRcd = measured.rcdHeaderOuter.getPadded(padHeader);
-  const x = s.header.alignH === "center"
-    ? paddedRcd.x() + measured.maxWidthForHeaderText / 2
-    : s.header.alignH === "right"
-    ? paddedRcd.x() + measured.maxWidthForHeaderText
-    : paddedRcd.x();
+  const x =
+    s.header.alignH === "center"
+      ? paddedRcd.x() + measured.maxWidthForHeaderText / 2
+      : s.header.alignH === "right"
+        ? paddedRcd.x() + measured.maxWidthForHeaderText
+        : paddedRcd.x();
   let currentY = paddedRcd.y() + measured.yOffsetHeader;
-
-  // Left-placed logos
-  if (
-    s.header.logoPlacement === "left" &&
-    inputs.headerLogos &&
-    inputs.headerLogos.length > 0
-  ) {
-    let currentX = paddedRcd.x();
-    for (let i = 0; i < inputs.headerLogos.length; i++) {
-      const logo = inputs.headerLogos[i];
-      const logoWidth = (s.header.logoHeight * logo.width) / logo.height;
-      primitives.push({
-        type: "image",
-        id: `headerLogoLeft${i}`,
-        image: logo,
-        rcd: new RCD([currentX, currentY, logoWidth, s.header.logoHeight]),
-      });
-      currentX += logoWidth + s.header.logoGapX;
-    }
-    currentY += s.header.logoHeight + s.header.logoBottomPadding;
-  }
 
   // Header text
   if (measured.mHeader) {
@@ -273,25 +238,29 @@ export function buildHeaderPrimitives(
     });
   }
 
-  // Right-placed logos
-  if (
-    s.header.logoPlacement === "right" &&
-    inputs.headerLogos &&
-    inputs.headerLogos.length > 0
-  ) {
-    let currentX = paddedRcd.rightX();
-    const y = paddedRcd.y() + measured.yOffsetRightPlacementLogos;
+  // Logos (always right-aligned)
+  if (inputs.headerLogos && inputs.headerLogos.length > 0) {
+    const logoBounds = new RCD([
+      paddedRcd.x(),
+      paddedRcd.y() + measured.yOffsetRightPlacementLogos,
+      paddedRcd.w(),
+      10000,
+    ]);
+    const mLogos = measureLogos(logoBounds, {
+      images: inputs.headerLogos,
+      style: s.header.logosSizing,
+      alignH: "right",
+      alignV: "top",
+    });
 
-    for (let i = 0; i < inputs.headerLogos.length; i++) {
-      const logo = inputs.headerLogos[i];
-      const logoWidth = (s.header.logoHeight * logo.width) / logo.height;
+    for (let i = 0; i < mLogos.items.length; i++) {
+      const logo = mLogos.items[i];
       primitives.push({
         type: "image",
-        id: `headerLogoRight${i}`,
-        image: logo,
-        rcd: new RCD([currentX - logoWidth, y, logoWidth, s.header.logoHeight]),
+        id: `headerLogo${i}`,
+        image: logo.image,
+        rcd: new RCD([logo.x, logo.y, logo.width, logo.height]),
       });
-      currentX -= logoWidth + s.header.logoGapX;
     }
   }
 
@@ -304,12 +273,12 @@ export function buildHeaderPrimitives(
         [
           measured.rcdHeaderOuter.x(),
           measured.rcdHeaderOuter.bottomY() -
-          s.header.bottomBorderStrokeWidth / 2,
+            s.header.bottomBorderStrokeWidth / 2,
         ],
         [
           measured.rcdHeaderOuter.rightX(),
           measured.rcdHeaderOuter.bottomY() -
-          s.header.bottomBorderStrokeWidth / 2,
+            s.header.bottomBorderStrokeWidth / 2,
         ],
       ],
       style: {

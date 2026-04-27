@@ -109,13 +109,6 @@ export function isRectAnnotation(
 // Page Input Types
 // =============================================================================
 
-export type SplitImageInputs = {
-  image?: HTMLImageElement;
-  backgroundColor?: ColorKeyOrString;
-  placement: "left" | "right" | "top" | "bottom";
-  sizeAsPctOfPage: number;
-};
-
 // Base properties shared by all page input types
 export type PageInputsBase = {
   overlay?: HTMLImageElement;
@@ -123,7 +116,7 @@ export type PageInputsBase = {
   style?: CustomPageStyleOptions;
   annotations?: PageAnnotation[];
   pageNumber?: string;
-  splitImage?: SplitImageInputs;
+  splitImage?: HTMLImageElement;
 };
 
 // Cover page specific inputs
@@ -175,7 +168,7 @@ type MeasuredPageBase = Measured<PageInputs> & {
   mWatermark?: MeasuredText;
   measuredSplitImage?: MeasuredImage;
   splitImageBounds?: RectCoordsDims;
-  splitImageBackgroundColor?: ColorKeyOrString;
+  splitBackground?: string;
 };
 
 // Cover page specific measured data

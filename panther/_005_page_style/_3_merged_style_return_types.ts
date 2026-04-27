@@ -3,8 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { PageNumberBackground } from "./_2_custom_page_style_options.ts";
 import type { AlignH, AlignV, Padding, TextInfoUnkeyed } from "./deps.ts";
+import type {
+  LogosPlacement,
+  LogosSizing,
+  PageNumberBackground,
+} from "./types.ts";
+
+export type { LogosSizing };
 
 export type MergedPageNumberStyle = {
   placement: "bottom-right" | "bottom-left" | "bottom-center";
@@ -15,11 +21,8 @@ export type MergedPageNumberStyle = {
 
 export type MergedFreeformHeaderStyle = {
   padding: Padding;
-  logoHeight: number;
-  logoGapX: number;
-  logoPlacement: "left" | "right";
-  backgroundColor: string;
-  logoBottomPadding: number;
+  logosSizing: LogosSizing;
+  background: string;
   headerBottomPadding: number;
   subHeaderBottomPadding: number;
   bottomBorderStrokeWidth: number;
@@ -29,15 +32,14 @@ export type MergedFreeformHeaderStyle = {
 
 export type MergedFreeformFooterStyle = {
   padding: Padding;
-  logoHeight: number;
-  logoGapX: number;
-  backgroundColor: string;
+  logosSizing: LogosSizing;
+  background: string;
   alignH: AlignH;
 };
 
 export type MergedFreeformContentStyle = {
   padding: Padding;
-  backgroundColor: string;
+  background: string;
   gapX: number;
   gapY: number;
 };
@@ -50,13 +52,19 @@ export type MergedFreeformLayoutContainersStyle = {
   rectRadius: number;
 };
 
+export type MergedSplitConfig = {
+  placement: "none" | "left" | "right" | "top" | "bottom";
+  sizeAsPct: number;
+  background: string;
+};
+
 export type MergedCoverStyle = {
   alreadyScaledValue: number;
   padding: Padding;
-  backgroundColor: string;
-  logoHeight: number;
-  logoGapX: number;
-  logoBottomPadding: number;
+  background: string;
+  split: MergedSplitConfig;
+  logosSizing: LogosSizing;
+  logosPlacement: LogosPlacement;
   titleBottomPadding: number;
   subTitleBottomPadding: number;
   authorBottomPadding: number;
@@ -76,7 +84,8 @@ export type MergedCoverStyle = {
 export type MergedSectionStyle = {
   alreadyScaledValue: number;
   padding: Padding;
-  backgroundColor: string;
+  background: string;
+  split: MergedSplitConfig;
   sectionTitleBottomPadding: number;
   alignH: AlignH;
   alignV: AlignV;
@@ -91,6 +100,7 @@ export type MergedSectionStyle = {
 
 export type MergedFreeformStyle = {
   alreadyScaledValue: number;
+  split: MergedSplitConfig;
   header: MergedFreeformHeaderStyle;
   footer: MergedFreeformFooterStyle;
   content: MergedFreeformContentStyle;

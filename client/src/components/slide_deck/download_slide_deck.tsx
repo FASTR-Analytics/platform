@@ -9,8 +9,8 @@ import {
   toPct1,
 } from "panther";
 import { Show, createSignal } from "solid-js";
-import { exportSlideDeckAsPdfVector } from "~/export_report/export_slide_deck_as_pdf_vector";
-import { exportSlideDeckAsPptx } from "~/export_report/export_slide_deck_as_pptx";
+import { exportSlideDeckAsPdfVector } from "~/exports/export_slide_deck_as_pdf_vector";
+import { exportSlideDeckAsPptx } from "~/exports/export_slide_deck_as_pptx";
 
 export function DownloadSlideDeck(
   p: EditorComponentProps<

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { t3 } from "../_000_translate/mod.ts";
+export { t3 } from "../_000_utils/mod.ts";
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
 export { BETA_HEADERS, BUILTIN_TOOL_TYPES, DEFAULT_PRICING, MAX_OUTPUT_TOKENS, MODEL_OPTIONS, MODEL_PRICING, SERVER_TOOL_LABELS } from "../_110_ai_types/mod.ts";
 export type { AnthropicModel, AnthropicModelConfig, AnthropicResponse, CacheControl, ContentBlock, DocumentContentBlock, MessageParam, MessagePayload, StreamEvent, Usage } from "../_110_ai_types/mod.ts";

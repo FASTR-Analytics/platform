@@ -10,13 +10,11 @@ import {
   FrameTop,
   HeadingBarMainRibbon,
   Input,
-  openComponent,
   RadioGroup,
   SettingsSection,
   getSelectOptions,
   timActionButton,
 } from "panther";
-import { MigrateAllReportsToSlides } from "./migrate_all_reports_to_slides";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -446,31 +444,6 @@ export function InstanceSettings(p: Props) {
           </div>
         </SettingsSection>
 
-        <SettingsSection
-          header={t3({ en: "Data Migration", fr: "Migration des donnees" })}
-        >
-          <div class="ui-spy-sm">
-            <div class="text-neutral text-sm">
-              {t3({
-                en: "One-time migration of old slide_deck reports to the new slides system.",
-                fr: "Migration unique des anciens rapports de presentation vers le nouveau systeme de diapositives.",
-              })}
-            </div>
-            <Button
-              onClick={async () => {
-                await openComponent({
-                  element: MigrateAllReportsToSlides,
-                  props: {},
-                });
-              }}
-            >
-              {t3({
-                en: "Migrate all reports to slides",
-                fr: "Migrer tous les rapports vers les diapositives",
-              })}
-            </Button>
-          </div>
-        </SettingsSection>
       </div>
     </FrameTop>
   );

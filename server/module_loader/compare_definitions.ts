@@ -26,12 +26,10 @@ export function compareDefinitions(
   // Compare only compute-affecting fields of resultsObjects
   const incomingResultsComparable = incomingDef.resultsObjects.map((r) => ({
     id: r.id,
-    description: r.description,
     createTableStatementPossibleColumns: r.createTableStatementPossibleColumns,
   }));
   const storedResultsComparable = storedDef.resultsObjects.map((r) => ({
     id: r.id,
-    description: r.description,
     createTableStatementPossibleColumns: r.createTableStatementPossibleColumns,
   }));
   const resultsObjChanged =
@@ -116,7 +114,7 @@ export function recommendsRerun(changes: DefinitionChanges): boolean {
 export function hasComputeAffectingChanges(
   incomingScript: string,
   incomingConfigRequirements: unknown,
-  incomingResultsObjects: { id: string; description: string; createTableStatementPossibleColumns?: unknown }[],
+  incomingResultsObjects: { id: string; createTableStatementPossibleColumns?: unknown }[],
   storedDef: ModuleDefinitionInstalled,
 ): boolean {
   if (incomingScript !== storedDef.script) return true;
@@ -129,12 +127,10 @@ export function hasComputeAffectingChanges(
   // Compare only compute-affecting fields of resultsObjects
   const incomingComparable = incomingResultsObjects.map((r) => ({
     id: r.id,
-    description: r.description,
     createTableStatementPossibleColumns: r.createTableStatementPossibleColumns,
   }));
   const storedComparable = storedDef.resultsObjects.map((r) => ({
     id: r.id,
-    description: r.description,
     createTableStatementPossibleColumns: r.createTableStatementPossibleColumns,
   }));
   const resultsChanged = JSON.stringify(incomingComparable) !== JSON.stringify(storedComparable);

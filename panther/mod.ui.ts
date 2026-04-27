@@ -6,11 +6,8 @@
 ////////////////////////
 //                    //
 //    Core modules    //
-//                    //
-////////////////////////
 
 export * from "./_000_consts/mod.ts";
-export * from "./_000_translate/mod.ts";
 export * from "./_000_utils/mod.ts";
 export * from "./_001_color/mod.ts";
 export * from "./_001_font/mod.ts";
@@ -20,6 +17,7 @@ export * from "./_002_canvas/mod.ts";
 export * from "./_003_figure_style/mod.ts";
 export * from "./_004_markdown_style/mod.ts";
 export * from "./_005_page_style/mod.ts";
+export * from "./_006_page_presets/mod.ts";
 export * from "./_006_style/mod.ts";
 export * from "./_007_figure_core/mod.ts";
 export * from "./_008_layouter/mod.ts";
@@ -42,13 +40,9 @@ export * from "./_106_markdown_to_word/mod.ts";
 export * from "./_110_ai_types/mod.ts";
 export * from "./_121_page/mod.ts";
 export * from "./_122_pdf/mod.ts";
-
 //////////////////////
 //                  //
 //    UI modules    //
-//                  //
-//////////////////////
-
 export * from "./_301_util_funcs/mod.ts";
 export * from "./_302_query/mod.ts";
 export * from "./_303_components/mod.ts";

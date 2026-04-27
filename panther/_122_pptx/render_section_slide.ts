@@ -32,8 +32,8 @@ export function renderSectionSlide(
   const s = measured.style;
 
   // Background
-  if (s.backgroundColor !== "none") {
-    const bgColor = Color.toHexNoHash(getColor(s.backgroundColor));
+  if (s.background !== "none") {
+    const bgColor = Color.toHexNoHash(getColor(s.background));
     slide.addShape("rect", {
       x: 0,
       y: 0,
