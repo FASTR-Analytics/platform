@@ -160,6 +160,13 @@ defineRoute(
       res.data.lastUpdated,
     );
 
+    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+    // V2 notify
+    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
+    if (decksRes.success) {
+      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
+    }
+
     return c.json(res);
   },
 );

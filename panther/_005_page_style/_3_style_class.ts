@@ -25,7 +25,6 @@ import {
   getColor,
   getFontsToRegister,
   getTextInfo,
-  isPatternConfig,
   m,
   ms,
   msArea,
@@ -38,26 +37,8 @@ import type {
   LogosPlacementOptions,
   LogosSizing,
   LogosSizingOptions,
-  PageBackgroundStyle,
   SplitConfig,
 } from "./types.ts";
-
-function tempBackgroundResolver(bg: PageBackgroundStyle): string {
-  if (isPatternConfig(bg)) {
-    return getColor(bg.baseColor);
-  }
-  return getColor(bg);
-}
-
-function getMergedSplitBackground(
-  c: PageBackgroundStyle | "none" | undefined,
-  g: PageBackgroundStyle | "none" | undefined,
-  d: PageBackgroundStyle | "none",
-): string {
-  const bg = m(c, g, d);
-  if (bg === "none") return "none";
-  return tempBackgroundResolver(bg);
-}
 
 function getMergedSplit(
   c: SplitConfig | undefined,
@@ -67,11 +48,7 @@ function getMergedSplit(
   return {
     placement: m(c?.placement, g?.placement, d.placement!),
     sizeAsPct: m(c?.sizeAsPct, g?.sizeAsPct, d.sizeAsPct!),
-    background: getMergedSplitBackground(
-      c?.background,
-      g?.background,
-      d.background!,
-    ),
+    background: m(c?.background, g?.background, d.background!),
   };
 }
 
@@ -141,8 +118,10 @@ export class CustomPageStyle {
         g.cover?.padding,
         d.cover.padding,
       ),
-      background: tempBackgroundResolver(
-        m(c.cover?.background, g.cover?.background, d.cover.background),
+      background: m(
+        c.cover?.background,
+        g.cover?.background,
+        d.cover.background,
       ),
       split: getMergedSplit(c.cover?.split, g.cover?.split, d.cover.split),
       logosSizing: getMergedLogosSizing(
@@ -220,8 +199,10 @@ export class CustomPageStyle {
         g.section?.padding,
         d.section.padding,
       ),
-      background: tempBackgroundResolver(
-        m(c.section?.background, g.section?.background, d.section.background),
+      background: m(
+        c.section?.background,
+        g.section?.background,
+        d.section.background,
       ),
       split: getMergedSplit(
         c.section?.split,
@@ -279,12 +260,10 @@ export class CustomPageStyle {
           g.freeform?.header?.padding,
           d.freeform.header.padding,
         ),
-        background: tempBackgroundResolver(
-          m(
-            c.freeform?.header?.background,
-            g.freeform?.header?.background,
-            d.freeform.header.background,
-          ),
+        background: m(
+          c.freeform?.header?.background,
+          g.freeform?.header?.background,
+          d.freeform.header.background,
         ),
         logosSizing: getMergedLogosSizing(
           sf,
@@ -336,12 +315,10 @@ export class CustomPageStyle {
           g.freeform?.footer?.logosSizing,
           d.freeform.footer.logosSizing,
         ),
-        background: tempBackgroundResolver(
-          m(
-            c.freeform?.footer?.background,
-            g.freeform?.footer?.background,
-            d.freeform.footer.background,
-          ),
+        background: m(
+          c.freeform?.footer?.background,
+          g.freeform?.footer?.background,
+          d.freeform.footer.background,
         ),
         alignH: m(
           c.freeform?.footer?.alignH,
@@ -356,12 +333,10 @@ export class CustomPageStyle {
           g.freeform?.content?.padding,
           d.freeform.content.padding,
         ),
-        background: tempBackgroundResolver(
-          m(
-            c.freeform?.content?.background,
-            g.freeform?.content?.background,
-            d.freeform.content.background,
-          ),
+        background: m(
+          c.freeform?.content?.background,
+          g.freeform?.content?.background,
+          d.freeform.content.background,
         ),
         gapX: ms(
           sf,

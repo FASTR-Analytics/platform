@@ -7,6 +7,7 @@ import {
   CustomPageStyle,
   ImageRenderer,
   type MergedSplitConfig,
+  type PageBackgroundStyle,
   RectCoordsDims,
   type RenderContext,
 } from "../deps.ts";
@@ -28,7 +29,7 @@ export function measurePage(
   let boundsForPageType: RectCoordsDims = bounds;
   let measuredSplitImage: MeasuredImage | undefined;
   let splitImageBounds: RectCoordsDims | undefined;
-  let splitBackground: string | undefined;
+  let splitBackground: PageBackgroundStyle | undefined;
 
   const splitConfig = getSplitConfig(item.type, pageStyle);
 

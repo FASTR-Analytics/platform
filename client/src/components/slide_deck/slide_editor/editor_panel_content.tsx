@@ -1,12 +1,15 @@
-import {
+import type {
   ContentSlide,
   ContentBlock,
-  DeckFooterConfig,
+  ContentSlideSplit,
+  ContentSlideSplitFill,
   FigureBlock,
   TextBlock,
   ImageBlock,
-  t3,
+  LogoVisibility,
 } from "lib";
+import { t3 } from "lib";
+import type { PatternType } from "panther";
 import {
   TextArea,
   OpenEditorProps,
@@ -17,12 +20,12 @@ import {
   RadioGroup,
   getSelectOptions,
   Slider,
+  Checkbox,
 } from "panther";
 import { createSignal, Match, Setter, Show, Switch } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
 import { SetStoreFunction } from "solid-js/store";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
-import { LogoSelector } from "./LogoSelector.tsx";
 
 type Props = {
   projectId: string;
@@ -39,9 +42,24 @@ type Props = {
   onEditVisualization: () => void;
   onSelectVisualization: () => void;
   onCreateVisualization: () => void;
-  deckLogos: string[];
-  deckFooter: DeckFooterConfig | undefined;
+  showHeaderLogosByDefault: boolean;
+  showFooterLogosByDefault: boolean;
+  hasGlobalFooterText: boolean;
 };
+
+function getLogoVisibilityOptions(showByDefault: boolean) {
+  return [
+    {
+      value: "inherit",
+      label: t3({
+        en: showByDefault ? "Default (show)" : "Default (hide)",
+        fr: showByDefault ? "Défaut (afficher)" : "Défaut (masquer)",
+      }),
+    },
+    { value: "show", label: t3({ en: "Show", fr: "Afficher" }) },
+    { value: "hide", label: t3({ en: "Hide", fr: "Masquer" }) },
+  ];
+}
 
 export function SlideEditorPanelContent(p: Props) {
   // Cache block data by blockId+type for restoration when switching back
@@ -122,7 +140,7 @@ export function SlideEditorPanelContent(p: Props) {
         <Switch>
           <Match when={p.contentTab === "slide"}>
             <div class="h-full overflow-auto">
-              <div class="ui-pad ui-spy">
+              <div class="ui-pad ui-spy-sm">
                 <TextArea
                   label={t3({ en: "Header", fr: "En-tête" })}
                   value={p.tempSlide.header ?? ""}
@@ -150,23 +168,36 @@ export function SlideEditorPanelContent(p: Props) {
                   fullWidth
                   height="40px"
                 />
-                <LogoSelector
+                <Select
                   label={t3({ en: "Header logos", fr: "Logos d'en-tête" })}
-                  values={p.tempSlide.headerLogos ?? []}
-                  customLogos={p.deckLogos}
-                  onChange={(logos) => p.setTempSlide("headerLogos", logos)}
+                  value={p.tempSlide.showHeaderLogos ?? "inherit"}
+                  options={getLogoVisibilityOptions(p.showHeaderLogosByDefault)}
+                  onChange={(v) =>
+                    p.setTempSlide(
+                      "showHeaderLogos",
+                      v === "inherit" ? undefined : (v as LogoVisibility),
+                    )
+                  }
                 />
-                <hr class="border-base-300" />
+              </div>
+              <hr class="border-base-300 mt-3 mb-1" />
+              <div class="ui-pad ui-spy-sm">
                 <Show
-                  when={!p.deckFooter}
+                  when={!p.hasGlobalFooterText}
                   fallback={
                     <div class="text-neutral text-xs">
-                      {t3({ en: "Footer is set at the deck level", fr: "Le pied de page est défini au niveau du diaporama" })}
+                      {t3({
+                        en: "Footer text is set at the deck level",
+                        fr: "Le texte de pied de page est défini au niveau du diaporama",
+                      })}
                     </div>
                   }
                 >
                   <TextArea
-                    label={t3({ en: "Footer", fr: "Pied de page" })}
+                    label={t3({
+                      en: "Footer text",
+                      fr: "Texte de pied de page",
+                    })}
                     value={p.tempSlide.footer ?? ""}
                     onChange={(v: string) =>
                       p.setTempSlide("footer", v || undefined)
@@ -174,12 +205,193 @@ export function SlideEditorPanelContent(p: Props) {
                     fullWidth
                     height="40px"
                   />
-                  <LogoSelector
-                    label={t3({ en: "Footer logos", fr: "Logos de pied de page" })}
-                    values={p.tempSlide.footerLogos ?? []}
-                    customLogos={p.deckLogos}
-                    onChange={(logos) => p.setTempSlide("footerLogos", logos)}
+                </Show>
+                <Select
+                  label={t3({
+                    en: "Footer logos",
+                    fr: "Logos de pied de page",
+                  })}
+                  value={p.tempSlide.showFooterLogos ?? "inherit"}
+                  options={getLogoVisibilityOptions(p.showFooterLogosByDefault)}
+                  onChange={(v) =>
+                    p.setTempSlide(
+                      "showFooterLogos",
+                      v === "inherit" ? undefined : (v as LogoVisibility),
+                    )
+                  }
+                />
+              </div>
+              <hr class="border-base-300 mt-3 mb-1" />
+              <div class="ui-pad ui-spy-sm">
+                <Checkbox
+                  label={t3({
+                    en: "Add split panel",
+                    fr: "Ajouter panneau divisé",
+                  })}
+                  checked={!!p.tempSlide.split}
+                  onChange={(checked) => {
+                    if (checked) {
+                      p.setTempSlide("split", {
+                        placement: "left",
+                        sizeAsPct: 15,
+                        fill: { type: "plain" },
+                      } satisfies ContentSlideSplit);
+                    } else {
+                      p.setTempSlide("split", undefined);
+                    }
+                  }}
+                />
+                <Show when={p.tempSlide.split}>
+                  <Select
+                    label={t3({ en: "Placement", fr: "Placement" })}
+                    value={p.tempSlide.split!.placement}
+                    options={[
+                      {
+                        value: "left",
+                        label: t3({ en: "Left", fr: "Gauche" }),
+                      },
+                      {
+                        value: "right",
+                        label: t3({ en: "Right", fr: "Droite" }),
+                      },
+                    ]}
+                    onChange={(v) =>
+                      p.setTempSlide(
+                        "split",
+                        "placement",
+                        v as "left" | "right",
+                      )
+                    }
+                    fullWidth
                   />
+                  <Select
+                    label={t3({ en: "Size", fr: "Taille" })}
+                    value={String(p.tempSlide.split!.sizeAsPct)}
+                    options={[
+                      { value: "5", label: "5%" },
+                      { value: "10", label: "10%" },
+                      { value: "15", label: "15%" },
+                      { value: "20", label: "20%" },
+                      { value: "25", label: "25%" },
+                      { value: "30", label: "30%" },
+                      { value: "35", label: "35%" },
+                      { value: "40", label: "40%" },
+                      { value: "45", label: "45%" },
+                      { value: "50", label: "50%" },
+                    ]}
+                    onChange={(v) => p.setTempSlide("split", "sizeAsPct", Number(v))}
+                    fullWidth
+                  />
+                  <Select
+                    label={t3({ en: "Fill", fr: "Remplissage" })}
+                    value={p.tempSlide.split!.fill.type}
+                    options={[
+                      { value: "plain", label: t3({ en: "Plain", fr: "Uni" }) },
+                      {
+                        value: "pattern",
+                        label: t3({ en: "Pattern", fr: "Motif" }),
+                      },
+                      {
+                        value: "image",
+                        label: t3({ en: "Image", fr: "Image" }),
+                      },
+                    ]}
+                    onChange={(v) => {
+                      if (v === "plain") {
+                        p.setTempSlide("split", "fill", { type: "plain" });
+                      } else if (v === "pattern") {
+                        p.setTempSlide("split", "fill", {
+                          type: "pattern",
+                          patternType: "ovals",
+                        });
+                      } else if (v === "image") {
+                        p.setTempSlide("split", "fill", {
+                          type: "image",
+                          imgFile: "",
+                        });
+                      }
+                    }}
+                    fullWidth
+                  />
+                  <Show when={p.tempSlide.split!.fill.type === "pattern"}>
+                    <Select
+                      label={t3({ en: "Pattern", fr: "Motif" })}
+                      value={
+                        (
+                          p.tempSlide.split!.fill as {
+                            type: "pattern";
+                            patternType: PatternType;
+                          }
+                        ).patternType
+                      }
+                      options={[
+                        {
+                          value: "ovals",
+                          label: t3({ en: "Ovals", fr: "Ovales" }),
+                        },
+                        {
+                          value: "circles",
+                          label: t3({ en: "Circles", fr: "Cercles" }),
+                        },
+                        {
+                          value: "dots",
+                          label: t3({ en: "Dots", fr: "Points" }),
+                        },
+                        {
+                          value: "lines",
+                          label: t3({ en: "Lines", fr: "Lignes" }),
+                        },
+                        {
+                          value: "grid",
+                          label: t3({ en: "Grid", fr: "Grille" }),
+                        },
+                        {
+                          value: "chevrons",
+                          label: t3({ en: "Chevrons", fr: "Chevrons" }),
+                        },
+                        {
+                          value: "waves",
+                          label: t3({ en: "Waves", fr: "Vagues" }),
+                        },
+                        {
+                          value: "noise",
+                          label: t3({ en: "Noise", fr: "Bruit" }),
+                        },
+                      ]}
+                      onChange={(v) =>
+                        p.setTempSlide("split", "fill", {
+                          type: "pattern",
+                          patternType: v as PatternType,
+                        })
+                      }
+                      fullWidth
+                    />
+                  </Show>
+                  <Show when={p.tempSlide.split!.fill.type === "image"}>
+                    <Select
+                      label={t3({ en: "Image", fr: "Image" })}
+                      options={getSelectOptions(
+                        instanceState.assets
+                          .filter((f) => f.isImage)
+                          .map((f) => f.fileName),
+                      )}
+                      value={
+                        (
+                          p.tempSlide.split!.fill as {
+                            type: "image";
+                            imgFile: string;
+                          }
+                        ).imgFile
+                      }
+                      onChange={(v) =>
+                        p.setTempSlide("split", "fill", {
+                          type: "image",
+                          imgFile: v,
+                        })
+                      }
+                      fullWidth
+                    />
+                  </Show>
                 </Show>
               </div>
             </div>
@@ -191,7 +403,10 @@ export function SlideEditorPanelContent(p: Props) {
                 when={getCurrentBlock()}
                 fallback={
                   <div class="ui-pad text-base-content/70 text-sm">
-                    {t3({ en: "Click a block on the canvas to edit it", fr: "Cliquez sur un bloc du canevas pour le modifier" })}
+                    {t3({
+                      en: "Click a block on the canvas to edit it",
+                      fr: "Cliquez sur un bloc du canevas pour le modifier",
+                    })}
                   </div>
                 }
               >
@@ -200,9 +415,21 @@ export function SlideEditorPanelContent(p: Props) {
                     <Select
                       label={t3({ en: "Content type", fr: "Type de contenu" })}
                       options={[
-                        { value: "text", label: t3({ en: "Text", fr: "Texte" }) },
-                        { value: "figure", label: t3({ en: "Visualization", fr: "Visualisation" }) },
-                        { value: "image", label: t3({ en: "Image", fr: "Image" }) },
+                        {
+                          value: "text",
+                          label: t3({ en: "Text", fr: "Texte" }),
+                        },
+                        {
+                          value: "figure",
+                          label: t3({
+                            en: "Visualization",
+                            fr: "Visualisation",
+                          }),
+                        },
+                        {
+                          value: "image",
+                          label: t3({ en: "Image", fr: "Image" }),
+                        },
                       ]}
                       value={getCurrentBlock()?.type}
                       onChange={handleBlockTypeChange}
@@ -235,13 +462,34 @@ export function SlideEditorPanelContent(p: Props) {
                         height="300px"
                       />{" "}
                       <Select
-                        label={t3({ en: "Text background", fr: "Arrière-plan du texte" })}
+                        label={t3({
+                          en: "Text background",
+                          fr: "Arrière-plan du texte",
+                        })}
                         options={[
-                          { value: "none", label: t3({ en: "None", fr: "Aucun" }) },
-                          { value: "primary", label: t3({ en: "Theme color", fr: "Couleur du thème" }) },
-                          { value: "grey", label: t3({ en: "Light grey", fr: "Gris clair" }) },
-                          { value: "success", label: t3({ en: "Green", fr: "Vert" }) },
-                          { value: "danger", label: t3({ en: "Red", fr: "Rouge" }) },
+                          {
+                            value: "none",
+                            label: t3({ en: "None", fr: "Aucun" }),
+                          },
+                          {
+                            value: "primary",
+                            label: t3({
+                              en: "Theme color",
+                              fr: "Couleur du thème",
+                            }),
+                          },
+                          {
+                            value: "grey",
+                            label: t3({ en: "Light grey", fr: "Gris clair" }),
+                          },
+                          {
+                            value: "success",
+                            label: t3({ en: "Green", fr: "Vert" }),
+                          },
+                          {
+                            value: "danger",
+                            label: t3({ en: "Red", fr: "Rouge" }),
+                          },
                         ]}
                         value={
                           (getCurrentBlock() as TextBlock).style
@@ -303,7 +551,10 @@ export function SlideEditorPanelContent(p: Props) {
                         return (
                           <div class="ui-gap-sm flex items-center">
                             <Slider
-                              label={t3({ en: "Text size", fr: "Taille du texte" })}
+                              label={t3({
+                                en: "Text size",
+                                fr: "Taille du texte",
+                              })}
                               value={displayIndex()}
                               onChange={(i) => setDragIndex(i)}
                               onRelease={(i) => {
@@ -364,16 +615,28 @@ export function SlideEditorPanelContent(p: Props) {
                           <div class="ui-gap-sm flex flex-col">
                             <Show when={hasFigure() && hasSource()}>
                               <Button onClick={() => p.onEditVisualization()}>
-                                {t3({ en: "Edit Visualization", fr: "Modifier la visualisation" })}
+                                {t3({
+                                  en: "Edit Visualization",
+                                  fr: "Modifier la visualisation",
+                                })}
                               </Button>
                             </Show>
                             <Button onClick={() => p.onSelectVisualization()}>
                               {hasFigure()
-                                ? t3({ en: "Switch Visualization", fr: "Changer de visualisation" })
-                                : t3({ en: "Select Visualization", fr: "Sélectionner la visualisation" })}
+                                ? t3({
+                                    en: "Switch Visualization",
+                                    fr: "Changer de visualisation",
+                                  })
+                                : t3({
+                                    en: "Select Visualization",
+                                    fr: "Sélectionner la visualisation",
+                                  })}
                             </Button>
                             <Button onClick={() => p.onCreateVisualization()}>
-                              {t3({ en: "Create New Visualization", fr: "Créer une nouvelle visualisation" })}
+                              {t3({
+                                en: "Create New Visualization",
+                                fr: "Créer une nouvelle visualisation",
+                              })}
                             </Button>
                             <Show when={hasFigure()}>
                               <Button
@@ -385,7 +648,10 @@ export function SlideEditorPanelContent(p: Props) {
                                   }))
                                 }
                               >
-                                {t3({ en: "Remove Visualization", fr: "Supprimer la visualisation" })}
+                                {t3({
+                                  en: "Remove Visualization",
+                                  fr: "Supprimer la visualisation",
+                                })}
                               </Button>
                             </Show>
                           </div>
@@ -431,10 +697,19 @@ function ImageBlockEditor(p: {
           label={t3({ en: "Image fit", fr: "Ajustement de l'image" })}
           value={p.block().style?.imgFit ?? "contain"}
           options={[
-            { value: "cover", label: t3({ en: "Cover whole area", fr: "Couvrir toute la zone" }) },
+            {
+              value: "cover",
+              label: t3({
+                en: "Cover whole area",
+                fr: "Couvrir toute la zone",
+              }),
+            },
             {
               value: "contain",
-              label: t3({ en: "Fit inside area", fr: "Adapter à l'intérieur de la zone" }),
+              label: t3({
+                en: "Fit inside area",
+                fr: "Adapter à l'intérieur de la zone",
+              }),
             },
           ]}
           onChange={(v: string) =>

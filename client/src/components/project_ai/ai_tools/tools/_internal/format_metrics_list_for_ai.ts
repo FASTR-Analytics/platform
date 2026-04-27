@@ -62,7 +62,8 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
         const filterNote = preset.allowedFilters && preset.allowedFilters.length > 0
           ? ` — filters: ${preset.allowedFilters.join(", ")}`
           : "";
-        const replicantNote = preset.needsReplicant ? " ** REQUIRES selectedReplicant **" : "";
+        const hasReplicant = preset.config.d.disaggregateBy.some(d => d.disDisplayOpt === "replicant");
+        const replicantNote = hasReplicant ? " ** REQUIRES selectedReplicant **" : "";
         lines.push(`    - ${preset.id}: ${preset.label.en} (${dateFormat})${filterNote}${replicantNote}`);
         if (preset.importantNotes) {
           lines.push(`      NOTE: ${getAIStr(preset.importantNotes)}`);

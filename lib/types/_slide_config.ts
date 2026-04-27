@@ -17,6 +17,26 @@ const imageBlockStyleSchema = z.object({
   imgAlign: z.enum(["center", "top", "bottom", "left", "right"]).optional(),
 });
 
+// ── Content Slide Split ─────────────────────────────────────────────────────
+
+const contentSlideSplitFillSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("plain") }),
+  z.object({
+    type: z.literal("pattern"),
+    patternType: z.enum(["ovals", "circles", "dots", "lines", "grid", "chevrons", "waves", "noise"]),
+  }),
+  z.object({
+    type: z.literal("image"),
+    imgFile: z.string(),
+  }),
+]);
+
+const contentSlideSplitSchema = z.object({
+  placement: z.enum(["left", "right"]),
+  sizeAsPct: z.number(),
+  fill: contentSlideSplitFillSchema,
+});
+
 // ── Figure Source ───────────────────────────────────────────────────────────
 
 const figureSourceSchema = z.discriminatedUnion("type", [
@@ -92,13 +112,15 @@ const layoutNodeSchema: z.ZodTypeAny = z.lazy(() =>
 
 // ── Slide Types ─────────────────────────────────────────────────────────────
 
+const logoVisibilitySchema = z.enum(["show", "hide", "inherit"]);
+
 const coverSlideSchema = z.object({
   type: z.literal("cover"),
   title: z.string(),
   subtitle: z.string().optional(),
   presenter: z.string().optional(),
   date: z.string().optional(),
-  logos: z.array(z.string()).optional(),
+  showLogos: logoVisibilitySchema.optional(),
   titleTextRelFontSize: z.number().optional(),
   titleBold: z.boolean().optional(),
   titleItalic: z.boolean().optional(),
@@ -130,10 +152,11 @@ const contentSlideSchema = z.object({
   header: z.string().optional(),
   subHeader: z.string().optional(),
   date: z.string().optional(),
-  headerLogos: z.array(z.string()).optional(),
   footer: z.string().optional(),
-  footerLogos: z.array(z.string()).optional(),
+  showHeaderLogos: logoVisibilitySchema.optional(),
+  showFooterLogos: logoVisibilitySchema.optional(),
   layout: layoutNodeSchema,
+  split: contentSlideSplitSchema.optional(),
 });
 
 // ── Public Schema ───────────────────────────────────────────────────────────
@@ -156,6 +179,7 @@ import type {
   CoverSlide,
   SectionSlide,
   ContentSlide,
+  ContentSlideSplit,
   TextBlockStyle,
   ImageBlockStyle,
 } from "./slides.ts";
@@ -166,7 +190,7 @@ const _completeCover: Required<CoverSlide> = {
   subtitle: "",
   presenter: "",
   date: "",
-  logos: [],
+  showLogos: "inherit",
   titleTextRelFontSize: 1,
   titleBold: true,
   titleItalic: false,
@@ -200,9 +224,9 @@ const _completeContent: Required<ContentSlide> = {
   header: "",
   subHeader: "",
   date: "",
-  headerLogos: [],
   footer: "",
-  footerLogos: [],
+  showHeaderLogos: "inherit",
+  showFooterLogos: "inherit",
   layout: {
     type: "item",
     id: "x",
@@ -212,8 +236,26 @@ const _completeContent: Required<ContentSlide> = {
       style: { textSize: 1, textBackground: "" } satisfies Required<TextBlockStyle>,
     },
   },
+  split: {
+    placement: "left",
+    sizeAsPct: 15,
+    fill: { type: "plain" },
+  } satisfies ContentSlideSplit,
 };
 slideConfigSchema.parse(_completeContent);
+
+// Validate split fill variants
+slideConfigSchema.parse({
+  type: "content",
+  layout: { type: "item", id: "x", data: { type: "text", markdown: "" } },
+  split: { placement: "right", sizeAsPct: 20, fill: { type: "pattern", patternType: "ovals" } },
+} satisfies ContentSlide);
+
+slideConfigSchema.parse({
+  type: "content",
+  layout: { type: "item", id: "x", data: { type: "text", markdown: "" } },
+  split: { placement: "left", sizeAsPct: 30, fill: { type: "image", imgFile: "test.png" } },
+} satisfies ContentSlide);
 
 // Also validate figure block with both FigureSource variants
 import { DEFAULT_S_CONFIG, DEFAULT_T_CONFIG } from "./presentation_object_defaults.ts";

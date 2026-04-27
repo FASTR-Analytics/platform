@@ -777,4 +777,15 @@ export class PdfRenderContext implements RenderContext {
       this._jsPdf.stroke();
     }
   }
+
+  withClip(bounds: RectCoordsDimsOptions, fn: () => void): void {
+    const r = new RectCoordsDims(bounds);
+    this._jsPdf.saveGraphicsState();
+    this._jsPdf.rect(r.x(), r.y(), r.w(), r.h());
+    //@ts-ignore — clip not in jsPDF types but exists
+    this._jsPdf.clip();
+    this._jsPdf.discardPath();
+    fn();
+    this._jsPdf.restoreGraphicsState();
+  }
 }

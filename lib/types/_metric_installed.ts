@@ -195,7 +195,6 @@ export const vizPresetInstalledStrict = z.object({
   label: translatableString,
   description: translatableString,
   importantNotes: translatableString.nullable(),
-  needsReplicant: z.boolean(),
   allowedFilters: z.array(disaggregationOption),
   createDefaultVisualizationOnInstall: z.string().nullable(),
   config: z.object({

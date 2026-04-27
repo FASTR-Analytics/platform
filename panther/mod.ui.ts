@@ -14,6 +14,7 @@ export * from "./_001_font/mod.ts";
 export * from "./_001_geometry/mod.ts";
 export * from "./_001_render_system/mod.ts";
 export * from "./_002_canvas/mod.ts";
+export * from "./_002_pattern/mod.ts";
 export * from "./_003_figure_style/mod.ts";
 export * from "./_004_markdown_style/mod.ts";
 export * from "./_005_page_style/mod.ts";

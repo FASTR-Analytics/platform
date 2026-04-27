@@ -1,11 +1,10 @@
 import { For } from "solid-js";
-import {
-  getTreatmentPresets,
-  getKeyColorsFromPrimaryColor,
-  getColor,
-  type TreatmentPresetId,
-} from "panther";
+import { getTreatmentPresets, type TreatmentPresetId } from "panther";
 import { PresetCard } from "./PresetCard.tsx";
+
+const THUMBNAIL_PRIMARY = "#64748b";
+const THUMBNAIL_BASE_100 = "#ffffff";
+const THUMBNAIL_BASE_200 = "#e5e7eb";
 
 type TreatmentPickerProps = {
   value: TreatmentPresetId;
@@ -13,20 +12,15 @@ type TreatmentPickerProps = {
   primaryColor: string;
 };
 
-function TreatmentThumbnail(p: {
-  treatmentId: TreatmentPresetId;
-  primaryColor: string;
-}) {
-  const palette = () => getKeyColorsFromPrimaryColor(p.primaryColor);
-
+function TreatmentThumbnail(p: { treatmentId: TreatmentPresetId }) {
   const headerStyle = (): { bg: string; border?: string } => {
     switch (p.treatmentId) {
       case "bold":
-        return { bg: p.primaryColor };
+        return { bg: THUMBNAIL_PRIMARY };
       case "bordered":
-        return { bg: getColor(palette().base100), border: p.primaryColor };
+        return { bg: THUMBNAIL_BASE_100, border: THUMBNAIL_PRIMARY };
       default:
-        return { bg: getColor(palette().base100) };
+        return { bg: THUMBNAIL_BASE_100 };
     }
   };
 
@@ -34,18 +28,19 @@ function TreatmentThumbnail(p: {
     switch (p.treatmentId) {
       case "bordered":
       case "minimal":
-        return { bg: getColor(palette().base100) };
+      case "minimal-split":
+        return { bg: THUMBNAIL_BASE_100 };
       case "soft":
-        return { bg: getColor(palette().base200) };
+        return { bg: THUMBNAIL_BASE_200 };
       default:
-        return { bg: p.primaryColor };
+        return { bg: THUMBNAIL_PRIMARY };
     }
   };
 
   return (
     <div
       class="h-full w-full flex flex-col"
-      style={{ background: getColor(palette().base100) }}
+      style={{ background: THUMBNAIL_BASE_100 }}
     >
       <div
         class="h-3 flex-none"
@@ -74,10 +69,7 @@ export function TreatmentPicker(p: TreatmentPickerProps) {
               selected={p.value === preset.id}
               onClick={() => p.onChange(preset.id)}
             >
-              <TreatmentThumbnail
-                treatmentId={preset.id}
-                primaryColor={p.primaryColor}
-              />
+              <TreatmentThumbnail treatmentId={preset.id} />
             </PresetCard>
           )}
         </For>

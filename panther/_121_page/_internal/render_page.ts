@@ -3,14 +3,16 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type {
-  MeasuredText,
-  MergedPageNumberStyle,
-  PathSegment,
-  RenderContext,
-  TextInfoUnkeyed,
+import {
+  getColor,
+  ImageRenderer,
+  isPatternConfig,
+  type MeasuredText,
+  type MergedPageNumberStyle,
+  type PathSegment,
+  type RenderContext,
+  renderPattern,
 } from "../deps.ts";
-import { ImageRenderer } from "../deps.ts";
 import { renderPageAnnotations } from "./render_annotations.ts";
 import { renderCover } from "./cover/render_cover.ts";
 import { renderFreeform } from "./freeform/render_freeform.ts";
@@ -21,10 +23,14 @@ export function renderPage(
   rc: RenderContext,
   measured: MeasuredPage,
 ): void {
-  if (measured.splitImageBounds && measured.splitBackground && measured.splitBackground !== "none") {
-    rc.rRect(measured.splitImageBounds, {
-      fillColor: measured.splitBackground,
-    });
+  if (measured.splitImageBounds && measured.splitBackground) {
+    const bg = measured.splitBackground;
+    if (isPatternConfig(bg)) {
+      rc.rRect(measured.splitImageBounds, { fillColor: getColor(bg.baseColor) });
+      renderPattern(rc, measured.splitImageBounds, bg);
+    } else {
+      rc.rRect(measured.splitImageBounds, { fillColor: getColor(bg) });
+    }
   }
   if (measured.measuredSplitImage) {
     ImageRenderer.render(rc, measured.measuredSplitImage);

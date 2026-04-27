@@ -7,6 +7,7 @@ import type { AlignH, AlignV, Padding, TextInfoUnkeyed } from "./deps.ts";
 import type {
   LogosPlacement,
   LogosSizing,
+  PageBackgroundStyle,
   PageNumberBackground,
 } from "./types.ts";
 
@@ -22,7 +23,7 @@ export type MergedPageNumberStyle = {
 export type MergedFreeformHeaderStyle = {
   padding: Padding;
   logosSizing: LogosSizing;
-  background: string;
+  background: PageBackgroundStyle;
   headerBottomPadding: number;
   subHeaderBottomPadding: number;
   bottomBorderStrokeWidth: number;
@@ -33,13 +34,13 @@ export type MergedFreeformHeaderStyle = {
 export type MergedFreeformFooterStyle = {
   padding: Padding;
   logosSizing: LogosSizing;
-  background: string;
+  background: PageBackgroundStyle;
   alignH: AlignH;
 };
 
 export type MergedFreeformContentStyle = {
   padding: Padding;
-  background: string;
+  background: PageBackgroundStyle;
   gapX: number;
   gapY: number;
 };
@@ -55,13 +56,13 @@ export type MergedFreeformLayoutContainersStyle = {
 export type MergedSplitConfig = {
   placement: "none" | "left" | "right" | "top" | "bottom";
   sizeAsPct: number;
-  background: string;
+  background: PageBackgroundStyle;
 };
 
 export type MergedCoverStyle = {
   alreadyScaledValue: number;
   padding: Padding;
-  background: string;
+  background: PageBackgroundStyle;
   split: MergedSplitConfig;
   logosSizing: LogosSizing;
   logosPlacement: LogosPlacement;
@@ -84,7 +85,7 @@ export type MergedCoverStyle = {
 export type MergedSectionStyle = {
   alreadyScaledValue: number;
   padding: Padding;
-  background: string;
+  background: PageBackgroundStyle;
   split: MergedSplitConfig;
   sectionTitleBottomPadding: number;
   alignH: AlignH;

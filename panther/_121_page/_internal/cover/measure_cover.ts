@@ -95,7 +95,7 @@ function buildCoverPrimitives(
       type: "background",
       id: "coverBackground",
       rcd: bounds,
-      fillColor: s.background,
+      background: s.background,
     });
   }
 

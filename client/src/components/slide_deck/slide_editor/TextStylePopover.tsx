@@ -2,6 +2,12 @@ import { t3 } from "lib";
 import { Slider } from "panther";
 import { createUniqueId, JSX, Show } from "solid-js";
 
+type TextStyleDefaults = {
+  size: number;
+  bold: boolean;
+  italic: boolean;
+};
+
 type TextStylePopoverProps = {
   size: number;
   onSizeChange: (size: number) => void;
@@ -11,7 +17,8 @@ type TextStylePopoverProps = {
   onItalicChange: (italic: boolean) => void;
   sizeMin?: number;
   sizeMax?: number;
-  sizeDefault?: number;
+  defaults?: TextStyleDefaults;
+  onReset?: () => void;
   label?: string;
 };
 
@@ -115,6 +122,15 @@ export function TextStylePopover(p: TextStylePopoverProps) {
               {t3({ en: "Italic", fr: "Italique" })}
             </button>
           </div>
+          <Show when={p.defaults && p.onReset}>
+            <button
+              type="button"
+              class="bg-base-100 text-base-content border-base-300 hover:bg-base-200 mt-3 w-full cursor-pointer rounded border py-1.5 text-sm"
+              onClick={() => p.onReset?.()}
+            >
+              {t3({ en: "Reset to default", fr: "Réinitialiser" })}
+            </button>
+          </Show>
         </div>
       </div>
     </div>

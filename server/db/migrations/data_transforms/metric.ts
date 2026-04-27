@@ -48,6 +48,9 @@
 // viz_presets.config.t:
 // 20. Fill caption/subCaption/footnote fields if missing
 //
+// viz_presets (cleanup):
+// 22. Delete needsReplicant (now derived from disaggregateBy at runtime)
+//
 // =============================================================================
 
 import { z } from "zod";
@@ -249,6 +252,9 @@ function transformVizPreset(vp: Record<string, unknown>): void {
 
   // Block 8: Fill allowedFilters if missing
   if (!("allowedFilters" in vp)) vp.allowedFilters = [];
+
+  // Block 22: Delete needsReplicant (now derived from disaggregateBy at runtime)
+  delete vp.needsReplicant;
 
   if (vp.config && typeof vp.config === "object" && !Array.isArray(vp.config)) {
     const cfg = vp.config as Record<string, unknown>;

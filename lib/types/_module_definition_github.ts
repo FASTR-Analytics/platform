@@ -229,7 +229,6 @@ const vizPresetGithub = z.object({
   label: translatableStringGithub,
   description: translatableStringGithub,
   importantNotes: translatableStringGithub.nullable(),
-  needsReplicant: z.boolean(),
   allowedFilters: z.array(disaggregationOptionGithub),
   createDefaultVisualizationOnInstall: z.string().nullable(),
   config: z.object({

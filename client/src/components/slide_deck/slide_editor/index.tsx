@@ -824,8 +824,10 @@ export function SlideEditor(p: Props) {
               onEditVisualization={handleEditVisualization}
               onSelectVisualization={() => handleSelectVisualization()}
               onCreateVisualization={handleCreateVisualization}
-              deckLogos={p.deckConfig.logos ?? []}
-              deckFooter={p.deckConfig.deckFooter}
+              showCoverLogosByDefault={p.deckConfig.logos.cover.showByDefault}
+              showHeaderLogosByDefault={p.deckConfig.logos.header.showByDefault}
+              showFooterLogosByDefault={p.deckConfig.logos.footer.showByDefault}
+              hasGlobalFooterText={p.deckConfig.globalFooterText !== undefined}
             />
           }
         >

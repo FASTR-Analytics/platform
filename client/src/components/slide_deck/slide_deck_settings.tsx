@@ -1,10 +1,4 @@
-import {
-  SlideDeckConfig,
-  t3,
-  TC,
-  _GFF_GREEN,
-  _NIGERIA_GREEN,
-} from "lib";
+import { SlideDeckConfig, t3, TC, _GFF_GREEN, _NIGERIA_GREEN } from "lib";
 import {
   Button,
   Checkbox,
@@ -26,7 +20,7 @@ import { createStore, unwrap } from "solid-js/store";
 import { instanceState } from "~/state/instance/t1_store";
 import { LayoutPicker } from "./style_editor/LayoutPicker.tsx";
 import { TreatmentPicker } from "./style_editor/TreatmentPicker.tsx";
-import { LogoSelector } from "./slide_editor/LogoSelector.tsx";
+import { LogoSectionEditor } from "./slide_editor/LogoSectionEditor.tsx";
 import { StylePreview } from "./style_editor/StylePreview.tsx";
 
 export type SlideDeckSettingsProps = {
@@ -54,22 +48,33 @@ export function SlideDeckSettings(p: Props) {
     structuredClone(p.config),
   );
 
-  function addLogo() {
-    setTempConfig("logos", (prev) =>
-      prev === undefined ? [""] : [...prev, ""],
-    );
+  function addCustomLogo() {
+    setTempConfig("logos", "availableCustom", (prev) => [...prev, ""]);
   }
 
-  function removeLogo(index: number) {
-    setTempConfig("logos", (prev) =>
-      prev === undefined ? [] : prev.toSpliced(index, 1),
+  function removeCustomLogo(index: number) {
+    const removed = tempConfig.logos.availableCustom[index];
+    setTempConfig("logos", "availableCustom", (prev) =>
+      prev.toSpliced(index, 1),
     );
+    if (removed) {
+      setTempConfig("logos", "cover", "selected", (prev) =>
+        prev.filter((l) => l !== removed),
+      );
+      setTempConfig("logos", "header", "selected", (prev) =>
+        prev.filter((l) => l !== removed),
+      );
+      setTempConfig("logos", "footer", "selected", (prev) =>
+        prev.filter((l) => l !== removed),
+      );
+    }
   }
 
   const save = timActionButton(
     async () => {
       const newConfig = unwrap(tempConfig);
-      newConfig.logos = newConfig.logos?.filter(Boolean) ?? [];
+      newConfig.logos.availableCustom =
+        newConfig.logos.availableCustom.filter(Boolean);
       const res = await p.saveConfig(newConfig);
       if (res.success === false) {
         return res;
@@ -128,39 +133,99 @@ export function SlideDeckSettings(p: Props) {
               fullWidth
             />
           </SettingsSection>
-          <SettingsSection header={t3({ en: "Logos", fr: "Logos" })}>
-            <div class="ui-spy-sm">
-              <For each={tempConfig.logos}>
-                {(logo, i_logo) => {
-                  return (
-                    <div class="ui-gap-sm flex items-center">
-                      <Select
-                        options={getSelectOptions(
-                          instanceState.assets
-                            .filter((f) => f.isImage)
-                            .map((f) => f.fileName),
-                        )}
-                        value={logo}
-                        onChange={(v) =>
-                          setTempConfig("logos", i_logo(), v)
-                        }
-                        fullWidth
-                      />
-                      <Button
-                        intent="danger"
-                        onClick={() => removeLogo(i_logo())}
-                        outline
-                        iconName="trash"
-                      ></Button>
-                    </div>
-                  );
-                }}
-              </For>
-              <Button onClick={addLogo} iconName="plus">
-                {t3({ en: "Add logo", fr: "Ajouter un logo" })}
-              </Button>
-            </div>
+          <SettingsSection
+            header={t3({ en: "Footer text", fr: "Texte de pied de page" })}
+          >
+            <Checkbox
+              label={t3({
+                en: "Set global footer text for all content slides",
+                fr: "Définir un texte de pied de page global pour toutes les diapositives de contenu",
+              })}
+              checked={tempConfig.globalFooterText !== undefined}
+              onChange={(v) => {
+                if (v) {
+                  setTempConfig("globalFooterText", "");
+                } else {
+                  setTempConfig("globalFooterText", undefined);
+                }
+              }}
+            />
+            <Show when={tempConfig.globalFooterText !== undefined}>
+              <TextArea
+                label={t3({ en: "Footer text", fr: "Texte du pied de page" })}
+                value={tempConfig.globalFooterText!}
+                onChange={(v: string) => setTempConfig("globalFooterText", v)}
+                fullWidth
+                height="40px"
+              />
+            </Show>
+            <Checkbox
+              label={`${t3({ en: "Show page numbers", fr: "Afficher les numéros de page" })}${p.showPageNumbersSuffix ? ` ${p.showPageNumbersSuffix}` : ""}`}
+              checked={tempConfig.showPageNumbers}
+              onChange={(v) => setTempConfig("showPageNumbers", v)}
+            />
           </SettingsSection>
+          <div class="col-span-2">
+            <SettingsSection header={t3({ en: "Logos", fr: "Logos" })}>
+              <div class="grid grid-cols-4 gap-6">
+                <div class="ui-spy-sm">
+                  <div class="text-base-content/70 font-700 mb-2 text-sm">
+                    {t3({ en: "Custom logos", fr: "Logos personnalisés" })}
+                  </div>
+                  <For each={tempConfig.logos.availableCustom}>
+                    {(logo, i_logo) => (
+                      <div class="ui-gap-sm flex items-center">
+                        <Select
+                          options={getSelectOptions(
+                            instanceState.assets
+                              .filter((f) => f.isImage)
+                              .map((f) => f.fileName),
+                          )}
+                          value={logo}
+                          onChange={(v) =>
+                            setTempConfig(
+                              "logos",
+                              "availableCustom",
+                              i_logo(),
+                              v,
+                            )
+                          }
+                          fullWidth
+                        />
+                        <Button
+                          intent="danger"
+                          onClick={() => removeCustomLogo(i_logo())}
+                          outline
+                          iconName="trash"
+                        ></Button>
+                      </div>
+                    )}
+                  </For>
+                  <Button onClick={addCustomLogo} iconName="plus" size="sm">
+                    {t3({ en: "Add", fr: "Ajouter" })}
+                  </Button>
+                </div>
+                <LogoSectionEditor
+                  title={t3({ en: "Cover", fr: "Couverture" })}
+                  config={tempConfig.logos.cover}
+                  customLogos={tempConfig.logos.availableCustom.filter(Boolean)}
+                  onChange={(c) => setTempConfig("logos", "cover", c)}
+                />
+                <LogoSectionEditor
+                  title={t3({ en: "Content header", fr: "En-tête de contenu" })}
+                  config={tempConfig.logos.header}
+                  customLogos={tempConfig.logos.availableCustom.filter(Boolean)}
+                  onChange={(c) => setTempConfig("logos", "header", c)}
+                />
+                <LogoSectionEditor
+                  title={t3({ en: "Content footer", fr: "Pied de page de contenu" })}
+                  config={tempConfig.logos.footer}
+                  customLogos={tempConfig.logos.availableCustom.filter(Boolean)}
+                  onChange={(c) => setTempConfig("logos", "footer", c)}
+                />
+              </div>
+            </SettingsSection>
+          </div>
           <div class="col-span-2">
             <SettingsSection header={t3({ en: "Style", fr: "Style" })}>
               <div class="ui-spy">
@@ -172,9 +237,9 @@ export function SlideDeckSettings(p: Props) {
                   })}
                   value={tempConfig.primaryColor}
                   onChange={(v) => setTempConfig("primaryColor", v)}
-                  colorSet="standard"
+                  colorSet="slideBackgrounds"
                   extraColors={[_GFF_GREEN, _NIGERIA_GREEN]}
-                  showCheckeredBackground
+                  allowCustomHex
                 />
                 <LayoutPicker
                   value={tempConfig.layout}
@@ -194,78 +259,25 @@ export function SlideDeckSettings(p: Props) {
                   value={tempConfig.overlay}
                   options={[
                     { value: "none", label: t3({ en: "None", fr: "Aucun" }) },
-                    { value: "dots", label: t3({ en: "Dots", fr: "Points" }) },
-                    { value: "rivers", label: t3({ en: "Maze", fr: "Labyrinthe" }) },
-                    { value: "waves", label: t3({ en: "Waves", fr: "Vagues" }) },
-                    { value: "world", label: t3({ en: "World", fr: "Monde" }) },
+                    { value: "dots", label: t3({ en: "Dots (image)", fr: "Points (image)" }) },
+                    { value: "rivers", label: t3({ en: "Maze (image)", fr: "Labyrinthe (image)" }) },
+                    { value: "waves", label: t3({ en: "Waves (image)", fr: "Vagues (image)" }) },
+                    { value: "world", label: t3({ en: "World (image)", fr: "Monde (image)" }) },
+                    { value: "pattern-ovals", label: t3({ en: "Ovals", fr: "Ovales" }) },
+                    { value: "pattern-circles", label: t3({ en: "Circles", fr: "Cercles" }) },
+                    { value: "pattern-dots", label: t3({ en: "Dots", fr: "Points" }) },
+                    { value: "pattern-lines", label: t3({ en: "Lines", fr: "Lignes" }) },
+                    { value: "pattern-grid", label: t3({ en: "Grid", fr: "Grille" }) },
+                    { value: "pattern-chevrons", label: t3({ en: "Chevrons", fr: "Chevrons" }) },
+                    { value: "pattern-waves", label: t3({ en: "Waves", fr: "Vagues" }) },
+                    { value: "pattern-noise", label: t3({ en: "Noise", fr: "Bruit" }) },
                   ]}
-                  onChange={(v) =>
-                    setTempConfig(
-                      "overlay",
-                      v as "dots" | "rivers" | "waves" | "world" | "none",
-                    )
-                  }
+                  onChange={(v) => setTempConfig("overlay", v as any)}
                 />
               </div>
             </SettingsSection>
           </div>
-          <SettingsSection header={t3({ en: "Footer", fr: "Pied de page" })}>
-            <Checkbox
-              label={t3({
-                en: "Set global footer for all content slides",
-                fr: "Définir un pied de page global pour toutes les diapositives de contenu",
-              })}
-              checked={tempConfig.deckFooter !== undefined}
-              onChange={(v) => {
-                if (v) {
-                  setTempConfig("deckFooter", { text: "", logos: [] });
-                } else {
-                  setTempConfig("deckFooter", undefined);
-                }
-              }}
-            />
-            <Show when={tempConfig.deckFooter !== undefined}>
-              <TextArea
-                label={t3({ en: "Footer text", fr: "Texte du pied de page" })}
-                value={tempConfig.deckFooter!.text}
-                onChange={(v: string) => setTempConfig("deckFooter", "text", v)}
-                fullWidth
-                height="40px"
-              />
-              <LogoSelector
-                label={t3({ en: "Footer logos", fr: "Logos de pied de page" })}
-                values={tempConfig.deckFooter!.logos}
-                customLogos={(tempConfig.logos ?? []).filter(Boolean)}
-                onChange={(logos) => setTempConfig("deckFooter", "logos", logos)}
-              />
-            </Show>
-          </SettingsSection>
-          {/* </div> */}
-          {/* <SettingsSection header={t("Page details")}>
-            <div class="max-w-96">
-              <Checkbox
-                label={`${t2(T.FRENCH_UI_STRINGS.show_page_numbers)}${p.showPageNumbersSuffix ? ` ${p.showPageNumbersSuffix}` : ""}`}
-                checked={tempConfig.showPageNumbers}
-                onChange={(v) => setTempConfig("showPageNumbers", v)}
-              />
-            </div>
-            <div class="ui-spy-sm w-96">
-              <Checkbox
-                label={t2(T.FRENCH_UI_STRINGS.add_watermark)}
-                checked={tempConfig.useWatermark}
-                onChange={(v) => setTempConfig("useWatermark", v)}
-              />
-              <Show when={tempConfig.useWatermark}>
-                <Input
-                  label={t2(T.FRENCH_UI_STRINGS.watermark_text)}
-                  value={tempConfig.watermarkText ?? ""}
-                  onChange={(v) => setTempConfig("watermarkText", v)}
-                  fullWidth
-                />
-              </Show>
-            </div>
-          </SettingsSection> */}
-        </div>
+                  </div>
         <Show when={p.deleteAction}>
           <div class="">
             <Button

@@ -20,9 +20,12 @@ export {
 } from "./treatment_presets.ts";
 export type {
   ContentAssignment,
+  FreeformSplitAssignment,
   LayoutPresetConfig,
   PaletteSlot,
   ResolvedPageStyle,
+  SplitBackgroundConfig,
+  SplitSurfaceAssignment,
   SurfaceAssignment,
   SurfacePaddingConfig,
   SurfaceTreatment,

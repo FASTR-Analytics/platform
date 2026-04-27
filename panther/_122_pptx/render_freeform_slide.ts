@@ -7,6 +7,7 @@ import {
   Color,
   type FigureInputs,
   FigureRenderer,
+  getBackgroundBaseColor,
   getColor,
   ImageRenderer,
   MarkdownRenderer,
@@ -45,17 +46,15 @@ export function renderFreeformSlide(
   const s = measured.style;
 
   // Background
-  if (s.content.background !== "none") {
-    const bgColor = getColor(s.content.background);
-    slide.addShape("rect", {
-      x: 0,
-      y: 0,
-      w: pixelsToInches(bounds.w()),
-      h: pixelsToInches(bounds.h()),
-      fill: { color: Color.toHexNoHash(bgColor) },
-      line: { color: Color.toHexNoHash(bgColor), width: 0 },
-    });
-  }
+  const bgColor = getColor(getBackgroundBaseColor(s.content.background));
+  slide.addShape("rect", {
+    x: 0,
+    y: 0,
+    w: pixelsToInches(bounds.w()),
+    h: pixelsToInches(bounds.h()),
+    fill: { color: Color.toHexNoHash(bgColor) },
+    line: { color: Color.toHexNoHash(bgColor), width: 0 },
+  });
 
   // Render header
   if (measured.header) {
@@ -104,14 +103,12 @@ function renderHeader(
   const padHeader = new Padding(s.header.padding);
 
   // Header background
-  if (s.header.background !== "none") {
-    const headerBgColor = getColor(s.header.background);
-    slide.addShape("rect", {
-      ...rcdToSlidePosition(header.rcdHeaderOuter),
-      fill: { color: Color.toHexNoHash(headerBgColor) },
-      line: { color: Color.toHexNoHash(headerBgColor), width: 0 },
-    });
-  }
+  const headerBgColor = getColor(getBackgroundBaseColor(s.header.background));
+  slide.addShape("rect", {
+    ...rcdToSlidePosition(header.rcdHeaderOuter),
+    fill: { color: Color.toHexNoHash(headerBgColor) },
+    line: { color: Color.toHexNoHash(headerBgColor), width: 0 },
+  });
 
   // Header overlay image (covers header area, matching PDF behavior)
   if (inputs.overlay) {
@@ -244,11 +241,9 @@ function renderFooter(
   const padFooter = new Padding(s.footer.padding);
 
   // Footer background (if different from content)
-  if (
-    s.footer.background !== "none" &&
-    s.footer.background !== s.content.background
-  ) {
-    const footerBgColor = getColor(s.footer.background);
+  const footerBgColor = getColor(getBackgroundBaseColor(s.footer.background));
+  const contentBgColor = getColor(getBackgroundBaseColor(s.content.background));
+  if (footerBgColor !== contentBgColor) {
     slide.addShape("rect", {
       ...rcdToSlidePosition(footer.rcdFooterOuter),
       fill: { color: Color.toHexNoHash(footerBgColor) },

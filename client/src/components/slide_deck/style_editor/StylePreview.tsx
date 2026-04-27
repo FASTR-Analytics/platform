@@ -4,74 +4,61 @@ import {
   PageHolder,
   type PageInputs,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
-  Color,
-  getTreatmentPreset,
-  getKeyColorsFromPrimaryColor,
-  getColor,
-  type TreatmentPresetId,
 } from "panther";
 import { createResource } from "solid-js";
-import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { getOverlayImage } from "~/generate_slide_deck/get_overlay_image";
+import { buildStyleForSlide, FASTR_LOGO_VALUES } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { getBackgroundDetail, type BackgroundDetail } from "~/generate_slide_deck/get_overlay_image";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
+import { _SERVER_HOST } from "~/server_actions";
 
 type StylePreviewProps = {
   config: SlideDeckConfig;
 };
 
-const FASTR_LOGO_WHITE = "/images/FASTR_White_Horiz.png";
-const FASTR_LOGO_COLORED = "/images/FASTR_Primary_01_Horiz.png";
-
-function getCoverBackgroundColor(primaryColor: string, treatment: TreatmentPresetId): string {
-  const preset = getTreatmentPreset(treatment);
-  const background = preset.surfaces.cover.background;
-  if (background === "primary") {
-    return primaryColor;
+async function loadLogos(
+  selected: string[],
+  availableCustom: string[],
+): Promise<HTMLImageElement[]> {
+  const result: HTMLImageElement[] = [];
+  for (const logo of selected) {
+    const isFastrLogo = FASTR_LOGO_VALUES.includes(logo);
+    if (isFastrLogo || availableCustom.includes(logo)) {
+      const url = isFastrLogo ? `/${logo}` : `${_SERVER_HOST}/${logo}`;
+      const resImg = await getImgFromCacheOrFetch(url);
+      if (resImg.success) {
+        result.push(resImg.data);
+      }
+    }
   }
-  const palette = getKeyColorsFromPrimaryColor(primaryColor);
-  return getColor(palette[background]);
-}
-
-function shouldUseWhiteLogo(primaryColor: string, treatment: TreatmentPresetId): boolean {
-  const bgColor = getCoverBackgroundColor(primaryColor, treatment);
-  return !new Color(bgColor).isLight();
-}
-
-async function loadPreviewLogo(primaryColor: string, treatment: TreatmentPresetId): Promise<HTMLImageElement[]> {
-  const logoPath = shouldUseWhiteLogo(primaryColor, treatment) ? FASTR_LOGO_WHITE : FASTR_LOGO_COLORED;
-  const resImg = await getImgFromCacheOrFetch(logoPath);
-  if (resImg.success) {
-    return [resImg.data];
-  }
-  return [];
+  return result;
 }
 
 function getCoverPageInputs(
   config: SlideDeckConfig,
-  overlay: HTMLImageElement | undefined,
+  bgDetail: BackgroundDetail,
   logos: HTMLImageElement[],
 ): PageInputs {
-  const style = buildStyleForSlide({ type: "cover", title: "" }, config);
+  const style = buildStyleForSlide({ type: "cover", title: "" }, config, bgDetail.pattern);
   return {
     type: "cover",
     title: t3({ en: "Title", fr: "Titre" }),
     subTitle: t3({ en: "Subtitle", fr: "Sous-titre" }),
     style,
-    overlay,
+    overlay: bgDetail.overlay,
     titleLogos: logos,
   };
 }
 
 function getSectionPageInputs(
   config: SlideDeckConfig,
-  overlay: HTMLImageElement | undefined,
+  bgDetail: BackgroundDetail,
 ): PageInputs {
-  const style = buildStyleForSlide({ type: "section", sectionTitle: "" }, config);
+  const style = buildStyleForSlide({ type: "section", sectionTitle: "" }, config, bgDetail.pattern);
   return {
     type: "section",
     sectionTitle: t3({ en: "Section", fr: "Section" }),
     style,
-    overlay,
+    overlay: bgDetail.overlay,
   };
 }
 
@@ -83,7 +70,11 @@ Consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut 
 
 At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.`;
 
-function getContentPageInputs(config: SlideDeckConfig): PageInputs {
+function getContentPageInputs(
+  config: SlideDeckConfig,
+  headerLogos: HTMLImageElement[],
+  footerLogos: HTMLImageElement[],
+): PageInputs {
   const style = buildStyleForSlide(
     { type: "content", layout: { type: "item", id: "a", data: { type: "text", markdown: "" } } },
     config,
@@ -91,7 +82,9 @@ function getContentPageInputs(config: SlideDeckConfig): PageInputs {
   return {
     type: "freeform",
     header: t3({ en: "Header", fr: "En-tête" }),
-    footer: config.deckFooter?.text || t3({ en: "Footer", fr: "Pied de page" }),
+    footer: config.globalFooterText || t3({ en: "Footer", fr: "Pied de page" }),
+    headerLogos,
+    footerLogos,
     content: {
       type: "item",
       id: "a",
@@ -107,19 +100,31 @@ function getContentPageInputs(config: SlideDeckConfig): PageInputs {
 export function StylePreview(p: StylePreviewProps) {
   const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
 
-  const [overlay] = createResource(
-    () => ({ overlay: p.config.overlay, primaryColor: p.config.primaryColor }),
-    (source) => getOverlayImage({ ...p.config, overlay: source.overlay, primaryColor: source.primaryColor }),
+  const [bgDetail] = createResource(
+    () => ({ overlay: p.config.overlay, primaryColor: p.config.primaryColor, treatment: p.config.treatment }),
+    (source) => getBackgroundDetail({ ...p.config, overlay: source.overlay, primaryColor: source.primaryColor, treatment: source.treatment }),
   );
 
-  const [logos] = createResource(
-    () => ({ primaryColor: p.config.primaryColor, treatment: p.config.treatment }),
-    (source) => loadPreviewLogo(source.primaryColor, source.treatment),
+  const availableCustom = () => p.config.logos.availableCustom;
+
+  const [coverLogos] = createResource(
+    () => ({ selected: p.config.logos.cover.selected, custom: availableCustom() }),
+    (source) => loadLogos(source.selected, source.custom),
   );
 
-  const coverInputs = () => getCoverPageInputs(p.config, overlay(), logos() ?? []);
-  const sectionInputs = () => getSectionPageInputs(p.config, overlay());
-  const contentInputs = () => getContentPageInputs(p.config);
+  const [headerLogos] = createResource(
+    () => ({ selected: p.config.logos.header.selected, custom: availableCustom() }),
+    (source) => loadLogos(source.selected, source.custom),
+  );
+
+  const [footerLogos] = createResource(
+    () => ({ selected: p.config.logos.footer.selected, custom: availableCustom() }),
+    (source) => loadLogos(source.selected, source.custom),
+  );
+
+  const coverInputs = () => getCoverPageInputs(p.config, bgDetail() ?? {}, coverLogos() ?? []);
+  const sectionInputs = () => getSectionPageInputs(p.config, bgDetail() ?? {});
+  const contentInputs = () => getContentPageInputs(p.config, headerLogos() ?? [], footerLogos() ?? []);
 
   return (
     <div>

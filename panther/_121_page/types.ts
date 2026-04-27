@@ -19,6 +19,7 @@ import type {
   MergedCoverStyle,
   MergedFreeformStyle,
   MergedSectionStyle,
+  PageBackgroundStyle,
   RectCoordsDims,
   RenderContext,
 } from "./deps.ts";
@@ -37,7 +38,7 @@ export type PagePrimitiveBackground = {
   type: "background";
   id: string;
   rcd: RectCoordsDims;
-  fillColor: ColorKeyOrString;
+  background: PageBackgroundStyle;
 };
 
 export type PagePrimitiveText = {
@@ -168,7 +169,7 @@ type MeasuredPageBase = Measured<PageInputs> & {
   mWatermark?: MeasuredText;
   measuredSplitImage?: MeasuredImage;
   splitImageBounds?: RectCoordsDims;
-  splitBackground?: string;
+  splitBackground?: PageBackgroundStyle;
 };
 
 // Cover page specific measured data

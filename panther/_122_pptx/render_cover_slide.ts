@@ -7,6 +7,7 @@ import {
   type AlignH,
   type AlignV,
   Color,
+  getBackgroundBaseColor,
   getColor,
   type LogosPlacement,
   measureLogos,
@@ -43,17 +44,15 @@ export function renderCoverSlide(
   const s = measured.style;
 
   // Background
-  if (s.background !== "none") {
-    const bgColor = Color.toHexNoHash(getColor(s.background));
-    slide.addShape("rect", {
-      x: 0,
-      y: 0,
-      w: pixelsToInches(bounds.w()),
-      h: pixelsToInches(bounds.h()),
-      fill: { color: bgColor },
-      line: { color: bgColor, width: 0 },
-    });
-  }
+  const bgColor = Color.toHexNoHash(getColor(getBackgroundBaseColor(s.background)));
+  slide.addShape("rect", {
+    x: 0,
+    y: 0,
+    w: pixelsToInches(bounds.w()),
+    h: pixelsToInches(bounds.h()),
+    fill: { color: bgColor },
+    line: { color: bgColor, width: 0 },
+  });
 
   // Overlay image
   if (item.overlay) {

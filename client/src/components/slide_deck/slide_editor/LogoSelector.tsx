@@ -1,10 +1,11 @@
 import { t3 } from "lib";
 import { LabelHolder, MultiSelect, TimSortableVertical } from "panther";
-import { Show } from "solid-js";
+import { createEffect, Show } from "solid-js";
+import { createStore, SetStoreFunction } from "solid-js/store";
 import { FASTR_LOGOS } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 
 type Props = {
-  label: string;
+  // label: string;
   values: string[];
   customLogos: string[];
   onChange: (logos: string[]) => void;
@@ -26,28 +27,36 @@ function getLogoLabel(value: string): string {
 type LogoItem = { id: string };
 
 export function LogoSelector(p: Props) {
-  const items = () => p.values.map((v) => ({ id: v }));
+  const [items, setItems] = createStore<LogoItem[]>(
+    p.values.map((v) => ({ id: v })),
+  );
 
-  const handleReorder = (newItems: LogoItem[]) => {
-    p.onChange(newItems.map((item) => item.id));
+  createEffect(() => {
+    const newItems = p.values.map((v) => ({ id: v }));
+    setItems(newItems);
+  });
+
+  const handleSetItems: SetStoreFunction<LogoItem[]> = (...args: any[]) => {
+    (setItems as any)(...args);
+    const currentIds = items.map((item) => item.id);
+    p.onChange(currentIds);
   };
 
   return (
-    <LabelHolder label={p.label}>
-      <MultiSelect
-        values={p.values}
-        options={buildLogoOptions(p.customLogos)}
-        onChange={p.onChange}
-      />
+    <>
+      <div class="text-xs">
+        <MultiSelect
+          values={p.values}
+          options={buildLogoOptions(p.customLogos)}
+          onChange={p.onChange}
+        />
+      </div>
       <Show when={p.values.length > 1}>
-        <div class="mt-2">
+        <div class="pt-2">
           <div class="text-neutral mb-1 text-xs">
             {t3({ en: "Order", fr: "Ordre" })}
           </div>
-          <TimSortableVertical
-            items={items()}
-            setItems={handleReorder}
-          >
+          <TimSortableVertical items={items} setItems={handleSetItems}>
             {(item) => (
               <span class="text-base-content/70 text-xs">
                 {getLogoLabel(item.id)}
@@ -56,6 +65,6 @@ export function LogoSelector(p: Props) {
           </TimSortableVertical>
         </div>
       </Show>
-    </LabelHolder>
+    </>
   );
 }

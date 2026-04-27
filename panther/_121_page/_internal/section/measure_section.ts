@@ -115,7 +115,7 @@ function buildSectionPrimitives(
       type: "background",
       id: "sectionBackground",
       rcd: bounds,
-      fillColor: s.background,
+      background: s.background,
     });
   }
 

@@ -3,5 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { isPatternConfig } from "./types.ts";
+export { getBackgroundBaseColor, getPatternDefaults, isPatternConfig } from "./types.ts";
 export type { PatternConfig, PatternType } from "./types.ts";
+export { renderPattern } from "./render_pattern.ts";

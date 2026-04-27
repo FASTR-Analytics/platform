@@ -10,6 +10,7 @@ import {
   type CustomPageStyleOptions,
   type FooterStyleOptions,
   type FreeformStyleOptions,
+  getAdjustedColor,
   getColor,
   getKeyColorsFromPrimaryColor,
   type HeaderStyleOptions,
@@ -31,6 +32,7 @@ import {
 import type {
   PaletteSlot,
   ResolvedPageStyle,
+  SplitBackgroundConfig,
   SurfacePaddingConfig,
   TextColorStyles,
 } from "./types.ts";
@@ -45,6 +47,24 @@ function getColorForSlot(slot: PaletteSlot, palette: KeyColors): string {
 function getTextColorForSlot(slot: PaletteSlot, palette: KeyColors): string {
   if (slot === "primary") return getColor(palette.primaryContent);
   return getColor(palette.baseContent);
+}
+
+function resolveSplitBackground(
+  config: SplitBackgroundConfig,
+  coverBg: string,
+  sectionBg: string,
+  palette: KeyColors,
+): string {
+  if (typeof config === "string") {
+    return getColorForSlot(config, palette);
+  }
+  if ("adjustCoverBackground" in config) {
+    return getAdjustedColor(coverBg, config.adjustCoverBackground);
+  }
+  if ("adjustSectionBackground" in config) {
+    return getAdjustedColor(sectionBg, config.adjustSectionBackground);
+  }
+  throw new Error("Invalid SplitBackgroundConfig");
 }
 
 function resolveHeroBackground(
@@ -64,8 +84,16 @@ function resolveCoverStyle(
   treatment: TreatmentPreset,
   palette: KeyColors,
 ): CoverStyleOptions {
-  const splitBackground = layout.cover.split
-    ? getColorForSlot("primary", palette)
+  const coverBg = getColorForSlot(treatment.surfaces.cover.background, palette);
+  const sectionBg = getColorForSlot(treatment.surfaces.section.background, palette);
+  const hasSplit = !!layout.cover.split;
+
+  const splitBackgroundColor = hasSplit && treatment.surfaces.coverSplit
+    ? resolveSplitBackground(treatment.surfaces.coverSplit.background, coverBg, sectionBg, palette)
+    : undefined;
+
+  const splitBackground: PageBackgroundStyle | undefined = splitBackgroundColor
+    ? (treatment.pattern ? { ...treatment.pattern, baseColor: splitBackgroundColor } : splitBackgroundColor)
     : undefined;
 
   return {
@@ -73,7 +101,7 @@ function resolveCoverStyle(
     background: resolveHeroBackground(
       treatment.surfaces.cover.background,
       palette,
-      treatment.pattern,
+      hasSplit ? undefined : treatment.pattern,
     ),
     split: layout.cover.split
       ? {
@@ -97,8 +125,16 @@ function resolveSectionStyle(
   treatment: TreatmentPreset,
   palette: KeyColors,
 ): SectionStyleOptions {
-  const splitBackground = layout.section.split
-    ? getColorForSlot("primary", palette)
+  const coverBg = getColorForSlot(treatment.surfaces.cover.background, palette);
+  const sectionBg = getColorForSlot(treatment.surfaces.section.background, palette);
+  const hasSplit = !!layout.section.split;
+
+  const splitBackgroundColor = hasSplit && treatment.surfaces.sectionSplit
+    ? resolveSplitBackground(treatment.surfaces.sectionSplit.background, coverBg, sectionBg, palette)
+    : undefined;
+
+  const splitBackground: PageBackgroundStyle | undefined = splitBackgroundColor
+    ? (treatment.pattern ? { ...treatment.pattern, baseColor: splitBackgroundColor } : splitBackgroundColor)
     : undefined;
 
   return {
@@ -106,7 +142,7 @@ function resolveSectionStyle(
     background: resolveHeroBackground(
       treatment.surfaces.section.background,
       palette,
-      treatment.pattern,
+      hasSplit ? undefined : treatment.pattern,
     ),
     split: layout.section.split
       ? {
@@ -214,8 +250,8 @@ function resolveFreeformStyle(
   treatment: TreatmentPreset,
   palette: KeyColors,
 ): FreeformStyleOptions {
-  const splitBackground = layout.freeform.split
-    ? getColorForSlot("primary", palette)
+  const splitBackground = layout.freeform.split && treatment.surfaces.freeformSplit
+    ? getColorForSlot(treatment.surfaces.freeformSplit.background, palette)
     : undefined;
 
   return {

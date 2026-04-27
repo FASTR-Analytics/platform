@@ -6,6 +6,7 @@
 import type {
   AlignH,
   AlignV,
+  ColorAdjustmentStrategy,
   CustomPageStyleOptions,
   KeyColors,
   LogosPlacementOptions,
@@ -99,16 +100,32 @@ export type ContentAssignment = {
   background: PaletteSlot;
 };
 
+export type SplitBackgroundConfig =
+  | PaletteSlot
+  | { adjustCoverBackground: ColorAdjustmentStrategy }
+  | { adjustSectionBackground: ColorAdjustmentStrategy };
+
+export type SplitSurfaceAssignment = {
+  background: SplitBackgroundConfig;
+};
+
+export type FreeformSplitAssignment = {
+  background: PaletteSlot;
+};
+
 export type TreatmentPresetConfig = {
   name: string;
   description: string;
 
   surfaces: {
     cover: CoverSurfaceAssignment;
+    coverSplit?: SplitSurfaceAssignment;
     section: SectionSurfaceAssignment;
+    sectionSplit?: SplitSurfaceAssignment;
     header: SurfaceAssignment;
     footer: SurfaceAssignment;
     content: ContentAssignment;
+    freeformSplit?: FreeformSplitAssignment;
   };
 
   pattern?: Omit<PatternConfig, "baseColor">;

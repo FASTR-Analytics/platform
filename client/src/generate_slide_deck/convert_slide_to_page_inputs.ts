@@ -1,9 +1,11 @@
 import type {
   Slide,
   ContentBlock,
+  ContentSlide,
   SlideDeckConfig,
   CoverSlide,
   SectionSlide,
+  LogoVisibility,
 } from "lib";
 import {
   FIGURE_AUTOFIT,
@@ -23,11 +25,13 @@ import type {
   FigureInputs,
   FontInfo,
   ImageInputs,
+  PatternConfig,
+  SplitConfig,
 } from "panther";
 import { resolvePageStyle } from "panther";
 import { hydrateFigureInputsForRendering } from "~/generate_visualization/mod";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
-import { getOverlayImage } from "./get_overlay_image";
+import { getBackgroundDetail } from "./get_overlay_image";
 import { _SERVER_HOST } from "~/server_actions";
 
 export const FASTR_LOGOS = [
@@ -51,14 +55,33 @@ function getFont(bold?: boolean, italic?: boolean, defaultBold = false): FontInf
   };
 }
 
+function getSlideSplit(slide: Slide, primaryColor: string): SplitConfig | undefined {
+  if (slide.type !== "content" || !slide.split) return undefined;
+  const { placement, sizeAsPct, fill } = slide.split;
+  const size = sizeAsPct / 100;
+  if (fill.type === "plain") {
+    return { placement, sizeAsPct: size, background: primaryColor };
+  }
+  if (fill.type === "pattern") {
+    return {
+      placement,
+      sizeAsPct: size,
+      background: { type: fill.patternType, baseColor: primaryColor },
+    };
+  }
+  return { placement, sizeAsPct: size, background: primaryColor };
+}
+
 export function buildStyleForSlide(
   slide: Slide,
   config: SlideDeckConfig,
+  pattern?: Omit<PatternConfig, "baseColor">,
 ): CustomPageStyleOptions {
   const { style: presetStyle } = resolvePageStyle(
     config.layout,
     config.treatment,
     config.primaryColor,
+    pattern ? { pattern } : undefined,
   );
 
   const coverFontSizes =
@@ -71,9 +94,10 @@ export function buildStyleForSlide(
       ? (slide as SectionSlide)
       : ({} as Partial<SectionSlide>);
 
-  const df = config.deckFooter;
   const footerText =
-    slide.type === "content" ? (df ? df.text : slide.footer) : undefined;
+    slide.type === "content"
+      ? (config.globalFooterText ?? slide.footer)
+      : undefined;
   const hasFooter = !!footerText?.trim();
 
   return {
@@ -156,7 +180,8 @@ export function buildStyleForSlide(
     cover: {
       background: presetStyle.cover!.background,
       padding: presetStyle.cover!.padding,
-      logosSizing: presetStyle.cover!.logosSizing,
+      split: presetStyle.cover!.split,
+      logosSizing: { ...presetStyle.cover!.logosSizing, ...config.logos.cover.sizing, maxHeight: Infinity, maxWidth: Infinity },
       logosPlacement: presetStyle.cover!.logosPlacement,
       titleBottomPadding: presetStyle.cover!.titleBottomPadding,
       subTitleBottomPadding: presetStyle.cover!.subTitleBottomPadding,
@@ -167,15 +192,17 @@ export function buildStyleForSlide(
     section: {
       background: presetStyle.section!.background,
       padding: presetStyle.section!.padding,
+      split: presetStyle.section!.split,
       sectionTitleBottomPadding: presetStyle.section!.sectionTitleBottomPadding,
       alignH: presetStyle.section!.alignH,
       alignV: presetStyle.section!.alignV,
     },
     freeform: {
+      split: getSlideSplit(slide, config.primaryColor),
       header: {
         background: presetStyle.freeform!.header!.background,
         padding: presetStyle.freeform!.header!.padding,
-        logosSizing: presetStyle.freeform!.header!.logosSizing,
+        logosSizing: { ...presetStyle.freeform!.header!.logosSizing, ...config.logos.header.sizing, maxHeight: Infinity, maxWidth: Infinity },
         headerBottomPadding: presetStyle.freeform!.header!.headerBottomPadding,
         subHeaderBottomPadding: presetStyle.freeform!.header!.subHeaderBottomPadding,
         bottomBorderStrokeWidth: presetStyle.freeform!.header!.bottomBorderStrokeWidth,
@@ -191,22 +218,30 @@ export function buildStyleForSlide(
       footer: {
         background: presetStyle.freeform!.footer!.background,
         padding: presetStyle.freeform!.footer!.padding,
-        logosSizing: presetStyle.freeform!.footer!.logosSizing,
+        logosSizing: { ...presetStyle.freeform!.footer!.logosSizing, ...config.logos.footer.sizing, maxHeight: Infinity, maxWidth: Infinity },
         alignH: presetStyle.freeform!.footer!.alignH,
       },
     },
   };
 }
 
+function shouldShowLogos(
+  slideOverride: LogoVisibility | undefined,
+  showByDefault: boolean,
+): boolean {
+  if (slideOverride === "show") return true;
+  if (slideOverride === "hide") return false;
+  return showByDefault;
+}
+
 async function loadLogos(
-  selectedLogos: string[] | undefined,
-  availableLogos: string[] | undefined,
+  selectedLogos: string[],
+  availableCustomLogos: string[],
 ): Promise<HTMLImageElement[]> {
   const result: HTMLImageElement[] = [];
-  if (!selectedLogos) return result;
   for (const logo of selectedLogos) {
     const isFastrLogo = FASTR_LOGO_VALUES.includes(logo);
-    if (isFastrLogo || availableLogos?.includes(logo)) {
+    if (isFastrLogo || availableCustomLogos.includes(logo)) {
       const url = isFastrLogo ? `/${logo}` : `${_SERVER_HOST}/${logo}`;
       const resImg = await getImgFromCacheOrFetch(url);
       if (resImg.success) {
@@ -223,13 +258,16 @@ export async function convertSlideToPageInputs(
   slideIndex: number | undefined,
   config: SlideDeckConfig,
 ): Promise<APIResponseWithData<PageInputs>> {
-  const style = buildStyleForSlide(slide, config);
+  const backgroundDetail =
+    slide.type !== "content" ? await getBackgroundDetail(config) : {};
+  const style = buildStyleForSlide(slide, config, backgroundDetail.pattern);
   const watermark = config.useWatermark ? config.watermarkText : undefined;
-  const overlay =
-    slide.type !== "content" ? await getOverlayImage(config) : undefined;
 
   if (slide.type === "cover") {
-    const titleLogos = await loadLogos(slide.logos, config.logos);
+    const showCoverLogos = shouldShowLogos(slide.showLogos, config.logos.cover.showByDefault);
+    const titleLogos = showCoverLogos
+      ? await loadLogos(config.logos.cover.selected, config.logos.availableCustom)
+      : [];
     return {
       success: true,
       data: {
@@ -241,7 +279,7 @@ export async function convertSlideToPageInputs(
         titleLogos,
         style,
         watermark,
-        overlay,
+        overlay: backgroundDetail.overlay,
       },
     };
   }
@@ -255,7 +293,7 @@ export async function convertSlideToPageInputs(
         sectionSubTitle: slide.sectionSubtitle,
         style,
         watermark,
-        overlay,
+        overlay: backgroundDetail.overlay,
       },
     };
   }
@@ -264,11 +302,25 @@ export async function convertSlideToPageInputs(
     slide.layout,
     getPrimaryColor(config.primaryColor),
   );
-  const df = config.deckFooter;
-  const footerText = df ? df.text : slide.footer;
-  const footerLogoNames = df ? df.logos : slide.footerLogos;
-  const headerLogos = await loadLogos(slide.headerLogos, config.logos);
-  const footerLogos = await loadLogos(footerLogoNames, config.logos);
+  const footerText = config.globalFooterText ?? slide.footer;
+
+  const showHeaderLogos = shouldShowLogos(slide.showHeaderLogos, config.logos.header.showByDefault);
+  const showFooterLogos = shouldShowLogos(slide.showFooterLogos, config.logos.footer.showByDefault);
+
+  const headerLogos = showHeaderLogos
+    ? await loadLogos(config.logos.header.selected, config.logos.availableCustom)
+    : [];
+  const footerLogos = showFooterLogos
+    ? await loadLogos(config.logos.footer.selected, config.logos.availableCustom)
+    : [];
+
+  let splitImage: HTMLImageElement | undefined;
+  if (slide.split?.fill.type === "image" && slide.split.fill.imgFile) {
+    const res = await getImgFromCacheOrFetch(`${_SERVER_HOST}/${slide.split.fill.imgFile}`);
+    if (res.success) {
+      splitImage = res.data;
+    }
+  }
 
   return {
     success: true,
@@ -283,7 +335,8 @@ export async function convertSlideToPageInputs(
       content: convertedLayout,
       style,
       watermark,
-      overlay,
+      overlay: backgroundDetail.overlay,
+      splitImage,
     },
   };
 }

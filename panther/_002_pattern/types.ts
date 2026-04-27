@@ -19,8 +19,9 @@ export type PatternType =
 export type PatternConfig = {
   type: PatternType;
   baseColor: ColorKeyOrString;
-  opacity?: number;
   scale?: number;
+  contrast?: number;
+  seed?: number;
 };
 
 export function isPatternConfig(
@@ -32,4 +33,35 @@ export function isPatternConfig(
     "type" in bg &&
     typeof (bg as PatternConfig).type === "string"
   );
+}
+
+export function getBackgroundBaseColor(
+  bg: ColorKeyOrString | PatternConfig,
+): ColorKeyOrString {
+  return isPatternConfig(bg) ? bg.baseColor : bg;
+}
+
+export function getPatternDefaults(
+  type: PatternType,
+): Omit<PatternConfig, "type" | "baseColor"> {
+  switch (type) {
+    case "ovals":
+      return { contrast: 0.5, scale: 1 };
+    case "circles":
+      return { contrast: 0.5, scale: 1 };
+    case "dots":
+      return { contrast: 0.5, scale: 1 };
+    case "lines":
+      return { contrast: 0.4, scale: 1 };
+    case "grid":
+      return { contrast: 0.35, scale: 1 };
+    case "chevrons":
+      return { contrast: 0.4, scale: 1 };
+    case "waves":
+      return { contrast: 0.5, scale: 1 };
+    case "noise":
+      return { contrast: 0.4, scale: 1 };
+    case "none":
+      return { contrast: 0, scale: 1 };
+  }
 }

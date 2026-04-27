@@ -141,7 +141,7 @@ export function buildHeaderPrimitives(
       type: "background",
       id: "headerBackground",
       rcd: measured.rcdHeaderOuter,
-      fillColor: s.header.background,
+      background: s.header.background,
     });
   }
 

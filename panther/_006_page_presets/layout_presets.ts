@@ -174,9 +174,72 @@ const LAYOUT_PRESETS = {
       content: { padding: [60, 80], gapX: 100, gapY: 80 },
     },
   },
+  split: {
+    name: "Split",
+    description: "Left accent panel with content on right",
+    cover: {
+      alignH: "left",
+      alignV: "top",
+      padding: [180, 180],
+      split: { placement: "left", sizeAsPct: 0.1 },
+      logosPlacement: { position: "bottom-right", gap: 60 },
+      logosSizing: {
+        targetArea: 80000,
+        maxHeight: 160,
+        maxWidth: 450,
+        gapX: 60,
+      },
+      titleBottomPadding: 50,
+      subTitleBottomPadding: 50,
+      authorBottomPadding: 50,
+    },
+    section: {
+      alignH: "left",
+      alignV: "top",
+      padding: [180, 180],
+      split: { placement: "left", sizeAsPct: 0.1 },
+      sectionTitleBottomPadding: 45,
+    },
+    freeform: {
+      header: {
+        alignH: "left",
+        paddingIfFilled: [60, 80],
+        paddingIfBordered: [60, 80],
+        paddingIfNone: [60, 80, 0, 80],
+        borderWidthIfBordered: 6,
+        logosSizing: {
+          targetArea: 75000,
+          maxHeight: 145,
+          maxWidth: 380,
+          gapX: 60,
+        },
+        headerBottomPadding: 22,
+        subHeaderBottomPadding: 16,
+      },
+      footer: {
+        alignH: "left",
+        paddingIfFilled: [45, 80],
+        paddingIfBordered: [45, 80],
+        paddingIfNone: [45, 80],
+        borderWidthIfBordered: 6,
+        logosSizing: {
+          targetArea: 58000,
+          maxHeight: 110,
+          maxWidth: 290,
+          gapX: 60,
+        },
+      },
+      content: { padding: [60, 80], gapX: 100, gapY: 80 },
+    },
+  },
 } as const satisfies Record<string, LayoutPresetConfig>;
 
-export const LAYOUT_PRESET_IDS = ["default", "modern", "corporate"] as const;
+export const LAYOUT_PRESET_IDS = [
+  "default",
+  "modern",
+  "corporate",
+  "split",
+] as const;
 
 export type LayoutPresetId = (typeof LAYOUT_PRESET_IDS)[number];
 

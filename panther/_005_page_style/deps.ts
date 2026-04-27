@@ -10,5 +10,4 @@ export { getBaseText, getBaseTextInfo, getFontsToRegister, getTextInfo } from ".
 export type { CustomStyleTextOptions, FontInfo, TextInfo, TextInfoOptions, TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Padding, msPadding } from "../_001_geometry/mod.ts";
 export type { AlignH, AlignV, PaddingOptions } from "../_001_geometry/mod.ts";
-export { isPatternConfig } from "../_002_pattern/mod.ts";
 export type { PatternConfig } from "../_002_pattern/mod.ts";

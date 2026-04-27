@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { RenderContext } from "../deps.ts";
+import { getColor, isPatternConfig, renderPattern, type RenderContext } from "../deps.ts";
 import type { PagePrimitive } from "../types.ts";
 
 export function renderPagePrimitives(
@@ -12,9 +12,16 @@ export function renderPagePrimitives(
 ): void {
   for (const prim of primitives) {
     switch (prim.type) {
-      case "background":
-        rc.rRect(prim.rcd, { fillColor: prim.fillColor });
+      case "background": {
+        const bg = prim.background;
+        if (isPatternConfig(bg)) {
+          rc.rRect(prim.rcd, { fillColor: getColor(bg.baseColor) });
+          renderPattern(rc, prim.rcd, bg);
+        } else {
+          rc.rRect(prim.rcd, { fillColor: getColor(bg) });
+        }
         break;
+      }
       case "text":
         rc.rText(prim.mText, [prim.x, prim.y], prim.alignH, prim.alignV);
         break;

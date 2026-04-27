@@ -1,4 +1,4 @@
-import { Slide, CoverSlide, SectionSlide, ContentSlide, DeckFooterConfig } from "lib";
+import type { Slide, CoverSlide, SectionSlide, ContentSlide } from "lib";
 import { OpenEditorProps } from "panther";
 import { Match, Setter, Switch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
@@ -19,8 +19,10 @@ type Props = {
   onEditVisualization: () => void;
   onSelectVisualization: () => void;
   onCreateVisualization: () => void;
-  deckLogos: string[];
-  deckFooter: DeckFooterConfig | undefined;
+  showCoverLogosByDefault: boolean;
+  showHeaderLogosByDefault: boolean;
+  showFooterLogosByDefault: boolean;
+  hasGlobalFooterText: boolean;
 };
 
 export function SlideEditorPanel(p: Props) {
@@ -31,7 +33,7 @@ export function SlideEditorPanel(p: Props) {
           <SlideEditorPanelCover
             tempSlide={p.tempSlide as CoverSlide}
             setTempSlide={p.setTempSlide}
-            deckLogos={p.deckLogos}
+            showLogosByDefault={p.showCoverLogosByDefault}
           />
         </Match>
         <Match when={p.tempSlide.type === "section"}>
@@ -54,8 +56,9 @@ export function SlideEditorPanel(p: Props) {
             onEditVisualization={p.onEditVisualization}
             onSelectVisualization={p.onSelectVisualization}
             onCreateVisualization={p.onCreateVisualization}
-            deckLogos={p.deckLogos}
-            deckFooter={p.deckFooter}
+            showHeaderLogosByDefault={p.showHeaderLogosByDefault}
+            showFooterLogosByDefault={p.showFooterLogosByDefault}
+            hasGlobalFooterText={p.hasGlobalFooterText}
           />
         </Match>
       </Switch>

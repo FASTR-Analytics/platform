@@ -97,7 +97,7 @@ export function buildFooterPrimitives(
       type: "background",
       id: "footerBackground",
       rcd: measured.rcdFooterOuter,
-      fillColor: s.footer.background,
+      background: s.footer.background,
     });
   }
 
@@ -116,9 +116,9 @@ export function buildFooterPrimitives(
       id: "footerText",
       mText: measured.mFooter,
       x,
-      y: paddedRcd.y(),
+      y: paddedRcd.centerY(),
       alignH: s.footer.alignH,
-      alignV: "top",
+      alignV: "middle",
       maxWidth: measured.maxWidthForFooterText,
     });
   }
