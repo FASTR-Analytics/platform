@@ -1,67 +1,94 @@
-[TBD] [user] [added] - Layout picker for choosing report slide layouts
-[TBD] [user] [added] - Treatment picker for choosing report visual styles
-[TBD] [user] [added] - Live style preview showing cover, section, and content slides
-[TBD] [user] [added] - Bold and italic controls for cover slide text fields
-[TBD] [user] [added] - Bold and italic controls for section slide text fields
-[TBD] [user] [added] - Built-in FASTR logos available in logo selectors
-[TBD] [user] [added] - Drag-to-reorder logos when multiple are selected
-[TBD] [user] [changed] - Report settings button moved to main toolbar for easier access
-[TBD] [user] [changed] - Font size sliders replaced with compact text style popovers
-[TBD] [admin] [added] - Layout and treatment style pickers for slide decks
-[TBD] [admin] [added] - Live style preview showing cover, section, and content slides
-[TBD] [admin] [added] - Bold and italic controls for cover and section slide text
-[TBD] [admin] [added] - Drag-to-reorder support for logo selections
-[TBD] [admin] [added] - Built-in FASTR logos available in logo selectors
-[TBD] [admin] [changed] - Report settings button moved to main toolbar for easier access
-[TBD] [admin] [changed] - Style section now spans full width with richer controls
-[TBD] [user] [changed] - Reports section removed; use Slide Decks instead
-[TBD] [user] [changed] - Report migration tools removed from project and instance settings
-[TBD] [admin] [changed] - Removed legacy Reports section from projects
-[TBD] [admin] [changed] - Removed "Data Migration" tool from instance settings
-[TBD] [admin] [changed] - Removed "Migrate reports to slides" option from project settings
-[TBD] [user] [changed] - Create visualization now uses a guided step-by-step wizard
-[TBD] [user] [added] - Module sidebar to filter metrics when creating a visualization
-[TBD] [user] [added] - Metric cards with preset counts and geographic level selection
-[TBD] [user] [added] - Visual cards for choosing visualization type (table, chart, map, time series)
-[TBD] [user] [added] - "Save as new" button when editing an existing visualization
-[TBD] [user] [changed] - Preset selector layout improved with cleaner styling
-[TBD] [user] [added] - Back and Next navigation buttons in visualization creation wizard
-[TBD] [admin] [changed] - Create visualization dialog now uses a step-by-step wizard
-[TBD] [admin] [added] - Metrics are now browsable by module when creating visualizations
-[TBD] [admin] [added] - "Save as new" button added to the visualization editor
-[TBD] [admin] [changed] - Visualization presets now apply caption and footnote text properly
-[TBD] [admin] [changed] - Module parameter descriptions now support multiple languages
-[TBD] [admin] [internal] - Removed unused metric AI description fields (use cases, related metrics, important notes)
-[TBD] [admin] [internal] - Removed unused description field from results objects
-[TBD] [user] [added] - Save button without closing in the indicator code editor
-[TBD] [user] [added] - Manage, edit, reorder, and delete HFA time points
-[TBD] [user] [added] - Time points section on the instance data overview page
-[TBD] [user] [added] - Year and month picker when importing HFA data
-[TBD] [user] [added] - Negative value support in conditional formatting for certain metrics
-[TBD] [user] [changed] - "View time points" renamed to "Manage time points" with edit icon
-[TBD] [user] [changed] - "Discard" button renamed to "Cancel" in indicator code editor
-[TBD] [user] [changed] - Time point import now uses a label and period selector instead of separate ID and label fields
-[TBD] [user] [changed] - Time point tabs in indicator editor now show label as primary text
-[TBD] [user] [changed] - Threshold color swatches now appear after the cutoff value for clearer layout
-[TBD] [user] [changed] - Time point label column removed from HFA dataset variable table
-[TBD] [admin] [added] - New "Time Points" management section on the instance data page
-[TBD] [admin] [added] - Ability to rename HFA time point labels
-[TBD] [admin] [added] - Ability to change the year and month for HFA time points
-[TBD] [admin] [added] - Ability to reorder HFA time points using up/down controls
-[TBD] [admin] [added] - Ability to delete individual HFA time points and their data
-[TBD] [admin] [added] - Save button in the HFA indicator code editor without closing
-[TBD] [admin] [changed] - "View time points" renamed to "Manage time points" with edit icon
-[TBD] [admin] [changed] - HFA import now asks for a time point label and year/month period selector
-[TBD] [admin] [changed] - Time point tabs in the indicator code editor now show the label directly
-[TBD] [admin] [changed] - "Discard" button renamed to "Cancel" in the indicator code editor
-[TBD] [admin] [changed] - Conditional formatting now supports negative percentage values for select metrics
-[TBD] [admin] [fixed] - Threshold color formatting controls now display cutoff values before color swatches
-[TBD] [user] [changed] - Project updates now appear instantly without full page refresh
-[TBD] [admin] [added] - Real-time project updates now push only what changed instead of reloading everything
-[TBD] [admin] [improved] - Faster live updates for visualizations, datasets, modules, reports, and slide decks
-[TBD] [admin] [fixed] - Eliminated rare issue where updates during initial project load could be missed
-[TBD] [user] [changed] - Faster detection of running analysis tasks on the dashboard
-[TBD] [admin] [changed] - Faster health check for detecting running modules
+[1.28.0] [user] [added] - Logos can now be configured separately for cover, header, and footer sections
+[1.28.0] [user] [added] - Per-slide option to show or hide logos with a default setting
+[1.28.0] [user] [added] - Logo size and spacing controls for each logo section
+[1.28.0] [user] [added] - Split panel option on content slides with placement, size, and fill settings
+[1.28.0] [user] [added] - Split panel fill options include plain color, pattern, or image
+[1.28.0] [user] [added] - New background pattern overlays: ovals, circles, dots, lines, grid, chevrons, waves, noise
+[1.28.0] [user] [added] - Custom hex color input for slide primary color
+[1.28.0] [user] [added] - Reset to default button for text style settings on cover and section slides
+[1.28.0] [user] [added] - Global footer text setting moved to a dedicated section in deck settings
+[1.28.0] [user] [added] - Page number toggle now appears in footer text settings
+[1.28.0] [user] [changed] - Logo selection per slide replaced with show/hide toggle inheriting from deck defaults
+[1.28.0] [user] [changed] - Footer configuration simplified from per-slide logos to deck-level logo management
+[1.28.0] [user] [fixed] - Slide deck thumbnails now update correctly when deck settings are changed
+[1.28.0] [admin] [changed] - Logos now configured per section: cover, header, and footer
+[1.28.0] [admin] [added] - Control logo visibility per slide with show/hide/default options
+[1.28.0] [admin] [added] - Adjust logo size and spacing for each section independently
+[1.28.0] [admin] [added] - Global footer text setting replaces per-slide footer configuration
+[1.28.0] [admin] [added] - Page number toggle moved to footer settings section
+[1.28.0] [admin] [added] - Split panel option on content slides with placement and size controls
+[1.28.0] [admin] [added] - Split panels support plain color, pattern, or image fills
+[1.28.0] [admin] [added] - Eight new pattern overlays: ovals, circles, dots, lines, grid, chevrons, waves, noise
+[1.28.0] [admin] [added] - Custom hex color input for primary slide color
+[1.28.0] [admin] [added] - Reset to default button for text style settings on cover and section slides
+[1.28.0] [admin] [changed] - Existing overlay options now labeled as image-based to distinguish from new patterns
+[1.28.0] [admin] [changed] - Deck thumbnails now update live when deck settings change
+[1.28.0] [admin] [fixed] - Deck thumbnail not refreshing after editing deck configuration
+[1.28.0] [admin] [internal] - Migrated legacy per-slide logo data to new deck-level logo structure automatically
+[1.28.0] [user] [added] - Layout picker for choosing report slide layouts
+[1.28.0] [user] [added] - Treatment picker for choosing report visual styles
+[1.28.0] [user] [added] - Live style preview showing cover, section, and content slides
+[1.28.0] [user] [added] - Bold and italic controls for cover slide text fields
+[1.28.0] [user] [added] - Bold and italic controls for section slide text fields
+[1.28.0] [user] [added] - Built-in FASTR logos available in logo selectors
+[1.28.0] [user] [added] - Drag-to-reorder logos when multiple are selected
+[1.28.0] [user] [changed] - Report settings button moved to main toolbar for easier access
+[1.28.0] [user] [changed] - Font size sliders replaced with compact text style popovers
+[1.28.0] [admin] [added] - Layout and treatment style pickers for slide decks
+[1.28.0] [admin] [added] - Live style preview showing cover, section, and content slides
+[1.28.0] [admin] [added] - Bold and italic controls for cover and section slide text
+[1.28.0] [admin] [added] - Drag-to-reorder support for logo selections
+[1.28.0] [admin] [added] - Built-in FASTR logos available in logo selectors
+[1.28.0] [admin] [changed] - Report settings button moved to main toolbar for easier access
+[1.28.0] [admin] [changed] - Style section now spans full width with richer controls
+[1.28.0] [user] [changed] - Reports section removed; use Slide Decks instead
+[1.28.0] [user] [changed] - Report migration tools removed from project and instance settings
+[1.28.0] [admin] [changed] - Removed legacy Reports section from projects
+[1.28.0] [admin] [changed] - Removed "Data Migration" tool from instance settings
+[1.28.0] [admin] [changed] - Removed "Migrate reports to slides" option from project settings
+[1.28.0] [user] [changed] - Create visualization now uses a guided step-by-step wizard
+[1.28.0] [user] [added] - Module sidebar to filter metrics when creating a visualization
+[1.28.0] [user] [added] - Metric cards with preset counts and geographic level selection
+[1.28.0] [user] [added] - Visual cards for choosing visualization type (table, chart, map, time series)
+[1.28.0] [user] [added] - "Save as new" button when editing an existing visualization
+[1.28.0] [user] [changed] - Preset selector layout improved with cleaner styling
+[1.28.0] [user] [added] - Back and Next navigation buttons in visualization creation wizard
+[1.28.0] [admin] [changed] - Create visualization dialog now uses a step-by-step wizard
+[1.28.0] [admin] [added] - Metrics are now browsable by module when creating visualizations
+[1.28.0] [admin] [added] - "Save as new" button added to the visualization editor
+[1.28.0] [admin] [changed] - Visualization presets now apply caption and footnote text properly
+[1.28.0] [admin] [changed] - Module parameter descriptions now support multiple languages
+[1.28.0] [admin] [internal] - Removed unused metric AI description fields (use cases, related metrics, important notes)
+[1.28.0] [admin] [internal] - Removed unused description field from results objects
+[1.28.0] [user] [added] - Save button without closing in the indicator code editor
+[1.28.0] [user] [added] - Manage, edit, reorder, and delete HFA time points
+[1.28.0] [user] [added] - Time points section on the instance data overview page
+[1.28.0] [user] [added] - Year and month picker when importing HFA data
+[1.28.0] [user] [added] - Negative value support in conditional formatting for certain metrics
+[1.28.0] [user] [changed] - "View time points" renamed to "Manage time points" with edit icon
+[1.28.0] [user] [changed] - "Discard" button renamed to "Cancel" in indicator code editor
+[1.28.0] [user] [changed] - Time point import now uses a label and period selector instead of separate ID and label fields
+[1.28.0] [user] [changed] - Time point tabs in indicator editor now show label as primary text
+[1.28.0] [user] [changed] - Threshold color swatches now appear after the cutoff value for clearer layout
+[1.28.0] [user] [changed] - Time point label column removed from HFA dataset variable table
+[1.28.0] [admin] [added] - New "Time Points" management section on the instance data page
+[1.28.0] [admin] [added] - Ability to rename HFA time point labels
+[1.28.0] [admin] [added] - Ability to change the year and month for HFA time points
+[1.28.0] [admin] [added] - Ability to reorder HFA time points using up/down controls
+[1.28.0] [admin] [added] - Ability to delete individual HFA time points and their data
+[1.28.0] [admin] [added] - Save button in the HFA indicator code editor without closing
+[1.28.0] [admin] [changed] - "View time points" renamed to "Manage time points" with edit icon
+[1.28.0] [admin] [changed] - HFA import now asks for a time point label and year/month period selector
+[1.28.0] [admin] [changed] - Time point tabs in the indicator code editor now show the label directly
+[1.28.0] [admin] [changed] - "Discard" button renamed to "Cancel" in the indicator code editor
+[1.28.0] [admin] [changed] - Conditional formatting now supports negative percentage values for select metrics
+[1.28.0] [admin] [fixed] - Threshold color formatting controls now display cutoff values before color swatches
+[1.28.0] [user] [changed] - Project updates now appear instantly without full page refresh
+[1.28.0] [admin] [added] - Real-time project updates now push only what changed instead of reloading everything
+[1.28.0] [admin] [improved] - Faster live updates for visualizations, datasets, modules, reports, and slide decks
+[1.28.0] [admin] [fixed] - Eliminated rare issue where updates during initial project load could be missed
+[1.28.0] [user] [changed] - Faster detection of running analysis tasks on the dashboard
+[1.28.0] [admin] [changed] - Faster health check for detecting running modules
 [1.27.1] [admin] [changed] - Health check no longer treats queued modules as active work
 [1.27.0] [user] [fixed] - Report migration now works for locked projects automatically
 [1.27.0] [admin] [fixed] - Report-to-slides migration now includes locked projects
