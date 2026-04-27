@@ -1,7 +1,8 @@
 import { CoverSlide, t3 } from "lib";
-import { LabelHolder, MultiSelect, Slider, TextArea } from "panther";
-import { Show } from "solid-js";
+import { TextArea } from "panther";
 import { SetStoreFunction } from "solid-js/store";
+import { TextStylePopover } from "./TextStylePopover.tsx";
+import { LogoSelector } from "./LogoSelector.tsx";
 
 type Props = {
   tempSlide: CoverSlide;
@@ -12,96 +13,105 @@ type Props = {
 export function SlideEditorPanelCover(p: Props) {
   return (
     <div class="ui-pad ui-spy">
-      <LabelHolder label={t3({ en: "Logos to use", fr: "Logos à utiliser" })}>
-        <Show
-          when={p.deckLogos.length > 0}
-          fallback={
-            <div class="text-xs text-neutral">
-              {t3({ en: "No logos set in report settings", fr: "Aucun logo défini dans les paramètres du rapport" })}
-            </div>
-          }
-        >
-          <MultiSelect
-            values={p.tempSlide.logos ?? []}
-            options={p.deckLogos.map((logo) => ({
-              value: logo,
-              label: logo,
-            }))}
-            onChange={(selectedLogos) => {
-              p.setTempSlide("logos", selectedLogos);
-            }}
+      <LogoSelector
+        label={t3({ en: "Logos to use", fr: "Logos à utiliser" })}
+        values={p.tempSlide.logos ?? []}
+        customLogos={p.deckLogos}
+        onChange={(logos) => p.setTempSlide("logos", logos)}
+      />
+      <div class="ui-spy">
+        <div class="">
+          <TextArea
+            label={t3({ en: "Title", fr: "Titre" })}
+            value={p.tempSlide.title}
+            onChange={(v: string) => p.setTempSlide("title", v)}
+            fullWidth
+            height="80px"
           />
-        </Show>
-      </LabelHolder>
-      <div class="ui-spy-sm">
-        <TextArea
-          label={t3({ en: "Title", fr: "Titre" })}
-          value={p.tempSlide.title}
-          onChange={(v: string) => p.setTempSlide("title", v)}
-          fullWidth
-          height="80px"
-        />
-        <Slider
-          label={t3({ en: "Title font size", fr: "Taille de police du titre" })}
-          min={5}
-          max={20}
-          step={1}
-          value={p.tempSlide.titleTextRelFontSize ?? 10}
-          onChange={(v) => p.setTempSlide("titleTextRelFontSize", v)}
-          fullWidth
-          showValueInLabel
-        />
-        <TextArea
-          label={t3({ en: "Subtitle", fr: "Sous-titre" })}
-          value={p.tempSlide.subtitle ?? ""}
-          onChange={(v: string) => p.setTempSlide("subtitle", v || undefined)}
-          fullWidth
-          height="60px"
-        />
-        <Slider
-          label={t3({ en: "Subtitle font size", fr: "Taille de police du sous-titre" })}
-          min={3}
-          max={12}
-          step={1}
-          value={p.tempSlide.subTitleTextRelFontSize ?? 6}
-          onChange={(v) => p.setTempSlide("subTitleTextRelFontSize", v)}
-          fullWidth
-          showValueInLabel
-        />
-        <TextArea
-          label={t3({ en: "Presenter", fr: "Présentateur" })}
-          value={p.tempSlide.presenter ?? ""}
-          onChange={(v: string) => p.setTempSlide("presenter", v || undefined)}
-          fullWidth
-          height="80px"
-        />
-        <Slider
-          label={t3({ en: "Presenter font size", fr: "Taille de police du présentateur" })}
-          min={2}
-          max={12}
-          step={1}
-          value={p.tempSlide.presenterTextRelFontSize ?? 4}
-          onChange={(v) => p.setTempSlide("presenterTextRelFontSize", v)}
-          fullWidth
-          showValueInLabel
-        />
-        <TextArea
-          label={t3({ en: "Date", fr: "Date" })}
-          value={p.tempSlide.date ?? ""}
-          onChange={(v: string) => p.setTempSlide("date", v || undefined)}
-          fullWidth
-          height="60px"
-        />
-        <Slider
-          label={t3({ en: "Date font size", fr: "Taille de police de la date" })}
-          min={2}
-          max={10}
-          step={1}
-          value={p.tempSlide.dateTextRelFontSize ?? 3}
-          onChange={(v) => p.setTempSlide("dateTextRelFontSize", v)}
-          fullWidth
-          showValueInLabel
-        />
+          <div class="flex w-full justify-end">
+            <TextStylePopover
+              // label={t3({ en: "Title style", fr: "Style du titre" })}
+              size={p.tempSlide.titleTextRelFontSize ?? 10}
+              onSizeChange={(v) => p.setTempSlide("titleTextRelFontSize", v)}
+              bold={p.tempSlide.titleBold ?? true}
+              onBoldChange={(v) => p.setTempSlide("titleBold", v)}
+              italic={p.tempSlide.titleItalic ?? false}
+              onItalicChange={(v) => p.setTempSlide("titleItalic", v)}
+              sizeMin={5}
+              sizeMax={20}
+            />
+          </div>
+        </div>
+        <div class="">
+          <TextArea
+            label={t3({ en: "Subtitle", fr: "Sous-titre" })}
+            value={p.tempSlide.subtitle ?? ""}
+            onChange={(v: string) => p.setTempSlide("subtitle", v || undefined)}
+            fullWidth
+            height="60px"
+          />
+          <div class="flex w-full justify-end">
+            <TextStylePopover
+              // label={t3({ en: "Subtitle style", fr: "Style du sous-titre" })}
+              size={p.tempSlide.subTitleTextRelFontSize ?? 6}
+              onSizeChange={(v) => p.setTempSlide("subTitleTextRelFontSize", v)}
+              bold={p.tempSlide.subTitleBold ?? false}
+              onBoldChange={(v) => p.setTempSlide("subTitleBold", v)}
+              italic={p.tempSlide.subTitleItalic ?? false}
+              onItalicChange={(v) => p.setTempSlide("subTitleItalic", v)}
+              sizeMin={3}
+              sizeMax={12}
+            />
+          </div>
+        </div>
+        <div class="">
+          <TextArea
+            label={t3({ en: "Presenter", fr: "Présentateur" })}
+            value={p.tempSlide.presenter ?? ""}
+            onChange={(v: string) =>
+              p.setTempSlide("presenter", v || undefined)
+            }
+            fullWidth
+            height="80px"
+          />
+          <div class="flex w-full justify-end">
+            <TextStylePopover
+              // label={t3({ en: "Presenter style", fr: "Style du présentateur" })}
+              size={p.tempSlide.presenterTextRelFontSize ?? 4}
+              onSizeChange={(v) =>
+                p.setTempSlide("presenterTextRelFontSize", v)
+              }
+              bold={p.tempSlide.presenterBold ?? true}
+              onBoldChange={(v) => p.setTempSlide("presenterBold", v)}
+              italic={p.tempSlide.presenterItalic ?? false}
+              onItalicChange={(v) => p.setTempSlide("presenterItalic", v)}
+              sizeMin={2}
+              sizeMax={12}
+            />
+          </div>
+        </div>
+        <div class="">
+          <TextArea
+            label={t3({ en: "Date", fr: "Date" })}
+            value={p.tempSlide.date ?? ""}
+            onChange={(v: string) => p.setTempSlide("date", v || undefined)}
+            fullWidth
+            height="60px"
+          />
+          <div class="flex w-full justify-end">
+            <TextStylePopover
+              // label={t3({ en: "Date style", fr: "Style de la date" })}
+              size={p.tempSlide.dateTextRelFontSize ?? 3}
+              onSizeChange={(v) => p.setTempSlide("dateTextRelFontSize", v)}
+              bold={p.tempSlide.dateBold ?? false}
+              onBoldChange={(v) => p.setTempSlide("dateBold", v)}
+              italic={p.tempSlide.dateItalic ?? false}
+              onItalicChange={(v) => p.setTempSlide("dateItalic", v)}
+              sizeMin={2}
+              sizeMax={10}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 // Slide Deck Config — STORED SHAPE (slide_decks.config column)
 // =============================================================================
 
+import { LAYOUT_PRESET_IDS, TREATMENT_PRESET_IDS } from "@timroberton/panther";
 import { z } from "zod";
 
 const deckFooterConfigSchema = z.object({
@@ -22,8 +23,8 @@ export const slideDeckConfigSchema = z.object({
   watermarkText: z.string(),
   primaryColor: z.string(),
   overlay: z.enum(["dots", "rivers", "waves", "world", "none"]).optional(),
-  layout: z.enum(["default", "classic", "modern"]),
-  treatment: z.enum(["default", "bold", "soft", "bordered", "minimal"]),
+  layout: z.enum(LAYOUT_PRESET_IDS),
+  treatment: z.enum(TREATMENT_PRESET_IDS),
 });
 
 export type SlideDeckConfigFromSchema = z.infer<typeof slideDeckConfigSchema>;

@@ -378,11 +378,6 @@ export function SlideList(p: Props) {
 
   const menuItems = (): MenuItem[] => [
     {
-      label: t3(TC.settings),
-      icon: "settings",
-      onClick: () => p.handleOpenSettings(),
-    },
-    {
       label: t3(TC.download),
       icon: "download",
       onClick: () => p.download(),
@@ -434,6 +429,7 @@ export function SlideList(p: Props) {
             >
               <Button iconName="plus">{t3({ en: "Add slide", fr: "Ajouter une diapositive" })}</Button>
             </MenuTriggerWrapper>
+            <Button iconName="settings" outline onClick={() => p.handleOpenSettings()}>{t3(TC.settings)}</Button>
             <MenuTriggerWrapper
               position="bottom-end"
               items={menuItems}

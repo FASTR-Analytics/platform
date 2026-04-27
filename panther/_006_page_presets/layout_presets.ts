@@ -33,10 +33,10 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [60, 80, 0, 80],
-        paddingIfBordered: [60, 80, 0, 80],
+        paddingIfFilled: [60, 80],
+        paddingIfBordered: [60, 80],
         paddingIfNone: [60, 80, 0, 80],
-        borderWidthIfBordered: 2,
+        borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 80000,
           maxHeight: 150,
@@ -51,7 +51,7 @@ const LAYOUT_PRESETS = {
         paddingIfFilled: [45, 80],
         paddingIfBordered: [45, 80],
         paddingIfNone: [45, 80],
-        borderWidthIfBordered: 2,
+        borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 60000,
           maxHeight: 110,
@@ -62,62 +62,6 @@ const LAYOUT_PRESETS = {
       content: { padding: [60, 80], gapX: 100, gapY: 80 },
     },
   },
-  classic: {
-    name: "Classic",
-    description: "Traditional centered layout, balanced and professional",
-    cover: {
-      alignH: "center",
-      alignV: "middle",
-      padding: [180, 250],
-      logosPlacement: { position: "above-content", gap: 50 },
-      logosSizing: {
-        targetArea: 100000,
-        maxHeight: 180,
-        maxWidth: 500,
-        gapX: 60,
-      },
-      titleBottomPadding: 50,
-      subTitleBottomPadding: 40,
-      authorBottomPadding: 35,
-    },
-    section: {
-      alignH: "center",
-      alignV: "middle",
-      padding: [180, 250],
-      sectionTitleBottomPadding: 50,
-    },
-    freeform: {
-      header: {
-        alignH: "left",
-        paddingIfFilled: [45, 70],
-        paddingIfBordered: [45, 70],
-        paddingIfNone: [35, 70, 35, 70],
-        borderWidthIfBordered: 2,
-        logosSizing: {
-          targetArea: 80000,
-          maxHeight: 150,
-          maxWidth: 400,
-          gapX: 45,
-        },
-        headerBottomPadding: 25,
-        subHeaderBottomPadding: 18,
-      },
-      footer: {
-        alignH: "left",
-        paddingIfFilled: [45, 70],
-        paddingIfBordered: [45, 70],
-        paddingIfNone: [40, 70],
-        borderWidthIfBordered: 2,
-        logosSizing: {
-          targetArea: 60000,
-          maxHeight: 120,
-          maxWidth: 300,
-          gapX: 45,
-        },
-      },
-      content: { padding: [60, 70], gapX: 50, gapY: 50 },
-    },
-  },
   modern: {
     name: "Modern",
     description: "Asymmetric left-aligned layout with contemporary feel",
@@ -125,7 +69,7 @@ const LAYOUT_PRESETS = {
       alignH: "left",
       alignV: "bottom",
       padding: [120, 180, 180, 180],
-      logosPlacement: { position: "top-left", gap: 60 },
+      logosPlacement: { position: "top-right", gap: 60 },
       logosSizing: {
         targetArea: 70000,
         maxHeight: 140,
@@ -145,10 +89,10 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [45, 70],
-        paddingIfBordered: [45, 70],
-        paddingIfNone: [35, 70, 35, 70],
-        borderWidthIfBordered: 2,
+        paddingIfFilled: [60, 80],
+        paddingIfBordered: [60, 80],
+        paddingIfNone: [60, 80, 0, 80],
+        borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 70000,
           maxHeight: 140,
@@ -160,10 +104,10 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [40, 70],
-        paddingIfBordered: [40, 70],
-        paddingIfNone: [35, 70],
-        borderWidthIfBordered: 2,
+        paddingIfFilled: [45, 80],
+        paddingIfBordered: [45, 80],
+        paddingIfNone: [45, 80],
+        borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 55000,
           maxHeight: 110,
@@ -171,12 +115,70 @@ const LAYOUT_PRESETS = {
           gapX: 40,
         },
       },
-      content: { padding: [55, 70], gapX: 50, gapY: 45 },
+      content: { padding: [60, 80], gapX: 100, gapY: 80 },
+    },
+  },
+  corporate: {
+    name: "Corporate",
+    description: "Top-left content with logos in bottom right",
+    cover: {
+      alignH: "left",
+      alignV: "top",
+      padding: [180, 180],
+      logosPlacement: { position: "bottom-right", gap: 60 },
+      logosSizing: {
+        targetArea: 80000,
+        maxHeight: 160,
+        maxWidth: 450,
+        gapX: 60,
+      },
+      titleBottomPadding: 50,
+      subTitleBottomPadding: 50,
+      authorBottomPadding: 50,
+    },
+    section: {
+      alignH: "left",
+      alignV: "top",
+      padding: [180, 180],
+      sectionTitleBottomPadding: 45,
+    },
+    freeform: {
+      header: {
+        alignH: "left",
+        paddingIfFilled: [60, 80],
+        paddingIfBordered: [60, 80],
+        paddingIfNone: [60, 80, 0, 80],
+        borderWidthIfBordered: 6,
+        logosSizing: {
+          targetArea: 75000,
+          maxHeight: 145,
+          maxWidth: 380,
+          gapX: 60,
+        },
+        headerBottomPadding: 22,
+        subHeaderBottomPadding: 16,
+      },
+      footer: {
+        alignH: "left",
+        paddingIfFilled: [45, 80],
+        paddingIfBordered: [45, 80],
+        paddingIfNone: [45, 80],
+        borderWidthIfBordered: 6,
+        logosSizing: {
+          targetArea: 58000,
+          maxHeight: 110,
+          maxWidth: 290,
+          gapX: 60,
+        },
+      },
+      content: { padding: [60, 80], gapX: 100, gapY: 80 },
     },
   },
 } as const satisfies Record<string, LayoutPresetConfig>;
 
-export type LayoutPresetId = keyof typeof LAYOUT_PRESETS;
+export const LAYOUT_PRESET_IDS = ["default", "modern", "corporate"] as const;
+
+export type LayoutPresetId = (typeof LAYOUT_PRESET_IDS)[number];
 
 export type LayoutPreset = LayoutPresetConfig & { id: LayoutPresetId };
 

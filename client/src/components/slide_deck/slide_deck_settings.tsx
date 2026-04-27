@@ -1,8 +1,5 @@
 import {
   SlideDeckConfig,
-  getPrimaryColor,
-  getTextColorForBackground,
-  isColorLight,
   t3,
   TC,
   _GFF_GREEN,
@@ -16,8 +13,6 @@ import {
   FrameTop,
   HeadingBar,
   Input,
-  LabelHolder,
-  MultiSelect,
   Select,
   SettingsSection,
   TextArea,
@@ -29,6 +24,10 @@ import {
 import { For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { instanceState } from "~/state/instance/t1_store";
+import { LayoutPicker } from "./style_editor/LayoutPicker.tsx";
+import { TreatmentPicker } from "./style_editor/TreatmentPicker.tsx";
+import { LogoSelector } from "./slide_editor/LogoSelector.tsx";
+import { StylePreview } from "./style_editor/StylePreview.tsx";
 
 export type SlideDeckSettingsProps = {
   projectId: string;
@@ -94,11 +93,6 @@ export function SlideDeckSettings(p: Props) {
     );
     await deleteAction.click();
   }
-
-  const primaryTextColor = () =>
-    getTextColorForBackground(getPrimaryColor(tempConfig.primaryColor));
-  const lightOrDark = () =>
-    isColorLight(getPrimaryColor(tempConfig.primaryColor)) ? "light" : "dark";
 
   return (
     <FrameTop
@@ -167,21 +161,30 @@ export function SlideDeckSettings(p: Props) {
               </Button>
             </div>
           </SettingsSection>
-          {/* <div class="col-span-2"> */}
-          <SettingsSection header={t3({ en: "Style", fr: "Style" })}>
-            <div class="ui-gap flex flex-wrap">
-              <div class="ui-spy-sm w-56">
+          <div class="col-span-2">
+            <SettingsSection header={t3({ en: "Style", fr: "Style" })}>
+              <div class="ui-spy">
+                <StylePreview config={tempConfig} />
                 <ColorPicker
                   label={t3({
-                    en: "Report color theme",
-                    fr: "Thème de couleur du rapport",
+                    en: "Primary color",
+                    fr: "Couleur primaire",
                   })}
                   value={tempConfig.primaryColor}
                   onChange={(v) => setTempConfig("primaryColor", v)}
                   colorSet="standard"
                   extraColors={[_GFF_GREEN, _NIGERIA_GREEN]}
                   showCheckeredBackground
-                  fullWidth
+                />
+                <LayoutPicker
+                  value={tempConfig.layout}
+                  onChange={(v) => setTempConfig("layout", v)}
+                  primaryColor={tempConfig.primaryColor}
+                />
+                <TreatmentPicker
+                  value={tempConfig.treatment}
+                  onChange={(v) => setTempConfig("treatment", v)}
+                  primaryColor={tempConfig.primaryColor}
                 />
                 <Select
                   label={t3({
@@ -191,22 +194,10 @@ export function SlideDeckSettings(p: Props) {
                   value={tempConfig.overlay}
                   options={[
                     { value: "none", label: t3({ en: "None", fr: "Aucun" }) },
-                    {
-                      value: "dots",
-                      label: t3({ en: "Dots", fr: "Points" }),
-                    },
-                    {
-                      value: "rivers",
-                      label: t3({ en: "Maze", fr: "Labyrinthe" }),
-                    },
-                    {
-                      value: "waves",
-                      label: t3({ en: "Waves", fr: "Vagues" }),
-                    },
-                    {
-                      value: "world",
-                      label: t3({ en: "World", fr: "Monde" }),
-                    },
+                    { value: "dots", label: t3({ en: "Dots", fr: "Points" }) },
+                    { value: "rivers", label: t3({ en: "Maze", fr: "Labyrinthe" }) },
+                    { value: "waves", label: t3({ en: "Waves", fr: "Vagues" }) },
+                    { value: "world", label: t3({ en: "World", fr: "Monde" }) },
                   ]}
                   onChange={(v) =>
                     setTempConfig(
@@ -214,42 +205,10 @@ export function SlideDeckSettings(p: Props) {
                       v as "dots" | "rivers" | "waves" | "world" | "none",
                     )
                   }
-                  fullWidth
                 />
               </div>
-              <div
-                class="border-base-300 relative aspect-video w-96 rounded border"
-                style={{
-                  background: tempConfig.primaryColor,
-                }}
-              >
-                <Show when={tempConfig.overlay !== "none"}>
-                  <img
-                    class="w-full rounded"
-                    src={`/images/${tempConfig.overlay}_for_${lightOrDark()}_themes.png`}
-                  />
-                </Show>
-                <div
-                  class="font-700 absolute inset-0 flex items-center justify-center"
-                  style={{
-                    "letter-spacing": "-0.02em",
-                    color: primaryTextColor(),
-                  }}
-                >
-                  <div class="space-y-1 text-center">
-                    <div class="font-700 text-2xl">
-                      {t3({ en: "Example title", fr: "Titre exemple" })}
-                    </div>
-                    <div class="font-400 text-base">
-                      {t3({ en: "Sub-title", fr: "Sous-titre" })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </SettingsSection>
-          {/* </div>
-          <div class="col-span-2"> */}
+            </SettingsSection>
+          </div>
           <SettingsSection header={t3({ en: "Footer", fr: "Pied de page" })}>
             <Checkbox
               label={t3({
@@ -273,37 +232,12 @@ export function SlideDeckSettings(p: Props) {
                 fullWidth
                 height="40px"
               />
-              <LabelHolder
-                label={t3({
-                  en: "Footer logos",
-                  fr: "Logos de pied de page",
-                })}
-              >
-                <Show
-                  when={(tempConfig.logos ?? []).length > 0}
-                  fallback={
-                    <div class="text-neutral text-xs">
-                      {t3({
-                        en: "No logos set in deck settings",
-                        fr: "Aucun logo défini dans les paramètres",
-                      })}
-                    </div>
-                  }
-                >
-                  <MultiSelect
-                    values={tempConfig.deckFooter!.logos}
-                    options={(tempConfig.logos ?? [])
-                      .filter(Boolean)
-                      .map((logo) => ({
-                        value: logo,
-                        label: logo,
-                      }))}
-                    onChange={(selectedLogos) => {
-                      setTempConfig("deckFooter", "logos", selectedLogos);
-                    }}
-                  />
-                </Show>
-              </LabelHolder>
+              <LogoSelector
+                label={t3({ en: "Footer logos", fr: "Logos de pied de page" })}
+                values={tempConfig.deckFooter!.logos}
+                customLogos={(tempConfig.logos ?? []).filter(Boolean)}
+                onChange={(logos) => setTempConfig("deckFooter", "logos", logos)}
+              />
             </Show>
           </SettingsSection>
           {/* </div> */}

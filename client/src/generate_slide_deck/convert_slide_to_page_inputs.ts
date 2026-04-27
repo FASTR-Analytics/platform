@@ -30,17 +30,26 @@ import { getImgFromCacheOrFetch } from "~/state/img_cache";
 import { getOverlayImage } from "./get_overlay_image";
 import { _SERVER_HOST } from "~/server_actions";
 
-const _InternationalInter_400: FontInfo = {
-  fontFamily: "International Inter",
-  weight: 400,
-  italic: false,
-};
+export const FASTR_LOGOS = [
+  {
+    value: "images/FASTR_Primary_01_Horiz.png",
+    label: { en: "FASTR (colored)", fr: "FASTR (couleur)" },
+  },
+  {
+    value: "images/FASTR_White_Horiz.png",
+    label: { en: "FASTR (white)", fr: "FASTR (blanc)" },
+  },
+];
 
-const _InternationalInter_800: FontInfo = {
-  fontFamily: "International Inter",
-  weight: 800,
-  italic: false,
-};
+export const FASTR_LOGO_VALUES = FASTR_LOGOS.map((l) => l.value);
+
+function getFont(bold?: boolean, italic?: boolean, defaultBold = false): FontInfo {
+  return {
+    fontFamily: "International Inter",
+    weight: (bold ?? defaultBold) ? 800 : 400,
+    italic: italic ?? false,
+  };
+}
 
 export function buildStyleForSlide(
   slide: Slide,
@@ -70,76 +79,76 @@ export function buildStyleForSlide(
   return {
     text: {
       coverTitle: {
-        font: _InternationalInter_800,
+        font: getFont(coverFontSizes.titleBold, coverFontSizes.titleItalic, true),
         color: presetStyle.text!.coverTitle!.color,
         relFontSize: coverFontSizes.titleTextRelFontSize ?? 10,
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       coverSubTitle: {
-        font: _InternationalInter_400,
+        font: getFont(coverFontSizes.subTitleBold, coverFontSizes.subTitleItalic, false),
         color: presetStyle.text!.coverSubTitle!.color,
         relFontSize: coverFontSizes.subTitleTextRelFontSize ?? 6,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       coverAuthor: {
-        font: _InternationalInter_800,
+        font: getFont(coverFontSizes.presenterBold, coverFontSizes.presenterItalic, true),
         color: presetStyle.text!.coverAuthor!.color,
         relFontSize: coverFontSizes.presenterTextRelFontSize ?? 4,
         letterSpacing: "-0.02em",
         lineHeight: 1.2,
       },
       coverDate: {
-        font: _InternationalInter_400,
+        font: getFont(coverFontSizes.dateBold, coverFontSizes.dateItalic, false),
         color: presetStyle.text!.coverDate!.color,
         relFontSize: coverFontSizes.dateTextRelFontSize ?? 3,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       sectionTitle: {
-        font: _InternationalInter_800,
+        font: getFont(sectionFontSizes.sectionTitleBold, sectionFontSizes.sectionTitleItalic, true),
         color: presetStyle.text!.sectionTitle!.color,
         relFontSize: sectionFontSizes.sectionTextRelFontSize ?? 8,
         letterSpacing: "-0.02em",
         lineHeight: 1.05,
       },
       sectionSubTitle: {
-        font: _InternationalInter_400,
+        font: getFont(sectionFontSizes.sectionSubTitleBold, sectionFontSizes.sectionSubTitleItalic, false),
         color: presetStyle.text!.sectionSubTitle!.color,
         relFontSize: sectionFontSizes.smallerSectionTextRelFontSize ?? 5,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       header: {
-        font: _InternationalInter_800,
+        font: getFont(undefined, undefined, true),
         color: presetStyle.text!.header!.color,
         relFontSize: 5.5,
         letterSpacing: "-0.02em",
         lineHeight: 1,
       },
       subHeader: {
-        font: _InternationalInter_400,
+        font: getFont(undefined, undefined, false),
         color: presetStyle.text!.subHeader!.color,
         relFontSize: 3.5,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       date: {
-        font: _InternationalInter_400,
+        font: getFont(undefined, undefined, false),
         color: presetStyle.text!.date!.color,
         relFontSize: 3,
         letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       footer: {
-        font: _InternationalInter_400,
+        font: getFont(undefined, undefined, false),
         color: presetStyle.text!.footer!.color,
         relFontSize: 2,
         letterSpacing: "-0.02em",
       },
       pageNumber: {
-        font: _InternationalInter_400,
+        font: getFont(undefined, undefined, false),
         color: hasFooter ? presetStyle.text!.footer!.color : presetStyle.text!.header!.color,
         relFontSize: 1.5,
       },
@@ -194,10 +203,12 @@ async function loadLogos(
   availableLogos: string[] | undefined,
 ): Promise<HTMLImageElement[]> {
   const result: HTMLImageElement[] = [];
-  if (!selectedLogos || !availableLogos) return result;
+  if (!selectedLogos) return result;
   for (const logo of selectedLogos) {
-    if (availableLogos.includes(logo)) {
-      const resImg = await getImgFromCacheOrFetch(`${_SERVER_HOST}/${logo}`);
+    const isFastrLogo = FASTR_LOGO_VALUES.includes(logo);
+    if (isFastrLogo || availableLogos?.includes(logo)) {
+      const url = isFastrLogo ? `/${logo}` : `${_SERVER_HOST}/${logo}`;
+      const resImg = await getImgFromCacheOrFetch(url);
       if (resImg.success) {
         result.push(resImg.data);
       }

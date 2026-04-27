@@ -100,9 +100,17 @@ const coverSlideSchema = z.object({
   date: z.string().optional(),
   logos: z.array(z.string()).optional(),
   titleTextRelFontSize: z.number().optional(),
+  titleBold: z.boolean().optional(),
+  titleItalic: z.boolean().optional(),
   subTitleTextRelFontSize: z.number().optional(),
+  subTitleBold: z.boolean().optional(),
+  subTitleItalic: z.boolean().optional(),
   presenterTextRelFontSize: z.number().optional(),
+  presenterBold: z.boolean().optional(),
+  presenterItalic: z.boolean().optional(),
   dateTextRelFontSize: z.number().optional(),
+  dateBold: z.boolean().optional(),
+  dateItalic: z.boolean().optional(),
 });
 
 const sectionSlideSchema = z.object({
@@ -110,7 +118,11 @@ const sectionSlideSchema = z.object({
   sectionTitle: z.string(),
   sectionSubtitle: z.string().optional(),
   sectionTextRelFontSize: z.number().optional(),
+  sectionTitleBold: z.boolean().optional(),
+  sectionTitleItalic: z.boolean().optional(),
   smallerSectionTextRelFontSize: z.number().optional(),
+  sectionSubTitleBold: z.boolean().optional(),
+  sectionSubTitleItalic: z.boolean().optional(),
 });
 
 const contentSlideSchema = z.object({
@@ -156,9 +168,17 @@ const _completeCover: Required<CoverSlide> = {
   date: "",
   logos: [],
   titleTextRelFontSize: 1,
+  titleBold: true,
+  titleItalic: false,
   subTitleTextRelFontSize: 1,
+  subTitleBold: false,
+  subTitleItalic: false,
   presenterTextRelFontSize: 1,
+  presenterBold: true,
+  presenterItalic: false,
   dateTextRelFontSize: 1,
+  dateBold: false,
+  dateItalic: false,
 };
 slideConfigSchema.parse(_completeCover);
 
@@ -167,7 +187,11 @@ const _completeSection: Required<SectionSlide> = {
   sectionTitle: "",
   sectionSubtitle: "",
   sectionTextRelFontSize: 1,
+  sectionTitleBold: true,
+  sectionTitleItalic: false,
   smallerSectionTextRelFontSize: 1,
+  sectionSubTitleBold: false,
+  sectionSubTitleItalic: false,
 };
 slideConfigSchema.parse(_completeSection);
 

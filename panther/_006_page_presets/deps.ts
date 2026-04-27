@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { getColor, getKeyColorsFromPrimaryColor } from "../_001_color/mod.ts";
+export { Color, getColor, getKeyColorsFromPrimaryColor } from "../_001_color/mod.ts";
 export type { KeyColors } from "../_001_color/mod.ts";
 export type { AlignH, AlignV, PaddingOptions } from "../_001_geometry/mod.ts";
 export type { PatternConfig } from "../_002_pattern/mod.ts";

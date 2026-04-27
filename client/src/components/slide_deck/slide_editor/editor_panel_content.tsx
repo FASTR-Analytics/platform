@@ -6,7 +6,6 @@ import {
   TextBlock,
   ImageBlock,
   t3,
-  TC,
 } from "lib";
 import {
   TextArea,
@@ -15,8 +14,6 @@ import {
   LayoutNode,
   Select,
   Button,
-  LabelHolder,
-  MultiSelect,
   RadioGroup,
   getSelectOptions,
   Slider,
@@ -25,6 +22,7 @@ import { createSignal, Match, Setter, Show, Switch } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
 import { SetStoreFunction } from "solid-js/store";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
+import { LogoSelector } from "./LogoSelector.tsx";
 
 type Props = {
   projectId: string;
@@ -152,27 +150,12 @@ export function SlideEditorPanelContent(p: Props) {
                   fullWidth
                   height="40px"
                 />
-                <LabelHolder label={t3({ en: "Header logos", fr: "Logos d'en-tête" })}>
-                  <Show
-                    when={p.deckLogos.length > 0}
-                    fallback={
-                      <div class="text-neutral text-xs">
-                        {t3({ en: "No logos set in report settings", fr: "Aucun logo défini dans les paramètres du rapport" })}
-                      </div>
-                    }
-                  >
-                    <MultiSelect
-                      values={p.tempSlide.headerLogos ?? []}
-                      options={p.deckLogos.map((logo) => ({
-                        value: logo,
-                        label: logo,
-                      }))}
-                      onChange={(selectedLogos) => {
-                        p.setTempSlide("headerLogos", selectedLogos);
-                      }}
-                    />
-                  </Show>
-                </LabelHolder>
+                <LogoSelector
+                  label={t3({ en: "Header logos", fr: "Logos d'en-tête" })}
+                  values={p.tempSlide.headerLogos ?? []}
+                  customLogos={p.deckLogos}
+                  onChange={(logos) => p.setTempSlide("headerLogos", logos)}
+                />
                 <hr class="border-base-300" />
                 <Show
                   when={!p.deckFooter}
@@ -191,27 +174,12 @@ export function SlideEditorPanelContent(p: Props) {
                     fullWidth
                     height="40px"
                   />
-                  <LabelHolder label={t3({ en: "Footer logos", fr: "Logos de pied de page" })}>
-                    <Show
-                      when={p.deckLogos.length > 0}
-                      fallback={
-                        <div class="text-neutral text-xs">
-                          {t3({ en: "No logos set in report settings", fr: "Aucun logo défini dans les paramètres du rapport" })}
-                        </div>
-                      }
-                    >
-                      <MultiSelect
-                        values={p.tempSlide.footerLogos ?? []}
-                        options={p.deckLogos.map((logo) => ({
-                          value: logo,
-                          label: logo,
-                        }))}
-                        onChange={(selectedLogos) => {
-                          p.setTempSlide("footerLogos", selectedLogos);
-                        }}
-                      />
-                    </Show>
-                  </LabelHolder>
+                  <LogoSelector
+                    label={t3({ en: "Footer logos", fr: "Logos de pied de page" })}
+                    values={p.tempSlide.footerLogos ?? []}
+                    customLogos={p.deckLogos}
+                    onChange={(logos) => p.setTempSlide("footerLogos", logos)}
+                  />
                 </Show>
               </div>
             </div>

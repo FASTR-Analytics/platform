@@ -153,9 +153,17 @@ export type CoverSlide = {
   date?: string;
   logos?: string[];
   titleTextRelFontSize?: number;
+  titleBold?: boolean;
+  titleItalic?: boolean;
   subTitleTextRelFontSize?: number;
+  subTitleBold?: boolean;
+  subTitleItalic?: boolean;
   presenterTextRelFontSize?: number;
+  presenterBold?: boolean;
+  presenterItalic?: boolean;
   dateTextRelFontSize?: number;
+  dateBold?: boolean;
+  dateItalic?: boolean;
 };
 
 // Section slide
@@ -164,7 +172,11 @@ export type SectionSlide = {
   sectionTitle: string;
   sectionSubtitle?: string;
   sectionTextRelFontSize?: number;
+  sectionTitleBold?: boolean;
+  sectionTitleItalic?: boolean;
   smallerSectionTextRelFontSize?: number;
+  sectionSubTitleBold?: boolean;
+  sectionSubTitleItalic?: boolean;
 };
 
 // Content slide - uses explicit layout for user editing

@@ -6,22 +6,20 @@
 export {
   getLayoutPreset,
   getLayoutPresets,
+  LAYOUT_PRESET_IDS,
   type LayoutPreset,
   type LayoutPresetId,
 } from "./layout_presets.ts";
-export {
-  resolvePageStyle,
-  type ResolveOptions,
-} from "./resolve.ts";
+export { resolvePageStyle, type ResolveOptions } from "./resolve.ts";
 export {
   getTreatmentPreset,
   getTreatmentPresets,
+  TREATMENT_PRESET_IDS,
   type TreatmentPreset,
   type TreatmentPresetId,
 } from "./treatment_presets.ts";
 export type {
   ContentAssignment,
-  HeroSurfaceAssignment,
   LayoutPresetConfig,
   PaletteSlot,
   ResolvedPageStyle,

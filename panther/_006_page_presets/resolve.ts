@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  Color,
   type ContentStyleOptions,
   type CoverStyleOptions,
   type CustomPageStyleOptions,
@@ -28,7 +29,6 @@ import {
   type TreatmentPresetId,
 } from "./treatment_presets.ts";
 import type {
-  HeroSurfaceAssignment,
   PaletteSlot,
   ResolvedPageStyle,
   SurfacePaddingConfig,
@@ -48,11 +48,11 @@ function getTextColorForSlot(slot: PaletteSlot, palette: KeyColors): string {
 }
 
 function resolveHeroBackground(
-  assignment: HeroSurfaceAssignment,
+  backgroundSlot: PaletteSlot,
   palette: KeyColors,
   pattern?: Omit<PatternConfig, "baseColor">,
 ): PageBackgroundStyle {
-  const baseColor = getColorForSlot(assignment.slot, palette);
+  const baseColor = getColorForSlot(backgroundSlot, palette);
   if (pattern) {
     return { ...pattern, baseColor };
   }
@@ -71,7 +71,7 @@ function resolveCoverStyle(
   return {
     padding: layout.cover.padding,
     background: resolveHeroBackground(
-      treatment.surfaces.cover,
+      treatment.surfaces.cover.background,
       palette,
       treatment.pattern,
     ),
@@ -104,7 +104,7 @@ function resolveSectionStyle(
   return {
     padding: layout.section.padding,
     background: resolveHeroBackground(
-      treatment.surfaces.section,
+      treatment.surfaces.section.background,
       palette,
       treatment.pattern,
     ),
@@ -126,7 +126,7 @@ function resolveHeaderStyle(
   treatment: TreatmentPreset,
   palette: KeyColors,
 ): HeaderStyleOptions {
-  const { treatment: surfaceTreatment, slot } = treatment.surfaces.header;
+  const { treatment: surfaceTreatment, background } = treatment.surfaces.header;
   const headerLayout = layout.freeform.header;
 
   const padding = getPaddingForTreatment(headerLayout, surfaceTreatment);
@@ -134,7 +134,7 @@ function resolveHeaderStyle(
   if (surfaceTreatment === "filled") {
     return {
       padding,
-      background: getColorForSlot(slot, palette),
+      background: getColorForSlot(background, palette),
       logosSizing: headerLayout.logosSizing,
       headerBottomPadding: headerLayout.headerBottomPadding,
       subHeaderBottomPadding: headerLayout.subHeaderBottomPadding,
@@ -150,7 +150,7 @@ function resolveHeaderStyle(
       headerBottomPadding: headerLayout.headerBottomPadding,
       subHeaderBottomPadding: headerLayout.subHeaderBottomPadding,
       bottomBorderStrokeWidth: headerLayout.borderWidthIfBordered,
-      bottomBorderColor: getColor(palette.base300),
+      bottomBorderColor: getColor(palette.primary),
       alignH: headerLayout.alignH,
     };
   }
@@ -170,7 +170,7 @@ function resolveFooterStyle(
   treatment: TreatmentPreset,
   palette: KeyColors,
 ): FooterStyleOptions {
-  const { treatment: surfaceTreatment, slot } = treatment.surfaces.footer;
+  const { treatment: surfaceTreatment, background } = treatment.surfaces.footer;
   const footerLayout = layout.freeform.footer;
 
   const padding = getPaddingForTreatment(footerLayout, surfaceTreatment);
@@ -178,7 +178,7 @@ function resolveFooterStyle(
   if (surfaceTreatment === "filled") {
     return {
       padding,
-      background: getColorForSlot(slot, palette),
+      background: getColorForSlot(background, palette),
       logosSizing: footerLayout.logosSizing,
       alignH: footerLayout.alignH,
     };
@@ -197,12 +197,12 @@ function resolveContentStyle(
   treatment: TreatmentPreset,
   palette: KeyColors,
 ): ContentStyleOptions {
-  const { treatment: surfaceTreatment, slot } = treatment.surfaces.content;
+  const { treatment: surfaceTreatment, background } = treatment.surfaces.content;
 
   return {
     padding: layout.freeform.content.padding,
     background: surfaceTreatment === "filled"
-      ? getColorForSlot(slot, palette)
+      ? getColorForSlot(background, palette)
       : getColor(palette.base100),
     gapX: layout.freeform.content.gapX,
     gapY: layout.freeform.content.gapY,
@@ -232,32 +232,57 @@ function resolveFreeformStyle(
   };
 }
 
+function applyOpacity(color: string, opacity: number | undefined): string {
+  if (opacity === undefined || opacity === 1) return color;
+  const c = new Color(color);
+  const rgba = c.rgba();
+  return new Color([rgba.r, rgba.g, rgba.b, opacity]).css();
+}
+
+function resolveTextColor(
+  override: { color?: PaletteSlot; opacity?: number } | undefined,
+  defaultColor: string,
+  backgroundSlot: PaletteSlot,
+  palette: KeyColors,
+): string {
+  let baseColor = defaultColor;
+  if (override?.color) {
+    const overrideColor = getColorForSlot(override.color, palette);
+    const bgIsLight = backgroundSlot !== "primary";
+    const colorIsLight = new Color(overrideColor).isLight();
+    if (bgIsLight && colorIsLight) {
+      baseColor = getColor(palette.baseContent);
+    } else {
+      baseColor = overrideColor;
+    }
+  }
+  return applyOpacity(baseColor, override?.opacity);
+}
+
 function resolveTextStyles(
   treatment: TreatmentPreset,
   palette: KeyColors,
 ): TextColorStyles {
-  const coverText = getTextColorForSlot(
-    treatment.surfaces.cover.slot,
-    palette,
-  );
-  const sectionText = getTextColorForSlot(
-    treatment.surfaces.section.slot,
-    palette,
-  );
+  const cover = treatment.surfaces.cover;
+  const section = treatment.surfaces.section;
+
+  const defaultCoverText = getTextColorForSlot(cover.background, palette);
+  const defaultSectionText = getTextColorForSlot(section.background, palette);
+
   const headerText = treatment.surfaces.header.treatment === "filled"
-    ? getTextColorForSlot(treatment.surfaces.header.slot, palette)
+    ? getTextColorForSlot(treatment.surfaces.header.background, palette)
     : getColor(palette.baseContent);
   const footerText = treatment.surfaces.footer.treatment === "filled"
-    ? getTextColorForSlot(treatment.surfaces.footer.slot, palette)
+    ? getTextColorForSlot(treatment.surfaces.footer.background, palette)
     : getColor(palette.baseContent);
 
   return {
-    coverTitle: { color: coverText },
-    coverSubTitle: { color: coverText },
-    coverAuthor: { color: coverText },
-    coverDate: { color: coverText },
-    sectionTitle: { color: sectionText },
-    sectionSubTitle: { color: sectionText },
+    coverTitle: { color: resolveTextColor(cover.title, defaultCoverText, cover.background, palette) },
+    coverSubTitle: { color: resolveTextColor(cover.subTitle, defaultCoverText, cover.background, palette) },
+    coverAuthor: { color: resolveTextColor(cover.author, defaultCoverText, cover.background, palette) },
+    coverDate: { color: resolveTextColor(cover.date, defaultCoverText, cover.background, palette) },
+    sectionTitle: { color: resolveTextColor(section.title, defaultSectionText, section.background, palette) },
+    sectionSubTitle: { color: resolveTextColor(section.subTitle, defaultSectionText, section.background, palette) },
     header: { color: headerText },
     subHeader: { color: headerText },
     date: { color: headerText },

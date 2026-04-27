@@ -70,18 +70,33 @@ export type LayoutPresetConfig = {
   };
 };
 
-export type HeroSurfaceAssignment = {
-  slot: PaletteSlot;
+export type TextOverride = {
+  color?: PaletteSlot;
+  opacity?: number;
+};
+
+export type CoverSurfaceAssignment = {
+  background: PaletteSlot;
+  title?: TextOverride;
+  subTitle?: TextOverride;
+  author?: TextOverride;
+  date?: TextOverride;
+};
+
+export type SectionSurfaceAssignment = {
+  background: PaletteSlot;
+  title?: TextOverride;
+  subTitle?: TextOverride;
 };
 
 export type SurfaceAssignment = {
   treatment: SurfaceTreatment;
-  slot: PaletteSlot;
+  background: PaletteSlot;
 };
 
 export type ContentAssignment = {
   treatment: "filled" | "none";
-  slot: PaletteSlot;
+  background: PaletteSlot;
 };
 
 export type TreatmentPresetConfig = {
@@ -89,8 +104,8 @@ export type TreatmentPresetConfig = {
   description: string;
 
   surfaces: {
-    cover: HeroSurfaceAssignment;
-    section: HeroSurfaceAssignment;
+    cover: CoverSurfaceAssignment;
+    section: SectionSurfaceAssignment;
     header: SurfaceAssignment;
     footer: SurfaceAssignment;
     content: ContentAssignment;
