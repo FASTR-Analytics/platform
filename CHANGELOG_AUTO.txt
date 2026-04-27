@@ -1,3 +1,17 @@
+[TBD] [user] [changed] - Create visualization now uses a guided step-by-step wizard
+[TBD] [user] [added] - Module sidebar to filter metrics when creating a visualization
+[TBD] [user] [added] - Metric cards with preset counts and geographic level selection
+[TBD] [user] [added] - Visual cards for choosing visualization type (table, chart, map, time series)
+[TBD] [user] [added] - "Save as new" button when editing an existing visualization
+[TBD] [user] [changed] - Preset selector layout improved with cleaner styling
+[TBD] [user] [added] - Back and Next navigation buttons in visualization creation wizard
+[TBD] [admin] [changed] - Create visualization dialog now uses a step-by-step wizard
+[TBD] [admin] [added] - Metrics are now browsable by module when creating visualizations
+[TBD] [admin] [added] - "Save as new" button added to the visualization editor
+[TBD] [admin] [changed] - Visualization presets now apply caption and footnote text properly
+[TBD] [admin] [changed] - Module parameter descriptions now support multiple languages
+[TBD] [admin] [internal] - Removed unused metric AI description fields (use cases, related metrics, important notes)
+[TBD] [admin] [internal] - Removed unused description field from results objects
 [TBD] [user] [added] - Save button without closing in the indicator code editor
 [TBD] [user] [added] - Manage, edit, reorder, and delete HFA time points
 [TBD] [user] [added] - Time points section on the instance data overview page
