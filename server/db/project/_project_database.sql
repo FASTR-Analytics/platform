@@ -90,7 +90,6 @@ CREATE INDEX idx_modules_dirty ON modules(dirty);
 CREATE TABLE results_objects (
   id text PRIMARY KEY NOT NULL,
   module_id text NOT NULL,
-  description text NOT NULL,
   -- Store column definitions as JSON for now (can be further normalized later)
   column_definitions text,  -- JSON array of {colName, colType, notNull}
   FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE

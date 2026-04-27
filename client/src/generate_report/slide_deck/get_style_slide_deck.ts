@@ -119,7 +119,7 @@ export function getStyle_SlideDeck(
       },
     },
     cover: {
-      backgroundColor: cDetails.primaryBackgroundColor,
+      background: cDetails.primaryBackgroundColor,
       logoGapX: 80,
       logoBottomPadding: 60,
       titleBottomPadding: 60,
@@ -129,25 +129,25 @@ export function getStyle_SlideDeck(
     },
     freeform: {
       header: {
-        backgroundColor: cDetails.baseBackgroundColor,
+        background: cDetails.baseBackgroundColor,
         // logoWidth: cDetails.logoSize ?? 400,
         padding: [60, 80, 0, 80],
       },
       footer: {
-        backgroundColor: cDetails.primaryBackgroundColor,
+        background: cDetails.primaryBackgroundColor,
         logoGapX: 80,
         padding: [60, 80],
       },
       content: {
         padding: [60, 80],
-        backgroundColor: cDetails.baseBackgroundColor,
+        background: cDetails.baseBackgroundColor,
         // tabWidth: 10,
         gapX: 100,
         gapY: 80,
       },
     },
     section: {
-      backgroundColor: cDetails.primaryBackgroundColor,
+      background: cDetails.primaryBackgroundColor,
     },
   };
   return slideDeckStyle;

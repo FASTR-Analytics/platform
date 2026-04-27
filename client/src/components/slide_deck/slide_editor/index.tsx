@@ -645,6 +645,7 @@ export function SlideEditor(p: Props) {
         projectId: p.projectId,
         isGlobalAdmin: p.isGlobalAdmin,
         metrics: p.projectDetail.metrics,
+        modules: p.projectDetail.projectModules,
       },
     });
 

@@ -136,11 +136,10 @@ VALUES
         const roTableName = getResultsObjectTableName(resultsObject.id);
         await sql`DROP TABLE IF EXISTS ${sql(roTableName)}`;
         await sql`
-INSERT INTO results_objects (id, module_id, description, column_definitions)
+INSERT INTO results_objects (id, module_id, column_definitions)
 VALUES (
   ${resultsObject.id},
   ${modDef.data.id},
-  ${resultsObject.description},
   ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null}
 )
 `;
@@ -395,8 +394,8 @@ export async function updateModuleDefinition(
           const roTableName = getResultsObjectTableName(resultsObject.id);
           await sql`DROP TABLE IF EXISTS ${sql(roTableName)}`;
           await sql`
-            INSERT INTO results_objects (id, module_id, description, column_definitions)
-            VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
+            INSERT INTO results_objects (id, module_id, column_definitions)
+            VALUES (${resultsObject.id}, ${modDef.data.id},
               ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null})`;
         }
 
@@ -457,8 +456,8 @@ export async function updateModuleDefinition(
 
         for (const resultsObject of modDef.data.resultsObjects) {
           await sql`
-            INSERT INTO results_objects (id, module_id, description, column_definitions)
-            VALUES (${resultsObject.id}, ${modDef.data.id}, ${resultsObject.description},
+            INSERT INTO results_objects (id, module_id, column_definitions)
+            VALUES (${resultsObject.id}, ${modDef.data.id},
               ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null})`;
         }
 

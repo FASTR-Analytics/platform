@@ -688,6 +688,16 @@ export function VisualizationEditorInner(p: InnerProps) {
                         >
                           {t3(TC.save)}
                         </Button>
+                        <Button
+                          outline
+                          onClick={saveAsNewVisualization}
+                          iconName="copy"
+                        >
+                          {t3({
+                            en: "Save as new",
+                            fr: "Enregistrer comme nouveau",
+                          })}
+                        </Button>
                       </>
                     </Match>
                   </Switch>

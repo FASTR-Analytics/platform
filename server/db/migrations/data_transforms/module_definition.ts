@@ -19,6 +19,7 @@
 // 2. Fill metricId and sortOrder in defaultPresentationObjects items
 // 3. DELETE metrics from blob (metrics are stored in metrics table, not blob)
 // 4. Convert createTableStatementPossibleColumns: empty/null/undefined → false, array → Record
+// 5. DELETE description from resultsObjects (unused field, never displayed)
 //
 // =============================================================================
 
@@ -82,6 +83,9 @@ function transformModuleDefinition(mod: Record<string, unknown>): void {
       } else if (typeof cols === "object" && Object.keys(cols as object).length === 0) {
         ro.createTableStatementPossibleColumns = false;
       }
+
+      // Block 5: DELETE description from resultsObjects
+      delete ro.description;
     }
   }
 }

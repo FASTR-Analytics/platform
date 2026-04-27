@@ -63,7 +63,6 @@ export const configRequirements = z.object({
 export const resultsObjectDefinitionInstalledStrict = z.object({
   id: z.string(),
   moduleId: z.string(),
-  description: z.string(),
   createTableStatementPossibleColumns: z.union([
     z.literal(false),
     z.record(z.string(), z.string()).refine(

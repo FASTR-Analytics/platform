@@ -132,6 +132,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         projectId: p.projectId,
         isGlobalAdmin: p.isGlobalAdmin,
         preselectedMetric: metric,
+        modules: p.projectDetail.projectModules,
       },
     });
     if (!res) {
