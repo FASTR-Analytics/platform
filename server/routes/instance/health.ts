@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Context, Hono } from "hono";
 import {
   DBProject,
   DBUser,
@@ -129,4 +129,69 @@ routesHealth.get("/ai_usage", async (c) => {
   const since = c.req.query("since");
   const logs = await GetAiUsageLogs(mainDb, since ?? undefined);
   return c.json({ logs });
+});
+
+routesHealth.get("/pg_stat_statements", async (c: Context) => {
+  const orderByRaw = c.req.query("orderBy");
+  const orderBy =
+    orderByRaw === "mean" ? "mean_exec_time"
+    : orderByRaw === "max" ? "max_exec_time"
+    : orderByRaw === "calls" ? "calls"
+    : "total_exec_time";
+
+  const limitRaw = Number(c.req.query("limit"));
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 500 ? Math.floor(limitRaw) : 50;
+
+  const minMeanMsRaw = Number(c.req.query("minMeanMs"));
+  const minMeanMs = Number.isFinite(minMeanMsRaw) && minMeanMsRaw >= 0 ? minMeanMsRaw : 0;
+
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const statements = await mainDb<
+    {
+      datname: string | null;
+      usename: string | null;
+      queryid: string;
+      calls: string;
+      total_exec_time_ms: number;
+      mean_exec_time_ms: number;
+      max_exec_time_ms: number;
+      min_exec_time_ms: number;
+      stddev_exec_time_ms: number;
+      rows: string;
+      query: string;
+    }[]
+  >`
+SELECT d.datname,
+       r.rolname AS usename,
+       s.queryid::text AS queryid,
+       s.calls::text AS calls,
+       s.total_exec_time AS total_exec_time_ms,
+       s.mean_exec_time AS mean_exec_time_ms,
+       s.max_exec_time AS max_exec_time_ms,
+       s.min_exec_time AS min_exec_time_ms,
+       s.stddev_exec_time AS stddev_exec_time_ms,
+       s.rows::text AS rows,
+       s.query
+FROM pg_stat_statements s
+LEFT JOIN pg_database d ON d.oid = s.dbid
+LEFT JOIN pg_roles r ON r.oid = s.userid
+WHERE s.mean_exec_time >= ${minMeanMs}
+ORDER BY ${mainDb(orderBy)} DESC
+LIMIT ${limit}
+`;
+
+  return c.json({
+    instanceName: _INSTANCE_NAME,
+    serverTime: new Date().toISOString(),
+    orderBy,
+    limit,
+    minMeanMs,
+    statements,
+  });
+});
+
+routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  await mainDb`SELECT pg_stat_statements_reset()`;
+  return c.json({ reset: true, serverTime: new Date().toISOString() });
 });
