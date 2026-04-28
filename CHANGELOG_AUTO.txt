@@ -1,3 +1,12 @@
+[1.28.2] [user] [changed] - "Not available" messages now show a clearer explanation of why results cannot be displayed
+[1.28.2] [user] [fixed] - Visualizations with too many data points or no data now show a friendly informational message instead of an error
+[1.28.2] [user] [fixed] - Rendering errors in visualizations now display a clear message instead of crashing
+[1.28.2] [user] [fixed] - Visualizations requiring a replicate-by value now show which values are available instead of failing silently
+[1.28.2] [admin] [added] - Visualizations now show friendly "Not available" messages instead of raw errors
+[1.28.2] [admin] [added] - Validation for replicated visualizations with missing or invalid selection values
+[1.28.2] [admin] [fixed] - Visualization rendering errors no longer crash the display; a clear message is shown instead
+[1.28.2] [admin] [changed] - "Too many data points" and "No data available" messages now display in a styled info box
+[1.28.2] [admin] [changed] - HFA indicator consistency column no longer uses color-coded styling
 [1.28.1] [user] [fixed] - Fixed crashes when visualizations had no time period data available
 [1.28.1] [admin] [fixed] - Visualizations no longer crash when metric data has no time periods
 [1.28.0] [user] [added] - Logos can now be configured separately for cover, header, and footer sections
