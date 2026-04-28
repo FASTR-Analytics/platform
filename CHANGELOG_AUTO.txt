@@ -1,3 +1,5 @@
+[1.28.5] [user] [fixed] - Visualizations now auto-select a value instead of showing an error when none is chosen
+[1.28.5] [admin] [fixed] - Visualizations with replicated values now auto-select the first available option instead of showing an error
 [1.28.4] [user] [added] - Line charts now offer "Add points" and "Fill area" options
 [1.28.4] [user] [changed] - "Areas" display format replaced with "Fill area" option under Lines
 [1.28.4] [user] [improved] - Map visualizations show clearer message when map files are missing
