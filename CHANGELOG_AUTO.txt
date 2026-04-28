@@ -1,3 +1,5 @@
+[1.28.1] [user] [fixed] - Fixed crashes when visualizations had no time period data available
+[1.28.1] [admin] [fixed] - Visualizations no longer crash when metric data has no time periods
 [1.28.0] [user] [added] - Logos can now be configured separately for cover, header, and footer sections
 [1.28.0] [user] [added] - Per-slide option to show or hide logos with a default setting
 [1.28.0] [user] [added] - Logo size and spacing controls for each logo section
