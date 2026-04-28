@@ -6,6 +6,7 @@
 import {
   createEffect,
   createSignal,
+  JSX,
   onCleanup,
   onMount,
   Setter,
@@ -34,6 +35,7 @@ type Props = {
   noRescaleWithWidthChange?: boolean;
   canvasElementId?: string;
   scalePixelResolution?: number;
+  renderError?: (err: string) => JSX.Element;
 };
 
 export function ChartHolder(p: Props) {
@@ -186,9 +188,13 @@ export function ChartHolder(p: Props) {
       data-flexToContainer={p.height === "flex"}
     >
       <Show when={err()}>
-        <div class="ui-pad text-danger pointer-events-none absolute text-xs">
-          {err()}
-        </div>
+        {p.renderError ? (
+          <div class="absolute inset-0">{p.renderError(err())}</div>
+        ) : (
+          <div class="ui-pad text-danger pointer-events-none absolute text-xs">
+            {err()}
+          </div>
+        )}
       </Show>
       <canvas
         ref={canvas!}

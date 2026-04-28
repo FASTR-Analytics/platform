@@ -1,9 +1,4 @@
-import {
-  t3,
-  TC,
-  type HfaIndicator,
-  type HfaIndicatorCode,
-} from "lib";
+import { t3, TC, type HfaIndicator, type HfaIndicatorCode } from "lib";
 import {
   Button,
   FrameTop,
@@ -33,15 +28,26 @@ type Props = {
 export function HfaIndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const [indicators, setIndicators] = createSignal<StateHolder<HfaIndicator[]>>({
-    status: "loading",
-    msg: t3({ en: "Loading HFA indicators...", fr: "Chargement des indicateurs HFA..." }),
-  });
+  const [indicators, setIndicators] = createSignal<StateHolder<HfaIndicator[]>>(
+    {
+      status: "loading",
+      msg: t3({
+        en: "Loading HFA indicators...",
+        fr: "Chargement des indicateurs HFA...",
+      }),
+    },
+  );
 
   createEffect(async () => {
     const version = instanceState.hfaIndicatorsVersion;
     if (!version) return;
-    setIndicators({ status: "loading", msg: t3({ en: "Loading HFA indicators...", fr: "Chargement des indicateurs HFA..." }) });
+    setIndicators({
+      status: "loading",
+      msg: t3({
+        en: "Loading HFA indicators...",
+        fr: "Chargement des indicateurs HFA...",
+      }),
+    });
     const res = await getHfaIndicatorsFromCacheOrFetch(version);
     if (res.success) {
       setIndicators({ status: "ready", data: res.data });
@@ -84,7 +90,11 @@ export function HfaIndicatorsManager(p: Props) {
     const allIndicatorVarNames = new Set(st.data.map((i) => i.varName));
 
     // Compute validation for each indicator
-    const updates: { varName: string; hasSyntaxError: boolean; codeConsistent: boolean }[] = [];
+    const updates: {
+      varName: string;
+      hasSyntaxError: boolean;
+      codeConsistent: boolean;
+    }[] = [];
     for (const ind of st.data) {
       const indCode = codeByVarName.get(ind.varName) ?? [];
       const otherVarNames = new Set(allIndicatorVarNames);
@@ -92,8 +102,12 @@ export function HfaIndicatorsManager(p: Props) {
 
       let hasSyntaxError = false;
       for (const c of indCode) {
-        const tp = dictRes.data.timePoints.find((t) => t.timePoint === c.timePoint);
-        const availableVars = tp ? new Set(tp.vars.map((v) => v.varName)) : new Set<string>();
+        const tp = dictRes.data.timePoints.find(
+          (t) => t.timePoint === c.timePoint,
+        );
+        const availableVars = tp
+          ? new Set(tp.vars.map((v) => v.varName))
+          : new Set<string>();
         if (c.rCode.trim()) {
           const result = validateRCode(c.rCode, availableVars, otherVarNames);
           if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
@@ -101,19 +115,27 @@ export function HfaIndicatorsManager(p: Props) {
           }
         }
         if (c.rFilterCode?.trim()) {
-          const result = validateRCode(c.rFilterCode, availableVars, otherVarNames);
+          const result = validateRCode(
+            c.rFilterCode,
+            availableVars,
+            otherVarNames,
+          );
           if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
             hasSyntaxError = true;
           }
         }
       }
 
-      const nonEmpty = indCode.filter((c) => c.rCode.trim() || c.rFilterCode?.trim());
+      const nonEmpty = indCode.filter(
+        (c) => c.rCode.trim() || c.rFilterCode?.trim(),
+      );
       let codeConsistent = true;
       if (nonEmpty.length > 1) {
         const first = nonEmpty[0];
         codeConsistent = nonEmpty.every(
-          (c) => c.rCode.trim() === first.rCode.trim() && (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? "")
+          (c) =>
+            c.rCode.trim() === first.rCode.trim() &&
+            (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? ""),
         );
       }
 
@@ -121,7 +143,9 @@ export function HfaIndicatorsManager(p: Props) {
     }
 
     // Send bulk update
-    const res = await serverActions.bulkUpdateHfaIndicatorValidation({ updates });
+    const res = await serverActions.bulkUpdateHfaIndicatorValidation({
+      updates,
+    });
     if (res.success) {
       const version = instanceState.hfaIndicatorsVersion;
       if (version) {
@@ -164,10 +188,14 @@ export function HfaIndicatorsManager(p: Props) {
   async function handleDelete(indicator: HfaIndicator) {
     const deleteAction = timActionDelete(
       {
-        text: t3({ en: "Are you sure you want to delete this indicator?", fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?" }),
+        text: t3({
+          en: "Are you sure you want to delete this indicator?",
+          fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+        }),
         itemList: [indicator.varName],
       },
-      () => serverActions.deleteHfaIndicators({ varNames: [indicator.varName] }),
+      () =>
+        serverActions.deleteHfaIndicators({ varNames: [indicator.varName] }),
     );
     await deleteAction.click();
   }
@@ -176,9 +204,16 @@ export function HfaIndicatorsManager(p: Props) {
     const varNames = selectedIndicators.map((i) => i.varName);
     const deleteAction = timActionDelete(
       {
-        text: varNames.length === 1
-          ? t3({ en: "Are you sure you want to delete this indicator?", fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?" })
-          : t3({ en: "Are you sure you want to delete these indicators?", fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?" }),
+        text:
+          varNames.length === 1
+            ? t3({
+                en: "Are you sure you want to delete this indicator?",
+                fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+              })
+            : t3({
+                en: "Are you sure you want to delete these indicators?",
+                fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
+              }),
         itemList: varNames,
       },
       () => serverActions.deleteHfaIndicators({ varNames }),
@@ -196,7 +231,13 @@ export function HfaIndicatorsManager(p: Props) {
       a.timePoint.localeCompare(b.timePoint),
     );
 
-    const headers = ["varName", "category", "definition", "type", "aggregation"];
+    const headers = [
+      "varName",
+      "category",
+      "definition",
+      "type",
+      "aggregation",
+    ];
     for (let k = 0; k < sortedTimePoints.length; k++) {
       headers.push(`r_code_${k + 1}`, `r_filter_code_${k + 1}`);
     }
@@ -269,14 +310,18 @@ export function HfaIndicatorsManager(p: Props) {
       key: "type",
       header: t3({ en: "Type", fr: "Type" }),
       sortable: true,
-      render: (ind) => <span>{ind.type === "binary" ? "Boolean" : "Numeric"}</span>,
+      render: (ind) => (
+        <span>{ind.type === "binary" ? "Boolean" : "Numeric"}</span>
+      ),
     },
     {
       key: "hasSyntaxError",
       header: t3({ en: "Syntax", fr: "Syntaxe" }),
       sortable: true,
       render: (ind) => (
-        <span class={ind.hasSyntaxError ? "text-danger font-700" : "text-success"}>
+        <span
+          class={ind.hasSyntaxError ? "text-danger font-700" : "text-success"}
+        >
           {ind.hasSyntaxError
             ? t3({ en: "Error", fr: "Erreur" })
             : t3({ en: "OK", fr: "OK" })}
@@ -288,7 +333,7 @@ export function HfaIndicatorsManager(p: Props) {
       header: t3({ en: "Consistent", fr: "Cohérent" }),
       sortable: true,
       render: (ind) => (
-        <span class={ind.codeConsistent ? "text-success" : "text-warning font-700"}>
+        <span class="">
           {ind.codeConsistent
             ? t3({ en: "Yes", fr: "Oui" })
             : t3({ en: "No", fr: "Non" })}
@@ -305,12 +350,19 @@ export function HfaIndicatorsManager(p: Props) {
       render: (ind) => (
         <div class="ui-gap-sm flex justify-end">
           <Button
-            onClick={(e: MouseEvent) => { e.stopPropagation(); const st = indicators(); handleOpenCodeEditor(ind, st.status === "ready" ? st.data : []); }}
+            onClick={(e: MouseEvent) => {
+              e.stopPropagation();
+              const st = indicators();
+              handleOpenCodeEditor(ind, st.status === "ready" ? st.data : []);
+            }}
             iconName="pencil"
             intent="base-100"
           />
           <Button
-            onClick={(e: MouseEvent) => { e.stopPropagation(); handleDelete(ind); }}
+            onClick={(e: MouseEvent) => {
+              e.stopPropagation();
+              handleDelete(ind);
+            }}
             iconName="trash"
             intent="base-100"
           />
@@ -320,7 +372,14 @@ export function HfaIndicatorsManager(p: Props) {
   }
 
   const bulkActions: BulkAction<HfaIndicator>[] = p.isGlobalAdmin
-    ? [{ label: t3(TC.delete), intent: "danger", outline: true, onClick: handleBulkDelete }]
+    ? [
+        {
+          label: t3(TC.delete),
+          intent: "danger",
+          outline: true,
+          onClick: handleBulkDelete,
+        },
+      ]
     : [];
 
   return (
@@ -358,11 +417,14 @@ export function HfaIndicatorsManager(p: Props) {
               <div class="flex h-full flex-col">
                 <div class="ui-gap-sm flex flex-none items-center pb-4">
                   <div class="font-700 flex-1 text-xl">
-                    {t3({ en: "Indicators", fr: "Indicateurs" })} ({keyedIndicators.length})
+                    {t3({ en: "Indicators", fr: "Indicateurs" })} (
+                    {keyedIndicators.length})
                   </div>
                   <Show when={p.isGlobalAdmin && keyedIndicators.length > 0}>
                     <Button
-                      onClick={() => { handleDownloadCsv(keyedIndicators); }}
+                      onClick={() => {
+                        handleDownloadCsv(keyedIndicators);
+                      }}
                       iconName="download"
                       intent="neutral"
                     >
@@ -375,7 +437,10 @@ export function HfaIndicatorsManager(p: Props) {
                     data={keyedIndicators}
                     columns={columns}
                     keyField="varName"
-                    noRowsMessage={t3({ en: "No HFA indicators configured", fr: "Aucun indicateur HFA configuré" })}
+                    noRowsMessage={t3({
+                      en: "No HFA indicators configured",
+                      fr: "Aucun indicateur HFA configuré",
+                    })}
                     bulkActions={bulkActions}
                     selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
                     fitTableToAvailableHeight

@@ -3,6 +3,7 @@ import { FigureInputs, ChartHolder, Loading, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
 import { useProjectDirtyStates } from "~/components/project_runner/mod";
 import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/po_cache";
+import { NotAvailableBox } from "./NotAvailableBox";
 
 type Props = {
   projectId: string;
@@ -17,7 +18,9 @@ type Props = {
 export function PresentationObjectMiniDisplay(p: Props) {
   const pds = useProjectDirtyStates();
 
-  const [figureInputs, setFigureInputs] = createSignal<StateHolder<FigureInputs>>({
+  const [figureInputs, setFigureInputs] = createSignal<
+    StateHolder<FigureInputs>
+  >({
     status: "loading",
     msg: t3({ en: "Fetching data...", fr: "Récupération des données..." }),
   });
@@ -53,14 +56,14 @@ type PresentationObjectMiniDisplayStateHolderWrapperProps = {
   state: StateHolder<FigureInputs>;
   moduleId?: string;
   onErrorButton?:
-  | {
-    label: string;
-    onClick: () => void;
-  }
-  | {
-    label: string;
-    link: string;
-  };
+    | {
+        label: string;
+        onClick: () => void;
+      }
+    | {
+        label: string;
+        link: string;
+      };
   onClick?: () => void;
   shapeType: "ideal" | "force-aspect-video";
   scalePixelResolution?: number;
@@ -82,7 +85,10 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
     <Switch>
       <Match when={moduleDirtyStatus() === "running"}>
         <div class="text-success aspect-video text-xs" onClick={p.onClick}>
-          {t3({ en: "Module running...", fr: "Module en cours d'exécution..." })}
+          {t3({
+            en: "Module running...",
+            fr: "Module en cours d'exécution...",
+          })}
         </div>
       </Match>
       <Match when={moduleDirtyStatus() === "error"}>
@@ -91,7 +97,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
         </div>
       </Match>
       <Match when={moduleDirtyStatus() === "queued"}>
-        <div class="aspect-video text-xs text-[orange]" onClick={p.onClick}>
+        <div class="text-warning aspect-video text-xs" onClick={p.onClick}>
           {t3({ en: "Pending...", fr: "En attente..." })}
         </div>
       </Match>
@@ -103,9 +109,23 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
             </div>
           </Match>
           <Match when={p.state.status === "error"}>
-            <div class="text-danger aspect-video text-xs" onClick={p.onClick}>
-              {(p.state as { err?: string }).err ?? t3({ en: "Error", fr: "Erreur" })}
-            </div>
+            {(() => {
+              const err = (p.state as { err?: string }).err ?? "";
+              const isKnown = err.startsWith("[INFO] ");
+              if (isKnown) {
+                return (
+                  <NotAvailableBox err={err.slice(7)} onClick={p.onClick} />
+                );
+              }
+              return (
+                <div
+                  class="text-danger aspect-video text-xs"
+                  onClick={p.onClick}
+                >
+                  {err || t3({ en: "Error", fr: "Erreur" })}
+                </div>
+              );
+            })()}
           </Match>
           <Match
             when={
@@ -115,7 +135,13 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
             keyed
           >
             {(keyedFigureInputs) => {
-              const h1 = "tableData" in keyedFigureInputs ? "ideal" as const : "flex" as const;
+              const h1 =
+                "tableData" in keyedFigureInputs
+                  ? ("ideal" as const)
+                  : ("flex" as const);
+              const renderError = (err: string) => (
+                <NotAvailableBox err={err} />
+              );
               return (
                 <Switch>
                   <Match when={p.shapeType === "force-aspect-video"}>
@@ -125,6 +151,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                         height={h1}
                         noRescaleWithWidthChange
                         scalePixelResolution={p.scalePixelResolution}
+                        renderError={renderError}
                       />
                     </div>
                   </Match>
@@ -134,6 +161,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                       height={h1}
                       noRescaleWithWidthChange
                       scalePixelResolution={p.scalePixelResolution}
+                      renderError={renderError}
                     />
                   </Match>
                 </Switch>

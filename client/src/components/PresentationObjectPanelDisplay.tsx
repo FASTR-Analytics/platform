@@ -38,6 +38,7 @@ import {
 } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
 import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
+import { NotAvailableBox } from "./NotAvailableBox";
 import { EditFolderModal } from "./project/edit_folder_modal";
 import { MoveToFolderModal } from "./project/move_to_folder_modal";
 import { DuplicateVisualization } from "./visualization/duplicate_visualization";
@@ -1020,13 +1021,7 @@ function VisualizationCard(p: VisualizationCardProps) {
       </div>
       <Show
         when={isReady()}
-        fallback={
-          <div class="border-base-300 bg-base-200 flex aspect-video items-center justify-center rounded border p-2">
-            <span class="text-neutral text-xs">
-              {t3({ en: "Not available", fr: "Non disponible" })}
-            </span>
-          </div>
-        }
+        fallback={<NotAvailableBox fillAreaNotAvailable />}
       >
         <div
           class="relative cursor-pointer rounded border p-2"

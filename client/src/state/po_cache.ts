@@ -6,7 +6,9 @@ import {
   ReplicantValueOverride,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
+  t3,
 } from "lib";
+import { getReplicantOptionsFromCacheOrFetch } from "./replicant_options_cache";
 import { FigureInputs, StateHolder, type GeoJSONFeatureCollection } from "panther";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
@@ -162,7 +164,7 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
   if (readyPoItems.data.ih.status === "too_many_items") {
     yield {
       status: "error",
-      err: "Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.",
+      err: "[INFO] Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.",
     };
     return;
   }
@@ -170,7 +172,7 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
   if (readyPoItems.data.ih.status === "no_data_available") {
     yield {
       status: "error",
-      err: "No data available with current filter selection.",
+      err: "[INFO] No data available with current filter selection.",
     };
     return;
   }
@@ -181,13 +183,22 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
     geoJson = getGeoJsonSync(mapLevel);
   }
 
-  const figureInputs = getFigureInputsFromPresentationObject(
-    readyPoDetail.data.resultsValue,
-    readyPoItems.data.ih,
-    readyPoItems.data.config,
-    geoJson,
-  );
-  yield figureInputs;
+  try {
+    const figureInputs = getFigureInputsFromPresentationObject(
+      readyPoDetail.data.resultsValue,
+      readyPoItems.data.ih,
+      readyPoItems.data.config,
+      geoJson,
+    );
+    yield figureInputs;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Unknown rendering error";
+    console.error("[VIZ] Rendering error:", msg);
+    yield {
+      status: "error" as const,
+      err: `[INFO] ${msg}`,
+    };
+  }
 }
 
 export async function getPOFigureInputsFromCacheOrFetch(
@@ -361,6 +372,41 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
       err: resFetchConfig.err,
     };
     return;
+  }
+
+  // Validate replicant value if required
+  const replicateBy = getReplicateByProp(config);
+  if (replicateBy) {
+    const replicantRes = await getReplicantOptionsFromCacheOrFetch(
+      projectId,
+      poDetail.resultsValue.resultsObjectId,
+      replicateBy,
+      resFetchConfig.data,
+    );
+    if (replicantRes.success && replicantRes.data.status === "ok") {
+      const validValues = replicantRes.data.possibleValues;
+      const selected = config.d.selectedReplicantValue;
+      if (!selected) {
+        yield {
+          status: "error",
+          err: t3({
+            en: `[INFO] This visualization requires selecting a value for "${replicateBy}". Available: ${validValues.join(", ")}`,
+            fr: `[INFO] Cette visualisation nécessite de sélectionner une valeur pour "${replicateBy}". Disponibles: ${validValues.join(", ")}`,
+          }),
+        };
+        return;
+      }
+      if (!validValues.includes(selected)) {
+        yield {
+          status: "error",
+          err: t3({
+            en: `[INFO] Invalid value "${selected}" for "${replicateBy}". Available: ${validValues.join(", ")}`,
+            fr: `[INFO] Valeur invalide "${selected}" pour "${replicateBy}". Disponibles: ${validValues.join(", ")}`,
+          }),
+        };
+        return;
+      }
+    }
   }
 
   const { data, version, isInflight } = await _PO_ITEMS_CACHE.get({
