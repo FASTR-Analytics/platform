@@ -36,7 +36,7 @@ async function run(std: {
   const { rawDUA } = std;
 
   const stagingTableName = UPLOADED_HFA_DATA_STAGING_TABLE_NAME;
-  const datasetTableName = "dataset_hfa";
+  const datasetTableName = "hfa_data";
 
   const importDb = createBulkImportConnection("main");
   const mainDb = createWorkerReadConnection("main");
@@ -50,7 +50,7 @@ async function run(std: {
       : { status: "integrating", progress };
 
     await mainDb`
-      UPDATE dataset_hfa_upload_attempts
+      UPDATE hfa_upload_attempts
       SET
         status = ${JSON.stringify(status)},
         status_type = ${result ? "complete" : "integrating"}
@@ -63,13 +63,13 @@ async function run(std: {
     }
 
     const mappings = parseJsonOrThrow<HfaCsvMappingParams>(rawDUA.step_2_result);
-    const timePointLabel = mappings.timePointLabel;
+    const periodId = mappings.periodId;
 
     const stagingResult = parseJsonOrThrow<DatasetHfaCsvStagingResult>(
       rawDUA.step_3_result,
     );
 
-    const timePointValue = stagingResult.timePointValue;
+    const timePoint = stagingResult.timePoint;
     const dictVarsStagingTable = stagingResult.dictionaryVarsStagingTableName;
     const dictValuesStagingTable =
       stagingResult.dictionaryValuesStagingTableName;
@@ -112,38 +112,41 @@ async function run(std: {
 
     await updateIntegrationProgress(20);
 
-    const dateImported = new Date().toISOString();
-
     // Single transaction: delete existing time_point data + insert new data + dictionary
     await mainDb.begin(async (sql) => {
       await sql`SET LOCAL work_mem = '256MB'`;
       await sql`SET LOCAL synchronous_commit = OFF`;
       await sql`SET LOCAL maintenance_work_mem = '512MB'`;
 
-      // Delete existing data for this time_point (preserve time_point row for indicator code FK)
-      await sql`DELETE FROM dataset_hfa WHERE time_point = ${timePointValue}`;
-      await sql`DELETE FROM dataset_hfa_dictionary_vars WHERE time_point = ${timePointValue}`;
+      // Delete existing data for this time_point
+      await sql`DELETE FROM hfa_data WHERE time_point = ${timePoint}`;
+      await sql`DELETE FROM hfa_variables WHERE time_point = ${timePoint}`;
 
       await updateIntegrationProgress(30);
 
-      // UPSERT time_point (preserves hfa_indicator_code FK references)
+      // UPSERT time_point with sort_order auto-increment for new rows
       await sql`
-        INSERT INTO dataset_hfa_dictionary_time_points (time_point, time_point_label, date_imported)
-        VALUES (${timePointValue}, ${timePointLabel}, ${dateImported})
-        ON CONFLICT (time_point) DO UPDATE SET
-          time_point_label = EXCLUDED.time_point_label,
-          date_imported = EXCLUDED.date_imported
+        INSERT INTO hfa_time_points (label, period_id, sort_order, imported_at)
+        VALUES (
+          ${timePoint},
+          ${periodId},
+          (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM hfa_time_points),
+          NOW()
+        )
+        ON CONFLICT (label) DO UPDATE SET
+          period_id = EXCLUDED.period_id,
+          imported_at = EXCLUDED.imported_at
       `;
 
       // Auto-copy indicator code from most recent existing time_point
       await sql`
         INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
-        SELECT var_name, ${timePointValue}, r_code, r_filter_code
+        SELECT var_name, ${timePoint}, r_code, r_filter_code
         FROM hfa_indicator_code
         WHERE time_point = (
-          SELECT tp.time_point FROM dataset_hfa_dictionary_time_points tp
-          WHERE tp.time_point != ${timePointValue}
-          ORDER BY tp.date_imported DESC NULLS LAST
+          SELECT tp.label FROM hfa_time_points tp
+          WHERE tp.label != ${timePoint}
+          ORDER BY tp.imported_at DESC NULLS LAST
           LIMIT 1
         )
         ON CONFLICT DO NOTHING
@@ -151,13 +154,13 @@ async function run(std: {
 
       // Insert dictionary vars from staging
       await sql.unsafe(`
-        INSERT INTO dataset_hfa_dictionary_vars (time_point, var_name, var_label, var_type)
+        INSERT INTO hfa_variables (time_point, var_name, var_label, var_type)
         SELECT time_point, var_name, var_label, var_type FROM ${dictVarsStagingTable}
       `);
 
       // Insert dictionary values from staging
       await sql.unsafe(`
-        INSERT INTO dataset_hfa_dictionary_values (time_point, var_name, value, value_label)
+        INSERT INTO hfa_variable_values (time_point, var_name, value, value_label)
         SELECT time_point, var_name, value, value_label FROM ${dictValuesStagingTable}
       `);
 
@@ -185,7 +188,7 @@ async function run(std: {
 
     // Mark as complete
     await mainDb`
-      UPDATE dataset_hfa_upload_attempts
+      UPDATE hfa_upload_attempts
       SET
         status = ${JSON.stringify({
           status: "complete",
@@ -200,7 +203,7 @@ async function run(std: {
 
     try {
       await mainDb`
-        UPDATE dataset_hfa_upload_attempts
+        UPDATE hfa_upload_attempts
         SET
           status = ${JSON.stringify({
             status: "error",

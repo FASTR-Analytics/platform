@@ -69,7 +69,7 @@ import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generati
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 import { useOptimisticSetLastUpdated } from "../../project_runner/mod";
 import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
-import { convertSlideToPageInputs } from "../slide_rendering/convert_slide_to_page_inputs";
+import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
 import { convertSlideType } from "../slide_transforms/convert_slide_type";
 import { SlideEditorPanel } from "./editor_panel";
@@ -645,6 +645,7 @@ export function SlideEditor(p: Props) {
         projectId: p.projectId,
         isGlobalAdmin: p.isGlobalAdmin,
         metrics: p.projectDetail.metrics,
+        modules: p.projectDetail.projectModules,
       },
     });
 
@@ -823,8 +824,10 @@ export function SlideEditor(p: Props) {
               onEditVisualization={handleEditVisualization}
               onSelectVisualization={() => handleSelectVisualization()}
               onCreateVisualization={handleCreateVisualization}
-              deckLogos={p.deckConfig.logos ?? []}
-              deckFooter={p.deckConfig.deckFooter}
+              showCoverLogosByDefault={p.deckConfig.logos.cover.showByDefault}
+              showHeaderLogosByDefault={p.deckConfig.logos.header.showByDefault}
+              showFooterLogosByDefault={p.deckConfig.logos.footer.showByDefault}
+              hasGlobalFooterText={p.deckConfig.globalFooterText !== undefined}
             />
           }
         >

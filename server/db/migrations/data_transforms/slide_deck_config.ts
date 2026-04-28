@@ -9,6 +9,8 @@
 //
 // TRANSFORM BLOCKS:
 // 1. Fill primaryColor default
+// 2. Add layout and treatment fields
+// 3. Migrate logos structure - collect per-slide logos into deck-level
 //
 // =============================================================================
 
@@ -40,6 +42,72 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
     // Block 1: Fill primaryColor default
     if (!("primaryColor" in config)) {
       config.primaryColor = _GFF_GREEN;
+    }
+
+    // Block 2: Add layout and treatment fields
+    if (!("layout" in config)) {
+      config.layout = "default";
+    }
+    if (!("treatment" in config)) {
+      config.treatment = "default";
+    }
+
+    // Block 3: Migrate logos structure
+    // Old: logos: string[], logoSize: number, deckFooter: { text, logos }
+    // New: logos: { availableCustom, cover, header, footer }, globalFooterText
+    if (Array.isArray(config.logos) || config.logos === undefined) {
+      const oldAvailableLogos: string[] = config.logos ?? [];
+      const oldDeckFooter = config.deckFooter as { text: string; logos: string[] } | undefined;
+
+      // Read slides for this deck to collect per-slide logos
+      const slides = await tx<{ config: string }[]>`
+        SELECT config FROM slides WHERE slide_deck_id = ${row.id}
+      `;
+
+      const coverLogos = new Set<string>();
+      const headerLogos = new Set<string>();
+      const footerLogos = new Set<string>();
+
+      if (oldDeckFooter?.logos) {
+        for (const logo of oldDeckFooter.logos) {
+          footerLogos.add(logo);
+        }
+      }
+
+      for (const slide of slides) {
+        const slideConfig = JSON.parse(slide.config);
+
+        if (slideConfig.type === "cover" && Array.isArray(slideConfig.logos)) {
+          for (const logo of slideConfig.logos) {
+            coverLogos.add(logo);
+          }
+        }
+
+        if (slideConfig.type === "content") {
+          if (Array.isArray(slideConfig.headerLogos)) {
+            for (const logo of slideConfig.headerLogos) {
+              headerLogos.add(logo);
+            }
+          }
+          if (Array.isArray(slideConfig.footerLogos)) {
+            for (const logo of slideConfig.footerLogos) {
+              footerLogos.add(logo);
+            }
+          }
+        }
+      }
+
+      config.logos = {
+        availableCustom: oldAvailableLogos,
+        cover: { selected: Array.from(coverLogos), showByDefault: true },
+        header: { selected: Array.from(headerLogos), showByDefault: true },
+        footer: { selected: Array.from(footerLogos), showByDefault: true },
+      };
+
+      config.globalFooterText = oldDeckFooter?.text || undefined;
+
+      delete config.logoSize;
+      delete config.deckFooter;
     }
 
     const validated = slideDeckConfigSchema.parse(config);

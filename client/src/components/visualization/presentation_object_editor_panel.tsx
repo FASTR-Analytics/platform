@@ -3,6 +3,8 @@ import {
   PresentationObjectDetail,
   ProjectDetail,
   ResultsValueInfoForPresentationObject,
+  getEffectivePOConfig,
+  getPeriodFilterExactBounds,
   t3,
 } from "lib";
 import { Match, Switch, createSignal } from "solid-js";
@@ -22,6 +24,19 @@ type Props = {
 
 export function PresentationObjectEditorPanel(p: Props) {
   const [tab, setTab] = createSignal<"data" | "style" | "text">("data");
+
+  const resolvedPeriodBounds = () => {
+    const pf = p.tempConfig.d.periodFilter;
+    if (!pf) return undefined;
+    return getPeriodFilterExactBounds(pf, p.resultsValueInfo.periodBounds);
+  };
+
+  const effectivePOConfigResult = () => {
+    return getEffectivePOConfig(p.tempConfig, {
+      dateRange: resolvedPeriodBounds(),
+      valueProps: p.poDetail.resultsValue.valueProps,
+    });
+  };
 
   return (
     <div class="flex h-full w-full flex-col border-r">
@@ -58,6 +73,9 @@ export function PresentationObjectEditorPanel(p: Props) {
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
               viewResultsObject={p.viewResultsObject}
+              ineffectiveDisaggregators={effectivePOConfigResult().ineffectiveDisaggregators}
+              effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
+              hasMultipleValueProps={effectivePOConfigResult().hasMultipleValueProps}
             />
           </Match>
           <Match when={tab() === "style"}>
@@ -66,6 +84,8 @@ export function PresentationObjectEditorPanel(p: Props) {
               poDetail={p.poDetail}
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
+              effectiveConfig={effectivePOConfigResult().config}
+              effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
             />
           </Match>
           <Match when={tab() === "text"}>

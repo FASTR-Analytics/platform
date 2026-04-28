@@ -181,10 +181,7 @@ export const metricAIDescriptionInstalledStrict = z.object({
   interpretation: translatableString,
   typicalRange: translatableString,
   caveats: translatableString.nullable(),
-  useCases: z.array(translatableString),
-  relatedMetrics: z.array(z.string()),
   disaggregationGuidance: translatableString,
-  importantNotes: translatableString.nullable(),
 });
 
 export const metricAIDescriptionInstalled = metricAIDescriptionInstalledStrict;
@@ -198,7 +195,6 @@ export const vizPresetInstalledStrict = z.object({
   label: translatableString,
   description: translatableString,
   importantNotes: translatableString.nullable(),
-  needsReplicant: z.boolean(),
   allowedFilters: z.array(disaggregationOption),
   createDefaultVisualizationOnInstall: z.string().nullable(),
   config: z.object({

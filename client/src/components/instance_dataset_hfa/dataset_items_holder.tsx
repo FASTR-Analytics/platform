@@ -92,11 +92,6 @@ function DatasetDisplayPresentation(p: {
       sortable: true,
     },
     {
-      key: "timePointLabel",
-      header: t3({ en: "Time Point Label", fr: "Libellé du point temporel" }),
-      sortable: true,
-    },
-    {
       key: "varLabel",
       header: t3({ en: "Label", fr: "Libellé" }),
       sortable: true,

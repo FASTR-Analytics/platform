@@ -596,8 +596,8 @@ export function ProjectDecks(p: ExtendedProps) {
                       >
                         <SlideDeckThumbnail
                           projectId={projectDetail.id}
+                          deckId={deck.id}
                           slideId={deck.firstSlideId!}
-                          deckConfig={deck.config}
                         />
                       </Show>
                     </div>

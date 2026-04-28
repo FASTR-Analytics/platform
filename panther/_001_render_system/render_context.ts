@@ -159,4 +159,6 @@ export type RenderContext = {
   };
 
   rPath: (segments: PathSegment[], style: PathStyle) => void;
+
+  withClip: (bounds: RectCoordsDimsOptions, fn: () => void) => void;
 };

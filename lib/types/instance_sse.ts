@@ -1,5 +1,5 @@
 import type { AssetInfo } from "./assets.ts";
-import type { DatasetHfaDictionaryTimePoint } from "./dataset_hfa.ts";
+import type { HfaTimePoint } from "./dataset_hfa.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
@@ -54,7 +54,7 @@ export type InstanceState = {
   datasetsWithData: DatasetType[];
   datasetVersions: { hmis?: number; hfa?: number };
   hmisNVersions: number;
-  hfaTimePoints: DatasetHfaDictionaryTimePoint[];
+  hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
 
   // Cache versioning (regular fields, read by dataset caches as version keys)
@@ -110,7 +110,7 @@ export type InstanceDatasetsSummary = {
   datasetsWithData: DatasetType[];
   datasetVersions: { hmis?: number; hfa?: number };
   hmisNVersions: number;
-  hfaTimePoints: DatasetHfaDictionaryTimePoint[];
+  hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
 };
 

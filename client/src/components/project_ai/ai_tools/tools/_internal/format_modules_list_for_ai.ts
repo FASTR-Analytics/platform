@@ -22,7 +22,7 @@ export function formatModulesListForAI(
     lines.push(`ID: ${module.id}`);
     lines.push(`Name: ${module.label}`);
     lines.push(`Has Parameters: ${module.hasParameters}`);
-    lines.push(`Installed: ${module.installedAt}`);
+    lines.push(`Installed: ${module.presentationDefUpdatedAt}`);
     lines.push(`Last Run: ${module.lastRunAt}`);
 
     const statusText = module.dirty === "ready"

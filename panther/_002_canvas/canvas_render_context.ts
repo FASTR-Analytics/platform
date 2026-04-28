@@ -208,4 +208,15 @@ export class CanvasRenderContext implements RenderContext {
 
     ctx.globalAlpha = 1;
   }
+
+  withClip(bounds: RectCoordsDimsOptions, fn: () => void): void {
+    const ctx = this._ctx;
+    const r = new RectCoordsDims(bounds);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(r.x(), r.y(), r.w(), r.h());
+    ctx.clip();
+    fn();
+    ctx.restore();
+  }
 }

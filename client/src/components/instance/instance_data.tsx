@@ -5,6 +5,7 @@ import { HfaIndicatorsManager } from "../indicator_manager_hfa/hfa_indicators_ma
 import { IndicatorsManager } from "../indicator_manager_hmis/indicators_manager";
 import { InstanceDatasetHfa } from "../instance_dataset_hfa";
 import { InstanceDatasetHmis } from "../instance_dataset_hmis";
+import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
 import { Structure } from "../structure";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
 import { instanceState } from "~/state/instance/t1_store";
@@ -47,6 +48,12 @@ export function InstanceData(p: Props) {
       </Match>
       <Match when={selectedDataSource() === "hfa"} keyed>
         <InstanceDatasetHfa
+          backToInstance={() => setSelecteDatasource(undefined)}
+          isGlobalAdmin={p.isGlobalAdmin}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "hfa_time_points"}>
+        <InstanceHfaTimePoints
           backToInstance={() => setSelecteDatasource(undefined)}
           isGlobalAdmin={p.isGlobalAdmin}
         />
@@ -341,6 +348,40 @@ export function InstanceData(p: Props) {
                           </div>
                         </div>
                       )}
+                    </Show>
+                  </div>
+                  <div
+                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    onClick={() => setSelecteDatasource("hfa_time_points")}
+                  >
+                    <div class="font-700 pb-2">
+                      {t3({ en: "Time points", fr: "Points temporels" })}
+                    </div>
+                    <Show
+                      when={instanceState.hfaTimePoints.length > 0}
+                      fallback={
+                        <div class="text-danger text-xs">
+                          {t3({
+                            en: "No time points (import data to create)",
+                            fr: "Aucun point temporel (importer des données pour créer)",
+                          })}
+                        </div>
+                      }
+                    >
+                      <div class="ui-spy-sm text-success text-xs">
+                        <div class="flex justify-between gap-4">
+                          <span>
+                            {t3({
+                              en: "Time points",
+                              fr: "Points temporels",
+                            })}
+                            :
+                          </span>
+                          <span class="font-mono">
+                            {toNum0(instanceState.hfaTimePoints.length)}
+                          </span>
+                        </div>
+                      </div>
                     </Show>
                   </div>
                 </div>

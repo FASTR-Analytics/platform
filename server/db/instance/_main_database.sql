@@ -272,69 +272,73 @@ CREATE INDEX idx_dataset_hmis_upload_attempts_status_type ON dataset_hmis_upload
 CREATE INDEX idx_dataset_hmis_upload_attempts_date_started ON dataset_hmis_upload_attempts(date_started);
 
 -- ============================================================================
--- HFA DATA DICTIONARY (must be created before dataset_hfa which references it)
+-- HFA TIME POINTS
 -- ============================================================================
 
-CREATE TABLE dataset_hfa_dictionary_time_points (
-  time_point text NOT NULL PRIMARY KEY,
-  time_point_label text NOT NULL,
-  date_imported text
+CREATE TABLE hfa_time_points (
+  label TEXT PRIMARY KEY,
+  period_id TEXT NOT NULL,
+  sort_order INTEGER NOT NULL,
+  imported_at TIMESTAMPTZ
 );
 
-CREATE TABLE dataset_hfa_dictionary_vars (
-  time_point text NOT NULL,
-  var_name text NOT NULL,
-  var_label text NOT NULL,
-  var_type text NOT NULL,
+-- ============================================================================
+-- HFA VARIABLES
+-- ============================================================================
+
+CREATE TABLE hfa_variables (
+  time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
+  var_name TEXT NOT NULL,
+  var_label TEXT NOT NULL,
+  var_type TEXT NOT NULL,
   PRIMARY KEY (time_point, var_name)
 );
 
-CREATE TABLE dataset_hfa_dictionary_values (
-  time_point text NOT NULL,
-  var_name text NOT NULL,
-  value text NOT NULL,
-  value_label text NOT NULL,
+-- ============================================================================
+-- HFA VARIABLE VALUES
+-- ============================================================================
+
+CREATE TABLE hfa_variable_values (
+  time_point TEXT NOT NULL,
+  var_name TEXT NOT NULL,
+  value TEXT NOT NULL,
+  value_label TEXT NOT NULL,
   PRIMARY KEY (time_point, var_name, value),
-  FOREIGN KEY (time_point, var_name) REFERENCES dataset_hfa_dictionary_vars(time_point, var_name) ON DELETE CASCADE
+  FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 -- ============================================================================
--- DATASET HFA MANAGEMENT
+-- HFA DATA
 -- ============================================================================
 
-CREATE TABLE dataset_hfa (
-  facility_id text NOT NULL,
-  time_point text NOT NULL,
-  var_name text NOT NULL,
-  value text NOT NULL,
+CREATE TABLE hfa_data (
+  facility_id TEXT NOT NULL REFERENCES facilities(facility_id),
+  time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
+  var_name TEXT NOT NULL,
+  value TEXT NOT NULL,
   PRIMARY KEY (facility_id, time_point, var_name),
-  FOREIGN KEY (facility_id) REFERENCES facilities(facility_id) ON DELETE RESTRICT DEFERRABLE,
-  FOREIGN KEY (time_point, var_name) REFERENCES dataset_hfa_dictionary_vars(time_point, var_name) ON DELETE RESTRICT DEFERRABLE
+  FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE dataset_hfa_upload_attempts (
-  id text PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
-  date_started text NOT NULL,
-  step integer NOT NULL,
-  status text NOT NULL,
-  status_type text NOT NULL,  -- Simple status: configuring, staging, staged, integrating, error
-  source_type text NOT NULL,  
-  step_1_result text,  
-  step_2_result text,  
-  step_3_result text  
+CREATE INDEX idx_hfa_data_var_name ON hfa_data(var_name);
+CREATE INDEX idx_hfa_data_facility_id ON hfa_data(facility_id);
+CREATE INDEX idx_hfa_data_time_point ON hfa_data(time_point);
+
+-- ============================================================================
+-- HFA UPLOAD ATTEMPTS
+-- ============================================================================
+
+CREATE TABLE hfa_upload_attempts (
+  id TEXT PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
+  date_started TEXT NOT NULL,
+  step INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  status_type TEXT NOT NULL,
+  source_type TEXT NOT NULL,
+  step_1_result TEXT,
+  step_2_result TEXT,
+  step_3_result TEXT
 );
-
--- Indexes for dataset_hfa
-CREATE INDEX idx_dataset_hfa_var_name ON dataset_hfa(var_name);
-CREATE INDEX idx_dataset_hfa_facility_id ON dataset_hfa(facility_id);
-CREATE INDEX idx_dataset_hfa_var_facility ON dataset_hfa(var_name, facility_id);
-CREATE INDEX idx_dataset_hfa_value ON dataset_hfa(value) WHERE LENGTH(value) <= 50;
-CREATE INDEX idx_dataset_hfa_covering ON dataset_hfa(var_name, facility_id, time_point) INCLUDE (value);
-
--- Indexes for dataset_hfa_upload_attempts
-CREATE INDEX idx_dataset_hfa_upload_attempts_status ON dataset_hfa_upload_attempts(status);
-CREATE INDEX idx_dataset_hfa_upload_attempts_status_type ON dataset_hfa_upload_attempts(status_type);
-CREATE INDEX idx_dataset_hfa_upload_attempts_date_started ON dataset_hfa_upload_attempts(date_started);
 
 -- ============================================================================
 -- HFA INDICATORS
@@ -347,17 +351,21 @@ CREATE TABLE IF NOT EXISTS hfa_indicators (
   type TEXT NOT NULL CHECK (type IN ('binary', 'numeric')),
   aggregation TEXT NOT NULL DEFAULT 'sum' CHECK (aggregation IN ('sum', 'avg')),
   sort_order INTEGER NOT NULL DEFAULT 0,
+  has_syntax_error BOOLEAN NOT NULL DEFAULT FALSE,
+  code_consistent BOOLEAN NOT NULL DEFAULT TRUE,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS hfa_indicator_code (
-  var_name text NOT NULL,
-  time_point text NOT NULL,
-  r_code text NOT NULL DEFAULT '',
-  r_filter_code text,
-  PRIMARY KEY (var_name, time_point),
-  FOREIGN KEY (var_name) REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
-  FOREIGN KEY (time_point) REFERENCES dataset_hfa_dictionary_time_points(time_point) ON DELETE RESTRICT
+-- ============================================================================
+-- HFA INDICATOR CODE
+-- ============================================================================
+
+CREATE TABLE hfa_indicator_code (
+  var_name TEXT NOT NULL REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
+  time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
+  r_code TEXT NOT NULL DEFAULT '',
+  r_filter_code TEXT,
+  PRIMARY KEY (var_name, time_point)
 );
 
 -- ============================================================================

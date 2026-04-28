@@ -19,7 +19,6 @@ export type HfaIndicatorCode = {
 export type HfaDictionaryForValidation = {
   timePoints: {
     timePoint: string;
-    timePointLabel: string;
     vars: { varName: string; varLabel: string; varType: string }[];
     values: { varName: string; value: string; valueLabel: string }[];
   }[];

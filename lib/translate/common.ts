@@ -23,6 +23,9 @@ export const TC = {
   folder: { en: "Folder", fr: "Dossier" },
   goBackToProject: { en: "Go back to project", fr: "Retour au projet" },
   mustEnterName: { en: "You must enter a name", fr: "Vous devez saisir un nom" },
+  disaggregation_disabled_filtered_to_one: { en: "Disabled (filtered to single value)", fr: "Désactivé (filtré à une seule valeur)" },
+  disaggregation_disabled_single_period: { en: "Disabled (single period)", fr: "Désactivé (période unique)" },
+  disaggregation_disabled_single_year: { en: "Disabled (single year)", fr: "Désactivé (année unique)" },
 } as const satisfies Record<string, TranslatableString>;
 
 const _INDICATOR_ID_LABELS = new Map<string, string>([

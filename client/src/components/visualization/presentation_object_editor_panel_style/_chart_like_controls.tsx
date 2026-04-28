@@ -7,6 +7,7 @@ import {
 import { Button, Checkbox, RadioGroup, Select, getSelectOptions } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
+import { METRICS_WITH_NEGATIVE_PCT_VALUES } from "~/generate_visualization/get_style_from_po/_0_conditional_consts";
 import { applyCfToTempConfig } from "../cf_store_helper";
 import { ConditionalFormattingEditor } from "../conditional_formatting_editor";
 import { StyleRevealGroup, StyleSection } from "./_style_components";
@@ -173,6 +174,7 @@ export function ChartLikeControls(p: Props) {
             onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
             formatAs={p.poDetail.resultsValue.formatAs}
             decimalPlaces={p.tempConfig.s.decimalPlaces}
+            allowNegative={METRICS_WITH_NEGATIVE_PCT_VALUES.includes(p.poDetail.resultsValue.id)}
           />
         </StyleSection>
       </Show>

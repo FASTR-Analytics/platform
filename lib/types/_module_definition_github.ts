@@ -62,7 +62,7 @@ const moduleParameterInputGithub = z.discriminatedUnion("inputType", [
 
 const moduleParameterGithub = z.object({
   replacementString: z.string(),
-  description: z.string(),
+  description: translatableStringGithub,
   input: moduleParameterInputGithub,
 });
 
@@ -229,7 +229,6 @@ const vizPresetGithub = z.object({
   label: translatableStringGithub,
   description: translatableStringGithub,
   importantNotes: translatableStringGithub.nullable(),
-  needsReplicant: z.boolean(),
   allowedFilters: z.array(disaggregationOptionGithub),
   createDefaultVisualizationOnInstall: z.string().nullable(),
   config: z.object({
@@ -247,10 +246,7 @@ const metricAIDescriptionGithub = z.object({
   interpretation: translatableStringGithub,
   typicalRange: translatableStringGithub,
   caveats: translatableStringGithub.nullable(),
-  useCases: z.array(translatableStringGithub),
-  relatedMetrics: z.array(z.string()),
   disaggregationGuidance: translatableStringGithub,
-  importantNotes: translatableStringGithub.nullable(),
 });
 
 // ── metricDefinition (github) ───────────────────────────────────────
@@ -276,7 +272,6 @@ const metricDefinitionGithub = z.object({
 
 const resultsObjectDefinitionGithub = z.object({
   id: z.string(),
-  description: z.string(),
   createTableStatementPossibleColumns: z.union([
     z.literal(false),
     z.record(z.string(), z.string()).refine(

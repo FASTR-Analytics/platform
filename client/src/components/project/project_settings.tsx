@@ -39,7 +39,6 @@ import {
   useProjectDetail,
   useRefetchProjectDetail,
 } from "~/components/project_runner/mod";
-import { MigrateReportsToSlides } from "./migrate_reports_to_slides";
 
 // Backup types
 interface BackupFileInfo {
@@ -329,38 +328,6 @@ export function ProjectSettings(p: Props) {
         <SettingsSection header={t3({ en: "Backups", fr: "Sauvegardes" })}>
           <ProjectBackups projectId={projectDetail.id} />
         </SettingsSection>
-
-        <Show
-          when={projectDetail.reports.some(
-            (r) => r.reportType === "slide_deck",
-          )}
-        >
-          <SettingsSection
-            header={t3({ en: "Migrate reports", fr: "Migrer les rapports" })}
-            rightChildren={
-              <Button
-                onClick={async () => {
-                  await openComponent({
-                    element: MigrateReportsToSlides,
-                    props: { projectDetail },
-                  });
-                }}
-              >
-                {t3({
-                  en: "Migrate reports to slides",
-                  fr: "Migrer les rapports vers les diapositives",
-                })}
-              </Button>
-            }
-          >
-            <div>
-              {t3({
-                en: "Convert old slide deck reports into the new slides system",
-                fr: "Convertir les anciens rapports de type présentation vers le nouveau système de diapositives",
-              })}
-            </div>
-          </SettingsSection>
-        </Show>
 
         <div class="ui-gap flex">
           <Show when={!projectDetail.isLocked}>

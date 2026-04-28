@@ -1,5 +1,7 @@
 import { Sql } from "postgres";
 import {
+  getAllModulesForProject,
+  getMetricsWithStatus,
   getPgConnectionFromCacheOrNew,
   getReportItemsThatDependOnPresentationObjects,
 } from "../db/mod.ts";
@@ -12,6 +14,7 @@ import {
   notifyLastUpdated,
   notifyProjectUpdated,
 } from "./notify_last_updated.ts";
+import { notifyProjectModulesUpdated } from "./notify_project_v2.ts";
 
 const broadcastTaskEnded = new BroadcastChannel("task_ended");
 const broadcastDirtyStates = new BroadcastChannel("dirty_states");
@@ -63,16 +66,16 @@ WHERE id = ${etd.moduleId}
 
   const lastRun = new Date().toISOString();
 
-  // Copy installed_git_ref to last_run_git_ref on successful run
-  const moduleRow = await projectDb<{ installed_git_ref: string | null }[]>`
-    SELECT installed_git_ref FROM modules WHERE id = ${etd.moduleId}
+  // Copy compute_def_git_ref to last_run_git_ref on successful run
+  const moduleRow = await projectDb<{ compute_def_git_ref: string | null }[]>`
+    SELECT compute_def_git_ref FROM modules WHERE id = ${etd.moduleId}
   `;
-  const installedGitRef = moduleRow[0]?.installed_git_ref ?? null;
+  const computeDefGitRef = moduleRow[0]?.compute_def_git_ref ?? null;
 
   await projectDb.begin((sql) => [
     sql`
 UPDATE modules
-SET last_run_at = ${lastRun}, dirty = 'ready', last_run_git_ref = ${installedGitRef}
+SET last_run_at = ${lastRun}, dirty = 'ready', last_run_git_ref = ${computeDefGitRef}
 WHERE id = ${etd.moduleId}
 `,
     sql`
@@ -88,7 +91,7 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
     ids: [etd.moduleId],
     dirtyOrRunStatus: "ready",
     lastRun,
-    lastRunGitRef: installedGitRef ?? undefined,
+    lastRunGitRef: computeDefGitRef ?? undefined,
   };
   broadcastDirtyStates.postMessage(bm1);
 
@@ -110,6 +113,20 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
   );
 
   notifyProjectUpdated(etd.projectId, lastRun);
+  // V2 notify
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const [modulesRes, metricsRes] = await Promise.all([
+    getAllModulesForProject(projectDb),
+    getMetricsWithStatus(mainDb, projectDb),
+  ]);
+  const commonIndicators = (
+    await projectDb<{ indicator_common_id: string; indicator_common_label: string }[]>`
+      SELECT indicator_common_id, indicator_common_label FROM indicators ORDER BY indicator_common_label
+    `
+  ).map((row: { indicator_common_id: string; indicator_common_label: string }) => ({ id: row.indicator_common_id, label: row.indicator_common_label }));
+  if (modulesRes.success && metricsRes.success) {
+    notifyProjectModulesUpdated(etd.projectId, modulesRes.data, metricsRes.data, commonIndicators);
+  }
 }
 
 async function setAllModuleDependentsLastUpdatedAndNotify(

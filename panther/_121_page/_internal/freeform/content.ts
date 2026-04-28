@@ -8,7 +8,7 @@ import {
   type LayoutStyleConfig,
   type MeasuredLayoutNode,
   measureLayout,
-  type MergedPageStyle,
+  type MergedFreeformStyle,
   Padding,
   RectCoordsDims,
   renderContainerStyle,
@@ -31,7 +31,7 @@ export function measureContent(
   rc: RenderContext,
   rcdOuter: RectCoordsDims,
   inputs: FreeformPageInputs,
-  s: MergedPageStyle,
+  s: MergedFreeformStyle,
   headerHeight: number,
   footerHeight: number,
 ): MeasuredContent {

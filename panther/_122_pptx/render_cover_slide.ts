@@ -3,8 +3,24 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Color, getColor, sum } from "./deps.ts";
-import type { MeasuredCoverPage, MeasuredText, RenderContext } from "./deps.ts";
+import {
+  type AlignH,
+  type AlignV,
+  Color,
+  getBackgroundBaseColor,
+  getColor,
+  type LogosPlacement,
+  measureLogos,
+  type MeasuredLogos,
+  Padding,
+  RectCoordsDims,
+} from "./deps.ts";
+import type {
+  MeasuredCoverPage,
+  MeasuredText,
+  MergedCoverStyle,
+  RenderContext,
+} from "./deps.ts";
 import {
   imageToDataUrl,
   pixelsToInches,
@@ -25,20 +41,18 @@ export function renderCoverSlide(
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const item = measured.item;
   const bounds = measured.bounds;
-  const s = measured.mergedPageStyle;
+  const s = measured.style;
 
   // Background
-  if (s.cover.backgroundColor !== "none") {
-    const bgColor = Color.toHexNoHash(getColor(s.cover.backgroundColor));
-    slide.addShape("rect", {
-      x: 0,
-      y: 0,
-      w: pixelsToInches(bounds.w()),
-      h: pixelsToInches(bounds.h()),
-      fill: { color: bgColor },
-      line: { color: bgColor, width: 0 },
-    });
-  }
+  const bgColor = Color.toHexNoHash(getColor(getBackgroundBaseColor(s.background)));
+  slide.addShape("rect", {
+    x: 0,
+    y: 0,
+    w: pixelsToInches(bounds.w()),
+    h: pixelsToInches(bounds.h()),
+    fill: { color: bgColor },
+    line: { color: bgColor, width: 0 },
+  });
 
   // Overlay image
   if (item.overlay) {
@@ -55,106 +69,26 @@ export function renderCoverSlide(
     });
   }
 
-  // Calculate total height and center vertically (matching PDF render)
-  const logoH = item.titleLogos && item.titleLogos.length > 0
-    ? s.cover.logoHeight
-    : 0;
-  const titleH = measured.mTitle ? measured.mTitle.dims.h() : 0;
-  const subTitleH = measured.mSubTitle ? measured.mSubTitle.dims.h() : 0;
-  const authorH = measured.mAuthor ? measured.mAuthor.dims.h() : 0;
-  const dateH = measured.mDate ? measured.mDate.dims.h() : 0;
+  const hasLogos = item.titleLogos && item.titleLogos.length > 0;
+  const isFixed = isFixedPlacement(s.logosPlacement);
 
-  let totalH = 0;
-  let lastBottomPadding = 0;
-  if (item.titleLogos && item.titleLogos.length > 0 && logoH > 0) {
-    totalH += logoH + s.cover.logoBottomPadding;
-    lastBottomPadding = s.cover.logoBottomPadding;
-  }
-  if (measured.mTitle && titleH > 0) {
-    totalH += titleH + s.cover.titleBottomPadding;
-    lastBottomPadding = s.cover.titleBottomPadding;
-  }
-  if (measured.mSubTitle && subTitleH > 0) {
-    totalH += subTitleH + s.cover.subTitleBottomPadding;
-    lastBottomPadding = s.cover.subTitleBottomPadding;
-  }
-  if (measured.mAuthor && authorH > 0) {
-    totalH += authorH + s.cover.authorBottomPadding;
-    lastBottomPadding = s.cover.authorBottomPadding;
-  }
-  if (measured.mDate && dateH > 0) {
-    totalH += dateH;
+  if (hasLogos && isFixed) {
+    renderFixedLogosCover(
+      slide,
+      bounds,
+      item.titleLogos!,
+      s,
+      measured,
+      createCanvasRenderContext,
+    );
   } else {
-    totalH -= lastBottomPadding;
-  }
-
-  let currentY = bounds.y() + (bounds.h() - totalH) / 2;
-
-  // Title logos
-  if (item.titleLogos && item.titleLogos.length > 0 && logoH > 0) {
-    const logoWidths = item.titleLogos.map((logo: HTMLImageElement) => {
-      return (logoH * logo.width) / logo.height;
-    });
-    const totalLogoWidths = sum(logoWidths) +
-      (logoWidths.length - 1) * s.cover.logoGapX;
-    let currentX = bounds.x() + (bounds.w() - totalLogoWidths) / 2;
-    for (let i = 0; i < item.titleLogos.length; i++) {
-      const logo = item.titleLogos[i];
-      const logoDataUrl = imageToDataUrl(logo, createCanvasRenderContext);
-      const logoWidth = logoWidths[i];
-      slide.addImage({
-        data: logoDataUrl,
-        x: pixelsToInches(currentX),
-        y: pixelsToInches(currentY),
-        w: pixelsToInches(logoWidth),
-        h: pixelsToInches(logoH),
-      });
-      currentX += logoWidth + s.cover.logoGapX;
-    }
-    currentY += logoH + s.cover.logoBottomPadding;
-  }
-
-  // Render each text element at its measured position
-  if (measured.mTitle && titleH > 0) {
-    addMeasuredTextToSlide(
+    renderFlowCover(
       slide,
-      measured.mTitle,
-      bounds.x(),
-      bounds.w(),
-      currentY,
-    );
-    currentY += titleH + s.cover.titleBottomPadding;
-  }
-
-  if (measured.mSubTitle && subTitleH > 0) {
-    addMeasuredTextToSlide(
-      slide,
-      measured.mSubTitle,
-      bounds.x(),
-      bounds.w(),
-      currentY,
-    );
-    currentY += subTitleH + s.cover.subTitleBottomPadding;
-  }
-
-  if (measured.mAuthor && authorH > 0) {
-    addMeasuredTextToSlide(
-      slide,
-      measured.mAuthor,
-      bounds.x(),
-      bounds.w(),
-      currentY,
-    );
-    currentY += authorH + s.cover.authorBottomPadding;
-  }
-
-  if (measured.mDate && dateH > 0) {
-    addMeasuredTextToSlide(
-      slide,
-      measured.mDate,
-      bounds.x(),
-      bounds.w(),
-      currentY,
+      bounds,
+      hasLogos ? item.titleLogos : undefined,
+      s,
+      measured,
+      createCanvasRenderContext,
     );
   }
 
@@ -181,11 +115,224 @@ export function renderCoverSlide(
   return slide;
 }
 
-function addMeasuredTextToSlide(
+function isFixedPlacement(p: LogosPlacement): boolean {
+  return p.position.startsWith("top-") || p.position.startsWith("bottom-");
+}
+
+function renderFixedLogosCover(
+  slide: PptxSlide,
+  bounds: RectCoordsDims,
+  logos: HTMLImageElement[],
+  s: MergedCoverStyle,
+  measured: MeasuredCoverPage,
+  createCanvasRenderContext: CreateCanvasRenderContext,
+): void {
+  const padding = s.padding;
+  const placement = s.logosPlacement;
+
+  const paddedBounds = new RectCoordsDims([
+    bounds.x() + padding.pl(),
+    bounds.y() + padding.pt(),
+    bounds.w() - padding.totalPx(),
+    bounds.h() - padding.totalPy(),
+  ]);
+
+  const { alignH: logoAlignH, alignV: logoAlignV } =
+    getFixedPlacementAlignment(placement);
+  const mLogos = measureLogos(paddedBounds, {
+    images: logos,
+    style: s.logosSizing,
+    alignH: logoAlignH,
+    alignV: logoAlignV,
+  });
+
+  renderLogos(slide, mLogos, createCanvasRenderContext);
+
+  const logoSpace = mLogos.totalHeight + placement.gap;
+  const isTop = placement.position.startsWith("top-");
+
+  const contentBounds = isTop
+    ? new RectCoordsDims([
+        bounds.x(),
+        bounds.y() + padding.pt() + logoSpace,
+        bounds.w(),
+        bounds.h() - padding.pt() - logoSpace,
+      ])
+    : new RectCoordsDims([
+        bounds.x(),
+        bounds.y(),
+        bounds.w(),
+        bounds.h() - padding.pb() - logoSpace,
+      ]);
+
+  const contentPadding = isTop
+    ? new Padding([0, padding.pr(), padding.pb(), padding.pl()])
+    : new Padding([padding.pt(), padding.pr(), 0, padding.pl()]);
+
+  renderContentStack(
+    slide,
+    contentBounds,
+    contentPadding,
+    s.alignH,
+    s.alignV,
+    measured.mTitle,
+    measured.mSubTitle,
+    measured.mAuthor,
+    measured.mDate,
+    s.titleBottomPadding,
+    s.subTitleBottomPadding,
+    s.authorBottomPadding,
+  );
+}
+
+function renderFlowCover(
+  slide: PptxSlide,
+  bounds: RectCoordsDims,
+  logos: HTMLImageElement[] | undefined,
+  s: MergedCoverStyle,
+  measured: MeasuredCoverPage,
+  createCanvasRenderContext: CreateCanvasRenderContext,
+): void {
+  const padding = s.padding;
+  const placement = s.logosPlacement;
+  const textMaxWidth = bounds.w() - padding.totalPx();
+
+  let mLogos: MeasuredLogos<HTMLImageElement> | undefined;
+  if (logos && logos.length > 0) {
+    mLogos = measureLogos(new RectCoordsDims([0, 0, textMaxWidth, 10000]), {
+      images: logos,
+      style: s.logosSizing,
+      alignH: "left",
+      alignV: "top",
+    });
+  }
+
+  type StackItem = { type: string; h: number; gap: number };
+  const items: StackItem[] = [];
+
+  const addItem = (type: string, h: number, gap: number) => {
+    if (h > 0) items.push({ type, h, gap });
+  };
+
+  if (placement.position === "above-content" && mLogos) {
+    addItem("logo", mLogos.totalHeight, placement.gap);
+  }
+
+  addItem("title", measured.mTitle?.dims.h() ?? 0, s.titleBottomPadding);
+  addItem("subtitle", measured.mSubTitle?.dims.h() ?? 0, s.subTitleBottomPadding);
+  addItem("author", measured.mAuthor?.dims.h() ?? 0, s.authorBottomPadding);
+  addItem("date", measured.mDate?.dims.h() ?? 0, 0);
+
+  if (placement.position === "below-content" && mLogos) {
+    addItem("logo", mLogos.totalHeight, 0);
+  }
+
+  let totalH = 0;
+  for (let i = 0; i < items.length; i++) {
+    totalH += items[i].h;
+    if (i < items.length - 1) {
+      totalH += items[i].gap;
+    }
+  }
+
+  let currentY = getStartY(bounds, padding, s.alignV, totalH);
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+
+    if (item.type === "logo" && mLogos && logos) {
+      const positioned = measureLogos(
+        new RectCoordsDims([
+          bounds.x() + padding.pl(),
+          currentY,
+          textMaxWidth,
+          item.h,
+        ]),
+        { images: logos, style: s.logosSizing, alignH: s.alignH, alignV: "top" },
+      );
+      renderLogos(slide, positioned, createCanvasRenderContext);
+    } else if (item.type === "title" && measured.mTitle) {
+      addTextToSlide(slide, measured.mTitle, bounds, padding, s.alignH, currentY);
+    } else if (item.type === "subtitle" && measured.mSubTitle) {
+      addTextToSlide(slide, measured.mSubTitle, bounds, padding, s.alignH, currentY);
+    } else if (item.type === "author" && measured.mAuthor) {
+      addTextToSlide(slide, measured.mAuthor, bounds, padding, s.alignH, currentY);
+    } else if (item.type === "date" && measured.mDate) {
+      addTextToSlide(slide, measured.mDate, bounds, padding, s.alignH, currentY);
+    }
+
+    currentY += item.h;
+    if (i < items.length - 1) {
+      currentY += item.gap;
+    }
+  }
+}
+
+function renderContentStack(
+  slide: PptxSlide,
+  bounds: RectCoordsDims,
+  padding: Padding,
+  alignH: AlignH,
+  alignV: AlignV,
+  mTitle?: MeasuredText,
+  mSubTitle?: MeasuredText,
+  mAuthor?: MeasuredText,
+  mDate?: MeasuredText,
+  titleGap: number = 0,
+  subtitleGap: number = 0,
+  authorGap: number = 0,
+): void {
+  type StackItem = { mText: MeasuredText; gap: number };
+  const items: StackItem[] = [];
+
+  if (mTitle) items.push({ mText: mTitle, gap: titleGap });
+  if (mSubTitle) items.push({ mText: mSubTitle, gap: subtitleGap });
+  if (mAuthor) items.push({ mText: mAuthor, gap: authorGap });
+  if (mDate) items.push({ mText: mDate, gap: 0 });
+
+  let totalH = 0;
+  for (let i = 0; i < items.length; i++) {
+    totalH += items[i].mText.dims.h();
+    if (i < items.length - 1) {
+      totalH += items[i].gap;
+    }
+  }
+
+  let currentY = getStartY(bounds, padding, alignV, totalH);
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    addTextToSlide(slide, item.mText, bounds, padding, alignH, currentY);
+    currentY += item.mText.dims.h();
+    if (i < items.length - 1) {
+      currentY += item.gap;
+    }
+  }
+}
+
+function renderLogos(
+  slide: PptxSlide,
+  mLogos: MeasuredLogos<HTMLImageElement>,
+  createCanvasRenderContext: CreateCanvasRenderContext,
+): void {
+  for (const logo of mLogos.items) {
+    const logoDataUrl = imageToDataUrl(logo.image, createCanvasRenderContext);
+    slide.addImage({
+      data: logoDataUrl,
+      x: pixelsToInches(logo.x),
+      y: pixelsToInches(logo.y),
+      w: pixelsToInches(logo.width),
+      h: pixelsToInches(logo.height),
+    });
+  }
+}
+
+function addTextToSlide(
   slide: PptxSlide,
   mText: MeasuredText,
-  boundsX: number,
-  boundsW: number,
+  bounds: RectCoordsDims,
+  padding: Padding,
+  alignH: AlignH,
   y: number,
 ): void {
   const text = mText.lines.map((line) => line.text).join("\n");
@@ -193,6 +340,7 @@ function addMeasuredTextToSlide(
 
   const ti = mText.ti;
   const h = mText.dims.h();
+  const textMaxWidth = bounds.w() - padding.totalPx();
 
   let charSpacing: number | undefined;
   if (ti.letterSpacing.includes("em")) {
@@ -203,22 +351,65 @@ function addMeasuredTextToSlide(
   }
   const lineSpacingMultiple = ti.lineHeight / 1.2;
 
-  // Use full bounds width with center alignment to avoid font metric differences
-  // between Skia (measurement) and PowerPoint (rendering) causing premature wrapping
+  const x =
+    alignH === "left"
+      ? bounds.x() + padding.pl()
+      : alignH === "right"
+        ? bounds.x() + bounds.w() - padding.pr() - textMaxWidth
+        : bounds.x() + padding.pl();
+
   slide.addText(text, {
-    x: pixelsToInches(boundsX),
+    x: pixelsToInches(x),
     y: pixelsToInches(y),
-    w: pixelsToInches(boundsW),
+    w: pixelsToInches(textMaxWidth),
     h: pixelsToInches(h),
     fontFace: ti.font.fontFamily,
     fontSize: pixelsToPoints(ti.fontSize),
     color: Color.toHexNoHash(ti.color),
     bold: ti.font.weight >= 700,
     italic: ti.font.italic ?? false,
-    align: "center",
+    align: alignH,
     valign: "top",
     margin: 0,
     lineSpacingMultiple,
     ...(charSpacing !== undefined ? { charSpacing } : {}),
   });
+}
+
+function getFixedPlacementAlignment(placement: LogosPlacement): {
+  alignH: AlignH;
+  alignV: AlignV;
+} {
+  switch (placement.position) {
+    case "top-left":
+      return { alignH: "left", alignV: "top" };
+    case "top-center":
+      return { alignH: "center", alignV: "top" };
+    case "top-right":
+      return { alignH: "right", alignV: "top" };
+    case "bottom-left":
+      return { alignH: "left", alignV: "bottom" };
+    case "bottom-center":
+      return { alignH: "center", alignV: "bottom" };
+    case "bottom-right":
+      return { alignH: "right", alignV: "bottom" };
+    default:
+      return { alignH: "center", alignV: "top" };
+  }
+}
+
+function getStartY(
+  bounds: RectCoordsDims,
+  padding: Padding,
+  alignV: AlignV,
+  totalH: number,
+): number {
+  switch (alignV) {
+    case "top":
+      return bounds.y() + padding.pt();
+    case "bottom":
+      return bounds.y() + bounds.h() - padding.pb() - totalH;
+    case "middle":
+      return bounds.y() + (bounds.h() - totalH) / 2;
+  }
 }

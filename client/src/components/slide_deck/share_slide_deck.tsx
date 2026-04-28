@@ -12,7 +12,7 @@ import {
   toPct1,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
-import { exportSlideDeckAsPdfBase64 } from "~/export_report/export_slide_deck_as_pdf_base64";
+import { exportSlideDeckAsPdfBase64 } from "~/exports/export_slide_deck_as_pdf_base64";
 import { serverActions } from "~/server_actions";
 
 type UserRow = { email: string };

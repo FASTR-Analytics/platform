@@ -59,7 +59,7 @@ export async function markdownToPdfBrowser(
   const height = config.pageHeight ?? 720;
 
   const customStyle = new CustomStyle(config.style);
-  const mergedPageStyle = customStyle.page().getMergedPageStyle();
+  const mergedPageStyle = customStyle.page().getMergedFreeformStyle();
   const fonts = customStyle.getFontsToRegister();
 
   const { pdf, rc } = await createPdfRenderContextWithFontsBrowser(

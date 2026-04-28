@@ -23,6 +23,8 @@ type Props = {
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
+  effectiveConfig: PresentationObjectConfig;
+  effectiveValueProps: string[];
 };
 
 export function PresentationObjectEditorPanelStyle(p: Props) {
@@ -52,9 +54,9 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
   }
 
   const usingCells = () =>
-    !!getDisaggregatorDisplayProp(p.poDetail.resultsValue, p.tempConfig, [
+    !!getDisaggregatorDisplayProp(p.poDetail.resultsValue, p.effectiveConfig, [
       "cell",
-    ]);
+    ], p.effectiveValueProps);
 
 
   return (

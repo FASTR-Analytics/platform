@@ -10,6 +10,7 @@ import {
   copyProjectInBackground,
   deleteProject,
   forceDeleteProject,
+  getAllDatasetsForProject,
   restoreProject,
   getProjectDetail,
   getProjectUserPermissions,
@@ -26,6 +27,7 @@ import {
   setModulesDirtyForDataset,
 } from "../../task_management/mod.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
+import { notifyProjectDatasetsUpdated } from "../../task_management/notify_project_v2.ts";
 import { notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
@@ -249,6 +251,11 @@ defineRoute(
           res.data.lastUpdated,
         );
         notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
+        // V2 notify
+        const datasetsRes = await getAllDatasetsForProject(c.var.ppk.projectDb);
+        if (datasetsRes.success) {
+          notifyProjectDatasetsUpdated(c.var.ppk.projectId, datasetsRes.data);
+        }
 
         await writer.complete(res.data);
       } finally {
@@ -275,6 +282,11 @@ defineRoute(
     if (res.success === true) {
       await setModulesDirtyForDataset(c.var.ppk, params.dataset_type);
       notifyProjectUpdated(c.var.ppk.projectId, new Date().toISOString());
+      // V2 notify
+      const datasetsRes = await getAllDatasetsForProject(c.var.ppk.projectDb);
+      if (datasetsRes.success) {
+        notifyProjectDatasetsUpdated(c.var.ppk.projectId, datasetsRes.data);
+      }
     }
     return c.json(res);
   },
@@ -305,7 +317,7 @@ defineRoute(
   async (c, { params }) => {
     const res = await restoreProject(c.var.mainDb, params.project_id);
     if (res.success) {
-      notifyInstanceProjectsUpdated(await getAllProjectSummaries(c.var.mainDb));
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(res);
   },

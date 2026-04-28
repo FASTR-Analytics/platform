@@ -443,6 +443,7 @@ export function InstanceSettings(p: Props) {
             </For>
           </div>
         </SettingsSection>
+
       </div>
     </FrameTop>
   );

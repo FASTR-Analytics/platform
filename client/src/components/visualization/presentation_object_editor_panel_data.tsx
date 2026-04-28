@@ -1,10 +1,9 @@
 import {
+  IneffectiveDisaggregator,
   PresentationObjectConfig,
   PresentationObjectDetail,
   ProjectDetail,
   ResultsValueInfoForPresentationObject,
-  getPeriodFilterExactBounds,
-  hasOnlyOneFilteredValue,
 } from "lib";
 import { SetStoreFunction } from "solid-js/store";
 import {
@@ -21,6 +20,9 @@ type Props = {
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   viewResultsObject: (resultsObjectId: string) => Promise<void>;
+  ineffectiveDisaggregators: IneffectiveDisaggregator[];
+  effectiveValueProps: string[];
+  hasMultipleValueProps: boolean;
 };
 
 export function PresentationObjectEditorPanelData(p: Props) {
@@ -33,26 +35,6 @@ export function PresentationObjectEditorPanelData(p: Props) {
       if (!possibleValues || possibleValues.status === "no_values_available") {
         return false;
       }
-      return true;
-    });
-  };
-
-  const TIME_COLUMNS = new Set(["period_id", "quarter_id", "year", "month"]);
-
-  const resolvedPeriodBounds = () => {
-    const pf = p.tempConfig.d.periodFilter;
-    if (!pf) return undefined;
-    return getPeriodFilterExactBounds(pf, p.resultsValueInfo.periodBounds);
-  };
-
-  const allowedDisaggregationOptions = () => {
-    const resolved = resolvedPeriodBounds();
-    const singlePeriod = !!resolved && resolved.min === resolved.max;
-    const singleYear = !!resolved && Math.floor(resolved.min / 100) === Math.floor(resolved.max / 100);
-    return allowedFilterOptions().filter((disOpt) => {
-      if (hasOnlyOneFilteredValue(p.tempConfig, disOpt.value)) return false;
-      if (singlePeriod && TIME_COLUMNS.has(disOpt.value)) return false;
-      if (singleYear && disOpt.value === "year") return false;
       return true;
     });
   };
@@ -78,7 +60,10 @@ export function PresentationObjectEditorPanelData(p: Props) {
         poDetail={p.poDetail}
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}
-        allowedDisaggregationOptions={allowedDisaggregationOptions()}
+        allDisaggregationOptions={allowedFilterOptions()}
+        ineffectiveDisaggregators={p.ineffectiveDisaggregators}
+        effectiveValueProps={p.effectiveValueProps}
+        hasMultipleValueProps={p.hasMultipleValueProps}
       />
     </div>
   );

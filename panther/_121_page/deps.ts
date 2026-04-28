@@ -3,15 +3,18 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { sum } from "../_000_utils/mod.ts";
+export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { AlignH, AlignV } from "../_001_geometry/mod.ts";
 export type { LineStyle, Measured, MeasuredText, PathSegment, RenderContext } from "../_001_render_system/mod.ts";
+export { isPatternConfig, renderPattern } from "../_002_pattern/mod.ts";
 export { CustomPageStyle } from "../_005_page_style/mod.ts";
-export type { CustomPageStyleOptions, MergedPageStyle } from "../_005_page_style/mod.ts";
+export type { CustomPageStyleOptions, LogosPlacement, MergedCoverStyle, MergedFreeformStyle, MergedPageNumberStyle, MergedSectionStyle, MergedSplitConfig, PageBackgroundStyle } from "../_005_page_style/mod.ts";
 export { createColsNode, createItemNode, createRowsNode, generateCandidates, measureLayout, pickBestLayout, renderContainerStyle, scoreLayouts, walkLayout } from "../_008_layouter/mod.ts";
 export type { HeightConstraints, ItemHeightMeasurer, ItemLayoutNode, LayoutGap, LayoutNode, LayoutStyleConfig, MeasuredLayoutNode, OptimizerConfig, ScoredLayout } from "../_008_layouter/mod.ts";
+export { measureLogos } from "../_009_logos/mod.ts";
+export type { MeasuredLogos } from "../_009_logos/mod.ts";
 export { FigureRenderer } from "../_011_figure_renderer/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { ImageRenderer } from "../_012_image_renderer/mod.ts";

@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router";
-import { t3, TC } from "lib";
+import { _DEV_USERS, t3, TC } from "lib";
 import {
   Button,
   FrameLeft,
@@ -10,7 +10,14 @@ import {
   type Tabs,
 } from "panther";
 import { FeedbackForm } from "~/components/instance/feedback_form";
-import { createEffect, createMemo, Match, onMount, Show, Switch } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  Match,
+  onMount,
+  Show,
+  Switch,
+} from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
 import {
   ProjectRunnerProvider,
@@ -22,7 +29,6 @@ import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
 import { ProjectMetrics } from "./project_metrics";
 import { ProjectModules } from "./project_modules";
-import { ProjectReports } from "./project_reports";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
 import { ProjectCache } from "./project_cache";
@@ -40,11 +46,15 @@ import type { TabOption } from "~/state/t4_ui";
 import { AIProjectWrapper, useAIProjectContext } from "../project_ai";
 import { instanceState } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
-import { checkDataNeedsUpdate, checkModulesNeedUpdate } from "./staleness_checks";
+import {
+  checkDataNeedsUpdate,
+  checkModulesNeedUpdate,
+} from "./staleness_checks";
 
 type Props = {
   isGlobalAdmin: boolean;
   projectId: string;
+  currentUserEmail: string;
 };
 
 function AIContextSync() {
@@ -81,12 +91,15 @@ function AIContextSync() {
 export default function Project(p: Props) {
   return (
     <ProjectRunnerProvider projectId={p.projectId}>
-      <ProjectInner isGlobalAdmin={p.isGlobalAdmin} />
+      <ProjectInner
+        isGlobalAdmin={p.isGlobalAdmin}
+        currentUserEmail={p.currentUserEmail}
+      />
     </ProjectRunnerProvider>
   );
 }
 
-function ProjectInner(p: { isGlobalAdmin: boolean }) {
+function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
   const projectDetail = useProjectDetail();
   const navigate = useNavigate();
 
@@ -105,17 +118,17 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
   const pds = useProjectDirtyStates();
 
   const dataNeedsUpdate = createMemo(() =>
-    checkDataNeedsUpdate(projectDetail, instanceState)
+    checkDataNeedsUpdate(projectDetail, instanceState),
   );
 
   const modulesNeedUpdate = createMemo(() =>
-    checkModulesNeedUpdate(projectDetail.projectModules, moduleLatestCommits())
+    checkModulesNeedUpdate(projectDetail.projectModules, moduleLatestCommits()),
   );
 
   const modulesHaveError = createMemo(() =>
     projectDetail.projectModules.some(
-      (mod) => pds.moduleDirtyStates[mod.id] === "error"
-    )
+      (mod) => pds.moduleDirtyStates[mod.id] === "error",
+    ),
   );
 
   const allTabs = [
@@ -164,6 +177,14 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
           },
         ]
       : []),
+    ...(_DEV_USERS.includes(p.currentUserEmail)
+      ? [
+          {
+            value: "cache" as const,
+            label: t3({ en: "Cache", fr: "Cache" }),
+          },
+        ]
+      : []),
   ];
 
   const tabIcons = {
@@ -174,6 +195,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
     modules: "code" as const,
     data: "database" as const,
     settings: "settings" as const,
+    cache: "database" as const,
   };
 
   const tabs: Tabs = {
@@ -203,163 +225,147 @@ function ProjectInner(p: { isGlobalAdmin: boolean }) {
           }
         >
           <FrameTop
-                panelChildren={
-                  <div class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b">
+            panelChildren={
+              <div class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b">
+                <Button iconName="chevronLeft" onClick={() => navigate("/")} />
+                <div class="font-700 flex-1 truncate text-xl">
+                  <span class="font-400">{projectDetail.label}</span>
+                </div>
+                <div class="ui-gap-sm flex items-center">
+                  <Button
+                    onClick={() =>
+                      openComponent({
+                        element: FeedbackForm,
+                        props: {
+                          projectLabel: projectDetail.label,
+                        },
+                      })
+                    }
+                    intent="base-100"
+                    outline
+                  >
+                    {t3({
+                      en: "Send feedback",
+                      fr: "Envoyer un commentaire",
+                    })}
+                  </Button>
+                  <Show when={!showAi()}>
                     <Button
+                      onClick={() => setShowAi(true)}
                       iconName="chevronLeft"
-                      onClick={() => navigate("/")}
-                    />
-                    <div class="font-700 flex-1 truncate text-xl">
-                      <span class="font-400">{projectDetail.label}</span>
-                    </div>
-                    <div class="ui-gap-sm flex items-center">
-                      <Button
-                        onClick={() =>
-                          openComponent({
-                            element: FeedbackForm,
-                            props: {
-                              projectLabel: projectDetail.label,
-                            },
-                          })
-                        }
-                        intent="base-100"
-                        outline
-                      >
-                        {t3({
-                          en: "Send feedback",
-                          fr: "Envoyer un commentaire",
-                        })}
-                      </Button>
-                      <Show when={!showAi()}>
-                        <Button
-                          onClick={() => setShowAi(true)}
-                          iconName="chevronLeft"
-                          intent="base-100"
-                          outline
-                        >
-                          {t3({ en: "AI", fr: "IA" })}
-                        </Button>
-                      </Show>
-                      <ProjectRunStatus />
-                    </div>
-                  </div>
-                }
-              >
-                <FrameLeft
-                  panelChildren={
-                    <div class="h-full border-r">
-                      <TabsNavigation
-                        tabs={tabs}
-                        vertical
-                        collapsible
-                        collapsed={navCollapsed()}
-                        onCollapsedChange={setNavCollapsed}
-                        icons={tabIcons}
-                        dots={{
-                          ...(dataNeedsUpdate() && { data: "warning" as const }),
-                          ...(modulesHaveError()
-                            ? { modules: "danger" as const }
-                            : modulesNeedUpdate() && { modules: "warning" as const }),
-                        }}
-                      />
-                    </div>
+                      intent="base-100"
+                      outline
+                    >
+                      {t3({ en: "AI", fr: "IA" })}
+                    </Button>
+                  </Show>
+                  <ProjectRunStatus />
+                </div>
+              </div>
+            }
+          >
+            <FrameLeft
+              panelChildren={
+                <div class="h-full border-r">
+                  <TabsNavigation
+                    tabs={tabs}
+                    vertical
+                    collapsible
+                    collapsed={navCollapsed()}
+                    onCollapsedChange={setNavCollapsed}
+                    icons={tabIcons}
+                    dots={{
+                      ...(dataNeedsUpdate() && { data: "warning" as const }),
+                      ...(modulesHaveError()
+                        ? { modules: "danger" as const }
+                        : modulesNeedUpdate() && {
+                            modules: "warning" as const,
+                          }),
+                    }}
+                  />
+                </div>
+              }
+            >
+              <Switch>
+                <Match
+                  when={
+                    projectTab() === "decks" &&
+                    projectDetail.thisUserPermissions.can_view_slide_decks
                   }
                 >
-                  <Switch>
-                    <Match
-                      when={
-                        projectTab() === "reports" &&
-                        projectDetail.thisUserPermissions.can_view_reports
-                      }
-                    >
-                      <ProjectReports
-                        isGlobalAdmin={p.isGlobalAdmin}
-                        openProjectEditor={openProjectEditor}
-                      />
-                    </Match>
-                    <Match
-                      when={
-                        projectTab() === "decks" &&
-                        projectDetail.thisUserPermissions.can_view_slide_decks
-                      }
-                    >
-                      <ProjectDecks
-                        isGlobalAdmin={p.isGlobalAdmin}
-                        openProjectEditor={openProjectEditor}
-                      />
-                    </Match>
-                    <Match
-                      when={
-                        projectTab() === "visualizations" &&
-                        projectDetail.thisUserPermissions
-                          .can_view_visualizations
-                      }
-                    >
-                      <ProjectVisualizations
-                        isGlobalAdmin={p.isGlobalAdmin}
-                        openProjectEditor={openProjectEditor}
-                      />
-                    </Match>
-                    <Match
-                      when={
-                        projectTab() === "metrics" &&
-                        projectDetail.thisUserPermissions.can_view_metrics
-                      }
-                    >
-                      <ProjectMetrics
-                        isGlobalAdmin={p.isGlobalAdmin}
-                        openProjectEditor={openProjectEditor}
-                      />
-                    </Match>
-                    <Match
-                      when={
-                        projectTab() === "modules" &&
-                        (projectDetail.thisUserPermissions
-                          .can_configure_modules ||
-                          projectDetail.thisUserPermissions.can_run_modules ||
-                          projectDetail.thisUserPermissions
-                            .can_view_script_code)
-                      }
-                    >
-                      <ProjectModules
-                        isGlobalAdmin={p.isGlobalAdmin}
-                        canConfigureModules={
-                          projectDetail.thisUserPermissions
-                            .can_configure_modules
-                        }
-                        canRunModules={
-                          projectDetail.thisUserPermissions.can_run_modules
-                        }
-                        canViewScriptCode={
-                          projectDetail.thisUserPermissions.can_view_script_code
-                        }
-                      />
-                    </Match>
-                    <Match
-                      when={
-                        projectTab() === "data" &&
-                        projectDetail.thisUserPermissions.can_view_data
-                      }
-                    >
-                      <ProjectData isGlobalAdmin={p.isGlobalAdmin} />
-                    </Match>
-                    <Match
-                      when={
-                        projectTab() === "settings" &&
-                        projectDetail.thisUserPermissions.can_configure_settings
-                      }
-                    >
-                      <ProjectSettings
-                        isGlobalAdmin={p.isGlobalAdmin}
-                        backToHome={() => navigate("/")}
-                      />
-                    </Match>
-                    <Match when={projectTab() === "cache" && p.isGlobalAdmin}>
-                      <ProjectCache />
-                    </Match>
-                  </Switch>
-                </FrameLeft>
-              </FrameTop>
+                  <ProjectDecks
+                    isGlobalAdmin={p.isGlobalAdmin}
+                    openProjectEditor={openProjectEditor}
+                  />
+                </Match>
+                <Match
+                  when={
+                    projectTab() === "visualizations" &&
+                    projectDetail.thisUserPermissions.can_view_visualizations
+                  }
+                >
+                  <ProjectVisualizations
+                    isGlobalAdmin={p.isGlobalAdmin}
+                    openProjectEditor={openProjectEditor}
+                  />
+                </Match>
+                <Match
+                  when={
+                    projectTab() === "metrics" &&
+                    projectDetail.thisUserPermissions.can_view_metrics
+                  }
+                >
+                  <ProjectMetrics
+                    isGlobalAdmin={p.isGlobalAdmin}
+                    openProjectEditor={openProjectEditor}
+                  />
+                </Match>
+                <Match
+                  when={
+                    projectTab() === "modules" &&
+                    (projectDetail.thisUserPermissions.can_configure_modules ||
+                      projectDetail.thisUserPermissions.can_run_modules ||
+                      projectDetail.thisUserPermissions.can_view_script_code)
+                  }
+                >
+                  <ProjectModules
+                    isGlobalAdmin={p.isGlobalAdmin}
+                    canConfigureModules={
+                      projectDetail.thisUserPermissions.can_configure_modules
+                    }
+                    canRunModules={
+                      projectDetail.thisUserPermissions.can_run_modules
+                    }
+                    canViewScriptCode={
+                      projectDetail.thisUserPermissions.can_view_script_code
+                    }
+                  />
+                </Match>
+                <Match
+                  when={
+                    projectTab() === "data" &&
+                    projectDetail.thisUserPermissions.can_view_data
+                  }
+                >
+                  <ProjectData isGlobalAdmin={p.isGlobalAdmin} />
+                </Match>
+                <Match
+                  when={
+                    projectTab() === "settings" &&
+                    projectDetail.thisUserPermissions.can_configure_settings
+                  }
+                >
+                  <ProjectSettings
+                    isGlobalAdmin={p.isGlobalAdmin}
+                    backToHome={() => navigate("/")}
+                  />
+                </Match>
+                <Match when={projectTab() === "cache" && p.isGlobalAdmin}>
+                  <ProjectCache />
+                </Match>
+              </Switch>
+            </FrameLeft>
+          </FrameTop>
         </Show>
       </ProjectEditorWrapper>
     </AIProjectWrapper>

@@ -74,8 +74,6 @@ export async function fetchModuleFiles(
   }
 
   const { owner, repo, path } = registryEntry.github;
-  const ref = "main";
-  const baseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
 
   const headers: Record<string, string> = {};
   if (_GITHUB_TOKEN) {
@@ -98,6 +96,10 @@ export async function fetchModuleFiles(
   } catch {
     // Non-fatal — we can still install without a git ref
   }
+
+  // Use commit SHA if available to avoid GitHub's raw content cache (~5min)
+  const ref = gitRef ?? "main";
+  const baseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
 
   const [defRes, scriptRes] = await Promise.all([
     fetch(`${baseUrl}/definition.json`, { headers }),
@@ -150,14 +152,16 @@ function translateMetrics(
   }));
 }
 
-function translateResultsObjects(
-  resultsObjects: ResultsObjectDefinition[],
-  tc: (v: string) => string,
-): ResultsObjectDefinition[] {
-  return resultsObjects.map((ro) => ({
-    ...ro,
-    description: tc(ro.description),
-  }));
+function translateConfigRequirements(
+  configRequirements: ModuleDefinitionGithub["configRequirements"],
+  language: Language,
+): ModuleDefinitionDetail["configRequirements"] {
+  return {
+    parameters: configRequirements.parameters.map((p) => ({
+      ...p,
+      description: resolveTS(p.description, language),
+    })),
+  };
 }
 
 export async function getModuleDefinitionDetail(
@@ -171,8 +175,9 @@ export async function getModuleDefinitionDetail(
 
     const resultsObjectsWithModuleId: ResultsObjectDefinition[] =
       definition.resultsObjects.map((ro: ResultsObjectDefinitionGithub) => ({
-        ...ro,
+        id: ro.id,
         moduleId: id,
+        createTableStatementPossibleColumns: ro.createTableStatementPossibleColumns,
       }));
 
     const translatedMetrics = translateMetrics(definition.metrics, tc, language);
@@ -184,10 +189,10 @@ export async function getModuleDefinitionDetail(
       lastScriptUpdate: new Date().toISOString(),
       dataSources: definition.dataSources,
       scriptGenerationType: definition.scriptGenerationType,
-      configRequirements: definition.configRequirements,
+      configRequirements: translateConfigRequirements(definition.configRequirements, language),
       script,
       assetsToImport: definition.assetsToImport,
-      resultsObjects: translateResultsObjects(resultsObjectsWithModuleId, tc),
+      resultsObjects: resultsObjectsWithModuleId,
       defaultPresentationObjects: deriveDefaultPresentationObjects(
         translatedMetrics,
         id,

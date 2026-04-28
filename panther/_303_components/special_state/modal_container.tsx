@@ -16,6 +16,7 @@ type ModalContainerProps = {
   topPanel?: JSX.Element;
   leftButtons?: JSX.Element;
   rightButtons?: JSX.Element;
+  noContentPadding?: boolean;
 };
 
 const WIDTH_CLASSES: Record<ModalContainerWidth, string> = {
@@ -45,8 +46,9 @@ export function ModalContainer(p: ModalContainerProps) {
         </div>
       </Show>
       <div
-        class="ui-spy px-6 py-5"
+        class="ui-spy"
         classList={{
+          "px-6 py-5": !p.noContentPadding,
           "min-h-0 flex-1 overflow-y-auto": scroll() === "content",
         }}
       >

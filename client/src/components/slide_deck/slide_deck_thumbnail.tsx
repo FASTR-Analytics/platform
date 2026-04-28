@@ -1,20 +1,22 @@
-import { getStartingConfigForSlideDeck, t3, type SlideDeckConfig } from "lib";
+import { getStartingConfigForSlideDeck, t3 } from "lib";
+import { trackDeep } from "@solid-primitives/deep";
 import { createSignal, createEffect, Show } from "solid-js";
-import { convertSlideToPageInputs } from "./slide_rendering/convert_slide_to_page_inputs";
+import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { serverActions } from "~/server_actions";
-import { useProjectDirtyStates } from "../project_runner/mod";
+import { useProjectDetail, useProjectDirtyStates } from "../project_runner/mod";
 
 const _defaultConfig = getStartingConfigForSlideDeck("");
 
 type Props = {
   projectId: string;
+  deckId: string;
   slideId: string;
-  deckConfig?: SlideDeckConfig;
 };
 
 export function SlideDeckThumbnail(p: Props) {
+  const projectDetail = useProjectDetail();
   const pds = useProjectDirtyStates();
 
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
@@ -23,8 +25,11 @@ export function SlideDeckThumbnail(p: Props) {
   });
 
   createEffect(async () => {
+    pds.lastUpdated.slide_decks[p.deckId];
     pds.lastUpdated.slides[p.slideId];
-    const config = p.deckConfig ?? _defaultConfig;
+    const deck = projectDetail.slideDecks.find((d) => d.id === p.deckId);
+    const config = deck?.config ?? _defaultConfig;
+    trackDeep(config);
 
     const cached = await _SLIDE_CACHE.get({ projectId: p.projectId, slideId: p.slideId });
 

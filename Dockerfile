@@ -16,8 +16,9 @@ WORKDIR /app
 
 COPY deno.json deno.json
 COPY panther/deno.json panther/deno.json
+COPY vendor vendor
 
-RUN deno install --allow-scripts --allow-import
+RUN deno install --allow-import
 
 COPY lib lib
 COPY panther panther

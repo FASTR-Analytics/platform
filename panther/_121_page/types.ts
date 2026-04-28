@@ -16,7 +16,10 @@ import type {
   MeasuredImage,
   MeasuredLayoutNode,
   MeasuredText,
-  MergedPageStyle,
+  MergedCoverStyle,
+  MergedFreeformStyle,
+  MergedSectionStyle,
+  PageBackgroundStyle,
   RectCoordsDims,
   RenderContext,
 } from "./deps.ts";
@@ -35,7 +38,7 @@ export type PagePrimitiveBackground = {
   type: "background";
   id: string;
   rcd: RectCoordsDims;
-  fillColor: ColorKeyOrString;
+  background: PageBackgroundStyle;
 };
 
 export type PagePrimitiveText = {
@@ -107,13 +110,6 @@ export function isRectAnnotation(
 // Page Input Types
 // =============================================================================
 
-export type SplitImageInputs = {
-  image?: HTMLImageElement;
-  backgroundColor?: ColorKeyOrString;
-  placement: "left" | "right" | "top" | "bottom";
-  sizeAsPctOfPage: number;
-};
-
 // Base properties shared by all page input types
 export type PageInputsBase = {
   overlay?: HTMLImageElement;
@@ -121,7 +117,7 @@ export type PageInputsBase = {
   style?: CustomPageStyleOptions;
   annotations?: PageAnnotation[];
   pageNumber?: string;
-  splitImage?: SplitImageInputs;
+  splitImage?: HTMLImageElement;
 };
 
 // Cover page specific inputs
@@ -159,30 +155,29 @@ export type PageInputs =
   | SectionPageInputs
   | FreeformPageInputs;
 
-export type PageRenderContext = { rc: RenderContext; s: MergedPageStyle };
+export type PageRenderContext = { rc: RenderContext; s: MergedFreeformStyle };
 
 // =============================================================================
 // Measured Page Types
 // =============================================================================
 
-// Base type for all measured pages
+// Base type for all measured pages (shared fields, no style - each page type has its own)
 type MeasuredPageBase = Measured<PageInputs> & {
-  mergedPageStyle: MergedPageStyle;
   responsiveScale?: number;
   overflow: boolean;
   fullPageBounds: RectCoordsDims;
   mWatermark?: MeasuredText;
   measuredSplitImage?: MeasuredImage;
   splitImageBounds?: RectCoordsDims;
-  splitImageBackgroundColor?: ColorKeyOrString;
+  splitBackground?: PageBackgroundStyle;
 };
 
 // Cover page specific measured data
 export type MeasuredCoverPage = MeasuredPageBase & {
   type: "cover";
   item: CoverPageInputs;
+  style: MergedCoverStyle;
   primitives: PagePrimitive[];
-  // Keep existing fields for backward compatibility
   mTitle?: MeasuredText;
   mSubTitle?: MeasuredText;
   mAuthor?: MeasuredText;
@@ -193,8 +188,8 @@ export type MeasuredCoverPage = MeasuredPageBase & {
 export type MeasuredSectionPage = MeasuredPageBase & {
   type: "section";
   item: SectionPageInputs;
+  style: MergedSectionStyle;
   primitives: PagePrimitive[];
-  // Keep existing fields for backward compatibility
   mSectionTitle?: MeasuredText;
   mSectionSubTitle?: MeasuredText;
 };
@@ -203,8 +198,8 @@ export type MeasuredSectionPage = MeasuredPageBase & {
 export type MeasuredFreeformPage = MeasuredPageBase & {
   type: "freeform";
   item: FreeformPageInputs;
-  primitives: PagePrimitive[]; // Header/footer elements
-  // Keep existing fields (unchanged)
+  style: MergedFreeformStyle;
+  primitives: PagePrimitive[];
   header?: {
     mHeader?: MeasuredText;
     mSubHeader?: MeasuredText;

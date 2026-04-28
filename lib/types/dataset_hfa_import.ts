@@ -80,18 +80,15 @@ export type DatasetHfaUploadAttemptDetail = {
   step: 1 | 2 | 3 | 4;
   status: DatasetHfaUploadAttemptStatus;
   sourceType: "csv";
-  // Step 1: CSV + XLSForm upload details
   step1Result: DatasetHfaStep1Result | undefined;
-  // Step 2: CSV column mappings
   step2Result: HfaCsvMappingParams | undefined;
-  // Step 3: CSV staging result
   step3Result: DatasetHfaCsvStagingResult | undefined;
 };
 
 export type HfaCsvMappingParams = {
-  facility_id: string;
-  timePointId: string;
-  timePointLabel: string;
+  facilityIdColumn: string;
+  timePoint: string;
+  periodId: string;
 };
 
 // ============================================================================
@@ -111,7 +108,7 @@ export type DatasetHfaCsvStagingResult = {
   nRowsDuplicated: number;
   nRowsTotal: number;
   byVariable: [];
-  timePointValue: string;
+  timePoint: string;
   nDictionaryVars: number;
   nDictionaryValues: number;
   nXlsFormVarsNotInCsv: number;
@@ -128,12 +125,12 @@ export type DatasetHfaUploadStatusResponse =
       id: string;
       step: number;
       status: DatasetHfaUploadAttemptStatusLight;
-      isActive: true; // Continue polling
+      isActive: true;
     }
   | {
       id: string;
       step: number;
       status: DatasetHfaUploadAttemptStatusLight;
-      isActive: false; // Stop polling
-      fullDetail: DatasetHfaUploadAttemptDetail; // Full data for UI transition
+      isActive: false;
+      fullDetail: DatasetHfaUploadAttemptDetail;
     };

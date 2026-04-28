@@ -233,6 +233,7 @@ export function getSpecialScorecardTableFigureInputs(
   resultsValue: ResultsValueForVisualization,
   ih: ItemsHolderPresentationObject,
   config: PresentationObjectConfig,
+  effectiveValueProps: string[],
 ): FigureInputs {
   // Type guard - this function should only be called with status: "ok"
   if (ih.status !== "ok") {
@@ -251,6 +252,7 @@ export function getSpecialScorecardTableFigureInputs(
   const jsonDataConfig = getTableJsonDataConfigFromPresentationObjectConfig(
     resultsValue,
     config,
+    effectiveValueProps,
     {},
     jsonArray,
   );

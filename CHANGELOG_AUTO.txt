@@ -1,3 +1,163 @@
+[1.28.2] [user] [changed] - "Not available" messages now show a clearer explanation of why results cannot be displayed
+[1.28.2] [user] [fixed] - Visualizations with too many data points or no data now show a friendly informational message instead of an error
+[1.28.2] [user] [fixed] - Rendering errors in visualizations now display a clear message instead of crashing
+[1.28.2] [user] [fixed] - Visualizations requiring a replicate-by value now show which values are available instead of failing silently
+[1.28.2] [admin] [added] - Visualizations now show friendly "Not available" messages instead of raw errors
+[1.28.2] [admin] [added] - Validation for replicated visualizations with missing or invalid selection values
+[1.28.2] [admin] [fixed] - Visualization rendering errors no longer crash the display; a clear message is shown instead
+[1.28.2] [admin] [changed] - "Too many data points" and "No data available" messages now display in a styled info box
+[1.28.2] [admin] [changed] - HFA indicator consistency column no longer uses color-coded styling
+[1.28.1] [user] [fixed] - Fixed crashes when visualizations had no time period data available
+[1.28.1] [admin] [fixed] - Visualizations no longer crash when metric data has no time periods
+[1.28.0] [user] [added] - Logos can now be configured separately for cover, header, and footer sections
+[1.28.0] [user] [added] - Per-slide option to show or hide logos with a default setting
+[1.28.0] [user] [added] - Logo size and spacing controls for each logo section
+[1.28.0] [user] [added] - Split panel option on content slides with placement, size, and fill settings
+[1.28.0] [user] [added] - Split panel fill options include plain color, pattern, or image
+[1.28.0] [user] [added] - New background pattern overlays: ovals, circles, dots, lines, grid, chevrons, waves, noise
+[1.28.0] [user] [added] - Custom hex color input for slide primary color
+[1.28.0] [user] [added] - Reset to default button for text style settings on cover and section slides
+[1.28.0] [user] [added] - Global footer text setting moved to a dedicated section in deck settings
+[1.28.0] [user] [added] - Page number toggle now appears in footer text settings
+[1.28.0] [user] [changed] - Logo selection per slide replaced with show/hide toggle inheriting from deck defaults
+[1.28.0] [user] [changed] - Footer configuration simplified from per-slide logos to deck-level logo management
+[1.28.0] [user] [fixed] - Slide deck thumbnails now update correctly when deck settings are changed
+[1.28.0] [admin] [changed] - Logos now configured per section: cover, header, and footer
+[1.28.0] [admin] [added] - Control logo visibility per slide with show/hide/default options
+[1.28.0] [admin] [added] - Adjust logo size and spacing for each section independently
+[1.28.0] [admin] [added] - Global footer text setting replaces per-slide footer configuration
+[1.28.0] [admin] [added] - Page number toggle moved to footer settings section
+[1.28.0] [admin] [added] - Split panel option on content slides with placement and size controls
+[1.28.0] [admin] [added] - Split panels support plain color, pattern, or image fills
+[1.28.0] [admin] [added] - Eight new pattern overlays: ovals, circles, dots, lines, grid, chevrons, waves, noise
+[1.28.0] [admin] [added] - Custom hex color input for primary slide color
+[1.28.0] [admin] [added] - Reset to default button for text style settings on cover and section slides
+[1.28.0] [admin] [changed] - Existing overlay options now labeled as image-based to distinguish from new patterns
+[1.28.0] [admin] [changed] - Deck thumbnails now update live when deck settings change
+[1.28.0] [admin] [fixed] - Deck thumbnail not refreshing after editing deck configuration
+[1.28.0] [admin] [internal] - Migrated legacy per-slide logo data to new deck-level logo structure automatically
+[1.28.0] [user] [added] - Layout picker for choosing report slide layouts
+[1.28.0] [user] [added] - Treatment picker for choosing report visual styles
+[1.28.0] [user] [added] - Live style preview showing cover, section, and content slides
+[1.28.0] [user] [added] - Bold and italic controls for cover slide text fields
+[1.28.0] [user] [added] - Bold and italic controls for section slide text fields
+[1.28.0] [user] [added] - Built-in FASTR logos available in logo selectors
+[1.28.0] [user] [added] - Drag-to-reorder logos when multiple are selected
+[1.28.0] [user] [changed] - Report settings button moved to main toolbar for easier access
+[1.28.0] [user] [changed] - Font size sliders replaced with compact text style popovers
+[1.28.0] [admin] [added] - Layout and treatment style pickers for slide decks
+[1.28.0] [admin] [added] - Live style preview showing cover, section, and content slides
+[1.28.0] [admin] [added] - Bold and italic controls for cover and section slide text
+[1.28.0] [admin] [added] - Drag-to-reorder support for logo selections
+[1.28.0] [admin] [added] - Built-in FASTR logos available in logo selectors
+[1.28.0] [admin] [changed] - Report settings button moved to main toolbar for easier access
+[1.28.0] [admin] [changed] - Style section now spans full width with richer controls
+[1.28.0] [user] [changed] - Reports section removed; use Slide Decks instead
+[1.28.0] [user] [changed] - Report migration tools removed from project and instance settings
+[1.28.0] [admin] [changed] - Removed legacy Reports section from projects
+[1.28.0] [admin] [changed] - Removed "Data Migration" tool from instance settings
+[1.28.0] [admin] [changed] - Removed "Migrate reports to slides" option from project settings
+[1.28.0] [user] [changed] - Create visualization now uses a guided step-by-step wizard
+[1.28.0] [user] [added] - Module sidebar to filter metrics when creating a visualization
+[1.28.0] [user] [added] - Metric cards with preset counts and geographic level selection
+[1.28.0] [user] [added] - Visual cards for choosing visualization type (table, chart, map, time series)
+[1.28.0] [user] [added] - "Save as new" button when editing an existing visualization
+[1.28.0] [user] [changed] - Preset selector layout improved with cleaner styling
+[1.28.0] [user] [added] - Back and Next navigation buttons in visualization creation wizard
+[1.28.0] [admin] [changed] - Create visualization dialog now uses a step-by-step wizard
+[1.28.0] [admin] [added] - Metrics are now browsable by module when creating visualizations
+[1.28.0] [admin] [added] - "Save as new" button added to the visualization editor
+[1.28.0] [admin] [changed] - Visualization presets now apply caption and footnote text properly
+[1.28.0] [admin] [changed] - Module parameter descriptions now support multiple languages
+[1.28.0] [admin] [internal] - Removed unused metric AI description fields (use cases, related metrics, important notes)
+[1.28.0] [admin] [internal] - Removed unused description field from results objects
+[1.28.0] [user] [added] - Save button without closing in the indicator code editor
+[1.28.0] [user] [added] - Manage, edit, reorder, and delete HFA time points
+[1.28.0] [user] [added] - Time points section on the instance data overview page
+[1.28.0] [user] [added] - Year and month picker when importing HFA data
+[1.28.0] [user] [added] - Negative value support in conditional formatting for certain metrics
+[1.28.0] [user] [changed] - "View time points" renamed to "Manage time points" with edit icon
+[1.28.0] [user] [changed] - "Discard" button renamed to "Cancel" in indicator code editor
+[1.28.0] [user] [changed] - Time point import now uses a label and period selector instead of separate ID and label fields
+[1.28.0] [user] [changed] - Time point tabs in indicator editor now show label as primary text
+[1.28.0] [user] [changed] - Threshold color swatches now appear after the cutoff value for clearer layout
+[1.28.0] [user] [changed] - Time point label column removed from HFA dataset variable table
+[1.28.0] [admin] [added] - New "Time Points" management section on the instance data page
+[1.28.0] [admin] [added] - Ability to rename HFA time point labels
+[1.28.0] [admin] [added] - Ability to change the year and month for HFA time points
+[1.28.0] [admin] [added] - Ability to reorder HFA time points using up/down controls
+[1.28.0] [admin] [added] - Ability to delete individual HFA time points and their data
+[1.28.0] [admin] [added] - Save button in the HFA indicator code editor without closing
+[1.28.0] [admin] [changed] - "View time points" renamed to "Manage time points" with edit icon
+[1.28.0] [admin] [changed] - HFA import now asks for a time point label and year/month period selector
+[1.28.0] [admin] [changed] - Time point tabs in the indicator code editor now show the label directly
+[1.28.0] [admin] [changed] - "Discard" button renamed to "Cancel" in the indicator code editor
+[1.28.0] [admin] [changed] - Conditional formatting now supports negative percentage values for select metrics
+[1.28.0] [admin] [fixed] - Threshold color formatting controls now display cutoff values before color swatches
+[1.28.0] [user] [changed] - Project updates now appear instantly without full page refresh
+[1.28.0] [admin] [added] - Real-time project updates now push only what changed instead of reloading everything
+[1.28.0] [admin] [improved] - Faster live updates for visualizations, datasets, modules, reports, and slide decks
+[1.28.0] [admin] [fixed] - Eliminated rare issue where updates during initial project load could be missed
+[1.28.0] [user] [changed] - Faster detection of running analysis tasks on the dashboard
+[1.28.0] [admin] [changed] - Faster health check for detecting running modules
+[1.27.1] [admin] [changed] - Health check no longer treats queued modules as active work
+[1.27.0] [user] [fixed] - Report migration now works for locked projects automatically
+[1.27.0] [admin] [fixed] - Report-to-slides migration now includes locked projects
+[1.27.0] [admin] [fixed] - Locked projects are re-locked after migration completes
+[1.26.0] [user] [fixed] - Improved spacing and alignment in disaggregation panel options
+[1.26.0] [user] [added] - Explanations shown when disaggregation options are automatically disabled
+[1.26.0] [user] [fixed] - Disaggregation options now correctly reflect active filters and date ranges
+[1.26.0] [admin] [added] - Disaggregation options now show reasons when disabled
+[1.26.0] [admin] [changed] - Visualizations automatically clean up ineffective settings before saving
+[1.26.0] [admin] [fixed] - Project deletion scheduled date now visible in project list
+[1.26.0] [admin] [fixed] - Resolved merge conflict in project listing code
+[1.26.0] [user] [fixed] - Empty reports no longer cause errors during project migration
+[1.26.0] [admin] [fixed] - Empty reports are now skipped during project migration
+[1.26.0] [user] [added] - Deleted projects now have a 30-day recovery period before permanent removal
+[1.26.0] [user] [added] - Admins can view and manage projects pending deletion
+[1.26.0] [user] [added] - Admins can restore projects that were scheduled for deletion
+[1.26.0] [user] [added] - Admins can permanently delete projects immediately if needed
+[1.26.0] [user] [changed] - Projects pending deletion are hidden from the main project list
+[1.26.0] [admin] [added] - Deleting a project now schedules deletion in 30 days instead of removing it immediately
+[1.26.0] [admin] [added] - Global admins can view and manage projects pending deletion from the home screen
+[1.26.0] [admin] [added] - Projects pending deletion can be restored by global admins
+[1.26.0] [admin] [added] - Global admins can permanently delete a project immediately, bypassing the 30-day wait
+[1.26.0] [admin] [added] - Projects pending deletion are hidden from the main project list
+[1.26.0] [admin] [added] - Cache status tab shows Valkey connection and per-visualization cache state
+[1.26.0] [admin] [fixed] - Backup restore now correctly identifies the target project
+[1.26.0] [admin] [internal] - Expired projects are automatically purged after their scheduled deletion date
+[1.26.0] [user] [added] - Admins can migrate old presentation reports to the new slides system
+[1.26.0] [admin] [added] - Bulk migration tool for converting old reports to new slides system
+[1.26.0] [admin] [added] - Data Migration section in Instance Settings page
+[1.26.0] [admin] [added] - Progress tracking with per-project and per-item status during migration
+[1.26.0] [admin] [added] - Migrated reports are organized into a timestamped folder automatically
+[1.26.0] [admin] [added] - Error and activity logs displayed during migration for transparency
+[1.26.0] [user] [fixed] - Fixed rare crashes during data queries
+[1.26.0] [admin] [fixed] - Resolved rare crashes caused by database connections closing unexpectedly
+[1.24.0] [user] [changed] - Module update dialog now shows exactly what changed with clear labels
+[1.24.0] [user] [added] - Update dialog separates changes that affect results from visual-only changes
+[1.24.0] [user] [added] - You can now choose to reinstall, rerun, or both when updating a module
+[1.24.0] [user] [added] - Warning shown when compute-affecting changes detected but rerun not selected
+[1.24.0] [user] [changed] - Module details now show separate timestamps for compute and presentation updates
+[1.24.0] [user] [changed] - Project comparison table now shows separate compute and presentation version info
+[1.24.0] [user] [changed] - Update available badge now tracks presentation definition version separately
+[1.24.0] [admin] [changed] - Module update dialog now shows exactly what changed
+[1.24.0] [admin] [added] - Separate tracking for compute vs presentation definition versions
+[1.24.0] [admin] [added] - Choose to reinstall, rerun, or both when updating a module
+[1.24.0] [admin] [added] - Warning when compute-affecting changes detected but rerun not selected
+[1.24.0] [admin] [changed] - Project comparison view now shows compute and presentation SHAs separately
+[1.24.0] [admin] [changed] - Update available badge now tracks presentation definition version
+[1.24.0] [admin] [changed] - Update all modules now always reinstalls and reruns
+[1.24.0] [admin] [fixed] - Module update badges now clear immediately after updating
+[1.23.4] [user] [added] - Option to prevent re-run when a module is already up to date
+[1.23.4] [admin] [added] - Option to prevent re-run when module is already up to date
+[1.23.4] [user] [added] - Module updates now distinguish between script and config changes
+[1.23.4] [user] [added] - "Prevent re-run" option now available for config changes too
+[1.23.4] [user] [fixed] - Update preview no longer incorrectly flags some config changes as script changes
+[1.23.4] [admin] [added] - Module updates now distinguish config changes from script changes
+[1.23.4] [admin] [added] - "Prevent re-run" option now available for config-change updates
+[1.23.4] [admin] [fixed] - Prevent re-run now reliably skips re-execution during module updates
+[1.23.4] [admin] [fixed] - More accurate update impact detection for results object changes
 [1.23.4] [user] [added] - Option to prevent re-run when updating a module's script
 [1.23.4] [user] [fixed] - Report backup now properly requires permission again
 [1.23.4] [admin] [added] - Option to prevent automatic re-run when updating a module script

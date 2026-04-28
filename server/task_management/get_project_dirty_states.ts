@@ -120,13 +120,13 @@ SELECT dataset_type, last_updated FROM datasets
         const rawItems = await ppk.projectDb<
           {
             id: string;
-            installed_at: string;
+            presentation_def_updated_at: string | null;
           }[]
         >`
-SELECT id, installed_at FROM modules
+SELECT id, presentation_def_updated_at FROM modules
 `;
         for (const rawItem of rawItems) {
-          pds.lastUpdated[tableName][rawItem.id] = rawItem.installed_at;
+          pds.lastUpdated[tableName][rawItem.id] = rawItem.presentation_def_updated_at ?? "";
         }
       } else {
         const rawItems = await ppk.projectDb<

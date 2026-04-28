@@ -7,16 +7,18 @@ import {
   Color,
   type FigureInputs,
   FigureRenderer,
+  getBackgroundBaseColor,
   getColor,
   ImageRenderer,
   MarkdownRenderer,
+  measureLogos,
   type MeasuredFreeformPage,
   type MeasuredLayoutNode,
   type MeasuredText,
   Padding,
   type PageContentItem,
+  RectCoordsDims,
   type RenderContext,
-  sum,
   walkLayout,
 } from "./deps.ts";
 import type {
@@ -41,20 +43,18 @@ export function renderFreeformSlide(
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const item = measured.item;
   const bounds = measured.bounds;
-  const s = measured.mergedPageStyle;
+  const s = measured.style;
 
   // Background
-  if (s.content.backgroundColor !== "none") {
-    const bgColor = getColor(s.content.backgroundColor);
-    slide.addShape("rect", {
-      x: 0,
-      y: 0,
-      w: pixelsToInches(bounds.w()),
-      h: pixelsToInches(bounds.h()),
-      fill: { color: Color.toHexNoHash(bgColor) },
-      line: { color: Color.toHexNoHash(bgColor), width: 0 },
-    });
-  }
+  const bgColor = getColor(getBackgroundBaseColor(s.content.background));
+  slide.addShape("rect", {
+    x: 0,
+    y: 0,
+    w: pixelsToInches(bounds.w()),
+    h: pixelsToInches(bounds.h()),
+    fill: { color: Color.toHexNoHash(bgColor) },
+    line: { color: Color.toHexNoHash(bgColor), width: 0 },
+  });
 
   // Render header
   if (measured.header) {
@@ -95,7 +95,7 @@ export function renderFreeformSlide(
 function renderHeader(
   slide: PptxSlide,
   measured: MeasuredFreeformPage,
-  s: import("./deps.ts").MergedPageStyle,
+  s: import("./deps.ts").MergedFreeformStyle,
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const header = measured.header!;
@@ -103,14 +103,12 @@ function renderHeader(
   const padHeader = new Padding(s.header.padding);
 
   // Header background
-  if (s.header.backgroundColor !== "none") {
-    const headerBgColor = getColor(s.header.backgroundColor);
-    slide.addShape("rect", {
-      ...rcdToSlidePosition(header.rcdHeaderOuter),
-      fill: { color: Color.toHexNoHash(headerBgColor) },
-      line: { color: Color.toHexNoHash(headerBgColor), width: 0 },
-    });
-  }
+  const headerBgColor = getColor(getBackgroundBaseColor(s.header.background));
+  slide.addShape("rect", {
+    ...rcdToSlidePosition(header.rcdHeaderOuter),
+    fill: { color: Color.toHexNoHash(headerBgColor) },
+    line: { color: Color.toHexNoHash(headerBgColor), width: 0 },
+  });
 
   // Header overlay image (covers header area, matching PDF behavior)
   if (inputs.overlay) {
@@ -119,11 +117,11 @@ function renderHeader(
       createCanvasRenderContext,
     );
     const overlayFinalWidth = header.rcdHeaderOuter.w();
-    const overlayFinalHeight = overlayFinalWidth *
-      (inputs.overlay.height / inputs.overlay.width);
+    const overlayFinalHeight =
+      overlayFinalWidth * (inputs.overlay.height / inputs.overlay.width);
     if (overlayFinalHeight > header.rcdHeaderOuter.h()) {
-      const overlayFinalYOffset = overlayFinalHeight -
-        header.rcdHeaderOuter.h();
+      const overlayFinalYOffset =
+        overlayFinalHeight - header.rcdHeaderOuter.h();
       slide.addImage({
         data: overlayDataUrl,
         x: pixelsToInches(header.rcdHeaderOuter.x()),
@@ -133,8 +131,8 @@ function renderHeader(
       });
     } else {
       const finalHeight = header.rcdHeaderOuter.h();
-      const finalWidth = finalHeight *
-        (inputs.overlay.width / inputs.overlay.height);
+      const finalWidth =
+        finalHeight * (inputs.overlay.width / inputs.overlay.height);
       const xOffset = (finalWidth - header.rcdHeaderOuter.w()) / 2;
       slide.addImage({
         data: overlayDataUrl,
@@ -150,28 +148,6 @@ function renderHeader(
   const x = paddedHeader.x();
   const containerW = paddedHeader.w();
   let currentY = paddedHeader.y() + header.yOffsetHeader;
-
-  // Left-placed header logos
-  if (
-    s.header.logoPlacement === "left" &&
-    inputs.headerLogos &&
-    inputs.headerLogos.length > 0
-  ) {
-    let currentX = x;
-    for (const logo of inputs.headerLogos) {
-      const logoDataUrl = imageToDataUrl(logo, createCanvasRenderContext);
-      const logoWidth = (s.header.logoHeight * logo.width) / logo.height;
-      slide.addImage({
-        data: logoDataUrl,
-        x: pixelsToInches(currentX),
-        y: pixelsToInches(currentY),
-        w: pixelsToInches(logoWidth),
-        h: pixelsToInches(s.header.logoHeight),
-      });
-      currentX += logoWidth + s.header.logoGapX;
-    }
-    currentY += s.header.logoHeight + s.header.logoBottomPadding;
-  }
 
   // Header text
   if (header.mHeader) {
@@ -211,25 +187,29 @@ function renderHeader(
     );
   }
 
-  // Right-placed header logos
-  if (
-    s.header.logoPlacement === "right" &&
-    inputs.headerLogos &&
-    inputs.headerLogos.length > 0
-  ) {
-    let currentX = paddedHeader.rightX();
-    const y = paddedHeader.y() + header.yOffsetRightPlacementLogos;
-    for (const logo of inputs.headerLogos) {
-      const logoDataUrl = imageToDataUrl(logo, createCanvasRenderContext);
-      const logoWidth = (s.header.logoHeight * logo.width) / logo.height;
+  // Header logos (always right-aligned)
+  if (inputs.headerLogos && inputs.headerLogos.length > 0) {
+    const logoBounds = new RectCoordsDims([
+      paddedHeader.x(),
+      paddedHeader.y() + header.yOffsetRightPlacementLogos,
+      paddedHeader.w(),
+      10000,
+    ]);
+    const mLogos = measureLogos(logoBounds, {
+      images: inputs.headerLogos,
+      style: s.header.logosSizing,
+      alignH: "right",
+      alignV: "top",
+    });
+    for (const logo of mLogos.items) {
+      const logoDataUrl = imageToDataUrl(logo.image, createCanvasRenderContext);
       slide.addImage({
         data: logoDataUrl,
-        x: pixelsToInches(currentX - logoWidth),
-        y: pixelsToInches(y),
-        w: pixelsToInches(logoWidth),
-        h: pixelsToInches(s.header.logoHeight),
+        x: pixelsToInches(logo.x),
+        y: pixelsToInches(logo.y),
+        w: pixelsToInches(logo.width),
+        h: pixelsToInches(logo.height),
       });
-      currentX -= logoWidth + s.header.logoGapX;
     }
   }
 
@@ -253,7 +233,7 @@ function renderHeader(
 function renderFooter(
   slide: PptxSlide,
   measured: MeasuredFreeformPage,
-  s: import("./deps.ts").MergedPageStyle,
+  s: import("./deps.ts").MergedFreeformStyle,
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const footer = measured.footer!;
@@ -261,11 +241,9 @@ function renderFooter(
   const padFooter = new Padding(s.footer.padding);
 
   // Footer background (if different from content)
-  if (
-    s.footer.backgroundColor !== "none" &&
-    s.footer.backgroundColor !== s.content.backgroundColor
-  ) {
-    const footerBgColor = getColor(s.footer.backgroundColor);
+  const footerBgColor = getColor(getBackgroundBaseColor(s.footer.background));
+  const contentBgColor = getColor(getBackgroundBaseColor(s.content.background));
+  if (footerBgColor !== contentBgColor) {
     slide.addShape("rect", {
       ...rcdToSlidePosition(footer.rcdFooterOuter),
       fill: { color: Color.toHexNoHash(footerBgColor) },
@@ -289,26 +267,21 @@ function renderFooter(
 
   // Footer logos (right-aligned)
   if (inputs.footerLogos && inputs.footerLogos.length > 0) {
-    const logosWidth = sum(
-      inputs.footerLogos.map(
-        (logo) => (s.footer.logoHeight * logo.width) / logo.height,
-      ),
-    ) + s.footer.logoGapX * (inputs.footerLogos.length - 1);
-
-    let currentX = paddedRcd.rightX() - logosWidth;
-    const y = paddedRcd.y() + (paddedRcd.h() - s.footer.logoHeight) / 2;
-
-    for (const logo of inputs.footerLogos) {
-      const logoDataUrl = imageToDataUrl(logo, createCanvasRenderContext);
-      const logoWidth = (s.footer.logoHeight * logo.width) / logo.height;
+    const mLogos = measureLogos(paddedRcd, {
+      images: inputs.footerLogos,
+      style: s.footer.logosSizing,
+      alignH: "right",
+      alignV: "middle",
+    });
+    for (const logo of mLogos.items) {
+      const logoDataUrl = imageToDataUrl(logo.image, createCanvasRenderContext);
       slide.addImage({
         data: logoDataUrl,
-        x: pixelsToInches(currentX),
-        y: pixelsToInches(y),
-        w: pixelsToInches(logoWidth),
-        h: pixelsToInches(s.footer.logoHeight),
+        x: pixelsToInches(logo.x),
+        y: pixelsToInches(logo.y),
+        w: pixelsToInches(logo.width),
+        h: pixelsToInches(logo.height),
       });
-      currentX += logoWidth + s.footer.logoGapX;
     }
   }
 }
@@ -349,14 +322,15 @@ function renderContainerStyle(
   const borderWidthPts = pixelsToPoints(rs.borderWidth);
 
   const shapeType = rs.rectRadius > 0 ? "roundRect" : "rect";
-  const radiusOpts = rs.rectRadius > 0
-    ? {
-      rectRadius: Math.min(
-        rs.rectRadius / (Math.min(renderBounds.w(), renderBounds.h()) / 2),
-        1,
-      ),
-    }
-    : {};
+  const radiusOpts =
+    rs.rectRadius > 0
+      ? {
+          rectRadius: Math.min(
+            rs.rectRadius / (Math.min(renderBounds.w(), renderBounds.h()) / 2),
+            1,
+          ),
+        }
+      : {};
 
   if (hasBackground && hasBorder) {
     slide.addShape(shapeType, {
@@ -429,17 +403,18 @@ function addContentItem(
       dataUrl = imageItem.image;
     } else {
       // Support cover mode with source cropping
-      const crop = measured.srcX !== undefined &&
-          measured.srcY !== undefined &&
-          measured.srcW !== undefined &&
-          measured.srcH !== undefined
-        ? {
-          sx: measured.srcX,
-          sy: measured.srcY,
-          sw: measured.srcW,
-          sh: measured.srcH,
-        }
-        : undefined;
+      const crop =
+        measured.srcX !== undefined &&
+        measured.srcY !== undefined &&
+        measured.srcW !== undefined &&
+        measured.srcH !== undefined
+          ? {
+              sx: measured.srcX,
+              sy: measured.srcY,
+              sw: measured.srcW,
+              sh: measured.srcH,
+            }
+          : undefined;
       dataUrl = imageToDataUrl(
         imageItem.image,
         createCanvasRenderContext,

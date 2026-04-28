@@ -7,7 +7,7 @@ import {
   Color,
   type MeasuredPage,
   type MeasuredText,
-  type MergedPageStyle,
+  type MergedPageNumberStyle,
   type PageInputs,
   PageRenderer,
   RectCoordsDims,
@@ -81,25 +81,26 @@ function renderSlideFromMeasured(
   }
 
   if (measured.item.pageNumber) {
-    const s = measured.mergedPageStyle;
-    const pad = s.pageNumber.padding;
+    const pageNumberStyle = measured.style.pageNumber;
+    const textStyle = measured.style.text.pageNumber;
+    const pad = pageNumberStyle.padding;
     const mText = rc.mText(
       measured.item.pageNumber,
-      s.text.pageNumber,
+      textStyle,
       measured.bounds.w() * 0.3,
     );
 
-    const [x, alignH] = s.pageNumber.placement === "bottom-left"
+    const [x, alignH] = pageNumberStyle.placement === "bottom-left"
       ? [measured.bounds.x() + pad.pl(), "left" as const]
-      : s.pageNumber.placement === "bottom-center"
+      : pageNumberStyle.placement === "bottom-center"
       ? [measured.bounds.centerX() - mText.dims.w() / 2, "center" as const]
       : [
         measured.bounds.rightX() - pad.pr() - mText.dims.w(),
         "right" as const,
       ];
 
-    if (s.pageNumber.background !== "none") {
-      renderPptxPageNumberBackground(slide, s, mText, x, measured);
+    if (pageNumberStyle.background !== "none") {
+      renderPptxPageNumberBackground(slide, pageNumberStyle, mText, x, measured);
     }
 
     slide.addText(measured.item.pageNumber, {
@@ -121,14 +122,14 @@ function renderSlideFromMeasured(
 
 function renderPptxPageNumberBackground(
   slide: PptxSlide,
-  s: MergedPageStyle,
+  s: MergedPageNumberStyle,
   mText: MeasuredText,
   textX: number,
   measured: MeasuredPage,
 ): void {
-  const bg = s.pageNumber.background;
-  const bgColor = Color.toHexNoHash(s.pageNumber.backgroundColor);
-  const pad = s.pageNumber.padding;
+  const bg = s.background;
+  const bgColor = Color.toHexNoHash(s.backgroundColor);
+  const pad = s.padding;
   const textW = mText.dims.w();
   const textH = mText.dims.h();
   const bgPadH = textH * 0.4;
@@ -141,7 +142,7 @@ function renderPptxPageNumberBackground(
   const rectH = textH + bgPadV * 2;
 
   if (bg === "triangle") {
-    const placement = s.pageNumber.placement;
+    const placement = s.placement;
     if (placement === "bottom-center") {
       slide.addShape("rect", {
         x: pixelsToInches(rectLeft),

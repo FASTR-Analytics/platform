@@ -669,7 +669,7 @@
     position-area: right;
   }
 
-  /* Virtual anchor for popover positioning */
+  /* Virtual anchor for menu popover positioning */
   .ui-popover-anchor {
     position: fixed;
     width: 1px;
@@ -678,7 +678,17 @@
     anchor-name: --popover-menu-anchor;
   }
 
-  /* Popover base styles */
+  /* Generic popover base - position-anchor set via inline style */
+  .ui-popover {
+    position: absolute;
+    position-try-order: most-block-size;
+    margin: 6px;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  /* Menu popover - uses virtual anchor */
   .ui-popover-menu {
     position: absolute;
     position-anchor: --popover-menu-anchor;
@@ -689,49 +699,50 @@
     background: transparent;
   }
 
-  /* Position: bottom-start (default) */
+  /* Shared positioning rules */
+  .ui-popover[data-position="bottom-start"],
   .ui-popover-menu[data-position="bottom-start"] {
     position-area: bottom span-right;
     position-try-fallbacks: --pm-bottom-end, --pm-top-start, --pm-top-end;
   }
 
-  /* Position: bottom */
+  .ui-popover[data-position="bottom"],
   .ui-popover-menu[data-position="bottom"] {
     position-area: bottom;
     position-try-fallbacks: --pm-top, --pm-bottom-start, --pm-bottom-end, --pm-top-start, --pm-top-end;
   }
 
-  /* Position: bottom-end */
+  .ui-popover[data-position="bottom-end"],
   .ui-popover-menu[data-position="bottom-end"] {
     position-area: bottom span-left;
     position-try-fallbacks: --pm-bottom-start, --pm-top-end, --pm-top-start;
   }
 
-  /* Position: top-start */
+  .ui-popover[data-position="top-start"],
   .ui-popover-menu[data-position="top-start"] {
     position-area: top span-right;
     position-try-fallbacks: --pm-top-end, --pm-bottom-start, --pm-bottom-end;
   }
 
-  /* Position: top */
+  .ui-popover[data-position="top"],
   .ui-popover-menu[data-position="top"] {
     position-area: top;
     position-try-fallbacks: --pm-bottom, --pm-top-start, --pm-top-end, --pm-bottom-start, --pm-bottom-end;
   }
 
-  /* Position: top-end */
+  .ui-popover[data-position="top-end"],
   .ui-popover-menu[data-position="top-end"] {
     position-area: top span-left;
     position-try-fallbacks: --pm-top-start, --pm-bottom-end, --pm-bottom-start;
   }
 
-  /* Position: left */
+  .ui-popover[data-position="left"],
   .ui-popover-menu[data-position="left"] {
     position-area: left;
     position-try-fallbacks: --pm-right, --pm-bottom-start, --pm-top-start;
   }
 
-  /* Position: right */
+  .ui-popover[data-position="right"],
   .ui-popover-menu[data-position="right"] {
     position-area: right;
     position-try-fallbacks: --pm-left, --pm-bottom-end, --pm-top-end;

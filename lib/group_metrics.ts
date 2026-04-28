@@ -1,8 +1,14 @@
-import type { MetricWithStatus } from "./types/mod.ts";
+import type { MetricWithStatus, InstalledModuleSummary, ModuleId } from "./types/mod.ts";
 
 export type MetricGroup = {
   label: string;
   variants: MetricWithStatus[];
+};
+
+export type MetricsByModule = {
+  moduleId: ModuleId;
+  moduleLabel: string;
+  metricGroups: MetricGroup[];
 };
 
 type GroupMetricsOptions = {
@@ -44,4 +50,36 @@ export function getMetricDisplayLabel(metric: MetricWithStatus): string {
   return metric.variantLabel
     ? `${metric.label} - ${metric.variantLabel}`
     : metric.label;
+}
+
+export function groupMetricsByModule(
+  metrics: MetricWithStatus[],
+  modules: InstalledModuleSummary[],
+  options?: GroupMetricsOptions
+): MetricsByModule[] {
+  const filtered = options?.onlyReady
+    ? metrics.filter((m) => m.status === "ready")
+    : metrics;
+
+  const moduleMap = new Map<ModuleId, MetricWithStatus[]>();
+  for (const metric of filtered) {
+    if (!moduleMap.has(metric.moduleId)) {
+      moduleMap.set(metric.moduleId, []);
+    }
+    moduleMap.get(metric.moduleId)!.push(metric);
+  }
+
+  const result: MetricsByModule[] = [];
+  for (const mod of modules) {
+    const moduleMetrics = moduleMap.get(mod.id);
+    if (moduleMetrics && moduleMetrics.length > 0) {
+      result.push({
+        moduleId: mod.id,
+        moduleLabel: mod.label,
+        metricGroups: groupMetricsByLabel(moduleMetrics),
+      });
+    }
+  }
+
+  return result;
 }

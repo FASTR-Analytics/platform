@@ -11,6 +11,9 @@ interface StepperChipsWithTitlesProps {
   /** Label per step, indexed by (step - minStep). If omitted, only the
    * number chip is shown. */
   labels?: string[];
+  /** Override which steps to display. If omitted, shows all steps from
+   * stepper.getAllSteps(). Useful for conditionally hiding steps. */
+  visibleSteps?: number[];
   onStepClick?: (step: number) => void;
 }
 
@@ -84,7 +87,7 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
 
   return (
     <nav class="flex flex-wrap items-center gap-x-6 gap-y-2">
-      <For each={p.stepper.getAllSteps()}>
+      <For each={p.visibleSteps ?? p.stepper.getAllSteps()}>
         {(step) => {
           const label = labelFor(step);
           const stepIndex = step - p.stepper.minStep + 1;

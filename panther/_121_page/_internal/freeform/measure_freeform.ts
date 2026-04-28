@@ -6,7 +6,7 @@
 import type {
   MeasuredImage,
   MeasuredText,
-  MergedPageStyle,
+  MergedFreeformStyle,
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
@@ -23,35 +23,35 @@ export function measureFreeform(
   rc: RenderContext,
   rcdOuter: RectCoordsDims,
   inputs: FreeformPageInputs,
-  s: MergedPageStyle,
+  style: MergedFreeformStyle,
   responsiveScale: number | undefined,
   fullPageBounds: RectCoordsDims,
   measuredSplitImage: MeasuredImage | undefined,
   mWatermark: MeasuredText | undefined,
 ): MeasuredFreeformPage {
   // Measure header
-  const header = measureHeader(rc, rcdOuter, inputs, s);
+  const header = measureHeader(rc, rcdOuter, inputs, style);
 
   // Measure footer
-  const footer = measureFooter(rc, rcdOuter, inputs, s);
+  const footer = measureFooter(rc, rcdOuter, inputs, style);
 
   // Measure content (needs to know header and footer heights)
   const content = measureContent(
     rc,
     rcdOuter,
     inputs,
-    s,
+    style,
     header?.rcdHeaderOuter.h() ?? 0,
     footer?.rcdFooterOuter.h() ?? 0,
   );
 
-  const primitives = buildFreeformPrimitives(header, footer, inputs, s);
+  const primitives = buildFreeformPrimitives(header, footer, inputs, style);
 
   return {
     type: "freeform",
     item: inputs,
     bounds: rcdOuter,
-    mergedPageStyle: s,
+    style,
     responsiveScale,
     overflow: content.overflow,
     fullPageBounds,
@@ -71,7 +71,7 @@ function buildFreeformPrimitives(
   header: ReturnType<typeof measureHeader>,
   footer: ReturnType<typeof measureFooter>,
   inputs: FreeformPageInputs,
-  s: MergedPageStyle,
+  s: MergedFreeformStyle,
 ): PagePrimitive[] {
   const primitives: PagePrimitive[] = [];
 

@@ -71,12 +71,12 @@ CREATE TABLE modules (
   module_definition text NOT NULL,
   config_selections text NOT NULL,
   dirty text NOT NULL,
-  installed_at text NOT NULL,
-  script_updated_at text,
-  definition_updated_at text,
+  compute_def_updated_at text,
+  compute_def_git_ref text,
+  presentation_def_updated_at text,
+  presentation_def_git_ref text,
   config_updated_at text,
   last_run_at text NOT NULL,
-  installed_git_ref text,
   last_run_git_ref text
 );
 
@@ -90,7 +90,6 @@ CREATE INDEX idx_modules_dirty ON modules(dirty);
 CREATE TABLE results_objects (
   id text PRIMARY KEY NOT NULL,
   module_id text NOT NULL,
-  description text NOT NULL,
   -- Store column definitions as JSON for now (can be further normalized later)
   column_definitions text,  -- JSON array of {colName, colType, notNull}
   FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE

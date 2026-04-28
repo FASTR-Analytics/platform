@@ -53,7 +53,7 @@ defineRoute(
       projects.map(async (project: { id: string; label: string }) => {
         const projectDb = getPgConnectionFromCacheOrNew(project.id, "READ_ONLY");
         const rawModules = await projectDb<DBModule[]>`
-          SELECT id, dirty, installed_at, installed_git_ref, last_run_at, last_run_git_ref, config_selections
+          SELECT id, dirty, compute_def_updated_at, compute_def_git_ref, presentation_def_updated_at, presentation_def_git_ref, last_run_at, last_run_git_ref, config_selections
           FROM modules
         `;
 
@@ -68,8 +68,10 @@ defineRoute(
           return {
             id: raw.id,
             dirty: raw.dirty as CompareProjectsModule["dirty"],
-            installedAt: raw.installed_at,
-            installedGitRef: raw.installed_git_ref ?? undefined,
+            computeDefUpdatedAt: raw.compute_def_updated_at ?? undefined,
+            computeDefGitRef: raw.compute_def_git_ref ?? undefined,
+            presentationDefUpdatedAt: raw.presentation_def_updated_at ?? undefined,
+            presentationDefGitRef: raw.presentation_def_git_ref ?? undefined,
             lastRunAt: raw.last_run_at,
             lastRunGitRef: raw.last_run_git_ref ?? undefined,
             parameters,

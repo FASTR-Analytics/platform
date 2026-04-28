@@ -35,7 +35,7 @@ export function optimizePageLayout(
   responsiveScale?: number,
   config?: OptimizerConfig,
 ): OptimizePageLayoutResult {
-  const s = new CustomPageStyle(style, responsiveScale).getMergedPageStyle();
+  const s = new CustomPageStyle(style, responsiveScale).getMergedFreeformStyle();
 
   const padContent = new Padding(s.content.padding);
   const contentBounds = bounds.getPadded(padContent);

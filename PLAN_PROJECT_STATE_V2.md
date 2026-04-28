@@ -42,7 +42,7 @@ Written on `starting` and on every module transition to "ready" at `provider.tsx
 
 Closer investigation showed `rLogs` is **not** unbounded state — it's a one-line-per-module status ticker:
 - Shape `Record<string, { latest: string }>`. Each `r_script` event overwrites `.latest` (`provider.tsx:174-180`). Memory is bounded: one line per module.
-- **One consumer**, `project_modules.tsx:476`, rendering inside a `<Match when={moduleDirtyStates[id] === "running"}>` block. When the module finishes, the JSX switches branches and rLogs is never read.
+- **One consumer**, `project_modules.tsx:485`, rendering inside a `<Match when={moduleDirtyStates[id] === "running"}>` block. When the module finishes, the JSX switches branches and rLogs is never read.
 - No version keys, no other subscribers, no persistence, no bearing on anything except that single `<div>`.
 
 This is textbook T5 per `DOC_STATE_MGT_TIERS.md`: ephemeral, component-local, dies on unmount. Its current home in the Provider is historical coupling (the Provider owns the SSE EventSource, so the handler landed beside the state).
@@ -63,7 +63,7 @@ This is textbook T5 per `DOC_STATE_MGT_TIERS.md`: ephemeral, component-local, di
 
 ### 3. `modules_updated` payload — **`{ projectModules, metrics, commonIndicators }`**
 
-Current behavior: any module mutation → `notifyProjectUpdated()` → client full-refetches `ProjectDetail` → `projectModules`, `metrics`, AND `commonIndicators` all rebuild server-side (`server/db/project/projects.ts` — `getMetricsWithStatus()` at `server/db/project/modules.ts:875-939` for metrics, `projects.ts:184-191` for commonIndicators).
+Current behavior: any module mutation → `notifyProjectUpdated()` → client full-refetches `ProjectDetail` → `projectModules`, `metrics`, AND `commonIndicators` all rebuild server-side (`server/db/project/projects.ts` — `getMetricsWithStatus()` at `server/db/project/modules.ts:975+` for metrics, `projects.ts:188-195` for commonIndicators).
 
 `commonIndicators` is not strictly module-derived (it comes from the `indicators` table), but the current refetch re-queries it on every module change. Omitting it from `modules_updated` would subtly change behavior.
 
@@ -71,9 +71,10 @@ Current behavior: any module mutation → `notifyProjectUpdated()` → client fu
 
 ### 4. Refetch-await sites — **old Provider stays fully live through Phase 10**
 
-Three current call sites:
+Four current call sites:
 - `client/src/components/project/project_decks.tsx:86` — load-bearing `await refetchProjectDetail()` after deck editor closes.
-- `client/src/components/project/project_settings.tsx:150` — `refetchProjectDetail` passed as `silentFetch` callback.
+- `client/src/components/project/project_settings.tsx:150` — `refetchProjectDetail` passed as `silentFetch` callback (SelectProjectUserRole).
+- `client/src/components/project/project_settings.tsx:162` — `refetchProjectDetail` passed as `silentFetch` callback (BulkEditProjectPermissionsForm).
 - `provider.tsx:281` — fire-and-forget inside the `project_updated` handler.
 
 **Action:** Phase 8 migrates read-only consumers (list renders, permission checks, etc.). It does NOT touch `refetchProjectDetail` or its hook. The old Provider + old `project-sse` endpoint + old `notifyProjectUpdated` all remain fully operational and connected throughout Phases 5–9 — the dual-run is truly parallel.
@@ -90,7 +91,7 @@ Adding navigation = new feature = out of scope.
 
 ### 6. `thisUserRole` — **keep with the hardcoding bug intact**
 
-Confirmed dead code: `lib/types/projects.ts:28` defines it; server hardcodes `"viewer"` at `server/db/project/projects.ts:197`; zero client reads.
+Confirmed dead code: `lib/types/projects.ts:28` defines it; server hardcodes `"viewer"` at `server/db/project/projects.ts:201`; zero client reads.
 
 Deleting it is a change. The refactor preserves everything including dead fields and bugs.
 
@@ -98,15 +99,94 @@ Deleting it is a change. The refactor preserves everything including dead fields
 
 ---
 
-## Phase 0 — Prep & audits (no code changes)
+<!--
+══════════════════════════════════════════════════════════════════════════════
+   PHASES 0–5 COMPLETE (server-side work done)
+   NEXT: Phase 6 (client store + SSE manager)
+══════════════════════════════════════════════════════════════════════════════
+-->
+
+## Phase 0 — Prep & audits (no code changes) ✅ COMPLETE
 
 **Goal:** know exactly what will be touched before touching anything.
 
 ### 0.1 Server notify call-site map
-Grep every `notifyProjectUpdated()` call across `server/`. For each, record: file:line, mutation context, and target granular event (`visualizations_updated`, `reports_updated`, `modules_updated`, etc.). Save as a comment block at the top of the (yet to be created) `notify_project_updated.ts` — or as a table in this doc. Used in Phase 5.
+
+**Done.** 26 call sites across 7 files:
+
+| File | Line | Mutation | Target v2 event |
+|------|------|----------|-----------------|
+| `project.ts` | 251 | updateProjectConfig | `project_config_updated` |
+| `project.ts` | 277 | setModulesDirtyForDataset | `datasets_updated` |
+| `modules.ts` | 85 | installModule | `modules_updated` |
+| `modules.ts` | 103 | uninstallModule | `modules_updated` |
+| `modules.ts` | 146 | updateModuleConfig | `modules_updated` |
+| `set_module_clean.ts` | 112 | setModuleClean (after run) | `modules_updated` |
+| `presentation_objects.ts` | 74 | createPresentationObject | `visualizations_updated` |
+| `presentation_objects.ts` | 103 | updatePresentationObject | `visualizations_updated` |
+| `presentation_objects.ts` | 219 | duplicatePresentationObject | `visualizations_updated` |
+| `presentation_objects.ts` | 255 | movePresentationObject | `visualizations_updated` |
+| `presentation_objects.ts` | 291 | movePresentationObjectToFolder | `visualizations_updated` |
+| `presentation_objects.ts` | 314 | deletePresentationObject | `visualizations_updated` |
+| `visualization_folders.ts` | 33 | createVisualizationFolder | `visualization_folders_updated` |
+| `visualization_folders.ts` | 55 | updateVisualizationFolder | `visualization_folders_updated` |
+| `visualization_folders.ts` | 74 | deleteVisualizationFolder | `visualization_folders_updated` |
+| `visualization_folders.ts` | 93 | duplicateVisualizationFolder | `visualization_folders_updated` |
+| `visualization_folders.ts` | 113 | moveVisualizationFolder | `visualization_folders_updated` |
+| `visualization_folders.ts` | 132 | moveVisualizationFolderToFolder | `visualization_folders_updated` |
+| `slide_decks.ts` | 64 | createSlideDeck | `slide_decks_updated` |
+| `slide_decks.ts` | 94 | updateSlideDeck | `slide_decks_updated` |
+| `slide_decks.ts` | 170 | duplicateSlideDeck | `slide_decks_updated` |
+| `slide_decks.ts` | 191 | moveSlideDeck | `slide_decks_updated` |
+| `slide_decks.ts` | 207 | deleteSlideDeck | `slide_decks_updated` |
+| `slide_deck_folders.ts` | 28 | createSlideDeckFolder | `slide_deck_folders_updated` |
+| `slide_deck_folders.ts` | 50 | updateSlideDeckFolder | `slide_deck_folders_updated` |
+| `slide_deck_folders.ts` | 69 | deleteSlideDeckFolder | `slide_deck_folders_updated` |
 
 ### 0.2 Client consumer map
-Grep every call to: `useProjectDetail`, `useProjectDirtyStates`, `getGlobalPDSSnapshot`, `useLastUpdatedListener`, `refetchProjectDetail`, `silentRefreshInstance`. Save the list. Used to scope Phase 8 sub-phases.
+
+**Done.** Summary by hook:
+
+| Hook | Count | Files |
+|------|-------|-------|
+| `useProjectDetail` | 14 | project_ai/ (4), project/ (9), project_runner/ (def) |
+| `useProjectDirtyStates` | 12 | project/ (2), report/ (4), slide_deck/ (3), root (3) |
+| `getGlobalPDSSnapshot` | 1 | state/_infra/reactive_cache.ts:127 |
+| `useRefetchProjectDetail` | 2 | project/project_decks.tsx:62, project/project_settings.tsx:80 |
+| `useRLogs` | 1 | project/project_modules.tsx:228 |
+| `useLastUpdatedListener` | 1 | project_ai/index.tsx:29 |
+
+<details>
+<summary>Full list (click to expand)</summary>
+
+**useProjectDetail:**
+- `project_ai/ai_tools/DraftSlidePreview.tsx:42`
+- `project_ai/ai_tools/DraftVisualizationPreview.tsx:47`
+- `project_ai/chat_pane.tsx:33`
+- `project_ai/index.tsx:28`
+- `project/index.tsx:104`
+- `project/project_cache.tsx:8`
+- `project/project_data.tsx:30`
+- `project/project_decks.tsx:61`
+- `project/project_metrics.tsx:40`
+- `project/project_modules.tsx:48`
+- `project/project_reports.tsx:49`
+- `project/project_settings.tsx:79`
+- `project/project_visualizations.tsx:28`
+
+**useProjectDirtyStates:**
+- `PresentationObjectMiniDisplay.tsx:18,72`
+- `ReportItemMiniDisplay.tsx:24`
+- `project/index.tsx:119`
+- `project/project_modules.tsx:227`
+- `report/index.tsx:83`
+- `report/report_item.tsx:59,152`
+- `report/select_presentation_object.tsx:32,151`
+- `slide_deck/index.tsx:37`
+- `slide_deck/slide_card.tsx:26`
+- `slide_deck/slide_deck_thumbnail.tsx:18`
+
+</details>
 
 ### 0.3 Resolve open questions
 Done — see "Resolved decisions" above. No remaining open questions.
@@ -115,7 +195,7 @@ Done — see "Resolved decisions" above. No remaining open questions.
 
 ---
 
-## Phase 1 — Shared types (additive)
+## Phase 1 — Shared types (additive) ✅ COMPLETE
 
 **Goal:** types exist; nothing imports them.
 
@@ -127,9 +207,13 @@ Done — see "Resolved decisions" above. No remaining open questions.
 
 **Verification:** `deno task typecheck` passes. No runtime change.
 
+**Completed:**
+- `lib/types/project_sse.ts` created with `ProjectState` and `ProjectSseMessage` types
+- Exported from `lib/types/mod.ts`
+
 ---
 
-## Phase 2 — Server state builder (additive, not wired)
+## Phase 2 — Server state builder (additive, not wired) ✅ COMPLETE
 
 **Goal:** a single pure function that returns a complete `ProjectState` for a projectId.
 
@@ -139,9 +223,14 @@ Done — see "Resolved decisions" above. No remaining open questions.
 
 **Verification:** typecheck. Optional: call it once from a throwaway script or test route to confirm the shape.
 
+**Completed:**
+- `server/task_management/build_project_state.ts` created
+- Signature: `buildProjectState(mainDb, ppk, projectUser)` — takes `mainDb` as separate param since `ProjectPk` doesn't include it
+- Calls existing `getProjectDetail()` and `getProjectDirtyStates()` in parallel, merges results
+
 ---
 
-## Phase 3 — Server notify functions (additive, not called)
+## Phase 3 — Server notify functions (additive, not called) ✅ COMPLETE
 
 **Goal:** granular notifier functions exist; no call site invokes them.
 
@@ -151,22 +240,36 @@ Done — see "Resolved decisions" above. No remaining open questions.
 
 **Verification:** typecheck.
 
+**Completed:**
+- Created as `server/task_management/notify_project_v2.ts` (slightly different filename)
+- Exports `notifyProjectV2` core function + 12 per-event wrappers
+- Uses `BroadcastChannel("project_updates_v2")` — no subscribers yet
+
 ---
 
-## Phase 4 — Server SSE endpoint V2 (additive)
+## Phase 4 — Server SSE endpoint V2 (additive) ✅ COMPLETE
 
 **Goal:** a new SSE route serves `ProjectSseMessage` from `build_project_state.ts`. Old route untouched.
 
 - Add `server/routes/project/project-sse-v2.ts` (route path e.g. `/project/:id/sse-v2`).
-- Registered in `route-tracker.ts`.
+- ~~Registered in `route-tracker.ts`.~~ (SSE routes are not tracked — existing v1 SSE route isn't either)
 - Implements subscribe-before-build ordering: subscribe to v2 broadcast channel (queue), `buildProjectState()`, send `starting`, drain queue, forward.
 - Error handling: on build failure send `{ type: "error" }` and close.
 
 **Verification:** typecheck. Manual curl smoke test: connect to v2 endpoint for a real project, confirm `starting` arrives with a well-formed payload. No client change.
 
+**Completed:**
+- `server/routes/project/project-sse-v2.ts` created
+- Route path: `/project_sse_v2/:project_id`
+- Registered in `main.ts` (not route-tracker — SSE endpoints aren't tracked there)
+- Subscribe-before-build ordering implemented with message queue
+- Gets project user via Clerk auth for `thisUserPermissions`
+- Message ordering guaranteed: event handler queues, single loop drains with await, resolver pattern (no polling) wakes loop when messages arrive
+- No client connects yet — old endpoint still in use
+
 ---
 
-## Phase 5 — Dual-notify (server fires both old and new)
+## Phase 5 — Dual-notify (server fires both old and new) ✅ COMPLETE
 
 **Goal:** every mutation that currently notifies also notifies v2. Old UI continues to drive off the old channel; v2 channel has no subscribers yet.
 
@@ -174,6 +277,28 @@ Done — see "Resolved decisions" above. No remaining open questions.
 - Each call site must already have the data it needs (verified in 0.1). If a site requires a DB reload to build the payload, do that reload locally at the call site — do NOT refactor the mutation.
 
 **Verification:** typecheck. Run app. Exercise normal flows (edit viz, run module, add user). Everything behaves identically — new channel is firing into the void. Optional: temporarily log v2 messages to confirm they emit.
+
+**Completed:**
+
+Files updated with dual-notify pattern (v1 `notifyProjectUpdated` + v2 granular notifier):
+
+| File | Routes | V2 notifier |
+|------|--------|-------------|
+| `visualization_folders.ts` | 6 routes (create, update, delete, reorder, updatePresentationObjectFolder, reorderPresentationObjects) | `notifyProjectVisualizationFoldersUpdated`, `notifyProjectVisualizationsUpdated` |
+| `slide_deck_folders.ts` | 3 routes (create, update, delete) | `notifyProjectSlideDeckFoldersUpdated` |
+| `slide_decks.ts` | 5 routes (create, updateLabel, move, duplicate, delete) | `notifyProjectSlideDecksUpdated` |
+| `presentation_objects.ts` | 6 routes (create, duplicate, updateLabel, updateConfig, batchUpdatePeriodFilter, delete) | `notifyProjectVisualizationsUpdated` |
+| `modules.ts` | 3 routes (install, uninstall, updateDefinition) | `notifyProjectModulesUpdated` |
+| `project.ts` | 2 routes (addDataset, removeDataset) | `notifyProjectDatasetsUpdated` |
+| `set_module_clean.ts` | 1 site (task completion callback) | `notifyProjectModulesUpdated` |
+
+Helper function added:
+- `getAllDatasetsForProject` in `server/db/project/projects.ts` — returns `DatasetInProject[]` for dataset mutations
+
+Notes:
+- `set_module_clean.ts` is in `server/task_management/`, not `server/routes/project/` — it's a BroadcastChannel listener for task completion, not a route
+- Phase 0 audit listed `project.ts:251 updateProjectConfig → project_config_updated`, but those routes (`updateProject`, `setProjectLockStatus`) call `notifyInstanceProjectsLastUpdated` (instance-level), not `notifyProjectUpdated` — audit was wrong, no v2 notifier needed there
+- `getMetricsWithStatus` used instead of `getAllMetrics` for modules notifier (correct type)
 
 ---
 
@@ -268,10 +393,11 @@ Each sub-phase: migrate the listed component(s) off the shim'd hooks onto direct
 
 ### 10.1 Migrate `refetchProjectDetail` call sites
 
-Before deleting the old Provider, each of the three call sites needs a replacement under the new store:
+Before deleting the old Provider, each of the four call sites needs a replacement under the new store:
 
 - **`project_decks.tsx:86` (load-bearing `await`)** — introduce a small `awaitNextProjectStoreUpdate(predicate)` primitive in `t1_sse.tsx`. It returns a Promise that resolves the next time an SSE message matching the predicate is applied to the store (e.g. next `slide_decks_updated`). Replace the `await refetchProjectDetail()` with `await awaitNextProjectStoreUpdate(m => m.type === "slide_decks_updated")` — or whichever event the deck editor mutation triggers. The await still gates UI update on fresh server state; mechanism differs.
-- **`project_settings.tsx:150` (cosmetic `silentFetch` callback)** — delete the callback; the child form will observe store updates reactively via SSE.
+- **`project_settings.tsx:150` (cosmetic `silentFetch` callback)** — delete the callback; the child form (SelectProjectUserRole) will observe store updates reactively via SSE.
+- **`project_settings.tsx:162` (cosmetic `silentFetch` callback)** — delete the callback; the child form (BulkEditProjectPermissionsForm) will observe store updates reactively via SSE.
 - **`provider.tsx:281` (inside the old Provider)** — disappears with the Provider itself.
 
 Typecheck. Manually test deck editor round-trip and settings role change.
@@ -283,7 +409,7 @@ Rewrite the rLogs consumer in `client/src/components/project/project_modules.tsx
 - Delete the `useRLogs` import.
 - Add a component-local `createStore<Record<string, { latest: string }>>({})` at the top of `InstalledModulePresentation` (or wherever the subscription should live — pick the narrowest scope that still covers the JSX read site).
 - In `onMount`, subscribe via `addRScriptListener((moduleId, text) => setRLogs(moduleId, "latest", text))`. Unsubscribe in `onCleanup`.
-- Existing JSX at `project_modules.tsx:476` is unchanged (still reads `rLogs[id]?.latest ?? "..."`).
+- Existing JSX at `project_modules.tsx:485` is unchanged (still reads `rLogs[id]?.latest ?? "..."`).
 - No seed. `createInitialRLogs()` is no longer used.
 
 Because Phase 9 already flipped the flag, the new v2 SSE connection is the only one live by the time this runs. No flag gating needed.

@@ -164,15 +164,32 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                   </tr>
                   <Show when={anyInstalled}>
                     <tr class="border-base-300 border-b">
-                      <td class={rowHeaderClass(registryMod.id, (m) => m.installedGitRef)}>
-                        {t3({ en: "Installed SHA", fr: "SHA installé" })}
+                      <td class={rowHeaderClass(registryMod.id, (m) => m.computeDefGitRef)}>
+                        {t3({ en: "Compute SHA", fr: "SHA calcul" })}
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
                           const mod = getModule(i(), registryMod.id);
                           return (
-                            <td class={rowCellClass(registryMod.id, (m) => m.installedGitRef, "ui-pad-sm font-mono text-xs")}>
-                              {mod?.installedGitRef?.slice(0, 7) ?? (
+                            <td class={rowCellClass(registryMod.id, (m) => m.computeDefGitRef, "ui-pad-sm font-mono text-xs")}>
+                              {mod?.computeDefGitRef?.slice(0, 7) ?? (
+                                <span class="text-neutral">—</span>
+                              )}
+                            </td>
+                          );
+                        }}
+                      </For>
+                    </tr>
+                    <tr class="border-base-300 border-b">
+                      <td class={rowHeaderClass(registryMod.id, (m) => m.presentationDefGitRef)}>
+                        {t3({ en: "Presentation SHA", fr: "SHA présentation" })}
+                      </td>
+                      <For each={projects()}>
+                        {(_, i) => {
+                          const mod = getModule(i(), registryMod.id);
+                          return (
+                            <td class={rowCellClass(registryMod.id, (m) => m.presentationDefGitRef, "ui-pad-sm font-mono text-xs")}>
+                              {mod?.presentationDefGitRef?.slice(0, 7) ?? (
                                 <span class="text-neutral">—</span>
                               )}
                             </td>
@@ -182,14 +199,14 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                     </tr>
                     <tr class="border-base-300 border-b">
                       <td class="text-neutral ui-pad-sm sticky left-0 bg-base-100 pl-6 text-xs">
-                        {t3({ en: "Installed at", fr: "Installé le" })}
+                        {t3({ en: "Presentation updated", fr: "Présentation mise à jour" })}
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
                           const mod = getModule(i(), registryMod.id);
                           return (
                             <td class="ui-pad-sm text-xs">
-                              {mod ? new Date(mod.installedAt).toLocaleDateString() : (
+                              {mod?.presentationDefUpdatedAt ? new Date(mod.presentationDefUpdatedAt).toLocaleDateString() : (
                                 <span class="text-neutral">—</span>
                               )}
                             </td>

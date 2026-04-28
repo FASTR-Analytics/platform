@@ -1,4 +1,17 @@
-import type { FigureInputs, LayoutNode } from "@timroberton/panther";
+import type {
+  FigureInputs,
+  LayoutNode,
+  LayoutPresetId,
+  LogosSizingOptions as LogosSizingOptionsImport,
+  PatternType,
+  TreatmentPresetId,
+} from "@timroberton/panther";
+
+type ImageOverlayType = "dots" | "rivers" | "waves" | "world";
+type PatternOverlayType = `pattern-${PatternType}`;
+export type BackgroundDetailType = "none" | ImageOverlayType | PatternOverlayType;
+
+export type LogosSizingOptions = LogosSizingOptionsImport;
 import { Color } from "@timroberton/panther";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
 import { _GFF_GREEN } from "../key_colors.ts";
@@ -8,24 +21,33 @@ import { t3 } from "../translate/t-func.ts";
 export { slideDeckConfigSchema } from "./_slide_deck_config.ts";
 export { slideConfigSchema } from "./_slide_config.ts";
 
-export type DeckFooterConfig = {
-  text: string;
-  logos: string[];
+export type LogoSectionConfig = {
+  selected: string[];
+  sizing?: LogosSizingOptions;
+  showByDefault: boolean;
+};
+
+export type LogosConfig = {
+  availableCustom: string[];
+  cover: LogoSectionConfig;
+  header: LogoSectionConfig;
+  footer: LogoSectionConfig;
 };
 
 export type SlideDeckConfig = {
   label: string;
   selectedReplicantValue: undefined | string;
-  logos: string[] | undefined;
-  logoSize: number;
+  logos: LogosConfig;
   figureScale: number;
-  deckFooter: DeckFooterConfig | undefined;
+  globalFooterText: string | undefined;
   showPageNumbers: boolean;
   headerSize: number;
   useWatermark: boolean;
   watermarkText: string;
   primaryColor: string;
-  overlay: "dots" | "rivers" | "waves" | "world" | "none" | undefined;
+  overlay: BackgroundDetailType | undefined;
+  layout: LayoutPresetId;
+  treatment: TreatmentPresetId;
 };
 
 export function getTextColorForBackground(bgColor: string): string {
@@ -44,16 +66,22 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
   return {
     label,
     selectedReplicantValue: undefined,
-    logos: [],
-    logoSize: 300,
+    logos: {
+      availableCustom: [],
+      cover: { selected: [], showByDefault: true },
+      header: { selected: [], showByDefault: true },
+      footer: { selected: [], showByDefault: true },
+    },
     figureScale: 2,
-    deckFooter: undefined,
+    globalFooterText: undefined,
     showPageNumbers: true,
     headerSize: 1,
     useWatermark: false,
     watermarkText: "",
     primaryColor: _GFF_GREEN,
     overlay: "none",
+    layout: "default",
+    treatment: "default",
   };
 }
 
@@ -126,6 +154,17 @@ export type ImageBlockStyle = {
   imgAlign?: "center" | "top" | "bottom" | "left" | "right";
 };
 
+export type ContentSlideSplitFill =
+  | { type: "plain" }
+  | { type: "pattern"; patternType: PatternType }
+  | { type: "image"; imgFile: string };
+
+export type ContentSlideSplit = {
+  placement: "left" | "right";
+  sizeAsPct: number;
+  fill: ContentSlideSplitFill;
+};
+
 // Image block
 export type ImageBlock = {
   type: "image";
@@ -135,6 +174,8 @@ export type ImageBlock = {
 
 export type ContentBlock = TextBlock | FigureBlock | ImageBlock;
 
+export type LogoVisibility = "show" | "hide" | "inherit";
+
 // Cover slide
 export type CoverSlide = {
   type: "cover";
@@ -142,11 +183,19 @@ export type CoverSlide = {
   subtitle?: string;
   presenter?: string;
   date?: string;
-  logos?: string[];
+  showLogos?: LogoVisibility;
   titleTextRelFontSize?: number;
+  titleBold?: boolean;
+  titleItalic?: boolean;
   subTitleTextRelFontSize?: number;
+  subTitleBold?: boolean;
+  subTitleItalic?: boolean;
   presenterTextRelFontSize?: number;
+  presenterBold?: boolean;
+  presenterItalic?: boolean;
   dateTextRelFontSize?: number;
+  dateBold?: boolean;
+  dateItalic?: boolean;
 };
 
 // Section slide
@@ -155,7 +204,11 @@ export type SectionSlide = {
   sectionTitle: string;
   sectionSubtitle?: string;
   sectionTextRelFontSize?: number;
+  sectionTitleBold?: boolean;
+  sectionTitleItalic?: boolean;
   smallerSectionTextRelFontSize?: number;
+  sectionSubTitleBold?: boolean;
+  sectionSubTitleItalic?: boolean;
 };
 
 // Content slide - uses explicit layout for user editing
@@ -164,10 +217,11 @@ export type ContentSlide = {
   header?: string;
   subHeader?: string;
   date?: string;
-  headerLogos?: string[];
   footer?: string;
-  footerLogos?: string[];
+  showHeaderLogos?: LogoVisibility;
+  showFooterLogos?: LogoVisibility;
   layout: LayoutNode<ContentBlock>;
+  split?: ContentSlideSplit;
 };
 
 // Union type

@@ -94,6 +94,7 @@ export function ProjectVisualizations(p: Props) {
         projectId: projectDetail.id,
         isGlobalAdmin: p.isGlobalAdmin,
         metrics: projectDetail.metrics,
+        modules: projectDetail.projectModules,
       },
     });
     if (res === undefined) {

@@ -2,7 +2,6 @@ import {
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
   getFetchConfigFromPresentationObjectConfig,
-  
   type MetricWithStatus,
   type PresentationObjectConfig,
   type ResultsValueForVisualization,
@@ -17,6 +16,7 @@ import {
 import { t3 } from "lib";
 import { LabelHolder } from "panther";
 import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
+import { unwrap } from "solid-js/store";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
@@ -64,10 +64,8 @@ export function PresetPreview(p: Props) {
 
   return (
     <div
-      class={`bg-base-100 rounded border cursor-pointer transition-colors row-span-2 grid grid-rows-subgrid ${
-        p.selected
-          ? "border-primary"
-          : "border-base-300 hover:border-primary"
+      class={`bg-base-100 row-span-2 grid cursor-pointer grid-rows-subgrid rounded border transition-colors ${
+        p.selected ? "border-primary" : "border-base-300 hover:border-primary"
       }`}
       onClick={p.onClick}
     >
@@ -75,12 +73,12 @@ export function PresetPreview(p: Props) {
         <div class="aspect-video overflow-hidden">
           <Switch>
             <Match when={state().status === "loading"}>
-              <div class="h-full flex items-center justify-center">
+              <div class="flex h-full items-center justify-center">
                 <Loading noPad />
               </div>
             </Match>
             <Match when={state().status === "error"}>
-              <div class="h-full flex items-center justify-center text-danger text-xs text-center">
+              <div class="text-danger flex h-full items-center justify-center text-center text-xs">
                 {(state() as { err: string }).err}
               </div>
             </Match>
@@ -104,64 +102,72 @@ export function PresetPreview(p: Props) {
         </div>
       </div>
       <div class="px-2 pb-2">
-        <div class="text-xs font-700">{p.label}</div>
+        <div class="font-700 text-xs">{p.label}</div>
         <Show when={p.description}>
-          <div class="text-xs text-neutral">{p.description}</div>
+          <div class="text-neutral text-xs">{p.description}</div>
         </Show>
       </div>
     </div>
   );
 }
 
-const CUSTOM_OPTION = "__custom__";
+export const CUSTOM_OPTION = "__custom__";
 
 type PresetSelectorProps = {
   projectId: string;
   metric: MetricWithStatus;
-  presets: { id: string; label: { en: string; fr: string }; description: { en: string; fr: string }; config: VizPreset["config"] }[];
+  presets: {
+    id: string;
+    label: { en: string; fr: string };
+    description: { en: string; fr: string };
+    config: VizPreset["config"];
+  }[];
   selectedId: string | undefined;
   onSelect: (id: string) => void;
+  label?: string;
 };
 
 export function PresetSelector(p: PresetSelectorProps) {
   return (
-    <LabelHolder label={t3({ en: "Visualization type", fr: "Type de visualisation" })}>
-      <div class="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] ui-gap">
-        <For each={p.presets}>
-          {(preset) => (
-            <PresetPreview
-              projectId={p.projectId}
-              metric={p.metric}
-              preset={preset}
-              label={t3(preset.label)}
-              description={t3(preset.description)}
-              selected={p.selectedId === preset.id}
-              onClick={() => p.onSelect(preset.id)}
-            />
-          )}
-        </For>
-        <div
-          class={`bg-base-100 rounded border cursor-pointer transition-colors row-span-2 grid grid-rows-subgrid ${
-            p.selectedId === CUSTOM_OPTION
-              ? "border-primary"
-              : "border-base-300 hover:border-primary"
-          }`}
-          onClick={() => p.onSelect(CUSTOM_OPTION)}
-        >
-          <div class="p-2">
-            <div class="aspect-video flex items-center justify-center bg-base-200 rounded">
-              <span class="text-neutral text-sm">{t3({ en: "Custom", fr: "Personnalisé" })}</span>
-            </div>
+    <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))]">
+      <For each={p.presets}>
+        {(preset) => (
+          <PresetPreview
+            projectId={p.projectId}
+            metric={p.metric}
+            preset={preset}
+            label={t3(preset.label)}
+            description={t3(preset.description)}
+            selected={p.selectedId === preset.id}
+            onClick={() => p.onSelect(preset.id)}
+          />
+        )}
+      </For>
+      <div
+        class={`bg-base-100 row-span-2 grid cursor-pointer grid-rows-subgrid rounded border transition-colors ${
+          p.selectedId === CUSTOM_OPTION
+            ? "border-primary"
+            : "border-base-300 hover:border-primary"
+        }`}
+        onClick={() => p.onSelect(CUSTOM_OPTION)}
+      >
+        <div class="p-2">
+          <div class="bg-base-200 flex aspect-video items-center justify-center rounded">
+            <span class="text-neutral text-sm">
+              {t3({ en: "Custom", fr: "Personnalisé" })}
+            </span>
           </div>
-          <div class="px-2 pb-2">
-            <div class="text-xs font-700">{t3({ en: "Custom", fr: "Personnalisé" })}</div>
-            <div class="text-xs text-neutral">
-              {t3({ en: "Configure manually", fr: "Configurer manuellement" })}
-            </div>
+        </div>
+        <div class="px-2 pb-2">
+          <div class="font-700 text-xs">
+            {t3({ en: "Custom", fr: "Personnalisé" })}
+          </div>
+          <div class="text-neutral text-xs">
+            {t3({ en: "Configure manually", fr: "Configurer manuellement" })}
           </div>
         </div>
       </div>
-    </LabelHolder>
+    </div>
   );
 }
 
@@ -170,9 +176,14 @@ async function fetchPreview(
   metric: MetricWithStatus,
   preset: { config: VizPreset["config"] },
 ): Promise<StateHolder<FigureInputs>> {
+  const presetConfig = structuredClone(unwrap(preset.config));
   const config: PresentationObjectConfig = {
-    d: { ...preset.config.d },
-    s: { ...DEFAULT_S_CONFIG, ...preset.config.s, scale: (preset.config.s?.scale ?? DEFAULT_S_CONFIG.scale) * 2 },
+    d: { ...presetConfig.d },
+    s: {
+      ...DEFAULT_S_CONFIG,
+      ...presetConfig.s,
+      scale: (presetConfig.s?.scale ?? DEFAULT_S_CONFIG.scale) * 2,
+    },
     t: { ...DEFAULT_T_CONFIG },
   };
 

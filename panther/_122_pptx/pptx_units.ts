@@ -37,14 +37,16 @@ export function imageToDataUrl(
   createCanvasRenderContext: CreateCanvasRenderContext,
   crop?: { sx: number; sy: number; sw: number; sh: number },
 ): string {
-  const width = crop?.sw ?? img.naturalWidth;
-  const height = crop?.sh ?? img.naturalHeight;
+  const imgWidth = img.naturalWidth ?? img.width;
+  const imgHeight = img.naturalHeight ?? img.height;
+  const width = crop?.sw ?? imgWidth;
+  const height = crop?.sh ?? imgHeight;
   const { canvas, rc } = createCanvasRenderContext(width, height);
 
   if (crop) {
     rc.rImage(img, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height);
   } else {
-    rc.rImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+    rc.rImage(img, 0, 0, imgWidth, imgHeight);
   }
 
   return canvas.toDataURL("png");

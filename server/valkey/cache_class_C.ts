@@ -53,8 +53,7 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
       if (versionParams === "any_version") {
         return await existingUnresolved.dataPromise;
       }
-      const versionHash =
-        this._hashFuncs.versionHashFromParams(versionParams);
+      const versionHash = this._hashFuncs.versionHashFromParams(versionParams);
       if (existingUnresolved.versionHash === versionHash) {
         return await existingUnresolved.dataPromise;
       }
@@ -74,8 +73,7 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
       if (versionParams === "any_version") {
         return parsed.data;
       }
-      const versionHash =
-        this._hashFuncs.versionHashFromParams(versionParams);
+      const versionHash = this._hashFuncs.versionHashFromParams(versionParams);
       if (parsed.versionHash === versionHash) {
         return parsed.data;
       }
@@ -90,10 +88,12 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
     optimisticUniquenessParams: UniquenessParams,
     optimisticVersionParams: VersionParams,
   ) {
-    const optimisticUniquenessHash =
-      this._hashFuncs.uniquenessHashFromParams(optimisticUniquenessParams);
-    const optimisticVersionHash =
-      this._hashFuncs.versionHashFromParams(optimisticVersionParams);
+    const optimisticUniquenessHash = this._hashFuncs.uniquenessHashFromParams(
+      optimisticUniquenessParams,
+    );
+    const optimisticVersionHash = this._hashFuncs.versionHashFromParams(
+      optimisticVersionParams,
+    );
 
     this._unresolved.set(optimisticUniquenessHash, {
       versionHash: optimisticVersionHash,
@@ -147,7 +147,7 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
   async exists(uniquenessParams: UniquenessParams): Promise<boolean> {
     const uniquenessHash =
       this._hashFuncs.uniquenessHashFromParams(uniquenessParams);
-    if (this._unresolved.has(uniquenessHash)) return true;
+
     const client = getValkeyClient();
     if (!client) return false;
     try {

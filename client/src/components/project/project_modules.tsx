@@ -81,7 +81,7 @@ export function ProjectModules(p: Props) {
       const entry = commits.find((c) => c.moduleId === mod.id);
       if (
         entry &&
-        (!mod.installedGitRef || entry.latestCommit.sha !== mod.installedGitRef)
+        (!mod.presentationDefGitRef || entry.latestCommit.sha !== mod.presentationDefGitRef)
       ) {
         count++;
       }
@@ -229,7 +229,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
 
   const hasUpdateAvailable = createMemo(() => {
     const commits = moduleLatestCommits();
-    const installedGitRef = p.thisInstalledModule.installedGitRef;
+    const installedGitRef = p.thisInstalledModule.presentationDefGitRef;
     const moduleId = p.thisInstalledModule.id;
     if (!commits) return false;
     const entry = commits.find((c) => c.moduleId === moduleId);
@@ -419,23 +419,35 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
               when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready"}
             >
               {(() => {
-                const installedDate = new Date(
-                  p.thisInstalledModule.installedAt,
-                );
+                const computeUpdatedAt = p.thisInstalledModule.computeDefUpdatedAt;
+                const definitionUpdatedAt = p.thisInstalledModule.presentationDefUpdatedAt;
                 const lastRunDate = new Date(
                   pds.moduleLastRun[p.thisInstalledModule.id],
                 );
-                const resultsStale = installedDate > lastRunDate;
+                const resultsStale = computeUpdatedAt
+                  ? new Date(computeUpdatedAt) > lastRunDate
+                  : false;
                 return (
                   <div class="text-neutral flex flex-col gap-1 text-xs">
                     <div class="flex items-center gap-2">
                       <span>
-                        {t3({ en: "Installed", fr: "Installé" })}:{" "}
-                        {installedDate.toLocaleString()}
+                        {t3({ en: "Compute definitions", fr: "Définitions de calcul" })}:{" "}
+                        {computeUpdatedAt ? new Date(computeUpdatedAt).toLocaleString() : "—"}
                       </span>
-                      <Show when={p.thisInstalledModule.installedGitRef}>
+                      <Show when={p.thisInstalledModule.computeDefGitRef}>
                         <span class="font-mono">
-                          ({p.thisInstalledModule.installedGitRef!.slice(0, 7)})
+                          ({p.thisInstalledModule.computeDefGitRef!.slice(0, 7)})
+                        </span>
+                      </Show>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span>
+                        {t3({ en: "Presentation definitions", fr: "Définitions de présentation" })}:{" "}
+                        {definitionUpdatedAt ? new Date(definitionUpdatedAt).toLocaleString() : "—"}
+                      </span>
+                      <Show when={p.thisInstalledModule.presentationDefGitRef}>
+                        <span class="font-mono">
+                          ({p.thisInstalledModule.presentationDefGitRef!.slice(0, 7)})
                         </span>
                       </Show>
                     </div>

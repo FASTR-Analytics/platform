@@ -15,6 +15,7 @@
 // 5. Clamp span to valid range 1-12
 // 6. Rename source.type "from_metric" → "from_data" and add snapshotAt
 // 7. Transform embedded PO configs in figure blocks (reuses po_config transforms)
+// 8. Remove per-slide logo fields (now deck-level)
 //
 // =============================================================================
 
@@ -109,6 +110,15 @@ export async function migrateSlideConfigs(tx: Sql, _projectId: string): Promise<
     // Block 3+: Transform embedded PO configs in content slides
     if (config.type === "content" && config.layout) {
       transformLayoutNode(config.layout as LayoutNode);
+    }
+
+    // Block 8: Remove per-slide logo fields (now deck-level)
+    if (config.type === "cover") {
+      delete config.logos;
+    }
+    if (config.type === "content") {
+      delete config.headerLogos;
+      delete config.footerLogos;
     }
 
     const validated = slideConfigSchema.parse(config);

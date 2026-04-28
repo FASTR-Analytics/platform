@@ -28,7 +28,7 @@ export function Step4(p: Props) {
           <div class="flex flex-col">
             <span class="text-base-content text-sm">{t3({ en: "Time Point", fr: "Point temporel" })}</span>
             <span class="font-mono text-base">
-              {p.step3Result.timePointValue}
+              {p.step3Result.timePoint}
             </span>
           </div>
         </div>

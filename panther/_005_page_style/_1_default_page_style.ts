@@ -3,23 +3,41 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { PageNumberBackground } from "./_2_custom_page_style_options.ts";
 import type {
   AlignH,
   AlignV,
   ColorKeyOrString,
   PaddingOptions,
 } from "./deps.ts";
+import type {
+  LogosPlacement,
+  LogosSizing,
+  PageBackgroundStyle,
+  PageNumberBackground,
+  SplitConfig,
+} from "./types.ts";
 
 const _DS = {
   scale: 1,
 
   cover: {
     padding: [200, 300] as PaddingOptions,
-    backgroundColor: { key: "base300" } as ColorKeyOrString,
-    logoHeight: 320,
-    logoGapX: 40,
-    logoBottomPadding: 30,
+    background: { key: "base300" } as PageBackgroundStyle,
+    split: {
+      placement: "none",
+      sizeAsPct: 0.3,
+      background: "none",
+    } as SplitConfig,
+    logosSizing: {
+      targetArea: 102400,
+      maxHeight: 10000,
+      maxWidth: 10000,
+      gapX: 40,
+    } as LogosSizing,
+    logosPlacement: {
+      position: "above-content",
+      gap: 30,
+    } as LogosPlacement,
     titleBottomPadding: 30,
     subTitleBottomPadding: 30,
     authorBottomPadding: 30,
@@ -28,43 +46,61 @@ const _DS = {
   },
   section: {
     padding: [200, 300] as PaddingOptions,
-    backgroundColor: { key: "base300" } as ColorKeyOrString,
+    background: { key: "base300" } as PageBackgroundStyle,
+    split: {
+      placement: "none",
+      sizeAsPct: 0.3,
+      background: "none",
+    } as SplitConfig,
     sectionTitleBottomPadding: 30,
     alignH: "center" as AlignH,
     alignV: "middle" as AlignV,
   },
-  header: {
-    padding: [40, 60] as PaddingOptions,
-    logoHeight: 300,
-    logoGapX: 40,
-    logoPlacement: "left" as "left" | "right",
-    backgroundColor: { key: "base200" } as ColorKeyOrString,
-    logoBottomPadding: 20,
-    headerBottomPadding: 20,
-    subHeaderBottomPadding: 20,
-    bottomBorderStrokeWidth: 0,
-    bottomBorderColor: { key: "primary" } as ColorKeyOrString,
-    alignH: "left" as AlignH,
-  },
-  footer: {
-    padding: 60 as PaddingOptions,
-    logoHeight: 200,
-    logoGapX: 40,
-    backgroundColor: { key: "base200" } as ColorKeyOrString,
-    alignH: "left" as AlignH,
-  },
-  content: {
-    padding: 60 as PaddingOptions,
-    backgroundColor: { key: "base100" } as ColorKeyOrString,
-    gapX: 40,
-    gapY: 40,
-  },
-  layoutContainers: {
-    padding: 0 as PaddingOptions,
-    backgroundColor: "none" as ColorKeyOrString,
-    borderColor: "none" as ColorKeyOrString,
-    borderWidth: 0,
-    rectRadius: 0,
+  freeform: {
+    split: {
+      placement: "none",
+      sizeAsPct: 0.3,
+      background: "none",
+    } as SplitConfig,
+    header: {
+      padding: [40, 60] as PaddingOptions,
+      logosSizing: {
+        targetArea: 90000,
+        maxHeight: 10000,
+        maxWidth: 10000,
+        gapX: 40,
+      } as LogosSizing,
+      background: { key: "base200" } as PageBackgroundStyle,
+      headerBottomPadding: 20,
+      subHeaderBottomPadding: 20,
+      bottomBorderStrokeWidth: 0,
+      bottomBorderColor: { key: "primary" } as ColorKeyOrString,
+      alignH: "left" as AlignH,
+    },
+    footer: {
+      padding: 60 as PaddingOptions,
+      logosSizing: {
+        targetArea: 40000,
+        maxHeight: 10000,
+        maxWidth: 10000,
+        gapX: 40,
+      } as LogosSizing,
+      background: { key: "base200" } as PageBackgroundStyle,
+      alignH: "left" as AlignH,
+    },
+    content: {
+      padding: 60 as PaddingOptions,
+      background: { key: "base100" } as PageBackgroundStyle,
+      gapX: 40,
+      gapY: 40,
+    },
+    layoutContainers: {
+      padding: 0 as PaddingOptions,
+      backgroundColor: "none" as ColorKeyOrString,
+      borderColor: "none" as ColorKeyOrString,
+      borderWidth: 0,
+      rectRadius: 0,
+    },
   },
   pageNumber: {
     placement: "bottom-right" as

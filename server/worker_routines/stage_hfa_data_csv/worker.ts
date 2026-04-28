@@ -71,7 +71,7 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
       rawDUA.step_2_result,
     );
 
-    const timePointValue = mappings.timePointId;
+    const timePoint = mappings.timePoint;
 
     // Parse XLSForm
     const xlsForm = parseXlsForm(step1Result.xlsForm.filePath);
@@ -88,7 +88,7 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
     // Get facility_id column index from mappings
     const facilityIdIndex = getCsvColumnIndex(
       encodedHeaderToIndexMap,
-      mappings as unknown as Record<string, string>,
+      { facility_id: mappings.facilityIdColumn },
       "facility_id",
     );
 
@@ -191,7 +191,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
     let missingFacilityIdCount = 0;
     let duplicateRowsCount = 0;
     const seenFacilities = new Set<string>();
-    const cleanTimePoint = cleanValStrForSql(timePointValue);
+    const cleanedTimePoint = cleanValStrForSql(timePoint);
 
     const flushBuffer = async () => {
       if (rowBuffer.length === 0) return;
@@ -247,13 +247,13 @@ CREATE UNLOGGED TABLE ${tempTableName} (
                 ? "1"
                 : "0";
               rowBuffer.push(
-                `('${facilityId}','${cleanTimePoint}','${expandedVarName}','${binaryValue}')`,
+                `('${facilityId}','${cleanedTimePoint}','${expandedVarName}','${binaryValue}')`,
               );
             }
           } else {
             // Regular variable
             rowBuffer.push(
-              `('${facilityId}','${cleanTimePoint}','${cleanValStrForSql(mapping.xlsFormVar.name)}','${value}')`,
+              `('${facilityId}','${cleanedTimePoint}','${cleanValStrForSql(mapping.xlsFormVar.name)}','${value}')`,
             );
           }
         }
@@ -337,13 +337,13 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
             `${mapping.xlsFormVar.label} - ${choice.label}`,
           );
           dictVarRows.push(
-            `('${cleanTimePoint}','${expandedVarName}','${compositeLabel}','select_multiple_binary')`,
+            `('${cleanedTimePoint}','${expandedVarName}','${compositeLabel}','select_multiple_binary')`,
           );
           dictValueRows.push(
-            `('${cleanTimePoint}','${expandedVarName}','1','Yes')`,
+            `('${cleanedTimePoint}','${expandedVarName}','1','Yes')`,
           );
           dictValueRows.push(
-            `('${cleanTimePoint}','${expandedVarName}','0','No')`,
+            `('${cleanedTimePoint}','${expandedVarName}','0','No')`,
           );
         }
       } else if (
@@ -351,16 +351,16 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
         mapping.choices
       ) {
         dictVarRows.push(
-          `('${cleanTimePoint}','${varName}','${varLabel}','${varType}')`,
+          `('${cleanedTimePoint}','${varName}','${varLabel}','${varType}')`,
         );
         for (const choice of mapping.choices) {
           dictValueRows.push(
-            `('${cleanTimePoint}','${varName}','${cleanValStrForSql(String(choice.name))}','${cleanValStrForSql(choice.label)}')`,
+            `('${cleanedTimePoint}','${varName}','${cleanValStrForSql(String(choice.name))}','${cleanValStrForSql(choice.label)}')`,
           );
         }
       } else {
         dictVarRows.push(
-          `('${cleanTimePoint}','${varName}','${varLabel}','${varType}')`,
+          `('${cleanedTimePoint}','${varName}','${varLabel}','${varType}')`,
         );
       }
     }
@@ -418,7 +418,7 @@ WHERE NOT EXISTS (
       nRowsDuplicated: duplicateRowsCount,
       nRowsTotal: validRowCount,
       byVariable: [],
-      timePointValue,
+      timePoint,
       nDictionaryVars: dictVarRows.length,
       nDictionaryValues: dictValueRows.length,
       nXlsFormVarsNotInCsv,
@@ -429,7 +429,7 @@ WHERE NOT EXISTS (
     await updateImportProgress(mainDb, 100, result);
 
     await mainDb`
-UPDATE dataset_hfa_upload_attempts
+UPDATE hfa_upload_attempts
 SET
   step = 4,
   step_3_result = ${JSON.stringify(result)},
@@ -443,7 +443,7 @@ SET
 
     try {
       await mainDb`
-UPDATE dataset_hfa_upload_attempts
+UPDATE hfa_upload_attempts
 SET
   status = ${JSON.stringify({
     status: "error",
@@ -473,7 +473,7 @@ async function updateImportProgress(
     : { status: "staging", progress };
 
   await mainDb`
-UPDATE dataset_hfa_upload_attempts
+UPDATE hfa_upload_attempts
 SET
   status = ${JSON.stringify(status)},
   status_type = ${result ? "staged" : "staging"}

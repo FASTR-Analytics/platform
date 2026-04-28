@@ -41,7 +41,7 @@ export async function addDatasetHfaToProject(
     throwIfErrNoData(res);
 
     if (onProgress) await onProgress(0.2, "Validating configuration...");
-    const hasData = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM dataset_hfa LIMIT 1`)[0].count > 0;
+    const hasData = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM hfa_data LIMIT 1`)[0].count > 0;
     if (!hasData) {
       throw new Error("No HFA data available to add to project");
     }
@@ -77,7 +77,7 @@ export async function addDatasetHfaToProject(
     // Build optional facility columns array
     const optionalColumns = getEnabledOptionalFacilityColumns(facilityConfig);
 
-    // Export dataset_hfa with facility details including optional columns
+    // Export hfa_data with facility details including optional columns
     const exportStatement = `
 SELECT
   h.facility_id,
@@ -89,7 +89,7 @@ SELECT
   h.time_point,
   h.var_name,
   h.value
-FROM dataset_hfa h
+FROM hfa_data h
 INNER JOIN facilities f ON h.facility_id = f.facility_id`;
 
     // Use COPY with optimized settings for better performance
@@ -122,11 +122,11 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
     // Staleness metadata — stored in datasets.info so the client can detect
     // when the project's export is behind the instance.
     const hfaTimePointRowsForHash = await mainDb<
-      { time_point: string; date_imported: string | null }[]
+      { label: string; sort_order: number; imported_at: string | null }[]
     >`
-      SELECT time_point, date_imported
-      FROM dataset_hfa_dictionary_time_points
-      ORDER BY time_point
+      SELECT label, sort_order, imported_at
+      FROM hfa_time_points
+      ORDER BY sort_order
     `;
     const hfaCacheHash = computeHfaCacheHash(hfaTimePointRowsForHash);
     const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
@@ -175,7 +175,7 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
           ROW_NUMBER() OVER (PARTITION BY var_name ORDER BY value) as rn
         FROM (
           SELECT DISTINCT var_name, value
-          FROM dataset_hfa
+          FROM hfa_data
           WHERE value IS NOT NULL AND value != ''
         ) AS dv
       )

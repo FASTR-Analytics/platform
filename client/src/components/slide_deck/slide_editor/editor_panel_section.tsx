@@ -1,6 +1,7 @@
 import { SectionSlide, t3 } from "lib";
-import { Slider, TextArea } from "panther";
+import { TextArea } from "panther";
 import { SetStoreFunction } from "solid-js/store";
+import { TextStylePopover } from "./TextStylePopover.tsx";
 
 type Props = {
   tempSlide: SectionSlide;
@@ -10,7 +11,7 @@ type Props = {
 export function SlideEditorPanelSection(p: Props) {
   return (
     <div class="ui-pad ui-spy">
-      <div class="ui-spy-sm">
+      <div class="">
         <TextArea
           label={t3({ en: "Section Title", fr: "Titre de section" })}
           value={p.tempSlide.sectionTitle}
@@ -18,33 +19,53 @@ export function SlideEditorPanelSection(p: Props) {
           fullWidth
           height="80px"
         />
-        <Slider
-          label={t3({ en: "Section title font size", fr: "Taille de police du titre de section" })}
-          min={4}
-          max={16}
-          step={1}
-          value={p.tempSlide.sectionTextRelFontSize ?? 8}
-          onChange={(v) => p.setTempSlide("sectionTextRelFontSize", v)}
-          fullWidth
-          showValueInLabel
-        />
+        <div class="flex w-full justify-end">
+          <TextStylePopover
+            size={p.tempSlide.sectionTextRelFontSize ?? 8}
+            onSizeChange={(v) => p.setTempSlide("sectionTextRelFontSize", v)}
+            bold={p.tempSlide.sectionTitleBold ?? true}
+            onBoldChange={(v) => p.setTempSlide("sectionTitleBold", v)}
+            italic={p.tempSlide.sectionTitleItalic ?? false}
+            onItalicChange={(v) => p.setTempSlide("sectionTitleItalic", v)}
+            sizeMin={4}
+            sizeMax={16}
+            defaults={{ size: 8, bold: true, italic: false }}
+            onReset={() => {
+              p.setTempSlide("sectionTextRelFontSize", undefined);
+              p.setTempSlide("sectionTitleBold", undefined);
+              p.setTempSlide("sectionTitleItalic", undefined);
+            }}
+          />
+        </div>
+      </div>
+      <div class="">
         <TextArea
           label={t3({ en: "Section Subtitle", fr: "Sous-titre de section" })}
           value={p.tempSlide.sectionSubtitle ?? ""}
-          onChange={(v: string) => p.setTempSlide("sectionSubtitle", v || undefined)}
+          onChange={(v: string) =>
+            p.setTempSlide("sectionSubtitle", v || undefined)
+          }
           fullWidth
           height="60px"
         />
-        <Slider
-          label={t3({ en: "Section subtitle font size", fr: "Taille de police du sous-titre de section" })}
-          min={2}
-          max={10}
-          step={1}
-          value={p.tempSlide.smallerSectionTextRelFontSize ?? 5}
-          onChange={(v) => p.setTempSlide("smallerSectionTextRelFontSize", v)}
-          fullWidth
-          showValueInLabel
-        />
+        <div class="flex w-full justify-end">
+          <TextStylePopover
+            size={p.tempSlide.smallerSectionTextRelFontSize ?? 5}
+            onSizeChange={(v) => p.setTempSlide("smallerSectionTextRelFontSize", v)}
+            bold={p.tempSlide.sectionSubTitleBold ?? false}
+            onBoldChange={(v) => p.setTempSlide("sectionSubTitleBold", v)}
+            italic={p.tempSlide.sectionSubTitleItalic ?? false}
+            onItalicChange={(v) => p.setTempSlide("sectionSubTitleItalic", v)}
+            sizeMin={2}
+            sizeMax={10}
+            defaults={{ size: 5, bold: false, italic: false }}
+            onReset={() => {
+              p.setTempSlide("smallerSectionTextRelFontSize", undefined);
+              p.setTempSlide("sectionSubTitleBold", undefined);
+              p.setTempSlide("sectionSubTitleItalic", undefined);
+            }}
+          />
+        </div>
       </div>
     </div>
   );

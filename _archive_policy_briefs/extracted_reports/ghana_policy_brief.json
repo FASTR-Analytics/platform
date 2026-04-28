@@ -1,0 +1,92 @@
+{
+    "success": true,
+    "data": {
+        "report": {
+            "id": "52d506a7-bf53-46d4-b536-f3ab3fc71dbf",
+            "projectId": "970c85c5-618c-49c7-aab3-770e5163c2a4",
+            "reportType": "policy_brief",
+            "config": {
+                "label": "POLICY BRIEF",
+                "logos": [],
+                "logoSize": 300,
+                "figureScale": 2,
+                "footer": "",
+                "showPageNumbers": true,
+                "headerSize": 1,
+                "useWatermark": false,
+                "watermarkText": "",
+                "colorTheme": "white",
+                "overlay": "none"
+            },
+            "itemIdsInOrder": [
+                "d80383fb-18b9-46c2-9a54-7fa3cec8ce64"
+            ],
+            "lastUpdated": "2025-10-17T14:01:25.802Z"
+        },
+        "reportItems": [
+            {
+                "id": "d80383fb-18b9-46c2-9a54-7fa3cec8ce64",
+                "projectId": "970c85c5-618c-49c7-aab3-770e5163c2a4",
+                "reportId": "52d506a7-bf53-46d4-b536-f3ab3fc71dbf",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "d51a51d7-8414-43f3-bab0-52140a05c549",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "0fae1be5-6038-4e0d-b8c8-694786506063",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "9e4ec208-6475-4ff5-8e18-2cc62dda80ad",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": ""
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "lastUpdated": "2025-10-17T14:01:25.802Z"
+            }
+        ]
+    }
+}

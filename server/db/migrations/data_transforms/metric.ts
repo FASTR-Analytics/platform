@@ -19,8 +19,9 @@
 //
 // ai_description:
 // 1. Fill caveats if missing
-// 2. Fill importantNotes if missing
-// 3. Fill relatedMetrics if missing
+// 2. Fill importantNotes if missing (DEPRECATED - see block 21)
+// 3. Fill relatedMetrics if missing (DEPRECATED - see block 21)
+// 21. Delete deprecated fields: useCases, relatedMetrics, importantNotes
 //
 // viz_presets (top level):
 // 4. Delete defaultPeriodFilterForDefaultVisualizations
@@ -46,6 +47,9 @@
 //
 // viz_presets.config.t:
 // 20. Fill caption/subCaption/footnote fields if missing
+//
+// viz_presets (cleanup):
+// 22. Delete needsReplicant (now derived from disaggregateBy at runtime)
 //
 // =============================================================================
 
@@ -249,6 +253,9 @@ function transformVizPreset(vp: Record<string, unknown>): void {
   // Block 8: Fill allowedFilters if missing
   if (!("allowedFilters" in vp)) vp.allowedFilters = [];
 
+  // Block 22: Delete needsReplicant (now derived from disaggregateBy at runtime)
+  delete vp.needsReplicant;
+
   if (vp.config && typeof vp.config === "object" && !Array.isArray(vp.config)) {
     const cfg = vp.config as Record<string, unknown>;
     let isMap = false;
@@ -281,12 +288,12 @@ function transformVizPreset(vp: Record<string, unknown>): void {
 }
 
 function transformMetricAIDescription(ai: Record<string, unknown>): void {
-  // Block 1: Fill caveats if missing
+  // Fill caveats if missing
   if (!("caveats" in ai)) ai.caveats = null;
-  // Block 2: Fill importantNotes if missing
-  if (!("importantNotes" in ai)) ai.importantNotes = null;
-  // Block 3: Fill relatedMetrics if missing
-  if (!("relatedMetrics" in ai)) ai.relatedMetrics = [];
+  // Remove deprecated fields
+  delete ai.importantNotes;
+  delete ai.relatedMetrics;
+  delete ai.useCases;
 }
 
 const vizPresetsArraySchema = z.array(vizPresetInstalled);

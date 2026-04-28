@@ -92,6 +92,7 @@ export default function Instance(p: Props) {
           <Project
             projectId={getFirstString(searchParams.p)!}
             isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
+            currentUserEmail={instanceState.currentUserEmail}
           />
         </Match>
         <Match when={true}>

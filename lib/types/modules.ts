@@ -66,12 +66,12 @@ export type InstalledModuleSummary = {
   label: string;
   dirty: DirtyOrRunStatus;
   hasParameters: boolean;
-  installedAt: string;
-  scriptUpdatedAt?: string;
-  definitionUpdatedAt?: string;
+  computeDefUpdatedAt?: string;
+  computeDefGitRef?: string;
+  presentationDefUpdatedAt?: string;
+  presentationDefGitRef?: string;
   configUpdatedAt?: string;
   lastRunAt: string;
-  installedGitRef?: string;
   lastRunGitRef?: string;
   moduleDefinitionResultsObjectIds: string[];
 };
@@ -90,7 +90,6 @@ export type InstalledModuleWithConfigSelections = {
 
 export type ModuleDetailForRunningScript = {
   id: ModuleId;
-  installedAt: string;
   configSelections: ModuleConfigSelections;
   moduleDefinition: ModuleDefinitionInstalled;
 };
@@ -148,10 +147,24 @@ export type ModuleLatestCommit = {
   };
 };
 
+export type DefinitionChanges = {
+  script: boolean;
+  configRequirements: boolean;
+  resultsObjects: boolean;
+  metrics: boolean;
+  vizPresets: boolean;
+  label: boolean;
+  dataSources: boolean;
+  assetsToImport: boolean;
+};
+
 export type ModuleUpdatePreview = {
-  impactType: "script_change" | "definition_only" | "no_change";
+  hasUpdate: boolean;
+  currentGitRef: string | null;
+  incomingGitRef: string;
+  changes: DefinitionChanges;
+  recommendsRerun: boolean;
   commitsSince: { sha: string; message: string; date: string; author: string }[];
-  headGitRef: string;
 };
 
 export type CompareProjectsModuleParameter = {
@@ -163,8 +176,10 @@ export type CompareProjectsModuleParameter = {
 export type CompareProjectsModule = {
   id: string;
   dirty: "queued" | "ready" | "error";
-  installedAt: string;
-  installedGitRef?: string;
+  computeDefUpdatedAt?: string;
+  computeDefGitRef?: string;
+  presentationDefUpdatedAt?: string;
+  presentationDefGitRef?: string;
   lastRunAt: string;
   lastRunGitRef?: string;
   parameters: CompareProjectsModuleParameter[];

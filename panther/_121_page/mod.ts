@@ -27,7 +27,6 @@ export type {
   PageInputsBase,
   PageSpacerInputs,
   SectionPageInputs,
-  SplitImageInputs,
 } from "./types.ts";
 export { isRectAnnotation, isSpacerItem } from "./types.ts";
 

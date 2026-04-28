@@ -16,7 +16,7 @@ import type {
   SlideDeckConfig,
 } from "lib";
 import { FIGURE_AUTOFIT, MARKDOWN_AUTOFIT, slideConfigSchema } from "lib";
-import { buildStyleForSlide } from "../slide_rendering/convert_slide_to_page_inputs";
+import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";

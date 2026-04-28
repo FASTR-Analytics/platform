@@ -379,6 +379,7 @@ export function getStartingConfigForPresentationObject(
         resultsValue,
         startingConfig,
         disOpt.value,
+        resultsValue.valueProps,
       );
       startingConfig.d.disaggregateBy.push({
         disOpt: disOpt.value,

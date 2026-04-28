@@ -1,0 +1,97 @@
+{
+    "success": true,
+    "data": {
+        "report": {
+            "id": "787f8280-6a54-421b-be81-4a57a0def5b0",
+            "projectId": "d45c3622-9c63-4cef-af6d-0c6af6419138",
+            "reportType": "policy_brief",
+            "config": {
+                "label": "FASTR EXPERIENCES FROM WESTERN REGION",
+                "logos": [],
+                "logoSize": 300,
+                "figureScale": 2,
+                "footer": "",
+                "showPageNumbers": true,
+                "headerSize": 1,
+                "useWatermark": false,
+                "watermarkText": "",
+                "colorTheme": "dark_green",
+                "overlay": "dots"
+            },
+            "itemIdsInOrder": [
+                "0d15602a-f41b-40f0-920e-c462fc114ac4"
+            ],
+            "lastUpdated": "2025-12-10T12:32:55.748Z"
+        },
+        "reportItems": [
+            {
+                "id": "0d15602a-f41b-40f0-920e-c462fc114ac4",
+                "projectId": "d45c3622-9c63-4cef-af6d-0c6af6419138",
+                "reportId": "787f8280-6a54-421b-be81-4a57a0def5b0",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "f8921e59-d281-4dd4-aa0c-263cfabd40e2",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "bf9e0373-e877-4379-895b-c11bc2b558fe",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "d9f6f8d6-353f-4d86-b2d9-33bc6de122f0",
+                                            "data": {
+                                                "type": "text",
+                                                "markdown": "In 2024, selected maternal health indicators completeness in the Western Region averaged 87\u201389%, with 10 of 14 districts exceeding 85%. Wassa East, Jomoro, and the Wassa Amenfi districts showed strong reporting, while delivery data was notably weak in Wassa Amenfi West (69.6%) and Sekondi-Takoradi (76.9%). ANC reporting lagged in Ahanta West. Outlier checks confirmed high data reliability, with only one minor anomaly in Jomoro ANC4.\nANC1 remained the strongest and most consistent indicator (~90% completeness), significantly outpacing ANC4 and institutional deliveries throughout the year. A mid-year dip in both ANC1 and ANC4 occurred around June, followed by strong recovery from July to October. ANC4 volumes closely tracked institutional deliveries until September, after which ANC4 consistently exceeded deliveries, with a marked drop in facility births toward year-end.\nAt regional level, there was no service gap between ANC1 and ANC4, showing good retention among women who continued care. However, Mpohor District recorded the lowest volumes across all indicators, and several districts showed sharp drops from ANC4 to institutional delivery, indicating persistent home deliveries. Seasonal patterns revealed higher uptake early and late in the year.\nTwo data anomalies were identified: EKMA reported an implausible ANC1-to-ANC4 retention rate of 100.4%, and Jomoro recorded ANC4 > ANC1 (Jan\u2013May) due to misclassification of later visits. Recommended actions include targeted support for weak districts, correcting recording practices in Jomoro, validating EKMA data, and strengthening community outreach to increase facility deliveries, especially in the last quarter. Overall, the region\u2019s data systems are robust, clearly highlighting both achievements and remaining gaps in the continuum of maternal care.",
+                                                "stretch": true,
+                                                "fillArea": true,
+                                                "textSize": 1.25,
+                                                "textBackground": "success",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "useHeader": true,
+                        "headerText": "EXECUTIVE SUMMARY",
+                        "dateText": "",
+                        "useFooter": false,
+                        "subHeaderText": ""
+                    }
+                },
+                "lastUpdated": "2025-12-10T13:17:23.187Z"
+            }
+        ]
+    }
+}

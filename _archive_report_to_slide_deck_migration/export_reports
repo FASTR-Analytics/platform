@@ -1,0 +1,137 @@
+#!/bin/bash
+set -euo pipefail
+
+# export_reports - Export reports and report_items from all project databases
+
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+REMOTE_SERVER="wb-server"
+OUTPUT_DIR="./report_exports_$(date +%Y%m%d_%H%M%S)"
+
+INSTANCES=(
+    "afghanistan" "burkinafaso" "cameroun" "ci" "demo" "demo-fr"
+    "ethiopia" "ghana" "guinee" "haiti" "kenya" "liberia"
+    "madagascar" "malawi" "mali" "mauritanie" "niger" "nigeria"
+    "rca" "rdc" "senegal" "sierraleone" "somalia" "somaliland"
+    "tchad" "testing" "testing2" "testing3" "testing4" "uganda" "zambia"
+)
+
+log() { echo -e "${CYAN}[$(date '+%H:%M:%S')]${NC} $1"; }
+log_success() { echo -e "${GREEN}✓${NC} $1"; }
+
+if [ $# -ge 1 ]; then
+    INSTANCES=("$1")
+fi
+
+mkdir -p "$OUTPUT_DIR"
+log "Output directory: $OUTPUT_DIR"
+log "Exporting from ${#INSTANCES[@]} instance(s)..."
+echo
+
+# Create remote script
+REMOTE_SCRIPT=$(mktemp)
+cat > "$REMOTE_SCRIPT" << 'EOF'
+#!/bin/bash
+PG_PASSWORD="timssecret"
+for INSTANCE in "$@"; do
+    CONTAINER="${INSTANCE}-postgres"
+    echo "###INSTANCE:${INSTANCE}"
+    DBS=$(docker exec -e PGPASSWORD=$PG_PASSWORD $CONTAINER psql -U postgres -d postgres -tA -c "SELECT datname FROM pg_database WHERE datname ~ '^[0-9a-f]{8}-'" 2>/dev/null || true)
+    if [ -z "$DBS" ]; then
+        echo "###NO_DBS"
+        continue
+    fi
+    for DB in $DBS; do
+        echo "###DB:${DB}"
+        echo "###REPORTS_START"
+        docker exec -e PGPASSWORD=$PG_PASSWORD $CONTAINER psql -U postgres -d "$DB" -c "COPY (SELECT * FROM reports WHERE report_type = 'slide_deck') TO STDOUT WITH CSV HEADER" 2>/dev/null || true
+        echo "###REPORTS_END"
+        echo "###ITEMS_START"
+        docker exec -e PGPASSWORD=$PG_PASSWORD $CONTAINER psql -U postgres -d "$DB" -c "COPY (SELECT ri.* FROM report_items ri JOIN reports r ON ri.report_id = r.id WHERE r.report_type = 'slide_deck') TO STDOUT WITH CSV HEADER" 2>/dev/null || true
+        echo "###ITEMS_END"
+    done
+done
+echo "###DONE"
+EOF
+
+# Copy and run remote script
+scp -q "$REMOTE_SCRIPT" "$REMOTE_SERVER:/tmp/export_reports_remote.sh"
+rm "$REMOTE_SCRIPT"
+
+# State for parsing
+CURRENT_INSTANCE=""
+CURRENT_DB=""
+IN_REPORTS=false
+IN_ITEMS=false
+REPORTS_FILE=""
+ITEMS_FILE=""
+
+ssh "$REMOTE_SERVER" "bash /tmp/export_reports_remote.sh ${INSTANCES[*]}" | while IFS= read -r line; do
+    case "$line" in
+        "###INSTANCE:"*)
+            CURRENT_INSTANCE="${line#*:}"
+            log "[${CURRENT_INSTANCE}]"
+            ;;
+        "###NO_DBS")
+            echo "  (no project databases)"
+            ;;
+        "###DB:"*)
+            CURRENT_DB="${line#*:}"
+            DB_DIR="$OUTPUT_DIR/$CURRENT_INSTANCE/$CURRENT_DB"
+            mkdir -p "$DB_DIR"
+            REPORTS_FILE="$DB_DIR/reports.csv"
+            ITEMS_FILE="$DB_DIR/report_items.csv"
+            > "$REPORTS_FILE"
+            > "$ITEMS_FILE"
+            ;;
+        "###REPORTS_START")
+            IN_REPORTS=true
+            IN_ITEMS=false
+            ;;
+        "###REPORTS_END")
+            IN_REPORTS=false
+            ;;
+        "###ITEMS_START")
+            IN_ITEMS=true
+            IN_REPORTS=false
+            ;;
+        "###ITEMS_END")
+            IN_ITEMS=false
+            if [ -f "$REPORTS_FILE" ] && [ -f "$ITEMS_FILE" ]; then
+                R_COUNT=$(($(wc -l < "$REPORTS_FILE") - 1))
+                I_COUNT=$(($(wc -l < "$ITEMS_FILE") - 1))
+                [ "$R_COUNT" -lt 0 ] && R_COUNT=0
+                [ "$I_COUNT" -lt 0 ] && I_COUNT=0
+                if [ "$R_COUNT" -eq 0 ] && [ "$I_COUNT" -eq 0 ]; then
+                    rm -rf "$OUTPUT_DIR/$CURRENT_INSTANCE/$CURRENT_DB"
+                else
+                    log_success "  $CURRENT_DB: $R_COUNT reports, $I_COUNT items"
+                fi
+            fi
+            ;;
+        "###DONE")
+            ;;
+        *)
+            if [ "$IN_REPORTS" = true ] && [ -n "$REPORTS_FILE" ]; then
+                echo "$line" >> "$REPORTS_FILE"
+            elif [ "$IN_ITEMS" = true ] && [ -n "$ITEMS_FILE" ]; then
+                echo "$line" >> "$ITEMS_FILE"
+            fi
+            ;;
+    esac
+done
+
+# Cleanup
+find "$OUTPUT_DIR" -type d -empty -delete 2>/dev/null || true
+ssh "$REMOTE_SERVER" "rm -f /tmp/export_reports_remote.sh" 2>/dev/null || true
+
+# Summary
+echo
+TOTAL_REPORTS=$(find "$OUTPUT_DIR" -name "reports.csv" -exec cat {} + 2>/dev/null | grep -v "^id," | wc -l | tr -d ' ')
+TOTAL_ITEMS=$(find "$OUTPUT_DIR" -name "report_items.csv" -exec cat {} + 2>/dev/null | grep -v "^id," | wc -l | tr -d ' ')
+
+log_success "Export complete!"
+log "Total: $TOTAL_REPORTS reports, $TOTAL_ITEMS report items"
+log "Output: $OUTPUT_DIR"

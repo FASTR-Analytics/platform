@@ -31,10 +31,10 @@ import type {
 } from "./_main_database_types.ts";
 
 export function computeHfaCacheHash(
-  timePointRows: { time_point: string; date_imported: string | null }[],
+  timePointRows: { label: string; sort_order: number; imported_at: string | null }[],
 ): string {
   return timePointRows
-    .map((r) => `${r.time_point}:${r.date_imported ?? ""}`)
+    .map((r) => `${r.label}:${r.sort_order}:${r.imported_at ?? ""}`)
     .join("|");
 }
 
@@ -43,7 +43,7 @@ async function getRawUA(
 ): Promise<DBDatasetHfaUploadAttempt | undefined> {
   return (
     await mainDb<DBDatasetHfaUploadAttempt[]>`
-SELECT * FROM dataset_hfa_upload_attempts
+SELECT * FROM hfa_upload_attempts
 `
   ).at(0);
 }
@@ -79,16 +79,17 @@ export async function getDatasetHfaDetail(
     if (resUploadAttempt.success === false) {
       return resUploadAttempt;
     }
-    const timePointRows = await mainDb<{ time_point: string; time_point_label: string; date_imported: string | null }[]>`
-      SELECT time_point, time_point_label, date_imported FROM dataset_hfa_dictionary_time_points ORDER BY time_point
+    const timePointRows = await mainDb<{ label: string; period_id: string; sort_order: number; imported_at: string | null }[]>`
+      SELECT label, period_id, sort_order, imported_at FROM hfa_time_points ORDER BY sort_order
     `;
     const cacheHash = computeHfaCacheHash(timePointRows);
     const dataset: DatasetHfaDetail = {
       uploadAttempt: resUploadAttempt.data,
       timePoints: timePointRows.map((r) => ({
-        timePoint: r.time_point,
-        timePointLabel: r.time_point_label,
-        dateImported: r.date_imported ?? undefined,
+        label: r.label,
+        periodId: r.period_id,
+        sortOrder: r.sort_order,
+        importedAt: r.imported_at ?? undefined,
       })),
       cacheHash,
     };
@@ -116,16 +117,16 @@ export async function deleteDatasetHfaData(
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
       if (timePoint) {
-        await sql`DELETE FROM dataset_hfa WHERE time_point = ${timePoint}`;
-        await sql`DELETE FROM dataset_hfa_dictionary_vars WHERE time_point = ${timePoint}`;
+        await sql`DELETE FROM hfa_data WHERE time_point = ${timePoint}`;
+        await sql`DELETE FROM hfa_variables WHERE time_point = ${timePoint}`;
         await sql`DELETE FROM hfa_indicator_code WHERE time_point = ${timePoint}`;
-        await sql`DELETE FROM dataset_hfa_dictionary_time_points WHERE time_point = ${timePoint}`;
+        await sql`DELETE FROM hfa_time_points WHERE label = ${timePoint}`;
       } else {
-        await sql`DELETE FROM dataset_hfa`;
-        await sql`DELETE FROM dataset_hfa_dictionary_values`;
-        await sql`DELETE FROM dataset_hfa_dictionary_vars`;
+        await sql`DELETE FROM hfa_data`;
+        await sql`DELETE FROM hfa_variable_values`;
+        await sql`DELETE FROM hfa_variables`;
         await sql`DELETE FROM hfa_indicator_code`;
-        await sql`DELETE FROM dataset_hfa_dictionary_time_points`;
+        await sql`DELETE FROM hfa_time_points`;
       }
     });
     return { success: true };
@@ -155,28 +156,24 @@ export async function getDatasetHfaItemsForDisplay(
   mainDb: Sql,
 ): Promise<APIResponseWithData<ItemsHolderDatasetHfaDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Time point labels
-    const timePointRows = await mainDb<{ time_point: string; time_point_label: string; date_imported: string | null }[]>`
-      SELECT time_point, time_point_label, date_imported
-      FROM dataset_hfa_dictionary_time_points
-      ORDER BY time_point
+    // Time points for cache hash
+    const timePointRows = await mainDb<{ label: string; sort_order: number; imported_at: string | null }[]>`
+      SELECT label, sort_order, imported_at
+      FROM hfa_time_points
+      ORDER BY sort_order
     `;
-    const tpLabelMap: Record<string, string> = {};
-    for (const r of timePointRows) {
-      tpLabelMap[r.time_point] = r.time_point_label;
-    }
 
     // Variable labels per (time_point, var_name)
     const dictVarRows = await mainDb<{ time_point: string; var_name: string; var_label: string; var_type: string }[]>`
       SELECT time_point, var_name, var_label, var_type
-      FROM dataset_hfa_dictionary_vars
+      FROM hfa_variables
       ORDER BY var_name, time_point
     `;
 
     // Questionnaire values per (time_point, var_name) — only for select vars
     const dictValueRows = await mainDb<{ time_point: string; var_name: string; value: string; value_label: string }[]>`
       SELECT time_point, var_name, value, value_label
-      FROM dataset_hfa_dictionary_values
+      FROM hfa_variable_values
       ORDER BY var_name, time_point, value
     `;
     // Build map: "tp|var_name" → "1: Yes, 2: No, ..."
@@ -195,7 +192,6 @@ export async function getDatasetHfaItemsForDisplay(
       }
     }
 
-    // Counts, missing, and stats per (var_name, time_point) from data
     // Counts and missing per (var_name, time_point)
     const statsRows = await mainDb<{
       var_name: string;
@@ -208,7 +204,7 @@ export async function getDatasetHfaItemsForDisplay(
         time_point,
         COUNT(*) AS total_count,
         COUNT(*) FILTER (WHERE value = '') AS missing_count
-      FROM dataset_hfa
+      FROM hfa_data
       GROUP BY var_name, time_point
       ORDER BY var_name, time_point
     `;
@@ -216,7 +212,7 @@ export async function getDatasetHfaItemsForDisplay(
     // Distinct data values for ALL variables
     const dataValueRows = await mainDb<{ time_point: string; var_name: string; value: string }[]>`
       SELECT DISTINCT d.time_point, d.var_name, d.value
-      FROM dataset_hfa d
+      FROM hfa_data d
       WHERE d.value != ''
       ORDER BY d.var_name, d.time_point, d.value
     `;
@@ -229,12 +225,10 @@ export async function getDatasetHfaItemsForDisplay(
         grouped.get(key)!.push(r.value);
       }
       for (const [key, vals] of grouped) {
-        // Sort numerically if all values are numeric, otherwise alphabetically
         const allNumeric = vals.every((v) => /^-?\d*\.?\d+$/.test(v));
         if (allNumeric) {
           vals.sort((a, b) => Number(a) - Number(b));
         }
-        // Compact format: show all if <=10, otherwise first 3... last
         if (vals.length <= 10) {
           dataValuesMap.set(key, vals.join(", "));
         } else {
@@ -259,7 +253,6 @@ export async function getDatasetHfaItemsForDisplay(
     const rows: import("lib").HfaVariableRow[] = [];
 
     if (dictVarRows.length > 0) {
-      // Dictionary exists: one row per dictionary var + time_point
       for (const dv of dictVarRows) {
         const key = `${dv.time_point}|${dv.var_name}`;
         const stats = statsMap.get(key);
@@ -268,7 +261,6 @@ export async function getDatasetHfaItemsForDisplay(
           varName: dv.var_name,
           varType: dv.var_type,
           timePoint: dv.time_point,
-          timePointLabel: tpLabelMap[dv.time_point] ?? dv.time_point,
           varLabel: dv.var_label,
           count: stats?.count ?? 0,
           missing: stats?.missing ?? 0,
@@ -277,14 +269,12 @@ export async function getDatasetHfaItemsForDisplay(
         });
       }
     } else {
-      // No dictionary: fall back to data stats directly
       for (const r of statsRows) {
         const key = `${r.time_point}|${r.var_name}`;
         rows.push({
           varName: r.var_name,
           varType: "",
           timePoint: r.time_point,
-          timePointLabel: tpLabelMap[r.time_point] ?? r.time_point,
           varLabel: r.var_name,
           count: Number(r.total_count),
           missing: Number(r.missing_count),
@@ -325,7 +315,7 @@ export async function addDatasetHfaUploadAttempt(
       status: "configuring",
     };
     await mainDb`
-INSERT INTO dataset_hfa_upload_attempts
+INSERT INTO hfa_upload_attempts
   (date_started, step, status, status_type, source_type)
 VALUES
   (${dateStarted}, 1, ${JSON.stringify(startingStatus)}, 'configuring', 'csv')
@@ -454,7 +444,7 @@ export async function deleteDatasetHfaUploadAttempt(
       setHfaWorker(null);
     }
 
-    await mainDb`DELETE FROM dataset_hfa_upload_attempts`;
+    await mainDb`DELETE FROM hfa_upload_attempts`;
     return { success: true };
   });
 }
@@ -500,7 +490,7 @@ export async function updateDatasetHfaUploadAttempt_Step1CsvUpload(
       },
     };
     await mainDb`
-  UPDATE dataset_hfa_upload_attempts
+  UPDATE hfa_upload_attempts
   SET
     step = 2,
     step_1_result = ${JSON.stringify(step1Result)},
@@ -521,7 +511,7 @@ export async function updateDatasetHfaUploadAttempt_Step2Mappings(
       throw new Error("Not yet ready for this step");
     }
     await mainDb`
-UPDATE dataset_hfa_upload_attempts
+UPDATE hfa_upload_attempts
 SET
   step = 3, 
   step_2_result = ${JSON.stringify(mappings)},
@@ -544,7 +534,7 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
     // Check if this upload is already being processed
     const activeOperations = await mainDb<{ count: number }[]>`
       SELECT COUNT(*) as count 
-      FROM dataset_hfa_upload_attempts 
+      FROM hfa_upload_attempts 
       WHERE status_type IN ('staging', 'integrating')
     `;
 
@@ -564,7 +554,7 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
 
     // Immediately claim the lock by setting status to staging
     await mainDb`
-      UPDATE dataset_hfa_upload_attempts
+      UPDATE hfa_upload_attempts
       SET 
         status = ${JSON.stringify({ status: "staging", progress: 0 })},
         status_type = 'staging'
@@ -582,7 +572,7 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
       e.preventDefault(); // Prevent the error from propagating and crashing the server
       try {
         await mainDb`
-          UPDATE dataset_hfa_upload_attempts 
+          UPDATE hfa_upload_attempts 
           SET 
             status = ${JSON.stringify({
               status: "error",
@@ -624,7 +614,7 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
     // Check if this upload is already being processed
     const activeOperations = await mainDb<{ count: number }[]>`
       SELECT COUNT(*) as count 
-      FROM dataset_hfa_upload_attempts 
+      FROM hfa_upload_attempts 
       WHERE status_type IN ('staging', 'integrating')
     `;
 
@@ -644,7 +634,7 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
 
     // Immediately claim the lock by setting status to integrating
     await mainDb`
-      UPDATE dataset_hfa_upload_attempts
+      UPDATE hfa_upload_attempts
       SET 
         status = ${JSON.stringify({ status: "integrating", progress: 0 })},
         status_type = 'integrating'
@@ -661,7 +651,7 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
       e.preventDefault(); // Prevent the error from propagating and crashing the server
       try {
         await mainDb`
-          UPDATE dataset_hfa_upload_attempts 
+          UPDATE hfa_upload_attempts 
           SET 
             status = ${JSON.stringify({
               status: "error",

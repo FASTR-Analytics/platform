@@ -1,0 +1,451 @@
+{
+    "success": true,
+    "data": {
+        "report": {
+            "id": "ee0b18bc-2034-4548-a4fd-88ae77c76965",
+            "projectId": "79b7333c-affe-4bb9-aa80-be68b4668b94",
+            "reportType": "policy_brief",
+            "config": {
+                "label": "Doing More with Less",
+                "logos": [],
+                "logoSize": 300,
+                "figureScale": 2,
+                "footer": "",
+                "showPageNumbers": true,
+                "headerSize": 1,
+                "useWatermark": false,
+                "watermarkText": "",
+                "colorTheme": "white",
+                "overlay": "none"
+            },
+            "itemIdsInOrder": [
+                "695d1289-3be4-47c7-bf06-2e5566d8032c",
+                "cda8eaa8-b374-439e-93dd-fccf78c13869",
+                "a335728f-e5a4-476c-813b-e340406b71cf",
+                "b7c56667-b002-4f08-b7c6-fa033fcceb89"
+            ],
+            "lastUpdated": "2026-02-03T10:25:44.790Z"
+        },
+        "reportItems": [
+            {
+                "id": "b7c56667-b002-4f08-b7c6-fa033fcceb89",
+                "projectId": "79b7333c-affe-4bb9-aa80-be68b4668b94",
+                "reportId": "ee0b18bc-2034-4548-a4fd-88ae77c76965",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "b4d3424d-cbf4-4a24-9da6-4df354630727",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "0e733757-8044-498d-8a29-c738bcf720a0",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "e0989328-9823-47ab-a1d7-fcdfb0aeb8dd",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": "The findings indicate that Zambia\u2019s ANC4 gaps stem primarily from efficiency and service continuity challenges rather than insufficient funding. Large performance differences across provinces with similar resources highlight the need to shift from input-based planning to performance-driven delivery, with stronger follow-up systems and systematic learning from high performers. By reducing service drop-offs and smoothing delivery across programmes, the health system can release operational efficiencies and reinvest these gains into ANC4 and other high-impact services, improving equity and outcomes without increasing overall expenditure."
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "39f12781-62af-44ac-93e2-193dedc2c5c8",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "64b9247f-2e3a-4b1d-92e6-83e4ecf0e594",
+                                            "data": {
+                                                "type": "text",
+                                                "markdown": "\n\nRecommended Actions \n\nTo improve ANC4 coverage within existing resources, Zambia should shift toward performance-driven service delivery by scaling best practices from higher-performing provinces, strengthening follow-up through community health workers and appointment tracking, and reducing service drop-offs across the care pathway. Greater use of point-of-care diagnostics at primary care level\u2014including hemoglobin, syphilis, HIV, and blood pressure screening\u2014can replace costly centralized investigations, reduce delays, and keep women engaged in care. Aligning ANC outreach with immunization and under-five clinics will further minimize duplication and optimize staff time and transport. Efficiency gains from these measures should be reinvested into targeted ANC4 support, including transport assistance, community follow-up, and mobile services in low-performing districts.",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "205ed83a-8053-460f-a93f-aab5d4ebf761",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "c186e89b-75d7-42b7-a952-4e511bf7a210",
+                                            "data": {
+                                                "type": "text",
+                                                "markdown": "Call to Action\n\nZambia has the capacity to close ANC4 gaps using existing resources\u2014what is needed now is decisive action to improve efficiency and service continuity. The Ministry of Health, in collaboration with the Ministry of Finance and partners, should prioritize performance-driven delivery, scale proven practices from high-performing provinces, and reinvest efficiency gains into targeted ANC4 support in low-performing districts. Acting now will accelerate progress on maternal and newborn outcomes, reduce geographic inequities, and ensure that every kwacha delivers measurable impact for women and children.",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "useHeader": true,
+                        "headerText": "Policy Implications",
+                        "subHeaderText": ""
+                    }
+                },
+                "lastUpdated": "2026-02-03T11:41:42.290Z"
+            },
+            {
+                "id": "695d1289-3be4-47c7-bf06-2e5566d8032c",
+                "projectId": "79b7333c-affe-4bb9-aa80-be68b4668b94",
+                "reportId": "ee0b18bc-2034-4548-a4fd-88ae77c76965",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "5bf65696-cbb8-4e96-9360-80d0aa135eae",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "e6b0947a-a167-47f2-858e-d30916ba095d",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "bab0b738-9e06-4a42-ab72-c3fc300523ec",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": "Zambia has made important commitments to improving maternal, newborn, child, and adolescent health through national strategies aligned to universal health coverage and primary health care strengthening. Antenatal care is a cornerstone of these efforts, providing an entry point for prevention, early detection of complications, and linkage to skilled delivery. At the same time, the health sector is operating in a constrained fiscal environment, requiring greater emphasis on value for money and results-based service delivery. Within this context, optimizing existing platforms\u2014particularly immunization and maternal health services\u2014offers a timely opportunity to improve outcomes for women and children by leveraging current system capacity, strengthening continuity of care, and ensuring that limited resources are directed toward the highest-impact interventions.\n\n"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "89c9d140-cfa6-40d8-a892-f365155296f1",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "6cdf3a11-5a07-42ff-9236-43886604fb2c",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": "# Problem Statement                                   \nZambia\u2019s ANC4 challenge is not primarily a financing gap\u2014it is an efficiency, equity, and service completion gap. Significant provincial variation in coverage shows that strong performance is achievable within existing resources, yet too many women are lost between early ANC visits and ANC4 due to weak follow-up and uneven service delivery. Addressing this requires shifting from input maintenance to performance improvement: systematically learning from high-performing provinces, strengthening appointment tracking and community follow-up, and smoothing delivery across districts and months. Reinvesting the resulting efficiency gains will ensure that every woman who enters antenatal care completes her full care pathway, improving maternal and newborn outcomes while making better use of existing public resources.\n\n"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "useHeader": true,
+                        "headerText": "Turning Efficiency into Impact: Releasing Resources to Strengthen ANC4 in Zambia",
+                        "subHeaderText": "Background"
+                    }
+                },
+                "lastUpdated": "2026-02-03T11:39:35.033Z"
+            },
+            {
+                "id": "a335728f-e5a4-476c-813b-e340406b71cf",
+                "projectId": "79b7333c-affe-4bb9-aa80-be68b4668b94",
+                "reportId": "ee0b18bc-2034-4548-a4fd-88ae77c76965",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "2380567c-fb84-46d7-a3c4-3c4b106a61d6",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "0b3510f1-c63d-4dfd-b95e-de5a4c15045e",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "62e2db5d-611b-4232-92f6-67a2ca30f3ad",
+                                            "data": {
+                                                "type": "figure",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "e25d8bf9-8aaa-4ad0-b040-548e266f2929",
+                                                    "isDefault": false,
+                                                    "selectedReplicantValue": "",
+                                                    "metricId": "m3-02-01"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "291b702d-18bb-4e7f-9be2-8f617101e5ad",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "daf0730e-cff8-4975-b801-0bd83c63378d",
+                                            "data": {
+                                                "type": "text",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "markdown": "Measles delivery is strong overall, but uneven across months\u2014showing efficiency gains are possible without adding new funding.\nThe 25\u201330% drop between first and second doses is lost value that can be recovered through simple follow-up and community support.\n\nSmoothing delivery and improving dose completion reduces missed visits, repeat outreach, and emergency catch-up campaigns\u2014cutting transport, allowance, and logistics costs and freeing resources that can be redirected to strengthen ANC4.\n"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "useHeader": true,
+                        "headerText": "Releasing Resources from the  EPI program to Strengthen ANC4"
+                    }
+                },
+                "lastUpdated": "2026-02-25T09:17:59.429Z"
+            },
+            {
+                "id": "cda8eaa8-b374-439e-93dd-fccf78c13869",
+                "projectId": "79b7333c-affe-4bb9-aa80-be68b4668b94",
+                "reportId": "ee0b18bc-2034-4548-a4fd-88ae77c76965",
+                "config": {
+                    "type": "freeform",
+                    "cover": {
+                        "titleText": "",
+                        "titleTextRelFontSize": 10,
+                        "subTitleText": "",
+                        "subTitleTextRelFontSize": 6,
+                        "presenterText": "",
+                        "presenterTextRelFontSize": 4,
+                        "dateText": "",
+                        "dateTextRelFontSize": 3,
+                        "logos": []
+                    },
+                    "section": {
+                        "sectionText": "",
+                        "sectionTextRelFontSize": 8,
+                        "smallerSectionText": "",
+                        "smallerSectionTextRelFontSize": 5
+                    },
+                    "freeform": {
+                        "content": {
+                            "type": "rows",
+                            "id": "20a13398-f797-4cc4-8a09-c92619f790e0",
+                            "children": [
+                                {
+                                    "type": "cols",
+                                    "id": "ad66cd6f-45e0-4879-8131-e4070c4b46b4",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "6a563cf5-4f0a-449e-8f1b-90f71bfc4c48",
+                                            "data": {
+                                                "type": "figure",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false,
+                                                "presentationObjectInReportInfo": {
+                                                    "id": "9d4977b4-0d87-44e1-b2bd-3eddcba623f4",
+                                                    "isDefault": true,
+                                                    "replicateBy": "indicator_common_id",
+                                                    "selectedReplicantValue": "anc4",
+                                                    "metricId": "m6-02-01"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "cols",
+                                    "id": "4b270e4d-508a-4fcf-878e-ef8ed6f2f34d",
+                                    "children": [
+                                        {
+                                            "type": "item",
+                                            "id": "fcfc566b-e7eb-4746-a727-9e6c20f4fe8d",
+                                            "data": {
+                                                "type": "text",
+                                                "markdown": "Zambia can unlock fiscal space by reallocating resources from lower-impact or inefficient activities toward proven ANC demand-generation and service-delivery interventions. Priority efficiency actions include:\n\nSystematically identifying and scaling best practices from higher-performing provinces (including community follow-up models, facility scheduling approaches, and referral coordination mechanisms);\n\nStreamlining fragmented outreach and supervision activities to reduce duplication and administrative overhead;\n\nRedirecting savings toward high-return investments, such as community health worker incentives for ANC follow-up, transport vouchers for hard-to-reach populations, and optimized mobile clinic deployment.",
+                                                "stretch": true,
+                                                "fillArea": false,
+                                                "textSize": 1,
+                                                "textBackground": "none",
+                                                "placeholderInvisible": false,
+                                                "placeholderStretch": true,
+                                                "placeholderHeight": 50,
+                                                "useFigureAdditionalScale": false,
+                                                "figureAdditionalScale": 1,
+                                                "imgHeight": 300,
+                                                "imgFit": "inside",
+                                                "imgStretch": true,
+                                                "hideFigureCaption": false,
+                                                "hideFigureSubCaption": false,
+                                                "hideFigureFootnote": false
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "useHeader": true,
+                        "headerText": "Evidence",
+                        "subHeaderText": "From Scacity to Impact"
+                    }
+                },
+                "lastUpdated": "2026-02-25T09:07:37.281Z"
+            }
+        ]
+    }
+}

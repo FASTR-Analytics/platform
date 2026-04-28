@@ -3,9 +3,16 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { MeasuredText, PathSegment, RenderContext } from "../deps.ts";
-import { ImageRenderer } from "../deps.ts";
-import type { MergedPageStyle } from "../deps.ts";
+import {
+  getColor,
+  ImageRenderer,
+  isPatternConfig,
+  type MeasuredText,
+  type MergedPageNumberStyle,
+  type PathSegment,
+  type RenderContext,
+  renderPattern,
+} from "../deps.ts";
 import { renderPageAnnotations } from "./render_annotations.ts";
 import { renderCover } from "./cover/render_cover.ts";
 import { renderFreeform } from "./freeform/render_freeform.ts";
@@ -16,10 +23,14 @@ export function renderPage(
   rc: RenderContext,
   measured: MeasuredPage,
 ): void {
-  if (measured.splitImageBounds && measured.splitImageBackgroundColor) {
-    rc.rRect(measured.splitImageBounds, {
-      fillColor: measured.splitImageBackgroundColor,
-    });
+  if (measured.splitImageBounds && measured.splitBackground) {
+    const bg = measured.splitBackground;
+    if (isPatternConfig(bg)) {
+      rc.rRect(measured.splitImageBounds, { fillColor: getColor(bg.baseColor) });
+      renderPattern(rc, measured.splitImageBounds, bg);
+    } else {
+      rc.rRect(measured.splitImageBounds, { fillColor: getColor(bg) });
+    }
   }
   if (measured.measuredSplitImage) {
     ImageRenderer.render(rc, measured.measuredSplitImage);
@@ -59,7 +70,7 @@ export function renderPage(
       rc,
       measured.fullPageBounds,
       measured.item.annotations,
-      measured.mergedPageStyle.alreadyScaledValue,
+      measured.style.alreadyScaledValue,
     );
   }
 }
@@ -68,25 +79,22 @@ function renderPageNumberOverlay(
   rc: RenderContext,
   measured: MeasuredPage,
 ): void {
-  const s = measured.mergedPageStyle;
-  const pad = s.pageNumber.padding;
+  const pageNumberStyle = measured.style.pageNumber;
+  const textStyle = measured.style.text.pageNumber;
+  const pad = pageNumberStyle.padding;
   const fpb = measured.fullPageBounds;
-  const mText = rc.mText(
-    measured.item.pageNumber!,
-    s.text.pageNumber,
-    fpb.w() * 0.3,
-  );
+  const mText = rc.mText(measured.item.pageNumber!, textStyle, fpb.w() * 0.3);
 
-  const [x, alignH] = s.pageNumber.placement === "bottom-left"
+  const [x, alignH] = pageNumberStyle.placement === "bottom-left"
     ? [fpb.x() + pad.pl(), "left" as const]
-    : s.pageNumber.placement === "bottom-center"
+    : pageNumberStyle.placement === "bottom-center"
     ? [fpb.centerX(), "center" as const]
     : [fpb.rightX() - pad.pr(), "right" as const];
 
   const textY = fpb.bottomY() - pad.pb();
 
-  if (s.pageNumber.background !== "none") {
-    renderPageNumberBackground(rc, s, mText, x, textY, alignH, fpb);
+  if (pageNumberStyle.background !== "none") {
+    renderPageNumberBackground(rc, pageNumberStyle, mText, x, textY, alignH, fpb);
   }
 
   rc.rText(mText, [x, textY], alignH, "bottom");
@@ -94,15 +102,15 @@ function renderPageNumberOverlay(
 
 function renderPageNumberBackground(
   rc: RenderContext,
-  s: MergedPageStyle,
+  s: MergedPageNumberStyle,
   mText: MeasuredText,
   textX: number,
   textY: number,
   alignH: "left" | "center" | "right",
   fpb: { bottomY(): number; rightX(): number; x(): number },
 ): void {
-  const bg = s.pageNumber.background;
-  const bgColor = s.pageNumber.backgroundColor;
+  const bg = s.background;
+  const bgColor = s.backgroundColor;
   const textW = mText.dims.w();
   const textH = mText.dims.h();
   const bgPadH = textH * 0.4;
@@ -118,12 +126,12 @@ function renderPageNumberBackground(
   const rectH = textH + bgPadV * 2;
 
   if (bg === "triangle") {
-    const placement = s.pageNumber.placement;
+    const placement = s.placement;
     if (placement === "bottom-center") {
       rc.rRect([rectLeft, rectTop, rectW, rectH], { fillColor: bgColor });
       return;
     }
-    const pad = s.pageNumber.padding;
+    const pad = s.padding;
     const triSize = placement === "bottom-right"
       ? (pad.pr() + bgPadH + textW) + (pad.pb() + bgPadV + textH)
       : (pad.pl() + bgPadH + textW) + (pad.pb() + bgPadV + textH);

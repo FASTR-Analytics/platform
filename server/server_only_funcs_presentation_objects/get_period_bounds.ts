@@ -46,20 +46,21 @@ export async function getPeriodBounds(
   if (firstPeriodOption === "period_id") {
     const res = (
       await projectDb.unsafe<
-        { min_period_id: number; max_period_id: number }[]
+        { min_period_id: number | null; max_period_id: number | null }[]
       >(
         `${ctePrefix}SELECT MIN(period_id) as min_period_id, MAX(period_id) as max_period_id
 FROM ${sourceTable}
 ${whereClause}`
       )
     ).at(0);
-    if (res) {
+    if (res?.min_period_id != null && res?.max_period_id != null) {
       return {
         periodOption: "period_id",
         min: res.min_period_id,
         max: res.max_period_id,
       };
     }
+    return undefined;
   }
 
   if (firstPeriodOption === "year") {
@@ -91,16 +92,17 @@ ${whereClause}`;
     }
 
     const res = (
-      await projectDb.unsafe<{ min_year: number; max_year: number }[]>(query)
+      await projectDb.unsafe<{ min_year: number | null; max_year: number | null }[]>(query)
     ).at(0);
 
-    if (res) {
+    if (res?.min_year != null && res?.max_year != null) {
       return {
         periodOption: "year",
         min: res.min_year,
         max: res.max_year,
       };
     }
+    return undefined;
   }
 
   if (firstPeriodOption === "quarter_id") {
@@ -109,10 +111,10 @@ FROM ${tableName}
 ${whereClause}`;
 
     const res = (
-      await projectDb.unsafe<{ min_quarter_id: number; max_quarter_id: number }[]>(query)
+      await projectDb.unsafe<{ min_quarter_id: number | null; max_quarter_id: number | null }[]>(query)
     ).at(0);
 
-    if (res) {
+    if (res?.min_quarter_id != null && res?.max_quarter_id != null) {
       return {
         periodOption: "quarter_id",
         min: res.min_quarter_id,

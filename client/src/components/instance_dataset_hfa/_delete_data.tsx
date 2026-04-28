@@ -1,4 +1,4 @@
-import { t3, TC, type DatasetHfaDictionaryTimePoint } from "lib";
+import { t3, TC, type HfaTimePoint } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -14,7 +14,7 @@ export function DeleteData(
   p: EditorComponentProps<
     {
       isGlobalAdmin: boolean;
-      timePoints: DatasetHfaDictionaryTimePoint[];
+      timePoints: HfaTimePoint[];
       silentFetch: () => Promise<void>;
     },
     undefined
@@ -83,8 +83,8 @@ export function DeleteData(
             <Select
               label={t3({ en: "Select time point to delete", fr: "Sélectionner le point temporel à supprimer" })}
               options={p.timePoints.map((tp) => ({
-                value: tp.timePoint,
-                label: `${tp.timePoint} (${tp.timePointLabel})`,
+                value: tp.label,
+                label: `${tp.label} (${tp.periodId.slice(0, 4)}-${tp.periodId.slice(4, 6)})`,
               }))}
               value={selectedTimePoint()}
               onChange={setSelectedTimePoint}

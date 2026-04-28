@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Color, getColor } from "./deps.ts";
+import { Color, getBackgroundBaseColor, getColor } from "./deps.ts";
 import type {
   MeasuredSectionPage,
   MeasuredText,
@@ -29,20 +29,18 @@ export function renderSectionSlide(
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const item = measured.item;
   const bounds = measured.bounds;
-  const s = measured.mergedPageStyle;
+  const s = measured.style;
 
   // Background
-  if (s.section.backgroundColor !== "none") {
-    const bgColor = Color.toHexNoHash(getColor(s.section.backgroundColor));
-    slide.addShape("rect", {
-      x: 0,
-      y: 0,
-      w: pixelsToInches(bounds.w()),
-      h: pixelsToInches(bounds.h()),
-      fill: { color: bgColor },
-      line: { color: bgColor, width: 0 },
-    });
-  }
+  const bgColor = Color.toHexNoHash(getColor(getBackgroundBaseColor(s.background)));
+  slide.addShape("rect", {
+    x: 0,
+    y: 0,
+    w: pixelsToInches(bounds.w()),
+    h: pixelsToInches(bounds.h()),
+    fill: { color: bgColor },
+    line: { color: bgColor, width: 0 },
+  });
 
   // Overlay image
   if (item.overlay) {
@@ -69,7 +67,7 @@ export function renderSectionSlide(
 
   const totalH = sectionTitleH +
     (sectionSubTitleH > 0
-      ? s.section.sectionTitleBottomPadding + sectionSubTitleH
+      ? s.sectionTitleBottomPadding + sectionSubTitleH
       : 0);
   let currentY = bounds.y() + (bounds.h() - totalH) / 2;
 
@@ -82,7 +80,7 @@ export function renderSectionSlide(
       bounds.w(),
       currentY,
     );
-    currentY += sectionTitleH + s.section.sectionTitleBottomPadding;
+    currentY += sectionTitleH + s.sectionTitleBottomPadding;
   }
 
   if (measured.mSectionSubTitle && sectionSubTitleH > 0) {
