@@ -189,7 +189,7 @@ export function ChartHolder(p: Props) {
     >
       <Show when={err()}>
         {p.renderError ? (
-          <div class="absolute inset-0">{p.renderError(err())}</div>
+          p.renderError(err())
         ) : (
           <div class="ui-pad text-danger pointer-events-none absolute text-xs">
             {err()}

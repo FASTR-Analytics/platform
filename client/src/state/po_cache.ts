@@ -386,25 +386,19 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     if (replicantRes.success && replicantRes.data.status === "ok") {
       const validValues = replicantRes.data.possibleValues;
       const selected = config.d.selectedReplicantValue;
-      if (!selected) {
-        yield {
-          status: "error",
-          err: t3({
-            en: `[INFO] This visualization requires selecting a value for "${replicateBy}". Available: ${validValues.join(", ")}`,
-            fr: `[INFO] Cette visualisation nécessite de sélectionner une valeur pour "${replicateBy}". Disponibles: ${validValues.join(", ")}`,
-          }),
-        };
-        return;
-      }
-      if (!validValues.includes(selected)) {
-        yield {
-          status: "error",
-          err: t3({
-            en: `[INFO] Invalid value "${selected}" for "${replicateBy}". Available: ${validValues.join(", ")}`,
-            fr: `[INFO] Valeur invalide "${selected}" pour "${replicateBy}". Disponibles: ${validValues.join(", ")}`,
-          }),
-        };
-        return;
+      if (!selected || !validValues.includes(selected)) {
+        if (validValues.length === 0) {
+          yield {
+            status: "error",
+            err: t3({
+              en: `[INFO] No values available for "${replicateBy}"`,
+              fr: `[INFO] Aucune valeur disponible pour "${replicateBy}"`,
+            }),
+          };
+          return;
+        }
+        // Auto-select first available value for thumbnail rendering
+        config.d.selectedReplicantValue = validValues[0];
       }
     }
   }
