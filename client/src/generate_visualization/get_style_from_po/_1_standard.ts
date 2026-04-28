@@ -21,6 +21,10 @@ export function buildStandardStyle(
   const dataFormat = formatAs;
   const cf = selectCf(config.s);
   const cfOn = cf.type !== "none";
+  const c = config.s.content;
+  const showPoints = c === "points" || c === "lines-points";
+  const showLines = c === "lines" || c === "lines-area" || c === "lines-points";
+  const showAreas = c === "lines-area";
 
   return {
     scale: config.s.scale,
@@ -65,7 +69,7 @@ export function buildStandardStyle(
     content: {
       points: {
         func: {
-          show: config.s.content === "points",
+          show: showPoints,
           dataLabel: { show: config.s.showDataLabels },
         },
         textFormatter: (info: ChartValueInfo) =>
@@ -73,7 +77,7 @@ export function buildStandardStyle(
       },
       bars: {
         func:
-          config.s.content !== "bars"
+          c !== "bars"
             ? { show: false }
             : cfOn
               ? {
@@ -84,21 +88,18 @@ export function buildStandardStyle(
               : { show: true, dataLabel: { show: config.s.showDataLabels } },
         textFormatter: (info: ChartValueInfo) =>
           getFormatterFunc(dataFormat, config.s.decimalPlaces ?? 0)(info.val),
-        stacking:
-          config.s.content === "bars" && config.s.barsStacked
-            ? "stacked"
-            : "none",
+        stacking: c === "bars" && config.s.barsStacked ? "stacked" : "none",
       },
       lines: {
         func: {
-          show: config.s.content === "lines" || config.s.content === "areas",
+          show: showLines,
           dataLabel: { show: config.s.showDataLabelsLineCharts },
         },
         textFormatter: (info: ChartValueInfo) =>
           getFormatterFunc(dataFormat, config.s.decimalPlaces ?? 0)(info.val),
       },
       areas: {
-        func: { show: config.s.content === "areas" },
+        func: { show: showAreas },
       },
       tableCells: getTableCellsContent(config, formatAs),
       mapRegions: getMapRegionsContent(config, formatAs),

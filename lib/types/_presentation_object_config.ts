@@ -32,7 +32,7 @@ export type CustomSeriesStyle = z.infer<typeof customSeriesStyleSchema>;
 const presentationObjectConfigSStrict = z
   .object({
     scale: z.number(),
-    content: z.enum(["lines", "bars", "points", "areas"]),
+    content: z.enum(["bars", "lines", "points", "lines-area", "lines-points"]),
     allowIndividualRowLimits: z.boolean(),
     colorScale: z.enum([
       "pastel-discrete",

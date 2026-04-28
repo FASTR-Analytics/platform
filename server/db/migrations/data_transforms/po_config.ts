@@ -31,6 +31,7 @@
 // 14. Fill specialBarChartInverted default
 // 15. Convert selectedReplicantValue number → string
 // 16. Fill missing configS and configT fields (2025-04 schema additions)
+// 17. Rename content "areas" → "lines-area"
 //
 // =============================================================================
 
@@ -237,6 +238,9 @@ export function transformPOConfigData(config: Record<string, unknown>): Record<s
   if (!("forceYMinAuto" in s)) s.forceYMinAuto = false;
   if (!("nColsInCellDisplay" in s)) s.nColsInCellDisplay = "auto";
   if (!("sortIndicatorValues" in s)) s.sortIndicatorValues = "none";
+
+  // Block 17: Rename content "areas" → "lines-area"
+  if (s.content === "areas") s.content = "lines-area";
   const t = (c.t ?? {}) as Record<string, unknown>;
   if (!("captionRelFontSize" in t)) t.captionRelFontSize = 1;
   if (!("subCaptionRelFontSize" in t)) t.subCaptionRelFontSize = 1;

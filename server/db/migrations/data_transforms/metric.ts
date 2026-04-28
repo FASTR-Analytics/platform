@@ -44,6 +44,7 @@
 // 17. Strip legacy mapColor* fields
 // 18. Fill flat cf* fields from captured legacyCf or defaults
 // 19. diffAreas → specialDisruptionsChart
+// 23. Rename content "areas" → "lines-area"
 //
 // viz_presets.config.t:
 // 20. Fill caption/subCaption/footnote fields if missing
@@ -223,6 +224,9 @@ function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {
   }
   delete s.diffAreas;
   delete s.diffAreasOrder;
+
+  // Block 23: Rename content "areas" → "lines-area"
+  if (s.content === "areas") s.content = "lines-area";
 }
 
 // Block 20: Fill caption/subCaption/footnote fields if missing

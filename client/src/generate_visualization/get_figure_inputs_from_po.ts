@@ -26,6 +26,7 @@ import {
 import { getStyleFromPresentationObject } from "./get_style_from_po";
 import { getSpecialScorecardTableFigureInputs } from "./conditional_formatting_scorecard";
 import { getMapJsonDataConfigFromPresentationObjectConfig } from "./get_data_config_for_map";
+import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 
 type StateHolder<T> =
   | {
@@ -228,7 +229,8 @@ export function getFigureInputsFromPresentationObject(
 
     if (effectiveConfig.d.type === "map") {
       if (!geoJson) {
-        return { status: "error", err: "GeoJSON data required for map visualization" };
+        const level = getAdminAreaLevelFromMapConfig(effectiveConfig);
+        return { status: "error", err: `[INFO] Map files not yet uploaded for Admin Area ${level ?? ""}` };
       }
       const mapDataConfig = getMapJsonDataConfigFromPresentationObjectConfig(
         resultsValue,

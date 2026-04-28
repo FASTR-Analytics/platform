@@ -71,7 +71,7 @@ export function TimeseriesStyleControls(p: Props) {
       p.setTempConfig("s", "hideLegend", false);
     }
     if (v === "disruptions") {
-      p.setTempConfig("s", "content", "areas");
+      p.setTempConfig("s", "content", "lines-area");
       p.setTempConfig("s", "hideLegend", false);
     }
   };
@@ -367,16 +367,16 @@ export function TimeseriesStyleControls(p: Props) {
                 label={t3({ en: "Display format", fr: "Format d'affichage" })}
                 options={[
                   { value: "lines", label: t3({ en: "Lines", fr: "Lignes" }) },
-                  { value: "areas", label: t3({ en: "Areas", fr: "Zones" }) },
                   { value: "bars", label: t3({ en: "Bars", fr: "Barres" }) },
                 ]}
-                value={p.tempConfig.s.content}
+                value={
+                  p.tempConfig.s.content === "lines-points" ||
+                  p.tempConfig.s.content === "lines-area"
+                    ? "lines"
+                    : p.tempConfig.s.content
+                }
                 onChange={(v) =>
-                  p.setTempConfig(
-                    "s",
-                    "content",
-                    v as "lines" | "areas" | "bars",
-                  )
+                  p.setTempConfig("s", "content", v as "lines" | "bars")
                 }
                 horizontal
               />
@@ -386,6 +386,38 @@ export function TimeseriesStyleControls(p: Props) {
                     label={t3({ en: "Stacked bars", fr: "Histogramme empilé" })}
                     checked={p.tempConfig.s.barsStacked}
                     onChange={(v) => p.setTempConfig("s", "barsStacked", v)}
+                  />
+                </StyleRevealGroup>
+              </Show>
+              <Show
+                when={
+                  p.tempConfig.s.content === "lines" ||
+                  p.tempConfig.s.content === "lines-points" ||
+                  p.tempConfig.s.content === "lines-area"
+                }
+              >
+                <StyleRevealGroup>
+                  <Checkbox
+                    label={t3({ en: "Add points", fr: "Ajouter des points" })}
+                    checked={p.tempConfig.s.content === "lines-points"}
+                    onChange={(v) =>
+                      p.setTempConfig(
+                        "s",
+                        "content",
+                        v ? "lines-points" : "lines",
+                      )
+                    }
+                  />
+                  <Checkbox
+                    label={t3({ en: "Fill area", fr: "Remplir la zone" })}
+                    checked={p.tempConfig.s.content === "lines-area"}
+                    onChange={(v) =>
+                      p.setTempConfig(
+                        "s",
+                        "content",
+                        v ? "lines-area" : "lines",
+                      )
+                    }
                   />
                 </StyleRevealGroup>
               </Show>
