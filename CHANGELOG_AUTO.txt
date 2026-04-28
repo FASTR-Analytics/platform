@@ -1,3 +1,7 @@
+[1.28.6] [user] [changed] - Filter labels simplified to "Data values" and "Time period"
+[1.28.6] [user] [fixed] - Charts with replicated data now display correctly after auto-selection
+[1.28.6] [admin] [changed] - Shorter filter labels in visualization editor
+[1.28.6] [admin] [fixed] - Replicated charts now fetch correct data after auto-selecting a value
 [1.28.5] [user] [fixed] - Visualizations now auto-select a value instead of showing an error when none is chosen
 [1.28.5] [admin] [fixed] - Visualizations with replicated values now auto-select the first available option instead of showing an error
 [1.28.4] [user] [added] - Line charts now offer "Add points" and "Fill area" options
