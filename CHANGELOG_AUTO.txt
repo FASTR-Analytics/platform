@@ -1,3 +1,6 @@
+[1.28.8] [user] [changed] - AI assistant now uses your country's geographic terminology automatically
+[1.28.8] [admin] [added] - AI assistant now uses custom admin area labels when configured
+[1.28.8] [admin] [changed] - AI responses use instance-specific terminology for geographic levels
 [1.28.6] [user] [changed] - Filter labels simplified to "Data values" and "Time period"
 [1.28.6] [user] [fixed] - Charts with replicated data now display correctly after auto-selection
 [1.28.6] [admin] [changed] - Shorter filter labels in visualization editor
