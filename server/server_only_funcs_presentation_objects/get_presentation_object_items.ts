@@ -83,6 +83,20 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     // Use resolved period bounds as dateRange when period filter is active
     const dateRange = periodFilterExactBounds ?? rawDateRange;
 
+    // If metric has time data but we couldn't determine valid period bounds,
+    // treat as no data available (prevents null period crashes downstream)
+    if (firstPeriodOption && !dateRange) {
+      const ih: ItemsHolderPresentationObject = {
+        projectId,
+        resultsObjectId,
+        fetchConfig,
+        moduleLastRun,
+        dateRange: undefined,
+        status: "no_data_available" as const,
+      };
+      return { success: true, data: ih };
+    }
+
     const resolvedFetchConfig = {
       ...fetchConfig,
       periodFilterExactBounds,
