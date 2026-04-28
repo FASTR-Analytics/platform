@@ -376,6 +376,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
 
   // Validate replicant value if required
   const replicateBy = getReplicateByProp(config);
+  let finalFetchConfig = resFetchConfig.data;
   if (replicateBy) {
     const replicantRes = await getReplicantOptionsFromCacheOrFetch(
       projectId,
@@ -399,6 +400,14 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
         }
         // Auto-select first available value for thumbnail rendering
         config.d.selectedReplicantValue = validValues[0];
+        // Regenerate fetch config with corrected value
+        const newFetchConfig = getFetchConfigFromPresentationObjectConfig(
+          poDetail.resultsValue,
+          config,
+        );
+        if (newFetchConfig.success) {
+          finalFetchConfig = newFetchConfig.data;
+        }
       }
     }
   }
@@ -406,7 +415,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   const { data, version, isInflight } = await _PO_ITEMS_CACHE.get({
     projectId,
     resultsObjectId: poDetail.resultsValue.resultsObjectId,
-    fetchConfig: resFetchConfig.data,
+    fetchConfig: finalFetchConfig,
   });
 
   if (data) {
@@ -434,7 +443,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     serverActions.getPresentationObjectItems({
       projectId,
       resultsObjectId: poDetail.resultsValue.resultsObjectId,
-      fetchConfig: resFetchConfig.data,
+      fetchConfig: finalFetchConfig,
       firstPeriodOption: poDetail.resultsValue.mostGranularTimePeriodColumnInResultsFile,
     })
   );
@@ -444,7 +453,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     {
       projectId,
       resultsObjectId: poDetail.resultsValue.resultsObjectId,
-      fetchConfig: resFetchConfig.data,
+      fetchConfig: finalFetchConfig,
     },
     version,
   );

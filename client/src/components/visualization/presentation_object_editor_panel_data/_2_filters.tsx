@@ -153,7 +153,7 @@ function DataValuesFilter(p: DataValuesFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3({ en: "Filter data values", fr: "Filtrer les valeurs des données" })}
+        label={t3({ en: "Data values", fr: "Valeurs des données" })}
         checked={!!p.tempConfig.d.valuesFilter}
         onChange={(checked) => {
           if (checked) {
@@ -209,7 +209,7 @@ function PeriodFilter(p: PeriodFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3({ en: "Filter time period", fr: "Filtrer par période" })}
+        label={t3({ en: "Time period", fr: "Période" })}
         checked={!!p.tempConfig.d.periodFilter}
         onChange={(checked) => {
           if (checked) {
