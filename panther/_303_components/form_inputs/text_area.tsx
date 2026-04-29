@@ -30,9 +30,12 @@ function getTextAreaClasses(
     "border",
 
     // TextArea specific
+    "block",
     "w-full",
     resizable ? "" : "resize-none",
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 type TextAreaProps = {

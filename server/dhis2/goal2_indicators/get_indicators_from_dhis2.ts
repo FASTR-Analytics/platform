@@ -50,6 +50,7 @@ export async function getDataElementsFromDHIS2(
     filter?: string[];
     pageSize?: number;
     paging?: boolean;
+    rootJunction?: "AND" | "OR";
   }
 ): Promise<DHIS2DataElement[]> {
   const params = new URLSearchParams();
@@ -61,6 +62,11 @@ export async function getDataElementsFromDHIS2(
   // Add filters
   if (queryParams?.filter) {
     queryParams.filter.forEach((f) => params.append("filter", f));
+  }
+
+  // Add rootJunction for OR queries
+  if (queryParams?.rootJunction) {
+    params.set("rootJunction", queryParams.rootJunction);
   }
 
   // Add paging
@@ -82,21 +88,24 @@ export async function getDataElementsFromDHIS2(
 export async function searchDataElementsFromDHIS2(
   options: FetchOptions,
   query: string,
-  searchBy: "name" | "code",
   queryParams?: {
     fields?: string[];
     filter?: string[];
+    rootJunction?: "AND" | "OR";
   }
 ): Promise<DHIS2DataElement[]> {
-  const searchFilter = searchBy === "code"
-    ? `code:ilike:${query}`
-    : `name:ilike:${query}`;
+  const searchFilters = [
+    `name:ilike:${query}`,
+    `code:ilike:${query}`,
+    `id:ilike:${query}`,
+  ];
 
-  const filter = [...(queryParams?.filter || []), searchFilter];
+  const filter = [...(queryParams?.filter || []), ...searchFilters];
 
   return getDataElementsFromDHIS2(options, {
     ...queryParams,
     filter,
+    rootJunction: "OR",
   });
 }
 
@@ -147,6 +156,7 @@ export async function getIndicatorsFromDHIS2(
     filter?: string[];
     pageSize?: number;
     paging?: boolean;
+    rootJunction?: "AND" | "OR";
   }
 ): Promise<DHIS2Indicator[]> {
   const params = new URLSearchParams();
@@ -158,6 +168,11 @@ export async function getIndicatorsFromDHIS2(
   // Add filters
   if (queryParams?.filter) {
     queryParams.filter.forEach((f) => params.append("filter", f));
+  }
+
+  // Add rootJunction for OR queries
+  if (queryParams?.rootJunction) {
+    params.set("rootJunction", queryParams.rootJunction);
   }
 
   // Add paging
@@ -178,14 +193,15 @@ export async function getIndicatorsFromDHIS2(
 
 export async function searchIndicatorsFromDHIS2(
   options: FetchOptions,
-  query: string,
-  searchBy: "name" | "code"
+  query: string
 ): Promise<DHIS2Indicator[]> {
-  const filter = searchBy === "code"
-    ? [`code:ilike:${query}`]
-    : [`name:ilike:${query}`];
+  const filter = [
+    `name:ilike:${query}`,
+    `code:ilike:${query}`,
+    `id:ilike:${query}`,
+  ];
 
-  return getIndicatorsFromDHIS2(options, { filter });
+  return getIndicatorsFromDHIS2(options, { filter, rootJunction: "OR" });
 }
 
 export async function getIndicatorGroupsFromDHIS2(
@@ -213,10 +229,9 @@ export async function getIndicatorGroupsFromDHIS2(
 // Combined Search Function
 // ============================================================================
 
-export async function searchAllIndicatorsAndDataElements(
+async function searchSingleTerm(
   options: FetchOptions,
-  query: string,
-  searchBy: "name" | "code",
+  term: string,
   includeDataElements: boolean,
   includeIndicators: boolean
 ): Promise<{
@@ -231,12 +246,11 @@ export async function searchAllIndicatorsAndDataElements(
     indicators: [],
   };
 
-  // Parallel fetch both if requested
   const promises: Promise<any>[] = [];
 
   if (includeDataElements) {
     promises.push(
-      searchDataElementsFromDHIS2(options, query, searchBy).then(
+      searchDataElementsFromDHIS2(options, term).then(
         (de) => (results.dataElements = de)
       )
     );
@@ -244,15 +258,64 @@ export async function searchAllIndicatorsAndDataElements(
 
   if (includeIndicators) {
     promises.push(
-      searchIndicatorsFromDHIS2(options, query, searchBy).then(
+      searchIndicatorsFromDHIS2(options, term).then(
         (ind) => (results.indicators = ind)
       )
     );
   }
 
   await Promise.all(promises);
-
   return results;
+}
+
+export async function searchAllIndicatorsAndDataElements(
+  options: FetchOptions,
+  query: string,
+  includeDataElements: boolean,
+  includeIndicators: boolean
+): Promise<{
+  dataElements: DHIS2DataElement[];
+  indicators: DHIS2Indicator[];
+}> {
+  // Split by comma, semicolon, or newline and trim
+  const terms = query
+    .split(/[,;\n]/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+
+  if (terms.length === 0) {
+    return { dataElements: [], indicators: [] };
+  }
+
+  // Search all terms in parallel
+  const allResults = await Promise.all(
+    terms.map((term) =>
+      searchSingleTerm(options, term, includeDataElements, includeIndicators)
+    )
+  );
+
+  // Merge and dedupe by id
+  const seenDataElements = new Set<string>();
+  const seenIndicators = new Set<string>();
+  const dataElements: DHIS2DataElement[] = [];
+  const indicators: DHIS2Indicator[] = [];
+
+  for (const result of allResults) {
+    for (const de of result.dataElements) {
+      if (!seenDataElements.has(de.id)) {
+        seenDataElements.add(de.id);
+        dataElements.push(de);
+      }
+    }
+    for (const ind of result.indicators) {
+      if (!seenIndicators.has(ind.id)) {
+        seenIndicators.add(ind.id);
+        indicators.push(ind);
+      }
+    }
+  }
+
+  return { dataElements, indicators };
 }
 
 // ============================================================================

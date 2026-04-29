@@ -35,7 +35,6 @@ defineRoute(
       const indicators = await searchIndicatorsFromDHIS2(
         options,
         body.query,
-        body.searchBy || "name",
       );
 
       return c.json({
@@ -75,7 +74,6 @@ defineRoute(
       const dataElements = await searchDataElementsFromDHIS2(
         options,
         body.query,
-        "name",
         {
           filter: body.additionalFilters,
         },
@@ -118,7 +116,6 @@ defineRoute(
       const results = await searchAllIndicatorsAndDataElements(
         options,
         body.query,
-        body.searchBy || "name",
         body.includeDataElements ?? true,
         body.includeIndicators ?? true,
       );

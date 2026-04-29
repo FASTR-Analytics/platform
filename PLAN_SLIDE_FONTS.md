@@ -137,15 +137,15 @@ format is `{FontFamily}-{weight}-{normal|italic}`.
 ```json
 {
   "ttf": {
-    "International Inter-400-normal": "InternationalInter-Regular.ttf",
-    "International Inter-400-italic": "InternationalInter-Italic.ttf",
-    "International Inter-800-normal": "InternationalInter-ExtraBold.ttf",
-    "International Inter-800-italic": "InternationalInter-ExtraBoldItalic.ttf",
+    "InternationalInter-400-normal": "InternationalInter-Regular.ttf",
+    "InternationalInter-400-italic": "InternationalInter-Italic.ttf",
+    "InternationalInter-800-normal": "InternationalInter-ExtraBold.ttf",
+    "InternationalInter-800-italic": "InternationalInter-ExtraBoldItalic.ttf",
 
-    "Fira Sans-400-normal": "FiraSans-Regular.ttf",
-    "Fira Sans-400-italic": "FiraSans-Italic.ttf",
-    "Fira Sans-800-normal": "FiraSans-ExtraBold.ttf",
-    "Fira Sans-800-italic": "FiraSans-ExtraBoldItalic.ttf",
+    "FiraSans-400-normal": "FiraSans-Regular.ttf",
+    "FiraSans-400-italic": "FiraSans-Italic.ttf",
+    "FiraSans-800-normal": "FiraSans-ExtraBold.ttf",
+    "FiraSans-800-italic": "FiraSans-ExtraBoldItalic.ttf",
 
     "Merriweather-400-normal": "Merriweather-Regular.ttf",
     "Merriweather-400-italic": "Merriweather-Italic.ttf",
@@ -153,15 +153,15 @@ format is `{FontFamily}-{weight}-{normal|italic}`.
     "Merriweather-700-italic": "Merriweather-BoldItalic.ttf"
   },
   "woff2": {
-    "International Inter-400-normal": "InternationalInter-Regular.woff2",
-    "International Inter-400-italic": "InternationalInter-Italic.woff2",
-    "International Inter-800-normal": "InternationalInter-ExtraBold.woff2",
-    "International Inter-800-italic": "InternationalInter-ExtraBoldItalic.woff2",
+    "InternationalInter-400-normal": "InternationalInter-Regular.woff2",
+    "InternationalInter-400-italic": "InternationalInter-Italic.woff2",
+    "InternationalInter-800-normal": "InternationalInter-ExtraBold.woff2",
+    "InternationalInter-800-italic": "InternationalInter-ExtraBoldItalic.woff2",
 
-    "Fira Sans-400-normal": "FiraSans-Regular.woff2",
-    "Fira Sans-400-italic": "FiraSans-Italic.woff2",
-    "Fira Sans-800-normal": "FiraSans-ExtraBold.woff2",
-    "Fira Sans-800-italic": "FiraSans-ExtraBoldItalic.woff2",
+    "FiraSans-400-normal": "FiraSans-Regular.woff2",
+    "FiraSans-400-italic": "FiraSans-Italic.woff2",
+    "FiraSans-800-normal": "FiraSans-ExtraBold.woff2",
+    "FiraSans-800-italic": "FiraSans-ExtraBoldItalic.woff2",
 
     "Merriweather-400-normal": "Merriweather-Regular.woff2",
     "Merriweather-400-italic": "Merriweather-Italic.woff2",
@@ -172,7 +172,16 @@ format is `{FontFamily}-{weight}-{normal|italic}`.
 ```
 
 **IMPORTANT:** Key format must match what `getFontInfoId(font)` returns in panther.
-Verify the exact format by checking `_001_font/types.ts`.
+The function removes spaces from font family names:
+
+```typescript
+// In panther: _001_font/types.ts
+export function getFontInfoId(font: FontInfo): string {
+  return `${font.fontFamily.replaceAll(" ", "").replaceAll("'", "")}-${font.weight}-${font.italic ? "italic" : "normal"}`;
+}
+```
+
+So keys must be `FiraSans-400-normal` (not `Fira Sans-400-normal`).
 
 ---
 
@@ -260,17 +269,62 @@ Verify the exact format by checking `_001_font/types.ts`.
 
 #### 4a. lib/types/slides.ts
 
-**Add type and update SlideDeckConfig:**
+**Add font config, types, and helpers:**
 
 ```typescript
-export const SLIDE_FONT_FAMILIES = [
-  "International Inter",
-  "Fira Sans",
-  "Merriweather",
-] as const;
+import type { FontInfo } from "@timroberton/panther";
 
-export type SlideFontFamily = (typeof SLIDE_FONT_FAMILIES)[number];
+type SlideFontConfig = {
+  family: string;
+  label: string;
+  boldWeight: 700 | 800;
+};
 
+export const SLIDE_FONTS: SlideFontConfig[] = [
+  { family: "International Inter", label: "Inter", boldWeight: 800 },
+  { family: "Fira Sans", label: "Fira Sans", boldWeight: 800 },
+  { family: "Merriweather", label: "Merriweather", boldWeight: 700 },
+];
+
+export const SLIDE_FONT_FAMILIES = SLIDE_FONTS.map((f) => f.family) as [string, ...string[]];
+
+export type SlideFontFamily = (typeof SLIDE_FONTS)[number]["family"];
+
+function getFontConfig(family: SlideFontFamily): SlideFontConfig {
+  return SLIDE_FONTS.find((f) => f.family === family) ?? SLIDE_FONTS[0];
+}
+
+export function getSlideFontInfo(
+  family: SlideFontFamily,
+  bold: boolean,
+  italic: boolean,
+): FontInfo {
+  const config = getFontConfig(family);
+  return {
+    fontFamily: config.family,
+    weight: bold ? config.boldWeight : 400,
+    italic,
+  };
+}
+
+export function getAllSlideFontVariants(family: SlideFontFamily): FontInfo[] {
+  const config = getFontConfig(family);
+  return [
+    { fontFamily: config.family, weight: 400, italic: false },
+    { fontFamily: config.family, weight: 400, italic: true },
+    { fontFamily: config.family, weight: config.boldWeight, italic: false },
+    { fontFamily: config.family, weight: config.boldWeight, italic: true },
+  ];
+}
+
+export function getBoldWeight(family: SlideFontFamily): 700 | 800 {
+  return getFontConfig(family).boldWeight;
+}
+```
+
+**Update SlideDeckConfig:**
+
+```typescript
 export type SlideDeckConfig = {
   // ... existing fields ...
   fontFamily?: SlideFontFamily;
@@ -343,20 +397,10 @@ dependency on runtime code.
 
 **File:** `client/src/generate_slide_deck/convert_slide_to_page_inputs.ts`
 
-#### 6a. Add font weight mapping
+#### 6a. Update imports
 
 ```typescript
-import type { SlideFontFamily } from "lib";
-
-const FONT_BOLD_WEIGHTS: Record<SlideFontFamily, 700 | 800> = {
-  "International Inter": 800,
-  "Fira Sans": 800,
-  Merriweather: 700, // No 800 weight available
-};
-
-function getBoldWeight(fontFamily: SlideFontFamily): 700 | 800 {
-  return FONT_BOLD_WEIGHTS[fontFamily];
-}
+import { getSlideFontInfo, type SlideFontFamily } from "lib";
 ```
 
 #### 6b. Update getFont function
@@ -386,12 +430,7 @@ function getFont(
   italic?: boolean,
   defaultBold = false
 ): FontInfo {
-  const boldWeight = getBoldWeight(fontFamily);
-  return {
-    fontFamily,
-    weight: (bold ?? defaultBold) ? boldWeight : 400,
-    italic: italic ?? false,
-  };
+  return getSlideFontInfo(fontFamily, bold ?? defaultBold, italic ?? false);
 }
 ```
 
@@ -432,26 +471,10 @@ font: getFont(fontFamily, coverFontSizes.titleBold, coverFontSizes.titleItalic, 
 
 Both files need identical changes.
 
-#### 7a. Add font helpers
+#### 7a. Update imports
 
 ```typescript
-import type { SlideFontFamily } from "lib";
-
-const FONT_BOLD_WEIGHTS: Record<SlideFontFamily, 700 | 800> = {
-  "International Inter": 800,
-  "Fira Sans": 800,
-  Merriweather: 700,
-};
-
-function getFontsForFamily(fontFamily: SlideFontFamily): FontInfo[] {
-  const boldWeight = FONT_BOLD_WEIGHTS[fontFamily];
-  return [
-    { fontFamily, weight: 400, italic: false },
-    { fontFamily, weight: 400, italic: true },
-    { fontFamily, weight: boldWeight, italic: false },
-    { fontFamily, weight: boldWeight, italic: true },
-  ];
-}
+import { getAllSlideFontVariants, type SlideFontFamily } from "lib";
 ```
 
 #### 7b. Update font registration
@@ -485,7 +508,7 @@ const fonts: FontInfo[] = representativeStyle.getFontsToRegister();
 ```typescript
 // Move AFTER resDeckDetail is fetched
 const fontFamily = resDeckDetail.data.config.fontFamily ?? "International Inter";
-const fonts: FontInfo[] = getFontsForFamily(fontFamily);
+const fonts: FontInfo[] = getAllSlideFontVariants(fontFamily);
 ```
 
 **Note:** This must come AFTER `resDeckDetail` is fetched since we need the config.
@@ -496,30 +519,65 @@ fonts into the browser via `loadFontsWithTimeout`.
 
 ### Phase 8: UI Selector
 
-**File:** `client/src/components/slide_deck/style_editor/StyleEditor.tsx`
-(or wherever deck style settings live)
+**File:** `client/src/components/slide_deck/style_editor/FontPicker.tsx` (new)
 
-**Add font selector:**
+**Create a card-based font picker following the pattern of other pickers:**
 
 ```tsx
-import { SLIDE_FONT_FAMILIES, type SlideFontFamily } from "lib";
+import { type SlideFontFamily, SLIDE_FONTS } from "lib";
+import { For } from "solid-js";
 
-// In the component:
-<Select
-  label="Font"
-  value={config.fontFamily ?? "International Inter"}
-  options={[
-    { value: "International Inter", label: "Inter" },
-    { value: "Fira Sans", label: "Fira Sans" },
-    { value: "Merriweather", label: "Merriweather" },
-  ]}
-  onChange={(v) => updateConfig("fontFamily", v as SlideFontFamily)}
+type Props = {
+  value: SlideFontFamily | undefined;
+  onChange: (v: SlideFontFamily) => void;
+};
+
+export function FontPicker(p: Props) {
+  const selected = () => p.value ?? "International Inter";
+
+  return (
+    <div>
+      <div class="text-base-content/70 font-700 mb-2 text-sm">Font</div>
+      <div class="flex gap-2">
+        <For each={SLIDE_FONTS}>
+          {(font) => (
+            <button
+              type="button"
+              class={`px-4 py-2 rounded border-2 transition-colors ${
+                selected() === font.family
+                  ? "border-primary bg-primary/10"
+                  : "border-base-300 hover:border-primary/50"
+              }`}
+              style={{ "font-family": font.family }}
+              onClick={() => p.onChange(font.family)}
+            >
+              {font.label}
+            </button>
+          )}
+        </For>
+      </div>
+    </div>
+  );
+}
+```
+
+**File:** `client/src/components/slide_deck/slide_deck_settings.tsx`
+
+**Add import and use in Style section (around line 176, after OverlayPicker):**
+
+```tsx
+import { FontPicker } from "./style_editor/FontPicker.tsx";
+
+// In the Style SettingsSection:
+<FontPicker
+  value={tempConfig.fontFamily}
+  onChange={(v) => setTempConfig("fontFamily", v)}
 />
 ```
 
-**Placement:** In the Style section, likely near color/treatment pickers.
-
-**Consider:** Add helper text noting Amharic only works with Inter.
+**Note:** The font classes (`font-[Fira_Sans]`, `font-[Merriweather]`) rely on the
+@font-face declarations from Phase 3. The cards display each font name in its own
+typeface so users can preview the font style.
 
 ---
 
