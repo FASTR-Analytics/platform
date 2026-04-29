@@ -345,6 +345,11 @@ function buildMapAutoLegend(
   formatAs: "percent" | "number",
 ) {
   const cf = selectCf(config.s);
+
+  if (cf.type === "thresholds") {
+    return getLegendFromConfig(config, formatAs);
+  }
+
   const noData = {
     color: "#f0f0f0",
     label: t3({ en: "No data", fr: "Aucune donnée" }),

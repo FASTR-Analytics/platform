@@ -130,6 +130,31 @@ export function PageHolder(p: Props) {
   const [dragState, setDragState] = createSignal<DragState | undefined>();
   const [fontsLoaded, setFontsLoaded] = createSignal(false);
 
+  const fontKey = () => {
+    const inputs = p.pageInputs;
+    // pageInputs.style is CustomPageStyleOptions, wrap in { page: ... } for CustomStyle
+    const style = new CustomStyle({ page: inputs?.style });
+    return style.getFontsToRegister().map(f => `${f.fontFamily}-${f.weight}-${f.italic}`).join(',');
+  };
+
+  let fontLoadVersion = 0;
+
+  createEffect(() => {
+    fontKey(); // Track font changes
+    // pageInputs.style is CustomPageStyleOptions, wrap in { page: ... } for CustomStyle
+    const style = new CustomStyle({ page: p.pageInputs?.style });
+    const fonts = style.getFontsToRegister();
+
+    const thisVersion = ++fontLoadVersion;
+    setFontsLoaded(false);
+
+    loadFontsWithTimeout(fonts).then(() => {
+      if (thisVersion === fontLoadVersion) {
+        setFontsLoaded(true);
+      }
+    });
+  });
+
   onMount(() => {
     mainCanvas.width = fixedCanvasW;
     mainCanvas.height = fixedCanvasH;
@@ -165,21 +190,12 @@ export function PageHolder(p: Props) {
 
       document.addEventListener("keydown", handleKeyDown);
     }
-
-    let mounted = true;
-    const style = new CustomStyle(p.pageInputs?.style);
-    const fonts = style.getFontsToRegister();
-    loadFontsWithTimeout(fonts).then(() => {
-      if (mounted) setFontsLoaded(true);
-    });
-
-    onCleanup(() => {
-      mounted = false;
-    });
   });
 
   createEffect(() => {
-    if (fontsLoaded()) {
+    const loaded = fontsLoaded();
+    console.log("[PH] render effect, loaded=", loaded);
+    if (loaded) {
       updatePage(
         mainCachedContext!,
         p.pageInputs,

@@ -3,10 +3,9 @@ import {
   PageRenderer,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   createPdfRenderContextWithFontsBrowser,
-  CustomPageStyle,
   type FontInfo,
 } from "panther";
-import { APIResponseWithData, type Slide } from "lib";
+import { APIResponseWithData, type Slide, getAllSlideFontVariants } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { convertSlideToPageInputs } from "../generate_slide_deck/convert_slide_to_page_inputs";
@@ -41,25 +40,8 @@ export async function exportSlideDeckAsPdfBase64(
     const pdfH = Math.round((pdfW * 9) / 16);
     const pdfOrientation = "landscape";
 
-    const _InternationalInter_400: FontInfo = {
-      fontFamily: "International Inter",
-      weight: 400,
-      italic: false,
-    };
-    const _InternationalInter_800: FontInfo = {
-      fontFamily: "International Inter",
-      weight: 800,
-      italic: false,
-    };
-    const representativeStyle = new CustomPageStyle({
-      text: {
-        base: { font: _InternationalInter_400 },
-        coverTitle: { font: _InternationalInter_800 },
-        sectionTitle: { font: _InternationalInter_800 },
-        header: { font: _InternationalInter_800 },
-      },
-    });
-    const fonts: FontInfo[] = representativeStyle.getFontsToRegister();
+    const fontFamily = resDeckDetail.data.config.fontFamily ?? "International Inter";
+    const fonts: FontInfo[] = getAllSlideFontVariants(fontFamily);
 
     progress(0.15);
 

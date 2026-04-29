@@ -22,6 +22,17 @@ import { t3 } from "../translate/t-func.ts";
 
 export type AllPresetId = ColorPresetId | BrandPresetId;
 
+import { type SlideFontFamily } from "./_slide_fonts.ts";
+export {
+  SLIDE_FONTS,
+  SLIDE_FONT_FAMILIES,
+  type SlideFontFamily,
+  getSlideFontInfo,
+  getAllSlideFontVariants,
+  getBoldWeight,
+  getLetterSpacing,
+} from "./_slide_fonts.ts";
+
 export type ColorTheme =
   | { type: "preset"; id: AllPresetId }
   | { type: "custom"; primary: string };
@@ -58,6 +69,7 @@ export type SlideDeckConfig = {
   layout: LayoutPresetId;
   coverAndSectionTreatment: CoverTreatmentId;
   freeformTreatment: FreeformTreatmentId;
+  fontFamily?: SlideFontFamily;
 };
 
 export function getTextColorForBackground(bgColor: string): string {
@@ -110,6 +122,7 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
     layout: "default",
     coverAndSectionTreatment: "bold",
     freeformTreatment: "classic",
+    fontFamily: "International Inter",
   };
 }
 

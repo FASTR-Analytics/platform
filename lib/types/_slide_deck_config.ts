@@ -5,6 +5,7 @@
 import { COLOR_PRESET_IDS, COVER_TREATMENT_IDS, FREEFORM_TREATMENT_IDS, LAYOUT_PRESET_IDS } from "@timroberton/panther";
 import { z } from "zod";
 import { BRAND_PRESET_IDS } from "../brand_presets.ts";
+import { SLIDE_FONT_FAMILIES } from "./_slide_fonts.ts";
 
 const ALL_PRESET_IDS = [...COLOR_PRESET_IDS, ...BRAND_PRESET_IDS] as const;
 
@@ -55,6 +56,7 @@ export const slideDeckConfigSchema = z.object({
   layout: z.enum(LAYOUT_PRESET_IDS),
   coverAndSectionTreatment: z.enum(COVER_TREATMENT_IDS),
   freeformTreatment: z.enum(FREEFORM_TREATMENT_IDS),
+  fontFamily: z.enum(SLIDE_FONT_FAMILIES).optional(),
 });
 
 export type SlideDeckConfigFromSchema = z.infer<typeof slideDeckConfigSchema>;
@@ -101,5 +103,6 @@ const _completeDeckConfig: Required<SlideDeckConfig> = {
   layout: "default",
   coverAndSectionTreatment: "bold",
   freeformTreatment: "classic",
+  fontFamily: "International Inter",
 };
 slideDeckConfigSchema.parse(_completeDeckConfig);

@@ -13,6 +13,7 @@ import {
   getTableLayoutStyle,
   getTextStyle,
 } from "./_0_common";
+import { getAdminAreaLevelFromMapConfig } from "../get_admin_area_level_from_config";
 
 export function buildStandardStyle(
   config: PresentationObjectConfig,
@@ -110,7 +111,11 @@ export function buildStandardStyle(
       config.d.type === "map"
         ? {
             projection: config.s.mapProjection ?? "equirectangular",
-            dataLabelMode: "centroid",
+            dataLabelMode: config.s.mapDataLabelMode ?? "centroid",
+            fit: (getAdminAreaLevelFromMapConfig(config) ?? 0) >= 3
+              ? "only-regions-in-data"
+              : undefined,
+            labelPositioning: "v2",
           }
         : undefined,
   };

@@ -91,6 +91,42 @@ export function MapStyleControls(p: Props) {
               fr: "Afficher les étiquettes de données",
             })}
           />
+          <Show
+            when={
+              p.tempConfig.s.mapShowRegionLabels || p.tempConfig.s.showDataLabels
+            }
+          >
+            <StyleRevealGroup>
+              <RadioGroup
+                label={t3({
+                  en: "Label placement",
+                  fr: "Placement des étiquettes",
+                })}
+                options={[
+                  {
+                    value: "centroid",
+                    label: t3({ en: "Center", fr: "Centre" }),
+                  },
+                  {
+                    value: "callout",
+                    label: t3({ en: "Callout", fr: "Légende" }),
+                  },
+                  {
+                    value: "auto",
+                    label: t3({ en: "Auto", fr: "Auto" }),
+                  },
+                ]}
+                value={p.tempConfig.s.mapDataLabelMode ?? "centroid"}
+                onChange={(v) =>
+                  p.setTempConfig(
+                    "s",
+                    "mapDataLabelMode",
+                    v as "centroid" | "callout" | "auto",
+                  )
+                }
+              />
+            </StyleRevealGroup>
+          </Show>
           <Show when={p.tempConfig.s.showDataLabels}>
             <StyleRevealGroup>
               <RadioGroup

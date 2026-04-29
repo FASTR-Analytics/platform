@@ -52,6 +52,15 @@ const COVER_TREATMENTS: Record<string, CoverTreatmentConfig> = {
     date: "baseContentMuted",
     splitAdjust: { darken: 0.05 },
   },
+  lighter: {
+    name: "Lighter",
+    background: "base200",
+    title: "primary",
+    subTitle: "baseContentMuted",
+    author: "baseContentMuted",
+    date: "baseContentMuted",
+    splitAdjust: { darken: 0.05 },
+  },
   white: {
     name: "White",
     background: "base100",
@@ -74,9 +83,10 @@ const COVER_TREATMENTS: Record<string, CoverTreatmentConfig> = {
 
 export const COVER_TREATMENT_IDS = [
   "bold",
-  "elegant",
+  // "elegant",
   "muted",
   "light",
+  "lighter",
   "white",
   "pure",
 ] as const;

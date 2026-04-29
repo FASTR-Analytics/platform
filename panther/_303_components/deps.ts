@@ -9,6 +9,7 @@ export { Color } from "../_001_color/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
+export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export { CustomStyle } from "../_006_style/mod.ts";
 export type { CustomStyleOptions } from "../_006_style/mod.ts";
 export { getMinimumSpan } from "../_008_layouter/mod.ts";

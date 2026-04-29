@@ -168,6 +168,17 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
       config.layout = LAYOUT_PRESET_IDS[0];
     }
 
+    // Block 5: Add fontFamily default
+    if (!("fontFamily" in config)) {
+      config.fontFamily = "International Inter";
+    }
+    if (
+      config.fontFamily &&
+      !["International Inter", "Fira Sans", "Merriweather", "Poppins"].includes(config.fontFamily)
+    ) {
+      config.fontFamily = "International Inter";
+    }
+
     const validated = slideDeckConfigSchema.parse(config);
 
     await tx`

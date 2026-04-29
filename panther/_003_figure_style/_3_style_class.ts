@@ -497,6 +497,30 @@ export class CustomFigureStyle {
           g.map?.calloutMargin,
           d.map.calloutMargin,
         ),
+        labelPositioning: m(
+          c.map?.labelPositioning,
+          g.map?.labelPositioning,
+          d.map.labelPositioning,
+        ),
+        labelCollision: {
+          gap: ms(
+            sf,
+            c.map?.labelCollision?.gap,
+            g.map?.labelCollision?.gap,
+            d.map.labelCollision.gap,
+          ),
+          maxCentroidDisplacement: ms(
+            sf,
+            c.map?.labelCollision?.maxCentroidDisplacement,
+            g.map?.labelCollision?.maxCentroidDisplacement,
+            d.map.labelCollision.maxCentroidDisplacement,
+          ),
+          maxIterations: m(
+            c.map?.labelCollision?.maxIterations,
+            g.map?.labelCollision?.maxIterations,
+            d.map.labelCollision.maxIterations,
+          ),
+        },
       },
     };
   }

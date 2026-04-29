@@ -74,6 +74,9 @@ const presentationObjectConfigSStrict = z
     formatAdminArea3Labels: z.boolean().optional(),
     mapProjection: z.enum(["equirectangular", "mercator", "naturalEarth1"]),
     mapShowRegionLabels: z.boolean().optional(),
+    mapDataLabelMode: z
+      .enum(["none", "centroid", "callout", "auto"])
+      .optional(),
   })
   .merge(cfStorageSchema);
 

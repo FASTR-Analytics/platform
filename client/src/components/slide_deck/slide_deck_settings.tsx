@@ -17,9 +17,13 @@ import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { instanceState } from "~/state/instance/t1_store";
 import { ColorThemePicker } from "./style_editor/ColorThemePicker.tsx";
+import { FontPicker } from "./style_editor/FontPicker.tsx";
 import { LayoutPicker } from "./style_editor/LayoutPicker.tsx";
 import { OverlayPicker } from "./style_editor/OverlayPicker.tsx";
-import { CoverTreatmentPicker, FreeformTreatmentPicker } from "./style_editor/TreatmentPicker.tsx";
+import {
+  CoverTreatmentPicker,
+  FreeformTreatmentPicker,
+} from "./style_editor/TreatmentPicker.tsx";
 import { LogoSectionEditor } from "./slide_editor/LogoSectionEditor.tsx";
 import { StylePreview } from "./style_editor/StylePreview.tsx";
 
@@ -120,7 +124,7 @@ export function SlideDeckSettings(p: Props) {
               <Show when={editingName()}>
                 <input
                   type="text"
-                  class="border border-base-300 rounded px-2 py-1 text-base font-normal"
+                  class="border-base-300 rounded border px-2 py-1 text-base font-normal"
                   value={tempConfig.label}
                   onInput={(e) => setTempConfig("label", e.currentTarget.value)}
                   onBlur={() => setEditingName(false)}
@@ -161,6 +165,10 @@ export function SlideDeckSettings(p: Props) {
               value={tempConfig.colorTheme}
               onChange={(v) => setTempConfig("colorTheme", v)}
             />
+            <FontPicker
+              value={tempConfig.fontFamily}
+              onChange={(v) => setTempConfig("fontFamily", v)}
+            />
             <LayoutPicker
               value={tempConfig.layout}
               onChange={(v) => setTempConfig("layout", v)}
@@ -196,12 +204,7 @@ export function SlideDeckSettings(p: Props) {
                       )}
                       value={logo}
                       onChange={(v) =>
-                        setTempConfig(
-                          "logos",
-                          "availableCustom",
-                          i_logo(),
-                          v,
-                        )
+                        setTempConfig("logos", "availableCustom", i_logo(), v)
                       }
                       fullWidth
                     />
@@ -231,7 +234,10 @@ export function SlideDeckSettings(p: Props) {
               onChange={(c) => setTempConfig("logos", "header", c)}
             />
             <LogoSectionEditor
-              title={t3({ en: "Content footer", fr: "Pied de page de contenu" })}
+              title={t3({
+                en: "Content footer",
+                fr: "Pied de page de contenu",
+              })}
               config={tempConfig.logos.footer}
               customLogos={tempConfig.logos.availableCustom.filter(Boolean)}
               onChange={(c) => setTempConfig("logos", "footer", c)}
@@ -239,7 +245,10 @@ export function SlideDeckSettings(p: Props) {
           </div>
         </SettingsSection>
         <SettingsSection
-          header={t3({ en: "Footer & page numbers", fr: "Pied de page et numéros" })}
+          header={t3({
+            en: "Footer & page numbers",
+            fr: "Pied de page et numéros",
+          })}
         >
           <div class="ui-spy-sm">
             <Checkbox

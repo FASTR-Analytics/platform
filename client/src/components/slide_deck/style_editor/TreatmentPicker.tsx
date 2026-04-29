@@ -22,7 +22,6 @@ function CoverThumbnail(p: { treatmentId: CoverTreatmentId }) {
   const bgStyle = (): string => {
     switch (p.treatmentId) {
       case "bold":
-      case "elegant":
       case "muted":
         return THUMBNAIL_PRIMARY;
       case "light":
@@ -36,11 +35,10 @@ function CoverThumbnail(p: { treatmentId: CoverTreatmentId }) {
     switch (p.treatmentId) {
       case "bold":
         return THUMBNAIL_BASE_100;
-      case "elegant":
-        return THUMBNAIL_BASE_200;
       case "muted":
         return "#d4d4d8";
       case "light":
+      case "lighter":
       case "white":
         return THUMBNAIL_PRIMARY;
       default:
@@ -53,10 +51,7 @@ function CoverThumbnail(p: { treatmentId: CoverTreatmentId }) {
       class="absolute inset-0 flex items-center justify-center"
       style={{ background: bgStyle() }}
     >
-      <div
-        class="w-8 h-1.5 rounded-sm"
-        style={{ background: titleStyle() }}
-      />
+      <div class="h-1.5 w-8 rounded-sm" style={{ background: titleStyle() }} />
     </div>
   );
 }
@@ -69,7 +64,7 @@ export function CoverTreatmentPicker(p: CoverTreatmentPickerProps) {
       <div class="ui-label">
         {t3({ en: "Cover & Section", fr: "Couverture et section" })}
       </div>
-      <div class="flex gap-3 flex-wrap">
+      <div class="ui-gap-sm flex flex-wrap">
         <For each={presets}>
           {(preset) => (
             <PresetCard
@@ -130,7 +125,9 @@ function FreeformThumbnail(p: { treatmentId: FreeformTreatmentId }) {
         class="h-3 flex-none"
         style={{
           background: headerStyle().bg,
-          "border-bottom": headerStyle().border ? `1px solid ${headerStyle().border}` : undefined,
+          "border-bottom": headerStyle().border
+            ? `1px solid ${headerStyle().border}`
+            : undefined,
         }}
       />
       <div class="flex-1" />
@@ -147,7 +144,7 @@ export function FreeformTreatmentPicker(p: FreeformTreatmentPickerProps) {
       <div class="ui-label">
         {t3({ en: "Content Pages", fr: "Pages de contenu" })}
       </div>
-      <div class="flex gap-3 flex-wrap">
+      <div class="ui-gap-sm flex flex-wrap">
         <For each={presets}>
           {(preset) => (
             <PresetCard

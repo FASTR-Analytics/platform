@@ -22,7 +22,7 @@ import type { FigureInputs } from "../deps.ts";
 import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   CanvasRenderContext,
-  CustomStyle,
+  CustomFigureStyle,
   FigureRenderer,
   RectCoordsDims,
 } from "../deps.ts";
@@ -52,6 +52,28 @@ export function ChartHolder(p: Props) {
 
   const [err, setErr] = createSignal<string>("");
   const [fontsLoaded, setFontsLoaded] = createSignal(false);
+
+  const fontKey = () => {
+    const style = new CustomFigureStyle(p.chartInputs?.style);
+    return style.getFontsToRegister().map(f => `${f.fontFamily}-${f.weight}-${f.italic}`).join(',');
+  };
+
+  let fontLoadVersion = 0;
+
+  createEffect(() => {
+    const _key = fontKey();
+    const style = new CustomFigureStyle(p.chartInputs?.style);
+    const fonts = style.getFontsToRegister();
+
+    const thisVersion = ++fontLoadVersion;
+    setFontsLoaded(false);
+
+    loadFontsWithTimeout(fonts).then(() => {
+      if (thisVersion === fontLoadVersion) {
+        setFontsLoaded(true);
+      }
+    });
+  });
 
   createEffect(() => {
     if (fontsLoaded()) {
@@ -89,13 +111,6 @@ export function ChartHolder(p: Props) {
     if (canvas) {
       canvasTrackingId = trackCanvas(canvas, "ChartHolder");
     }
-
-    let mounted = true;
-    const style = new CustomStyle(p.chartInputs?.style);
-    const fonts = style.getFontsToRegister();
-    loadFontsWithTimeout(fonts).then(() => {
-      if (mounted) setFontsLoaded(true);
-    });
 
     const observer = new ResizeObserver((entries) => {
       // Clear any pending resize timer
@@ -140,7 +155,6 @@ export function ChartHolder(p: Props) {
     observer.observe(div);
 
     onCleanup(() => {
-      mounted = false;
       observer.disconnect();
       if (resizeTimer !== undefined) {
         clearTimeout(resizeTimer);
