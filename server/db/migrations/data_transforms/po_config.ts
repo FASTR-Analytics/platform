@@ -107,16 +107,10 @@ export type MigrationStats = {
   rowsTransformed: number;
 };
 
-// ─── Reusable transform function ────────────────────────────────────────────
-// Exported for use by slide_config.ts (embedded PO configs in figure blocks)
+// ─── Reusable transform functions ───────────────────────────────────────────
+// Exported for use by metric.ts (viz presets) and module_definition.ts (defaultPresentationObjects)
 
-export function transformPOConfigData(config: Record<string, unknown>): Record<string, unknown> {
-  const c = structuredClone(config) as Record<string, unknown>;
-  const d = (c.d ?? {}) as Record<string, unknown>;
-  const s = (c.s ?? {}) as Record<string, unknown>;
-
-  // ─── configD transforms ───────────────────────────────────────────────
-
+export function transformConfigD(d: Record<string, unknown>): void {
   // Block 1: periodOpt → timeseriesGrouping
   if (d.periodOpt !== undefined) {
     d.timeseriesGrouping ??= d.periodOpt;
@@ -161,10 +155,9 @@ export function transformPOConfigData(config: Record<string, unknown>): Record<s
   if (typeof d.selectedReplicantValue === "number") {
     d.selectedReplicantValue = String(d.selectedReplicantValue);
   }
+}
 
-  // ─── configS transforms ───────────────────────────────────────────────
-
-  const isMap = d.type === "map";
+export function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {
   let legacyCf: ConditionalFormatting | undefined;
 
   // Block 5: Legacy conditionalFormatting string preset → capture as legacyCf
@@ -227,7 +220,7 @@ export function transformPOConfigData(config: Record<string, unknown>): Record<s
   // Block 14: Fill specialBarChartInverted default
   if (!("specialBarChartInverted" in s)) s.specialBarChartInverted = false;
 
-  // Block 16: Fill missing configS and configT fields (2025-04 schema additions)
+  // Block 16: Fill missing configS fields (2025-04 schema additions)
   if (!("diffInverted" in s)) s.diffInverted = false;
   if (!("specialBarChart" in s)) s.specialBarChart = false;
   if (!("specialBarChartDiffThreshold" in s)) s.specialBarChartDiffThreshold = 0;
@@ -241,7 +234,21 @@ export function transformPOConfigData(config: Record<string, unknown>): Record<s
 
   // Block 17: Rename content "areas" → "lines-area"
   if (s.content === "areas") s.content = "lines-area";
+}
+
+// ─── Full PO config transform ───────────────────────────────────────────────
+// Exported for use by slide_config.ts and module_definition.ts
+
+export function transformPOConfigData(config: Record<string, unknown>): Record<string, unknown> {
+  const c = structuredClone(config) as Record<string, unknown>;
+  const d = (c.d ?? {}) as Record<string, unknown>;
+  const s = (c.s ?? {}) as Record<string, unknown>;
   const t = (c.t ?? {}) as Record<string, unknown>;
+
+  transformConfigD(d);
+  transformConfigS(s, d.type === "map");
+
+  // Block 16 (continued): Fill configT fields
   if (!("captionRelFontSize" in t)) t.captionRelFontSize = 1;
   if (!("subCaptionRelFontSize" in t)) t.subCaptionRelFontSize = 1;
   if (!("footnoteRelFontSize" in t)) t.footnoteRelFontSize = 1;

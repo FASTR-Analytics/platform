@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { z } from "zod";
+import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 
 // ============================================================================
 // Module-specific atoms
@@ -78,7 +79,7 @@ export const defaultPresentationObjectInstalledStrict = z.object({
   moduleId: z.string(),
   metricId: z.string(),
   sortOrder: z.number(),
-  config: z.unknown(),
+  config: presentationObjectConfigSchema,
 });
 
 // ============================================================================
