@@ -1,3 +1,10 @@
+[1.28.10] [user] [changed] - DHIS2 search now searches by name, code, and ID simultaneously
+[1.28.10] [user] [added] - Search multiple terms at once using commas, semicolons, or new lines
+[1.28.10] [user] [changed] - Search input replaced with larger text area for easier multi-term entry
+[1.28.10] [user] [added] - Clear button to quickly reset the search field
+[1.28.10] [admin] [changed] - DHIS2 search now checks name, code, and ID simultaneously
+[1.28.10] [admin] [added] - Search multiple DHIS2 terms at once using commas, semicolons, or new lines
+[1.28.10] [admin] [changed] - DHIS2 search input replaced with larger text area for multi-term queries
 [1.28.9] [user] [added] - New color theme picker with preset and custom color options
 [1.28.9] [user] [added] - Separate style controls for cover/section and content page treatments
 [1.28.9] [user] [added] - Visual background detail picker with pattern thumbnails
