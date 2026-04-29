@@ -1,3 +1,20 @@
+[1.28.9] [user] [added] - New color theme picker with preset and custom color options
+[1.28.9] [user] [added] - Separate style controls for cover/section and content page treatments
+[1.28.9] [user] [added] - Visual background detail picker with pattern thumbnails
+[1.28.9] [user] [added] - Inline editing for slide deck name in the settings header
+[1.28.9] [user] [changed] - Reorganized slide deck settings into clearer sections
+[1.28.9] [user] [changed] - Style preview now shows a validation message for invalid custom colors
+[1.28.9] [user] [fixed] - AI-generated slides now load fonts before arranging layout, preventing misaligned text
+[1.28.9] [admin] [added] - New color theme picker with preset and custom color options
+[1.28.9] [admin] [added] - Separate style controls for cover/section and content page treatments
+[1.28.9] [admin] [added] - Visual background detail picker with pattern thumbnails
+[1.28.9] [admin] [added] - Inline editing for slide deck name in the heading bar
+[1.28.9] [admin] [changed] - Slide deck settings page reorganized into clearer sections
+[1.28.9] [admin] [changed] - Color selection replaces single primary color with theme presets
+[1.28.9] [admin] [changed] - Treatment setting split into cover/section and content page options
+[1.28.9] [admin] [fixed] - Custom fonts now load before AI slide layout optimization
+[1.28.9] [admin] [fixed] - Style preview shows validation error for invalid custom colors
+[1.28.9] [admin] [internal] - Existing slide decks automatically migrated to new color theme format
 [1.28.8] [user] [changed] - AI assistant now uses your country's geographic terminology automatically
 [1.28.8] [admin] [added] - AI assistant now uses custom admin area labels when configured
 [1.28.8] [admin] [changed] - AI responses use instance-specific terminology for geographic levels
