@@ -1,23 +1,19 @@
-import { SlideDeckConfig } from "lib";
+import { SlideDeckConfig, resolveColorThemeToPreset } from "lib";
 import {
   Color,
-  getColor,
-  getKeyColorsFromPrimaryColor,
+  getCoverTreatment,
   getPatternDefaults,
-  getTreatmentPreset,
+  type ColorPreset,
   type PatternConfig,
   type PatternType,
 } from "panther";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
 
 function getCoverBackgroundColor(config: SlideDeckConfig): string {
-  const preset = getTreatmentPreset(config.treatment);
-  const background = preset.surfaces.cover.background;
-  if (background === "primary") {
-    return config.primaryColor;
-  }
-  const palette = getKeyColorsFromPrimaryColor(config.primaryColor);
-  return getColor(palette[background]);
+  const colorPreset = resolveColorThemeToPreset(config.colorTheme);
+  const coverTreatment = getCoverTreatment(config.coverAndSectionTreatment);
+  const background = coverTreatment.background;
+  return colorPreset[background as keyof ColorPreset] as string;
 }
 
 export type BackgroundDetail = {

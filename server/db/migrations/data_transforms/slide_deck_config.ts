@@ -7,15 +7,41 @@
 // Schema:   lib/types/_slide_deck_config.ts
 //           → slideDeckConfigSchema
 //
-// TRANSFORM BLOCKS:
-// 1. Fill primaryColor default
-// 2. Add layout and treatment fields
-// 3. Migrate logos structure - collect per-slide logos into deck-level
+// TRANSFORM BLOCKS (run in order, each is idempotent):
+// 1. Add layout and treatment fields
+// 2. Migrate logos structure - collect per-slide logos into deck-level
+// 3. Migrate primaryColor → colorTheme
+// 4. Split treatment → coverAndSectionTreatment + freeformTreatment
 //
 // =============================================================================
 
-import { slideDeckConfigSchema, _GFF_GREEN } from "lib";
+import { slideDeckConfigSchema, _GFF_GREEN, findBrandPresetByHex } from "lib";
+import { Color, COVER_TREATMENT_IDS, FREEFORM_TREATMENT_IDS, getColorPresets, LAYOUT_PRESET_IDS } from "@timroberton/panther";
+import type { ColorPresetId } from "@timroberton/panther";
 import type { Sql } from "postgres";
+
+function findNearestPresetByHue(primaryColor: string): ColorPresetId {
+  const { h: brandHue } = new Color(primaryColor).hsl();
+  const presets = getColorPresets();
+  let nearestId: ColorPresetId = "gray";
+  let minDiff = Infinity;
+
+  for (const preset of presets) {
+    const diff = Math.abs(preset.hue - brandHue);
+    const wrappedDiff = Math.min(diff, 360 - diff);
+    if (wrappedDiff < minDiff) {
+      minDiff = wrappedDiff;
+      nearestId = preset.id;
+    }
+  }
+
+  return nearestId;
+}
+
+function isColorTooLight(hex: string): boolean {
+  const { l } = new Color(hex).hsl();
+  return l > 40;
+}
 
 export type MigrationStats = {
   rowsChecked: number;
@@ -39,12 +65,7 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
       continue;
     }
 
-    // Block 1: Fill primaryColor default
-    if (!("primaryColor" in config)) {
-      config.primaryColor = _GFF_GREEN;
-    }
-
-    // Block 2: Add layout and treatment fields
+    // Block 1: Add layout and treatment fields
     if (!("layout" in config)) {
       config.layout = "default";
     }
@@ -52,7 +73,7 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
       config.treatment = "default";
     }
 
-    // Block 3: Migrate logos structure
+    // Block 2: Migrate logos structure
     // Old: logos: string[], logoSize: number, deckFooter: { text, logos }
     // New: logos: { availableCustom, cover, header, footer }, globalFooterText
     if (Array.isArray(config.logos) || config.logos === undefined) {
@@ -108,6 +129,43 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
 
       delete config.logoSize;
       delete config.deckFooter;
+    }
+
+    // Block 3: Migrate primaryColor → colorTheme
+    // Priority: 1) Known brand color → brand preset, 2) Too light → nearest preset, 3) Custom
+    if ("primaryColor" in config && !("colorTheme" in config)) {
+      const primaryColor = config.primaryColor || _GFF_GREEN;
+      const brandPresetId = findBrandPresetByHex(primaryColor);
+
+      if (brandPresetId) {
+        config.colorTheme = { type: "preset", id: brandPresetId };
+      } else if (isColorTooLight(primaryColor)) {
+        config.colorTheme = { type: "preset", id: findNearestPresetByHue(primaryColor) };
+      } else {
+        config.colorTheme = { type: "custom", primary: primaryColor };
+      }
+
+      delete config.primaryColor;
+    }
+
+    // Fallback: if no colorTheme yet (very old data), use default
+    if (!("colorTheme" in config)) {
+      config.colorTheme = { type: "preset", id: "gff" };
+    }
+
+    // Block 4: Split treatment → coverAndSectionTreatment + freeformTreatment
+    // Also validate layout/treatment IDs against current preset arrays
+    if ("treatment" in config) {
+      delete config.treatment;
+    }
+    if (!COVER_TREATMENT_IDS.includes(config.coverAndSectionTreatment)) {
+      config.coverAndSectionTreatment = COVER_TREATMENT_IDS[0];
+    }
+    if (!FREEFORM_TREATMENT_IDS.includes(config.freeformTreatment)) {
+      config.freeformTreatment = FREEFORM_TREATMENT_IDS[0];
+    }
+    if (!LAYOUT_PRESET_IDS.includes(config.layout)) {
+      config.layout = LAYOUT_PRESET_IDS[0];
     }
 
     const validated = slideDeckConfigSchema.parse(config);

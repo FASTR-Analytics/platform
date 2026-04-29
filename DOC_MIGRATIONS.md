@@ -103,6 +103,47 @@ Transform blocks are historical — they handle old data shapes from before a sc
 - Always validates against **current** strict schema
 - **Update `last_updated`** — invalidates Valkey cache entries automatically
 
+### Transform Block Ordering
+
+**CRITICAL: Blocks must be sequential and ordered.**
+
+1. **Number blocks sequentially** — `// Block 1:`, `// Block 2:`, etc.
+2. **New blocks go at the END** — after all existing blocks, before final validation
+3. **Blocks run in order** — Block 2 may depend on Block 1 having run first
+4. **Never reorder existing blocks** — later blocks may depend on earlier ones
+5. **Each block is idempotent** — checks its own precondition before acting
+
+Example structure:
+
+```typescript
+// Already valid? Skip entire transform.
+if (schema.safeParse(config).success) {
+  continue;
+}
+
+// Block 1: Fill missing field X (oldest migration)
+if (!("fieldX" in config)) {
+  config.fieldX = "default";
+}
+
+// Block 2: Rename fieldY → fieldZ
+if ("fieldY" in config && !("fieldZ" in config)) {
+  config.fieldZ = config.fieldY;
+  delete config.fieldY;
+}
+
+// Block 3: Transform fieldA → fieldB (newest migration)
+if ("fieldA" in config && !("fieldB" in config)) {
+  config.fieldB = transformFieldA(config.fieldA);
+  delete config.fieldA;
+}
+
+// Final validation and write
+const validated = schema.parse(config);
+```
+
+**Why order matters:** Block 3 might transform a field that Block 1 filled in. If you put Block 3 before Block 1, old data without the field would fail.
+
 ### Cache Invalidation
 
 Valkey caches use `last_updated` timestamps as version hashes. When a migration updates a row's `last_updated`:

@@ -10,69 +10,61 @@ import {
   type CustomPageStyleOptions,
   type FooterStyleOptions,
   type FreeformStyleOptions,
-  getAdjustedColor,
-  getColor,
   getKeyColorsFromPrimaryColor,
   type HeaderStyleOptions,
-  type KeyColors,
   type PageBackgroundStyle,
   type PatternConfig,
   type SectionStyleOptions,
 } from "./deps.ts";
+import type { ColorPreset } from "./color_presets.ts";
+import {
+  type CoverTreatment,
+  type CoverTreatmentId,
+  getCoverTreatment,
+} from "./cover_treatment_presets.ts";
+import {
+  type FreeformTreatment,
+  type FreeformTreatmentId,
+  getFreeformTreatment,
+} from "./freeform_treatment_presets.ts";
 import {
   getLayoutPreset,
   type LayoutPreset,
   type LayoutPresetId,
 } from "./layout_presets.ts";
-import {
-  getTreatmentPreset,
-  type TreatmentPreset,
-  type TreatmentPresetId,
-} from "./treatment_presets.ts";
 import type {
   PaletteSlot,
   ResolvedPageStyle,
-  SplitBackgroundConfig,
+  SplitAdjustment,
   SurfacePaddingConfig,
   TextColorStyles,
 } from "./types.ts";
 
-function getColorForSlot(slot: PaletteSlot, palette: KeyColors): string {
-  if (slot === "primary") return getColor(palette.primary);
-  if (slot === "base200") return getColor(palette.base200);
-  if (slot === "base300") return getColor(palette.base300);
-  return getColor(palette.base100);
+function getSlotColor(slot: PaletteSlot, preset: ColorPreset): string {
+  return preset[slot];
 }
 
-function getTextColorForSlot(slot: PaletteSlot, palette: KeyColors): string {
-  if (slot === "primary") return getColor(palette.primaryContent);
-  return getColor(palette.baseContent);
-}
-
-function resolveSplitBackground(
-  config: SplitBackgroundConfig,
-  coverBg: string,
-  sectionBg: string,
-  palette: KeyColors,
+function resolveSplitColor(
+  baseColor: string,
+  adjustment: SplitAdjustment,
+  preset: ColorPreset,
 ): string {
-  if (typeof config === "string") {
-    return getColorForSlot(config, palette);
+  if ("slot" in adjustment) {
+    return getSlotColor(adjustment.slot, preset);
   }
-  if ("adjustCoverBackground" in config) {
-    return getAdjustedColor(coverBg, config.adjustCoverBackground);
+  const color = new Color(baseColor);
+  if ("brighten" in adjustment) {
+    return color.lighten(adjustment.brighten).css();
   }
-  if ("adjustSectionBackground" in config) {
-    return getAdjustedColor(sectionBg, config.adjustSectionBackground);
-  }
-  throw new Error("Invalid SplitBackgroundConfig");
+  return color.darken(adjustment.darken).css();
 }
 
 function resolveHeroBackground(
   backgroundSlot: PaletteSlot,
-  palette: KeyColors,
+  preset: ColorPreset,
   pattern?: Omit<PatternConfig, "baseColor">,
 ): PageBackgroundStyle {
-  const baseColor = getColorForSlot(backgroundSlot, palette);
+  const baseColor = getSlotColor(backgroundSlot, preset);
   if (pattern) {
     return { ...pattern, baseColor };
   }
@@ -81,27 +73,29 @@ function resolveHeroBackground(
 
 function resolveCoverStyle(
   layout: LayoutPreset,
-  treatment: TreatmentPreset,
-  palette: KeyColors,
+  coverTreatment: CoverTreatment,
+  preset: ColorPreset,
+  pattern?: Omit<PatternConfig, "baseColor">,
 ): CoverStyleOptions {
-  const coverBg = getColorForSlot(treatment.surfaces.cover.background, palette);
-  const sectionBg = getColorForSlot(treatment.surfaces.section.background, palette);
+  const coverBg = getSlotColor(coverTreatment.background, preset);
   const hasSplit = !!layout.cover.split;
 
-  const splitBackgroundColor = hasSplit && treatment.surfaces.coverSplit
-    ? resolveSplitBackground(treatment.surfaces.coverSplit.background, coverBg, sectionBg, palette)
+  const splitBackgroundColor = hasSplit
+    ? resolveSplitColor(coverBg, coverTreatment.splitAdjust, preset)
     : undefined;
 
   const splitBackground: PageBackgroundStyle | undefined = splitBackgroundColor
-    ? (treatment.pattern ? { ...treatment.pattern, baseColor: splitBackgroundColor } : splitBackgroundColor)
+    ? (pattern
+      ? { ...pattern, baseColor: splitBackgroundColor }
+      : splitBackgroundColor)
     : undefined;
 
   return {
     padding: layout.cover.padding,
     background: resolveHeroBackground(
-      treatment.surfaces.cover.background,
-      palette,
-      hasSplit ? undefined : treatment.pattern,
+      coverTreatment.background,
+      preset,
+      hasSplit ? undefined : pattern,
     ),
     split: layout.cover.split
       ? {
@@ -122,27 +116,29 @@ function resolveCoverStyle(
 
 function resolveSectionStyle(
   layout: LayoutPreset,
-  treatment: TreatmentPreset,
-  palette: KeyColors,
+  coverTreatment: CoverTreatment,
+  preset: ColorPreset,
+  pattern?: Omit<PatternConfig, "baseColor">,
 ): SectionStyleOptions {
-  const coverBg = getColorForSlot(treatment.surfaces.cover.background, palette);
-  const sectionBg = getColorForSlot(treatment.surfaces.section.background, palette);
+  const sectionBg = getSlotColor(coverTreatment.background, preset);
   const hasSplit = !!layout.section.split;
 
-  const splitBackgroundColor = hasSplit && treatment.surfaces.sectionSplit
-    ? resolveSplitBackground(treatment.surfaces.sectionSplit.background, coverBg, sectionBg, palette)
+  const splitBackgroundColor = hasSplit
+    ? resolveSplitColor(sectionBg, coverTreatment.splitAdjust, preset)
     : undefined;
 
   const splitBackground: PageBackgroundStyle | undefined = splitBackgroundColor
-    ? (treatment.pattern ? { ...treatment.pattern, baseColor: splitBackgroundColor } : splitBackgroundColor)
+    ? (pattern
+      ? { ...pattern, baseColor: splitBackgroundColor }
+      : splitBackgroundColor)
     : undefined;
 
   return {
     padding: layout.section.padding,
     background: resolveHeroBackground(
-      treatment.surfaces.section.background,
-      palette,
-      hasSplit ? undefined : treatment.pattern,
+      coverTreatment.background,
+      preset,
+      hasSplit ? undefined : pattern,
     ),
     split: layout.section.split
       ? {
@@ -159,18 +155,17 @@ function resolveSectionStyle(
 
 function resolveHeaderStyle(
   layout: LayoutPreset,
-  treatment: TreatmentPreset,
-  palette: KeyColors,
+  freeformTreatment: FreeformTreatment,
+  preset: ColorPreset,
 ): HeaderStyleOptions {
-  const { treatment: surfaceTreatment, background } = treatment.surfaces.header;
+  const { treatment: surfaceTreatment, background } = freeformTreatment.header;
   const headerLayout = layout.freeform.header;
-
   const padding = getPaddingForTreatment(headerLayout, surfaceTreatment);
 
   if (surfaceTreatment === "filled") {
     return {
       padding,
-      background: getColorForSlot(background, palette),
+      background: getSlotColor(background, preset),
       logosSizing: headerLayout.logosSizing,
       headerBottomPadding: headerLayout.headerBottomPadding,
       subHeaderBottomPadding: headerLayout.subHeaderBottomPadding,
@@ -181,19 +176,19 @@ function resolveHeaderStyle(
   if (surfaceTreatment === "bordered") {
     return {
       padding,
-      background: getColor(palette.base100),
+      background: preset.base100,
       logosSizing: headerLayout.logosSizing,
       headerBottomPadding: headerLayout.headerBottomPadding,
       subHeaderBottomPadding: headerLayout.subHeaderBottomPadding,
       bottomBorderStrokeWidth: headerLayout.borderWidthIfBordered,
-      bottomBorderColor: getColor(palette.primary),
+      bottomBorderColor: preset.primary,
       alignH: headerLayout.alignH,
     };
   }
 
   return {
     padding,
-    background: getColor(palette.base100),
+    background: preset.base100,
     logosSizing: headerLayout.logosSizing,
     headerBottomPadding: headerLayout.headerBottomPadding,
     subHeaderBottomPadding: headerLayout.subHeaderBottomPadding,
@@ -203,18 +198,17 @@ function resolveHeaderStyle(
 
 function resolveFooterStyle(
   layout: LayoutPreset,
-  treatment: TreatmentPreset,
-  palette: KeyColors,
+  freeformTreatment: FreeformTreatment,
+  preset: ColorPreset,
 ): FooterStyleOptions {
-  const { treatment: surfaceTreatment, background } = treatment.surfaces.footer;
+  const { treatment: surfaceTreatment, background } = freeformTreatment.footer;
   const footerLayout = layout.freeform.footer;
-
   const padding = getPaddingForTreatment(footerLayout, surfaceTreatment);
 
   if (surfaceTreatment === "filled") {
     return {
       padding,
-      background: getColorForSlot(background, palette),
+      background: getSlotColor(background, preset),
       logosSizing: footerLayout.logosSizing,
       alignH: footerLayout.alignH,
     };
@@ -222,7 +216,7 @@ function resolveFooterStyle(
 
   return {
     padding,
-    background: getColor(palette.base100),
+    background: preset.base100,
     logosSizing: footerLayout.logosSizing,
     alignH: footerLayout.alignH,
   };
@@ -230,16 +224,12 @@ function resolveFooterStyle(
 
 function resolveContentStyle(
   layout: LayoutPreset,
-  treatment: TreatmentPreset,
-  palette: KeyColors,
+  freeformTreatment: FreeformTreatment,
+  preset: ColorPreset,
 ): ContentStyleOptions {
-  const { treatment: surfaceTreatment, background } = treatment.surfaces.content;
-
   return {
     padding: layout.freeform.content.padding,
-    background: surfaceTreatment === "filled"
-      ? getColorForSlot(background, palette)
-      : getColor(palette.base100),
+    background: getSlotColor(freeformTreatment.content.background, preset),
     gapX: layout.freeform.content.gapX,
     gapY: layout.freeform.content.gapY,
   };
@@ -247,11 +237,12 @@ function resolveContentStyle(
 
 function resolveFreeformStyle(
   layout: LayoutPreset,
-  treatment: TreatmentPreset,
-  palette: KeyColors,
+  freeformTreatment: FreeformTreatment,
+  preset: ColorPreset,
 ): FreeformStyleOptions {
-  const splitBackground = layout.freeform.split && treatment.surfaces.freeformSplit
-    ? getColorForSlot(treatment.surfaces.freeformSplit.background, palette)
+  const contentBg = getSlotColor(freeformTreatment.content.background, preset);
+  const splitBackground = layout.freeform.split
+    ? resolveSplitColor(contentBg, freeformTreatment.splitAdjust, preset)
     : undefined;
 
   return {
@@ -262,67 +253,28 @@ function resolveFreeformStyle(
         background: splitBackground,
       }
       : undefined,
-    header: resolveHeaderStyle(layout, treatment, palette),
-    footer: resolveFooterStyle(layout, treatment, palette),
-    content: resolveContentStyle(layout, treatment, palette),
+    header: resolveHeaderStyle(layout, freeformTreatment, preset),
+    footer: resolveFooterStyle(layout, freeformTreatment, preset),
+    content: resolveContentStyle(layout, freeformTreatment, preset),
   };
 }
 
-function applyOpacity(color: string, opacity: number | undefined): string {
-  if (opacity === undefined || opacity === 1) return color;
-  const c = new Color(color);
-  const rgba = c.rgba();
-  return new Color([rgba.r, rgba.g, rgba.b, opacity]).css();
-}
-
-function resolveTextColor(
-  override: { color?: PaletteSlot; opacity?: number } | undefined,
-  defaultColor: string,
-  backgroundSlot: PaletteSlot,
-  palette: KeyColors,
-): string {
-  let baseColor = defaultColor;
-  if (override?.color) {
-    const overrideColor = getColorForSlot(override.color, palette);
-    const bgIsLight = backgroundSlot !== "primary";
-    const colorIsLight = new Color(overrideColor).isLight();
-    if (bgIsLight && colorIsLight) {
-      baseColor = getColor(palette.baseContent);
-    } else {
-      baseColor = overrideColor;
-    }
-  }
-  return applyOpacity(baseColor, override?.opacity);
-}
-
 function resolveTextStyles(
-  treatment: TreatmentPreset,
-  palette: KeyColors,
+  coverTreatment: CoverTreatment,
+  freeformTreatment: FreeformTreatment,
+  preset: ColorPreset,
 ): TextColorStyles {
-  const cover = treatment.surfaces.cover;
-  const section = treatment.surfaces.section;
-
-  const defaultCoverText = getTextColorForSlot(cover.background, palette);
-  const defaultSectionText = getTextColorForSlot(section.background, palette);
-
-  const headerText = treatment.surfaces.header.treatment === "filled"
-    ? getTextColorForSlot(treatment.surfaces.header.background, palette)
-    : getColor(palette.baseContent);
-  const footerText = treatment.surfaces.footer.treatment === "filled"
-    ? getTextColorForSlot(treatment.surfaces.footer.background, palette)
-    : getColor(palette.baseContent);
-
   return {
-    coverTitle: { color: resolveTextColor(cover.title, defaultCoverText, cover.background, palette) },
-    coverSubTitle: { color: resolveTextColor(cover.subTitle, defaultCoverText, cover.background, palette) },
-    coverAuthor: { color: resolveTextColor(cover.author, defaultCoverText, cover.background, palette) },
-    coverDate: { color: resolveTextColor(cover.date, defaultCoverText, cover.background, palette) },
-    sectionTitle: { color: resolveTextColor(section.title, defaultSectionText, section.background, palette) },
-    sectionSubTitle: { color: resolveTextColor(section.subTitle, defaultSectionText, section.background, palette) },
-    header: { color: headerText },
-    subHeader: { color: headerText },
-    date: { color: headerText },
-    footer: { color: footerText },
+    coverTitle: { color: getSlotColor(coverTreatment.title, preset) },
+    coverSubTitle: { color: getSlotColor(coverTreatment.subTitle, preset) },
+    coverAuthor: { color: getSlotColor(coverTreatment.author, preset) },
+    coverDate: { color: getSlotColor(coverTreatment.date, preset) },
+    sectionTitle: { color: getSlotColor(coverTreatment.title, preset) },
+    sectionSubTitle: { color: getSlotColor(coverTreatment.subTitle, preset) },
+    header: { color: getSlotColor(freeformTreatment.header.text, preset) },
+    subHeader: { color: getSlotColor(freeformTreatment.header.text, preset) },
+    date: { color: getSlotColor(freeformTreatment.header.text, preset) },
+    footer: { color: getSlotColor(freeformTreatment.footer.text, preset) },
   };
 }
 
@@ -341,24 +293,28 @@ export type ResolveOptions = {
 
 export function resolvePageStyle(
   layoutId: LayoutPresetId,
-  treatmentId: TreatmentPresetId,
-  primaryColor: string,
+  coverAndSectionTreatmentId: CoverTreatmentId,
+  freeformTreatmentId: FreeformTreatmentId,
+  preset: ColorPreset,
   options?: ResolveOptions,
 ): ResolvedPageStyle {
   const layout = getLayoutPreset(layoutId);
-  const treatment = getTreatmentPreset(treatmentId);
-  const palette = getKeyColorsFromPrimaryColor(primaryColor);
-
-  const effectiveTreatment: TreatmentPreset = options?.pattern
-    ? { ...treatment, pattern: options.pattern }
-    : treatment;
+  const coverTreatment = getCoverTreatment(coverAndSectionTreatmentId);
+  const freeformTreatment = getFreeformTreatment(freeformTreatmentId);
 
   const style: CustomPageStyleOptions = {
-    text: resolveTextStyles(effectiveTreatment, palette),
-    cover: resolveCoverStyle(layout, effectiveTreatment, palette),
-    section: resolveSectionStyle(layout, effectiveTreatment, palette),
-    freeform: resolveFreeformStyle(layout, effectiveTreatment, palette),
+    text: resolveTextStyles(coverTreatment, freeformTreatment, preset),
+    cover: resolveCoverStyle(layout, coverTreatment, preset, options?.pattern),
+    section: resolveSectionStyle(
+      layout,
+      coverTreatment,
+      preset,
+      options?.pattern,
+    ),
+    freeform: resolveFreeformStyle(layout, freeformTreatment, preset),
   };
 
-  return { style, palette };
+  const palette = getKeyColorsFromPrimaryColor(preset.primary);
+
+  return { style, palette, preset };
 }

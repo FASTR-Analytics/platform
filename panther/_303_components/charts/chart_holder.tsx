@@ -6,15 +6,14 @@
 import {
   createEffect,
   createSignal,
-  JSX,
+  type JSX,
   onCleanup,
   onMount,
   Setter,
   Show,
 } from "solid-js";
 import {
-  fontsReady,
-  loadFont,
+  loadFontsWithTimeout,
   releaseCanvasGPUMemory,
   trackCanvas,
   untrackCanvas,
@@ -27,7 +26,6 @@ import {
   FigureRenderer,
   RectCoordsDims,
 } from "../deps.ts";
-import type { FontInfo } from "../deps.ts";
 
 type Props = {
   chartInputs: FigureInputs;
@@ -53,35 +51,37 @@ export function ChartHolder(p: Props) {
   const unscaledW = _GLOBAL_CANVAS_PIXEL_WIDTH;
 
   const [err, setErr] = createSignal<string>("");
+  const [fontsLoaded, setFontsLoaded] = createSignal(false);
 
   createEffect(() => {
-    fontsReady(); // Track the signal - will trigger re-render when fonts load
-    const parentDomW = div.getBoundingClientRect().width;
-    const parentDomH = div.getBoundingClientRect().height;
-    updateChart(
-      canvas,
-      p.chartInputs,
-      p.height,
-      fixedCanvasW,
-      unscaledW,
-      parentDomW,
-      parentDomH,
-      setErr,
-      p.noRescaleWithWidthChange,
-      animationFrameId,
-      (id) => {
-        animationFrameId = id;
-      },
-      cachedContext,
-      (ctx) => {
-        cachedContext = ctx;
-      },
-      scale,
-      isScaleApplied,
-      (applied) => {
-        isScaleApplied = applied;
-      },
-    );
+    if (fontsLoaded()) {
+      const parentDomW = div.getBoundingClientRect().width;
+      const parentDomH = div.getBoundingClientRect().height;
+      updateChart(
+        canvas,
+        p.chartInputs,
+        p.height,
+        fixedCanvasW,
+        unscaledW,
+        parentDomW,
+        parentDomH,
+        setErr,
+        p.noRescaleWithWidthChange,
+        animationFrameId,
+        (id) => {
+          animationFrameId = id;
+        },
+        cachedContext,
+        (ctx) => {
+          cachedContext = ctx;
+        },
+        scale,
+        isScaleApplied,
+        (applied) => {
+          isScaleApplied = applied;
+        },
+      );
+    }
   });
 
   onMount(() => {
@@ -90,14 +90,12 @@ export function ChartHolder(p: Props) {
       canvasTrackingId = trackCanvas(canvas, "ChartHolder");
     }
 
-    // Preload fonts used by this figure
-    if (p.chartInputs) {
-      const style = new CustomStyle(p.chartInputs.style);
-      const fonts = style.getFontsToRegister();
-      fonts.forEach((fontInfo: FontInfo) => {
-        loadFont(fontInfo.fontFamily);
-      });
-    }
+    let mounted = true;
+    const style = new CustomStyle(p.chartInputs?.style);
+    const fonts = style.getFontsToRegister();
+    loadFontsWithTimeout(fonts).then(() => {
+      if (mounted) setFontsLoaded(true);
+    });
 
     const observer = new ResizeObserver((entries) => {
       // Clear any pending resize timer
@@ -108,7 +106,7 @@ export function ChartHolder(p: Props) {
       // Debounce resize updates
       resizeTimer = setTimeout(() => {
         for (const entry of entries) {
-          if (entry.contentBoxSize && p.chartInputs) {
+          if (entry.contentBoxSize && p.chartInputs && fontsLoaded()) {
             const parentDomW = entry.contentBoxSize[0].inlineSize;
             const parentDomH = entry.contentBoxSize[0].blockSize;
             updateChart(
@@ -142,6 +140,7 @@ export function ChartHolder(p: Props) {
     observer.observe(div);
 
     onCleanup(() => {
+      mounted = false;
       observer.disconnect();
       if (resizeTimer !== undefined) {
         clearTimeout(resizeTimer);

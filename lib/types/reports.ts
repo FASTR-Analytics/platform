@@ -84,7 +84,7 @@ export type ReportConfig = {
   headerSize: number;
   useWatermark: boolean;
   watermarkText: string;
-  colorTheme: ColorTheme;
+  colorTheme: LegacyReportColorTheme;
   overlay: "dots" | "none" | undefined;
   //
   // primaryBackgroundColor: string;
@@ -121,7 +121,7 @@ export function getStartingConfigForReport(label: string) {
 // Color Theme Types
 // ============================================================================
 
-export type ColorTheme =
+export type LegacyReportColorTheme =
   | "dark_green"
   | "alt_green"
   | "ghana_green_dots"
@@ -130,7 +130,7 @@ export type ColorTheme =
   | "blue"
   | "white";
 
-export const _COLOR_THEMES: ColorTheme[] = [
+export const _COLOR_THEMES: LegacyReportColorTheme[] = [
   "dark_green",
   "alt_green",
   "ghana_green",
@@ -148,7 +148,7 @@ export type ColorDetails = {
   baseTextColor: string;
 };
 
-const _COLOR_THEME_MAP: Record<ColorTheme, ColorDetails> = {
+const _COLOR_THEME_MAP: Record<LegacyReportColorTheme, ColorDetails> = {
   dark_green: {
     label: "Green ~ GFF",
     lightOrDark: "dark",
@@ -207,7 +207,7 @@ const _COLOR_THEME_MAP: Record<ColorTheme, ColorDetails> = {
   },
 };
 
-export function getColorDetailsForColorTheme(theme: ColorTheme): ColorDetails {
+export function getColorDetailsForLegacyReportColorTheme(theme: LegacyReportColorTheme): ColorDetails {
   return _COLOR_THEME_MAP[theme];
 }
 

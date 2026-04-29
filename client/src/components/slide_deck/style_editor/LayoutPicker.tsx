@@ -5,7 +5,6 @@ import { PresetCard } from "./PresetCard.tsx";
 type LayoutPickerProps = {
   value: LayoutPresetId;
   onChange: (id: LayoutPresetId) => void;
-  primaryColor: string;
 };
 
 const THUMBNAIL_COLOR = "#64748b";

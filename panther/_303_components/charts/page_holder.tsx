@@ -14,7 +14,6 @@ import {
   Switch,
 } from "solid-js";
 import type {
-  FontInfo,
   MeasuredColsLayoutNode,
   MeasuredLayoutNode,
   MeasuredPage,
@@ -30,9 +29,8 @@ import {
   CanvasRenderContext,
   CustomStyle,
   findHitTarget,
-  fontsReady,
   getMinimumSpan,
-  loadFont,
+  loadFontsWithTimeout,
   PageRenderer,
   RectCoordsDims,
   releaseCanvasGPUMemory,
@@ -130,6 +128,7 @@ export function PageHolder(p: Props) {
     MeasuredPage | undefined
   >();
   const [dragState, setDragState] = createSignal<DragState | undefined>();
+  const [fontsLoaded, setFontsLoaded] = createSignal(false);
 
   onMount(() => {
     mainCanvas.width = fixedCanvasW;
@@ -167,36 +166,38 @@ export function PageHolder(p: Props) {
       document.addEventListener("keydown", handleKeyDown);
     }
 
-    if (p.pageInputs) {
-      const style = new CustomStyle(p.pageInputs.style);
-      const fonts = style.getFontsToRegister();
-      fonts.forEach((fontInfo: FontInfo) => {
-        loadFont(fontInfo.fontFamily);
-      });
-    }
+    let mounted = true;
+    const style = new CustomStyle(p.pageInputs?.style);
+    const fonts = style.getFontsToRegister();
+    loadFontsWithTimeout(fonts).then(() => {
+      if (mounted) setFontsLoaded(true);
+    });
 
+    onCleanup(() => {
+      mounted = false;
+    });
   });
 
   createEffect(() => {
-    fontsReady();
-
-    updatePage(
-      mainCachedContext!,
-      p.pageInputs,
-      setErr,
-      setOverflow,
-      needsInteractive,
-      setHitRegions,
-      setMeasuredPage,
-      unscaledW,
-      unscaledH,
-      p.externalError,
-      p.onMeasured,
-      animationFrameId,
-      (id: number | undefined) => {
-        animationFrameId = id;
-      },
-    );
+    if (fontsLoaded()) {
+      updatePage(
+        mainCachedContext!,
+        p.pageInputs,
+        setErr,
+        setOverflow,
+        needsInteractive,
+        setHitRegions,
+        setMeasuredPage,
+        unscaledW,
+        unscaledH,
+        p.externalError,
+        p.onMeasured,
+        animationFrameId,
+        (id: number | undefined) => {
+          animationFrameId = id;
+        },
+      );
+    }
 
     onCleanup(() => {
       if (animationFrameId !== undefined) {

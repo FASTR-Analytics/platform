@@ -3,6 +3,8 @@ import {
   createCanvasRenderContextBrowser,
   RectCoordsDims,
   createItemNode,
+  CustomStyle,
+  loadFontsWithTimeout,
   type LayoutNode,
   type OptimizerConfig,
   type PageContentItem,
@@ -114,6 +116,18 @@ export async function convertAiInputToSlide(
     return nodeWithShortId;
   });
 
+  // Build style and load fonts before layout optimization
+  const pageStyle = buildStyleForSlide(
+    {
+      type: "content",
+      header: slideInput.header,
+      layout: { type: "item", id: "tmp", data: { type: "text", markdown: "" } },
+    },
+    deckConfig,
+  );
+  const fonts = new CustomStyle(pageStyle).getFontsToRegister();
+  await loadFontsWithTimeout(fonts);
+
   // Optimize layout
   const rc = createCanvasRenderContextBrowser();
   const bounds = new RectCoordsDims([0, 0, 1920, 1080]);
@@ -122,18 +136,7 @@ export async function convertAiInputToSlide(
     rc,
     bounds,
     itemNodes,
-    buildStyleForSlide(
-      {
-        type: "content",
-        header: slideInput.header,
-        layout: {
-          type: "item",
-          id: "tmp",
-          data: { type: "text", markdown: "" },
-        },
-      },
-      deckConfig,
-    ),
+    pageStyle,
     undefined,
     getOptimizerConfig(slideInput.layoutPreference, resolvedBlocks.length),
   );

@@ -3,97 +3,189 @@
 ## Overview
 
 Add font selection to slide decks. Users can choose between:
+
 - **Inter** (default) - Modern sans-serif, supports Amharic via International Inter
 - **Fira Sans** - Humanist sans-serif
 - **Merriweather** - Readable serif
 
-Amharic text will only render correctly with Inter. Other fonts will show missing glyphs for Amharic characters.
+Amharic text will only render correctly with Inter. Other fonts will show missing
+glyphs for Amharic characters.
 
 ---
 
 ## Scope
 
 **In scope:**
+
 - Font choice for slide text (titles, headers, body)
 - Canvas rendering (browser preview)
 - PDF export (vector + base64)
 
-**Out of scope:**
+**Out of scope (for now):**
+
+- PPTX export font mapping (Phase 2)
 - Figures/charts embedded in slides (remain Inter for consistency)
-- UI fonts (app chrome)
-- Internationalized font merging (no Amharic support for new fonts)
+- UI fonts (app chrome stays Inter)
+- Custom font uploads
 
 ---
 
-## Files to Change
+## Prerequisites
 
-### 1. Font Files
+**Already implemented:**
 
-**Source locations:**
+- `loadFontsWithTimeout(fonts: FontInfo[])` - Reliable font loading with 3s timeout
+- `loadFont(font: FontInfo)` - Loads single font with weight/italic support
+- Font loading guards in PageHolder, ChartHolder, PDF export
+- Font loading in AI layout optimization path
+
+**Font files confirmed present at:**
+
+```
+/Users/timroberton/projects/FONT_FILES/fira-sans/
+  - FiraSans-Regular.ttf/.woff/.woff2
+  - FiraSans-Italic.ttf/.woff/.woff2
+  - FiraSans-ExtraBold.ttf/.woff/.woff2
+  - FiraSans-ExtraBoldItalic.ttf/.woff/.woff2
+
+/Users/timroberton/projects/FONT_FILES/merriweather/
+  - Merriweather-Regular.ttf/.woff/.woff2
+  - Merriweather-Italic.ttf/.woff/.woff2
+  - Merriweather-Bold.ttf/.woff/.woff2
+  - Merriweather-BoldItalic.ttf/.woff/.woff2
+```
+
+---
+
+## Font Loading Strategy
+
+**Default font (Inter):** Preloaded in index.html. Always fast.
+
+**Non-default fonts (Fira Sans, Merriweather):** Lazy-loaded on first use via
+`loadFontsWithTimeout()`. First render of a deck using these fonts may have a
+brief loading delay (typically <500ms on good connection). After first load,
+fonts are cached by browser and subsequent renders are fast.
+
+**No changes to index.html preloads.** Adding preloads for all fonts would slow
+initial page load for users who only use Inter (the majority).
+
+---
+
+## Implementation Steps
+
+### Phase 1: Font Files
+
+**Task:** Copy font files to public directory.
+
+**Source:**
+
 ```
 /Users/timroberton/projects/FONT_FILES/fira-sans/
 /Users/timroberton/projects/FONT_FILES/merriweather/
 ```
 
 **Destination:**
+
 ```
 /Users/timroberton/projects/apps/wb-fastr/client/public/fonts/
 ```
 
-**Files to copy (8 per font = 24 total):**
+**Files to copy (24 total):**
 
-| Font | Weight | Style | Files (TTF + WOFF + WOFF2) |
-|------|--------|-------|----------------------------|
-| Fira Sans | 400 | normal | FiraSans-Regular.* |
-| Fira Sans | 400 | italic | FiraSans-Italic.* |
-| Fira Sans | 800 | normal | FiraSans-ExtraBold.* |
-| Fira Sans | 800 | italic | FiraSans-ExtraBoldItalic.* |
-| Merriweather | 400 | normal | Merriweather-Regular.* |
-| Merriweather | 400 | italic | Merriweather-Italic.* |
-| Merriweather | 700 | normal | Merriweather-Bold.* |
-| Merriweather | 700 | italic | Merriweather-BoldItalic.* |
+| Font         | Weight | Style  | Files                               |
+| ------------ | ------ | ------ | ----------------------------------- |
+| Fira Sans    | 400    | normal | FiraSans-Regular.\*                 |
+| Fira Sans    | 400    | italic | FiraSans-Italic.\*                  |
+| Fira Sans    | 800    | normal | FiraSans-ExtraBold.\*               |
+| Fira Sans    | 800    | italic | FiraSans-ExtraBoldItalic.\*         |
+| Merriweather | 400    | normal | Merriweather-Regular.\*             |
+| Merriweather | 400    | italic | Merriweather-Italic.\*              |
+| Merriweather | 700    | normal | Merriweather-Bold.\*                |
+| Merriweather | 700    | italic | Merriweather-BoldItalic.\*          |
 
-**GOTCHA:** Merriweather has no 800 weight. Bold is 700. Code must handle this.
+For each font variant, copy .ttf, .woff, and .woff2 files.
+
+**Commands:**
+
+```bash
+cd /Users/timroberton/projects/apps/wb-fastr/client/public/fonts
+
+# Fira Sans
+cp /Users/timroberton/projects/FONT_FILES/fira-sans/FiraSans-Regular.* .
+cp /Users/timroberton/projects/FONT_FILES/fira-sans/FiraSans-Italic.* .
+cp /Users/timroberton/projects/FONT_FILES/fira-sans/FiraSans-ExtraBold.* .
+cp /Users/timroberton/projects/FONT_FILES/fira-sans/FiraSans-ExtraBoldItalic.* .
+
+# Merriweather
+cp /Users/timroberton/projects/FONT_FILES/merriweather/Merriweather-Regular.* .
+cp /Users/timroberton/projects/FONT_FILES/merriweather/Merriweather-Italic.* .
+cp /Users/timroberton/projects/FONT_FILES/merriweather/Merriweather-Bold.* .
+cp /Users/timroberton/projects/FONT_FILES/merriweather/Merriweather-BoldItalic.* .
+```
 
 ---
 
-### 2. font-map.json
+### Phase 2: font-map.json
 
 **File:** `client/src/font-map.json`
+
+**Purpose:** Maps FontInfo identifiers to font file paths for PDF export. The key
+format is `{FontFamily}-{weight}-{normal|italic}`.
 
 **Add entries:**
 
 ```json
 {
   "ttf": {
-    // ... existing entries ...
-    "FiraSans-400-normal": "FiraSans-Regular.ttf",
-    "FiraSans-400-italic": "FiraSans-Italic.ttf",
-    "FiraSans-800-normal": "FiraSans-ExtraBold.ttf",
-    "FiraSans-800-italic": "FiraSans-ExtraBoldItalic.ttf",
+    "International Inter-400-normal": "InternationalInter-Regular.ttf",
+    "International Inter-400-italic": "InternationalInter-Italic.ttf",
+    "International Inter-800-normal": "InternationalInter-ExtraBold.ttf",
+    "International Inter-800-italic": "InternationalInter-ExtraBoldItalic.ttf",
+
+    "Fira Sans-400-normal": "FiraSans-Regular.ttf",
+    "Fira Sans-400-italic": "FiraSans-Italic.ttf",
+    "Fira Sans-800-normal": "FiraSans-ExtraBold.ttf",
+    "Fira Sans-800-italic": "FiraSans-ExtraBoldItalic.ttf",
+
     "Merriweather-400-normal": "Merriweather-Regular.ttf",
     "Merriweather-400-italic": "Merriweather-Italic.ttf",
     "Merriweather-700-normal": "Merriweather-Bold.ttf",
     "Merriweather-700-italic": "Merriweather-BoldItalic.ttf"
   },
   "woff2": {
-    // ... same pattern for woff2 ...
+    "International Inter-400-normal": "InternationalInter-Regular.woff2",
+    "International Inter-400-italic": "InternationalInter-Italic.woff2",
+    "International Inter-800-normal": "InternationalInter-ExtraBold.woff2",
+    "International Inter-800-italic": "InternationalInter-ExtraBoldItalic.woff2",
+
+    "Fira Sans-400-normal": "FiraSans-Regular.woff2",
+    "Fira Sans-400-italic": "FiraSans-Italic.woff2",
+    "Fira Sans-800-normal": "FiraSans-ExtraBold.woff2",
+    "Fira Sans-800-italic": "FiraSans-ExtraBoldItalic.woff2",
+
+    "Merriweather-400-normal": "Merriweather-Regular.woff2",
+    "Merriweather-400-italic": "Merriweather-Italic.woff2",
+    "Merriweather-700-normal": "Merriweather-Bold.woff2",
+    "Merriweather-700-italic": "Merriweather-BoldItalic.woff2"
   }
 }
 ```
 
-**GOTCHA:** Key format is `{FontFamily}-{weight}-{normal|italic}`. FontFamily must match exactly what code passes to panther.
+**IMPORTANT:** Key format must match what `getFontInfoId(font)` returns in panther.
+Verify the exact format by checking `_001_font/types.ts`.
 
 ---
 
-### 3. CSS @font-face Declarations
+### Phase 3: CSS @font-face Declarations
 
 **File:** `client/src/app.css`
 
-**Add after existing International Inter declarations (around line 186):**
+**Location:** Add after existing International Inter declarations.
 
 ```css
-/* Fira Sans (slides only) */
+/* ============================================
+   Fira Sans (slide fonts)
+   ============================================ */
 @font-face {
   font-family: "Fira Sans";
   src: url("/fonts/FiraSans-Regular.woff2") format("woff2");
@@ -123,7 +215,9 @@ Amharic text will only render correctly with Inter. Other fonts will show missin
   font-display: block;
 }
 
-/* Merriweather (slides only) */
+/* ============================================
+   Merriweather (slide fonts)
+   ============================================ */
 @font-face {
   font-family: "Merriweather";
   src: url("/fonts/Merriweather-Regular.woff2") format("woff2");
@@ -154,28 +248,38 @@ Amharic text will only render correctly with Inter. Other fonts will show missin
 }
 ```
 
-**GOTCHA:** `font-display: block` ensures text doesn't flash during font load. Critical for slide preview.
+**Notes:**
+
+- `font-display: block` prevents flash of unstyled text
+- Merriweather uses weight 700 (Bold), not 800 (ExtraBold)
+- Only WOFF2 needed in CSS (modern browsers). TTF is for PDF export only.
 
 ---
 
-### 4. Type Definitions
+### Phase 4: Type Definitions
 
 #### 4a. lib/types/slides.ts
 
-**Add to SlideDeckConfig type (around line 45):**
+**Add type and update SlideDeckConfig:**
 
-```ts
-export type SlideFontFamily = "International Inter" | "Fira Sans" | "Merriweather";
+```typescript
+export const SLIDE_FONT_FAMILIES = [
+  "International Inter",
+  "Fira Sans",
+  "Merriweather",
+] as const;
+
+export type SlideFontFamily = (typeof SLIDE_FONT_FAMILIES)[number];
 
 export type SlideDeckConfig = {
   // ... existing fields ...
-  fontFamily?: SlideFontFamily;  // Optional for backward compat, defaults to "International Inter"
+  fontFamily?: SlideFontFamily;
 };
 ```
 
-**Update getStartingConfigForSlideDeck (around line 60):**
+**Update getStartingConfigForSlideDeck:**
 
-```ts
+```typescript
 export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
   return {
     // ... existing fields ...
@@ -186,10 +290,10 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
 
 #### 4b. lib/types/_slide_deck_config.ts
 
-**Add to schema (around line 41):**
+**Update Zod schema:**
 
-```ts
-const SLIDE_FONT_FAMILIES = ["International Inter", "Fira Sans", "Merriweather"] as const;
+```typescript
+import { SLIDE_FONT_FAMILIES } from "./slides";
 
 export const slideDeckConfigSchema = z.object({
   // ... existing fields ...
@@ -197,9 +301,9 @@ export const slideDeckConfigSchema = z.object({
 });
 ```
 
-**Update validation literal (around line 87):**
+**Update validation literal:**
 
-```ts
+```typescript
 const _completeDeckConfig: Required<SlideDeckConfig> = {
   // ... existing fields ...
   fontFamily: "International Inter",
@@ -208,50 +312,46 @@ const _completeDeckConfig: Required<SlideDeckConfig> = {
 
 ---
 
-### 5. UI Selector
+### Phase 5: Database Migration
 
-**File:** `client/src/components/slide_deck/slide_deck_settings.tsx`
+**File:** `server/db/migrations/data_transforms/slide_deck_config.ts`
 
-**Add Select in the Style section (around line 248, after TreatmentPicker):**
+**Add migration block after existing blocks:**
 
-```tsx
-<Select
-  label={t3({
-    en: "Font",
-    fr: "Police",
-  })}
-  value={tempConfig.fontFamily ?? "International Inter"}
-  options={[
-    { value: "International Inter", label: "Inter" },
-    { value: "Fira Sans", label: "Fira Sans" },
-    { value: "Merriweather", label: "Merriweather" },
-  ]}
-  onChange={(v) =>
-    setTempConfig(
-      "fontFamily",
-      v as "International Inter" | "Fira Sans" | "Merriweather",
-    )
-  }
-/>
+```typescript
+// Block N: Add fontFamily default
+if (!("fontFamily" in config)) {
+  config.fontFamily = "International Inter";
+}
+// Validate fontFamily value
+if (
+  config.fontFamily &&
+  !["International Inter", "Fira Sans", "Merriweather"].includes(
+    config.fontFamily
+  )
+) {
+  config.fontFamily = "International Inter";
+}
 ```
 
-**Consider:** Add a note about Amharic only working with Inter. Could be a small helper text or tooltip.
+**Pattern:** Use literal array, not imported constant, to avoid migration
+dependency on runtime code.
 
 ---
 
-### 6. Slide Rendering
+### Phase 6: Slide Rendering
 
 **File:** `client/src/generate_slide_deck/convert_slide_to_page_inputs.ts`
 
-#### 6a. Add font weight mapping (new helper, around line 45):
+#### 6a. Add font weight mapping
 
-```ts
-type SlideFontFamily = "International Inter" | "Fira Sans" | "Merriweather";
+```typescript
+import type { SlideFontFamily } from "lib";
 
 const FONT_BOLD_WEIGHTS: Record<SlideFontFamily, 700 | 800> = {
   "International Inter": 800,
   "Fira Sans": 800,
-  "Merriweather": 700,  // No 800 weight available
+  Merriweather: 700, // No 800 weight available
 };
 
 function getBoldWeight(fontFamily: SlideFontFamily): 700 | 800 {
@@ -259,11 +359,16 @@ function getBoldWeight(fontFamily: SlideFontFamily): 700 | 800 {
 }
 ```
 
-#### 6b. Modify getFont function (line 47):
+#### 6b. Update getFont function
 
 **Before:**
-```ts
-function getFont(bold?: boolean, italic?: boolean, defaultBold = false): FontInfo {
+
+```typescript
+function getFont(
+  bold?: boolean,
+  italic?: boolean,
+  defaultBold = false
+): FontInfo {
   return {
     fontFamily: "International Inter",
     weight: (bold ?? defaultBold) ? 800 : 400,
@@ -273,12 +378,13 @@ function getFont(bold?: boolean, italic?: boolean, defaultBold = false): FontInf
 ```
 
 **After:**
-```ts
+
+```typescript
 function getFont(
   fontFamily: SlideFontFamily,
   bold?: boolean,
   italic?: boolean,
-  defaultBold = false,
+  defaultBold = false
 ): FontInfo {
   const boldWeight = getBoldWeight(fontFamily);
   return {
@@ -289,22 +395,25 @@ function getFont(
 }
 ```
 
-#### 6c. Update buildStyleForSlide (line 55):
+#### 6c. Update buildStyleForSlide
 
-**Add fontFamily extraction:**
-```ts
+**Add at start of function:**
+
+```typescript
 export function buildStyleForSlide(
   slide: Slide,
-  config: SlideDeckConfig,
+  config: SlideDeckConfig
 ): CustomPageStyleOptions {
   const fontFamily = config.fontFamily ?? "International Inter";
-  // ... rest of function, pass fontFamily to all getFont() calls
+  // ... rest of function
+}
 ```
 
-**Update all getFont calls in this function to include fontFamily as first arg.**
+**Update all getFont() calls to include fontFamily as first argument.**
 
-There are 14 calls to getFont() in this function. Each becomes:
-```ts
+There are approximately 14 calls to getFont() in this function. Each becomes:
+
+```typescript
 // Before:
 font: getFont(coverFontSizes.titleBold, coverFontSizes.titleItalic, true),
 
@@ -314,21 +423,24 @@ font: getFont(fontFamily, coverFontSizes.titleBold, coverFontSizes.titleItalic, 
 
 ---
 
-### 7. PDF Export
+### Phase 7: PDF Export
 
-Both export files need updates:
+**Files:**
+
 - `client/src/exports/export_slide_deck_as_pdf_vector.ts`
 - `client/src/exports/export_slide_deck_as_pdf_base64.ts`
 
-#### 7a. Add font helpers (around line 40):
+Both files need identical changes.
 
-```ts
-type SlideFontFamily = "International Inter" | "Fira Sans" | "Merriweather";
+#### 7a. Add font helpers
+
+```typescript
+import type { SlideFontFamily } from "lib";
 
 const FONT_BOLD_WEIGHTS: Record<SlideFontFamily, 700 | 800> = {
   "International Inter": 800,
   "Fira Sans": 800,
-  "Merriweather": 700,
+  Merriweather: 700,
 };
 
 function getFontsForFamily(fontFamily: SlideFontFamily): FontInfo[] {
@@ -342,10 +454,11 @@ function getFontsForFamily(fontFamily: SlideFontFamily): FontInfo[] {
 }
 ```
 
-#### 7b. Update font registration (around line 51):
+#### 7b. Update font registration
 
 **Before:**
-```ts
+
+```typescript
 const _InternationalInter_400: FontInfo = {
   fontFamily: "International Inter",
   weight: 400,
@@ -368,120 +481,148 @@ const fonts: FontInfo[] = representativeStyle.getFontsToRegister();
 ```
 
 **After:**
-```ts
+
+```typescript
+// Move AFTER resDeckDetail is fetched
 const fontFamily = resDeckDetail.data.config.fontFamily ?? "International Inter";
 const fonts: FontInfo[] = getFontsForFamily(fontFamily);
 ```
 
-**GOTCHA:** Move this AFTER `resDeckDetail` is fetched, since we need the config.
+**Note:** This must come AFTER `resDeckDetail` is fetched since we need the config.
+The `createPdfRenderContextWithFontsBrowser` function already handles loading these
+fonts into the browser via `loadFontsWithTimeout`.
 
 ---
 
-### 8. Database Migration
+### Phase 8: UI Selector
 
-**File:** `server/db/migrations/data_transforms/slide_deck_config.ts`
+**File:** `client/src/components/slide_deck/style_editor/StyleEditor.tsx`
+(or wherever deck style settings live)
 
-**Add migration block (around line 53, after layout/treatment blocks):**
+**Add font selector:**
 
-```ts
-// Block 4: Add fontFamily default
-if (!("fontFamily" in config)) {
-  config.fontFamily = "International Inter";
-}
+```tsx
+import { SLIDE_FONT_FAMILIES, type SlideFontFamily } from "lib";
+
+// In the component:
+<Select
+  label="Font"
+  value={config.fontFamily ?? "International Inter"}
+  options={[
+    { value: "International Inter", label: "Inter" },
+    { value: "Fira Sans", label: "Fira Sans" },
+    { value: "Merriweather", label: "Merriweather" },
+  ]}
+  onChange={(v) => updateConfig("fontFamily", v as SlideFontFamily)}
+/>
 ```
 
-**Note:** This runs on existing data when schema validation fails. New decks get the default from `getStartingConfigForSlideDeck()`.
+**Placement:** In the Style section, likely near color/treatment pickers.
+
+**Consider:** Add helper text noting Amharic only works with Inter.
+
+---
+
+### Phase 9: PPTX Export (Future)
+
+**Parked for later implementation.**
+
+PPTX doesn't embed fonts - it references font names and relies on the viewer
+having them installed. Need a mapping from our fonts to Microsoft built-in fonts:
+
+```typescript
+const PPTX_FONT_MAP: Record<SlideFontFamily, string> = {
+  "International Inter": "Calibri",
+  "Fira Sans": "Calibri",
+  Merriweather: "Georgia",
+};
+```
+
+Implementation details TBD.
 
 ---
 
 ## Testing Checklist
 
 ### Font Files
+
 - [ ] All 24 font files present in `/client/public/fonts/`
 - [ ] Files load correctly in browser (check Network tab)
 - [ ] No 404s for any font file
 
 ### Canvas Preview
-- [ ] Inter slides render correctly
+
+- [ ] Inter slides render correctly (regression)
 - [ ] Fira Sans slides render correctly
 - [ ] Merriweather slides render correctly
 - [ ] Bold text renders with correct weight for each font
-- [ ] Italic text renders correctly for each font
-- [ ] Mixed bold+italic renders correctly
+- [ ] Italic text renders correctly
+- [ ] Bold+italic combination works
+- [ ] First load of non-Inter font shows brief loading (acceptable)
+- [ ] Second load of same font is instant (cached)
 
 ### PDF Export
+
 - [ ] Inter PDF exports with embedded fonts
 - [ ] Fira Sans PDF exports with embedded fonts
 - [ ] Merriweather PDF exports with embedded fonts
 - [ ] Font weight matches canvas preview
 - [ ] Text is selectable in PDF (not rasterized)
+- [ ] Bold text in PDF matches canvas
 
 ### Migration
+
 - [ ] Existing decks without fontFamily get default "International Inter"
 - [ ] New decks get fontFamily in config
 - [ ] Schema validation passes for all decks
+- [ ] Invalid fontFamily values are corrected to default
 
 ### Edge Cases
+
 - [ ] Switching font on existing deck works
 - [ ] Amharic text shows missing glyphs for Fira Sans/Merriweather (expected)
-- [ ] Amharic text renders correctly with Inter (regression test)
+- [ ] Amharic text renders correctly with Inter (regression)
 - [ ] Deck duplication preserves font choice
-- [ ] Export to PPTX handles font correctly (or degrades gracefully)
-
----
-
-## Implementation Order
-
-1. **Copy font files** - No code changes, just file copy
-2. **Update font-map.json** - Enable PDF font loading
-3. **Add CSS @font-face** - Enable canvas font loading
-4. **Schema changes** - Type + Zod schema
-5. **Migration** - Handle existing data
-6. **Slide rendering** - getFont changes
-7. **PDF export** - Both files
-8. **UI selector** - Last, after backend works
+- [ ] AI-generated slides use deck's font choice
 
 ---
 
 ## Potential Issues
 
 ### 1. Merriweather Weight Mismatch
-Merriweather has 700 (Bold), not 800 (ExtraBold). Code handles this via `FONT_BOLD_WEIGHTS` map. If weight 800 is requested for Merriweather, panther may fall back to 700 automatically, but explicit mapping is safer.
 
-### 2. Font Loading Race
-CSS fonts load async. If slide preview renders before fonts load, text may appear in fallback font briefly. `font-display: block` mitigates this but doesn't eliminate it. Not a regression since Inter has same behavior.
+Merriweather has 700 (Bold), not 800 (ExtraBold). Handled via `FONT_BOLD_WEIGHTS`
+map. All code paths must use this map rather than hardcoding 800.
 
-### 3. PPTX Export
-`pptxgenjs` handles fonts differently than PDF. It doesn't embed fonts; it specifies font names and relies on the viewer having them installed. Test that font names are passed correctly. Fallback behavior is system-dependent.
+### 2. Font Loading Delay
+
+First render of non-default font may show brief loading state while
+`loadFontsWithTimeout` fetches the font. This is acceptable. After first load,
+browser caches the font.
+
+### 3. Font Map Key Format
+
+The font-map.json keys must exactly match what `getFontInfoId(font)` returns.
+Verify format: `{fontFamily}-{weight}-{normal|italic}`.
 
 ### 4. Figures in Slides
-Charts/figures embedded in slides use `GLOBAL_STYLE_OPTIONS` from `get_style_from_po/_0_common.ts`. This is intentionally NOT changed - figures keep Inter for consistency. If a user wants figure text to match slide font, that's a separate feature.
+
+Charts/figures embedded in slides use their own style system and will continue
+using Inter. This is intentional for consistency. Changing figure fonts is a
+separate feature.
 
 ### 5. Font File Size
-Each font adds ~100-200KB of TTF files (times 4 weights = 400-800KB per font). Total addition ~1.5MB. Acceptable for web app; fonts are cached after first load.
 
-### 6. Missing Italic Files
-Verify both fonts have italic variants. If missing, either:
-- Use regular weight for italic (oblique simulation)
-- Remove italic support for that font
-Check `ls /Users/timroberton/projects/FONT_FILES/fira-sans/*.ttf | grep -i italic`
+Each font family adds ~200-400KB (4 weights × ~50-100KB per WOFF2). Total
+addition ~600-800KB. Fonts are cached after first load.
 
 ---
 
 ## Rollback Plan
 
 If issues arise post-deploy:
+
 1. Remove fontFamily from UI (comment out Select)
 2. Migration is backward-compatible (optional field)
 3. Font files can stay (no harm)
 4. Rendering falls back to Inter if fontFamily undefined
-
----
-
-## Future Enhancements
-
-- Font preview in selector dropdown
-- Per-slide font override (currently deck-level only)
-- Figure font matching slide font
-- Custom font upload (complex - requires font validation)
-- Font weight customization (currently fixed 400/700-800)

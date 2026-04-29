@@ -9,7 +9,7 @@ import { Button } from "../form_inputs/button.tsx";
 import { t3 } from "../deps.ts";
 
 type Props = {
-  heading: string;
+  heading: string | JSX.Element;
   children?: JSX.Element;
   leftChildren?: JSX.Element;
   setSearchText?: (v: string) => void;

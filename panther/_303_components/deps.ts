@@ -6,7 +6,6 @@
 export { _GLOBAL_CANVAS_PIXEL_WIDTH } from "../_000_consts/mod.ts";
 export { capitalizeFirstLetter, clamp, createArray, getSortedAlphabetical, isFrench, normalizeTo01, t3, to100Pct0, toNum0, toPct3 } from "../_000_utils/mod.ts";
 export { Color } from "../_001_color/mod.ts";
-export type { FontInfo } from "../_001_font/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
@@ -21,6 +20,6 @@ export { createMarkdownIt } from "../_105_markdown/mod.ts";
 export type { ImageMap } from "../_105_markdown/mod.ts";
 export { PageRenderer, buildHitRegions, findHitTarget } from "../_121_page/mod.ts";
 export type { MeasuredPage, PageContentItem, PageHitTarget, PageHitTargetColDivider, PageHitTargetLayoutItem, PageInputs } from "../_121_page/mod.ts";
-export { downloadPdf, fontsReady, loadFont, markdownToPdfBrowser, releaseCanvasGPUMemory, trackCanvas, untrackCanvas } from "../_301_util_funcs/mod.ts";
+export { downloadPdf, loadFontsWithTimeout, markdownToPdfBrowser, releaseCanvasGPUMemory, trackCanvas, untrackCanvas } from "../_301_util_funcs/mod.ts";
 export { timQuery } from "../_302_query/mod.ts";
 export type { APIResponseWithData } from "../_302_query/mod.ts";

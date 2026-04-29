@@ -14,8 +14,7 @@ import {
   Switch,
 } from "solid-js";
 import {
-  fontsReady,
-  loadFont,
+  loadFontsWithTimeout,
   releaseCanvasGPUMemory,
   trackCanvas,
   untrackCanvas,
@@ -28,7 +27,6 @@ import {
   PageRenderer,
   RectCoordsDims,
 } from "../deps.ts";
-import type { FontInfo } from "../deps.ts";
 
 type Props = {
   pageInputs?: PageInputs;
@@ -56,6 +54,7 @@ export function PageHolder(p: Props) {
 
   const [err, setErr] = createSignal<string>("");
   const [overflow, setOverflow] = createSignal<boolean>(false);
+  const [fontsLoaded, setFontsLoaded] = createSignal(false);
 
   onMount(() => {
     // Set canvas dimensions once - they never change
@@ -74,34 +73,34 @@ export function PageHolder(p: Props) {
     // Track canvas for debugging
     canvasTrackingId = trackCanvas(canvas, "PageHolder");
 
-    // Preload fonts used by this page
-    if (p.pageInputs) {
-      const style = new CustomStyle(p.pageInputs.style);
-      const fonts = style.getFontsToRegister();
-      fonts.forEach((fontInfo: FontInfo) => {
-        loadFont(fontInfo.fontFamily);
-      });
-    }
+    let mounted = true;
+    const style = new CustomStyle(p.pageInputs?.style);
+    const fonts = style.getFontsToRegister();
+    loadFontsWithTimeout(fonts).then(() => {
+      if (mounted) setFontsLoaded(true);
+    });
 
+    onCleanup(() => {
+      mounted = false;
+    });
   });
 
   createEffect(() => {
-    fontsReady(); // Track the signal - will trigger re-render when fonts load
-
-    // Call updatePage directly without debouncing
-    updatePage(
-      cachedContext!,
-      p.pageInputs,
-      setErr,
-      setOverflow,
-      unscaledW,
-      unscaledH,
-      p.externalError,
-      animationFrameId,
-      (id) => {
-        animationFrameId = id;
-      },
-    );
+    if (fontsLoaded()) {
+      updatePage(
+        cachedContext!,
+        p.pageInputs,
+        setErr,
+        setOverflow,
+        unscaledW,
+        unscaledH,
+        p.externalError,
+        animationFrameId,
+        (id) => {
+          animationFrameId = id;
+        },
+      );
+    }
 
     // Cleanup function for this effect
     onCleanup(() => {

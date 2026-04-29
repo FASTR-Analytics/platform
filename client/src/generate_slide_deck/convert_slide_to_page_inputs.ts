@@ -9,11 +9,11 @@ import type {
 } from "lib";
 import {
   FIGURE_AUTOFIT,
-  getPrimaryColor,
   getTextColorForBackground,
   MARKDOWN_AUTOFIT,
   _SLIDE_BACKGROUND_COLOR,
   _CF_RED,
+  resolveColorThemeToPreset,
 } from "lib";
 import type {
   APIResponseWithData,
@@ -27,6 +27,7 @@ import type {
   ImageInputs,
   PatternConfig,
   SplitConfig,
+  ColorPreset,
 } from "panther";
 import { resolvePageStyle } from "panther";
 import { hydrateFigureInputsForRendering } from "~/generate_visualization/mod";
@@ -77,10 +78,12 @@ export function buildStyleForSlide(
   config: SlideDeckConfig,
   pattern?: Omit<PatternConfig, "baseColor">,
 ): CustomPageStyleOptions {
+  const preset = resolveColorThemeToPreset(config.colorTheme);
   const { style: presetStyle } = resolvePageStyle(
     config.layout,
-    config.treatment,
-    config.primaryColor,
+    config.coverAndSectionTreatment,
+    config.freeformTreatment,
+    preset,
     pattern ? { pattern } : undefined,
   );
 
@@ -198,7 +201,7 @@ export function buildStyleForSlide(
       alignV: presetStyle.section!.alignV,
     },
     freeform: {
-      split: getSlideSplit(slide, config.primaryColor),
+      split: getSlideSplit(slide, preset.primary),
       header: {
         background: presetStyle.freeform!.header!.background,
         padding: presetStyle.freeform!.header!.padding,
@@ -298,9 +301,10 @@ export async function convertSlideToPageInputs(
     };
   }
 
+  const preset = resolveColorThemeToPreset(config.colorTheme);
   const convertedLayout = await convertLayoutNode(
     slide.layout,
-    getPrimaryColor(config.primaryColor),
+    preset.primary,
   );
   const footerText = config.globalFooterText ?? slide.footer;
 
