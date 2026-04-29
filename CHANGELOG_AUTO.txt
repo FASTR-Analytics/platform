@@ -1,3 +1,14 @@
+[1.28.11] [user] [added] - Font picker for slide decks with four font options
+[1.28.11] [user] [added] - Label placement options for map visualizations: Center, Callout, or Auto
+[1.28.11] [user] [fixed] - Map legends now display correctly for threshold-based color rules
+[1.28.11] [user] [changed] - Maps with detailed regions now auto-zoom to fit the data
+[1.28.11] [user] [changed] - Removed "elegant" cover treatment option from slide styling
+[1.28.11] [admin] [added] - Font picker for slide decks with four font options
+[1.28.11] [admin] [added] - Map label placement options: center, callout, or auto
+[1.28.11] [admin] [fixed] - Map legends now display correctly for threshold-based coloring
+[1.28.11] [admin] [changed] - Maps with detailed regions now auto-zoom to fit data
+[1.28.11] [admin] [changed] - Exported PDFs now use the selected slide deck font
+[1.28.11] [admin] [internal] - Existing slide decks auto-migrated to default font setting
 [1.28.10] [user] [changed] - DHIS2 search now searches by name, code, and ID simultaneously
 [1.28.10] [user] [added] - Search multiple terms at once using commas, semicolons, or new lines
 [1.28.10] [user] [changed] - Search input replaced with larger text area for easier multi-term entry
