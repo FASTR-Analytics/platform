@@ -1,3 +1,5 @@
+[1.28.12] [user] [changed] - Slide deck font now applies consistently to all charts and text
+[1.28.12] [admin] [added] - Slide deck font now applies to charts and visualizations
 [1.28.11] [user] [added] - Font picker for slide decks with four font options
 [1.28.11] [user] [added] - Label placement options for map visualizations: Center, Callout, or Auto
 [1.28.11] [user] [fixed] - Map legends now display correctly for threshold-based color rules
