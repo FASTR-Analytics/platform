@@ -7,7 +7,7 @@ import {
   toPct0,
   type TickLabelFormatterOption,
 } from "panther";
-import { getCalendar, PresentationObjectConfig, selectCf } from "lib";
+import { type DeckStyleContext, getCalendar, PresentationObjectConfig, selectCf } from "lib";
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   getMapRegionsContent,
@@ -19,11 +19,12 @@ import {
 export function buildCoverageChartStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   return {
     scale: config.s.scale,
     seriesColorFunc: getCoverageSeriesColorFunc(),
-    text: getTextStyle(config),
+    text: getTextStyle(config, deckStyle),
     panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { calendar: getCalendar() },
     yScaleAxis: {

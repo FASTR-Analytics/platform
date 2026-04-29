@@ -1,5 +1,5 @@
 import { CustomFigureStyleOptions } from "panther";
-import { PresentationObjectConfig } from "lib";
+import { type DeckStyleContext, PresentationObjectConfig } from "lib";
 import { buildStandardStyle } from "./_1_standard";
 
 // TODO: Extract scorecard-specific style logic from _1_standard.ts and
@@ -9,6 +9,7 @@ import { buildStandardStyle } from "./_1_standard";
 export function buildScorecardTableStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
-  return buildStandardStyle(config, formatAs);
+  return buildStandardStyle(config, formatAs, deckStyle);
 }

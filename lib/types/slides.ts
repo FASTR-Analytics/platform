@@ -101,6 +101,18 @@ export function resolveColorThemeToPreset(theme: ColorTheme): ColorPreset {
   return getColorPreset(theme.id);
 }
 
+export type DeckStyleContext = {
+  fontFamily: SlideFontFamily;
+  colorPreset: ColorPreset;
+};
+
+export function createDeckStyleContext(config: SlideDeckConfig): DeckStyleContext {
+  return {
+    fontFamily: config.fontFamily ?? "International Inter",
+    colorPreset: resolveColorThemeToPreset(config.colorTheme),
+  };
+}
+
 export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
   return {
     label,

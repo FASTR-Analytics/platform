@@ -8,6 +8,7 @@ import {
   _CF_COMPARISON,
   _CF_GREEN,
   _CF_RED,
+  type DeckStyleContext,
   getCalendar,
   PresentationObjectConfig,
   selectCf,
@@ -24,6 +25,7 @@ import {
 export function buildPercentChangeChartStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   const threshold = config.s.specialBarChartDiffThreshold ?? 0.1;
   const inverted = config.s.specialBarChartInverted;
@@ -31,7 +33,7 @@ export function buildPercentChangeChartStyle(
   return {
     scale: config.s.scale,
     seriesColorFunc: getStandardSeriesColorFunc(config),
-    text: getTextStyle(config),
+    text: getTextStyle(config, deckStyle),
     panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { forceSideTicksWhenYear: true, calendar: getCalendar() },
     yScaleAxis: {

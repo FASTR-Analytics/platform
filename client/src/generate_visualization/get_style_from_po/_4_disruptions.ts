@@ -9,6 +9,7 @@ import {
 import {
   _CF_GREEN,
   _CF_RED,
+  type DeckStyleContext,
   getCalendar,
   PresentationObjectConfig,
   selectCf,
@@ -24,13 +25,14 @@ import {
 export function buildDisruptionsChartStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   const inverted = config.s.diffInverted;
 
   return {
     scale: config.s.scale,
     seriesColorFunc: getDisruptionsSeriesColorFunc(inverted),
-    text: getTextStyle(config),
+    text: getTextStyle(config, deckStyle),
     panes: {
       nCols: config.s.nColsInCellDisplay,
     },

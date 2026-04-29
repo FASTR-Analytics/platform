@@ -4,7 +4,7 @@ import {
   getFormatterFunc,
   type TickLabelFormatterOption,
 } from "panther";
-import { getCalendar, PresentationObjectConfig, selectCf } from "lib";
+import { type DeckStyleContext, getCalendar, PresentationObjectConfig, selectCf } from "lib";
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   getMapRegionsContent,
@@ -18,6 +18,7 @@ import { getAdminAreaLevelFromMapConfig } from "../get_admin_area_level_from_con
 export function buildStandardStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   const dataFormat = formatAs;
   const cf = selectCf(config.s);
@@ -30,7 +31,7 @@ export function buildStandardStyle(
   return {
     scale: config.s.scale,
     seriesColorFunc: getStandardSeriesColorFunc(config),
-    text: getTextStyle(config),
+    text: getTextStyle(config, deckStyle),
     surrounds: {
       legendPosition: config.s.hideLegend ? "none" : undefined,
     },

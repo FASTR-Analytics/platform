@@ -7,6 +7,7 @@ import type {
   SectionSlide,
   LogoVisibility,
   SlideFontFamily,
+  DeckStyleContext,
 } from "lib";
 import {
   FIGURE_AUTOFIT,
@@ -17,6 +18,7 @@ import {
   resolveColorThemeToPreset,
   getSlideFontInfo,
   getLetterSpacing,
+  createDeckStyleContext,
 } from "lib";
 import type {
   APIResponseWithData,
@@ -303,9 +305,11 @@ export async function convertSlideToPageInputs(
   }
 
   const preset = resolveColorThemeToPreset(config.colorTheme);
+  const deckStyle = createDeckStyleContext(config);
   const convertedLayout = await convertLayoutNode(
     slide.layout,
     preset.primary,
+    deckStyle,
   );
   const footerText = config.globalFooterText ?? slide.footer;
 
@@ -392,6 +396,7 @@ function resolveTextBackground(
 async function convertLayoutNode(
   node: LayoutNode<ContentBlock>,
   primaryColor: string,
+  deckStyle: DeckStyleContext,
 ): Promise<LayoutNode<PageContentItem>> {
   if (node.type === "item") {
     if (!node.data) {
@@ -410,7 +415,7 @@ async function convertLayoutNode(
       type: "item",
       id: node.id,
       span: node.span,
-      data: await convertBlockToPageContentItem(node.data, resolved?.textColor),
+      data: await convertBlockToPageContentItem(node.data, resolved?.textColor, deckStyle),
       style: resolved?.containerStyle,
     };
   }
@@ -421,7 +426,7 @@ async function convertLayoutNode(
     span: node.span,
     children: Array.isArray(node.children)
       ? await Promise.all(
-          node.children.map((c) => convertLayoutNode(c, primaryColor)),
+          node.children.map((c) => convertLayoutNode(c, primaryColor, deckStyle)),
         )
       : [],
   };
@@ -429,16 +434,19 @@ async function convertLayoutNode(
 
 async function convertBlockToPageContentItem(
   block: ContentBlock,
-  textColor?: string,
+  textColor: string | undefined,
+  deckStyle: DeckStyleContext,
 ): Promise<PageContentItem> {
   if (block.type === "text") {
     const baseFontSize = block.style?.textSize ? 60 * block.style.textSize : 60;
+    const fontFamily = deckStyle.fontFamily;
     return {
       markdown: block.markdown,
       autofit: MARKDOWN_AUTOFIT,
       style: {
         text: {
           base: {
+            font: getSlideFontInfo(fontFamily, false, false),
             fontSize: baseFontSize,
             ...(textColor ? { color: textColor } : {}),
           },
@@ -525,7 +533,7 @@ async function convertBlockToPageContentItem(
   const source = block.source?.type === "from_data"
     ? { config: block.source.config, metricId: block.source.metricId }
     : undefined;
-  fi = await hydrateFigureInputsForRendering(fi, source);
+  fi = await hydrateFigureInputsForRendering(fi, source, deckStyle);
 
   return { ...fi, autofit: FIGURE_AUTOFIT } as PageContentItem;
 }

@@ -72,7 +72,6 @@ import type { SlideFontFamily } from "./slides";
 
 export type DeckStyleContext = {
   fontFamily: SlideFontFamily;
-  boldWeight: 700 | 800;
   colorPreset: ColorPreset;
 };
 ```
@@ -82,20 +81,16 @@ export type DeckStyleContext = {
 **File:** `lib/types/slides.ts`
 
 ```typescript
-import { resolveColorThemeToPreset } from "./color_theme";
-
 export function createDeckStyleContext(config: SlideDeckConfig): DeckStyleContext {
-  const fontFamily = config.fontFamily ?? "International Inter";
   return {
-    fontFamily,
-    boldWeight: getBoldWeight(fontFamily),  // Uses existing helper from Plan 1
+    fontFamily: config.fontFamily ?? "International Inter",
     colorPreset: resolveColorThemeToPreset(config.colorTheme),
   };
 }
 ```
 
-**Note:** `getBoldWeight(family)` is exported by Plan 1 (PLAN_SLIDE_FONTS.md) — no
-duplication needed.
+**Note:** Use `getBoldWeight(deckStyle.fontFamily)` and `getLetterSpacing(deckStyle.fontFamily)`
+wherever needed — no need to store these in the context.
 
 ---
 
@@ -113,19 +108,15 @@ duplication needed.
 ```typescript
 // lib/types/slides.ts
 
-// Add after SlideFontFamily definition (from Plan 1):
+// Add after SlideFontFamily definition:
 export type DeckStyleContext = {
   fontFamily: SlideFontFamily;
-  boldWeight: 700 | 800;
   colorPreset: ColorPreset;
 };
 
-// Add helper (uses getBoldWeight from Plan 1):
 export function createDeckStyleContext(config: SlideDeckConfig): DeckStyleContext {
-  const fontFamily = config.fontFamily ?? "International Inter";
   return {
-    fontFamily,
-    boldWeight: getBoldWeight(fontFamily),
+    fontFamily: config.fontFamily ?? "International Inter",
     colorPreset: resolveColorThemeToPreset(config.colorTheme),
   };
 }
@@ -461,11 +452,18 @@ to preserve existing behavior.
 
 ---
 
-### Phase 6: Add "deck-primary" Color Scale Option
+### Phase 6: Add "deck-primary" Color Scale Option [DEFERRED]
 
-**File:** `lib/types/presentation_object.ts` (or wherever colorScale is defined)
+**Status:** Deferred. Implement fonts (Phases 1-5) first. Color scale passthrough
+can be added later without breaking changes.
 
-**Add to colorScale union:**
+**Note:** colorScale is defined in 3 files that must stay in sync:
+
+- `lib/types/_presentation_object_config.ts` (line 37)
+- `lib/types/_module_definition_github.ts` (line 167)
+- `lib/types/_metric_installed.ts` (line 112)
+
+**Add to colorScale union (when ready):**
 
 ```typescript
 export type ColorScale =
@@ -478,9 +476,8 @@ export type ColorScale =
   | "custom";
 ```
 
-**Note:** This is optional. If not added, figures will continue using their
-configured color scales. The primary benefit is enabling "deck-primary" for
-figures that should match the slide theme.
+**Benefit:** Figures with "deck-primary" scale would automatically match the
+slide deck's theme color.
 
 ---
 
@@ -510,7 +507,6 @@ SlideDeckConfig
     │       ▼
     │   DeckStyleContext {
     │     fontFamily: "Merriweather"
-    │     boldWeight: 700
     │     colorPreset: { primary: "#0e706c", ... }
     │   }
     │
@@ -543,7 +539,8 @@ SlideDeckConfig
 - [ ] Figure text uses Inter when deck uses Inter (regression)
 - [ ] Figure text uses Fira Sans when deck uses Fira Sans
 - [ ] Figure text uses Merriweather when deck uses Merriweather
-- [ ] Bold text in figures uses correct weight (800 for Inter/Fira, 700 for Merriweather)
+- [ ] Figure text uses Poppins when deck uses Poppins
+- [ ] Bold text in figures uses correct weight (800 for Inter/Fira, 700 for Merriweather/Poppins)
 - [ ] Caption, legend, headers all use deck font
 - [ ] PDF export renders figures with correct font
 
