@@ -1,3 +1,5 @@
+[1.28.16] [user] [changed] - Slide decks with "bold" style now keep that choice
+[1.28.16] [admin] [fixed] - Slide decks with "bold" freeform treatment no longer forcibly reset to default
 [1.28.15] [user] [fixed] - Period filters now correctly default to quarters when using quarterly data
 [1.28.15] [user] [fixed] - Switching period filter types no longer carries over unrelated settings
 [1.28.15] [user] [changed] - New slide decks now use an updated default freeform slide style
