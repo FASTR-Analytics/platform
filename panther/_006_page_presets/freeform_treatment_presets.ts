@@ -26,6 +26,13 @@ export type FreeformTreatmentConfig = {
 };
 
 const FREEFORM_TREATMENTS: Record<string, FreeformTreatmentConfig> = {
+  default: {
+    name: "Default",
+    header: { treatment: "none", background: "base100", text: "primary" },
+    footer: { treatment: "filled", background: "base200", text: "baseContent" },
+    content: { background: "base100" },
+    splitAdjust: { darken: 0.03 },
+  },
   bold: {
     name: "Bold",
     header: {
@@ -123,6 +130,7 @@ const FREEFORM_TREATMENTS: Record<string, FreeformTreatmentConfig> = {
 };
 
 export const FREEFORM_TREATMENT_IDS = [
+  "default",
   "bold",
   "header-only",
   "classic",

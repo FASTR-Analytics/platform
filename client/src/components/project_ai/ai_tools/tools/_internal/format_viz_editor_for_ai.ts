@@ -56,9 +56,9 @@ export function formatVizEditorForAI(
       lines.push(`Period filter: ${pf.periodOption} from ${pf.min} to ${pf.max}`);
     } else {
       const nPart =
-        pf.nMonths != null ? `${pf.nMonths} months` :
-        pf.nQuarters != null ? `${pf.nQuarters} quarters` :
-        pf.nYears != null ? `${pf.nYears} years` : "";
+        pf.filterType === "last_n_months" ? `${pf.nMonths} months` :
+        pf.filterType === "last_n_calendar_quarters" ? `${pf.nQuarters} quarters` :
+        pf.filterType === "last_n_calendar_years" ? `${pf.nYears} years` : "";
       lines.push(`Period filter: ${pf.filterType}${nPart ? " (" + nPart + ")" : ""}`);
     }
     lines.push("");

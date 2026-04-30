@@ -118,21 +118,7 @@ export function getPeriodFilterExactBounds(
   }
 
   if (periodFilter.filterType === "last_n_months") {
-    if (periodBounds.periodOption === "quarter_id") {
-      const nQuarters = periodFilter.nQuarters ?? 4;
-      if (nQuarters < 1 || nQuarters > 20) {
-        throw new Error(`nQuarters must be between 1 and 20, got ${nQuarters}`);
-      }
-      const time = getTimeFromPeriodId(periodBounds.max, "year-quarter");
-      const min = getPeriodIdFromTime(time - (nQuarters - 1), "year-quarter");
-      return {
-        periodOption: periodBounds.periodOption,
-        min,
-        max: periodBounds.max,
-      };
-    }
-
-    const nMonths = periodFilter.nMonths ?? 12;
+    const nMonths = periodFilter.nMonths;
     if (nMonths < 1 || nMonths > 24) {
       throw new Error(`nMonths must be between 1 and 24, got ${nMonths}`);
     }
@@ -273,9 +259,9 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
       )
       .join("$"),
     fc.periodFilter?.filterType ?? "",
-    fc.periodFilter?.nMonths?.toString() ?? "",
-    fc.periodFilter?.nYears?.toString() ?? "",
-    fc.periodFilter?.nQuarters?.toString() ?? "",
+    fc.periodFilter?.filterType === "last_n_months" ? fc.periodFilter.nMonths.toString() : "",
+    fc.periodFilter?.filterType === "last_n_calendar_years" ? fc.periodFilter.nYears.toString() : "",
+    fc.periodFilter?.filterType === "last_n_calendar_quarters" ? fc.periodFilter.nQuarters.toString() : "",
     fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.periodOption : "",
     fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.min.toString() : "",
     fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.max.toString() : "",

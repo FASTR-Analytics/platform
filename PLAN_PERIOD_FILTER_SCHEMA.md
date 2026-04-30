@@ -209,25 +209,37 @@ const periodFilterUnion = z.discriminatedUnion("filterType", [
 
 **File:** `lib/types/_metric_installed.ts`
 
-Add runtime validation for bounded filter values:
+Add runtime validation for bounded filter values. Note the `.optional()` at the
+end — `periodFilter` is optional in `configDStrict`.
 
 ```typescript
-export const periodFilterSchema = periodFilterUnion.refine(
-  (filter) => {
-    if (filter.filterType !== "custom" && filter.filterType !== "from_month") {
-      return true;
+export const periodFilterSchema = periodFilterUnion
+  .refine(
+    (filter) => {
+      if (filter.filterType !== "custom" && filter.filterType !== "from_month") {
+        return true;
+      }
+      const { periodOption, min, max } = filter;
+      return (
+        isValidPeriodValue(min, periodOption) &&
+        isValidPeriodValue(max, periodOption) &&
+        min <= max
+      );
+    },
+    {
+      message: "Invalid period bounds: check min/max format and ensure min <= max",
     }
-    const { periodOption, min, max } = filter;
-    return (
-      isValidPeriodValue(min, periodOption) &&
-      isValidPeriodValue(max, periodOption) &&
-      min <= max
-    );
-  },
-  {
-    message: "Invalid period bounds: check min/max format and ensure min <= max",
-  }
-);
+  )
+  .optional();
+```
+
+Also update `configDStrict` to reference the new schema name:
+
+```typescript
+// In configDStrict, change:
+periodFilter: periodFilterStrict,
+// To:
+periodFilter: periodFilterSchema,
 ```
 
 ---
@@ -236,15 +248,20 @@ export const periodFilterSchema = periodFilterUnion.refine(
 
 **File:** `lib/types/_metric_installed.ts`
 
-Remove old type aliases and update exports:
+Remove old schemas and type aliases, add new ones:
 
 ```typescript
-// Remove these:
+// Remove these schemas:
+// - relativePeriodFilterSchema
+// - boundedPeriodFilterSchema
+// - periodFilterStrict
+
+// Remove these old type aliases:
 // export type RelativePeriodFilter = z.infer<typeof relativePeriodFilterSchema>;
 // export type BoundedPeriodFilter = z.infer<typeof boundedPeriodFilterSchema>;
 // export type PeriodFilter = RelativePeriodFilter | BoundedPeriodFilter;
 
-// Add these:
+// Add these new type aliases (derived from periodFilterSchema):
 export type PeriodFilter = z.infer<typeof periodFilterSchema>;
 
 export type BoundedPeriodFilter = Extract<

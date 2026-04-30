@@ -133,7 +133,7 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
     overlay: "none",
     layout: "default",
     coverAndSectionTreatment: "bold",
-    freeformTreatment: "classic",
+    freeformTreatment: "default",
     fontFamily: "International Inter",
   };
 }

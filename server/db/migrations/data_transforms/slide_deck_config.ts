@@ -12,6 +12,8 @@
 // 2. Migrate logos structure - collect per-slide logos into deck-level
 // 3. Migrate primaryColor → colorTheme
 // 4. Split treatment → coverAndSectionTreatment + freeformTreatment
+// 5. Add fontFamily default
+// 6. Migrate old default treatment (bold) → default [REMOVE AFTER DEPLOYING]
 //
 // =============================================================================
 
@@ -60,8 +62,15 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
 
     const config = JSON.parse(row.config);
 
-    // Already valid? Skip.
-    if (slideDeckConfigSchema.safeParse(config).success) {
+    // Block 6: Migrate old default treatment (bold) → default
+    // TO REMOVE AFTER DEPLOYING ONCE - users should be able to choose bold again
+    const needsTreatmentMigration = config.freeformTreatment === "bold";
+    if (needsTreatmentMigration) {
+      config.freeformTreatment = "default";
+    }
+
+    // Already valid? Skip (unless we just changed treatment above).
+    if (!needsTreatmentMigration && slideDeckConfigSchema.safeParse(config).success) {
       continue;
     }
 

@@ -23,7 +23,7 @@ type ReturnType = { lastUpdated: string } | undefined;
 // between relative and bounded filter types without losing slider state.
 // Converted to a clean PeriodFilter on save.
 type EditableFilter = {
-  filterType: PeriodFilter["filterType"];
+  filterType: NonNullable<PeriodFilter>["filterType"];
   nMonths?: number;
   nYears?: number;
   nQuarters?: number;
@@ -32,17 +32,27 @@ type EditableFilter = {
   max: number;
 };
 
-function toPeriodFilter(e: EditableFilter): PeriodFilter {
-  if (e.filterType === "custom" || e.filterType === "from_month") {
-    return {
-      filterType: e.filterType,
-      periodOption: e.periodOption,
-      min: e.min,
-      max: e.max,
-    };
+function toPeriodFilter(e: EditableFilter): NonNullable<PeriodFilter> {
+  switch (e.filterType) {
+    case "custom":
+    case "from_month":
+      return {
+        filterType: e.filterType,
+        periodOption: e.periodOption,
+        min: e.min,
+        max: e.max,
+      };
+    case "last_n_months":
+      return { filterType: e.filterType, nMonths: e.nMonths ?? 12 };
+    case "last_n_calendar_years":
+      return { filterType: e.filterType, nYears: e.nYears ?? 1 };
+    case "last_n_calendar_quarters":
+      return { filterType: e.filterType, nQuarters: e.nQuarters ?? 4 };
+    case "last_calendar_year":
+      return { filterType: e.filterType };
+    case "last_calendar_quarter":
+      return { filterType: e.filterType };
   }
-  const { filterType, nMonths, nYears, nQuarters } = e;
-  return { filterType, nMonths, nYears, nQuarters };
 }
 
 export function EditCommonPropertiesModal(

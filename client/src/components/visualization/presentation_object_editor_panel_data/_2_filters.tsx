@@ -213,7 +213,11 @@ function PeriodFilter(p: PeriodFilterProps) {
         checked={!!p.tempConfig.d.periodFilter}
         onChange={(checked) => {
           if (checked) {
-            p.setTempConfig("d", "periodFilter", { filterType: "last_n_months" });
+            if (p.keyedPeriodBounds.periodOption === "quarter_id") {
+              p.setTempConfig("d", "periodFilter", { filterType: "last_n_calendar_quarters", nQuarters: 4 });
+            } else {
+              p.setTempConfig("d", "periodFilter", { filterType: "last_n_months", nMonths: 12 });
+            }
           } else {
             p.setTempConfig("d", "periodFilter", undefined);
           }
@@ -253,8 +257,8 @@ function PeriodFilter(p: PeriodFilterProps) {
                     : periodOption === "quarter_id"
                       ? [
                         {
-                          value: "last_n_months",
-                          label: t3({ en: "Last N quarters", fr: "Derniers N trimestres" }),
+                          value: "last_n_calendar_quarters",
+                          label: t3({ en: "Last N calendar quarters", fr: "Derniers N trimestres civils" }),
                         },
                         {
                           value: "from_month",
@@ -297,28 +301,17 @@ function PeriodFilter(p: PeriodFilterProps) {
                       min: p.keyedPeriodBounds.min,
                       max: p.keyedPeriodBounds.max,
                     });
+                  } else if (newType === "last_n_months") {
+                    p.setTempConfig("d", "periodFilter", { filterType: newType, nMonths: 12 });
                   } else if (newType === "last_n_calendar_years") {
                     p.setTempConfig("d", "periodFilter", { filterType: newType, nYears: 1 });
                   } else if (newType === "last_n_calendar_quarters") {
-                    p.setTempConfig("d", "periodFilter", { filterType: newType, nQuarters: 1 });
+                    p.setTempConfig("d", "periodFilter", { filterType: newType, nQuarters: 4 });
                   } else {
                     p.setTempConfig("d", "periodFilter", { filterType: newType });
                   }
                 }}
               />
-              <Show
-                when={
-                  rawPeriodFilter.filterType === "last_n_months" &&
-                  periodOption === "quarter_id"
-                }
-              >
-                <NQuartersSelector
-                  nQuarters={rawPeriodFilter.filterType === "last_n_months" ? rawPeriodFilter.nQuarters : undefined}
-                  onUpdate={(nQuarters) => {
-                    p.setTempConfig("d", "periodFilter", { filterType: "last_n_months", nQuarters });
-                  }}
-                />
-              </Show>
               <Show
                 when={
                   rawPeriodFilter.filterType === "last_n_months" &&
@@ -340,8 +333,7 @@ function PeriodFilter(p: PeriodFilterProps) {
               >
                 <NYearsSelector
                   nYears={
-                    rawPeriodFilter.filterType === "last_n_calendar_years" ||
-                    rawPeriodFilter.filterType === "last_calendar_year"
+                    rawPeriodFilter.filterType === "last_n_calendar_years"
                       ? rawPeriodFilter.nYears
                       : undefined
                   }
@@ -358,8 +350,7 @@ function PeriodFilter(p: PeriodFilterProps) {
               >
                 <NQuartersSelector
                   nQuarters={
-                    rawPeriodFilter.filterType === "last_n_calendar_quarters" ||
-                    rawPeriodFilter.filterType === "last_calendar_quarter"
+                    rawPeriodFilter.filterType === "last_n_calendar_quarters"
                       ? rawPeriodFilter.nQuarters
                       : undefined
                   }

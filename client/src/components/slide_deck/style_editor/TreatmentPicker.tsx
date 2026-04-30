@@ -11,7 +11,6 @@ import { PresetCard } from "./PresetCard.tsx";
 const THUMBNAIL_PRIMARY = "#64748b";
 const THUMBNAIL_BASE_100 = "#ffffff";
 const THUMBNAIL_BASE_200 = "#e5e7eb";
-const THUMBNAIL_BASE_300 = "#cacaca";
 
 type CoverTreatmentPickerProps = {
   value: CoverTreatmentId;
@@ -108,6 +107,7 @@ function FreeformThumbnail(p: { treatmentId: FreeformTreatmentId }) {
       case "minimal-accent":
       case "header-only":
         return { bg: THUMBNAIL_BASE_100 };
+      case "default":
       case "soft":
       case "soft-accent":
         return { bg: THUMBNAIL_BASE_200 };

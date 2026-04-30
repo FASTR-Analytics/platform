@@ -47,31 +47,93 @@ export const disaggregationDisplayOptionSchema = z.enum([
   "mapArea",
 ]);
 
-export const relativePeriodFilterSchema = z.object({
-  filterType: z.enum([
-    "last_n_months",
-    "last_calendar_year",
-    "last_calendar_quarter",
-    "last_n_calendar_years",
-    "last_n_calendar_quarters",
-  ]),
-  nMonths: z.number().optional(),
-  nYears: z.number().optional(),
-  nQuarters: z.number().optional(),
-});
+// Period value validators (internal, used by schema refinement)
+const MIN_YEAR = 1900;
+const MAX_YEAR = 2050;
 
-export const boundedPeriodFilterSchema = z.object({
-  filterType: z.enum(["custom", "from_month"]),
+function isValidPeriodIdNum(v: number): boolean {
+  if (v < 190001 || v > 205012) return false;
+  const month = v % 100;
+  return month >= 1 && month <= 12;
+}
+
+function isValidQuarterIdNum(v: number): boolean {
+  if (v < 190001 || v > 205004) return false;
+  const quarter = v % 100;
+  return quarter >= 1 && quarter <= 4;
+}
+
+function isValidYearNum(v: number): boolean {
+  return v >= MIN_YEAR && v <= MAX_YEAR;
+}
+
+function isValidPeriodValue(
+  v: number,
+  periodOpt: "period_id" | "quarter_id" | "year",
+): boolean {
+  switch (periodOpt) {
+    case "period_id":
+      return isValidPeriodIdNum(v);
+    case "quarter_id":
+      return isValidQuarterIdNum(v);
+    case "year":
+      return isValidYearNum(v);
+  }
+}
+
+// Strict period filter schema — each filterType has exactly the fields it requires
+const boundedFilterBase = z.object({
   periodOption: periodOption,
-  min: z.number(),
-  max: z.number(),
-  nMonths: z.number().optional(),
-  nYears: z.number().optional(),
-  nQuarters: z.number().optional(),
+  min: z.number().int(),
+  max: z.number().int(),
 });
 
-export const periodFilterStrict = z
-  .discriminatedUnion("filterType", [relativePeriodFilterSchema, boundedPeriodFilterSchema])
+const periodFilterUnion = z.discriminatedUnion("filterType", [
+  // Relative filters (resolved at query time)
+  z.object({
+    filterType: z.literal("last_n_months"),
+    nMonths: z.number().int().min(1),
+  }),
+  z.object({
+    filterType: z.literal("last_calendar_year"),
+  }),
+  z.object({
+    filterType: z.literal("last_calendar_quarter"),
+  }),
+  z.object({
+    filterType: z.literal("last_n_calendar_years"),
+    nYears: z.number().int().min(1),
+  }),
+  z.object({
+    filterType: z.literal("last_n_calendar_quarters"),
+    nQuarters: z.number().int().min(1),
+  }),
+  // Bounded filters (explicit min/max)
+  boundedFilterBase.extend({
+    filterType: z.literal("custom"),
+  }),
+  boundedFilterBase.extend({
+    filterType: z.literal("from_month"),
+  }),
+]);
+
+export const periodFilterSchema = periodFilterUnion
+  .refine(
+    (filter) => {
+      if (filter.filterType !== "custom" && filter.filterType !== "from_month") {
+        return true;
+      }
+      const { periodOption: pOpt, min, max } = filter;
+      return (
+        isValidPeriodValue(min, pOpt) &&
+        isValidPeriodValue(max, pOpt) &&
+        min <= max
+      );
+    },
+    {
+      message: "Invalid period bounds: check min/max format and ensure min <= max",
+    },
+  )
   .optional();
 
 export const configDStrict = z
@@ -92,7 +154,7 @@ export const configDStrict = z
         values: z.array(z.union([z.string(), z.number()])).min(1),
       }),
     ),
-    periodFilter: periodFilterStrict,
+    periodFilter: periodFilterSchema,
     selectedReplicantValue: z.string().optional(),
     includeNationalForAdminArea2: z.boolean().optional(),
     includeNationalPosition: z.enum(["bottom", "top"]).optional(),
@@ -240,9 +302,12 @@ export const metricStrict = z.object({
 export type PeriodOption = z.infer<typeof periodOption>;
 export type PresentationOption = z.infer<typeof presentationOptionSchema>;
 export type DisaggregationDisplayOption = z.infer<typeof disaggregationDisplayOptionSchema>;
-export type RelativePeriodFilter = z.infer<typeof relativePeriodFilterSchema>;
-export type BoundedPeriodFilter = z.infer<typeof boundedPeriodFilterSchema>;
-export type PeriodFilter = RelativePeriodFilter | BoundedPeriodFilter;
+export type PeriodFilter = z.infer<typeof periodFilterSchema>;
+export type BoundedPeriodFilter = Extract<
+  NonNullable<PeriodFilter>,
+  { filterType: "custom" | "from_month" }
+>;
+export type RelativePeriodFilter = Exclude<NonNullable<PeriodFilter>, BoundedPeriodFilter>;
 export type ValueFunc = z.infer<typeof valueFuncStrict>;
 export type PostAggregationExpression = z.infer<typeof postAggregationExpressionStrict>;
 export type VizPresetTextConfig = z.infer<typeof vizPresetTextConfigInstalledStrict>;

@@ -33,6 +33,10 @@
 // 16. Fill missing configS and configT fields (2025-04 schema additions)
 // 17. Rename content "areas" → "lines-area"
 // 18. Remove specialScorecardTable (feature removed)
+// 19. Migrate overloaded last_n_months with nQuarters → last_n_calendar_quarters
+// 20. Strip nMonths/nYears/nQuarters from bounded filters
+// 21. Strip unused count fields from relative filters
+// 22. Fill default nMonths for last_n_months without count
 //
 // =============================================================================
 
@@ -155,6 +159,49 @@ export function transformConfigD(d: Record<string, unknown>): void {
   // Block 15: Convert selectedReplicantValue number → string
   if (typeof d.selectedReplicantValue === "number") {
     d.selectedReplicantValue = String(d.selectedReplicantValue);
+  }
+
+  // Block 19: Migrate overloaded last_n_months with nQuarters → last_n_calendar_quarters
+  if (
+    pf?.filterType === "last_n_months" &&
+    pf.nQuarters !== undefined &&
+    pf.nMonths === undefined
+  ) {
+    pf.filterType = "last_n_calendar_quarters";
+  }
+
+  // Block 20: Strip nMonths/nYears/nQuarters from bounded filters
+  if (pf && !RELATIVE_FILTER_TYPES.has(pf.filterType as string)) {
+    delete pf.nMonths;
+    delete pf.nYears;
+    delete pf.nQuarters;
+  }
+
+  // Block 21: Strip unused count fields from relative filters
+  if (pf?.filterType === "last_n_months") {
+    delete pf.nYears;
+    delete pf.nQuarters;
+  }
+  if (pf?.filterType === "last_n_calendar_years") {
+    delete pf.nMonths;
+    delete pf.nQuarters;
+  }
+  if (pf?.filterType === "last_n_calendar_quarters") {
+    delete pf.nMonths;
+    delete pf.nYears;
+  }
+  if (
+    pf?.filterType === "last_calendar_year" ||
+    pf?.filterType === "last_calendar_quarter"
+  ) {
+    delete pf.nMonths;
+    delete pf.nYears;
+    delete pf.nQuarters;
+  }
+
+  // Block 22: Fill default nMonths for last_n_months without count
+  if (pf?.filterType === "last_n_months" && pf.nMonths === undefined) {
+    pf.nMonths = 12;
   }
 }
 
