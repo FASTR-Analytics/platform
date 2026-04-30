@@ -1,3 +1,5 @@
+[1.28.17] [user] [fixed] - Bold text in slides now displays with correct font weight
+[1.28.17] [admin] [fixed] - Slide bold text now loads correct font weights
 [1.28.16] [user] [changed] - Slide decks with "bold" style now keep that choice
 [1.28.16] [admin] [fixed] - Slide decks with "bold" freeform treatment no longer forcibly reset to default
 [1.28.15] [user] [fixed] - Period filters now correctly default to quarters when using quarterly data
