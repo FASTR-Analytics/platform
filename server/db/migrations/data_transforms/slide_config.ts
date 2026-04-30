@@ -34,7 +34,11 @@ type LayoutNode = {
   data?: {
     type: string;
     figureInputs?: Record<string, unknown>;
-    source?: { type: string; config?: Record<string, unknown>; snapshotAt?: string };
+    source?: {
+      type: string;
+      config?: Record<string, unknown>;
+      snapshotAt?: string;
+    };
   };
   children?: LayoutNode[];
 };
@@ -49,13 +53,17 @@ function transformFigureInputs(fi: Record<string, unknown>): void {
     if (!d || d.isTransformed !== true) continue;
 
     const needsTierHeaders = !d.tierHeaders;
-    const yScaleAxisData = d.yScaleAxisData as Record<string, unknown> | undefined;
+    const yScaleAxisData = d.yScaleAxisData as
+      | Record<string, unknown>
+      | undefined;
     const needsScaleAxisLimits = !d.scaleAxisLimits && yScaleAxisData;
 
     if (!needsTierHeaders && !needsScaleAxisLimits) continue;
 
     if (needsTierHeaders) {
-      const oldTierHeaders = yScaleAxisData?.tierHeaders as string[] | undefined;
+      const oldTierHeaders = yScaleAxisData?.tierHeaders as
+        | string[]
+        | undefined;
       d.tierHeaders = oldTierHeaders ?? ["default"];
     }
 
@@ -109,14 +117,21 @@ function transformLayoutNode(node: LayoutNode): void {
       node.data = { type: "figure" };
     }
     // Block 4: Rename source.type "from_metric" → "from_data" and add snapshotAt
-    if (node.data.type === "figure" && node.data.source?.type === "from_metric") {
+    if (
+      node.data.type === "figure" &&
+      node.data.source?.type === "from_metric"
+    ) {
       node.data.source.type = "from_data";
       if (!node.data.source.snapshotAt) {
         node.data.source.snapshotAt = new Date().toISOString();
       }
     }
     // Block 5: Transform embedded PO configs in figure blocks
-    if (node.data.type === "figure" && node.data.source?.type === "from_data" && node.data.source.config) {
+    if (
+      node.data.type === "figure" &&
+      node.data.source?.type === "from_data" &&
+      node.data.source.config
+    ) {
       node.data.source.config = transformPOConfigData(node.data.source.config);
     }
     // Block 9: Migrate figureInputs yScaleAxisData → scaleAxisLimits
@@ -130,7 +145,10 @@ function transformLayoutNode(node: LayoutNode): void {
   }
 }
 
-export async function migrateSlideConfigs(tx: Sql, _projectId: string): Promise<MigrationStats> {
+export async function migrateSlideConfigs(
+  tx: Sql,
+  _projectId: string,
+): Promise<MigrationStats> {
   const rows = await tx<{ id: string; config: string }[]>`
     SELECT id, config FROM slides
   `;

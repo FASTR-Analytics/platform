@@ -13,12 +13,17 @@
 // 3. Migrate primaryColor → colorTheme
 // 4. Split treatment → coverAndSectionTreatment + freeformTreatment
 // 5. Add fontFamily default
-// 6. Migrate old default treatment (bold) → default [REMOVE AFTER DEPLOYING]
 //
 // =============================================================================
 
 import { slideDeckConfigSchema, _GFF_GREEN, findBrandPresetByHex } from "lib";
-import { Color, COVER_TREATMENT_IDS, FREEFORM_TREATMENT_IDS, getColorPresets, LAYOUT_PRESET_IDS } from "@timroberton/panther";
+import {
+  Color,
+  COVER_TREATMENT_IDS,
+  FREEFORM_TREATMENT_IDS,
+  getColorPresets,
+  LAYOUT_PRESET_IDS,
+} from "@timroberton/panther";
 import type { ColorPresetId } from "@timroberton/panther";
 import type { Sql } from "postgres";
 
@@ -50,7 +55,10 @@ export type MigrationStats = {
   rowsTransformed: number;
 };
 
-export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Promise<MigrationStats> {
+export async function migrateSlideDeckConfigs(
+  tx: Sql,
+  _projectId: string,
+): Promise<MigrationStats> {
   const rows = await tx<{ id: string; config: string | null }[]>`
     SELECT id, config FROM slide_decks
   `;
@@ -62,15 +70,8 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
 
     const config = JSON.parse(row.config);
 
-    // Block 6: Migrate old default treatment (bold) → default
-    // TO REMOVE AFTER DEPLOYING ONCE - users should be able to choose bold again
-    const needsTreatmentMigration = config.freeformTreatment === "bold";
-    if (needsTreatmentMigration) {
-      config.freeformTreatment = "default";
-    }
-
     // Already valid? Skip (unless we just changed treatment above).
-    if (!needsTreatmentMigration && slideDeckConfigSchema.safeParse(config).success) {
+    if (slideDeckConfigSchema.safeParse(config).success) {
       continue;
     }
 
@@ -87,7 +88,9 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
     // New: logos: { availableCustom, cover, header, footer }, globalFooterText
     if (Array.isArray(config.logos) || config.logos === undefined) {
       const oldAvailableLogos: string[] = config.logos ?? [];
-      const oldDeckFooter = config.deckFooter as { text: string; logos: string[] } | undefined;
+      const oldDeckFooter = config.deckFooter as
+        | { text: string; logos: string[] }
+        | undefined;
 
       // Read slides for this deck to collect per-slide logos
       const slides = await tx<{ config: string }[]>`
@@ -149,7 +152,10 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
       if (brandPresetId) {
         config.colorTheme = { type: "preset", id: brandPresetId };
       } else if (isColorTooLight(primaryColor)) {
-        config.colorTheme = { type: "preset", id: findNearestPresetByHue(primaryColor) };
+        config.colorTheme = {
+          type: "preset",
+          id: findNearestPresetByHue(primaryColor),
+        };
       } else {
         config.colorTheme = { type: "custom", primary: primaryColor };
       }
@@ -183,7 +189,9 @@ export async function migrateSlideDeckConfigs(tx: Sql, _projectId: string): Prom
     }
     if (
       config.fontFamily &&
-      !["International Inter", "Fira Sans", "Merriweather", "Poppins"].includes(config.fontFamily)
+      !["International Inter", "Fira Sans", "Merriweather", "Poppins"].includes(
+        config.fontFamily,
+      )
     ) {
       config.fontFamily = "International Inter";
     }
