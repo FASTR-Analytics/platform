@@ -11,16 +11,8 @@ import {
   type DeckStyleContext,
   getCalendar,
   PresentationObjectConfig,
-  selectCf,
 } from "lib";
-import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
-import {
-  getMapRegionsContent,
-  getStandardSeriesColorFunc,
-  getTableCellsContent,
-  getTableLayoutStyle,
-  getTextStyle,
-} from "./_0_common";
+import { getStandardSeriesColorFunc, getTextStyle } from "./_0_common";
 
 export function buildPercentChangeChartStyle(
   config: PresentationObjectConfig,
@@ -45,10 +37,7 @@ export function buildPercentChangeChartStyle(
         : "auto-number") as TickLabelFormatterOption,
     },
     content: {
-      points: {
-        func: { show: false, dataLabel: { show: false } },
-        textFormatter: () => "",
-      },
+      points: { func: { show: false } },
       bars: {
         func: (info) => {
           const diff = getSpecialBarChartDiff(info);
@@ -94,19 +83,8 @@ export function buildPercentChangeChartStyle(
         },
         stacking: "none",
       },
-      lines: {
-        func: { show: false, dataLabel: { show: false } },
-        textFormatter: () => "",
-      },
-      tableCells: getTableCellsContent(config, formatAs),
-      mapRegions: getMapRegionsContent(config, formatAs),
+      lines: { func: { show: false } },
     },
-    table: getTableLayoutStyle(config),
-    valuesColorFunc: compileCfToValuesColorFunc(selectCf(config.s)),
-    map:
-      config.d.type === "map"
-        ? { projection: config.s.mapProjection ?? "equirectangular", dataLabelMode: "centroid" }
-        : undefined,
   };
 }
 

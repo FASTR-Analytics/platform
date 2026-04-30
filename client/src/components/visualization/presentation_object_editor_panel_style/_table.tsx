@@ -31,22 +31,20 @@ export function TableStyleControls(p: Props) {
             checked={p.tempConfig.s.allowVerticalColHeaders}
             onChange={(v) => p.setTempConfig("s", "allowVerticalColHeaders", v)}
           />
-          <Show when={!p.tempConfig.s.specialScorecardTable}>
-            <div class="pt-0.5"></div>
-            <RadioGroup
-              label={t3({ en: "Decimal places", fr: "Décimales" })}
-              options={getSelectOptions(["0", "1", "2", "3"])}
-              value={String(p.tempConfig.s.decimalPlaces)}
-              onChange={(v) =>
-                p.setTempConfig(
-                  "s",
-                  "decimalPlaces",
-                  Number(v) as 0 | 1 | 2 | 3,
-                )
-              }
-              horizontal
-            />
-          </Show>
+          <div class="pt-0.5"></div>
+          <RadioGroup
+            label={t3({ en: "Decimal places", fr: "Décimales" })}
+            options={getSelectOptions(["0", "1", "2", "3"])}
+            value={String(p.tempConfig.s.decimalPlaces)}
+            onChange={(v) =>
+              p.setTempConfig(
+                "s",
+                "decimalPlaces",
+                Number(v) as 0 | 1 | 2 | 3,
+              )
+            }
+            horizontal
+          />
           <Show when={selectCf(p.tempConfig.s).type !== "none"}>
             <div class="pt-0.5"></div>
             <Checkbox
@@ -57,22 +55,20 @@ export function TableStyleControls(p: Props) {
           </Show>
         </>
       </StyleSection>
-      <Show when={!p.tempConfig.s.specialScorecardTable}>
-        <StyleSection
-          label={t3({
-            en: "Conditional formatting",
-            fr: "Mise en forme conditionnelle",
-          })}
-        >
-          <ConditionalFormattingEditor
-            value={selectCf(p.tempConfig.s)}
-            onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
-            formatAs={p.poDetail.resultsValue.formatAs}
-            decimalPlaces={p.tempConfig.s.decimalPlaces}
-            allowNegative={METRICS_WITH_NEGATIVE_PCT_VALUES.includes(p.poDetail.resultsValue.id)}
-          />
-        </StyleSection>
-      </Show>
+      <StyleSection
+        label={t3({
+          en: "Conditional formatting",
+          fr: "Mise en forme conditionnelle",
+        })}
+      >
+        <ConditionalFormattingEditor
+          value={selectCf(p.tempConfig.s)}
+          onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
+          formatAs={p.poDetail.resultsValue.formatAs}
+          decimalPlaces={p.tempConfig.s.decimalPlaces}
+          allowNegative={METRICS_WITH_NEGATIVE_PCT_VALUES.includes(p.poDetail.resultsValue.id)}
+        />
+      </StyleSection>
     </>
   );
 }

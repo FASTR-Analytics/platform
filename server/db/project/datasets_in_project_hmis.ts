@@ -436,7 +436,7 @@ aggregated AS (
     raw_data.period_id
 )
 -- Step 3: Final output with facility and period details
-SELECT 
+SELECT
   aggregated.facility_id,
   ${adminAreaColumns.map((col) => `f.${col}`).join(", ")}${
     optionalColumns.length > 0
@@ -444,14 +444,6 @@ SELECT
       : ""
   },
   aggregated.period_id,
-  (aggregated.period_id / 100)::text as year,
-  LPAD((aggregated.period_id % 100)::text, 2, '0') as month,
-  CASE 
-    WHEN aggregated.period_id % 100 <= 3 THEN (aggregated.period_id / 100) * 10 + 1
-    WHEN aggregated.period_id % 100 <= 6 THEN (aggregated.period_id / 100) * 10 + 2
-    WHEN aggregated.period_id % 100 <= 9 THEN (aggregated.period_id / 100) * 10 + 3
-    ELSE (aggregated.period_id / 100) * 10 + 4
-  END as quarter_id,
   aggregated.indicator_common_id,
   aggregated.count
 FROM aggregated

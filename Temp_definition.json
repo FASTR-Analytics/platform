@@ -1,0 +1,112 @@
+{
+  "id": "q62",
+  "label": "Temp",
+  "metricId": "m3-03-02",
+  "config": {
+    "d": {
+      "type": "map",
+      "timeseriesGrouping": "period_id",
+      "valuesDisDisplayOpt": "cell",
+      "disaggregateBy": [
+        {
+          "disOpt": "admin_area_2",
+          "disDisplayOpt": "mapArea"
+        },
+        {
+          "disOpt": "indicator_common_id",
+          "disDisplayOpt": "replicant"
+        }
+      ],
+      "filterBy": [],
+      "periodFilter": {
+        "filterType": "last_n_calendar_quarters",
+        "nYears": 1,
+        "nQuarters": 1
+      },
+      "selectedReplicantValue": "anc1"
+    },
+    "s": {
+      "scale": 3,
+      "content": "bars",
+      "allowIndividualRowLimits": true,
+      "colorScale": "pastel-discrete",
+      "decimalPlaces": 0,
+      "hideLegend": false,
+      "showDataLabels": false,
+      "showDataLabelsLineCharts": false,
+      "barsStacked": false,
+      "diffInverted": false,
+      "specialBarChart": false,
+      "specialBarChartInverted": false,
+      "specialBarChartDiffThreshold": 0.1,
+      "specialBarChartDataLabels": "threshold-values",
+      "specialCoverageChart": false,
+      "specialDisruptionsChart": false,
+      "specialScorecardTable": false,
+      "verticalTickLabels": false,
+      "allowVerticalColHeaders": true,
+      "forceYMax1": false,
+      "forceYMinAuto": false,
+      "customSeriesStyles": [],
+      "nColsInCellDisplay": "auto",
+      "seriesColorFuncPropToUse": "series",
+      "sortIndicatorValues": "none",
+      "mapProjection": "equirectangular",
+      "cfMode": "thresholds",
+      "cfScalePaletteKind": "preset",
+      "cfScalePalettePreset": "rd-yl-gn",
+      "cfScaleCustomFrom": "#fee0d2",
+      "cfScaleCustomMid": "",
+      "cfScaleCustomTo": "#de2d26",
+      "cfScaleReverse": false,
+      "cfScaleSteps": 0,
+      "cfScaleDomainKind": "auto",
+      "cfScaleDomainMin": 0,
+      "cfScaleDomainMax": 1,
+      "cfScaleNoDataColor": "#f0f0f0",
+      "cfThresholdCutoffs": [
+        -0.2,
+        -0.1,
+        -0.05,
+        0.05,
+        0.1,
+        0.2
+      ],
+      "cfThresholdBuckets": [
+        {
+          "color": "#e73535"
+        },
+        {
+          "color": "#F18989"
+        },
+        {
+          "color": "#f8c4c4"
+        },
+        {
+          "color": {
+            "key": "base200"
+          }
+        },
+        {
+          "color": "#b4e3c8"
+        },
+        {
+          "color": "#68C690"
+        },
+        {
+          "color": "#3ea46a"
+        }
+      ],
+      "cfThresholdDirection": "higher-is-better",
+      "cfThresholdNoDataColor": "#ffffff"
+    },
+    "t": {
+      "caption": "Perturbation des services",
+      "captionRelFontSize": 2,
+      "subCaption": "Différence en pourcentage entre le volume de services réel et attendu par région",
+      "subCaptionRelFontSize": 1.3,
+      "footnote": "Les valeurs négatives indiquent une prestation de services inférieure aux niveaux attendus. Les valeurs attendues sont basées sur les tendances pré-perturbation. Les couleurs plus foncées indiquent des perturbations plus importantes.",
+      "footnoteRelFontSize": 0.9
+    }
+  }
+}

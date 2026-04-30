@@ -23,7 +23,6 @@ export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   specialBarChartInverted: false,
   specialBarChartDiffThreshold: 0.1,
   specialBarChartDataLabels: "threshold-values",
-  specialScorecardTable: false,
   verticalTickLabels: false,
   allowVerticalColHeaders: true,
   forceYMax1: false,

@@ -24,7 +24,6 @@ import {
   getTimeseriesJsonDataConfigFromPresentationObjectConfig,
 } from "./get_data_config_from_po";
 import { getStyleFromPresentationObject } from "./get_style_from_po";
-import { getSpecialScorecardTableFigureInputs } from "./conditional_formatting_scorecard";
 import { getMapJsonDataConfigFromPresentationObjectConfig } from "./get_data_config_for_map";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 
@@ -109,12 +108,6 @@ export function getFigureInputsFromPresentationObject(
     }
 
     if (effectiveConfig.d.type === "table") {
-      if (effectiveConfig.s.specialScorecardTable) {
-        return {
-          status: "ready",
-          data: getSpecialScorecardTableFigureInputs(resultsValue, ih, effectiveConfig, effectiveValueProps),
-        };
-      }
       return {
         status: "ready",
         data: {
@@ -239,33 +232,6 @@ export function getFigureInputsFromPresentationObject(
         ih.indicatorLabelReplacements,
       );
 
-      // DEBUG: Log map data matching
-      const geoAreaIds = geoJson.features.slice(0, 5).map((f: any) => f.properties?.area_id);
-      const geoFeatureProps = geoJson.features.slice(0, 2).map((f: any) => ({ properties: f.properties, id: f.id }));
-      const dataAreaValues = ih.items.slice(0, 5).map((row: any) => row[mapDataConfig.areaProp]);
-      const allDataAreaValues = new Set(ih.items.map((row: any) => String(row[mapDataConfig.areaProp] ?? "")));
-      const allGeoAreaIds = new Set(geoJson.features.map((f: any) => String(f.properties?.area_id ?? "")));
-      const matchCount = [...allDataAreaValues].filter(v => allGeoAreaIds.has(v)).length;
-      const sampleValues = ih.items.slice(0, 3).map((row: any) => ({
-        area: row[mapDataConfig.areaProp],
-        value: row[mapDataConfig.valueProp],
-        valueType: typeof row[mapDataConfig.valueProp],
-      }));
-      console.log("[MAP DEBUG]", {
-        areaProp: mapDataConfig.areaProp,
-        areaMatchProp: mapDataConfig.areaMatchProp,
-        valueProp: mapDataConfig.valueProp,
-        geoFeatureCount: geoJson.features.length,
-        dataRowCount: ih.items.length,
-        sampleGeoAreaIds: geoAreaIds,
-        sampleDataAreaValues: dataAreaValues,
-        uniqueDataAreas: allDataAreaValues.size,
-        uniqueGeoAreas: allGeoAreaIds.size,
-        matchingAreas: matchCount,
-        sampleValues,
-        geoFeatureProps: geoFeatureProps,
-      });
-
       const mapItems = ih.items.map((row: any) => {
         const raw = row[mapDataConfig.valueProp];
         if (raw !== undefined && raw !== null && typeof raw === "string") {
@@ -275,15 +241,6 @@ export function getFigureInputsFromPresentationObject(
           }
         }
         return row;
-      });
-
-      const mapStyle = getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number");
-      console.log("[MAP DEBUG 2]", {
-        sampleConvertedValues: mapItems.slice(0, 3).map((row: any) => ({
-          value: row[mapDataConfig.valueProp],
-          type: typeof row[mapDataConfig.valueProp],
-        })),
-        mapStyleSection: mapStyle.map,
       });
 
       return {

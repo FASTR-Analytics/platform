@@ -47,9 +47,3 @@ export async function getBackgroundDetail(
   return { overlay: resImg.data };
 }
 
-export async function getOverlayImage(
-  config: SlideDeckConfig,
-): Promise<HTMLImageElement | undefined> {
-  const detail = await getBackgroundDetail(config);
-  return detail.overlay;
-}

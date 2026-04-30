@@ -3,18 +3,11 @@ import {
   ChartValueInfo,
   ColorKeyOrString,
   CustomFigureStyleOptions,
-  getFormatterFunc,
   toPct0,
   type TickLabelFormatterOption,
 } from "panther";
-import { type DeckStyleContext, getCalendar, PresentationObjectConfig, selectCf } from "lib";
-import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
-import {
-  getMapRegionsContent,
-  getTableCellsContent,
-  getTableLayoutStyle,
-  getTextStyle,
-} from "./_0_common";
+import { type DeckStyleContext, getCalendar, PresentationObjectConfig } from "lib";
+import { getTextStyle } from "./_0_common";
 
 export function buildCoverageChartStyle(
   config: PresentationObjectConfig,
@@ -50,28 +43,9 @@ export function buildCoverageChartStyle(
           return info.i_val === lastGoodIndex ? toPct0(info.val) : "";
         },
       },
-      bars: {
-        func: { show: false },
-        textFormatter: () => "",
-        stacking: "none",
-      },
-      lines: {
-        func: { show: true, dataLabel: { show: false } },
-        textFormatter: (info: ChartValueInfo) =>
-          getFormatterFunc(formatAs, 0)(info.val),
-      },
-      tableCells: getTableCellsContent(config, formatAs),
-      mapRegions: getMapRegionsContent(config, formatAs),
+      bars: { func: { show: false } },
+      lines: { func: { show: true } },
     },
-    table: getTableLayoutStyle(config),
-    valuesColorFunc: compileCfToValuesColorFunc(selectCf(config.s)),
-    map:
-      config.d.type === "map"
-        ? {
-            projection: config.s.mapProjection ?? "equirectangular",
-            dataLabelMode: "centroid",
-          }
-        : undefined,
   };
 }
 

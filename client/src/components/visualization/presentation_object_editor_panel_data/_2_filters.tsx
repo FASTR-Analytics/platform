@@ -23,7 +23,7 @@ import {
   getTimeFromPeriodId,
   type TimQuery,
 } from "panther";
-import { For, Match, Show, Switch, createSignal } from "solid-js";
+import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_label";
 
@@ -228,10 +228,12 @@ function PeriodFilter(p: PeriodFilterProps) {
             return ft;
           };
           const periodOption = p.keyedPeriodBounds.periodOption;
-          const boundedFilter = () =>
-            periodFilterHasBounds(rawPeriodFilter)
-              ? reconcilePeriodFilterWithBounds(rawPeriodFilter, p.keyedPeriodBounds)
+          const boundedFilter = createMemo(() => {
+            const pBounds = p.keyedPeriodBounds;
+            return periodFilterHasBounds(rawPeriodFilter)
+              ? reconcilePeriodFilterWithBounds(rawPeriodFilter, pBounds)
               : undefined;
+          });
           return (
             <div class="ui-spy-sm pb-4 pl-4">
               <RadioGroup

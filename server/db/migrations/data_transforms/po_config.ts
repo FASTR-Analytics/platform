@@ -32,6 +32,7 @@
 // 15. Convert selectedReplicantValue number → string
 // 16. Fill missing configS and configT fields (2025-04 schema additions)
 // 17. Rename content "areas" → "lines-area"
+// 18. Remove specialScorecardTable (feature removed)
 //
 // =============================================================================
 
@@ -234,6 +235,9 @@ export function transformConfigS(s: Record<string, unknown>, isMap: boolean): vo
 
   // Block 17: Rename content "areas" → "lines-area"
   if (s.content === "areas") s.content = "lines-area";
+
+  // Block 18: Remove specialScorecardTable (feature removed)
+  delete s.specialScorecardTable;
 }
 
 // ─── Full PO config transform ───────────────────────────────────────────────

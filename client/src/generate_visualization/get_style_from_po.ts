@@ -4,7 +4,6 @@ import { buildStandardStyle } from "./get_style_from_po/_1_standard";
 import { buildCoverageChartStyle } from "./get_style_from_po/_2_coverage";
 import { buildPercentChangeChartStyle } from "./get_style_from_po/_3_percent_change";
 import { buildDisruptionsChartStyle } from "./get_style_from_po/_4_disruptions";
-import { buildScorecardTableStyle } from "./get_style_from_po/_5_scorecard";
 
 export function getStyleFromPresentationObject(
   config: PresentationObjectConfig,
@@ -19,9 +18,6 @@ export function getStyleFromPresentationObject(
   }
   if (config.s.specialDisruptionsChart) {
     return buildDisruptionsChartStyle(config, formatAs, deckStyle);
-  }
-  if (config.s.specialScorecardTable) {
-    return buildScorecardTableStyle(config, formatAs, deckStyle);
   }
   return buildStandardStyle(config, formatAs, deckStyle);
 }

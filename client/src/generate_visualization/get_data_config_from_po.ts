@@ -17,6 +17,37 @@ import { instanceState } from "../state/instance/t1_store";
 import { getDateLabelReplacements } from "./get_date_label_replacements";
 import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels";
 
+function includesIndicatorDisaggregation(config: PresentationObjectConfig): boolean {
+  return config.d.disaggregateBy.some((d) => d.disOpt === "indicator_common_id");
+}
+
+function getNigeriaLabelReplacements(jsonArray?: any[]): Record<string, string> {
+  if (instanceState.countryIso3 === CountryCodes.Nigeria && jsonArray) {
+    return getNigeriaAdminAreaLabelReplacements(jsonArray);
+  }
+  return {};
+}
+
+function buildLabelReplacementsAfterSorting(
+  indicatorLabelReplacements: Record<string, string>,
+  dateLabelReplacements: Record<string, string>,
+  nigeriaLabelReplacements: Record<string, string>,
+): Record<string, string> {
+  return {
+    ...indicatorLabelReplacements,
+    ...dateLabelReplacements,
+    ...nigeriaLabelReplacements,
+    __NATIONAL: t3(TC.national),
+    zzNATIONAL: t3(TC.national),
+  };
+}
+
+function getSortHeaders(config: PresentationObjectConfig): string[] | boolean {
+  return includesIndicatorDisaggregation(config)
+    ? get_INDICATOR_COMMON_IDS_IN_SORT_ORDER()
+    : true;
+}
+
 export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
@@ -24,54 +55,37 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
 ): TimeseriesJsonDataConfig {
-  if (config.d.type === "timeseries") {
-    if (!config.d.timeseriesGrouping) {
-      throw new Error("Timeseries config missing timeseriesGrouping");
-    }
-    const includesIndicatorDisaggregation = config.d.disaggregateBy.some(
-      (d) => d.disOpt === "indicator_common_id",
-    );
-    const periodType =
-      config.d.timeseriesGrouping === "period_id"
-        ? "year-month"
-        : config.d.timeseriesGrouping === "quarter_id"
-          ? "year-quarter"
-          : "year";
-
-    const nigeriaAdminAreaLabelReplacements =
-      instanceState.countryIso3 === CountryCodes.Nigeria && jsonArray
-        ? getNigeriaAdminAreaLabelReplacements(jsonArray)
-        : {};
-
-    const dataConfig: TimeseriesJsonDataConfig = {
-      valueProps: effectiveValueProps,
-      periodProp: config.d.timeseriesGrouping,
-      periodType,
-      seriesProp:
-        getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps) ?? "--v",
-      paneProp: getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps),
-      laneProp: getDisaggregatorDisplayProp(resultsValue, config, [
-        "col",
-        "colGroup",
-      ], effectiveValueProps),
-      tierProp: getDisaggregatorDisplayProp(resultsValue, config, [
-        "row",
-        "rowGroup",
-      ], effectiveValueProps),
-      sortHeaders: includesIndicatorDisaggregation
-        ? get_INDICATOR_COMMON_IDS_IN_SORT_ORDER()
-        : true,
-      labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
-      labelReplacementsAfterSorting: {
-        ...indicatorLabelReplacements,
-        ...nigeriaAdminAreaLabelReplacements,
-        __NATIONAL: t3(TC.national),
-        zzNATIONAL: t3(TC.national),
-      },
-    };
-    return dataConfig;
+  if (config.d.type !== "timeseries") {
+    throw new Error("Bad config type");
   }
-  throw new Error("Bad config type");
+  if (!config.d.timeseriesGrouping) {
+    throw new Error("Timeseries config missing timeseriesGrouping");
+  }
+
+  const periodType =
+    config.d.timeseriesGrouping === "period_id"
+      ? "year-month"
+      : config.d.timeseriesGrouping === "quarter_id"
+        ? "year-quarter"
+        : "year";
+
+  return {
+    valueProps: effectiveValueProps,
+    periodProp: config.d.timeseriesGrouping,
+    periodType,
+    seriesProp:
+      getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps) ?? "--v",
+    paneProp: getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps),
+    laneProp: getDisaggregatorDisplayProp(resultsValue, config, ["col", "colGroup"], effectiveValueProps),
+    tierProp: getDisaggregatorDisplayProp(resultsValue, config, ["row", "rowGroup"], effectiveValueProps),
+    sortHeaders: getSortHeaders(config),
+    labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
+    labelReplacementsAfterSorting: buildLabelReplacementsAfterSorting(
+      indicatorLabelReplacements,
+      {},
+      getNigeriaLabelReplacements(jsonArray),
+    ),
+  };
 }
 
 export function getTableJsonDataConfigFromPresentationObjectConfig(
@@ -81,57 +95,74 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
 ): TableJsonDataConfig {
-  if (config.d.type === "table") {
-    const includesIndicatorDisaggregation = config.d.disaggregateBy.some(
-      (d) => d.disOpt === "indicator_common_id",
-    );
-
-    const colProp =
-      getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps) ?? "--v";
-    const rowProp = getDisaggregatorDisplayProp(resultsValue, config, ["row"], effectiveValueProps);
-    const colGroupProp = getDisaggregatorDisplayProp(resultsValue, config, [
-      "colGroup",
-    ], effectiveValueProps);
-    const rowGroupProp = getDisaggregatorDisplayProp(resultsValue, config, [
-      "rowGroup",
-    ], effectiveValueProps);
-
-    const dateLabelReplacements = jsonArray
-      ? getDateLabelReplacements(jsonArray, [
-          colProp,
-          rowProp,
-          colGroupProp,
-          rowGroupProp,
-        ])
-      : {};
-
-    const nigeriaAdminAreaLabelReplacements =
-      instanceState.countryIso3 === CountryCodes.Nigeria && jsonArray
-        ? getNigeriaAdminAreaLabelReplacements(jsonArray)
-        : {};
-
-    const dataConfig: TableJsonDataConfig = {
-      valueProps: effectiveValueProps,
-      colProp,
-      rowProp,
-      colGroupProp,
-      rowGroupProp,
-      //
-      sortHeaders: includesIndicatorDisaggregation
-        ? get_INDICATOR_COMMON_IDS_IN_SORT_ORDER()
-        : true,
-      labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
-      labelReplacementsAfterSorting: {
-        ...indicatorLabelReplacements,
-        ...dateLabelReplacements,
-        ...nigeriaAdminAreaLabelReplacements,
-        __NATIONAL: t3(TC.national),
-        zzNATIONAL: t3(TC.national),
-      },
-    };
-    return dataConfig;
+  if (config.d.type !== "table") {
+    throw new Error("Bad config type");
   }
-  throw new Error("Bad config type");
+
+  const colProp =
+    getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps) ?? "--v";
+  const rowProp = getDisaggregatorDisplayProp(resultsValue, config, ["row"], effectiveValueProps);
+  const colGroupProp = getDisaggregatorDisplayProp(resultsValue, config, ["colGroup"], effectiveValueProps);
+  const rowGroupProp = getDisaggregatorDisplayProp(resultsValue, config, ["rowGroup"], effectiveValueProps);
+
+  const dateLabelReplacements = jsonArray
+    ? getDateLabelReplacements(jsonArray, [colProp, rowProp, colGroupProp, rowGroupProp])
+    : {};
+
+  return {
+    valueProps: effectiveValueProps,
+    colProp,
+    rowProp,
+    colGroupProp,
+    rowGroupProp,
+    sortHeaders: getSortHeaders(config),
+    labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
+    labelReplacementsAfterSorting: buildLabelReplacementsAfterSorting(
+      indicatorLabelReplacements,
+      dateLabelReplacements,
+      getNigeriaLabelReplacements(jsonArray),
+    ),
+  };
+}
+
+function getChartJsonDataConfig(
+  resultsValue: ResultsValueForVisualization,
+  config: PresentationObjectConfig,
+  effectiveValueProps: string[],
+  indicatorLabelReplacements: Record<string, string>,
+  jsonArray?: any[],
+) {
+  if (config.d.type !== "chart") {
+    throw new Error("Bad config type");
+  }
+
+  const indicatorProp =
+    getDisaggregatorDisplayProp(resultsValue, config, ["indicator"], effectiveValueProps) ?? "--v";
+  const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps);
+  const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
+  const laneProp = getDisaggregatorDisplayProp(resultsValue, config, ["col", "colGroup"], effectiveValueProps);
+  const tierProp = getDisaggregatorDisplayProp(resultsValue, config, ["row", "rowGroup"], effectiveValueProps);
+
+  const dateLabelReplacements = jsonArray
+    ? getDateLabelReplacements(jsonArray, [indicatorProp, seriesProp, paneProp, laneProp, tierProp])
+    : {};
+
+  return {
+    valueProps: effectiveValueProps,
+    indicatorProp,
+    seriesProp,
+    paneProp,
+    laneProp,
+    tierProp,
+    sortHeaders: getSortHeaders(config),
+    sortIndicatorValues: config.s.sortIndicatorValues,
+    labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
+    labelReplacementsAfterSorting: buildLabelReplacementsAfterSorting(
+      indicatorLabelReplacements,
+      dateLabelReplacements,
+      getNigeriaLabelReplacements(jsonArray),
+    ),
+  };
 }
 
 export function getChartOVJsonDataConfigFromPresentationObjectConfig(
@@ -141,64 +172,7 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
-  if (config.d.type === "chart") {
-    const includesIndicatorDisaggregation = config.d.disaggregateBy.some(
-      (d) => d.disOpt === "indicator_common_id",
-    );
-
-    const indicatorProp =
-      getDisaggregatorDisplayProp(resultsValue, config, ["indicator"], effectiveValueProps) ??
-      "--v";
-    const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps);
-    const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
-    const laneProp = getDisaggregatorDisplayProp(resultsValue, config, [
-      "col",
-      "colGroup",
-    ], effectiveValueProps);
-    const tierProp = getDisaggregatorDisplayProp(resultsValue, config, [
-      "row",
-      "rowGroup",
-    ], effectiveValueProps);
-
-    const dateLabelReplacements = jsonArray
-      ? getDateLabelReplacements(jsonArray, [
-          indicatorProp,
-          seriesProp,
-          paneProp,
-          laneProp,
-          tierProp,
-        ])
-      : {};
-
-    const nigeriaAdminAreaLabelReplacements =
-      instanceState.countryIso3 === CountryCodes.Nigeria && jsonArray
-        ? getNigeriaAdminAreaLabelReplacements(jsonArray)
-        : {};
-
-    const dataConfig: ChartOVJsonDataConfig = {
-      valueProps: effectiveValueProps,
-      indicatorProp,
-      seriesProp,
-      paneProp,
-      laneProp,
-      tierProp,
-      //
-      sortHeaders: includesIndicatorDisaggregation
-        ? get_INDICATOR_COMMON_IDS_IN_SORT_ORDER()
-        : true,
-      sortIndicatorValues: config.s.sortIndicatorValues,
-      labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
-      labelReplacementsAfterSorting: {
-        ...indicatorLabelReplacements,
-        ...dateLabelReplacements,
-        ...nigeriaAdminAreaLabelReplacements,
-        __NATIONAL: t3(TC.national),
-        zzNATIONAL: t3(TC.national),
-      },
-    };
-    return dataConfig;
-  }
-  throw new Error("Bad config type");
+  return getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, jsonArray);
 }
 
 export function getChartOHJsonDataConfigFromPresentationObjectConfig(
@@ -208,62 +182,5 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
 ): ChartOHJsonDataConfig {
-  if (config.d.type === "chart") {
-    const includesIndicatorDisaggregation = config.d.disaggregateBy.some(
-      (d) => d.disOpt === "indicator_common_id",
-    );
-
-    const indicatorProp =
-      getDisaggregatorDisplayProp(resultsValue, config, ["indicator"], effectiveValueProps) ??
-      "--v";
-    const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps);
-    const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
-    const laneProp = getDisaggregatorDisplayProp(resultsValue, config, [
-      "col",
-      "colGroup",
-    ], effectiveValueProps);
-    const tierProp = getDisaggregatorDisplayProp(resultsValue, config, [
-      "row",
-      "rowGroup",
-    ], effectiveValueProps);
-
-    const dateLabelReplacements = jsonArray
-      ? getDateLabelReplacements(jsonArray, [
-          indicatorProp,
-          seriesProp,
-          paneProp,
-          laneProp,
-          tierProp,
-        ])
-      : {};
-
-    const nigeriaAdminAreaLabelReplacements =
-      instanceState.countryIso3 === CountryCodes.Nigeria && jsonArray
-        ? getNigeriaAdminAreaLabelReplacements(jsonArray)
-        : {};
-
-    const dataConfig: ChartOHJsonDataConfig = {
-      valueProps: effectiveValueProps,
-      indicatorProp,
-      seriesProp,
-      paneProp,
-      laneProp,
-      tierProp,
-      //
-      sortHeaders: includesIndicatorDisaggregation
-        ? get_INDICATOR_COMMON_IDS_IN_SORT_ORDER()
-        : true,
-      sortIndicatorValues: config.s.sortIndicatorValues,
-      labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
-      labelReplacementsAfterSorting: {
-        ...indicatorLabelReplacements,
-        ...dateLabelReplacements,
-        ...nigeriaAdminAreaLabelReplacements,
-        __NATIONAL: t3(TC.national),
-        zzNATIONAL: t3(TC.national),
-      },
-    };
-    return dataConfig;
-  }
-  throw new Error("Bad config type");
+  return getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, jsonArray);
 }

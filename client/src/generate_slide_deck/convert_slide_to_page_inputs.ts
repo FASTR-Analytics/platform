@@ -488,48 +488,6 @@ async function convertBlockToPageContentItem(
     return { spacer: true };
   }
 
-  // --- LEGACY MIGRATION: remove once all saved slides have been rebuilt ---
-  // 1) tierHeaders was moved from yScaleAxisData to the top level of
-  //    TimeseriesDataTransformed and ChartOVDataTransformed.
-  // 2) yScaleAxisData was split into scaleAxisLimits + yScaleAxisLabel
-  //    (PLAN_SCALE_LIMITS_UNIFICATION). laneLimits is mirrored from pane-wide
-  //    min/max — safe for ChartOV/Timeseries, which never consult it.
-  // Both migrations are runtime-only; saved JSON is not re-persisted here. The
-  // yScaleAxisData field is left in place on the migrated object so that a
-  // pre-unification panther renderer still works against the same data.
-  for (const dataKey of ["timeseriesData", "chartData"] as const) {
-    const d: any = (fi as Record<string, any>)[dataKey];
-    if (!d?.isTransformed) continue;
-
-    const needsTierHeaders = !d.tierHeaders;
-    const needsScaleAxisLimits = !d.scaleAxisLimits && d.yScaleAxisData;
-    if (!needsTierHeaders && !needsScaleAxisLimits) continue;
-
-    const laneCount = d.laneHeaders?.length ?? 1;
-    const updated: any = { ...d };
-
-    if (needsTierHeaders) {
-      updated.tierHeaders = d.yScaleAxisData?.tierHeaders ?? ["default"];
-    }
-    if (needsScaleAxisLimits) {
-      updated.scaleAxisLimits = {
-        paneLimits: d.yScaleAxisData.paneLimits.map((p: any) => ({
-          valueMin: p.valueMin,
-          valueMax: p.valueMax,
-          tierLimits: p.tierLimits,
-          laneLimits: Array.from({ length: laneCount }, () => ({
-            valueMin: p.valueMin,
-            valueMax: p.valueMax,
-          })),
-        })),
-      };
-      updated.yScaleAxisLabel = d.yScaleAxisData.yScaleAxisLabel;
-    }
-
-    fi = { ...fi, [dataKey]: updated };
-  }
-  // --- END LEGACY MIGRATION ---
-
   const source = block.source?.type === "from_data"
     ? { config: block.source.config, metricId: block.source.metricId }
     : undefined;
