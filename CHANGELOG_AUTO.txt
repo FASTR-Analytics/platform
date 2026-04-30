@@ -1,3 +1,13 @@
+[1.28.14] [user] [changed] - Decimal places option now available for all table types
+[1.28.14] [user] [changed] - Conditional formatting now available for all table types
+[1.28.14] [user] [fixed] - Fixed time period filters not updating correctly in some cases
+[1.28.14] [user] [removed] - Removed the legacy scorecard table format
+[1.28.14] [admin] [changed] - Removed the legacy scorecard table feature entirely
+[1.28.14] [admin] [changed] - Decimal places and conditional formatting now available for all table types
+[1.28.14] [admin] [fixed] - Period filter bounds now update more reliably when changed
+[1.28.14] [admin] [internal] - Legacy chart data migration moved from export-time to database migration
+[1.28.14] [admin] [internal] - Removed debug logging from map visualizations
+[1.28.14] [admin] [internal] - Removed unused derived date columns from HMIS dataset queries
 [1.28.13] [admin] [fixed] - Default presentation object configs now receive all standard data migrations
 [1.28.13] [admin] [internal] - Shared migration logic applied consistently across all config types
 [1.28.12] [user] [changed] - Slide deck font now applies consistently to all charts and text
