@@ -27,8 +27,8 @@ import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   buildHitRegions,
   CanvasRenderContext,
-  CustomStyle,
   findHitTarget,
+  getFontsForPage,
   getMinimumSpan,
   loadFontsWithTimeout,
   PageRenderer,
@@ -132,18 +132,16 @@ export function PageHolder(p: Props) {
 
   const fontKey = () => {
     const inputs = p.pageInputs;
-    // pageInputs.style is CustomPageStyleOptions, wrap in { page: ... } for CustomStyle
-    const style = new CustomStyle({ page: inputs?.style });
-    return style.getFontsToRegister().map(f => `${f.fontFamily}-${f.weight}-${f.italic}`).join(',');
+    const fonts = inputs ? getFontsForPage(inputs) : [];
+    return fonts.map(f => `${f.fontFamily}-${f.weight}-${f.italic}`).join(',');
   };
 
   let fontLoadVersion = 0;
 
   createEffect(() => {
     fontKey(); // Track font changes
-    // pageInputs.style is CustomPageStyleOptions, wrap in { page: ... } for CustomStyle
-    const style = new CustomStyle({ page: p.pageInputs?.style });
-    const fonts = style.getFontsToRegister();
+    const inputs = p.pageInputs;
+    const fonts = inputs ? getFontsForPage(inputs) : [];
 
     const thisVersion = ++fontLoadVersion;
     setFontsLoaded(false);

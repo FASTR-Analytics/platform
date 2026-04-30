@@ -12,7 +12,10 @@ import type { BrandPresetId } from "../brand_presets.ts";
 
 type ImageOverlayType = "dots" | "rivers" | "waves" | "world";
 type PatternOverlayType = `pattern-${PatternType}`;
-export type BackgroundDetailType = "none" | ImageOverlayType | PatternOverlayType;
+export type BackgroundDetailType =
+  | "none"
+  | ImageOverlayType
+  | PatternOverlayType;
 
 export type LogosSizingOptions = LogosSizingOptionsImport;
 import { Color } from "@timroberton/panther";
@@ -106,7 +109,9 @@ export type DeckStyleContext = {
   colorPreset: ColorPreset;
 };
 
-export function createDeckStyleContext(config: SlideDeckConfig): DeckStyleContext {
+export function createDeckStyleContext(
+  config: SlideDeckConfig,
+): DeckStyleContext {
   return {
     fontFamily: config.fontFamily ?? "International Inter",
     colorPreset: resolveColorThemeToPreset(config.colorTheme),

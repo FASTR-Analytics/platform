@@ -38,12 +38,26 @@ export function getSlideFontInfo(
 
 export function getAllSlideFontVariants(family: SlideFontFamily): FontInfo[] {
   const config = getFontConfig(family);
-  return [
+  const variants: FontInfo[] = [
     { fontFamily: config.family, weight: config.regularWeight, italic: false },
     { fontFamily: config.family, weight: config.regularWeight, italic: true },
+  ];
+
+  // Markdown bold uses Math.max(baseWeight, 700) = 700
+  // Include 700 when boldWeight is different (e.g., 800 for Inter/Fira)
+  if (config.boldWeight !== 700) {
+    variants.push(
+      { fontFamily: config.family, weight: 700, italic: false },
+      { fontFamily: config.family, weight: 700, italic: true },
+    );
+  }
+
+  variants.push(
     { fontFamily: config.family, weight: config.boldWeight, italic: false },
     { fontFamily: config.family, weight: config.boldWeight, italic: true },
-  ];
+  );
+
+  return variants;
 }
 
 export function getBoldWeight(family: SlideFontFamily): FontWeight {

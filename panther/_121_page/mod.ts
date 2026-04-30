@@ -48,3 +48,5 @@ export type {
 
 export { optimizePageLayout } from "./optimize_page_layout.ts";
 export type { OptimizePageLayoutResult } from "./optimize_page_layout.ts";
+
+export { getFontsForPage } from "./extract_fonts.ts";

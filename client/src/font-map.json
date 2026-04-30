@@ -1,5 +1,6 @@
 {
   "ttf": {
+    "FiraSans-700-italic": "FiraSans-BoldItalic.ttf",
     "InternationalInter-400-italic": "InternationalInter-Italic.ttf",
     "InternationalInter-100-normal": "InternationalInter-Thin.ttf",
     "FiraSans-800-italic": "FiraSans-ExtraBoldItalic.ttf",
@@ -13,6 +14,7 @@
     "InternationalInter-300-italic": "InternationalInter-LightItalic.ttf",
     "InternationalInter-700-normal": "InternationalInter-Bold.ttf",
     "InternationalInter-900-italic": "InternationalInter-BlackItalic.ttf",
+    "FiraSans-700-normal": "FiraSans-Bold.ttf",
     "Poppins-400-normal": "Poppins-Regular.ttf",
     "InternationalInter-800-italic": "InternationalInter-ExtraBoldItalic.ttf",
     "RobotoMono-400-normal": "RobotoMono-Regular.ttf",
@@ -36,6 +38,7 @@
     "RobotoMono-400-italic": "RobotoMono-Regular.ttf"
   },
   "woff2": {
+    "FiraSans-700-italic": "FiraSans-BoldItalic.woff2",
     "InternationalInter-400-italic": "InternationalInter-Italic.woff2",
     "InternationalInter-100-normal": "InternationalInter-Thin.woff2",
     "FiraSans-800-italic": "FiraSans-ExtraBoldItalic.woff2",
@@ -49,6 +52,7 @@
     "InternationalInter-300-italic": "InternationalInter-LightItalic.woff2",
     "InternationalInter-700-normal": "InternationalInter-Bold.woff2",
     "InternationalInter-900-italic": "InternationalInter-BlackItalic.woff2",
+    "FiraSans-700-normal": "FiraSans-Bold.woff2",
     "Poppins-400-normal": "Poppins-Regular.woff2",
     "InternationalInter-800-italic": "InternationalInter-ExtraBoldItalic.woff2",
     "RobotoMono-400-normal": "RobotoMono-Regular.woff2",
@@ -72,12 +76,13 @@
     "RobotoMono-400-italic": "RobotoMono-Regular.woff2"
   },
   "boldVariants": {
+    "Fira Sans ExtraBold": "Fira Sans",
     "Merriweather Bold": "Merriweather"
   },
   "generated": {
-    "timestamp": "2026-04-29T07:56:09.070Z",
+    "timestamp": "2026-04-30T08:53:17.911Z",
     "sourceDirectory": ".",
     "basePath": "/fonts",
-    "fontCount": 96
+    "fontCount": 102
   }
 }

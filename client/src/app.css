@@ -64,6 +64,22 @@
 
   @font-face {
     font-family: "Fira Sans";
+    src: url("/fonts/FiraSans-Bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: block;
+  }
+
+  @font-face {
+    font-family: "Fira Sans";
+    src: url("/fonts/FiraSans-BoldItalic.woff2") format("woff2");
+    font-weight: 700;
+    font-style: italic;
+    font-display: block;
+  }
+
+  @font-face {
+    font-family: "Fira Sans";
     src: url("/fonts/FiraSans-ExtraBold.woff2") format("woff2");
     font-weight: 800;
     font-style: normal;

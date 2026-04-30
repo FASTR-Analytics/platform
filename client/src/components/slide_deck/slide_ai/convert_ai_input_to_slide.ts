@@ -3,7 +3,6 @@ import {
   createCanvasRenderContextBrowser,
   RectCoordsDims,
   createItemNode,
-  CustomStyle,
   loadFontsWithTimeout,
   type LayoutNode,
   type OptimizerConfig,
@@ -17,7 +16,7 @@ import type {
   MetricWithStatus,
   SlideDeckConfig,
 } from "lib";
-import { FIGURE_AUTOFIT, MARKDOWN_AUTOFIT, slideConfigSchema } from "lib";
+import { FIGURE_AUTOFIT, MARKDOWN_AUTOFIT, slideConfigSchema, getAllSlideFontVariants } from "lib";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
@@ -125,7 +124,8 @@ export async function convertAiInputToSlide(
     },
     deckConfig,
   );
-  const fonts = new CustomStyle(pageStyle).getFontsToRegister();
+  const fontFamily = deckConfig.fontFamily ?? "International Inter";
+  const fonts = getAllSlideFontVariants(fontFamily);
   await loadFontsWithTimeout(fonts);
 
   // Optimize layout
