@@ -1,3 +1,5 @@
+[TBD] [user] [changed] - Reports feature has been removed from projects
+[TBD] [admin] [changed] - Legacy "Reports" feature has been fully removed from the platform
 [TBD] [user] [added] - Custom brand colors are now validated before saving slide deck settings
 [TBD] [admin] [added] - Custom brand color is now validated before saving slide deck settings
 [TBD] [admin] [internal] - Minor formatting and code cleanup for map visualizations
