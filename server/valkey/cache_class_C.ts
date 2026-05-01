@@ -158,6 +158,31 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
     }
   }
 
+  async scanUniquenessHashes(hashPrefix: string): Promise<string[]> {
+    const client = getValkeyClient();
+    if (!client) return [];
+    const fullPrefix = `cache:${this._prefix}:`;
+    const matched: string[] = [];
+    try {
+      let cursor = 0;
+      do {
+        const result = await client.scan(cursor, {
+          MATCH: `${fullPrefix}${hashPrefix}*`,
+          COUNT: 200,
+        });
+        cursor = result.cursor;
+        for (const key of result.keys) {
+          if (key.startsWith(fullPrefix)) {
+            matched.push(key.slice(fullPrefix.length));
+          }
+        }
+      } while (cursor !== 0);
+    } catch {
+      return matched;
+    }
+    return matched;
+  }
+
   clear(uniquenessParams: UniquenessParams) {
     const uniquenessHash =
       this._hashFuncs.uniquenessHashFromParams(uniquenessParams);
